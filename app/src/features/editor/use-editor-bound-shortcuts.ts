@@ -63,6 +63,12 @@ export function useEditorBoundShortcuts(
 
   const shortcutMap = useMemo(() => {
     const map: ShortcutMap = {};
+    // use-shortcut bakes hook-level `disabled` into each binding from the
+    // options captured on the hook's first render, and every host here starts
+    // as null state, so `disabled: host === null` would leave the bindings
+    // permanently disabled. Registering an empty map until the host exists
+    // gates the same way without touching `disabled`.
+    if (host === null) return map;
     for (const id of Object.keys(handlers) as ShortcutActionId[]) {
       const entry = handlers[id];
       const definition = shortcutDefinition(id);
@@ -91,12 +97,11 @@ export function useEditorBoundShortcuts(
       }
     }
     return map;
-  }, [handlers, overrides, platform]);
+  }, [handlers, host, overrides, platform]);
 
   useShortcutMap(shortcutMap, {
     target: host,
     ignoreInputs: false,
-    disabled: host === null,
     activeScopes,
   });
 }

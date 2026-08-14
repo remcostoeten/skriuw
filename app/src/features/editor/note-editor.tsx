@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { DOMSerializer, type Node as ProseMirrorNode } from "prosemirror-model";
 import {
   AllSelection,
@@ -143,7 +144,6 @@ import {
   type DocumentLineIndex,
 } from "./document-lines";
 import { parseJumpToLineInput } from "./raw-markdown-editor-model";
-import { installJumpKeyProbe, jumpDebug } from "./jump-debug";
 import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
 import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
 import type { NoteEditorShortcutId } from "./editor-bound-shortcut-ids";
@@ -833,30 +833,19 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   }
 
   const toggleJumpToLine = useCallback(() => {
-    jumpDebug(`toggleJumpToLine entered, open=${jumpOpenRef.current}`);
     if (jumpOpenRef.current) {
       closeJumpToLine();
       return;
     }
     const view = viewRef.current;
-    if (!view) {
-      jumpDebug("toggleJumpToLine aborted: no view");
-      return;
-    }
+    if (!view) return;
     const entry = activeEntry();
     const document = entry?.bounded ? entry.bounded.fullDocument() : view.state.doc;
-    let index;
-    try {
-      index = buildDocumentLineIndex(document);
-    } catch (error) {
-      jumpDebug(`buildDocumentLineIndex threw: ${String(error)}`);
-      throw error;
-    }
+    const index = buildDocumentLineIndex(document);
     jumpTargetRef.current = { document, index };
     setJumpLineCount(index.lineCount);
     const caretBlock = readSelection(view.state, entry?.bounded?.windowStart() ?? 0).blockIndex;
     setJumpCaretLine(index.blockStartLines[caretBlock] ?? 1);
-    jumpDebug(`opening panel, lines=${index.lineCount}`);
     setJumpOpen(true);
     requestAnimationFrame(() => {
       jumpInputRef.current?.focus();
@@ -931,7 +920,6 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     [jumpToDocumentEdge, toggleJumpToLine],
   );
   useEditorBoundShortcuts(store, shortcutHost, editorShortcuts);
-  useEffect(() => installJumpKeyProbe(shortcutHost), [shortcutHost]);
 
   const getEditorSearchTarget = useCallback(() => getSearchTarget(), []);
   const search = useEditorSearch(store, getEditorSearchTarget);
@@ -1363,6 +1351,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   );
 
   const slashItems = slashMenu.open ? filterSlashItems(slashMenu.trigger, slashMenu.query) : [];
+  const editorPane = shortcutHost?.closest<HTMLElement>(".editor-pane") ?? null;
 
   function runBlockCommand(build: (position: number) => Command): void {
     const view = viewRef.current;
@@ -1433,42 +1422,50 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           </button>
         </div>
       )}
-      {jumpOpen && (
-        <JumpToLinePanel
-          fieldId={jumpFieldId}
-          inputRef={jumpInputRef}
-          value={jumpValue}
-          onValueChange={setJumpValue}
-          onKeyDown={handleJumpKeyDown}
-          onBlur={() => setJumpOpen(false)}
-          lineCount={jumpLineCount}
-          placeholder={String(jumpCaretLine)}
-        />
-      )}
-      {search.searchOpen && (
-        <div className="@container/editor-search sticky top-3 z-40 -mx-9 flex h-0 items-start justify-end">
-          <SearchWidget
-            ref={search.findInputRef}
-            optionHints={search.optionHints}
-            query={search.searchQuery}
-            onQueryChange={search.setSearchQuery}
-            replaceValue={search.replaceValue}
-            onReplaceChange={search.setReplaceValue}
-            showReplace={search.showReplace}
-            onToggleReplace={() => search.setShowReplace((value) => !value)}
-            options={search.searchOptions}
-            onToggleOption={search.toggleSearchOption}
-            current={search.matchInfo.current}
-            total={search.matchInfo.total}
-            regexError={search.regexError}
-            onNext={search.handleNextMatch}
-            onPrevious={search.handlePreviousMatch}
-            onClose={search.closeSearch}
-            onReplaceCurrent={search.handleReplaceCurrent}
-            onReplaceAll={search.handleReplaceAll}
-          />
-        </div>
-      )}
+      {jumpOpen && editorPane
+        ? createPortal(
+            <div className="absolute right-3 top-3 z-40">
+              <JumpToLinePanel
+                fieldId={jumpFieldId}
+                inputRef={jumpInputRef}
+                value={jumpValue}
+                onValueChange={setJumpValue}
+                onKeyDown={handleJumpKeyDown}
+                onBlur={() => setJumpOpen(false)}
+                lineCount={jumpLineCount}
+                placeholder={String(jumpCaretLine)}
+              />
+            </div>,
+            editorPane,
+          )
+        : null}
+      {search.searchOpen && editorPane
+        ? createPortal(
+            <div className="@container/editor-search absolute right-3 top-3 z-40 w-[min(420px,calc(100%_-_1.5rem))]">
+              <SearchWidget
+                ref={search.findInputRef}
+                optionHints={search.optionHints}
+                query={search.searchQuery}
+                onQueryChange={search.setSearchQuery}
+                replaceValue={search.replaceValue}
+                onReplaceChange={search.setReplaceValue}
+                showReplace={search.showReplace}
+                onToggleReplace={() => search.setShowReplace((value) => !value)}
+                options={search.searchOptions}
+                onToggleOption={search.toggleSearchOption}
+                current={search.matchInfo.current}
+                total={search.matchInfo.total}
+                regexError={search.regexError}
+                onNext={search.handleNextMatch}
+                onPrevious={search.handlePreviousMatch}
+                onClose={search.closeSearch}
+                onReplaceCurrent={search.handleReplaceCurrent}
+                onReplaceAll={search.handleReplaceAll}
+              />
+            </div>,
+            editorPane,
+          )
+        : null}
       <div ref={beforeSpacerRef} className="bounded-editor-spacer" aria-hidden="true" />
       <div
         ref={attachShortcutHost}

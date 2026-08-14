@@ -701,14 +701,16 @@ test("physical digit and punctuation codes recover layout-shifted shortcuts", ()
   assert.equal(shortcutMatchesPhysicalKey(event, "g then t then 1"), false);
 });
 
-test("rail navigation binds mod+shift+<n> plus a g-t-<n> sequence in rail order", () => {
+test("rail navigation binds mod+shift+<n>, with a sequence only for trash", () => {
   for (const [index, item] of RAIL_ITEMS.entries()) {
     const position = index + 1;
     const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === item.actionId);
     assert.ok(definition, `${item.actionId} has no definition`);
     assert.equal(effectiveShortcutKeys(definition, {}), `mod+shift+${position}`);
-    assert.equal(definition.secondaryKeys, `g then t then ${position}`);
-    assert.equal(definition.secondaryWorksWhileTyping, undefined);
+    assert.equal(
+      definition.secondaryKeys,
+      item.section === "utility" ? `g then t then ${position}` : undefined,
+    );
     assert.equal(definition.group, "Navigation");
     assert.deepEqual(shortcutGuards(definition, true), ["modal"]);
     assert.deepEqual(shortcutGuards(definition, false), ["typing", "modal"]);
@@ -719,10 +721,10 @@ test("rail navigation binds mod+shift+<n> plus a g-t-<n> sequence in rail order"
   }
 });
 
-test("the g-t-<n> sequence is guarded off typing but not off the sidebar tree", () => {
-  const goToPeople = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "goToPeople");
-  assert.ok(goToPeople);
-  const guards = shortcutGuards(goToPeople, false);
+test("the trash g-t-5 sequence is guarded off typing but not off the sidebar tree", () => {
+  const goToTrash = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "goToTrash");
+  assert.ok(goToTrash);
+  const guards = shortcutGuards(goToTrash, false);
   const editorTarget = { tagName: "DIV", isContentEditable: true, closest: () => null };
   const renameInput = { tagName: "INPUT", closest: () => null };
   const treeRow = { tagName: "BUTTON", closest: (selector: string) => ({ selector }) };

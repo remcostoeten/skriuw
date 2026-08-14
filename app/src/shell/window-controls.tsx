@@ -34,18 +34,24 @@ function ControlButton({ label, onClick, className, children }: ControlButtonPro
   );
 }
 
+type WindowControlsProps = {
+  className?: string;
+};
+
 /**
  * The window runs with `decorations: false`, so the OS chrome (minimize /
- * maximize / close) is replaced by this compact cluster pinned to the
- * top-right corner. The padding around the buttons is a Tauri drag region,
- * so the window can still be moved from here.
+ * maximize / close) is replaced by this cluster. It has no position of its
+ * own: each top-level surface renders it flush in its header row (or anchors
+ * it to its top-right corner) so layout reserves the space instead of every
+ * surface padding around a floating overlay. The padding around the buttons
+ * is a Tauri drag region, so the window can still be moved from here.
  */
-export function WindowControls() {
+export function WindowControls({ className }: WindowControlsProps) {
   if (!hasTauriRuntime()) return null;
-  return <TauriWindowControls />;
+  return <TauriWindowControls className={className} />;
 }
 
-function TauriWindowControls() {
+function TauriWindowControls({ className }: WindowControlsProps) {
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
@@ -70,7 +76,7 @@ function TauriWindowControls() {
   return (
     <div
       data-tauri-drag-region
-      className="fixed right-0 top-0 z-50 flex h-9 items-center gap-0.5 rounded-bl-lg border-b border-l border-sidebar-border/70 bg-sidebar pl-2 pr-1"
+      className={cn("flex h-11 shrink-0 items-center gap-0.5 pl-3 pr-1", className)}
     >
       <ControlButton label="Minimize" onClick={runWindowAction(() => getCurrentWindow().minimize())}>
         <MinimizeIcon size={14} />

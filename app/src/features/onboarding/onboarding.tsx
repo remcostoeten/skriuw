@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { SkriuwLogo } from "@/shared/icons/static";
 
 type Props = {
@@ -15,6 +16,23 @@ export function Onboarding({
   onSignIn,
   onWarmSignIn,
 }: Props) {
+  const primaryRef = useRef<HTMLButtonElement>(null);
+
+  // autoFocus fires while the window is still hidden during the cold-start
+  // reveal and does not stick on WebKitGTK, so claim focus once mounted and
+  // again whenever the window gains focus with nothing focused.
+  useEffect(() => {
+    function claimFocus(): void {
+      const active = document.activeElement;
+      if (active === null || active === document.body) {
+        primaryRef.current?.focus();
+      }
+    }
+    primaryRef.current?.focus();
+    window.addEventListener("focus", claimFocus);
+    return () => window.removeEventListener("focus", claimFocus);
+  }, []);
+
   return (
     <div
       className="onboarding-root"
@@ -33,6 +51,7 @@ export function Onboarding({
 
         <div className="onboarding-actions">
           <button
+            ref={primaryRef}
             type="button"
             className="onboarding-primary"
             onClick={onContinueLocal}

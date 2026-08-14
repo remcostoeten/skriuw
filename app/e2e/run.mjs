@@ -242,6 +242,26 @@ async function replaceText(cdp, sessionId, value) {
   await typeText(cdp, sessionId, value);
 }
 
+async function readEditorLayout(cdp, sessionId) {
+  return evaluate(
+    cdp,
+    sessionId,
+    `(() => {
+      const scrollHost = document.querySelector('.editor-scroll');
+      const editor = document.querySelector('.ProseMirror[contenteditable="true"]');
+      const rect = editor?.getBoundingClientRect();
+      return {
+        scrollTop: scrollHost?.scrollTop,
+        clientWidth: scrollHost?.clientWidth,
+        scrollWidth: scrollHost?.scrollWidth,
+        editorTop: rect?.top,
+        editorLeft: rect?.left,
+        editorWidth: rect?.width,
+      };
+    })()`,
+  );
+}
+
 function assert(checks, name, pass, detail) {
   checks.push({ name, pass, detail });
   if (!pass) {
@@ -616,6 +636,7 @@ async function runWorkflow() {
     await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
     steps.push("diagram-keyboard-and-source");
 
+    const beforeFindLayout = await readEditorLayout(cdp, sessionId);
     await dispatchKey(cdp, sessionId, "f", "KeyF", 70, "", 2);
     await waitFor(
       cdp,
@@ -624,6 +645,13 @@ async function runWorkflow() {
       "find input",
     );
     await settle();
+    const afterFindLayout = await readEditorLayout(cdp, sessionId);
+    assert(
+      checks,
+      "find-panel-does-not-shift-editor-layout",
+      JSON.stringify(afterFindLayout) === JSON.stringify(beforeFindLayout),
+      `${JSON.stringify(beforeFindLayout)} -> ${JSON.stringify(afterFindLayout)}`,
+    );
     await typeText(cdp, sessionId, "workflow");
     await settle();
     assert(
@@ -686,6 +714,25 @@ async function runWorkflow() {
     );
     await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
     steps.push("find-replace");
+
+    const beforeJumpLayout = await readEditorLayout(cdp, sessionId);
+    await dispatchKey(cdp, sessionId, "g", "KeyG", 71, "", 2);
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('input[aria-label^=\"Jump to line\"]') !== null",
+      "jump-to-line input",
+    );
+    await settle();
+    const afterJumpLayout = await readEditorLayout(cdp, sessionId);
+    assert(
+      checks,
+      "jump-to-line-does-not-shift-editor-layout",
+      JSON.stringify(afterJumpLayout) === JSON.stringify(beforeJumpLayout),
+      `${JSON.stringify(beforeJumpLayout)} -> ${JSON.stringify(afterJumpLayout)}`,
+    );
+    await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
+    steps.push("jump-to-line-overlay");
 
     await control('focusNamed("Search notes")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");

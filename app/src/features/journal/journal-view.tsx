@@ -16,6 +16,7 @@ import {
 } from "@/shared/icons/static";
 import { Tooltip } from "@/shared/ui/tooltip";
 import { toolbarIconButtonClass } from "@/shell/toolbar-styles";
+import { WindowControls } from "@/shell/window-controls";
 import { useShortcutHints } from "@/commands/hints";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";
@@ -838,7 +839,7 @@ export function JournalView({ store, sidebarOpen, onToggleSidebar }: JournalView
     <main className="col-[3/-1] flex min-h-0 min-w-0 flex-col" aria-label="Journal">
       <div
         data-tauri-drag-region
-        className="flex h-11 shrink-0 items-center border-b border-sidebar-border bg-sidebar px-3 pr-[calc(var(--window-controls-width,112px)+8px)] text-sidebar-foreground"
+        className="flex h-11 shrink-0 items-center border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground"
       >
         <Tooltip label="Toggle sidebar" side="bottom" shortcut={shortcutHints.toggleSidebar}>
           <button
@@ -857,6 +858,7 @@ export function JournalView({ store, sidebarOpen, onToggleSidebar }: JournalView
             {formatLongDate(selectedKey)}
           </span>
         </div>
+        <WindowControls className="-mr-3" />
       </div>
       <div className="min-h-0 flex-1">
         <JournalEntryPane store={store} selectedKey={selectedKey} />

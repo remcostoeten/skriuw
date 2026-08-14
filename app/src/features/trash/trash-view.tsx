@@ -13,6 +13,7 @@ import { Button } from "@/shared/ui/button";
 import { Dialog } from "@/shared/ui/dialog";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { Select, type SelectOption } from "@/shared/ui/select";
+import { WindowControls } from "@/shell/window-controls";
 import {
   filterTrashRows,
   sortTrashRows,
@@ -72,15 +73,11 @@ export function TrashView({ store }: Props) {
 
   return (
     <main
-      className="col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
+      className="relative col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
       aria-labelledby="trash-title"
     >
-      <div
-        className={cn(
-          columnClass,
-          "border-b border-theme-divider pb-4 pt-[26px] pr-[calc(var(--window-controls-width,112px)+8px)]",
-        )}
-      >
+      <WindowControls className="absolute right-0 top-0" />
+      <div className={cn(columnClass, "border-b border-theme-divider pb-4 pt-[26px]")}>
         <div className="flex items-center gap-2">
           <h1
             id="trash-title"

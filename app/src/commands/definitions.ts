@@ -180,11 +180,10 @@ const TAB_INDEX_DEFINITIONS: readonly ShortcutDefinition[] = [
 ];
 
 /**
- * `mod+shift+<n>` plus the `g then t then <n>` alternate, one per rail item,
- * numbered in the rail's visual order. The sequence stays off by default
- * while typing (`secondaryWorksWhileTyping` unset), and both forms stay
- * silent behind a modal so command palette and settings keep ownership of
- * the keyboard.
+ * `mod+shift+<n>`, one per rail item, numbered in visual order. Trash keeps
+ * its existing `g then t then 5` alternate; primary rail destinations do not
+ * use sequence shortcuts. Every binding stays silent behind a modal so the
+ * command palette and settings keep ownership of the keyboard.
  */
 const RAIL_NAVIGATION_DEFINITIONS: readonly ShortcutDefinition[] = RAIL_ITEMS.map(
   (item, index) => {
@@ -193,9 +192,12 @@ const RAIL_NAVIGATION_DEFINITIONS: readonly ShortcutDefinition[] = RAIL_ITEMS.ma
     return {
       id: item.actionId,
       keys: railModShiftKeys(position),
-      secondaryKeys: railSequenceKeys(position),
+      secondaryKeys: item.section === "utility" ? railSequenceKeys(position) : undefined,
       label: `Go to ${destination}`,
-      description: `Go to ${destination}. Also fires as g then t then ${position}, following the rail's top-to-bottom order; the sequence stays silent while typing so it never steals "gt${position}" from a note.`,
+      description:
+        item.section === "utility"
+          ? `Go to ${destination}. Also fires as g then t then ${position}.`
+          : `Go to ${destination}.`,
       group: "Navigation",
       worksWhileTyping: true,
       guards: ["modal"],

@@ -326,7 +326,7 @@ export function EditorPanes({ store }: Props) {
         style={hasSplit ? { [trackProperty]: splitGridTemplate(ratio) } : undefined}
       >
         <div
-          className="editor-pane min-h-0 min-w-0"
+          className="editor-pane relative min-h-0 min-w-0"
           onFocusCapture={() => focusPane(store, PRIMARY_PANE_ID)}
         >
           <EditorHost store={store} />
@@ -341,7 +341,7 @@ export function EditorPanes({ store }: Props) {
               onReset={resetSplit}
             />
             <div
-              className="editor-pane min-h-0 min-w-0"
+              className="editor-pane relative min-h-0 min-w-0"
               onFocusCapture={() => focusPane(store, SECONDARY_PANE_ID)}
             >
               <EditorHost

@@ -72,12 +72,12 @@ test("a definition with an alternate lists both bindings", () => {
   );
 });
 
-test("sequence alternates keep one display step per key", () => {
-  const row = rowFor("goToTags");
+test("the trash sequence alternate keeps one display step per key", () => {
+  const row = rowFor("goToTrash");
   const sequence = row.combos.find((combo) => combo.sequence);
   assert.ok(sequence);
-  assert.equal(sequence.keys, "g then t then 3");
-  assert.deepEqual(sequence.steps, ["G", "T", "3"]);
+  assert.equal(sequence.keys, "g then t then 5");
+  assert.deepEqual(sequence.steps, ["G", "T", "5"]);
   const chord = row.combos.find((combo) => !combo.sequence);
   assert.ok(chord);
   assert.equal(chord.steps.length, 1);

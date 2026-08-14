@@ -1,4 +1,3 @@
-import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import type { AppRoute } from "@/app-route";
 
 export type RailItemActionId =
@@ -17,10 +16,8 @@ export type RailItem = {
 };
 
 /**
- * Sidebar icon rail destinations, top to bottom. The single source for both
- * the rendered rail (`app.tsx`) and the `g then t then <n>` navigation
- * sequences generated in `definitions.ts`, so reordering an icon here
- * reorders its shortcut too.
+ * Sidebar icon rail destinations, top to bottom. The single source for the
+ * rendered rail (`app.tsx`) and its numbered `mod+shift+<n>` shortcuts.
  */
 export const RAIL_ITEMS: readonly RailItem[] = [
   { actionId: "goToNotes", route: "notes", label: "Notes", section: "primary" },
@@ -38,12 +35,4 @@ export function railSequenceKeys(position: number): string {
 /** The `mod+shift+<n>` combo string for a rail item's 1-based position. */
 export function railModShiftKeys(position: number): string {
   return `mod+shift+${position}`;
-}
-
-/** Display hint for the `g then t then <n>` sequence, one step at a time. */
-export function formatRailSequenceHint(position: number): string {
-  return railSequenceKeys(position)
-    .split(" then ")
-    .map((step) => formatShortcut(step))
-    .join(" ");
 }

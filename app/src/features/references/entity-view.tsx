@@ -4,6 +4,7 @@ import { useShortcutBinding } from "@remcostoeten/use-shortcut/react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { activateNote, commitOperations, commitReferenceOperations } from "@/store/actions/workspace";
 import { appRouteHash, useRouteFocus } from "@/app-route";
+import { WindowControls } from "@/shell/window-controls";
 import {
   buildCreatePerson,
   buildCreateTag,
@@ -240,9 +241,10 @@ export function EntityView({ store, kind }: Props) {
 
   return (
     <main
-      className="col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
+      className="relative col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
       aria-labelledby="entity-title"
     >
+      <WindowControls className="absolute right-0 top-0" />
       <header className={cn(columnClass, "border-b border-theme-divider pb-4 pt-[26px]")}>
         <div className="flex items-center justify-between gap-6">
           <div className="flex items-center gap-2">

@@ -5,6 +5,7 @@ import { ChevronLeftIcon, HistoryIcon } from "@/shared/icons/static";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";
+import { WindowControls } from "@/shell/window-controls";
 import { VersionHistoryPanel } from "./version-history-panel";
 import { projectVersionList } from "./version-model";
 
@@ -42,7 +43,7 @@ export function HistoryView({ store }: Props) {
       className="col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
       aria-labelledby="history-title"
     >
-      <header className="flex h-[52px] items-center gap-2.5 border-b border-theme-divider pl-3 pr-[calc(var(--window-controls-width,112px)+8px)]">
+      <header className="flex h-[52px] items-center gap-2.5 border-b border-theme-divider pl-3">
         <button
           type="button"
           onClick={backToNote}
@@ -64,9 +65,12 @@ export function HistoryView({ store }: Props) {
             {versions.length}
           </span>
         )}
-        <p className="ml-auto hidden shrink-0 pl-4 text-[11px] text-theme-secondary sm:block">
-          {latest ? `Latest revision ${formatRelativeTime(latest.createdAt)}` : "No revisions yet"}
-        </p>
+        <div className="ml-auto flex shrink-0 items-center">
+          <p className="hidden pl-4 text-[11px] text-theme-secondary sm:block">
+            {latest ? `Latest revision ${formatRelativeTime(latest.createdAt)}` : "No revisions yet"}
+          </p>
+          <WindowControls />
+        </div>
       </header>
 
       {noteId !== null && versions.length > 0 ? (

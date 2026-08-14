@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import type { KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { commitOperations } from "@/store/actions/workspace";
 import { registerPendingWork } from "@/shell/pending-work";
 import { useRendererSelector } from "@/store/use-renderer-selector";
@@ -304,6 +305,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   const selectionSummary = cursorStatus.selectedCharacters > 0
     ? `${cursorStatus.selectedWords} words · ${cursorStatus.selectedCharacters} chars selected`
     : `Ln ${cursorStatus.line}, Col ${cursorStatus.column}`;
+  const editorPane = surfaceHost?.closest<HTMLElement>(".editor-pane") ?? null;
 
   return (
     <div ref={setSurfaceHost}>
@@ -332,18 +334,23 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
           </button>
         </div>
       )}
-      {jumpOpen ? (
-        <JumpToLinePanel
-          fieldId={jumpFieldId}
-          inputRef={jumpInputRef}
-          value={jumpValue}
-          onValueChange={setJumpValue}
-          onKeyDown={handleJumpKeyDown}
-          onBlur={() => setJumpOpen(false)}
-          lineCount={lineCount}
-          placeholder={String(cursorStatus.line)}
-        />
-      ) : null}
+      {jumpOpen && editorPane
+        ? createPortal(
+            <div className="absolute right-3 top-3 z-40">
+              <JumpToLinePanel
+                fieldId={jumpFieldId}
+                inputRef={jumpInputRef}
+                value={jumpValue}
+                onValueChange={setJumpValue}
+                onKeyDown={handleJumpKeyDown}
+                onBlur={() => setJumpOpen(false)}
+                lineCount={lineCount}
+                placeholder={String(cursorStatus.line)}
+              />
+            </div>,
+            editorPane,
+          )
+        : null}
       <div className="relative min-h-[60vh]">
         {showLineNumbers ? (
           <div

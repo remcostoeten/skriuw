@@ -1,5 +1,4 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { AuthProvider } from "@remcostoeten/auth-drawer";
 import { updateSettings } from "@/store/actions/settings";
 import { authAdapter } from "@/features/auth/adapter";
@@ -38,6 +37,7 @@ import { EntityView } from "@/features/references/entity-view";
 import { HistoryView } from "@/features/history/history-view";
 import { JournalSidebar, JournalView } from "@/features/journal/journal-view";
 import { WindowControls } from "@/shell/window-controls";
+import { hasTauriRuntime } from "@/bridge/external-links";
 import {
   panelGridTemplate,
   panelTracksWith,
@@ -64,7 +64,6 @@ import { WorkspaceShortcuts } from "@/commands/workspace-shortcuts";
 import { useShortcutHints } from "@/commands/hints";
 import {
   RAIL_ITEMS,
-  formatRailSequenceHint,
   railModShiftKeys,
   type RailItem,
 } from "@/commands/rail-items";
@@ -101,19 +100,10 @@ type RailNavIconProps = {
   active: boolean;
 };
 
-/**
- * One icon in the primary navigation rail. `position` is the item's 1-based
- * index in `RAIL_ITEMS`, which both `mod+shift+<n>` and the `g then t then
- * <n>` sequence key off of, so the tooltip always shows the combo that
- * actually fires for this icon.
- */
+/** One icon in the primary navigation rail. */
 function RailNavIcon({ item, position, active }: RailNavIconProps) {
   return (
-    <Tooltip
-      label={item.label}
-      side="right"
-      shortcut={`${formatShortcut(railModShiftKeys(position))} · ${formatRailSequenceHint(position)}`}
-    >
+    <Tooltip label={item.label} side="right" shortcut={railModShiftKeys(position)}>
       <a
         href={`#/${item.route}`}
         className={`${railIconButtonClass} ${active ? railActiveClass : railInactiveClass}`}
@@ -353,10 +343,9 @@ function WorkspaceShell({ store }: Props) {
   }, []);
   return (
     <AnimatedIconsProvider enabled={animatedIcons}>
-      <WindowControls />
       <div
         ref={tracksRef}
-        className={`relative grid h-full grid-rows-[minmax(0,1fr)] [--window-controls-width:112px]${
+        className={`relative grid h-full grid-rows-[minmax(0,1fr)]${
           settling ? " panel-tracks-settling" : ""
         }`}
         style={{ gridTemplateColumns }}
@@ -536,17 +525,13 @@ function WorkspaceShell({ store }: Props) {
                 type="button"
                 onClick={() => toggleMetadata(true)}
                 className={toolbarIconButtonClass}
-                style={
-                  metadataOpen
-                    ? undefined
-                    : { marginRight: "var(--window-controls-width)" }
-                }
                 aria-label="Toggle metadata"
                 aria-expanded={metadataOpen}
               >
                 <AppIcon name="toggle-metadata" size={16} />
               </button>
             </Tooltip>
+            {!metadataOpen && <WindowControls className="-mr-3" />}
             </div>
           </div>
           <div className="min-h-0 flex-1">
@@ -563,10 +548,20 @@ function WorkspaceShell({ store }: Props) {
           {metadataOpen ? (
             <div
               ref={metadataPaneRef}
-              className="h-full"
+              className="flex h-full flex-col"
               style={{ width: metadataWidth }}
             >
-              <MetadataPanel store={store} />
+              {hasTauriRuntime() && (
+                <div
+                  data-tauri-drag-region
+                  className="flex h-11 shrink-0 items-center justify-end border-b border-l border-sidebar-border bg-sidebar"
+                >
+                  <WindowControls />
+                </div>
+              )}
+              <div className="min-h-0 flex-1">
+                <MetadataPanel store={store} />
+              </div>
             </div>
           ) : null}
         </div>
@@ -620,6 +615,9 @@ function WorkspaceShell({ store }: Props) {
         actions={shortcutActions}
       />
       </div>
+      {needsOnboarding ? (
+        <WindowControls className="fixed right-0 top-0 z-50" />
+      ) : null}
       {needsOnboarding ? (
         <Onboarding
           openingSignIn={openingOnboardingSignIn}
