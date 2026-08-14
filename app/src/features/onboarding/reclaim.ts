@@ -18,6 +18,27 @@ export async function reclaimBoundStarterPreview(): Promise<void> {
   await reclaimStarterPreview(boundStore);
 }
 
+export async function adoptBoundStarterPreview(): Promise<void> {
+  if (!boundStore) return;
+  await adoptStarterPreview(boundStore);
+}
+
+/**
+ * Signing into an account whose cloud workspace holds nothing keeps the
+ * preview: the notes sync up as the account's first content. Dropping the
+ * seed markers here makes that permanent — no later sign-in may trash notes
+ * that already live in the account.
+ */
+export async function adoptStarterPreview(store: RendererStore): Promise<void> {
+  const state = store.getState();
+  if (seededNoteIds(state.settings).length === 0) {
+    return;
+  }
+  await commitOperations(store, [
+    { type: "update_settings", settings: forgetSeededNotes(state.settings) },
+  ]);
+}
+
 /**
  * Signing in adopts the preview only where the visitor made it theirs. Notes
  * still untouched are dropped instead of being pushed into an account that

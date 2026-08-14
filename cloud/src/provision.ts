@@ -60,6 +60,49 @@ export async function handleSyncProvisionRequest(
   );
 }
 
+type WorkspaceStateDependencies = {
+  accessConfiguration: SyncAccessConfiguration;
+  resolveWorkspace(workspaceId: string): {
+    pullOperations(afterServerSequence: number, requestedLimit?: number): Promise<string>;
+  };
+  nowEpochSeconds(): number;
+};
+
+/**
+ * Reports whether the caller's own cloud workspace already holds replicated
+ * history. Sign-in consults this before the first push to decide whether the
+ * local starter preview is adopted or discarded, so the route must stay free
+ * of side effects: no device registration and no membership rows.
+ */
+export async function handleSyncWorkspaceStateRequest(
+  request: Request,
+  dependencies: WorkspaceStateDependencies,
+): Promise<Response> {
+  if (request.method !== "GET") return errorResponse(405, "method_not_allowed");
+  const authentication = await authenticateSyncRequest(
+    request,
+    dependencies.accessConfiguration,
+    dependencies.nowEpochSeconds(),
+  );
+  if (!authentication.ok) return accessError(authentication.code);
+  const workspaceId = await workspaceIdFor(authentication.identity.subject);
+  let pulled: { latestServerSequence?: unknown };
+  try {
+    pulled = JSON.parse(
+      await dependencies.resolveWorkspace(workspaceId).pullOperations(0, 1),
+    ) as { latestServerSequence?: unknown };
+  } catch {
+    return errorResponse(503, "sync_service_unavailable");
+  }
+  if (typeof pulled.latestServerSequence !== "number") {
+    return errorResponse(503, "sync_service_unavailable");
+  }
+  return Response.json(
+    { workspaceId, latestServerSequence: pulled.latestServerSequence },
+    { headers: { "Cache-Control": "no-store" } },
+  );
+}
+
 async function readProvisionBody(
   request: Request,
 ): Promise<
