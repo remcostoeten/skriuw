@@ -29,6 +29,27 @@ test("sidebar search is case-insensitive, ordered, typed, and bounded", () => {
   });
 });
 
+test("a resolved relationship filter narrows to notes and drops folders", () => {
+  const allowed = new Set(["note-b"]);
+  const results = searchSidebarNodes(nodes, order, "alpha", 10, allowed);
+  assert.deepEqual(results.notes.map((node) => node.id), ["note-b"]);
+  assert.deepEqual(results.folders, []);
+  assert.equal(results.folderTotal, 0);
+  assert.equal(results.noteTotal, 1);
+});
+
+test("a filter with no free text lists the whole filtered set", () => {
+  const results = searchSidebarNodes(nodes, order, "", 10, new Set(["note-a", "note-b"]));
+  assert.deepEqual(results.notes.map((node) => node.id), ["note-a", "note-b"]);
+  assert.deepEqual(results.folders, []);
+});
+
+test("an empty filter set matches nothing even with free text", () => {
+  const results = searchSidebarNodes(nodes, order, "alpha", 10, new Set());
+  assert.equal(results.noteTotal, 0);
+  assert.equal(results.folderTotal, 0);
+});
+
 test("folder toggle collapses any expansion and otherwise expands every folder", () => {
   assert.deepEqual([...nextFolderExpansion(nodes, new Set(["folder-a"]))], []);
   assert.deepEqual([...nextFolderExpansion(nodes, new Set())], ["folder-a", "folder-b"]);

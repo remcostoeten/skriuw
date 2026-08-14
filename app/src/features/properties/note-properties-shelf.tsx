@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState } from "react";
-import { ChevronRightIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
+import { SectionChevron, SectionLabel } from "@/shared/ui/section-header";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";
 import { NotePropertiesPanel } from "./note-properties-panel";
@@ -41,21 +41,10 @@ export function NotePropertiesShelf({ store, selectNoteId }: Props) {
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
         aria-controls={bodyId}
-        className="-ml-1 mb-0.5 inline-flex cursor-pointer items-center gap-1 rounded-md px-1 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/55 outline-none transition-colors duration-150 hover:text-foreground focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50"
+        className="-ml-1 mb-0.5 inline-flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-1 py-0.5 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-1 focus-visible:ring-ring/50"
       >
-        <ChevronRightIcon
-          size={12}
-          className={cn(
-            "shrink-0 transition-transform duration-200 ease-out motion-reduce:transition-none",
-            open && "rotate-90",
-          )}
-        />
-        <span>Properties</span>
-        {!open && propertyCount > 0 && (
-          <span className="rounded-full border border-border/60 bg-card/70 px-1.5 text-[9px] tabular-nums text-muted-foreground">
-            {propertyCount}
-          </span>
-        )}
+        <SectionChevron open={open} />
+        <SectionLabel title="Properties" count={propertyCount} />
       </button>
       <div
         id={bodyId}

@@ -153,18 +153,70 @@ export function shortcutHelpRow(
   };
 }
 
-function rowHaystack(group: string, row: ShortcutHelpRow): string {
+/**
+ * Spellings a user is likely to type for a key whose canonical name differs.
+ * Keyed by the token as the definitions write it, so "pgup" and "page up" both
+ * find `ctrl+shift+pageup` without the overlay printing either spelling.
+ */
+const KEY_ALIASES: Record<string, readonly string[]> = {
+  pageup: ["pgup", "page up", "prior"],
+  pagedown: ["pgdn", "pgdown", "page down", "next"],
+  arrowup: ["up", "up arrow"],
+  arrowdown: ["down", "down arrow"],
+  arrowleft: ["left", "left arrow"],
+  arrowright: ["right", "right arrow"],
+  escape: ["esc"],
+  delete: ["del"],
+  backspace: ["bksp", "back space"],
+  enter: ["return"],
+  space: ["spacebar"],
+  mod: ["cmd", "command", "meta", "ctrl", "control", "super"],
+  meta: ["cmd", "command", "super", "win"],
+  ctrl: ["control"],
+  alt: ["option", "opt"],
+};
+
+/**
+ * Every spelling of a combo a user might type: the cartesian product of each
+ * token with its aliases, so "cmd shift pgup" still finds `mod+shift+pageup`.
+ */
+const comboAliasCache = new Map<string, readonly string[]>();
+
+function comboAliases(keys: string): readonly string[] {
+  const cached = comboAliasCache.get(keys);
+  if (cached) {
+    return cached;
+  }
+  const tokens = keys.toLowerCase().split(/[+\s]+/);
+  let combos: string[][] = [[]];
+  for (const token of tokens) {
+    const options = [token, ...(KEY_ALIASES[token] ?? [])];
+    combos = combos.flatMap((prefix) => options.map((option) => [...prefix, option]));
+  }
+  const spellings = combos.map((combo) => combo.join("+"));
+  for (const token of tokens) {
+    spellings.push(...(KEY_ALIASES[token] ?? []));
+  }
+  comboAliasCache.set(keys, spellings);
+  return spellings;
+}
+
+function rowHaystackParts(group: string, row: ShortcutHelpRow): readonly string[] {
   const parts = [group, row.label, row.description ?? "", row.when ?? ""];
   for (const combo of row.combos) {
-    parts.push(combo.keys, combo.keys.replaceAll("+", ""), combo.steps.join(" "));
+    parts.push(combo.keys, combo.steps.join(" "), ...comboAliases(combo.keys));
   }
-  return parts.join(" ").toLowerCase();
+  return parts.map((part) => part.toLowerCase());
+}
+
+function collapseSeparators(value: string): string {
+  return value.replaceAll(/[\s+_-]+/g, "");
 }
 
 /**
  * Whether a row survives the filter. Matches the label, the longer description,
- * the "when" copy, the group, and both the raw and formatted combo, with `+` and
- * spaces optional so "modk" finds `mod+k`.
+ * the "when" copy, the group, and both the raw and formatted combo, with `+`,
+ * `-` and spaces optional so "modk" finds `mod+k` and "page up" finds `pageup`.
  */
 export function shortcutHelpMatches(
   group: string,
@@ -175,10 +227,13 @@ export function shortcutHelpMatches(
   if (trimmed.length === 0) {
     return true;
   }
-  const haystack = rowHaystack(group, row);
+  const parts = rowHaystackParts(group, row);
+  if (parts.join(" ").includes(trimmed)) {
+    return true;
+  }
+  const collapsed = collapseSeparators(trimmed);
   return (
-    haystack.includes(trimmed) ||
-    haystack.includes(trimmed.replaceAll("+", "").replaceAll(" ", ""))
+    collapsed.length > 0 && parts.some((part) => collapseSeparators(part).includes(collapsed))
   );
 }
 

@@ -169,3 +169,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/**
+ * `base.css` is unlayered, so its global `:focus-visible` fill outranks any
+ * Tailwind utility on these controls. Entity rows mark focus on the row
+ * wrapper instead, so the buttons inside opt out of that fill here.
+ */
+[data-entity-row] button:focus-visible {
+  background-image: none;
+}

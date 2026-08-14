@@ -6,9 +6,9 @@ use skriuw_domain::{
     ClientSyncOperation, HistoryHeader, NodePlacement, NoteProperty, NotePropertyColor,
     NotePropertyField, NotePropertyOption, NotePropertyTemplate, NotePropertyValue,
     ProviderImportReceipt, ReplicatedWorkspaceOperation, SyncAcceptedOperation,
-    SyncOperationPayload, VersionedNotePropertyValue, WorkspaceCheckpoint, WorkspaceImage,
-    WorkspaceOperation, WorkspaceOperationEnvelope, WorkspacePerson, WorkspaceSettings,
-    WorkspaceTag,
+    SyncOperationPayload, TaskPriority, TaskSource, TaskSourceDocument, TaskStatus,
+    VersionedNotePropertyValue, WorkspaceCheckpoint, WorkspaceImage, WorkspaceOperation,
+    WorkspaceOperationEnvelope, WorkspacePerson, WorkspaceSettings, WorkspaceTag, WorkspaceTask,
 };
 use skriuw_storage::{
     Diagnostic, DiagnosticCategory, DiagnosticContext, HistoryCache, HistoryQueue,
@@ -17,7 +17,7 @@ use skriuw_storage::{
 };
 use tempfile::tempdir;
 
-use super::SqliteWorkspace;
+use super::{HISTORY_COALESCE_WINDOW_MS, SqliteWorkspace};
 use crate::migration::{MIGRATIONS, checksum, table_columns};
 use crate::queries::read_settings;
 
@@ -1601,13 +1601,131 @@ fn batches_saves_without_losing_conflicts_or_history() {
     assert_eq!(snapshot.documents[0].markdown, "revision three");
     let connection = storage.lock().expect("database lock");
     let revisions = connection
-        .prepare("SELECT revision FROM history_outbox WHERE note_id = 'note-1' ORDER BY revision")
+        .prepare("SELECT revision, markdown FROM history_outbox WHERE note_id = 'note-1'")
         .expect("prepare history query")
-        .query_map([], |row| row.get::<_, i64>(0))
+        .query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })
         .expect("query history")
         .collect::<Result<Vec<_>, _>>()
         .expect("collect history revisions");
-    assert_eq!(revisions, [1, 2, 3]);
+    assert_eq!(revisions, [(3, "revision three".into())]);
+}
+
+#[test]
+fn coalesces_history_saves_into_one_pending_revision_per_burst() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-1")])
+        .expect("create note");
+    storage
+        .apply_operations(&[save_document("note-1", 1, "first burst edit", 2)])
+        .expect("save within window");
+    storage
+        .apply_operations(&[save_document("note-1", 2, "second burst edit", 3)])
+        .expect("second save within window");
+
+    let burst_end = 1 + HISTORY_COALESCE_WINDOW_MS;
+    storage
+        .apply_operations(&[save_document("note-1", 3, "next burst", burst_end + 1)])
+        .expect("save after window");
+
+    let connection = storage.lock().expect("database lock");
+    let pending = connection
+        .prepare(
+            "SELECT revision, markdown, created_at, next_attempt_at \
+             FROM history_outbox WHERE note_id = 'note-1' ORDER BY created_at",
+        )
+        .expect("prepare history query")
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+                row.get::<_, i64>(3)?,
+            ))
+        })
+        .expect("query history")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect pending revisions");
+    assert_eq!(
+        pending,
+        [
+            (3, "second burst edit".into(), 1, burst_end),
+            (
+                4,
+                "next burst".into(),
+                burst_end + 1,
+                burst_end + 1 + HISTORY_COALESCE_WINDOW_MS
+            ),
+        ]
+    );
+}
+
+#[test]
+fn pending_history_becomes_claimable_after_the_coalesce_window() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-1")])
+        .expect("create note");
+
+    let claimable_at = 1 + HISTORY_COALESCE_WINDOW_MS;
+    assert!(
+        storage
+            .claim_history_revision("worker-1", claimable_at - 1, 1_000)
+            .expect("claim inside window")
+            .is_none()
+    );
+    let claimed = storage
+        .claim_history_revision("worker-1", claimable_at, 1_000)
+        .expect("claim after window")
+        .expect("pending revision");
+    assert_eq!(claimed.revision, 1);
+}
+
+#[test]
+fn claimed_history_revisions_are_not_coalesced() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-1")])
+        .expect("create note");
+    let claim_time = 1 + HISTORY_COALESCE_WINDOW_MS;
+    let claimed = storage
+        .claim_history_revision("worker-1", claim_time, 1_000)
+        .expect("claim history")
+        .expect("pending revision");
+
+    storage
+        .apply_operations(&[save_document(
+            "note-1",
+            1,
+            "post-claim edit",
+            claim_time + 1,
+        )])
+        .expect("save while claimed");
+
+    let connection = storage.lock().expect("database lock");
+    let pending = connection
+        .prepare(
+            "SELECT id, revision, markdown FROM history_outbox \
+             WHERE note_id = 'note-1' ORDER BY created_at",
+        )
+        .expect("prepare history query")
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .expect("query history")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect pending revisions");
+    assert_eq!(pending.len(), 2);
+    assert_eq!(pending[0].0, claimed.id);
+    assert_eq!(pending[0].1, claimed.revision);
+    assert_eq!(pending[1].1, 2);
+    assert_eq!(pending[1].2, "post-claim edit");
 }
 
 #[test]
@@ -1969,7 +2087,7 @@ fn persists_bounded_history_diagnostic_records() {
         .apply_operations(&[create_note("note-1")])
         .expect("create note");
     let item = storage
-        .claim_history_revision("worker-1", 10, 1_000)
+        .claim_history_revision("worker-1", HISTORY_COALESCE_WINDOW_MS + 10, 1_000)
         .expect("claim history")
         .expect("history item");
     let diagnostic = Diagnostic::new(
@@ -2148,7 +2266,7 @@ fn trash_hides_complete_subtree_and_clears_active_note() {
     assert!(storage.search("nested", 10).expect("search").is_empty());
     assert_eq!(
         storage
-            .claim_history_revision("worker", 20, 10)
+            .claim_history_revision("worker", HISTORY_COALESCE_WINDOW_MS + 20, 10)
             .expect("claim history")
             .expect("available history item")
             .note_id,
@@ -4037,5 +4155,400 @@ fn requeue_with_available_assets_moves_only_present_blobs() {
             .sync_policy()
             .operation_type,
         "attach_image"
+    );
+}
+
+fn checklist_document(link: Option<(&str, &str)>, checked: bool, title: &str) -> serde_json::Value {
+    let (task_id, block_id) = match link {
+        Some((task_id, block_id)) => (json!(task_id), json!(block_id)),
+        None => (json!(null), json!(null)),
+    };
+    json!({
+        "type": "doc",
+        "content": [{
+            "type": "check_list",
+            "content": [{
+                "type": "check_item",
+                "attrs": { "checked": checked, "taskId": task_id, "blockId": block_id },
+                "content": [{
+                    "type": "paragraph",
+                    "content": [{ "type": "text", "text": title }],
+                }],
+            }],
+        }],
+    })
+}
+
+fn source_document(
+    note_id: &str,
+    expected_revision: i64,
+    link: Option<(&str, &str)>,
+    checked: bool,
+    title: &str,
+) -> TaskSourceDocument {
+    TaskSourceDocument {
+        note_id: note_id.into(),
+        document_json: checklist_document(link, checked, title),
+        markdown: format!("- [{}] {title}", if checked { "x" } else { " " }),
+        word_count: title.split_whitespace().count() as i64,
+        expected_revision,
+    }
+}
+
+fn promoted_task(id: &str, note_id: &str, block_id: &str, title: &str, at: i64) -> WorkspaceTask {
+    WorkspaceTask {
+        id: id.into(),
+        title: title.into(),
+        status: TaskStatus::Todo,
+        priority: TaskPriority::Medium,
+        due_date: None,
+        description: String::new(),
+        tag_ids: Vec::new(),
+        assignee_ids: Vec::new(),
+        source: Some(TaskSource {
+            note_id: note_id.into(),
+            block_id: block_id.into(),
+        }),
+        detached_at: None,
+        created_at: at,
+        updated_at: at,
+    }
+}
+
+fn promote(task: WorkspaceTask, document: TaskSourceDocument) -> WorkspaceOperationEnvelope {
+    op(WorkspaceOperation::PromoteChecklistTask {
+        task: Box::new(task),
+        document: Box::new(document),
+    })
+}
+
+fn promoted_workspace() -> SqliteWorkspace {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[
+            create_note("note-1"),
+            promote(
+                promoted_task("task-1", "note-1", "block-1", "Ship the release", 5),
+                source_document(
+                    "note-1",
+                    1,
+                    Some(("task-1", "block-1")),
+                    false,
+                    "Ship the release",
+                ),
+            ),
+        ])
+        .expect("promote checklist item");
+    storage
+}
+
+fn only_task(storage: &SqliteWorkspace) -> WorkspaceTask {
+    let mut tasks = storage.bootstrap().expect("bootstrap").tasks;
+    assert_eq!(tasks.len(), 1, "expected exactly one task");
+    tasks.remove(0)
+}
+
+#[test]
+fn promotion_writes_the_task_and_the_checklist_link_together() {
+    let storage = promoted_workspace();
+    let snapshot = storage.bootstrap().expect("bootstrap");
+
+    let task = only_task(&storage);
+    assert_eq!(
+        task.source,
+        Some(TaskSource {
+            note_id: "note-1".into(),
+            block_id: "block-1".into(),
+        })
+    );
+    assert_eq!(task.title, "Ship the release");
+    assert_eq!(task.status, TaskStatus::Todo);
+    let document = snapshot
+        .documents
+        .iter()
+        .find(|document| document.note_id == "note-1")
+        .expect("source document");
+    assert_eq!(document.revision, 2);
+    let links = skriuw_domain::document_task_links(&document.document_json);
+    assert_eq!(links.len(), 1);
+    assert_eq!(links[0].task_id, "task-1");
+}
+
+#[test]
+fn failed_promotion_leaves_neither_the_task_nor_the_document_change() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-1")])
+        .expect("create note");
+
+    let stale = promote(
+        promoted_task("task-1", "note-1", "block-1", "Ship the release", 5),
+        source_document(
+            "note-1",
+            9,
+            Some(("task-1", "block-1")),
+            false,
+            "Ship the release",
+        ),
+    );
+    assert!(matches!(
+        storage.apply_operations(&[stale]),
+        Err(StorageError::RevisionConflict { .. })
+    ));
+
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert!(snapshot.tasks.is_empty());
+    assert_eq!(snapshot.documents[0].revision, 1);
+}
+
+#[test]
+fn promotion_without_the_link_in_the_document_is_rejected() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-1")])
+        .expect("create note");
+
+    let unlinked = promote(
+        promoted_task("task-1", "note-1", "block-1", "Ship the release", 5),
+        source_document("note-1", 1, None, false, "Ship the release"),
+    );
+    assert!(matches!(
+        storage.apply_operations(&[unlinked]),
+        Err(StorageError::InvalidOperation(_))
+    ));
+    assert!(storage.bootstrap().expect("bootstrap").tasks.is_empty());
+}
+
+#[test]
+fn ordinary_checklist_items_never_create_tasks() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[
+            create_note("note-1"),
+            op(WorkspaceOperation::SaveDocument {
+                note_id: "note-1".into(),
+                document_json: checklist_document(None, false, "Buy milk"),
+                markdown: "- [ ] Buy milk".into(),
+                word_count: 2,
+                expected_revision: 1,
+                at: 3,
+            }),
+        ])
+        .expect("save ordinary checklist");
+
+    assert!(storage.bootstrap().expect("bootstrap").tasks.is_empty());
+}
+
+#[test]
+fn the_source_checkbox_owns_task_completion() {
+    let storage = promoted_workspace();
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SaveDocument {
+            note_id: "note-1".into(),
+            document_json: checklist_document(Some(("task-1", "block-1")), true, "Ship it"),
+            markdown: "- [x] Ship it".into(),
+            word_count: 2,
+            expected_revision: 2,
+            at: 7,
+        })])
+        .expect("check the source item");
+    let task = only_task(&storage);
+    assert_eq!(task.status, TaskStatus::Done);
+    assert_eq!(task.title, "Ship it");
+    assert_eq!(task.updated_at, 7);
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SaveDocument {
+            note_id: "note-1".into(),
+            document_json: checklist_document(Some(("task-1", "block-1")), false, "Ship it"),
+            markdown: "- [ ] Ship it".into(),
+            word_count: 2,
+            expected_revision: 3,
+            at: 8,
+        })])
+        .expect("uncheck the source item");
+    assert_eq!(only_task(&storage).status, TaskStatus::Todo);
+}
+
+#[test]
+fn deleting_the_source_block_detaches_the_task_instead_of_losing_it() {
+    let storage = promoted_workspace();
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SaveDocument {
+            note_id: "note-1".into(),
+            document_json: json!({"type": "doc", "content": []}),
+            markdown: String::new(),
+            word_count: 0,
+            expected_revision: 2,
+            at: 9,
+        })])
+        .expect("remove the source item");
+
+    let task = only_task(&storage);
+    assert_eq!(task.source, None);
+    assert_eq!(task.detached_at, Some(9));
+    assert_eq!(task.title, "Ship the release");
+}
+
+#[test]
+fn trashing_keeps_the_link_and_purging_detaches_the_task() {
+    let storage = promoted_workspace();
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::TrashSubtree {
+            root_id: "note-1".into(),
+            at: 20,
+        })])
+        .expect("trash the source note");
+    assert!(only_task(&storage).source.is_some());
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::PurgeSubtree {
+            root_id: "note-1".into(),
+            trashed_before: 30,
+        })])
+        .expect("purge the source note");
+    let task = only_task(&storage);
+    assert_eq!(task.source, None);
+    assert_eq!(task.detached_at, Some(30));
+}
+
+#[test]
+fn task_updates_cannot_move_or_drop_the_source_link() {
+    let storage = promoted_workspace();
+    let task = only_task(&storage);
+
+    let mut relinked = task.clone();
+    relinked.source = Some(TaskSource {
+        note_id: "note-1".into(),
+        block_id: "block-other".into(),
+    });
+    assert!(matches!(
+        storage.apply_operations(&[op(WorkspaceOperation::UpdateTask {
+            task: Box::new(relinked),
+            document: None,
+        })]),
+        Err(StorageError::InvalidOperation(_))
+    ));
+
+    let mut unlinked = task.clone();
+    unlinked.source = None;
+    assert!(matches!(
+        storage.apply_operations(&[op(WorkspaceOperation::UpdateTask {
+            task: Box::new(unlinked),
+            document: None,
+        })]),
+        Err(StorageError::InvalidOperation(_))
+    ));
+
+    assert_eq!(only_task(&storage).source, task.source);
+}
+
+#[test]
+fn detaching_clears_both_halves_of_the_link() {
+    let storage = promoted_workspace();
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::DetachTask {
+            id: "task-1".into(),
+            document: Some(Box::new(source_document(
+                "note-1",
+                2,
+                None,
+                false,
+                "Ship the release",
+            ))),
+            at: 12,
+        })])
+        .expect("detach the task");
+
+    let task = only_task(&storage);
+    assert_eq!(task.source, None);
+    assert_eq!(task.detached_at, Some(12));
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert!(skriuw_domain::document_task_links(&snapshot.documents[0].document_json).is_empty());
+}
+
+#[test]
+fn deleting_a_task_clears_the_link_and_tombstones_the_identity() {
+    let storage = promoted_workspace();
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::DeleteTask {
+            id: "task-1".into(),
+            document: Some(Box::new(source_document(
+                "note-1",
+                2,
+                None,
+                false,
+                "Ship the release",
+            ))),
+            at: 15,
+        })])
+        .expect("delete the task");
+
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert!(snapshot.tasks.is_empty());
+    assert!(skriuw_domain::document_task_links(&snapshot.documents[0].document_json).is_empty());
+
+    let recreated = storage.apply_operations(&[promote(
+        promoted_task("task-1", "note-1", "block-1", "Ship the release", 16),
+        source_document(
+            "note-1",
+            3,
+            Some(("task-1", "block-1")),
+            false,
+            "Ship the release",
+        ),
+    )]);
+    assert!(recreated.is_ok(), "local recreation stays allowed");
+}
+
+#[test]
+fn tasks_survive_restart_and_archive_round_trip() {
+    let directory = tempdir().expect("tempdir");
+    let path = directory.path().join("tasks-restart.db");
+    let exported = {
+        let storage = SqliteWorkspace::open(&path).expect("open database");
+        storage
+            .apply_operations(&[
+                create_note("note-1"),
+                promote(
+                    promoted_task("task-1", "note-1", "block-1", "Ship the release", 5),
+                    source_document(
+                        "note-1",
+                        1,
+                        Some(("task-1", "block-1")),
+                        false,
+                        "Ship the release",
+                    ),
+                ),
+            ])
+            .expect("promote checklist item");
+        storage.export_archive(50).expect("export archive")
+    };
+
+    let reopened = SqliteWorkspace::open(&path).expect("reopen database");
+    let restarted = only_task(&reopened);
+    assert_eq!(restarted.id, "task-1");
+    assert_eq!(
+        restarted.source.as_ref().map(|source| &source.block_id),
+        Some(&"block-1".to_string())
+    );
+
+    let imported = SqliteWorkspace::open_in_memory().expect("open import target");
+    imported
+        .replace_from_archive(&exported)
+        .expect("import archive");
+    assert_eq!(
+        imported.bootstrap().expect("bootstrap").tasks,
+        exported.tasks
+    );
+    assert_eq!(
+        imported.export_archive(50).expect("re-export"),
+        exported,
+        "task archive round trip drifted"
     );
 }

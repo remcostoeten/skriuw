@@ -4,6 +4,7 @@ import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { CheckIcon, ChevronRightIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { overlayContentMotion } from "./overlay-motion";
+import { sectionLabelClass } from "@/shared/ui/section-header";
 
 const DropdownMenu = DropdownMenuPrimitive.Root;
 
@@ -124,7 +125,7 @@ const DropdownMenuLabel = React.forwardRef<
   <DropdownMenuPrimitive.Label
     ref={ref}
     className={cn(
-      "px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-foreground/52",
+      cn("px-2.5 py-1.5", sectionLabelClass),
       className,
     )}
     {...props}

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  addDiagramStep,
   createDefaultDiagram,
+  diagramTemplates,
+  nextDiagramEdgeId,
   nextDiagramNodeId,
   parseMermaidFlowchart,
   readDiagramModel,
@@ -77,6 +80,66 @@ test("invalid and unsupported syntax returns an actionable error", () => {
   const unsupported = parseMermaidFlowchart("flowchart LR\n  A === B");
   assert.equal(unsupported.ok, false);
   if (!unsupported.ok) assert.match(unsupported.error, /Line 2/);
+});
+
+test("adding a step from a node connects it and follows the flow direction", () => {
+  const fromSelected = addDiagramStep(createDefaultDiagram(), { fromId: "share" });
+  const created = fromSelected.model.nodes.find(({ id }) => id === fromSelected.id);
+  const share = fromSelected.model.nodes.find(({ id }) => id === "share");
+  assert.equal(fromSelected.id, "step4");
+  assert.ok((created?.position.x ?? 0) > (share?.position.x ?? 0));
+  assert.equal(created?.position.y, share?.position.y);
+  assert.deepEqual(
+    fromSelected.model.edges.at(-1),
+    { id: "share-step4-3", from: "share", to: "step4", label: "", dashed: false, stroke: null },
+  );
+
+  const vertical = createDefaultDiagram();
+  vertical.direction = "TD";
+  const below = addDiagramStep(vertical, { fromId: "start" });
+  const start = below.model.nodes.find(({ id }) => id === "start");
+  const added = below.model.nodes.find(({ id }) => id === below.id);
+  assert.equal(added?.position.x, start?.position.x);
+  assert.ok((added?.position.y ?? 0) > (start?.position.y ?? 0));
+});
+
+test("adding a step avoids stacking on occupied positions and honors explicit points", () => {
+  const first = addDiagramStep(createDefaultDiagram(), { fromId: "idea" });
+  const second = addDiagramStep(first.model, { fromId: "idea" });
+  const one = second.model.nodes.find(({ id }) => id === first.id);
+  const two = second.model.nodes.find(({ id }) => id === second.id);
+  assert.notDeepEqual(one?.position, two?.position);
+
+  const placed = addDiagramStep(createDefaultDiagram(), { at: { x: 300.6, y: -40 } });
+  const node = placed.model.nodes.find(({ id }) => id === placed.id);
+  assert.deepEqual(node?.position, { x: 301, y: 0 });
+  assert.equal(placed.model.edges.length, 2);
+});
+
+test("edge ids stay unique even after removals reshuffle the sequence", () => {
+  const model = createDefaultDiagram();
+  model.edges.push({ id: "start-share-3", from: "start", to: "share", label: "", dashed: false, stroke: null });
+  assert.equal(nextDiagramEdgeId(model, "start", "share"), "start-share-4");
+  assert.equal(nextDiagramEdgeId(model, "idea", "start"), "idea-start-4");
+});
+
+test("every diagram template is valid, normalized, and roundtrips through Mermaid", () => {
+  assert.equal(diagramTemplates.length, 3);
+  for (const template of diagramTemplates) {
+    const model = template.create();
+    assert.deepEqual(readDiagramModel(model), model, `${template.id} should survive normalization`);
+    const restored = parseMermaidFlowchart(serializeMermaidFlowchart(model));
+    assert.equal(restored.ok, true, `${template.id} should roundtrip`);
+    if (!restored.ok) continue;
+    assert.deepEqual(
+      restored.model.nodes.map(({ id, label, shape }) => ({ id, label, shape })),
+      model.nodes.map(({ id, label, shape }) => ({ id, label, shape })),
+    );
+    assert.deepEqual(
+      restored.model.edges.map(({ from, to, label, dashed }) => ({ from, to, label, dashed })),
+      model.edges.map(({ from, to, label, dashed }) => ({ from, to, label, dashed })),
+    );
+  }
 });
 
 test("untrusted persisted models are bounded and normalized", () => {

@@ -124,6 +124,7 @@ pub struct BrowserSyncConnection {
 pub struct BrowserSyncCycleReport {
     pub status: SyncStatus,
     pub retry_at_ms: Option<i64>,
+    pub workspace_changed: bool,
 }
 
 /// One bounded content transfer observed by the browser sync transport,

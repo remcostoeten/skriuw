@@ -11,14 +11,20 @@ import {
   type EntityKind,
   type EntityRow,
 } from "@/features/references/entity-manager-model";
+import { describeSearchFilterProblem } from "@/features/search/filter-resolution";
+import { applySearchPlan, planWorkspaceSearch } from "@/features/search/search-plan";
 import { CircleIcon, FileTextIcon, SearchIcon, WaypointsIcon } from "@/shared/icons/static";
 import { fuzzyMatchScore } from "@/shared/lib/fuzzy-match";
 import { CommandPalette } from "./command-palette";
-import type { CommandPaletteItem } from "./command-palette-model";
+import { RECENT_NOTES_GROUP, type CommandPaletteItem } from "./command-palette-model";
+import { compactAge, recentNotes } from "./recent-notes";
 import { effectiveShortcutKeys, shortcutOverridesFromSettings } from "./bindings";
+import { useShortcutHints } from "./hints";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type { ShortcutActionId, ShortcutDefinition } from "./definitions";
 import type { RendererState, RendererStore } from "@/store/types";
+
+const PALETTE_SHORTCUT_IDS = ["toggleCommandPalette"] as const;
 
 const SEARCH_DEBOUNCE_MS = 120;
 const SEARCH_LIMIT = 8;
@@ -50,15 +56,17 @@ function snippetText(snippet: string): string {
 /**
  * Full-text hits the palette shows under "Content". Hits whose title already
  * fuzzy-matches the query are dropped: the title index surfaces those in the
- * "Notes" group, so content hits only add notes found by body text.
+ * "Notes" group, so content hits only add notes found by body text. A
+ * relationship-filtered query hides that title index, so every hit is kept.
  */
 function contentItems(
   store: RendererStore,
   hits: readonly SearchHit[],
   query: string,
+  dedupeAgainstTitles: boolean,
 ): CommandPaletteItem[] {
   return hits
-    .filter((hit) => fuzzyMatchScore(query, hit.title) === null)
+    .filter((hit) => !dedupeAgainstTitles || fuzzyMatchScore(query, hit.title) === null)
     .map((hit) => ({
       id: `note:${hit.noteId}`,
       label: hit.title,
@@ -100,6 +108,24 @@ function entityItems(rows: readonly EntityRow[], kind: EntityKind): CommandPalet
   }));
 }
 
+/**
+ * The most recently updated notes, newest first, reached by typing `recents`.
+ * Ids stay distinct from the title index so frecency and React keys never
+ * collide with the same note's "Notes" row.
+ */
+function recentNoteItems(store: RendererStore, state: RendererState): CommandPaletteItem[] {
+  const now = Date.now();
+  return recentNotes(state.noteIds, state.metadata).map((note) => ({
+    id: `recent:${note.id}`,
+    label: note.title || "Untitled",
+    hint: compactAge(note.updatedAt, now),
+    group: RECENT_NOTES_GROUP,
+    searchOnly: true,
+    icon: <FileTextIcon size={15} />,
+    action: () => activateNote(store, note.id),
+  }));
+}
+
 type Props = {
   store: RendererStore;
   registry: CommandRegistry;
@@ -120,16 +146,20 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
     }
   }, [open]);
 
+  const plan = useMemo(
+    () => planWorkspaceSearch(store.getState(), open ? searchQuery : "", SEARCH_LIMIT),
+    [store, searchQuery, open],
+  );
+
   useEffect(() => {
-    const trimmed = searchQuery.trim();
     requestRef.current += 1;
     const requestId = requestRef.current;
-    if (trimmed.length < 2) {
+    if (!plan.requiresFullText) {
       setHits([]);
       return;
     }
     const timer = window.setTimeout(() => {
-      searchWorkspace(trimmed, SEARCH_LIMIT)
+      searchWorkspace(plan.text, plan.fullTextLimit)
         .then((results) => {
           if (requestRef.current === requestId) {
             setHits(results);
@@ -143,13 +173,14 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
         });
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [searchQuery]);
+  }, [plan]);
 
   const items = useMemo<CommandPaletteItem[]>(() => {
     if (!open) {
       return [];
     }
     const state = store.getState();
+    const results = applySearchPlan(state, plan, hits, SEARCH_LIMIT);
     const overrides = shortcutOverridesFromSettings(state.settings);
     return [
       ...registry.paletteItems(state, ui, (actionId) => {
@@ -166,11 +197,16 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
           action: () => activateNote(store, note.id),
         }),
       ),
+      ...recentNoteItems(store, state),
       ...entityItems(projectEntities(state, "tag"), "tag"),
       ...entityItems(projectEntities(state, "person"), "person"),
-      ...contentItems(store, hits, searchQuery.trim()),
+      ...contentItems(store, results, plan.text, plan.allowedNoteIds === null),
     ];
-  }, [open, registry, ui, hits, searchQuery, store]);
+  }, [open, registry, ui, hits, plan, store]);
+
+  const paletteHints = useShortcutHints(store, PALETTE_SHORTCUT_IDS);
+
+  const notice = plan.resolution.problems.map(describeSearchFilterProblem).join(" ") || null;
 
   return (
     <CommandPalette
@@ -178,6 +214,8 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
       onOpenChange={onOpenChange}
       items={items}
       onQueryChange={setSearchQuery}
+      notice={notice}
+      paletteShortcut={paletteHints.toggleCommandPalette}
     />
   );
 }

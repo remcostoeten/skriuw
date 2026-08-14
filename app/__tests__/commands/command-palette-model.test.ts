@@ -4,6 +4,7 @@ import { noop } from "../../src/shared/lib/noop";
 import {
   getCommandPaletteGroups,
   parseCommandQuery,
+  RECENT_NOTES_GROUP,
   type CommandPaletteItem,
 } from "../../src/commands/command-palette-model";
 
@@ -231,4 +232,122 @@ test("content hits stay hidden while idle and rank after title matches when sear
     ["Notes", "Content"],
   );
   assert.deepEqual(searching[1]?.items.map((item) => item.id), ["note:body"]);
+});
+
+test("a relationship filter scopes the palette to relationship-aware content", () => {
+  const items: CommandPaletteItem[] = [
+    { id: "note", label: "Design notes", group: "Notes", action: noop },
+    {
+      id: "content",
+      label: "Launch plan",
+      group: "Content",
+      searchOnly: true,
+      alwaysShow: true,
+      action: noop,
+    },
+    { id: "action", label: "Create note", group: "Actions", action: noop },
+    { id: "tag", label: "design", group: "Tags", searchOnly: true, action: noop },
+  ];
+
+  assert.deepEqual(getCommandPaletteGroups(items, "#design"), [
+    { group: "Content", items: [items[1]] },
+  ]);
+  assert.deepEqual(getCommandPaletteGroups(items, "$ada budget"), [
+    { group: "Content", items: [items[1]] },
+  ]);
+  assert.deepEqual(getCommandPaletteGroups(items, "!n #design"), [
+    { group: "Content", items: [items[1]] },
+  ]);
+  assert.deepEqual(getCommandPaletteGroups(items, "!t #design"), []);
+});
+
+test("entity operators are stripped before items are fuzzy-matched", () => {
+  const items: CommandPaletteItem[] = [
+    { id: "content", label: "Launch plan", group: "Content", searchOnly: true, action: noop },
+  ];
+
+  assert.deepEqual(getCommandPaletteGroups(items, "#design launch"), [
+    { group: "Content", items: [items[0]] },
+  ]);
+  assert.deepEqual(getCommandPaletteGroups(items, "#design zzz"), []);
+});
+
+test("an incomplete operator leaves the palette unscoped", () => {
+  const items: CommandPaletteItem[] = [
+    { id: "action", label: "Create note", group: "Actions", action: noop },
+  ];
+  assert.deepEqual(getCommandPaletteGroups(items, "#"), [
+    { group: "Actions", items: [items[0]] },
+  ]);
+});
+
+test("the recents keyword scopes the palette to recent notes", () => {
+  const items: CommandPaletteItem[] = [
+    { id: "action", label: "Create note", group: "Actions", action: noop },
+    { id: "note:a", label: "Launch plan", group: "Notes", action: noop },
+    {
+      id: "recent:a",
+      label: "Launch plan",
+      hint: "2m",
+      group: RECENT_NOTES_GROUP,
+      searchOnly: true,
+      action: noop,
+    },
+    {
+      id: "recent:b",
+      label: "Groceries",
+      hint: "1h",
+      group: RECENT_NOTES_GROUP,
+      searchOnly: true,
+      action: noop,
+    },
+  ];
+
+  assert.equal(parseCommandQuery("recents").mode, "recents");
+  assert.deepEqual(parseCommandQuery("recent launch"), {
+    bang: null,
+    mode: "recents",
+    allowedGroups: new Set([RECENT_NOTES_GROUP]),
+    query: "launch",
+  });
+
+  assert.deepEqual(getCommandPaletteGroups(items, "recents"), [
+    { group: RECENT_NOTES_GROUP, items: [items[2], items[3]] },
+  ]);
+  assert.deepEqual(getCommandPaletteGroups(items, "recents groc"), [
+    { group: RECENT_NOTES_GROUP, items: [items[3]] },
+  ]);
+});
+
+test("recent notes stay out of every other view so titles are never doubled", () => {
+  const items: CommandPaletteItem[] = [
+    { id: "note:a", label: "Launch plan", group: "Notes", action: noop },
+    {
+      id: "recent:a",
+      label: "Launch plan",
+      group: RECENT_NOTES_GROUP,
+      searchOnly: true,
+      action: noop,
+    },
+  ];
+
+  assert.deepEqual(getCommandPaletteGroups(items, "launch"), [
+    { group: "Notes", items: [items[0]] },
+  ]);
+  assert.deepEqual(getCommandPaletteGroups(items, "!n launch"), [
+    { group: "Notes", items: [items[0]] },
+  ]);
+  assert.deepEqual(getCommandPaletteGroups(items, "", { "recent:a": 9 }), [
+    { group: "Notes", items: [items[0]] },
+  ]);
+});
+
+test("a partial recents word stays plain text", () => {
+  const items: CommandPaletteItem[] = [
+    { id: "action", label: "Recount words", group: "Actions", action: noop },
+  ];
+  assert.equal(parseCommandQuery("rec").mode, null);
+  assert.deepEqual(getCommandPaletteGroups(items, "rec"), [
+    { group: "Actions", items: [items[0]] },
+  ]);
 });

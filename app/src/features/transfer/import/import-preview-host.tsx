@@ -8,6 +8,8 @@ import {
   type ImportPreviewSelection,
 } from "./preview-controller";
 import type { ImportDuplicateMode } from "./plan";
+import { cn } from "@/shared/lib/utils";
+import { sectionLabelClass } from "@/shared/ui/section-header";
 
 type ActiveRequest = ImportPreviewRequest & {
   resolve: (selection: ImportPreviewSelection | null) => void;
@@ -174,7 +176,7 @@ export function ImportPreviewHost() {
             ["Properties", selected.propertyCount],
           ].map(([label, value]) => (
             <div key={label} className="grid gap-0.5 px-2.5 py-2">
-              <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+              <span className={sectionLabelClass}>
                 {label}
               </span>
               <span className="font-mono text-base tabular-nums">{value}</span>
@@ -183,7 +185,7 @@ export function ImportPreviewHost() {
         </div>
 
         <section className="grid gap-1.5">
-          <h3 className="m-0 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+          <h3 className={cn("m-0", sectionLabelClass)}>
             Review
           </h3>
           {selected.warningLines.length > 0 ? (

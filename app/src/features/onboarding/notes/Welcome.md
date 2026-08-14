@@ -20,7 +20,7 @@ Delete all of it once you have had a look around — everything here is an ordin
 
 ## Start here
 
-Press `/` on an empty line to see what a block can be. Type `#` followed by a word to tag something. Type `[[` to link to another note.
+Press `/` on an empty line to see what a block can be. Type `#` followed by a word to tag something. Type `@` to link to another note.
 
 That's most of it. The rest is in [[Writing]] and [[Linking]] — and there's a worked example in [[Launch checklist]] if you'd rather see it than read about it.
 

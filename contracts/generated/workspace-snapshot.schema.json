@@ -84,6 +84,13 @@
       "items": {
         "$ref": "#/$defs/WorkspaceTag"
       }
+    },
+    "tasks": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/WorkspaceTask"
+      }
     }
   },
   "required": [
@@ -317,6 +324,39 @@
         "tag",
         "person",
         "note"
+      ]
+    },
+    "TaskPriority": {
+      "type": "string",
+      "enum": [
+        "urgent",
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "TaskSource": {
+      "description": "The checklist item a task was promoted from. Both halves move together so\na task is either fully linked or fully standalone; there is no state where\nonly one half survives.",
+      "type": "object",
+      "properties": {
+        "blockId": {
+          "type": "string"
+        },
+        "noteId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "noteId",
+        "blockId"
+      ]
+    },
+    "TaskStatus": {
+      "type": "string",
+      "enum": [
+        "todo",
+        "in_progress",
+        "done"
       ]
     },
     "VersionedNotePropertyValue": {
@@ -842,6 +882,83 @@
       "required": [
         "id",
         "name"
+      ]
+    },
+    "WorkspaceTask": {
+      "type": "object",
+      "properties": {
+        "assigneeIds": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "detachedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64",
+          "default": null
+        },
+        "dueDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "id": {
+          "type": "string"
+        },
+        "priority": {
+          "$ref": "#/$defs/TaskPriority"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaskSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "status": {
+          "$ref": "#/$defs/TaskStatus"
+        },
+        "tagIds": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "title": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "status",
+        "priority",
+        "createdAt",
+        "updatedAt"
       ]
     }
   }

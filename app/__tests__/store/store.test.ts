@@ -244,13 +244,19 @@ test("optimistic move honors before placement until the ack lands", () => {
       at: 10,
     },
   ]);
-  assert.deepEqual([...store.getState().visibleIds], ["note-root", "folder", "note-child"]);
+  assert.equal(
+    (store.getState().sourceNodes.get("note-root")?.rank ?? 0) <
+      (store.getState().sourceNodes.get("folder")?.rank ?? 0),
+    true,
+  );
+  assert.deepEqual([...store.getState().visibleIds], ["folder", "note-child", "note-root"]);
   store.applyAck({
     applied: 1,
     revisions: [],
     rankChanges: [{ id: "note-root", parentId: null, rank: 50 }],
   });
-  assert.deepEqual([...store.getState().visibleIds], ["note-root", "folder", "note-child"]);
+  assert.equal(store.getState().sourceNodes.get("note-root")?.rank, 50);
+  assert.deepEqual([...store.getState().visibleIds], ["folder", "note-child", "note-root"]);
 });
 
 test("trashing the active subtree clears the active note and lists a trash root", () => {
@@ -270,7 +276,7 @@ test("trashing the active subtree clears the active note and lists a trash root"
       at: 30,
     },
   ]);
-  assert.deepEqual([...store.getState().visibleIds], ["note-root", "folder", "note-child"]);
+  assert.deepEqual([...store.getState().visibleIds], ["folder", "note-child", "note-root"]);
 });
 
 test("purging a trashed subtree drops its documents", () => {

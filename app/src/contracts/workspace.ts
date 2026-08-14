@@ -112,6 +112,38 @@ export type NotePropertyTemplate = {
   properties: NotePropertyField[];
 };
 
+export type TaskStatus = "todo" | "in_progress" | "done";
+
+export type TaskPriority = "urgent" | "high" | "medium" | "low";
+
+export type TaskSource = {
+  noteId: string;
+  blockId: string;
+};
+
+export type WorkspaceTask = {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueDate: string | null;
+  description: string;
+  tagIds: string[];
+  assigneeIds: string[];
+  source: TaskSource | null;
+  detachedAt: number | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type TaskSourceDocument = {
+  noteId: string;
+  documentJson: unknown;
+  markdown: string;
+  wordCount: number;
+  expectedRevision: number;
+};
+
 export type WorkspaceSnapshot = {
   protocolVersion: number;
   activeNoteId: string | null;
@@ -141,6 +173,7 @@ export type WorkspaceSnapshot = {
   images?: WorkspaceImage[];
   properties?: NoteProperty[];
   propertyTemplates?: NotePropertyTemplate[];
+  tasks?: WorkspaceTask[];
   importReceipts?: ProviderImportReceipt[];
 };
 
@@ -164,6 +197,7 @@ export type WorkspaceArchive = {
   people?: WorkspaceSnapshot["people"];
   properties?: NoteProperty[];
   propertyTemplates?: NotePropertyTemplate[];
+  tasks?: WorkspaceTask[];
 };
 
 export type NodePosition =
@@ -268,7 +302,12 @@ export type WorkspaceOperation =
   | { type: "set_note_property_template"; template: NotePropertyTemplate }
   | { type: "delete_note_property_template"; templateId: string }
   | { type: "reorder_note_property_templates"; orderedTemplateIds: string[] }
-  | { type: "record_provider_import"; receipt: ProviderImportReceipt };
+  | { type: "record_provider_import"; receipt: ProviderImportReceipt }
+  | { type: "create_task"; task: WorkspaceTask }
+  | { type: "update_task"; task: WorkspaceTask; document: TaskSourceDocument | null }
+  | { type: "delete_task"; id: string; document: TaskSourceDocument | null; at: number }
+  | { type: "detach_task"; id: string; document: TaskSourceDocument | null; at: number }
+  | { type: "promote_checklist_task"; task: WorkspaceTask; document: TaskSourceDocument };
 
 export type WorkspaceOperationEnvelope = {
   protocolVersion: number;

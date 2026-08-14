@@ -82,6 +82,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "blocked_operation_recovery",
         sql: include_str!("../migrations/0015_blocked_operation_recovery.sql"),
     },
+    Migration {
+        version: 16,
+        name: "workspace_tasks",
+        sql: include_str!("../migrations/0016_workspace_tasks.sql"),
+    },
 ];
 
 pub(crate) struct Migration {
@@ -319,6 +324,10 @@ mod tests {
             (
                 15,
                 "673715ccb46d2a1e71cc845baed1589bfc44f1e34141fa56237aa3ab74ffcbd7",
+            ),
+            (
+                16,
+                "9d8f5b49f2366da48ec595071c80b003bf53e4f5890783799bb778e469de88db",
             ),
         ];
         assert_eq!(MIGRATIONS.len(), SHIPPED.len(), "append new checksums here");

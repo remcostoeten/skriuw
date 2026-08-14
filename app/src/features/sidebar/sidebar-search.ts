@@ -7,23 +7,33 @@ export type SidebarSearchResults = {
   noteTotal: number;
 };
 
+/**
+ * Title search over the tree. `allowedNoteIds` carries a resolved relationship
+ * filter (`#tag`, `$person`): when present only those notes qualify and
+ * folders drop out entirely, since a folder carries no references of its own.
+ * A filtered search with no free text lists the whole filtered set.
+ */
 export function searchSidebarNodes(
   nodes: ReadonlyMap<string, NodeRecord>,
   nodeOrder: readonly string[],
   query: string,
   limit: number,
+  allowedNoteIds: ReadonlySet<string> | null = null,
 ): SidebarSearchResults {
   const normalizedQuery = query.trim().toLowerCase();
   const folders: NodeRecord[] = [];
   const notes: NodeRecord[] = [];
   let folderTotal = 0;
   let noteTotal = 0;
-  if (!normalizedQuery) {
+  if (!normalizedQuery && allowedNoteIds === null) {
     return { folders, notes, folderTotal, noteTotal };
   }
   for (const id of nodeOrder) {
     const node = nodes.get(id);
-    if (!node || !node.title.toLowerCase().includes(normalizedQuery)) {
+    if (!node || (normalizedQuery && !node.title.toLowerCase().includes(normalizedQuery))) {
+      continue;
+    }
+    if (allowedNoteIds !== null && (node.kind !== "note" || !allowedNoteIds.has(id))) {
       continue;
     }
     if (node.kind === "folder") {

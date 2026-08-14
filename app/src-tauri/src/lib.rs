@@ -23,6 +23,7 @@ const ROTATION_RETRY_DELAY: Duration = Duration::from_secs(60);
 /// delay. Worst case the user sees the empty shell the reveal exists to hide.
 const WINDOW_REVEAL_FAILSAFE: Duration = Duration::from_secs(2);
 const HISTORY_HEADER_PUBLISHED_EVENT: &str = "history-header-published";
+const SYNC_WORKSPACE_CHANGED_EVENT: &str = "sync-workspace-changed";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -80,7 +81,14 @@ pub fn run() {
                         eprintln!("window reveal failsafe failed: {error}");
                     }
                 });
-            let sync = Arc::new(sync::SyncRuntime::new(path.clone()));
+            let sync = Arc::new(sync::SyncRuntime::with_workspace_observer(path.clone(), {
+                let app_handle = app.handle().clone();
+                Arc::new(move || {
+                    if let Err(error) = app_handle.emit(SYNC_WORKSPACE_CHANGED_EVENT, ()) {
+                        eprintln!("sync workspace publication failed: {error}");
+                    }
+                })
+            }));
             app.manage(AppState {
                 maintenance,
                 rotation,
@@ -126,6 +134,7 @@ pub fn run() {
             commands::maintenance::reveal_workspace_storage,
             commands::maintenance::reveal_workspace_images,
             commands::maintenance::relocate_workspace_storage,
+            commands::maintenance::clear_all_data,
             commands::transfer::export_markdown_tree,
             commands::transfer::read_markdown_tree,
             commands::transfer::prepare_import_source,

@@ -79,6 +79,9 @@ impl Default for SyncCycleConfig {
 pub struct SyncCycleOutcome {
     pub status: SyncStatus,
     pub retry_at_ms: Option<i64>,
+    /// True when this cycle applied remote workspace state (including a
+    /// first-device checkpoint hydration). Local echoes do not set it.
+    pub workspace_changed: bool,
 }
 
 impl SyncCycleOutcome {
@@ -86,6 +89,7 @@ impl SyncCycleOutcome {
         Self {
             status,
             retry_at_ms: None,
+            workspace_changed: false,
         }
     }
 
@@ -93,6 +97,7 @@ impl SyncCycleOutcome {
         Self {
             status,
             retry_at_ms: Some(retry_at_ms),
+            workspace_changed: false,
         }
     }
 }
@@ -110,6 +115,41 @@ pub fn run_sync_cycle(
     backoff: &mut SyncBackoff,
     config: &SyncCycleConfig,
 ) -> SyncCycleOutcome {
+    let mut state = SyncCycleState {
+        config,
+        workspace_changed: false,
+    };
+    let mut outcome = run_sync_cycle_inner(
+        queue,
+        transport,
+        assets,
+        clock,
+        cancellation,
+        backoff,
+        &mut state,
+    );
+    outcome.workspace_changed = state.workspace_changed;
+    outcome
+}
+
+struct SyncCycleState<'a> {
+    config: &'a SyncCycleConfig,
+    workspace_changed: bool,
+}
+
+fn run_sync_cycle_inner(
+    queue: &dyn WorkspaceSyncQueue,
+    transport: &dyn SyncTransport,
+    assets: &dyn SyncAssetStore,
+    clock: &dyn SyncClock,
+    cancellation: &SyncCancellation,
+    backoff: &mut SyncBackoff,
+    state: &mut SyncCycleState<'_>,
+) -> SyncCycleOutcome {
+    let SyncCycleState {
+        config,
+        workspace_changed,
+    } = state;
     let connection = match queue.sync_connection() {
         Ok(Some(connection)) => connection,
         Ok(None) => return SyncCycleOutcome::settled(SyncStatus::LocalOnly),
@@ -119,7 +159,7 @@ pub fn run_sync_cycle(
         match queue.has_pending_sync_operations() {
             Ok(true) => {}
             Ok(false) => {
-                if let Err(outcome) = crate::checkpoint::hydrate_from_latest_checkpoint(
+                match crate::checkpoint::hydrate_from_latest_checkpoint(
                     queue,
                     transport,
                     clock,
@@ -128,7 +168,8 @@ pub fn run_sync_cycle(
                     config,
                     &connection,
                 ) {
-                    return outcome;
+                    Ok(hydrated) => *workspace_changed |= hydrated,
+                    Err(outcome) => return outcome,
                 }
             }
             Err(error) => return storage_failure(clock, config, &error),
@@ -305,7 +346,12 @@ pub fn run_sync_cycle(
             break;
         }
         match queue.apply_remote_operations(&response.operations, clock.now_ms()) {
-            Ok(_) => backoff.reset(),
+            Ok(outcomes) => {
+                *workspace_changed |= outcomes.iter().any(|outcome| {
+                    matches!(outcome, skriuw_storage::RemoteSyncApplyOutcome::Applied(_))
+                });
+                backoff.reset();
+            }
             Err(StorageError::Backend(message)) => {
                 return storage_failure(clock, config, &StorageError::Backend(message));
             }

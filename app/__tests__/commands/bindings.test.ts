@@ -335,11 +335,11 @@ test("mod+h matches find and replace while a plain h keeps typing", () => {
   );
 });
 
-test("jump to line is scoped to Markdown mode and bound inside the editor", () => {
+test("jump to line is unscoped so both editor modes can bind it", () => {
   const jumpToLine = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "jumpToLine");
   assert.ok(jumpToLine);
   assert.equal(effectiveShortcutKeys(jumpToLine, {}), "mod+g");
-  assert.equal(jumpToLine.scopes, "markdown");
+  assert.equal(jumpToLine.scopes, undefined);
   assert.equal(jumpToLine.boundInEditor, true);
   assert.deepEqual(shortcutGuards(jumpToLine, true), []);
   assert.equal(findShortcutConflict({}, "jumpToLine", "mod+g"), null);
@@ -364,6 +364,18 @@ test("mod+g matches jump to line and a plain g keeps typing", () => {
 });
 
 /**
+ * Whether two actions declare their shared combo, which only an editor-bound
+ * binding that arbitrates the keypress at runtime is allowed to do.
+ */
+function sharesComboByDesign(left: string, right: string): boolean {
+  return SHORTCUT_DEFINITIONS.some(
+    (definition) =>
+      (definition.id === left && definition.sharesComboWith === right) ||
+      (definition.id === right && definition.sharesComboWith === left),
+  );
+}
+
+/**
  * No two primaries share a combo, regardless of scope. Alternates are allowed
  * to overlap a scope-separated primary, so the cross-slot case belongs to the
  * scope-aware test below rather than here.
@@ -372,7 +384,7 @@ test("every default binding is free of overlaps", () => {
   for (const definition of SHORTCUT_DEFINITIONS) {
     const keys = effectiveShortcutKeys(definition, {});
     for (const other of SHORTCUT_DEFINITIONS) {
-      if (other.id === definition.id) {
+      if (other.id === definition.id || sharesComboByDesign(definition.id, other.id)) {
         continue;
       }
       assert.equal(
@@ -381,6 +393,28 @@ test("every default binding is free of overlaps", () => {
         `${definition.id} overlaps ${other.id} on "${keys}"`,
       );
     }
+  }
+});
+
+/**
+ * A declared overlap is only safe because the editor-bound holder decides per
+ * keypress whether to claim the event, so the declaration is meaningless on a
+ * window binding.
+ */
+test("a deliberately shared combo is claimed by an editor-bound binding", () => {
+  for (const definition of SHORTCUT_DEFINITIONS) {
+    if (definition.sharesComboWith === undefined) {
+      continue;
+    }
+    assert.equal(
+      definition.boundInEditor,
+      true,
+      `${definition.id} shares a combo without an editor surface to arbitrate it`,
+    );
+    assert.ok(
+      SHORTCUT_DEFINITIONS.some((other) => other.id === definition.sharesComboWith),
+      `${definition.id} shares a combo with an unknown action`,
+    );
   }
 });
 
@@ -457,7 +491,7 @@ test("no two bindings that can be active together share a combo", () => {
       for (let j = i + 1; j < live.length; j += 1) {
         const a = live[i]!;
         const b = live[j]!;
-        if (a.id === b.id || !sameCombo(a.keys, b.keys)) {
+        if (a.id === b.id || !sameCombo(a.keys, b.keys) || sharesComboByDesign(a.id, b.id)) {
           continue;
         }
         for (const [where, target] of Object.entries(targets)) {

@@ -11,6 +11,8 @@ Markdown is both a portable interchange format and the readable projection store
 
 Markdown export remains ordinary readable Markdown without embedded Skriuw metadata. Note references serialize as `[[current title]]`, with the current title resolved from the stable target ID at export time.
 
+The rich editor uses `@` as the single note-link authoring trigger. The bracketed form is an interchange representation for raw Markdown and provider imports, not a second completion path.
+
 Import allocates every note ID before resolving references. A wiki-link becomes a structured reference only when its exact label identifies one imported or existing note. Ambiguous and unresolved labels stay literal source text. Note creation completes before reference-bearing document saves, so forward links and cycles never depend on operation order.
 
 Frontmatter and footnote syntax select a lossless raw-source document. The exact source, including line endings and trailing whitespace, remains canonical Markdown and opens in raw mode. Structured rendering is deferred until the schema supports those constructs without loss.

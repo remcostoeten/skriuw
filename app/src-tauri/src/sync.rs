@@ -1,7 +1,11 @@
 use std::{
     io::Read,
+    net::TcpStream,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex, Weak,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -15,7 +19,8 @@ use skriuw_sqlite::SqliteWorkspace;
 use skriuw_storage::{NewSyncConnection, SyncRecovery, WorkspaceSyncQueue};
 use skriuw_sync::{
     SyncAssetStore, SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncHttpEndpoints,
-    SyncStatus, SyncTransport, SystemClock, TransportError, classify_http_failure,
+    SyncStatus, SyncTransport, SyncWorkspaceObserver, SystemClock, TransportError,
+    classify_http_failure,
 };
 use uuid::Uuid;
 
@@ -68,7 +73,9 @@ struct ProvisionedWorkspace {
 
 pub struct SyncRuntime {
     database_path: PathBuf,
-    coordinator: Mutex<Option<SyncCoordinator>>,
+    coordinator: Mutex<Option<Arc<SyncCoordinator>>>,
+    push_listener: Mutex<Option<PushListener>>,
+    workspace_observer: Option<SyncWorkspaceObserver>,
 }
 
 impl SyncRuntime {
@@ -77,7 +84,19 @@ impl SyncRuntime {
         Self {
             database_path,
             coordinator: Mutex::new(None),
+            push_listener: Mutex::new(None),
+            workspace_observer: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_workspace_observer(
+        database_path: PathBuf,
+        workspace_observer: SyncWorkspaceObserver,
+    ) -> Self {
+        let mut runtime = Self::new(database_path);
+        runtime.workspace_observer = Some(workspace_observer);
+        runtime
     }
 
     #[must_use]
@@ -85,7 +104,7 @@ impl SyncRuntime {
         self.coordinator
             .lock()
             .ok()
-            .and_then(|coordinator| coordinator.as_ref().map(SyncCoordinator::status))
+            .and_then(|coordinator| coordinator.as_ref().map(|coordinator| coordinator.status()))
             .unwrap_or(SyncStatus::LocalOnly)
     }
 
@@ -118,6 +137,7 @@ impl SyncRuntime {
             .as_ref()
             .map(|connection| connection.device_id.clone())
             .unwrap_or_else(|| Uuid::new_v4().simple().to_string());
+        let listener_token = token.clone();
         let transport = Arc::new(HttpSyncTransport::new(token)?);
         let provisioned = transport.provision(&device_id)?;
         if provisioned.device_id != device_id {
@@ -128,9 +148,12 @@ impl SyncRuntime {
             .is_some_and(|connection| connection.workspace_id != provisioned.workspace_id)
         {
             return Err(
-                "this local workspace is already linked to a different Skriuw account".into(),
+                "This local workspace is linked to another cloud workspace. Sign back into its original account and cloud environment, or open a fresh local workspace before linking a different account."
+                    .into(),
             );
         }
+        let listener_workspace_id = provisioned.workspace_id.clone();
+        let listener_device_id = device_id.clone();
         queue
             .connect_sync(&NewSyncConnection {
                 workspace_id: provisioned.workspace_id,
@@ -142,7 +165,7 @@ impl SyncRuntime {
             .map_err(|error| format!("could not persist the sync connection: {error}"))?;
 
         let workspace = Arc::clone(&queue);
-        let coordinator = SyncCoordinator::spawn(
+        let coordinator = Arc::new(SyncCoordinator::spawn(
             queue,
             workspace,
             transport,
@@ -150,13 +173,26 @@ impl SyncRuntime {
                 blob_directory: crate::image_blob_path(&self.database_path),
             }),
             Arc::new(SystemClock),
-            SyncCoordinatorConfig::default(),
-        );
+            SyncCoordinatorConfig {
+                workspace_observer: self.workspace_observer.clone(),
+                ..SyncCoordinatorConfig::default()
+            },
+        ));
         let status = coordinator.status();
+        let listener = PushListener::spawn(
+            SyncHttpEndpoints::new(cloud_base_url()),
+            listener_token,
+            listener_workspace_id,
+            listener_device_id,
+            Arc::downgrade(&coordinator),
+        );
         *self
             .coordinator
             .lock()
             .map_err(|_| "sync runtime lock is unavailable".to_string())? = Some(coordinator);
+        if let Ok(mut push_listener) = self.push_listener.lock() {
+            *push_listener = Some(listener);
+        }
         Ok(status)
     }
 
@@ -207,6 +243,14 @@ impl SyncRuntime {
     }
 
     fn stop_coordinator(&self) {
+        let listener = self
+            .push_listener
+            .lock()
+            .ok()
+            .and_then(|mut listener| listener.take());
+        if let Some(listener) = listener {
+            listener.stop();
+        }
         let coordinator = self
             .coordinator
             .lock()
@@ -221,9 +265,194 @@ impl SyncRuntime {
         if let Ok(coordinator) = self.coordinator.lock()
             && let Some(coordinator) = coordinator.as_ref()
         {
-            action(coordinator);
+            action(coordinator.as_ref());
         }
     }
+}
+
+const PUSH_LISTENER_READ_TIMEOUT: Duration = Duration::from_secs(30);
+const PUSH_LISTENER_MIN_BACKOFF_MS: u64 = 1_000;
+const PUSH_LISTENER_MAX_BACKOFF_MS: u64 = 60_000;
+const PUSH_LISTENER_STOP_POLL: Duration = Duration::from_millis(250);
+
+/// Long-lived WebSocket that wakes the coordinator when another device changes
+/// the workspace. It is a latency optimization only: every failure path falls
+/// back to the coordinator's own poll interval, so the listener never surfaces
+/// in sync status and never blocks teardown — it holds the coordinator weakly
+/// and exits once the coordinator is gone or the stop flag is set.
+struct PushListener {
+    stop: Arc<AtomicBool>,
+}
+
+impl PushListener {
+    fn spawn(
+        endpoints: SyncHttpEndpoints,
+        token: String,
+        workspace_id: String,
+        device_id: String,
+        coordinator: Weak<SyncCoordinator>,
+    ) -> Self {
+        let stop = Arc::new(AtomicBool::new(false));
+        let listener_stop = Arc::clone(&stop);
+        let spawned = std::thread::Builder::new()
+            .name("skriuw-sync-push".into())
+            .spawn(move || {
+                run_push_listener(
+                    &endpoints,
+                    &token,
+                    &workspace_id,
+                    &device_id,
+                    &coordinator,
+                    &listener_stop,
+                );
+            });
+        if let Err(error) = spawned {
+            eprintln!("sync push listener could not start: {error}");
+        }
+        Self { stop }
+    }
+
+    fn stop(&self) {
+        self.stop.store(true, Ordering::Relaxed);
+    }
+}
+
+enum ListenerSession {
+    Reconnect,
+    Exit,
+}
+
+fn run_push_listener(
+    endpoints: &SyncHttpEndpoints,
+    token: &str,
+    workspace_id: &str,
+    device_id: &str,
+    coordinator: &Weak<SyncCoordinator>,
+    stop: &AtomicBool,
+) {
+    let mut backoff_ms = PUSH_LISTENER_MIN_BACKOFF_MS;
+    loop {
+        if stop.load(Ordering::Relaxed) || coordinator.strong_count() == 0 {
+            return;
+        }
+        match connect_events_socket(endpoints, token, workspace_id, device_id) {
+            Ok(mut socket) => {
+                backoff_ms = PUSH_LISTENER_MIN_BACKOFF_MS;
+                if let ListenerSession::Exit = listen_for_wakes(&mut socket, coordinator, stop) {
+                    return;
+                }
+            }
+            Err(error) => {
+                eprintln!("sync push listener connection failed: {error}");
+            }
+        }
+        let mut waited = Duration::ZERO;
+        while waited < Duration::from_millis(backoff_ms) {
+            if stop.load(Ordering::Relaxed) || coordinator.strong_count() == 0 {
+                return;
+            }
+            std::thread::sleep(PUSH_LISTENER_STOP_POLL);
+            waited += PUSH_LISTENER_STOP_POLL;
+        }
+        backoff_ms = (backoff_ms * 2).min(PUSH_LISTENER_MAX_BACKOFF_MS);
+    }
+}
+
+fn connect_events_socket(
+    endpoints: &SyncHttpEndpoints,
+    token: &str,
+    workspace_id: &str,
+    device_id: &str,
+) -> Result<tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<TcpStream>>, String> {
+    use tungstenite::client::IntoClientRequest;
+
+    let url = websocket_url(&endpoints.events(workspace_id, device_id))?;
+    let mut request = url
+        .into_client_request()
+        .map_err(|error| format!("events request was invalid: {error}"))?;
+    request.headers_mut().insert(
+        "Authorization",
+        format!("Bearer {token}")
+            .parse()
+            .map_err(|_| "session token cannot be sent as a header".to_string())?,
+    );
+    let (mut socket, _response) =
+        tungstenite::connect(request).map_err(|error| format!("events connect failed: {error}"))?;
+    let stream = match socket.get_mut() {
+        tungstenite::stream::MaybeTlsStream::Plain(stream) => Some(stream),
+        tungstenite::stream::MaybeTlsStream::Rustls(stream) => Some(stream.get_mut()),
+        _ => None,
+    };
+    if let Some(stream) = stream {
+        let _ = stream.set_read_timeout(Some(PUSH_LISTENER_READ_TIMEOUT));
+    }
+    Ok(socket)
+}
+
+fn listen_for_wakes(
+    socket: &mut tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<TcpStream>>,
+    coordinator: &Weak<SyncCoordinator>,
+    stop: &AtomicBool,
+) -> ListenerSession {
+    loop {
+        if stop.load(Ordering::Relaxed) {
+            let _ = socket.close(None);
+            return ListenerSession::Exit;
+        }
+        match socket.read() {
+            Ok(tungstenite::Message::Text(text)) => {
+                if is_workspace_changed_message(text.as_str()) {
+                    let Some(coordinator) = coordinator.upgrade() else {
+                        return ListenerSession::Exit;
+                    };
+                    coordinator.notify_remote_change();
+                }
+            }
+            Ok(tungstenite::Message::Close(_)) => return ListenerSession::Reconnect,
+            Ok(_) => {}
+            Err(tungstenite::Error::Io(error))
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                ) =>
+            {
+                // The read timeout doubles as the keepalive tick; the service
+                // answers with an auto-response pong without waking.
+                if socket
+                    .send(tungstenite::Message::Text("ping".into()))
+                    .is_err()
+                {
+                    return ListenerSession::Reconnect;
+                }
+            }
+            Err(_) => return ListenerSession::Reconnect,
+        }
+    }
+}
+
+fn is_workspace_changed_message(text: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(text)
+        .ok()
+        .and_then(|value| {
+            value
+                .get("type")
+                .and_then(|kind| kind.as_str())
+                .map(|kind| kind == "workspaceChanged")
+        })
+        .unwrap_or(false)
+}
+
+fn websocket_url(http_url: &str) -> Result<String, String> {
+    if let Some(rest) = http_url.strip_prefix("https://") {
+        return Ok(format!("wss://{rest}"));
+    }
+    if let Some(rest) = http_url.strip_prefix("http://") {
+        return Ok(format!("ws://{rest}"));
+    }
+    if http_url.starts_with("wss://") || http_url.starts_with("ws://") {
+        return Ok(http_url.to_string());
+    }
+    Err(format!("cloud URL has no recognized scheme: {http_url}"))
 }
 
 struct HttpSyncTransport {

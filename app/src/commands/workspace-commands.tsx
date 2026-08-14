@@ -3,12 +3,15 @@ import {
   activateTabAtIndex,
   closeActiveTab,
   closeSplit,
+  cyclePaneFocus,
   cycleTab,
   focusPaneTowards,
   moveActiveTab,
-  openBeside,
   reopenClosedTab,
+  resetSplitRatio,
+  splitPane,
   tabStripPaneId,
+  toggleSplitOrientation,
 } from "@/store/actions/panes";
 import { toggleEditorMode } from "@/store/actions/editor-mode";
 import {
@@ -81,6 +84,7 @@ import {
   SettingsIcon,
   SplitViewCloseIcon,
   SplitViewIcon,
+  SplitViewStackedIcon,
   Trash2Icon,
   TypeIcon,
   Undo2Icon,
@@ -133,6 +137,13 @@ function hasClosedTabs(state: RendererState): boolean {
  */
 function focusPaneInDirection(store: RendererStore, direction: -1 | 1): void {
   const index = focusPaneTowards(store, direction, focusedPaneIndex());
+  if (index !== null) {
+    focusEditorPane(index);
+  }
+}
+
+function cyclePaneInDirection(store: RendererStore, direction: -1 | 1): void {
+  const index = cyclePaneFocus(store, direction, focusedPaneIndex());
   if (index !== null) {
     focusEditorPane(index);
   }
@@ -312,10 +323,10 @@ export function createWorkspaceCommands(
       icon: <CopyIcon size={15} />,
       shortcut: "duplicateCurrentNote",
       hint: shortcutDefinition("duplicateCurrentNote").description,
-      enabled: (state, ui) => onNotesRoute(state, ui) && focusedPaneNoteId(state) !== null,
+      enabled: (state, ui) => onNotesRoute(state, ui) && targetNoteId(state) !== null,
       run: () => {
         captureRenameReturnFocus();
-        void duplicateCurrentNote(store).then((duplicated) => {
+        void duplicateCurrentNote(store, targetNoteId(store.getState())).then((duplicated) => {
           if (duplicated === null) {
             return;
           }
@@ -430,13 +441,45 @@ export function createWorkspaceCommands(
     ...tabIndexCommands(store),
     {
       id: "open-beside",
-      label: "Open current note beside",
+      label: "Split vertically",
       group: "Tabs",
-      keywords: ["split", "side by side", "pane"],
+      keywords: ["split", "side by side", "pane", "beside", "vertical", "column"],
       icon: <SplitViewIcon size={15} />,
       shortcut: "openBeside",
+      hint: shortcutDefinition("openBeside").description,
       enabled: (state, ui) => onNotesRoute(state, ui) && state.activeNoteId !== null,
-      run: () => openBeside(store),
+      run: () => splitPane(store, "vertical"),
+    },
+    {
+      id: "open-below",
+      label: "Split horizontally",
+      group: "Tabs",
+      keywords: ["split", "stacked", "pane", "below", "horizontal", "row"],
+      icon: <SplitViewStackedIcon size={15} />,
+      shortcut: "openBelow",
+      hint: shortcutDefinition("openBelow").description,
+      enabled: (state, ui) => onNotesRoute(state, ui) && state.activeNoteId !== null,
+      run: () => splitPane(store, "horizontal"),
+    },
+    {
+      id: "cycle-pane-next",
+      label: "Cycle to next pane",
+      group: "Tabs",
+      keywords: ["split", "pane", "cycle", "focus", "next"],
+      icon: <ArrowRightIcon size={15} />,
+      shortcut: "cyclePaneNext",
+      enabled: (state, ui) => onNotesRoute(state, ui) && state.panes.length > 1,
+      run: () => cyclePaneInDirection(store, 1),
+    },
+    {
+      id: "cycle-pane-previous",
+      label: "Cycle to previous pane",
+      group: "Tabs",
+      keywords: ["split", "pane", "cycle", "focus", "previous"],
+      icon: <ArrowLeftIcon size={15} />,
+      shortcut: "cyclePanePrevious",
+      enabled: (state, ui) => onNotesRoute(state, ui) && state.panes.length > 1,
+      run: () => cyclePaneInDirection(store, -1),
     },
     {
       id: "close-split",
@@ -447,6 +490,24 @@ export function createWorkspaceCommands(
       shortcut: "closeSplit",
       enabled: (state, ui) => onNotesRoute(state, ui) && state.panes.length > 1,
       run: () => closeSplit(store),
+    },
+    {
+      id: "toggle-split-orientation",
+      label: "Toggle split orientation",
+      group: "Tabs",
+      keywords: ["split", "pane", "stack", "vertical", "horizontal", "side by side"],
+      icon: <SplitViewStackedIcon size={15} />,
+      enabled: (state, ui) => onNotesRoute(state, ui) && state.panes.length > 1,
+      run: () => toggleSplitOrientation(store),
+    },
+    {
+      id: "reset-split-size",
+      label: "Reset split size",
+      group: "Tabs",
+      keywords: ["split", "pane", "divider", "even", "reset"],
+      icon: <RotateCcwIcon size={15} />,
+      enabled: (state, ui) => onNotesRoute(state, ui) && state.panes.length > 1,
+      run: () => resetSplitRatio(store),
     },
     {
       id: "export-note-markdown",

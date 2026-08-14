@@ -53,7 +53,7 @@ export const SECTIONS = [
     label: "Data & recovery",
     description: "Storage, imports, backups, and recovery",
     searchText:
-      "database storage local file manager workspace path export import archive backup restore recovery rollback safety snapshot",
+      "database storage local file manager workspace path export import archive backup restore recovery rollback safety snapshot clear delete erase all data reset",
     icon: DatabaseIcon,
   },
   {

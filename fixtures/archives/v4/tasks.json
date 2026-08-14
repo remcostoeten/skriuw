@@ -1,0 +1,152 @@
+{
+  "archiveVersion": 4,
+  "protocolVersion": 1,
+  "exportedAt": 1754000000000,
+  "activeNoteId": "note-plan",
+  "nodes": [
+    {
+      "id": "note-plan",
+      "kind": "note",
+      "parentId": null,
+      "rank": 1024,
+      "title": "Plan",
+      "icon": null,
+      "createdAt": 1754000000000,
+      "updatedAt": 1754000002000,
+      "deletedAt": null,
+      "pinnedAt": null
+    }
+  ],
+  "documents": [
+    {
+      "noteId": "note-plan",
+      "documentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "check_list",
+            "content": [
+              {
+                "type": "check_item",
+                "attrs": {
+                  "checked": true,
+                  "taskId": "task-promoted",
+                  "blockId": "block-ship"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Ship the release"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "check_item",
+                "attrs": {
+                  "checked": false,
+                  "taskId": null,
+                  "blockId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Ordinary checklist item"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "markdown": "- [x] Ship the release\n- [ ] Ordinary checklist item",
+      "revision": 2,
+      "wordCount": 7
+    }
+  ],
+  "settings": {},
+  "tags": [
+    {
+      "id": "tag-release",
+      "name": "release",
+      "color": "amber",
+      "createdAt": 1754000000000,
+      "updatedAt": 1754000000000,
+      "createdIn": null
+    }
+  ],
+  "people": [
+    {
+      "id": "person-alice",
+      "name": "Alice",
+      "initials": "A",
+      "color": "blue",
+      "note": null,
+      "createdAt": 1754000000000,
+      "updatedAt": 1754000000000,
+      "createdIn": null
+    }
+  ],
+  "properties": [],
+  "propertyTemplates": [],
+  "tasks": [
+    {
+      "id": "task-detached",
+      "title": "Draft the migration note",
+      "status": "in_progress",
+      "priority": "medium",
+      "dueDate": null,
+      "description": "",
+      "tagIds": [],
+      "assigneeIds": [],
+      "source": null,
+      "detachedAt": 1754000003000,
+      "createdAt": 1754000001000,
+      "updatedAt": 1754000003000
+    },
+    {
+      "id": "task-promoted",
+      "title": "Ship the release",
+      "status": "done",
+      "priority": "high",
+      "dueDate": "2026-08-20",
+      "description": "Cut the tag and publish the notes.",
+      "tagIds": [
+        "tag-release"
+      ],
+      "assigneeIds": [
+        "person-alice"
+      ],
+      "source": {
+        "noteId": "note-plan",
+        "blockId": "block-ship"
+      },
+      "detachedAt": null,
+      "createdAt": 1754000001000,
+      "updatedAt": 1754000002000
+    },
+    {
+      "id": "task-standalone",
+      "title": "Renew the signing certificate",
+      "status": "todo",
+      "priority": "urgent",
+      "dueDate": "2026-09-01",
+      "description": "",
+      "tagIds": [],
+      "assigneeIds": [],
+      "source": null,
+      "detachedAt": null,
+      "createdAt": 1754000004000,
+      "updatedAt": 1754000004000
+    }
+  ]
+}

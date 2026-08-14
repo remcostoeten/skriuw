@@ -3,10 +3,26 @@ import {
   type PersistenceBinding,
   type PersistenceOptions,
 } from "./debounced-persistence";
-import { serializePaneLayout } from "./panes";
-import type { RendererStore } from "./types";
+import { type PaneLayout, serializePaneLayout } from "./panes";
+import type { RendererState, RendererStore } from "./types";
 
 type Persist = (layoutJson: string) => Promise<void>;
+
+export function paneLayout(state: RendererState): PaneLayout {
+  return {
+    panes: state.panes,
+    orientation: state.splitOrientation,
+    ratio: state.splitRatio,
+  };
+}
+
+function sameLayout(left: PaneLayout, right: PaneLayout): boolean {
+  return (
+    left.panes === right.panes &&
+    left.orientation === right.orientation &&
+    left.ratio === right.ratio
+  );
+}
 
 /**
  * Persists the pane layout as native UI state, mirroring the sidebar
@@ -20,9 +36,9 @@ export function bindPaneLayoutPersistence(
 ): PersistenceBinding {
   return bindDebouncedPersistence(
     store,
-    (state) => state.panes,
-    (state) => serializePaneLayout(state.panes),
+    paneLayout,
+    (state) => serializePaneLayout(paneLayout(state)),
     persist,
-    options,
+    { ...options, equality: sameLayout },
   );
 }

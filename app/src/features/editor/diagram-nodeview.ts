@@ -4,11 +4,11 @@ import type { EditorView, NodeView } from "prosemirror-view";
 import {
   DIAGRAM_NODE_HEIGHT,
   DIAGRAM_NODE_WIDTH,
-  DIAGRAM_RANK_GAP,
 } from "./diagram-geometry";
 import {
+  addDiagramStep,
   diagramShapes,
-  nextDiagramNodeId,
+  nextDiagramEdgeId,
   parseMermaidFlowchart,
   readDiagramModel,
   reflowDiagram,
@@ -64,6 +64,7 @@ function button(label: string, text: string): HTMLButtonElement {
   const control = element("button", "diagram-control");
   control.type = "button";
   control.setAttribute("aria-label", label);
+  control.title = label;
   control.textContent = text;
   return control;
 }
@@ -124,6 +125,7 @@ export function createDiagramNodeView(
   let node = initialNode;
   let model = readDiagramModel(node.attrs.model);
   let selectedId = model.nodes[0]?.id ?? null;
+  let selectedEdgeId: string | null = null;
   let selectedAsBlock = false;
   let sourceOpen = false;
   let connectingFrom: string | null = null;
@@ -132,6 +134,7 @@ export function createDiagramNodeView(
   let renderedEdges: Array<{
     edge: DiagramEdge;
     path: SVGPathElement;
+    hit: SVGPathElement;
     label: SVGTextElement | null;
   }> = [];
   markerSequence += 1;
@@ -141,6 +144,7 @@ export function createDiagramNodeView(
   dom.contentEditable = "false";
   dom.tabIndex = 0;
   dom.setAttribute("role", "figure");
+  dom.addEventListener("dragstart", (event) => event.preventDefault());
 
   const toolbar = element("div", "diagram-toolbar");
   toolbar.setAttribute("role", "toolbar");
@@ -177,7 +181,8 @@ export function createDiagramNodeView(
   const canvas = element("div", "diagram-canvas");
   const connectorSvg = document.createElementNS(SVG_NAMESPACE, "svg");
   connectorSvg.classList.add("diagram-connectors");
-  connectorSvg.setAttribute("aria-hidden", "true");
+  connectorSvg.setAttribute("role", "group");
+  connectorSvg.setAttribute("aria-label", "Connections");
   const nodesLayer = element("div", "diagram-nodes");
   canvas.append(connectorSvg, nodesLayer);
   viewport.append(canvas);
@@ -268,6 +273,8 @@ export function createDiagramNodeView(
       path.classList.add("diagram-connector");
       path.setAttribute("d", connectorPath(from.position, to.position));
       path.setAttribute("marker-end", `url(#${markerId})`);
+      path.setAttribute("aria-hidden", "true");
+      path.dataset.selected = edge.id === selectedEdgeId ? "true" : "false";
       if (edge.dashed) path.setAttribute("stroke-dasharray", "6 5");
       if (edge.stroke) path.style.stroke = edge.stroke;
       connectorSvg.append(path);
@@ -276,13 +283,153 @@ export function createDiagramNodeView(
         const labelPosition = edgeLabelPosition(from.position, to.position);
         const text = document.createElementNS(SVG_NAMESPACE, "text");
         text.classList.add("diagram-connector-label");
+        text.setAttribute("aria-hidden", "true");
         text.setAttribute("x", String(labelPosition.x));
         text.setAttribute("y", String(labelPosition.y));
         text.textContent = edge.label;
         connectorSvg.append(text);
         renderedLabel = text;
       }
-      renderedEdges.push({ edge, path, label: renderedLabel });
+      const hit = document.createElementNS(SVG_NAMESPACE, "path");
+      hit.classList.add("diagram-connector-hit");
+      hit.setAttribute("d", connectorPath(from.position, to.position));
+      hit.setAttribute("tabindex", "-1");
+      hit.setAttribute("role", "button");
+      hit.setAttribute(
+        "aria-label",
+        `Connection ${diagramEdgeSummary(model, edge)}. Enter renames it, D toggles dashed, Delete removes it.`,
+      );
+      hit.dataset.edgeId = edge.id;
+      hit.addEventListener("focus", () => selectEdge(edge.id));
+      hit.addEventListener("click", (event) => {
+        event.stopPropagation();
+        selectEdge(edge.id);
+        hit.focus();
+      });
+      hit.addEventListener("dblclick", (event) => {
+        event.stopPropagation();
+        startEdgeLabelEdit(edge);
+      });
+      hit.addEventListener("keydown", (event) => handleEdgeKey(event, edge));
+      connectorSvg.append(hit);
+      renderedEdges.push({ edge, path, hit, label: renderedLabel });
+    }
+  }
+
+  function syncEdgeSelection(): void {
+    for (const rendered of renderedEdges) {
+      rendered.path.dataset.selected = rendered.edge.id === selectedEdgeId ? "true" : "false";
+    }
+  }
+
+  function selectEdge(id: string): void {
+    selectedEdgeId = id;
+    syncEdgeSelection();
+  }
+
+  function focusEdge(id: string): boolean {
+    const hit = connectorSvg.querySelector<SVGPathElement>(`[data-edge-id="${id}"]`);
+    hit?.focus();
+    return hit !== null;
+  }
+
+  function focusNode(id: string | null): void {
+    if (!id) return;
+    nodesLayer.querySelector<HTMLElement>(`[data-node-id="${id}"]`)?.focus();
+  }
+
+  function removeEdge(edge: DiagramEdge): void {
+    if (!view.editable) return;
+    const next = cloneModel(model);
+    next.edges = next.edges.filter(({ id }) => id !== edge.id);
+    selectedEdgeId = null;
+    commit(next);
+    announce(`Removed connection ${diagramEdgeSummary(model, edge)}`);
+    focusNode(edge.from);
+  }
+
+  function toggleEdgeDashed(edge: DiagramEdge): void {
+    if (!view.editable) return;
+    const next = cloneModel(model);
+    const found = next.edges.find(({ id }) => id === edge.id);
+    if (!found) return;
+    found.dashed = !found.dashed;
+    commit(next);
+    announce(found.dashed ? "Connection is now dashed" : "Connection is now solid");
+    focusEdge(edge.id);
+  }
+
+  function startEdgeLabelEdit(edge: DiagramEdge): void {
+    if (!view.editable) return;
+    const from = model.nodes.find(({ id }) => id === edge.from);
+    const to = model.nodes.find(({ id }) => id === edge.to);
+    if (!from || !to) return;
+    selectEdge(edge.id);
+    const point = edgeLabelPosition(from.position, to.position);
+    const input = element("input", "diagram-node-label-input diagram-edge-label-input");
+    input.value = edge.label;
+    input.setAttribute("aria-label", `Label connection ${diagramEdgeSummary(model, edge)}`);
+    input.style.left = `${Math.max(0, point.x - 60)}px`;
+    input.style.top = `${Math.max(0, point.y - 13)}px`;
+    canvas.append(input);
+    input.focus();
+    input.select();
+    let finished = false;
+    function finish(save: boolean): void {
+      if (finished) return;
+      finished = true;
+      const nextLabel = input.value.trim().slice(0, 240);
+      input.remove();
+      if (save && nextLabel !== edge.label) {
+        const next = cloneModel(model);
+        const found = next.edges.find(({ id }) => id === edge.id);
+        if (found) found.label = nextLabel;
+        commit(next);
+        announce(nextLabel ? `Labelled connection ${nextLabel}` : "Removed connection label");
+      }
+      if (!focusEdge(edge.id)) dom.focus();
+    }
+    input.addEventListener("keydown", (event) => {
+      event.stopPropagation();
+      if (event.key === "Enter") {
+        event.preventDefault();
+        finish(true);
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        finish(false);
+      }
+    });
+    input.addEventListener("blur", () => finish(true));
+  }
+
+  function handleEdgeKey(event: KeyboardEvent, edge: DiagramEdge): void {
+    if (event.key === "Enter" || event.key === "F2") {
+      event.preventDefault();
+      startEdgeLabelEdit(edge);
+      return;
+    }
+    if (event.key === "Delete" || event.key === "Backspace") {
+      event.preventDefault();
+      removeEdge(edge);
+      return;
+    }
+    if (event.key === "d" || event.key === "D") {
+      event.preventDefault();
+      toggleEdgeDashed(edge);
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      focusNode(edge.from);
+      return;
+    }
+    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+      event.preventDefault();
+      const index = renderedEdges.findIndex((rendered) => rendered.edge.id === edge.id);
+      if (index < 0) return;
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      const next = renderedEdges[(index + step + renderedEdges.length) % renderedEdges.length];
+      if (next) focusEdge(next.edge.id);
     }
   }
 
@@ -303,6 +450,10 @@ export function createDiagramNodeView(
 
   function select(id: string, focus = false): void {
     selectedId = id;
+    if (selectedEdgeId !== null) {
+      selectedEdgeId = null;
+      syncEdgeSelection();
+    }
     for (const child of nodesLayer.children) {
       if (!(child instanceof HTMLElement)) continue;
       const active = child.dataset.nodeId === id;
@@ -364,29 +515,32 @@ export function createDiagramNodeView(
     announce(`Deleted ${removed.label}`);
   }
 
-  function connectTo(targetId: string): boolean {
-    const from = connectingFrom;
-    if (!from || from === targetId) return false;
-    if (model.edges.some((edge) => edge.from === from && edge.to === targetId)) {
-      connectingFrom = null;
-      syncControls();
+  function createEdge(fromId: string, toId: string): void {
+    if (model.edges.some((edge) => edge.from === fromId && edge.to === toId)) {
       announce("Those steps are already connected");
-      return true;
+      return;
     }
     const next = cloneModel(model);
     next.edges.push({
-      id: `${from}-${targetId}-${next.edges.length + 1}`,
-      from,
-      to: targetId,
+      id: nextDiagramEdgeId(next, fromId, toId),
+      from: fromId,
+      to: toId,
       label: "",
       dashed: false,
       stroke: null,
     });
-    const fromLabel = next.nodes.find(({ id }) => id === from)?.label ?? from;
-    const targetLabel = next.nodes.find(({ id }) => id === targetId)?.label ?? targetId;
-    connectingFrom = null;
+    const fromLabel = next.nodes.find(({ id }) => id === fromId)?.label ?? fromId;
+    const targetLabel = next.nodes.find(({ id }) => id === toId)?.label ?? toId;
     commit(next);
     announce(`Connected ${fromLabel} to ${targetLabel}`);
+  }
+
+  function connectTo(targetId: string): boolean {
+    const from = connectingFrom;
+    if (!from || from === targetId) return false;
+    connectingFrom = null;
+    syncControls();
+    createEdge(from, targetId);
     return true;
   }
 
@@ -408,6 +562,14 @@ export function createDiagramNodeView(
     if ((event.key === "Delete" || event.key === "Backspace") && view.editable) {
       event.preventDefault();
       removeNode(diagramNode.id);
+      return;
+    }
+    if (event.key === "e" || event.key === "E") {
+      const incident = incidentDiagramEdges(model, diagramNode.id);
+      if (incident.length > 0) {
+        event.preventDefault();
+        focusEdge(incident[0]!.id);
+      }
       return;
     }
     const keyDirection = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
@@ -489,12 +651,77 @@ export function createDiagramNodeView(
       target.addEventListener("pointerup", finish);
       target.addEventListener("pointercancel", finish);
     });
+    if (view.editable) target.append(createPortElement(diagramNode, target));
     return target;
+  }
+
+  function setDropTarget(id: string | null): void {
+    for (const child of nodesLayer.children) {
+      if (child instanceof HTMLElement) {
+        child.dataset.dropTarget = child.dataset.nodeId === id ? "true" : "false";
+      }
+    }
+  }
+
+  function createPortElement(diagramNode: DiagramNode, target: HTMLElement): HTMLElement {
+    const port = element("span", "diagram-node-port");
+    port.setAttribute("aria-hidden", "true");
+    port.title = "Drag to connect";
+    port.addEventListener("pointerdown", (event) => {
+      if (!view.editable || event.button !== 0) return;
+      event.stopPropagation();
+      event.preventDefault();
+      select(diagramNode.id);
+      port.setPointerCapture(event.pointerId);
+      const preview = document.createElementNS(SVG_NAMESPACE, "path");
+      preview.classList.add("diagram-connector", "diagram-connector-preview");
+      preview.setAttribute("aria-hidden", "true");
+      connectorSvg.append(preview);
+      target.dataset.connecting = "true";
+      let dropId: string | null = null;
+      const move = (moveEvent: PointerEvent) => {
+        const rect = canvas.getBoundingClientRect();
+        preview.setAttribute(
+          "d",
+          connectorPath(diagramNode.position, {
+            x: moveEvent.clientX - rect.left,
+            y: moveEvent.clientY - rect.top - DIAGRAM_NODE_HEIGHT / 2,
+          }),
+        );
+        const hovered = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+        const nodeElement = hovered?.closest<HTMLElement>(".diagram-node") ?? null;
+        const nextDrop =
+          nodeElement && nodeElement.dataset.nodeId !== diagramNode.id
+            ? nodeElement.dataset.nodeId ?? null
+            : null;
+        if (nextDrop !== dropId) {
+          dropId = nextDrop;
+          setDropTarget(dropId);
+        }
+      };
+      const stop = (connect: boolean) => {
+        port.removeEventListener("pointermove", move);
+        port.removeEventListener("pointerup", finish);
+        port.removeEventListener("pointercancel", cancel);
+        preview.remove();
+        setDropTarget(null);
+        delete target.dataset.connecting;
+        if (connect && dropId) createEdge(diagramNode.id, dropId);
+        else if (connect) announce("Drop on another step to connect");
+      };
+      const finish = () => stop(true);
+      const cancel = () => stop(false);
+      port.addEventListener("pointermove", move);
+      port.addEventListener("pointerup", finish);
+      port.addEventListener("pointercancel", cancel);
+    });
+    return port;
   }
 
   function render(): void {
     model = readDiagramModel(node.attrs.model ?? model);
     if (!model.nodes.some(({ id }) => id === selectedId)) selectedId = model.nodes[0]?.id ?? null;
+    if (!model.edges.some(({ id }) => id === selectedEdgeId)) selectedEdgeId = null;
     const bounds = diagramBounds(model);
     canvas.style.width = `${bounds.width}px`;
     canvas.style.height = `${bounds.height}px`;
@@ -502,43 +729,44 @@ export function createDiagramNodeView(
     nodesLayer.replaceChildren(...model.nodes.map(createNodeElement));
     renderEdges();
     const count = `${model.nodes.length} ${model.nodes.length === 1 ? "step" : "steps"}, ${model.edges.length} ${model.edges.length === 1 ? "connection" : "connections"}`;
-    dom.setAttribute("aria-label", `Diagram, ${count}. Enter a step to rename it; Shift plus arrow keys move it.`);
+    dom.setAttribute("aria-label", `Diagram, ${count}. Enter renames a step, Shift plus arrow keys move it, E reaches its connections.`);
     dom.dataset.selected = selectedAsBlock ? "true" : "false";
     sourcePanel.hidden = !sourceOpen;
     viewport.hidden = sourceOpen;
     syncControls();
   }
 
+  function insertStep(options: { fromId?: string | null; at?: DiagramPoint | null }): void {
+    if (!view.editable) return;
+    const inserted = addDiagramStep(model, options);
+    selectedId = inserted.id;
+    commit(inserted.model);
+    announce("Added a step. Type its name.");
+    const target = nodesLayer.querySelector<HTMLElement>(`[data-node-id="${inserted.id}"]`);
+    const created = model.nodes.find(({ id }) => id === inserted.id);
+    if (target && created) startLabelEdit(target, created);
+  }
+
   addControl.addEventListener("click", () => {
-    const next = cloneModel(model);
-    const current = currentSelected();
-    const id = nextDiagramNodeId(next);
-    next.nodes.push({
-      id,
-      label: "New step",
-      shape: "rectangle",
-      position: current
-        ? {
-            x: current.position.x + DIAGRAM_NODE_WIDTH + DIAGRAM_RANK_GAP,
-            y: current.position.y,
-          }
-        : { x: 12, y: 24 },
-      fill: null,
-      stroke: null,
-    });
-    if (current) {
-      next.edges.push({
-        id: `${current.id}-${id}-${next.edges.length + 1}`,
-        from: current.id,
-        to: id,
-        label: "",
-        dashed: false,
-        stroke: null,
-      });
+    insertStep({ fromId: selectedId });
+  });
+
+  viewport.addEventListener("dblclick", (event) => {
+    if (!view.editable) return;
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest(".diagram-node, .diagram-connector-hit, input") !== null
+    ) {
+      return;
     }
-    selectedId = id;
-    commit(next);
-    announce("Added New step");
+    const rect = canvas.getBoundingClientRect();
+    insertStep({
+      at: {
+        x: event.clientX - rect.left - DIAGRAM_NODE_WIDTH / 2,
+        y: event.clientY - rect.top - DIAGRAM_NODE_HEIGHT / 2,
+      },
+    });
   });
 
   connectControl.addEventListener("click", () => {
@@ -650,9 +878,11 @@ export function createDiagramNodeView(
       dom.dataset.selected = "false";
     },
     stopEvent: (event) =>
-      event.target instanceof HTMLElement &&
+      event.target instanceof Element &&
       dom.contains(event.target) &&
-      event.target.closest("button, input, select, textarea, .diagram-node") !== null,
+      event.target.closest(
+        "button, input, select, textarea, .diagram-node, .diagram-connector-hit, .diagram-node-port",
+      ) !== null,
     ignoreMutation: () => true,
     destroy() {
       if (dragFrame !== 0) window.cancelAnimationFrame(dragFrame);

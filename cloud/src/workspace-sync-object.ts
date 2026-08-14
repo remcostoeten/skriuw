@@ -2,6 +2,10 @@ import { DurableObject } from "cloudflare:workers";
 
 import { WorkspaceContentStore } from "./content-store";
 import {
+  SYNC_EVENTS_DEVICE_HEADER,
+  SYNC_EVENTS_EXPIRY_HEADER,
+} from "./public-api";
+import {
   type AcknowledgementResult,
   type CompactionResult,
   type ContentManifest,
@@ -42,6 +46,11 @@ type ExistingOperationRow = {
   payload_json: string;
 };
 
+type EventsSocketAttachment = {
+  deviceId: string;
+  expiresAtEpochSeconds: number;
+};
+
 export class WorkspaceSyncObject extends DurableObject<Env> {
   private readonly content: WorkspaceContentStore;
   private readonly workspaceKey: string;
@@ -50,9 +59,53 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
     super(ctx, env);
     this.content = new WorkspaceContentStore(env.SYNC_CONTENT);
     this.workspaceKey = ctx.id.name ?? "";
+    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
     void ctx.blockConcurrencyWhile(async () => {
       this.migrate();
     });
+  }
+
+  /**
+   * Accepts the events WebSocket forwarded by the Worker after authorization.
+   * The socket hibernates between broadcasts; the device identity and session
+   * expiry ride the attachment so they survive eviction.
+   */
+  override async fetch(request: Request): Promise<Response> {
+    if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+      return Response.json({ error: "upgrade_required" }, { status: 426 });
+    }
+    const deviceId = request.headers.get(SYNC_EVENTS_DEVICE_HEADER);
+    const expiresAtEpochSeconds = Number(
+      request.headers.get(SYNC_EVENTS_EXPIRY_HEADER),
+    );
+    if (!deviceId || !Number.isSafeInteger(expiresAtEpochSeconds) || expiresAtEpochSeconds <= 0) {
+      return Response.json({ error: "invalid_request" }, { status: 400 });
+    }
+    const pair = new WebSocketPair();
+    this.ctx.acceptWebSocket(pair[1]);
+    pair[1].serializeAttachment({
+      deviceId,
+      expiresAtEpochSeconds,
+    } satisfies EventsSocketAttachment);
+    const headers = new Headers();
+    const subprotocol = request.headers.get("Sec-WebSocket-Protocol");
+    if (subprotocol !== null) {
+      headers.set("Sec-WebSocket-Protocol", subprotocol);
+    }
+    return new Response(null, { status: 101, webSocket: pair[0], headers });
+  }
+
+  override async webSocketMessage(): Promise<void> {
+    // Clients never send application messages; keepalive pings are answered
+    // by the auto-response pair without waking the object.
+  }
+
+  override async webSocketClose(socket: WebSocket): Promise<void> {
+    closeQuietly(socket);
+  }
+
+  override async webSocketError(socket: WebSocket): Promise<void> {
+    closeQuietly(socket);
   }
 
   async pushOperations(input: unknown): Promise<SyncPushResult> {
@@ -71,6 +124,7 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
       const response = this.ctx.storage.transactionSync(() =>
         this.pushTransaction(request),
       );
+      this.broadcastWorkspaceChanged(response.latestServerSequence, request.deviceId);
       return { ok: true, response };
     } catch (error) {
       if (error instanceof SyncContractError) {
@@ -302,7 +356,42 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         );
       }
     });
+    this.broadcastWorkspaceChanged(this.latestServerSequence(), null);
     return { ok: true, serverSequence: checkpoint.serverSequence };
+  }
+
+  /**
+   * A wake hint only: recipients pull through the normal path, so a lost or
+   * failed send costs nothing but latency. Sockets whose session expired are
+   * closed here because hibernation keeps them alive past the handshake check.
+   */
+  private broadcastWorkspaceChanged(
+    latestServerSequence: number,
+    originDeviceId: string | null,
+  ): void {
+    const nowEpochSeconds = Math.floor(Date.now() / 1_000);
+    const message = JSON.stringify({ type: "workspaceChanged", latestServerSequence });
+    for (const socket of this.ctx.getWebSockets()) {
+      let attachment: EventsSocketAttachment | null = null;
+      try {
+        attachment = socket.deserializeAttachment() as EventsSocketAttachment;
+      } catch {
+        closeQuietly(socket);
+        continue;
+      }
+      if (attachment.expiresAtEpochSeconds <= nowEpochSeconds) {
+        closeQuietly(socket);
+        continue;
+      }
+      if (originDeviceId !== null && attachment.deviceId === originDeviceId) {
+        continue;
+      }
+      try {
+        socket.send(message);
+      } catch {
+        closeQuietly(socket);
+      }
+    }
   }
 
   async latestCheckpoint(): Promise<string | null> {
@@ -554,6 +643,14 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
       )
       .toArray()[0]?.sequence ?? 0;
     return Math.max(logged, assigned);
+  }
+}
+
+function closeQuietly(socket: WebSocket): void {
+  try {
+    socket.close(1011, "sync events channel closed");
+  } catch {
+    // Already closed or errored; hibernation cleans the socket up regardless.
   }
 }
 

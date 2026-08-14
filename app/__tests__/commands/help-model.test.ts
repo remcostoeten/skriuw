@@ -103,7 +103,7 @@ test("bindings that do not bind on this platform are dropped", () => {
 });
 
 test("the when column is derived from scopes, guards, and editor binding", () => {
-  assert.equal(shortcutWhenLabel(definition("jumpToLine")), "In the editor · Markdown mode");
+  assert.equal(shortcutWhenLabel(definition("jumpToLine")), "In the editor");
   assert.equal(shortcutWhenLabel(definition("focusPaneRight")), "Split view");
   assert.equal(shortcutWhenLabel(definition("openTab3")), "Tabs open");
   assert.equal(
@@ -140,7 +140,20 @@ test("the filter matches labels, combos, groups, and when copy", () => {
   assert.equal(shortcutHelpMatches("General", row, "Ctrl+K"), true);
   assert.equal(shortcutHelpMatches("General", row, "general"), true);
   assert.equal(shortcutHelpMatches("General", row, "duplicate"), false);
-  assert.equal(shortcutHelpMatches("Editor", rowFor("jumpToLine"), "markdown mode"), true);
+  assert.equal(shortcutHelpMatches("Editor", rowFor("jumpToLine"), "in the editor"), true);
+});
+
+test("the filter accepts common spellings of a key name", () => {
+  const groups = (query: string) =>
+    shortcutHelpGroups({ overrides: {}, platform: "linux", query })
+      .flatMap((group) => group.rows)
+      .map((row) => row.id);
+  for (const query of ["pgup", "page up", "pageup", "ctrl shift pgup"]) {
+    assert.ok(groups(query).includes("moveTabLeft"), `${query} found nothing`);
+  }
+  assert.ok(groups("pgdn").includes("moveTabRight"));
+  assert.ok(groups("cmd+k").includes("toggleCommandPalette"));
+  assert.equal(groups("pgup").includes("moveTabRight"), false);
 });
 
 test("filtering drops emptied groups and keeps matching rows only", () => {

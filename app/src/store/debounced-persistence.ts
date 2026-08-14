@@ -1,4 +1,4 @@
-import type { RendererState, RendererStore } from "./types";
+import type { Equality, RendererState, RendererStore } from "./types";
 
 export type PersistenceOptions = {
   delayMs?: number;
@@ -16,14 +16,16 @@ export type PersistenceBinding = {
  * final flush on unbind. Writes never overlap; a snapshot taken while one is
  * in flight drains as soon as it settles. `flush` and `dispose` reject while
  * the latest accepted snapshot is not durable, so callers must await or catch
- * them; `onError` is an additional background-reporting hook.
+ * them; `onError` is an additional background-reporting hook. Slices that are
+ * built per read rather than held in the store pass an `equality` so the
+ * subscription still only fires on real changes.
  */
 export function bindDebouncedPersistence<Slice, Snapshot>(
   store: RendererStore,
   select: (state: RendererState) => Slice,
   snapshot: (state: RendererState) => Snapshot,
   persist: (value: Snapshot) => Promise<void>,
-  options: PersistenceOptions = {},
+  options: PersistenceOptions & { equality?: Equality<Slice> } = {},
 ): PersistenceBinding {
   const delayMs = options.delayMs ?? 160;
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -59,16 +61,20 @@ export function bindDebouncedPersistence<Slice, Snapshot>(
     await inFlight;
   };
 
-  const unsubscribe = store.subscribe(select, () => {
-    pending = snapshot(store.getState());
-    if (timer !== null) {
-      clearTimeout(timer);
-    }
-    timer = setTimeout(() => {
-      timer = null;
-      void drain();
-    }, delayMs);
-  });
+  const unsubscribe = store.subscribe(
+    select,
+    () => {
+      pending = snapshot(store.getState());
+      if (timer !== null) {
+        clearTimeout(timer);
+      }
+      timer = setTimeout(() => {
+        timer = null;
+        void drain();
+      }, delayMs);
+    },
+    options.equality,
+  );
 
   async function flush(): Promise<void> {
     if (timer !== null) {

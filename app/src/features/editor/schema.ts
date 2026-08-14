@@ -28,7 +28,7 @@ import {
 import { schema as basicSchema } from "prosemirror-schema-basic";
 import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState } from "prosemirror-state";
 import { findWrapping } from "prosemirror-transform";
-import { moveSelectedBlock } from "./block-commands";
+import { moveSelectedBlock, selectBlockThenDocument } from "./block-commands";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
 import { addListNodes, liftListItem, sinkListItem, splitListItem } from "prosemirror-schema-list";
 import {
@@ -1058,6 +1058,7 @@ export function createProductPlugins(): Plugin[] {
       "Mod-e": toggleMark(code),
       "Mod-Shift-x": toggleMark(strikethrough),
       "Mod-u": toggleMark(underline),
+      "Mod-a": selectBlockThenDocument(),
       "Alt-ArrowUp": moveSelectedBlock(-1),
       "Alt-ArrowDown": moveSelectedBlock(1),
       "Alt-Enter": toggleItemAtSelection,

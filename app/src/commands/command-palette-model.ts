@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { parseSearchQuery } from "@/features/search/query-parser";
 import { fuzzyMatchScore } from "@/shared/lib/fuzzy-match";
 
 export type CommandPaletteItem = {
@@ -27,12 +28,15 @@ export type CommandPaletteGroup = {
 
 const DEFAULT_GROUP = "Actions";
 const RECENT_GROUP = "Recent";
+const CONTENT_GROUP = "Content";
+export const RECENT_NOTES_GROUP = "Recent notes";
 const MAX_RECENT_ITEMS = 5;
 const GROUP_ORDER = [
   RECENT_GROUP,
   DEFAULT_GROUP,
+  RECENT_NOTES_GROUP,
   "Notes",
-  "Content",
+  CONTENT_GROUP,
   "Tags",
   "People",
   "Navigation",
@@ -67,7 +71,7 @@ export const COMMAND_BANGS: readonly CommandBang[] = [
   {
     key: "n",
     label: "Notes",
-    groups: ["Notes", "Content", RECENT_GROUP],
+    groups: ["Notes", CONTENT_GROUP, RECENT_GROUP],
     aliases: ["n", "note", "notes"],
   },
   {
@@ -107,16 +111,28 @@ function resolveBang(token: string): CommandBang | null {
   return prefixed.length === 1 ? (prefixed[0] ?? null) : null;
 }
 
+export type CommandPaletteMode = "recents";
+
 export type ParsedCommandQuery = {
   bang: string | null;
+  /** Set when a keyword scope like `recents` owns the input. */
+  mode: CommandPaletteMode | null;
   allowedGroups: Set<string> | null;
   query: string;
 };
 
 /**
- * Splits a leading `!token` bang off the raw input. Returns the matched bang
- * key (or null), the set of groups it unlocks, and the remaining search text. A
- * lone `!` or an unknown bang is treated as plain text so typing stays fluid.
+ * Typing the whole word switches the palette into the recents list; anything
+ * after it filters that list. Spelled out rather than bang-scoped because it is
+ * the only entry point to recents now that the sidebar section is gone.
+ */
+const RECENTS_KEYWORD = /^(?:recents?|recently)(?:\s+(.*))?$/i;
+
+/**
+ * Splits a leading `!token` bang or a `recents` keyword off the raw input.
+ * Returns the matched bang key (or null), the mode it entered, the set of
+ * groups it unlocks, and the remaining search text. A lone `!` or an unknown
+ * bang is treated as plain text so typing stays fluid.
  */
 export function parseCommandQuery(raw: string): ParsedCommandQuery {
   const match = raw.match(/^!([a-z]+)(?:\s+(.*))?$/i);
@@ -125,13 +141,24 @@ export function parseCommandQuery(raw: string): ParsedCommandQuery {
     if (bang) {
       return {
         bang: bang.key,
+        mode: null,
         allowedGroups: new Set(bang.groups),
         query: (match[2] ?? "").trim(),
       };
     }
   }
 
-  return { bang: null, allowedGroups: null, query: raw.trim() };
+  const recents = raw.match(RECENTS_KEYWORD);
+  if (recents) {
+    return {
+      bang: null,
+      mode: "recents",
+      allowedGroups: new Set([RECENT_NOTES_GROUP]),
+      query: (recents[1] ?? "").trim(),
+    };
+  }
+
+  return { bang: null, mode: null, allowedGroups: null, query: raw.trim() };
 }
 
 function getItemGroup(item: CommandPaletteItem): string {
@@ -183,11 +210,22 @@ function compareGroups(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
+function scopeGroups(bangGroups: Set<string> | null, filtersActive: boolean): Set<string> | null {
+  if (!filtersActive) {
+    return bangGroups;
+  }
+  if (!bangGroups) {
+    return new Set([CONTENT_GROUP]);
+  }
+  return bangGroups.has(CONTENT_GROUP) ? new Set([CONTENT_GROUP]) : new Set();
+}
+
 function buildRecentItems(
   items: readonly CommandPaletteItem[],
   frecency: Record<string, number>,
 ): CommandPaletteItem[] {
   return items
+    .filter((item) => getItemGroup(item) !== RECENT_NOTES_GROUP)
     .filter((item) => (frecency[item.id] ?? 0) > 0)
     .sort((a, b) => (frecency[b.id] ?? 0) - (frecency[a.id] ?? 0))
     .slice(0, MAX_RECENT_ITEMS);
@@ -198,8 +236,13 @@ export function getCommandPaletteGroups(
   query: string,
   frecency: Record<string, number> = {},
 ): CommandPaletteGroup[] {
-  const { allowedGroups, query: searchQuery } = parseCommandQuery(query);
-  const normalizedQuery = searchQuery.toLowerCase();
+  const { allowedGroups: bangGroups, query: searchQuery } = parseCommandQuery(query);
+  const parsed = parseSearchQuery(searchQuery);
+  const normalizedQuery = parsed.text.toLowerCase();
+  // A relationship filter turns the palette into a content query: only the
+  // host's filtered results answer it, so the title, action and entity indexes
+  // step aside rather than listing rows the filter never narrowed.
+  const allowedGroups = scopeGroups(bangGroups, parsed.filters.length > 0);
   const bangActive = allowedGroups !== null;
   const grouped = new Map<string, CommandPaletteItem[]>();
   const matchScores = new Map<string, number>();
@@ -215,6 +258,12 @@ export function getCommandPaletteGroups(
     const group = getItemGroup(item);
 
     if (allowedGroups && !allowedGroups.has(group)) {
+      continue;
+    }
+
+    // Recents are a scope, not a ranking: every one of them also lives in the
+    // title index, so surfacing them on a plain query would double every row.
+    if (group === RECENT_NOTES_GROUP && !allowedGroups?.has(group)) {
       continue;
     }
 

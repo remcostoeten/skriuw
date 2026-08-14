@@ -9,6 +9,7 @@ import {
   moveBlock,
   moveBlockToIndex,
   moveSelectedBlock,
+  selectBlockThenDocument,
   topLevelBlockAt,
 } from "../../../src/features/editor/block-commands";
 import { productSchema, serializeProductMarkdown } from "../../../src/features/editor/schema";
@@ -130,6 +131,40 @@ test("moveBlock keeps the text cursor on the block it moved", () => {
   const next = apply(selected, moveSelectedBlock(-1));
   assert.deepEqual(blockTexts(next), ["two", "one"]);
   assert.equal(next.selection.$from.parent.textContent, "two");
+});
+
+test("selectBlockThenDocument selects the block on the first press and the document on the second", () => {
+  const state = stateWith(paragraph("one"), paragraph("two"));
+  const cursor = state.doc.child(0).nodeSize + 2;
+  const placed = state.apply(state.tr.setSelection(TextSelection.create(state.doc, cursor)));
+
+  const block = apply(placed, selectBlockThenDocument());
+  assert.equal(block.doc.textBetween(block.selection.from, block.selection.to), "two");
+
+  const document = apply(block, selectBlockThenDocument());
+  assert.equal(document.selection.from, 0);
+  assert.equal(document.selection.to, document.doc.content.size);
+});
+
+test("selectBlockThenDocument selects the enclosing list item paragraph, not the whole list", () => {
+  const list = productSchema.node("bullet_list", null, [
+    productSchema.node("list_item", null, [paragraph("a")]),
+    productSchema.node("list_item", null, [paragraph("b")]),
+  ]);
+  const state = stateWith(list as never);
+  const insideFirstItem = 4;
+  const placed = state.apply(
+    state.tr.setSelection(TextSelection.create(state.doc, insideFirstItem)),
+  );
+  const next = apply(placed, selectBlockThenDocument());
+  assert.equal(next.doc.textBetween(next.selection.from, next.selection.to), "a");
+});
+
+test("selectBlockThenDocument falls through to the document from an empty block", () => {
+  const state = stateWith(paragraph(""), paragraph("two"));
+  const next = apply(state, selectBlockThenDocument());
+  assert.equal(next.selection.from, 0);
+  assert.equal(next.selection.to, next.doc.content.size);
 });
 
 test("a reordered document round-trips through the markdown serializer", () => {

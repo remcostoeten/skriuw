@@ -28,6 +28,17 @@ const navButtonClass =
   "flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 /**
+ * Shift+arrow stands in for the Home/End/PageUp/PageDown cluster, which a 60%
+ * keyboard only exposes behind a Fn layer.
+ */
+const SHIFT_ARROW_ALIASES: Record<string, string | undefined> = {
+  ArrowLeft: "Home",
+  ArrowRight: "End",
+  ArrowUp: "PageUp",
+  ArrowDown: "PageDown",
+};
+
+/**
  * The day that owns the grid's single tab stop. Prefers the day the user last
  * moved to, then the selected day, then today, so tabbing into the calendar
  * always lands somewhere meaningful — and never on all 42 days in turn.
@@ -51,8 +62,9 @@ function dayLabel(key: DateKey, hasEntry: boolean): string {
 /**
  * The Monday-first month grid shared by the journal sidebar and the notes
  * sidebar, with a dot under every day that has an entry. The month keeps a
- * single tab stop; arrows move the focused day, Home/End span the week,
- * PageUp/PageDown step a month, and Enter opens the focused day.
+ * single tab stop; arrows move the focused day, Home/End (or shift+left/right)
+ * span the week, PageUp/PageDown (or shift+up/down) step a month, and Enter
+ * opens the focused day.
  */
 export function JournalCalendar({
   month,
@@ -104,7 +116,8 @@ export function JournalCalendar({
     if (event.altKey || event.ctrlKey || event.metaKey || tabStop === null) {
       return;
     }
-    const next = calendarKeyMove(tabStop, event.key);
+    const pressed = event.shiftKey ? (SHIFT_ARROW_ALIASES[event.key] ?? event.key) : event.key;
+    const next = calendarKeyMove(tabStop, pressed);
     if (next === null) {
       return;
     }
@@ -151,7 +164,7 @@ export function JournalCalendar({
       </div>
       <div
         role="group"
-        aria-label={`${formatMonthTitle(month)}. Use the arrow keys to move by day, Enter to open one.`}
+        aria-label={`${formatMonthTitle(month)}. Arrow keys move by day, shift with an arrow jumps to the week edge or another month, Enter opens the focused day.`}
         onKeyDown={handleGridKeyDown}
         className="grid grid-cols-7 gap-0.5"
       >
@@ -197,6 +210,9 @@ export function JournalCalendar({
           );
         })}
       </div>
+      <p aria-hidden="true" className="mt-1 text-[9px] leading-tight text-muted-foreground/45">
+        Arrows move by day, shift+arrows jump, Enter opens
+      </p>
     </div>
   );
 }

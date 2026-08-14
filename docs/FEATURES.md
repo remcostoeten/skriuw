@@ -33,7 +33,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Workspace media gallery** — one filterable Settings gallery inventories every blob used inline, as a cover, or in the journal. Each asset shows format, dimensions, size, hash, attachment date, exact usage type, count, links back to every reference, and a full-screen preview. The cover picker searches, filters, sorts, and marks current, used, and reused assets.
 - **Video, audio, and file embeds** — `/video`, `/audio`, and `/file` drop a block that takes a URL, and MP4/WebM video files are first-class stored media: content-addressed on disk like images, visible in the media gallery, and carried by archives and backups. Embeds round-trip through Markdown as an ordinary link, so other editors still render something useful.
 - **Embedded diagrams** — `/diagram` inserts a borderless, keyboard-accessible flowchart whose nodes can be renamed, connected, styled, arranged, and repositioned by pointer or keyboard. Mermaid-compatible `flowchart` fences round-trip through raw Markdown, while positions and canvas appearance stay durable in the local structured document. Unsupported Mermaid syntax remains editable source instead of being discarded.
-- **Tags, people, mentions, and wiki-links** — type `#` to tag, `@` or `[[` for wiki-style note links, `$` for people. Relationships are stored by ID, so renames propagate everywhere and nothing silently breaks.
+- **Tags, people, and note links** — type `#` to tag, `@` to link or create a note, and `$` for people. Relationships are stored by ID, so renames propagate everywhere and nothing silently breaks. Portable Markdown still imports and exports note links as `[[title]]`.
 - **Backlinks and entity pages** — every note, tag, and person shows what points to it, precomputed and instant.
 
 ## Organizing
@@ -44,12 +44,13 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Full keyboard control** — create, rename, reorder siblings, move across folders, multi-select, expand/collapse-all, switch rail destinations with layout-independent number-row shortcuts, and use a dedicated move mode, all without touching the mouse.
 - **Drag and drop** — pointer-based move and reorder in the sidebar.
 - **Sidebar search** — filters the tree and reveals matches in place.
+- **Relationship search operators** — the sidebar and the command palette accept `#tag`, `$person`, `tag:name`, and `person:name` beside free text. Names may be quoted (`#"design system"`) and a backslash escapes a sigil, so `\#literal` still searches for the text. Stacked filters intersect; a filter with no free text lists everything it matches, ordered most recently updated first. Filtering runs against the in-memory reference projection, so trashed notes stay excluded and journal entries still open on their day. A name that matches nothing, or that two entities share, is stated in the results rather than silently resolved.
 - **Durable layout** — folder expansion, panel state, and the active note survive restarts.
 - **Trash with subtree semantics** — trash, restore, or permanently purge whole branches; nothing is destroyed without a confirmation that shows its scope. The trash view searches and sorts deleted items (recently deleted, deleted first, title) and arms per-row deletion inline instead of behind a dialog.
 
 ## Journal
 
-- **Daily journal** — a dedicated `#/journal` route with one entry per calendar day, written in the exact same ProseMirror editor as notes: tags, people mentions, wiki-links, slash commands, raw Markdown mode, and version history all work, and entities created in the journal are the same entities the notes workspace uses.
+- **Daily journal** — a dedicated `#/journal` route with one entry per calendar day, written in the exact same ProseMirror editor as notes: tags, people mentions, note links, slash commands, raw Markdown mode, and version history all work, and entities created in the journal are the same entities the notes workspace uses.
 - **Mood per day** — a five-level mood selector (Great, Good, Neutral, Low, Rough) stored as a typed note property, so it travels with archives, exports, and backups.
 - **Calendar everywhere** — a Monday-first month calendar with entry-dot indicators lives both in the journal's own sidebar and as a collapsible section at the bottom of the workspace sidebar; picking a day jumps straight to that entry.
 - **Keyboard-first journaling** — `/` opens the sidebar search with the caret in the field, `t` jumps to today, `[` and `]` walk to the previous and next day, and Escape backs out of the search field and the delete confirmation. The month calendar keeps a single tab stop: arrows move a day or a week, Home and End span the week, PageUp/PageDown step a month, and Enter opens the focused day. Tabs, the mood radio group, and every entry row are reachable and announced.
@@ -73,7 +74,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Rebindable shortcuts** — the shortcut system is fully remappable from settings.
 - **Zoom and fullscreen** — standard desktop chrome controls, plus quick-quit.
 - **Animated icons** — interface icons animate on hover through paired static and animated variants, with a settings toggle to keep them static.
-- **Settings with a Data & Recovery surface** — export, import, backup-now, and restore are all in the UI; the CLI is optional, not required.
+- **Settings with a Data & Recovery surface** — export, import, backup-now, restore, and a guarded clear-all-data reset are all in the UI; the CLI is optional, not required.
 - **Storage you can see and move** — settings show every stored image with size and the notes that use it, open the database or blobs folder in the file manager, and can relocate the whole workspace (database, images, history, backups) to a new folder with a verified copy and automatic restart.
 - **Auto-updates** — built-in updater on top of a tag-driven, cross-platform release pipeline.
 - **Current install channels** — APT and dnf repositories, Homebrew, Scoop, and the AUR; macOS, Windows, and Linux release assets are available directly. Winget and Snap publication remain pending.

@@ -410,6 +410,67 @@
         }
       ]
     },
+    "TaskPriority": {
+      "type": "string",
+      "enum": [
+        "urgent",
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "TaskSource": {
+      "description": "The checklist item a task was promoted from. Both halves move together so\na task is either fully linked or fully standalone; there is no state where\nonly one half survives.",
+      "type": "object",
+      "properties": {
+        "blockId": {
+          "type": "string"
+        },
+        "noteId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "noteId",
+        "blockId"
+      ]
+    },
+    "TaskSourceDocument": {
+      "description": "The document state that a task operation writes in the same transaction as\nthe task record. Promotion, detachment, and deletion all rewrite the source\nchecklist item, and neither half may land without the other.",
+      "type": "object",
+      "properties": {
+        "documentJson": true,
+        "expectedRevision": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "markdown": {
+          "type": "string"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "wordCount": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "noteId",
+        "documentJson",
+        "markdown",
+        "wordCount",
+        "expectedRevision"
+      ]
+    },
+    "TaskStatus": {
+      "type": "string",
+      "enum": [
+        "todo",
+        "in_progress",
+        "done"
+      ]
+    },
     "VersionedNotePropertyValue": {
       "type": "object",
       "properties": {
@@ -1355,6 +1416,131 @@
             "type",
             "receipt"
           ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "task": {
+              "$ref": "#/$defs/WorkspaceTask"
+            },
+            "type": {
+              "type": "string",
+              "const": "create_task"
+            }
+          },
+          "required": [
+            "type",
+            "task"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "document": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TaskSourceDocument"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "task": {
+              "$ref": "#/$defs/WorkspaceTask"
+            },
+            "type": {
+              "type": "string",
+              "const": "update_task"
+            }
+          },
+          "required": [
+            "type",
+            "task"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "document": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TaskSourceDocument"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "delete_task"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "document": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TaskSourceDocument"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "detach_task"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "at"
+          ]
+        },
+        {
+          "description": "Creates the task and stamps the checklist item that produced it in one\nindivisible step. Splitting this into a document save plus a task\ncreate would allow a half-promoted checklist item to survive a crash.",
+          "type": "object",
+          "properties": {
+            "document": {
+              "$ref": "#/$defs/TaskSourceDocument"
+            },
+            "task": {
+              "$ref": "#/$defs/WorkspaceTask"
+            },
+            "type": {
+              "type": "string",
+              "const": "promote_checklist_task"
+            }
+          },
+          "required": [
+            "type",
+            "task",
+            "document"
+          ]
         }
       ]
     },
@@ -1511,6 +1697,83 @@
       "required": [
         "id",
         "name"
+      ]
+    },
+    "WorkspaceTask": {
+      "type": "object",
+      "properties": {
+        "assigneeIds": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "detachedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64",
+          "default": null
+        },
+        "dueDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "id": {
+          "type": "string"
+        },
+        "priority": {
+          "$ref": "#/$defs/TaskPriority"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaskSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "status": {
+          "$ref": "#/$defs/TaskStatus"
+        },
+        "tagIds": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "title": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "status",
+        "priority",
+        "createdAt",
+        "updatedAt"
       ]
     }
   }

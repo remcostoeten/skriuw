@@ -116,6 +116,109 @@ export function createDefaultDiagram(): DiagramModel {
   };
 }
 
+export type DiagramTemplate = {
+  id: string;
+  label: string;
+  subtext: string;
+  aliases: readonly string[];
+  create: () => DiagramModel;
+};
+
+function templateNode(
+  id: string,
+  label: string,
+  shape: DiagramShape,
+  x: number,
+  y: number,
+): DiagramNode {
+  return { id, label, shape, position: { x, y }, fill: null, stroke: null };
+}
+
+function templateEdge(
+  from: string,
+  to: string,
+  options: { label?: string; dashed?: boolean } = {},
+): DiagramEdge {
+  return {
+    id: `${from}-${to}-1`,
+    from,
+    to,
+    label: options.label ?? "",
+    dashed: options.dashed ?? false,
+    stroke: null,
+  };
+}
+
+export const diagramTemplates: readonly DiagramTemplate[] = [
+  {
+    id: "diagram-decision",
+    label: "Decision diagram",
+    subtext: "Branch on a yes or no question",
+    aliases: ["decision", "branch", "choice", "condition", "if"],
+    create: () => ({
+      version: DIAGRAM_MODEL_VERSION,
+      direction: "LR",
+      background: null,
+      nodes: [
+        templateNode("start", "Start", "terminal", 12, 74),
+        templateNode("choice", "Ready?", "decision", 252, 74),
+        templateNode("ship", "Ship it", "rounded", 492, 20),
+        templateNode("revise", "Revise", "rectangle", 492, 128),
+      ],
+      edges: [
+        templateEdge("start", "choice"),
+        templateEdge("choice", "ship", { label: "yes" }),
+        templateEdge("choice", "revise", { label: "no" }),
+        templateEdge("revise", "choice", { label: "again", dashed: true }),
+      ],
+    }),
+  },
+  {
+    id: "diagram-topics",
+    label: "Topic map diagram",
+    subtext: "Central topic fanning out to ideas",
+    aliases: ["mindmap", "brainstorm", "topics", "hub", "fan"],
+    create: () => ({
+      version: DIAGRAM_MODEL_VERSION,
+      direction: "LR",
+      background: null,
+      nodes: [
+        templateNode("topic", "Topic", "rounded", 12, 118),
+        templateNode("first", "First idea", "rectangle", 252, 12),
+        templateNode("second", "Second idea", "rectangle", 252, 118),
+        templateNode("third", "Third idea", "rectangle", 252, 224),
+      ],
+      edges: [
+        templateEdge("topic", "first"),
+        templateEdge("topic", "second"),
+        templateEdge("topic", "third"),
+      ],
+    }),
+  },
+  {
+    id: "diagram-milestones",
+    label: "Milestones diagram",
+    subtext: "Timeline of labelled stages",
+    aliases: ["timeline", "milestones", "roadmap", "phases", "plan"],
+    create: () => ({
+      version: DIAGRAM_MODEL_VERSION,
+      direction: "LR",
+      background: null,
+      nodes: [
+        templateNode("kickoff", "Kickoff", "terminal", 12, 44),
+        templateNode("design", "Design", "rectangle", 252, 44),
+        templateNode("build", "Build", "rectangle", 492, 44),
+        templateNode("launch", "Launch", "terminal", 732, 44),
+      ],
+      edges: [
+        templateEdge("kickoff", "design", { label: "week 1" }),
+        templateEdge("design", "build", { label: "week 2" }),
+        templateEdge("build", "launch", { label: "week 4" }),
+      ],
+    }),
+  },
+];
+
 export function readDiagramModel(value: unknown): DiagramModel {
   if (typeof value !== "object" || value === null) return createDefaultDiagram();
   const record = value as Record<string, unknown>;
@@ -388,4 +491,53 @@ export function nextDiagramNodeId(model: DiagramModel): string {
   let index = model.nodes.length + 1;
   while (model.nodes.some((node) => node.id === `step${index}`)) index += 1;
   return `step${index}`;
+}
+
+export function nextDiagramEdgeId(model: DiagramModel, from: string, to: string): string {
+  let sequence = model.edges.length + 1;
+  while (model.edges.some((edge) => edge.id === `${from}-${to}-${sequence}`)) sequence += 1;
+  return `${from}-${to}-${sequence}`;
+}
+
+export function addDiagramStep(
+  value: DiagramModel,
+  options: { fromId?: string | null; at?: DiagramPoint | null } = {},
+): { model: DiagramModel; id: string } {
+  const model = readDiagramModel(value);
+  const id = nextDiagramNodeId(model);
+  const from = model.nodes.find((node) => node.id === options.fromId) ?? null;
+  const horizontal = model.direction === "LR" || model.direction === "RL";
+  const sign = model.direction === "RL" || model.direction === "BT" ? -1 : 1;
+  const position = options.at
+    ? { x: Math.round(options.at.x), y: Math.round(options.at.y) }
+    : from
+      ? horizontal
+        ? { x: from.position.x + sign * (DIAGRAM_NODE_WIDTH + DIAGRAM_RANK_GAP), y: from.position.y }
+        : { x: from.position.x, y: from.position.y + sign * (DIAGRAM_NODE_HEIGHT + DIAGRAM_RANK_GAP) }
+      : { x: 12, y: 24 };
+  position.x = Math.max(0, position.x);
+  position.y = Math.max(0, position.y);
+  if (!options.at) {
+    while (
+      model.nodes.some(
+        (node) =>
+          Math.abs(node.position.x - position.x) < 24 && Math.abs(node.position.y - position.y) < 24,
+      )
+    ) {
+      if (horizontal) position.y += DIAGRAM_NODE_HEIGHT + DIAGRAM_LANE_GAP;
+      else position.x += DIAGRAM_NODE_WIDTH + DIAGRAM_LANE_GAP;
+    }
+  }
+  model.nodes.push({ id, label: "New step", shape: "rectangle", position, fill: null, stroke: null });
+  if (from) {
+    model.edges.push({
+      id: nextDiagramEdgeId(model, from.id, id),
+      from: from.id,
+      to: id,
+      label: "",
+      dashed: false,
+      stroke: null,
+    });
+  }
+  return { model, id };
 }

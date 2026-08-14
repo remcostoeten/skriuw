@@ -31,7 +31,7 @@ no account. Try it without installing anything: the **full app runs in your
 browser** at [skriuw.com/app](https://skriuw.com/app).
 
 - A real rich-text editor that speaks Markdown
-- `#` tags, `$` people, and `[[` wiki-links; renames propagate, backlinks everywhere
+- `#` tags, `$` people, and `@` note links; renames propagate, backlinks everywhere
 - Automatic Git history and verified backups, in the background
 - Imports from Obsidian, Notion, Bear, Apple Notes, and plain Markdown
 - Keyboard-first, fast at thousands of notes, sync strictly opt-in

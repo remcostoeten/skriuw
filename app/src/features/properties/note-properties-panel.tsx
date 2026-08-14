@@ -20,6 +20,7 @@ import {
   Trash2Icon,
 } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
+import { sectionLabelClass } from "@/shared/ui/section-header";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";
@@ -67,8 +68,7 @@ const ghostButtonClass =
   "flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50";
 const menuItemClass =
   "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50";
-const menuHeadingClass =
-  "px-2 pb-1 pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/55";
+const menuHeadingClass = cn("px-2 pb-1 pt-1", sectionLabelClass);
 const typeIconButtonClass =
   "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-70 transition-colors hover:bg-accent hover:text-foreground hover:opacity-100 focus-visible:bg-accent focus-visible:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring/50";
 const compactButtonClass =
@@ -774,7 +774,7 @@ function OptionEditor({
 
   return (
     <details className="mb-1 pl-6">
-      <summary className="cursor-pointer select-none text-[10px] font-medium uppercase tracking-wide text-muted-foreground/55 transition-colors hover:text-foreground">
+      <summary className={cn("cursor-pointer select-none transition-colors", sectionLabelClass)}>
         Options ({property.options.length})
       </summary>
       <div className="mt-1 space-y-1 border-l border-border/60 pl-2">

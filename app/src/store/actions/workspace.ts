@@ -441,12 +441,17 @@ function openInFocusedPane(
  * reference chips come across; note, block, and property identities are fresh,
  * the copy is never pinned, and its created-at is now. The copy opens in the
  * pane the original was open in.
+ *
+ * `targetNoteId` duplicates a note other than the open one — the sidebar's
+ * focused row, when the tree owns the keyboard — and falls back to the note in
+ * the focused pane.
  */
 export async function duplicateCurrentNote(
   store: RendererStore,
+  targetNoteId?: string | null,
 ): Promise<DuplicatedNote | null> {
-  const noteId = focusedPaneNoteId(store.getState());
-  if (noteId === null) {
+  const noteId = targetNoteId ?? focusedPaneNoteId(store.getState());
+  if (noteId === null || store.getState().nodes.get(noteId)?.kind !== "note") {
     return null;
   }
   await flushPendingWork();

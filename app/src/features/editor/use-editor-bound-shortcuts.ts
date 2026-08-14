@@ -13,14 +13,30 @@ import type { ShortcutActionId, ShortcutPlatform } from "@/commands/definitions"
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererStore } from "@/store/types";
 
-export type EditorBoundHandlers = Partial<Record<ShortcutActionId, () => void>>;
+/**
+ * A handler that shares its combo with a global binding. `claims` decides, per
+ * keypress, whether this editor owns the key: `false` leaves the event
+ * untouched so it bubbles to the window binding, `true` swallows it so both
+ * never fire on one press.
+ */
+export type EditorBoundClaim = {
+  run: () => void;
+  claims: () => boolean;
+};
+
+export type EditorBoundHandler = (() => void) | EditorBoundClaim;
+
+export type EditorBoundHandlers = Partial<Record<ShortcutActionId, EditorBoundHandler>>;
 
 /**
  * A handler map that must cover every id in `Id`. Surfaces type their map with
  * this against their list from `editor-bound-shortcut-ids`, so adding an id to
  * the list without writing its handler fails to compile.
  */
-export type EditorBoundHandlersFor<Id extends ShortcutActionId> = Record<Id, () => void>;
+export type EditorBoundHandlersFor<Id extends ShortcutActionId> = Record<
+  Id,
+  EditorBoundHandler
+>;
 
 /**
  * Binds editor-only shortcut definitions to one editor surface. The listener
@@ -48,20 +64,31 @@ export function useEditorBoundShortcuts(
   const shortcutMap = useMemo(() => {
     const map: ShortcutMap = {};
     for (const id of Object.keys(handlers) as ShortcutActionId[]) {
-      const handler = handlers[id];
+      const entry = handlers[id];
       const definition = shortcutDefinition(id);
-      if (!handler || !shortcutBindsOnPlatform(definition, overrides, platform)) {
+      if (!entry || !shortcutBindsOnPlatform(definition, overrides, platform)) {
         continue;
       }
+      const claim: EditorBoundClaim | null = typeof entry === "function" ? null : entry;
+      const handler: () => void = typeof entry === "function" ? entry : entry.run;
+      const options = {
+        description: definition.description ?? definition.label,
+        preventDefault: true,
+        scopes: definition.scopes,
+        ...(claim ? { except: () => !claim.claims(), stopPropagation: true } : {}),
+      };
       map[id] = {
         keys: effectiveShortcutKeys(definition, overrides),
         handler,
-        options: {
-          description: definition.description ?? definition.label,
-          preventDefault: true,
-          scopes: definition.scopes,
-        },
+        options,
       };
+      if (definition.secondaryKeys) {
+        map[`${id}:secondary`] = {
+          keys: definition.secondaryKeys,
+          handler,
+          options,
+        };
+      }
     }
     return map;
   }, [handlers, overrides, platform]);

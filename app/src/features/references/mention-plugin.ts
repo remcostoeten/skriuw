@@ -10,7 +10,7 @@ import {
 } from "./suggestion-index";
 import type { ReferenceOperation } from "./types";
 
-export type MentionTrigger = "#" | "$" | "@" | "[[";
+export type MentionTrigger = "#" | "$" | "@";
 
 export type MentionState = {
   active: boolean;
@@ -44,8 +44,9 @@ const inactiveState: MentionState = {
 
 export const mentionPluginKey = new PluginKey<MentionState>("skriuw-mentions");
 
-const TRIGGER_PATTERN = /(?:^|[\s([{])([#$@])([\p{L}\p{N}_-]{0,64})$/u;
-const WIKI_TRIGGER_PATTERN = /\[\[([^\]\n]{0,96})$/;
+const TRIGGER_PATTERN = /(?:^|[\s([{])([#$])([\p{L}\p{N}_-]{0,64})$/u;
+const NOTE_TRIGGER_PATTERN =
+  /(?:^|[\s([{])@((?:[\p{L}\p{N}_-][\p{L}\p{N}_ -]{0,95})?)$/u;
 const CONTEXT_WINDOW = 96;
 
 function activeMentionState(
@@ -79,10 +80,10 @@ function detectMention(state: EditorState, previous: MentionState): MentionState
   const windowStart = Math.max(0, $from.parentOffset - CONTEXT_WINDOW);
   const before = $from.parent.textBetween(windowStart, $from.parentOffset, "\0", "\0");
 
-  const wikiMatch = before.match(WIKI_TRIGGER_PATTERN);
-  if (wikiMatch) {
-    const query = wikiMatch[1] ?? "";
-    return activeMentionState(previous, "[[", query, $from.pos - query.length - 2, $from.pos);
+  const noteMatch = before.match(NOTE_TRIGGER_PATTERN);
+  if (noteMatch) {
+    const query = noteMatch[1] ?? "";
+    return activeMentionState(previous, "@", query, $from.pos - query.length - 1, $from.pos);
   }
 
   const match = before.match(TRIGGER_PATTERN);
@@ -112,8 +113,8 @@ export function mentionMenuItems(
     }
     return items;
   }
-  const grouped = queryMentionSuggestions(rendererState, query);
   if (trigger === "$") {
+    const grouped = queryMentionSuggestions(rendererState, query);
     for (const suggestion of grouped.people) {
       items.push({ type: "suggestion", group: "people", suggestion });
     }
@@ -125,14 +126,16 @@ export function mentionMenuItems(
     }
     return items;
   }
+  const noteName = query.trim();
+  const grouped = queryMentionSuggestions(rendererState, noteName);
   for (const suggestion of grouped.notes) {
     items.push({ type: "suggestion", group: "notes", suggestion });
   }
   const exactNote = grouped.notes.some(
-    (suggestion) => suggestion.label.toLowerCase() === normalized,
+    (suggestion) => suggestion.label.toLowerCase() === noteName.toLowerCase(),
   );
-  if (query.length > 0 && !exactNote) {
-    items.push({ type: "create", kind: "note", name: query });
+  if (noteName.length > 0 && !exactNote) {
+    items.push({ type: "create", kind: "note", name: noteName });
   }
   return items;
 }
@@ -247,15 +250,6 @@ export function handleMentionKey(
     if (!item) {
       dismissMention(view);
       return event.key === "Tab";
-    }
-    return acceptMentionItem(view, item, context);
-  }
-  if (event.key === "]" && current.trigger === "[[") {
-    const items = mentionMenuItems(context.getState(), current.trigger, current.query);
-    const item = items[normalizedMentionIndex(current.index, items.length)];
-    if (!item) {
-      dismissMention(view);
-      return false;
     }
     return acceptMentionItem(view, item, context);
   }

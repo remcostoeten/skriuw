@@ -249,7 +249,9 @@ fn pull_duplicates_never_reapply_content() {
 
     writer.apply(vec![create_note("note-1", "First", 1)]);
     assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
-    assert_eq!(reader.cycle().status, SyncStatus::UpToDate);
+    let first_pull = reader.cycle();
+    assert_eq!(first_pull.status, SyncStatus::UpToDate);
+    assert!(first_pull.workspace_changed);
     assert_eq!(reader.cursor(), 1);
 
     writer.apply(vec![create_note("note-2", "Second", 2)]);
@@ -259,6 +261,7 @@ fn pull_duplicates_never_reapply_content() {
     let outcome = reader.cycle();
 
     assert_eq!(outcome.status, SyncStatus::UpToDate);
+    assert!(outcome.workspace_changed);
     assert_eq!(reader.cursor(), 2);
     assert_eq!(reader.note_titles(), ["First", "Second"]);
     assert!(

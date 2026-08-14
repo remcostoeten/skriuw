@@ -12,6 +12,7 @@ mod checkpoint;
 mod chunk;
 mod reconcile;
 mod sync;
+mod task;
 
 pub use checkpoint::{
     CHECKPOINT_CONTENT_MIME_TYPE, CheckpointValidationError, WORKSPACE_CHECKPOINT_VERSION,
@@ -39,10 +40,15 @@ pub use sync::{
     WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceOperationSyncPolicy, validate_sync_identifier,
     validate_sync_sequence,
 };
+pub use task::{
+    DocumentTaskLink, MAX_TASK_ASSIGNEES, MAX_TASK_DESCRIPTION_BYTES, MAX_TASK_TAGS, TaskPriority,
+    TaskSource, TaskSourceDocument, TaskStatus, WorkspaceTask, document_task_links,
+    unique_document_task_link, validate_workspace_tasks,
+};
 
 pub const WORKSPACE_PROTOCOL_VERSION: u16 = 1;
-pub const WORKSPACE_ARCHIVE_VERSION: u16 = 3;
-pub const SUPPORTED_ARCHIVE_VERSIONS: [u16; 3] = [1, 2, 3];
+pub const WORKSPACE_ARCHIVE_VERSION: u16 = 4;
+pub const SUPPORTED_ARCHIVE_VERSIONS: [u16; 4] = [1, 2, 3, 4];
 pub const WORKSPACE_SETTINGS_VERSION: u16 = 1;
 pub const NOTE_PROPERTY_VALUE_VERSION: u16 = 1;
 pub const MAX_ENTITY_ID_BYTES: usize = 128;
@@ -122,6 +128,10 @@ pub enum OperationValidationError {
     NegativePosition { field: &'static str },
     #[error("cover transform is outside its supported range")]
     InvalidCoverTransform,
+    #[error("task {id} is detached but still carries a source link")]
+    DetachedTaskKeepsSource { id: String },
+    #[error("task {id} is not linked from its source document")]
+    UnlinkedTaskSource { id: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -514,6 +524,8 @@ pub struct WorkspaceSnapshot {
     #[serde(default)]
     pub property_templates: Vec<NotePropertyTemplate>,
     #[serde(default)]
+    pub tasks: Vec<WorkspaceTask>,
+    #[serde(default)]
     pub import_receipts: Vec<ProviderImportReceipt>,
 }
 
@@ -572,6 +584,8 @@ pub struct WorkspaceArchive {
     pub properties: Vec<NoteProperty>,
     #[serde(default)]
     pub property_templates: Vec<NotePropertyTemplate>,
+    #[serde(default)]
+    pub tasks: Vec<WorkspaceTask>,
 }
 
 impl WorkspaceArchive {
@@ -589,6 +603,7 @@ impl WorkspaceArchive {
             people: snapshot.people,
             properties: snapshot.properties,
             property_templates: snapshot.property_templates,
+            tasks: snapshot.tasks,
         }
     }
 
@@ -735,6 +750,21 @@ impl WorkspaceArchive {
             &self.people,
             &nodes,
         )?;
+        validate_workspace_tasks(
+            &self.tasks,
+            &self
+                .documents
+                .iter()
+                .map(|document| (document.note_id.as_str(), &document.document_json))
+                .collect(),
+            &self.tags.iter().map(|tag| tag.id.as_str()).collect(),
+            &self
+                .people
+                .iter()
+                .map(|person| person.id.as_str())
+                .collect(),
+        )
+        .map_err(archive_operation_error)?;
         Ok(())
     }
 }
@@ -791,7 +821,7 @@ pub struct NoteReferences {
     pub targets: Vec<DocumentReference>,
 }
 
-fn validate_bounded_text(
+pub(crate) fn validate_bounded_text(
     field: &'static str,
     value: &str,
     maximum: usize,
@@ -1045,6 +1075,40 @@ fn validate_reference_color(value: &Option<String>) -> Result<(), OperationValid
         return Err(OperationValidationError::TooLong {
             field: "reference color",
             maximum: MAX_REFERENCE_COLOR_BYTES,
+        });
+    }
+    Ok(())
+}
+
+/// A task operation that also rewrites the source note must submit a document
+/// that still carries the task's link. Anything else would leave the record
+/// and the checklist item describing different things.
+fn validate_task_document(
+    task: &WorkspaceTask,
+    document: Option<&TaskSourceDocument>,
+) -> Result<(), OperationValidationError> {
+    let Some(document) = document else {
+        return Ok(());
+    };
+    document.validate()?;
+    let Some(source) = &task.source else {
+        return Ok(());
+    };
+    if source.note_id != document.note_id {
+        return Err(OperationValidationError::UnknownReference {
+            field: "task source note",
+            id: document.note_id.clone(),
+        });
+    }
+    let links = document_task_links(&document.document_json);
+    let link = unique_document_task_link(&links, &task.id).ok_or_else(|| {
+        OperationValidationError::UnlinkedTaskSource {
+            id: task.id.clone(),
+        }
+    })?;
+    if link.block_id != source.block_id {
+        return Err(OperationValidationError::UnlinkedTaskSource {
+            id: task.id.clone(),
         });
     }
     Ok(())
@@ -1393,6 +1457,30 @@ pub enum WorkspaceOperation {
     RecordProviderImport {
         receipt: ProviderImportReceipt,
     },
+    CreateTask {
+        task: Box<WorkspaceTask>,
+    },
+    UpdateTask {
+        task: Box<WorkspaceTask>,
+        document: Option<Box<TaskSourceDocument>>,
+    },
+    DeleteTask {
+        id: String,
+        document: Option<Box<TaskSourceDocument>>,
+        at: i64,
+    },
+    DetachTask {
+        id: String,
+        document: Option<Box<TaskSourceDocument>>,
+        at: i64,
+    },
+    /// Creates the task and stamps the checklist item that produced it in one
+    /// indivisible step. Splitting this into a document save plus a task
+    /// create would allow a half-promoted checklist item to survive a crash.
+    PromoteChecklistTask {
+        task: Box<WorkspaceTask>,
+        document: Box<TaskSourceDocument>,
+    },
 }
 
 impl WorkspaceOperation {
@@ -1496,11 +1584,7 @@ impl WorkspaceOperation {
                 if *word_count < 0 {
                     return Err(OperationValidationError::NegativeWordCount);
                 }
-                if !(1..i64::MAX).contains(expected_revision) {
-                    return Err(OperationValidationError::InvalidRevision {
-                        maximum: i64::MAX - 1,
-                    });
-                }
+                validate_revision(*expected_revision)?;
                 validate_timestamp(*at)
             }
             Self::TrashSubtree { root_id, at } => {
@@ -1561,6 +1645,28 @@ impl WorkspaceOperation {
                 validate_bounded_text("import source path", &receipt.source_path, 1_024)?;
                 validate_id("import note id", &receipt.note_id)?;
                 validate_timestamp(receipt.imported_at)
+            }
+            Self::CreateTask { task } => task.validate(),
+            Self::UpdateTask { task, document } => {
+                task.validate()?;
+                validate_task_document(task, document.as_deref())
+            }
+            Self::DeleteTask { id, document, at } | Self::DetachTask { id, document, at } => {
+                validate_id("task id", id)?;
+                validate_timestamp(*at)?;
+                if let Some(document) = document {
+                    document.validate()?;
+                }
+                Ok(())
+            }
+            Self::PromoteChecklistTask { task, document } => {
+                task.validate()?;
+                if task.source.is_none() {
+                    return Err(OperationValidationError::UnlinkedTaskSource {
+                        id: task.id.clone(),
+                    });
+                }
+                validate_task_document(task, Some(document.as_ref()))
             }
         }
     }
@@ -1661,7 +1767,10 @@ pub fn document_image_ids(value: &Value) -> Vec<String> {
     ids
 }
 
-fn validate_id(field: &'static str, value: &str) -> Result<(), OperationValidationError> {
+pub(crate) fn validate_id(
+    field: &'static str,
+    value: &str,
+) -> Result<(), OperationValidationError> {
     if value.is_empty() {
         return Err(OperationValidationError::Empty { field });
     }
@@ -1690,7 +1799,7 @@ fn validate_optional_id(
     }
 }
 
-fn validate_title(title: &str) -> Result<(), OperationValidationError> {
+pub(crate) fn validate_title(title: &str) -> Result<(), OperationValidationError> {
     if title.trim().is_empty() {
         return Err(OperationValidationError::Empty { field: "title" });
     }
@@ -1728,7 +1837,17 @@ fn validate_setting_text(field: &'static str, value: &str) -> Result<(), Operati
     Ok(())
 }
 
-fn validate_timestamp(at: i64) -> Result<(), OperationValidationError> {
+pub(crate) fn validate_revision(revision: i64) -> Result<(), OperationValidationError> {
+    if (1..i64::MAX).contains(&revision) {
+        Ok(())
+    } else {
+        Err(OperationValidationError::InvalidRevision {
+            maximum: i64::MAX - 1,
+        })
+    }
+}
+
+pub(crate) fn validate_timestamp(at: i64) -> Result<(), OperationValidationError> {
     if at < 0 {
         Err(OperationValidationError::NegativeTimestamp)
     } else {
@@ -1751,7 +1870,10 @@ const DOCUMENT_LIMITS: DocumentLimits = DocumentLimits {
     depth: MAX_DOCUMENT_DEPTH,
 };
 
-fn validate_document(document: &Value, markdown: &str) -> Result<(), OperationValidationError> {
+pub(crate) fn validate_document(
+    document: &Value,
+    markdown: &str,
+) -> Result<(), OperationValidationError> {
     validate_document_with_limits(document, markdown, DOCUMENT_LIMITS)
 }
 
@@ -2154,6 +2276,7 @@ mod tests {
             people: Vec::new(),
             properties: Vec::new(),
             property_templates: Vec::new(),
+            tasks: Vec::new(),
         };
 
         archive.validate().expect("valid archive");
@@ -2208,6 +2331,7 @@ mod tests {
             people: Vec::new(),
             properties: Vec::new(),
             property_templates: Vec::new(),
+            tasks: Vec::new(),
         };
 
         assert!(matches!(
@@ -2357,6 +2481,7 @@ mod tests {
             people: Vec::new(),
             properties: Vec::new(),
             property_templates: Vec::new(),
+            tasks: Vec::new(),
         };
         archive.settings.settings_version = 2;
 
@@ -2423,6 +2548,7 @@ mod tests {
             people: Vec::new(),
             properties: Vec::new(),
             property_templates: Vec::new(),
+            tasks: Vec::new(),
         };
 
         assert!(matches!(
@@ -2474,6 +2600,7 @@ mod tests {
             people: Vec::new(),
             properties: Vec::new(),
             property_templates: Vec::new(),
+            tasks: Vec::new(),
         };
         archive.validate().expect("valid reference");
         archive.tags.clear();

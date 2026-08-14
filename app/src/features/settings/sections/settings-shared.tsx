@@ -7,6 +7,7 @@ import { cn } from "@/shared/lib/utils";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererStore } from "@/store/types";
 import { selectSettings } from "./selectors";
+import { sectionLabelClass } from "@/shared/ui/section-header";
 
 export type SectionProps = {
   store: RendererStore;
@@ -33,8 +34,7 @@ export function useEditableSettings(store: RendererStore): EditableSettingsBindi
 export const settingsSection = "mx-auto w-full max-w-[680px]";
 export const settingsSectionHeading = "mb-8";
 export const settingsGroup = "mb-6";
-export const settingsGroupTitle =
-  "mb-1.5 text-[10px] font-medium uppercase tracking-[0.06em] text-muted-foreground/70";
+export const settingsGroupTitle = cn("mb-1.5", sectionLabelClass);
 export const settingsGroupHint = "mb-3 text-xs text-muted-foreground/80";
 
 export const settingsRow =
@@ -59,7 +59,7 @@ export const settingsTextInput = cn(
 
 const settingsToggleInput = cn(
   "h-[17px] w-[30px] flex-none cursor-pointer appearance-none rounded-full border border-border bg-muted transition-colors duration-[120ms] motion-reduce:duration-[1ms]",
-  "checked:border-foreground/45 checked:bg-foreground/[0.22]",
+  "checked:border-foreground/45 checked:bg-accent",
   "after:m-0.5 after:block after:h-[11px] after:w-[11px] after:rounded-full after:bg-muted-foreground after:transition-transform after:duration-[120ms] after:content-[''] motion-reduce:after:duration-[1ms]",
   "checked:after:translate-x-[13px] checked:after:bg-foreground",
   "outline-none focus-visible:border-foreground/70",

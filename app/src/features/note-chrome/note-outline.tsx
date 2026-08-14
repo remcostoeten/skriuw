@@ -192,7 +192,7 @@ function mountOutlineController(
       <circle r="2.2" style="fill: hsl(var(--foreground) / 0.85)"></circle>
     </svg>
     <ol class="relative z-[1] m-0 grid list-none gap-0.5 p-0"></ol>
-    <p class="relative z-[1] m-0 hidden px-2 py-1 text-[13px] text-muted-foreground" data-empty-state>No headings in this note yet.</p>
+    <p class="relative z-[1] m-0 hidden px-2 py-1 text-[12px] leading-5 text-muted-foreground/60" data-empty-state>Add a heading to build the outline.</p>
   `;
 
   const svg = nav.querySelector("svg")!;
@@ -233,12 +233,15 @@ function mountOutlineController(
     const nextItems = collectOutlineItems(refs.proseHost);
     onCountChange(nextItems.length);
 
+    const isEmpty = nextItems.length === 0;
+    emptyState.classList.toggle("hidden", !isEmpty);
+    svg.classList.toggle("hidden", isEmpty);
+
     if (itemsUnchanged(nextItems)) {
       return;
     }
 
     items = nextItems;
-    emptyState.classList.toggle("hidden", items.length > 0);
     list.innerHTML = "";
     itemObserver.disconnect();
 

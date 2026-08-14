@@ -118,5 +118,25 @@
   {
     "operationType": "record_provider_import",
     "replicationClass": "device_local"
+  },
+  {
+    "operationType": "create_task",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "update_task",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "delete_task",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "detach_task",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "promote_checklist_task",
+    "replicationClass": "replicated_workspace_content"
   }
 ]

@@ -57,7 +57,7 @@ pub(crate) fn hydrate_from_latest_checkpoint(
     backoff: &mut SyncBackoff,
     config: &SyncCycleConfig,
     connection: &SyncConnection,
-) -> Result<(), SyncCycleOutcome> {
+) -> Result<bool, SyncCycleOutcome> {
     if cancellation.is_cancelled() {
         return Err(SyncCycleOutcome::retry(SyncStatus::Pending, clock.now_ms()));
     }
@@ -65,7 +65,7 @@ pub(crate) fn hydrate_from_latest_checkpoint(
         .latest_checkpoint(&connection.workspace_id, cancellation)
         .map_err(|error| checkpoint_failure(clock, backoff, config, &error))?;
     let Some(checkpoint) = checkpoint else {
-        return Ok(());
+        return Ok(false);
     };
     if checkpoint.workspace_id != connection.workspace_id || checkpoint.server_sequence == 0 {
         return Err(rejected(clock, config));
@@ -83,9 +83,9 @@ pub(crate) fn hydrate_from_latest_checkpoint(
     match queue.hydrate_from_checkpoint(&archive, checkpoint.server_sequence) {
         Ok(_) => {
             backoff.reset();
-            Ok(())
+            Ok(true)
         }
-        Err(StorageError::InvalidOperation(_)) => Ok(()),
+        Err(StorageError::InvalidOperation(_)) => Ok(false),
         Err(error) => Err(storage_failure(clock, config, &error)),
     }
 }

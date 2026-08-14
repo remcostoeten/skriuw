@@ -39,7 +39,7 @@ export function ColorSwatchRow({
     <div
       ref={ref}
       className={cn(
-        "flex w-fit flex-wrap items-center gap-1 rounded-lg border border-theme-divider bg-foreground/[0.025] px-1.5 py-1",
+        "flex w-fit flex-wrap items-center gap-1 rounded-lg border border-border bg-background px-1.5 py-1",
         className,
       )}
       role="group"
@@ -53,7 +53,7 @@ export function ColorSwatchRow({
           <Tooltip key={option.name} label={option.name} side="top">
             <motion.button
               type="button"
-              className="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md transition-[background-color,box-shadow] duration-[160ms] hover:bg-foreground/[0.07] focus-visible:shadow-[0_0_0_2px_hsl(var(--ring)/0.5)] focus-visible:outline-none"
+              className="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md transition-[background-color,box-shadow] duration-[160ms] hover:bg-theme-hover focus-visible:shadow-[0_0_0_2px_hsl(var(--ring))] focus-visible:outline-none"
               variants={reduceMotion ? undefined : dotVariants}
               whileTap={reduceMotion ? undefined : { scale: 0.86 }}
               aria-label={color === null ? "No color" : option.name}

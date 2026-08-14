@@ -1,11 +1,12 @@
 import { cn } from "@/shared/lib/utils";
 import { FileTextIcon, FolderIcon } from "@/shared/icons/static";
+import { sectionLabelClass } from "@/shared/ui/section-header";
 
 function DemoFrame({ status, children }: { status: string; children: React.ReactNode }) {
   return (
     <div className="w-full max-w-[22rem]">
       <div className="mb-1.5 flex items-center justify-between px-0.5">
-        <span className="text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground/70">
+        <span className={sectionLabelClass}>
           Preview
         </span>
         <span className="rounded-full border border-border/70 px-1.5 py-0.5 text-[10px] text-muted-foreground">
@@ -36,7 +37,7 @@ export function CompactSidebarDemo({ enabled }: { enabled: boolean }) {
     <DemoFrame status={enabled ? "Compact" : "Comfortable"}>
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-sm border border-border/60 bg-sidebar/40 p-1.5">
-          <div className="mb-1 px-1 text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+          <div className={cn("mb-1 px-1", sectionLabelClass)}>
             Off
           </div>
           <DemoSidebarRow compact={false} />
@@ -48,7 +49,7 @@ export function CompactSidebarDemo({ enabled }: { enabled: boolean }) {
             enabled ? "border-foreground/30" : "border-border/60",
           )}
         >
-          <div className="mb-1 px-1 text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+          <div className={cn("mb-1 px-1", sectionLabelClass)}>
             On
           </div>
           <DemoSidebarRow compact />

@@ -13,6 +13,8 @@ import type { ShortcutActionId } from "@/commands/definitions";
 export const NOTE_EDITOR_SHORTCUT_IDS = [
   "goToDocumentStart",
   "goToDocumentEnd",
+  "insertLink",
+  "jumpToLine",
 ] as const satisfies readonly ShortcutActionId[];
 
 export const RAW_MARKDOWN_EDGE_SHORTCUT_IDS = [

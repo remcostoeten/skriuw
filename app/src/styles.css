@@ -4,6 +4,7 @@
 @import "./base.css";
 @import "./features/editor/editor.css";
 @import "./features/sidebar/sidebar.css";
+@import "./shell/split.css";
 @import "./features/references/references.css";
 @import "./features/history/diff.css";
 @import "./shared/ui/tooltip.css";

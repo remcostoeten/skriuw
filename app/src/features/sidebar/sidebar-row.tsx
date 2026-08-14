@@ -9,7 +9,7 @@ import { restoreRenameReturnFocus } from "./rename-focus";
 import type { TreeMetrics } from "./sidebar";
 
 const rowBaseClass =
-  "relative flex h-[34px] w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors active:scale-[0.985]";
+  "relative flex h-[34px] w-full items-center overflow-hidden rounded-lg border border-transparent text-left text-xs font-medium active:scale-[0.985]";
 
 function rowIndentStyle(depth: number, metrics: TreeMetrics): CSSProperties {
   const maximumIndent = metrics.isVeryNarrow ? 40 : metrics.isNarrow ? 56 : 80;
@@ -106,14 +106,14 @@ export const SidebarRow = memo(function SidebarRow({
       : -1;
   const rowDepth = shelf ? 1 : node.depth;
   const stateClass = isFocused
-    ? "bg-foreground/[0.22] text-foreground"
+    ? "bg-accent text-foreground"
     : isActive
-      ? "border-border bg-muted text-foreground"
+      ? "bg-muted text-foreground"
       : isSelected
         ? "border-foreground/[0.24] bg-foreground/[0.1] text-foreground"
       : isFolder
-        ? "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88"
-        : "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85";
+        ? "text-foreground/70 hover:bg-muted hover:text-foreground/88"
+        : "text-foreground/60 hover:bg-muted hover:text-foreground/85";
   return (
     <div
       className="absolute inset-x-0"
@@ -121,7 +121,7 @@ export const SidebarRow = memo(function SidebarRow({
     >
       {isEditing && !shelf ? (
         <div
-          className={`relative flex h-[34px] w-full items-center overflow-hidden border border-border bg-muted text-left text-xs font-medium text-foreground${isFolder ? " justify-between" : ""}`}
+          className={`relative flex h-[34px] w-full items-center overflow-hidden rounded-lg border border-border bg-muted text-left text-xs font-medium text-foreground${isFolder ? " justify-between" : ""}`}
           style={rowIndentStyle(rowDepth, metrics)}
         >
           <RowLabel isFolder={isFolder} isExpanded={isExpanded} isNarrow={metrics.isNarrow} grow>

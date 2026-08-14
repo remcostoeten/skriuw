@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   cancelWorkspaceMaintenance,
+  clearAllData,
   createWorkspaceBackup,
   exportWorkspaceArchive,
   importWorkspaceArchive,
@@ -12,6 +13,7 @@ import {
   pickImportFile,
   workspaceStoragePath,
 } from "@/bridge/commands";
+import { clearSkriuwLocalState } from "@/bridge/local-state";
 import {
   importMarkdownIntoWorkspace,
   importProviderExportIntoWorkspace,
@@ -84,7 +86,9 @@ export function DataSection({ store }: SectionProps) {
   const [importPath, setImportPath] = useState("");
   const [inventory, setInventory] = useState<RecoveryViewModel | null>(null);
   const [inventoryFailed, setInventoryFailed] = useState(false);
+  const [clearError, setClearError] = useState<string | null>(null);
   const mountedRef = useRef(true);
+  const clearRequestedRef = useRef(false);
   const busy = isMaintenanceBusy(phase);
 
   function refreshInventory(): void {
@@ -245,6 +249,21 @@ export function DataSection({ store }: SectionProps) {
     setPhase((current) => requestCancel(current));
     cancelWorkspaceMaintenance().catch(() => {
       noop();
+    });
+  }
+
+  function runClearAllData(): void {
+    if (clearRequestedRef.current) {
+      return;
+    }
+    clearRequestedRef.current = true;
+    setClearError(null);
+    clearSkriuwLocalState();
+    clearAllData().catch((error) => {
+      clearRequestedRef.current = false;
+      if (mountedRef.current) {
+        setClearError(String(error));
+      }
     });
   }
 
@@ -501,6 +520,40 @@ export function DataSection({ store }: SectionProps) {
               )}
             />
           </div>
+        </div>
+        <div className={cn(settingsRow, settingsInputRow)}>
+          <span className={settingsRowLabel}>
+            Clear all data
+            <span className={settingsRowDescription}>
+              Permanently deletes notes, settings, and {browser
+                ? "browser-owned SQLite and media storage"
+                : "SQLite data, Markdown history, media, backups, and generated exports"} from this device, then
+              {browser ? " reloads with" : " restarts into"} a fresh workspace.
+              You will also be signed out.
+            </span>
+            {clearError ? (
+              <span className="text-[11px] text-destructive" role="alert">
+                Could not clear all data: {clearError}
+              </span>
+            ) : null}
+          </span>
+          <InlineConfirm
+            className="shrink-0"
+            confirmLabel="Delete everything"
+            message="This cannot be undone. Export anything you want to keep first."
+            messagePlacement="stacked"
+            onConfirm={runClearAllData}
+            renderIdle={(arm) => (
+              <button
+                type="button"
+                className={cn(settingsButton, settingsButtonDanger)}
+                disabled={busy}
+                onClick={arm}
+              >
+                Clear all data…
+              </button>
+            )}
+          />
         </div>
       </div>
       <MaintenanceStatus

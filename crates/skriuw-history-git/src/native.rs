@@ -697,7 +697,7 @@ mod tests {
     use skriuw_domain::{NodePlacement, WorkspaceOperation, WorkspaceOperationEnvelope};
     use skriuw_history::rebuild_history_cache;
     use skriuw_history::{HistoryWorkResult, HistoryWorker};
-    use skriuw_sqlite::SqliteWorkspace;
+    use skriuw_sqlite::{HISTORY_COALESCE_WINDOW_MS, SqliteWorkspace};
     use skriuw_storage::{HistoryCache, PendingHistoryRevision, WorkspaceStorage};
     use tempfile::tempdir;
 
@@ -816,7 +816,9 @@ mod tests {
         let worker = HistoryWorker::new("worker-1", Arc::clone(&storage), materializer)
             .expect("create worker");
 
-        let result = worker.process_next(2_000, 30_000).expect("process history");
+        let result = worker
+            .process_next(HISTORY_COALESCE_WINDOW_MS + 2_000, 30_000)
+            .expect("process history");
         let snapshot = storage.bootstrap().expect("bootstrap");
 
         assert!(matches!(result, HistoryWorkResult::Materialized { .. }));
@@ -877,7 +879,9 @@ mod tests {
         let materializer = GitHistoryMaterializer::open(directory.path()).expect("open history");
         let worker = HistoryWorker::new("worker-1", Arc::clone(&storage), materializer)
             .expect("create worker");
-        worker.process_next(2_000, 30_000).expect("process history");
+        worker
+            .process_next(HISTORY_COALESCE_WINDOW_MS + 2_000, 30_000)
+            .expect("process history");
         storage
             .replace_history_headers(&[])
             .expect("clear history cache");

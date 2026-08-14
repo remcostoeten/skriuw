@@ -15,6 +15,7 @@ import {
 import { pickTextFile, readPickedFile, saveTextFile } from "./browser-files";
 import { browserSyncDriver, publishBrowserSyncEvent, type SyncWorkerPort } from "./browser-sync";
 import { noop } from "@/shared/lib/noop";
+import { clearSkriuwLocalState } from "./local-state";
 
 type BrowserWorkerValue = {
   kind: string;
@@ -80,6 +81,10 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
   if (command === "import_workspace_archive") {
     return importBrowserArchive(args) as Promise<T>;
   }
+  if (command === "clear_all_data") {
+    await clearBrowserData();
+    return undefined as T;
+  }
   if (command === "workspace_sync_status") {
     return browserSyncDriver(syncWorkerPort).status() as Promise<T>;
   }
@@ -121,6 +126,33 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
     browserSyncDriver(syncWorkerPort).notifyLocalCommit();
   }
   return value as T;
+}
+
+async function clearBrowserData(): Promise<void> {
+  browserSyncDriver(syncWorkerPort).stop();
+  if (browserStorage) {
+    const client = await browserStorage;
+    try {
+      await client.close();
+    } catch {
+      // close() always terminates the worker; the entire OPFS pool is deleted next.
+    }
+    browserStorage = null;
+  }
+  if (typeof navigator.storage?.getDirectory === "function") {
+    const root = await navigator.storage.getDirectory();
+    for (const name of [".skriuw-v2", "skriuw-media-blobs"]) {
+      try {
+        await root.removeEntry(name, { recursive: true });
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "NotFoundError")) {
+          throw error;
+        }
+      }
+    }
+  }
+  clearSkriuwLocalState();
+  globalThis.location.reload();
 }
 
 async function requestExpecting(

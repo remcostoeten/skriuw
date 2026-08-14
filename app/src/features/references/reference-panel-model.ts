@@ -122,66 +122,6 @@ export function projectNoteReferenceDetails(
   return entries;
 }
 
-export type UnlinkedMentionEntry = {
-  noteId: string;
-  title: string;
-  count: number;
-};
-
-function stripWikiLinks(markdown: string): string {
-  return markdown.replace(/\[\[[^\]]*\]\]/g, "");
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function countOccurrences(content: string, title: string): number {
-  const pattern = new RegExp(`\\b${escapeRegExp(title)}\\b`, "gi");
-  return content.match(pattern)?.length ?? 0;
-}
-
-export function projectUnlinkedMentions(
-  state: RendererState,
-  noteId: string,
-): UnlinkedMentionEntry[] {
-  const document = state.documents.get(noteId);
-  if (!document) {
-    return [];
-  }
-  const content = stripWikiLinks(document.markdown);
-  const entries: UnlinkedMentionEntry[] = [];
-  for (const [otherId, metadata] of state.metadata) {
-    if (otherId === noteId || metadata.title.trim().length === 0) {
-      continue;
-    }
-    const count = countOccurrences(content, metadata.title);
-    if (count > 0) {
-      entries.push({ noteId: otherId, title: metadata.title, count });
-    }
-  }
-  entries.sort((left, right) => left.title.localeCompare(right.title));
-  return entries;
-}
-
-export function unlinkedMentionsEqual(
-  left: readonly UnlinkedMentionEntry[],
-  right: readonly UnlinkedMentionEntry[],
-): boolean {
-  if (left.length !== right.length) {
-    return false;
-  }
-  return left.every((entry, index) => {
-    const other = right[index];
-    return (
-      other !== undefined &&
-      entry.noteId === other.noteId &&
-      entry.title === other.title &&
-      entry.count === other.count
-    );
-  });
-}
-
 export function backlinksEqual(
   left: readonly BacklinkEntry[],
   right: readonly BacklinkEntry[],

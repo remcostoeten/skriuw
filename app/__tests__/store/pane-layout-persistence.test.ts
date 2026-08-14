@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { WorkspaceSnapshot } from "../../src/contracts/workspace";
-import { bindPaneLayoutPersistence } from "../../src/store/pane-layout-persistence";
+import { bindPaneLayoutPersistence, paneLayout } from "../../src/store/pane-layout-persistence";
 import { PRIMARY_PANE_ID, parsePaneLayout, serializePaneLayout } from "../../src/store/panes";
-import { openNoteInTab } from "../../src/store/actions/panes";
+import {
+  openNoteInTab,
+  setSplitRatio,
+  toggleSplitOrientation,
+} from "../../src/store/actions/panes";
 import { createInitialState, createRendererStore } from "../../src/store/store";
 
 const snapshot: WorkspaceSnapshot = {
@@ -66,7 +70,30 @@ test("pane layout persistence coalesces synchronous updates into the latest writ
   assert.deepEqual(writes, []);
   await settle();
   assert.equal(writes.length, 1);
-  assert.deepEqual(parsePaneLayout(writes[0]!)?.[0]?.openNoteIds, ["note-a", "note-b"]);
+  assert.deepEqual(parsePaneLayout(writes[0]!)?.panes[0]?.openNoteIds, ["note-a", "note-b"]);
+  await binding.dispose();
+});
+
+test("committing a divider position persists geometry without touching the tabs", async () => {
+  const store = createRendererStore(createInitialState(snapshot, []));
+  const writes: string[] = [];
+  const binding = bindPaneLayoutPersistence(
+    store,
+    async (layoutJson) => {
+      writes.push(layoutJson);
+    },
+    { delayMs: 1 },
+  );
+
+  const panesBefore = store.getState().panes;
+  setSplitRatio(store, 0.7);
+  toggleSplitOrientation(store);
+  await settle();
+
+  assert.equal(store.getState().panes, panesBefore);
+  const persisted = parsePaneLayout(writes[writes.length - 1] ?? null);
+  assert.equal(persisted?.ratio, 0.7);
+  assert.equal(persisted?.orientation, "horizontal");
   await binding.dispose();
 });
 
@@ -122,7 +149,7 @@ test("teardown flushes the latest pane layout before the coalescing delay", asyn
   await binding.dispose();
 
   assert.equal(writes.length, 1);
-  assert.deepEqual(parsePaneLayout(writes[0]!)?.[0]?.openNoteIds, ["note-a", "note-b"]);
+  assert.deepEqual(parsePaneLayout(writes[0]!)?.panes[0]?.openNoteIds, ["note-a", "note-b"]);
 });
 
 test("flush remains pending until the durable pane write settles", async () => {
@@ -153,12 +180,17 @@ test("flush remains pending until the durable pane write settles", async () => {
 test("pane layout survives a serialize/parse restore round trip", async () => {
   const store = createRendererStore(createInitialState(snapshot, []));
   openNoteInTab(store, "note-b");
-  const persisted = serializePaneLayout(store.getState().panes);
+  const persisted = serializePaneLayout(paneLayout(store.getState()));
 
-  const restoredPanes = parsePaneLayout(persisted);
-  assert.ok(restoredPanes);
+  const restored = parsePaneLayout(persisted);
+  assert.ok(restored);
   const restoredState = createInitialState(snapshot, []);
-  const restoredStore = createRendererStore({ ...restoredState, panes: restoredPanes! });
+  const restoredStore = createRendererStore({
+    ...restoredState,
+    panes: restored.panes,
+    splitOrientation: restored.orientation,
+    splitRatio: restored.ratio,
+  });
   assert.deepEqual(restoredStore.getState().panes[0]?.openNoteIds, ["note-a", "note-b"]);
 });
 

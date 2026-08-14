@@ -14,6 +14,7 @@ import type { RendererState, RendererStore } from "@/store/types";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import { VersionDiffView, useMarkdownDiff } from "./version-diff-view";
 import { groupVersionRows, parseHistoryMarkdown, type VersionListItem } from "./version-model";
+import { sectionLabelClass } from "@/shared/ui/section-header";
 
 type Props = {
   store: RendererStore;
@@ -180,7 +181,7 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
             if (row.kind === "group") {
               return (
                 <div key={row.key} style={style} className="flex items-end pb-1.5 pl-[15px] pr-2">
-                  <span className="text-[10px] font-[650] uppercase tracking-[0.07em] text-muted-foreground/70">
+                  <span className={sectionLabelClass}>
                     {row.label}
                   </span>
                   <span className="ml-auto font-mono text-[10px] tabular-nums text-muted-foreground/50">

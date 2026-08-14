@@ -3,10 +3,12 @@ import test from "node:test";
 import {
   createBrowserSyncDriver,
   publishBrowserSyncEvent,
+  subscribeBrowserWorkspaceChanges,
   subscribeBrowserSyncProgress,
   SyncSessionRejectedError,
   type BrowserSyncDriverDependencies,
   type BrowserSyncProgress,
+  type PushChannelConnection,
 } from "../../src/bridge/browser-sync";
 
 type ScheduledTimer = {
@@ -15,12 +17,19 @@ type ScheduledTimer = {
   cleared: boolean;
 };
 
+type FakePushChannel = {
+  connection: PushChannelConnection;
+  onWake: () => void;
+  closed: boolean;
+};
+
 type Harness = {
   driver: ReturnType<typeof createBrowserSyncDriver>;
   timers: ScheduledTimer[];
   requests: { kind: string; payload: unknown }[];
   provisionCalls: { token: string; deviceId: string }[];
   discardedSessions: number[];
+  pushChannels: FakePushChannel[];
   respondWith(kind: string, value: unknown): void;
   runDueTimer(): Promise<void>;
 };
@@ -30,11 +39,16 @@ function createHarness(overrides?: Partial<BrowserSyncDriverDependencies>): Harn
   const requests: { kind: string; payload: unknown }[] = [];
   const provisionCalls: { token: string; deviceId: string }[] = [];
   const discardedSessions: number[] = [];
+  const pushChannels: FakePushChannel[] = [];
   const responses = new Map<string, unknown>();
   responses.set("sync_connection", null);
   responses.set("sync_connect", { state: "connecting" });
   responses.set("sync_status", { state: "upToDate" });
-  responses.set("sync_cycle", { status: { state: "upToDate" }, retryAtMs: null });
+  responses.set("sync_cycle", {
+    status: { state: "upToDate" },
+    retryAtMs: null,
+    workspaceChanged: false,
+  });
 
   const dependencies: BrowserSyncDriverDependencies = {
     port: {
@@ -65,6 +79,13 @@ function createHarness(overrides?: Partial<BrowserSyncDriverDependencies>): Harn
     discardPersistedSession: () => {
       discardedSessions.push(discardedSessions.length + 1);
     },
+    openPushChannel: (connection, onWake) => {
+      const channel: FakePushChannel = { connection, onWake, closed: false };
+      pushChannels.push(channel);
+      return () => {
+        channel.closed = true;
+      };
+    },
     ...overrides,
   };
   return {
@@ -73,6 +94,7 @@ function createHarness(overrides?: Partial<BrowserSyncDriverDependencies>): Harn
     requests,
     provisionCalls,
     discardedSessions,
+    pushChannels,
     respondWith: (kind, value) => {
       responses.set(kind, value);
     },
@@ -116,7 +138,7 @@ test("connect refuses a workspace already linked to a different account", async 
 
   await assert.rejects(
     () => harness.driver.connect("token-1"),
-    /already linked to a different Skriuw account/,
+    /linked to another cloud workspace/,
   );
   assert.equal(
     harness.requests.some((request) => request.kind === "sync_connect"),
@@ -255,6 +277,89 @@ test("local commits coalesce into one scheduled cycle", async () => {
   harness.driver.notifyLocalCommit();
   harness.driver.notifyLocalCommit();
   assert.equal(harness.timers.filter((timer) => !timer.cleared).length, 1);
+});
+
+test("a cycle that applies remote state notifies the renderer once", async () => {
+  const harness = createHarness();
+  let changes = 0;
+  const unsubscribe = subscribeBrowserWorkspaceChanges(() => {
+    changes += 1;
+  });
+  await harness.driver.connect("token-1");
+  harness.respondWith("sync_cycle", {
+    status: { state: "upToDate" },
+    retryAtMs: null,
+    workspaceChanged: true,
+  });
+
+  await harness.runDueTimer();
+
+  unsubscribe();
+  assert.equal(changes, 1);
+});
+
+test("connect opens the push channel for the provisioned workspace", async () => {
+  const harness = createHarness();
+  await harness.driver.connect("token-1");
+
+  assert.equal(harness.pushChannels.length, 1);
+  assert.deepEqual(harness.pushChannels[0]?.connection, {
+    workspaceId: "w_1",
+    deviceId: "generated-device",
+    token: "token-1",
+  });
+  assert.equal(harness.pushChannels[0]?.closed, false);
+});
+
+test("a push wake schedules an immediate cycle and coalesces while one runs", async () => {
+  const harness = createHarness();
+  await harness.driver.connect("token-1");
+
+  harness.pushChannels[0]?.onWake();
+  harness.pushChannels[0]?.onWake();
+  const due = harness.timers.filter((timer) => !timer.cleared);
+  assert.equal(due.length, 1);
+  assert.equal(due[0]?.delayMs, 0);
+
+  await harness.runDueTimer();
+  assert.ok(harness.requests.some((request) => request.kind === "sync_cycle"));
+});
+
+test("pause and stop tear the push channel down", async () => {
+  const harness = createHarness();
+  harness.respondWith("sync_disconnect", { state: "localOnly" });
+  await harness.driver.connect("token-1");
+  await harness.driver.pause();
+  assert.equal(harness.pushChannels[0]?.closed, true);
+
+  await harness.driver.connect("token-2");
+  assert.equal(harness.pushChannels.length, 2);
+  harness.driver.stop();
+  assert.equal(harness.pushChannels[1]?.closed, true);
+});
+
+test("authenticationRequired closes the push channel with the session", async () => {
+  const harness = createHarness();
+  await harness.driver.connect("token-1");
+
+  harness.respondWith("sync_cycle", {
+    status: { state: "authenticationRequired" },
+    retryAtMs: null,
+  });
+  await harness.runDueTimer();
+
+  assert.equal(harness.pushChannels[0]?.closed, true);
+});
+
+test("reconnecting replaces the previous push channel", async () => {
+  const harness = createHarness();
+  await harness.driver.connect("token-1");
+  await harness.driver.connect("token-2");
+
+  assert.equal(harness.pushChannels.length, 2);
+  assert.equal(harness.pushChannels[0]?.closed, true);
+  assert.equal(harness.pushChannels[1]?.closed, false);
+  assert.equal(harness.pushChannels[1]?.connection.token, "token-2");
 });
 
 test("worker progress events reach subscribers and ignore malformed payloads", () => {

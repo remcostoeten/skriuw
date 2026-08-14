@@ -19,6 +19,8 @@ import type { SectionId } from "@/features/settings/sections/sections";
 import { Sidebar } from "@/features/sidebar/sidebar";
 import { CommandPaletteHost } from "@/commands/command-palette-host";
 import { EditorPanes } from "@/shell/editor-panes";
+import { NoteBreadcrumbs } from "@/shell/note-breadcrumbs";
+import { openEditorSearch } from "@/features/editor/search-controller";
 import { MetadataPanel } from "@/features/note-chrome/metadata-panel";
 import { SettingsDialog } from "@/features/settings/settings-dialog";
 
@@ -138,6 +140,7 @@ const TOOLBAR_SHORTCUT_IDS = [
   "toggleMetadata",
   "previousNote",
   "nextNote",
+  "findInNote",
 ] as const;
 
 function WorkspaceShell({ store }: Props) {
@@ -462,7 +465,8 @@ function WorkspaceShell({ store }: Props) {
       </div>
       <div className="contents" hidden={route !== "notes"}>
         <main className="col-[3] flex min-w-0 flex-col">
-          <div className="flex h-11 items-center gap-1 border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground">
+          <div className="grid h-11 grid-cols-[1fr_minmax(0,auto)_1fr] items-center border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground">
+            <div className="flex min-w-0 items-center gap-1">
             <Tooltip label="Toggle sidebar" side="bottom" shortcut={shortcutHints.toggleSidebar}>
               <button
                 type="button"
@@ -496,11 +500,11 @@ function WorkspaceShell({ store }: Props) {
                 <AppIcon name="next-note" size={16} />
               </button>
             </Tooltip>
-            {noteNav.title && (
-              <span className="ml-1 min-w-0 flex-1 truncate text-sm text-sidebar-foreground/70">
-                {noteNav.title}
-              </span>
-            )}
+            </div>
+            <div className="flex min-w-0 justify-center px-2">
+              <NoteBreadcrumbs store={store} />
+            </div>
+            <div className="flex min-w-0 items-center justify-end gap-1">
             <Tooltip label="Version history" side="bottom">
               <button
                 type="button"
@@ -510,10 +514,21 @@ function WorkspaceShell({ store }: Props) {
                   }
                 }}
                 disabled={!noteNav.noteId}
-                className={`${toolbarIconButtonClass} ml-auto`}
+                className={toolbarIconButtonClass}
                 aria-label="Version history"
               >
                 <AppIcon name="version-history" size={16} />
+              </button>
+            </Tooltip>
+            <Tooltip label="Find in note" side="bottom" shortcut={shortcutHints.findInNote}>
+              <button
+                type="button"
+                onClick={openEditorSearch}
+                disabled={!noteNav.noteId}
+                className={toolbarIconButtonClass}
+                aria-label="Find in note"
+              >
+                <AppIcon name="find-in-note" size={16} />
               </button>
             </Tooltip>
             <Tooltip label="Toggle metadata" side="bottom" shortcut={shortcutHints.toggleMetadata}>
@@ -532,6 +547,7 @@ function WorkspaceShell({ store }: Props) {
                 <AppIcon name="toggle-metadata" size={16} />
               </button>
             </Tooltip>
+            </div>
           </div>
           <div className="min-h-0 flex-1">
             <EditorPanes store={store} />

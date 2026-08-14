@@ -155,6 +155,13 @@ pub fn reconcile_remote_operation(
         WorkspaceOperation::ReorderNoteProperties { .. }
         | WorkspaceOperation::ReorderNotePropertyTemplates { .. } => reconcile_reorder(state),
         WorkspaceOperation::AttachImage { .. } => reconcile_create(state),
+        WorkspaceOperation::CreateTask { .. } | WorkspaceOperation::PromoteChecklistTask { .. } => {
+            reconcile_create(state)
+        }
+        WorkspaceOperation::UpdateTask { .. } | WorkspaceOperation::DetachTask { .. } => {
+            reconcile_scalar_update(state)
+        }
+        WorkspaceOperation::DeleteTask { .. } => reconcile_delete(state),
         WorkspaceOperation::SetActiveNote { .. }
         | WorkspaceOperation::UpdateSettings { .. }
         | WorkspaceOperation::RecordProviderImport { .. } => {
@@ -321,9 +328,12 @@ pub fn classify_apply_failure(operation: &WorkspaceOperation) -> SyncConflictRea
         | WorkspaceOperation::RestoreSubtree { .. }
         | WorkspaceOperation::PurgeSubtree { .. } => SyncConflictReason::TreeConflict,
         WorkspaceOperation::SetNoteProperty { .. }
-        | WorkspaceOperation::SetNotePropertyTemplate { .. } => {
-            SyncConflictReason::ConcurrentFieldEdit
-        }
+        | WorkspaceOperation::SetNotePropertyTemplate { .. }
+        | WorkspaceOperation::UpdateTask { .. }
+        | WorkspaceOperation::DetachTask { .. } => SyncConflictReason::ConcurrentFieldEdit,
+        WorkspaceOperation::CreateTask { .. }
+        | WorkspaceOperation::PromoteChecklistTask { .. }
+        | WorkspaceOperation::DeleteTask { .. } => SyncConflictReason::DomainConflict,
         WorkspaceOperation::ReorderNoteProperties { .. }
         | WorkspaceOperation::ReorderNotePropertyTemplates { .. } => {
             SyncConflictReason::CollectionConflict

@@ -13,8 +13,8 @@ use skriuw_domain::{SyncPullResponse, SyncPushRequest, SyncPushResponse, Workspa
 use skriuw_storage::{NewSyncConnection, WorkspaceMaintenance, WorkspaceSyncQueue};
 use skriuw_sync::{
     CheckpointPublication, CheckpointPublicationConfig, CheckpointPublicationState, SyncBackoff,
-    SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig, SyncStatus, SyncTransport,
-    TransportError, run_checkpoint_publication, run_sync_cycle,
+    SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig, SyncCycleOutcome, SyncStatus,
+    SyncTransport, TransportError, run_checkpoint_publication, run_sync_cycle,
 };
 
 use crate::protocol::{
@@ -109,7 +109,7 @@ impl BrowserSyncRuntime {
         if let Some(existing) = &existing {
             if existing.workspace_id != workspace_id {
                 return Err(BrowserStorageError::invalid(
-                    "This workspace is already linked to a different Skriuw account.",
+                    "This workspace is linked to another cloud workspace. Sign back into its original account and cloud environment, or open a fresh local workspace before linking a different account.",
                 ));
             }
             if existing.device_id != device_id {
@@ -202,12 +202,16 @@ impl BrowserSyncRuntime {
                 &mut session.checkpoint_state,
             )
         {
-            outcome = failure;
+            outcome = SyncCycleOutcome {
+                workspace_changed: outcome.workspace_changed,
+                ..failure
+            };
         }
         self.last_status = outcome.status.clone();
         Ok(BrowserSyncCycleReport {
             status: outcome.status,
             retry_at_ms: outcome.retry_at_ms,
+            workspace_changed: outcome.workspace_changed,
         })
     }
 

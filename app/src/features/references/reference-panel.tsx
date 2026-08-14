@@ -16,18 +16,14 @@ import {
   projectNoteReferenceDetails,
   projectOutgoingNotes,
   projectReferencingNotes,
-  projectUnlinkedMentions,
   referenceDetailsEqual,
-  unlinkedMentionsEqual,
   type BacklinkEntry,
   type ReferenceDetailEntry,
-  type UnlinkedMentionEntry,
 } from "./reference-panel-model";
 import type { ReferenceOperation } from "./types";
 
 const noEntries: BacklinkEntry[] = [];
 const noDetails: ReferenceDetailEntry[] = [];
-const noMentions: UnlinkedMentionEntry[] = [];
 
 export function useBacklinks(
   store: RendererStore,
@@ -61,18 +57,6 @@ export function useNoteReferenceDetails(
     [noteId],
   );
   return useRendererSelector(store, selector, referenceDetailsEqual);
-}
-
-export function useUnlinkedMentions(
-  store: RendererStore,
-  noteId: string | null,
-): readonly UnlinkedMentionEntry[] {
-  const selector = useCallback(
-    (state: RendererState) =>
-      noteId === null ? noMentions : projectUnlinkedMentions(state, noteId),
-    [noteId],
-  );
-  return useRendererSelector(store, selector, unlinkedMentionsEqual);
 }
 
 type NoteListProps = {
@@ -111,7 +95,7 @@ export function BacklinksList({ store, entries }: BacklinksListProps) {
   return (
     <NoteList
       entries={entries}
-      emptyLabel="No notes mention this note."
+      emptyLabel="No notes link to this note."
       onOpenNote={(id) => activateNote(store, id)}
     />
   );
@@ -124,33 +108,6 @@ export function OutgoingNotesList({ store, entries }: BacklinksListProps) {
       emptyLabel="This note doesn't link to any other notes."
       onOpenNote={(id) => activateNote(store, id)}
     />
-  );
-}
-
-type UnlinkedMentionsListProps = {
-  store: RendererStore;
-  entries: readonly UnlinkedMentionEntry[];
-};
-
-export function UnlinkedMentionsList({ store, entries }: UnlinkedMentionsListProps) {
-  if (entries.length === 0) {
-    return <p className="m-0 text-[13px] text-muted-foreground">No unlinked mentions found.</p>;
-  }
-  return (
-    <ul className="m-0 list-none space-y-1 p-0">
-      {entries.map((entry) => (
-        <li key={entry.noteId}>
-          <button
-            type="button"
-            className="flex w-full cursor-pointer items-baseline justify-between gap-3 truncate rounded px-2 py-1 text-left text-[13px] text-foreground/80 transition-colors hover:bg-muted/50"
-            onClick={() => activateNote(store, entry.noteId)}
-          >
-            <span className="truncate">{entry.title}</span>
-            <span className="shrink-0 tabular-nums text-muted-foreground/60">{entry.count}</span>
-          </button>
-        </li>
-      ))}
-    </ul>
   );
 }
 
@@ -190,7 +147,7 @@ function ReferenceDetailRow({ store, entry }: DetailRowProps) {
 
   return (
     <li>
-      <div className="group flex items-center gap-1 rounded px-1 transition-colors hover:bg-muted/50">
+      <div className="group flex items-center gap-1 rounded-md px-1 transition-colors duration-100 hover:bg-muted/30 focus-within:bg-muted/30">
         <button
           type="button"
           aria-label={`Recolor ${noun.toLowerCase()} ${entry.name}`}
@@ -226,7 +183,9 @@ function ReferenceDetailRow({ store, entry }: DetailRowProps) {
             <span className={cn("truncate", entry.kind === "tag" && "text-reference-tag")}>
               {`${sigil}${entry.name}`}
             </span>
-            <span className="shrink-0 tabular-nums text-muted-foreground/60">{entry.noteCount}</span>
+            <span className="shrink-0 tabular-nums text-muted-foreground/60 transition-opacity duration-100 group-hover:opacity-0 group-focus-within:opacity-0 group-focus-within:transition-none">
+              {entry.noteCount}
+            </span>
           </button>
         )}
         {!renaming && (
@@ -236,7 +195,7 @@ function ReferenceDetailRow({ store, entry }: DetailRowProps) {
             onConfirm={() => commit(buildDeleteReferenceOperation(entry))}
             className="shrink-0"
             renderIdle={(arm) => (
-              <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+              <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-100 focus-within:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 group-focus-within:transition-none">
                 <button
                   type="button"
                   aria-label={`Rename ${noun.toLowerCase()} ${entry.name}`}

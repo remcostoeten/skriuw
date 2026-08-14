@@ -256,23 +256,33 @@ test("markdown serialization and word count treat tokens as labeled text", () =>
   assert.equal(roundTripped.eq(document), true);
 });
 
-test("typing [[ trigger opens note-scoped completion including multi-word queries with spaces", () => {
-  const { type, state, context } = createHarness();
+test("bracketed Markdown syntax stays plain text in the rich editor", () => {
+  const { type, state } = createHarness();
   type("see [[Project Roadmap");
-  const current = mentionState(state());
-  assert.equal(current.active, true);
-  assert.equal(current.trigger, "[[");
-  assert.equal(current.query, "Project Roadmap");
-
-  const items = mentionMenuItems(context.getState(), "[[", "Project Roadmap");
-  assert.ok(items.every((item) => item.type !== "suggestion" || item.group === "notes"));
+  assert.equal(mentionState(state()).active, false);
+  assert.equal(state().doc.textContent, "see [[Project Roadmap");
 });
 
-test("typing closing bracket ] on a matching [[ suggestion accepts the item and creates the note reference token", () => {
+test("the note trigger keeps completing across spaces while a title still matches", () => {
+  const { type, state, context } = createHarness();
+  type("see @Beta n");
+  const current = mentionState(state());
+  assert.equal(current.active, true);
+  assert.equal(current.trigger, "@");
+  assert.equal(current.query, "Beta n");
+
+  const items = mentionMenuItems(context.getState(), "@", "Beta n");
+  assert.deepEqual(
+    items.flatMap((item) => (item.type === "suggestion" ? [item.suggestion.label] : [])),
+    ["Beta note"],
+  );
+});
+
+test("the note trigger creates notes with multi-word titles", () => {
   const { view, context, type, state, createdNotes } = createHarness();
-  type("see [[New Linked Note");
+  type("see @New Linked Note");
   assert.equal(mentionState(state()).active, true);
-  assert.equal(handleMentionKey(view, keyEvent("]"), context), true);
+  assert.equal(handleMentionKey(view, keyEvent("Enter"), context), true);
   assert.equal(mentionState(state()).active, false);
   assert.equal(createdNotes.length, 1);
   assert.equal(createdNotes[0]?.title, "New Linked Note");
@@ -281,4 +291,3 @@ test("typing closing bracket ] on a matching [[ suggestion accepts the item and 
   assert.equal(reference?.kind, "note");
   assert.equal(reference?.targetId, createdNotes[0]?.id);
 });
-

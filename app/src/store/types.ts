@@ -15,7 +15,7 @@ import type {
   OutgoingReferences,
 } from "@/features/references/projection";
 import type { PersonRecord, ReferenceOperation, TagRecord } from "@/features/references/types";
-import type { ClosedTab, PaneState } from "./panes";
+import type { ClosedTab, PaneState, SplitOrientation } from "./panes";
 
 export type NodeRecord = {
   id: string;
@@ -55,6 +55,9 @@ export type RendererState = {
   visibleIds: readonly string[];
   expandedIds: ReadonlySet<string>;
   panes: readonly PaneState[];
+  /** Split geometry. Kept beside `panes` so resizing never invalidates tab subscriptions. */
+  splitOrientation: SplitOrientation;
+  splitRatio: number;
   focusedPaneId: string;
   /** Per-pane reopen stack for closed tabs. Session-only, never persisted. */
   closedTabsByPaneId: ReadonlyMap<string, readonly ClosedTab[]>;

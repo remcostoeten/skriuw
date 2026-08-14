@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRendererSelector } from "@/store/use-renderer-selector";
-import { ChevronRightIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
+import { SectionChevron, SectionLabel, sectionHeaderClass } from "@/shared/ui/section-header";
 import { projectVersionList, type VersionListItem } from "@/features/history/version-model";
 import { noteHistoryHash } from "@/app-route";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
@@ -10,11 +10,9 @@ import {
   BacklinksList,
   OutgoingNotesList,
   ReferenceDetailLists,
-  UnlinkedMentionsList,
   useBacklinks,
   useNoteReferenceDetails,
   useOutgoingNotes,
-  useUnlinkedMentions,
 } from "@/features/references/reference-panel";
 import type { RendererState, RendererStore } from "@/store/types";
 
@@ -28,73 +26,89 @@ type SectionKey =
   | "details"
   | "backlinks"
   | "outgoing"
-  | "references"
-  | "mentions";
+  | "references";
 
 type SectionProps = {
   id: string;
   title: string;
-  count?: number;
   open: boolean;
   onToggle: () => void;
   children: ReactNode;
   className?: string;
+  keepMounted?: boolean;
 };
-
-const sectionHeaderClass =
-  "sticky top-0 z-[1] flex min-h-11 w-full items-center justify-between gap-3 bg-background px-4 py-2 text-left";
-
-const sectionLabelClass =
-  "flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/68";
 
 function InspectorSection({
   id,
   title,
-  count,
   open,
   onToggle,
   children,
   className,
+  keepMounted = false,
 }: SectionProps) {
-  const label = (
-    <div className={sectionLabelClass}>
-      <span className="truncate">{title}</span>
-      {count !== undefined && (
-        <span className="font-normal tabular-nums text-muted-foreground/44">({count})</span>
-      )}
-    </div>
-  );
-
   return (
-    <section aria-labelledby={id} className={cn("border-b border-border", className)}>
-      {count === 0 ? (
-        <div id={id} className={cn(sectionHeaderClass, "select-none")}>
-          {label}
-        </div>
-      ) : (
-        <button
-          type="button"
-          id={id}
-          onClick={onToggle}
-          aria-expanded={open}
-          className={cn(sectionHeaderClass, "cursor-pointer transition-colors hover:bg-muted/50")}
-        >
-          {label}
-          <ChevronRightIcon
-            size={14}
-            className={cn(
-              "shrink-0 text-muted-foreground/50 transition-transform",
-              open && "rotate-90",
-            )}
-          />
-        </button>
-      )}
-      {(open || count === 0) && <div className="px-4 pb-4">{children}</div>}
+    <section aria-labelledby={id} className={cn("border-b border-border/60", className)}>
+      <button
+        type="button"
+        id={id}
+        onClick={onToggle}
+        aria-expanded={open}
+        className={cn(sectionHeaderClass, "sticky top-0 z-[1] bg-background")}
+      >
+        <SectionChevron open={open} />
+        <SectionLabel title={title} />
+      </button>
+      {open || keepMounted ? (
+        <div className={cn("px-4 pb-2.5", !open && "hidden")}>{children}</div>
+      ) : null}
     </section>
   );
 }
 
 const asideClass = "flex h-full min-h-0 w-full flex-col border-l border-border bg-background";
+
+const OPEN_STORAGE_KEY = "skriuw.inspector-sections-open";
+
+const defaultOpenSections: Record<SectionKey, boolean> = {
+  outline: true,
+  revisions: true,
+  details: true,
+  backlinks: true,
+  outgoing: true,
+  references: true,
+};
+
+function readOpenSections(): Record<SectionKey, boolean> {
+  try {
+    const stored = window.localStorage.getItem(OPEN_STORAGE_KEY);
+    if (stored === null) {
+      return defaultOpenSections;
+    }
+    const parsed: unknown = JSON.parse(stored);
+    if (typeof parsed !== "object" || parsed === null) {
+      return defaultOpenSections;
+    }
+    const next = { ...defaultOpenSections };
+    for (const key of Object.keys(next) as SectionKey[]) {
+      const value = (parsed as Record<string, unknown>)[key];
+      if (typeof value === "boolean") {
+        next[key] = value;
+      }
+    }
+    return next;
+  } catch {
+    return defaultOpenSections;
+  }
+}
+
+function writeOpenSections(sections: Record<SectionKey, boolean>): void {
+  try {
+    window.localStorage.setItem(OPEN_STORAGE_KEY, JSON.stringify(sections));
+  } catch {
+    return;
+  }
+}
 
 const collapsedRevisionCount = 6;
 
@@ -216,24 +230,19 @@ export function MetadataPanel({ store }: Props) {
   const backlinks = useBacklinks(store, activeNoteId);
   const outgoingNotes = useOutgoingNotes(store, activeNoteId);
   const referenceDetails = useNoteReferenceDetails(store, activeNoteId);
-  const unlinkedMentions = useUnlinkedMentions(store, activeNoteId);
   const createdAt = useRendererSelector(store, selectActiveNoteCreatedAt);
   const markdown = useRendererSelector(store, selectActiveNoteMarkdown);
-  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
-    outline: true,
-    revisions: true,
-    details: true,
-    backlinks: true,
-    outgoing: true,
-    references: true,
-    mentions: true,
-  });
+  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(readOpenSections);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [outlineCount, setOutlineCount] = useState(0);
   const handleOutlineCountChange = useCallback((count: number) => setOutlineCount(count), []);
 
   function toggleSection(section: SectionKey): void {
-    setOpenSections((current) => ({ ...current, [section]: !current[section] }));
+    setOpenSections((current) => {
+      const next = { ...current, [section]: !current[section] };
+      writeOpenSections(next);
+      return next;
+    });
   }
 
   if (!metadata) {
@@ -260,9 +269,10 @@ export function MetadataPanel({ store }: Props) {
           <InspectorSection
             id="metadata-outline"
             title="Outline"
-            count={outlineCount}
             open={openSections.outline}
             onToggle={() => toggleSection("outline")}
+            className={outlineCount <= 1 ? "hidden" : undefined}
+            keepMounted
           >
             <div
               data-outline-scroll
@@ -280,7 +290,6 @@ export function MetadataPanel({ store }: Props) {
           <InspectorSection
             id="metadata-revisions"
             title="Revisions"
-            count={versions.length}
             open={openSections.revisions}
             onToggle={() => toggleSection("revisions")}
           >
@@ -296,8 +305,7 @@ export function MetadataPanel({ store }: Props) {
         {activeNoteId && backlinks.length > 0 && (
           <InspectorSection
             id="metadata-backlinks"
-            title="Linked mentions"
-            count={backlinks.length}
+            title="Backlinks"
             open={openSections.backlinks}
             onToggle={() => toggleSection("backlinks")}
           >
@@ -308,7 +316,6 @@ export function MetadataPanel({ store }: Props) {
           <InspectorSection
             id="metadata-outgoing"
             title="Links to"
-            count={outgoingNotes.length}
             open={openSections.outgoing}
             onToggle={() => toggleSection("outgoing")}
           >
@@ -319,31 +326,18 @@ export function MetadataPanel({ store }: Props) {
           <InspectorSection
             id="metadata-references"
             title="Tags & people"
-            count={referenceDetails.length}
             open={openSections.references}
             onToggle={() => toggleSection("references")}
           >
             <ReferenceDetailLists store={store} details={referenceDetails} />
           </InspectorSection>
         )}
-        {activeNoteId && unlinkedMentions.length > 0 && (
-          <InspectorSection
-            id="metadata-mentions"
-            title="Unlinked mentions"
-            count={unlinkedMentions.length}
-            open={openSections.mentions}
-            onToggle={() => toggleSection("mentions")}
-          >
-            <UnlinkedMentionsList store={store} entries={unlinkedMentions} />
-          </InspectorSection>
-        )}
       </div>
 
-      <div className="max-h-[55%] shrink-0 overflow-y-auto border-t border-border bg-background">
+      <div className="max-h-[55%] shrink-0 overflow-y-auto border-t border-border/60 bg-background">
         <InspectorSection
           id="metadata-details"
           title="Details"
-          count={detailRows.length}
           open={openSections.details}
           onToggle={() => toggleSection("details")}
           className="border-b-0"

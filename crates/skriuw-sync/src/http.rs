@@ -61,6 +61,16 @@ impl SyncHttpEndpoints {
     pub fn acknowledge(&self, workspace_id: &str) -> String {
         format!("{}/v1/workspaces/{workspace_id}/acknowledge", self.base_url)
     }
+
+    /// WebSocket wake channel. The device identifies itself so the service can
+    /// skip echoing its own pushes back to it.
+    #[must_use]
+    pub fn events(&self, workspace_id: &str, device_id: &str) -> String {
+        format!(
+            "{}/v1/workspaces/{workspace_id}/events?deviceId={device_id}",
+            self.base_url
+        )
+    }
 }
 
 /// Maps a non-success HTTP status to the stable transport failure
@@ -99,6 +109,10 @@ mod tests {
         assert_eq!(
             endpoints.chunk("w_1", "abc"),
             "https://cloud.example/v1/workspaces/w_1/chunks/abc"
+        );
+        assert_eq!(
+            endpoints.events("w_1", "device-1"),
+            "https://cloud.example/v1/workspaces/w_1/events?deviceId=device-1"
         );
     }
 

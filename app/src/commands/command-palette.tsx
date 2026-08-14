@@ -2,6 +2,8 @@ import { useEffect, useId, useMemo, useRef, useState, type ComponentProps } from
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { getCommandFrecency, recordCommandUse } from "./command-frecency";
 import { SearchIcon } from "@/shared/icons/static";
+import { cn } from "@/shared/lib/utils";
+import { sectionLabelClass } from "@/shared/ui/section-header";
 import {
   COMMAND_BANGS,
   getCommandPaletteGroups,
@@ -18,6 +20,16 @@ type Props = {
    * feed asynchronous results (e.g. full-text search) back in through `items`.
    */
   onQueryChange?: (query: string) => void;
+  /**
+   * Explanation shown under the input when the query cannot be answered as
+   * typed, e.g. a `#tag` naming nothing or two tags sharing a name.
+   */
+  notice?: string | null;
+  /**
+   * The combo the footer advertises for reopening the palette, already
+   * formatted. Hosts pass the effective binding so a rebind is reflected here.
+   */
+  paletteShortcut?: string;
   "aria-label"?: string;
 };
 
@@ -38,7 +50,15 @@ function Kbd({ children, ...rest }: ComponentProps<"kbd">) {
   );
 }
 
-export function CommandPalette({ open, onOpenChange, items, onQueryChange, ...aria }: Props) {
+export function CommandPalette({
+  open,
+  onOpenChange,
+  items,
+  onQueryChange,
+  notice,
+  paletteShortcut,
+  ...aria
+}: Props) {
   if (!open) {
     return null;
   }
@@ -46,6 +66,8 @@ export function CommandPalette({ open, onOpenChange, items, onQueryChange, ...ar
     <PaletteDialog
       items={items}
       onQueryChange={onQueryChange}
+      notice={notice ?? null}
+      paletteShortcut={paletteShortcut ?? formatShortcut("mod+k")}
       onClose={() => onOpenChange(false)}
       aria-label={aria["aria-label"] ?? "Command palette"}
     />
@@ -55,11 +77,20 @@ export function CommandPalette({ open, onOpenChange, items, onQueryChange, ...ar
 type DialogProps = {
   items: readonly CommandPaletteItem[];
   onQueryChange?: (query: string) => void;
+  notice: string | null;
+  paletteShortcut: string;
   onClose: () => void;
   "aria-label": string;
 };
 
-function PaletteDialog({ items, onQueryChange, onClose, ...aria }: DialogProps) {
+function PaletteDialog({
+  items,
+  onQueryChange,
+  notice,
+  paletteShortcut,
+  onClose,
+  ...aria
+}: DialogProps) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -171,6 +202,15 @@ function PaletteDialog({ items, onQueryChange, onClose, ...aria }: DialogProps) 
         <Kbd>Esc</Kbd>
       </div>
 
+      {notice && (
+        <p
+          role="status"
+          className="border-b border-border bg-muted/40 px-3.5 py-2 text-[12px] text-foreground/70"
+        >
+          {notice}
+        </p>
+      )}
+
       <div ref={listRef} id={listboxId} role="listbox" className="min-h-0 overflow-y-auto p-1.5">
         {flatItems.length === 0 ? (
           <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">
@@ -179,7 +219,7 @@ function PaletteDialog({ items, onQueryChange, onClose, ...aria }: DialogProps) 
         ) : (
           groups.map((group) => (
             <div key={group.group}>
-              <div className="px-2.5 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
+              <div className={cn("px-2.5 pb-1 pt-2", sectionLabelClass)}>
                 {group.group}
               </div>
               {group.items.map((item) => {
@@ -243,8 +283,15 @@ function PaletteDialog({ items, onQueryChange, onClose, ...aria }: DialogProps) 
             </span>
           ))}
         </span>
+        <span className="inline-flex items-center gap-1 whitespace-nowrap">
+          <Kbd>#tag</Kbd>
+          <Kbd>$person</Kbd> filter
+        </span>
+        <span className="inline-flex items-center gap-1 whitespace-nowrap">
+          <Kbd>recents</Kbd> recent notes
+        </span>
         <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap">
-          <Kbd>{formatShortcut("mod+k")}</Kbd> command palette
+          <Kbd>{paletteShortcut}</Kbd> command palette
         </span>
       </div>
     </dialog>

@@ -37,6 +37,9 @@ export default {
             log: logSyncSecurityEvent,
             nowEpochSeconds: () => Math.floor(Date.now() / 1_000),
           });
+      if (response.status === 101) {
+        return response;
+      }
       return withHeaders(response, headers);
     }
     return jsonError(404, "not_found");

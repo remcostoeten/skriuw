@@ -1,0 +1,58 @@
+.split-divider {
+  position: relative;
+  z-index: 20;
+  background: hsl(var(--sidebar-border));
+  outline: none;
+  touch-action: none;
+  transition: background-color 150ms ease;
+}
+
+.split-divider-vertical {
+  cursor: col-resize;
+}
+
+.split-divider-horizontal {
+  cursor: row-resize;
+}
+
+/*
+ * The divider occupies a 1px grid track so the panes keep the whole ratio; the
+ * pseudo-element widens only the grab area, spilling over both panes without
+ * taking layout space.
+ */
+.split-divider::after {
+  content: "";
+  position: absolute;
+}
+
+.split-divider-vertical::after {
+  inset-block: 0;
+  inset-inline: -4px;
+}
+
+.split-divider-horizontal::after {
+  inset-inline: 0;
+  inset-block: -4px;
+}
+
+.split-divider:hover,
+.split-divider:focus-visible,
+.split-divider-active {
+  background: hsl(var(--primary));
+}
+
+body.split-resizing-col {
+  cursor: col-resize;
+  user-select: none;
+}
+
+body.split-resizing-row {
+  cursor: row-resize;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .split-divider {
+    transition: none;
+  }
+}

@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  SUGGESTION_LIMIT,
   queryMentionSuggestions,
   queryTagSuggestions,
 } from "../../../src/features/references/suggestion-index";
 import { createInitialState, createRendererStore } from "../../../src/store/store";
-import { referenceFixture, tag } from "./fixtures";
+import { largeReferenceFixture, referenceFixture, tag } from "./fixtures";
 
 function fixtureState() {
   const { snapshot, references } = referenceFixture();
@@ -31,15 +32,15 @@ test("tag suggestions rank exact before prefix before substring", () => {
 
 test("tag suggestions are bounded and alphabetical for empty queries", () => {
   const { snapshot, references } = referenceFixture();
-  const many = Array.from({ length: 20 }, (_, index) =>
-    tag(`t-${index}`, `tag-${index.toString().padStart(2, "0")}`),
+  const many = Array.from({ length: SUGGESTION_LIMIT + 12 }, (_, index) =>
+    tag(`t-${index}`, `tag-${index.toString().padStart(3, "0")}`),
   );
   const state = createInitialState(snapshot, undefined, { ...references, tags: many });
   const suggestions = queryTagSuggestions(state, "");
-  assert.equal(suggestions.length, 8);
+  assert.equal(suggestions.length, SUGGESTION_LIMIT);
   assert.deepEqual(
     suggestions.map((suggestion) => suggestion.label),
-    many.slice(0, 8).map((entry) => entry.name),
+    many.slice(0, SUGGESTION_LIMIT).map((entry) => entry.name),
   );
 });
 
@@ -55,6 +56,19 @@ test("mention suggestions group people and notes and exclude the active note", (
     grouped.notes.every((suggestion) => suggestion.kind === "note"),
     true,
   );
+});
+
+test("excluding the active note does not consume a suggestion slot", () => {
+  const { snapshot, references } = largeReferenceFixture({
+    noteCount: SUGGESTION_LIMIT + 20,
+    tagCount: 2,
+    personCount: 2,
+    referencesPerNote: 0,
+  });
+  const state = createInitialState(snapshot, undefined, references);
+  const grouped = queryMentionSuggestions(state, "");
+  assert.equal(grouped.notes.length, SUGGESTION_LIMIT);
+  assert.equal(grouped.notes.some((suggestion) => suggestion.id === state.activeNoteId), false);
 });
 
 test("trashed notes are never offered as mention targets", () => {

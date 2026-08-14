@@ -12,7 +12,7 @@ export type MentionSuggestions = {
   notes: readonly Suggestion[];
 };
 
-export const SUGGESTION_LIMIT = 8;
+export const SUGGESTION_LIMIT = 50;
 
 type IndexEntry = {
   id: string;
@@ -61,9 +61,13 @@ function query(
   kind: ReferenceKind,
   needle: string,
   limit: number,
+  excludedId: string | null = null,
 ): Suggestion[] {
   const buckets: Suggestion[][] = [[], [], []];
   for (const entry of entries) {
+    if (entry.id === excludedId) {
+      continue;
+    }
     const score = rank(entry.normalized, needle);
     if (score < 0) {
       continue;
@@ -107,8 +111,12 @@ export function queryMentionSuggestions(
   const normalized = needle.toLowerCase();
   return {
     people: query(indexEntries(state.people, personLabel), "person", normalized, limit),
-    notes: query(indexEntries(state.metadata, noteLabel), "note", normalized, limit).filter(
-      (suggestion) => suggestion.id !== state.activeNoteId,
+    notes: query(
+      indexEntries(state.metadata, noteLabel),
+      "note",
+      normalized,
+      limit,
+      state.activeNoteId,
     ),
   };
 }

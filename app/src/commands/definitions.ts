@@ -42,7 +42,10 @@ export type ShortcutActionId =
   | "nextTab"
   | "previousTab"
   | "openBeside"
+  | "openBelow"
   | "closeSplit"
+  | "cyclePaneNext"
+  | "cyclePanePrevious"
   | "openSettings"
   | "toggleSidebar"
   | "toggleMetadata"
@@ -68,6 +71,7 @@ export type ShortcutActionId =
   | "zoomIn"
   | "zoomOut"
   | "zoomReset"
+  | "insertLink"
   | "jumpToLine"
   | "goToDocumentStart"
   | "goToDocumentEnd"
@@ -134,6 +138,14 @@ export type ShortcutDefinition = {
    */
   secondaryWorksWhileTyping?: boolean;
   boundInEditor?: boolean;
+  /**
+   * An action this binding deliberately shares a combo with. Legal only when
+   * the two are arbitrated per keypress rather than by scopes or guards: the
+   * editor-bound holder claims the event when it can act on it and otherwise
+   * leaves it alone to reach the window binding. The overlap tests exempt the
+   * declared pair, so nothing else can share a combo by accident.
+   */
+  sharesComboWith?: ShortcutActionId;
 };
 
 const TAB_INDEX_DESCRIPTION =
@@ -195,6 +207,8 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
   {
     id: "toggleCommandPalette",
     keys: "mod+k",
+    secondaryKeys: "mod+shift+p",
+    secondaryWorksWhileTyping: true,
     label: "Open command palette",
     group: "General",
     worksWhileTyping: true,
@@ -245,7 +259,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
   },
   {
     id: "createPerson",
-    keys: "mod+shift+p",
+    keys: "mod+shift+u",
     label: "New person",
     group: "Workspace",
     worksWhileTyping: true,
@@ -284,7 +298,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+shift+d",
     label: "Duplicate current note",
     description:
-      "Duplicate current note and rename the copy. Overrides the browser's bookmark-all-tabs default on web.",
+      "Duplicate the sidebar's focused note, or the open one, and rename the copy. Overrides the browser's bookmark-all-tabs default on web.",
     group: "Workspace",
     worksWhileTyping: true,
     guards: ["textField", "modal"],
@@ -367,19 +381,51 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
   ...TAB_INDEX_DEFINITIONS,
   {
     id: "openBeside",
-    keys: "mod+backslash",
-    label: "Open current note beside",
+    keys: "mod+alt+v",
+    label: "Split vertically",
+    description:
+      "Open the current note in a second pane beside this one. With a split already open it only re-lays the panes side by side, keeping whatever each one holds.",
+    group: "Tabs",
+    worksWhileTyping: true,
+    scopes: "notes-route",
+  },
+  {
+    id: "openBelow",
+    keys: "mod+alt+h",
+    label: "Split horizontally",
+    description:
+      "Open the current note in a second pane below this one. With a split already open it only re-lays the panes stacked, keeping whatever each one holds.",
     group: "Tabs",
     worksWhileTyping: true,
     scopes: "notes-route",
   },
   {
     id: "closeSplit",
-    keys: "mod+shift+backslash",
+    keys: "mod+alt+w",
     label: "Close split view",
     group: "Tabs",
     worksWhileTyping: true,
     scopes: "notes-route",
+  },
+  {
+    id: "cyclePaneNext",
+    keys: "mod+alt+tab",
+    label: "Cycle to next pane",
+    description:
+      "Move keyboard focus to the next pane, wrapping at the end. Some Linux desktops claim ctrl+alt+tab for their own window switching, so rebind if the OS wins.",
+    group: "Tabs",
+    worksWhileTyping: true,
+    scopes: "split",
+  },
+  {
+    id: "cyclePanePrevious",
+    keys: "mod+alt+shift+tab",
+    label: "Cycle to previous pane",
+    description:
+      "Move keyboard focus to the previous pane, wrapping at the start. Some Linux desktops claim ctrl+alt+tab for their own window switching, so rebind if the OS wins.",
+    group: "Tabs",
+    worksWhileTyping: true,
+    scopes: "split",
   },
   {
     id: "openSettings",
@@ -553,14 +599,26 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     worksWhileTyping: true,
   },
   {
+    id: "insertLink",
+    keys: "mod+k",
+    secondaryKeys: "mod+shift+k",
+    secondaryWorksWhileTyping: true,
+    label: "Insert or edit link",
+    description:
+      "Wrap the selected text in a link, or edit the link under the caret. Shares mod+k with the command palette the way Notion does: with a text selection the key means link, and with none it falls through to the palette.",
+    group: "Editor",
+    worksWhileTyping: true,
+    boundInEditor: true,
+    sharesComboWith: "toggleCommandPalette",
+  },
+  {
     id: "jumpToLine",
     keys: "mod+g",
     label: "Jump to line",
     description:
-      "Toggle the jump-to-line field. Raw Markdown mode only — block mode has no line numbers to jump to. Overrides Firefox's find-again default on web.",
+      "Toggle the jump-to-line field. Line numbers mean lines of the note's Markdown in both modes, so the same number lands on the same content. Overrides Firefox's find-again default on web.",
     group: "Editor",
     worksWhileTyping: true,
-    scopes: "markdown",
     boundInEditor: true,
   },
   {

@@ -340,6 +340,45 @@ test("duplicateCurrentNote leaves the original pinned state and dates alone", as
   assert.equal(store.getState().sourceNodes.get("a")?.pinnedAt, 42);
 });
 
+test("duplicateCurrentNote copies the note it is handed, not the open one", async () => {
+  const { duplicateCurrentNote } = await import("../../../src/store/actions/workspace");
+  const store = await storeWith({
+    activeNoteId: "a",
+    nodes: [folderNode("f", 1), noteNode("a", 1, "f"), noteNode("b", 2, "f")],
+    documents: [
+      {
+        noteId: "b",
+        documentJson: {
+          type: "doc",
+          content: [{ type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "b" }] }],
+        },
+        markdown: "# b\n",
+        revision: 1,
+        wordCount: 1,
+      },
+    ],
+  });
+
+  const duplicated = await duplicateCurrentNote(store, "b");
+  assert.ok(duplicated);
+  const state = store.getState();
+  assert.equal(state.nodes.get(duplicated.noteId)?.title, "b (copy)");
+  const order = state.nodeOrder.filter(
+    (id) => id === "a" || id === "b" || id === duplicated.noteId,
+  );
+  assert.deepEqual(order, ["a", "b", duplicated.noteId]);
+});
+
+test("duplicateCurrentNote ignores a target that is not a note", async () => {
+  const { duplicateCurrentNote } = await import("../../../src/store/actions/workspace");
+  const store = await storeWith({
+    activeNoteId: "a",
+    nodes: [folderNode("f", 1), noteNode("a", 1, "f")],
+  });
+  assert.equal(await duplicateCurrentNote(store, "f"), null);
+  assert.equal(store.getState().nodes.size, 2);
+});
+
 test("duplicateCurrentNote is a silent no-op without an open note", async () => {
   const { duplicateCurrentNote } = await import("../../../src/store/actions/workspace");
   const store = await storeWith({ activeNoteId: null, nodes: [folderNode("f", 1)] });

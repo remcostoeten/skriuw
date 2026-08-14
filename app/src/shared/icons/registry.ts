@@ -8,6 +8,7 @@ import {
   PanelLeftToggleIcon,
   PanelRightToggleIcon,
   RotateCcwIcon,
+  SearchIcon,
   SettingsIcon,
   TagsIcon,
   Trash2Icon,
@@ -120,6 +121,9 @@ export const APP_ICONS = {
     animated: animated(() =>
       import("@/shared/icons/animate-ui/icons/panel-left").then((module) => ({ default: module.PanelLeft })),
     ),
+  },
+  "find-in-note": {
+    static: SearchIcon,
   },
   "toggle-metadata": {
     static: PanelRightToggleIcon,

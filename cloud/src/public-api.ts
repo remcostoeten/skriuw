@@ -1,8 +1,12 @@
 import {
+  type AuthorizedWorkspaceAccess,
   type SyncAccessConfiguration,
   type SyncAccessFailureCode,
+  SYNC_EVENTS_SUBPROTOCOL,
   authorizeWorkspaceRequest,
   membershipAllowsDevice,
+  offersSyncEventsSubprotocol,
+  requestWithSubprotocolCredential,
 } from "./access";
 import { requireIdentifier } from "./contracts";
 import { type WorkspaceContentStore, isContentDigest } from "./content-store";
@@ -25,6 +29,7 @@ import {
 const MAX_DEVICE_IDLE_SECONDS = 60 * 60 * 24 * 30;
 
 type WorkspaceSyncRpc = {
+  fetch(request: Request): Promise<Response>;
   pushOperations(input: unknown): Promise<SyncPushResult>;
   pullOperations(afterServerSequence: number, requestedLimit?: number): Promise<string>;
   publishCheckpoint(
@@ -49,7 +54,11 @@ export type SyncRouteName =
   | "pull"
   | "chunk"
   | "checkpoint"
-  | "acknowledge";
+  | "acknowledge"
+  | "events";
+
+export const SYNC_EVENTS_DEVICE_HEADER = "x-skriuw-device-id";
+export const SYNC_EVENTS_EXPIRY_HEADER = "x-skriuw-session-expires-at";
 
 export type SyncSecurityLogEvent = {
   event: "sync_request_rejected" | "sync_request_failed";
@@ -86,6 +95,7 @@ type PublicErrorCode =
   | "chunk_empty"
   | "chunk_not_found"
   | "checkpoint_not_found"
+  | "upgrade_required"
   | "internal_error";
 
 class PublicApiError extends Error {
@@ -107,8 +117,10 @@ export async function handlePublicSyncRequest(
   }
 
   try {
+    const authenticatedRequest =
+      route.name === "events" ? requestWithSubprotocolCredential(request) : request;
     const access = await authorizeWorkspaceRequest(
-      request,
+      authenticatedRequest,
       route.workspaceId,
       route.action,
       dependencies.accessConfiguration,
@@ -118,6 +130,10 @@ export async function handlePublicSyncRequest(
       throw accessError(access.code);
     }
     requireMethod(request.method, route);
+
+    if (route.name === "events") {
+      return await handleEventsRequest(request, route, access.access, dependencies);
+    }
 
     if (route.name === "chunk") {
       return await handleChunkRequest(request, route, dependencies);
@@ -251,6 +267,8 @@ function matchSyncRoute(pathname: string, method: string): SyncRoute | null {
       };
     case "acknowledge":
       return { name: "acknowledge", action: "pull", workspaceId };
+    case "events":
+      return { name: "events", action: "pull", workspaceId };
     default:
       return null;
   }
@@ -263,9 +281,58 @@ function requireMethod(method: string, route: SyncRoute): void {
     chunk: ["PUT", "GET", "HEAD"],
     checkpoint: ["GET", "POST"],
     acknowledge: ["POST"],
+    events: ["GET"],
   };
   if (!allowed[route.name].includes(method)) {
     throw new PublicApiError(405, "method_not_allowed");
+  }
+}
+
+/**
+ * The upgrade is forwarded to the workspace Durable Object only after the
+ * Worker has fully authorized it; the object trusts the device and expiry
+ * headers because clients can never reach it directly. The bearer credential
+ * is stripped so it does not outlive the handshake.
+ */
+async function handleEventsRequest(
+  request: Request,
+  route: SyncRoute,
+  access: AuthorizedWorkspaceAccess,
+  dependencies: PublicSyncDependencies,
+): Promise<Response> {
+  if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+    throw new PublicApiError(426, "upgrade_required");
+  }
+  const deviceId = parseEventsQuery(new URL(request.url));
+  if (!membershipAllowsDevice(access.membership, deviceId)) {
+    throw new PublicApiError(403, "device_not_authorized");
+  }
+  const headers = new Headers({ Upgrade: "websocket" });
+  headers.set(SYNC_EVENTS_DEVICE_HEADER, deviceId);
+  headers.set(
+    SYNC_EVENTS_EXPIRY_HEADER,
+    String(access.identity.expiresAtEpochSeconds),
+  );
+  if (offersSyncEventsSubprotocol(request.headers)) {
+    headers.set("Sec-WebSocket-Protocol", SYNC_EVENTS_SUBPROTOCOL);
+  }
+  return dependencies
+    .resolveWorkspace(route.workspaceId)
+    .fetch(new Request(request.url, { headers }));
+}
+
+function parseEventsQuery(url: URL): string {
+  if ([...url.searchParams.keys()].some((key) => key !== "deviceId")) {
+    throw new PublicApiError(400, "invalid_request");
+  }
+  const values = url.searchParams.getAll("deviceId");
+  if (values.length !== 1) {
+    throw new PublicApiError(400, "invalid_request");
+  }
+  try {
+    return requireIdentifier(values[0], "deviceId");
+  } catch (error) {
+    throw normalizeContractError(error);
   }
 }
 

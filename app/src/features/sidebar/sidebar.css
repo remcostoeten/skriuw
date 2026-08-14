@@ -91,6 +91,7 @@ body.sidebar-resizing {
 .tree-drop-inside {
   position: absolute;
   inset-inline: 0;
+  border-radius: var(--radius);
   border: 1px solid hsl(var(--foreground) / 0.45);
   background: hsl(var(--foreground) / 0.08);
   pointer-events: none;

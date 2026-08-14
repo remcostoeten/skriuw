@@ -3,6 +3,7 @@ import {
   clearBrowserSessionToken,
   loadBrowserSessionToken,
 } from "@/features/auth/session-store";
+import { noop } from "@/shared/lib/noop";
 import type { WorkspaceSyncStatus } from "./commands";
 
 /**
@@ -43,11 +44,18 @@ type BrowserSyncConnection = {
 type BrowserSyncCycleReport = {
   status: WorkspaceSyncStatus;
   retryAtMs: number | null;
+  workspaceChanged: boolean;
 };
 
 type ProvisionedWorkspace = {
   workspaceId: string;
   deviceId: string;
+};
+
+export type PushChannelConnection = {
+  workspaceId: string;
+  deviceId: string;
+  token: string;
 };
 
 export type BrowserSyncDriverDependencies = {
@@ -60,6 +68,7 @@ export type BrowserSyncDriverDependencies = {
   clearTimer(handle: unknown): void;
   persistedToken(): string | undefined;
   discardPersistedSession(): void;
+  openPushChannel(connection: PushChannelConnection, onWake: () => void): () => void;
 };
 
 export type BrowserSyncDriver = {
@@ -67,6 +76,7 @@ export type BrowserSyncDriver = {
   connect(token: string): Promise<WorkspaceSyncStatus>;
   resume(): Promise<WorkspaceSyncStatus>;
   pause(): Promise<WorkspaceSyncStatus>;
+  stop(): void;
   retry(): Promise<WorkspaceSyncStatus>;
   notifyLocalCommit(): void;
   wake(): void;
@@ -83,6 +93,23 @@ export function createBrowserSyncDriver(
   let wakeRequested = false;
   let resumeAttempted = false;
   let timer: unknown = null;
+  let closePushChannel: (() => void) | null = null;
+
+  function teardownPushChannel(): void {
+    if (closePushChannel === null) return;
+    const close = closePushChannel;
+    closePushChannel = null;
+    close();
+  }
+
+  function openPushChannel(connection: PushChannelConnection): void {
+    teardownPushChannel();
+    try {
+      closePushChannel = dependencies.openPushChannel(connection, wake);
+    } catch (error) {
+      console.error("sync push channel could not open", error);
+    }
+  }
 
   function clearScheduled(): void {
     if (timer !== null) {
@@ -121,10 +148,12 @@ export function createBrowserSyncDriver(
         dependencies.discardPersistedSession();
         active = false;
         clearScheduled();
+        teardownPushChannel();
         return;
       case "localOnly":
         active = false;
         clearScheduled();
+        teardownPushChannel();
         return;
       default:
         schedule(POLL_INTERVAL_MS);
@@ -145,10 +174,12 @@ export function createBrowserSyncDriver(
         "sync_cycle",
         SYNC_CYCLE_TIMEOUT_MS,
       )) as BrowserSyncCycleReport;
+      if (report.workspaceChanged) publishBrowserWorkspaceChange();
       scheduleFromReport(report);
     } catch (error) {
       active = false;
       clearScheduled();
+      teardownPushChannel();
       console.error("browser sync cycle failed", error);
     } finally {
       cycleInFlight = false;
@@ -194,7 +225,9 @@ export function createBrowserSyncDriver(
       throw new Error("cloud provisioning returned a different device identity");
     }
     if (existing && existing.workspaceId !== provisioned.workspaceId) {
-      throw new Error("this local workspace is already linked to a different Skriuw account");
+      throw new Error(
+        "This local workspace is linked to another cloud workspace. Sign back into its original account and cloud environment, or open a fresh local workspace before linking a different account.",
+      );
     }
     const connected = (await dependencies.port.request(
       "sync_connect",
@@ -207,6 +240,7 @@ export function createBrowserSyncDriver(
       "sync_status",
     )) as WorkspaceSyncStatus;
     active = true;
+    openPushChannel({ workspaceId: provisioned.workspaceId, deviceId, token });
     schedule(0);
     return connected;
   }
@@ -243,11 +277,19 @@ export function createBrowserSyncDriver(
   async function pause(): Promise<WorkspaceSyncStatus> {
     active = false;
     clearScheduled();
+    teardownPushChannel();
     return (await dependencies.port.request(
       "sync_disconnect",
       undefined,
       "sync_status",
     )) as WorkspaceSyncStatus;
+  }
+
+  function stop(): void {
+    active = false;
+    wakeRequested = false;
+    clearScheduled();
+    teardownPushChannel();
   }
 
   async function retry(): Promise<WorkspaceSyncStatus> {
@@ -263,10 +305,11 @@ export function createBrowserSyncDriver(
     if (active) schedule(0);
   }
 
-  return { status, connect, resume, pause, retry, notifyLocalCommit, wake };
+  return { status, connect, resume, pause, stop, retry, notifyLocalCommit, wake };
 }
 
 const progressListeners = new Set<(progress: BrowserSyncProgress) => void>();
+const workspaceChangeListeners = new Set<() => void>();
 let lastProgress: BrowserSyncProgress | null = null;
 
 function isSyncProgress(value: unknown): value is BrowserSyncProgress {
@@ -305,6 +348,15 @@ export function subscribeBrowserSyncProgress(
 
 export function latestBrowserSyncProgress(): BrowserSyncProgress | null {
   return lastProgress;
+}
+
+export function subscribeBrowserWorkspaceChanges(listener: () => void): () => void {
+  workspaceChangeListeners.add(listener);
+  return () => workspaceChangeListeners.delete(listener);
+}
+
+function publishBrowserWorkspaceChange(): void {
+  for (const listener of workspaceChangeListeners) listener();
 }
 
 async function provisionBrowserDevice(
@@ -353,6 +405,84 @@ function createBrowserDeviceId(): string {
   return crypto.randomUUID().replaceAll("-", "");
 }
 
+const PUSH_CHANNEL_MIN_RETRY_MS = 1_000;
+const PUSH_CHANNEL_MAX_RETRY_MS = 60_000;
+const SYNC_EVENTS_SUBPROTOCOL = "skriuw-sync-v1";
+
+/**
+ * Wake-hint WebSocket to the workspace events endpoint. Browsers cannot attach
+ * an Authorization header to a WebSocket, so the bearer token rides a
+ * `skriuw-bearer.<token>` subprotocol entry. Every failure only schedules a
+ * capped reconnect: correctness always comes from the polled sync cycle.
+ */
+function openBrowserPushChannel(
+  connection: PushChannelConnection,
+  onWake: () => void,
+): () => void {
+  let socket: WebSocket | null = null;
+  let retryTimer: number | null = null;
+  let retryDelayMs = PUSH_CHANNEL_MIN_RETRY_MS;
+  let closed = false;
+
+  function scheduleReconnect(): void {
+    if (closed || retryTimer !== null) return;
+    retryTimer = window.setTimeout(() => {
+      retryTimer = null;
+      open();
+    }, retryDelayMs);
+    retryDelayMs = Math.min(retryDelayMs * 2, PUSH_CHANNEL_MAX_RETRY_MS);
+  }
+
+  function open(): void {
+    if (closed) return;
+    const token = loadBrowserSessionToken() ?? connection.token;
+    const url =
+      trustedCloudBaseUrl().replace(/^http/, "ws") +
+      `/v1/workspaces/${connection.workspaceId}/events?deviceId=${connection.deviceId}`;
+    try {
+      socket = new WebSocket(url, [
+        SYNC_EVENTS_SUBPROTOCOL,
+        `skriuw-bearer.${token}`,
+      ]);
+    } catch (error) {
+      console.error("sync push channel could not connect", error);
+      scheduleReconnect();
+      return;
+    }
+    socket.onopen = () => {
+      retryDelayMs = PUSH_CHANNEL_MIN_RETRY_MS;
+    };
+    socket.onmessage = (event) => {
+      let message: { type?: string } | null = null;
+      try {
+        message = JSON.parse(String(event.data)) as { type?: string };
+      } catch {
+        noop();
+      }
+      if (message?.type === "workspaceChanged") onWake();
+    };
+    socket.onclose = () => {
+      socket = null;
+      scheduleReconnect();
+    };
+  }
+
+  open();
+  return () => {
+    closed = true;
+    if (retryTimer !== null) {
+      window.clearTimeout(retryTimer);
+      retryTimer = null;
+    }
+    if (socket !== null) {
+      const activeSocket = socket;
+      socket = null;
+      activeSocket.onclose = null;
+      activeSocket.close();
+    }
+  };
+}
+
 let sharedDriver: BrowserSyncDriver | null = null;
 
 export function browserSyncDriver(port: SyncWorkerPort): BrowserSyncDriver {
@@ -367,6 +497,7 @@ export function browserSyncDriver(port: SyncWorkerPort): BrowserSyncDriver {
     clearTimer: (handle) => window.clearTimeout(handle as number),
     persistedToken: loadBrowserSessionToken,
     discardPersistedSession: clearBrowserSessionToken,
+    openPushChannel: openBrowserPushChannel,
   });
   const driver = sharedDriver;
   window.addEventListener("online", () => driver.wake());

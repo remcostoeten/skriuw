@@ -25,6 +25,14 @@ Ordered typed metadata fields owned by notes. Identity, name, and position remai
 
 Ordered reusable workspace templates. Template fields use the same versioned value and option contract as note properties, but do not own note IDs. Templates are canonical workspace content and remain independent from renderer settings.
 
+### `workspace_tasks`
+
+Canonical task records: title, status, priority, due date, description, tag and assignee ID collections, and an optional source link to the checklist item a task was promoted from. The link is paired: `source_note_id` and `source_block_id` are set or cleared together, and a partial unique index keeps one task per source block.
+
+The table deliberately carries no foreign key to `workspace_nodes`. A cascade would destroy the task with its note and an automatic `SET NULL` would break the paired link, so purge detaches the affected tasks explicitly and stamps `detached_at`. A task always outlives its source.
+
+Nothing promotes a checklist item implicitly. An ordinary `check_item` without both `taskId` and `blockId` attributes is document-only content and produces no record.
+
 ## Derived tables
 
 ### `documents_fts`
@@ -78,13 +86,16 @@ Small JSON values: the last active note and one versioned `WorkspaceSettings` do
 - Create, move, and restore placement: allocate a midpoint rank when possible; otherwise compact the active destination sibling set and acknowledge every changed rank.
 - Trash subtree: set the selected root's deletion marker; descendants inherit unavailability without changing their timestamps.
 - Restore subtree: clear the root deletion marker and assign an active parent/rank; independently trashed descendants stay trashed.
-- Purge subtree: enforce the retention cutoff, delete FTS rows, then delete canonical nodes so document, history-cache, and history-outbox rows cascade in the same transaction.
+- Purge subtree: enforce the retention cutoff, detach the tasks sourced from the subtree, delete FTS rows, then delete canonical nodes so document, history-cache, and history-outbox rows cascade in the same transaction.
+- Promote checklist item: write the source document and insert the task in one operation, then re-prove the link against the stored document. Neither half can land alone.
+- Save document: after the document lands, reconcile the tasks linked to that note. The document owns the checklist item, so its text and checkbox win, and a link the document no longer carries detaches its task instead of deleting it.
+- Update, detach, or delete task: apply the record change and the optional source-document rewrite in the same transaction; the source link itself only moves through promotion or detachment.
 
 Any partial failure rolls back the complete logical operation. In a grouped save transaction, the logical operation remains the original submitted request rather than the complete runtime batch.
 
 ## Portable archive
 
-The versioned archive contains `workspace_nodes`, `documents`, settings, active-note state, typed note properties, and property templates. Import validates the complete domain graph before opening a transaction, replaces canonical state atomically, rebuilds FTS, and enqueues one history baseline per document. Archive versions 1 and 2 default missing property collections to empty; version 3 is the first format that exports them. It never transports migration rows, FTS internals, cache rows, or queue leases.
+The versioned archive contains `workspace_nodes`, `documents`, settings, active-note state, typed note properties, property templates, and tasks. Import validates the complete domain graph before opening a transaction, replaces canonical state atomically, rebuilds FTS, and enqueues one history baseline per document. Archive versions 1 and 2 default missing property collections to empty; version 3 is the first format that exports them. Versions 1 to 3 default tasks to empty; version 4 is the first format that exports them, and its validation re-proves every task source link against the documents in the same archive. It never transports migration rows, FTS internals, cache rows, or queue leases.
 
 Deletion timestamps are direct trash markers. Active-tree projections derive effective unavailability from the complete ancestor chain. Search, active-note state, history reads, history claims, and commands use the same inherited rule. Reversible trash keeps rebuildable projections intact; permanent purge removes them.
 

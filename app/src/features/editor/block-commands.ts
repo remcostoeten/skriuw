@@ -1,3 +1,4 @@
+import { selectAll } from "prosemirror-commands";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { NodeSelection, TextSelection, type Command } from "prosemirror-state";
 
@@ -136,6 +137,29 @@ export function moveBlockToIndex(position: number, toIndex: number): Command {
       dispatch(transaction.scrollIntoView());
     }
     return true;
+  };
+}
+
+/**
+ * Select-all that escalates: the first press selects the textblock holding the
+ * cursor, and any press once that block is already fully covered falls through
+ * to the document. A selection that spans blocks, or sits in a block with no
+ * content to cover, skips straight to the document.
+ */
+export function selectBlockThenDocument(): Command {
+  return (state, dispatch) => {
+    const { $from, $to, from, to } = state.selection;
+    if ($from.parent === $to.parent && $from.parent.isTextblock) {
+      const start = $from.start();
+      const end = $from.end();
+      if (start < end && (from > start || to < end)) {
+        if (dispatch) {
+          dispatch(state.tr.setSelection(TextSelection.create(state.doc, start, end)));
+        }
+        return true;
+      }
+    }
+    return selectAll(state, dispatch);
   };
 }
 

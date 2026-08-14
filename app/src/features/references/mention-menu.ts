@@ -52,6 +52,18 @@ function suggestionColor(state: RendererState, item: MentionMenuItem): string | 
   return null;
 }
 
+function keepVisible(root: HTMLElement, option: HTMLElement): void {
+  const top = option.offsetTop;
+  const bottom = top + option.offsetHeight;
+  if (top < root.scrollTop) {
+    root.scrollTop = top;
+    return;
+  }
+  if (bottom > root.scrollTop + root.clientHeight) {
+    root.scrollTop = bottom - root.clientHeight;
+  }
+}
+
 export function createMentionMenu(view: EditorView, context: MentionContext): MenuView {
   const root = view.dom.ownerDocument.createElement("div");
   root.className = "mention-menu";
@@ -83,6 +95,7 @@ export function createMentionMenu(view: EditorView, context: MentionContext): Me
     const selected = normalizedMentionIndex(current.index, items.length);
     root.classList.toggle("is-reduced-motion", rendererState.settings.reduceMotion === true);
     root.replaceChildren();
+    let selectedOption: HTMLElement | null = null;
     if (items.length === 0) {
       const empty = view.dom.ownerDocument.createElement("div");
       empty.className = "mention-menu-empty";
@@ -111,6 +124,9 @@ export function createMentionMenu(view: EditorView, context: MentionContext): Me
         option.setAttribute("role", "option");
         option.setAttribute("aria-selected", index === selected ? "true" : "false");
         option.classList.toggle("is-selected", index === selected);
+        if (index === selected) {
+          selectedOption = option;
+        }
         option.classList.toggle("is-create", item.type === "create");
         const color = suggestionColor(rendererState, item);
         if (color) {
@@ -137,6 +153,11 @@ export function createMentionMenu(view: EditorView, context: MentionContext): Me
     root.style.left = `${coords.left}px`;
     root.style.top = `${coords.bottom + 4}px`;
     root.hidden = false;
+    if (selected === 0) {
+      root.scrollTop = 0;
+    } else if (selectedOption) {
+      keepVisible(root, selectedOption);
+    }
   }
 
   render();

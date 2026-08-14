@@ -658,7 +658,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 										onClick={() => onCreateFile()}
 										className={cn(
 											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-											"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+											"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-accent focus-visible:text-foreground",
 											isNarrow ? "h-6 w-6" : "h-7 w-7",
 										)}
 										aria-label="New note"
@@ -675,7 +675,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 										onClick={onCreateFolder}
 										className={cn(
 											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-											"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+											"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-accent focus-visible:text-foreground",
 											isNarrow ? "h-6 w-6" : "h-7 w-7",
 										)}
 										aria-label="New folder"
@@ -689,7 +689,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 										onClick={openConfigPanel}
 										className={cn(
 											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-											"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+											"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-accent focus-visible:text-foreground",
 											isNarrow ? "h-6 w-6" : "h-7 w-7",
 										)}
 										aria-label="Manage sections"
@@ -723,7 +723,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 												}}
 												className={cn(
 													"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-													"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+													"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-accent focus-visible:text-foreground",
 													isNarrow ? "h-6 w-6" : "h-7 w-7",
 												)}
 												aria-label="Toggle all folders"
@@ -747,7 +747,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 											onClick={openSearch}
 											className={cn(
 												"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-												"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+												"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-accent focus-visible:text-foreground",
 												isNarrow ? "h-6 w-6" : "h-7 w-7",
 											)}
 											aria-label="Search notes"
@@ -766,7 +766,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 											onClick={onOpenCommandPalette}
 											className={cn(
 												"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-												"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+												"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-accent focus-visible:text-foreground",
 												isNarrow ? "h-6 w-6" : "h-7 w-7",
 											)}
 											aria-label="Command menu"
@@ -882,7 +882,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 										<button
 											type="button"
 											onClick={closeSearch}
-											className="relative inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2.5 after:md:hidden hover:text-foreground focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground"
+											className="relative inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2.5 after:md:hidden hover:text-foreground focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-accent focus-visible:text-foreground"
 											aria-label="Close search"
 										>
 											<X className="h-3.5 w-3.5" strokeWidth={1.5} />

@@ -45,6 +45,7 @@ use crate::queries::{
 };
 use crate::sync::enqueue_sync_operations;
 
+pub use operations::HISTORY_COALESCE_WINDOW_MS;
 pub use recovery::{
     BackupRetentionPolicy, BackupRotationOutcome, RECOVERY_MANIFEST_VERSION, RecoveryArtifact,
     RecoveryManifest,
@@ -676,6 +677,7 @@ impl SqliteWorkspace {
                  DELETE FROM note_images;\
                  DELETE FROM note_properties;\
                  DELETE FROM note_property_templates;\
+                 DELETE FROM workspace_tasks;\
                  DELETE FROM workspace_tags;\
                  DELETE FROM workspace_people;\
                  DELETE FROM workspace_nodes;\
@@ -817,6 +819,32 @@ impl SqliteWorkspace {
                     )
                     .map_err(backend)?;
             }
+        }
+        for task in &archive.tasks {
+            transaction
+                .execute(
+                    "INSERT INTO workspace_tasks \
+                     (id, title, status, priority, due_date, description, tag_ids_json, \
+                      assignee_ids_json, source_note_id, source_block_id, detached_at, \
+                      created_at, updated_at) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                    params![
+                        task.id,
+                        task.title,
+                        task.status.as_str(),
+                        task.priority.as_str(),
+                        task.due_date,
+                        task.description,
+                        serde_json::to_string(&task.tag_ids).map_err(json_backend)?,
+                        serde_json::to_string(&task.assignee_ids).map_err(json_backend)?,
+                        task.source.as_ref().map(|source| &source.note_id),
+                        task.source.as_ref().map(|source| &source.block_id),
+                        task.detached_at,
+                        task.created_at,
+                        task.updated_at
+                    ],
+                )
+                .map_err(backend)?;
         }
         for document in &archive.documents {
             replace_references(&transaction, &document.note_id, &document.document_json)?;

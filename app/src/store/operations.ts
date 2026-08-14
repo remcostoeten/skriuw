@@ -243,6 +243,11 @@ export function reduceOperation(
     case "set_active_note":
     case "update_settings":
     case "attach_image":
+    case "create_task":
+    case "update_task":
+    case "delete_task":
+    case "detach_task":
+    case "promote_checklist_task":
       return nodes;
   }
 }

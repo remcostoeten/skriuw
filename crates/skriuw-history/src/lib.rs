@@ -247,7 +247,7 @@ mod tests {
 
     use serde_json::json;
     use skriuw_domain::{NodePlacement, WorkspaceOperation, WorkspaceOperationEnvelope};
-    use skriuw_sqlite::SqliteWorkspace;
+    use skriuw_sqlite::{HISTORY_COALESCE_WINDOW_MS, SqliteWorkspace};
     use skriuw_storage::{
         DiagnosticCategory, DiagnosticContext, HistoryMaterialization, HistoryQueue,
         MAX_DIAGNOSTIC_MESSAGE_BYTES, PendingHistoryRevision, StorageError, WorkspaceStorage,
@@ -264,7 +264,9 @@ mod tests {
         let worker = HistoryWorker::new("worker-1", Arc::clone(&storage), StaticMaterializer)
             .expect("create worker");
 
-        let result = worker.process_next(100, 30_000).expect("process history");
+        let result = worker
+            .process_next(HISTORY_COALESCE_WINDOW_MS + 100, 30_000)
+            .expect("process history");
         assert!(matches!(
             result,
             HistoryWorkResult::Materialized { ref header, .. }
@@ -279,7 +281,7 @@ mod tests {
         assert_eq!(snapshot.history_headers[0].version_id, "version-1");
         assert!(
             storage
-                .claim_history_revision("worker-2", 101, 30_000)
+                .claim_history_revision("worker-2", HISTORY_COALESCE_WINDOW_MS + 101, 30_000)
                 .expect("claim history")
                 .is_none()
         );
@@ -292,16 +294,16 @@ mod tests {
             .expect("create worker");
 
         worker
-            .process_next(100, 30_000)
+            .process_next(HISTORY_COALESCE_WINDOW_MS + 100, 30_000)
             .expect_err("materialization failure");
         assert!(
             storage
-                .claim_history_revision("worker-2", 1_099, 30_000)
+                .claim_history_revision("worker-2", HISTORY_COALESCE_WINDOW_MS + 1_099, 30_000)
                 .expect("claim before retry")
                 .is_none()
         );
         let retry = storage
-            .claim_history_revision("worker-2", 1_100, 30_000)
+            .claim_history_revision("worker-2", HISTORY_COALESCE_WINDOW_MS + 1_100, 30_000)
             .expect("retry claim")
             .expect("pending revision");
 
@@ -327,10 +329,10 @@ mod tests {
             .expect("create worker");
 
         worker
-            .process_next(100, 30_000)
+            .process_next(HISTORY_COALESCE_WINDOW_MS + 100, 30_000)
             .expect_err("poison revision fails");
         let result = worker
-            .process_next(101, 30_000)
+            .process_next(HISTORY_COALESCE_WINDOW_MS + 101, 30_000)
             .expect("later revision progresses");
 
         assert!(matches!(
@@ -366,18 +368,18 @@ mod tests {
     fn expired_lease_can_be_recovered() {
         let storage = seeded_storage();
         let first = storage
-            .claim_history_revision("worker-1", 100, 1_000)
+            .claim_history_revision("worker-1", HISTORY_COALESCE_WINDOW_MS + 100, 1_000)
             .expect("first claim")
             .expect("pending revision");
         assert!(
             storage
-                .claim_history_revision("worker-2", 1_099, 1_000)
+                .claim_history_revision("worker-2", HISTORY_COALESCE_WINDOW_MS + 1_099, 1_000)
                 .expect("claim before expiry")
                 .is_none()
         );
 
         let recovered = storage
-            .claim_history_revision("worker-2", 1_100, 1_000)
+            .claim_history_revision("worker-2", HISTORY_COALESCE_WINDOW_MS + 1_100, 1_000)
             .expect("claim after expiry")
             .expect("recovered revision");
 

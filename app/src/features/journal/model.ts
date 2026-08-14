@@ -1,6 +1,7 @@
 import type { NoteProperty, NotePropertyOption } from "@/contracts/workspace";
 import type { RendererState } from "@/store/types";
 import { isDateKey, type DateKey } from "./dates";
+import { journalEntryTagIds } from "./tags";
 
 import {
   JOURNAL_DATE_PROPERTY_ID,
@@ -60,6 +61,7 @@ export type JournalEntry = {
   title: string;
   mood: MoodLevel | null;
   wordCount: number;
+  tagIds: readonly string[];
 };
 
 function propertyOf(
@@ -120,6 +122,7 @@ export function selectJournalEntries(state: RendererState): JournalEntry[] {
       title: metadata?.title ?? "Untitled",
       mood: journalEntryMood(state, noteId),
       wordCount: metadata?.wordCount ?? 0,
+      tagIds: journalEntryTagIds(state, noteId),
     };
     if (hasSubstance(entry)) {
       entries.push(entry);
@@ -143,7 +146,9 @@ export function sameJournalEntries(
         entry.dateKey === other.dateKey &&
         entry.title === other.title &&
         entry.mood === other.mood &&
-        entry.wordCount === other.wordCount
+        entry.wordCount === other.wordCount &&
+        entry.tagIds.length === other.tagIds.length &&
+        entry.tagIds.every((tagId, tagIndex) => tagId === other.tagIds[tagIndex])
       );
     })
   );

@@ -54,8 +54,11 @@ import type { ReferenceOperation } from "./types";
 const entitySwatchClass =
   "inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[9px] font-bold tracking-[0.02em] text-background transition-[background-color,border-color] duration-[240ms] ease-[cubic-bezier(0.16,1,0.3,1)] data-empty:border data-empty:border-dashed data-empty:border-border data-empty:bg-transparent";
 const entityNoteCountClass = "shrink-0 font-mono text-[10px] text-theme-dim";
-const entityFocusRingClass =
-  "focus-visible:bg-foreground/10 focus-visible:text-foreground focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.48)]";
+const entityFocusRingClass = "focus-visible:bg-muted focus-visible:text-foreground";
+const entityRowClass = cn(
+  "border-b border-theme-divider transition-colors hover:bg-foreground/[0.035]",
+  "focus-within:bg-foreground/[0.05]",
+);
 const inlinePressClass =
   "transition-transform duration-[140ms] ease-out enabled:active:scale-[0.97]";
 const columnClass = "mx-auto w-[min(100%,720px)] px-[clamp(20px,4vw,40px)]";
@@ -185,6 +188,44 @@ export function EntityView({ store, kind }: Props) {
 
   useEffect(() => registerEntityCreate(kind, openCreateForm), [kind]);
 
+  const filterRef = useRef<HTMLInputElement>(null);
+
+  function focusFilter(): void {
+    const field = filterRef.current;
+    if (!field) {
+      return;
+    }
+    field.focus();
+    field.select();
+  }
+
+  useShortcutBinding(
+    "slash",
+    focusFilter,
+    {
+      description: `Filter ${entityNounPlural(kind)}`,
+      preventDefault: true,
+      scopes: "entity-filter",
+    },
+    { activeScopes: ["entity-filter"] },
+  );
+
+  /**
+   * `mod+f` keeps working from inside the fields too, so it re-selects the
+   * filter instead of handing the browser's own find bar the keypress. The
+   * plain `/` above stays out of text contexts.
+   */
+  useShortcutBinding(
+    "mod+f",
+    focusFilter,
+    {
+      description: `Filter ${entityNounPlural(kind)}`,
+      preventDefault: true,
+      scopes: "entity-filter",
+    },
+    { activeScopes: ["entity-filter"], ignoreInputs: false },
+  );
+
   function submitCreate(fields: FormFields): void {
     const id = crypto.randomUUID();
     const operation =
@@ -238,12 +279,13 @@ export function EntityView({ store, kind }: Props) {
           <div className="mt-3.5 flex items-center gap-2">
             <div
               className={cn(
-                "flex h-[30px] flex-1 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-theme-dim",
+                "group flex h-[30px] flex-1 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-theme-dim",
                 "focus-within:border-ring focus-within:shadow-[0_0_0_3px_hsl(var(--ring)/0.18)]",
               )}
             >
               <SearchIcon size={14} aria-hidden="true" />
               <input
+                ref={filterRef}
                 type="search"
                 className="flex-1 bg-transparent text-xs text-foreground outline-none"
                 placeholder={`Filter ${entityNounPlural(kind)}`}
@@ -251,6 +293,17 @@ export function EntityView({ store, kind }: Props) {
                 onChange={(event) => setFilter(event.target.value)}
                 aria-label={`Filter ${entityNounPlural(kind)}`}
               />
+              {filter.length === 0 && (
+                <kbd
+                  className={cn(
+                    "inline-flex shrink-0 items-center rounded-md border border-border bg-muted/45 px-[5px] py-0.5",
+                    "font-mono text-[10px] leading-none text-theme-dim group-focus-within:hidden",
+                  )}
+                  aria-hidden="true"
+                >
+                  /
+                </kbd>
+              )}
             </div>
             <Select
               label={`Sort ${entityNounPlural(kind)}`}
@@ -474,7 +527,8 @@ function EntityList({
       {rows.map((row, index) => (
         <li
           key={row.id}
-          className="border-b border-theme-divider transition-colors hover:bg-foreground/[0.035] focus-within:bg-foreground/[0.035]"
+          data-entity-row=""
+          className={entityRowClass}
         >
           {editingId === row.id ? (
             <div className="flex items-center gap-2 py-1.5 pl-1.5 pr-2">
@@ -491,10 +545,7 @@ function EntityList({
                 <div className="flex items-center gap-2 py-1.5 pl-1.5 pr-2">
                   <button
                     type="button"
-                    className={cn(
-                      "flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1 text-left text-foreground",
-                      entityFocusRingClass,
-                    )}
+                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1 text-left text-foreground"
                     data-entity-id={row.id}
                     aria-expanded={expandedId === row.id}
                     onClick={() => onToggleExpand(row.id)}
@@ -718,7 +769,12 @@ type InlineEntityFormProps = {
 };
 
 const fieldInputClass =
-  "min-w-0 rounded-lg border border-border bg-background px-[9px] py-[6px] text-[13px] text-foreground placeholder:text-theme-dim focus:border-foreground/50 focus:bg-muted/38 focus:shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.2)]";
+  "min-w-0 rounded-lg border border-border bg-background px-[9px] py-[6px] text-[13px] text-foreground outline-none transition-colors duration-[130ms] ease-out placeholder:text-theme-dim focus:border-ring focus:bg-theme-hover";
+
+const personAvatarClass =
+  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-bold tracking-[0.02em] text-background transition-[background-color,border-color] duration-[240ms] ease-[cubic-bezier(0.16,1,0.3,1)] data-empty:border data-empty:border-dashed data-empty:border-border data-empty:bg-transparent data-empty:text-theme-dim";
+
+const fieldLabelClass = "shrink-0 text-[11px] font-[560] tracking-[0.01em] text-theme-secondary";
 
 const inlineFormShell: Variants = {
   hidden: { opacity: 0, height: 0 },
@@ -775,7 +831,7 @@ function InlineEntityForm({ kind, submitLabel, onCancel, onSubmit }: InlineEntit
       exit={reduceMotion ? { opacity: 0 } : "exit"}
     >
       <form
-        className="mb-2 mt-3 grid gap-2.5 rounded-lg border border-foreground/16 bg-muted/45 p-2.5"
+        className="mb-2 mt-3 grid gap-3 rounded-lg border border-border bg-theme-hover p-3"
         aria-label={`New ${entityNoun(kind)}`}
         onSubmit={(event) => {
           event.preventDefault();
@@ -790,56 +846,32 @@ function InlineEntityForm({ kind, submitLabel, onCancel, onSubmit }: InlineEntit
           }
         }}
       >
-        <motion.div className="flex items-center gap-2.5" variants={reduceMotion ? undefined : inlineFormRow}>
-          <span
-            className={entitySwatchClass}
-            style={{ background: color ?? "transparent" }}
-            data-empty={color === null ? "" : undefined}
-            aria-hidden="true"
-          >
-            {kind === "person" ? initials || derived : null}
-          </span>
-          <input
-            ref={nameRef}
-            type="text"
-            data-entity-create-name=""
-            className={cn(fieldInputClass, "flex-1")}
-            placeholder={kind === "tag" ? "Tag name" : "Person name"}
-            aria-label="Name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
+        {kind === "person" ? (
+          <PersonFormFields
+            nameRef={nameRef}
+            name={name}
+            initials={initials}
+            derived={derived}
+            color={color}
+            note={note}
+            rowVariants={reduceMotion ? undefined : inlineFormRow}
+            onNameChange={setName}
+            onInitialsChange={setInitials}
+            onColorChange={setColor}
+            onNoteChange={setNote}
           />
-          {kind === "person" && (
-            <input
-              type="text"
-              className={cn(fieldInputClass, "w-[70px] text-center")}
-              placeholder={derived || "Initials"}
-              aria-label="Initials"
-              maxLength={4}
-              value={initials}
-              onChange={(event) => setInitials(event.target.value)}
-            />
-          )}
-        </motion.div>
-        <motion.div
-          className="flex items-center gap-2 pl-[32px]"
-          variants={reduceMotion ? undefined : inlineFormRow}
-        >
-          <ColorSwatches value={color} onChange={setColor} />
-        </motion.div>
-        {kind === "person" && (
-          <motion.textarea
-            className={cn(fieldInputClass, "resize-y")}
-            placeholder="Note (optional)"
-            aria-label="Note"
-            rows={2}
-            value={note}
-            variants={reduceMotion ? undefined : inlineFormRow}
-            onChange={(event) => setNote(event.target.value)}
+        ) : (
+          <TagFormFields
+            nameRef={nameRef}
+            name={name}
+            color={color}
+            rowVariants={reduceMotion ? undefined : inlineFormRow}
+            onNameChange={setName}
+            onColorChange={setColor}
           />
         )}
         <motion.div
-          className="flex justify-end gap-2"
+          className="flex justify-end gap-2 border-t border-theme-divider pt-2.5"
           variants={reduceMotion ? undefined : inlineFormRow}
         >
           <Button className={inlinePressClass} onClick={onCancel}>
@@ -856,6 +888,139 @@ function InlineEntityForm({ kind, submitLabel, onCancel, onSubmit }: InlineEntit
         </motion.div>
       </form>
     </motion.div>
+  );
+}
+
+type TagFormFieldsProps = {
+  nameRef: React.Ref<HTMLInputElement>;
+  name: string;
+  color: string | null;
+  rowVariants: Variants | undefined;
+  onNameChange: (value: string) => void;
+  onColorChange: (color: string | null) => void;
+};
+
+function TagFormFields({
+  nameRef,
+  name,
+  color,
+  rowVariants,
+  onNameChange,
+  onColorChange,
+}: TagFormFieldsProps) {
+  return (
+    <>
+      <motion.div className="flex items-center gap-2.5" variants={rowVariants}>
+        <span
+          className={entitySwatchClass}
+          style={{ background: color ?? "transparent" }}
+          data-empty={color === null ? "" : undefined}
+          aria-hidden="true"
+        />
+        <input
+          ref={nameRef}
+          type="text"
+          data-entity-create-name=""
+          className={cn(fieldInputClass, "flex-1")}
+          placeholder="Tag name"
+          aria-label="Name"
+          value={name}
+          onChange={(event) => onNameChange(event.target.value)}
+        />
+      </motion.div>
+      <motion.div className="flex items-center gap-2 pl-[32px]" variants={rowVariants}>
+        <span className={fieldLabelClass}>Color</span>
+        <ColorSwatchRow label="Color" value={color} onChange={onColorChange} />
+      </motion.div>
+    </>
+  );
+}
+
+type PersonFormFieldsProps = {
+  nameRef: React.Ref<HTMLInputElement>;
+  name: string;
+  initials: string;
+  derived: string;
+  color: string | null;
+  note: string;
+  rowVariants: Variants | undefined;
+  onNameChange: (value: string) => void;
+  onInitialsChange: (value: string) => void;
+  onColorChange: (color: string | null) => void;
+  onNoteChange: (value: string) => void;
+};
+
+/**
+ * The person form carries more than a tag does — an avatar, initials, and a
+ * note — so it lays out as an avatar preview beside a stacked name/note column,
+ * with the two secondary controls on their own labelled row underneath.
+ */
+function PersonFormFields({
+  nameRef,
+  name,
+  initials,
+  derived,
+  color,
+  note,
+  rowVariants,
+  onNameChange,
+  onInitialsChange,
+  onColorChange,
+  onNoteChange,
+}: PersonFormFieldsProps) {
+  return (
+    <>
+      <motion.div className="flex items-start gap-3" variants={rowVariants}>
+        <span
+          className={personAvatarClass}
+          style={{ background: color ?? "transparent" }}
+          data-empty={color === null ? "" : undefined}
+          aria-hidden="true"
+        >
+          {initials || derived}
+        </span>
+        <div className="grid min-w-0 flex-1 gap-2">
+          <input
+            ref={nameRef}
+            type="text"
+            data-entity-create-name=""
+            className={fieldInputClass}
+            placeholder="Person name"
+            aria-label="Name"
+            value={name}
+            onChange={(event) => onNameChange(event.target.value)}
+          />
+          <textarea
+            className={cn(fieldInputClass, "resize-y leading-[1.45]")}
+            placeholder="Note (optional)"
+            aria-label="Note"
+            rows={2}
+            value={note}
+            onChange={(event) => onNoteChange(event.target.value)}
+          />
+        </div>
+      </motion.div>
+      <motion.div
+        className="flex flex-wrap items-center gap-x-4 gap-y-2 pl-[48px]"
+        variants={rowVariants}
+      >
+        <label className="flex items-center gap-2">
+          <span className={fieldLabelClass}>Initials</span>
+          <input
+            type="text"
+            className={cn(fieldInputClass, "w-[58px] text-center uppercase")}
+            placeholder={derived || "AB"}
+            maxLength={4}
+            value={initials}
+            onChange={(event) => onInitialsChange(event.target.value)}
+          />
+        </label>
+        <div className="flex items-center gap-2">
+          <span className={fieldLabelClass}>Color</span>
+          <ColorSwatchRow label="Color" value={color} onChange={onColorChange} />
+        </div>
+      </motion.div>
+    </>
   );
 }
 
@@ -926,13 +1091,4 @@ function InlineRecolor({ row, kind, onSelect, onCancel }: InlineRecolorProps) {
       />
     </motion.div>
   );
-}
-
-type ColorSwatchesProps = {
-  value: string | null;
-  onChange: (color: string | null) => void;
-};
-
-function ColorSwatches({ value, onChange }: ColorSwatchesProps) {
-  return <ColorSwatchRow label="Color" value={value} onChange={onChange} />;
 }

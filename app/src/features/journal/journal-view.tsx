@@ -8,6 +8,7 @@ import {
   BarChartIcon,
   CalendarDaysIcon,
   ClockIcon,
+  HashIcon,
   PanelLeftToggleIcon,
   PlusIcon,
   SearchIcon,
@@ -33,6 +34,8 @@ import {
 } from "./dates";
 import { JournalCalendar } from "./journal-calendar";
 import { onJournalSearchFocus, openJournalDay, openJournalToday } from "./navigation";
+import { cn } from "@/shared/lib/utils";
+import { sectionLabelClass } from "@/shared/ui/section-header";
 import {
   MOOD_LEVELS,
   MOOD_OPTIONS,
@@ -43,16 +46,23 @@ import {
   type JournalEntry,
   type MoodLevel,
 } from "./model";
+import {
+  entriesWithTag,
+  projectJournalTags,
+  tagIdsMatchingQuery,
+  type JournalTag,
+} from "./tags";
 
 type Props = {
   store: RendererStore;
 };
 
-type SidebarTab = "calendar" | "stats" | "search" | "all";
+type SidebarTab = "calendar" | "stats" | "tags" | "search" | "all";
 
 const SIDEBAR_TABS: readonly { id: SidebarTab; label: string; icon: typeof SearchIcon }[] = [
   { id: "calendar", label: "Calendar", icon: CalendarDaysIcon },
   { id: "stats", label: "Stats", icon: BarChartIcon },
+  { id: "tags", label: "Tags", icon: HashIcon },
   { id: "search", label: "Search", icon: SearchIcon },
   { id: "all", label: "All entries", icon: ClockIcon },
 ];
@@ -62,6 +72,12 @@ const TAB_KEY_STEPS: Record<string, number | "first" | "last" | undefined> = {
   ArrowRight: 1,
   Home: "first",
   End: "last",
+};
+
+/** Home/End sit behind a Fn layer on a 60% keyboard, so shift+arrow stands in. */
+const SHIFT_TAB_KEY_STEPS: Record<string, "first" | "last" | undefined> = {
+  ArrowLeft: "first",
+  ArrowRight: "last",
 };
 
 function tabButtonId(tab: SidebarTab): string {
@@ -169,7 +185,7 @@ function JournalStats({ entries }: { entries: readonly JournalEntry[] }) {
       <div className="grid grid-cols-2 gap-2">
         {tiles.map((tile) => (
           <div key={tile.label} className="rounded-md border border-border/60 bg-card/40 p-3">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground/50">
+            <p className={sectionLabelClass}>
               {tile.label}
             </p>
             <p className="mt-1.5 text-[15px] font-semibold text-foreground">{tile.value}</p>
@@ -177,7 +193,7 @@ function JournalStats({ entries }: { entries: readonly JournalEntry[] }) {
         ))}
       </div>
       <div>
-        <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">
+        <p className={cn("mb-1.5", sectionLabelClass)}>
           Moods
         </p>
         <div className="space-y-1">
@@ -198,6 +214,99 @@ function JournalStats({ entries }: { entries: readonly JournalEntry[] }) {
   );
 }
 
+function selectTagRecords(state: RendererState) {
+  return state.tags;
+}
+
+function TagDot({ color }: { color: string | null }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "size-1.5 shrink-0 rounded-full",
+        color === null && "bg-muted-foreground/40",
+      )}
+      style={color === null ? undefined : { backgroundColor: color }}
+    />
+  );
+}
+
+function JournalTags({
+  tags,
+  entries,
+  selectedTagId,
+  selectedKey,
+  onSelectTag,
+}: {
+  tags: readonly JournalTag[];
+  entries: readonly JournalEntry[];
+  selectedTagId: string | null;
+  selectedKey: DateKey;
+  onSelectTag: (tagId: string | null) => void;
+}) {
+  const selectedTag = tags.find((tag) => tag.id === selectedTagId) ?? null;
+  const tagged = selectedTag === null ? [] : entriesWithTag(entries, selectedTag.id);
+  if (tags.length === 0) {
+    return (
+      <div className="p-3">
+        <p className="text-[11px] leading-relaxed text-muted-foreground/60">
+          Tag an entry with <span className="font-medium text-foreground/70">#</span> and it
+          shows up here.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="p-2">
+      <p className={cn("mb-1.5", sectionLabelClass)}>Tags ({tags.length})</p>
+      <div className="flex flex-wrap gap-1">
+        {tags.map((tag) => {
+          const active = tag.id === selectedTag?.id;
+          return (
+            <button
+              key={tag.id}
+              type="button"
+              aria-pressed={active}
+              aria-label={`${tag.name}, ${tag.entryCount} ${
+                tag.entryCount === 1 ? "entry" : "entries"
+              }`}
+              onClick={() => onSelectTag(active ? null : tag.id)}
+              className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                active
+                  ? "border-border bg-muted font-medium text-foreground"
+                  : "border-transparent text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground/75"
+              }`}
+            >
+              <TagDot color={tag.color} />
+              <span aria-hidden="true">{tag.name}</span>
+              <span aria-hidden="true" className="text-muted-foreground/50">
+                {tag.entryCount}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {selectedTag !== null && (
+        <div className="mt-3">
+          <p role="status" className={cn("mb-1.5", sectionLabelClass)}>
+            {tagged.length} {tagged.length === 1 ? "entry" : "entries"} tagged {selectedTag.name}
+          </p>
+          <div className="space-y-0.5">
+            {tagged.map((entry) => (
+              <EntryRow
+                key={entry.noteId}
+                entry={entry}
+                selected={entry.dateKey === selectedKey}
+                dense
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function useSelectedJournalKey(): DateKey {
   const focus = useRouteFocus();
   return focus !== null && isDateKey(focus) ? focus : todayKey();
@@ -206,9 +315,11 @@ function useSelectedJournalKey(): DateKey {
 export function JournalSidebar({ store }: Props) {
   const selectedKey = useSelectedJournalKey();
   const entries = useRendererSelector(store, selectJournalEntries, sameJournalEntries);
+  const tagRecords = useRendererSelector(store, selectTagRecords);
   const [month, setMonth] = useState<MonthKey>(() => monthOfKey(selectedKey));
   const [tab, setTab] = useState<SidebarTab>("calendar");
   const [query, setQuery] = useState("");
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [pendingSearchFocus, setPendingSearchFocus] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const tabRefs = useRef(new Map<SidebarTab, HTMLButtonElement>());
@@ -239,20 +350,23 @@ export function JournalSidebar({ store }: Props) {
     const prefix = `${month.year}-${`${month.month + 1}`.padStart(2, "0")}`;
     return entries.filter((entry) => entry.dateKey.startsWith(prefix));
   }, [entries, month]);
+  const tags = useMemo(() => projectJournalTags(tagRecords, entries), [entries, tagRecords]);
   const searchResults = useMemo(() => {
     const trimmed = query.trim().toLowerCase();
     if (!trimmed) {
       return entries;
     }
     const documents = store.getState().documents;
+    const matchedTagIds = tagIdsMatchingQuery(tags, trimmed);
     return entries.filter((entry) => {
       const markdown = documents.get(entry.noteId)?.markdown ?? "";
       return (
         entry.title.toLowerCase().includes(trimmed) ||
-        markdown.toLowerCase().includes(trimmed)
+        markdown.toLowerCase().includes(trimmed) ||
+        entry.tagIds.some((tagId) => matchedTagIds.has(tagId))
       );
     });
-  }, [entries, query, store]);
+  }, [entries, query, store, tags]);
 
   function goToToday(): void {
     setMonth(monthOfKey(todayKey()));
@@ -265,12 +379,17 @@ export function JournalSidebar({ store }: Props) {
   }
 
   function handleTabKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
-    const step = TAB_KEY_STEPS[event.key];
+    const step = event.shiftKey
+      ? (SHIFT_TAB_KEY_STEPS[event.key] ?? TAB_KEY_STEPS[event.key])
+      : TAB_KEY_STEPS[event.key];
     if (step === undefined) {
       return;
     }
     event.preventDefault();
-    const current = SIDEBAR_TABS.findIndex((entry) => entry.id === tab);
+    const focused = SIDEBAR_TABS.findIndex(
+      (entry) => tabRefs.current.get(entry.id) === document.activeElement,
+    );
+    const current = focused === -1 ? SIDEBAR_TABS.findIndex((entry) => entry.id === tab) : focused;
     const next =
       step === "first"
         ? 0
@@ -308,6 +427,11 @@ export function JournalSidebar({ store }: Props) {
           Today
         </button>
       </div>
+      {/*
+        Every tab is a tab stop rather than the APG roving-tabindex single stop:
+        five icon-only buttons with no visible labels are undiscoverable when
+        only the selected one can be reached. Arrow keys still move and activate.
+      */}
       <div
         role="tablist"
         aria-label="Journal sidebar views"
@@ -325,7 +449,6 @@ export function JournalSidebar({ store }: Props) {
             aria-controls={tabPanelId(entry.id)}
             aria-selected={tab === entry.id}
             aria-label={entry.label}
-            tabIndex={tab === entry.id ? 0 : -1}
             className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               tab === entry.id
                 ? "border border-border bg-muted text-foreground/80"
@@ -354,7 +477,7 @@ export function JournalSidebar({ store }: Props) {
             />
             {monthEntries.length > 0 && (
               <div className="mt-3">
-                <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">
+                <p className={cn("mb-1.5", sectionLabelClass)}>
                   This month ({monthEntries.length})
                 </p>
                 <div className="space-y-0.5">
@@ -372,6 +495,15 @@ export function JournalSidebar({ store }: Props) {
           </div>
         )}
         {tab === "stats" && <JournalStats entries={entries} />}
+        {tab === "tags" && (
+          <JournalTags
+            tags={tags}
+            entries={entries}
+            selectedTagId={selectedTagId}
+            selectedKey={selectedKey}
+            onSelectTag={setSelectedTagId}
+          />
+        )}
         {tab === "search" && (
           <div className="p-2">
             <div className="relative mb-2">
@@ -396,7 +528,7 @@ export function JournalSidebar({ store }: Props) {
             </p>
             <p
               role="status"
-              className="mb-1.5 text-[9px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40"
+              className={cn("mb-1.5", sectionLabelClass)}
             >
               {searchResults.length} {searchResults.length === 1 ? "result" : "results"}
             </p>
@@ -474,7 +606,7 @@ function MoodSelector({
     <div className="mt-6 grid gap-2 sm:grid-cols-[4.5rem_1fr] sm:items-center">
       <span
         id="journal-mood-label"
-        className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/42"
+        className={sectionLabelClass}
       >
         Mood
       </span>

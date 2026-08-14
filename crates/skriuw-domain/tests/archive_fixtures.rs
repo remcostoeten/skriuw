@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use skriuw_domain::{
-    ArchiveValidationError, NodeKind, SUPPORTED_ARCHIVE_VERSIONS, WorkspaceArchive,
-    WorkspaceSnapshot,
+    ArchiveValidationError, NodeKind, OperationValidationError, SUPPORTED_ARCHIVE_VERSIONS,
+    TaskPriority, TaskSource, TaskStatus, WorkspaceArchive, WorkspaceSnapshot,
 };
 
 #[derive(Debug, Deserialize)]
@@ -55,6 +55,7 @@ fn snapshot_from_archive(archive: &WorkspaceArchive) -> WorkspaceSnapshot {
         images: Vec::new(),
         properties: archive.properties.clone(),
         property_templates: archive.property_templates.clone(),
+        tasks: archive.tasks.clone(),
         import_receipts: Vec::new(),
     }
 }
@@ -285,14 +286,81 @@ fn older_archives_default_to_empty_properties() {
 }
 
 #[test]
+fn task_fixture_preserves_promoted_and_standalone_tasks() {
+    let archive = load_fixture_archive("v4/tasks.json");
+
+    assert_eq!(archive.tasks.len(), 3);
+    let promoted = archive
+        .tasks
+        .iter()
+        .find(|task| task.id == "task-promoted")
+        .expect("promoted task");
+    assert_eq!(
+        promoted.source,
+        Some(TaskSource {
+            note_id: "note-plan".into(),
+            block_id: "block-ship".into(),
+        })
+    );
+    assert_eq!(promoted.status, TaskStatus::Done);
+    assert_eq!(promoted.assignee_ids, vec!["person-alice".to_string()]);
+
+    let detached = archive
+        .tasks
+        .iter()
+        .find(|task| task.id == "task-detached")
+        .expect("detached task");
+    assert_eq!(detached.source, None);
+    assert_eq!(detached.detached_at, Some(1_754_000_003_000));
+
+    let standalone = archive
+        .tasks
+        .iter()
+        .find(|task| task.id == "task-standalone")
+        .expect("standalone task");
+    assert_eq!(standalone.source, None);
+    assert_eq!(standalone.detached_at, None);
+    assert_eq!(standalone.priority, TaskPriority::Urgent);
+}
+
+#[test]
+fn older_archives_default_to_empty_tasks() {
+    for file in [
+        "v1/minimal.json",
+        "v1/representative.json",
+        "v2/pinned.json",
+        "v3/typed-properties.json",
+    ] {
+        assert!(load_fixture_archive(file).tasks.is_empty(), "{file}");
+    }
+}
+
+#[test]
+fn archives_reject_tasks_whose_source_block_is_gone() {
+    let mut value = load_fixture_value("v4/tasks.json");
+    value["documents"][0]["documentJson"]["content"] = json!([]);
+    let archive =
+        serde_json::from_value::<WorkspaceArchive>(value).expect("parse archive without links");
+    assert_eq!(
+        archive.validate(),
+        Err(ArchiveValidationError::Invalid(
+            OperationValidationError::UnlinkedTaskSource {
+                id: "task-promoted".into(),
+            }
+            .to_string()
+        ))
+    );
+}
+
+#[test]
 fn future_archive_versions_fail_explicitly() {
     let mut value = load_fixture_value("v1/representative.json");
-    value["archiveVersion"] = json!(4);
+    value["archiveVersion"] = json!(5);
     let future =
         serde_json::from_value::<WorkspaceArchive>(value).expect("parse future-version archive");
     assert_eq!(
         future.validate(),
-        Err(ArchiveValidationError::UnsupportedArchiveVersion(4))
+        Err(ArchiveValidationError::UnsupportedArchiveVersion(5))
     );
 
     let mut value = load_fixture_value("v1/representative.json");

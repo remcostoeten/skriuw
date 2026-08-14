@@ -1077,6 +1077,26 @@
   vector-effect: non-scaling-stroke;
 }
 
+.diagram-connector[data-selected="true"] {
+  stroke: hsl(var(--primary));
+  stroke-width: 2;
+}
+
+.diagram-connector-preview {
+  stroke: hsl(var(--primary));
+  stroke-dasharray: 5 4;
+  pointer-events: none;
+}
+
+.diagram-connector-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  cursor: pointer;
+  outline: none;
+  pointer-events: stroke;
+}
+
 .diagram-connector-label {
   fill: hsl(var(--theme-text-secondary));
   font-family: var(--font-mono, ui-monospace, monospace);
@@ -1143,6 +1163,34 @@
   border-radius: 50%;
 }
 
+.diagram-node[data-drop-target="true"] {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.3);
+}
+
+.diagram-node-port {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  right: -7px;
+  width: 12px;
+  height: 12px;
+  border: 1px solid hsl(var(--primary));
+  border-radius: 50%;
+  background: hsl(var(--theme-bg-editor));
+  cursor: crosshair;
+  opacity: 0;
+  touch-action: none;
+  transform: translateY(-50%);
+  transition: opacity 100ms ease;
+}
+
+.diagram-node:hover .diagram-node-port,
+.diagram-node[data-selected="true"] .diagram-node-port,
+.diagram-node[data-connecting="true"] .diagram-node-port {
+  opacity: 1;
+}
+
 .diagram-node-label-input {
   width: 100%;
   border: 0;
@@ -1152,6 +1200,16 @@
   font: inherit;
   text-align: center;
   outline: none;
+}
+
+.diagram-edge-label-input {
+  position: absolute;
+  z-index: 3;
+  width: 120px;
+  padding: 2px 4px;
+  background: hsl(var(--theme-bg-editor));
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
 }
 
 .diagram-source-panel {
@@ -1216,7 +1274,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .diagram-toolbar {
+  .diagram-toolbar,
+  .diagram-node-port {
     transition: none;
   }
 }

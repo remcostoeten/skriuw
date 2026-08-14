@@ -98,6 +98,11 @@ fn golden_fixtures_import_bootstrap_and_round_trip() {
             "{} property templates drifted",
             entry.file
         );
+        assert_eq!(
+            snapshot.tasks, archive.tasks,
+            "{} tasks drifted",
+            entry.file
+        );
 
         let mut expected = archive.clone();
         expected.archive_version = WORKSPACE_ARCHIVE_VERSION;
@@ -173,7 +178,7 @@ fn invalid_archives_fail_before_mutation_and_preserve_workspace() {
         .expect("import representative fixture");
 
     let mut future = archive.clone();
-    future.archive_version = 4;
+    future.archive_version = 5;
     assert!(matches!(
         storage.replace_from_archive(&future),
         Err(StorageError::InvalidOperation(_))

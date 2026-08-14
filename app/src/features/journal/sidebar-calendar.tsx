@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { journalDayHash } from "@/app-route";
-import { CalendarDaysIcon, ChevronDownIcon, ChevronRightIcon } from "@/shared/icons/static";
+import { SectionChevron, SectionLabel, sectionHeaderClass } from "@/shared/ui/section-header";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererStore } from "@/store/types";
 import { monthOfKey, todayKey, type DateKey, type MonthKey } from "./dates";
@@ -59,11 +59,10 @@ export function SidebarCalendar({ store }: Props) {
         type="button"
         onClick={toggleOpen}
         aria-expanded={open}
-        className="flex w-full items-center gap-1.5 px-4 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
+        className={sectionHeaderClass}
       >
-        {open ? <ChevronDownIcon size={11} /> : <ChevronRightIcon size={11} />}
-        <CalendarDaysIcon size={11} />
-        Calendar
+        <SectionChevron open={open} />
+        <SectionLabel title="Calendar" />
       </button>
       {open && (
         <div className="px-2.5 pb-2">

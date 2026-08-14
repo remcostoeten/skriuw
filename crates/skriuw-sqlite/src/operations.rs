@@ -3,13 +3,14 @@ use std::collections::BTreeMap;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use skriuw_domain::{
     EntityRevision, NodePlacement, NodePosition, NodeRankChange, NotePropertyField,
-    NotePropertyValue, OperationAck, WorkspaceOperation, WorkspaceOperationEnvelope,
+    NotePropertyValue, OperationAck, TaskSourceDocument, WorkspaceOperation,
+    WorkspaceOperationEnvelope, WorkspaceTask,
 };
 use skriuw_storage::StorageError;
 use uuid::Uuid;
 
 use crate::error::{backend, json_backend, validation};
-use crate::queries::read_stored_active_note;
+use crate::queries::{read_stored_active_note, read_task, read_tasks_where};
 
 pub(crate) const NODE_RANK_GAP: i64 = 1024;
 
@@ -469,46 +470,16 @@ fn apply_operation(
             expected_revision,
             at,
         } => {
-            require_note(transaction, note_id)?;
-            let next_revision = expected_revision.saturating_add(1);
-            let changed = transaction
-                .execute(
-                    "UPDATE documents \
-                     SET document_json = ?2, markdown = ?3, revision = ?4, word_count = ?5 \
-                     WHERE note_id = ?1 AND revision = ?6",
-                    params![
-                        note_id,
-                        document_json.to_string(),
-                        markdown,
-                        next_revision,
-                        word_count,
-                        expected_revision
-                    ],
-                )
-                .map_err(backend)?;
-            if changed == 0 {
-                let current = current_revision(transaction, note_id)?;
-                return Err(StorageError::RevisionConflict {
-                    id: note_id.clone(),
-                    expected: *expected_revision,
-                    current,
-                });
-            }
-            transaction
-                .execute(
-                    "UPDATE workspace_nodes SET updated_at = ?2 WHERE id = ?1",
-                    params![note_id, at],
-                )
-                .map_err(backend)?;
-            let title = node_title(transaction, note_id)?;
-            replace_fts(transaction, note_id, &title, markdown)?;
-            replace_references(transaction, note_id, document_json)?;
-            prune_detached_images(transaction, note_id, document_json)?;
-            enqueue_history(transaction, note_id, next_revision, markdown, *at)?;
-            revisions.push(EntityRevision {
-                id: note_id.clone(),
-                revision: next_revision,
-            });
+            save_document(
+                transaction,
+                note_id,
+                document_json,
+                markdown,
+                *word_count,
+                *expected_revision,
+                *at,
+                revisions,
+            )?;
         }
         WorkspaceOperation::TrashSubtree { root_id, at } => {
             require_available_node(transaction, root_id)?;
@@ -588,6 +559,18 @@ fn apply_operation(
             for id in &subtree_ids {
                 insert_terminal_tombstone(transaction, "node", id, "", Some(root_id))?;
             }
+            detach_tasks(
+                transaction,
+                "source_note_id IN (\
+                     WITH RECURSIVE subtree(id) AS (\
+                         SELECT id FROM workspace_nodes WHERE id = ?1 \
+                         UNION ALL \
+                         SELECT child.id FROM workspace_nodes child \
+                         JOIN subtree parent ON child.parent_id = parent.id\
+                     ) SELECT id FROM subtree)",
+                &[&root_id],
+                *trashed_before,
+            )?;
             transaction
                 .execute(
                     "WITH RECURSIVE subtree(id) AS (\
@@ -839,8 +822,310 @@ fn apply_operation(
                     .map_err(backend)?;
             }
         }
+        WorkspaceOperation::CreateTask { task } => {
+            insert_task(transaction, task)?;
+        }
+        WorkspaceOperation::PromoteChecklistTask { task, document } => {
+            save_task_document(
+                transaction,
+                Some(document.as_ref()),
+                task.updated_at,
+                revisions,
+            )?;
+            insert_task(transaction, task)?;
+        }
+        WorkspaceOperation::UpdateTask { task, document } => {
+            let stored = read_task(transaction, &task.id)?
+                .ok_or_else(|| StorageError::NotFound(task.id.clone()))?;
+            if stored.source != task.source || stored.detached_at != task.detached_at {
+                return Err(StorageError::InvalidOperation(format!(
+                    "task {} source link changes only through promotion or detachment",
+                    task.id
+                )));
+            }
+            require_task_references(transaction, task)?;
+            transaction
+                .execute(
+                    "UPDATE workspace_tasks SET title = ?2, status = ?3, priority = ?4, \
+                     due_date = ?5, description = ?6, tag_ids_json = ?7, assignee_ids_json = ?8, \
+                     updated_at = ?9 WHERE id = ?1",
+                    params![
+                        task.id,
+                        task.title,
+                        task.status.as_str(),
+                        task.priority.as_str(),
+                        task.due_date,
+                        task.description,
+                        serde_json::to_string(&task.tag_ids).map_err(json_backend)?,
+                        serde_json::to_string(&task.assignee_ids).map_err(json_backend)?,
+                        task.updated_at
+                    ],
+                )
+                .map_err(backend)?;
+            save_task_document(transaction, document.as_deref(), task.updated_at, revisions)?;
+        }
+        WorkspaceOperation::DeleteTask { id, document, at } => {
+            let changed = transaction
+                .execute("DELETE FROM workspace_tasks WHERE id = ?1", [id])
+                .map_err(backend)?;
+            require_changed(changed, id)?;
+            insert_terminal_tombstone(transaction, "task", id, "", None)?;
+            save_task_document(transaction, document.as_deref(), *at, revisions)?;
+        }
+        WorkspaceOperation::DetachTask { id, document, at } => {
+            let stored =
+                read_task(transaction, id)?.ok_or_else(|| StorageError::NotFound(id.clone()))?;
+            if stored.source.is_none() {
+                return Err(StorageError::InvalidOperation(format!(
+                    "task {id} is already detached"
+                )));
+            }
+            detach_tasks(transaction, "id = ?1", &[&id], *at)?;
+            save_task_document(transaction, document.as_deref(), *at, revisions)?;
+        }
     }
     Ok(())
+}
+
+fn insert_task(transaction: &Transaction<'_>, task: &WorkspaceTask) -> Result<(), StorageError> {
+    require_task_references(transaction, task)?;
+    if let Some(source) = &task.source {
+        require_note(transaction, &source.note_id)?;
+        require_document_task_link(transaction, task)?;
+    }
+    transaction
+        .execute(
+            "INSERT INTO workspace_tasks \
+             (id, title, status, priority, due_date, description, tag_ids_json, \
+              assignee_ids_json, source_note_id, source_block_id, detached_at, \
+              created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            params![
+                task.id,
+                task.title,
+                task.status.as_str(),
+                task.priority.as_str(),
+                task.due_date,
+                task.description,
+                serde_json::to_string(&task.tag_ids).map_err(json_backend)?,
+                serde_json::to_string(&task.assignee_ids).map_err(json_backend)?,
+                task.source.as_ref().map(|source| &source.note_id),
+                task.source.as_ref().map(|source| &source.block_id),
+                task.detached_at,
+                task.created_at,
+                task.updated_at
+            ],
+        )
+        .map_err(|error| StorageError::AlreadyExists(error.to_string()))?;
+    Ok(())
+}
+
+fn require_task_references(
+    transaction: &Transaction<'_>,
+    task: &WorkspaceTask,
+) -> Result<(), StorageError> {
+    for tag_id in &task.tag_ids {
+        transaction
+            .query_row(
+                "SELECT 1 FROM workspace_tags WHERE id = ?1",
+                [tag_id],
+                |_| Ok(()),
+            )
+            .optional()
+            .map_err(backend)?
+            .ok_or_else(|| StorageError::NotFound(tag_id.clone()))?;
+    }
+    for person_id in &task.assignee_ids {
+        transaction
+            .query_row(
+                "SELECT 1 FROM workspace_people WHERE id = ?1",
+                [person_id],
+                |_| Ok(()),
+            )
+            .optional()
+            .map_err(backend)?
+            .ok_or_else(|| StorageError::NotFound(person_id.clone()))?;
+    }
+    Ok(())
+}
+
+/// A linked task is only durable once the stored document actually carries its
+/// link, so a promotion that did not reach the document fails instead of
+/// creating a task nothing points at.
+fn require_document_task_link(
+    transaction: &Transaction<'_>,
+    task: &WorkspaceTask,
+) -> Result<(), StorageError> {
+    let Some(source) = &task.source else {
+        return Ok(());
+    };
+    let stored = transaction
+        .query_row(
+            "SELECT document_json FROM documents WHERE note_id = ?1",
+            [&source.note_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(backend)?
+        .ok_or_else(|| StorageError::NotFound(source.note_id.clone()))?;
+    let document = serde_json::from_str::<serde_json::Value>(&stored).map_err(json_backend)?;
+    let links = skriuw_domain::document_task_links(&document);
+    let link = skriuw_domain::unique_document_task_link(&links, &task.id).ok_or_else(|| {
+        StorageError::InvalidOperation(format!(
+            "task {} is not linked from note {}",
+            task.id, source.note_id
+        ))
+    })?;
+    if link.block_id != source.block_id {
+        return Err(StorageError::InvalidOperation(format!(
+            "task {} links block {} but the document links block {}",
+            task.id, source.block_id, link.block_id
+        )));
+    }
+    Ok(())
+}
+
+fn save_task_document(
+    transaction: &Transaction<'_>,
+    document: Option<&TaskSourceDocument>,
+    at: i64,
+    revisions: &mut Vec<EntityRevision>,
+) -> Result<(), StorageError> {
+    let Some(document) = document else {
+        return Ok(());
+    };
+    save_document(
+        transaction,
+        &document.note_id,
+        &document.document_json,
+        &document.markdown,
+        document.word_count,
+        document.expected_revision,
+        at,
+        revisions,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn save_document(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+    document_json: &serde_json::Value,
+    markdown: &str,
+    word_count: i64,
+    expected_revision: i64,
+    at: i64,
+    revisions: &mut Vec<EntityRevision>,
+) -> Result<(), StorageError> {
+    require_note(transaction, note_id)?;
+    let next_revision = expected_revision.saturating_add(1);
+    let changed = transaction
+        .execute(
+            "UPDATE documents \
+             SET document_json = ?2, markdown = ?3, revision = ?4, word_count = ?5 \
+             WHERE note_id = ?1 AND revision = ?6",
+            params![
+                note_id,
+                document_json.to_string(),
+                markdown,
+                next_revision,
+                word_count,
+                expected_revision
+            ],
+        )
+        .map_err(backend)?;
+    if changed == 0 {
+        let current = current_revision(transaction, note_id)?;
+        return Err(StorageError::RevisionConflict {
+            id: note_id.to_string(),
+            expected: expected_revision,
+            current,
+        });
+    }
+    transaction
+        .execute(
+            "UPDATE workspace_nodes SET updated_at = ?2 WHERE id = ?1",
+            params![note_id, at],
+        )
+        .map_err(backend)?;
+    let title = node_title(transaction, note_id)?;
+    replace_fts(transaction, note_id, &title, markdown)?;
+    replace_references(transaction, note_id, document_json)?;
+    prune_detached_images(transaction, note_id, document_json)?;
+    reconcile_note_tasks(transaction, note_id, document_json, at)?;
+    enqueue_history(transaction, note_id, next_revision, markdown, at)?;
+    revisions.push(EntityRevision {
+        id: note_id.to_string(),
+        revision: next_revision,
+    });
+    Ok(())
+}
+
+/// Bring every task linked to this note back in step with the document that
+/// just landed. The document owns the checklist item, so its text and checkbox
+/// win, and a link the document no longer carries detaches its task instead of
+/// deleting it.
+fn reconcile_note_tasks(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+    document_json: &serde_json::Value,
+    at: i64,
+) -> Result<(), StorageError> {
+    let linked = read_tasks_where(transaction, "source_note_id = ?1", &[&note_id])?;
+    if linked.is_empty() {
+        return Ok(());
+    }
+    let links = skriuw_domain::document_task_links(document_json);
+    for task in linked {
+        let Some(link) = skriuw_domain::unique_document_task_link(&links, &task.id) else {
+            detach_tasks(transaction, "id = ?1", &[&task.id.as_str()], at)?;
+            continue;
+        };
+        let status = WorkspaceTask::reconciled_status(task.status, link.checked);
+        let source_block_id = link.block_id.as_str();
+        let stored_block_id = task
+            .source
+            .as_ref()
+            .map(|source| source.block_id.as_str())
+            .unwrap_or_default();
+        if status == task.status && link.title == task.title && source_block_id == stored_block_id {
+            continue;
+        }
+        transaction
+            .execute(
+                "UPDATE workspace_tasks \
+                 SET title = ?2, status = ?3, source_block_id = ?4, updated_at = ?5 \
+                 WHERE id = ?1",
+                params![task.id, link.title, status.as_str(), source_block_id, at],
+            )
+            .map_err(backend)?;
+    }
+    Ok(())
+}
+
+/// Clears the source link of the matching tasks while keeping the records
+/// themselves. A task whose checklist item disappeared stays visible as
+/// detached work rather than vanishing with its source.
+pub(crate) fn detach_tasks(
+    transaction: &Transaction<'_>,
+    predicate: &str,
+    parameters: &[&dyn rusqlite::ToSql],
+    at: i64,
+) -> Result<usize, StorageError> {
+    let mut bound = parameters.to_vec();
+    let at_index = bound.len() + 1;
+    bound.push(&at);
+    transaction
+        .execute(
+            &format!(
+                "UPDATE workspace_tasks \
+                 SET source_note_id = NULL, source_block_id = NULL, \
+                     detached_at = ?{at_index}, updated_at = ?{at_index} \
+                 WHERE source_note_id IS NOT NULL AND ({predicate})"
+            ),
+            bound.as_slice(),
+        )
+        .map_err(backend)
 }
 
 /// Records terminal identity intent for a deleted entity so a delayed remote
@@ -1431,6 +1716,13 @@ pub(crate) fn insert_fts(
     Ok(())
 }
 
+/// One history revision per editing burst: a save landing within this window
+/// of a pending revision's first save updates that revision in place instead
+/// of appending, and a pending revision only becomes claimable once the
+/// window has elapsed. The document itself is still saved on every operation;
+/// this only bounds how many restore points a burst of typing produces.
+pub const HISTORY_COALESCE_WINDOW_MS: i64 = 120_000;
+
 pub(crate) fn enqueue_history(
     transaction: &Transaction<'_>,
     note_id: &str,
@@ -1438,16 +1730,36 @@ pub(crate) fn enqueue_history(
     markdown: &str,
     created_at: i64,
 ) -> Result<(), StorageError> {
+    let coalesced = transaction
+        .execute(
+            "UPDATE history_outbox SET revision = ?2, markdown = ?3 \
+             WHERE id = (\
+                 SELECT id FROM history_outbox \
+                 WHERE note_id = ?1 AND claimed_by IS NULL AND created_at > ?4 \
+                 ORDER BY created_at DESC, id DESC LIMIT 1\
+             )",
+            params![
+                note_id,
+                revision,
+                markdown,
+                created_at.saturating_sub(HISTORY_COALESCE_WINDOW_MS)
+            ],
+        )
+        .map_err(backend)?;
+    if coalesced > 0 {
+        return Ok(());
+    }
     transaction
         .execute(
-            "INSERT INTO history_outbox(id, note_id, revision, markdown, created_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO history_outbox(id, note_id, revision, markdown, created_at, next_attempt_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
                 Uuid::new_v4().to_string(),
                 note_id,
                 revision,
                 markdown,
-                created_at
+                created_at,
+                created_at.saturating_add(HISTORY_COALESCE_WINDOW_MS)
             ],
         )
         .map_err(backend)?;

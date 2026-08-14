@@ -1,5 +1,5 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { DOMSerializer, type Node as ProseMirrorNode } from "prosemirror-model";
 import {
   AllSelection,
@@ -136,6 +136,14 @@ import {
   type DocumentEdge,
 } from "./document-edges";
 import { SearchWidget } from "./search-widget";
+import { JumpToLinePanel } from "./jump-to-line-panel";
+import {
+  buildDocumentLineIndex,
+  documentLineTarget,
+  type DocumentLineIndex,
+} from "./document-lines";
+import { parseJumpToLineInput } from "./raw-markdown-editor-model";
+import { installJumpKeyProbe, jumpDebug } from "./jump-debug";
 import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
 import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
 import type { NoteEditorShortcutId } from "./editor-bound-shortcut-ids";
@@ -340,6 +348,15 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       setFailedSaveNoteIds(new Set(failures.map(({ noteId }) => noteId)));
     });
   }
+  const jumpInputRef = useRef<HTMLInputElement>(null);
+  const jumpTargetRef = useRef<{ document: ProseMirrorNode; index: DocumentLineIndex } | null>(null);
+  const [jumpOpen, setJumpOpen] = useState(false);
+  const [jumpValue, setJumpValue] = useState("");
+  const [jumpLineCount, setJumpLineCount] = useState(1);
+  const [jumpCaretLine, setJumpCaretLine] = useState(1);
+  const jumpOpenRef = useRef(jumpOpen);
+  jumpOpenRef.current = jumpOpen;
+  const jumpFieldId = useId();
   const composingRef = useRef(false);
   const pendingWindowRef = useRef<number | null>(null);
   const scrollHostRef = useRef<HTMLElement | null>(null);
@@ -734,24 +751,45 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     view.focus();
   }
 
-  function openLinkEditor(): void {
+  /**
+   * The range the link editor would act on: the selection, or the link under a
+   * collapsed caret. Null when there is nothing to link, which is also what
+   * lets `mod+k` fall through to the command palette.
+   */
+  function linkEditorRange(): { from: number; to: number; href: string } | null {
     const view = viewRef.current;
-    if (!view) return;
+    if (!view) return null;
     const { selection } = view.state;
     const cursorLink = selection.empty ? linkAtCursor(view.state) : null;
     const from = cursorLink ? cursorLink.from : selection.from;
     const to = cursorLink ? cursorLink.to : selection.to;
-    if (from === to) return;
+    if (from === to) return null;
+    return {
+      from,
+      to,
+      href: cursorLink ? cursorLink.href : linkInRange(view.state, from, to),
+    };
+  }
+
+  function openLinkEditor(): void {
+    const view = viewRef.current;
+    const range = linkEditorRange();
+    if (!view || !range) return;
     setBubbleMenu(closedBubbleMenu);
     setLinkMenu({
       open: true,
       editing: true,
-      href: cursorLink ? cursorLink.href : linkInRange(view.state, from, to),
-      from,
-      to,
-      ...linkMenuAnchor(view, from, to),
+      href: range.href,
+      from: range.from,
+      to: range.to,
+      ...linkMenuAnchor(view, range.from, range.to),
     });
   }
+
+  const openLinkEditorRef = useRef(openLinkEditor);
+  openLinkEditorRef.current = openLinkEditor;
+  const linkEditorRangeRef = useRef(linkEditorRange);
+  linkEditorRangeRef.current = linkEditorRange;
 
   function getSearchTarget(): EditorSearchTarget | null {
     const view = viewRef.current;
@@ -789,6 +827,80 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     };
   }
 
+  function closeJumpToLine(): void {
+    setJumpOpen(false);
+    viewRef.current?.focus();
+  }
+
+  const toggleJumpToLine = useCallback(() => {
+    jumpDebug(`toggleJumpToLine entered, open=${jumpOpenRef.current}`);
+    if (jumpOpenRef.current) {
+      closeJumpToLine();
+      return;
+    }
+    const view = viewRef.current;
+    if (!view) {
+      jumpDebug("toggleJumpToLine aborted: no view");
+      return;
+    }
+    const entry = activeEntry();
+    const document = entry?.bounded ? entry.bounded.fullDocument() : view.state.doc;
+    let index;
+    try {
+      index = buildDocumentLineIndex(document);
+    } catch (error) {
+      jumpDebug(`buildDocumentLineIndex threw: ${String(error)}`);
+      throw error;
+    }
+    jumpTargetRef.current = { document, index };
+    setJumpLineCount(index.lineCount);
+    const caretBlock = readSelection(view.state, entry?.bounded?.windowStart() ?? 0).blockIndex;
+    setJumpCaretLine(index.blockStartLines[caretBlock] ?? 1);
+    jumpDebug(`opening panel, lines=${index.lineCount}`);
+    setJumpOpen(true);
+    requestAnimationFrame(() => {
+      jumpInputRef.current?.focus();
+      jumpInputRef.current?.select();
+    });
+  }, []);
+
+  const commitJumpToLine = useCallback(() => {
+    const target = jumpTargetRef.current;
+    const view = viewRef.current;
+    if (!target || !view) return;
+    const line = parseJumpToLineInput(jumpValue, target.index.lineCount);
+    if (line === null) return;
+    const { blockIndex, offset } = documentLineTarget(target.document, target.index, line);
+    setJumpOpen(false);
+    const entry = activeEntry();
+    const bounded = entry?.bounded;
+    if (entry && bounded) {
+      bounded.rememberSelection({ blockIndex, offset });
+      bounded.revealBlock(blockIndex);
+      installBoundedWindow(entry, true);
+      const revealed = viewRef.current;
+      if (revealed) revealed.dispatch(revealed.state.tr.scrollIntoView());
+      return;
+    }
+    const position = topLevelTextPosition(view.state.doc, blockIndex, offset);
+    view.dispatch(
+      view.state.tr
+        .setSelection(TextSelection.create(view.state.doc, position))
+        .scrollIntoView(),
+    );
+    view.focus();
+  }, [jumpValue]);
+
+  function handleJumpKeyDown(event: ReactKeyboardEvent<HTMLInputElement>): void {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitJumpToLine();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      closeJumpToLine();
+    }
+  }
+
   const jumpToDocumentEdge = useCallback((edge: DocumentEdge) => {
     const view = viewRef.current;
     if (!view || activeIdRef.current === null) return;
@@ -810,10 +922,16 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     () => ({
       goToDocumentStart: () => jumpToDocumentEdge("start"),
       goToDocumentEnd: () => jumpToDocumentEdge("end"),
+      insertLink: {
+        run: () => openLinkEditorRef.current(),
+        claims: () => linkEditorRangeRef.current() !== null,
+      },
+      jumpToLine: toggleJumpToLine,
     }),
-    [jumpToDocumentEdge],
+    [jumpToDocumentEdge, toggleJumpToLine],
   );
   useEditorBoundShortcuts(store, shortcutHost, editorShortcuts);
+  useEffect(() => installJumpKeyProbe(shortcutHost), [shortcutHost]);
 
   const getEditorSearchTarget = useCallback(() => getSearchTarget(), []);
   const search = useEditorSearch(store, getEditorSearchTarget);
@@ -965,10 +1083,6 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
             );
             return true;
           }
-        }
-        if (mod && event.shiftKey && event.key.toLowerCase() === "k") {
-          openLinkEditor();
-          return true;
         }
         if (
           !mod &&
@@ -1319,10 +1433,23 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           </button>
         </div>
       )}
+      {jumpOpen && (
+        <JumpToLinePanel
+          fieldId={jumpFieldId}
+          inputRef={jumpInputRef}
+          value={jumpValue}
+          onValueChange={setJumpValue}
+          onKeyDown={handleJumpKeyDown}
+          onBlur={() => setJumpOpen(false)}
+          lineCount={jumpLineCount}
+          placeholder={String(jumpCaretLine)}
+        />
+      )}
       {search.searchOpen && (
         <div className="@container/editor-search sticky top-3 z-40 -mx-9 flex h-0 items-start justify-end">
           <SearchWidget
             ref={search.findInputRef}
+            optionHints={search.optionHints}
             query={search.searchQuery}
             onQueryChange={search.setSearchQuery}
             replaceValue={search.replaceValue}

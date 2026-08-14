@@ -18,8 +18,9 @@ import {
 import { isBrowserRuntime } from "@/bridge/runtime";
 import type { HistoryHeader } from "@/contracts/workspace";
 import { listenForHistoryHeaders } from "@/features/history/live-history";
+import { listenForSyncedWorkspaceChanges } from "@/features/sync/live-workspace";
 import { bindWindowClosePersistence } from "@/shell/window-close";
-import { registerPendingWork } from "@/shell/pending-work";
+import { flushPendingWork, registerPendingWork } from "@/shell/pending-work";
 import { bindSettingsToRoot } from "@/features/settings/apply-settings";
 import { opensNotesInTabs } from "@/features/settings/settings-model";
 import { bindPaneLayoutPersistence } from "@/store/pane-layout-persistence";
@@ -71,9 +72,24 @@ async function start(): Promise<void> {
   }
   const root = createRoot(container);
   let unlistenHistory: UnlistenFn | null = null;
+  let unlistenSyncWorkspace: UnlistenFn | null = null;
   try {
     let store: RendererStore | null = null;
     const pendingHeaders: HistoryHeader[] = [];
+    let syncReconcilePending = false;
+    let syncReconciliation = Promise.resolve();
+    unlistenSyncWorkspace = await listenForSyncedWorkspaceChanges(() => {
+      if (!store) {
+        syncReconcilePending = true;
+        return;
+      }
+      syncReconciliation = syncReconciliation
+        .then(async () => {
+          await flushPendingWork();
+          store?.replaceFromSnapshot(await bootstrapWorkspace());
+        })
+        .catch((error) => console.error("synced workspace reconciliation failed", error));
+    });
     if (!isBrowserRuntime()) {
       unlistenHistory = await listenForHistoryHeaders((header) => {
         if (store) {
@@ -99,16 +115,18 @@ async function start(): Promise<void> {
       people: snapshot.people,
       references: snapshot.references,
     }));
-    const restoredPanes = parsePaneLayout(paneLayoutJson);
-    if (restoredPanes) {
+    const restoredLayout = parsePaneLayout(paneLayoutJson);
+    if (restoredLayout) {
       store.update((current) => ({
         ...current,
         panes: restorePanes(
-          restoredPanes,
+          restoredLayout.panes,
           current.activeNoteId,
           current.sourceNodes,
           opensNotesInTabs(current.settings),
         ),
+        splitOrientation: restoredLayout.orientation,
+        splitRatio: restoredLayout.ratio,
       }));
     }
     const unbindWindowClosePersistence = isBrowserRuntime()
@@ -155,7 +173,12 @@ async function start(): Promise<void> {
     for (const header of pendingHeaders) {
       store.publishHistoryHeader(header);
     }
+    if (syncReconcilePending) {
+      await flushPendingWork();
+      store.replaceFromSnapshot(await bootstrapWorkspace());
+    }
     window.addEventListener("pagehide", unlistenHistory ?? (() => {}), { once: true });
+    window.addEventListener("pagehide", unlistenSyncWorkspace ?? (() => {}), { once: true });
     window.addEventListener("pagehide", unbindWindowClosePersistence, { once: true });
     window.addEventListener("pagehide", disposeUiPersistence, { once: true });
     bindStarterReclaim(store);
@@ -173,6 +196,7 @@ async function start(): Promise<void> {
     );
   } catch (error) {
     unlistenHistory?.();
+    unlistenSyncWorkspace?.();
     root.render(
       <div className="p-6 text-[hsl(var(--mood-rough))]" role="alert">
         Workspace failed to open: {String(error)}

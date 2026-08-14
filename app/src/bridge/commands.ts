@@ -159,6 +159,10 @@ export function relocateWorkspaceStorage(targetDir: string): Promise<void> {
   return invoke<void>("relocate_workspace_storage", { targetDir });
 }
 
+export function clearAllData(): Promise<void> {
+  return invoke<void>("clear_all_data");
+}
+
 export { openExternalUrl } from "./external-links";
 
 export type ArchiveExportReport = {

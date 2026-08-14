@@ -3,13 +3,18 @@ import test from "node:test";
 import type { WorkspaceNode } from "../../src/contracts/workspace";
 import {
   CLOSED_TAB_LIMIT,
+  DEFAULT_SPLIT_ORIENTATION,
+  DEFAULT_SPLIT_RATIO,
+  MAX_SPLIT_RATIO,
+  MIN_SPLIT_RATIO,
   PANE_LAYOUT_VERSION,
   PRIMARY_PANE_ID,
   SECONDARY_PANE_ID,
   activateTabInPane,
   closeAllTabs,
   closeOtherTabs,
-  closeSplit,
+  clampSplitRatio,
+  closePane,
   closeTab,
   closeTabsToSide,
   cycleTabId,
@@ -18,6 +23,7 @@ import {
   moveTabInPane,
   openBeside,
   openNoteInTab,
+  paneIndexCycling,
   paneIndexInDirection,
   parsePaneLayout,
   recordClosedTab,
@@ -30,7 +36,7 @@ import {
   togglePinTab,
   withClosedTabs,
 } from "../../src/store/panes";
-import type { ClosedTabStacks, PaneState } from "../../src/store/panes";
+import type { ClosedTabStacks, PaneLayout, PaneState } from "../../src/store/panes";
 
 function node(id: string, kind: "note" | "folder" = "note"): WorkspaceNode {
   return {
@@ -49,6 +55,10 @@ function node(id: string, kind: "note" | "folder" = "note"): WorkspaceNode {
 
 function nodeMap(...nodes: WorkspaceNode[]): Map<string, WorkspaceNode> {
   return new Map(nodes.map((entry) => [entry.id, entry]));
+}
+
+function layoutOf(panes: readonly PaneState[]): PaneLayout {
+  return { panes, orientation: DEFAULT_SPLIT_ORIENTATION, ratio: DEFAULT_SPLIT_RATIO };
 }
 
 function primary(
@@ -163,51 +173,87 @@ test("restore produces an empty primary pane when no available notes remain", ()
 
 test("open in new tab appends once and keeps existing tabs", () => {
   const panes = [primary(["a"], "a")];
-  const once = openNoteInTab(panes, "b");
+  const once = openNoteInTab(panes, PRIMARY_PANE_ID, "b");
   assert.deepEqual(once[0]?.openNoteIds, ["a", "b"]);
-  const twice = openNoteInTab(once, "b");
+  const twice = openNoteInTab(once, PRIMARY_PANE_ID, "b");
   assert.deepEqual(twice[0]?.openNoteIds, ["a", "b"]);
 });
 
 test("closing the active tab promotes the nearest neighbor", () => {
   const panes = [primary(["a", "b", "c"], "b")];
-  const result = closeTab(panes, "b");
+  const result = closeTab(panes, PRIMARY_PANE_ID, "b");
   assert.deepEqual(result.panes[0]?.openNoteIds, ["a", "c"]);
   assert.equal(result.nextActiveNoteId, "c");
 
-  const last = closeTab([primary(["a"], "a")], "a");
+  const last = closeTab([primary(["a"], "a")], PRIMARY_PANE_ID, "a");
   assert.equal(last.nextActiveNoteId, null);
   assert.deepEqual(last.panes[0]?.openNoteIds, []);
 });
 
 test("closing a background tab never changes the active note", () => {
   const panes = [primary(["a", "b"], "a")];
-  const result = closeTab(panes, "b");
+  const result = closeTab(panes, PRIMARY_PANE_ID, "b");
   assert.equal(result.nextActiveNoteId, undefined);
   assert.equal(result.panes[0]?.activeNoteId, "a");
 });
 
 test("tab cycling wraps in both directions", () => {
   const panes = [primary(["a", "b", "c"], "c")];
-  assert.equal(cycleTabId(panes, 1), "a");
-  assert.equal(cycleTabId(panes, -1), "b");
-  assert.equal(cycleTabId([primary(["a"], "a")], 1), null);
+  assert.equal(cycleTabId(panes, PRIMARY_PANE_ID, 1), "a");
+  assert.equal(cycleTabId(panes, PRIMARY_PANE_ID, -1), "b");
+  assert.equal(cycleTabId([primary(["a"], "a")], PRIMARY_PANE_ID, 1), null);
 });
 
-test("open beside creates the secondary pane and close split removes it", () => {
+test("open beside creates the secondary pane and closing it leaves the primary one", () => {
   const panes = openBeside([primary(["a"], "a")], "a");
   assert.equal(panes.length, 2);
   assert.equal(panes[1]?.paneId, SECONDARY_PANE_ID);
   assert.equal(panes[1]?.activeNoteId, "a");
-  const closed = closeSplit(panes);
-  assert.equal(closed.length, 1);
-  assert.equal(closeSplit(closed), closed);
+  const closed = closePane(panes, SECONDARY_PANE_ID);
+  assert.deepEqual(closed.panes, [primary(["a"], "a")]);
+  assert.equal(closed.nextActiveNoteId, undefined);
+  assert.equal(closed.promotedFromPaneId, null);
 });
 
-test("pane layout survives a serialize/parse round trip", () => {
-  const panes = openBeside([primary(["a", "b"], "a")], "b");
-  const parsed = parsePaneLayout(serializePaneLayout(panes));
-  assert.deepEqual(parsed, panes);
+test("closing the primary pane promotes the survivor and its active note", () => {
+  const panes = openBeside([primary(["a"], "a")], "b");
+  const closed = closePane(panes, PRIMARY_PANE_ID);
+  assert.deepEqual(closed.panes, [primary(["b"], "b")]);
+  assert.equal(closed.nextActiveNoteId, "b");
+  assert.equal(closed.promotedFromPaneId, SECONDARY_PANE_ID);
+});
+
+test("closing a pane is a no-op without a split and for an unknown pane", () => {
+  const single = [primary(["a"], "a")];
+  assert.equal(closePane(single, PRIMARY_PANE_ID).panes, single);
+  const split = openBeside(single, "b");
+  assert.equal(closePane(split, "nope").panes, split);
+});
+
+test("split ratios clamp to the bounds and reject unusable numbers", () => {
+  assert.equal(clampSplitRatio(0.5), 0.5);
+  assert.equal(clampSplitRatio(0), MIN_SPLIT_RATIO);
+  assert.equal(clampSplitRatio(1), MAX_SPLIT_RATIO);
+  assert.equal(clampSplitRatio(Number.NaN), DEFAULT_SPLIT_RATIO);
+});
+
+test("pane layout survives a serialize/parse round trip with its geometry", () => {
+  const layout = {
+    panes: openBeside([primary(["a", "b"], "a")], "b"),
+    orientation: "horizontal" as const,
+    ratio: 0.7,
+  };
+  assert.deepEqual(parsePaneLayout(serializePaneLayout(layout)), layout);
+});
+
+test("a version 2 layout migrates forward without losing tabs", () => {
+  const panes = openBeside([primary(["a", "b"], "a", ["a"])], "b");
+  const migrated = parsePaneLayout(
+    JSON.stringify({ version: PANE_LAYOUT_VERSION - 1, panes }),
+  );
+  assert.deepEqual(migrated?.panes, panes);
+  assert.equal(migrated?.orientation, DEFAULT_SPLIT_ORIENTATION);
+  assert.equal(migrated?.ratio, DEFAULT_SPLIT_RATIO);
 });
 
 test("parse rejects malformed, versionless, and foreign payloads", () => {
@@ -215,71 +261,96 @@ test("parse rejects malformed, versionless, and foreign payloads", () => {
   assert.equal(parsePaneLayout("not json"), null);
   assert.equal(parsePaneLayout("{}"), null);
   assert.equal(parsePaneLayout(JSON.stringify({ version: 99, panes: [] })), null);
+  assert.equal(parsePaneLayout(JSON.stringify({ version: 1, panes: [] })), null);
   assert.equal(
     parsePaneLayout(JSON.stringify({ version: PANE_LAYOUT_VERSION, panes: [{ paneId: 7 }] })),
     null,
   );
-  assert.equal(parsePaneLayout(serializePaneLayout(defaultPanes(null)))?.length, 1);
+  assert.equal(
+    parsePaneLayout(serializePaneLayout(layoutOf(defaultPanes(null))))?.panes.length,
+    1,
+  );
+});
+
+test("parse falls back to default geometry rather than discarding a usable layout", () => {
+  const panes = defaultPanes("a");
+  const parsed = parsePaneLayout(
+    JSON.stringify({
+      version: PANE_LAYOUT_VERSION,
+      panes,
+      orientation: "diagonal",
+      ratio: "half",
+    }),
+  );
+  assert.equal(parsed?.orientation, DEFAULT_SPLIT_ORIENTATION);
+  assert.equal(parsed?.ratio, DEFAULT_SPLIT_RATIO);
+});
+
+test("parse clamps an out-of-bounds persisted ratio", () => {
+  const parsed = parsePaneLayout(
+    JSON.stringify({ version: PANE_LAYOUT_VERSION, panes: defaultPanes("a"), ratio: 0.99 }),
+  );
+  assert.equal(parsed?.ratio, MAX_SPLIT_RATIO);
 });
 
 test("togglePinTab pins and unpins an open tab, and ignores unknown tabs", () => {
   const panes = [primary(["a", "b"], "a")];
-  const pinned = togglePinTab(panes, "b");
+  const pinned = togglePinTab(panes, PRIMARY_PANE_ID, "b");
   assert.deepEqual(pinned[0]?.pinnedNoteIds, ["b"]);
-  const unpinned = togglePinTab(pinned, "b");
+  const unpinned = togglePinTab(pinned, PRIMARY_PANE_ID, "b");
   assert.deepEqual(unpinned[0]?.pinnedNoteIds, []);
-  assert.equal(togglePinTab(panes, "missing"), panes);
+  assert.equal(togglePinTab(panes, PRIMARY_PANE_ID, "missing"), panes);
 });
 
 test("reorderTab moves an unpinned tab before another tab or to the end", () => {
   const panes = [primary(["a", "b", "c"], "a")];
-  assert.deepEqual(reorderTab(panes, "c", "b")[0]?.openNoteIds, ["a", "c", "b"]);
-  assert.deepEqual(reorderTab(panes, "a", null)[0]?.openNoteIds, ["b", "c", "a"]);
+  assert.deepEqual(reorderTab(panes, PRIMARY_PANE_ID, "c", "b")[0]?.openNoteIds, ["a", "c", "b"]);
+  assert.deepEqual(reorderTab(panes, PRIMARY_PANE_ID, "a", null)[0]?.openNoteIds, ["b", "c", "a"]);
 });
 
 test("reorderTab refuses to move pinned tabs or to displace them", () => {
   const panes = [primary(["a", "b", "c"], "a", ["a"])];
-  assert.equal(reorderTab(panes, "a", "c"), panes);
-  assert.equal(reorderTab(panes, "c", "a"), panes);
-  assert.deepEqual(reorderTab(panes, "c", "b")[0]?.openNoteIds, ["a", "c", "b"]);
+  assert.equal(reorderTab(panes, PRIMARY_PANE_ID, "a", "c"), panes);
+  assert.equal(reorderTab(panes, PRIMARY_PANE_ID, "c", "a"), panes);
+  assert.deepEqual(reorderTab(panes, PRIMARY_PANE_ID, "c", "b")[0]?.openNoteIds, ["a", "c", "b"]);
 });
 
 test("reorderTab is a no-op for unknown tabs and unchanged positions", () => {
   const panes = [primary(["a", "b"], "a")];
-  assert.equal(reorderTab(panes, "missing", "a"), panes);
-  assert.equal(reorderTab(panes, "a", "missing"), panes);
-  assert.equal(reorderTab(panes, "a", "a"), panes);
-  assert.equal(reorderTab(panes, "a", "b"), panes);
+  assert.equal(reorderTab(panes, PRIMARY_PANE_ID, "missing", "a"), panes);
+  assert.equal(reorderTab(panes, PRIMARY_PANE_ID, "a", "missing"), panes);
+  assert.equal(reorderTab(panes, PRIMARY_PANE_ID, "a", "a"), panes);
+  assert.equal(reorderTab(panes, PRIMARY_PANE_ID, "a", "b"), panes);
 });
 
 test("closeOtherTabs keeps the target and pinned tabs, promoting the target when active is removed", () => {
   const panes = [primary(["a", "b", "c"], "a", ["c"])];
-  const result = closeOtherTabs(panes, "b");
+  const result = closeOtherTabs(panes, PRIMARY_PANE_ID, "b");
   assert.deepEqual(result.panes[0]?.openNoteIds, ["b", "c"]);
   assert.equal(result.nextActiveNoteId, "b");
 });
 
 test("closeOtherTabs is a no-op when nothing would be removed", () => {
   const panes = [primary(["a"], "a")];
-  const result = closeOtherTabs(panes, "a");
+  const result = closeOtherTabs(panes, PRIMARY_PANE_ID, "a");
   assert.equal(result.panes, panes);
   assert.equal(result.nextActiveNoteId, undefined);
 });
 
 test("closeTabsToSide removes unpinned tabs on the given side but keeps the anchor and pinned tabs", () => {
   const panes = [primary(["a", "b", "c", "d"], "d", ["a"])];
-  const right = closeTabsToSide(panes, "b", "right");
+  const right = closeTabsToSide(panes, PRIMARY_PANE_ID, "b", "right");
   assert.deepEqual(right.panes[0]?.openNoteIds, ["a", "b"]);
   assert.equal(right.nextActiveNoteId, "b");
 
-  const left = closeTabsToSide(panes, "c", "left");
+  const left = closeTabsToSide(panes, PRIMARY_PANE_ID, "c", "left");
   assert.deepEqual(left.panes[0]?.openNoteIds, ["a", "c", "d"]);
   assert.equal(left.nextActiveNoteId, undefined);
 });
 
 test("closeAllTabs keeps only pinned tabs and promotes a survivor when the active tab closes", () => {
   const panes = [primary(["a", "b", "c"], "b", ["c"])];
-  const result = closeAllTabs(panes);
+  const result = closeAllTabs(panes, PRIMARY_PANE_ID);
   assert.deepEqual(result.panes[0]?.openNoteIds, ["c"]);
   assert.equal(result.nextActiveNoteId, "c");
 });
@@ -420,4 +491,18 @@ test("paneIndexInDirection never wraps and needs a split to move at all", () => 
 test("paneIndexInDirection lands on the nearest pane when focus is outside the panes", () => {
   assert.equal(paneIndexInDirection(2, null, -1), 0);
   assert.equal(paneIndexInDirection(2, null, 1), 1);
+});
+
+test("paneIndexCycling wraps at both ends and still needs a split", () => {
+  assert.equal(paneIndexCycling(1, 0, 1), null);
+  assert.equal(paneIndexCycling(1, null, -1), null);
+  assert.equal(paneIndexCycling(2, 0, 1), 1);
+  assert.equal(paneIndexCycling(2, 1, 1), 0);
+  assert.equal(paneIndexCycling(2, 1, -1), 0);
+  assert.equal(paneIndexCycling(2, 0, -1), 1);
+});
+
+test("paneIndexCycling enters from the far edge when focus is outside the panes", () => {
+  assert.equal(paneIndexCycling(2, null, 1), 0);
+  assert.equal(paneIndexCycling(2, null, -1), 1);
 });

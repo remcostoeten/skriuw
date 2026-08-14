@@ -10,6 +10,7 @@ import {
   closeSplit,
   closeTab,
   closeTabsToSide,
+  cyclePaneFocus,
   cycleTab,
   focusPane,
   focusPaneTowards,
@@ -17,10 +18,20 @@ import {
   openBeside,
   openNoteInTab,
   reopenClosedTab,
+  resetSplitRatio,
+  setSplitOrientation,
+  setSplitRatio,
+  splitPane,
+  toggleSplitOrientation,
   togglePinTab,
 } from "../../../src/store/actions/panes";
 import { createInitialState, createRendererStore } from "../../../src/store/store";
-import { PRIMARY_PANE_ID, SECONDARY_PANE_ID } from "../../../src/store/panes";
+import {
+  DEFAULT_SPLIT_RATIO,
+  MAX_SPLIT_RATIO,
+  PRIMARY_PANE_ID,
+  SECONDARY_PANE_ID,
+} from "../../../src/store/panes";
 
 function node(partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">): WorkspaceNode {
   return {
@@ -113,23 +124,52 @@ test("closing the last open tab leaves no active note", () => {
   assert.equal(rendererStore.getState().activeNoteId, null);
 });
 
-test("closeActiveTab closes the split when focus is on the secondary pane", () => {
+test("closeActiveTab closes the focused pane's own tab, not the whole split", () => {
   const rendererStore = store();
-  openBeside(rendererStore, "b");
+  openNoteInTab(rendererStore, "b");
+  openBeside(rendererStore, "c");
+  openNoteInTab(rendererStore, "a");
   focusPane(rendererStore, SECONDARY_PANE_ID);
+  rendererStore.update((current) => ({
+    ...current,
+    panes: [
+      current.panes[0]!,
+      { ...current.panes[1]!, openNoteIds: ["c", "b"], activeNoteId: "c" },
+    ],
+  }));
+
   closeActiveTab(rendererStore);
-  assert.equal(rendererStore.getState().panes.length, 1);
-  assert.equal(rendererStore.getState().focusedPaneId, PRIMARY_PANE_ID);
+
+  const state = rendererStore.getState();
+  assert.equal(state.panes.length, 2);
+  assert.deepEqual(state.panes[1]?.openNoteIds, ["b"]);
+  assert.equal(state.panes[1]?.activeNoteId, "b");
+  assert.deepEqual(state.panes[0]?.openNoteIds, ["a", "b"]);
+  assert.equal(state.activeNoteId, "a");
 });
 
-test("closeActiveTab closes the split before a primary tab from either pane", () => {
+test("closing the last tab in a pane collapses the split and focuses the survivor", () => {
   const rendererStore = store();
   openNoteInTab(rendererStore, "b");
   openBeside(rendererStore, "c");
   closeActiveTab(rendererStore);
-  assert.equal(rendererStore.getState().panes.length, 1);
-  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["a", "b"]);
-  assert.equal(rendererStore.getState().activeNoteId, "b");
+  const state = rendererStore.getState();
+  assert.equal(state.panes.length, 1);
+  assert.equal(state.focusedPaneId, PRIMARY_PANE_ID);
+  assert.deepEqual(state.panes[0]?.openNoteIds, ["a", "b"]);
+  assert.equal(state.activeNoteId, "b");
+});
+
+test("closing the primary pane's last tab promotes the secondary pane's tabs", () => {
+  const rendererStore = store();
+  openBeside(rendererStore, "c");
+  focusPane(rendererStore, PRIMARY_PANE_ID);
+  closeActiveTab(rendererStore);
+  const state = rendererStore.getState();
+  assert.equal(state.panes.length, 1);
+  assert.equal(state.panes[0]?.paneId, PRIMARY_PANE_ID);
+  assert.deepEqual(state.panes[0]?.openNoteIds, ["c"]);
+  assert.equal(state.activeNoteId, "c");
 });
 
 test("closeActiveTab closes the primary active tab when focus is on the primary pane", () => {
@@ -150,6 +190,25 @@ test("cycleTab moves the active note forward and backward through open tabs", ()
   assert.equal(rendererStore.getState().activeNoteId, "c");
 });
 
+test("cycleTab cycles the focused pane's strip without moving the active note", () => {
+  const rendererStore = store();
+  openNoteInTab(rendererStore, "b");
+  openBeside(rendererStore, "c");
+  rendererStore.update((current) => ({
+    ...current,
+    panes: [
+      current.panes[0]!,
+      { ...current.panes[1]!, openNoteIds: ["c", "a"], activeNoteId: "c" },
+    ],
+  }));
+
+  cycleTab(rendererStore, 1);
+
+  const state = rendererStore.getState();
+  assert.equal(state.panes[1]?.activeNoteId, "a");
+  assert.equal(state.activeNoteId, "b");
+});
+
 test("openBeside creates the split pane when none exists", () => {
   const rendererStore = store();
   assert.equal(rendererStore.getState().panes.length, 1);
@@ -158,6 +217,31 @@ test("openBeside creates the split pane when none exists", () => {
   assert.equal(state.panes.length, 2);
   assert.equal(state.panes[1]?.paneId, SECONDARY_PANE_ID);
   assert.equal(state.panes[1]?.activeNoteId, "b");
+});
+
+test("openBeside focuses the new pane so pane-scoped actions target it", () => {
+  const rendererStore = store();
+  openBeside(rendererStore, "b");
+  assert.equal(rendererStore.getState().focusedPaneId, SECONDARY_PANE_ID);
+});
+
+test("split geometry clamps, toggles, and resets independently of the tabs", () => {
+  const rendererStore = store();
+  const panesBefore = rendererStore.getState().panes;
+
+  setSplitRatio(rendererStore, 0.95);
+  assert.equal(rendererStore.getState().splitRatio, MAX_SPLIT_RATIO);
+  setSplitRatio(rendererStore, 0.7);
+  assert.equal(rendererStore.getState().splitRatio, 0.7);
+
+  toggleSplitOrientation(rendererStore);
+  assert.equal(rendererStore.getState().splitOrientation, "horizontal");
+  setSplitOrientation(rendererStore, "vertical");
+  assert.equal(rendererStore.getState().splitOrientation, "vertical");
+
+  resetSplitRatio(rendererStore);
+  assert.equal(rendererStore.getState().splitRatio, DEFAULT_SPLIT_RATIO);
+  assert.equal(rendererStore.getState().panes, panesBefore);
 });
 
 test("openBeside replaces the note shown in an already-open split", () => {
@@ -176,6 +260,46 @@ test("openBeside defaults to the active note and ignores non-note targets", () =
   const before = rendererStore.getState().panes;
   openBeside(rendererStore, "missing");
   assert.equal(rendererStore.getState().panes, before);
+});
+
+test("splitPane opens the split in the orientation it was asked for", () => {
+  const rendererStore = store();
+  splitPane(rendererStore, "horizontal");
+  assert.equal(rendererStore.getState().panes.length, 2);
+  assert.equal(rendererStore.getState().splitOrientation, "horizontal");
+});
+
+test("splitPane re-lays an open split instead of replacing its second pane", () => {
+  const rendererStore = store();
+  splitPane(rendererStore, "vertical", "b");
+  const panes = rendererStore.getState().panes;
+  splitPane(rendererStore, "horizontal");
+  assert.equal(rendererStore.getState().panes, panes);
+  assert.equal(rendererStore.getState().panes[1]?.activeNoteId, "b");
+  assert.equal(rendererStore.getState().splitOrientation, "horizontal");
+});
+
+test("splitPane leaves the orientation alone when there is nothing to split", () => {
+  const rendererStore = store();
+  const before = rendererStore.getState();
+  splitPane(rendererStore, "horizontal", "missing");
+  assert.equal(rendererStore.getState(), before);
+});
+
+test("cyclePaneFocus wraps around the panes and reports the landing index", () => {
+  const rendererStore = store();
+  openBeside(rendererStore, "b");
+  focusPane(rendererStore, PRIMARY_PANE_ID);
+  assert.equal(cyclePaneFocus(rendererStore, 1, 0), 1);
+  assert.equal(rendererStore.getState().focusedPaneId, SECONDARY_PANE_ID);
+  assert.equal(cyclePaneFocus(rendererStore, 1, 1), 0);
+  assert.equal(rendererStore.getState().focusedPaneId, PRIMARY_PANE_ID);
+});
+
+test("cyclePaneFocus is a no-op without a split", () => {
+  const rendererStore = store();
+  assert.equal(cyclePaneFocus(rendererStore, 1, 0), null);
+  assert.equal(rendererStore.getState().focusedPaneId, PRIMARY_PANE_ID);
 });
 
 test("closeSplit removes the secondary pane and refocuses the primary pane", () => {
@@ -366,6 +490,7 @@ test("focusPaneTowards marks the pane in that direction as focused", () => {
 test("focusPaneTowards refuses to wrap and refuses to move without a split", () => {
   const rendererStore = tabbedStore();
   openBeside(rendererStore, "b");
+  focusPane(rendererStore, PRIMARY_PANE_ID);
   assert.equal(focusPaneTowards(rendererStore, -1, 0), null);
   assert.equal(focusPaneTowards(rendererStore, 1, 1), null);
   assert.equal(rendererStore.getState().focusedPaneId, PRIMARY_PANE_ID);

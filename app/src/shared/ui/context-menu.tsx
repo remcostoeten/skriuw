@@ -4,6 +4,7 @@ import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { overlayContentMotion } from "./overlay-motion";
+import { sectionLabelClass } from "@/shared/ui/section-header";
 
 const ContextMenu = ContextMenuPrimitive.Root;
 
@@ -146,7 +147,7 @@ const ContextMenuLabel = React.forwardRef<
   <ContextMenuPrimitive.Label
     ref={ref}
     className={cn(
-      "px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-foreground/52",
+      cn("px-2.5 py-1.5", sectionLabelClass),
       inset && "pl-8",
       className,
     )}

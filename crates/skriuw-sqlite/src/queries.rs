@@ -3,9 +3,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use rusqlite::{Connection, OptionalExtension, Transaction};
 use skriuw_domain::{
     HistoryHeader, NodeKind, NoteProperty, NotePropertyField, NotePropertyOption,
-    NotePropertyTemplate, ProviderImportReceipt, VersionedNotePropertyValue,
-    WORKSPACE_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceDocument, WorkspaceImage, WorkspaceNode,
-    WorkspacePerson, WorkspaceSettings, WorkspaceSnapshot, WorkspaceTag,
+    NotePropertyTemplate, ProviderImportReceipt, TaskPriority, TaskSource, TaskStatus,
+    VersionedNotePropertyValue, WORKSPACE_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceDocument,
+    WorkspaceImage, WorkspaceNode, WorkspacePerson, WorkspaceSettings, WorkspaceSnapshot,
+    WorkspaceTag, WorkspaceTask,
 };
 use skriuw_storage::StorageError;
 
@@ -26,6 +27,7 @@ pub(crate) fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot
         images: read_images(connection)?,
         properties: read_properties(connection)?,
         property_templates: read_property_templates(connection)?,
+        tasks: read_tasks(connection)?,
         import_receipts: read_import_receipts(connection)?,
     };
     skriuw_domain::validate_workspace_properties(
@@ -35,6 +37,12 @@ pub(crate) fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot
         &snapshot.nodes,
     )
     .map_err(|error| StorageError::Backend(error.to_string()))?;
+    validate_tasks(
+        &snapshot.tasks,
+        &snapshot.documents,
+        &snapshot.tags,
+        &snapshot.people,
+    )?;
     Ok(snapshot)
 }
 
@@ -60,6 +68,91 @@ pub(crate) fn read_import_receipts(
         .map_err(backend)?
         .collect::<Result<Vec<_>, _>>()
         .map_err(backend)
+}
+
+const TASK_COLUMNS: &str = "id, title, status, priority, due_date, description, tag_ids_json, \
+     assignee_ids_json, source_note_id, source_block_id, detached_at, created_at, updated_at";
+
+fn task_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspaceTask> {
+    let source_note_id = row.get::<_, Option<String>>(8)?;
+    let source_block_id = row.get::<_, Option<String>>(9)?;
+    Ok(WorkspaceTask {
+        id: row.get(0)?,
+        title: row.get(1)?,
+        status: TaskStatus::parse(&row.get::<_, String>(2)?).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(
+                2,
+                rusqlite::types::Type::Text,
+                Box::new(error),
+            )
+        })?,
+        priority: TaskPriority::parse(&row.get::<_, String>(3)?).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(
+                3,
+                rusqlite::types::Type::Text,
+                Box::new(error),
+            )
+        })?,
+        due_date: row.get(4)?,
+        description: row.get(5)?,
+        tag_ids: serde_json::from_str(&row.get::<_, String>(6)?).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(
+                6,
+                rusqlite::types::Type::Text,
+                Box::new(error),
+            )
+        })?,
+        assignee_ids: serde_json::from_str(&row.get::<_, String>(7)?).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(
+                7,
+                rusqlite::types::Type::Text,
+                Box::new(error),
+            )
+        })?,
+        source: source_note_id
+            .zip(source_block_id)
+            .map(|(note_id, block_id)| TaskSource { note_id, block_id }),
+        detached_at: row.get(10)?,
+        created_at: row.get(11)?,
+        updated_at: row.get(12)?,
+    })
+}
+
+pub(crate) fn read_tasks(connection: &Connection) -> Result<Vec<WorkspaceTask>, StorageError> {
+    let mut statement = connection
+        .prepare(&format!(
+            "SELECT {TASK_COLUMNS} FROM workspace_tasks ORDER BY created_at, id"
+        ))
+        .map_err(backend)?;
+    statement
+        .query_map([], task_from_row)
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
+}
+
+pub(crate) fn read_tasks_where(
+    connection: &Connection,
+    predicate: &str,
+    parameters: &[&dyn rusqlite::ToSql],
+) -> Result<Vec<WorkspaceTask>, StorageError> {
+    let mut statement = connection
+        .prepare(&format!(
+            "SELECT {TASK_COLUMNS} FROM workspace_tasks WHERE {predicate} ORDER BY created_at, id"
+        ))
+        .map_err(backend)?;
+    statement
+        .query_map(parameters, task_from_row)
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
+}
+
+pub(crate) fn read_task(
+    connection: &Connection,
+    id: &str,
+) -> Result<Option<WorkspaceTask>, StorageError> {
+    Ok(read_tasks_where(connection, "id = ?1", &[&id])?.pop())
 }
 
 pub(crate) fn read_properties(connection: &Connection) -> Result<Vec<NoteProperty>, StorageError> {
@@ -546,5 +639,28 @@ pub(crate) fn read_archive(
         people: read_people(connection)?,
         properties: read_properties(connection)?,
         property_templates: read_property_templates(connection)?,
+        tasks: read_tasks(connection)?,
     })
+}
+
+/// The task index carries links the schema cannot express on its own, so every
+/// materialization re-proves them against the documents and entities it ships
+/// with. A drifted link fails loudly here instead of rendering as a task whose
+/// source silently goes nowhere.
+pub(crate) fn validate_tasks(
+    tasks: &[WorkspaceTask],
+    documents: &[WorkspaceDocument],
+    tags: &[WorkspaceTag],
+    people: &[WorkspacePerson],
+) -> Result<(), StorageError> {
+    skriuw_domain::validate_workspace_tasks(
+        tasks,
+        &documents
+            .iter()
+            .map(|document| (document.note_id.as_str(), &document.document_json))
+            .collect(),
+        &tags.iter().map(|tag| tag.id.as_str()).collect(),
+        &people.iter().map(|person| person.id.as_str()).collect(),
+    )
+    .map_err(|error| StorageError::Backend(error.to_string()))
 }

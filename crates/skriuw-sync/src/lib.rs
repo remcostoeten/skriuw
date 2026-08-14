@@ -28,7 +28,9 @@ pub use content::{
     externalize_oversized_operations, resolve_asset_content, resolve_chunked_operations,
 };
 #[cfg(not(target_arch = "wasm32"))]
-pub use coordinator::{SyncCoordinator, SyncCoordinatorConfig, SyncStatusObserver};
+pub use coordinator::{
+    SyncCoordinator, SyncCoordinatorConfig, SyncStatusObserver, SyncWorkspaceObserver,
+};
 pub use cycle::{
     BLOCKED_OPERATION_REASON_ASSET_CONTENT_MISSING, BLOCKED_REASON_AUTHORIZATION_DENIED,
     BLOCKED_REASON_PROTOCOL_MISMATCH, BLOCKED_REASON_PUSH_CONFLICT,

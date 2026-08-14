@@ -13,6 +13,7 @@ import { registerPendingWork } from "@/shell/pending-work";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { DocumentRecord, RendererState, RendererStore } from "@/store/types";
 import { textEdgeOffset, type DocumentEdge } from "./document-edges";
+import { JumpToLinePanel } from "./jump-to-line-panel";
 import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
 import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
 import type {
@@ -332,31 +333,16 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
         </div>
       )}
       {jumpOpen ? (
-        <div className="sticky top-3 z-40 flex h-0 items-start justify-end">
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-popover p-1.5 pl-2.5 text-[13px] text-foreground shadow-[0_12px_28px_-12px_hsl(var(--scrim)/0.32)]">
-            <label htmlFor={jumpFieldId} className="text-muted-foreground">
-              Line
-            </label>
-            <div className="flex items-center rounded-md border border-border bg-background px-2 transition-[border-color,box-shadow] duration-150 focus-within:border-ring">
-              <input
-                id={jumpFieldId}
-                ref={jumpInputRef}
-                value={jumpValue}
-                onChange={(event) => setJumpValue(event.target.value)}
-                onKeyDown={handleJumpKeyDown}
-                onBlur={() => setJumpOpen(false)}
-                inputMode="numeric"
-                placeholder={String(cursorStatus.line)}
-                aria-label={`Jump to line, 1 to ${lineCount}`}
-                spellCheck={false}
-                className="w-16 bg-transparent py-1 text-[13px] tabular-nums text-foreground outline-none placeholder:text-muted-foreground"
-              />
-            </div>
-            <span className="pr-1 text-xs tabular-nums text-muted-foreground">
-              of {lineCount}
-            </span>
-          </div>
-        </div>
+        <JumpToLinePanel
+          fieldId={jumpFieldId}
+          inputRef={jumpInputRef}
+          value={jumpValue}
+          onValueChange={setJumpValue}
+          onKeyDown={handleJumpKeyDown}
+          onBlur={() => setJumpOpen(false)}
+          lineCount={lineCount}
+          placeholder={String(cursorStatus.line)}
+        />
       ) : null}
       <div className="relative min-h-[60vh]">
         {showLineNumbers ? (

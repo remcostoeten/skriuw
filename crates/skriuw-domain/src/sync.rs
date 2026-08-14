@@ -106,6 +106,11 @@ define_workspace_operation_sync_policy! {
     DeleteNotePropertyTemplate => ("delete_note_property_template", ReplicatedWorkspaceContent),
     ReorderNotePropertyTemplates => ("reorder_note_property_templates", ReplicatedWorkspaceContent),
     RecordProviderImport => ("record_provider_import", DeviceLocal),
+    CreateTask => ("create_task", ReplicatedWorkspaceContent),
+    UpdateTask => ("update_task", ReplicatedWorkspaceContent),
+    DeleteTask => ("delete_task", ReplicatedWorkspaceContent),
+    DetachTask => ("detach_task", ReplicatedWorkspaceContent),
+    PromoteChecklistTask => ("promote_checklist_task", ReplicatedWorkspaceContent),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -222,6 +227,10 @@ impl WorkspaceOperation {
             Self::SetNoteProperty { property, .. } => Some(&property.note_id),
             Self::SetNotePropertyTemplate { template } => Some(&template.id),
             Self::DeleteNotePropertyTemplate { template_id } => Some(template_id),
+            Self::CreateTask { task, .. }
+            | Self::UpdateTask { task, .. }
+            | Self::PromoteChecklistTask { task, .. } => Some(&task.id),
+            Self::DeleteTask { id, .. } | Self::DetachTask { id, .. } => Some(id),
             Self::UpdateSettings { .. }
             | Self::ReorderNotePropertyTemplates { .. }
             | Self::RecordProviderImport { .. } => None,
@@ -754,7 +763,7 @@ mod tests {
             operation_types.len(),
             WORKSPACE_OPERATION_SYNC_POLICY_V1.len()
         );
-        assert_eq!(WORKSPACE_OPERATION_SYNC_POLICY_V1.len(), 30);
+        assert_eq!(WORKSPACE_OPERATION_SYNC_POLICY_V1.len(), 35);
         assert_eq!(
             operation_types,
             serde_json::from_str::<serde_json::Value>(include_str!(

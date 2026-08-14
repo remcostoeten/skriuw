@@ -1,6 +1,6 @@
 # Split view panes
 
-Status: specified, not started.
+Status: partially implemented. Geometry (orientation, ratio, v3 persistence), the resizable divider, the orientation toggle, and the split/cycle bindings have shipped; per-pane tab strips, cross-pane tab moves, pane swap/maximize, the same-note ownership rule, and the accessibility announcements have not. The *Current state* and *Keyboard* tables below record what is live; everything else remains the target.
 
 Extends the split-view half of ADR-0021 (`docs/adr/0021-tabs-and-split-view.md`). ADR-0021 shipped the minimum shape: one tab strip owned by the primary pane, an "open beside" action that shows a second pane holding exactly one note, a fixed 50/50 vertical split, and a "Close split" text button. This spec defines the finished feature: two fully symmetric panes, an orientation toggle, a resizable divider, per-pane tab strips, and complete keyboard operation of every one of those.
 
@@ -10,14 +10,14 @@ The pane model stays capped at **two panes**. ADR-0021's live-editor invariant (
 
 | Concern | Today | File |
 | --- | --- | --- |
-| Pane list | `PaneState[]`, length 1–2, each with `openNoteIds`/`pinnedNoteIds`/`activeNoteId` | `app/src/store/panes.ts:4` |
-| Orientation | None. Two panes are always side by side | `app/src/shell/editor-panes.tsx:257` |
-| Sizing | Fixed 50/50 (`flex-1` on both) | `app/src/shell/editor-panes.tsx:259,266` |
-| Tab strip | Renders the primary pane's tabs only | `app/src/shell/editor-panes.tsx:143` |
-| Tab actions | `closeTab`, `closeOtherTabs`, `closeTabsToSide`, `closeAllTabs`, `togglePinTab`, `reorderTab`, `cycleTabId` all hardcode `primaryPane(panes)` | `app/src/store/panes.ts:139,184,199,219,226,243,268` |
-| Pane focus | `focusedPaneId` tracked, set on `focusin` per pane | `app/src/store/actions/panes.ts:255`, `app/src/shell/editor-panes.tsx:260,267` |
-| Persistence | `panes` serialized at `PANE_LAYOUT_VERSION = 2`, coalesced background write | `app/src/store/pane-layout-persistence.ts` |
-| Entry points | `mod+backslash` open beside, sidebar context menu, `mod+shift+backslash` close split | `app/src/commands/definitions.ts:369,377` |
+| Pane list | `PaneState[]`, length 1–2, each with `openNoteIds`/`pinnedNoteIds`/`activeNoteId` | `app/src/store/panes.ts` |
+| Orientation | Both, layout-level, toggleable and persisted | `app/src/store/panes.ts`, `app/src/shell/editor-panes.tsx` |
+| Sizing | Ratio-driven grid tracks, dragged/nudged through the divider | `app/src/shell/split-layout.ts`, `app/src/shell/split-divider.tsx` |
+| Tab strip | Renders the primary pane's tabs only | `app/src/shell/editor-panes.tsx` |
+| Tab actions | `closeTab`, `closeOtherTabs`, `closeTabsToSide`, `closeAllTabs`, `togglePinTab`, `reorderTab`, `cycleTabId` all hardcode `primaryPane(panes)` | `app/src/store/panes.ts` |
+| Pane focus | `focusedPaneId` tracked, set on `focusin` per pane; directional and wrapping cycle moves | `app/src/store/actions/panes.ts`, `app/src/shell/editor-panes.tsx` |
+| Persistence | `panes`, `orientation`, `ratio` serialized at `PANE_LAYOUT_VERSION = 3`, v2 migrated forward | `app/src/store/pane-layout-persistence.ts` |
+| Entry points | `mod+alt+v` / `mod+alt+h` split, sidebar context menu, `mod+alt+w` close split, strip button and context menu for orientation and reset | `app/src/commands/definitions.ts` |
 
 Two existing behaviours are wrong once both panes own tabs, and this spec treats them as bug fixes rather than new features:
 
@@ -47,7 +47,7 @@ Naming: `vertical` means a **vertical divider** (panes side by side, the current
 
 - Stored as a fraction of the split axis, not pixels, so window resizing preserves proportion.
 - Clamped to `[0.15, 0.85]`.
-- Additionally floored in pixels: neither pane may render narrower than `320px` (vertical) or shorter than `200px` (horizontal). When the container is too small to honour both the minimum and the ratio, the ratio is clamped for rendering but the stored value is left untouched, so widening the window restores the user's proportion. When the container cannot fit two minimums at all (very narrow window), the split renders stacked regardless of `orientation`, without mutating stored state.
+- Additionally floored in pixels — **not yet implemented**; today the fraction clamp is the only floor, so on a narrow window a pane can reach the 15% bound at a width the editor's text column cannot use. Neither pane may render narrower than `320px` (vertical) or shorter than `200px` (horizontal). When the container is too small to honour both the minimum and the ratio, the ratio is clamped for rendering but the stored value is left untouched, so widening the window restores the user's proportion. When the container cannot fit two minimums at all (very narrow window), the split renders stacked regardless of `orientation`, without mutating stored state.
 - `0.5` is the default and the reset target.
 
 ### Persistence and migration
@@ -104,17 +104,19 @@ Promotion matters: the store's `activeNoteId` and everything bound to it (metada
 
 ### Resizing
 
-Reuse `PanelResizeHandle` (`app/src/shell/panel-resize-handle.tsx`) rather than writing a second drag implementation, generalized in three ways:
+Shipped as `SplitDivider` (`app/src/shell/split-divider.tsx`), a sibling of `PanelResizeHandle` rather than a generalization of it. **This supersedes the original "reuse `PanelResizeHandle`" instruction**, on the grounds that the two handles share a drag skeleton but no bound model: the sidebar handle is px-width with a collapse threshold and an animated settle, the split divider is a fraction with a hard clamp, no collapse, and two axes. Folding both into one component meant a props union where half the props are inert per call site. What is shared is the *pattern* — rAF-coalesced pointer move, direct DOM preview, one commit on release — and that is duplicated deliberately, about 60 lines.
 
-1. `aria-orientation` and the drag axis follow `SplitOrientation` (today the component is `vertical`/`clientX` only).
-2. Bounds expressed as a fraction with a pixel floor, replacing the sidebar's px-width + collapse-threshold bounds. The split divider **never collapses** a pane — it clamps at the minimum; collapsing is `Close split`, which is a different action with different state.
-3. Keyboard nudge steps by `0.02` of the axis per press (roughly the existing 16px feel on an 800px pane). With the divider itself focused, Shift+arrow takes the coarse `0.10` step; the `growPane`/`shrinkPane` shortcuts have no spare modifier, so they use the fine step only.
+The three generalizations the original instruction asked for still hold, they just live in the new component:
+
+1. `aria-orientation` and the drag axis follow `SplitOrientation`.
+2. Bounds expressed as a fraction, replacing the sidebar's px-width + collapse-threshold bounds. The split divider **never collapses** a pane — it clamps at `[0.15, 0.85]`; collapsing is `Close split`, which is a different action with different state. The pixel floor is **not yet implemented** — see the note under *Ratio bounds*.
+3. Keyboard nudge steps by `0.02` of the axis per press, Shift+arrow takes the coarse `0.10` step.
 
 Interaction rules:
 
 - Drag: pointer capture, `requestAnimationFrame`-coalesced, previewed by mutating the divider's inline offset only. The pane track widths commit once on pointer-up — dragging must not re-render either editor, and must not dispatch a store update per frame.
 - Double-click the divider: reset to `0.5`.
-- The divider is a `role="separator"` with `tabIndex={0}`, `aria-orientation`, `aria-valuenow` (percentage, integer), `aria-valuemin={15}`, `aria-valuemax={85}`, and `aria-label="Resize split panes"`. Arrow keys nudge, `Home`/`End` jump to min/max, `Enter` resets to 0.5.
+- The divider is a `role="separator"` with `tabIndex={0}`, `aria-orientation`, `aria-valuenow` (percentage, integer), `aria-valuemin={15}`, `aria-valuemax={85}`, and `aria-label="Resize split panes"`. Arrow keys nudge (←/→ when side by side, ↑/↓ when stacked), Shift+arrow takes the coarse step, `Enter` resets to 0.5. `Home`/`End` are deliberately **not** bound: they do not exist on every keyboard, and Shift+arrow is the reachable equivalent.
 - Persisted on commit only (drag end, keyboard nudge, reset), through the same debounced pane-layout binder.
 
 Keyboard users must never need the divider's DOM focus: `Grow focused pane` / `Shrink focused pane` shortcuts do the same job from inside the editor, and they are orientation-aware (they change width when side by side, height when stacked).
@@ -159,12 +161,16 @@ Unchanged from ADR-0021 and applied per pane: a purged note's tab disappears dur
 
 Every action below is a rebindable definition in `app/src/commands/definitions.ts` with a matching entry in the `ShortcutActions` map and, where it is a discoverable verb, a command-palette entry. No hardcoded listeners.
 
-### Existing bindings, unchanged keys
+### Existing bindings
+
+The backslash family is gone. Backslash is missing or awkward on 60% and non-US layouts, so the split keys moved to a mnemonic `mod+alt+<letter>` family; `mod+alt` is the modifier pair the pane bindings already used.
 
 | Action ID | Keys | Change |
 | --- | --- | --- |
-| `openBeside` | `mod+\` | Now uses the persisted orientation; targets the non-focused pane when a split exists |
-| `closeSplit` | `mod+shift+\` | Now discards the **focused** pane, not always the secondary |
+| `openBeside` | `mod+alt+v` (was `mod+\`) | Labelled "Split vertically". Opens the split side by side; with a split already open it only re-lays the panes, keeping what each holds |
+| `openBelow` | `mod+alt+h` | New. Same, stacked |
+| `closeSplit` | `mod+alt+w` (was `mod+shift+\`) | Now discards the **focused** pane, not always the secondary |
+| `cyclePaneNext` / `cyclePanePrevious` | `mod+alt+tab` / `mod+alt+shift+tab` | New. The wrapping cycle, replacing the planned `focusOtherPane`. Bare `shift+tab` was rejected: the editor owns it for outdent |
 | `focusPaneLeft` | `mod+alt+←`, secondary `mod+alt+↑` | Relabel to "Focus previous pane"; the alternate serves stacked mode |
 | `focusPaneRight` | `mod+alt+→`, secondary `mod+alt+↓` | Relabel to "Focus next pane" |
 | `closeTab` | `mod+w` | Acts on the focused pane; no longer closes the split as a special case |
@@ -177,13 +183,12 @@ Every action below is a rebindable definition in `app/src/commands/definitions.t
 
 | Action ID | Keys | Label | Scope | Notes |
 | --- | --- | --- | --- | --- |
-| `toggleSplitOrientation` | `mod+alt+\` | Toggle split orientation | `notes-route` | Completes the backslash family; works with one pane (sets the next split's shape) |
-| `swapPanes` | `mod+shift+alt+\` | Swap panes | `split` | Trades both panes' entire tab strips; focus follows the focused pane's content |
-| `focusOtherPane` | `mod+alt+p` | Focus other pane | `split` | The wrap-around cycle; one key, no direction to think about |
-| `moveTabToOtherPane` | `mod+alt+m` | Move tab to other pane | `split` | Moves the focused pane's active tab; opens a split first if none exists |
+| `toggleSplitOrientation` | *(palette only, no key)* | Toggle split orientation | — | **Shipped keyless.** `mod+alt+v`/`mod+alt+h` set the orientation directly, so a toggle key would be a third way to do the same thing. Reachable from the palette, the tab-strip button, and the strip context menu |
+| `swapPanes` | `mod+alt+s` | Swap panes | `split` | Trades both panes' entire tab strips; focus follows the focused pane's content. Not implemented |
+| `moveTabToOtherPane` | `mod+alt+m` | Move tab to other pane | `split` | Moves the focused pane's active tab; opens a split first if none exists. Not implemented |
 | `growPane` | `mod+alt+shift+→`, secondary `mod+alt+shift+↓` | Grow focused pane | `split` | Orientation-aware; `+0.02` per press. Shift is already spent in the combo, so the coarse step is repeated presses (key repeat included) rather than a modifier |
 | `shrinkPane` | `mod+alt+shift+←`, secondary `mod+alt+shift+↑` | Shrink focused pane | `split` | Orientation-aware; `-0.02` |
-| `resetPaneRatio` | `mod+alt+0` | Reset split sizes | `split` | Back to 50/50; `mod+0` stays zoom reset |
+| `resetPaneRatio` | `mod+alt+0` | Reset split sizes | `split` | Back to 50/50; `mod+0` stays zoom reset. Shipped as a palette command and a divider `Enter`/double-click, no key yet |
 | `maximizeFocusedPane` | `mod+alt+z` | Maximize focused pane | `split` | Temporary zoom to full width; a second press restores the stored ratio. State is renderer-local and not persisted |
 
 All are `worksWhileTyping: true` and guarded by `["modal"]`, matching the existing pane and tab bindings, so they fire with the caret in a note but never over the command palette or a dialog.
@@ -192,7 +197,7 @@ Conflict notes to carry into the definitions' `description` fields, following th
 
 ### Scopes
 
-`split` is already computed in `activeShortcutScopes` from `state.panes.length > 1` (`app/src/commands/workspace-shortcuts.tsx:95`) — every new binding above except `toggleSplitOrientation` uses it, so with one pane these keys fall through untouched.
+`split` is already computed in `activeShortcutScopes` from `state.panes.length > 1` (`app/src/commands/workspace-shortcuts.tsx`) — every binding that needs an open split uses it, so with one pane those keys fall through untouched. The two split-opening keys use `notes-route` instead, since their whole job is creating the split.
 
 ### Keyboard-only completeness
 

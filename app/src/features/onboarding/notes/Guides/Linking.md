@@ -2,9 +2,9 @@
 
 Folders decide where a note lives. Links decide what it's *about*. The second one turns out to matter more.
 
-## Three characters
+## Three shortcuts
 
-Type `[[` and start typing a title to link to another note — like [[Welcome]], or the worked example in [[Launch checklist]]. The link stays live if you rename the note later.
+Type `@` and start typing a title to link to another note — like [[Welcome]], or the worked example in [[Launch checklist]]. Choose “Create” to make and link a new note in one step. The link stays live if you rename the note later.
 
 Type `#` for a tag, then a word — `guide`, `reference`, `someday`. A tag is just a word you can find later, so keep them few and reuse them hard.
 

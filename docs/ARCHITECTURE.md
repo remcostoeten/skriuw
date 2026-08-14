@@ -175,3 +175,4 @@ Rust and Tauri suites rather than simulated browser state.
 - [ADR-0028: browser sync inside the storage worker](adr/0028-browser-worker-owned-sync.md)
 - [ADR-0029: stored video media](adr/0029-stored-video-media.md)
 - [ADR-0030: remote cover download](adr/0030-remote-cover-download.md)
+- [ADR-0031: explicit task promotion](adr/0031-explicit-task-promotion.md)

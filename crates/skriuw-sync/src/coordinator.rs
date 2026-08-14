@@ -18,6 +18,7 @@ use crate::{
 };
 
 pub type SyncStatusObserver = Arc<dyn Fn(&SyncStatus) + Send + Sync>;
+pub type SyncWorkspaceObserver = Arc<dyn Fn() + Send + Sync>;
 
 #[derive(Clone)]
 pub struct SyncCoordinatorConfig {
@@ -26,6 +27,7 @@ pub struct SyncCoordinatorConfig {
     pub checkpoint: CheckpointPublicationConfig,
     pub poll_interval_ms: i64,
     pub status_observer: Option<SyncStatusObserver>,
+    pub workspace_observer: Option<SyncWorkspaceObserver>,
 }
 
 impl Default for SyncCoordinatorConfig {
@@ -36,6 +38,7 @@ impl Default for SyncCoordinatorConfig {
             checkpoint: CheckpointPublicationConfig::default(),
             poll_interval_ms: 60_000,
             status_observer: None,
+            workspace_observer: None,
         }
     }
 }
@@ -123,6 +126,11 @@ impl SyncCoordinator {
     }
 
     pub fn notify_startup(&self) {
+        self.request_wake();
+    }
+
+    /// The push channel reported that another device changed the workspace.
+    pub fn notify_remote_change(&self) {
         self.request_wake();
     }
 
@@ -262,6 +270,11 @@ fn run(
             &mut backoff,
             &config.cycle,
         );
+        if outcome.workspace_changed
+            && let Some(observer) = &config.workspace_observer
+        {
+            observer();
+        }
         if outcome.status == SyncStatus::UpToDate
             && let Some(failure) = run_checkpoint_publication(
                 &CheckpointPublication {

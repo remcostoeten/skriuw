@@ -38,7 +38,13 @@ import { isPropertyValidationError } from "@/features/properties/value";
 import { JOURNAL_ROOT_ID } from "@/features/journal/constants";
 import { opensNotesInTabs } from "@/features/settings/settings-model";
 import { reduceOperation } from "./operations";
-import { PRIMARY_PANE_ID, defaultPanes, syncPanes } from "./panes";
+import {
+  DEFAULT_SPLIT_ORIENTATION,
+  DEFAULT_SPLIT_RATIO,
+  PRIMARY_PANE_ID,
+  defaultPanes,
+  syncPanes,
+} from "./panes";
 import {
   ancestorIds,
   buildNodeIndex,
@@ -221,6 +227,8 @@ export function createInitialState(
     sourceNodes,
     expandedIds,
     panes: defaultPanes(rememberedNoteId),
+    splitOrientation: DEFAULT_SPLIT_ORIENTATION,
+    splitRatio: DEFAULT_SPLIT_RATIO,
     focusedPaneId: PRIMARY_PANE_ID,
     closedTabsByPaneId: new Map(),
     editorModeByNoteId: new Map(),
@@ -1033,6 +1041,8 @@ export function createRendererStore(initialState: RendererState): RendererStore 
         ...fresh,
         expandedIds,
         panes: current.panes,
+        splitOrientation: current.splitOrientation,
+        splitRatio: current.splitRatio,
         focusedPaneId: current.focusedPaneId,
         closedTabsByPaneId: current.closedTabsByPaneId,
         editorModeByNoteId: current.editorModeByNoteId,

@@ -6,6 +6,7 @@ import {
   shortcutDefinition,
   shortcutOverridesFromSettings,
 } from "@/commands/bindings";
+import { useShortcutHints } from "@/commands/hints";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererStore } from "@/store/types";
 import { registerEditorSearchController } from "./search-controller";
@@ -196,6 +197,7 @@ export function useEditorSearch(store: RendererStore, getView: () => EditorSearc
     (state) => shortcutOverridesFromSettings(state.settings),
     sameShortcutOverrides,
   );
+  const optionHints = useShortcutHints(store, EDITOR_SEARCH_SHORTCUT_IDS);
 
   useEffect(() => {
     if (!searchOpen) {
@@ -225,6 +227,7 @@ export function useEditorSearch(store: RendererStore, getView: () => EditorSearc
   }, [$, closeSearch, overrides, searchOpen, toggleSearchOption]);
 
   return {
+    optionHints,
     searchOpen,
     searchQuery,
     setSearchQuery: handleSearchQueryChange,

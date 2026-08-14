@@ -28,7 +28,7 @@ import {
   VideoIcon,
   WaypointsIcon,
 } from "@/shared/icons/static";
-import { createDefaultDiagram } from "./diagram-model";
+import { createDefaultDiagram, diagramTemplates, type DiagramModel } from "./diagram-model";
 import { emojiEntries } from "./emoji";
 import { productSchema, type MediaKind, type SlashTrigger } from "./schema";
 
@@ -212,8 +212,17 @@ export const slashCommands: SlashCommand[] = [
     group: "Blocks",
     aliases: ["mermaid", "flowchart", "graph", "nodes", "workflow"],
     icon: <WaypointsIcon size={16} />,
-    command: insertDiagram,
+    command: insertDiagram(createDefaultDiagram),
   },
+  ...diagramTemplates.map((template) => ({
+    id: template.id,
+    label: template.label,
+    subtext: template.subtext,
+    group: "Blocks",
+    aliases: ["diagram", ...template.aliases],
+    icon: <WaypointsIcon size={16} />,
+    command: insertDiagram(template.create),
+  })),
   {
     id: "table",
     label: "Table",
@@ -347,26 +356,25 @@ function insertHorizontalRule(
   return true;
 }
 
-function insertDiagram(
-  state: Parameters<Command>[0],
-  dispatch?: Parameters<Command>[1],
-): boolean {
-  const diagram = requiredNode("diagram");
-  const paragraph = requiredNode("paragraph");
-  if (dispatch) {
-    const node = diagram.create({ model: createDefaultDiagram() });
-    const transaction = state.tr.replaceSelectionWith(node);
-    const insertedAt = findNodePosition(transaction.doc, node);
-    if (insertedAt !== null) {
-      const afterDiagram = insertedAt + node.nodeSize;
-      if (!transaction.doc.resolve(afterDiagram).nodeAfter) {
-        transaction.insert(afterDiagram, paragraph.create());
+function insertDiagram(createModel: () => DiagramModel): Command {
+  return function insertDiagramCommand(state, dispatch) {
+    const diagram = requiredNode("diagram");
+    const paragraph = requiredNode("paragraph");
+    if (dispatch) {
+      const node = diagram.create({ model: createModel() });
+      const transaction = state.tr.replaceSelectionWith(node);
+      const insertedAt = findNodePosition(transaction.doc, node);
+      if (insertedAt !== null) {
+        const afterDiagram = insertedAt + node.nodeSize;
+        if (!transaction.doc.resolve(afterDiagram).nodeAfter) {
+          transaction.insert(afterDiagram, paragraph.create());
+        }
+        transaction.setSelection(NodeSelection.create(transaction.doc, insertedAt));
       }
-      transaction.setSelection(NodeSelection.create(transaction.doc, insertedAt));
+      dispatch(transaction.scrollIntoView());
     }
-    dispatch(transaction.scrollIntoView());
-  }
-  return true;
+    return true;
+  };
 }
 
 const TABLE_COLUMNS = 3;

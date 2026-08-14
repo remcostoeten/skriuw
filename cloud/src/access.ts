@@ -80,6 +80,45 @@ export type SyncAccessResult =
 
 const MAX_AUTHORIZATION_HEADER_BYTES = 4_096;
 
+export const SYNC_EVENTS_SUBPROTOCOL = "skriuw-sync-v1";
+const BEARER_SUBPROTOCOL_PREFIX = "skriuw-bearer.";
+
+/**
+ * Browsers cannot attach an Authorization header to a WebSocket handshake, so
+ * the events route also accepts the bearer token as a `skriuw-bearer.<token>`
+ * entry in Sec-WebSocket-Protocol. The header path remains canonical; when an
+ * Authorization header is present the subprotocol is ignored.
+ */
+export function requestWithSubprotocolCredential(request: Request): Request {
+  if (request.headers.get("Authorization") !== null) {
+    return request;
+  }
+  const offered = request.headers.get("Sec-WebSocket-Protocol");
+  if (offered === null || offered.length > MAX_AUTHORIZATION_HEADER_BYTES) {
+    return request;
+  }
+  const token = offered
+    .split(",")
+    .map((protocol) => protocol.trim())
+    .find((protocol) => protocol.startsWith(BEARER_SUBPROTOCOL_PREFIX))
+    ?.slice(BEARER_SUBPROTOCOL_PREFIX.length);
+  if (!token || /[\s,]/.test(token)) {
+    return request;
+  }
+  const headers = new Headers(request.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+  return new Request(request.url, { method: request.method, headers });
+}
+
+export function offersSyncEventsSubprotocol(headers: Headers): boolean {
+  return (
+    headers
+      .get("Sec-WebSocket-Protocol")
+      ?.split(",")
+      .some((protocol) => protocol.trim() === SYNC_EVENTS_SUBPROTOCOL) ?? false
+  );
+}
+
 class BetterAuthCredentialVerifier implements CredentialVerifier {
   constructor(private readonly env: AuthEnv) {}
 

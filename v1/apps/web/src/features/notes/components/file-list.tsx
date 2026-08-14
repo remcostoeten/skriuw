@@ -1946,7 +1946,7 @@ export const FileList = memo(function FileList({
 				tabIndex={getItemKey(folderItem) === rovingFocusKey ? 0 : -1}
 				className={cn(
 					"group relative flex w-full items-center justify-between overflow-hidden border border-transparent text-xs font-medium transition-colors",
-					"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+					"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-accent focus-visible:text-foreground",
 					!isEditing && "active:scale-[0.985]",
 					compactMode ? "h-[28px]" : "h-[34px]",
 					"[@media(pointer:coarse)]:min-h-11",
@@ -2106,7 +2106,7 @@ export const FileList = memo(function FileList({
 				tabIndex={getItemKey(fileItem) === rovingFocusKey ? 0 : -1}
 				className={cn(
 					"relative flex w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors",
-					"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+					"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-accent focus-visible:text-foreground",
 					!isEditing && "active:scale-[0.985]",
 					compactMode ? "h-7" : "h-[34px]",
 					"[@media(pointer:coarse)]:min-h-11",

@@ -8,14 +8,42 @@ export type PaneState = {
   activeNoteId: string | null;
 };
 
+/** `vertical` is a vertical divider: panes side by side. `horizontal` stacks them. */
+export type SplitOrientation = "vertical" | "horizontal";
+
+export type PaneLayout = {
+  panes: readonly PaneState[];
+  orientation: SplitOrientation;
+  /** Fraction of the split axis taken by pane 1, clamped to the ratio bounds. */
+  ratio: number;
+};
+
 export const PRIMARY_PANE_ID = "primary";
 export const SECONDARY_PANE_ID = "beside";
-export const PANE_LAYOUT_VERSION = 2;
+export const PANE_LAYOUT_VERSION = 3;
+
+export const DEFAULT_SPLIT_ORIENTATION: SplitOrientation = "vertical";
+export const DEFAULT_SPLIT_RATIO = 0.5;
+export const MIN_SPLIT_RATIO = 0.15;
+export const MAX_SPLIT_RATIO = 0.85;
 
 type PersistedPaneLayout = {
   version: number;
   panes: PaneState[];
+  orientation?: SplitOrientation;
+  ratio?: number;
 };
+
+export function clampSplitRatio(ratio: number): number {
+  if (!Number.isFinite(ratio)) {
+    return DEFAULT_SPLIT_RATIO;
+  }
+  return Math.min(MAX_SPLIT_RATIO, Math.max(MIN_SPLIT_RATIO, ratio));
+}
+
+export function flipSplitOrientation(orientation: SplitOrientation): SplitOrientation {
+  return orientation === "vertical" ? "horizontal" : "vertical";
+}
 
 export function defaultPanes(activeNoteId: string | null): readonly PaneState[] {
   return [
@@ -119,119 +147,149 @@ export function secondaryPane(panes: readonly PaneState[]): PaneState | null {
   return panes[1] ?? null;
 }
 
+function paneWithId(panes: readonly PaneState[], paneId: string): PaneState | null {
+  return panes.find((pane) => pane.paneId === paneId) ?? null;
+}
+
+function replacePane(
+  panes: readonly PaneState[],
+  paneId: string,
+  next: PaneState,
+): readonly PaneState[] {
+  return panes.map((pane) => (pane.paneId === paneId ? next : pane));
+}
+
 export function openNoteInTab(
   panes: readonly PaneState[],
+  paneId: string,
   noteId: string,
 ): readonly PaneState[] {
-  const primary = primaryPane(panes);
-  const openNoteIds = primary.openNoteIds.includes(noteId)
-    ? primary.openNoteIds
-    : [...primary.openNoteIds, noteId];
-  return [{ ...primary, openNoteIds }, ...panes.slice(1)];
+  const pane = paneWithId(panes, paneId);
+  if (pane === null || pane.openNoteIds.includes(noteId)) {
+    return panes;
+  }
+  return replacePane(panes, paneId, { ...pane, openNoteIds: [...pane.openNoteIds, noteId] });
 }
 
 export type CloseTabResult = {
   panes: readonly PaneState[];
-  /** Set when the primary pane's active tab closed and a neighbor takes over. */
+  /**
+   * Set when the pane's active tab closed and a neighbor takes over. Callers
+   * route it through `activateNote` only for the primary pane, whose active tab
+   * mirrors the workspace's active note; other panes already carry it in
+   * `panes`.
+   */
   nextActiveNoteId: string | null | undefined;
 };
 
 export function closeTab(
   panes: readonly PaneState[],
+  paneId: string,
   noteId: string,
 ): CloseTabResult {
-  const primary = primaryPane(panes);
-  const index = primary.openNoteIds.indexOf(noteId);
-  if (index < 0) {
+  const pane = paneWithId(panes, paneId);
+  const index = pane?.openNoteIds.indexOf(noteId) ?? -1;
+  if (pane === null || index < 0) {
     return { panes, nextActiveNoteId: undefined };
   }
-  const openNoteIds = primary.openNoteIds.filter((id) => id !== noteId);
-  const pinnedNoteIds = primary.pinnedNoteIds.filter((id) => id !== noteId);
-  if (primary.activeNoteId !== noteId) {
+  const openNoteIds = pane.openNoteIds.filter((id) => id !== noteId);
+  const pinnedNoteIds = pane.pinnedNoteIds.filter((id) => id !== noteId);
+  if (pane.activeNoteId !== noteId) {
     return {
-      panes: [{ ...primary, openNoteIds, pinnedNoteIds }, ...panes.slice(1)],
+      panes: replacePane(panes, paneId, { ...pane, openNoteIds, pinnedNoteIds }),
       nextActiveNoteId: undefined,
     };
   }
   const nextActiveNoteId = openNoteIds[Math.min(index, openNoteIds.length - 1)] ?? null;
   return {
-    panes: [
-      { ...primary, openNoteIds, pinnedNoteIds, activeNoteId: nextActiveNoteId },
-      ...panes.slice(1),
-    ],
+    panes: replacePane(panes, paneId, {
+      ...pane,
+      openNoteIds,
+      pinnedNoteIds,
+      activeNoteId: nextActiveNoteId,
+    }),
     nextActiveNoteId,
   };
 }
 
 function retainTabs(
   panes: readonly PaneState[],
-  primary: PaneState,
+  pane: PaneState,
   openNoteIds: readonly string[],
   fallbackActiveNoteId: string | null,
 ): CloseTabResult {
-  if (openNoteIds.length === primary.openNoteIds.length) {
+  if (openNoteIds.length === pane.openNoteIds.length) {
     return { panes, nextActiveNoteId: undefined };
   }
-  const activeSurvives = primary.activeNoteId !== null && openNoteIds.includes(primary.activeNoteId);
-  const activeNoteId = activeSurvives ? primary.activeNoteId : fallbackActiveNoteId;
+  const activeSurvives = pane.activeNoteId !== null && openNoteIds.includes(pane.activeNoteId);
+  const activeNoteId = activeSurvives ? pane.activeNoteId : fallbackActiveNoteId;
   return {
-    panes: [{ ...primary, openNoteIds, activeNoteId }, ...panes.slice(1)],
+    panes: replacePane(panes, pane.paneId, { ...pane, openNoteIds, activeNoteId }),
     nextActiveNoteId: activeSurvives ? undefined : activeNoteId,
   };
 }
 
-/** Closes every open tab except `noteId` and any pinned tabs. */
+/** Closes every open tab in `paneId` except `noteId` and any pinned tabs. */
 export function closeOtherTabs(
   panes: readonly PaneState[],
+  paneId: string,
   noteId: string,
 ): CloseTabResult {
-  const primary = primaryPane(panes);
-  if (!primary.openNoteIds.includes(noteId)) {
+  const pane = paneWithId(panes, paneId);
+  if (pane === null || !pane.openNoteIds.includes(noteId)) {
     return { panes, nextActiveNoteId: undefined };
   }
-  const openNoteIds = primary.openNoteIds.filter(
-    (id) => id === noteId || primary.pinnedNoteIds.includes(id),
+  const openNoteIds = pane.openNoteIds.filter(
+    (id) => id === noteId || pane.pinnedNoteIds.includes(id),
   );
-  return retainTabs(panes, primary, openNoteIds, noteId);
+  return retainTabs(panes, pane, openNoteIds, noteId);
 }
 
 /** Closes every unpinned tab on the given side of `noteId`, keeping the anchor and any pinned tabs. */
 export function closeTabsToSide(
   panes: readonly PaneState[],
+  paneId: string,
   noteId: string,
   side: "left" | "right",
 ): CloseTabResult {
-  const primary = primaryPane(panes);
-  const anchorIndex = primary.openNoteIds.indexOf(noteId);
-  if (anchorIndex < 0) {
+  const pane = paneWithId(panes, paneId);
+  const anchorIndex = pane?.openNoteIds.indexOf(noteId) ?? -1;
+  if (pane === null || anchorIndex < 0) {
     return { panes, nextActiveNoteId: undefined };
   }
-  const openNoteIds = primary.openNoteIds.filter(
+  const openNoteIds = pane.openNoteIds.filter(
     (id, index) =>
       id === noteId ||
-      primary.pinnedNoteIds.includes(id) ||
+      pane.pinnedNoteIds.includes(id) ||
       (side === "right" ? index <= anchorIndex : index >= anchorIndex),
   );
-  return retainTabs(panes, primary, openNoteIds, noteId);
+  return retainTabs(panes, pane, openNoteIds, noteId);
 }
 
-/** Closes every unpinned tab. */
-export function closeAllTabs(panes: readonly PaneState[]): CloseTabResult {
-  const primary = primaryPane(panes);
-  const openNoteIds = primary.openNoteIds.filter((id) => primary.pinnedNoteIds.includes(id));
-  return retainTabs(panes, primary, openNoteIds, openNoteIds[openNoteIds.length - 1] ?? null);
+/** Closes every unpinned tab in `paneId`. */
+export function closeAllTabs(panes: readonly PaneState[], paneId: string): CloseTabResult {
+  const pane = paneWithId(panes, paneId);
+  if (pane === null) {
+    return { panes, nextActiveNoteId: undefined };
+  }
+  const openNoteIds = pane.openNoteIds.filter((id) => pane.pinnedNoteIds.includes(id));
+  return retainTabs(panes, pane, openNoteIds, openNoteIds[openNoteIds.length - 1] ?? null);
 }
 
 /** Toggles whether an open tab is pinned; pinned tabs are excluded from bulk-close actions. */
-export function togglePinTab(panes: readonly PaneState[], noteId: string): readonly PaneState[] {
-  const primary = primaryPane(panes);
-  if (!primary.openNoteIds.includes(noteId)) {
+export function togglePinTab(
+  panes: readonly PaneState[],
+  paneId: string,
+  noteId: string,
+): readonly PaneState[] {
+  const pane = paneWithId(panes, paneId);
+  if (pane === null || !pane.openNoteIds.includes(noteId)) {
     return panes;
   }
-  const pinnedNoteIds = primary.pinnedNoteIds.includes(noteId)
-    ? primary.pinnedNoteIds.filter((id) => id !== noteId)
-    : [...primary.pinnedNoteIds, noteId];
-  return [{ ...primary, pinnedNoteIds }, ...panes.slice(1)];
+  const pinnedNoteIds = pane.pinnedNoteIds.includes(noteId)
+    ? pane.pinnedNoteIds.filter((id) => id !== noteId)
+    : [...pane.pinnedNoteIds, noteId];
+  return replacePane(panes, paneId, { ...pane, pinnedNoteIds });
 }
 
 /**
@@ -242,43 +300,46 @@ export function togglePinTab(panes: readonly PaneState[], noteId: string): reado
  */
 export function reorderTab(
   panes: readonly PaneState[],
+  paneId: string,
   noteId: string,
   beforeNoteId: string | null,
 ): readonly PaneState[] {
-  const primary = primaryPane(panes);
-  const from = primary.openNoteIds.indexOf(noteId);
-  if (from < 0 || noteId === beforeNoteId || primary.pinnedNoteIds.includes(noteId)) {
+  const pane = paneWithId(panes, paneId);
+  const from = pane?.openNoteIds.indexOf(noteId) ?? -1;
+  if (pane === null || from < 0 || noteId === beforeNoteId || pane.pinnedNoteIds.includes(noteId)) {
     return panes;
   }
-  const rest = primary.openNoteIds.filter((id) => id !== noteId);
+  const rest = pane.openNoteIds.filter((id) => id !== noteId);
   const insertAt = beforeNoteId === null ? rest.length : rest.indexOf(beforeNoteId);
   if (insertAt < 0) {
     return panes;
   }
   const openNoteIds = [...rest.slice(0, insertAt), noteId, ...rest.slice(insertAt)];
-  const pinnedHeld = primary.pinnedNoteIds.every(
-    (id) => openNoteIds.indexOf(id) === primary.openNoteIds.indexOf(id),
+  const pinnedHeld = pane.pinnedNoteIds.every(
+    (id) => openNoteIds.indexOf(id) === pane.openNoteIds.indexOf(id),
   );
   if (!pinnedHeld || openNoteIds[from] === noteId) {
     return panes;
   }
-  return [{ ...primary, openNoteIds }, ...panes.slice(1)];
+  return replacePane(panes, paneId, { ...pane, openNoteIds });
 }
 
+/** The tab `direction` steps from `paneId`'s active tab, wrapping at the ends. */
 export function cycleTabId(
   panes: readonly PaneState[],
+  paneId: string,
   direction: -1 | 1,
 ): string | null {
-  const primary = primaryPane(panes);
-  if (primary.openNoteIds.length < 2 || primary.activeNoteId === null) {
+  const pane = paneWithId(panes, paneId);
+  if (pane === null || pane.openNoteIds.length < 2 || pane.activeNoteId === null) {
     return null;
   }
-  const index = primary.openNoteIds.indexOf(primary.activeNoteId);
+  const index = pane.openNoteIds.indexOf(pane.activeNoteId);
   if (index < 0) {
-    return primary.openNoteIds[0] ?? null;
+    return pane.openNoteIds[0] ?? null;
   }
-  const count = primary.openNoteIds.length;
-  return primary.openNoteIds[(index + direction + count) % count] ?? null;
+  const count = pane.openNoteIds.length;
+  return pane.openNoteIds[(index + direction + count) % count] ?? null;
 }
 
 function paneById(panes: readonly PaneState[], paneId: string): PaneState | null {
@@ -479,24 +540,75 @@ export function paneIndexInDirection(
   return next >= 0 && next < paneCount ? next : null;
 }
 
-export function closeSplit(panes: readonly PaneState[]): readonly PaneState[] {
-  return panes.length > 1 ? [primaryPane(panes)] : panes;
+/**
+ * The pane a wrapping cycle lands on, so repeated presses walk every pane
+ * instead of stopping at an end like `paneIndexInDirection`. `fromIndex` null
+ * means focus is outside every pane, and the cycle enters from the edge it is
+ * heading away from.
+ */
+export function paneIndexCycling(
+  paneCount: number,
+  fromIndex: number | null,
+  direction: -1 | 1,
+): number | null {
+  if (paneCount < 2) {
+    return null;
+  }
+  const from = fromIndex ?? (direction === 1 ? paneCount - 1 : 0);
+  return (from + direction + paneCount) % paneCount;
 }
 
-export function serializePaneLayout(panes: readonly PaneState[]): string {
-  const layout: PersistedPaneLayout = {
+export type ClosePaneResult = {
+  panes: readonly PaneState[];
+  /** Set when a promoted survivor brings its own active note into the primary pane. */
+  nextActiveNoteId: string | null | undefined;
+  /** The id the survivor was promoted from, so its closed-tab stack can follow it. */
+  promotedFromPaneId: string | null;
+};
+
+/**
+ * Discards `paneId` and leaves the survivor as the only pane. Discarding the
+ * primary pane promotes the survivor into `PRIMARY_PANE_ID` rather than deleting
+ * the wrong list: everything bound to the store's `activeNoteId` follows pane 1.
+ */
+export function closePane(panes: readonly PaneState[], paneId: string): ClosePaneResult {
+  const index = panes.findIndex((pane) => pane.paneId === paneId);
+  const survivor = panes[index === 0 ? 1 : 0];
+  if (panes.length < 2 || index < 0 || survivor === undefined) {
+    return { panes, nextActiveNoteId: undefined, promotedFromPaneId: null };
+  }
+  if (survivor.paneId === PRIMARY_PANE_ID) {
+    return { panes: [survivor], nextActiveNoteId: undefined, promotedFromPaneId: null };
+  }
+  return {
+    panes: [{ ...survivor, paneId: PRIMARY_PANE_ID }],
+    nextActiveNoteId: survivor.activeNoteId,
+    promotedFromPaneId: survivor.paneId,
+  };
+}
+
+export function serializePaneLayout(layout: PaneLayout): string {
+  const persisted: PersistedPaneLayout = {
     version: PANE_LAYOUT_VERSION,
-    panes: panes.map((pane) => ({
+    panes: layout.panes.map((pane) => ({
       paneId: pane.paneId,
       openNoteIds: [...pane.openNoteIds],
       pinnedNoteIds: [...pane.pinnedNoteIds],
       activeNoteId: pane.activeNoteId,
     })),
+    orientation: layout.orientation,
+    ratio: layout.ratio,
   };
-  return JSON.stringify(layout);
+  return JSON.stringify(persisted);
 }
 
-export function parsePaneLayout(raw: string | null): readonly PaneState[] | null {
+/**
+ * Reads a persisted layout, migrating version 2 — which had no geometry —
+ * forward by keeping its panes and filling in the default orientation and
+ * ratio. Older versions and unparseable payloads return null, which callers
+ * treat as "start from a single pane".
+ */
+export function parsePaneLayout(raw: string | null): PaneLayout | null {
   if (raw === null) {
     return null;
   }
@@ -510,7 +622,10 @@ export function parsePaneLayout(raw: string | null): readonly PaneState[] | null
     return null;
   }
   const layout = value as Partial<PersistedPaneLayout>;
-  if (layout.version !== PANE_LAYOUT_VERSION || !Array.isArray(layout.panes)) {
+  if (
+    (layout.version !== PANE_LAYOUT_VERSION && layout.version !== PANE_LAYOUT_VERSION - 1) ||
+    !Array.isArray(layout.panes)
+  ) {
     return null;
   }
   const panes: PaneState[] = [];
@@ -537,5 +652,12 @@ export function parsePaneLayout(raw: string | null): readonly PaneState[] | null
   if (panes.length === 0 || panes[0]?.paneId !== PRIMARY_PANE_ID) {
     return null;
   }
-  return panes;
+  return {
+    panes,
+    orientation:
+      layout.orientation === "vertical" || layout.orientation === "horizontal"
+        ? layout.orientation
+        : DEFAULT_SPLIT_ORIENTATION,
+    ratio: typeof layout.ratio === "number" ? clampSplitRatio(layout.ratio) : DEFAULT_SPLIT_RATIO,
+  };
 }

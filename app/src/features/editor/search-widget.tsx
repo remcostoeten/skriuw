@@ -13,10 +13,13 @@ import {
   WholeWordIcon,
 } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
+import { Tooltip } from "@/shared/ui/tooltip";
+import type { EditorSearchShortcutId } from "./editor-bound-shortcut-ids";
 import type { SearchOptions } from "./search-plugin";
 
 type Props = {
   ref?: Ref<HTMLInputElement>;
+  optionHints: Record<EditorSearchShortcutId, string | undefined>;
   query: string;
   onQueryChange: (value: string) => void;
   replaceValue: string;
@@ -44,37 +47,42 @@ const countClass =
 
 function IconButton({
   label,
+  shortcut,
   onClick,
   disabled,
   active,
   children,
 }: {
   label: string;
+  shortcut?: string;
   onClick: () => void;
   disabled?: boolean;
   active?: boolean;
   children: ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={active}
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-foreground/8 hover:text-foreground disabled:pointer-events-none disabled:opacity-40",
-        active &&
-          "bg-foreground/14 text-foreground shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.28)]",
-      )}
-    >
-      {children}
-    </button>
+    <Tooltip label={label} shortcut={shortcut} side="bottom">
+      <button
+        type="button"
+        aria-label={shortcut ? `${label} (${shortcut})` : label}
+        aria-pressed={active}
+        onClick={onClick}
+        disabled={disabled}
+        className={cn(
+          "flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-foreground/8 hover:text-foreground disabled:pointer-events-none disabled:opacity-40",
+          active &&
+            "bg-foreground/14 text-foreground shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.28)]",
+        )}
+      >
+        {children}
+      </button>
+    </Tooltip>
   );
 }
 
 export function SearchWidget({
   ref,
+  optionHints,
   query,
   onQueryChange,
   replaceValue,
@@ -128,15 +136,17 @@ export function SearchWidget({
       aria-label="Find and replace"
       className="flex w-[min(420px,100%)] items-stretch gap-1 rounded-lg border border-border bg-popover p-1.5 text-[13px] text-foreground shadow-[0_12px_28px_-12px_hsl(var(--scrim)/0.32)]"
     >
-      <button
-        type="button"
-        aria-label={showReplace ? "Hide replace" : "Show replace"}
-        aria-expanded={showReplace}
-        onClick={onToggleReplace}
-        className="flex w-5 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-foreground/8 hover:text-foreground"
-      >
-        {showReplace ? <ChevronDownIcon size={16} /> : <ChevronRightIcon size={16} />}
-      </button>
+      <Tooltip label={showReplace ? "Hide replace" : "Show replace"} side="bottom">
+        <button
+          type="button"
+          aria-label={showReplace ? "Hide replace" : "Show replace"}
+          aria-expanded={showReplace}
+          onClick={onToggleReplace}
+          className="flex w-5 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-foreground/8 hover:text-foreground"
+        >
+          {showReplace ? <ChevronDownIcon size={16} /> : <ChevronRightIcon size={16} />}
+        </button>
+      </Tooltip>
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-center gap-1">
@@ -161,21 +171,24 @@ export function SearchWidget({
             />
             <div className="flex items-center gap-0.5 pl-1 pr-0.5">
               <IconButton
-                label="Match Case (Alt+C)"
+                label="Match case"
+                shortcut={optionHints.searchMatchCase}
                 active={options.caseSensitive}
                 onClick={() => onToggleOption("caseSensitive")}
               >
                 <CaseSensitiveIcon size={16} />
               </IconButton>
               <IconButton
-                label="Match Whole Word (Alt+W)"
+                label="Match whole word"
+                shortcut={optionHints.searchWholeWord}
                 active={options.wholeWord}
                 onClick={() => onToggleOption("wholeWord")}
               >
                 <WholeWordIcon size={16} />
               </IconButton>
               <IconButton
-                label="Use Regular Expression (Alt+R)"
+                label="Use regular expression"
+                shortcut={optionHints.searchRegex}
                 active={options.regex}
                 onClick={() => onToggleOption("regex")}
               >
@@ -196,16 +209,22 @@ export function SearchWidget({
 
           <div className="flex shrink-0 items-center gap-0.5">
             <IconButton
-              label="Previous Match (Shift+Enter)"
+              label="Previous match"
+              shortcut="Shift+Enter"
               onClick={onPrevious}
               disabled={total === 0}
             >
               <ArrowUpIcon size={16} />
             </IconButton>
-            <IconButton label="Next Match (Enter)" onClick={onNext} disabled={total === 0}>
+            <IconButton
+              label="Next match"
+              shortcut="Enter"
+              onClick={onNext}
+              disabled={total === 0}
+            >
               <ArrowDownIcon size={16} />
             </IconButton>
-            <IconButton label="Close (Esc)" onClick={onClose}>
+            <IconButton label="Close" shortcut="Esc" onClick={onClose}>
               <CloseIcon size={16} />
             </IconButton>
           </div>
@@ -228,10 +247,15 @@ export function SearchWidget({
             <span className={countClass} aria-hidden />
 
             <div className="flex shrink-0 items-center gap-0.5">
-              <IconButton label="Replace (Enter)" onClick={onReplaceCurrent} disabled={total === 0}>
+              <IconButton
+                label="Replace"
+                shortcut="Enter"
+                onClick={onReplaceCurrent}
+                disabled={total === 0}
+              >
                 <ReplaceIcon size={16} />
               </IconButton>
-              <IconButton label="Replace All" onClick={onReplaceAll} disabled={total === 0}>
+              <IconButton label="Replace all" onClick={onReplaceAll} disabled={total === 0}>
                 <ReplaceAllIcon size={16} />
               </IconButton>
               <span className="h-6 w-6" aria-hidden />

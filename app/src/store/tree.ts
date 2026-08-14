@@ -32,8 +32,21 @@ export function unavailableNodeIds(nodes: readonly WorkspaceNode[]): Set<string>
 }
 
 /**
- * Orders available nodes parents-first with siblings sorted by (rank, id),
- * matching backend-owned ordering across desktop and web adapters.
+ * Sibling grouping applied before rank: folders sit above notes, and
+ * dot-prefixed titles sink below both so hidden entries never lead a level.
+ */
+function siblingGroup(node: Pick<WorkspaceNode, "kind" | "title">): number {
+  const hidden = node.title.startsWith(".");
+  if (node.kind === "folder") {
+    return hidden ? 2 : 0;
+  }
+  return hidden ? 3 : 1;
+}
+
+/**
+ * Orders available nodes parents-first with siblings sorted by
+ * (folders-before-notes, rank, id), matching backend-owned ordering across
+ * desktop and web adapters.
  */
 export function orderAvailableNodes(nodes: readonly WorkspaceNode[]): WorkspaceNode[] {
   const unavailable = unavailableNodeIds(nodes);
@@ -48,6 +61,11 @@ export function orderAvailableNodes(nodes: readonly WorkspaceNode[]): WorkspaceN
   }
   for (const siblings of byParent.values()) {
     siblings.sort((left, right) => {
+      const leftGroup = siblingGroup(left);
+      const rightGroup = siblingGroup(right);
+      if (leftGroup !== rightGroup) {
+        return leftGroup - rightGroup;
+      }
       if (left.rank !== right.rank) {
         return left.rank - right.rank;
       }

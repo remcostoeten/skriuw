@@ -1587,6 +1587,11 @@ fn initial_sync_operations(
     operations.extend(snapshot.property_templates.into_iter().map(|template| {
         WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetNotePropertyTemplate { template })
     }));
+    operations.extend(snapshot.tasks.into_iter().map(|task| {
+        WorkspaceOperationEnvelope::v1(WorkspaceOperation::CreateTask {
+            task: Box::new(task),
+        })
+    }));
     operations.extend(snapshot.nodes.iter().filter_map(|node| {
         let deleted_at = node.deleted_at?;
         if node
@@ -2095,6 +2100,7 @@ fn backfill_tombstone_provenance(
         WorkspaceOperation::DeleteNotePropertyTemplate { template_id } => {
             ("property_template", template_id.as_str(), "")
         }
+        WorkspaceOperation::DeleteTask { id, .. } => ("task", id.as_str(), ""),
         _ => return Ok(()),
     };
     transaction
@@ -2582,11 +2588,40 @@ fn remote_target_state(
                     && created_at == image.created_at;
             }
         }
+        WorkspaceOperation::CreateTask { task }
+        | WorkspaceOperation::PromoteChecklistTask { task, .. } => {
+            state.target_tombstoned = tombstoned(transaction, "task", &task.id, "")?;
+            state.dependency_tombstoned = task
+                .source
+                .as_ref()
+                .map(|source| tombstoned(transaction, "node", &source.note_id, ""))
+                .transpose()?
+                .unwrap_or(false);
+            state.target_exists = task_exists(transaction, &task.id)?;
+        }
+        WorkspaceOperation::UpdateTask { task, .. } => {
+            state.target_tombstoned = tombstoned(transaction, "task", &task.id, "")?;
+            state.target_exists = task_exists(transaction, &task.id)?;
+        }
+        WorkspaceOperation::DeleteTask { id, .. } | WorkspaceOperation::DetachTask { id, .. } => {
+            state.target_tombstoned = tombstoned(transaction, "task", id, "")?;
+            state.target_exists = task_exists(transaction, id)?;
+        }
         WorkspaceOperation::SetActiveNote { .. }
         | WorkspaceOperation::UpdateSettings { .. }
         | WorkspaceOperation::RecordProviderImport { .. } => {}
     }
     Ok(state)
+}
+
+fn task_exists(transaction: &Transaction<'_>, id: &str) -> Result<bool, StorageError> {
+    transaction
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM workspace_tasks WHERE id = ?1)",
+            [id],
+            |row| row.get(0),
+        )
+        .map_err(backend)
 }
 
 fn fill_node_target(

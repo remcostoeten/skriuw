@@ -1,8 +1,12 @@
 import { useMemo } from "react";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import { FileTextIcon, FolderIcon } from "@/shared/icons/static";
+import { describeSearchFilterProblem } from "@/features/search/filter-resolution";
+import { planWorkspaceSearch } from "@/features/search/search-plan";
 import type { RendererState, RendererStore } from "@/store/types";
 import { searchSidebarNodes } from "./sidebar-search";
+import { cn } from "@/shared/lib/utils";
+import { sectionLabelClass } from "@/shared/ui/section-header";
 
 const MAX_SEARCH_RESULTS_PER_TYPE = 10;
 
@@ -16,6 +20,10 @@ function selectNodeOrder(state: RendererState) {
 
 function selectActiveNoteId(state: RendererState) {
   return state.activeNoteId;
+}
+
+function selectIncomingReferences(state: RendererState) {
+  return state.incomingReferences;
 }
 
 type SearchResultsProps = {
@@ -40,10 +48,25 @@ export function SidebarSearchResults({
   const nodes = useRendererSelector(store, selectNodes);
   const nodeOrder = useRendererSelector(store, selectNodeOrder);
   const activeNoteId = useRendererSelector(store, selectActiveNoteId);
-  const results = useMemo(
-    () => searchSidebarNodes(nodes, nodeOrder, query, MAX_SEARCH_RESULTS_PER_TYPE),
-    [nodes, nodeOrder, query],
+  const incomingReferences = useRendererSelector(store, selectIncomingReferences);
+  const plan = useMemo(
+    () => planWorkspaceSearch(store.getState(), query, MAX_SEARCH_RESULTS_PER_TYPE),
+    [store, query, nodes, incomingReferences],
   );
+  const results = useMemo(
+    () =>
+      plan.status === "blocked"
+        ? { folders: [], notes: [], folderTotal: 0, noteTotal: 0 }
+        : searchSidebarNodes(
+            nodes,
+            nodeOrder,
+            plan.text,
+            MAX_SEARCH_RESULTS_PER_TYPE,
+            plan.allowedNoteIds,
+          ),
+    [nodes, nodeOrder, plan],
+  );
+  const notice = plan.resolution.problems.map(describeSearchFilterProblem).join(" ");
   const hasResults = results.folderTotal > 0 || results.noteTotal > 0;
   return (
     <div
@@ -58,7 +81,7 @@ export function SidebarSearchResults({
         <div className="flex flex-col gap-3">
           {results.folders.length > 0 && (
             <div className="flex flex-col gap-0.5">
-              <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <p className={cn("px-2 pb-1", sectionLabelClass)}>
                 Folders
               </p>
               {results.folders.map((folder) => (
@@ -67,7 +90,7 @@ export function SidebarSearchResults({
                   type="button"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => onFolderSelect(folder.id)}
-                  className="flex h-[34px] w-full items-center gap-1.5 border border-transparent px-2 text-left text-xs font-medium text-foreground/70 transition-colors hover:border-border hover:bg-muted hover:text-foreground/88"
+                  className="flex h-[34px] w-full items-center gap-1.5 rounded-lg border border-transparent px-2 text-left text-xs font-medium text-foreground/70 transition-colors hover:bg-muted hover:text-foreground/88"
                 >
                   <FolderIcon
                     size={14}
@@ -85,7 +108,7 @@ export function SidebarSearchResults({
           )}
           {results.notes.length > 0 && (
             <div className="flex flex-col gap-0.5">
-              <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <p className={cn("px-2 pb-1", sectionLabelClass)}>
                 Notes
               </p>
               {results.notes.map((note) => (
@@ -95,10 +118,10 @@ export function SidebarSearchResults({
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => onNoteSelect(note.id)}
                   aria-current={note.id === activeNoteId ? "page" : undefined}
-                  className={`flex h-[34px] w-full items-center gap-1.5 border border-transparent px-2 text-left text-xs font-medium transition-colors ${
+                  className={`flex h-[34px] w-full items-center gap-1.5 rounded-lg border border-transparent px-2 text-left text-xs font-medium transition-colors ${
                     note.id === activeNoteId
-                      ? "border-border bg-muted text-foreground"
-                      : "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88"
+                      ? "bg-muted text-foreground"
+                      : "text-foreground/70 hover:bg-muted hover:text-foreground/88"
                   }`}
                 >
                   <FileTextIcon
@@ -118,9 +141,13 @@ export function SidebarSearchResults({
         </div>
       ) : (
         <div className="px-2 py-6 text-center" role="status">
-          <p className="text-xs font-medium text-foreground/70">No matching titles</p>
+          <p className="text-xs font-medium text-foreground/70">
+            {notice || "No matching titles"}
+          </p>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Try a different note or folder name.
+            {notice
+              ? "Filters accept #tag, $person, tag:name, and person:name."
+              : "Try a different note or folder name."}
           </p>
         </div>
       )}

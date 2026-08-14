@@ -854,7 +854,7 @@ export function SettingsModal() {
 							type="button"
 							key={section.id}
 							onClick={() => setTab(section.id)}
-							className={`flex min-h-[44px] shrink-0 items-center rounded-md px-3.5 text-sm focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground ${
+							className={`flex min-h-[44px] shrink-0 items-center rounded-md px-3.5 text-sm focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-accent focus-visible:text-foreground ${
 								effectiveTab === section.id
 									? "bg-sidebar-accent text-sidebar-accent-foreground"
 									: "text-muted-foreground"

@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { CopyIcon } from "@/shared/icons/static";
 import { formatByteSize } from "@/shared/lib/format-bytes";
 import { Dialog } from "./dialog";
+import { cn } from "@/shared/lib/utils";
+import { sectionLabelClass } from "@/shared/ui/section-header";
 
 export type MediaLightboxUsage = {
   id: string;
@@ -70,7 +72,7 @@ export function MediaLightbox({
           </div>
           <aside className="flex w-full shrink-0 flex-col border-t border-border bg-popover lg:w-80 lg:border-t-0 lg:border-l">
             <div className="border-b border-border px-5 py-4">
-              <p className="m-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              <p className={cn("m-0", sectionLabelClass)}>
                 Media details
               </p>
               <p
@@ -323,7 +325,7 @@ function formatPlaybackTime(seconds: number): string {
 function MediaDetail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+      <dt className={sectionLabelClass}>
         {label}
       </dt>
       <dd

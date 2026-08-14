@@ -146,6 +146,7 @@ fn new_device_hydrates_from_the_latest_checkpoint_and_pulls_only_the_tail() {
     let outcome = fresh.cycle();
 
     assert_eq!(outcome.status, SyncStatus::UpToDate);
+    assert!(outcome.workspace_changed);
     assert_eq!(fresh.cursor(), 4);
     assert_eq!(fresh.note_titles(), publisher.note_titles());
     assert_eq!(fresh.transport.checkpoint_fetch_calls(), 1);

@@ -30,7 +30,7 @@ The editor supports:
 - quotes, dividers, and fenced code;
 - images;
 - tables;
-- wiki-links, tags, people, and note mentions.
+- note links, tags, and people mentions.
 
 Code blocks expose language selection and copy. Tables expose keyboard-accessible row, column, header, and delete operations. Block actions stay available from the existing drag handle and context menu.
 
