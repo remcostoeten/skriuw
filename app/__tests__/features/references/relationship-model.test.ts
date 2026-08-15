@@ -33,4 +33,39 @@ test("local graph has stable direct relationship nodes and remains bounded", () 
   assert.ok(graph.nodes.some((node) => node.id === "tag:tag-alpha"));
   assert.ok(graph.nodes.length <= 24);
   assert.ok(graph.edges.length <= 48);
+  assert.equal(graph.hiddenCount, 0);
+});
+
+test("a note linked in both directions is one node and is never counted as hidden", () => {
+  const fixture = referenceFixture();
+  fixture.references.references.push({
+    noteId: "note-a",
+    targets: [{ kind: "note", targetId: "note-b" }],
+  });
+  const state = createRendererStore(
+    createInitialState(fixture.snapshot, undefined, fixture.references),
+  ).getState();
+
+  const graph = projectRelationshipGraph(state, "note-a");
+  assert.equal(graph.nodes.filter((node) => node.id === "note-b").length, 1);
+  assert.deepEqual(
+    graph.nodes.map((node) => node.id),
+    ["note-a", "note-b", "note-c"],
+  );
+  assert.equal(graph.hiddenCount, 0);
+});
+
+test("relationships pointing at trashed notes are neither drawn nor counted as hidden", () => {
+  const fixture = referenceFixture();
+  fixture.references.references.push({
+    noteId: "note-a",
+    targets: [{ kind: "note", targetId: "note-trashed" }],
+  });
+  const state = createRendererStore(
+    createInitialState(fixture.snapshot, undefined, fixture.references),
+  ).getState();
+
+  const graph = projectRelationshipGraph(state, "note-a");
+  assert.ok(!graph.nodes.some((node) => node.id === "note-trashed"));
+  assert.equal(graph.hiddenCount, 0);
 });

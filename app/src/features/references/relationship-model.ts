@@ -149,44 +149,82 @@ export function projectCoVisitedNotes(state: RendererState, noteId: string): Rel
     });
 }
 
-export function projectRelationshipGraph(state: RendererState, noteId: string): RelationshipGraph {
-  const nodes: GraphNode[] = [
-    {
-      id: noteId,
-      label: state.metadata.get(noteId)?.title ?? "Current note",
-      kind: "current",
-    },
-  ];
-  const edges: GraphEdge[] = [];
-  const add = (id: string, label: string, kind: GraphNode["kind"], from: string, to: string) => {
-    if (nodes.length >= 24 || edges.length >= 48 || nodes.some((node) => node.id === id)) {
-      return;
-    }
-    nodes.push({ id, label, kind });
-    edges.push({ from, to });
+const GRAPH_NODE_LIMIT = 24;
+const GRAPH_EDGE_LIMIT = 48;
+
+type GraphCandidate = GraphNode & { from: string; to: string };
+
+/**
+ * Every neighbour worth drawing, deduplicated by node id and filtered to what
+ * the workspace can still open. A note linked in both directions, or a target
+ * that has since been trashed, must resolve to one candidate or none — counting
+ * raw reference rows instead would report neighbours as hidden that are either
+ * already on screen or gone.
+ */
+function relationshipCandidates(state: RendererState, noteId: string): GraphCandidate[] {
+  const candidates: GraphCandidate[] = [];
+  const seen = new Set<string>([noteId]);
+  const add = (candidate: GraphCandidate) => {
+    if (seen.has(candidate.id)) return;
+    seen.add(candidate.id);
+    candidates.push(candidate);
   };
   for (const entry of state.incomingReferences.get(referenceKey("note", noteId)) ?? []) {
     if (availableNote(state, entry)) {
-      add(entry, state.metadata.get(entry)?.title ?? "Untitled", "note", entry, noteId);
+      add({
+        id: entry,
+        label: state.metadata.get(entry)?.title ?? "Untitled",
+        kind: "note",
+        from: entry,
+        to: noteId,
+      });
     }
   }
   for (const entry of idsFor(state, noteId, "note")) {
     if (availableNote(state, entry)) {
-      add(entry, state.metadata.get(entry)?.title ?? "Untitled", "note", noteId, entry);
+      add({
+        id: entry,
+        label: state.metadata.get(entry)?.title ?? "Untitled",
+        kind: "note",
+        from: noteId,
+        to: entry,
+      });
     }
   }
   for (const id of idsFor(state, noteId, "tag")) {
     const tag = state.tags.get(id);
-    if (tag) add(`tag:${id}`, `#${tag.name}`, "tag", noteId, `tag:${id}`);
+    if (tag) {
+      add({ id: `tag:${id}`, label: `#${tag.name}`, kind: "tag", from: noteId, to: `tag:${id}` });
+    }
   }
   for (const id of idsFor(state, noteId, "person")) {
     const person = state.people.get(id);
-    if (person) add(`person:${id}`, `$${person.name}`, "person", noteId, `person:${id}`);
+    if (person) {
+      add({
+        id: `person:${id}`,
+        label: `$${person.name}`,
+        kind: "person",
+        from: noteId,
+        to: `person:${id}`,
+      });
+    }
   }
-  const total =
-    (state.incomingReferences.get(referenceKey("note", noteId))?.length ?? 0) +
-    idsFor(state, noteId, "note").length +
-    idsFor(state, noteId, "tag").length +
-    idsFor(state, noteId, "person").length;
-  return { nodes, edges, hiddenCount: Math.max(0, total - (nodes.length - 1)) };
+  return candidates;
+}
+
+export function projectRelationshipGraph(state: RendererState, noteId: string): RelationshipGraph {
+  const candidates = relationshipCandidates(state, noteId);
+  const drawn = candidates.slice(0, Math.min(GRAPH_NODE_LIMIT - 1, GRAPH_EDGE_LIMIT));
+  return {
+    nodes: [
+      {
+        id: noteId,
+        label: state.metadata.get(noteId)?.title ?? "Current note",
+        kind: "current",
+      },
+      ...drawn.map(({ id, label, kind }) => ({ id, label, kind })),
+    ],
+    edges: drawn.map(({ from, to }) => ({ from, to })),
+    hiddenCount: candidates.length - drawn.length,
+  };
 }
