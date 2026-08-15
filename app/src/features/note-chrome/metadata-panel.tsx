@@ -1,19 +1,12 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import { cn } from "@/shared/lib/utils";
-import { SectionChevron, SectionLabel, sectionHeaderClass } from "@/shared/ui/section-header";
+import { SectionToggle } from "@/shared/ui/section-header";
 import { projectVersionList, type VersionListItem } from "@/features/history/version-model";
 import { noteHistoryHash } from "@/app-route";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { NoteOutline } from "./note-outline";
-import {
-  BacklinksList,
-  OutgoingNotesList,
-  ReferenceDetailLists,
-  useBacklinks,
-  useNoteReferenceDetails,
-  useOutgoingNotes,
-} from "@/features/references/reference-panel";
+import { RelationshipExplorer } from "@/features/references/relationship-explorer";
 import type { RendererState, RendererStore } from "@/store/types";
 
 type Props = {
@@ -24,9 +17,7 @@ type SectionKey =
   | "outline"
   | "revisions"
   | "details"
-  | "backlinks"
-  | "outgoing"
-  | "references";
+  | "relationships";
 
 type SectionProps = {
   id: string;
@@ -48,19 +39,13 @@ function InspectorSection({
   keepMounted = false,
 }: SectionProps) {
   return (
-    <section aria-labelledby={id} className={cn("border-b border-border/60", className)}>
-      <button
-        type="button"
-        id={id}
-        onClick={onToggle}
-        aria-expanded={open}
-        className={cn(sectionHeaderClass, "sticky top-0 z-[1] bg-background")}
-      >
-        <SectionChevron open={open} />
-        <SectionLabel title={title} />
-      </button>
+    <section
+      aria-labelledby={id}
+      className={cn("group relative border-b border-border/60", className)}
+    >
+      <SectionToggle id={id} title={title} open={open} onToggle={onToggle} />
       {open || keepMounted ? (
-        <div className={cn("px-4 pb-2.5", !open && "hidden")}>{children}</div>
+        <div className={cn("px-4 pb-2.5 pt-2.5", !open && "hidden")}>{children}</div>
       ) : null}
     </section>
   );
@@ -74,9 +59,7 @@ const defaultOpenSections: Record<SectionKey, boolean> = {
   outline: true,
   revisions: true,
   details: true,
-  backlinks: true,
-  outgoing: true,
-  references: true,
+  relationships: true,
 };
 
 function readOpenSections(): Record<SectionKey, boolean> {
@@ -227,9 +210,6 @@ export function MetadataPanel({ store }: Props) {
   const metadata = useRendererSelector(store, selectActiveNoteMetadata);
   const historyHeaders = useRendererSelector(store, selectActiveNoteHistory);
   const versions = useMemo(() => projectVersionList(historyHeaders), [historyHeaders]);
-  const backlinks = useBacklinks(store, activeNoteId);
-  const outgoingNotes = useOutgoingNotes(store, activeNoteId);
-  const referenceDetails = useNoteReferenceDetails(store, activeNoteId);
   const createdAt = useRendererSelector(store, selectActiveNoteCreatedAt);
   const markdown = useRendererSelector(store, selectActiveNoteMarkdown);
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(readOpenSections);
@@ -302,34 +282,14 @@ export function MetadataPanel({ store }: Props) {
             />
           </InspectorSection>
         )}
-        {activeNoteId && backlinks.length > 0 && (
+        {activeNoteId && (
           <InspectorSection
-            id="metadata-backlinks"
-            title="Backlinks"
-            open={openSections.backlinks}
-            onToggle={() => toggleSection("backlinks")}
+            id="metadata-relationships"
+            title="Relationships"
+            open={openSections.relationships}
+            onToggle={() => toggleSection("relationships")}
           >
-            <BacklinksList store={store} entries={backlinks} />
-          </InspectorSection>
-        )}
-        {activeNoteId && outgoingNotes.length > 0 && (
-          <InspectorSection
-            id="metadata-outgoing"
-            title="Links to"
-            open={openSections.outgoing}
-            onToggle={() => toggleSection("outgoing")}
-          >
-            <OutgoingNotesList store={store} entries={outgoingNotes} />
-          </InspectorSection>
-        )}
-        {activeNoteId && referenceDetails.length > 0 && (
-          <InspectorSection
-            id="metadata-references"
-            title="Tags & people"
-            open={openSections.references}
-            onToggle={() => toggleSection("references")}
-          >
-            <ReferenceDetailLists store={store} details={referenceDetails} />
+            <RelationshipExplorer store={store} noteId={activeNoteId} />
           </InspectorSection>
         )}
       </div>

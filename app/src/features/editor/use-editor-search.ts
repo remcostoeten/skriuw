@@ -34,7 +34,15 @@ const SEARCH_OPTION_BY_SHORTCUT: Record<EditorSearchShortcutId, keyof SearchOpti
   searchRegex: "regex",
 };
 
-export function useEditorSearch(store: RendererStore, getView: () => EditorSearchTarget | null) {
+type EditorSearchOptions = {
+  onBeforeOpen?: () => void;
+};
+
+export function useEditorSearch(
+  store: RendererStore,
+  getView: () => EditorSearchTarget | null,
+  { onBeforeOpen }: EditorSearchOptions = {},
+) {
   const $ = useShortcut({ ignoreInputs: false });
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -96,6 +104,7 @@ export function useEditorSearch(store: RendererStore, getView: () => EditorSearc
   const openSearch = useCallback(
     (withReplace: boolean) => {
       const wasOpen = searchOpenRef.current;
+      onBeforeOpen?.();
       setSearchOpen(true);
       if (withReplace) {
         setShowReplace(true);
@@ -109,7 +118,7 @@ export function useEditorSearch(store: RendererStore, getView: () => EditorSearc
         setSearch(view, searchQuery, searchOptions);
       }
     },
-    [focusSearchInput, searchQuery, searchOptions, getView],
+    [focusSearchInput, getView, onBeforeOpen, searchOptions, searchQuery],
   );
 
   const closeSearch = useCallback(() => {

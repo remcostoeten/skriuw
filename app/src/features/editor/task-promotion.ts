@@ -1,5 +1,7 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
-import type { EditorState, Transaction } from "prosemirror-state";
+import { type Command, type EditorState, type Transaction } from "prosemirror-state";
+import { wrapInList } from "prosemirror-schema-list";
+import { productSchema } from "./schema";
 
 export type ChecklistTaskLink = {
   taskId: string;
@@ -25,6 +27,39 @@ type PromotionInput = {
 function validId(value: string): boolean {
   return /^[A-Za-z0-9_-]{1,128}$/.test(value);
 }
+
+export function taskCheckItemAttrs(checked = false): {
+  checked: boolean;
+  taskId: string;
+  blockId: string;
+} {
+  const taskId = crypto.randomUUID();
+  const blockId = crypto.randomUUID();
+  if (taskId === blockId) {
+    throw new Error("task and block identities must differ");
+  }
+  return { checked, taskId, blockId };
+}
+
+/** Wrap the current block as a linked task, keeping slash commands out of schema code. */
+export const insertTask: Command = (state, dispatch) => {
+  const checkList = productSchema.nodes.check_list;
+  const checkItem = productSchema.nodes.check_item;
+  if (!checkList || !checkItem) return false;
+  const result: { transaction: Transaction | null } = { transaction: null };
+  if (!wrapInList(checkList)(state, (transaction) => { result.transaction = transaction; })) return false;
+  const wrapped = result.transaction;
+  if (!wrapped) return false;
+  const $from = wrapped.selection.$from;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    if ($from.node(depth).type !== checkItem) continue;
+    const position = $from.before(depth);
+    const transaction = wrapped.setNodeMarkup(position, undefined, taskCheckItemAttrs());
+    if (dispatch) dispatch(transaction.scrollIntoView());
+    return true;
+  }
+  return false;
+};
 
 function checklistTaskTitle(node: ProseMirrorNode): string {
   return node.firstChild?.type.name === "paragraph"

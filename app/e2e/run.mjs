@@ -652,6 +652,66 @@ async function runWorkflow() {
       JSON.stringify(afterFindLayout) === JSON.stringify(beforeFindLayout),
       `${JSON.stringify(beforeFindLayout)} -> ${JSON.stringify(afterFindLayout)}`,
     );
+    const findOverlayWidth = await evaluate(
+      cdp,
+      sessionId,
+      `(() => {
+        const overlay = document.querySelector('[data-editor-utility-overlay]');
+        if (overlay instanceof HTMLElement) overlay.dataset.workflowIdentity = 'stable';
+        return overlay?.getBoundingClientRect().width ?? 0;
+      })()`,
+    );
+    await dispatchKey(cdp, sessionId, "g", "KeyG", 71, "", 2);
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('input[aria-label^=\"Jump to line\"]') !== null",
+      "jump-to-line input after find",
+    );
+    await settle();
+    assert(
+      checks,
+      "find-and-jump-share-one-resizing-overlay",
+      await evaluate(
+        cdp,
+        sessionId,
+        `(() => {
+          const overlays = document.querySelectorAll('[data-editor-utility-overlay]');
+          const overlay = overlays[0];
+          return overlays.length === 1 &&
+            overlay?.getAttribute('data-mode') === 'jump' &&
+            overlay?.getAttribute('data-workflow-identity') === 'stable' &&
+            overlay.getBoundingClientRect().width < ${JSON.stringify(findOverlayWidth)} &&
+            document.querySelector('input[aria-label="Find"]') === null;
+        })()`,
+      ),
+      JSON.stringify(await state()),
+    );
+    await dispatchKey(cdp, sessionId, "f", "KeyF", 70, "", 2);
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('input[aria-label=\"Find\"]') !== null",
+      "find input after jump",
+    );
+    await settle();
+    assert(
+      checks,
+      "jump-switches-back-to-find-in-the-same-overlay",
+      await evaluate(
+        cdp,
+        sessionId,
+        `(() => {
+          const overlays = document.querySelectorAll('[data-editor-utility-overlay]');
+          const overlay = overlays[0];
+          return overlays.length === 1 &&
+            overlay?.getAttribute('data-mode') === 'search' &&
+            overlay?.getAttribute('data-workflow-identity') === 'stable' &&
+            document.querySelector('input[aria-label^="Jump to line"]') === null;
+        })()`,
+      ),
+      JSON.stringify(await state()),
+    );
     await typeText(cdp, sessionId, "workflow");
     await settle();
     assert(

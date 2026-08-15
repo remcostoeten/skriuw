@@ -86,7 +86,7 @@ test("filterSlashCommands matches aliases and ranks prefix matches first", () =>
   assert.equal(filterSlashCommands("h1")[0]?.id, "heading-1");
   assert.equal(filterSlashCommands("ul")[0]?.id, "bullet-list");
   assert.equal(filterSlashCommands("hr")[0]?.id, "divider");
-  assert.equal(filterSlashCommands("todo")[0]?.id, "check-list");
+  assert.equal(filterSlashCommands("todo")[0]?.id, "task");
   assert.equal(filterSlashCommands("collapse")[0]?.id, "toggle-list");
   assert.equal(filterSlashCommands("code")[0]?.id, "code");
 });

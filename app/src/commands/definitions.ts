@@ -72,6 +72,7 @@ export type ShortcutActionId =
   | "zoomOut"
   | "zoomReset"
   | "insertLink"
+  | "toggleChecklistItem"
   | "jumpToLine"
   | "goToDocumentStart"
   | "goToDocumentEnd"
@@ -612,6 +613,15 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     worksWhileTyping: true,
     boundInEditor: true,
     sharesComboWith: "toggleCommandPalette",
+  },
+  {
+    id: "toggleChecklistItem",
+    keys: "alt+shift+enter",
+    label: "Toggle checklist item",
+    description: "Toggle the checkbox containing the editor caret.",
+    group: "Editor",
+    worksWhileTyping: true,
+    boundInEditor: true,
   },
   {
     id: "jumpToLine",

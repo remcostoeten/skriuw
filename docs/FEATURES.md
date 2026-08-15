@@ -21,6 +21,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 ## Writing
 
 - **Rich text editor** — six heading levels, bullet, numbered, checklist, and collapsible lists (including toggles with a real heading as their summary, so they still feed the note outline), quotes, code, tables, alignment, underline, and restrained highlight colors with Markdown-style input rules, so `# `, `- `, and `**bold**` just work as you type. Code blocks expose language and copy controls; table actions add or remove rows and columns, toggle headers, or remove the table.
+- **Tasks and checkboxes** — `[] ` creates a document-local checkbox. Start a bullet and then type `[] ` or `[ ] ` to create a workspace task linked to that checklist item; it remains ordinary portable Markdown outside Skriuw while the private marker preserves the link.
 - **Markdown paste** — paste raw Markdown and it lands rendered: headings, lists, checklists, tables, fenced code, quotes, and inline marks. Rich HTML from a web page still pastes as HTML, and raw Markdown mode keeps the source untouched.
 - **Raw Markdown tools** — optional line numbers, synchronized scrolling, word count, line and column position, and selected word and character counts without broad renderer subscriptions.
 - **Slash commands** — type `/` for a keyboard-first block menu, and `:` for an emoji picker searchable by shortcode or keyword.
@@ -34,7 +35,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Video, audio, and file embeds** — `/video`, `/audio`, and `/file` drop a block that takes a URL, and MP4/WebM video files are first-class stored media: content-addressed on disk like images, visible in the media gallery, and carried by archives and backups. Embeds round-trip through Markdown as an ordinary link, so other editors still render something useful.
 - **Embedded diagrams** — `/diagram` inserts a borderless, keyboard-accessible flowchart whose nodes can be renamed, connected, styled, arranged, and repositioned by pointer or keyboard. Mermaid-compatible `flowchart` fences round-trip through raw Markdown, while positions and canvas appearance stay durable in the local structured document. Unsupported Mermaid syntax remains editable source instead of being discarded.
 - **Tags, people, and note links** — type `#` to tag, `@` to link or create a note, and `$` for people. Relationships are stored by ID, so renames propagate everywhere and nothing silently breaks. Portable Markdown still imports and exports note links as `[[title]]`.
-- **Backlinks and entity pages** — every note, tag, and person shows what points to it, precomputed and instant.
+- **Relationship Explorer** — the metadata panel projects each note's local neighbourhood instantly: backlinks, outgoing links, shared tags and people, related journal days, session-local co-visits, and a bounded direct-relationship graph. Relationships remain ID-based renderer projections; no graph database or navigation-time I/O is involved.
 
 ## Organizing
 

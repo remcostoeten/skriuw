@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
+import { motion, useReducedMotion } from "motion/react";
 import { DOMSerializer, type Node as ProseMirrorNode } from "prosemirror-model";
 import {
   AllSelection,
@@ -81,6 +82,7 @@ import {
   productSchema,
   serializeProductMarkdown,
   slashMenuState,
+  toggleCheckItemAtSelection,
   type SlashTrigger,
 } from "./schema";
 import {
@@ -148,6 +150,7 @@ import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
 import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
 import type { NoteEditorShortcutId } from "./editor-bound-shortcut-ids";
 import { useEditorSearch } from "./use-editor-search";
+import { taskPromotionOperations } from "./task-linking";
 import { SaveSequencer } from "./save-sequencer";
 import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "./editor-working-set";
 import { preparedEditorDocuments } from "./prepared-documents";
@@ -155,6 +158,13 @@ import { preparedEditorDocuments } from "./prepared-documents";
 const SAVE_DEBOUNCE_MS = 500;
 const VIRTUAL_BLOCK_HEIGHT = 32;
 const WINDOW_SHIFT = Math.floor(BOUNDED_BLOCK_LIMIT / 2);
+const UTILITY_LAYOUT_TRANSITION = {
+  layout: {
+    duration: 0.14,
+    ease: [0.23, 1, 0.32, 1] as [number, number, number, number],
+  },
+};
+const REDUCED_UTILITY_LAYOUT_TRANSITION = { layout: { duration: 0 } };
 
 type Props = {
   store: RendererStore;
@@ -325,6 +335,7 @@ function fullDocumentHtml(document: ProseMirrorNode): string {
 export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [shortcutHost, setShortcutHost] = useState<HTMLDivElement | null>(null);
+  const [utilityOverlayHost, setUtilityOverlayHost] = useState<HTMLDivElement | null>(null);
   // An inline ref callback gets a fresh identity every render, so React 19
   // detaches (null) and reattaches it on each commit; the setState inside
   // then alternates null/node and loops the commit phase forever. The ref
@@ -383,6 +394,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const activeNoteId = useRendererSelector(store, selectNoteId);
   const settingsDocument = useRendererSelector(store, (state) => state.settings);
   const editorSettings = projectSettings(settingsDocument);
+  const prefersReducedMotion = useReducedMotion();
+  const reduceUtilityMotion = editorSettings.reduceMotion || prefersReducedMotion === true;
   const mentionPluginsRef = useRef<Plugin[] | null>(null);
   if (mentionPluginsRef.current === null) {
     const mentionContext: MentionContext = {
@@ -556,7 +569,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       cached.derivedTitle = title;
       operations.push({ type: "rename_node", id: noteId, title, at });
     }
-    return commitOperations(store, operations).then(() => {
+    return commitOperations(store, operations).then(async () => {
         const entry = cacheRef.current.get(noteId);
         const saved = store.getState().documents.get(noteId);
         if (entry && saved) {
@@ -567,6 +580,23 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           }
         }
         pruneEditorWorkingSet();
+
+        const promotionSource = store.getState().documents.get(noteId);
+        if (promotionSource) {
+          const promotionOperations = taskPromotionOperations(
+            document,
+            noteId,
+            {
+              documentJson,
+              markdown: serializeProductMarkdown(document),
+              wordCount: countWords(document),
+              expectedRevision: promotionSource.revision,
+            },
+            store.getState().tasks,
+            at,
+          );
+          if (promotionOperations.length > 0) await commitOperations(store, promotionOperations);
+        }
       });
   }
 
@@ -827,10 +857,21 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     };
   }
 
-  function closeJumpToLine(): void {
+  const dismissJumpToLine = useCallback(() => {
     setJumpOpen(false);
+  }, []);
+
+const closeJumpToLine = useCallback(() => {
+    dismissJumpToLine();
     viewRef.current?.focus();
-  }
+  }, [dismissJumpToLine]);
+
+  const getEditorSearchTarget = useCallback(() => getSearchTarget(), []);
+  const search = useEditorSearch(store, getEditorSearchTarget, {
+    onBeforeOpen: dismissJumpToLine,
+  });
+  const searchRef = useRef(search);
+  searchRef.current = search;
 
   const toggleJumpToLine = useCallback(() => {
     if (jumpOpenRef.current) {
@@ -839,6 +880,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     }
     const view = viewRef.current;
     if (!view) return;
+    search.resetSearch();
     const entry = activeEntry();
     const document = entry?.bounded ? entry.bounded.fullDocument() : view.state.doc;
     const index = buildDocumentLineIndex(document);
@@ -851,7 +893,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       jumpInputRef.current?.focus();
       jumpInputRef.current?.select();
     });
-  }, []);
+  }, [closeJumpToLine, search.resetSearch]);
 
   const commitJumpToLine = useCallback(() => {
     const target = jumpTargetRef.current;
@@ -915,16 +957,20 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         run: () => openLinkEditorRef.current(),
         claims: () => linkEditorRangeRef.current() !== null,
       },
+      toggleChecklistItem: () => {
+        const view = viewRef.current;
+        if (view) toggleCheckItemAtSelection(view.state, view.dispatch);
+      },
       jumpToLine: toggleJumpToLine,
     }),
     [jumpToDocumentEdge, toggleJumpToLine],
   );
   useEditorBoundShortcuts(store, shortcutHost, editorShortcuts);
-
-  const getEditorSearchTarget = useCallback(() => getSearchTarget(), []);
-  const search = useEditorSearch(store, getEditorSearchTarget);
-  const searchRef = useRef(search);
-  searchRef.current = search;
+  const overlayShortcuts = useMemo<EditorBoundHandlersFor<"jumpToLine">>(
+    () => ({ jumpToLine: toggleJumpToLine }),
+    [toggleJumpToLine],
+  );
+  useEditorBoundShortcuts(store, utilityOverlayHost, overlayShortcuts);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -1352,6 +1398,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
 
   const slashItems = slashMenu.open ? filterSlashItems(slashMenu.trigger, slashMenu.query) : [];
   const editorPane = shortcutHost?.closest<HTMLElement>(".editor-pane") ?? null;
+  const utilityMode = jumpOpen ? "jump" : search.searchOpen ? "search" : null;
 
   function runBlockCommand(build: (position: number) => Command): void {
     const view = viewRef.current;
@@ -1422,47 +1469,58 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           </button>
         </div>
       )}
-      {jumpOpen && editorPane
+      {utilityMode && editorPane
         ? createPortal(
-            <div className="absolute right-3 top-3 z-40">
-              <JumpToLinePanel
-                fieldId={jumpFieldId}
-                inputRef={jumpInputRef}
-                value={jumpValue}
-                onValueChange={setJumpValue}
-                onKeyDown={handleJumpKeyDown}
-                onBlur={() => setJumpOpen(false)}
-                lineCount={jumpLineCount}
-                placeholder={String(jumpCaretLine)}
-              />
-            </div>,
-            editorPane,
-          )
-        : null}
-      {search.searchOpen && editorPane
-        ? createPortal(
-            <div className="@container/editor-search absolute right-3 top-3 z-40 w-[min(420px,calc(100%_-_1.5rem))]">
-              <SearchWidget
-                ref={search.findInputRef}
-                optionHints={search.optionHints}
-                query={search.searchQuery}
-                onQueryChange={search.setSearchQuery}
-                replaceValue={search.replaceValue}
-                onReplaceChange={search.setReplaceValue}
-                showReplace={search.showReplace}
-                onToggleReplace={() => search.setShowReplace((value) => !value)}
-                options={search.searchOptions}
-                onToggleOption={search.toggleSearchOption}
-                current={search.matchInfo.current}
-                total={search.matchInfo.total}
-                regexError={search.regexError}
-                onNext={search.handleNextMatch}
-                onPrevious={search.handlePreviousMatch}
-                onClose={search.closeSearch}
-                onReplaceCurrent={search.handleReplaceCurrent}
-                onReplaceAll={search.handleReplaceAll}
-              />
-            </div>,
+            <motion.div
+              ref={setUtilityOverlayHost}
+              layout={reduceUtilityMotion ? false : "size"}
+              transition={
+                reduceUtilityMotion
+                  ? REDUCED_UTILITY_LAYOUT_TRANSITION
+                  : UTILITY_LAYOUT_TRANSITION
+              }
+              data-editor-utility-overlay
+              data-mode={utilityMode}
+              className={`@container/editor-search absolute right-3 top-3 z-40 origin-top-right overflow-hidden rounded-lg border border-border bg-popover p-1.5 text-[13px] text-foreground shadow-[0_12px_28px_-12px_hsl(var(--scrim)/0.32)] ${
+                utilityMode === "search"
+                  ? "w-[min(420px,calc(100%_-_1.5rem))]"
+                  : "w-fit pl-2.5"
+              }`}
+            >
+              {utilityMode === "jump" ? (
+                <JumpToLinePanel
+                  fieldId={jumpFieldId}
+                  inputRef={jumpInputRef}
+                  value={jumpValue}
+                  onValueChange={setJumpValue}
+                  onKeyDown={handleJumpKeyDown}
+                  onBlur={() => setJumpOpen(false)}
+                  lineCount={jumpLineCount}
+                  placeholder={String(jumpCaretLine)}
+                />
+              ) : (
+                <SearchWidget
+                  ref={search.findInputRef}
+                  optionHints={search.optionHints}
+                  query={search.searchQuery}
+                  onQueryChange={search.setSearchQuery}
+                  replaceValue={search.replaceValue}
+                  onReplaceChange={search.setReplaceValue}
+                  showReplace={search.showReplace}
+                  onToggleReplace={() => search.setShowReplace((value) => !value)}
+                  options={search.searchOptions}
+                  onToggleOption={search.toggleSearchOption}
+                  current={search.matchInfo.current}
+                  total={search.matchInfo.total}
+                  regexError={search.regexError}
+                  onNext={search.handleNextMatch}
+                  onPrevious={search.handlePreviousMatch}
+                  onClose={search.closeSearch}
+                  onReplaceCurrent={search.handleReplaceCurrent}
+                  onReplaceAll={search.handleReplaceAll}
+                />
+              )}
+            </motion.div>,
             editorPane,
           )
         : null}

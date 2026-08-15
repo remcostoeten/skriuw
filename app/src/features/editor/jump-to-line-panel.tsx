@@ -22,7 +22,7 @@ export function JumpToLinePanel({
   placeholder,
 }: Props) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border bg-popover p-1.5 pl-2.5 text-[13px] text-foreground shadow-[0_12px_28px_-12px_hsl(var(--scrim)/0.32)]">
+    <div className="flex items-center gap-2">
       <label htmlFor={fieldId} className="text-muted-foreground">
         Line
       </label>

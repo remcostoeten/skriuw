@@ -47,7 +47,7 @@ import {
   ContextMenuTrigger,
 } from "@/shared/ui/context-menu";
 import { Tooltip } from "@/shared/ui/tooltip";
-import { SectionChevron, SectionLabel, sectionHeaderClass } from "@/shared/ui/section-header";
+import { SectionToggle } from "@/shared/ui/section-header";
 import { useShortcutHints } from "@/commands/hints";
 import {
   ancestorIds,
@@ -1306,25 +1306,22 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
             >
               {pinnedIds.length > 0 && (
                 <section
-                  className="shrink-0 border-b border-sidebar-border/50 pb-1"
+                  className="group relative shrink-0 border-b border-sidebar-border/50 pb-1"
                   aria-label="Pinned"
                 >
-                  <button
-                    type="button"
-                    onClick={() => {
+                  <SectionToggle
+                    title="Pinned"
+                    open={pinnedOpen}
+                    onToggle={() => {
                       setPinnedOpen((current) => {
                         writePinnedOpen(!current);
                         return !current;
                       });
                     }}
-                    aria-expanded={pinnedOpen}
-                    className={sectionHeaderClass}
-                  >
-                    <SectionChevron open={pinnedOpen} />
-                    <SectionLabel title="Pinned" />
-                  </button>
+                    className="bg-sidebar/90"
+                  />
                   {pinnedOpen && (
-                    <div className="px-1.5">
+                    <div className="px-1.5 pt-1">
                       <div
                         className="relative w-full"
                         style={{ height: `${pinnedIds.length * rowPitch}px` }}

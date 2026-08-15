@@ -336,7 +336,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
       )}
       {jumpOpen && editorPane
         ? createPortal(
-            <div className="absolute right-3 top-3 z-40">
+            <div className="absolute right-3 top-3 z-40 rounded-lg border border-border bg-popover p-1.5 pl-2.5 text-[13px] text-foreground shadow-[0_12px_28px_-12px_hsl(var(--scrim)/0.32)]">
               <JumpToLinePanel
                 fieldId={jumpFieldId}
                 inputRef={jumpInputRef}

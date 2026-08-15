@@ -101,6 +101,11 @@
   border-color: hsl(var(--ring));
 }
 
+.prosemirror-host .ProseMirror .check-item-box:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
 .prosemirror-host .ProseMirror .check-item[data-checked="true"] > .check-item-box {
   background: hsl(var(--primary));
   border-color: hsl(var(--primary));
