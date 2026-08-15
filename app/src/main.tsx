@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { App } from "./app";
 import { currentSessionToken } from "@/features/auth/session-token";
 import { bindStarterReclaim } from "@/features/onboarding/reclaim";
+import { seedRelationshipFixture } from "@/features/onboarding/debug-seed";
 import { seedStarterWorkspace } from "@/features/onboarding/seed";
 import {
   applyWorkspaceOperations,
@@ -187,6 +188,9 @@ async function start(): Promise<void> {
       async () => (await currentSessionToken()) !== undefined,
     ).catch((error) => {
       console.error("starter workspace seeding failed", error);
+    });
+    await seedRelationshipFixture(store).catch((error) => {
+      console.error("relationship fixture seeding failed", error);
     });
     bindSettingsToRoot(store, document.documentElement);
     root.render(

@@ -1,0 +1,15 @@
+[mcp_servers.animateicons]
+command = "npx"
+args = [
+    "-y",
+    "@animateicons/mcp",
+]
+
+[mcp_servers.shadcn]
+command = "npx"
+args = [
+    "shadcn@latest",
+    "mcp",
+    "--cwd",
+    "/home/remcostoeten/dev/skriuw/v2/app",
+]
