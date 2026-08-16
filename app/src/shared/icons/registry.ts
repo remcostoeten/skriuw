@@ -5,6 +5,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   FolderOpenIcon,
+  ListTodoIcon,
   PanelLeftToggleIcon,
   PanelRightToggleIcon,
   RotateCcwIcon,
@@ -73,6 +74,9 @@ export const APP_ICONS = {
     animated: animated(() =>
       import("./adapt-animateicons").then((module) => ({ default: module.CalendarDays })),
     ),
+  },
+  tasks: {
+    static: ListTodoIcon,
   },
   tags: {
     static: TagsIcon,

@@ -2,6 +2,9 @@
 
 Status: editor linkage foundation.
 
+The typing-gesture integration that builds on this foundation is specified by
+[ADR 0032](../adr/0032-task-shaped-typing-is-explicit.md).
+
 ## Invariant
 
 A checklist item is document content until the user explicitly promotes it. Saving, opening, checking, unchecking, or editing an ordinary checklist item never creates a workspace task.

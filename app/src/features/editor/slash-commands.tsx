@@ -31,6 +31,7 @@ import {
 import { createDefaultDiagram, diagramTemplates, type DiagramModel } from "./diagram-model";
 import { emojiEntries } from "./emoji";
 import { productSchema, type MediaKind, type SlashTrigger } from "./schema";
+import { insertTask } from "./task-promotion";
 
 export type SlashAction = "pick-image" | "pick-video" | "open-emoji";
 
@@ -171,11 +172,20 @@ export const slashCommands: SlashCommand[] = [
   {
     id: "check-list",
     label: "Check list",
-    subtext: "To-do list with checkboxes",
+    subtext: "Document-local checkboxes",
     group: "Lists",
-    aliases: ["todo", "task", "checkbox", "checklist"],
+    aliases: ["checkbox", "checklist"],
     icon: <ListTodoIcon size={16} />,
     command: wrapInList(requiredNode("check_list")),
+  },
+  {
+    id: "task",
+    label: "Task",
+    subtext: "Actionable item tracked across the workspace",
+    group: "Lists",
+    aliases: ["todo", "task"],
+    icon: <ListTodoIcon size={16} />,
+    command: insertTask,
   },
   {
     id: "toggle-list",

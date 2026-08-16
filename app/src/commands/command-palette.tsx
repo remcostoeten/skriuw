@@ -1,9 +1,11 @@
-import { useEffect, useId, useMemo, useRef, useState, type ComponentProps } from "react";
+import { useId, useMemo, useState, type ComponentProps } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { getCommandFrecency, recordCommandUse } from "./command-frecency";
 import { SearchIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
+import { Dialog, useDialogClose } from "@/shared/ui/dialog";
 import { sectionLabelClass } from "@/shared/ui/section-header";
+import { useListboxNavigation } from "@/shared/ui/use-listbox-navigation";
 import {
   COMMAND_BANGS,
   getCommandPaletteGroups,
@@ -50,6 +52,9 @@ function Kbd({ children, ...rest }: ComponentProps<"kbd">) {
   );
 }
 
+export const PALETTE_DIALOG_CLASS =
+  "command-palette mx-auto mb-auto mt-[12vh] max-h-[64vh] w-[calc(100vw-1.5rem)] max-w-xl overflow-hidden";
+
 export function CommandPalette({
   open,
   onOpenChange,
@@ -59,69 +64,36 @@ export function CommandPalette({
   paletteShortcut,
   ...aria
 }: Props) {
-  if (!open) {
-    return null;
-  }
   return (
-    <PaletteDialog
-      items={items}
-      onQueryChange={onQueryChange}
-      notice={notice ?? null}
-      paletteShortcut={paletteShortcut ?? formatShortcut("mod+k")}
-      onClose={() => onOpenChange(false)}
-      aria-label={aria["aria-label"] ?? "Command palette"}
-    />
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={aria["aria-label"] ?? "Command palette"}
+      showHeader={false}
+      className={PALETTE_DIALOG_CLASS}
+    >
+      <PaletteBody
+        items={items}
+        onQueryChange={onQueryChange}
+        notice={notice ?? null}
+        paletteShortcut={paletteShortcut ?? formatShortcut("mod+k")}
+      />
+    </Dialog>
   );
 }
 
-type DialogProps = {
+type BodyProps = {
   items: readonly CommandPaletteItem[];
   onQueryChange?: (query: string) => void;
   notice: string | null;
   paletteShortcut: string;
-  onClose: () => void;
-  "aria-label": string;
 };
 
-function PaletteDialog({
-  items,
-  onQueryChange,
-  notice,
-  paletteShortcut,
-  onClose,
-  ...aria
-}: DialogProps) {
+function PaletteBody({ items, onQueryChange, notice, paletteShortcut }: BodyProps) {
   const [query, setQuery] = useState("");
-  const [activeIndex, setActiveIndex] = useState(0);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
   const frecency = useMemo(getCommandFrecency, []);
-  const onCloseRef = useRef(onClose);
-
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  });
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) {
-      return;
-    }
-    const handleClose = () => onCloseRef.current();
-    const handlePointerDown = (event: PointerEvent) => {
-      if (event.target === dialog) {
-        dialog.close();
-      }
-    };
-    dialog.addEventListener("close", handleClose);
-    dialog.addEventListener("pointerdown", handlePointerDown);
-    dialog.showModal();
-    return () => {
-      dialog.removeEventListener("close", handleClose);
-      dialog.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, []);
+  const closeDialog = useDialogClose();
 
   const groups = useMemo(
     () => getCommandPaletteGroups(items, query, frecency),
@@ -129,14 +101,15 @@ function PaletteDialog({
   );
   const flatItems = useMemo(() => groups.flatMap((group) => group.items), [groups]);
 
-  const boundedIndex = Math.min(activeIndex, Math.max(flatItems.length - 1, 0));
-
-  useEffect(() => {
-    const activeElement = listRef.current?.querySelector<HTMLElement>(
-      `[data-index="${boundedIndex}"]`,
-    );
-    activeElement?.scrollIntoView({ block: "nearest" });
-  }, [boundedIndex]);
+  const { activeIndex, listRef, onKeyDown, setActiveIndex } = useListboxNavigation({
+    count: flatItems.length,
+    onSelect: (index) => {
+      const item = flatItems[index];
+      if (item) {
+        runItem(item);
+      }
+    },
+  });
 
   function updateQuery(next: string): void {
     setQuery(next);
@@ -146,58 +119,29 @@ function PaletteDialog({
 
   function runItem(item: CommandPaletteItem): void {
     recordCommandUse(item.id);
-    dialogRef.current?.close();
+    closeDialog();
     item.action();
   }
 
-  function onInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
-    if (event.key === "Tab") {
-      event.preventDefault();
-    } else if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setActiveIndex(flatItems.length > 0 ? Math.min(boundedIndex + 1, flatItems.length - 1) : 0);
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setActiveIndex(Math.max(boundedIndex - 1, 0));
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      const activeItem = flatItems[boundedIndex];
-      if (activeItem) {
-        runItem(activeItem);
-      }
-    }
-  }
-
   let runningIndex = -1;
-  const activeItem = flatItems[boundedIndex];
+  const activeItem = flatItems[activeIndex];
 
   return (
-    <dialog
-      ref={dialogRef}
-      role="dialog"
-      className="command-palette inset-0 mx-auto mb-auto mt-[12vh] flex h-fit max-h-[64vh] w-[calc(100vw-1.5rem)] max-w-xl flex-col overflow-hidden rounded-xl border border-border bg-popover p-0 text-popover-foreground shadow-2xl shadow-black/40 backdrop:bg-black/55 backdrop:backdrop-blur-[1px]"
-      aria-label={aria["aria-label"]}
-      onKeyDown={(event) => {
-        if (event.key === "Escape" && !event.defaultPrevented) {
-          event.preventDefault();
-          dialogRef.current?.close();
-        }
-      }}
-    >
-      <div className="flex items-center gap-2.5 border-b border-border px-3.5 py-3 text-muted-foreground">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-none items-center gap-2.5 border-b border-border px-3.5 py-3 text-muted-foreground">
         <SearchIcon size={16} />
         <input
           autoFocus
           className="min-w-0 flex-1 border-none bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
           value={query}
           onChange={(event) => updateQuery(event.target.value)}
-          onKeyDown={onInputKeyDown}
+          onKeyDown={onKeyDown}
           placeholder="Search notes or type a command..."
           role="combobox"
           aria-expanded="true"
           aria-controls={listboxId}
           aria-autocomplete="list"
-          aria-activedescendant={activeItem ? `${listboxId}-item-${boundedIndex}` : undefined}
+          aria-activedescendant={activeItem ? `${listboxId}-item-${activeIndex}` : undefined}
         />
         <Kbd>Esc</Kbd>
       </div>
@@ -205,13 +149,18 @@ function PaletteDialog({
       {notice && (
         <p
           role="status"
-          className="border-b border-border bg-muted/40 px-3.5 py-2 text-[12px] text-foreground/70"
+          className="flex-none border-b border-border bg-muted/40 px-3.5 py-2 text-[12px] text-foreground/70"
         >
           {notice}
         </p>
       )}
 
-      <div ref={listRef} id={listboxId} role="listbox" className="min-h-0 overflow-y-auto p-1.5">
+      <div
+        ref={listRef}
+        id={listboxId}
+        role="listbox"
+        className="min-h-0 flex-auto overflow-y-auto p-1.5"
+      >
         {flatItems.length === 0 ? (
           <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">
             No results for “{query}”
@@ -225,7 +174,7 @@ function PaletteDialog({
               {group.items.map((item) => {
                 runningIndex += 1;
                 const index = runningIndex;
-                const isActive = index === boundedIndex;
+                const isActive = index === activeIndex;
 
                 return (
                   <button
@@ -273,7 +222,7 @@ function PaletteDialog({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border px-3.5 py-2 text-[11px] text-muted-foreground">
+      <div className="flex flex-none flex-wrap items-center gap-x-4 gap-y-1 border-t border-border px-3.5 py-2 text-[11px] text-muted-foreground">
         <span className="whitespace-nowrap">↑↓ navigate</span>
         <span className="whitespace-nowrap">↵ select</span>
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -294,6 +243,6 @@ function PaletteDialog({
           <Kbd>{paletteShortcut}</Kbd> command palette
         </span>
       </div>
-    </dialog>
+    </div>
   );
 }

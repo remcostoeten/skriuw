@@ -69,9 +69,11 @@ import {
   FoldVerticalIcon,
   FolderOpenIcon,
   KeyboardIcon,
+  ListTodoIcon,
   MaximizeIcon,
   NewFolderIcon,
   NewNoteIcon,
+  PaletteIcon,
   PanelLeftIcon,
   PanelLeftToggleIcon,
   PanelRightIcon,
@@ -95,6 +97,9 @@ import {
   ZoomOutIcon,
 } from "@/shared/icons/static";
 import { opensNotesInTabs } from "@/features/settings/settings-model";
+import { THEME_ENTRIES } from "@/features/settings/themes";
+import type { SectionId } from "@/features/settings/sections/sections";
+import { updateSetting } from "@/store/actions/settings";
 import type { RendererState, RendererStore } from "@/store/types";
 import { resetZoom, zoomIn, zoomOut } from "@/shell/zoom-controller";
 import {
@@ -108,6 +113,8 @@ import type { AppCommand, CommandPredicate } from "./registry";
 export type CommandUiControls = {
   togglePalette: () => void;
   openSettings: () => void;
+  /** Opens settings on a specific section, e.g. appearance for theme commands. */
+  openSettingsAt: (section: SectionId) => void;
   /** Opens the shell-level cloud sign-in drawer, closing settings if it is open. */
   openSignIn: () => void;
   showShortcutHelp: () => void;
@@ -214,6 +221,56 @@ function tabIndexCommands(store: RendererStore): AppCommand[] {
       run: () => activateTabAtIndex(store, position),
     }),
   );
+}
+
+type ThemeChoice = {
+  id: string;
+  label: string;
+  swatchFrom: string;
+  swatchTo: string;
+};
+
+/**
+ * Every selectable theme, with variants flattened into standalone choices so
+ * the palette offers "Catppuccin Latte" directly instead of a nested picker.
+ */
+function themeChoices(): ThemeChoice[] {
+  return THEME_ENTRIES.flatMap((entry) =>
+    entry.variants
+      ? entry.variants.map((variant) => ({
+          id: variant.id,
+          label: `${entry.label} ${variant.label}`,
+          swatchFrom: variant.swatchFrom,
+          swatchTo: variant.swatchTo,
+        }))
+      : [
+          {
+            id: entry.id,
+            label: entry.label,
+            swatchFrom: entry.swatchFrom,
+            swatchTo: entry.swatchTo,
+          },
+        ],
+  );
+}
+
+function themeCommands(store: RendererStore): AppCommand[] {
+  return themeChoices().map((choice) => ({
+    id: `set-theme-${choice.id}`,
+    label: `Theme: ${choice.label}`,
+    group: "View",
+    keywords: ["theme", "appearance", "color", "switch"],
+    icon: (
+      <span
+        aria-hidden
+        className="block size-[13px] rounded-full border border-border/60"
+        style={{
+          background: `linear-gradient(135deg, ${choice.swatchFrom}, ${choice.swatchTo})`,
+        }}
+      />
+    ),
+    run: () => updateSetting(store, "theme", choice.id),
+  }));
 }
 
 export function createWorkspaceCommands(
@@ -600,6 +657,15 @@ export function createWorkspaceCommands(
       run: controls.openSettings,
     },
     {
+      id: "open-theme-settings",
+      label: "Theme settings",
+      group: "General",
+      keywords: ["theme", "appearance", "color", "dark", "light", "preferences"],
+      icon: <PaletteIcon size={15} />,
+      run: () => controls.openSettingsAt("appearance"),
+    },
+    ...themeCommands(store),
+    {
       id: "cloud-sign-in",
       label: "Sign in to Skriuw cloud",
       group: "General",
@@ -776,6 +842,16 @@ export function createWorkspaceCommands(
       shortcut: "goToJournal",
       visible: (_state, ui) => ui.route !== "journal",
       run: () => controls.navigate("journal"),
+    },
+    {
+      id: "go-to-tasks",
+      label: "Go to tasks",
+      group: "Navigation",
+      keywords: ["task", "todo", "checklist", "done"],
+      icon: <ListTodoIcon size={15} />,
+      shortcut: "goToTasks",
+      visible: (_state, ui) => ui.route !== "tasks",
+      run: () => controls.navigate("tasks"),
     },
     {
       id: "go-to-tags",

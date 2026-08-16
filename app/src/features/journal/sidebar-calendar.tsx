@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { journalDayHash } from "@/app-route";
-import { SectionChevron, SectionLabel, sectionHeaderClass } from "@/shared/ui/section-header";
+import { SectionToggle } from "@/shared/ui/section-header";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererStore } from "@/store/types";
 import { monthOfKey, todayKey, type DateKey, type MonthKey } from "./dates";
@@ -52,20 +52,17 @@ export function SidebarCalendar({ store }: Props) {
 
   return (
     <section
-      className="shrink-0 border-t border-sidebar-border"
+      className="group relative shrink-0 border-t border-sidebar-border"
       aria-label="Journal calendar"
     >
-      <button
-        type="button"
-        onClick={toggleOpen}
-        aria-expanded={open}
-        className={sectionHeaderClass}
-      >
-        <SectionChevron open={open} />
-        <SectionLabel title="Calendar" />
-      </button>
+      <SectionToggle
+        title="Calendar"
+        open={open}
+        onToggle={toggleOpen}
+        className="bg-sidebar/90"
+      />
       {open && (
-        <div className="px-2.5 pb-2">
+        <div className="px-2.5 pb-2 pt-2">
           <JournalCalendar
             month={month}
             selected={null}

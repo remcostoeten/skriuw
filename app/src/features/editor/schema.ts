@@ -1,4 +1,12 @@
-import { baseKeymap, chainCommands, toggleMark } from "prosemirror-commands";
+import {
+  baseKeymap,
+  chainCommands,
+  createParagraphNear,
+  liftEmptyBlock,
+  newlineInCode,
+  splitBlock,
+  toggleMark,
+} from "prosemirror-commands";
 import { history, redo, undo } from "prosemirror-history";
 import {
   ellipsis,
@@ -45,6 +53,7 @@ import {
   readDiagramModel,
   serializeMermaidFlowchart,
 } from "./diagram-model";
+import { taskCheckItemAttrs } from "./task-promotion";
 
 export type SlashTrigger = "/" | ":";
 
@@ -405,6 +414,8 @@ const checkItemSpec: NodeSpec = {
         contenteditable: "false",
         role: "checkbox",
         "aria-checked": node.attrs.checked ? "true" : "false",
+        tabindex: "0",
+        "aria-keyshortcuts": "Alt+Shift+Enter",
       },
     ],
     ["div", { class: "check-item-content" }, 0],
@@ -765,6 +776,58 @@ function checkListInputRule(): InputRule {
   });
 }
 
+function taskInputRule(): InputRule {
+  return new InputRule(/^\[([ xX]?)\]\s$/, (state, match, start, end) => {
+    const checkList = productSchema.nodes.check_list;
+    const checkItem = productSchema.nodes.check_item;
+    const bulletList = productSchema.nodes.bullet_list;
+    const listItem = productSchema.nodes.list_item;
+    if (!checkList || !checkItem || !bulletList || !listItem) return null;
+    const $start = state.doc.resolve(start);
+    if ($start.parent.type.spec.code || $start.parentOffset !== 0) return null;
+    let itemDepth = 0;
+    for (let depth = $start.depth; depth > 0; depth -= 1) {
+      if ($start.node(depth).type === listItem) {
+        itemDepth = depth;
+        break;
+      }
+    }
+    if (!itemDepth) return null;
+    const item = $start.node(itemDepth);
+    const bulletDepth = itemDepth - 1;
+    const bullets = $start.node(bulletDepth);
+    if (
+      item.childCount !== 1 ||
+      $start.index(itemDepth) !== 0 ||
+      bullets.type !== bulletList ||
+      bulletDepth === 0 ||
+      $start.node(bulletDepth - 1).type.name !== "doc"
+    ) return null;
+    const itemIndex = $start.index(bulletDepth);
+    let itemOffset = 0;
+    for (let index = 0; index < itemIndex; index += 1) itemOffset += bullets.child(index).nodeSize;
+    const bulletPosition = $start.before(bulletDepth);
+    const tr = state.tr.delete(start, end);
+    const currentBullets = tr.doc.nodeAt(bulletPosition);
+    if (!currentBullets || currentBullets.type !== bulletList) return null;
+    const currentItem = currentBullets.child(itemIndex);
+    const attrs = taskCheckItemAttrs((match[1] ?? "").toLowerCase() === "x");
+    const replacement: ProseMirrorNode[] = [];
+    if (itemOffset > 0) {
+      replacement.push(bulletList.create(currentBullets.attrs, currentBullets.content.cut(0, itemOffset)));
+    }
+    replacement.push(checkList.create(null, checkItem.create(attrs, currentItem.content)));
+    if (itemOffset + currentItem.nodeSize < currentBullets.content.size) {
+      replacement.push(
+        bulletList.create(currentBullets.attrs, currentBullets.content.cut(itemOffset + currentItem.nodeSize)),
+      );
+    }
+    tr.replaceWith(bulletPosition, bulletPosition + currentBullets.nodeSize, replacement);
+    tr.setSelection(TextSelection.near(tr.doc.resolve(bulletPosition + 2), 1));
+    return tr.scrollIntoView();
+  });
+}
+
 function toggleListInputRule(): InputRule {
   return new InputRule(/^\s*\[([>vV])\]\s$/, (state, match, start, end) => {
     const toggleList = productSchema.nodes.toggle_list;
@@ -854,6 +917,46 @@ export function linkPastedText(view: EditorView, text: string): boolean {
   return true;
 }
 
+function checkboxItemAtDom(view: EditorView, target: HTMLElement): boolean {
+  const $pos = view.state.doc.resolve(view.posAtDOM(target, 0));
+  for (let depth = $pos.depth; depth > 0; depth -= 1) {
+    const node = $pos.node(depth);
+    if (node.type.name !== "check_item") continue;
+    view.dispatch(view.state.tr.setNodeMarkup($pos.before(depth), undefined, {
+      ...node.attrs,
+      checked: !node.attrs.checked,
+    }));
+    return true;
+  }
+  return false;
+}
+
+export function toggleCheckItemAtSelection(
+  state: EditorState,
+  dispatch?: (transaction: EditorState["tr"]) => void,
+): boolean {
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const node = $from.node(depth);
+    if (node.type.name !== "check_item") continue;
+    if (dispatch) dispatch(state.tr.setNodeMarkup($from.before(depth), undefined, {
+      ...node.attrs,
+      checked: !node.attrs.checked,
+    }));
+    return true;
+  }
+  return false;
+}
+
+function isCheckbox(target: EventTarget | null): target is HTMLElement {
+  return (
+    target !== null &&
+    typeof target === "object" &&
+    "classList" in target &&
+    (target as HTMLElement).classList.contains("check-item-box")
+  );
+}
+
 function createCheckboxTogglePlugin(): Plugin {
   return new Plugin({
     props: {
@@ -861,27 +964,21 @@ function createCheckboxTogglePlugin(): Plugin {
         mousedown(view, event) {
           const target = event.target;
           if (
-            !(target instanceof HTMLElement) ||
-            !target.classList.contains("check-item-box") ||
+            !isCheckbox(target) ||
             !view.editable
           ) {
             return false;
           }
           event.preventDefault();
-          const $pos = view.state.doc.resolve(view.posAtDOM(target, 0));
-          for (let depth = $pos.depth; depth > 0; depth -= 1) {
-            const node = $pos.node(depth);
-            if (node.type.name === "check_item") {
-              view.dispatch(
-                view.state.tr.setNodeMarkup($pos.before(depth), undefined, {
-                  checked: !node.attrs.checked,
-                }),
-              );
-              return true;
-            }
-          }
-          return false;
+          return checkboxItemAtDom(view, target);
         },
+      },
+      handleKeyDown(view, event) {
+        if (!isCheckbox(event.target) || !view.editable || (event.key !== "Enter" && event.key !== " ")) {
+          return false;
+        }
+        event.preventDefault();
+        return checkboxItemAtDom(view, event.target);
       },
     },
   });
@@ -979,6 +1076,76 @@ function createToggleListPlugin(): Plugin {
   });
 }
 
+function splitTaskItem(checkItem: NonNullable<typeof productSchema.nodes.check_item>) {
+  const split = splitListItem(checkItem, { checked: false, taskId: null, blockId: null });
+  return (state: EditorState, dispatch?: (transaction: EditorState["tr"]) => void): boolean => {
+    const { $from } = state.selection;
+    let source: ProseMirrorNode | null = null;
+    for (let depth = $from.depth; depth > 0; depth -= 1) {
+      if ($from.node(depth).type === checkItem) {
+        source = $from.node(depth);
+        break;
+      }
+    }
+    const result: { transaction: EditorState["tr"] | null } = { transaction: null };
+    if (!split(state, (next) => { result.transaction = next; })) return false;
+    const transaction = result.transaction;
+    if (!transaction) return false;
+    if (
+      source?.textContent.trim() &&
+      isTaskId(source.attrs.taskId) &&
+      isTaskId(source.attrs.blockId) &&
+      source.attrs.taskId !== source.attrs.blockId
+    ) {
+      const $next = transaction.selection.$from;
+      for (let depth = $next.depth; depth > 0; depth -= 1) {
+        if ($next.node(depth).type !== checkItem) continue;
+        transaction.setNodeMarkup($next.before(depth), undefined, taskCheckItemAttrs(false));
+        break;
+      }
+    }
+    if (dispatch) dispatch(transaction);
+    return true;
+  };
+}
+
+/**
+ * Enter inside ordinary prose adds a line break to the current paragraph rather
+ * than starting a new one, so the note's Markdown gains one line per visible
+ * line instead of a blank-line-separated block. Enter on the empty line that
+ * follows a break trades that break for a real paragraph split, which keeps two
+ * consecutive breaks — the one shape Markdown cannot round-trip cleanly — out of
+ * the document. Structural blocks (lists, headings, code, tables) keep their own
+ * Enter behavior and fall through to the base keymap.
+ */
+function breakOrSplitParagraph(
+  state: EditorState,
+  dispatch?: (transaction: EditorState["tr"]) => void,
+): boolean {
+  const hardBreak = productSchema.nodes.hard_break;
+  const { selection } = state;
+  if (!(selection instanceof TextSelection) || !hardBreak) return false;
+  const { $from, $to } = selection;
+  if ($from.parent.type !== productSchema.nodes.paragraph || !$from.sameParent($to)) return false;
+  const container = $from.node($from.depth - 1).type.name;
+  if (container !== "doc" && container !== "blockquote") return false;
+
+  const atParagraphEnd = $to.parentOffset === $to.parent.content.size;
+  if (selection.empty && atParagraphEnd && $from.nodeBefore?.type === hardBreak) {
+    if (dispatch) {
+      const transaction = state.tr.delete($from.pos - 1, $from.pos);
+      transaction.split($from.pos - 1);
+      dispatch(transaction.scrollIntoView());
+    }
+    return true;
+  }
+
+  if (dispatch) {
+    dispatch(state.tr.replaceSelectionWith(hardBreak.create()).scrollIntoView());
+  }
+  return true;
+}
+
 export function createProductPlugins(): Plugin[] {
   const blockquote = productSchema.nodes.blockquote;
   const codeBlock = productSchema.nodes.code_block;
@@ -1023,6 +1190,7 @@ export function createProductPlugins(): Plugin[] {
         ...smartQuotes,
         ellipsis,
         emDash,
+        taskInputRule(),
         checkListInputRule(),
         toggleListInputRule(),
         textblockTypeInputRule(/^(#{1,6})\s$/, heading, (match) => ({
@@ -1062,10 +1230,21 @@ export function createProductPlugins(): Plugin[] {
       "Alt-ArrowUp": moveSelectedBlock(-1),
       "Alt-ArrowDown": moveSelectedBlock(1),
       "Alt-Enter": toggleItemAtSelection,
+      "Alt-Shift-Enter": toggleCheckItemAtSelection,
       Enter: chainCommands(
-        splitListItem(checkItem, { checked: false }),
+        splitTaskItem(checkItem),
         splitListItem(toggleItem, { open: true }),
         splitListItem(listItem),
+        breakOrSplitParagraph,
+      ),
+      "Shift-Enter": chainCommands(
+        splitTaskItem(checkItem),
+        splitListItem(toggleItem, { open: true }),
+        splitListItem(listItem),
+        newlineInCode,
+        createParagraphNear,
+        liftEmptyBlock,
+        splitBlock,
       ),
       Tab: chainCommands(
         sinkListItem(checkItem),
@@ -1103,7 +1282,7 @@ function serializeTableCell(cell: ProseMirrorNode): string {
   const rendered = only && only.type.name === "paragraph"
     ? productMarkdownSerializer.serialize(productSchema.node("doc", null, [only]))
     : cell.textBetween(0, cell.content.size, " ", " ");
-  return rendered.replace(/\s*\n\s*/g, " ").replace(/\|/g, "\\|").trim();
+  return rendered.replace(/\s*\\?\n\s*/g, " ").replace(/\|/g, "\\|").trim();
 }
 
 function serializeTableRow(row: ProseMirrorNode): string[] {
@@ -1134,10 +1313,14 @@ const productMarkdownSerializer = new MarkdownSerializer(
       state.renderInline(node);
       state.closeBlock(node);
     },
-    heading(state, node) {
+    heading(state, node, parent, index) {
       state.write(`${state.repeat("#", node.attrs.level)} ${textAlignmentMarker(node)}`);
       state.renderInline(node, false);
-      state.closeBlock(node);
+      if (index < parent.childCount - 1) {
+        state.ensureNewLine();
+      } else {
+        state.closeBlock(node);
+      }
     },
     table(state, node) {
       const rows: string[][] = [];
@@ -1171,13 +1354,19 @@ const productMarkdownSerializer = new MarkdownSerializer(
     },
     check_item(state, node) {
       state.write(node.attrs.checked ? "[x] " : "[ ] ");
-      state.renderContent(node);
-      if (isTaskId(node.attrs.taskId)) {
+      const paragraph = node.firstChild;
+      if (!paragraph) return;
+      state.renderInline(paragraph, false);
+      if (isTaskId(node.attrs.taskId) && paragraph.textContent.trim()) {
         const blockId = isTaskId(node.attrs.blockId) && node.attrs.blockId !== node.attrs.taskId
           ? `:${node.attrs.blockId}`
           : "";
         state.write(` <!--skriuw-task:${node.attrs.taskId}${blockId}-->`);
       }
+      state.closeBlock(paragraph);
+      node.forEach((child, _offset, index) => {
+        if (index > 0) state.render(child, node, index);
+      });
     },
     toggle_list(state, node) {
       state.renderList(node, "  ", () => "- ");
@@ -1231,6 +1420,14 @@ const productMarkdownSerializer = new MarkdownSerializer(
     raw_markdown(state, node) {
       state.write(node.textContent);
       state.closeBlock(node);
+    },
+    hard_break(state, node, parent, index) {
+      for (let after = index + 1; after < parent.childCount; after += 1) {
+        if (parent.child(after).type === node.type) continue;
+        const before = index > 0 ? parent.child(index - 1) : null;
+        state.write(before && before.type !== node.type ? "\n" : "\\\n");
+        return;
+      }
     },
   },
   {
@@ -1433,6 +1630,7 @@ const productMarkdownParser = new MarkdownParser(
   defaultMarkdownParser.tokenizer,
   {
     ...defaultMarkdownParser.tokens,
+    softbreak: { node: "hard_break" },
     s: { mark: "strikethrough" },
     paragraph: {
       block: "paragraph",

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceNode, WorkspaceSnapshot } from "../../src/contracts/workspace";
+import type { WorkspaceNode, WorkspaceSnapshot, WorkspaceTask } from "../../src/contracts/workspace";
 import { createInitialState, createRendererStore } from "../../src/store/store";
 import { pinnedNodeIds } from "../../src/store/tree";
 
@@ -69,6 +69,22 @@ test("initial state orders siblings by rank and excludes trashed subtrees", () =
   assert.equal(state.nodes.has("trashed-child"), false);
   assert.equal(state.activeNoteId, "note-child");
   assert.equal(state.metadata.get("note-child")?.wordCount, 7);
+});
+
+test("tasks hydrate and task operations update the narrow task projection", () => {
+  const task: WorkspaceTask = {
+    id: "task-1", title: "Ship", status: "todo", priority: "medium", dueDate: null,
+    description: "", tagIds: [], assigneeIds: [], source: { noteId: "note-child", blockId: "block-1" },
+    detachedAt: null, createdAt: 1, updatedAt: 1,
+  };
+  const initial = createInitialState({ ...snapshot(), tasks: [task] });
+  assert.equal(initial.tasks.get("task-1")?.title, "Ship");
+  const store = createRendererStore(initial);
+  store.applyOperations([{ type: "detach_task", id: "task-1", document: null, at: 4 }]);
+  assert.equal(store.getState().tasks.get("task-1")?.source, null);
+  assert.equal(store.getState().tasks.get("task-1")?.detachedAt, 4);
+  store.applyOperations([{ type: "delete_task", id: "task-1", document: null, at: 5 }]);
+  assert.equal(store.getState().tasks.has("task-1"), false);
 });
 
 test("set_node_pinned pins and unpins available nodes and survives trash without edits", () => {
@@ -309,6 +325,67 @@ test("save_document updates content, word count, and metadata timestamp", () => 
   assert.equal(state.documents.get("note-root")?.markdown, "updated");
   assert.equal(state.metadata.get("note-root")?.wordCount, 12);
   assert.equal(state.metadata.get("note-root")?.updatedAt, 99);
+});
+
+test("a task operation's paired document lands on the note it rewrites", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  const task = {
+    id: "task-1",
+    title: "Call Patrick",
+    status: "todo" as const,
+    priority: "medium" as const,
+    dueDate: null,
+    description: "",
+    tagIds: [],
+    assigneeIds: [],
+    source: { noteId: "note-root", blockId: "block-1" },
+    detachedAt: null,
+    createdAt: 1,
+    updatedAt: 1,
+  };
+  store.applyOperations([{ type: "create_task", task }]);
+  store.applyOperations([
+    {
+      type: "update_task",
+      task: { ...task, status: "done", updatedAt: 99 },
+      document: {
+        noteId: "note-root",
+        documentJson: { type: "doc", content: [] },
+        markdown: "- [x] Call Patrick",
+        wordCount: 3,
+        expectedRevision: 1,
+      },
+    },
+  ]);
+  const state = store.getState();
+  assert.equal(state.tasks.get("task-1")?.status, "done");
+  assert.equal(state.documents.get("note-root")?.markdown, "- [x] Call Patrick");
+  assert.equal(state.metadata.get("note-root")?.updatedAt, 99);
+});
+
+test("a task operation without a paired document leaves every document alone", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  const before = store.getState().documents;
+  store.applyOperations([
+    {
+      type: "create_task",
+      task: {
+        id: "task-1",
+        title: "Loose end",
+        status: "todo",
+        priority: "medium",
+        dueDate: null,
+        description: "",
+        tagIds: [],
+        assigneeIds: [],
+        source: null,
+        detachedAt: null,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    },
+  ]);
+  assert.equal(store.getState().documents, before);
 });
 
 test("save_document keeps structural identities and never notifies tree subscribers", () => {

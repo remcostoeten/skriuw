@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import { CloseIcon } from "@/shared/icons/static";
@@ -16,6 +16,23 @@ type Props = {
   /** Extra class on the dialog element, e.g. for per-dialog sizing. */
   className?: string;
 };
+
+const DialogCloseContext = createContext<(() => void) | null>(null);
+
+/**
+ * Closes the enclosing dialog through the native element, synchronously
+ * dropping it out of the top layer. Content that acts on the page as it closes
+ * — running a command, opening a note — must use this rather than flipping the
+ * caller's open state, because everything outside an open modal dialog is inert
+ * and refuses focus until the element itself is closed.
+ */
+export function useDialogClose(): () => void {
+  const close = useContext(DialogCloseContext);
+  if (close === null) {
+    throw new Error("useDialogClose must be called inside a <Dialog>.");
+  }
+  return close;
+}
 
 /**
  * Dependency-free modal built on the native `<dialog>` element, so focus
@@ -152,44 +169,54 @@ function DialogShell({
       dialog.removeEventListener("close", handleClose);
       dialog.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleWindowKeyDown);
-      if (previousFocusRef.current?.isConnected) {
+      // Only reclaim focus if it never left the dialog. Content that closes
+      // itself and then focuses something else — a command opening a note —
+      // has already placed the caret where the user wants it.
+      const active = document.activeElement;
+      const focusStillInside =
+        active === null || active === document.body || dialog.contains(active);
+      if (focusStillInside && previousFocusRef.current?.isConnected) {
         previousFocusRef.current.focus();
       }
     };
   }, []);
 
+  const close = useCallback(() => ref.current?.close(), []);
+
   return createPortal(
-    <dialog
-      ref={ref}
-      className={cn(
-        "dialog inset-0 m-auto flex h-fit max-h-[72vh] w-[min(680px,calc(100vw-24px))] flex-col rounded-[calc(var(--radius)+4px)] border border-border bg-popover p-0 text-popover-foreground shadow-[0_16px_48px_hsl(var(--scrim)/0.4)] backdrop:bg-scrim/55",
-        className,
-      )}
-      aria-labelledby={titleId}
-    >
-      {showHeader ? (
-        <header className="dialog-header flex items-center justify-between border-b border-border px-3.5 py-3">
-          <h2 id={titleId} className="dialog-title m-0 text-sm font-semibold">
+    <DialogCloseContext.Provider value={close}>
+      <dialog
+        ref={ref}
+        className={cn(
+          "dialog inset-0 m-auto flex h-fit max-h-[72vh] w-[min(680px,calc(100vw-24px))] flex-col rounded-[calc(var(--radius)+4px)] border border-border bg-popover p-0 text-popover-foreground shadow-[0_16px_48px_hsl(var(--scrim)/0.4)] backdrop:bg-scrim/55",
+          className,
+        )}
+        aria-labelledby={titleId}
+      >
+        {showHeader ? (
+          <header className="dialog-header flex items-center justify-between border-b border-border px-3.5 py-3">
+            <h2 id={titleId} className="dialog-title m-0 text-sm font-semibold">
+              {title}
+            </h2>
+            <button
+              type="button"
+              className="dialog-close flex cursor-pointer rounded-[var(--radius)] border-none bg-transparent p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Close dialog"
+              onClick={close}
+            >
+              <CloseIcon size={16} />
+            </button>
+          </header>
+        ) : (
+          <h2 id={titleId} className="sr-only">
             {title}
           </h2>
-          <button
-            type="button"
-            className="dialog-close flex cursor-pointer rounded-[var(--radius)] border-none bg-transparent p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Close dialog"
-            onClick={() => ref.current?.close()}
-          >
-            <CloseIcon size={16} />
-          </button>
-        </header>
-      ) : (
-        <h2 id={titleId} className="sr-only">
-          {title}
-        </h2>
-      )}
-      {/* flex-auto, not flex-1: WebKitGTK collapses basis-0 items inside an
-          auto-height column, rendering every dialog body at zero height. */}
-      <div className="dialog-body min-h-0 flex-auto overflow-y-auto">{children}</div>
-    </dialog>,
+        )}
+        {/* flex-auto, not flex-1: WebKitGTK collapses basis-0 items inside an
+            auto-height column, rendering every dialog body at zero height. */}
+        <div className="dialog-body min-h-0 flex-auto overflow-y-auto">{children}</div>
+      </dialog>
+    </DialogCloseContext.Provider>,
     document.body,
   );
 }

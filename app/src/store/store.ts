@@ -6,6 +6,7 @@ import type {
   WorkspaceNode,
   WorkspaceOperation,
   WorkspaceSnapshot,
+  WorkspaceTask,
 } from "@/contracts/workspace";
 import { extractReferences } from "@/features/references/extract";
 import {
@@ -54,6 +55,7 @@ import {
 } from "./tree";
 import type {
   DocumentRecord,
+  CoVisits,
   Equality,
   Listener,
   NoteMetadata,
@@ -73,6 +75,32 @@ type Subscriber<T = unknown> = {
 
 function strictEqual<T>(left: T, right: T): boolean {
   return Object.is(left, right);
+}
+
+const MAX_CO_VISIT_SOURCES = 100;
+const MAX_CO_VISIT_NEIGHBOURS = 12;
+
+function recordCoVisit(current: CoVisits, sourceId: string, targetId: string): CoVisits {
+  const next = new Map(current);
+  const at = Date.now();
+  for (const [from, to] of [[sourceId, targetId], [targetId, sourceId]] as const) {
+    const neighbours = new Map(next.get(from));
+    const previous = neighbours.get(to);
+    neighbours.set(to, { count: (previous?.count ?? 0) + 1, lastVisitedAt: at });
+    next.set(from, new Map([...neighbours.entries()]
+      .sort((a, b) => b[1].count - a[1].count || b[1].lastVisitedAt - a[1].lastVisitedAt)
+      .slice(0, MAX_CO_VISIT_NEIGHBOURS)));
+  }
+  while (next.size > MAX_CO_VISIT_SOURCES) {
+    const oldest = [...next.entries()].sort((a, b) => {
+      const latest = (entries: ReadonlyMap<string, { lastVisitedAt: number }>) =>
+        Math.max(...[...entries.values()].map((entry) => entry.lastVisitedAt));
+      return latest(a[1]) - latest(b[1]);
+    })[0]?.[0];
+    if (!oldest) break;
+    next.delete(oldest);
+  }
+  return next;
 }
 
 function hasLosslessMarkdown(documentJson: unknown): boolean {
@@ -211,6 +239,8 @@ export function createInitialState(
   for (const image of snapshot.images ?? []) {
     images.set(image.id, image);
   }
+  const tasks = new Map<string, WorkspaceTask>();
+  for (const task of snapshot.tasks ?? []) tasks.set(task.id, task);
   const propertiesByNoteId = new Map<string, NoteProperty[]>();
   for (const property of snapshot.properties ?? []) {
     const properties = propertiesByNoteId.get(property.noteId) ?? [];
@@ -243,10 +273,12 @@ export function createInitialState(
     tags,
     people,
     images,
+    tasks,
     propertiesByNoteId,
     propertyTemplates,
     importReceipts: snapshot.importReceipts ?? [],
     ...buildReferenceProjection(references.references),
+    coVisits: new Map(),
   });
   if (derived.activeNoteId === null) {
     const firstNote = derived.noteIds[0];
@@ -262,10 +294,106 @@ export function createInitialState(
   return derived;
 }
 
+type SavedDocument = {
+  noteId: string;
+  documentJson: unknown;
+  markdown: string;
+  wordCount: number;
+};
+
+/**
+ * Projects a document write onto the renderer state. Task operations carry the
+ * rewritten source document alongside their record, so the same projection has
+ * to run for them: without it the record advances, the acknowledgement bumps
+ * the stored revision, and the untouched local document silently reverts the
+ * change on the note's next save.
+ */
+function withSavedDocument(
+  current: RendererState,
+  saved: SavedDocument | null,
+  at: number,
+): RendererState {
+  if (!saved) {
+    return current;
+  }
+  const existing = current.documents.get(saved.noteId);
+  if (!existing) {
+    return current;
+  }
+  const documents = new Map(current.documents);
+  documents.set(saved.noteId, {
+    ...existing,
+    documentJson: saved.documentJson,
+    markdown: saved.markdown,
+    wordCount: saved.wordCount,
+    hasLosslessMarkdown: hasLosslessMarkdown(saved.documentJson),
+  });
+  const sourceNode = current.sourceNodes.get(saved.noteId);
+  const sourceNodes = new Map(current.sourceNodes);
+  if (sourceNode) {
+    sourceNodes.set(saved.noteId, { ...sourceNode, updatedAt: at });
+  }
+  const projection = updateNoteReferences(
+    referenceState(current),
+    saved.noteId,
+    extractReferences(saved.documentJson),
+  );
+  // Saves cannot change tree structure (ordering is rank/parentId/deletedAt),
+  // so skip derive: rebuilding the index would hand every unchanged record a
+  // new identity and re-render the shell on the typing path.
+  const noteMetadata = current.metadata.get(saved.noteId);
+  let metadata: ReadonlyMap<string, NoteMetadata> = current.metadata;
+  if (noteMetadata) {
+    const patched = new Map(current.metadata);
+    patched.set(saved.noteId, {
+      ...noteMetadata,
+      wordCount: saved.wordCount,
+      updatedAt: at,
+    });
+    metadata = patched;
+  }
+  return { ...current, sourceNodes, documents, metadata, ...projection };
+}
+
 function reduceState(
   current: RendererState,
   operation: WorkspaceOperation,
 ): RendererState {
+  if (operation.type === "create_task") {
+    if (current.tasks.has(operation.task.id)) return current;
+    const tasks = new Map(current.tasks);
+    tasks.set(operation.task.id, operation.task);
+    return { ...current, tasks };
+  }
+  if (operation.type === "promote_checklist_task") {
+    const next = withSavedDocument(current, operation.document, operation.task.updatedAt);
+    if (current.tasks.has(operation.task.id)) return next;
+    const tasks = new Map(next.tasks);
+    tasks.set(operation.task.id, operation.task);
+    return { ...next, tasks };
+  }
+  if (operation.type === "update_task") {
+    if (!current.tasks.has(operation.task.id)) return current;
+    const next = withSavedDocument(current, operation.document, operation.task.updatedAt);
+    const tasks = new Map(next.tasks);
+    tasks.set(operation.task.id, operation.task);
+    return { ...next, tasks };
+  }
+  if (operation.type === "delete_task") {
+    if (!current.tasks.has(operation.id)) return current;
+    const next = withSavedDocument(current, operation.document, operation.at);
+    const tasks = new Map(next.tasks);
+    tasks.delete(operation.id);
+    return { ...next, tasks };
+  }
+  if (operation.type === "detach_task") {
+    const task = current.tasks.get(operation.id);
+    if (!task) return current;
+    const next = withSavedDocument(current, operation.document, operation.at);
+    const tasks = new Map(next.tasks);
+    tasks.set(operation.id, { ...task, source: null, detachedAt: operation.at, updatedAt: operation.at });
+    return { ...next, tasks };
+  }
   if (operation.type === "record_provider_import") {
     const importReceipts = current.importReceipts.filter(
       (receipt) =>
@@ -312,43 +440,7 @@ function reduceState(
     return { ...current, images };
   }
   if (operation.type === "save_document") {
-    const existing = current.documents.get(operation.noteId);
-    if (!existing) {
-      return current;
-    }
-    const documents = new Map(current.documents);
-    documents.set(operation.noteId, {
-      ...existing,
-      documentJson: operation.documentJson,
-      markdown: operation.markdown,
-      wordCount: operation.wordCount,
-      hasLosslessMarkdown: hasLosslessMarkdown(operation.documentJson),
-    });
-    const sourceNode = current.sourceNodes.get(operation.noteId);
-    const sourceNodes = new Map(current.sourceNodes);
-    if (sourceNode) {
-      sourceNodes.set(operation.noteId, { ...sourceNode, updatedAt: operation.at });
-    }
-    const projection = updateNoteReferences(
-      referenceState(current),
-      operation.noteId,
-      extractReferences(operation.documentJson),
-    );
-    // Saves cannot change tree structure (ordering is rank/parentId/deletedAt),
-    // so skip derive: rebuilding the index would hand every unchanged record a
-    // new identity and re-render the shell on the typing path.
-    const noteMetadata = current.metadata.get(operation.noteId);
-    let metadata: ReadonlyMap<string, NoteMetadata> = current.metadata;
-    if (noteMetadata) {
-      const patched = new Map(current.metadata);
-      patched.set(operation.noteId, {
-        ...noteMetadata,
-        wordCount: operation.wordCount,
-        updatedAt: operation.at,
-      });
-      metadata = patched;
-    }
-    return { ...current, sourceNodes, documents, metadata, ...projection };
+    return withSavedDocument(current, operation, operation.at);
   }
   if (operation.type === "set_note_property") {
     if (current.sourceNodes.get(operation.property.noteId)?.kind !== "note") {
@@ -849,7 +941,13 @@ export function createRendererStore(initialState: RendererState): RendererStore 
   }
 
   function setActiveNote(id: string | null): boolean {
-    return update((current) => reduceState(current, { type: "set_active_note", noteId: id }));
+    return update((current) => {
+      const next = reduceState(current, { type: "set_active_note", noteId: id });
+      if (next === current || current.activeNoteId === null || id === null || id === current.activeNoteId) {
+        return next;
+      }
+      return { ...next, coVisits: recordCoVisit(next.coVisits, current.activeNoteId, id) };
+    });
   }
 
   function setFocusedNode(id: string | null): boolean {
@@ -1055,6 +1153,7 @@ export function createRendererStore(initialState: RendererState): RendererStore 
         people: fresh.people,
         outgoingReferences: fresh.outgoingReferences,
         incomingReferences: fresh.incomingReferences,
+        coVisits: current.coVisits,
       });
     });
   }

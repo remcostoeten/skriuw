@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-export type AppRoute = "notes" | "trash" | "tags" | "people" | "history" | "journal";
+export type AppRoute = "notes" | "trash" | "tags" | "people" | "history" | "journal" | "tasks";
 
 export function resolveAppRoute(hash: string): AppRoute {
   if (hash === "#/trash") {
@@ -18,11 +18,14 @@ export function resolveAppRoute(hash: string): AppRoute {
   if (hash === "#/journal" || hash.startsWith("#/journal/")) {
     return "journal";
   }
+  if (hash === "#/tasks" || hash.startsWith("#/tasks/")) {
+    return "tasks";
+  }
   return "notes";
 }
 
 export function resolveRouteFocus(hash: string): string | null {
-  const match = /^#\/(?:tags|people|history|journal)\/([^/]+)(?:\/[^/]*)?$/.exec(hash);
+  const match = /^#\/(?:tags|people|history|journal|tasks)\/([^/]+)(?:\/[^/]*)?$/.exec(hash);
   if (!match) {
     return null;
   }
@@ -79,7 +82,14 @@ export function appRouteHash(route: AppRoute): string {
   if (route === "journal") {
     return "#/journal";
   }
+  if (route === "tasks") {
+    return "#/tasks";
+  }
   return "#/notes";
+}
+
+export function taskFocusHash(taskId: string): string {
+  return `#/tasks/${encodeURIComponent(taskId)}`;
 }
 
 export function journalDayHash(dateKey: string): string {

@@ -9,6 +9,7 @@ import type {
   WorkspaceOperation,
   WorkspaceSettings,
   WorkspaceSnapshot,
+  WorkspaceTask,
 } from "@/contracts/workspace";
 import type {
   IncomingReferences,
@@ -43,6 +44,10 @@ export type NoteMetadata = {
   updatedAt: number;
 };
 
+/** Session-local activity relationship; intentionally excluded from persistence. */
+export type CoVisit = { count: number; lastVisitedAt: number };
+export type CoVisits = ReadonlyMap<string, ReadonlyMap<string, CoVisit>>;
+
 export type TreeSelectionMode = "replace" | "toggle" | "range";
 
 export type RendererState = {
@@ -74,11 +79,13 @@ export type RendererState = {
   tags: ReadonlyMap<string, TagRecord>;
   people: ReadonlyMap<string, PersonRecord>;
   images: ReadonlyMap<string, WorkspaceImage>;
+  tasks: ReadonlyMap<string, WorkspaceTask>;
   propertiesByNoteId: ReadonlyMap<string, readonly NoteProperty[]>;
   propertyTemplates: readonly NotePropertyTemplate[];
   importReceipts: readonly ProviderImportReceipt[];
   outgoingReferences: OutgoingReferences;
   incomingReferences: IncomingReferences;
+  coVisits: CoVisits;
 };
 
 export type Equality<T> = (left: T, right: T) => boolean;

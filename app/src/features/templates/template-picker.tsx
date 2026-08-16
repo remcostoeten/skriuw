@@ -1,6 +1,8 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { createNoteFromTemplate } from "@/store/actions/workspace";
 import { SearchIcon } from "@/shared/icons/static";
+import { Dialog, useDialogClose } from "@/shared/ui/dialog";
+import { useListboxNavigation } from "@/shared/ui/use-listbox-navigation";
 import type { RendererStore } from "@/store/types";
 import {
   NOTE_TEMPLATES,
@@ -54,90 +56,49 @@ function propertyHint(template: NoteTemplate): string | null {
 }
 
 function TemplatePickerDialog({ onClose, onPick }: DialogProps) {
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => !open && onClose()}
+      title="New note from template"
+      showHeader={false}
+      className="mx-auto mb-auto mt-[16vh] max-h-[56vh] w-[calc(100vw-1.5rem)] max-w-md overflow-hidden"
+    >
+      <TemplatePickerBody onPick={onPick} />
+    </Dialog>
+  );
+}
+
+type BodyProps = {
+  onPick: (template: NoteTemplate) => void;
+};
+
+function TemplatePickerBody({ onPick }: BodyProps) {
   const [query, setQuery] = useState("");
-  const [activeIndex, setActiveIndex] = useState(0);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
-  const onCloseRef = useRef(onClose);
-
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  });
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) {
-      return;
-    }
-    const handleClose = () => onCloseRef.current();
-    const handlePointerDown = (event: PointerEvent) => {
-      if (event.target === dialog) {
-        dialog.close();
-      }
-    };
-    dialog.addEventListener("close", handleClose);
-    dialog.addEventListener("pointerdown", handlePointerDown);
-    dialog.showModal();
-    return () => {
-      dialog.removeEventListener("close", handleClose);
-      dialog.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, []);
+  const closeDialog = useDialogClose();
 
   const templates = useMemo(() => filterNoteTemplates(NOTE_TEMPLATES, query), [query]);
-  const boundedIndex = Math.min(activeIndex, Math.max(templates.length - 1, 0));
-  const activeTemplate = templates[boundedIndex];
 
-  useEffect(() => {
-    const activeElement = listRef.current?.querySelector<HTMLElement>(
-      `[data-index="${boundedIndex}"]`,
-    );
-    activeElement?.scrollIntoView({ block: "nearest" });
-  }, [boundedIndex]);
+  const { activeIndex, listRef, onKeyDown, setActiveIndex } = useListboxNavigation({
+    count: templates.length,
+    onSelect: (index) => {
+      const template = templates[index];
+      if (template) {
+        pick(template);
+      }
+    },
+  });
+  const activeTemplate = templates[activeIndex];
 
   function pick(template: NoteTemplate): void {
-    dialogRef.current?.close();
+    closeDialog();
     onPick(template);
   }
 
-  function onInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
-    if (event.key === "Tab") {
-      event.preventDefault();
-    } else if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setActiveIndex(templates.length > 0 ? Math.min(boundedIndex + 1, templates.length - 1) : 0);
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setActiveIndex(Math.max(boundedIndex - 1, 0));
-    } else if (event.key === "Home" && templates.length > 0) {
-      event.preventDefault();
-      setActiveIndex(0);
-    } else if (event.key === "End" && templates.length > 0) {
-      event.preventDefault();
-      setActiveIndex(templates.length - 1);
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      if (activeTemplate) {
-        pick(activeTemplate);
-      }
-    }
-  }
-
   return (
-    <dialog
-      ref={dialogRef}
-      role="dialog"
-      className="inset-0 mx-auto mb-auto mt-[16vh] flex h-fit max-h-[56vh] w-[calc(100vw-1.5rem)] max-w-md flex-col overflow-hidden rounded-xl border border-border bg-popover p-0 text-popover-foreground shadow-2xl shadow-black/40 backdrop:bg-black/55 backdrop:backdrop-blur-[1px]"
-      aria-label="New note from template"
-      onKeyDown={(event) => {
-        if (event.key === "Escape" && !event.defaultPrevented) {
-          event.preventDefault();
-          dialogRef.current?.close();
-        }
-      }}
-    >
-      <div className="flex items-center gap-2.5 border-b border-border px-3.5 py-3 text-muted-foreground">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-none items-center gap-2.5 border-b border-border px-3.5 py-3 text-muted-foreground">
         <SearchIcon size={16} />
         <input
           autoFocus
@@ -147,14 +108,14 @@ function TemplatePickerDialog({ onClose, onPick }: DialogProps) {
             setQuery(event.target.value);
             setActiveIndex(0);
           }}
-          onKeyDown={onInputKeyDown}
+          onKeyDown={onKeyDown}
           placeholder="Choose a template..."
           role="combobox"
           aria-expanded="true"
           aria-controls={listboxId}
           aria-autocomplete="list"
           aria-activedescendant={
-            activeTemplate ? `${listboxId}-item-${boundedIndex}` : undefined
+            activeTemplate ? `${listboxId}-item-${activeIndex}` : undefined
           }
         />
         <kbd className="flex-none rounded border border-border bg-muted px-[5px] py-px font-mono text-[10px] text-muted-foreground">
@@ -167,7 +128,7 @@ function TemplatePickerDialog({ onClose, onPick }: DialogProps) {
         id={listboxId}
         role="listbox"
         aria-label="Note templates"
-        className="min-h-0 overflow-y-auto p-1.5"
+        className="min-h-0 flex-auto overflow-y-auto p-1.5"
       >
         {templates.length === 0 ? (
           <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">
@@ -175,7 +136,7 @@ function TemplatePickerDialog({ onClose, onPick }: DialogProps) {
           </div>
         ) : (
           templates.map((template, index) => {
-            const isActive = index === boundedIndex;
+            const isActive = index === activeIndex;
             const hint = propertyHint(template);
             return (
               <button
@@ -211,11 +172,11 @@ function TemplatePickerDialog({ onClose, onPick }: DialogProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-4 border-t border-border px-3.5 py-2 text-[11px] text-muted-foreground">
+      <div className="flex flex-none items-center gap-4 border-t border-border px-3.5 py-2 text-[11px] text-muted-foreground">
         <span>↑↓ navigate</span>
         <span>↵ create</span>
         <span className="ml-auto">esc close</span>
       </div>
-    </dialog>
+    </div>
   );
 }

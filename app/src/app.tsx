@@ -34,6 +34,7 @@ const CloudSignInDrawer = lazy(async () => {
 import { ShortcutHelpOverlay } from "@/commands/shortcut-help-overlay";
 import { TrashView } from "@/features/trash/trash-view";
 import { EntityView } from "@/features/references/entity-view";
+import { TasksView } from "@/features/tasks/tasks-view";
 import { HistoryView } from "@/features/history/history-view";
 import { JournalSidebar, JournalView } from "@/features/journal/journal-view";
 import { WindowControls } from "@/shell/window-controls";
@@ -67,7 +68,7 @@ import {
   railModShiftKeys,
   type RailItem,
 } from "@/commands/rail-items";
-import { appRouteHash, noteHistoryHash, useAppRoute } from "./app-route";
+import { appRouteHash, useAppRoute } from "./app-route";
 import { installBackNavigation } from "@/features/references/reference-navigation";
 import {
   createCommandRegistry,
@@ -89,6 +90,7 @@ import type { RendererState, RendererStore } from "@/store/types";
 const RAIL_ICONS: Record<RailItem["actionId"], AppIconName> = {
   goToNotes: "notes",
   goToJournal: "journal",
+  goToTasks: "tasks",
   goToTags: "tags",
   goToPeople: "people",
   goToTrash: "trash",
@@ -227,6 +229,7 @@ function WorkspaceShell({ store }: Props) {
         createWorkspaceCommands(store, {
           togglePalette: () => setPaletteOpen((current) => !current),
           openSettings: () => setSettingsOpen((current) => !current),
+          openSettingsAt,
           openSignIn: () => openSignIn(false),
           showShortcutHelp: () => setShortcutHelpOpen((current) => !current),
           toggleSidebar: () => toggleSidebar(false),
@@ -240,7 +243,7 @@ function WorkspaceShell({ store }: Props) {
           },
         }),
       ),
-    [openSignIn, store, toggleMetadata, toggleSidebar],
+    [openSettingsAt, openSignIn, store, toggleMetadata, toggleSidebar],
   );
   const shortcutActions = useMemo(
     () =>
@@ -494,21 +497,6 @@ function WorkspaceShell({ store }: Props) {
               <NoteBreadcrumbs store={store} />
             </div>
             <div className="flex min-w-0 items-center justify-end gap-1">
-            <Tooltip label="Version history" side="bottom">
-              <button
-                type="button"
-                onClick={() => {
-                  if (noteNav.noteId) {
-                    window.location.hash = noteHistoryHash(noteNav.noteId);
-                  }
-                }}
-                disabled={!noteNav.noteId}
-                className={toolbarIconButtonClass}
-                aria-label="Version history"
-              >
-                <AppIcon name="version-history" size={16} />
-              </button>
-            </Tooltip>
             <Tooltip label="Find in note" side="bottom" shortcut={shortcutHints.findInNote}>
               <button
                 type="button"
@@ -574,6 +562,7 @@ function WorkspaceShell({ store }: Props) {
           onToggleSidebar={() => toggleSidebar(true)}
         />
       )}
+      {route === "tasks" && <TasksView store={store} />}
       {route === "trash" && <TrashView store={store} />}
       {route === "tags" && <EntityView store={store} kind="tag" />}
       {route === "people" && <EntityView store={store} kind="person" />}

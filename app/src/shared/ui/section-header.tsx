@@ -40,6 +40,43 @@ export function SectionLabel({ title, count }: SectionLabelProps) {
   );
 }
 
+type SectionToggleProps = {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  id?: string;
+  className?: string;
+};
+
+/**
+ * The disclosure control for a section whose header disappears while open.
+ * Closed it renders the quiet `› Title` row; open it floats a hover-revealed
+ * collapse chevron in the section's top-right corner, taking no layout space.
+ * The parent section must carry `group relative`; pass the surface's own
+ * background (e.g. `bg-sidebar/90`) via `className` when it isn't
+ * `bg-background`.
+ */
+export function SectionToggle({ title, open, onToggle, id, className }: SectionToggleProps) {
+  return (
+    <button
+      type="button"
+      id={id}
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-label={open ? `Collapse ${title}` : undefined}
+      className={cn(
+        open
+          ? "absolute right-1.5 top-1.5 z-[1] flex cursor-pointer items-center rounded-[var(--radius)] bg-background/90 p-1 opacity-0 transition-opacity duration-150 focus-visible:opacity-100 group-hover:opacity-100 motion-reduce:transition-none"
+          : sectionHeaderClass,
+        open && className,
+      )}
+    >
+      <SectionChevron open={open} />
+      {!open && <SectionLabel title={title} />}
+    </button>
+  );
+}
+
 type SectionChevronProps = {
   open: boolean;
   size?: number;

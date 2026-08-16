@@ -1,4 +1,6 @@
 import type { KeyboardEvent, RefObject } from "react";
+import { CloseIcon } from "@/shared/icons/static";
+import { Tooltip } from "@/shared/ui/tooltip";
 
 type Props = {
   fieldId: string;
@@ -7,6 +9,7 @@ type Props = {
   onValueChange: (value: string) => void;
   onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
   onBlur: () => void;
+  onClose: () => void;
   lineCount: number;
   placeholder: string;
 };
@@ -18,15 +21,16 @@ export function JumpToLinePanel({
   onValueChange,
   onKeyDown,
   onBlur,
+  onClose,
   lineCount,
   placeholder,
 }: Props) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border bg-popover p-1.5 pl-2.5 text-[13px] text-foreground shadow-[0_12px_28px_-12px_hsl(var(--scrim)/0.32)]">
-      <label htmlFor={fieldId} className="text-muted-foreground">
+    <div className="flex items-center gap-1">
+      <label htmlFor={fieldId} className="pl-1 text-muted-foreground">
         Line
       </label>
-      <div className="flex items-center rounded-md border border-border bg-background px-2 transition-[border-color,box-shadow] duration-150 focus-within:border-ring">
+      <div className="flex min-w-0 items-center rounded-md border border-border bg-background pl-1.5 transition-[border-color,box-shadow] duration-150 focus-within:border-ring">
         <input
           id={fieldId}
           ref={inputRef}
@@ -38,10 +42,23 @@ export function JumpToLinePanel({
           placeholder={placeholder}
           aria-label={`Jump to line, 1 to ${lineCount}`}
           spellCheck={false}
-          className="w-16 bg-transparent py-1 text-[13px] tabular-nums text-foreground outline-none placeholder:text-muted-foreground"
+          className="w-10 bg-transparent py-1 text-[13px] tabular-nums text-foreground outline-none placeholder:text-muted-foreground"
         />
+        <span className="shrink-0 pr-2 text-xs tabular-nums text-muted-foreground">
+          of {lineCount}
+        </span>
       </div>
-      <span className="pr-1 text-xs tabular-nums text-muted-foreground">of {lineCount}</span>
+      <Tooltip label="Close" shortcut="Esc" side="bottom">
+        <button
+          type="button"
+          aria-label="Close (Esc)"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={onClose}
+          className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-foreground/8 hover:text-foreground"
+        >
+          <CloseIcon size={16} />
+        </button>
+      </Tooltip>
     </div>
   );
 }

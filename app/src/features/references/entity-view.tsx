@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
 import { useShortcutBinding } from "@remcostoeten/use-shortcut/react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
@@ -46,6 +54,13 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/shared/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu";
 import { Tooltip } from "@/shared/ui/tooltip";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import { cn } from "@/shared/lib/utils";
@@ -552,17 +567,20 @@ function EntityList({
                     aria-expanded={expandedId === row.id}
                     onClick={() => onToggleExpand(row.id)}
                     onKeyDown={(event) => {
-                      if (event.key === "ArrowDown") {
+                      if (event.key === "Home" || (event.key === "ArrowUp" && event.shiftKey)) {
+                        focusRow(0);
+                        event.preventDefault();
+                      } else if (
+                        event.key === "End" ||
+                        (event.key === "ArrowDown" && event.shiftKey)
+                      ) {
+                        focusRow(rows.length - 1);
+                        event.preventDefault();
+                      } else if (event.key === "ArrowDown") {
                         focusRow(index + 1);
                         event.preventDefault();
                       } else if (event.key === "ArrowUp") {
                         focusRow(index - 1);
-                        event.preventDefault();
-                      } else if (event.key === "Home") {
-                        focusRow(0);
-                        event.preventDefault();
-                      } else if (event.key === "End") {
-                        focusRow(rows.length - 1);
                         event.preventDefault();
                       }
                     }}
@@ -590,45 +608,43 @@ function EntityList({
                     )}
                   </button>
                   <div className="flex gap-0.5">
-                    <Tooltip label="Actions" side="top">
-                      <button
-                        type="button"
-                        className={cn(
-                          "inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-transparent text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground",
-                          entityFocusRingClass,
-                        )}
-                        aria-label={`Actions for ${row.name}`}
-                        onClick={openRowMenu}
-                      >
-                        <MoreHorizontalIcon size={16} />
-                      </button>
-                    </Tooltip>
+                    <DropdownMenu>
+                      <Tooltip label="Actions" side="top">
+                        <DropdownMenuTrigger
+                          className={cn(
+                            "inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-transparent text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground data-[state=open]:border-border data-[state=open]:bg-muted data-[state=open]:text-foreground",
+                            entityFocusRingClass,
+                          )}
+                          aria-label={`Actions for ${row.name}`}
+                        >
+                          <MoreHorizontalIcon size={16} />
+                        </DropdownMenuTrigger>
+                      </Tooltip>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <EntityMenuItems
+                          surface={dropdownMenuSurface}
+                          row={row}
+                          canMerge={canMerge}
+                          onRename={onRename}
+                          onRecolor={onRecolor}
+                          onMerge={onMerge}
+                          onDelete={onDelete}
+                        />
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent className="w-44">
-                <ContextMenuItem className="gap-2" onSelect={() => onRename(row)}>
-                  <PencilIcon size={14} />
-                  Rename
-                </ContextMenuItem>
-                <ContextMenuItem className="gap-2" onSelect={() => onRecolor(row)}>
-                  <PaletteIcon size={14} />
-                  Recolor
-                </ContextMenuItem>
-                {canMerge && (
-                  <ContextMenuItem className="gap-2" onSelect={() => onMerge(row)}>
-                    <WaypointsIcon size={14} />
-                    Merge into…
-                  </ContextMenuItem>
-                )}
-                <ContextMenuSeparator />
-                <ContextMenuItem
-                  className="gap-2 text-destructive focus:text-destructive"
-                  onSelect={() => onDelete(row)}
-                >
-                  <Trash2Icon size={14} />
-                  Delete
-                </ContextMenuItem>
+                <EntityMenuItems
+                  surface={contextMenuSurface}
+                  row={row}
+                  canMerge={canMerge}
+                  onRename={onRename}
+                  onRecolor={onRecolor}
+                  onMerge={onMerge}
+                  onDelete={onDelete}
+                />
               </ContextMenuContent>
             </ContextMenu>
           )}
@@ -657,20 +673,73 @@ function EntityList({
   );
 }
 
+type MenuSurface = {
+  Item: ComponentType<{
+    className?: string;
+    onSelect: (event: Event) => void;
+    children: ReactNode;
+  }>;
+  Separator: ComponentType<Record<string, never>>;
+};
+
+const contextMenuSurface: MenuSurface = {
+  Item: ContextMenuItem,
+  Separator: ContextMenuSeparator,
+};
+
+const dropdownMenuSurface: MenuSurface = {
+  Item: DropdownMenuItem,
+  Separator: DropdownMenuSeparator,
+};
+
+type EntityMenuItemsProps = {
+  surface: MenuSurface;
+  row: EntityRow;
+  canMerge: boolean;
+  onRename: (row: EntityRow) => void;
+  onRecolor: (row: EntityRow) => void;
+  onMerge: (row: EntityRow) => void;
+  onDelete: (row: EntityRow) => void;
+};
+
 /**
- * Opens the row's Radix context menu from a left-click on the kebab by
- * re-dispatching a `contextmenu` event at the button, so the pointer menu and
- * the kebab menu stay a single definition.
+ * Row actions rendered into either menu surface, so the right-click menu and
+ * the keyboard-reachable kebab menu stay a single definition.
  */
-function openRowMenu(event: MouseEvent<HTMLButtonElement>): void {
-  const button = event.currentTarget;
-  const rect = button.getBoundingClientRect();
-  button.dispatchEvent(
-    new MouseEvent("contextmenu", {
-      bubbles: true,
-      clientX: rect.right,
-      clientY: rect.bottom,
-    }),
+function EntityMenuItems({
+  surface: { Item, Separator },
+  row,
+  canMerge,
+  onRename,
+  onRecolor,
+  onMerge,
+  onDelete,
+}: EntityMenuItemsProps) {
+  return (
+    <>
+      <Item className="gap-2" onSelect={() => onRename(row)}>
+        <PencilIcon size={14} />
+        Rename
+      </Item>
+      <Item className="gap-2" onSelect={() => onRecolor(row)}>
+        <PaletteIcon size={14} />
+        Recolor
+      </Item>
+      {canMerge && (
+        <Item className="gap-2" onSelect={() => onMerge(row)}>
+          <WaypointsIcon size={14} />
+          Merge into…
+        </Item>
+      )}
+      <Separator />
+      <Item
+        className="gap-2 text-destructive focus:text-destructive"
+        onSelect={() => onDelete(row)}
+      >
+        <Trash2Icon size={14} />
+        Delete
+      </Item>
+    </>
   );
 }
 
