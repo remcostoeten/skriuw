@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { ThemePicker } from "@/features/settings/theme-picker";
 import { resetAllSettings } from "@/store/actions/settings";
 import { Button } from "@/shared/ui/button";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
+import { Dialog } from "@/shared/ui/dialog";
 import { CompactSidebarDemo, TreeGuidesDemo } from "./appearance-demos";
 import {
   SettingToggle,
@@ -16,6 +18,20 @@ import type { SectionProps } from "./settings-shared";
 
 export function AppearanceSection({ store }: SectionProps) {
   const { settings, change } = useEditableSettings(store);
+  const [confirmDisableAi, setConfirmDisableAi] = useState(false);
+
+  function changeAiEnabled(enabled: boolean): void {
+    if (enabled) {
+      change("aiEnabled", true);
+      return;
+    }
+    setConfirmDisableAi(true);
+  }
+
+  function disableAi(): void {
+    change("aiEnabled", false);
+    setConfirmDisableAi(false);
+  }
 
   return (
     <section aria-label="General preferences" className={settingsSection}>
@@ -79,6 +95,15 @@ export function AppearanceSection({ store }: SectionProps) {
         />
       </div>
       <div className={settingsGroup}>
+        <div className={settingsGroupTitle}>Optional features</div>
+        <SettingToggle
+          label="AI features"
+          detail="Add AI provider settings and writing tools to the workspace. Enabling this does not install or connect anything."
+          checked={settings.aiEnabled}
+          onChange={changeAiEnabled}
+        />
+      </div>
+      <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Preferences</div>
         <div className="flex min-h-[42px] items-center justify-between gap-3 py-[7px] text-[13px]">
           <span className="flex min-w-0 flex-col gap-[3px]">
@@ -100,6 +125,29 @@ export function AppearanceSection({ store }: SectionProps) {
           />
         </div>
       </div>
+      <Dialog
+        open={confirmDisableAi}
+        onOpenChange={setConfirmDisableAi}
+        title="Turn off AI features?"
+        className="w-[min(440px,calc(100vw-24px))]"
+      >
+        <div className="space-y-4 px-4 py-4 text-sm leading-6 text-muted-foreground">
+          <p className="m-0">
+            AI tools and settings will disappear immediately, and any request in progress
+            will stop.
+          </p>
+          <p className="m-0">
+            Saved provider keys, history, and prompts stay on this device unless you delete
+            them separately.
+          </p>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button onClick={() => setConfirmDisableAi(false)}>Keep enabled</Button>
+            <Button variant="dangerFilled" onClick={disableAi}>
+              Turn off AI
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </section>
   );
 }

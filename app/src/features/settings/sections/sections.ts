@@ -5,6 +5,7 @@ import {
   InfoIcon,
   KeyboardIcon,
   SettingsIcon,
+  StarIcon,
   UserIcon,
 } from "@/shared/icons/static";
 import { SHORTCUT_DEFINITIONS } from "@/commands/definitions";
@@ -25,6 +26,13 @@ export const SECTIONS = [
     searchText:
       "font typography sans serif mono line spacing cozy comfortable relaxed empty note prompt placeholder writing",
     icon: FileTextIcon,
+  },
+  {
+    id: "ai",
+    label: "AI",
+    description: "Providers and writing tools",
+    searchText: "artificial intelligence providers models writing tools prompts",
+    icon: StarIcon,
   },
   {
     id: "shortcuts",
@@ -67,3 +75,14 @@ export const SECTIONS = [
 ] as const;
 
 export type SectionId = (typeof SECTIONS)[number]["id"];
+
+export function availableSettingsSections(
+  aiEnabled: boolean,
+  browserRuntime: boolean,
+): (typeof SECTIONS)[number][] {
+  return SECTIONS.filter(
+    (section) =>
+      (section.id !== "ai" || aiEnabled) &&
+      (section.id !== "media" || !browserRuntime),
+  );
+}

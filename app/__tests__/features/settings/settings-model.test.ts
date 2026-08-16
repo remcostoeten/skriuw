@@ -38,7 +38,18 @@ test("default settings project every editable field", () => {
     editorDefaultRawMode: false,
     openNotesInTabs: false,
     showToasts: true,
+    aiEnabled: false,
   });
+});
+
+test("AI stays disabled unless the persisted preference is explicitly true", () => {
+  assert.equal(projectSettings(DEFAULT_WORKSPACE_SETTINGS).aiEnabled, false);
+  assert.equal(
+    projectSettings({ ...DEFAULT_WORKSPACE_SETTINGS, aiEnabled: true }).aiEnabled,
+    true,
+  );
+  const { aiEnabled: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
+  assert.equal(projectSettings(withoutField as WorkspaceSettings).aiEnabled, false);
 });
 
 test("animated icons stay enabled unless the setting is explicitly false", () => {

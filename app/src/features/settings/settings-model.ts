@@ -41,6 +41,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   editorDefaultRawMode: false,
   openNotesInTabs: false,
   showToasts: true,
+  aiEnabled: false,
 };
 
 export type SettingsViewModel = {
@@ -56,6 +57,7 @@ export type SettingsViewModel = {
   editorDefaultRawMode: boolean;
   openNotesInTabs: boolean;
   showToasts: boolean;
+  aiEnabled: boolean;
 };
 
 export type EditableSettings = SettingsViewModel;
@@ -94,6 +96,7 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     editorDefaultRawMode: settings.editorDefaultRawMode === true,
     openNotesInTabs: settings.openNotesInTabs === true,
     showToasts: showsToasts(settings),
+    aiEnabled: settings.aiEnabled === true,
   };
 }
 

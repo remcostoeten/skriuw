@@ -86,6 +86,10 @@ import { useNoteNavigation } from "@/shell/use-note-navigation";
 import { selectAnimatedIcons, selectShowToasts } from "@/features/settings/sections/selectors";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";
+import {
+  aiSettingsCommands,
+  selectAiEnabled,
+} from "@/features/ai/opt-in-gate";
 
 const RAIL_ICONS: Record<RailItem["actionId"], AppIconName> = {
   goToNotes: "notes",
@@ -157,6 +161,7 @@ function WorkspaceShell({ store }: Props) {
   const route = useAppRoute();
   const showToasts = useRendererSelector(store, selectShowToasts);
   const animatedIcons = useRendererSelector(store, selectAnimatedIcons);
+  const aiEnabled = useRendererSelector(store, selectAiEnabled);
   const [onboardingOverride, setOnboardingOverride] = useState(readOnboardingOverride);
   const needsOnboarding =
     useRendererSelector(store, selectNeedsOnboarding) || onboardingOverride;
@@ -226,24 +231,27 @@ function WorkspaceShell({ store }: Props) {
   const registry = useMemo(
     () =>
       createCommandRegistry(
-        createWorkspaceCommands(store, {
-          togglePalette: () => setPaletteOpen((current) => !current),
-          openSettings: () => setSettingsOpen((current) => !current),
-          openSettingsAt,
-          openSignIn: () => openSignIn(false),
-          showShortcutHelp: () => setShortcutHelpOpen((current) => !current),
-          toggleSidebar: () => toggleSidebar(false),
-          openSidebar: () => {
-            setTracksAnimated(false);
-            setSidebarOpen(true);
-          },
-          toggleMetadata: () => toggleMetadata(false),
-          navigate: (target) => {
-            window.location.hash = appRouteHash(target);
-          },
-        }),
+        [
+          ...createWorkspaceCommands(store, {
+            togglePalette: () => setPaletteOpen((current) => !current),
+            openSettings: () => setSettingsOpen((current) => !current),
+            openSettingsAt,
+            openSignIn: () => openSignIn(false),
+            showShortcutHelp: () => setShortcutHelpOpen((current) => !current),
+            toggleSidebar: () => toggleSidebar(false),
+            openSidebar: () => {
+              setTracksAnimated(false);
+              setSidebarOpen(true);
+            },
+            toggleMetadata: () => toggleMetadata(false),
+            navigate: (target) => {
+              window.location.hash = appRouteHash(target);
+            },
+          }),
+          ...aiSettingsCommands(aiEnabled, () => openSettingsAt("ai")),
+        ],
       ),
-    [openSettingsAt, openSignIn, store, toggleMetadata, toggleSidebar],
+    [aiEnabled, openSettingsAt, openSignIn, store, toggleMetadata, toggleSidebar],
   );
   const shortcutActions = useMemo(
     () =>
