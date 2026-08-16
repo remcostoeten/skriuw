@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  activeSettingsSection,
   filterSettingsSections,
   moveSettingsSection,
   rovingSettingsSection,
@@ -52,6 +53,18 @@ test("roving focus follows the active section or the first visible result", () =
   assert.equal(rovingSettingsSection(["appearance", "editor"], "editor"), "editor");
   assert.equal(rovingSettingsSection(["editor", "data"], "appearance"), "editor");
   assert.equal(rovingSettingsSection([], "appearance"), undefined);
+});
+
+test("active section survives empty search results and stale ids", () => {
+  assert.equal(
+    activeSettingsSection([], ["appearance", "editor"], "editor"),
+    "editor",
+  );
+  assert.equal(
+    activeSettingsSection([], ["appearance", "editor"], "ai"),
+    "appearance",
+  );
+  assert.equal(activeSettingsSection([], [], "appearance"), undefined);
 });
 
 test("section navigation wraps and supports Home and End", () => {

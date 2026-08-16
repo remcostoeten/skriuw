@@ -10,6 +10,7 @@ import { CloseIcon, SearchIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { Dialog } from "@/shared/ui/dialog";
 import {
+  activeSettingsSection,
   filterSettingsSections,
   moveSettingsSection,
   rovingSettingsSection,
@@ -74,9 +75,14 @@ export function SettingsDialog({
     () => filterSettingsSections(availableSections, query),
     [availableSections, query],
   );
+  const availableIds = availableSections.map((entry) => entry.id);
   const filteredIds = filteredSections.map((entry) => entry.id);
   const rovingSection = rovingSettingsSection(filteredIds, section);
-  const activeSection = rovingSection;
+  const activeSection = activeSettingsSection(
+    filteredIds,
+    availableIds,
+    section,
+  ) ?? "appearance";
   const activeMeta = SECTIONS.find((entry) => entry.id === activeSection) ?? SECTIONS[0];
 
   useEffect(() => {
@@ -337,9 +343,9 @@ export function SettingsDialog({
           {activeSection === "editor" && <EditorSection store={store} />}
           {activeSection === "ai" && (
             <AiOptInGate store={store}>
-              {() => (
+              {(signal) => (
                 <Suspense fallback={null}>
-                  <AiSection />
+                  <AiSection signal={signal} />
                 </Suspense>
               )}
             </AiOptInGate>

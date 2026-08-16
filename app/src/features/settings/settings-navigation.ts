@@ -53,6 +53,15 @@ export function rovingSettingsSection<T extends string>(
   return sectionIds.includes(activeId) ? activeId : sectionIds[0];
 }
 
+export function activeSettingsSection<T extends string>(
+  filteredIds: readonly T[],
+  availableIds: readonly T[],
+  currentId: T,
+): T | undefined {
+  return rovingSettingsSection(filteredIds, currentId) ??
+    (availableIds.includes(currentId) ? currentId : availableIds[0]);
+}
+
 export function moveSettingsSection<T extends string>(
   sectionIds: readonly T[],
   currentId: T,

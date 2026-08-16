@@ -6,7 +6,13 @@ import {
   settingsSection,
 } from "./settings-shared";
 
-export function AiSection() {
+type Props = {
+  signal: AbortSignal;
+};
+
+export function AiSection({ signal }: Props) {
+  signal.throwIfAborted();
+
   return (
     <section aria-label="AI settings" className={settingsSection}>
       <SettingsHeading
