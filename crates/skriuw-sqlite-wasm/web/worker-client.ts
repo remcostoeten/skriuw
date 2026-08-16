@@ -10,6 +10,7 @@ export type BrowserStorageErrorCode =
   | "migration_failed"
   | "database_too_new"
   | "corrupt_database"
+  | "already_open"
   | "open_failed"
   | "worker_crashed"
   | "invalid_request"
