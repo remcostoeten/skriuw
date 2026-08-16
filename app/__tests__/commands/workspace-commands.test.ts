@@ -15,6 +15,7 @@ const fakeStore = { getState: () => ({}) as RendererState } as RendererStore;
 const controls: CommandUiControls = {
   togglePalette: noop,
   openSettings: noop,
+  openSettingsAt: noop,
   openSignIn: noop,
   toggleSidebar: noop,
   toggleMetadata: noop,

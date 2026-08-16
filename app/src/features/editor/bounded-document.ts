@@ -257,5 +257,5 @@ export function topLevelTextPosition(
     position += 1;
     node = node.child(0);
   }
-  return position + 1 + Math.min(Math.max(0, textOffset), node.textContent.length);
+  return position + 1 + Math.min(Math.max(0, textOffset), node.content.size);
 }

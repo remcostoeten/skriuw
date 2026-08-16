@@ -227,31 +227,8 @@ export function RelationshipExplorer({ store, noteId }: { store: RendererStore; 
     sameGraph,
   );
 
-  const total = Math.max(
-    new Set(
-      [...backlinks, ...outgoing, ...people, ...tags, ...journal, ...coVisited].map(
-        (entry) => entry.noteId,
-      ),
-    ).size,
-    graph.nodes.length - 1,
-  );
-
-  if (total === 0) {
-    return (
-      <section className="border-b border-border/60 px-4 py-4">
-        <p className="m-0 text-[11px] font-medium text-muted-foreground">Relationships</p>
-        <p className="mb-0 mt-2 text-[13px] text-muted-foreground/70">
-          Nothing connected yet. Mention a note with @, add a #tag, or reference a $person.
-        </p>
-      </section>
-    );
-  }
-
   return (
     <div>
-      <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground">
-        Relationships <span className="tabular-nums text-muted-foreground/50">({total})</span>
-      </div>
       <RelationshipSection
         title="Referenced by"
         entries={backlinks}

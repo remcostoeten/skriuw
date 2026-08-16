@@ -35,6 +35,34 @@ import "./styles.css";
 
 const REVEAL_FRAME_TIMEOUT_MS = 100;
 
+type StartupFailure = {
+  message: string;
+  recovery: string | null;
+};
+
+/**
+ * Startup rejections arrive either as `Error`s or as the plain
+ * `BrowserStorageFailure` records the storage worker rejects with, so the
+ * fallback screen has to read both instead of stringifying an object.
+ */
+function describeStartupFailure(error: unknown): StartupFailure {
+  if (error instanceof Error) {
+    return { message: error.message, recovery: null };
+  }
+  if (typeof error === "object" && error !== null) {
+    const failure = error as { code?: unknown; message?: unknown; recovery?: unknown };
+    const message = typeof failure.message === "string" ? failure.message : null;
+    const code = typeof failure.code === "string" ? failure.code : null;
+    if (message !== null || code !== null) {
+      return {
+        message: message ?? `Browser storage failed (${code}).`,
+        recovery: typeof failure.recovery === "string" ? failure.recovery : null,
+      };
+    }
+  }
+  return { message: String(error), recovery: null };
+}
+
 /**
  * Reveals the main window once the first application frame has painted. The
  * window ships hidden so the cold-start webview never shows an empty shell;
@@ -201,9 +229,12 @@ async function start(): Promise<void> {
   } catch (error) {
     unlistenHistory?.();
     unlistenSyncWorkspace?.();
+    console.error("workspace failed to open", error);
+    const failure = describeStartupFailure(error);
     root.render(
       <div className="p-6 text-[hsl(var(--mood-rough))]" role="alert">
-        Workspace failed to open: {String(error)}
+        <p>Workspace failed to open: {failure.message}</p>
+        {failure.recovery === null ? null : <p className="mt-2">{failure.recovery}</p>}
       </div>,
     );
   }

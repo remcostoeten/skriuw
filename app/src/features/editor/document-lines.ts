@@ -63,9 +63,49 @@ export function buildDocumentLineIndex(document: ProseMirrorNode): DocumentLineI
   return { lineCount: countLines(markdown), blockStartLines, blockMarkdown };
 }
 
+function descendToTextblock(block: ProseMirrorNode): ProseMirrorNode {
+  let node = block;
+  while (!node.isTextblock && node.childCount > 0) {
+    node = node.child(0);
+  }
+  return node;
+}
+
+type TextblockLayout = {
+  text: string;
+  contentOffsets: readonly number[];
+};
+
+/**
+ * The textblock's text with hard breaks rendered as newlines, plus each
+ * character's content offset. Inline leaves such as hard breaks occupy a
+ * ProseMirror position without contributing to `textContent`, so a character
+ * index into the plain text cannot be used as a caret offset directly.
+ */
+function textblockLayout(textblock: ProseMirrorNode): TextblockLayout {
+  let text = "";
+  const contentOffsets: number[] = [];
+  let position = 0;
+  textblock.forEach((child) => {
+    if (child.isText) {
+      const value = child.text ?? "";
+      for (let at = 0; at < value.length; at += 1) {
+        text += value[at];
+        contentOffsets.push(position + at);
+      }
+    } else if (child.type === productSchema.nodes.hard_break) {
+      text += "\n";
+      contentOffsets.push(position);
+    }
+    position += child.nodeSize;
+  });
+  return { text, contentOffsets };
+}
+
 /**
  * Caret offset inside a block for a line that falls within it, so a jump into a
- * fenced code block lands on the requested code line rather than the fence.
+ * fenced code block lands on the requested code line rather than the fence, and
+ * a jump into a hard-break paragraph lands on the requested visual line.
  */
 function blockLineOffset(
   document: ProseMirrorNode,
@@ -81,8 +121,13 @@ function blockLineOffset(
   if (!lineText) {
     return 0;
   }
-  const offset = document.child(blockIndex).textContent.indexOf(lineText);
-  return offset === -1 ? 0 : offset;
+  const textblock = descendToTextblock(document.child(blockIndex));
+  if (!textblock.isTextblock) {
+    return 0;
+  }
+  const { text, contentOffsets } = textblockLayout(textblock);
+  const at = text.indexOf(lineText);
+  return at === -1 ? 0 : (contentOffsets[at] ?? 0);
 }
 
 export function documentLineTarget(

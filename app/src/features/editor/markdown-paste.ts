@@ -2,6 +2,7 @@ import { Slice } from "prosemirror-model";
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import { parseProductMarkdownWithImages } from "./schema";
+import { withFreshPastedTaskIdentities } from "./task-paste";
 
 const MARKDOWN_BLOCK_PATTERN =
   /^ {0,3}(?:#{1,6}\s|>\s|(?:[-*+]|\d+[.)])\s+|```|~~~|(?:[-*_] *){3,}$|\|.*\|[ \t]*$)/m;
@@ -57,7 +58,9 @@ export function markdownPasteSlice(
   const onlyParagraph =
     parsed.childCount === 1 && parsed.firstChild?.type.name === "paragraph";
   if (onlyParagraph && parsed.textContent === text.trim()) return null;
-  return new Slice(parsed.content, onlyParagraph ? 1 : 0, onlyParagraph ? 1 : 0);
+  return withFreshPastedTaskIdentities(
+    new Slice(parsed.content, onlyParagraph ? 1 : 0, onlyParagraph ? 1 : 0),
+  );
 }
 
 export function pasteMarkdown(

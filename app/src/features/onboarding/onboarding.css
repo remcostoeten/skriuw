@@ -14,9 +14,10 @@
   width: min(23rem, 100%);
   padding: 1.5rem;
   border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  background: hsl(var(--card));
-  box-shadow: 0 16px 44px hsl(var(--scrim) / 0.28);
+  border-radius: calc(var(--radius) + 4px);
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  box-shadow: 0 16px 48px hsl(var(--scrim) / 0.4);
   animation: onboarding-card-in 180ms ease-out both;
 }
 
@@ -61,15 +62,18 @@
     opacity 120ms ease;
 }
 
+/* background-color, never the `background` shorthand: the global
+   `:focus-visible` affordance in base.css paints a background-image, which the
+   shorthand would reset — leaving these buttons with no visible focus at all. */
 .onboarding-primary {
   border-color: hsl(var(--primary));
-  background: hsl(var(--primary));
+  background-color: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
 }
 
 .onboarding-secondary {
   border-color: hsl(var(--border));
-  background: transparent;
+  background-color: transparent;
   color: hsl(var(--foreground) / 0.86);
 }
 
@@ -95,12 +99,12 @@
 
 @media (hover: hover) and (pointer: fine) {
   .onboarding-primary:hover {
-    background: hsl(var(--primary) / 0.88);
+    background-color: hsl(var(--primary) / 0.88);
   }
 
   .onboarding-secondary:hover:not(:disabled) {
     border-color: hsl(var(--foreground) / 0.3);
-    background: hsl(var(--foreground) / 0.05);
+    background-color: hsl(var(--foreground) / 0.05);
   }
 }
 

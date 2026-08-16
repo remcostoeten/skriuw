@@ -7,6 +7,7 @@ import { noteHistoryHash } from "@/app-route";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { NoteOutline } from "./note-outline";
 import { RelationshipExplorer } from "@/features/references/relationship-explorer";
+import { projectHasRelationships } from "@/features/references/relationship-model";
 import type { RendererState, RendererStore } from "@/store/types";
 
 type Props = {
@@ -212,6 +213,14 @@ export function MetadataPanel({ store }: Props) {
   const versions = useMemo(() => projectVersionList(historyHeaders), [historyHeaders]);
   const createdAt = useRendererSelector(store, selectActiveNoteCreatedAt);
   const markdown = useRendererSelector(store, selectActiveNoteMarkdown);
+  const hasRelationships = useRendererSelector(
+    store,
+    useCallback(
+      (state: RendererState) =>
+        activeNoteId !== null && projectHasRelationships(state, activeNoteId),
+      [activeNoteId],
+    ),
+  );
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(readOpenSections);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [outlineCount, setOutlineCount] = useState(0);
@@ -282,7 +291,7 @@ export function MetadataPanel({ store }: Props) {
             />
           </InspectorSection>
         )}
-        {activeNoteId && (
+        {activeNoteId && hasRelationships && (
           <InspectorSection
             id="metadata-relationships"
             title="Relationships"

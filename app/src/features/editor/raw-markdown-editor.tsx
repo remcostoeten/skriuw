@@ -85,6 +85,13 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const jumpInputRef = useRef<HTMLInputElement>(null);
   const [textareaHost, setTextareaHost] = useState<HTMLTextAreaElement | null>(null);
+  // A stable callback keeps React from detaching and reattaching the ref on
+  // every render; an inline closure here re-runs setState per commit, which
+  // loops once anything else blocks the same-state render bailout.
+  const adoptTextarea = useCallback((node: HTMLTextAreaElement | null) => {
+    textareaRef.current = node;
+    setTextareaHost(node);
+  }, []);
   const [surfaceHost, setSurfaceHost] = useState<HTMLDivElement | null>(null);
   const [jumpOpen, setJumpOpen] = useState(false);
   const [jumpValue, setJumpValue] = useState("");
@@ -344,6 +351,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
                 onValueChange={setJumpValue}
                 onKeyDown={handleJumpKeyDown}
                 onBlur={() => setJumpOpen(false)}
+                onClose={closeJumpToLine}
                 lineCount={lineCount}
                 placeholder={String(cursorStatus.line)}
               />
@@ -355,7 +363,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
         {showLineNumbers ? (
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 left-0 w-12 overflow-hidden border-r border-border/60 text-right font-mono text-[0.9rem] leading-[1.7] text-muted-foreground/70 select-none"
+            className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 overflow-hidden border-r border-border/60 bg-background text-right font-mono text-[0.9rem] leading-[1.7] text-muted-foreground/70 select-none"
           >
             <pre ref={lineNumberContentRef} className="m-0 pr-3 font-mono text-[0.9rem] leading-[1.7] will-change-transform">
               {lineNumbers}
@@ -363,10 +371,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
           </div>
         ) : null}
         <textarea
-          ref={(node) => {
-            textareaRef.current = node;
-            setTextareaHost(node);
-          }}
+          ref={adoptTextarea}
           className={`raw-markdown-editor block min-h-[60vh] whitespace-pre ${showLineNumbers ? "pl-14" : ""}`}
           aria-label="Raw Markdown source"
           wrap="off"

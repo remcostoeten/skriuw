@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { DOMSerializer, type Node as ProseMirrorNode } from "prosemirror-model";
 import {
   AllSelection,
@@ -151,6 +151,9 @@ import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
 import type { NoteEditorShortcutId } from "./editor-bound-shortcut-ids";
 import { useEditorSearch } from "./use-editor-search";
 import { taskPromotionOperations } from "./task-linking";
+import { withFreshPastedTaskIdentities } from "./task-paste";
+import { findBlockLocation } from "./block-locations";
+import { registerBlockReveal, takePendingBlockReveal } from "./reveal-controller";
 import { SaveSequencer } from "./save-sequencer";
 import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "./editor-working-set";
 import { preparedEditorDocuments } from "./prepared-documents";
@@ -158,13 +161,31 @@ import { preparedEditorDocuments } from "./prepared-documents";
 const SAVE_DEBOUNCE_MS = 500;
 const VIRTUAL_BLOCK_HEIGHT = 32;
 const WINDOW_SHIFT = Math.floor(BOUNDED_BLOCK_LIMIT / 2);
-const UTILITY_LAYOUT_TRANSITION = {
-  layout: {
-    duration: 0.14,
-    ease: [0.23, 1, 0.32, 1] as [number, number, number, number],
-  },
+const EASE_IN_OUT = [0.77, 0, 0.175, 1] as [number, number, number, number];
+const EASE_OUT = [0.23, 1, 0.32, 1] as [number, number, number, number];
+const UTILITY_SEARCH_WIDTH = 380;
+const UTILITY_JUMP_WIDTH = 196;
+const UTILITY_MORPH_TRANSITION = { duration: 0.22, ease: EASE_IN_OUT };
+const REDUCED_UTILITY_MORPH_TRANSITION = { duration: 0 };
+/**
+ * The outgoing panel leaves faster than the incoming one arrives, and the
+ * arrival is held back until the box has started resizing. Without that gap
+ * the crossfade lands inside the morph and the swap reads as instant.
+ */
+const UTILITY_SWAP_ENTER = {
+  opacity: 1,
+  filter: "blur(0px)",
+  transition: { duration: 0.18, delay: 0.06, ease: EASE_OUT },
 };
-const REDUCED_UTILITY_LAYOUT_TRANSITION = { layout: { duration: 0 } };
+const UTILITY_SWAP_EXIT = {
+  opacity: 0,
+  filter: "blur(6px)",
+  transition: { duration: 0.1, ease: EASE_OUT },
+};
+const UTILITY_SWAP_INITIAL = { opacity: 0, filter: "blur(6px)" };
+const REDUCED_UTILITY_SWAP_ENTER = { opacity: 1, transition: { duration: 0.12 } };
+const REDUCED_UTILITY_SWAP_EXIT = { opacity: 0, transition: { duration: 0.08 } };
+const REDUCED_UTILITY_SWAP_INITIAL = { opacity: 0 };
 
 type Props = {
   store: RendererStore;
@@ -322,8 +343,14 @@ function selectStoreActiveNote(state: RendererState): string | null {
   return state.activeNoteId;
 }
 
+function selectSettingsDocument(state: RendererState) {
+  return state.settings;
+}
+
 function fullDocumentText(document: ProseMirrorNode): string {
-  return document.textBetween(0, document.content.size, "\n\n");
+  return document.textBetween(0, document.content.size, "\n\n", (leaf) =>
+    leaf.type === productSchema.nodes.hard_break ? "\n" : "",
+  );
 }
 
 function fullDocumentHtml(document: ProseMirrorNode): string {
@@ -392,7 +419,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const blockMenuTriggerRef = useRef<HTMLSpanElement>(null);
   const [blockMenuPos, setBlockMenuPos] = useState<number | null>(null);
   const activeNoteId = useRendererSelector(store, selectNoteId);
-  const settingsDocument = useRendererSelector(store, (state) => state.settings);
+  const settingsDocument = useRendererSelector(store, selectSettingsDocument);
   const editorSettings = projectSettings(settingsDocument);
   const prefersReducedMotion = useReducedMotion();
   const reduceUtilityMotion = editorSettings.reduceMotion || prefersReducedMotion === true;
@@ -932,6 +959,38 @@ const closeJumpToLine = useCallback(() => {
     }
   }
 
+  /**
+   * Serves a pending reveal from a task surface, which navigates by block
+   * identity because the source line moves whenever the note above it changes.
+   */
+  const revealRequestedBlock = useCallback(() => {
+    const view = viewRef.current;
+    const noteId = activeIdRef.current;
+    const entry = activeEntry();
+    if (!view || !entry) return;
+    const document = entry.bounded?.fullDocument() ?? entry.state.doc;
+    const blockId = takePendingBlockReveal(noteId);
+    if (blockId === null) return;
+    const location = findBlockLocation(document, blockId);
+    if (!location) return;
+    const bounded = entry.bounded;
+    if (bounded) {
+      bounded.rememberSelection({ blockIndex: location.blockIndex, offset: 0 });
+      bounded.revealBlock(location.blockIndex);
+      installBoundedWindow(entry, true);
+      viewRef.current?.dispatch(viewRef.current.state.tr.scrollIntoView());
+      return;
+    }
+    view.dispatch(
+      view.state.tr
+        .setSelection(TextSelection.near(view.state.doc.resolve(location.position)))
+        .scrollIntoView(),
+    );
+    view.focus();
+  }, []);
+
+  useEffect(() => registerBlockReveal(revealRequestedBlock), [revealRequestedBlock]);
+
   const jumpToDocumentEdge = useCallback((edge: DocumentEdge) => {
     const view = viewRef.current;
     if (!view || activeIdRef.current === null) return;
@@ -1024,6 +1083,7 @@ const closeJumpToLine = useCallback(() => {
           ),
       },
       dispatchTransaction,
+      transformPasted: (slice) => withFreshPastedTaskIdentities(slice),
       handleClick(currentView, pos, event) {
         if (!event.metaKey && !event.ctrlKey) return false;
         const href = linkInRange(currentView.state, pos, pos + 1);
@@ -1333,7 +1393,8 @@ const closeJumpToLine = useCallback(() => {
     }
     if (scrollHostRef.current) scrollHostRef.current.scrollTop = entry.scrollTop;
     view.focus();
-  }, [activeNoteId, store]);
+    revealRequestedBlock();
+  }, [activeNoteId, revealRequestedBlock, store]);
 
   useEffect(
     () =>
@@ -1473,53 +1534,68 @@ const closeJumpToLine = useCallback(() => {
         ? createPortal(
             <motion.div
               ref={setUtilityOverlayHost}
-              layout={reduceUtilityMotion ? false : "size"}
+              initial={false}
+              animate={{
+                width: utilityMode === "search" ? UTILITY_SEARCH_WIDTH : UTILITY_JUMP_WIDTH,
+                height: "auto",
+              }}
               transition={
                 reduceUtilityMotion
-                  ? REDUCED_UTILITY_LAYOUT_TRANSITION
-                  : UTILITY_LAYOUT_TRANSITION
+                  ? REDUCED_UTILITY_MORPH_TRANSITION
+                  : UTILITY_MORPH_TRANSITION
               }
               data-editor-utility-overlay
               data-mode={utilityMode}
-              className={`@container/editor-search absolute right-3 top-3 z-40 origin-top-right overflow-hidden rounded-lg border border-border bg-popover p-1.5 text-[13px] text-foreground shadow-[0_12px_28px_-12px_hsl(var(--scrim)/0.32)] ${
-                utilityMode === "search"
-                  ? "w-[min(420px,calc(100%_-_1.5rem))]"
-                  : "w-fit pl-2.5"
-              }`}
+              className="@container/editor-search absolute right-3 top-3 z-40 max-w-[calc(100%_-_1.5rem)] origin-top-right overflow-hidden rounded-lg border border-border bg-popover p-1.5 text-[13px] text-foreground shadow-[0_12px_28px_-12px_hsl(var(--scrim)/0.32)]"
             >
-              {utilityMode === "jump" ? (
-                <JumpToLinePanel
-                  fieldId={jumpFieldId}
-                  inputRef={jumpInputRef}
-                  value={jumpValue}
-                  onValueChange={setJumpValue}
-                  onKeyDown={handleJumpKeyDown}
-                  onBlur={() => setJumpOpen(false)}
-                  lineCount={jumpLineCount}
-                  placeholder={String(jumpCaretLine)}
-                />
-              ) : (
-                <SearchWidget
-                  ref={search.findInputRef}
-                  optionHints={search.optionHints}
-                  query={search.searchQuery}
-                  onQueryChange={search.setSearchQuery}
-                  replaceValue={search.replaceValue}
-                  onReplaceChange={search.setReplaceValue}
-                  showReplace={search.showReplace}
-                  onToggleReplace={() => search.setShowReplace((value) => !value)}
-                  options={search.searchOptions}
-                  onToggleOption={search.toggleSearchOption}
-                  current={search.matchInfo.current}
-                  total={search.matchInfo.total}
-                  regexError={search.regexError}
-                  onNext={search.handleNextMatch}
-                  onPrevious={search.handlePreviousMatch}
-                  onClose={search.closeSearch}
-                  onReplaceCurrent={search.handleReplaceCurrent}
-                  onReplaceAll={search.handleReplaceAll}
-                />
-              )}
+              <AnimatePresence initial={false} mode="popLayout">
+                <motion.div
+                  key={utilityMode}
+                  initial={
+                    reduceUtilityMotion ? REDUCED_UTILITY_SWAP_INITIAL : UTILITY_SWAP_INITIAL
+                  }
+                  animate={
+                    reduceUtilityMotion ? REDUCED_UTILITY_SWAP_ENTER : UTILITY_SWAP_ENTER
+                  }
+                  exit={reduceUtilityMotion ? REDUCED_UTILITY_SWAP_EXIT : UTILITY_SWAP_EXIT}
+                  className="w-full"
+                >
+                  {utilityMode === "jump" ? (
+                    <JumpToLinePanel
+                      fieldId={jumpFieldId}
+                      inputRef={jumpInputRef}
+                      value={jumpValue}
+                      onValueChange={setJumpValue}
+                      onKeyDown={handleJumpKeyDown}
+                      onBlur={() => setJumpOpen(false)}
+                      onClose={closeJumpToLine}
+                      lineCount={jumpLineCount}
+                      placeholder={String(jumpCaretLine)}
+                    />
+                  ) : (
+                    <SearchWidget
+                      ref={search.findInputRef}
+                      optionHints={search.optionHints}
+                      query={search.searchQuery}
+                      onQueryChange={search.setSearchQuery}
+                      replaceValue={search.replaceValue}
+                      onReplaceChange={search.setReplaceValue}
+                      showReplace={search.showReplace}
+                      onToggleReplace={() => search.setShowReplace((value) => !value)}
+                      options={search.searchOptions}
+                      onToggleOption={search.toggleSearchOption}
+                      current={search.matchInfo.current}
+                      total={search.matchInfo.total}
+                      regexError={search.regexError}
+                      onNext={search.handleNextMatch}
+                      onPrevious={search.handlePreviousMatch}
+                      onClose={search.closeSearch}
+                      onReplaceCurrent={search.handleReplaceCurrent}
+                      onReplaceAll={search.handleReplaceAll}
+                    />
+                  )}
+                </motion.div>
+              </AnimatePresence>
             </motion.div>,
             editorPane,
           )

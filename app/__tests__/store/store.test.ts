@@ -327,6 +327,67 @@ test("save_document updates content, word count, and metadata timestamp", () => 
   assert.equal(state.metadata.get("note-root")?.updatedAt, 99);
 });
 
+test("a task operation's paired document lands on the note it rewrites", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  const task = {
+    id: "task-1",
+    title: "Call Patrick",
+    status: "todo" as const,
+    priority: "medium" as const,
+    dueDate: null,
+    description: "",
+    tagIds: [],
+    assigneeIds: [],
+    source: { noteId: "note-root", blockId: "block-1" },
+    detachedAt: null,
+    createdAt: 1,
+    updatedAt: 1,
+  };
+  store.applyOperations([{ type: "create_task", task }]);
+  store.applyOperations([
+    {
+      type: "update_task",
+      task: { ...task, status: "done", updatedAt: 99 },
+      document: {
+        noteId: "note-root",
+        documentJson: { type: "doc", content: [] },
+        markdown: "- [x] Call Patrick",
+        wordCount: 3,
+        expectedRevision: 1,
+      },
+    },
+  ]);
+  const state = store.getState();
+  assert.equal(state.tasks.get("task-1")?.status, "done");
+  assert.equal(state.documents.get("note-root")?.markdown, "- [x] Call Patrick");
+  assert.equal(state.metadata.get("note-root")?.updatedAt, 99);
+});
+
+test("a task operation without a paired document leaves every document alone", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  const before = store.getState().documents;
+  store.applyOperations([
+    {
+      type: "create_task",
+      task: {
+        id: "task-1",
+        title: "Loose end",
+        status: "todo",
+        priority: "medium",
+        dueDate: null,
+        description: "",
+        tagIds: [],
+        assigneeIds: [],
+        source: null,
+        detachedAt: null,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    },
+  ]);
+  assert.equal(store.getState().documents, before);
+});
+
 test("save_document keeps structural identities and never notifies tree subscribers", () => {
   const store = createRendererStore(createInitialState(snapshot()));
   const before = store.getState();

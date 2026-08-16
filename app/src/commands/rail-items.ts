@@ -3,6 +3,7 @@ import type { AppRoute } from "@/app-route";
 export type RailItemActionId =
   | "goToNotes"
   | "goToJournal"
+  | "goToTasks"
   | "goToTags"
   | "goToPeople"
   | "goToTrash";
@@ -22,6 +23,7 @@ export type RailItem = {
 export const RAIL_ITEMS: readonly RailItem[] = [
   { actionId: "goToNotes", route: "notes", label: "Notes", section: "primary" },
   { actionId: "goToJournal", route: "journal", label: "Journal", section: "primary" },
+  { actionId: "goToTasks", route: "tasks", label: "Tasks", section: "primary" },
   { actionId: "goToTags", route: "tags", label: "Tags", section: "primary" },
   { actionId: "goToPeople", route: "people", label: "People", section: "primary" },
   { actionId: "goToTrash", route: "trash", label: "Trash", section: "utility" },

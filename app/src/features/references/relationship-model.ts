@@ -1,5 +1,6 @@
 import { JOURNAL_ROOT_ID, journalEntryDateKey } from "@/features/journal/model";
 import type { RendererState } from "@/store/types";
+import { projectBacklinks, projectOutgoingNotes } from "./reference-panel-model";
 import { referenceKey, type ReferenceKind } from "./types";
 
 export type RelationshipNote = {
@@ -210,6 +211,18 @@ function relationshipCandidates(state: RendererState, noteId: string): GraphCand
     }
   }
   return candidates;
+}
+
+export function projectHasRelationships(state: RendererState, noteId: string): boolean {
+  return (
+    relationshipCandidates(state, noteId).length > 0 ||
+    projectBacklinks(state, noteId).length > 0 ||
+    projectOutgoingNotes(state, noteId).length > 0 ||
+    projectSharedEntities(state, noteId, "person").length > 0 ||
+    projectSharedEntities(state, noteId, "tag").length > 0 ||
+    projectRelatedJournalEntries(state, noteId).length > 0 ||
+    projectCoVisitedNotes(state, noteId).length > 0
+  );
 }
 
 export function projectRelationshipGraph(state: RendererState, noteId: string): RelationshipGraph {

@@ -43,6 +43,7 @@ const permissiveState = {
 const controls: CommandUiControls = {
   togglePalette: noop,
   openSettings: noop,
+  openSettingsAt: noop,
   toggleSidebar: noop,
   toggleMetadata: noop,
   navigate: noop,

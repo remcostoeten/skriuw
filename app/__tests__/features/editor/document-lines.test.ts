@@ -20,14 +20,14 @@ test("the line index counts the lines the Markdown editor would show", () => {
   const document = parseProductMarkdown(markdown);
   const index = buildDocumentLineIndex(document);
   assert.equal(index.lineCount, serializeProductMarkdown(document).split("\n").length);
-  assert.deepEqual([...index.blockStartLines], [1, 3, 5]);
+  assert.deepEqual([...index.blockStartLines], [1, 2, 4]);
 });
 
 test("a line resolves to the block that owns it, not an averaged position", () => {
   const markdown = "# Title\n\nFirst paragraph.\n\nSecond paragraph.";
   assert.deepEqual(lineOf(markdown, 1).target, { blockIndex: 0, offset: 0 });
-  assert.deepEqual(lineOf(markdown, 3).target, { blockIndex: 1, offset: 0 });
-  assert.deepEqual(lineOf(markdown, 5).target, { blockIndex: 2, offset: 0 });
+  assert.deepEqual(lineOf(markdown, 2).target, { blockIndex: 1, offset: 0 });
+  assert.deepEqual(lineOf(markdown, 4).target, { blockIndex: 2, offset: 0 });
 });
 
 test("a blank separator line belongs to the block above it", () => {
@@ -47,6 +47,16 @@ test("a line inside a fenced code block lands on that code line", () => {
   assert.deepEqual(lineOf(markdown, 2).target, { blockIndex: 0, offset: 0 });
   assert.deepEqual(lineOf(markdown, 3).target, { blockIndex: 0, offset: 4 });
   assert.deepEqual(lineOf(markdown, 4).target, { blockIndex: 0, offset: 8 });
+});
+
+test("a line inside a hard-break paragraph lands on that visual line", () => {
+  const markdown = "1\n2\n3\n4";
+  const { index } = lineOf(markdown, 1);
+  assert.equal(index.lineCount, 4);
+  assert.deepEqual([...index.blockStartLines], [1]);
+  assert.deepEqual(lineOf(markdown, 1).target, { blockIndex: 0, offset: 0 });
+  assert.deepEqual(lineOf(markdown, 2).target, { blockIndex: 0, offset: 2 });
+  assert.deepEqual(lineOf(markdown, 4).target, { blockIndex: 0, offset: 6 });
 });
 
 test("entries outside the document clamp to its ends", () => {

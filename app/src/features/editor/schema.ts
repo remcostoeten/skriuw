@@ -1,4 +1,12 @@
-import { baseKeymap, chainCommands, toggleMark } from "prosemirror-commands";
+import {
+  baseKeymap,
+  chainCommands,
+  createParagraphNear,
+  liftEmptyBlock,
+  newlineInCode,
+  splitBlock,
+  toggleMark,
+} from "prosemirror-commands";
 import { history, redo, undo } from "prosemirror-history";
 import {
   ellipsis,
@@ -1101,6 +1109,43 @@ function splitTaskItem(checkItem: NonNullable<typeof productSchema.nodes.check_i
   };
 }
 
+/**
+ * Enter inside ordinary prose adds a line break to the current paragraph rather
+ * than starting a new one, so the note's Markdown gains one line per visible
+ * line instead of a blank-line-separated block. Enter on the empty line that
+ * follows a break trades that break for a real paragraph split, which keeps two
+ * consecutive breaks — the one shape Markdown cannot round-trip cleanly — out of
+ * the document. Structural blocks (lists, headings, code, tables) keep their own
+ * Enter behavior and fall through to the base keymap.
+ */
+function breakOrSplitParagraph(
+  state: EditorState,
+  dispatch?: (transaction: EditorState["tr"]) => void,
+): boolean {
+  const hardBreak = productSchema.nodes.hard_break;
+  const { selection } = state;
+  if (!(selection instanceof TextSelection) || !hardBreak) return false;
+  const { $from, $to } = selection;
+  if ($from.parent.type !== productSchema.nodes.paragraph || !$from.sameParent($to)) return false;
+  const container = $from.node($from.depth - 1).type.name;
+  if (container !== "doc" && container !== "blockquote") return false;
+
+  const atParagraphEnd = $to.parentOffset === $to.parent.content.size;
+  if (selection.empty && atParagraphEnd && $from.nodeBefore?.type === hardBreak) {
+    if (dispatch) {
+      const transaction = state.tr.delete($from.pos - 1, $from.pos);
+      transaction.split($from.pos - 1);
+      dispatch(transaction.scrollIntoView());
+    }
+    return true;
+  }
+
+  if (dispatch) {
+    dispatch(state.tr.replaceSelectionWith(hardBreak.create()).scrollIntoView());
+  }
+  return true;
+}
+
 export function createProductPlugins(): Plugin[] {
   const blockquote = productSchema.nodes.blockquote;
   const codeBlock = productSchema.nodes.code_block;
@@ -1190,6 +1235,16 @@ export function createProductPlugins(): Plugin[] {
         splitTaskItem(checkItem),
         splitListItem(toggleItem, { open: true }),
         splitListItem(listItem),
+        breakOrSplitParagraph,
+      ),
+      "Shift-Enter": chainCommands(
+        splitTaskItem(checkItem),
+        splitListItem(toggleItem, { open: true }),
+        splitListItem(listItem),
+        newlineInCode,
+        createParagraphNear,
+        liftEmptyBlock,
+        splitBlock,
       ),
       Tab: chainCommands(
         sinkListItem(checkItem),
@@ -1227,7 +1282,7 @@ function serializeTableCell(cell: ProseMirrorNode): string {
   const rendered = only && only.type.name === "paragraph"
     ? productMarkdownSerializer.serialize(productSchema.node("doc", null, [only]))
     : cell.textBetween(0, cell.content.size, " ", " ");
-  return rendered.replace(/\s*\n\s*/g, " ").replace(/\|/g, "\\|").trim();
+  return rendered.replace(/\s*\\?\n\s*/g, " ").replace(/\|/g, "\\|").trim();
 }
 
 function serializeTableRow(row: ProseMirrorNode): string[] {
@@ -1258,10 +1313,14 @@ const productMarkdownSerializer = new MarkdownSerializer(
       state.renderInline(node);
       state.closeBlock(node);
     },
-    heading(state, node) {
+    heading(state, node, parent, index) {
       state.write(`${state.repeat("#", node.attrs.level)} ${textAlignmentMarker(node)}`);
       state.renderInline(node, false);
-      state.closeBlock(node);
+      if (index < parent.childCount - 1) {
+        state.ensureNewLine();
+      } else {
+        state.closeBlock(node);
+      }
     },
     table(state, node) {
       const rows: string[][] = [];
@@ -1361,6 +1420,14 @@ const productMarkdownSerializer = new MarkdownSerializer(
     raw_markdown(state, node) {
       state.write(node.textContent);
       state.closeBlock(node);
+    },
+    hard_break(state, node, parent, index) {
+      for (let after = index + 1; after < parent.childCount; after += 1) {
+        if (parent.child(after).type === node.type) continue;
+        const before = index > 0 ? parent.child(index - 1) : null;
+        state.write(before && before.type !== node.type ? "\n" : "\\\n");
+        return;
+      }
     },
   },
   {
@@ -1563,6 +1630,7 @@ const productMarkdownParser = new MarkdownParser(
   defaultMarkdownParser.tokenizer,
   {
     ...defaultMarkdownParser.tokens,
+    softbreak: { node: "hard_break" },
     s: { mark: "strikethrough" },
     paragraph: {
       block: "paragraph",

@@ -59,6 +59,7 @@ export type ShortcutActionId =
   | "nextNote"
   | "goToNotes"
   | "goToJournal"
+  | "goToTasks"
   | "goToTags"
   | "goToPeople"
   | "goToTrash"

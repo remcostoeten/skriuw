@@ -275,8 +275,6 @@
   font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
   font-size: 0.9rem;
   line-height: 1.7;
-  white-space: pre-wrap;
-  word-wrap: break-word;
 }
 
 .bounded-editor-spacer {

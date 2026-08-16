@@ -43,7 +43,7 @@ const fieldClass =
 const inputClass =
   "min-w-0 flex-1 bg-transparent py-1 text-[13px] text-foreground outline-none placeholder:text-muted-foreground";
 const countClass =
-  "min-w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground @max-[360px]/editor-search:hidden";
+  "shrink-0 text-right text-xs tabular-nums text-muted-foreground @max-[360px]/editor-search:hidden";
 
 function IconButton({
   label,
@@ -207,7 +207,7 @@ export function SearchWidget({
             {countLabel}
           </span>
 
-          <div className="flex shrink-0 items-center gap-0.5">
+          <div className="flex shrink-0 items-center gap-0.5 ml-auto">
             <IconButton
               label="Previous match"
               shortcut="Shift+Enter"
@@ -244,9 +244,7 @@ export function SearchWidget({
               />
             </div>
 
-            <span className={countClass} aria-hidden />
-
-            <div className="flex shrink-0 items-center gap-0.5">
+            <div className="flex shrink-0 items-center gap-0.5 ml-auto">
               <IconButton
                 label="Replace"
                 shortcut="Enter"
