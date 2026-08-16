@@ -536,6 +536,14 @@ fn map_opfs_error(error: OpfsSAHError) -> BrowserStorageError {
             "Free browser storage, preserve any available archive, and retry.",
             true,
         ),
+        // OPFS grants one exclusive access handle per file, so a second tab
+        // finds every pool slot locked by the tab that opened first.
+        Some("NoModificationAllowedError" | "InvalidStateError") => BrowserStorageError::new(
+            BrowserStorageErrorCode::AlreadyOpen,
+            "Skriuw is already open in another browser tab.",
+            "Close the other Skriuw tab, then reload this one.",
+            true,
+        ),
         _ => BrowserStorageError::new(
             BrowserStorageErrorCode::OpenFailed,
             "The durable browser database could not be opened.",

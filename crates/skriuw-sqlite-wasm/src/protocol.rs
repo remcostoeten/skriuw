@@ -180,6 +180,7 @@ pub enum BrowserStorageErrorCode {
     MigrationFailed,
     DatabaseTooNew,
     CorruptDatabase,
+    AlreadyOpen,
     OpenFailed,
     WorkerCrashed,
     InvalidRequest,
