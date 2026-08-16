@@ -121,16 +121,17 @@ function RelationshipSection({
   title,
   entries,
   render,
-  empty,
 }: {
   title: string;
   entries: readonly unknown[];
   render: (index: number) => React.ReactNode;
-  empty: string;
 }) {
   const [open, setOpen] = useState(true);
   const [all, setAll] = useState(false);
   const visible = all ? entries.length : Math.min(ROWS, entries.length);
+  if (entries.length === 0) {
+    return null;
+  }
   return (
     <section className="group relative border-b border-border/60">
       <SectionToggle
@@ -141,15 +142,11 @@ function RelationshipSection({
       />
       {open && (
         <div className="px-4 pb-2.5 pt-2.5">
-          {entries.length === 0 ? (
-            <p className="m-0 text-[13px] text-muted-foreground/70">{empty}</p>
-          ) : (
-            <ul className="m-0 list-none space-y-0.5 p-0">
-              {Array.from({ length: visible }, (_, index) => (
-                <li key={index}>{render(index)}</li>
-              ))}
-            </ul>
-          )}
+          <ul className="m-0 list-none space-y-0.5 p-0">
+            {Array.from({ length: visible }, (_, index) => (
+              <li key={index}>{render(index)}</li>
+            ))}
+          </ul>
           {entries.length > ROWS && (
             <button
               type="button"
@@ -232,7 +229,6 @@ export function RelationshipExplorer({ store, noteId }: { store: RendererStore; 
       <RelationshipSection
         title="Referenced by"
         entries={backlinks}
-        empty="No notes link here."
         render={(index) => (
           <NoteRow
             entry={backlinks[index]!}
@@ -243,7 +239,6 @@ export function RelationshipExplorer({ store, noteId }: { store: RendererStore; 
       <RelationshipSection
         title="Links to"
         entries={outgoing}
-        empty="No linked notes."
         render={(index) => (
           <NoteRow
             entry={outgoing[index]!}
@@ -254,7 +249,6 @@ export function RelationshipExplorer({ store, noteId }: { store: RendererStore; 
       <RelationshipSection
         title="Shared people"
         entries={people}
-        empty="No shared people."
         render={(index) => (
           <NoteRow
             entry={people[index]!}
@@ -265,7 +259,6 @@ export function RelationshipExplorer({ store, noteId }: { store: RendererStore; 
       <RelationshipSection
         title="Shared tags"
         entries={tags}
-        empty="No shared tags."
         render={(index) => (
           <NoteRow entry={tags[index]!} onOpen={() => activateNote(store, tags[index]!.noteId)} />
         )}
@@ -273,7 +266,6 @@ export function RelationshipExplorer({ store, noteId }: { store: RendererStore; 
       <RelationshipSection
         title="Journal"
         entries={journal}
-        empty="No related journal entries."
         render={(index) => {
           const entry = journal[index]!;
           return (
@@ -289,7 +281,6 @@ export function RelationshipExplorer({ store, noteId }: { store: RendererStore; 
       <RelationshipSection
         title="Viewed together"
         entries={coVisited}
-        empty="Open another note from here to build this session list."
         render={(index) => (
           <NoteRow
             entry={coVisited[index]!}
