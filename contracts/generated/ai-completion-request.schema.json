@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AiCompletionRequest",
+  "type": "object",
+  "properties": {
+    "modelId": {
+      "type": "string"
+    },
+    "parameters": {
+      "$ref": "#/$defs/AiCompletionParameters"
+    },
+    "providerId": {
+      "type": "string"
+    },
+    "requestId": {
+      "type": "string"
+    },
+    "systemPrompt": {
+      "type": "string"
+    },
+    "userPrompt": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "requestId",
+    "providerId",
+    "modelId",
+    "systemPrompt",
+    "userPrompt",
+    "parameters"
+  ],
+  "$defs": {
+    "AiCompletionParameters": {
+      "type": "object",
+      "properties": {
+        "maxOutputBytes": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "retryCount": {
+          "type": "integer",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "temperatureMillis": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "topPMillis": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "maxOutputBytes",
+        "timeoutMs",
+        "retryCount"
+      ]
+    }
+  }
+}

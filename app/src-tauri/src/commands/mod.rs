@@ -1,3 +1,4 @@
+pub mod ai;
 pub mod history;
 pub mod maintenance;
 pub mod media;

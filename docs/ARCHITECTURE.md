@@ -86,6 +86,20 @@ User action
 
 `skriuw-sync` owns the optional background sync lifecycle: a narrow push/pull transport seam over the generated v1 sync contracts, classified failure handling with bounded jittered backoff, and one coalesced coordinator loop per workspace database that claims, pushes, acknowledges, pulls, and applies through the durable `WorkspaceSyncQueue` port. It holds no SQLite transaction across network work and never runs on interaction or recovery paths; see `specs/desktop-sync-coordinator.md`.
 
+### AI completion
+
+`skriuw-domain` owns the provider-neutral completion request, streaming event,
+cancellation, terminal, and error contracts. `skriuw-ai` supplies the permanent
+deterministic fake adapter used to prove the public seam without network access
+or credentials. The desktop shell creates the completion service on the first
+explicit request, runs it on a dedicated worker, streams through a Tauri channel,
+and keeps active cancellation handles outside the workspace runtime. Renderer
+consumers reject foreign, out-of-order, and post-disposal events. Provider
+initialization and completion work are opt-in and explicit-action only; they
+never enter startup, typing, save, navigation, or the serialized workspace
+storage runtime. See
+[ADR-0033](adr/0033-ai-provider-completion-seam.md).
+
 ### History
 
 History is a separate capability. `skriuw-history` coordinates leased queue items through backend-neutral materializer, reader, and cache ports. Desktop uses the native-only `skriuw-history-git` adapter to materialize Markdown into a hidden Git repository. Its separate read-only reader checks only `refs/heads/history`: reachable commits must form one linear chain with unique valid identities, complete metadata, and readable UTF-8 note blobs. Cache rebuild validates and enumerates all headers before one transactional SQLite replacement; version Markdown loads only when opened. Web may retain structured revisions locally or use remote history. SQLite remains authoritative. History failures cannot prevent saves. Persisted leases make retries crash-safe. Failed materialization receives durable exponential backoff capped at six hours, so one poison revision cannot starve later eligible history work. Materializers must be idempotent by outbox item ID. Integrity and rebuild run only when explicitly requested, never during startup or interaction paths.
@@ -176,3 +190,4 @@ Rust and Tauri suites rather than simulated browser state.
 - [ADR-0029: stored video media](adr/0029-stored-video-media.md)
 - [ADR-0030: remote cover download](adr/0030-remote-cover-download.md)
 - [ADR-0031: explicit task promotion](adr/0031-explicit-task-promotion.md)
+- [ADR-0033: provider-agnostic AI completion seam](adr/0033-ai-provider-completion-seam.md)

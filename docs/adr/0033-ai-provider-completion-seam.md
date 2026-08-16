@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed, 2026-08-16. Implementation requires approval of this decision.
+Accepted, 2026-08-16.
 
 ## Context
 

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/skriuw-ai",
     "crates/skriuw-domain",
     "crates/skriuw-storage",
     "crates/skriuw-sqlite-wasm",

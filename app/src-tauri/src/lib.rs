@@ -1,3 +1,4 @@
+mod ai;
 mod auth;
 mod commands;
 mod maintenance;
@@ -90,6 +91,7 @@ pub fn run() {
                 })
             }));
             app.manage(AppState {
+                ai: ai::LazyAiCompletion::default(),
                 maintenance,
                 rotation,
                 storage_path: path.clone(),
@@ -111,6 +113,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::ai::start_ai_completion,
+            commands::ai::cancel_ai_completion,
             auth::load_auth_token,
             auth::store_auth_token,
             auth::clear_auth_token,
@@ -173,6 +177,7 @@ pub fn run() {
             if let RunEvent::Exit = event
                 && let Some(state) = app.try_state::<AppState>()
             {
+                state.ai.shutdown();
                 state.sync.shutdown();
                 state.rotation.shutdown();
                 state.maintenance.shutdown();

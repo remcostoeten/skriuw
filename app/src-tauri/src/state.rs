@@ -5,14 +5,18 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::maintenance::{BackupRotationHandle, MaintenanceCoordinator};
 use crate::sync::SyncRuntime;
+use crate::{
+    ai::LazyAiCompletion,
+    maintenance::{BackupRotationHandle, MaintenanceCoordinator},
+};
 use skriuw_history_git::GitHistoryMaterializer;
 use skriuw_images::ImageStore;
 use skriuw_runtime::{Completion, WorkspaceRuntime};
 use tauri::{Manager, State};
 
 pub(crate) struct AppState {
+    pub(crate) ai: LazyAiCompletion,
     pub(crate) maintenance: Arc<MaintenanceCoordinator>,
     pub(crate) rotation: BackupRotationHandle,
     pub(crate) storage_path: PathBuf,

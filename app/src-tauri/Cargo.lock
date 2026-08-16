@@ -3947,6 +3947,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ee5873ec9cce0195efcb7a4e9507a04cd49aec9c83d0389df45b1ef7ba2e649"
 
 [[package]]
+name = "skriuw-ai"
+version = "0.1.0"
+dependencies = [
+ "skriuw-domain",
+]
+
+[[package]]
 name = "skriuw-app"
 version = "0.0.0"
 dependencies = [
@@ -3956,6 +3963,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "skriuw-ai",
  "skriuw-domain",
  "skriuw-history",
  "skriuw-history-git",
