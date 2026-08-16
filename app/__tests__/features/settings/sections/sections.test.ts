@@ -1,18 +1,37 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { SECTIONS } from "../../../../src/features/settings/sections/sections";
+import {
+  SECTIONS,
+  availableSettingsSections,
+} from "../../../../src/features/settings/sections/sections";
 
 test("SECTIONS contains all expected settings section definitions", () => {
   const ids = SECTIONS.map((section) => section.id);
   assert.deepEqual(ids, [
     "appearance",
     "editor",
+    "ai",
     "shortcuts",
     "account",
     "media",
     "data",
     "about",
   ]);
+});
+
+test("AI and desktop-only sections are structurally gated", () => {
+  assert.equal(
+    availableSettingsSections(false, false).some((section) => section.id === "ai"),
+    false,
+  );
+  assert.equal(
+    availableSettingsSections(true, false).some((section) => section.id === "ai"),
+    true,
+  );
+  assert.equal(
+    availableSettingsSections(true, true).some((section) => section.id === "media"),
+    false,
+  );
 });
 
 test("each section has label, description, searchText and icon", () => {

@@ -10,6 +10,7 @@ import { CloseIcon, SearchIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { Dialog } from "@/shared/ui/dialog";
 import {
+  activeSettingsSection,
   filterSettingsSections,
   moveSettingsSection,
   rovingSettingsSection,
@@ -21,18 +22,26 @@ import { AppearanceSection } from "@/features/settings/sections/appearance-secti
 import { DataSection } from "@/features/settings/sections/data-section";
 import { EditorSection } from "@/features/settings/sections/editor-section";
 import { MediaSection } from "@/features/settings/sections/media-section";
-import { SECTIONS } from "@/features/settings/sections/sections";
+import {
+  SECTIONS,
+  availableSettingsSections,
+} from "@/features/settings/sections/sections";
 import type { SectionId } from "@/features/settings/sections/sections";
 import { ShortcutsSection } from "@/features/settings/sections/shortcuts-section";
+import { AiOptInGate, selectAiEnabled } from "@/features/ai/opt-in-gate";
+import { useRendererSelector } from "@/store/use-renderer-selector";
 
 const AccountSection = lazy(async () => {
   const module = await import("@/features/settings/sections/account-section");
   return { default: module.AccountSection };
 });
 
-const AVAILABLE_SECTIONS = isBrowserRuntime()
-  ? SECTIONS.filter((entry) => entry.id !== "media")
-  : SECTIONS;
+const AiSection = lazy(async () => {
+  const module = await import("@/features/settings/sections/ai-section");
+  return { default: module.AiSection };
+});
+
+const BROWSER_RUNTIME = isBrowserRuntime();
 
 type Props = {
   store: RendererStore;
@@ -57,15 +66,23 @@ export function SettingsDialog({
   const navRef = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const recordingCountRef = useRef(0);
-  const filteredSections = useMemo(
-    () => filterSettingsSections(AVAILABLE_SECTIONS, query),
-    [query],
+  const aiEnabled = useRendererSelector(store, selectAiEnabled);
+  const availableSections = useMemo(
+    () => availableSettingsSections(aiEnabled, BROWSER_RUNTIME),
+    [aiEnabled],
   );
+  const filteredSections = useMemo(
+    () => filterSettingsSections(availableSections, query),
+    [availableSections, query],
+  );
+  const availableIds = availableSections.map((entry) => entry.id);
   const filteredIds = filteredSections.map((entry) => entry.id);
   const rovingSection = rovingSettingsSection(filteredIds, section);
-  // While filtering, show a matching panel immediately rather than leaving the
-  // previously selected (and now hidden) section on screen.
-  const activeSection = rovingSection ?? section;
+  const activeSection = activeSettingsSection(
+    filteredIds,
+    availableIds,
+    section,
+  ) ?? "appearance";
   const activeMeta = SECTIONS.find((entry) => entry.id === activeSection) ?? SECTIONS[0];
 
   useEffect(() => {
@@ -324,6 +341,15 @@ export function SettingsDialog({
             </Suspense>
           )}
           {activeSection === "editor" && <EditorSection store={store} />}
+          {activeSection === "ai" && (
+            <AiOptInGate store={store}>
+              {(signal) => (
+                <Suspense fallback={null}>
+                  <AiSection signal={signal} />
+                </Suspense>
+              )}
+            </AiOptInGate>
+          )}
           {activeSection === "shortcuts" && (
             <ShortcutsSection store={store} recordingCountRef={recordingCountRef} />
           )}
