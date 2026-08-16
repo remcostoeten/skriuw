@@ -1,0 +1,11 @@
+{
+  "releaseBranch": "daddy",
+  "remote": "origin",
+  "versionFile": "app/src-tauri/tauri.conf.json",
+  "tagPrefix": "v2-v",
+  "commitMessage": "chore(release): v2-v{{version}}",
+  "tagMessage": "{{version}}",
+  "npm": { "publish": false, "access": "public", "tag": null },
+  "github": { "release": false, "draft": false },
+  "replacements": []
+}
