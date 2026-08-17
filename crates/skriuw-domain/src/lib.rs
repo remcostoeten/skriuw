@@ -11,6 +11,7 @@ use thiserror::Error;
 mod ai;
 mod checkpoint;
 mod chunk;
+mod local_ai;
 mod reconcile;
 mod sync;
 mod task;
@@ -31,6 +32,11 @@ pub use chunk::{
     ContentEncoding, ContentHashAlgorithm, ContentManifest, ContentManifestKind,
     ContentValidationError, MAX_CONTENT_BYTES, MAX_CONTENT_MIME_BYTES, MAX_MANIFEST_CHUNKS,
     content_digest, validate_content_digest,
+};
+pub use local_ai::{
+    LocalAiError, LocalAiErrorCategory, LocalAiModel, LocalAiOperation, LocalAiProgress,
+    LocalAiProgressSink, LocalAiRuntime, LocalAiRuntimeState, LocalAiStatus,
+    MAX_LOCAL_AI_MODEL_NAME_BYTES, MAX_LOCAL_AI_STATUS_BYTES,
 };
 pub use reconcile::{
     DocumentConflictResolutionChoice, RemoteOperationDecision, RemoteTargetState,

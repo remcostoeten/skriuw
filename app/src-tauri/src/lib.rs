@@ -2,6 +2,7 @@ mod ai;
 mod auth;
 mod commands;
 mod maintenance;
+mod ollama;
 mod remote_media;
 #[cfg(test)]
 mod smoke_tests;
@@ -14,6 +15,7 @@ use maintenance::{MaintenanceCoordinator, spawn_backup_rotation};
 use skriuw_domain::HistoryHeader;
 use skriuw_history_git::GitHistoryMaterializer;
 use skriuw_images::ImageStore;
+use skriuw_ai_ollama::OllamaRuntime;
 use state::{AppState, database_path, history_repository_path, image_blob_path, now_millis};
 use tauri::{Emitter, Manager, RunEvent};
 
@@ -34,6 +36,12 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let path = database_path(app.handle())?;
+            let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+            let ollama_runtime = Arc::new(OllamaRuntime::with_endpoint_override(
+                app_data_dir.join("ollama"),
+                std::env::var("SKRIUW_OLLAMA_ENDPOINT").ok().as_deref(),
+            )?);
+            let ollama = Arc::new(ollama::OllamaManager::new(Arc::clone(&ollama_runtime)));
             let repository_path = history_repository_path(&path);
             let history_reader = Arc::new(
                 GitHistoryMaterializer::open(&repository_path)
@@ -91,7 +99,8 @@ pub fn run() {
                 })
             }));
             app.manage(AppState {
-                ai: ai::LazyAiCompletion::default(),
+                ai: ai::LazyAiCompletion::new(ollama_runtime),
+                ollama,
                 maintenance,
                 rotation,
                 storage_path: path.clone(),
@@ -115,6 +124,13 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::ai::start_ai_completion,
             commands::ai::cancel_ai_completion,
+            commands::ai::ollama_runtime_status,
+            commands::ai::start_ollama_runtime,
+            commands::ai::install_ollama_runtime,
+            commands::ai::list_ollama_models,
+            commands::ai::pull_ollama_model,
+            commands::ai::cancel_ollama_operation,
+            commands::ai::delete_ollama_model,
             auth::load_auth_token,
             auth::store_auth_token,
             auth::clear_auth_token,
@@ -178,6 +194,7 @@ pub fn run() {
                 && let Some(state) = app.try_state::<AppState>()
             {
                 state.ai.shutdown();
+                state.ollama.shutdown();
                 state.sync.shutdown();
                 state.rotation.shutdown();
                 state.maintenance.shutdown();

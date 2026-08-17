@@ -20,6 +20,7 @@ reqwest = { version = "0.13.4", default-features = false, features = ["blocking"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 skriuw-ai = { path = "../../crates/skriuw-ai" }
+skriuw-ai-ollama = { path = "../../crates/skriuw-ai-ollama" }
 skriuw-domain = { path = "../../crates/skriuw-domain" }
 skriuw-history = { path = "../../crates/skriuw-history" }
 skriuw-history-git = { path = "../../crates/skriuw-history-git" }

@@ -79,6 +79,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 
 ## Desktop experience
 
+- **Opt-in local AI runtime** — after AI is explicitly enabled, settings can detect an existing Ollama service or install an app-owned copy on Linux and macOS with release checksum verification. Runtime ownership stays visible, model pulls stream cancellable accessible progress, installed models show their disk use, and external Ollama services are never stopped or updated by Skriuw.
 - **Calm first-run choice** — a fresh install reveals its window only after the first real paint, opening on a seeded preview workspace you can type into immediately, with one keyboard-accessible choice: continue entirely locally with no account, or sign in and enable multi-device sync. An untouched preview is reclaimed at sign-in, existing workspaces are never interrupted, and sync remains available later from Account & sync.
 - **Command palette** — every action reachable from one keyboard surface.
 - **Rebindable shortcuts** — the shortcut system is fully remappable from settings.

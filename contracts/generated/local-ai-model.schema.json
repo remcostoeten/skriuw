@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LocalAiModel",
+  "type": "object",
+  "properties": {
+    "digest": {
+      "type": "string"
+    },
+    "modifiedAt": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "parameterSize": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "quantizationLevel": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sizeBytes": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "sizeBytes",
+    "modifiedAt",
+    "digest"
+  ]
+}

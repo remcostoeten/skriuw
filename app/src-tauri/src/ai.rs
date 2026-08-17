@@ -1,18 +1,38 @@
 use std::sync::OnceLock;
 
-use skriuw_ai::{AiCompletionChannel, AiCompletionService};
-use skriuw_domain::{AiCompletionEvent, AiCompletionRequest, AiSinkError};
+use std::sync::Arc;
+
+use skriuw_ai::{
+    AiCompletionChannel, AiCompletionService, FakeAiProvider, FakeCompletionScript,
+};
+use skriuw_ai_ollama::OllamaRuntime;
+use skriuw_domain::{AiComplete, AiCompletionEvent, AiCompletionRequest, AiSinkError};
 use tauri::ipc::Channel;
 
-#[derive(Default)]
 pub(crate) struct LazyAiCompletion {
     service: OnceLock<AiCompletionService>,
+    ollama: Arc<OllamaRuntime>,
 }
 
 impl LazyAiCompletion {
+    pub(crate) fn new(ollama: Arc<OllamaRuntime>) -> Self {
+        Self {
+            service: OnceLock::new(),
+            ollama,
+        }
+    }
+
     fn service(&self) -> &AiCompletionService {
-        self.service
-            .get_or_init(AiCompletionService::with_fake_provider)
+        self.service.get_or_init(|| {
+            let fake: Arc<dyn AiComplete> = Arc::new(FakeAiProvider::new(
+                FakeCompletionScript::success(["fake ", "completion"]),
+            ));
+            let ollama: Arc<dyn AiComplete> = self.ollama.clone();
+            AiCompletionService::new([
+                ("fake".to_owned(), fake),
+                ("ollama".to_owned(), ollama),
+            ])
+        })
     }
 
     pub(crate) fn start(
@@ -48,11 +68,20 @@ impl AiCompletionChannel for TauriCompletionChannel {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use skriuw_ai_ollama::OllamaRuntime;
+    use tempfile::tempdir;
+
     use super::LazyAiCompletion;
 
     #[test]
     fn cancellation_and_shutdown_do_not_initialize_ai() {
-        let completion = LazyAiCompletion::default();
+        let directory = tempdir().expect("tempdir");
+        let ollama = Arc::new(
+            OllamaRuntime::new(directory.path().to_path_buf(), None).expect("ollama runtime"),
+        );
+        let completion = LazyAiCompletion::new(ollama);
 
         assert!(!completion.cancel("missing"));
         completion.shutdown();

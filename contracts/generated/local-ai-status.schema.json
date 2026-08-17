@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LocalAiStatus",
+  "type": "object",
+  "properties": {
+    "detail": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "endpoint": {
+      "type": "string"
+    },
+    "managed": {
+      "type": "boolean"
+    },
+    "state": {
+      "$ref": "#/$defs/LocalAiRuntimeState"
+    },
+    "version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "state",
+    "endpoint",
+    "managed"
+  ],
+  "$defs": {
+    "LocalAiRuntimeState": {
+      "type": "string",
+      "enum": [
+        "not_installed",
+        "installed_stopped",
+        "starting",
+        "running",
+        "failed",
+        "unsupported"
+      ]
+    }
+  }
+}

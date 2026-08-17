@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LocalAiProgress",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "completedBytes": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "operation": {
+          "$ref": "#/$defs/LocalAiOperation"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "totalBytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "type": {
+          "type": "string",
+          "const": "progress"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "operationId",
+        "operation",
+        "status",
+        "completedBytes"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/$defs/LocalAiOperation"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "complete"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "operationId",
+        "operation"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/$defs/LocalAiOperation"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "cancelled"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "operationId",
+        "operation"
+      ]
+    }
+  ],
+  "$defs": {
+    "LocalAiOperation": {
+      "type": "string",
+      "enum": [
+        "install",
+        "pull"
+      ]
+    }
+  }
+}
