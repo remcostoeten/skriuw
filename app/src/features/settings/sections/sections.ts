@@ -33,6 +33,7 @@ export const SECTIONS = [
     description: "Providers and writing tools",
     searchText: "artificial intelligence providers models writing tools prompts",
     icon: StarIcon,
+    desktopOnly: true,
   },
   {
     id: "shortcuts",
@@ -55,6 +56,7 @@ export const SECTIONS = [
     searchText:
       "media library images pictures photos png jpeg gif webp blobs attachments unused delete remove usage notes gallery",
     icon: ImageIcon,
+    desktopOnly: true,
   },
   {
     id: "data",
@@ -76,13 +78,41 @@ export const SECTIONS = [
 
 export type SectionId = (typeof SECTIONS)[number]["id"];
 
+export type SettingsSection = {
+  id: SectionId;
+  label: string;
+  description: string;
+  searchText: string;
+  icon: (typeof SECTIONS)[number]["icon"];
+  desktopOnly?: boolean;
+};
+
+/**
+ * A section whose surface has no browser implementation. The flag lives on the
+ * section itself so a runtime requirement is declared once, next to the rest of
+ * the section's data, instead of as a condition callers have to remember.
+ */
+function isDesktopOnly(section: (typeof SECTIONS)[number]): boolean {
+  return "desktopOnly" in section && section.desktopOnly;
+}
+
+/**
+ * Sections visible for the current workspace, with the stored empty-note prompt
+ * folded into the Editor haystack: `searchText` is static, so a prompt the user
+ * typed themselves would otherwise be unreachable from the search field.
+ */
 export function availableSettingsSections(
   aiEnabled: boolean,
   browserRuntime: boolean,
-): (typeof SECTIONS)[number][] {
+  editorPlaceholder: string,
+): SettingsSection[] {
   return SECTIONS.filter(
     (section) =>
       (section.id !== "ai" || aiEnabled) &&
-      (section.id !== "media" || !browserRuntime),
+      !(browserRuntime && isDesktopOnly(section)),
+  ).map((section) =>
+    section.id === "editor"
+      ? { ...section, searchText: `${section.searchText} ${editorPlaceholder}` }
+      : section,
   );
 }

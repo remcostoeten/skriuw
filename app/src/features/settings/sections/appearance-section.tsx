@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isBrowserRuntime } from "@/bridge/runtime";
 import { ThemePicker } from "@/features/settings/theme-picker";
 import { resetAllSettings } from "@/store/actions/settings";
 import { Button } from "@/shared/ui/button";
@@ -15,6 +16,8 @@ import {
   useEditableSettings,
 } from "./settings-shared";
 import type { SectionProps } from "./settings-shared";
+
+const BROWSER_RUNTIME = isBrowserRuntime();
 
 export function AppearanceSection({ store }: SectionProps) {
   const { settings, change } = useEditableSettings(store);
@@ -94,15 +97,17 @@ export function AppearanceSection({ store }: SectionProps) {
           onChange={(checked) => change("showToasts", checked)}
         />
       </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Optional features</div>
-        <SettingToggle
-          label="AI features"
-          detail="Add AI provider settings and writing tools to the workspace. Enabling this does not install or connect anything."
-          checked={settings.aiEnabled}
-          onChange={changeAiEnabled}
-        />
-      </div>
+      {!BROWSER_RUNTIME && (
+        <div className={settingsGroup}>
+          <div className={settingsGroupTitle}>Optional features</div>
+          <SettingToggle
+            label="AI features"
+            detail="Add AI provider settings and writing tools to the workspace. Enabling this does not install or connect anything."
+            checked={settings.aiEnabled}
+            onChange={changeAiEnabled}
+          />
+        </div>
+      )}
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Preferences</div>
         <div className="flex min-h-[42px] items-center justify-between gap-3 py-[7px] text-[13px]">

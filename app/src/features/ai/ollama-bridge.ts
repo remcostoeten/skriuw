@@ -1,5 +1,5 @@
 import { Channel } from "@tauri-apps/api/core";
-import { invoke, isBrowserRuntime } from "@/bridge/runtime";
+import { invoke, requireDesktopRuntime } from "@/bridge/runtime";
 import type { LocalAiModel, LocalAiProgress, LocalAiStatus } from "@/contracts/ai";
 import { noop } from "@/shared/lib/noop";
 
@@ -18,6 +18,11 @@ export function ollamaRuntimeStatus(): Promise<LocalAiStatus> {
 export function startOllamaRuntime(): Promise<LocalAiStatus> {
   requireDesktop();
   return invoke<LocalAiStatus>("start_ollama_runtime");
+}
+
+export function stopOllamaRuntime(): Promise<LocalAiStatus> {
+  requireDesktop();
+  return invoke<LocalAiStatus>("stop_ollama_runtime");
 }
 
 export function listOllamaModels(): Promise<LocalAiModel[]> {
@@ -91,7 +96,5 @@ async function runProgressOperation<T>(
 }
 
 function requireDesktop(): void {
-  if (isBrowserRuntime()) {
-    throw new Error("Local AI runtime management needs the desktop app.");
-  }
+  requireDesktopRuntime("Local AI runtime management");
 }

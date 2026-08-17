@@ -1,6 +1,6 @@
 import { Channel } from "@tauri-apps/api/core";
 import type { AiCompletionEvent, AiCompletionRequest } from "@/contracts/ai";
-import { invoke, isBrowserRuntime } from "@/bridge/runtime";
+import { invoke, requireDesktopRuntime } from "@/bridge/runtime";
 import { noop } from "@/shared/lib/noop";
 
 export type AiCompletionHandle = {
@@ -13,9 +13,7 @@ export async function startAiCompletion(
   onEvent: (event: AiCompletionEvent) => void,
   signal?: AbortSignal,
 ): Promise<AiCompletionHandle> {
-  if (isBrowserRuntime()) {
-    throw new Error("AI completion is not available in the browser runtime.");
-  }
+  requireDesktopRuntime("AI completion");
   if (signal?.aborted) {
     throw new DOMException("AI completion was cancelled.", "AbortError");
   }

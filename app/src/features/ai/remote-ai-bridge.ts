@@ -1,4 +1,4 @@
-import { invoke, isBrowserRuntime } from "@/bridge/runtime";
+import { invoke, requireDesktopRuntime } from "@/bridge/runtime";
 import type {
   CredentialVaultDetection,
   RemoteAiCatalog,
@@ -78,7 +78,5 @@ export function verifyRemoteAiKey(
 }
 
 function requireDesktop(): void {
-  if (isBrowserRuntime()) {
-    throw new Error("Remote AI provider keys need the desktop app.");
-  }
+  requireDesktopRuntime("Remote AI provider keys");
 }
