@@ -218,6 +218,15 @@ impl CredentialVaultState {
     pub fn accepts_new_keys(self) -> bool {
         matches!(self, Self::VaultOk | Self::VaultNoCollection)
     }
+
+    /// Whether a stored key can already exist in this vault. A locked vault
+    /// counts: it may hold a key that the lock prevents Skriuw from reading or
+    /// deleting. The remaining states have nowhere for a key to live, so a
+    /// vault operation they refuse cannot have left key material behind.
+    #[must_use]
+    pub fn may_hold_keys(self) -> bool {
+        matches!(self, Self::VaultOk | Self::VaultLocked)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -464,5 +473,17 @@ mod tests {
         assert!(!CredentialVaultState::VaultLocked.accepts_new_keys());
         assert!(!CredentialVaultState::VaultAbsent.accepts_new_keys());
         assert!(!CredentialVaultState::VaultBlocked.accepts_new_keys());
+    }
+
+    #[test]
+    fn only_a_reachable_vault_can_still_hold_key_material() {
+        assert!(CredentialVaultState::VaultOk.may_hold_keys());
+        assert!(
+            CredentialVaultState::VaultLocked.may_hold_keys(),
+            "a locked vault can hold a key that cannot be deleted yet"
+        );
+        assert!(!CredentialVaultState::VaultNoCollection.may_hold_keys());
+        assert!(!CredentialVaultState::VaultAbsent.may_hold_keys());
+        assert!(!CredentialVaultState::VaultBlocked.may_hold_keys());
     }
 }

@@ -115,11 +115,19 @@ impl AiCredentialStore {
         Ok(())
     }
 
+    /// Removal succeeds once no key material remains for the provider. A vault
+    /// that refuses the delete only fails the operation when it could be
+    /// holding a key: on a device with no reachable vault, dropping the session
+    /// key already satisfies that, and failing there would strand a
+    /// session-only key the user explicitly asked to revoke.
     pub(crate) fn remove_key(&self, kind: RemoteProviderKind) -> Result<(), AiProviderError> {
         self.forget_session_key(kind.id());
         match entry(kind.id()).and_then(|entry| entry.delete_credential()) {
             Ok(()) | Err(KeyringError::NoEntry) => Ok(()),
-            Err(error) => Err(keyring_error(kind, &error)),
+            Err(error) if detect_vault_state().state.may_hold_keys() => {
+                Err(keyring_error(kind, &error))
+            }
+            Err(_) => Ok(()),
         }
     }
 
