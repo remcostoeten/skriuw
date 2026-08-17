@@ -27,6 +27,10 @@ export function selectAnimatedIcons(state: RendererState): boolean {
   return usesAnimatedIcons(state.settings);
 }
 
+export function selectEditorPlaceholder(state: RendererState): string {
+  return state.settings.editorPlaceholder;
+}
+
 export function selectTheme(state: RendererState): string {
   return state.settings.theme;
 }

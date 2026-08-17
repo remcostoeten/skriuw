@@ -27,6 +27,7 @@ import {
   availableSettingsSections,
 } from "@/features/settings/sections/sections";
 import type { SectionId } from "@/features/settings/sections/sections";
+import { selectEditorPlaceholder } from "@/features/settings/sections/selectors";
 import { ShortcutsSection } from "@/features/settings/sections/shortcuts-section";
 import { AiOptInGate, selectAiEnabled } from "@/features/ai/opt-in-gate";
 import { useRendererSelector } from "@/store/use-renderer-selector";
@@ -67,9 +68,10 @@ export function SettingsDialog({
   const contentRef = useRef<HTMLDivElement>(null);
   const recordingCountRef = useRef(0);
   const aiEnabled = useRendererSelector(store, selectAiEnabled);
+  const editorPlaceholder = useRendererSelector(store, selectEditorPlaceholder);
   const availableSections = useMemo(
-    () => availableSettingsSections(aiEnabled, BROWSER_RUNTIME),
-    [aiEnabled],
+    () => availableSettingsSections(aiEnabled, BROWSER_RUNTIME, editorPlaceholder),
+    [aiEnabled, editorPlaceholder],
   );
   const filteredSections = useMemo(
     () => filterSettingsSections(availableSections, query),
