@@ -5,3 +5,5 @@ declare module "highlight.js/lib/languages/*" {
   const language: LanguageFn;
   export default language;
 }
+
+declare module "@remcostoeten/notifier/styles";

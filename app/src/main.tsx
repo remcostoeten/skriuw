@@ -31,6 +31,7 @@ import { createInitialState, createRendererStore } from "@/store/store";
 import type { RendererStore } from "@/store/types";
 import { initZoom } from "@/shell/zoom-controller";
 import { showToast } from "@/shared/ui/toast";
+import "@remcostoeten/notifier/styles";
 import "./styles.css";
 
 const REVEAL_FRAME_TIMEOUT_MS = 100;
