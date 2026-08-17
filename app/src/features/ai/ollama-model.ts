@@ -1,5 +1,8 @@
 import type { LocalAiProgress, LocalAiRuntimeState, LocalAiStatus } from "@/contracts/ai";
 import { formatByteSize } from "@/shared/lib/format-bytes";
+import { formatDuration } from "@/shared/lib/format-duration";
+
+export const OLLAMA_INSTALL_SOURCE_URL = "https://ollama.com/download";
 
 const STATE_LABELS: Record<LocalAiRuntimeState, string> = {
   not_installed: "Not installed",
@@ -50,4 +53,34 @@ export function ollamaProgressPercent(progress: LocalAiProgress | null): number 
     return null;
   }
   return Math.min(100, Math.round((progress.completedBytes / progress.totalBytes) * 100));
+}
+
+/**
+ * Renders "{spent}/{estimated finish}" (e.g. "12s/48s") from the elapsed time
+ * and the current transfer rate. Returns null until there's enough signal
+ * (a nonzero byte total and at least a second of elapsed time) to estimate.
+ */
+export function ollamaProgressTiming(
+  progress: LocalAiProgress | null,
+  elapsedMs: number,
+): string | null {
+  if (
+    progress?.type !== "progress" ||
+    !progress.totalBytes ||
+    progress.totalBytes <= 0 ||
+    progress.completedBytes <= 0 ||
+    elapsedMs < 1_000
+  ) {
+    return null;
+  }
+  const elapsedSeconds = elapsedMs / 1000;
+  const rate = progress.completedBytes / elapsedSeconds;
+  const remainingBytes = Math.max(0, progress.totalBytes - progress.completedBytes);
+  const estimatedTotalSeconds = elapsedSeconds + remainingBytes / rate;
+  return `${formatDuration(elapsedSeconds)}/${formatDuration(estimatedTotalSeconds)}`;
+}
+
+export function ollamaModelSourceUrl(model: string): string {
+  const base = model.split(":")[0]?.trim();
+  return base ? `https://ollama.com/library/${encodeURIComponent(base)}` : OLLAMA_INSTALL_SOURCE_URL;
 }

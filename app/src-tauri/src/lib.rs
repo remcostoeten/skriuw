@@ -28,6 +28,12 @@ const ROTATION_RETRY_DELAY: Duration = Duration::from_secs(60);
 const WINDOW_REVEAL_FAILSAFE: Duration = Duration::from_secs(2);
 const HISTORY_HEADER_PUBLISHED_EVENT: &str = "history-header-published";
 const SYNC_WORKSPACE_CHANGED_EVENT: &str = "sync-workspace-changed";
+/// Excludes StateFlags::VISIBLE: the main window ships hidden and is revealed
+/// by the renderer/failsafe above, so the plugin must never show it early.
+const WINDOW_STATE_FLAGS: tauri_plugin_window_state::StateFlags =
+    tauri_plugin_window_state::StateFlags::SIZE
+        .union(tauri_plugin_window_state::StateFlags::POSITION)
+        .union(tauri_plugin_window_state::StateFlags::MAXIMIZED);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -35,6 +41,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(WINDOW_STATE_FLAGS)
+                .build(),
+        )
         .setup(|app| {
             let path = database_path(app.handle())?;
             let app_data_dir = app
@@ -132,6 +143,7 @@ pub fn run() {
             commands::ai::cancel_ai_completion,
             commands::ai::ollama_runtime_status,
             commands::ai::start_ollama_runtime,
+            commands::ai::stop_ollama_runtime,
             commands::ai::install_ollama_runtime,
             commands::ai::list_ollama_models,
             commands::ai::pull_ollama_model,

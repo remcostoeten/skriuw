@@ -70,6 +70,11 @@ impl OllamaManager {
         self.runtime.start()
     }
 
+    pub(crate) fn stop(&self) -> Result<LocalAiStatus, LocalAiError> {
+        self.active.cancel_all();
+        self.runtime.stop()
+    }
+
     pub(crate) fn install(
         &self,
         operation_id: String,

@@ -110,6 +110,7 @@ pub trait LocalAiProgressSink: Send {
 pub trait LocalAiRuntime: Send + Sync {
     fn status(&self) -> Result<LocalAiStatus, LocalAiError>;
     fn start(&self) -> Result<LocalAiStatus, LocalAiError>;
+    fn stop(&self) -> Result<LocalAiStatus, LocalAiError>;
     fn install(
         &self,
         operation_id: &str,

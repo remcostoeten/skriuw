@@ -41,6 +41,14 @@ pub async fn start_ollama_runtime(
 }
 
 #[tauri::command]
+pub async fn stop_ollama_runtime(
+    state: State<'_, AppState>,
+) -> Result<LocalAiStatus, LocalAiError> {
+    let ollama = Arc::clone(&state.ollama);
+    run(move || ollama.stop()).await
+}
+
+#[tauri::command]
 pub async fn install_ollama_runtime(
     operation_id: String,
     on_event: Channel<LocalAiProgress>,

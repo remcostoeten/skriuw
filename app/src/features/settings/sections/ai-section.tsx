@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { openExternalUrl } from "@/bridge/external-links";
 import type { LocalAiModel, LocalAiProgress, LocalAiStatus } from "@/contracts/ai";
 import {
@@ -9,7 +9,9 @@ import {
   ollamaRuntimeStatus,
   pullOllamaModel,
   startOllamaRuntime,
+  stopOllamaRuntime,
 } from "@/features/ai/ollama-bridge";
+import { OLLAMA_INSTALL_SOURCE_URL, ollamaModelSourceUrl } from "@/features/ai/ollama-model";
 import { SettingsHeading, settingsSection } from "./settings-shared";
 import { OllamaModelsPanel, OllamaRuntimeCard } from "./ollama-settings-ui";
 import { RemoteProvidersPanel } from "./remote-ai-settings-ui";
@@ -34,8 +36,30 @@ export function AiSection({ signal }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteArmed, setDeleteArmed] = useState<string | null>(null);
+  const [pullingModel, setPullingModel] = useState<string | null>(null);
   const operationRef = useRef<AbortController | null>(null);
+  const operationStartRef = useRef<number | null>(null);
+  const [, tick] = useReducer((count: number) => count + 1, 0);
   const remote = useRemoteAiProviders(signal);
+
+  useEffect(() => {
+    if (progress?.type !== "progress") return;
+    const id = window.setInterval(tick, 1_000);
+    return () => window.clearInterval(id);
+  }, [progress?.type]);
+
+  const elapsedMs =
+    progress?.type === "progress" && operationStartRef.current !== null
+      ? Date.now() - operationStartRef.current
+      : 0;
+  const sourceUrl =
+    progress?.type === "progress"
+      ? progress.operation === "pull"
+        ? pullingModel
+          ? ollamaModelSourceUrl(pullingModel)
+          : null
+        : OLLAMA_INSTALL_SOURCE_URL
+      : null;
 
   useEffect(() => {
     let active = true;
@@ -104,6 +128,7 @@ export function AiSection({ signal }: Props) {
     setBusy(true);
     setError(null);
     setProgress(null);
+    operationStartRef.current = Date.now();
     const controller = new AbortController();
     operationRef.current = controller;
     try {
@@ -116,7 +141,9 @@ export function AiSection({ signal }: Props) {
       if (!signal.aborted && !controller.signal.aborted) setError(errorMessage(reason));
     } finally {
       operationRef.current = null;
+      operationStartRef.current = null;
       setBusy(false);
+      if (controller.signal.aborted) setProgress(null);
     }
   }
 
@@ -136,12 +163,30 @@ export function AiSection({ signal }: Props) {
     }
   }
 
+  async function runStop(): Promise<void> {
+    setBusy(true);
+    setError(null);
+    try {
+      const next = await stopOllamaRuntime();
+      if (!signal.aborted) {
+        setStatus(next);
+        setModels([]);
+      }
+    } catch (reason) {
+      if (!signal.aborted) setError(errorMessage(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function runPull(): Promise<void> {
     const model = modelName.trim();
     if (!model) return;
     setBusy(true);
     setError(null);
     setProgress(null);
+    setPullingModel(model);
+    operationStartRef.current = Date.now();
     const controller = new AbortController();
     operationRef.current = controller;
     try {
@@ -155,7 +200,10 @@ export function AiSection({ signal }: Props) {
       if (!signal.aborted && !controller.signal.aborted) setError(errorMessage(reason));
     } finally {
       operationRef.current = null;
+      operationStartRef.current = null;
+      setPullingModel(null);
       setBusy(false);
+      if (controller.signal.aborted) setProgress(null);
     }
   }
 
@@ -196,10 +244,13 @@ export function AiSection({ signal }: Props) {
       <OllamaRuntimeCard
         status={status}
         progress={progress}
+        elapsedMs={elapsedMs}
+        sourceUrl={sourceUrl}
         busy={busy}
         error={error}
         onInstall={() => void runInstall()}
         onStart={() => void runStart()}
+        onStop={() => void runStop()}
         onOpenInstaller={() => {
           void openExternalUrl("https://ollama.com/download/windows").catch((reason) => {
             setError(errorMessage(reason));
@@ -207,6 +258,12 @@ export function AiSection({ signal }: Props) {
         }}
         onRefresh={() => void refreshRuntime()}
         onCancel={cancelOperation}
+        onOpenSource={() => {
+          if (!sourceUrl) return;
+          void openExternalUrl(sourceUrl).catch((reason) => {
+            setError(errorMessage(reason));
+          });
+        }}
       />
 
       {status?.state === "running" ? (

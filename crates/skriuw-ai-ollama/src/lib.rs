@@ -379,6 +379,11 @@ impl LocalAiRuntime for OllamaRuntime {
         ))
     }
 
+    fn stop(&self) -> Result<LocalAiStatus, LocalAiError> {
+        self.shutdown();
+        self.status()
+    }
+
     fn install(
         &self,
         operation_id: &str,
