@@ -36,11 +36,11 @@ const catalog: RemoteAiCatalog = {
   models: [
     {
       providerId: "groq",
-      modelId: "llama-3.1-8b-instant",
-      label: "Llama 3.1 8B Instant",
+      modelId: "openai/gpt-oss-20b",
+      label: "GPT-OSS 20B",
       contextWindowTokens: 131_072,
-      inputPriceMicrosPerMtok: 50_000,
-      outputPriceMicrosPerMtok: 80_000,
+      inputPriceMicrosPerMtok: 75_000,
+      outputPriceMicrosPerMtok: 300_000,
     },
     {
       providerId: "gemini",
@@ -111,8 +111,8 @@ test("catalog models are selected per provider and fall back to the first entry"
   const groq = remoteAiModelsFor(catalog, "groq");
 
   assert.equal(groq.length, 1);
-  assert.equal(availableRemoteModel("missing-model", groq), "llama-3.1-8b-instant");
-  assert.equal(availableRemoteModel("llama-3.1-8b-instant", groq), "llama-3.1-8b-instant");
+  assert.equal(availableRemoteModel("missing-model", groq), "openai/gpt-oss-20b");
+  assert.equal(availableRemoteModel("openai/gpt-oss-20b", groq), "openai/gpt-oss-20b");
   assert.equal(availableRemoteModel(null, []), null);
   assert.deepEqual(remoteAiModelsFor(null, "groq"), []);
 });
