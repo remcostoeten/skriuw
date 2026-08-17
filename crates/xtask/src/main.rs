@@ -8,8 +8,9 @@ use std::{
 
 use schemars::{JsonSchema, schema_for};
 use skriuw_domain::{
-    ContentManifest, OperationAck, SearchHit, SyncPullResponse, SyncPushRequest, SyncPushResponse,
-    SyncRecoveryView, WORKSPACE_OPERATION_SYNC_POLICY_V1, WorkspaceArchive, WorkspaceCheckpoint,
+    AiCompletionEvent, AiCompletionRequest, ContentManifest, OperationAck, SearchHit,
+    SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView,
+    WORKSPACE_OPERATION_SYNC_POLICY_V1, WorkspaceArchive, WorkspaceCheckpoint,
     WorkspaceOperationEnvelope, WorkspaceOperationSyncPolicy, WorkspaceSnapshot,
 };
 
@@ -36,6 +37,8 @@ fn run() -> Result<(), Box<dyn Error>> {
         .to_path_buf();
     let output = root.join("contracts/generated");
 
+    write_schema::<AiCompletionRequest>(&output, "ai-completion-request.schema.json", check)?;
+    write_schema::<AiCompletionEvent>(&output, "ai-completion-event.schema.json", check)?;
     write_schema::<WorkspaceOperationEnvelope>(&output, "workspace-operation.schema.json", check)?;
     write_schema::<WorkspaceSnapshot>(&output, "workspace-snapshot.schema.json", check)?;
     write_schema::<WorkspaceArchive>(&output, "workspace-archive.schema.json", check)?;

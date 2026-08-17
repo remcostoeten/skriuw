@@ -19,6 +19,7 @@ base64 = "0.22"
 reqwest = { version = "0.13.4", default-features = false, features = ["blocking", "json", "rustls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+skriuw-ai = { path = "../../crates/skriuw-ai" }
 skriuw-domain = { path = "../../crates/skriuw-domain" }
 skriuw-history = { path = "../../crates/skriuw-history" }
 skriuw-history-git = { path = "../../crates/skriuw-history-git" }

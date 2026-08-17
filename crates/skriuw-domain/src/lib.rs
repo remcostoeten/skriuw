@@ -8,12 +8,20 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
+mod ai;
 mod checkpoint;
 mod chunk;
 mod reconcile;
 mod sync;
 mod task;
 
+pub use ai::{
+    AiCancellation, AiComplete, AiCompletionDelta, AiCompletionEvent, AiCompletionParameters,
+    AiCompletionRequest, AiCompletionTerminal, AiEventSink, AiProviderError,
+    AiProviderErrorCategory, AiRecoveryAction, AiSinkError, AiUsage, AiValidationError,
+    MAX_AI_DELTA_BYTES, MAX_AI_DURATION_MS, MAX_AI_ERROR_MESSAGE_BYTES, MAX_AI_IDENTIFIER_BYTES,
+    MAX_AI_PROMPT_BYTES, MAX_AI_RESPONSE_BYTES, MAX_AI_RETRIES, MAX_AI_TOKEN_COUNT,
+};
 pub use checkpoint::{
     CHECKPOINT_CONTENT_MIME_TYPE, CheckpointValidationError, WORKSPACE_CHECKPOINT_VERSION,
     WorkspaceCheckpoint,
