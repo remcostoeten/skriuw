@@ -844,6 +844,12 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
       searchInputRef.current?.focus();
       return;
     }
+    if ((event.ctrlKey || event.metaKey) && (event.key === "d" || event.key === "D")) {
+      if (store.clearTreeSelection()) {
+        event.preventDefault();
+      }
+      return;
+    }
     if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
       if (focusedId) {
         moveWithinSiblings(store, focusedId, event.key === "ArrowUp" ? -1 : 1);
@@ -945,6 +951,12 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
       case "Delete": {
         if (focusedId) {
           trashSelectedNodes(focusedId);
+          event.preventDefault();
+        }
+        return;
+      }
+      case "Escape": {
+        if (store.clearTreeSelection()) {
           event.preventDefault();
         }
         return;

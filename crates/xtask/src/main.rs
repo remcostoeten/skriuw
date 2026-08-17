@@ -8,9 +8,10 @@ use std::{
 
 use schemars::{JsonSchema, schema_for};
 use skriuw_domain::{
-    AiCompletionEvent, AiCompletionRequest, ContentManifest, OperationAck, SearchHit,
-    SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView,
-    WORKSPACE_OPERATION_SYNC_POLICY_V1, WorkspaceArchive, WorkspaceCheckpoint,
+    AiCompletionEvent, AiCompletionRequest, ContentManifest, CredentialVaultDetection,
+    LocalAiError, LocalAiModel, LocalAiProgress, LocalAiStatus, OperationAck, RemoteAiCatalog,
+    RemoteAiProviderState, SearchHit, SyncPullResponse, SyncPushRequest, SyncPushResponse,
+    SyncRecoveryView, WORKSPACE_OPERATION_SYNC_POLICY_V1, WorkspaceArchive, WorkspaceCheckpoint,
     WorkspaceOperationEnvelope, WorkspaceOperationSyncPolicy, WorkspaceSnapshot,
 };
 
@@ -39,6 +40,17 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     write_schema::<AiCompletionRequest>(&output, "ai-completion-request.schema.json", check)?;
     write_schema::<AiCompletionEvent>(&output, "ai-completion-event.schema.json", check)?;
+    write_schema::<LocalAiStatus>(&output, "local-ai-status.schema.json", check)?;
+    write_schema::<LocalAiModel>(&output, "local-ai-model.schema.json", check)?;
+    write_schema::<LocalAiProgress>(&output, "local-ai-progress.schema.json", check)?;
+    write_schema::<LocalAiError>(&output, "local-ai-error.schema.json", check)?;
+    write_schema::<RemoteAiCatalog>(&output, "remote-ai-catalog.schema.json", check)?;
+    write_schema::<RemoteAiProviderState>(&output, "remote-ai-provider-state.schema.json", check)?;
+    write_schema::<CredentialVaultDetection>(
+        &output,
+        "credential-vault-detection.schema.json",
+        check,
+    )?;
     write_schema::<WorkspaceOperationEnvelope>(&output, "workspace-operation.schema.json", check)?;
     write_schema::<WorkspaceSnapshot>(&output, "workspace-snapshot.schema.json", check)?;
     write_schema::<WorkspaceArchive>(&output, "workspace-archive.schema.json", check)?;

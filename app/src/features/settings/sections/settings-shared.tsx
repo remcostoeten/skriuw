@@ -92,6 +92,7 @@ export function SettingToggle({ label, detail, checked, onChange, visualization 
       </span>
       <input
         type="checkbox"
+        data-directional-focus
         className={settingsToggleInput}
         checked={checked}
         onChange={(event) => onChange(event.currentTarget.checked)}
@@ -100,7 +101,7 @@ export function SettingToggle({ label, detail, checked, onChange, visualization 
   );
 }
 
-const CARD_PICKER_ARROW_KEYS = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
+const CARD_PICKER_SELECTION_KEYS = ["ArrowLeft", "ArrowRight"];
 
 export type CardPickerOption<TValue extends string> = {
   value: TValue;
@@ -124,7 +125,7 @@ export function SettingCardPicker<TValue extends string>({
   onChange,
 }: CardPickerProps<TValue>) {
   function handleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>): void {
-    if (!CARD_PICKER_ARROW_KEYS.includes(event.key)) {
+    if (!CARD_PICKER_SELECTION_KEYS.includes(event.key)) {
       return;
     }
     event.preventDefault();
@@ -132,7 +133,7 @@ export function SettingCardPicker<TValue extends string>({
       0,
       options.findIndex((option) => option.value === value),
     );
-    const delta = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+    const delta = event.key === "ArrowLeft" ? -1 : 1;
     const next = options[(index + delta + options.length) % options.length];
     if (!next) {
       return;
@@ -164,6 +165,7 @@ export function SettingCardPicker<TValue extends string>({
               role="radio"
               aria-checked={active}
               data-option-value={option.value}
+              data-directional-focus={active ? "" : undefined}
               tabIndex={active ? 0 : -1}
               className={cn(
                 "cursor-pointer rounded-lg border p-1.5 text-left",

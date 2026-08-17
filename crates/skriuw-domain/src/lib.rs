@@ -11,7 +11,9 @@ use thiserror::Error;
 mod ai;
 mod checkpoint;
 mod chunk;
+mod local_ai;
 mod reconcile;
+mod remote_ai;
 mod sync;
 mod task;
 
@@ -32,10 +34,22 @@ pub use chunk::{
     ContentValidationError, MAX_CONTENT_BYTES, MAX_CONTENT_MIME_BYTES, MAX_MANIFEST_CHUNKS,
     content_digest, validate_content_digest,
 };
+pub use local_ai::{
+    LocalAiError, LocalAiErrorCategory, LocalAiModel, LocalAiOperation, LocalAiProgress,
+    LocalAiProgressSink, LocalAiRuntime, LocalAiRuntimeState, LocalAiStatus,
+    MAX_LOCAL_AI_MODEL_NAME_BYTES, MAX_LOCAL_AI_STATUS_BYTES,
+};
 pub use reconcile::{
     DocumentConflictResolutionChoice, RemoteOperationDecision, RemoteTargetState,
     ResolveDocumentConflict, SyncConflictReason, classify_apply_failure,
     reconcile_remote_operation,
+};
+pub use remote_ai::{
+    AiCredential, AiCredentialError, AiCredentialSource, CredentialVaultDetection,
+    CredentialVaultState, MAX_AI_API_KEY_BYTES, MAX_REMOTE_AI_CATALOG_MODELS,
+    MAX_REMOTE_AI_CONTEXT_TOKENS, MAX_REMOTE_AI_LABEL_BYTES, MAX_REMOTE_AI_PRICE_MICROS,
+    MIN_AI_API_KEY_BYTES, REMOTE_AI_DISCLOSURE_VERSION, RemoteAiCatalog, RemoteAiCatalogError,
+    RemoteAiConsent, RemoteAiKeyTier, RemoteAiModel, RemoteAiProviderState,
 };
 pub use sync::{
     BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,

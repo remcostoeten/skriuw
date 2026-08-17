@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RemoteAiProviderState",
+  "description": "Everything the renderer may learn about a remote provider. There is no key\nfield and no way to read a stored key back.",
+  "type": "object",
+  "properties": {
+    "acceptedDisclosureVersion": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0
+    },
+    "currentDisclosureVersion": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "destination": {
+      "description": "The host every request to this provider reaches. The disclosure names it,\nso it is carried here instead of restated by the settings surface.",
+      "type": "string"
+    },
+    "keyTier": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RemoteAiKeyTier"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "label": {
+      "type": "string"
+    },
+    "providerId": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "providerId",
+    "label",
+    "destination",
+    "currentDisclosureVersion"
+  ],
+  "$defs": {
+    "RemoteAiKeyTier": {
+      "description": "The tier holding a provider key right now. `SessionOnly` keys live in\nRust-side memory until the process exits and are never written to disk.",
+      "type": "string",
+      "enum": [
+        "vault",
+        "session-only"
+      ]
+    }
+  }
+}

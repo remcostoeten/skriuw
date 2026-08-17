@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { updateSetting } from "@/store/actions/settings";
 import {
   EDITOR_FONT_OPTIONS,
@@ -71,8 +71,35 @@ function LineSpacingPreview({ gap }: { gap: number }) {
 export function EditorSection({ store }: SectionProps) {
   const { settings, change } = useEditableSettings(store);
 
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLElement>): void {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
+      return;
+    }
+    const target = event.target;
+    if (
+      !(target instanceof HTMLElement) ||
+      !target.hasAttribute("data-directional-focus")
+    ) {
+      return;
+    }
+    const controls = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>("[data-directional-focus]"),
+    );
+    const index = controls.indexOf(target);
+    const next = controls[index + (event.key === "ArrowDown" ? 1 : -1)];
+    if (!next) {
+      return;
+    }
+    event.preventDefault();
+    next.focus();
+  }
+
   return (
-    <section aria-label="Editor preferences" className={settingsSection}>
+    <section
+      aria-label="Editor preferences"
+      className={settingsSection}
+      onKeyDown={handleKeyDown}
+    >
       <SettingsHeading
         title="Editor"
         detail="Tune the writing surface without changing note content."
@@ -137,6 +164,7 @@ function PlaceholderField({ store, settings }: PlaceholderProps) {
       </span>
       <input
         id="settings-placeholder"
+        data-directional-focus
         className={settingsTextInput}
         type="text"
         value={value}

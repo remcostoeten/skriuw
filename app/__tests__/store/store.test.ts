@@ -222,6 +222,18 @@ test("tree selection supports replace, toggle, and visible ranges without changi
   assert.equal(store.getState().selectionAnchorId, "note-child");
 });
 
+test("clearTreeSelection empties the selection without touching focus", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.setFocusedNode("note-root");
+  store.selectTreeNode("folder", "replace");
+  store.selectTreeNode("note-root", "range");
+  assert.equal(store.clearTreeSelection(), true);
+  assert.deepEqual([...store.getState().selectedNodeIds], []);
+  assert.equal(store.getState().selectionAnchorId, null);
+  assert.equal(store.getState().focusedNodeId, "note-root");
+  assert.equal(store.clearTreeSelection(), false);
+});
+
 test("collapsing a folder hides descendants and refocuses the folder", () => {
   const store = createRendererStore(createInitialState(snapshot()));
   store.setActiveNote("note-child");

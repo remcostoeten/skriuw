@@ -464,7 +464,7 @@ function WorkspaceShell({ store }: Props) {
         </div>
       </div>
       <div className="contents" hidden={route !== "notes"}>
-        <main className="col-[3] flex min-w-0 flex-col">
+        <main className="col-[3] flex min-h-0 min-w-0 flex-col overflow-hidden">
           <div className="grid h-11 grid-cols-[1fr_minmax(0,auto)_1fr] items-center border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground">
             <div className="flex min-w-0 items-center gap-1">
             <Tooltip label="Toggle sidebar" side="bottom" shortcut={shortcutHints.toggleSidebar}>

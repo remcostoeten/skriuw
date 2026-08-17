@@ -8,6 +8,9 @@ AI completion requests and streaming events are generated from the provider-neut
 domain seam. They contain provider and model identifiers but never credentials or
 provider-specific options. The matching renderer types live in
 `app/src/contracts/ai.ts` and are checked by the renderer type gate.
+Local runtime status, model metadata, progress, and error schemas are generated
+from the same domain boundary. They contain no paths, process identifiers,
+prompts, or model output.
 
 Cloud sync uses the same rule. `sync-*.schema.json` is generated from Rust and
 `workspace-operation-sync-policy-v1.json` is the generated Worker policy.

@@ -53,3 +53,96 @@ export type AiCompletionEvent =
   | { type: "cancelled"; requestId: string }
   | { type: "timeout"; requestId: string }
   | { type: "provider_error"; requestId: string; error: AiProviderError };
+
+export type LocalAiRuntimeState =
+  | "not_installed"
+  | "installed_stopped"
+  | "starting"
+  | "running"
+  | "failed"
+  | "unsupported";
+
+export type LocalAiStatus = {
+  state: LocalAiRuntimeState;
+  version?: string | null;
+  endpoint: string;
+  managed: boolean;
+  detail?: string | null;
+};
+
+export type LocalAiModel = {
+  name: string;
+  sizeBytes: number;
+  modifiedAt: string;
+  digest: string;
+  parameterSize?: string | null;
+  quantizationLevel?: string | null;
+};
+
+export type LocalAiOperation = "install" | "pull";
+
+export type LocalAiProgress =
+  | {
+      type: "progress";
+      operationId: string;
+      operation: LocalAiOperation;
+      status: string;
+      completedBytes: number;
+      totalBytes?: number | null;
+    }
+  | { type: "complete"; operationId: string; operation: LocalAiOperation }
+  | { type: "cancelled"; operationId: string; operation: LocalAiOperation };
+
+export type LocalAiErrorCategory =
+  | "invalid_request"
+  | "unavailable"
+  | "download_failed"
+  | "checksum_mismatch"
+  | "install_failed"
+  | "process_failed"
+  | "malformed_response"
+  | "cancelled"
+  | "unsupported";
+
+export type LocalAiError = {
+  category: LocalAiErrorCategory;
+  message: string;
+};
+
+export type RemoteAiKeyTier = "vault" | "session-only";
+
+export type CredentialVaultState =
+  | "vault-ok"
+  | "vault-locked"
+  | "vault-no-collection"
+  | "vault-absent"
+  | "vault-blocked";
+
+export type CredentialVaultDetection = {
+  state: CredentialVaultState;
+  detail?: string | null;
+};
+
+export type RemoteAiProviderState = {
+  providerId: string;
+  label: string;
+  destination: string;
+  keyTier?: RemoteAiKeyTier | null;
+  acceptedDisclosureVersion?: number | null;
+  currentDisclosureVersion: number;
+};
+
+export type RemoteAiModel = {
+  providerId: string;
+  modelId: string;
+  label: string;
+  contextWindowTokens: number;
+  inputPriceMicrosPerMtok: number;
+  outputPriceMicrosPerMtok: number;
+};
+
+export type RemoteAiCatalog = {
+  version: number;
+  pricingAsOf: string;
+  models: RemoteAiModel[];
+};

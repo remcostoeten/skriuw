@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RemoteAiCatalog",
+  "description": "The repository-owned remote model catalog. Prices are integer micro-dollars\nper million tokens so the contract carries no floating-point money, and\n`pricing_as_of` lets the settings surface admit how old the figures are\ninstead of implying live pricing.",
+  "type": "object",
+  "properties": {
+    "models": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RemoteAiModel"
+      }
+    },
+    "pricingAsOf": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "pricingAsOf",
+    "models"
+  ],
+  "$defs": {
+    "RemoteAiModel": {
+      "type": "object",
+      "properties": {
+        "contextWindowTokens": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "inputPriceMicrosPerMtok": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "label": {
+          "type": "string"
+        },
+        "modelId": {
+          "type": "string"
+        },
+        "outputPriceMicrosPerMtok": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "providerId": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "providerId",
+        "modelId",
+        "label",
+        "contextWindowTokens",
+        "inputPriceMicrosPerMtok",
+        "outputPriceMicrosPerMtok"
+      ]
+    }
+  }
+}
