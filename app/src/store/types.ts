@@ -113,6 +113,7 @@ export type RendererStore = {
   setFocusedNode: (id: string | null) => boolean;
   selectTreeNode: (id: string, mode: TreeSelectionMode) => boolean;
   selectAllTreeNodes: () => boolean;
+  clearTreeSelection: () => boolean;
   setEditingNode: (id: string | null) => boolean;
   toggleExpanded: (id: string) => boolean;
   applyOperations: (operations: readonly WorkspaceOperation[]) => boolean;

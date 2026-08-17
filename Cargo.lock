@@ -1491,6 +1491,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "skriuw-ai-remote"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "skriuw-domain",
+]
+
+[[package]]
 name = "skriuw-cli"
 version = "0.1.0"
 dependencies = [

@@ -3969,10 +3969,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "skriuw-ai-remote"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "skriuw-domain",
+]
+
+[[package]]
 name = "skriuw-app"
 version = "0.0.0"
 dependencies = [
  "base64 0.22.1",
+ "dbus-secret-service",
  "glib",
  "keyring",
  "reqwest",
@@ -3980,6 +3991,7 @@ dependencies = [
  "serde_json",
  "skriuw-ai",
  "skriuw-ai-ollama",
+ "skriuw-ai-remote",
  "skriuw-domain",
  "skriuw-history",
  "skriuw-history-git",

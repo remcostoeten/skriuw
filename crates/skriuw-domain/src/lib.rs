@@ -13,6 +13,7 @@ mod checkpoint;
 mod chunk;
 mod local_ai;
 mod reconcile;
+mod remote_ai;
 mod sync;
 mod task;
 
@@ -42,6 +43,13 @@ pub use reconcile::{
     DocumentConflictResolutionChoice, RemoteOperationDecision, RemoteTargetState,
     ResolveDocumentConflict, SyncConflictReason, classify_apply_failure,
     reconcile_remote_operation,
+};
+pub use remote_ai::{
+    AiCredential, AiCredentialError, AiCredentialSource, CredentialVaultDetection,
+    CredentialVaultState, MAX_AI_API_KEY_BYTES, MAX_REMOTE_AI_CATALOG_MODELS,
+    MAX_REMOTE_AI_CONTEXT_TOKENS, MAX_REMOTE_AI_LABEL_BYTES, MAX_REMOTE_AI_PRICE_MICROS,
+    MIN_AI_API_KEY_BYTES, REMOTE_AI_DISCLOSURE_VERSION, RemoteAiCatalog, RemoteAiCatalogError,
+    RemoteAiConsent, RemoteAiKeyTier, RemoteAiModel, RemoteAiProviderState,
 };
 pub use sync::{
     BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,

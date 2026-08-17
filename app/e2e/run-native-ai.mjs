@@ -225,12 +225,28 @@ async function runScenario(session) {
     JSON.stringify(gatedTabs),
   );
 
-  await session.script(`
+  const toggled = await session.script(`
     const label = [...document.querySelectorAll('label')].find((node) =>
       node.textContent.trim().startsWith('AI features'),
     );
-    label.querySelector('input[type="checkbox"]').click();
+    if (!label) {
+      return {
+        found: false,
+        labels: [...document.querySelectorAll('label')].map((node) =>
+          node.textContent.trim().slice(0, 40),
+        ),
+      };
+    }
+    const input = label.querySelector('input[type="checkbox"]');
+    input.click();
+    return { found: true, checked: input.checked };
   `);
+  assert(
+    checks,
+    "ai-features-toggle-is-reachable",
+    toggled.found && toggled.checked,
+    JSON.stringify(toggled),
+  );
   await session.waitFor(
     `return [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent.trim() === 'AI')`,
     "AI tab after opt-in",
@@ -260,6 +276,22 @@ async function runScenario(session) {
     /Ready to start|Running · v|Not installed|Installer required/.test(detected.text),
     detected.text.slice(0, 200),
   );
+
+  // A host without Ollama can still prove the whole remote-provider surface.
+  // The runtime phase is skipped rather than failed, and the skip is recorded
+  // so a green run never reads as broader coverage than it had.
+  const runnable =
+    detected.text.includes("Ready to start") || detected.text.includes("Running · v");
+  if (!runnable) {
+    assert(
+      checks,
+      "local-runtime-phase-skipped-no-ollama-on-host",
+      true,
+      detected.text.slice(0, 160),
+    );
+    await runProviderScenario(session, checks);
+    return { checks, finalCard: detected.text.slice(0, 400), localRuntimeVerified: false };
+  }
 
   const startable = detected.text.includes("Ready to start");
   scenarioStartedRuntime = startable;
@@ -388,7 +420,135 @@ async function runScenario(session) {
     JSON.stringify(removed.models),
   );
 
-  return { checks, finalCard: removed.text.slice(0, 400) };
+  await runProviderScenario(session, checks);
+  return { checks, finalCard: removed.text.slice(0, 400), localRuntimeVerified: true };
+}
+
+function providerCards(session) {
+  return session.script(`
+    const root = document.querySelector('section[aria-label="AI settings"]');
+    return [...root.querySelectorAll('section[aria-label]')].map((card) => ({
+      label: card.getAttribute('aria-label'),
+      text: card.textContent,
+      hasKeyInput: card.querySelector('input[type="password"]') !== null,
+      keyValue: card.querySelector('input[type="password"]')?.value ?? null,
+      buttons: [...card.querySelectorAll('button')].map((button) => button.textContent.trim()),
+    }));
+  `);
+}
+
+function clickInCard(session, label, text) {
+  return session.script(
+    `
+    const root = document.querySelector('section[aria-label="AI settings"]');
+    const card = [...root.querySelectorAll('section[aria-label]')]
+      .find((node) => node.getAttribute('aria-label') === arguments[0]);
+    [...card.querySelectorAll('button')]
+      .find((button) => button.textContent.trim() === arguments[1])
+      .click();
+  `,
+    [label, text],
+  );
+}
+
+/**
+ * Remote providers are verified without spending a key and without writing to
+ * the OS keyring: the scenario stores a sentinel under the session-only tier
+ * and never touches "Test key", which bills the user's account.
+ */
+async function runProviderScenario(session, checks) {
+  const SENTINEL = "not-a-real-key-0000000000";
+  const gated = await providerCards(session);
+  assert(
+    checks,
+    "remote-providers-are-listed",
+    gated.length >= 2,
+    JSON.stringify(gated.map((card) => card.label)),
+  );
+  assert(
+    checks,
+    "key-entry-is-gated-behind-consent",
+    gated.every((card) => !card.hasKeyInput),
+    JSON.stringify(gated.map((card) => ({ label: card.label, hasKeyInput: card.hasKeyInput }))),
+  );
+
+  const target = gated[0].label;
+  await clickInCard(session, target, "Accept and continue");
+  await session.waitFor(
+    `return document.querySelector('section[aria-label=${JSON.stringify(target)}] input[type="password"]') !== null`,
+    "key entry after consent",
+  );
+  const consented = (await providerCards(session)).find((card) => card.label === target);
+  assert(
+    checks,
+    "consent-reveals-key-entry-and-revoke",
+    consented.hasKeyInput && consented.buttons.includes("Revoke"),
+    JSON.stringify(consented.buttons),
+  );
+
+  await session.script(
+    `
+    const card = document.querySelector('section[aria-label=' + JSON.stringify(arguments[0]) + ']');
+    const tier = [...card.querySelectorAll('label')]
+      .find((node) => node.textContent.includes('This session only'));
+    tier.querySelector('input[type="radio"]').click();
+    const input = card.querySelector('input[type="password"]');
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    setter.call(input, arguments[1]);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  `,
+    [target, SENTINEL],
+  );
+  await clickInCard(session, target, "Save key");
+  await session.waitFor(
+    `return [...document.querySelector('section[aria-label=${JSON.stringify(target)}]').querySelectorAll('button')]
+       .some((button) => button.textContent.trim() === 'Remove key')`,
+    "stored session key",
+    600,
+  );
+  const stored = (await providerCards(session)).find((card) => card.label === target);
+  assert(
+    checks,
+    "session-only-key-is-accepted-without-the-keyring",
+    stored.buttons.includes("Remove key") && /session/i.test(stored.text),
+    stored.text.slice(0, 200),
+  );
+  assert(
+    checks,
+    "stored-key-is-never-rendered-back",
+    !stored.text.includes(SENTINEL) && stored.keyValue !== SENTINEL,
+    JSON.stringify({ echoedInText: stored.text.includes(SENTINEL), inputValue: stored.keyValue }),
+  );
+
+  await clickInCard(session, target, "Remove key");
+  const armed = (await providerCards(session)).find((card) => card.label === target);
+  assert(
+    checks,
+    "remove-key-arms-before-it-destroys",
+    armed.buttons.includes("Confirm remove"),
+    JSON.stringify(armed.buttons),
+  );
+  await clickInCard(session, target, "Confirm remove");
+  await session.waitFor(
+    `return [...document.querySelector('section[aria-label=${JSON.stringify(target)}]').querySelectorAll('button')]
+       .some((button) => button.textContent.trim() === 'Remove key') === false`,
+    "key removal",
+    600,
+  );
+
+  await clickInCard(session, target, "Revoke");
+  await session.waitFor(
+    `return document.querySelector('section[aria-label=${JSON.stringify(target)}] input[type="password"]') === null`,
+    "consent revocation",
+    600,
+  );
+  const revoked = (await providerCards(session)).find((card) => card.label === target);
+  assert(
+    checks,
+    "revoke-returns-the-provider-to-consent-required",
+    !revoked.hasKeyInput && !revoked.buttons.includes("Revoke"),
+    JSON.stringify(revoked.buttons),
+  );
 }
 
 if (!skipBuild) {

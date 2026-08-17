@@ -12,6 +12,8 @@ import {
 } from "@/features/ai/ollama-bridge";
 import { SettingsHeading, settingsSection } from "./settings-shared";
 import { OllamaModelsPanel, OllamaRuntimeCard } from "./ollama-settings-ui";
+import { RemoteProvidersPanel } from "./remote-ai-settings-ui";
+import { useRemoteAiProviders } from "./use-remote-ai-providers";
 import {
   availableOllamaSelection,
   readSelectedOllamaModel,
@@ -33,6 +35,7 @@ export function AiSection({ signal }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [deleteArmed, setDeleteArmed] = useState<string | null>(null);
   const operationRef = useRef<AbortController | null>(null);
+  const remote = useRemoteAiProviders(signal);
 
   useEffect(() => {
     let active = true;
@@ -188,7 +191,7 @@ export function AiSection({ signal }: Props) {
     <section aria-label="AI settings" className={settingsSection}>
       <SettingsHeading
         title="AI"
-        detail="Run writing tools locally with models that stay on this device."
+        detail="Run writing tools locally, or bring your own key for a remote provider."
       />
       <OllamaRuntimeCard
         status={status}
@@ -221,6 +224,27 @@ export function AiSection({ signal }: Props) {
             setDeleteArmed((current) => (current === model ? null : current))
           }
         />
+      ) : null}
+
+      {remote.providers.length === 0 ? null : (
+        <RemoteProvidersPanel
+          providers={remote.providers}
+          catalog={remote.catalog}
+          vault={remote.vault}
+          drafts={remote.drafts}
+          onDraftChange={remote.changeDraft}
+          onAcceptDisclosure={remote.acceptDisclosure}
+          onSaveKey={remote.saveKey}
+          onVerifyKey={remote.verifyKey}
+          onRemoveKey={remote.removeKey}
+          onRevoke={remote.revoke}
+          onRefreshCatalog={remote.refreshCatalog}
+        />
+      )}
+      {remote.error ? (
+        <p role="alert" className="text-xs text-destructive">
+          {remote.error}
+        </p>
       ) : null}
     </section>
   );

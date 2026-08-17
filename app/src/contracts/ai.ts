@@ -108,3 +108,41 @@ export type LocalAiError = {
   category: LocalAiErrorCategory;
   message: string;
 };
+
+export type RemoteAiKeyTier = "vault" | "session-only";
+
+export type CredentialVaultState =
+  | "vault-ok"
+  | "vault-locked"
+  | "vault-no-collection"
+  | "vault-absent"
+  | "vault-blocked";
+
+export type CredentialVaultDetection = {
+  state: CredentialVaultState;
+  detail?: string | null;
+};
+
+export type RemoteAiProviderState = {
+  providerId: string;
+  label: string;
+  destination: string;
+  keyTier?: RemoteAiKeyTier | null;
+  acceptedDisclosureVersion?: number | null;
+  currentDisclosureVersion: number;
+};
+
+export type RemoteAiModel = {
+  providerId: string;
+  modelId: string;
+  label: string;
+  contextWindowTokens: number;
+  inputPriceMicrosPerMtok: number;
+  outputPriceMicrosPerMtok: number;
+};
+
+export type RemoteAiCatalog = {
+  version: number;
+  pricingAsOf: string;
+  models: RemoteAiModel[];
+};

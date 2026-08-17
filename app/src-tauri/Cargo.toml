@@ -21,6 +21,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 skriuw-ai = { path = "../../crates/skriuw-ai" }
 skriuw-ai-ollama = { path = "../../crates/skriuw-ai-ollama" }
+skriuw-ai-remote = { path = "../../crates/skriuw-ai-remote" }
 skriuw-domain = { path = "../../crates/skriuw-domain" }
 skriuw-history = { path = "../../crates/skriuw-history" }
 skriuw-history-git = { path = "../../crates/skriuw-history-git" }
@@ -45,6 +46,9 @@ uuid = { version = "1", features = ["v4"] }
 # set_prgname in main.rs (Wayland taskbar-icon fix).
 glib = "0.18"
 keyring = { version = "3.6.3", features = ["linux-native-sync-persistent", "crypto-rust"] }
+# Secret Service is queried directly so a locked or absent keyring is a visible,
+# actionable settings state rather than a failed save inside the keyring crate.
+dbus-secret-service = { version = "4.1", features = ["crypto-rust"] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 keyring = { version = "3.6.3", features = ["apple-native"] }
