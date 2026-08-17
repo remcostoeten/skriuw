@@ -1404,6 +1404,11 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
             <ContextMenuContent
               className="w-48"
               onKeyDown={(event) => onContextMenuKeyDown(event, contextTarget.id)}
+              onCloseAutoFocus={(event) => {
+                if (store.getState().editingNodeId !== null) {
+                  event.preventDefault();
+                }
+              }}
             >
               {renderItemContextItems(contextTarget.id)}
             </ContextMenuContent>

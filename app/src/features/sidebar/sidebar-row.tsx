@@ -192,8 +192,13 @@ type RenameProps = {
 function RenameInput({ store, id, initialTitle }: RenameProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.setSelectionRange(0, 0);
+    const input = inputRef.current;
+    if (!input) {
+      return;
+    }
+    input.focus();
+    input.setSelectionRange(initialTitle.length, initialTitle.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- caret placement only on mount
   }, []);
   return (
     <input

@@ -6,6 +6,13 @@
   word-wrap: break-word;
 }
 
+/* WebKitGTK keeps painting the native insertion-point caret after DOM blur
+   (e.g. moving focus to the sidebar with mod+e); gating caret-color on
+   :focus forces it to actually hide instead of lingering. */
+.prosemirror-host .ProseMirror:not(:focus) {
+  caret-color: transparent;
+}
+
 /* Tailwind preflight flattens headings/lists to inherit; restore document
    typography inside the editor surface. */
 .prosemirror-host .ProseMirror p {
