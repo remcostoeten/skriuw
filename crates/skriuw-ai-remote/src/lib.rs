@@ -79,6 +79,16 @@ impl RemoteAiProvider {
         self.kind
     }
 
+    #[must_use]
+    pub fn supports_model(&self, model_id: &str) -> bool {
+        remote_ai_catalog().ok().is_some_and(|catalog| {
+            catalog
+                .models_for(self.kind.id())
+                .iter()
+                .any(|model| model.model_id == model_id)
+        })
+    }
+
     /// Spends one key on the smallest metered request the provider supports and
     /// reports only whether it was accepted. Callers run this from an explicit
     /// user action; nothing here runs on startup or when settings open.
@@ -87,6 +97,13 @@ impl RemoteAiProvider {
         model_id: &str,
         credential: &AiCredential,
     ) -> Result<(), AiProviderError> {
+        if !self.supports_model(model_id) {
+            return Err(self.error(
+                AiProviderErrorCategory::RejectedRequest,
+                "the selected model is not available for this provider",
+                AiRecoveryAction::ChooseDifferentModel,
+            ));
+        }
         let Some(url) = self.kind.endpoint(&self.base_url, model_id, false) else {
             return Err(self.error(
                 AiProviderErrorCategory::InternalFailure,
@@ -364,7 +381,10 @@ impl AiComplete for RemoteAiProvider {
         cancellation: &AiCancellation,
         sink: &mut dyn AiEventSink,
     ) -> AiCompletionTerminal {
-        if request.validate().is_err() || request.provider_id != self.kind.id() {
+        if request.validate().is_err()
+            || request.provider_id != self.kind.id()
+            || !self.supports_model(&request.model_id)
+        {
             return AiCompletionTerminal::ProviderError(self.error(
                 AiProviderErrorCategory::RejectedRequest,
                 "the completion request is not valid for this provider",
@@ -528,7 +548,13 @@ mod tests {
 
         assert_eq!(catalog.validate(), Ok(()));
         assert!(!catalog.models_for(GEMINI_PROVIDER_ID).is_empty());
-        assert!(!catalog.models_for(GROQ_PROVIDER_ID).is_empty());
+        assert_eq!(catalog.models_for(GROQ_PROVIDER_ID).len(), 3);
+        assert!(
+            catalog
+                .models_for(GROQ_PROVIDER_ID)
+                .iter()
+                .all(|model| model.provider_id == GROQ_PROVIDER_ID)
+        );
         assert!(catalog.models_for("openai").is_empty());
     }
 
@@ -585,7 +611,7 @@ mod tests {
         let mut sink = RecordingSink::default();
 
         let terminal = provider.complete(
-            &request(GROQ_PROVIDER_ID, "llama-3.1-8b-instant"),
+            &request(GROQ_PROVIDER_ID, "openai/gpt-oss-20b"),
             &AiCancellation::new(),
             &mut sink,
         );
@@ -624,8 +650,12 @@ mod tests {
             );
             let mut sink = RecordingSink::default();
 
+            let model_id = match kind {
+                RemoteProviderKind::Gemini => "gemini-2.5-flash",
+                RemoteProviderKind::Groq => "openai/gpt-oss-20b",
+            };
             let terminal = provider.complete(
-                &request(provider_id, "any-model"),
+                &request(provider_id, model_id),
                 &AiCancellation::new(),
                 &mut sink,
             );
@@ -649,7 +679,7 @@ mod tests {
         let mut sink = RecordingSink::default();
 
         let terminal = provider.complete(
-            &request(GROQ_PROVIDER_ID, "llama-3.1-8b-instant"),
+            &request(GROQ_PROVIDER_ID, "openai/gpt-oss-20b"),
             &AiCancellation::new(),
             &mut sink,
         );
@@ -700,7 +730,7 @@ mod tests {
             let mut sink = RecordingSink::default();
 
             let terminal = provider.complete(
-                &request(GROQ_PROVIDER_ID, "llama-3.1-8b-instant"),
+                &request(GROQ_PROVIDER_ID, "openai/gpt-oss-20b"),
                 &AiCancellation::new(),
                 &mut sink,
             );
@@ -751,7 +781,7 @@ mod tests {
         let mut sink = RecordingSink::default();
 
         let terminal = provider.complete(
-            &request(GROQ_PROVIDER_ID, "llama-3.1-8b-instant"),
+            &request(GROQ_PROVIDER_ID, "openai/gpt-oss-20b"),
             &AiCancellation::new(),
             &mut sink,
         );
@@ -771,7 +801,7 @@ mod tests {
         );
         let (base, server) = serve_once("200 OK", "text/event-stream", body);
         let provider = build_provider(RemoteProviderKind::Groq, &base, Arc::new(StoredKey));
-        let mut bounded = request(GROQ_PROVIDER_ID, "llama-3.1-8b-instant");
+        let mut bounded = request(GROQ_PROVIDER_ID, "openai/gpt-oss-20b");
         bounded.parameters.max_output_bytes = 8;
         let mut sink = RecordingSink::default();
 
@@ -797,7 +827,7 @@ mod tests {
         let mut sink = RecordingSink::default();
 
         let terminal = provider.complete(
-            &request(GROQ_PROVIDER_ID, "llama-3.1-8b-instant"),
+            &request(GROQ_PROVIDER_ID, "openai/gpt-oss-20b"),
             &AiCancellation::new(),
             &mut sink,
         );
@@ -827,7 +857,7 @@ mod tests {
         };
 
         let terminal = provider.complete(
-            &request(GROQ_PROVIDER_ID, "llama-3.1-8b-instant"),
+            &request(GROQ_PROVIDER_ID, "openai/gpt-oss-20b"),
             &cancellation,
             &mut sink,
         );
@@ -850,7 +880,7 @@ mod tests {
         let mut sink = RecordingSink::default();
 
         let terminal = provider.complete(
-            &request(GROQ_PROVIDER_ID, "llama-3.1-8b-instant"),
+            &request(GROQ_PROVIDER_ID, "openai/gpt-oss-20b"),
             &cancellation,
             &mut sink,
         );
@@ -958,7 +988,7 @@ mod tests {
         let mut sink = RecordingSink::default();
 
         let terminal = provider.complete(
-            &request(GROQ_PROVIDER_ID, "llama-3.1-8b-instant"),
+            &request(GROQ_PROVIDER_ID, "openai/gpt-oss-20b"),
             &AiCancellation::new(),
             &mut sink,
         );

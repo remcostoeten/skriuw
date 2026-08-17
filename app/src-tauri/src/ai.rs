@@ -94,6 +94,7 @@ mod tests {
 
     use skriuw_ai::AiCompletionChannel;
     use skriuw_ai_ollama::OllamaRuntime;
+    use skriuw_ai_remote::remote_ai_catalog;
     use skriuw_domain::{
         AiCompletionEvent, AiCompletionParameters, AiCompletionRequest, AiProviderError,
         AiProviderErrorCategory, AiRecoveryAction, AiSinkError,
@@ -145,11 +146,21 @@ mod tests {
         completion.shutdown();
     }
 
+    /// The model is taken from the catalogue rather than written here: a
+    /// provider rejects an unknown model before the credential gate, so a
+    /// literal would silently stop testing the gate whenever the catalogue moves.
     fn request(provider_id: &str) -> AiCompletionRequest {
+        let catalog = remote_ai_catalog().expect("catalogue");
+        let model_id = catalog
+            .models_for(provider_id)
+            .first()
+            .expect("catalogued model")
+            .model_id
+            .clone();
         AiCompletionRequest {
             request_id: format!("request-{provider_id}"),
             provider_id: provider_id.to_owned(),
-            model_id: "any-model".to_owned(),
+            model_id,
             system_prompt: String::new(),
             user_prompt: "Name a colour.".to_owned(),
             parameters: AiCompletionParameters::default(),

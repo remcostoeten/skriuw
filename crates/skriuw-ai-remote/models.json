@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "pricingAsOf": "2026-08-01",
+  "pricingAsOf": "2026-08-17",
   "models": [
     {
       "providerId": "gemini",
@@ -28,34 +28,26 @@
     },
     {
       "providerId": "groq",
-      "modelId": "llama-3.3-70b-versatile",
-      "label": "Llama 3.3 70B Versatile",
-      "contextWindowTokens": 131072,
-      "inputPriceMicrosPerMtok": 590000,
-      "outputPriceMicrosPerMtok": 790000
-    },
-    {
-      "providerId": "groq",
-      "modelId": "llama-3.1-8b-instant",
-      "label": "Llama 3.1 8B Instant",
-      "contextWindowTokens": 131072,
-      "inputPriceMicrosPerMtok": 50000,
-      "outputPriceMicrosPerMtok": 80000
-    },
-    {
-      "providerId": "groq",
       "modelId": "openai/gpt-oss-120b",
       "label": "GPT-OSS 120B",
       "contextWindowTokens": 131072,
       "inputPriceMicrosPerMtok": 150000,
-      "outputPriceMicrosPerMtok": 750000
+      "outputPriceMicrosPerMtok": 600000
     },
     {
       "providerId": "groq",
-      "modelId": "moonshotai/kimi-k2-instruct",
-      "label": "Kimi K2 Instruct",
+      "modelId": "openai/gpt-oss-20b",
+      "label": "GPT-OSS 20B",
       "contextWindowTokens": 131072,
-      "inputPriceMicrosPerMtok": 1000000,
+      "inputPriceMicrosPerMtok": 75000,
+      "outputPriceMicrosPerMtok": 300000
+    },
+    {
+      "providerId": "groq",
+      "modelId": "qwen/qwen3.6-27b",
+      "label": "Qwen 3.6 27B",
+      "contextWindowTokens": 131072,
+      "inputPriceMicrosPerMtok": 600000,
       "outputPriceMicrosPerMtok": 3000000
     }
   ]
