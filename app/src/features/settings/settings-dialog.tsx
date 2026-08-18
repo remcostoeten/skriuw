@@ -3,6 +3,7 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { activateNote } from "@/store/actions/workspace";
+import { appRouteHash } from "@/app-route";
 import { isBrowserRuntime } from "@/bridge/runtime";
 import { journalEntryDateKey } from "@/features/journal/model";
 import { openJournalDay } from "@/features/journal/navigation";
@@ -347,7 +348,14 @@ export function SettingsDialog({
             <AiOptInGate store={store}>
               {(signal) => (
                 <Suspense fallback={null}>
-                  <AiSection signal={signal} />
+                  <AiSection
+                    store={store}
+                    signal={signal}
+                    onOpenPlayground={() => {
+                      window.location.hash = appRouteHash("prompt-playground");
+                      onOpenChange(false);
+                    }}
+                  />
                 </Suspense>
               )}
             </AiOptInGate>

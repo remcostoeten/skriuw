@@ -1037,12 +1037,14 @@ mod tests {
         io::{Read, Write},
         net::TcpListener,
         path::PathBuf,
+        sync::{Arc, Mutex},
         thread,
+        time::{Duration, Instant},
     };
 
     use super::{
         MAX_STREAM_EVENT_BYTES, OllamaRuntime, endpoint_is_loopback, extract_archive,
-        find_binary_bounded, valid_sha256, validate_model_name, verify_sha256,
+        find_binary_bounded, lock, valid_sha256, validate_model_name, verify_sha256,
     };
     use reqwest::Url;
     use sha2::{Digest, Sha256};
@@ -1398,6 +1400,105 @@ mod tests {
                 .iter()
                 .any(|model| model.name == MODEL)
         );
+    }
+
+    #[test]
+    #[ignore = "device verification: cancels a real streaming completion against a real Ollama"]
+    fn cancels_a_real_completion_mid_stream() {
+        const MODEL: &str = "qwen2.5:0.5b";
+        let directory = tempdir().unwrap();
+        let runtime =
+            OllamaRuntime::with_endpoint_override(directory.path().join("ollama"), None).unwrap();
+        runtime.start().unwrap();
+        let already_installed = runtime
+            .list_models()
+            .unwrap()
+            .iter()
+            .any(|model| model.name == MODEL);
+        if !already_installed {
+            runtime
+                .pull_model(
+                    "device-cancel-pull",
+                    MODEL,
+                    &AiCancellation::new(),
+                    &mut RecordingProgress::default(),
+                )
+                .unwrap();
+        }
+        let request = AiCompletionRequest {
+            request_id: "device-cancel".into(),
+            provider_id: "ollama".into(),
+            model_id: MODEL.into(),
+            system_prompt: "Follow the instruction exactly.".into(),
+            user_prompt: "Count from 1 to 1000, one number per line.".into(),
+            parameters: AiCompletionParameters {
+                timeout_ms: 300_000,
+                ..AiCompletionParameters::default()
+            },
+        };
+        let cancellation = AiCancellation::new();
+        let deltas: Arc<Mutex<Vec<AiCompletionDelta>>> = Arc::default();
+
+        let (terminal, cancelled_at) = thread::scope(|scope| {
+            let worker = scope.spawn(|| {
+                let mut sink = SharedSink {
+                    deltas: Arc::clone(&deltas),
+                };
+                runtime.complete(&request, &cancellation, &mut sink)
+            });
+            let first_delta_deadline = Instant::now() + Duration::from_secs(120);
+            while lock(&deltas).is_empty() {
+                if worker.is_finished() {
+                    let terminal = worker.join().unwrap();
+                    panic!("completion terminated before any delta: {terminal:?}");
+                }
+                assert!(
+                    Instant::now() < first_delta_deadline,
+                    "completion produced no delta to cancel behind"
+                );
+                thread::sleep(Duration::from_millis(20));
+            }
+            cancellation.cancel();
+            let cancelled_at = Instant::now();
+            (worker.join().unwrap(), cancelled_at)
+        });
+
+        assert!(
+            cancelled_at.elapsed() < Duration::from_secs(5),
+            "cancellation took {:?} to terminate the stream",
+            cancelled_at.elapsed()
+        );
+        assert_eq!(terminal, AiCompletionTerminal::Cancelled);
+        let recorded_len = {
+            let recorded = lock(&deltas);
+            assert!(
+                recorded.iter().any(|delta| !delta.text.is_empty()),
+                "cancellation landed before any streamed text"
+            );
+            recorded.len()
+        };
+        thread::sleep(Duration::from_millis(250));
+        assert_eq!(
+            lock(&deltas).len(),
+            recorded_len,
+            "deltas kept arriving after the cancelled terminal"
+        );
+
+        if !already_installed {
+            runtime.remove_model(MODEL).unwrap();
+        }
+        runtime.shutdown();
+    }
+
+    struct SharedSink {
+        deltas: Arc<Mutex<Vec<AiCompletionDelta>>>,
+    }
+
+    impl AiEventSink for SharedSink {
+        fn send_delta(&mut self, delta: AiCompletionDelta) -> Result<(), AiSinkError> {
+            lock(&self.deltas).push(delta);
+            Ok(())
+        }
     }
 
     #[derive(Default)]

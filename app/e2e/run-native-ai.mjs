@@ -177,7 +177,7 @@ function runtimeCard(session) {
       live: [...section.querySelectorAll('[aria-live="polite"]')].map((node) =>
         node.textContent.trim(),
       ),
-      models: [...section.querySelectorAll('[role="radio"]')].map((radio) => ({
+      models: [...section.querySelectorAll('[role="radiogroup"][aria-label="Local AI model"] [role="radio"]')].map((radio) => ({
         text: radio.textContent.trim(),
         checked: radio.getAttribute('aria-checked') === 'true',
       })),
@@ -213,6 +213,16 @@ async function runScenario(session) {
     `return document.querySelector('.onboarding-root') === null`,
     "onboarding dismissal",
   );
+
+  // The playground route is part of the structural gate: before opt-in the
+  // hash must bounce straight back to notes without mounting the surface.
+  await session.script(`window.location.hash = '#/prompt-playground';`);
+  await session.waitFor(
+    `return window.location.hash === '#/notes'
+       && document.querySelector('main[aria-labelledby="prompt-playground-title"]') === null`,
+    "playground route to bounce before opt-in",
+  );
+  assert(checks, "playground-route-is-unreachable-before-opt-in", true, "#/prompt-playground bounced to #/notes");
 
   // The opt-in gate is structural: with AI off, the section must not exist at
   // all, and no Ollama work may have run just because settings opened.
@@ -359,7 +369,7 @@ async function runScenario(session) {
   );
 
   await session.waitFor(
-    `return [...document.querySelectorAll('section[aria-label="AI settings"] [role="radio"]')]
+    `return [...document.querySelectorAll('section[aria-label="AI settings"] [role="radiogroup"][aria-label="Local AI model"] [role="radio"]')]
        .some((radio) => radio.textContent.includes(${JSON.stringify(PULL_MODEL)})) === true`,
     "pulled model to appear",
     3000,
@@ -379,10 +389,12 @@ async function runScenario(session) {
     JSON.stringify(pulled.models),
   );
 
+  await runPlaygroundScenario(session, checks);
+
   // Deletion is armed inline before the destructive request is ever sent.
   const armed = await session.script(`
     const section = document.querySelector('section[aria-label="AI settings"]');
-    const row = [...section.querySelectorAll('[role="radio"]')]
+    const row = [...section.querySelectorAll('[role="radiogroup"][aria-label="Local AI model"] [role="radio"]')]
       .find((radio) => radio.textContent.includes(arguments[0]))
       .closest('div');
     const remove = [...row.querySelectorAll('button')].find((button) =>
@@ -399,7 +411,7 @@ async function runScenario(session) {
   );
   await session.script(`
     const section = document.querySelector('section[aria-label="AI settings"]');
-    const row = [...section.querySelectorAll('[role="radio"]')]
+    const row = [...section.querySelectorAll('[role="radiogroup"][aria-label="Local AI model"] [role="radio"]')]
       .find((radio) => radio.textContent.includes(arguments[0]))
       .closest('div');
     [...row.querySelectorAll('button')]
@@ -407,7 +419,7 @@ async function runScenario(session) {
       .click();
   `, [PULL_MODEL]);
   await session.waitFor(
-    `return [...document.querySelectorAll('section[aria-label="AI settings"] [role="radio"]')]
+    `return [...document.querySelectorAll('section[aria-label="AI settings"] [role="radiogroup"][aria-label="Local AI model"] [role="radio"]')]
        .some((radio) => radio.textContent.includes(${JSON.stringify(PULL_MODEL)})) === false`,
     "model removal",
     600,
@@ -422,6 +434,188 @@ async function runScenario(session) {
 
   await runProviderScenario(session, checks);
   return { checks, finalCard: removed.text.slice(0, 400), localRuntimeVerified: true };
+}
+
+function playgroundState(session) {
+  return session.script(`
+    const main = document.querySelector('main[aria-labelledby="prompt-playground-title"]');
+    if (!main) return null;
+    return {
+      status: main.querySelector('[role="status"]')?.textContent.trim() ?? '',
+      output: main.querySelector('[aria-label="Model output"]')?.textContent ?? '',
+      runDisabled: [...main.querySelectorAll('button')]
+        .find((button) => button.textContent.trim() === 'Run')?.disabled ?? null,
+      models: [...(main.querySelector('select[aria-label="Model"]')?.options ?? [])]
+        .map((option) => ({ value: option.value, label: option.textContent.trim() })),
+    };
+  `);
+}
+
+/**
+ * Drives the playground surface against the runtime the scenario already
+ * brought up. Cancel-mid-stream needs a generation-capable model; the pulled
+ * scenario model is embedding-only, so a host generation model is used when
+ * one exists and the phase otherwise proves the fake provider path and
+ * records the skip.
+ */
+async function runPlaygroundScenario(session, checks) {
+  await session.script(`
+    document.querySelector('button[aria-label="Close settings"]').click();
+  `);
+  await session.script(`window.location.hash = '#/prompt-playground';`);
+  await session.waitFor(
+    `return document.querySelector('main[aria-labelledby="prompt-playground-title"]') !== null`,
+    "playground surface after opt-in",
+  );
+  await session.waitFor(
+    `return [...(document.querySelector('main[aria-labelledby="prompt-playground-title"] select[aria-label="Model"]')?.options ?? [])].length > 1`,
+    "playground model inventory",
+    300,
+  );
+
+  const opened = await playgroundState(session);
+  assert(
+    checks,
+    "playground-lists-fake-and-runnable-models",
+    opened.models.some((model) => model.label.includes("Fake")) && opened.models.length > 1,
+    JSON.stringify(opened.models),
+  );
+
+  const generation = opened.models.find(
+    (model) =>
+      !model.label.includes("Fake") && !/minilm|embed|bge/i.test(model.label),
+  );
+  const target = generation ?? opened.models.find((model) => model.label.includes("Fake"));
+  await session.script(
+    `
+    const main = document.querySelector('main[aria-labelledby="prompt-playground-title"]');
+    const select = main.querySelector('select[aria-label="Model"]');
+    const setSelect = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+    setSelect.call(select, arguments[0]);
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    const prompt = main.querySelector('textarea[aria-label="User prompt"]');
+    const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+    setValue.call(prompt, arguments[1]);
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+  `,
+    [target.value, "Count from 1 to 500, one number per line."],
+  );
+  await session.script(`
+    const main = document.querySelector('main[aria-labelledby="prompt-playground-title"]');
+    [...main.querySelectorAll('button')]
+      .find((button) => button.textContent.trim() === 'Run')
+      .click();
+  `);
+
+  if (generation === undefined) {
+    await session.waitFor(
+      `return (document.querySelector('main[aria-labelledby="prompt-playground-title"] [role="status"]')?.textContent ?? '').startsWith('Done')`,
+      "fake completion to finish",
+      600,
+    );
+    const finished = await playgroundState(session);
+    assert(
+      checks,
+      "playground-streams-the-fake-provider-to-done",
+      finished.output.includes("fake") && finished.status.startsWith("Done"),
+      JSON.stringify({ status: finished.status, output: finished.output.slice(0, 80) }),
+    );
+    assert(
+      checks,
+      "playground-cancel-skipped-no-generation-model-on-host",
+      true,
+      JSON.stringify(opened.models),
+    );
+  } else {
+    // A small model can finish a short answer before the Escape lands; that
+    // race ends in Done, not a failure, so the run is retried until the
+    // cancel genuinely lands mid-stream.
+    let cancelled = null;
+    for (let attempt = 0; attempt < 3 && cancelled === null; attempt += 1) {
+      if (attempt > 0) {
+        await session.script(`
+          const main = document.querySelector('main[aria-labelledby="prompt-playground-title"]');
+          [...main.querySelectorAll('button')]
+            .find((button) => button.textContent.trim() === 'Run')
+            .click();
+        `);
+      }
+      try {
+        await session.waitFor(
+          `const main = document.querySelector('main[aria-labelledby="prompt-playground-title"]');
+           const status = main?.querySelector('[role="status"]')?.textContent ?? '';
+           return (status === 'Streaming…'
+             && (main?.querySelector('[aria-label="Model output"]')?.textContent ?? '').length > 0)
+             || status.startsWith('Done')`,
+          "live tokens to stream from Ollama",
+          900,
+        );
+      } catch (error) {
+        const state = await playgroundState(session);
+        throw new Error(
+          `${error.message}; status=${state?.status}; output=${(state?.output ?? "").slice(0, 200)}`,
+        );
+      }
+      await session.script(`
+        document.querySelector('main[aria-labelledby="prompt-playground-title"] textarea[aria-label="User prompt"]').focus();
+      `);
+      await session.keys([{ type: KEY.escape }]);
+      try {
+        await session.waitFor(
+          `const status = document.querySelector('main[aria-labelledby="prompt-playground-title"] [role="status"]')?.textContent ?? '';
+           return status === 'Cancelled' || status.startsWith('Done')`,
+          "cancel to reach a terminal state",
+          300,
+        );
+      } catch (error) {
+        const state = await playgroundState(session);
+        throw new Error(
+          `${error.message}; status=${state?.status}; output=${(state?.output ?? "").slice(0, 200)}`,
+        );
+      }
+      const terminal = await playgroundState(session);
+      if (terminal.status === "Cancelled") {
+        cancelled = terminal;
+      }
+    }
+    assert(
+      checks,
+      "playground-streams-live-tokens-and-announces-it",
+      cancelled !== null && cancelled.output.length > 0,
+      JSON.stringify(cancelled ?? { raced: "every attempt finished before Escape" }),
+    );
+    await sleep(700);
+    const settled = await playgroundState(session);
+    assert(
+      checks,
+      "escape-cancels-mid-stream-and-the-stream-actually-stops",
+      cancelled.status === "Cancelled" && settled.output.length === cancelled.output.length,
+      JSON.stringify({
+        status: settled.status,
+        atCancel: cancelled.output.length,
+        after: settled.output.length,
+      }),
+    );
+    assert(
+      checks,
+      "cancelled-playground-is-ready-to-run-again",
+      settled.runDisabled === false && settled.status === "Cancelled",
+      JSON.stringify({ runDisabled: settled.runDisabled, status: settled.status }),
+    );
+  }
+
+  await session.script(`window.location.hash = '#/notes';`);
+  await openSettings(session);
+  await session.script(`
+    [...document.querySelectorAll('[role="tab"]')]
+      .find((tab) => tab.textContent.trim() === 'AI')
+      .click();
+  `);
+  await session.waitFor(
+    `return document.querySelector('section[aria-label="AI settings"] [role="radiogroup"][aria-label="Local AI model"] [role="radio"]') !== null`,
+    "AI settings again after the playground",
+    600,
+  );
 }
 
 function providerCards(session) {

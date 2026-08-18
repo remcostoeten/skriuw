@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";
 import type { AppCommand } from "@/commands/registry";
+import { requestModelSwitcher } from "./model-switcher-controller";
 
 const EMPTY_REGISTRATIONS: readonly never[] = [];
 
@@ -25,6 +26,7 @@ export function guardAiRegistrations<T>(
 export function aiSettingsCommands(
   enabled: boolean,
   openSettings: () => void,
+  openPlayground: () => void,
 ): readonly AppCommand[] {
   return guardAiRegistrations(enabled, () => [
     {
@@ -33,6 +35,21 @@ export function aiSettingsCommands(
       group: "General",
       keywords: ["artificial intelligence", "provider", "model"],
       run: openSettings,
+    },
+    {
+      id: "switch-ai-model",
+      label: "Switch AI model",
+      group: "General",
+      keywords: ["default", "provider", "ollama", "gemini", "groq", "local", "remote"],
+      run: requestModelSwitcher,
+    },
+    {
+      id: "open-prompt-playground",
+      label: "Open prompt playground",
+      group: "Navigation",
+      keywords: ["playground", "prompt", "ai", "test", "model", "completion", "stream"],
+      visible: (_state, ui) => ui.route !== "prompt-playground",
+      run: openPlayground,
     },
   ]);
 }
