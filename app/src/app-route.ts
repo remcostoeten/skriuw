@@ -1,10 +1,21 @@
 import { useSyncExternalStore } from "react";
 
-export type AppRoute = "notes" | "trash" | "tags" | "people" | "history" | "journal" | "tasks";
+export type AppRoute =
+  | "notes"
+  | "trash"
+  | "tags"
+  | "people"
+  | "history"
+  | "journal"
+  | "tasks"
+  | "prompt-playground";
 
 export function resolveAppRoute(hash: string): AppRoute {
   if (hash === "#/trash") {
     return "trash";
+  }
+  if (hash === "#/prompt-playground") {
+    return "prompt-playground";
   }
   if (hash.startsWith("#/history/")) {
     return "history";
@@ -84,6 +95,9 @@ export function appRouteHash(route: AppRoute): string {
   }
   if (route === "tasks") {
     return "#/tasks";
+  }
+  if (route === "prompt-playground") {
+    return "#/prompt-playground";
   }
   return "#/notes";
 }

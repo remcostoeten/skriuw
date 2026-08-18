@@ -97,6 +97,15 @@ const ModelSwitcherHost = lazy(async () => {
   return { default: module.ModelSwitcherHost };
 });
 
+function loadPromptPlayground() {
+  return import("@/features/ai/prompt-playground");
+}
+
+const PromptPlaygroundView = lazy(async () => {
+  const module = await loadPromptPlayground();
+  return { default: module.PromptPlaygroundView };
+});
+
 const RAIL_ICONS: Record<RailItem["actionId"], AppIconName> = {
   goToNotes: "notes",
   goToJournal: "journal",
@@ -197,8 +206,18 @@ function WorkspaceShell({ store }: Props) {
   useEffect(() => {
     if (settingsOpen || paletteOpen) {
       void loadSignInDrawer();
+      if (aiEnabled) {
+        void loadPromptPlayground();
+      }
     }
-  }, [paletteOpen, settingsOpen]);
+  }, [aiEnabled, paletteOpen, settingsOpen]);
+  // The playground route is structurally gated: with AI off it must not exist,
+  // so a stale or hand-typed hash lands back on notes instead of a blank shell.
+  useEffect(() => {
+    if (route === "prompt-playground" && !aiEnabled) {
+      window.location.hash = appRouteHash("notes");
+    }
+  }, [aiEnabled, route]);
   const handleSignInOpenChange = useCallback((open: boolean) => {
     setSignInOpen(open);
     if (!open && signInReturnsToSettingsRef.current) {
@@ -254,7 +273,13 @@ function WorkspaceShell({ store }: Props) {
               window.location.hash = appRouteHash(target);
             },
           }),
-          ...aiSettingsCommands(aiEnabled, () => openSettingsAt("ai")),
+          ...aiSettingsCommands(
+            aiEnabled,
+            () => openSettingsAt("ai"),
+            () => {
+              window.location.hash = appRouteHash("prompt-playground");
+            },
+          ),
         ],
       ),
     [aiEnabled, openSettingsAt, openSignIn, store, toggleMetadata, toggleSidebar],
@@ -578,6 +603,15 @@ function WorkspaceShell({ store }: Props) {
       )}
       {route === "tasks" && <TasksView store={store} />}
       {route === "trash" && <TrashView store={store} />}
+      {route === "prompt-playground" && (
+        <AiOptInGate store={store}>
+          {(signal) => (
+            <Suspense fallback={null}>
+              <PromptPlaygroundView store={store} signal={signal} />
+            </Suspense>
+          )}
+        </AiOptInGate>
+      )}
       {route === "tags" && <EntityView store={store} kind="tag" />}
       {route === "people" && <EntityView store={store} kind="person" />}
       <CommandPaletteHost

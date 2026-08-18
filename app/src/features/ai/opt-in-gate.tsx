@@ -26,6 +26,7 @@ export function guardAiRegistrations<T>(
 export function aiSettingsCommands(
   enabled: boolean,
   openSettings: () => void,
+  openPlayground: () => void,
 ): readonly AppCommand[] {
   return guardAiRegistrations(enabled, () => [
     {
@@ -41,6 +42,14 @@ export function aiSettingsCommands(
       group: "General",
       keywords: ["default", "provider", "ollama", "gemini", "groq", "local", "remote"],
       run: requestModelSwitcher,
+    },
+    {
+      id: "open-prompt-playground",
+      label: "Open prompt playground",
+      group: "Navigation",
+      keywords: ["playground", "prompt", "ai", "test", "model", "completion", "stream"],
+      visible: (_state, ui) => ui.route !== "prompt-playground",
+      run: openPlayground,
     },
   ]);
 }

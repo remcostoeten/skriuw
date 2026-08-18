@@ -12,7 +12,14 @@ import {
   stopOllamaRuntime,
 } from "@/features/ai/ollama-bridge";
 import { OLLAMA_INSTALL_SOURCE_URL, ollamaModelSourceUrl } from "@/features/ai/ollama-model";
-import { SettingsHeading, settingsSection } from "./settings-shared";
+import {
+  SettingsHeading,
+  settingsButton,
+  settingsRow,
+  settingsRowDescription,
+  settingsRowLabel,
+  settingsSection,
+} from "./settings-shared";
 import { OllamaModelsPanel, OllamaRuntimeCard } from "./ollama-settings-ui";
 import { RemoteProvidersPanel } from "./remote-ai-settings-ui";
 import { useRemoteAiProviders } from "./use-remote-ai-providers";
@@ -34,9 +41,10 @@ import { DefaultModelPicker } from "./ai-model-picker-ui";
 type Props = {
   store: RendererStore;
   signal: AbortSignal;
+  onOpenPlayground: () => void;
 };
 
-export function AiSection({ store, signal }: Props) {
+export function AiSection({ store, signal, onOpenPlayground }: Props) {
   signal.throwIfAborted();
   const [status, setStatus] = useState<LocalAiStatus | null>(null);
   const [models, setModels] = useState<LocalAiModel[]>([]);
@@ -271,6 +279,17 @@ export function AiSection({ store, signal }: Props) {
         selection={defaultModel}
         onSelect={(selection) => setAiModelSelection(store, selection)}
       />
+      <div className={settingsRow}>
+        <span className={settingsRowLabel}>
+          Prompt playground
+          <span className={settingsRowDescription}>
+            Fire a raw prompt at any provider and watch the streamed result.
+          </span>
+        </span>
+        <button type="button" className={settingsButton} onClick={onOpenPlayground}>
+          Open playground
+        </button>
+      </div>
       <OllamaRuntimeCard
         status={status}
         progress={progress}

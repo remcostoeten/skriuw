@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  appRouteHash,
   entityFocusHash,
   journalDayHash,
   noteHistoryHash,
@@ -50,6 +51,14 @@ test("history routes carry an optional preselected version id", () => {
   assert.equal(resolveRouteFocus(hash), "note-1");
   assert.equal(resolveHistoryVersion(hash), "version/7");
   assert.equal(resolveHistoryVersion("#/tags/tag-1"), null);
+});
+
+test("prompt playground has a dedicated hash route without sub-paths", () => {
+  assert.equal(resolveAppRoute("#/prompt-playground"), "prompt-playground");
+  assert.equal(resolveAppRoute("#/prompt-playground/extra"), "notes");
+  assert.equal(appRouteHash("prompt-playground"), "#/prompt-playground");
+  assert.equal(resolveAppRoute(appRouteHash("prompt-playground")), "prompt-playground");
+  assert.equal(resolveRouteFocus("#/prompt-playground"), null);
 });
 
 test("journal routes resolve with an optional day focus", () => {
