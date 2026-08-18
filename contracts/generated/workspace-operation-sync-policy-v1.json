@@ -138,5 +138,13 @@
   {
     "operationType": "promote_checklist_task",
     "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "set_prompt",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "delete_prompt",
+    "replicationClass": "replicated_workspace_content"
   }
 ]

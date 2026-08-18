@@ -89,6 +89,8 @@ export function reduceOperation(
     case "delete_note_property_template":
     case "reorder_note_property_templates":
     case "record_provider_import":
+    case "set_prompt":
+    case "delete_prompt":
       return nodes;
     case "create_folder":
     case "create_note": {

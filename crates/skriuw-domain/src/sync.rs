@@ -111,6 +111,8 @@ define_workspace_operation_sync_policy! {
     DeleteTask => ("delete_task", ReplicatedWorkspaceContent),
     DetachTask => ("detach_task", ReplicatedWorkspaceContent),
     PromoteChecklistTask => ("promote_checklist_task", ReplicatedWorkspaceContent),
+    SetPrompt => ("set_prompt", ReplicatedWorkspaceContent),
+    DeletePrompt => ("delete_prompt", ReplicatedWorkspaceContent),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -233,7 +235,9 @@ impl WorkspaceOperation {
             Self::DeleteTask { id, .. } | Self::DetachTask { id, .. } => Some(id),
             Self::UpdateSettings { .. }
             | Self::ReorderNotePropertyTemplates { .. }
-            | Self::RecordProviderImport { .. } => None,
+            | Self::RecordProviderImport { .. }
+            | Self::SetPrompt { .. }
+            | Self::DeletePrompt { .. } => None,
         }
     }
 }
@@ -763,7 +767,7 @@ mod tests {
             operation_types.len(),
             WORKSPACE_OPERATION_SYNC_POLICY_V1.len()
         );
-        assert_eq!(WORKSPACE_OPERATION_SYNC_POLICY_V1.len(), 35);
+        assert_eq!(WORKSPACE_OPERATION_SYNC_POLICY_V1.len(), 37);
         assert_eq!(
             operation_types,
             serde_json::from_str::<serde_json::Value>(include_str!(

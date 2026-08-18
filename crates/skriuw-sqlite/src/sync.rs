@@ -1592,6 +1592,11 @@ fn initial_sync_operations(
             task: Box::new(task),
         })
     }));
+    operations.extend(snapshot.prompts.into_iter().map(|prompt| {
+        WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetPrompt {
+            prompt: Box::new(prompt),
+        })
+    }));
     operations.extend(snapshot.nodes.iter().filter_map(|node| {
         let deleted_at = node.deleted_at?;
         if node
@@ -2101,6 +2106,7 @@ fn backfill_tombstone_provenance(
             ("property_template", template_id.as_str(), "")
         }
         WorkspaceOperation::DeleteTask { id, .. } => ("task", id.as_str(), ""),
+        WorkspaceOperation::DeletePrompt { id } => ("prompt", id.as_str(), ""),
         _ => return Ok(()),
     };
     transaction
@@ -2607,6 +2613,14 @@ fn remote_target_state(
             state.target_tombstoned = tombstoned(transaction, "task", id, "")?;
             state.target_exists = task_exists(transaction, id)?;
         }
+        WorkspaceOperation::SetPrompt { prompt } => {
+            state.target_tombstoned = tombstoned(transaction, "prompt", &prompt.id, "")?;
+            state.target_exists = entity_exists(transaction, "workspace_prompts", &prompt.id)?;
+        }
+        WorkspaceOperation::DeletePrompt { id } => {
+            state.target_tombstoned = tombstoned(transaction, "prompt", id, "")?;
+            state.target_exists = entity_exists(transaction, "workspace_prompts", id)?;
+        }
         WorkspaceOperation::SetActiveNote { .. }
         | WorkspaceOperation::UpdateSettings { .. }
         | WorkspaceOperation::RecordProviderImport { .. } => {}
@@ -2648,6 +2662,7 @@ fn entity_exists(
         "note_property_templates" => {
             "SELECT EXISTS(SELECT 1 FROM note_property_templates WHERE id = ?1)"
         }
+        "workspace_prompts" => "SELECT EXISTS(SELECT 1 FROM workspace_prompts WHERE id = ?1)",
         _ => return Err(StorageError::Backend("unknown existence table".into())),
     };
     transaction

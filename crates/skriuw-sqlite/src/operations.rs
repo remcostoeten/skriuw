@@ -4,7 +4,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use skriuw_domain::{
     EntityRevision, NodePlacement, NodePosition, NodeRankChange, NotePropertyField,
     NotePropertyValue, OperationAck, TaskSourceDocument, WorkspaceOperation,
-    WorkspaceOperationEnvelope, WorkspaceTask,
+    WorkspaceOperationEnvelope, WorkspacePrompt, WorkspaceTask,
 };
 use skriuw_storage::StorageError;
 use uuid::Uuid;
@@ -883,7 +883,86 @@ fn apply_operation(
             detach_tasks(transaction, "id = ?1", &[&id], *at)?;
             save_task_document(transaction, document.as_deref(), *at, revisions)?;
         }
+        WorkspaceOperation::SetPrompt { prompt } => {
+            upsert_prompt(transaction, prompt)?;
+        }
+        WorkspaceOperation::DeletePrompt { id } => {
+            require_changed(
+                transaction
+                    .execute("DELETE FROM workspace_prompts WHERE id = ?1", [id])
+                    .map_err(backend)?,
+                id,
+            )?;
+            insert_terminal_tombstone(transaction, "prompt", id, "", None)?;
+        }
     }
+    Ok(())
+}
+
+/// A prompt shadowing a built-in claims that built-in exclusively. The unique
+/// index enforces it, but the collision is reported here so the caller learns
+/// which built-in is already customised instead of a bare constraint failure.
+fn upsert_prompt(
+    transaction: &Transaction<'_>,
+    prompt: &WorkspacePrompt,
+) -> Result<(), StorageError> {
+    if let Some(built_in_id) = &prompt.built_in_id {
+        let conflicting = transaction
+            .query_row(
+                "SELECT id FROM workspace_prompts WHERE built_in_id = ?1 AND id <> ?2",
+                params![built_in_id, prompt.id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(backend)?;
+        if let Some(conflicting) = conflicting {
+            return Err(StorageError::InvalidOperation(format!(
+                "built-in prompt {built_in_id} is already customised by prompt {conflicting}"
+            )));
+        }
+    }
+    let existing_built_in = transaction
+        .query_row(
+            "SELECT built_in_id FROM workspace_prompts WHERE id = ?1",
+            [&prompt.id],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .optional()
+        .map_err(backend)?;
+    if let Some(existing_built_in) = existing_built_in
+        && existing_built_in != prompt.built_in_id
+    {
+        return Err(StorageError::InvalidOperation(format!(
+            "prompt {} cannot change which built-in it shadows",
+            prompt.id
+        )));
+    }
+    transaction
+        .execute(
+            "INSERT INTO workspace_prompts \
+             (id, name, system_prompt, input_shape, temperature_millis, max_output_bytes, \
+              built_in_id, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) \
+             ON CONFLICT(id) DO UPDATE SET \
+                name = excluded.name, \
+                system_prompt = excluded.system_prompt, \
+                input_shape = excluded.input_shape, \
+                temperature_millis = excluded.temperature_millis, \
+                max_output_bytes = excluded.max_output_bytes, \
+                updated_at = excluded.updated_at",
+            params![
+                prompt.id,
+                prompt.name,
+                prompt.system_prompt,
+                prompt.input_shape.as_str(),
+                prompt.parameters.temperature_millis,
+                prompt.parameters.max_output_bytes,
+                prompt.built_in_id,
+                prompt.created_at,
+                prompt.updated_at
+            ],
+        )
+        .map_err(backend)?;
     Ok(())
 }
 

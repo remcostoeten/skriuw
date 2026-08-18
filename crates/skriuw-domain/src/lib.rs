@@ -12,6 +12,7 @@ mod ai;
 mod checkpoint;
 mod chunk;
 mod local_ai;
+mod prompt;
 mod reconcile;
 mod remote_ai;
 mod sync;
@@ -38,6 +39,12 @@ pub use local_ai::{
     LocalAiError, LocalAiErrorCategory, LocalAiModel, LocalAiOperation, LocalAiProgress,
     LocalAiProgressSink, LocalAiRuntime, LocalAiRuntimeState, LocalAiStatus,
     MAX_LOCAL_AI_MODEL_NAME_BYTES, MAX_LOCAL_AI_STATUS_BYTES,
+};
+pub use prompt::{
+    BUILT_IN_PROMPT_LIBRARY_VERSION, BUILT_IN_PROMPTS, BuiltInPrompt, BuiltInPromptLibrary,
+    MAX_PROMPT_NAME_BYTES, MAX_PROMPT_SYSTEM_BYTES, MAX_PROMPT_TEMPERATURE_MILLIS,
+    PromptInputShape, PromptParameters, WorkspacePrompt, built_in_prompt,
+    validate_workspace_prompts,
 };
 pub use reconcile::{
     DocumentConflictResolutionChoice, RemoteOperationDecision, RemoteTargetState,
@@ -69,8 +76,8 @@ pub use task::{
 };
 
 pub const WORKSPACE_PROTOCOL_VERSION: u16 = 1;
-pub const WORKSPACE_ARCHIVE_VERSION: u16 = 4;
-pub const SUPPORTED_ARCHIVE_VERSIONS: [u16; 4] = [1, 2, 3, 4];
+pub const WORKSPACE_ARCHIVE_VERSION: u16 = 5;
+pub const SUPPORTED_ARCHIVE_VERSIONS: [u16; 5] = [1, 2, 3, 4, 5];
 pub const WORKSPACE_SETTINGS_VERSION: u16 = 1;
 pub const NOTE_PROPERTY_VALUE_VERSION: u16 = 1;
 pub const MAX_ENTITY_ID_BYTES: usize = 128;
@@ -548,6 +555,8 @@ pub struct WorkspaceSnapshot {
     #[serde(default)]
     pub tasks: Vec<WorkspaceTask>,
     #[serde(default)]
+    pub prompts: Vec<WorkspacePrompt>,
+    #[serde(default)]
     pub import_receipts: Vec<ProviderImportReceipt>,
 }
 
@@ -608,6 +617,8 @@ pub struct WorkspaceArchive {
     pub property_templates: Vec<NotePropertyTemplate>,
     #[serde(default)]
     pub tasks: Vec<WorkspaceTask>,
+    #[serde(default)]
+    pub prompts: Vec<WorkspacePrompt>,
 }
 
 impl WorkspaceArchive {
@@ -626,6 +637,7 @@ impl WorkspaceArchive {
             properties: snapshot.properties,
             property_templates: snapshot.property_templates,
             tasks: snapshot.tasks,
+            prompts: snapshot.prompts,
         }
     }
 
@@ -787,6 +799,7 @@ impl WorkspaceArchive {
                 .collect(),
         )
         .map_err(archive_operation_error)?;
+        validate_workspace_prompts(&self.prompts).map_err(archive_operation_error)?;
         Ok(())
     }
 }
@@ -1503,6 +1516,12 @@ pub enum WorkspaceOperation {
         task: Box<WorkspaceTask>,
         document: Box<TaskSourceDocument>,
     },
+    SetPrompt {
+        prompt: Box<WorkspacePrompt>,
+    },
+    DeletePrompt {
+        id: String,
+    },
 }
 
 impl WorkspaceOperation {
@@ -1690,6 +1709,8 @@ impl WorkspaceOperation {
                 }
                 validate_task_document(task, Some(document.as_ref()))
             }
+            Self::SetPrompt { prompt } => prompt.validate(),
+            Self::DeletePrompt { id } => validate_id("prompt id", id),
         }
     }
 }
@@ -2299,6 +2320,7 @@ mod tests {
             properties: Vec::new(),
             property_templates: Vec::new(),
             tasks: Vec::new(),
+            prompts: Vec::new(),
         };
 
         archive.validate().expect("valid archive");
@@ -2354,6 +2376,7 @@ mod tests {
             properties: Vec::new(),
             property_templates: Vec::new(),
             tasks: Vec::new(),
+            prompts: Vec::new(),
         };
 
         assert!(matches!(
@@ -2504,6 +2527,7 @@ mod tests {
             properties: Vec::new(),
             property_templates: Vec::new(),
             tasks: Vec::new(),
+            prompts: Vec::new(),
         };
         archive.settings.settings_version = 2;
 
@@ -2571,6 +2595,7 @@ mod tests {
             properties: Vec::new(),
             property_templates: Vec::new(),
             tasks: Vec::new(),
+            prompts: Vec::new(),
         };
 
         assert!(matches!(
@@ -2623,6 +2648,7 @@ mod tests {
             properties: Vec::new(),
             property_templates: Vec::new(),
             tasks: Vec::new(),
+            prompts: Vec::new(),
         };
         archive.validate().expect("valid reference");
         archive.tags.clear();

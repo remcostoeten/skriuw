@@ -567,6 +567,49 @@ mod tests {
         assert!(sink.deltas.is_empty());
     }
 
+    /// Every shipped prompt must be runnable end to end without a provider,
+    /// credential, or network. The fake adapter is the permanent stand-in, so a
+    /// built-in whose system prompt or parameter defaults fall outside the
+    /// completion seam's bounds fails here rather than at a user's first click.
+    #[test]
+    fn the_fake_provider_runs_every_built_in_prompt() {
+        let service = AiCompletionService::with_fake_provider();
+        for built_in in skriuw_domain::BUILT_IN_PROMPTS {
+            let request = AiCompletionRequest {
+                request_id: format!("built-in-{}", built_in.id),
+                provider_id: "fake".into(),
+                model_id: "deterministic-v1".into(),
+                system_prompt: built_in.system_prompt.into(),
+                user_prompt: "The text the writer selected.".into(),
+                parameters: AiCompletionParameters {
+                    max_output_bytes: built_in.parameters.max_output_bytes,
+                    temperature_millis: built_in.parameters.temperature_millis,
+                    ..AiCompletionParameters::default()
+                },
+            };
+            request
+                .validate()
+                .unwrap_or_else(|error| panic!("built-in {} is unrunnable: {error}", built_in.id));
+
+            let channel = RecordingChannel::default();
+            service
+                .start(request, channel.clone())
+                .unwrap_or_else(|error| panic!("built-in {} did not start: {error}", built_in.id));
+            let events = wait_for_terminal(&channel);
+
+            assert!(
+                matches!(events.first(), Some(AiCompletionEvent::Delta(_))),
+                "built-in {} produced no output",
+                built_in.id
+            );
+            assert!(
+                matches!(events.last(), Some(AiCompletionEvent::Done { .. })),
+                "built-in {} did not complete",
+                built_in.id
+            );
+        }
+    }
+
     #[test]
     fn service_streams_events_and_releases_the_request_id() {
         let service = AiCompletionService::with_fake_provider();

@@ -14,6 +14,7 @@ import { createAiCompletionConsumer } from "./completion-consumer";
 import { loadOllamaSnapshot } from "./ollama-bridge";
 import { loadRemoteAiSnapshot } from "./remote-ai-bridge";
 import type { AiModelInventory } from "./model-options";
+import { promptLibraryEntries, selectWorkspacePrompts } from "./prompt-library";
 import {
   parseAiModelSelection,
   selectRawAiModelSetting,
@@ -68,6 +69,7 @@ function errorMessage(reason: unknown): string {
 
 export function PromptPlaygroundView({ store, signal }: Props) {
   const [systemPrompt, setSystemPrompt] = useState("");
+  const [promptKey, setPromptKey] = useState("");
   const [userPrompt, setUserPrompt] = useState("");
   const [temperatureRaw, setTemperatureRaw] = useState("");
   const [maxBytesRaw, setMaxBytesRaw] = useState("");
@@ -88,6 +90,8 @@ export function PromptPlaygroundView({ store, signal }: Props) {
   const flushFrameRef = useRef<number | null>(null);
   const copiedTimerRef = useRef<number | null>(null);
 
+  const storedPrompts = useRendererSelector(store, selectWorkspacePrompts);
+  const promptEntries = useMemo(() => promptLibraryEntries(storedPrompts), [storedPrompts]);
   const rawDefault = useRendererSelector(store, selectRawAiModelSetting);
   const storedDefault = useMemo(() => parseAiModelSelection(rawDefault), [rawDefault]);
 
@@ -226,6 +230,21 @@ export function PromptPlaygroundView({ store, signal }: Props) {
       });
   }
 
+  function applyPromptEntry(key: string): void {
+    setPromptKey(key);
+    const entry = promptEntries.find((candidate) => candidate.key === key);
+    if (entry === undefined) {
+      return;
+    }
+    setSystemPrompt(entry.systemPrompt);
+    setTemperatureRaw(
+      entry.parameters.temperatureMillis === null
+        ? ""
+        : `${entry.parameters.temperatureMillis / 1000}`,
+    );
+    setMaxBytesRaw(`${entry.parameters.maxOutputBytes}`);
+  }
+
   function submit(): void {
     if (streaming || byteError !== null) {
       return;
@@ -327,6 +346,23 @@ export function PromptPlaygroundView({ store, signal }: Props) {
 
       <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-y-auto">
         <div className="mx-auto w-[min(100%,860px)] px-[clamp(20px,4vw,40px)] pt-5">
+          <label className={cn(paramLabelClass, "mb-2")}>
+            Prompt
+            <select
+              aria-label="Prompt"
+              className={cn(paramFieldClass, "w-auto max-w-[280px] cursor-pointer")}
+              value={promptKey}
+              disabled={streaming}
+              onChange={(event) => applyPromptEntry(event.target.value)}
+            >
+              <option value="">Blank</option>
+              {promptEntries.map((entry) => (
+                <option key={entry.key} value={entry.key}>
+                  {entry.origin === "customised" ? `${entry.name} (modified)` : entry.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="mb-3 block">
             <span className="mb-1 block text-[11px] font-[560] text-theme-secondary">
               System prompt
@@ -337,7 +373,10 @@ export function PromptPlaygroundView({ store, signal }: Props) {
               value={systemPrompt}
               aria-label="System prompt"
               placeholder="Optional instructions for the model"
-              onChange={(event) => setSystemPrompt(event.target.value)}
+              onChange={(event) => {
+                setPromptKey("");
+                setSystemPrompt(event.target.value);
+              }}
             />
           </label>
           <label className="mb-3 block">

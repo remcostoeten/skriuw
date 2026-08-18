@@ -56,6 +56,7 @@ fn snapshot_from_archive(archive: &WorkspaceArchive) -> WorkspaceSnapshot {
         properties: archive.properties.clone(),
         property_templates: archive.property_templates.clone(),
         tasks: archive.tasks.clone(),
+        prompts: archive.prompts.clone(),
         import_receipts: Vec::new(),
     }
 }
@@ -355,12 +356,12 @@ fn archives_reject_tasks_whose_source_block_is_gone() {
 #[test]
 fn future_archive_versions_fail_explicitly() {
     let mut value = load_fixture_value("v1/representative.json");
-    value["archiveVersion"] = json!(5);
+    value["archiveVersion"] = json!(6);
     let future =
         serde_json::from_value::<WorkspaceArchive>(value).expect("parse future-version archive");
     assert_eq!(
         future.validate(),
-        Err(ArchiveValidationError::UnsupportedArchiveVersion(5))
+        Err(ArchiveValidationError::UnsupportedArchiveVersion(6))
     );
 
     let mut value = load_fixture_value("v1/representative.json");

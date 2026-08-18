@@ -6,6 +6,7 @@ import type {
   WorkspaceNode,
   WorkspaceOperation,
   WorkspaceSnapshot,
+  WorkspacePrompt,
   WorkspaceTask,
 } from "@/contracts/workspace";
 import { extractReferences } from "@/features/references/extract";
@@ -241,6 +242,8 @@ export function createInitialState(
   }
   const tasks = new Map<string, WorkspaceTask>();
   for (const task of snapshot.tasks ?? []) tasks.set(task.id, task);
+  const prompts = new Map<string, WorkspacePrompt>();
+  for (const prompt of snapshot.prompts ?? []) prompts.set(prompt.id, prompt);
   const propertiesByNoteId = new Map<string, NoteProperty[]>();
   for (const property of snapshot.properties ?? []) {
     const properties = propertiesByNoteId.get(property.noteId) ?? [];
@@ -274,6 +277,7 @@ export function createInitialState(
     people,
     images,
     tasks,
+    prompts,
     propertiesByNoteId,
     propertyTemplates,
     importReceipts: snapshot.importReceipts ?? [],
@@ -393,6 +397,17 @@ function reduceState(
     const tasks = new Map(next.tasks);
     tasks.set(operation.id, { ...task, source: null, detachedAt: operation.at, updatedAt: operation.at });
     return { ...next, tasks };
+  }
+  if (operation.type === "set_prompt") {
+    const prompts = new Map(current.prompts);
+    prompts.set(operation.prompt.id, operation.prompt);
+    return { ...current, prompts };
+  }
+  if (operation.type === "delete_prompt") {
+    if (!current.prompts.has(operation.id)) return current;
+    const prompts = new Map(current.prompts);
+    prompts.delete(operation.id);
+    return { ...current, prompts };
   }
   if (operation.type === "record_provider_import") {
     const importReceipts = current.importReceipts.filter(

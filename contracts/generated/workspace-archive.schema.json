@@ -38,6 +38,13 @@
         "$ref": "#/$defs/WorkspacePerson"
       }
     },
+    "prompts": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/WorkspacePrompt"
+      }
+    },
     "properties": {
       "type": "array",
       "default": [],
@@ -215,6 +222,49 @@
         "name",
         "position",
         "properties"
+      ]
+    },
+    "PromptInputShape": {
+      "description": "The material a prompt expects to be filled with. Prompts are\nprovider-agnostic, so this describes the caller's obligation rather than any\nprovider's message format.",
+      "oneOf": [
+        {
+          "description": "The user prompt carries the current editor selection.",
+          "type": "string",
+          "const": "selection"
+        },
+        {
+          "description": "The user prompt carries the whole note.",
+          "type": "string",
+          "const": "note"
+        },
+        {
+          "description": "The user prompt is whatever the caller types.",
+          "type": "string",
+          "const": "freeform"
+        }
+      ]
+    },
+    "PromptParameters": {
+      "description": "The provider-neutral generation defaults a prompt ships with. They mirror\nthe completion seam's parameters so a prompt can be fired without a second\ntranslation step, and they never carry a provider, model, or credential.",
+      "type": "object",
+      "properties": {
+        "maxOutputBytes": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "temperatureMillis": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        }
+      },
+      "required": [
+        "maxOutputBytes"
       ]
     },
     "TaskPriority": {
@@ -639,6 +689,52 @@
       "required": [
         "id",
         "name"
+      ]
+    },
+    "WorkspacePrompt": {
+      "description": "A prompt the user owns. It is ordinary workspace data: canonical in SQLite,\nreplicated, exported, and archived alongside notes. A prompt carries no\nprovider, model, endpoint, or credential, so it is never a secret.",
+      "type": "object",
+      "properties": {
+        "builtInId": {
+          "description": "The built-in this prompt shadows, if any. A shadow hides its built-in\neverywhere the library is listed and can be reset by deleting it, which\nis why a shipped built-in update can never overwrite a user edit.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "id": {
+          "type": "string"
+        },
+        "inputShape": {
+          "$ref": "#/$defs/PromptInputShape"
+        },
+        "name": {
+          "type": "string"
+        },
+        "parameters": {
+          "$ref": "#/$defs/PromptParameters"
+        },
+        "systemPrompt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "systemPrompt",
+        "inputShape",
+        "parameters",
+        "createdAt",
+        "updatedAt"
       ]
     },
     "WorkspaceSettings": {

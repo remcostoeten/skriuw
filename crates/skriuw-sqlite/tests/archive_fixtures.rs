@@ -178,7 +178,7 @@ fn invalid_archives_fail_before_mutation_and_preserve_workspace() {
         .expect("import representative fixture");
 
     let mut future = archive.clone();
-    future.archive_version = 5;
+    future.archive_version = 6;
     assert!(matches!(
         storage.replace_from_archive(&future),
         Err(StorageError::InvalidOperation(_))

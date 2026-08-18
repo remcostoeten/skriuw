@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceNode, WorkspaceSnapshot, WorkspaceTask } from "../../src/contracts/workspace";
+import type {
+  WorkspaceNode,
+  WorkspacePrompt,
+  WorkspaceSnapshot,
+  WorkspaceTask,
+} from "../../src/contracts/workspace";
 import { createInitialState, createRendererStore } from "../../src/store/store";
 import { pinnedNodeIds } from "../../src/store/tree";
 
@@ -85,6 +90,37 @@ test("tasks hydrate and task operations update the narrow task projection", () =
   assert.equal(store.getState().tasks.get("task-1")?.detachedAt, 4);
   store.applyOperations([{ type: "delete_task", id: "task-1", document: null, at: 5 }]);
   assert.equal(store.getState().tasks.has("task-1"), false);
+});
+
+test("prompts hydrate and prompt operations update the narrow prompt projection", () => {
+  const prompt: WorkspacePrompt = {
+    id: "prompt-1",
+    name: "Standup",
+    systemPrompt: "Three bullets.",
+    inputShape: "note",
+    parameters: { temperatureMillis: null, maxOutputBytes: 8192 },
+    builtInId: null,
+    createdAt: 1,
+    updatedAt: 1,
+  };
+  const initial = createInitialState({ ...snapshot(), prompts: [prompt] });
+  assert.equal(initial.prompts.get("prompt-1")?.name, "Standup");
+
+  const store = createRendererStore(initial);
+  store.applyOperations([
+    { type: "set_prompt", prompt: { ...prompt, name: "Standup summary", updatedAt: 4 } },
+  ]);
+  assert.equal(store.getState().prompts.get("prompt-1")?.name, "Standup summary");
+
+  store.applyOperations([{ type: "delete_prompt", id: "prompt-1" }]);
+  assert.equal(store.getState().prompts.has("prompt-1"), false);
+
+  store.applyOperations([{ type: "set_prompt", prompt }]);
+  assert.equal(
+    store.getState().prompts.get("prompt-1")?.name,
+    "Standup",
+    "undoing a delete restores the record through the same upsert",
+  );
 });
 
 test("set_node_pinned pins and unpins available nodes and survives trash without edits", () => {

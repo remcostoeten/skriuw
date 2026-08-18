@@ -149,9 +149,11 @@ pub fn reconcile_remote_operation(
         WorkspaceOperation::RestoreSubtree { .. } => reconcile_restore(state),
         WorkspaceOperation::PurgeSubtree { .. } => reconcile_purge(state),
         WorkspaceOperation::SetNoteProperty { .. }
-        | WorkspaceOperation::SetNotePropertyTemplate { .. } => reconcile_field_upsert(state),
+        | WorkspaceOperation::SetNotePropertyTemplate { .. }
+        | WorkspaceOperation::SetPrompt { .. } => reconcile_field_upsert(state),
         WorkspaceOperation::RemoveNoteProperty { .. }
-        | WorkspaceOperation::DeleteNotePropertyTemplate { .. } => reconcile_delete(state),
+        | WorkspaceOperation::DeleteNotePropertyTemplate { .. }
+        | WorkspaceOperation::DeletePrompt { .. } => reconcile_delete(state),
         WorkspaceOperation::ReorderNoteProperties { .. }
         | WorkspaceOperation::ReorderNotePropertyTemplates { .. } => reconcile_reorder(state),
         WorkspaceOperation::AttachImage { .. } => reconcile_create(state),
@@ -329,6 +331,7 @@ pub fn classify_apply_failure(operation: &WorkspaceOperation) -> SyncConflictRea
         | WorkspaceOperation::PurgeSubtree { .. } => SyncConflictReason::TreeConflict,
         WorkspaceOperation::SetNoteProperty { .. }
         | WorkspaceOperation::SetNotePropertyTemplate { .. }
+        | WorkspaceOperation::SetPrompt { .. }
         | WorkspaceOperation::UpdateTask { .. }
         | WorkspaceOperation::DetachTask { .. } => SyncConflictReason::ConcurrentFieldEdit,
         WorkspaceOperation::CreateTask { .. }
@@ -354,6 +357,7 @@ pub fn classify_apply_failure(operation: &WorkspaceOperation) -> SyncConflictRea
         | WorkspaceOperation::SaveDocument { .. }
         | WorkspaceOperation::RemoveNoteProperty { .. }
         | WorkspaceOperation::DeleteNotePropertyTemplate { .. }
+        | WorkspaceOperation::DeletePrompt { .. }
         | WorkspaceOperation::SetActiveNote { .. }
         | WorkspaceOperation::UpdateSettings { .. }
         | WorkspaceOperation::RecordProviderImport { .. } => SyncConflictReason::DomainConflict,

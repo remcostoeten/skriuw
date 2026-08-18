@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BuiltInPromptLibrary",
+  "description": "The generated contract the renderer reads so both sides of the boundary\ndescribe one library instead of two drifting copies.",
+  "type": "object",
+  "properties": {
+    "prompts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/BuiltInPrompt"
+      }
+    },
+    "version": {
+      "type": "integer",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    }
+  },
+  "required": [
+    "version",
+    "prompts"
+  ],
+  "$defs": {
+    "BuiltInPrompt": {
+      "description": "A prompt the application ships. Built-ins are code, not workspace data: they\nnever enter SQLite, sync, or an archive, so a shipped revision reaches every\ndevice by updating the application.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "inputShape": {
+          "$ref": "#/$defs/PromptInputShape"
+        },
+        "name": {
+          "type": "string"
+        },
+        "parameters": {
+          "$ref": "#/$defs/PromptParameters"
+        },
+        "systemPrompt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "systemPrompt",
+        "inputShape",
+        "parameters"
+      ]
+    },
+    "PromptInputShape": {
+      "description": "The material a prompt expects to be filled with. Prompts are\nprovider-agnostic, so this describes the caller's obligation rather than any\nprovider's message format.",
+      "oneOf": [
+        {
+          "description": "The user prompt carries the current editor selection.",
+          "type": "string",
+          "const": "selection"
+        },
+        {
+          "description": "The user prompt carries the whole note.",
+          "type": "string",
+          "const": "note"
+        },
+        {
+          "description": "The user prompt is whatever the caller types.",
+          "type": "string",
+          "const": "freeform"
+        }
+      ]
+    },
+    "PromptParameters": {
+      "description": "The provider-neutral generation defaults a prompt ships with. They mirror\nthe completion seam's parameters so a prompt can be fired without a second\ntranslation step, and they never carry a provider, model, or credential.",
+      "type": "object",
+      "properties": {
+        "maxOutputBytes": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "temperatureMillis": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        }
+      },
+      "required": [
+        "maxOutputBytes"
+      ]
+    }
+  }
+}
