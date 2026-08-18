@@ -27,19 +27,6 @@ export type ConnectionsSnapshot = {
 	loginMethodCount: number;
 };
 
-export type EmailProviderInfo = {
-	exists: boolean;
-	hasPassword: boolean;
-	providers: string[];
-};
-
-export const DUPLICATE_OAUTH_EMAIL_EVENT = "skriuw:duplicate-oauth-email";
-
-export type DuplicateOAuthEmailDetail = {
-	email: string;
-	provider: string;
-};
-
 /** Returns the provider label for a known id, falling back to the raw id. */
 export function getProviderLabel(providerId: string): string {
 	const known = SUPPORTED_OAUTH_PROVIDERS.find((provider) => provider.id === providerId);
@@ -106,24 +93,4 @@ export async function unlinkProvider(input: {
 		}
 		throw new Error(payload?.error ?? "Could not disconnect this account.");
 	}
-}
-
-/** Looks up whether an email already exists and through which providers. */
-export async function checkEmailProvider(email: string): Promise<EmailProviderInfo> {
-	const res = await fetch("/api/auth/email-provider", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ email }),
-	});
-	const payload = (await res.json().catch(() => null)) as
-		| (EmailProviderInfo & { error?: string })
-		| null;
-	if (!res.ok || !payload) {
-		throw new Error(payload?.error ?? "Could not verify email.");
-	}
-	return {
-		exists: payload.exists,
-		hasPassword: payload.hasPassword,
-		providers: payload.providers ?? [],
-	};
 }
