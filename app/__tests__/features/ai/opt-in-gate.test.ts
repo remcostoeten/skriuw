@@ -43,15 +43,56 @@ test("registration guard does not create disabled AI registrations", () => {
 });
 
 test("AI settings command registers only while enabled", () => {
-  assert.equal(createCommandRegistry(aiSettingsCommands(false, noop)).get("open-ai-settings"), undefined);
+  assert.equal(
+    createCommandRegistry(aiSettingsCommands(false, noop, noop)).get("open-ai-settings"),
+    undefined,
+  );
 
   let opened = 0;
   const registry = createCommandRegistry(
-    aiSettingsCommands(true, () => {
-      opened += 1;
-    }),
+    aiSettingsCommands(
+      true,
+      () => {
+        opened += 1;
+      },
+      noop,
+    ),
   );
   assert.equal(registry.get("open-ai-settings")?.label, "Open AI settings");
   registry.get("open-ai-settings")?.run();
   assert.equal(opened, 1);
+});
+
+test("model switcher command registers alongside AI settings only while enabled", () => {
+  assert.equal(
+    createCommandRegistry(aiSettingsCommands(false, noop, noop)).get("switch-ai-model"),
+    undefined,
+  );
+  assert.deepEqual(aiSettingsCommands(false, noop, noop), []);
+
+  const registry = createCommandRegistry(aiSettingsCommands(true, noop, noop));
+  assert.equal(registry.get("switch-ai-model")?.label, "Switch AI model");
+  assert.equal(registry.get("open-ai-settings")?.label, "Open AI settings");
+});
+
+test("prompt playground command registers only while enabled and hides on its own route", () => {
+  assert.equal(
+    createCommandRegistry(aiSettingsCommands(false, noop, noop)).get("open-prompt-playground"),
+    undefined,
+  );
+
+  let openedPlayground = 0;
+  const registry = createCommandRegistry(
+    aiSettingsCommands(true, noop, () => {
+      openedPlayground += 1;
+    }),
+  );
+  const command = registry.get("open-prompt-playground");
+  assert.equal(command?.label, "Open prompt playground");
+  command?.run();
+  assert.equal(openedPlayground, 1);
+
+  const ui = { route: "prompt-playground", sidebarOpen: true, metadataOpen: true, settingsOpen: false } as const;
+  assert.equal(command?.visible?.(state(true), ui), false);
+  assert.equal(command?.visible?.(state(true), { ...ui, route: "notes" }), true);
 });
