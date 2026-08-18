@@ -4,24 +4,33 @@ use std::sync::Arc;
 
 use skriuw_ai::{AiCompletionChannel, AiCompletionService, FakeAiProvider, FakeCompletionScript};
 use skriuw_ai_ollama::OllamaRuntime;
-use skriuw_ai_remote::RemoteAiProvider;
-use skriuw_domain::{AiComplete, AiCompletionEvent, AiCompletionRequest, AiSinkError};
+use skriuw_ai_remote::{RemoteAiProvider, remote_ai_catalog};
+use skriuw_domain::{
+    AiComplete, AiCompletionEvent, AiCompletionRequest, AiModelPricing, AiRunRecorder, AiSinkError,
+};
 use tauri::ipc::Channel;
 
 use crate::ai_credentials::{AiCredentialStore, REMOTE_PROVIDERS};
+use crate::ai_history::AiHistoryRecorder;
 
 pub(crate) struct LazyAiCompletion {
     service: OnceLock<AiCompletionService>,
     ollama: Arc<OllamaRuntime>,
     credentials: Arc<AiCredentialStore>,
+    history: Arc<AiHistoryRecorder>,
 }
 
 impl LazyAiCompletion {
-    pub(crate) fn new(ollama: Arc<OllamaRuntime>, credentials: Arc<AiCredentialStore>) -> Self {
+    pub(crate) fn new(
+        ollama: Arc<OllamaRuntime>,
+        credentials: Arc<AiCredentialStore>,
+        history: Arc<AiHistoryRecorder>,
+    ) -> Self {
         Self {
             service: OnceLock::new(),
             ollama,
             credentials,
+            history,
         }
     }
 
@@ -49,18 +58,33 @@ impl LazyAiCompletion {
                     }
                 }
             }
-            AiCompletionService::new(providers)
+            let recorder: Arc<dyn AiRunRecorder> = self.history.clone();
+            // Remote cost is priced from the shipped catalogue. A catalogue
+            // that cannot be read leaves runs unpriced rather than guessed.
+            let pricing: Arc<dyn AiModelPricing> = match remote_ai_catalog() {
+                Ok(catalog) => Arc::new(catalog),
+                Err(error) => {
+                    eprintln!("remote model catalogue unavailable for pricing: {error}");
+                    Arc::new(UnpricedModels)
+                }
+            };
+            AiCompletionService::new(providers).recording(recorder, pricing)
         })
     }
 
     pub(crate) fn start(
         &self,
+        origin: String,
         request: AiCompletionRequest,
         channel: Channel<AiCompletionEvent>,
     ) -> Result<(), String> {
         self.service()
-            .start(request, TauriCompletionChannel(channel))
+            .start(origin, request, TauriCompletionChannel(channel))
             .map_err(|error| error.to_string())
+    }
+
+    pub(crate) fn history(&self) -> &Arc<AiHistoryRecorder> {
+        &self.history
     }
 
     pub(crate) fn cancel(&self, request_id: &str) -> bool {
@@ -73,6 +97,14 @@ impl LazyAiCompletion {
         if let Some(service) = self.service.get() {
             service.shutdown();
         }
+    }
+}
+
+struct UnpricedModels;
+
+impl AiModelPricing for UnpricedModels {
+    fn price(&self, _provider_id: &str, _model_id: &str) -> Option<skriuw_domain::AiModelPrice> {
+        None
     }
 }
 
@@ -103,6 +135,14 @@ mod tests {
 
     use super::LazyAiCompletion;
     use crate::ai_credentials::AiCredentialStore;
+    use crate::ai_history::AiHistoryRecorder;
+
+    fn history(directory: &tempfile::TempDir) -> Arc<AiHistoryRecorder> {
+        Arc::new(AiHistoryRecorder::new(
+            &directory.path().join("skriuw.db"),
+            || 0,
+        ))
+    }
 
     #[test]
     fn cancellation_and_shutdown_do_not_initialize_ai() {
@@ -111,7 +151,7 @@ mod tests {
             OllamaRuntime::new(directory.path().to_path_buf(), None).expect("ollama runtime"),
         );
         let credentials = Arc::new(AiCredentialStore::new(directory.path()));
-        let completion = LazyAiCompletion::new(ollama, credentials);
+        let completion = LazyAiCompletion::new(ollama, credentials, history(&directory));
 
         assert!(!completion.cancel("missing"));
         completion.shutdown();
@@ -129,13 +169,21 @@ mod tests {
             OllamaRuntime::new(directory.path().to_path_buf(), None).expect("ollama runtime"),
         );
         let completion =
-            LazyAiCompletion::new(ollama, Arc::new(AiCredentialStore::new(directory.path())));
+            LazyAiCompletion::new(
+                ollama,
+                Arc::new(AiCredentialStore::new(directory.path())),
+                history(&directory),
+            );
 
         for provider_id in ["gemini", "groq"] {
             let events = Arc::new(Mutex::new(Vec::new()));
             completion
                 .service()
-                .start(request(provider_id), RecordingChannel(Arc::clone(&events)))
+                .start(
+                    skriuw_domain::AI_RUN_ORIGIN_PLAYGROUND.to_owned(),
+                    request(provider_id),
+                    RecordingChannel(Arc::clone(&events)),
+                )
                 .expect("start");
 
             let error = await_provider_error(&events);

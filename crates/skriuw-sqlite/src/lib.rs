@@ -18,6 +18,7 @@ use skriuw_storage::{
     PendingHistoryRevision, StorageError, WorkspaceMaintenance, WorkspaceStorage,
 };
 
+mod ai_history;
 mod backup;
 mod error;
 mod migration;

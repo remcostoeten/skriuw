@@ -37,6 +37,7 @@ import { setAiModelSelection } from "@/store/actions/settings";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererStore } from "@/store/types";
 import { DefaultModelPicker } from "./ai-model-picker-ui";
+import { AiUsagePanel } from "./ai-usage-ui";
 
 type Props = {
   store: RendererStore;
@@ -347,6 +348,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
           onRefreshCatalog={remote.refreshCatalog}
         />
       )}
+      <AiUsagePanel signal={signal} />
       {remote.error ? (
         <p role="alert" className="text-xs text-destructive">
           {remote.error}
