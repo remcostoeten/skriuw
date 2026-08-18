@@ -92,6 +92,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "workspace_prompts",
         sql: include_str!("../migrations/0017_workspace_prompts.sql"),
     },
+    Migration {
+        version: 18,
+        name: "ai_run_history",
+        sql: include_str!("../migrations/0018_ai_run_history.sql"),
+    },
 ];
 
 pub(crate) struct Migration {
@@ -337,6 +342,10 @@ mod tests {
             (
                 17,
                 "7b9d76fd971a25795d953398266d0d7c94ed71db831951dc8a75e991b4c8c993",
+            ),
+            (
+                18,
+                "290198b06cf8a02ef4300a7c9599ec696c6b05f0dfdf4c90e22731f569c20725",
             ),
         ];
         assert_eq!(MIGRATIONS.len(), SHIPPED.len(), "append new checksums here");

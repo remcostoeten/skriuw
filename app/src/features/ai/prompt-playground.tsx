@@ -9,7 +9,12 @@ import { cn } from "@/shared/lib/utils";
 import { noop } from "@/shared/lib/noop";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererStore } from "@/store/types";
-import { startAiCompletion, type AiCompletionHandle } from "./completion-bridge";
+import {
+  PLAYGROUND_ORIGIN,
+  startAiCompletion,
+  type AiCompletionHandle,
+} from "./completion-bridge";
+import { takePlaygroundPrefill } from "./playground-prefill";
 import { createAiCompletionConsumer } from "./completion-consumer";
 import { loadOllamaSnapshot } from "./ollama-bridge";
 import { loadRemoteAiSnapshot } from "./remote-ai-bridge";
@@ -68,13 +73,14 @@ function errorMessage(reason: unknown): string {
 }
 
 export function PromptPlaygroundView({ store, signal }: Props) {
-  const [systemPrompt, setSystemPrompt] = useState("");
+  const [prefill] = useState(takePlaygroundPrefill);
+  const [systemPrompt, setSystemPrompt] = useState(prefill?.systemPrompt ?? "");
   const [promptKey, setPromptKey] = useState("");
-  const [userPrompt, setUserPrompt] = useState("");
+  const [userPrompt, setUserPrompt] = useState(prefill?.userPrompt ?? "");
   const [temperatureRaw, setTemperatureRaw] = useState("");
   const [maxBytesRaw, setMaxBytesRaw] = useState("");
   const [inventory, setInventory] = useState<AiModelInventory | null>(null);
-  const [selected, setSelected] = useState<AiModelSelection | null>(null);
+  const [selected, setSelected] = useState<AiModelSelection | null>(prefill?.selection ?? null);
   const [output, setOutput] = useState("");
   const [run, setRun] = useState<PlaygroundRun>({ phase: "idle" });
   const [timing, setTiming] = useState<PlaygroundTiming | null>(null);
@@ -210,7 +216,12 @@ export function PromptPlaygroundView({ store, signal }: Props) {
     });
     consumerRef.current = consumer;
 
-    void startAiCompletion(request, (event) => void consumer.accept(event), signal)
+    void startAiCompletion(
+      request,
+      PLAYGROUND_ORIGIN,
+      (event) => void consumer.accept(event),
+      signal,
+    )
       .then((handle) => {
         if (activeRequestIdRef.current !== request.requestId) {
           handle.dispose();

@@ -9,11 +9,12 @@ use std::{
 use schemars::{JsonSchema, schema_for};
 use serde::Serialize;
 use skriuw_domain::{
-    AiCompletionEvent, AiCompletionRequest, BuiltInPromptLibrary, ContentManifest,
-    CredentialVaultDetection, LocalAiError, LocalAiModel, LocalAiProgress, LocalAiStatus,
-    OperationAck, RemoteAiCatalog, RemoteAiProviderState, SearchHit, SyncPullResponse,
-    SyncPushRequest, SyncPushResponse, SyncRecoveryView, WORKSPACE_OPERATION_SYNC_POLICY_V1,
-    WorkspaceArchive, WorkspaceCheckpoint, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    AiCompletionEvent, AiCompletionRequest, AiHistorySettings, AiHistoryView, AiRunFilter,
+    BuiltInPromptLibrary, ContentManifest, CredentialVaultDetection, LocalAiError, LocalAiModel,
+    LocalAiProgress, LocalAiStatus, OperationAck, RemoteAiCatalog, RemoteAiProviderState,
+    SearchHit, SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView,
+    WORKSPACE_OPERATION_SYNC_POLICY_V1, WorkspaceArchive, WorkspaceCheckpoint,
+    WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 
 fn main() -> ExitCode {
@@ -41,6 +42,9 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     write_schema::<AiCompletionRequest>(&output, "ai-completion-request.schema.json", check)?;
     write_schema::<AiCompletionEvent>(&output, "ai-completion-event.schema.json", check)?;
+    write_schema::<AiHistoryView>(&output, "ai-history-view.schema.json", check)?;
+    write_schema::<AiHistorySettings>(&output, "ai-history-settings.schema.json", check)?;
+    write_schema::<AiRunFilter>(&output, "ai-run-filter.schema.json", check)?;
     write_schema::<LocalAiStatus>(&output, "local-ai-status.schema.json", check)?;
     write_schema::<LocalAiModel>(&output, "local-ai-model.schema.json", check)?;
     write_schema::<LocalAiProgress>(&output, "local-ai-progress.schema.json", check)?;

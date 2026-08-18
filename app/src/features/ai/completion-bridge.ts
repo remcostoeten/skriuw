@@ -8,8 +8,16 @@ export type AiCompletionHandle = {
   dispose: () => void;
 };
 
+/**
+ * The feature that fired this run. It is recorded with the run at the
+ * provider seam, so a new AI surface must pass its own id rather than reuse
+ * the playground's.
+ */
+export const PLAYGROUND_ORIGIN = "playground";
+
 export async function startAiCompletion(
   request: AiCompletionRequest,
+  origin: string,
   onEvent: (event: AiCompletionEvent) => void,
   signal?: AbortSignal,
 ): Promise<AiCompletionHandle> {
@@ -35,7 +43,7 @@ export async function startAiCompletion(
   signal?.addEventListener("abort", abort, { once: true });
 
   try {
-    await invoke<void>("start_ai_completion", { request, onEvent: channel });
+    await invoke<void>("start_ai_completion", { request, origin, onEvent: channel });
     if (signal?.aborted) await cancel();
   } catch (error) {
     signal?.removeEventListener("abort", abort);

@@ -9,6 +9,7 @@ use serde_json::Value;
 use thiserror::Error;
 
 mod ai;
+mod ai_history;
 mod checkpoint;
 mod chunk;
 mod local_ai;
@@ -24,6 +25,14 @@ pub use ai::{
     AiProviderErrorCategory, AiRecoveryAction, AiSinkError, AiUsage, AiValidationError,
     MAX_AI_DELTA_BYTES, MAX_AI_DURATION_MS, MAX_AI_ERROR_MESSAGE_BYTES, MAX_AI_IDENTIFIER_BYTES,
     MAX_AI_PROMPT_BYTES, MAX_AI_RESPONSE_BYTES, MAX_AI_RETRIES, MAX_AI_TOKEN_COUNT,
+};
+pub use ai_history::{
+    AI_RUN_ORIGIN_PLAYGROUND, AI_TOKEN_ESTIMATE_BYTES, AiHistoryRetention, AiHistorySettings,
+    AiHistoryView, AiModelPrice, AiModelPricing, AiRunFilter, AiRunPrompts, AiRunRecord,
+    AiRunRecorder, AiRunState, AiRunTokens, AiTokenSource, AiUsageAggregate,
+    DEFAULT_AI_HISTORY_MAX_AGE_DAYS, DEFAULT_AI_HISTORY_MAX_RUNS, DEFAULT_AI_RUN_PAGE,
+    MAX_AI_HISTORY_MAX_AGE_DAYS, MAX_AI_HISTORY_MAX_RUNS, MAX_AI_RUN_PAGE, ai_run_cost_micros,
+    estimate_ai_tokens,
 };
 pub use checkpoint::{
     CHECKPOINT_CONTENT_MIME_TYPE, CheckpointValidationError, WORKSPACE_CHECKPOINT_VERSION,

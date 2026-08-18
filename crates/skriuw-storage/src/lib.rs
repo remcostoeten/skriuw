@@ -498,6 +498,43 @@ pub trait SyncRecovery: Send + Sync {
     ) -> Result<(), StorageError>;
 }
 
+/// Local-only, diagnostics-class accounting of AI runs. Nothing here takes
+/// part in sync, archives, exports, or backup verification: the rows exist to
+/// let one device answer what it spent and where, and to be erased on demand.
+pub trait AiRunHistory: Send + Sync {
+    fn ai_history_settings(&self) -> Result<skriuw_domain::AiHistorySettings, StorageError>;
+
+    fn set_ai_history_settings(
+        &self,
+        settings: skriuw_domain::AiHistorySettings,
+    ) -> Result<skriuw_domain::AiHistorySettings, StorageError>;
+
+    /// Append one terminalized run and apply retention in the same
+    /// transaction. Prompt text is dropped here when retention is off, so no
+    /// caller can write it past the toggle.
+    fn record_ai_run(
+        &self,
+        record: &skriuw_domain::AiRunRecord,
+        now_ms: i64,
+    ) -> Result<(), StorageError>;
+
+    fn prune_ai_runs(&self, now_ms: i64) -> Result<u32, StorageError>;
+
+    fn list_ai_runs(
+        &self,
+        filter: &skriuw_domain::AiRunFilter,
+    ) -> Result<Vec<skriuw_domain::AiRunRecord>, StorageError>;
+
+    /// Aggregates are derived by query at read time; no total is stored.
+    fn aggregate_ai_usage(
+        &self,
+        since_ms: i64,
+    ) -> Result<Vec<skriuw_domain::AiUsageAggregate>, StorageError>;
+
+    /// Purge every run. Returns the number of rows removed.
+    fn clear_ai_runs(&self) -> Result<u32, StorageError>;
+}
+
 impl<T> WorkspaceStorage for Arc<T>
 where
     T: WorkspaceStorage + ?Sized,
