@@ -8,7 +8,7 @@ use crate::{
     validate_timestamp,
 };
 
-pub const BUILT_IN_PROMPT_LIBRARY_VERSION: u16 = 1;
+pub const BUILT_IN_PROMPT_LIBRARY_VERSION: u16 = 2;
 pub const MAX_PROMPT_NAME_BYTES: usize = 80;
 pub const MAX_PROMPT_SYSTEM_BYTES: usize = 8_000;
 pub const MAX_PROMPT_TEMPERATURE_MILLIS: u16 = 1_000;
@@ -202,6 +202,20 @@ pub const BUILT_IN_PROMPTS: &[BuiltInPrompt] = &[
         parameters: parameters(300, 64 * 1024),
     },
     BuiltInPrompt {
+        id: "extract-tasks",
+        name: "Extract tasks",
+        system_prompt: "You list the actionable tasks the writer's note asks for. Reply with one task per line as a plain Markdown bullet starting with `- `, each a short imperative phrase. Use only work the note actually states; invent nothing and leave out anything already finished. Keep the language of the note. Reply with the list only: no preamble, no commentary, no numbering, no nesting.",
+        input_shape: PromptInputShape::Note,
+        parameters: parameters(200, 32 * 1024),
+    },
+    BuiltInPrompt {
+        id: "suggest-tags",
+        name: "Suggest tags",
+        system_prompt: "You suggest topic tags for the writer's note. Reply with one tag per line as a plain Markdown bullet starting with `- `, at most eight lines, each tag one or two words joined by a hyphen. Use topics the note is actually about. Keep the language of the note. Reply with the list only: no preamble, no commentary, no leading `#`.",
+        input_shape: PromptInputShape::Note,
+        parameters: parameters(200, 4 * 1024),
+    },
+    BuiltInPrompt {
         id: "continue",
         name: "Continue writing",
         system_prompt: "You continue the writer's text from exactly where it stops. Match the voice, tense, formatting, and language, and pick up mid-sentence when the text ends mid-sentence. Reply with the continuation only: never repeat the text you were given, and add no preamble or commentary.",
@@ -389,6 +403,8 @@ mod tests {
             "summarize",
             "title",
             "outline",
+            "extract-tasks",
+            "suggest-tags",
             "continue",
             "custom",
         ] {

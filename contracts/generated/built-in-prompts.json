@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "prompts": [
     {
       "id": "rewrite",
@@ -109,6 +109,26 @@
       "parameters": {
         "temperatureMillis": 300,
         "maxOutputBytes": 65536
+      }
+    },
+    {
+      "id": "extract-tasks",
+      "name": "Extract tasks",
+      "systemPrompt": "You list the actionable tasks the writer's note asks for. Reply with one task per line as a plain Markdown bullet starting with `- `, each a short imperative phrase. Use only work the note actually states; invent nothing and leave out anything already finished. Keep the language of the note. Reply with the list only: no preamble, no commentary, no numbering, no nesting.",
+      "inputShape": "note",
+      "parameters": {
+        "temperatureMillis": 200,
+        "maxOutputBytes": 32768
+      }
+    },
+    {
+      "id": "suggest-tags",
+      "name": "Suggest tags",
+      "systemPrompt": "You suggest topic tags for the writer's note. Reply with one tag per line as a plain Markdown bullet starting with `- `, at most eight lines, each tag one or two words joined by a hyphen. Use topics the note is actually about. Keep the language of the note. Reply with the list only: no preamble, no commentary, no leading `#`.",
+      "inputShape": "note",
+      "parameters": {
+        "temperatureMillis": 200,
+        "maxOutputBytes": 4096
       }
     },
     {
