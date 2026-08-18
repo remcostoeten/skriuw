@@ -87,9 +87,15 @@ import { selectAnimatedIcons, selectShowToasts } from "@/features/settings/secti
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";
 import {
+  AiOptInGate,
   aiSettingsCommands,
   selectAiEnabled,
 } from "@/features/ai/opt-in-gate";
+
+const ModelSwitcherHost = lazy(async () => {
+  const module = await import("@/features/ai/model-switcher");
+  return { default: module.ModelSwitcherHost };
+});
 
 const RAIL_ICONS: Record<RailItem["actionId"], AppIconName> = {
   goToNotes: "notes",
@@ -601,6 +607,16 @@ function WorkspaceShell({ store }: Props) {
       />
       <ToastHost visible={showToasts} />
       <TemplatePickerHost store={store} />
+      <AiOptInGate store={store}>
+        {() => (
+          <Suspense fallback={null}>
+            <ModelSwitcherHost
+              store={store}
+              openAiSettings={() => openSettingsAt("ai")}
+            />
+          </Suspense>
+        )}
+      </AiOptInGate>
       <TransferReportHost />
       <ImportPreviewHost />
       <ImportProgressHost />

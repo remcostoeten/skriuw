@@ -31,7 +31,8 @@ export const SECTIONS = [
     id: "ai",
     label: "AI",
     description: "Providers and writing tools",
-    searchText: "artificial intelligence providers models writing tools prompts",
+    searchText:
+      "artificial intelligence providers models writing tools prompts default model switcher ollama gemini groq local remote",
     icon: StarIcon,
     desktopOnly: true,
   },

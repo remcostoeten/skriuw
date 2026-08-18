@@ -55,3 +55,12 @@ test("AI settings command registers only while enabled", () => {
   registry.get("open-ai-settings")?.run();
   assert.equal(opened, 1);
 });
+
+test("model switcher command registers alongside AI settings only while enabled", () => {
+  assert.equal(createCommandRegistry(aiSettingsCommands(false, noop)).get("switch-ai-model"), undefined);
+  assert.deepEqual(aiSettingsCommands(false, noop), []);
+
+  const registry = createCommandRegistry(aiSettingsCommands(true, noop));
+  assert.equal(registry.get("switch-ai-model")?.label, "Switch AI model");
+  assert.equal(registry.get("open-ai-settings")?.label, "Open AI settings");
+});

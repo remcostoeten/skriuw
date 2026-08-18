@@ -347,7 +347,7 @@ export function SettingsDialog({
             <AiOptInGate store={store}>
               {(signal) => (
                 <Suspense fallback={null}>
-                  <AiSection signal={signal} />
+                  <AiSection store={store} signal={signal} />
                 </Suspense>
               )}
             </AiOptInGate>
