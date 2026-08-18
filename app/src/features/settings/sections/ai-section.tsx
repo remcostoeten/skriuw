@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { openExternalUrl } from "@/bridge/external-links";
 import type { LocalAiModel, LocalAiProgress, LocalAiStatus } from "@/contracts/ai";
 import {
@@ -12,7 +12,14 @@ import {
   stopOllamaRuntime,
 } from "@/features/ai/ollama-bridge";
 import { OLLAMA_INSTALL_SOURCE_URL, ollamaModelSourceUrl } from "@/features/ai/ollama-model";
-import { SettingsHeading, settingsSection } from "./settings-shared";
+import {
+  SettingsHeading,
+  settingsButton,
+  settingsRow,
+  settingsRowDescription,
+  settingsRowLabel,
+  settingsSection,
+} from "./settings-shared";
 import { OllamaModelsPanel, OllamaRuntimeCard } from "./ollama-settings-ui";
 import { RemoteProvidersPanel } from "./remote-ai-settings-ui";
 import { useRemoteAiProviders } from "./use-remote-ai-providers";
@@ -21,12 +28,23 @@ import {
   readSelectedOllamaModel,
   writeSelectedOllamaModel,
 } from "@/features/ai/ollama-selection";
+import { aiModelGroups } from "@/features/ai/model-options";
+import {
+  parseAiModelSelection,
+  selectRawAiModelSetting,
+} from "@/features/ai/model-selection";
+import { setAiModelSelection } from "@/store/actions/settings";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererStore } from "@/store/types";
+import { DefaultModelPicker } from "./ai-model-picker-ui";
 
 type Props = {
+  store: RendererStore;
   signal: AbortSignal;
+  onOpenPlayground: () => void;
 };
 
-export function AiSection({ signal }: Props) {
+export function AiSection({ store, signal, onOpenPlayground }: Props) {
   signal.throwIfAborted();
   const [status, setStatus] = useState<LocalAiStatus | null>(null);
   const [models, setModels] = useState<LocalAiModel[]>([]);
@@ -41,6 +59,21 @@ export function AiSection({ signal }: Props) {
   const operationStartRef = useRef<number | null>(null);
   const [, tick] = useReducer((count: number) => count + 1, 0);
   const remote = useRemoteAiProviders(signal);
+  const rawDefaultModel = useRendererSelector(store, selectRawAiModelSetting);
+  const defaultModel = useMemo(
+    () => parseAiModelSelection(rawDefaultModel),
+    [rawDefaultModel],
+  );
+  const modelGroups = useMemo(
+    () =>
+      aiModelGroups({
+        ollamaStatus: status,
+        ollamaModels: models,
+        remoteProviders: remote.providers,
+        remoteCatalog: remote.catalog,
+      }),
+    [status, models, remote.providers, remote.catalog],
+  );
 
   useEffect(() => {
     if (progress?.type !== "progress") return;
@@ -241,6 +274,22 @@ export function AiSection({ signal }: Props) {
         title="AI"
         detail="Run writing tools locally, or bring your own key for a remote provider."
       />
+      <DefaultModelPicker
+        groups={modelGroups}
+        selection={defaultModel}
+        onSelect={(selection) => setAiModelSelection(store, selection)}
+      />
+      <div className={settingsRow}>
+        <span className={settingsRowLabel}>
+          Prompt playground
+          <span className={settingsRowDescription}>
+            Fire a raw prompt at any provider and watch the streamed result.
+          </span>
+        </span>
+        <button type="button" className={settingsButton} onClick={onOpenPlayground}>
+          Open playground
+        </button>
+      </div>
       <OllamaRuntimeCard
         status={status}
         progress={progress}

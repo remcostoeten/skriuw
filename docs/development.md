@@ -23,6 +23,19 @@ Generated contracts in `contracts/generated` are committed and drift-checked
 in CI. `skriuw-cli` (`cargo run -p skriuw-cli -- <snapshot|integrity|export|backup|restore>`)
 provides database utilities.
 
+### Native AI end-to-end suite
+
+`node app/e2e/run-native-ai.mjs` drives a real Tauri debug build through
+`tauri-driver` and WebKitWebDriver: AI opt-in gating, the Ollama runtime and
+model panels, the prompt playground (including a live mid-stream cancel), and
+the remote-provider credential flows. It needs a complete Ollama release
+(binary plus `lib/ollama` runners) reachable on `PATH`, and it shares the real
+app data directory — park `~/.local/share/dev.skriuw.app/ai-consent.json`
+before a run on a machine that has already granted provider consent, or the
+consent-gating assertions see pre-existing state. Real mid-stream abort is
+also covered at the provider seam by
+`cargo test -p skriuw-ai-ollama cancels_a_real_completion_mid_stream -- --ignored`.
+
 ## Layout
 
 ```text

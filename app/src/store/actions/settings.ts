@@ -7,6 +7,8 @@ import {
   resetShortcutOverrides,
 } from "@/features/settings/settings-model";
 import type { EditableSettings } from "@/features/settings/settings-model";
+import { changeAiModelSelection } from "@/features/ai/model-selection";
+import type { AiModelSelection } from "@/features/ai/model-selection";
 import { SHORTCUT_DEFINITIONS } from "@/commands/definitions";
 import type { ShortcutActionId } from "@/commands/definitions";
 import type { RendererStore } from "@/store/types";
@@ -40,6 +42,18 @@ export function updateSetting<K extends keyof EditableSettings>(
   value: EditableSettings[K],
 ): void {
   updateSettings(store, changeSetting(store.getState().settings, field, value));
+}
+
+export function setAiModelSelection(
+  store: RendererStore,
+  selection: AiModelSelection | null,
+): void {
+  const current = store.getState().settings;
+  const settings = changeAiModelSelection(current, selection);
+  if (settings === current) {
+    return;
+  }
+  updateSettings(store, settings);
 }
 
 export function setShortcutOverride(
