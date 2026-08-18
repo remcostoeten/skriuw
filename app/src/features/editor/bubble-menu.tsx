@@ -8,6 +8,7 @@ import {
   CodeIcon,
   ItalicIcon,
   LinkIcon,
+  StarIcon,
   StrikethroughIcon,
   TextQuoteIcon,
 } from "@/shared/icons/static";
@@ -247,7 +248,7 @@ type BubbleButton = {
   id: string;
   label: string;
   active: boolean;
-  group: "marks" | "highlight" | "alignment" | "blocks";
+  group: "marks" | "highlight" | "alignment" | "blocks" | "ai";
   content: ReactNode;
   command: Command;
   onPress?: () => void;
@@ -257,6 +258,8 @@ type Props = {
   state: BubbleMenuState;
   getView: () => EditorView | null;
   onLink: () => void;
+  /** Null keeps the AI entry out of the toolbar entirely while AI is opted out. */
+  onAskAi: (() => void) | null;
   onDismiss: () => void;
   onCancel: () => void;
   containerRef: RefObject<HTMLDivElement | null>;
@@ -266,6 +269,7 @@ export function BubbleMenu({
   state,
   getView,
   onLink,
+  onAskAi,
   onDismiss,
   onCancel,
   containerRef,
@@ -360,6 +364,19 @@ export function BubbleMenu({
       content: <TextQuoteIcon size={14} />,
       command: toggleBlockquote(state.blockquote),
     },
+    ...(onAskAi === null
+      ? []
+      : [
+        {
+          id: "ask-ai",
+          label: "Ask AI",
+          active: false,
+          group: "ai" as const,
+          content: <StarIcon size={14} />,
+          command: (() => true) as Command,
+          onPress: onAskAi,
+        },
+      ]),
   ];
   function moveFocus(next: number): void {
     const wrapped = (next + buttons.length) % buttons.length;
@@ -402,11 +419,13 @@ export function BubbleMenu({
           event.preventDefault();
           moveFocus(focusIndex + (event.shiftKey ? -1 : 1));
         } else if (event.key === "ArrowRight") {
+          // 60% keyboards have no Home or End, so shift+arrow jumps to either
+          // end of the toolbar; Home and End still work where they exist.
           event.preventDefault();
-          moveFocus(focusIndex + 1);
+          moveFocus(event.shiftKey ? buttons.length - 1 : focusIndex + 1);
         } else if (event.key === "ArrowLeft") {
           event.preventDefault();
-          moveFocus(focusIndex - 1);
+          moveFocus(event.shiftKey ? 0 : focusIndex - 1);
         } else if (event.key === "Home") {
           event.preventDefault();
           moveFocus(0);

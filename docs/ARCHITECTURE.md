@@ -109,6 +109,12 @@ settings surface opens or an explicit AI action runs. Existing system services
 remain externally owned; shutdown stops only a child Skriuw started. See the
 [Ollama runtime contract](specs/ollama-runtime.md).
 
+Editor AI actions are the only completion feature that writes near canonical
+documents. They stream into a preview buffer, never the document, accept as one
+editor transaction, and apply extraction results through the ordinary task and
+reference operations after explicit confirmation. See the
+[AI editor actions contract](specs/ai-editor-actions.md).
+
 ### History
 
 History is a separate capability. `skriuw-history` coordinates leased queue items through backend-neutral materializer, reader, and cache ports. Desktop uses the native-only `skriuw-history-git` adapter to materialize Markdown into a hidden Git repository. Its separate read-only reader checks only `refs/heads/history`: reachable commits must form one linear chain with unique valid identities, complete metadata, and readable UTF-8 note blobs. Cache rebuild validates and enumerates all headers before one transactional SQLite replacement; version Markdown loads only when opened. Web may retain structured revisions locally or use remote history. SQLite remains authoritative. History failures cannot prevent saves. Persisted leases make retries crash-safe. Failed materialization receives durable exponential backoff capped at six hours, so one poison revision cannot starve later eligible history work. Materializers must be idempotent by outbox item ID. Integrity and rebuild run only when explicitly requested, never during startup or interaction paths.

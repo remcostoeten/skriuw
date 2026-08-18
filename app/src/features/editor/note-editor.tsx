@@ -1,4 +1,14 @@
-import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -126,6 +136,11 @@ import {
   closedBubbleMenu,
   computeBubbleMenu,
 } from "./bubble-menu";
+import { AiOptInGate, selectAiEnabled } from "@/features/ai/opt-in-gate";
+import {
+  clearPendingAiAction,
+  requestAiAction,
+} from "@/features/ai/editor-action-controller";
 import {
   closedLinkMenu,
   LinkMenu,
@@ -359,6 +374,11 @@ function fullDocumentHtml(document: ProseMirrorNode): string {
   return container.innerHTML;
 }
 
+const AiEditorActionHost = lazy(async () => {
+  const module = await import("@/features/ai/editor-action-host");
+  return { default: module.AiEditorActionHost };
+});
+
 export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [shortcutHost, setShortcutHost] = useState<HTMLDivElement | null>(null);
@@ -409,6 +429,15 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   bubbleMenuRef.current = bubbleMenu;
   const bubbleMenuHostRef = useRef<HTMLDivElement>(null);
   const bubbleDismissedRef = useRef<{ from: number; to: number } | null>(null);
+  const aiEnabled = useRendererSelector(store, selectAiEnabled);
+  const getActiveView = useCallback(() => viewRef.current, []);
+  const getActiveNoteId = useCallback(() => activeIdRef.current, []);
+  const askAi = useCallback(() => requestAiAction(null), []);
+  // A palette request queued before the gated host chunk arrives would
+  // otherwise survive an opt-out and replay when AI is switched back on.
+  useEffect(() => {
+    if (!aiEnabled) clearPendingAiAction();
+  }, [aiEnabled]);
   const [linkMenu, setLinkMenu] = useState(closedLinkMenu);
   const linkMenuRef = useRef(linkMenu);
   linkMenuRef.current = linkMenu;
@@ -1631,10 +1660,23 @@ const closeJumpToLine = useCallback(() => {
         }}
       />
       {activeNoteId === null && <div className="editor-empty">Select a note</div>}
+      <AiOptInGate store={store}>
+        {(signal) => (
+          <Suspense fallback={null}>
+            <AiEditorActionHost
+              store={store}
+              signal={signal}
+              getView={getActiveView}
+              getNoteId={getActiveNoteId}
+            />
+          </Suspense>
+        )}
+      </AiOptInGate>
       <BubbleMenu
         state={bubbleMenu}
         getView={() => viewRef.current}
         onLink={openLinkEditor}
+        onAskAi={aiEnabled ? askAi : null}
         onDismiss={() => setBubbleMenu(closedBubbleMenu)}
         onCancel={() => {
           const view = viewRef.current;
