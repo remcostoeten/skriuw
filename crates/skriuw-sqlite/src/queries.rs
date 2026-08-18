@@ -3,10 +3,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use rusqlite::{Connection, OptionalExtension, Transaction};
 use skriuw_domain::{
     HistoryHeader, NodeKind, NoteProperty, NotePropertyField, NotePropertyOption,
-    NotePropertyTemplate, ProviderImportReceipt, TaskPriority, TaskSource, TaskStatus,
-    VersionedNotePropertyValue, WORKSPACE_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceDocument,
-    WorkspaceImage, WorkspaceNode, WorkspacePerson, WorkspaceSettings, WorkspaceSnapshot,
-    WorkspaceTag, WorkspaceTask,
+    NotePropertyTemplate, PromptInputShape, PromptParameters, ProviderImportReceipt, TaskPriority,
+    TaskSource, TaskStatus, VersionedNotePropertyValue, WORKSPACE_PROTOCOL_VERSION,
+    WorkspaceArchive, WorkspaceDocument, WorkspaceImage, WorkspaceNode, WorkspacePerson,
+    WorkspacePrompt, WorkspaceSettings, WorkspaceSnapshot, WorkspaceTag, WorkspaceTask,
 };
 use skriuw_storage::StorageError;
 
@@ -28,6 +28,7 @@ pub(crate) fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot
         properties: read_properties(connection)?,
         property_templates: read_property_templates(connection)?,
         tasks: read_tasks(connection)?,
+        prompts: read_prompts(connection)?,
         import_receipts: read_import_receipts(connection)?,
     };
     skriuw_domain::validate_workspace_properties(
@@ -43,6 +44,8 @@ pub(crate) fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot
         &snapshot.tags,
         &snapshot.people,
     )?;
+    skriuw_domain::validate_workspace_prompts(&snapshot.prompts)
+        .map_err(|error| StorageError::Backend(error.to_string()))?;
     Ok(snapshot)
 }
 
@@ -153,6 +156,44 @@ pub(crate) fn read_task(
     id: &str,
 ) -> Result<Option<WorkspaceTask>, StorageError> {
     Ok(read_tasks_where(connection, "id = ?1", &[&id])?.pop())
+}
+
+const PROMPT_COLUMNS: &str = "id, name, system_prompt, input_shape, temperature_millis, \
+     max_output_bytes, built_in_id, created_at, updated_at";
+
+fn prompt_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspacePrompt> {
+    Ok(WorkspacePrompt {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        system_prompt: row.get(2)?,
+        input_shape: PromptInputShape::parse(&row.get::<_, String>(3)?).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(
+                3,
+                rusqlite::types::Type::Text,
+                Box::new(error),
+            )
+        })?,
+        parameters: PromptParameters {
+            temperature_millis: row.get(4)?,
+            max_output_bytes: row.get(5)?,
+        },
+        built_in_id: row.get(6)?,
+        created_at: row.get(7)?,
+        updated_at: row.get(8)?,
+    })
+}
+
+pub(crate) fn read_prompts(connection: &Connection) -> Result<Vec<WorkspacePrompt>, StorageError> {
+    let mut statement = connection
+        .prepare(&format!(
+            "SELECT {PROMPT_COLUMNS} FROM workspace_prompts ORDER BY created_at, id"
+        ))
+        .map_err(backend)?;
+    statement
+        .query_map([], prompt_from_row)
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
 }
 
 pub(crate) fn read_properties(connection: &Connection) -> Result<Vec<NoteProperty>, StorageError> {
@@ -640,6 +681,7 @@ pub(crate) fn read_archive(
         properties: read_properties(connection)?,
         property_templates: read_property_templates(connection)?,
         tasks: read_tasks(connection)?,
+        prompts: read_prompts(connection)?,
     })
 }
 

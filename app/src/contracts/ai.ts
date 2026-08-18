@@ -146,3 +146,67 @@ export type RemoteAiCatalog = {
   pricingAsOf: string;
   models: RemoteAiModel[];
 };
+
+export type AiRunState = "done" | "cancelled" | "timed_out" | "failed";
+
+export type AiTokenSource = "provider" | "estimated";
+
+export type AiRunTokens = {
+  inputTokens: number;
+  outputTokens: number;
+  source: AiTokenSource;
+};
+
+export type AiRunPrompts = {
+  systemPrompt: string;
+  userPrompt: string;
+};
+
+export type AiRunRecord = {
+  runId: string;
+  startedAtMs: number;
+  origin: string;
+  providerId: string;
+  modelId: string;
+  prompts?: AiRunPrompts | null;
+  state: AiRunState;
+  errorCategory?: AiProviderErrorCategory | null;
+  durationMs: number;
+  tokens: AiRunTokens;
+  costMicros?: number | null;
+};
+
+export type AiHistoryRetention = {
+  maxRuns: number;
+  maxAgeDays: number;
+};
+
+export type AiHistorySettings = {
+  retainPrompts: boolean;
+  retention: AiHistoryRetention;
+};
+
+export type AiRunFilter = {
+  providerId?: string | null;
+  modelId?: string | null;
+  state?: AiRunState | null;
+  limit?: number | null;
+};
+
+export type AiUsageAggregate = {
+  day: string;
+  providerId: string;
+  modelId: string;
+  runs: number;
+  inputTokens: number;
+  outputTokens: number;
+  costMicros: number;
+  estimated: boolean;
+};
+
+export type AiHistoryView = {
+  settings: AiHistorySettings;
+  pricingAsOf?: string | null;
+  aggregates: AiUsageAggregate[];
+  runs: AiRunRecord[];
+};

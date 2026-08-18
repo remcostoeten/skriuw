@@ -18,6 +18,7 @@ use skriuw_storage::{
     PendingHistoryRevision, StorageError, WorkspaceMaintenance, WorkspaceStorage,
 };
 
+mod ai_history;
 mod backup;
 mod error;
 mod migration;
@@ -677,6 +678,7 @@ impl SqliteWorkspace {
                  DELETE FROM note_images;\
                  DELETE FROM note_properties;\
                  DELETE FROM note_property_templates;\
+                 DELETE FROM workspace_prompts;\
                  DELETE FROM workspace_tasks;\
                  DELETE FROM workspace_tags;\
                  DELETE FROM workspace_people;\
@@ -842,6 +844,27 @@ impl SqliteWorkspace {
                         task.detached_at,
                         task.created_at,
                         task.updated_at
+                    ],
+                )
+                .map_err(backend)?;
+        }
+        for prompt in &archive.prompts {
+            transaction
+                .execute(
+                    "INSERT INTO workspace_prompts \
+                     (id, name, system_prompt, input_shape, temperature_millis, \
+                      max_output_bytes, built_in_id, created_at, updated_at) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    params![
+                        prompt.id,
+                        prompt.name,
+                        prompt.system_prompt,
+                        prompt.input_shape.as_str(),
+                        prompt.parameters.temperature_millis,
+                        prompt.parameters.max_output_bytes,
+                        prompt.built_in_id,
+                        prompt.created_at,
+                        prompt.updated_at
                     ],
                 )
                 .map_err(backend)?;

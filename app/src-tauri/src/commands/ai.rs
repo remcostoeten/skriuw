@@ -2,21 +2,76 @@ use std::sync::Arc;
 
 use skriuw_ai_remote::{RemoteAiProvider, RemoteProviderKind, remote_ai_catalog};
 use skriuw_domain::{
-    AiCompletionEvent, AiCompletionRequest, AiProviderError, AiProviderErrorCategory,
-    AiRecoveryAction, CredentialVaultDetection, LocalAiError, LocalAiModel, LocalAiProgress,
-    LocalAiStatus, RemoteAiCatalog, RemoteAiKeyTier, RemoteAiProviderState,
+    AI_RUN_ORIGIN_PLAYGROUND, AiCompletionEvent, AiCompletionRequest, AiHistorySettings,
+    AiHistoryView, AiProviderError, AiProviderErrorCategory, AiRecoveryAction, AiRunFilter,
+    CredentialVaultDetection, LocalAiError, LocalAiModel, LocalAiProgress, LocalAiStatus,
+    MAX_AI_IDENTIFIER_BYTES, RemoteAiCatalog, RemoteAiKeyTier, RemoteAiProviderState,
 };
 use tauri::{State, ipc::Channel};
 
 use crate::state::AppState;
 
+/// `origin` is the feature that fired the request — the prompt playground
+/// today, an editor action id later. It is validated here so renderer text
+/// cannot become a synthetic origin in the local history.
 #[tauri::command]
 pub fn start_ai_completion(
     request: AiCompletionRequest,
+    origin: Option<String>,
     on_event: Channel<AiCompletionEvent>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    state.ai.start(request, on_event)
+    let origin = origin.unwrap_or_else(|| AI_RUN_ORIGIN_PLAYGROUND.to_owned());
+    if origin.is_empty()
+        || origin.len() > MAX_AI_IDENTIFIER_BYTES
+        || !origin.bytes().all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':' | b'/')
+        })
+    {
+        return Err("AI request origin is not a usable identifier".to_owned());
+    }
+    state.ai.start(origin, request, on_event)
+}
+
+#[tauri::command]
+pub async fn ai_run_history(
+    filter: Option<AiRunFilter>,
+    since_ms: i64,
+    state: State<'_, AppState>,
+) -> Result<AiHistoryView, String> {
+    let history = Arc::clone(state.ai.history());
+    let filter = filter.unwrap_or_default();
+    let pricing_as_of = remote_ai_catalog().ok().map(|catalog| catalog.pricing_as_of);
+    tauri::async_runtime::spawn_blocking(move || history.view(&filter, since_ms, pricing_as_of))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn ai_history_settings(state: State<'_, AppState>) -> Result<AiHistorySettings, String> {
+    let history = Arc::clone(state.ai.history());
+    tauri::async_runtime::spawn_blocking(move || history.settings())
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn set_ai_history_settings(
+    settings: AiHistorySettings,
+    state: State<'_, AppState>,
+) -> Result<AiHistorySettings, String> {
+    let history = Arc::clone(state.ai.history());
+    tauri::async_runtime::spawn_blocking(move || history.set_settings(settings))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn clear_ai_run_history(state: State<'_, AppState>) -> Result<u32, String> {
+    let history = Arc::clone(state.ai.history());
+    tauri::async_runtime::spawn_blocking(move || history.clear())
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]

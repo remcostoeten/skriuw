@@ -33,10 +33,24 @@ import {
   parseAiModelSelection,
   selectRawAiModelSetting,
 } from "@/features/ai/model-selection";
+import {
+  duplicatePromptDraft,
+  newPromptDraft,
+  promptDraftError,
+  promptDraftFrom,
+  promptFromDraft,
+  promptLibraryEntries,
+  selectWorkspacePrompts,
+  type PromptDraft,
+  type PromptLibraryEntry,
+} from "@/features/ai/prompt-library";
+import { deletePrompt, savePrompt } from "@/store/actions/prompts";
 import { setAiModelSelection } from "@/store/actions/settings";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererStore } from "@/store/types";
 import { DefaultModelPicker } from "./ai-model-picker-ui";
+import { PromptLibraryPanel } from "./prompt-library-ui";
+import { AiUsagePanel } from "./ai-usage-ui";
 
 type Props = {
   store: RendererStore;
@@ -59,6 +73,10 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
   const operationStartRef = useRef<number | null>(null);
   const [, tick] = useReducer((count: number) => count + 1, 0);
   const remote = useRemoteAiProviders(signal);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [draft, setDraft] = useState<PromptDraft | null>(null);
+  const prompts = useRendererSelector(store, selectWorkspacePrompts);
+  const promptEntries = useMemo(() => promptLibraryEntries(prompts), [prompts]);
   const rawDefaultModel = useRendererSelector(store, selectRawAiModelSetting);
   const defaultModel = useMemo(
     () => parseAiModelSelection(rawDefaultModel),
@@ -268,6 +286,45 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
     setSelectedModel(model);
   }
 
+  function editPrompt(entry: PromptLibraryEntry): void {
+    setEditingKey(entry.key);
+    setDraft(promptDraftFrom(entry, crypto.randomUUID(), Date.now()));
+  }
+
+  function duplicatePrompt(entry: PromptLibraryEntry): void {
+    setEditingKey("new");
+    setDraft(duplicatePromptDraft(entry, crypto.randomUUID(), Date.now()));
+  }
+
+  function createPrompt(): void {
+    setEditingKey("new");
+    setDraft(newPromptDraft(crypto.randomUUID(), Date.now()));
+  }
+
+  function closeEditor(): void {
+    setEditingKey(null);
+    setDraft(null);
+  }
+
+  function savePromptDraft(): void {
+    if (draft === null || promptDraftError(draft) !== null) {
+      return;
+    }
+    savePrompt(store, promptFromDraft(draft, Date.now()));
+    closeEditor();
+  }
+
+  function removePrompt(entry: PromptLibraryEntry): void {
+    const stored = entry.promptId === null ? undefined : prompts.get(entry.promptId);
+    if (stored === undefined) {
+      return;
+    }
+    if (editingKey === entry.key) {
+      closeEditor();
+    }
+    deletePrompt(store, stored);
+  }
+
   return (
     <section aria-label="AI settings" className={settingsSection}>
       <SettingsHeading
@@ -290,6 +347,21 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
           Open playground
         </button>
       </div>
+      <PromptLibraryPanel
+        entries={promptEntries}
+        draft={draft}
+        editingKey={editingKey}
+        onEdit={editPrompt}
+        onDraftChange={(change) =>
+          setDraft((current) => (current === null ? current : { ...current, ...change }))
+        }
+        onSave={savePromptDraft}
+        onCancel={closeEditor}
+        onDuplicate={duplicatePrompt}
+        onReset={removePrompt}
+        onDelete={removePrompt}
+        onCreate={createPrompt}
+      />
       <OllamaRuntimeCard
         status={status}
         progress={progress}
@@ -347,6 +419,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
           onRefreshCatalog={remote.refreshCatalog}
         />
       )}
+      <AiUsagePanel signal={signal} />
       {remote.error ? (
         <p role="alert" className="text-xs text-destructive">
           {remote.error}

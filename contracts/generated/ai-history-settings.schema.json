@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AiHistorySettings",
+  "type": "object",
+  "properties": {
+    "retainPrompts": {
+      "type": "boolean"
+    },
+    "retention": {
+      "$ref": "#/$defs/AiHistoryRetention"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "retainPrompts",
+    "retention"
+  ],
+  "$defs": {
+    "AiHistoryRetention": {
+      "type": "object",
+      "properties": {
+        "maxAgeDays": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "maxRuns": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "maxRuns",
+        "maxAgeDays"
+      ]
+    }
+  }
+}

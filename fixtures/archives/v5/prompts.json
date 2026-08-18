@@ -1,0 +1,76 @@
+{
+  "archiveVersion": 5,
+  "protocolVersion": 1,
+  "exportedAt": 1755000000000,
+  "activeNoteId": "note-draft",
+  "nodes": [
+    {
+      "id": "note-draft",
+      "kind": "note",
+      "parentId": null,
+      "rank": 1024,
+      "title": "Draft",
+      "icon": null,
+      "createdAt": 1755000000000,
+      "updatedAt": 1755000000000,
+      "deletedAt": null,
+      "pinnedAt": null
+    }
+  ],
+  "documents": [
+    {
+      "noteId": "note-draft",
+      "documentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "A paragraph worth rewriting."
+              }
+            ]
+          }
+        ]
+      },
+      "markdown": "A paragraph worth rewriting.",
+      "revision": 1,
+      "wordCount": 4
+    }
+  ],
+  "settings": {},
+  "tags": [],
+  "people": [],
+  "properties": [],
+  "propertyTemplates": [],
+  "tasks": [],
+  "prompts": [
+    {
+      "id": "prompt-shadow-rewrite",
+      "name": "Rewrite",
+      "systemPrompt": "Rewrite the text in my own house style. Reply with the rewritten text only.",
+      "inputShape": "selection",
+      "parameters": {
+        "temperatureMillis": 450,
+        "maxOutputBytes": 65536
+      },
+      "builtInId": "rewrite",
+      "createdAt": 1755000001000,
+      "updatedAt": 1755000002000
+    },
+    {
+      "id": "prompt-standup",
+      "name": "Standup summary",
+      "systemPrompt": "Turn the note into three bullets: done, next, blocked. Reply with the bullets only.",
+      "inputShape": "note",
+      "parameters": {
+        "temperatureMillis": null,
+        "maxOutputBytes": 8192
+      },
+      "builtInId": null,
+      "createdAt": 1755000003000,
+      "updatedAt": 1755000003000
+    }
+  ]
+}

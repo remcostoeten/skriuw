@@ -1,5 +1,6 @@
 mod ai;
 mod ai_credentials;
+mod ai_history;
 mod auth;
 mod commands;
 mod maintenance;
@@ -115,7 +116,11 @@ pub fn run() {
                 })
             }));
             app.manage(AppState {
-                ai: ai::LazyAiCompletion::new(ollama_runtime, Arc::clone(&ai_credentials)),
+                ai: ai::LazyAiCompletion::new(
+                    ollama_runtime,
+                    Arc::clone(&ai_credentials),
+                    Arc::new(ai_history::AiHistoryRecorder::new(&path, now_millis)),
+                ),
                 ai_credentials,
                 ollama,
                 maintenance,
@@ -157,6 +162,10 @@ pub fn run() {
             commands::ai::accept_remote_ai_disclosure,
             commands::ai::revoke_remote_ai_provider,
             commands::ai::verify_remote_ai_key,
+            commands::ai::ai_run_history,
+            commands::ai::ai_history_settings,
+            commands::ai::set_ai_history_settings,
+            commands::ai::clear_ai_run_history,
             auth::load_auth_token,
             auth::store_auth_token,
             auth::clear_auth_token,

@@ -91,6 +91,7 @@ import {
   aiSettingsCommands,
   selectAiEnabled,
 } from "@/features/ai/opt-in-gate";
+import { aiEditorActionCommands } from "@/features/ai/editor-action-controller";
 
 const ModelSwitcherHost = lazy(async () => {
   const module = await import("@/features/ai/model-switcher");
@@ -280,6 +281,7 @@ function WorkspaceShell({ store }: Props) {
               window.location.hash = appRouteHash("prompt-playground");
             },
           ),
+          ...aiEditorActionCommands(aiEnabled),
         ],
       ),
     [aiEnabled, openSettingsAt, openSignIn, store, toggleMetadata, toggleSidebar],

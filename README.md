@@ -35,6 +35,8 @@ browser** at [skriuw.com/app](https://skriuw.com/app).
 - Automatic Git history and verified backups, in the background
 - Imports from Obsidian, Notion, Bear, Apple Notes, and plain Markdown
 - Keyboard-first, fast at thousands of notes, sync strictly opt-in
+- Optional AI writing tools: invisible until enabled, local-first via Ollama,
+  or bring your own Gemini/Groq key
 
 Everything else (journal, tabs, split view, flowcharts, properties, trash)
 is in [FEATURES.md](docs/FEATURES.md).
@@ -109,6 +111,12 @@ local SQLite, and the browser app keeps them in your browser's own storage.
 A fresh install performs no network requests, and there is no analytics or
 telemetry of any kind. The only network code in the app is the sync Worker,
 which runs only while you are signed in, and the updater's version check.
+
+The AI features follow the same rule. They are **off and invisible until you
+enable them in settings**, and default to a local Ollama model, so prompts
+never leave your machine. Remote providers (Gemini, Groq) run only with your
+own API key — stored in the OS keychain, never in the database or exports —
+and only after a per-provider consent that shows exactly what text is sent.
 
 Sync is encrypted in transit but not yet end-to-end
 ([details](docs/specs/cloud-sync-master.md)), so the server can read what it

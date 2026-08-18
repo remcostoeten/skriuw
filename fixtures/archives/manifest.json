@@ -1,5 +1,5 @@
 {
-  "supportedArchiveVersions": [1, 2, 3, 4],
+  "supportedArchiveVersions": [1, 2, 3, 4, 5],
   "fixtures": [
     {
       "archiveVersion": 1,
@@ -20,6 +20,10 @@
     {
       "archiveVersion": 4,
       "file": "v4/tasks.json"
+    },
+    {
+      "archiveVersion": 5,
+      "file": "v5/prompts.json"
     }
   ]
 }

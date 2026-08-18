@@ -1,0 +1,267 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AiHistoryView",
+  "type": "object",
+  "properties": {
+    "aggregates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/AiUsageAggregate"
+      }
+    },
+    "pricingAsOf": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/AiRunRecord"
+      }
+    },
+    "settings": {
+      "$ref": "#/$defs/AiHistorySettings"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "settings",
+    "aggregates",
+    "runs"
+  ],
+  "$defs": {
+    "AiHistoryRetention": {
+      "type": "object",
+      "properties": {
+        "maxAgeDays": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "maxRuns": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "maxRuns",
+        "maxAgeDays"
+      ]
+    },
+    "AiHistorySettings": {
+      "type": "object",
+      "properties": {
+        "retainPrompts": {
+          "type": "boolean"
+        },
+        "retention": {
+          "$ref": "#/$defs/AiHistoryRetention"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "retainPrompts",
+        "retention"
+      ]
+    },
+    "AiProviderErrorCategory": {
+      "type": "string",
+      "enum": [
+        "unavailable_provider",
+        "missing_credential",
+        "invalid_credential",
+        "quota_exhausted",
+        "rate_limited",
+        "rejected_request",
+        "transport_failure",
+        "malformed_response",
+        "internal_failure"
+      ]
+    },
+    "AiRunPrompts": {
+      "description": "The prompt text of one run. Absent when prompt retention is off, which is\nthe only difference between full and metadata-only history.",
+      "type": "object",
+      "properties": {
+        "systemPrompt": {
+          "type": "string"
+        },
+        "userPrompt": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "systemPrompt",
+        "userPrompt"
+      ]
+    },
+    "AiRunRecord": {
+      "type": "object",
+      "properties": {
+        "costMicros": {
+          "description": "Micro-dollars computed from the shipped catalog when the run reached a\npriced remote model. Local providers cost nothing and carry `None`.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "durationMs": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "errorCategory": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AiProviderErrorCategory"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "modelId": {
+          "type": "string"
+        },
+        "origin": {
+          "type": "string"
+        },
+        "prompts": {
+          "description": "`None` means the prompt was never retained, not that it was empty.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AiRunPrompts"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "runId": {
+          "type": "string"
+        },
+        "startedAtMs": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "state": {
+          "$ref": "#/$defs/AiRunState"
+        },
+        "tokens": {
+          "$ref": "#/$defs/AiRunTokens"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "runId",
+        "startedAtMs",
+        "origin",
+        "providerId",
+        "modelId",
+        "state",
+        "durationMs",
+        "tokens"
+      ]
+    },
+    "AiRunState": {
+      "type": "string",
+      "enum": [
+        "done",
+        "cancelled",
+        "timed_out",
+        "failed"
+      ]
+    },
+    "AiRunTokens": {
+      "type": "object",
+      "properties": {
+        "inputTokens": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "outputTokens": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "source": {
+          "$ref": "#/$defs/AiTokenSource"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "inputTokens",
+        "outputTokens",
+        "source"
+      ]
+    },
+    "AiTokenSource": {
+      "description": "Whether the token counts on a run came from the provider or from Skriuw's\nbyte heuristic. Nothing may present an estimate as an exact count.",
+      "type": "string",
+      "enum": [
+        "provider",
+        "estimated"
+      ]
+    },
+    "AiUsageAggregate": {
+      "description": "One derived bucket of usage. Aggregates are produced by query at read time;\nnothing stores a running total that could drift from the run rows.",
+      "type": "object",
+      "properties": {
+        "costMicros": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "day": {
+          "type": "string"
+        },
+        "estimated": {
+          "description": "True when any run in the bucket carried estimated counts, so the\nsurface must label the whole figure as approximate.",
+          "type": "boolean"
+        },
+        "inputTokens": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "modelId": {
+          "type": "string"
+        },
+        "outputTokens": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "runs": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "day",
+        "providerId",
+        "modelId",
+        "runs",
+        "inputTokens",
+        "outputTokens",
+        "costMicros",
+        "estimated"
+      ]
+    }
+  }
+}

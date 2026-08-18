@@ -159,6 +159,7 @@ mod tests {
             properties: Vec::new(),
             property_templates: Vec::new(),
             tasks: Vec::new(),
+            prompts: Vec::new(),
         }
     }
 

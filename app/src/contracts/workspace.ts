@@ -144,6 +144,24 @@ export type TaskSourceDocument = {
   expectedRevision: number;
 };
 
+export type PromptInputShape = "selection" | "note" | "freeform";
+
+export type PromptParameters = {
+  temperatureMillis: number | null;
+  maxOutputBytes: number;
+};
+
+export type WorkspacePrompt = {
+  id: string;
+  name: string;
+  systemPrompt: string;
+  inputShape: PromptInputShape;
+  parameters: PromptParameters;
+  builtInId: string | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export type WorkspaceSnapshot = {
   protocolVersion: number;
   activeNoteId: string | null;
@@ -174,6 +192,7 @@ export type WorkspaceSnapshot = {
   properties?: NoteProperty[];
   propertyTemplates?: NotePropertyTemplate[];
   tasks?: WorkspaceTask[];
+  prompts?: WorkspacePrompt[];
   importReceipts?: ProviderImportReceipt[];
 };
 
@@ -198,6 +217,7 @@ export type WorkspaceArchive = {
   properties?: NoteProperty[];
   propertyTemplates?: NotePropertyTemplate[];
   tasks?: WorkspaceTask[];
+  prompts?: WorkspacePrompt[];
 };
 
 export type NodePosition =
@@ -307,7 +327,9 @@ export type WorkspaceOperation =
   | { type: "update_task"; task: WorkspaceTask; document: TaskSourceDocument | null }
   | { type: "delete_task"; id: string; document: TaskSourceDocument | null; at: number }
   | { type: "detach_task"; id: string; document: TaskSourceDocument | null; at: number }
-  | { type: "promote_checklist_task"; task: WorkspaceTask; document: TaskSourceDocument };
+  | { type: "promote_checklist_task"; task: WorkspaceTask; document: TaskSourceDocument }
+  | { type: "set_prompt"; prompt: WorkspacePrompt }
+  | { type: "delete_prompt"; id: string };
 
 export type WorkspaceOperationEnvelope = {
   protocolVersion: number;
