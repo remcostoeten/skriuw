@@ -149,19 +149,21 @@ export function TrashView({ store }: Props) {
         title="Empty the trash?"
         className="w-[min(420px,calc(100vw-32px))]"
       >
-        <p className="mb-2 text-xs leading-normal text-[hsl(var(--theme-text-secondary))]">
-          {`This permanently deletes ${emptyIds?.length ?? 0} ${emptyIds?.length === 1 ? "item" : "items"}.`}
-        </p>
-        <p className="mb-2 text-xs leading-normal text-[hsl(var(--theme-text-secondary))]">
-          This action cannot be undone.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="default" onClick={() => setEmptyIds(null)}>
-            Keep them
-          </Button>
-          <Button variant="dangerFilled" onClick={confirmEmpty}>
-            Delete everything
-          </Button>
+        <div className="flex flex-col gap-2 px-4 py-3.5">
+          <p className="text-xs leading-normal text-[hsl(var(--theme-text-secondary))]">
+            {`This permanently deletes ${emptyIds?.length ?? 0} ${emptyIds?.length === 1 ? "item" : "items"}.`}
+          </p>
+          <p className="text-xs leading-normal text-[hsl(var(--theme-text-secondary))]">
+            This action cannot be undone.
+          </p>
+          <div className="mt-3 flex justify-end gap-2">
+            <Button variant="default" onClick={() => setEmptyIds(null)}>
+              Keep them
+            </Button>
+            <Button variant="dangerFilled" onClick={confirmEmpty}>
+              Delete everything
+            </Button>
+          </div>
         </div>
       </Dialog>
     </main>
