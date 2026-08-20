@@ -1,6 +1,7 @@
 export type AuthEnv = Env & {
   AUTH_DB: D1Database;
   AUTH_TRUSTED_ORIGINS: string;
+  BETTER_AUTH_API_KEY?: string;
   BETTER_AUTH_SECRET?: string;
   BETTER_AUTH_URL: string;
 };
@@ -71,8 +72,29 @@ export async function createAuth(env: AuthEnv) {
     emailAndPassword: { enabled: true },
     secret: env.BETTER_AUTH_SECRET,
     trustedOrigins: configuredOrigins(env.AUTH_TRUSTED_ORIGINS),
-    plugins: [bearer()],
+    plugins: [bearer(), ...(await infraPlugins(env))],
   });
+}
+
+// The Infra plugins read their key from `process.env` when none is passed,
+// which a Worker binding never populates. It is also the only reason the
+// deployment talks to a third party, so an unset key keeps both plugins off the
+// route table instead of shipping them in a permanently unauthenticated state.
+// Sentinel in particular degrades to warning at startup and cannot reach the
+// infra APIs without it.
+async function infraPlugins(env: AuthEnv) {
+  const apiKey = env.BETTER_AUTH_API_KEY;
+  if (!apiKey) return [];
+  const { dash, sentinel } = await import("@better-auth/infra");
+  return [
+    dash({ apiKey }),
+    sentinel({
+      apiKey,
+      security: {
+        credentialStuffing: { enabled: true, thresholds: { challenge: 3, block: 5 } },
+      },
+    }),
+  ];
 }
 
 export const authInternals = { configuredOrigins };

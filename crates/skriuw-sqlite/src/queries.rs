@@ -2,11 +2,12 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use rusqlite::{Connection, OptionalExtension, Transaction};
 use skriuw_domain::{
-    HistoryHeader, NodeKind, NoteProperty, NotePropertyField, NotePropertyOption,
-    NotePropertyTemplate, PromptInputShape, PromptParameters, ProviderImportReceipt, TaskPriority,
-    TaskSource, TaskStatus, VersionedNotePropertyValue, WORKSPACE_PROTOCOL_VERSION,
-    WorkspaceArchive, WorkspaceDocument, WorkspaceImage, WorkspaceNode, WorkspacePerson,
-    WorkspacePrompt, WorkspaceSettings, WorkspaceSnapshot, WorkspaceTag, WorkspaceTask,
+    AnnotationComment, AnnotationStatus, HistoryHeader, NodeKind, NoteProperty, NotePropertyField,
+    NotePropertyOption, NotePropertyTemplate, PromptInputShape, PromptParameters,
+    ProviderImportReceipt, TaskPriority, TaskSource, TaskStatus, VersionedNotePropertyValue,
+    WORKSPACE_PROTOCOL_VERSION, WorkspaceAnnotation, WorkspaceArchive, WorkspaceDocument,
+    WorkspaceImage, WorkspaceNode, WorkspacePerson, WorkspacePrompt, WorkspaceSettings,
+    WorkspaceSnapshot, WorkspaceTag, WorkspaceTask,
 };
 use skriuw_storage::StorageError;
 
@@ -29,6 +30,7 @@ pub(crate) fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot
         property_templates: read_property_templates(connection)?,
         tasks: read_tasks(connection)?,
         prompts: read_prompts(connection)?,
+        annotations: read_annotations(connection)?,
         import_receipts: read_import_receipts(connection)?,
     };
     skriuw_domain::validate_workspace_properties(
@@ -119,6 +121,73 @@ fn task_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspaceTask> {
         created_at: row.get(11)?,
         updated_at: row.get(12)?,
     })
+}
+
+pub(crate) fn read_annotations(
+    connection: &Connection,
+) -> Result<Vec<WorkspaceAnnotation>, StorageError> {
+    let mut comments_by_thread: BTreeMap<String, Vec<AnnotationComment>> = BTreeMap::new();
+    let mut comment_statement = connection
+        .prepare(
+            "SELECT annotation_id, id, body_markdown, author_id, created_at, updated_at \
+             FROM note_annotation_comments ORDER BY annotation_id, created_at, id",
+        )
+        .map_err(backend)?;
+    let comment_rows = comment_statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                AnnotationComment {
+                    id: row.get(1)?,
+                    body_markdown: row.get(2)?,
+                    author_id: row.get(3)?,
+                    created_at: row.get(4)?,
+                    updated_at: row.get(5)?,
+                },
+            ))
+        })
+        .map_err(backend)?;
+    for row in comment_rows {
+        let (annotation_id, comment) = row.map_err(backend)?;
+        comments_by_thread
+            .entry(annotation_id)
+            .or_default()
+            .push(comment);
+    }
+
+    let mut statement = connection
+        .prepare(
+            "SELECT id, note_id, status, anchor_text, created_at, resolved_at \
+             FROM note_annotations ORDER BY created_at, id",
+        )
+        .map_err(backend)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, i64>(4)?,
+                row.get::<_, Option<i64>>(5)?,
+            ))
+        })
+        .map_err(backend)?;
+    let mut annotations = Vec::new();
+    for row in rows {
+        let (id, note_id, status, anchor_text, created_at, resolved_at) = row.map_err(backend)?;
+        let comments = comments_by_thread.remove(&id).unwrap_or_default();
+        annotations.push(WorkspaceAnnotation {
+            comments,
+            id,
+            note_id,
+            status: AnnotationStatus::parse(&status).map_err(validation)?,
+            anchor_text,
+            created_at,
+            resolved_at,
+        });
+    }
+    Ok(annotations)
 }
 
 pub(crate) fn read_tasks(connection: &Connection) -> Result<Vec<WorkspaceTask>, StorageError> {
@@ -682,6 +751,7 @@ pub(crate) fn read_archive(
         property_templates: read_property_templates(connection)?,
         tasks: read_tasks(connection)?,
         prompts: read_prompts(connection)?,
+        annotations: read_annotations(connection)?,
     })
 }
 

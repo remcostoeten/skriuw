@@ -4,8 +4,12 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-03",
   "compatibility_flags": ["nodejs_compat"],
+  "alias": {
+    "@better-auth/scim": "./src/infra-optional.ts",
+    "@better-auth/sso": "./src/infra-optional.ts"
+  },
   "vars": {
-    "AUTH_TRUSTED_ORIGINS": "https://skriuw.com,http://tauri.localhost,tauri://localhost",
+    "AUTH_TRUSTED_ORIGINS": "https://skriuw.com,http://tauri.localhost,tauri://localhost,https://dash.better-auth.com",
     "BETTER_AUTH_URL": "https://skriuw-v2-cloud.remcostoeten.workers.dev"
   },
   "d1_databases": [

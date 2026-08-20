@@ -106,6 +106,13 @@ define_workspace_operation_sync_policy! {
     DeleteNotePropertyTemplate => ("delete_note_property_template", ReplicatedWorkspaceContent),
     ReorderNotePropertyTemplates => ("reorder_note_property_templates", ReplicatedWorkspaceContent),
     RecordProviderImport => ("record_provider_import", DeviceLocal),
+    CreateAnnotation => ("create_annotation", ReplicatedWorkspaceContent),
+    AddAnnotationComment => ("add_annotation_comment", ReplicatedWorkspaceContent),
+    UpdateAnnotationComment => ("update_annotation_comment", ReplicatedWorkspaceContent),
+    DeleteAnnotationComment => ("delete_annotation_comment", ReplicatedWorkspaceContent),
+    ResolveAnnotation => ("resolve_annotation", ReplicatedWorkspaceContent),
+    ReopenAnnotation => ("reopen_annotation", ReplicatedWorkspaceContent),
+    DeleteAnnotation => ("delete_annotation", ReplicatedWorkspaceContent),
     CreateTask => ("create_task", ReplicatedWorkspaceContent),
     UpdateTask => ("update_task", ReplicatedWorkspaceContent),
     DeleteTask => ("delete_task", ReplicatedWorkspaceContent),
@@ -229,6 +236,13 @@ impl WorkspaceOperation {
             Self::SetNoteProperty { property, .. } => Some(&property.note_id),
             Self::SetNotePropertyTemplate { template } => Some(&template.id),
             Self::DeleteNotePropertyTemplate { template_id } => Some(template_id),
+            Self::CreateAnnotation { annotation } => Some(&annotation.id),
+            Self::AddAnnotationComment { annotation_id, .. }
+            | Self::UpdateAnnotationComment { annotation_id, .. }
+            | Self::DeleteAnnotationComment { annotation_id, .. } => Some(annotation_id),
+            Self::ResolveAnnotation { id, .. }
+            | Self::ReopenAnnotation { id }
+            | Self::DeleteAnnotation { id } => Some(id),
             Self::CreateTask { task, .. }
             | Self::UpdateTask { task, .. }
             | Self::PromoteChecklistTask { task, .. } => Some(&task.id),
@@ -767,7 +781,7 @@ mod tests {
             operation_types.len(),
             WORKSPACE_OPERATION_SYNC_POLICY_V1.len()
         );
-        assert_eq!(WORKSPACE_OPERATION_SYNC_POLICY_V1.len(), 37);
+        assert_eq!(WORKSPACE_OPERATION_SYNC_POLICY_V1.len(), 44);
         assert_eq!(
             operation_types,
             serde_json::from_str::<serde_json::Value>(include_str!(

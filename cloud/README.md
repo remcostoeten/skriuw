@@ -18,6 +18,15 @@ the D1 database `skriuw-v2-auth`, Worker
 origins are also allowlisted for Tauri. Never put `BETTER_AUTH_SECRET` in
 `wrangler.jsonc`; install or rotate it with `wrangler secret put`.
 
+`BETTER_AUTH_API_KEY` is optional and connects the deployment to the Better
+Auth Infrastructure dashboard (`dash.better-auth.com`), which reads accounts,
+sessions, and auth events from `/api/auth/dash/*`. It also enables `sentinel()`,
+which scores sign-in attempts for credential stuffing and answers a suspicious
+attempt with a proof-of-work challenge that the desktop client's
+`sentinelClient()` solves. Without the key neither plugin is mounted and nothing
+leaves the Worker. It is a secret: install it with
+`wrangler secret put BETTER_AUTH_API_KEY`, never in `wrangler.jsonc`.
+
 The canonical wire types and bounds live in `skriuw-domain`; committed JSON
 Schemas, the generated
 [`WorkspaceOperation` policy](../docs/specs/workspace-operation-sync-policy-v1.md),

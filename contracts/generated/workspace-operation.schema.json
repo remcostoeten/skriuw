@@ -18,6 +18,45 @@
     "operation"
   ],
   "$defs": {
+    "AnnotationComment": {
+      "description": "A single comment in a thread. `author_id` is always `None` today; it is\ncarried so that attributing comments to collaborators later adds a value\nrather than reshaping the record.",
+      "type": "object",
+      "properties": {
+        "authorId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bodyMarkdown": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "id": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "bodyMarkdown",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AnnotationStatus": {
+      "type": "string",
+      "enum": [
+        "open",
+        "resolved"
+      ]
+    },
     "NodePlacement": {
       "type": "object",
       "properties": {
@@ -577,6 +616,49 @@
       ],
       "required": [
         "valueVersion"
+      ]
+    },
+    "WorkspaceAnnotation": {
+      "description": "A comment thread anchored to a range of note text. The anchor itself lives\nin the document as a mark carrying this id; the thread survives the anchor\nbeing deleted so it can be surfaced as an orphan instead of disappearing.",
+      "type": "object",
+      "properties": {
+        "anchorText": {
+          "type": "string"
+        },
+        "comments": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/AnnotationComment"
+          }
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "id": {
+          "type": "string"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "resolvedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "status": {
+          "$ref": "#/$defs/AnnotationStatus"
+        }
+      },
+      "required": [
+        "id",
+        "noteId",
+        "status",
+        "anchorText",
+        "createdAt"
       ]
     },
     "WorkspaceImage": {
@@ -1421,6 +1503,146 @@
             "type",
             "task",
             "document"
+          ]
+        },
+        {
+          "description": "Creates the thread and its opening comment together. Splitting them\nwould let a crash strand an anchored thread with nothing to read.",
+          "type": "object",
+          "properties": {
+            "annotation": {
+              "$ref": "#/$defs/WorkspaceAnnotation"
+            },
+            "type": {
+              "type": "string",
+              "const": "create_annotation"
+            }
+          },
+          "required": [
+            "type",
+            "annotation"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "annotationId": {
+              "type": "string"
+            },
+            "comment": {
+              "$ref": "#/$defs/AnnotationComment"
+            },
+            "type": {
+              "type": "string",
+              "const": "add_annotation_comment"
+            }
+          },
+          "required": [
+            "type",
+            "annotationId",
+            "comment"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "annotationId": {
+              "type": "string"
+            },
+            "bodyMarkdown": {
+              "type": "string"
+            },
+            "commentId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "update_annotation_comment"
+            },
+            "updatedAt": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "required": [
+            "type",
+            "annotationId",
+            "commentId",
+            "bodyMarkdown",
+            "updatedAt"
+          ]
+        },
+        {
+          "description": "Removing the last comment leaves the thread in place; a thread is only\ndestroyed by `DeleteAnnotation`, which tombstones it.",
+          "type": "object",
+          "properties": {
+            "annotationId": {
+              "type": "string"
+            },
+            "commentId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "delete_annotation_comment"
+            }
+          },
+          "required": [
+            "type",
+            "annotationId",
+            "commentId"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "resolve_annotation"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "reopen_annotation"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "delete_annotation"
+            }
+          },
+          "required": [
+            "type",
+            "id"
           ]
         },
         {

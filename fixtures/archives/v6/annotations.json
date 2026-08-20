@@ -1,0 +1,104 @@
+{
+  "archiveVersion": 6,
+  "protocolVersion": 1,
+  "exportedAt": 1755600000000,
+  "activeNoteId": "note-review",
+  "nodes": [
+    {
+      "id": "note-review",
+      "kind": "note",
+      "parentId": null,
+      "rank": 1024,
+      "title": "Review",
+      "icon": null,
+      "createdAt": 1755600000000,
+      "updatedAt": 1755600000000,
+      "deletedAt": null,
+      "pinnedAt": null
+    }
+  ],
+  "documents": [
+    {
+      "noteId": "note-review",
+      "documentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "The opening claim "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "annotation",
+                    "attrs": {
+                      "threadId": "annotation-open"
+                    }
+                  }
+                ],
+                "text": "needs a source"
+              },
+              {
+                "type": "text",
+                "text": " before it ships."
+              }
+            ]
+          }
+        ]
+      },
+      "markdown": "The opening claim <mark data-skriuw-annotation=\"annotation-open\">needs a source</mark> before it ships.",
+      "revision": 1,
+      "wordCount": 9
+    }
+  ],
+  "settings": {},
+  "tags": [],
+  "people": [],
+  "properties": [],
+  "propertyTemplates": [],
+  "tasks": [],
+  "prompts": [],
+  "annotations": [
+    {
+      "id": "annotation-open",
+      "noteId": "note-review",
+      "status": "open",
+      "anchorText": "needs a source",
+      "createdAt": 1755600001000,
+      "comments": [
+        {
+          "id": "comment-open-first",
+          "bodyMarkdown": "Which study is this from?",
+          "createdAt": 1755600001000,
+          "updatedAt": 1755600001000
+        },
+        {
+          "id": "comment-open-reply",
+          "bodyMarkdown": "Tracking it down, the 2019 one I think.",
+          "createdAt": 1755600002000,
+          "updatedAt": 1755600002500
+        }
+      ]
+    },
+    {
+      "id": "annotation-orphaned",
+      "noteId": "note-review",
+      "status": "resolved",
+      "anchorText": "a sentence that has since been deleted",
+      "createdAt": 1755600003000,
+      "resolvedAt": 1755600004000,
+      "comments": [
+        {
+          "id": "comment-orphan",
+          "bodyMarkdown": "Cut this, it repeats the intro.",
+          "createdAt": 1755600003000,
+          "updatedAt": 1755600003000
+        }
+      ]
+    }
+  ]
+}

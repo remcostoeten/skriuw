@@ -10,6 +10,7 @@ use thiserror::Error;
 
 mod ai;
 mod ai_history;
+mod annotation;
 mod checkpoint;
 mod chunk;
 mod local_ai;
@@ -84,9 +85,14 @@ pub use task::{
     unique_document_task_link, validate_workspace_tasks,
 };
 
+pub use annotation::{
+    AnnotationComment, AnnotationStatus, MAX_ANNOTATION_ANCHOR_TEXT_BYTES,
+    MAX_ANNOTATION_COMMENT_BYTES, MAX_ANNOTATION_COMMENTS, WorkspaceAnnotation,
+};
+
 pub const WORKSPACE_PROTOCOL_VERSION: u16 = 1;
-pub const WORKSPACE_ARCHIVE_VERSION: u16 = 5;
-pub const SUPPORTED_ARCHIVE_VERSIONS: [u16; 5] = [1, 2, 3, 4, 5];
+pub const WORKSPACE_ARCHIVE_VERSION: u16 = 6;
+pub const SUPPORTED_ARCHIVE_VERSIONS: [u16; 6] = [1, 2, 3, 4, 5, 6];
 pub const WORKSPACE_SETTINGS_VERSION: u16 = 1;
 pub const NOTE_PROPERTY_VALUE_VERSION: u16 = 1;
 pub const MAX_ENTITY_ID_BYTES: usize = 128;
@@ -566,6 +572,8 @@ pub struct WorkspaceSnapshot {
     #[serde(default)]
     pub prompts: Vec<WorkspacePrompt>,
     #[serde(default)]
+    pub annotations: Vec<WorkspaceAnnotation>,
+    #[serde(default)]
     pub import_receipts: Vec<ProviderImportReceipt>,
 }
 
@@ -628,6 +636,8 @@ pub struct WorkspaceArchive {
     pub tasks: Vec<WorkspaceTask>,
     #[serde(default)]
     pub prompts: Vec<WorkspacePrompt>,
+    #[serde(default)]
+    pub annotations: Vec<WorkspaceAnnotation>,
 }
 
 impl WorkspaceArchive {
@@ -646,6 +656,7 @@ impl WorkspaceArchive {
             properties: snapshot.properties,
             property_templates: snapshot.property_templates,
             tasks: snapshot.tasks,
+            annotations: snapshot.annotations,
             prompts: snapshot.prompts,
         }
     }
@@ -1525,6 +1536,37 @@ pub enum WorkspaceOperation {
         task: Box<WorkspaceTask>,
         document: Box<TaskSourceDocument>,
     },
+    /// Creates the thread and its opening comment together. Splitting them
+    /// would let a crash strand an anchored thread with nothing to read.
+    CreateAnnotation {
+        annotation: Box<WorkspaceAnnotation>,
+    },
+    AddAnnotationComment {
+        annotation_id: String,
+        comment: Box<AnnotationComment>,
+    },
+    UpdateAnnotationComment {
+        annotation_id: String,
+        comment_id: String,
+        body_markdown: String,
+        updated_at: i64,
+    },
+    /// Removing the last comment leaves the thread in place; a thread is only
+    /// destroyed by `DeleteAnnotation`, which tombstones it.
+    DeleteAnnotationComment {
+        annotation_id: String,
+        comment_id: String,
+    },
+    ResolveAnnotation {
+        id: String,
+        at: i64,
+    },
+    ReopenAnnotation {
+        id: String,
+    },
+    DeleteAnnotation {
+        id: String,
+    },
     SetPrompt {
         prompt: Box<WorkspacePrompt>,
     },
@@ -1695,6 +1737,43 @@ impl WorkspaceOperation {
                 validate_bounded_text("import source path", &receipt.source_path, 1_024)?;
                 validate_id("import note id", &receipt.note_id)?;
                 validate_timestamp(receipt.imported_at)
+            }
+            Self::CreateAnnotation { annotation } => annotation.validate_as_created(),
+            Self::AddAnnotationComment {
+                annotation_id,
+                comment,
+            } => {
+                validate_id("annotation id", annotation_id)?;
+                comment.validate()
+            }
+            Self::UpdateAnnotationComment {
+                annotation_id,
+                comment_id,
+                body_markdown,
+                updated_at,
+            } => {
+                validate_id("annotation id", annotation_id)?;
+                validate_id("annotation comment id", comment_id)?;
+                validate_bounded_text(
+                    "annotation comment body",
+                    body_markdown,
+                    MAX_ANNOTATION_COMMENT_BYTES,
+                )?;
+                validate_timestamp(*updated_at)
+            }
+            Self::DeleteAnnotationComment {
+                annotation_id,
+                comment_id,
+            } => {
+                validate_id("annotation id", annotation_id)?;
+                validate_id("annotation comment id", comment_id)
+            }
+            Self::ResolveAnnotation { id, at } => {
+                validate_id("annotation id", id)?;
+                validate_timestamp(*at)
+            }
+            Self::ReopenAnnotation { id } | Self::DeleteAnnotation { id } => {
+                validate_id("annotation id", id)
             }
             Self::CreateTask { task } => task.validate(),
             Self::UpdateTask { task, document } => {
@@ -2330,6 +2409,7 @@ mod tests {
             property_templates: Vec::new(),
             tasks: Vec::new(),
             prompts: Vec::new(),
+            annotations: Vec::new(),
         };
 
         archive.validate().expect("valid archive");
@@ -2386,6 +2466,7 @@ mod tests {
             property_templates: Vec::new(),
             tasks: Vec::new(),
             prompts: Vec::new(),
+            annotations: Vec::new(),
         };
 
         assert!(matches!(
@@ -2537,6 +2618,7 @@ mod tests {
             property_templates: Vec::new(),
             tasks: Vec::new(),
             prompts: Vec::new(),
+            annotations: Vec::new(),
         };
         archive.settings.settings_version = 2;
 
@@ -2605,6 +2687,7 @@ mod tests {
             property_templates: Vec::new(),
             tasks: Vec::new(),
             prompts: Vec::new(),
+            annotations: Vec::new(),
         };
 
         assert!(matches!(
@@ -2658,6 +2741,7 @@ mod tests {
             property_templates: Vec::new(),
             tasks: Vec::new(),
             prompts: Vec::new(),
+            annotations: Vec::new(),
         };
         archive.validate().expect("valid reference");
         archive.tags.clear();

@@ -10,6 +10,7 @@ import type {
   WorkspaceSettings,
   WorkspaceSnapshot,
   WorkspacePrompt,
+  WorkspaceAnnotation,
   WorkspaceTask,
 } from "@/contracts/workspace";
 import type {
@@ -81,6 +82,7 @@ export type RendererState = {
   people: ReadonlyMap<string, PersonRecord>;
   images: ReadonlyMap<string, WorkspaceImage>;
   tasks: ReadonlyMap<string, WorkspaceTask>;
+  annotations: ReadonlyMap<string, WorkspaceAnnotation>;
   prompts: ReadonlyMap<string, WorkspacePrompt>;
   propertiesByNoteId: ReadonlyMap<string, readonly NoteProperty[]>;
   propertyTemplates: readonly NotePropertyTemplate[];

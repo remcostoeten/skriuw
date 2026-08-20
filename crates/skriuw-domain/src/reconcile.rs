@@ -157,6 +157,13 @@ pub fn reconcile_remote_operation(
         WorkspaceOperation::ReorderNoteProperties { .. }
         | WorkspaceOperation::ReorderNotePropertyTemplates { .. } => reconcile_reorder(state),
         WorkspaceOperation::AttachImage { .. } => reconcile_create(state),
+        WorkspaceOperation::CreateAnnotation { .. } => reconcile_create(state),
+        WorkspaceOperation::AddAnnotationComment { .. }
+        | WorkspaceOperation::UpdateAnnotationComment { .. }
+        | WorkspaceOperation::DeleteAnnotationComment { .. }
+        | WorkspaceOperation::ResolveAnnotation { .. }
+        | WorkspaceOperation::ReopenAnnotation { .. } => reconcile_scalar_update(state),
+        WorkspaceOperation::DeleteAnnotation { .. } => reconcile_delete(state),
         WorkspaceOperation::CreateTask { .. } | WorkspaceOperation::PromoteChecklistTask { .. } => {
             reconcile_create(state)
         }
@@ -333,10 +340,17 @@ pub fn classify_apply_failure(operation: &WorkspaceOperation) -> SyncConflictRea
         | WorkspaceOperation::SetNotePropertyTemplate { .. }
         | WorkspaceOperation::SetPrompt { .. }
         | WorkspaceOperation::UpdateTask { .. }
-        | WorkspaceOperation::DetachTask { .. } => SyncConflictReason::ConcurrentFieldEdit,
+        | WorkspaceOperation::DetachTask { .. }
+        | WorkspaceOperation::AddAnnotationComment { .. }
+        | WorkspaceOperation::UpdateAnnotationComment { .. }
+        | WorkspaceOperation::DeleteAnnotationComment { .. }
+        | WorkspaceOperation::ResolveAnnotation { .. }
+        | WorkspaceOperation::ReopenAnnotation { .. } => SyncConflictReason::ConcurrentFieldEdit,
         WorkspaceOperation::CreateTask { .. }
         | WorkspaceOperation::PromoteChecklistTask { .. }
-        | WorkspaceOperation::DeleteTask { .. } => SyncConflictReason::DomainConflict,
+        | WorkspaceOperation::DeleteTask { .. }
+        | WorkspaceOperation::CreateAnnotation { .. }
+        | WorkspaceOperation::DeleteAnnotation { .. } => SyncConflictReason::DomainConflict,
         WorkspaceOperation::ReorderNoteProperties { .. }
         | WorkspaceOperation::ReorderNotePropertyTemplates { .. } => {
             SyncConflictReason::CollectionConflict

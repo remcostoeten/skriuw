@@ -9,6 +9,13 @@
         "null"
       ]
     },
+    "annotations": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/WorkspaceAnnotation"
+      }
+    },
     "documents": {
       "type": "array",
       "items": {
@@ -108,6 +115,45 @@
     "settings"
   ],
   "$defs": {
+    "AnnotationComment": {
+      "description": "A single comment in a thread. `author_id` is always `None` today; it is\ncarried so that attributing comments to collaborators later adds a value\nrather than reshaping the record.",
+      "type": "object",
+      "properties": {
+        "authorId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bodyMarkdown": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "id": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "bodyMarkdown",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AnnotationStatus": {
+      "type": "string",
+      "enum": [
+        "open",
+        "resolved"
+      ]
+    },
     "DocumentReference": {
       "type": "object",
       "properties": {
@@ -634,6 +680,49 @@
       ],
       "required": [
         "valueVersion"
+      ]
+    },
+    "WorkspaceAnnotation": {
+      "description": "A comment thread anchored to a range of note text. The anchor itself lives\nin the document as a mark carrying this id; the thread survives the anchor\nbeing deleted so it can be surfaced as an orphan instead of disappearing.",
+      "type": "object",
+      "properties": {
+        "anchorText": {
+          "type": "string"
+        },
+        "comments": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/AnnotationComment"
+          }
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "id": {
+          "type": "string"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "resolvedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "status": {
+          "$ref": "#/$defs/AnnotationStatus"
+        }
+      },
+      "required": [
+        "id",
+        "noteId",
+        "status",
+        "anchorText",
+        "createdAt"
       ]
     },
     "WorkspaceDocument": {

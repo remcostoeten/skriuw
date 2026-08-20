@@ -1,12 +1,13 @@
 use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
 use skriuw_domain::{
-    BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,
+    AnnotationStatus, BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,
     DocumentConflictResolutionChoice, NodeKind, NodePlacement, NodePosition, OperationAck,
     RemoteOperationDecision, RemoteTargetState, ReplicatedWorkspaceOperation,
     ResolveDocumentConflict, SYNC_RECOVERY_VIEW_VERSION, SyncConflictReason, SyncOperationPayload,
     SyncRecoveryView, SyncReplicationClass, SyncValidationError, WORKSPACE_SYNC_PROTOCOL_VERSION,
-    WorkspaceArchive, WorkspaceOperation, WorkspaceOperationEnvelope, classify_apply_failure,
-    reconcile_remote_operation, validate_sync_identifier, validate_sync_sequence,
+    WorkspaceAnnotation, WorkspaceArchive, WorkspaceOperation, WorkspaceOperationEnvelope,
+    classify_apply_failure, reconcile_remote_operation, validate_sync_identifier,
+    validate_sync_sequence,
 };
 use skriuw_storage::{
     BlockedSyncOperation, Diagnostic, DiagnosticContext, DocumentConflictSummary,
@@ -1597,6 +1598,27 @@ fn initial_sync_operations(
             prompt: Box::new(prompt),
         })
     }));
+    /* A thread is always created open, so an already-resolved one replays as
+    a create followed by the resolve that produced its current state. */
+    operations.extend(snapshot.annotations.into_iter().flat_map(|annotation| {
+        let resolved = annotation
+            .resolved_at
+            .map(|at| (annotation.id.clone(), at))
+            .filter(|_| annotation.status == AnnotationStatus::Resolved);
+        let created = WorkspaceAnnotation {
+            status: AnnotationStatus::Open,
+            resolved_at: None,
+            ..annotation
+        };
+        std::iter::once(WorkspaceOperationEnvelope::v1(
+            WorkspaceOperation::CreateAnnotation {
+                annotation: Box::new(created),
+            },
+        ))
+        .chain(resolved.map(|(id, at)| {
+            WorkspaceOperationEnvelope::v1(WorkspaceOperation::ResolveAnnotation { id, at })
+        }))
+    }));
     operations.extend(snapshot.nodes.iter().filter_map(|node| {
         let deleted_at = node.deleted_at?;
         if node
@@ -2107,6 +2129,7 @@ fn backfill_tombstone_provenance(
         }
         WorkspaceOperation::DeleteTask { id, .. } => ("task", id.as_str(), ""),
         WorkspaceOperation::DeletePrompt { id } => ("prompt", id.as_str(), ""),
+        WorkspaceOperation::DeleteAnnotation { id } => ("annotation", id.as_str(), ""),
         _ => return Ok(()),
     };
     transaction
@@ -2613,6 +2636,23 @@ fn remote_target_state(
             state.target_tombstoned = tombstoned(transaction, "task", id, "")?;
             state.target_exists = task_exists(transaction, id)?;
         }
+        WorkspaceOperation::CreateAnnotation { annotation } => {
+            state.target_tombstoned = tombstoned(transaction, "annotation", &annotation.id, "")?;
+            state.dependency_tombstoned = tombstoned(transaction, "node", &annotation.note_id, "")?;
+            state.target_exists = annotation_exists(transaction, &annotation.id)?;
+        }
+        WorkspaceOperation::AddAnnotationComment { annotation_id, .. }
+        | WorkspaceOperation::UpdateAnnotationComment { annotation_id, .. }
+        | WorkspaceOperation::DeleteAnnotationComment { annotation_id, .. } => {
+            state.target_tombstoned = tombstoned(transaction, "annotation", annotation_id, "")?;
+            state.target_exists = annotation_exists(transaction, annotation_id)?;
+        }
+        WorkspaceOperation::ResolveAnnotation { id, .. }
+        | WorkspaceOperation::ReopenAnnotation { id }
+        | WorkspaceOperation::DeleteAnnotation { id } => {
+            state.target_tombstoned = tombstoned(transaction, "annotation", id, "")?;
+            state.target_exists = annotation_exists(transaction, id)?;
+        }
         WorkspaceOperation::SetPrompt { prompt } => {
             state.target_tombstoned = tombstoned(transaction, "prompt", &prompt.id, "")?;
             state.target_exists = entity_exists(transaction, "workspace_prompts", &prompt.id)?;
@@ -2626,6 +2666,16 @@ fn remote_target_state(
         | WorkspaceOperation::RecordProviderImport { .. } => {}
     }
     Ok(state)
+}
+
+fn annotation_exists(transaction: &Transaction<'_>, id: &str) -> Result<bool, StorageError> {
+    transaction
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM note_annotations WHERE id = ?1)",
+            [id],
+            |row| row.get(0),
+        )
+        .map_err(backend)
 }
 
 fn task_exists(transaction: &Transaction<'_>, id: &str) -> Result<bool, StorageError> {

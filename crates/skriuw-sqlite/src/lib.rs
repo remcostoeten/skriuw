@@ -678,6 +678,8 @@ impl SqliteWorkspace {
                  DELETE FROM note_images;\
                  DELETE FROM note_properties;\
                  DELETE FROM note_property_templates;\
+                 DELETE FROM note_annotation_comments;\
+                 DELETE FROM note_annotations;\
                  DELETE FROM workspace_prompts;\
                  DELETE FROM workspace_tasks;\
                  DELETE FROM workspace_tags;\
@@ -847,6 +849,40 @@ impl SqliteWorkspace {
                     ],
                 )
                 .map_err(backend)?;
+        }
+        for annotation in &archive.annotations {
+            transaction
+                .execute(
+                    "INSERT INTO note_annotations \
+                     (id, note_id, status, anchor_text, created_at, resolved_at) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![
+                        annotation.id,
+                        annotation.note_id,
+                        annotation.status.as_str(),
+                        annotation.anchor_text,
+                        annotation.created_at,
+                        annotation.resolved_at
+                    ],
+                )
+                .map_err(backend)?;
+            for comment in &annotation.comments {
+                transaction
+                    .execute(
+                        "INSERT INTO note_annotation_comments \
+                         (id, annotation_id, body_markdown, author_id, created_at, updated_at) \
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                        params![
+                            comment.id,
+                            annotation.id,
+                            comment.body_markdown,
+                            comment.author_id,
+                            comment.created_at,
+                            comment.updated_at
+                        ],
+                    )
+                    .map_err(backend)?;
+            }
         }
         for prompt in &archive.prompts {
             transaction

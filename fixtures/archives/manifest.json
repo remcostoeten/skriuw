@@ -1,5 +1,12 @@
 {
-  "supportedArchiveVersions": [1, 2, 3, 4, 5],
+  "supportedArchiveVersions": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
   "fixtures": [
     {
       "archiveVersion": 1,
@@ -24,6 +31,10 @@
     {
       "archiveVersion": 5,
       "file": "v5/prompts.json"
+    },
+    {
+      "archiveVersion": 6,
+      "file": "v6/annotations.json"
     }
   ]
 }

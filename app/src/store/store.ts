@@ -7,6 +7,7 @@ import type {
   WorkspaceOperation,
   WorkspaceSnapshot,
   WorkspacePrompt,
+  WorkspaceAnnotation,
   WorkspaceTask,
 } from "@/contracts/workspace";
 import { extractReferences } from "@/features/references/extract";
@@ -242,6 +243,8 @@ export function createInitialState(
   }
   const tasks = new Map<string, WorkspaceTask>();
   for (const task of snapshot.tasks ?? []) tasks.set(task.id, task);
+  const annotations = new Map<string, WorkspaceAnnotation>();
+  for (const annotation of snapshot.annotations ?? []) annotations.set(annotation.id, annotation);
   const prompts = new Map<string, WorkspacePrompt>();
   for (const prompt of snapshot.prompts ?? []) prompts.set(prompt.id, prompt);
   const propertiesByNoteId = new Map<string, NoteProperty[]>();
@@ -277,6 +280,7 @@ export function createInitialState(
     people,
     images,
     tasks,
+    annotations,
     prompts,
     propertiesByNoteId,
     propertyTemplates,
@@ -397,6 +401,70 @@ function reduceState(
     const tasks = new Map(next.tasks);
     tasks.set(operation.id, { ...task, source: null, detachedAt: operation.at, updatedAt: operation.at });
     return { ...next, tasks };
+  }
+  if (operation.type === "create_annotation") {
+    if (current.annotations.has(operation.annotation.id)) return current;
+    const annotations = new Map(current.annotations);
+    annotations.set(operation.annotation.id, operation.annotation);
+    return { ...current, annotations };
+  }
+  if (operation.type === "add_annotation_comment") {
+    const annotation = current.annotations.get(operation.annotationId);
+    if (!annotation) return current;
+    const annotations = new Map(current.annotations);
+    annotations.set(annotation.id, {
+      ...annotation,
+      comments: [...annotation.comments, operation.comment],
+    });
+    return { ...current, annotations };
+  }
+  if (operation.type === "update_annotation_comment") {
+    const annotation = current.annotations.get(operation.annotationId);
+    if (!annotation?.comments.some((comment) => comment.id === operation.commentId)) {
+      return current;
+    }
+    const annotations = new Map(current.annotations);
+    annotations.set(annotation.id, {
+      ...annotation,
+      comments: annotation.comments.map((comment) =>
+        comment.id === operation.commentId
+          ? { ...comment, bodyMarkdown: operation.bodyMarkdown, updatedAt: operation.updatedAt }
+          : comment,
+      ),
+    });
+    return { ...current, annotations };
+  }
+  if (operation.type === "delete_annotation_comment") {
+    const annotation = current.annotations.get(operation.annotationId);
+    if (!annotation?.comments.some((comment) => comment.id === operation.commentId)) {
+      return current;
+    }
+    const annotations = new Map(current.annotations);
+    /* Removing the last comment leaves the thread; only delete_annotation
+       destroys it, so a thread never silently vanishes mid-edit. */
+    annotations.set(annotation.id, {
+      ...annotation,
+      comments: annotation.comments.filter((comment) => comment.id !== operation.commentId),
+    });
+    return { ...current, annotations };
+  }
+  if (operation.type === "resolve_annotation" || operation.type === "reopen_annotation") {
+    const annotation = current.annotations.get(operation.id);
+    if (!annotation) return current;
+    const resolved = operation.type === "resolve_annotation";
+    const annotations = new Map(current.annotations);
+    annotations.set(annotation.id, {
+      ...annotation,
+      status: resolved ? "resolved" : "open",
+      resolvedAt: resolved ? operation.at : null,
+    });
+    return { ...current, annotations };
+  }
+  if (operation.type === "delete_annotation") {
+    if (!current.annotations.has(operation.id)) return current;
+    const annotations = new Map(current.annotations);
+    annotations.delete(operation.id);
+    return { ...current, annotations };
   }
   if (operation.type === "set_prompt") {
     const prompts = new Map(current.prompts);
