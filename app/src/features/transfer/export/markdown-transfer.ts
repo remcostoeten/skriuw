@@ -28,14 +28,13 @@ import {
 } from "./markdown-transfer-model";
 import { publishTransferReport } from "./transfer-report";
 import { detectImportSource, importSourceKey } from "@/features/transfer/import/model";
-import type { ImportBundle } from "@/features/transfer/import/model";
+import type { ImportBundle, ImportSourceAdapter } from "@/features/transfer/import/model";
 import {
   applyImportGrouping,
   planImportBundle,
   type ImportBundlePlan,
   type ImportDuplicateMode,
 } from "@/features/transfer/import/plan";
-import { importSources } from "@/features/transfer/import/sources";
 import { buildImportPreviewCandidate } from "@/features/transfer/import/preview";
 import { requestImportPreview } from "@/features/transfer/import/preview-controller";
 import {
@@ -279,8 +278,15 @@ async function importNotesFromPath(
   });
   let finishCommitProgress = noop;
   let prepared: Awaited<ReturnType<typeof prepareImportSources>> | null = null;
+  /**
+   * The eleven source adapters and their parsers are only reachable from this
+   * flow, and it already awaits the files being read, so they load alongside
+   * that read instead of riding in the startup bundle.
+   */
+  const loadingSources = import("@/features/transfer/import/sources");
   try {
     prepared = await prepareImportSources(sourcePaths);
+    const { importSources } = await loadingSources;
     throwIfImportCancelled(intake.signal);
     const tree = prepared.tree;
     const detectedSource = detectImportSource(importSources, tree);
@@ -333,7 +339,7 @@ async function importNotesFromPath(
       cancellable: true,
     });
     const candidates: {
-      source: (typeof importSources)[number];
+      source: ImportSourceAdapter;
       bundle: ImportBundle;
       variants: Record<
         ImportDuplicateMode,
