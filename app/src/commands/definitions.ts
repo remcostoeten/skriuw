@@ -73,6 +73,7 @@ export type ShortcutActionId =
   | "zoomOut"
   | "zoomReset"
   | "insertLink"
+  | "commentOnSelection"
   | "toggleChecklistItem"
   | "jumpToLine"
   | "goToDocumentStart"
@@ -614,6 +615,16 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     worksWhileTyping: true,
     boundInEditor: true,
     sharesComboWith: "toggleCommandPalette",
+  },
+  {
+    id: "commentOnSelection",
+    keys: "mod+shift+m",
+    label: "Comment on selection",
+    description:
+      "Attach a comment thread to the selected text, or open the thread the caret sits inside. Notion's binding; Docs' alt combos fight Linux window managers.",
+    group: "Editor",
+    worksWhileTyping: true,
+    boundInEditor: true,
   },
   {
     id: "toggleChecklistItem",

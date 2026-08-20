@@ -75,6 +75,14 @@ import {
 import { cssStringLiteral } from "@/features/settings/apply-settings";
 import { projectSettings } from "@/features/settings/settings-model";
 import { useRendererSelector } from "@/store/use-renderer-selector";
+import {
+  addAnnotationComment,
+  createAnnotation,
+  deleteAnnotation,
+  deleteAnnotationComment,
+  setAnnotationResolved,
+  updateAnnotationComment,
+} from "@/store/actions/annotations";
 import type { DocumentRecord, RendererState, RendererStore } from "@/store/types";
 import type { WorkspaceImage, WorkspaceOperation } from "@/contracts/workspace";
 import {
@@ -142,6 +150,12 @@ import {
   requestAiAction,
 } from "@/features/ai/editor-action-controller";
 import {
+  AnnotationMenu,
+  annotationAtCursor,
+  annotationMenuAnchor,
+  closedAnnotationMenu,
+} from "./annotation-menu";
+import {
   closedLinkMenu,
   LinkMenu,
   linkAtCursor,
@@ -172,6 +186,10 @@ import { registerBlockReveal, takePendingBlockReveal } from "./reveal-controller
 import { SaveSequencer } from "./save-sequencer";
 import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "./editor-working-set";
 import { preparedEditorDocuments } from "./prepared-documents";
+
+function selectAnnotations(state: RendererState) {
+  return state.annotations;
+}
 
 const SAVE_DEBOUNCE_MS = 500;
 const VIRTUAL_BLOCK_HEIGHT = 32;
@@ -441,6 +459,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const [linkMenu, setLinkMenu] = useState(closedLinkMenu);
   const linkMenuRef = useRef(linkMenu);
   linkMenuRef.current = linkMenu;
+  const [annotationMenu, setAnnotationMenu] = useState(closedAnnotationMenu);
+  const annotationMenuRef = useRef(annotationMenu);
+  annotationMenuRef.current = annotationMenu;
+  const annotations = useRendererSelector(store, selectAnnotations);
   const imageMenuTriggerRef = useRef<HTMLSpanElement>(null);
   const [imageMenuImageId, setImageMenuImageId] = useState<string | null>(null);
   const [imageDialog, setImageDialog] = useState<ImageDialogState>(null);
@@ -872,6 +894,99 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     });
   }
 
+  /**
+   * The range a comment would attach to: the selection, or the anchor under a
+   * collapsed caret. Null when there is nothing to comment on, which lets the
+   * binding fall through rather than opening an empty composer.
+   */
+  function annotationEditorRange(): {
+    from: number;
+    to: number;
+    threadId: string;
+  } | null {
+    const view = viewRef.current;
+    if (!view) return null;
+    const { selection } = view.state;
+    const anchored = selection.empty ? annotationAtCursor(view.state) : null;
+    const from = anchored ? anchored.from : selection.from;
+    const to = anchored ? anchored.to : selection.to;
+    if (from === to) return null;
+    return { from, to, threadId: anchored ? anchored.threadId : "" };
+  }
+
+  function openAnnotationMenu(): void {
+    const view = viewRef.current;
+    const range = annotationEditorRange();
+    if (!view || !range) return;
+    setBubbleMenu(closedBubbleMenu);
+    setLinkMenu(closedLinkMenu);
+    setAnnotationMenu({
+      open: true,
+      composing: range.threadId === "",
+      threadId: range.threadId,
+      from: range.from,
+      to: range.to,
+      ...annotationMenuAnchor(view, range.from, range.to),
+    });
+  }
+
+  /**
+   * The mark and the thread are written together: the anchor is what makes the
+   * thread reachable, so a document that saved without it would leave an
+   * unreferenced thread behind.
+   */
+  function commitNewAnnotation(body: string): void {
+    const view = viewRef.current;
+    const noteId = activeIdRef.current;
+    const range = annotationMenuRef.current;
+    const annotationMark = productSchema.marks.annotation;
+    if (!view || !noteId || !annotationMark) return;
+    const threadId = crypto.randomUUID();
+    const at = Date.now();
+    const anchorText = view.state.doc.textBetween(range.from, range.to);
+    view.dispatch(
+      view.state.tr.addMark(range.from, range.to, annotationMark.create({ threadId })),
+    );
+    createAnnotation(store, {
+      id: threadId,
+      noteId,
+      status: "open",
+      anchorText,
+      createdAt: at,
+      resolvedAt: null,
+      comments: [
+        {
+          id: crypto.randomUUID(),
+          bodyMarkdown: body,
+          authorId: null,
+          createdAt: at,
+          updatedAt: at,
+        },
+      ],
+    });
+  }
+
+  /**
+   * Deleting the thread strips its anchor too, otherwise the document keeps a
+   * mark pointing at a thread that no longer exists.
+   */
+  function removeAnnotationThread(): void {
+    const view = viewRef.current;
+    const { threadId, from, to } = annotationMenuRef.current;
+    const thread = store.getState().annotations.get(threadId);
+    const annotationMark = productSchema.marks.annotation;
+    if (!thread) return;
+    if (view && annotationMark) {
+      view.dispatch(view.state.tr.removeMark(from, to, annotationMark));
+    }
+    deleteAnnotation(store, thread);
+  }
+
+  const openAnnotationMenuRef = useRef(openAnnotationMenu);
+  openAnnotationMenuRef.current = openAnnotationMenu;
+  const annotationEditorRangeRef = useRef(annotationEditorRange);
+  annotationEditorRangeRef.current = annotationEditorRange;
+
   const openLinkEditorRef = useRef(openLinkEditor);
   openLinkEditorRef.current = openLinkEditor;
   const linkEditorRangeRef = useRef(linkEditorRange);
@@ -1044,6 +1159,10 @@ const closeJumpToLine = useCallback(() => {
       insertLink: {
         run: () => openLinkEditorRef.current(),
         claims: () => linkEditorRangeRef.current() !== null,
+      },
+      commentOnSelection: {
+        run: () => openAnnotationMenuRef.current(),
+        claims: () => annotationEditorRangeRef.current() !== null,
       },
       toggleChecklistItem: () => {
         const view = viewRef.current;
@@ -1676,6 +1795,7 @@ const closeJumpToLine = useCallback(() => {
         state={bubbleMenu}
         getView={() => viewRef.current}
         onLink={openLinkEditor}
+        onComment={openAnnotationMenu}
         onAskAi={aiEnabled ? askAi : null}
         onDismiss={() => setBubbleMenu(closedBubbleMenu)}
         onCancel={() => {
@@ -1683,6 +1803,36 @@ const closeJumpToLine = useCallback(() => {
           if (view) cancelBubbleMenu(view);
         }}
         containerRef={bubbleMenuHostRef}
+      />
+      <AnnotationMenu
+        state={annotationMenu}
+        thread={annotationMenu.threadId ? (annotations.get(annotationMenu.threadId) ?? null) : null}
+        getView={() => viewRef.current}
+        onCreate={(body) => commitNewAnnotation(body)}
+        onReply={(body) => {
+          const at = Date.now();
+          addAnnotationComment(store, annotationMenuRef.current.threadId, body, at);
+        }}
+        onEditComment={(commentId, body) =>
+          updateAnnotationComment(
+            store,
+            annotationMenuRef.current.threadId,
+            commentId,
+            body,
+            Date.now(),
+          )
+        }
+        onDeleteComment={(commentId) =>
+          deleteAnnotationComment(store, annotationMenuRef.current.threadId, commentId)
+        }
+        onResolve={() =>
+          setAnnotationResolved(store, annotationMenuRef.current.threadId, true, Date.now())
+        }
+        onReopen={() =>
+          setAnnotationResolved(store, annotationMenuRef.current.threadId, false, Date.now())
+        }
+        onDelete={() => removeAnnotationThread()}
+        onClose={() => setAnnotationMenu(closedAnnotationMenu)}
       />
       <LinkMenu
         state={linkMenu}
