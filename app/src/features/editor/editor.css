@@ -1583,11 +1583,31 @@ body.is-dragging-block {
  * emphasize it the way a highlight does.
  */
 .ProseMirror mark[data-skriuw-annotation] {
-  background-color: hsl(var(--editor-annotation) / 0.16);
-  border-bottom: 1px solid hsl(var(--editor-annotation) / 0.55);
+  background-color: transparent;
   border-radius: 2px;
   color: inherit;
   cursor: pointer;
+}
+
+/**
+ * Anchor appearance comes from the decoration plugin, not the mark, because a
+ * thread's status lives in the workspace and must never be written into the
+ * document. See annotation-decorations.ts.
+ */
+.ProseMirror .skriuw-annotation {
+  background-color: hsl(var(--editor-annotation) / 0.16);
+  border-bottom: 1px solid hsl(var(--editor-annotation) / 0.55);
+  border-radius: 2px;
+}
+
+.ProseMirror .skriuw-annotation--resolved {
+  background-color: transparent;
+  border-bottom-color: transparent;
+}
+
+.ProseMirror .skriuw-annotation--active {
+  background-color: hsl(var(--editor-annotation) / 0.28);
+  box-shadow: 0 0 0 1px hsl(var(--editor-annotation) / 0.75);
 }
 
 .annotation-menu {

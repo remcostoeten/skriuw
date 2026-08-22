@@ -119,6 +119,36 @@ bounded window, so a thread anchored outside the visible 192-block window shifts
 the window into view instead of silently failing. See
 `docs/specs/bounded-workspace-intake.md`.
 
+## Anchor appearance
+
+A thread's status lives in the workspace, so resolving one must not write the
+note. The mark therefore carries no status and `mark[data-skriuw-annotation]`
+has no tint of its own; `annotation-decorations.ts` paints every anchor from
+state the editor pushes in:
+
+| Class | Applied to |
+| --- | --- |
+| `skriuw-annotation` | Any anchor — tint plus underline |
+| `skriuw-annotation--resolved` | A resolved thread — no tint |
+| `skriuw-annotation--active` | The thread whose popover is open — stronger tint plus a ring |
+
+The plugin owns the whole appearance rather than subtracting from a base rule
+because a ProseMirror inline decoration renders *inside* the schema mark, and a
+child element cannot repaint the `<mark>` wrapping it.
+
+Inputs arrive as a plugin-key meta transaction carrying `addToHistory: false` —
+how a thread looks is not an edit and undo must not step through it. A push with
+unchanged inputs dispatches nothing. Two paths keep the state fresh: an effect
+in `note-editor.tsx` keyed on the note's annotations and the open popover, and a
+re-push inside `installBoundedWindow`, since a rebuilt window starts from a fresh
+plugin state.
+
+Decorations are rebuilt on `docChanged` rather than mapped through `tr.mapping`.
+A transaction can add or remove an anchor without announcing it — undo restores
+a deleted mark, and a paste can carry anchors in — and mapping alone would leave
+those unpainted until the next explicit push. The walk is bounded by the editor
+window, not the workspace.
+
 ## Inspector surface
 
 The metadata panel gains a **Comments** section, rendered only when the active

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import type { AnnotationComment, WorkspaceAnnotation } from "@/contracts/workspace";
@@ -42,6 +43,14 @@ export type AnnotationRange = {
  * id are merged back into one range.
  */
 export function annotationRanges(state: EditorState): AnnotationRange[] {
+  return annotationRangesInDoc(state.doc);
+}
+
+/**
+ * The same walk against a bare document, for callers that have no editor state
+ * — the decoration plugin recomputes from `tr.doc` before a state exists.
+ */
+export function annotationRangesInDoc(doc: ProseMirrorNode): AnnotationRange[] {
   const annotation = productSchema.marks.annotation;
   if (!annotation) return [];
   /**
@@ -50,7 +59,7 @@ export function annotationRanges(state: EditorState): AnnotationRange[] {
    * thread nested inside another — each mark on the node has to be walked.
    */
   const runsByThread = new Map<string, AnnotationRange[]>();
-  state.doc.descendants((node, pos) => {
+  doc.descendants((node, pos) => {
     if (!node.isText) return true;
     for (const mark of node.marks) {
       if (mark.type !== annotation) continue;

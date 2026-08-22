@@ -181,6 +181,11 @@ import type { NoteEditorShortcutId } from "./editor-bound-shortcut-ids";
 import { useEditorSearch } from "./use-editor-search";
 import { taskPromotionOperations } from "./task-linking";
 import { withFreshPastedTaskIdentities } from "./task-paste";
+import {
+  resolvedThreadIdsForNote,
+  setAnnotationDecorations,
+  type AnnotationDecorationInputs,
+} from "./annotation-decorations";
 import { findAnnotationLocation, findBlockLocation } from "./block-locations";
 import {
   registerBlockReveal,
@@ -475,6 +480,24 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const blockMenuTriggerRef = useRef<HTMLSpanElement>(null);
   const [blockMenuPos, setBlockMenuPos] = useState<number | null>(null);
   const activeNoteId = useRendererSelector(store, selectNoteId);
+  /**
+   * Anchor appearance is derived here rather than inside the plugin so the walk
+   * runs on store and popover changes only. An editor keystroke re-paints
+   * through the plugin's own transaction path and never reaches React.
+   */
+  const annotationDecorationInputs = useMemo<AnnotationDecorationInputs>(
+    () => ({
+      activeThreadId: annotationMenu.open ? annotationMenu.threadId : "",
+      resolvedThreadIds: resolvedThreadIdsForNote(annotations, activeNoteId),
+    }),
+    [annotations, activeNoteId, annotationMenu.open, annotationMenu.threadId],
+  );
+  const annotationDecorationInputsRef = useRef(annotationDecorationInputs);
+  annotationDecorationInputsRef.current = annotationDecorationInputs;
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view) setAnnotationDecorations(view, annotationDecorationInputs);
+  }, [annotationDecorationInputs]);
   const settingsDocument = useRendererSelector(store, selectSettingsDocument);
   const editorSettings = projectSettings(settingsDocument);
   const prefersReducedMotion = useReducedMotion();
@@ -608,6 +631,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       setSearch(view, searchState.term, searchState.options);
       entry.state = view.state;
     }
+    // A rebuilt window starts from a fresh plugin state, so anchors would sit
+    // unpainted until the next store change without pushing appearance back in.
+    setAnnotationDecorations(view, annotationDecorationInputsRef.current);
+    entry.state = view.state;
     syncBoundedSurface(entry);
     if (focus) view.focus();
   }
