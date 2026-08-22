@@ -8,6 +8,7 @@ import {
   projectSettings,
   resetShortcutOverride,
   resetShortcutOverrides,
+  opensLinksInApp,
   showsToasts,
   usesAnimatedIcons,
 } from "../../../src/features/settings/settings-model";
@@ -38,6 +39,7 @@ test("default settings project every editable field", () => {
     editorDefaultRawMode: false,
     openNotesInTabs: false,
     showToasts: true,
+    openLinksInApp: false,
     aiEnabled: false,
   });
 });
@@ -144,4 +146,11 @@ test("reset-all without matching overrides returns the same document", () => {
   const settings = extendedSettings();
   assert.equal(resetShortcutOverrides(settings, ["createFolder"]), settings);
   assert.equal(resetShortcutOverrides(DEFAULT_WORKSPACE_SETTINGS, ["createNote"]), DEFAULT_WORKSPACE_SETTINGS);
+});
+
+test("links open in the system browser unless the setting is explicitly on", () => {
+  assert.equal(opensLinksInApp(DEFAULT_WORKSPACE_SETTINGS), false);
+  assert.equal(opensLinksInApp({ ...DEFAULT_WORKSPACE_SETTINGS, openLinksInApp: true }), true);
+  assert.equal(opensLinksInApp({ ...DEFAULT_WORKSPACE_SETTINGS, openLinksInApp: "yes" }), false);
+  assert.equal(opensLinksInApp({ ...DEFAULT_WORKSPACE_SETTINGS, openLinksInApp: undefined }), false);
 });

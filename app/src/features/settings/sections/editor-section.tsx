@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
+import { isBrowserRuntime } from "@/bridge/runtime";
 import { updateSetting } from "@/store/actions/settings";
 import {
   EDITOR_FONT_OPTIONS,
@@ -22,6 +23,8 @@ import {
   useEditableSettings,
 } from "./settings-shared";
 import type { SectionProps } from "./settings-shared";
+
+const BROWSER_RUNTIME = isBrowserRuntime();
 
 const FONT_PREVIEW_STYLES: Record<string, CSSProperties> = {
   inter: {},
@@ -140,6 +143,17 @@ export function EditorSection({ store }: SectionProps) {
           onChange={(checked) => change("openNotesInTabs", checked)}
         />
       </div>
+      {BROWSER_RUNTIME ? null : (
+        <div className={settingsGroup}>
+          <div className={settingsGroupTitle}>Links</div>
+          <SettingToggle
+            label="Open links in Skriuw"
+            detail="Links open in a Skriuw browser window instead of your system browser. The link menu always offers the other one too."
+            checked={settings.openLinksInApp}
+            onChange={(checked) => change("openLinksInApp", checked)}
+          />
+        </div>
+      )}
     </section>
   );
 }

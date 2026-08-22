@@ -935,6 +935,17 @@ export function ExternalLinkIcon(props: IconProps) {
   );
 }
 
+export function AppWindowIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="M10 4v4" />
+      <path d="M2 8h20" />
+      <path d="M6 4v4" />
+    </LucideIcon>
+  );
+}
+
 export function PlusIcon(props: IconProps) {
   return (
     <LucideIcon {...props}>

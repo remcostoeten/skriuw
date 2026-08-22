@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
-import { openExternalUrl } from "@/bridge/external-links";
-import { CheckIcon, ExternalLinkIcon, LinkIcon, PencilIcon, UnlinkIcon } from "@/shared/icons/static";
+import {
+  AppWindowIcon,
+  CheckIcon,
+  ExternalLinkIcon,
+  LinkIcon,
+  PencilIcon,
+  UnlinkIcon,
+} from "@/shared/icons/static";
+import { linkTargetLabel, otherLinkTarget, type LinkTarget } from "./open-link";
 import { rangeMenuAnchor, type MenuAnchor } from "./menu-anchor";
 import { productSchema } from "./schema";
 
@@ -103,11 +110,34 @@ function normalizeHref(raw: string): string {
 type Props = {
   state: LinkMenuState;
   getView: () => EditorView | null;
+  /** Where the href button sends the link; the alternate button offers the other. */
+  defaultTarget: LinkTarget;
+  /** Display form of the open-link shortcut, shown in the href button's tooltip. */
+  openShortcut?: string;
+  onOpen: (href: string, target: LinkTarget) => void;
   onClose: () => void;
   onEdit: () => void;
 };
 
-export function LinkMenu({ state, getView, onClose, onEdit }: Props) {
+function openTitle(target: LinkTarget, shortcut?: string): string {
+  const label = linkTargetLabel(target);
+  return shortcut ? `${label} (${shortcut})` : label;
+}
+
+function TargetIcon({ target }: { target: LinkTarget }) {
+  return target === "app" ? <AppWindowIcon size={13} /> : <ExternalLinkIcon size={13} />;
+}
+
+export function LinkMenu({
+  state,
+  getView,
+  defaultTarget,
+  openShortcut,
+  onOpen,
+  onClose,
+  onEdit,
+}: Props) {
+  const alternateTarget = otherLinkTarget(defaultTarget);
   const [draft, setDraft] = useState(state.href);
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -191,16 +221,26 @@ export function LinkMenu({ state, getView, onClose, onEdit }: Props) {
           <button
             type="button"
             className="link-menu-href"
-            title={state.href}
+            title={`${openTitle(defaultTarget, openShortcut)}: ${state.href}`}
+            aria-label={`${linkTargetLabel(defaultTarget)}: ${state.href}`}
             onMouseDown={(event) => {
               event.preventDefault();
-              openExternalUrl(state.href).catch((error) => {
-                console.error("open external url rejected", error);
-              });
+              onOpen(state.href, defaultTarget);
             }}
           >
-            <ExternalLinkIcon size={13} />
+            <TargetIcon target={defaultTarget} />
             <span>{state.href}</span>
+          </button>
+          <button
+            type="button"
+            title={linkTargetLabel(alternateTarget)}
+            aria-label={linkTargetLabel(alternateTarget)}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              onOpen(state.href, alternateTarget);
+            }}
+          >
+            <TargetIcon target={alternateTarget} />
           </button>
           <span className="link-menu-sep" />
           <button

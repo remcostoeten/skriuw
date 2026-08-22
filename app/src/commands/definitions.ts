@@ -73,6 +73,7 @@ export type ShortcutActionId =
   | "zoomOut"
   | "zoomReset"
   | "insertLink"
+  | "openLink"
   | "commentOnSelection"
   | "nextAnnotation"
   | "previousAnnotation"
@@ -617,6 +618,16 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     worksWhileTyping: true,
     boundInEditor: true,
     sharesComboWith: "toggleCommandPalette",
+  },
+  {
+    id: "openLink",
+    keys: "mod+shift+enter",
+    label: "Open link",
+    description:
+      "Open the link under the caret or inside the selection, in Skriuw or the system browser depending on the editor setting. mod+click does the same with the mouse.",
+    group: "Editor",
+    worksWhileTyping: true,
+    boundInEditor: true,
   },
   {
     id: "commentOnSelection",

@@ -14,6 +14,7 @@ export const NOTE_EDITOR_SHORTCUT_IDS = [
   "goToDocumentStart",
   "goToDocumentEnd",
   "insertLink",
+  "openLink",
   "commentOnSelection",
   "nextAnnotation",
   "previousAnnotation",
