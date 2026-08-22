@@ -38,3 +38,42 @@ export function takePendingBlockReveal(noteId: string | null): string | null {
   pending = null;
   return blockId;
 }
+
+export type ThreadRevealRequest = {
+  noteId: string;
+  threadId: string;
+};
+
+let pendingThread: ThreadRevealRequest | null = null;
+let threadListener: (() => void) | null = null;
+
+/**
+ * The annotation twin of {@link registerBlockReveal}. Reveal runs through the
+ * editor rather than the panel because only the editor can shift the bounded
+ * window, and a thread anchored outside it is not in the DOM to scroll to.
+ */
+export function registerThreadReveal(handler: () => void): () => void {
+  threadListener = handler;
+  if (pendingThread) {
+    handler();
+  }
+  return () => {
+    if (threadListener === handler) {
+      threadListener = null;
+    }
+  };
+}
+
+export function requestThreadReveal(noteId: string, threadId: string): void {
+  pendingThread = { noteId, threadId };
+  threadListener?.();
+}
+
+export function takePendingThreadReveal(noteId: string | null): string | null {
+  if (noteId === null || pendingThread === null || pendingThread.noteId !== noteId) {
+    return null;
+  }
+  const { threadId } = pendingThread;
+  pendingThread = null;
+  return threadId;
+}

@@ -181,8 +181,13 @@ import type { NoteEditorShortcutId } from "./editor-bound-shortcut-ids";
 import { useEditorSearch } from "./use-editor-search";
 import { taskPromotionOperations } from "./task-linking";
 import { withFreshPastedTaskIdentities } from "./task-paste";
-import { findBlockLocation } from "./block-locations";
-import { registerBlockReveal, takePendingBlockReveal } from "./reveal-controller";
+import { findAnnotationLocation, findBlockLocation } from "./block-locations";
+import {
+  registerBlockReveal,
+  registerThreadReveal,
+  takePendingBlockReveal,
+  takePendingThreadReveal,
+} from "./reveal-controller";
 import { SaveSequencer } from "./save-sequencer";
 import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "./editor-working-set";
 import { preparedEditorDocuments } from "./prepared-documents";
@@ -1135,6 +1140,80 @@ const closeJumpToLine = useCallback(() => {
 
   useEffect(() => registerBlockReveal(revealRequestedBlock), [revealRequestedBlock]);
 
+  /**
+   * Moves the caret into a thread's anchor and opens it. Resolution runs
+   * against the full document, so a thread anchored outside the current
+   * bounded window shifts the window into view rather than silently failing.
+   */
+  const revealThread = useCallback((threadId: string) => {
+    const view = viewRef.current;
+    const entry = activeEntry();
+    if (!view || !entry) return false;
+    const document = entry.bounded?.fullDocument() ?? entry.state.doc;
+    const location = findAnnotationLocation(document, threadId);
+    if (!location) return false;
+    const bounded = entry.bounded;
+    if (bounded) {
+      bounded.rememberSelection({ blockIndex: location.blockIndex, offset: 0 });
+      bounded.revealBlock(location.blockIndex);
+      installBoundedWindow(entry, true);
+    }
+    const current = viewRef.current;
+    if (!current) return false;
+    const inWindow = findAnnotationLocation(current.state.doc, threadId);
+    if (!inWindow) return false;
+    current.dispatch(
+      current.state.tr
+        .setSelection(TextSelection.near(current.state.doc.resolve(inWindow.position)))
+        .scrollIntoView(),
+    );
+    current.focus();
+    openAnnotationMenuRef.current();
+    return true;
+  }, []);
+
+  const revealRequestedThread = useCallback(() => {
+    const threadId = takePendingThreadReveal(activeIdRef.current);
+    if (threadId === null) return;
+    revealThread(threadId);
+  }, [revealThread]);
+
+  useEffect(() => registerThreadReveal(revealRequestedThread), [revealRequestedThread]);
+
+  /**
+   * Walks anchors in document order from the caret. Ordering comes from the
+   * full document so the sequence does not change with the bounded window.
+   */
+  const stepThroughAnnotations = useCallback(
+    (direction: 1 | -1) => {
+      const view = viewRef.current;
+      const entry = activeEntry();
+      if (!view || !entry) return;
+      const full = entry.bounded?.fullDocument() ?? entry.state.doc;
+      const ordered: string[] = [];
+      full.descendants((node) => {
+        for (const mark of node.marks) {
+          if (mark.type.name !== "annotation") continue;
+          const threadId = String(mark.attrs.threadId ?? "");
+          if (!ordered.includes(threadId)) ordered.push(threadId);
+        }
+        return true;
+      });
+      if (ordered.length === 0) return;
+      const here = annotationAtCursor(view.state)?.threadId ?? "";
+      const index = ordered.indexOf(here);
+      const next =
+        index === -1
+          ? direction === 1
+            ? 0
+            : ordered.length - 1
+          : (index + direction + ordered.length) % ordered.length;
+      const target = ordered[next];
+      if (target) revealThread(target);
+    },
+    [revealThread],
+  );
+
   const jumpToDocumentEdge = useCallback((edge: DocumentEdge) => {
     const view = viewRef.current;
     if (!view || activeIdRef.current === null) return;
@@ -1164,13 +1243,15 @@ const closeJumpToLine = useCallback(() => {
         run: () => openAnnotationMenuRef.current(),
         claims: () => annotationEditorRangeRef.current() !== null,
       },
+      nextAnnotation: () => stepThroughAnnotations(1),
+      previousAnnotation: () => stepThroughAnnotations(-1),
       toggleChecklistItem: () => {
         const view = viewRef.current;
         if (view) toggleCheckItemAtSelection(view.state, view.dispatch);
       },
       jumpToLine: toggleJumpToLine,
     }),
-    [jumpToDocumentEdge, toggleJumpToLine],
+    [jumpToDocumentEdge, toggleJumpToLine, stepThroughAnnotations],
   );
   useEditorBoundShortcuts(store, shortcutHost, editorShortcuts);
   const overlayShortcuts = useMemo<EditorBoundHandlersFor<"jumpToLine">>(

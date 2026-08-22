@@ -38,3 +38,37 @@ export function findBlockLocation(
   });
   return found;
 }
+
+/**
+ * Locates the first text node anchored to a comment thread. The panel
+ * navigates by thread id for the same reason task surfaces navigate by block
+ * id: the anchored range moves whenever the note above it is edited.
+ *
+ * Takes the full document rather than the live view, so a thread anchored
+ * outside the current bounded window still resolves.
+ */
+export function findAnnotationLocation(
+  document: ProseMirrorNode,
+  threadId: string,
+): BlockLocation | null {
+  let found: BlockLocation | null = null;
+  document.forEach((child, offset, index) => {
+    if (found) {
+      return;
+    }
+    child.descendants((node, position) => {
+      if (found) {
+        return false;
+      }
+      const anchored = node.marks.some(
+        (mark) => mark.type.name === "annotation" && mark.attrs.threadId === threadId,
+      );
+      if (anchored) {
+        found = { position: offset + 1 + position, blockIndex: index };
+        return false;
+      }
+      return true;
+    });
+  });
+  return found;
+}

@@ -74,6 +74,8 @@ export type ShortcutActionId =
   | "zoomReset"
   | "insertLink"
   | "commentOnSelection"
+  | "nextAnnotation"
+  | "previousAnnotation"
   | "toggleChecklistItem"
   | "jumpToLine"
   | "goToDocumentStart"
@@ -622,6 +624,26 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Comment on selection",
     description:
       "Attach a comment thread to the selected text, or open the thread the caret sits inside. Notion's binding; Docs' alt combos fight Linux window managers.",
+    group: "Editor",
+    worksWhileTyping: true,
+    boundInEditor: true,
+  },
+  {
+    id: "nextAnnotation",
+    keys: "mod+alt+arrowdown",
+    label: "Next comment thread",
+    description:
+      "Move the caret to the next anchored comment thread in the note and open it. Wraps at the end.",
+    group: "Editor",
+    worksWhileTyping: true,
+    boundInEditor: true,
+  },
+  {
+    id: "previousAnnotation",
+    keys: "mod+alt+arrowup",
+    label: "Previous comment thread",
+    description:
+      "Move the caret to the previous anchored comment thread in the note and open it. Wraps at the start.",
     group: "Editor",
     worksWhileTyping: true,
     boundInEditor: true,
