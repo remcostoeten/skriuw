@@ -41,6 +41,8 @@ import { pasteMarkdown } from "./markdown-paste";
 import { deriveTitle, STARTER_TITLE } from "./note-title";
 import { registerPendingWork } from "@/shell/pending-work";
 import { openExternalUrl } from "@/bridge/external-links";
+import { defaultLinkTarget, openLinkAt, type LinkTarget } from "./open-link";
+import { useShortcutHints } from "@/commands/hints";
 import type { MediaBlobPayload } from "@/bridge/commands";
 import { ImageInfoDialog, ImageLightbox, ImageRenameDialog } from "./image-menu";
 import {
@@ -386,6 +388,8 @@ function selectStoreActiveNote(state: RendererState): string | null {
   return state.activeNoteId;
 }
 
+const LINK_MENU_SHORTCUT_IDS = ["openLink"] as const;
+
 function selectSettingsDocument(state: RendererState) {
   return state.settings;
 }
@@ -500,6 +504,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   }, [annotationDecorationInputs]);
   const settingsDocument = useRendererSelector(store, selectSettingsDocument);
   const editorSettings = projectSettings(settingsDocument);
+  const linkHints = useShortcutHints(store, LINK_MENU_SHORTCUT_IDS);
   const prefersReducedMotion = useReducedMotion();
   const reduceUtilityMotion = editorSettings.reduceMotion || prefersReducedMotion === true;
   const mentionPluginsRef = useRef<Plugin[] | null>(null);
@@ -911,6 +916,27 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     };
   }
 
+  /**
+   * The link the open shortcut acts on: the one under the caret, or the first
+   * one inside the selection. Null lets the binding fall through instead of
+   * swallowing the key over plain text.
+   */
+  function linkToOpen(): string | null {
+    const range = linkEditorRange();
+    return range && range.href ? range.href : null;
+  }
+
+  function openLink(href: string, target: LinkTarget = defaultLinkTarget(store.getState().settings)): void {
+    openLinkAt(target, href).catch((error) => {
+      console.error("open link rejected", error);
+    });
+  }
+
+  function openLinkUnderCaret(): void {
+    const href = linkToOpen();
+    if (href) openLink(href);
+  }
+
   function openLinkEditor(): void {
     const view = viewRef.current;
     const range = linkEditorRange();
@@ -1023,6 +1049,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   openLinkEditorRef.current = openLinkEditor;
   const linkEditorRangeRef = useRef(linkEditorRange);
   linkEditorRangeRef.current = linkEditorRange;
+  const openLinkUnderCaretRef = useRef(openLinkUnderCaret);
+  openLinkUnderCaretRef.current = openLinkUnderCaret;
+  const linkToOpenRef = useRef(linkToOpen);
+  linkToOpenRef.current = linkToOpen;
 
   function getSearchTarget(): EditorSearchTarget | null {
     const view = viewRef.current;
@@ -1266,6 +1296,10 @@ const closeJumpToLine = useCallback(() => {
         run: () => openLinkEditorRef.current(),
         claims: () => linkEditorRangeRef.current() !== null,
       },
+      openLink: {
+        run: () => openLinkUnderCaretRef.current(),
+        claims: () => linkToOpenRef.current() !== null,
+      },
       commentOnSelection: {
         run: () => openAnnotationMenuRef.current(),
         claims: () => annotationEditorRangeRef.current() !== null,
@@ -1345,8 +1379,8 @@ const closeJumpToLine = useCallback(() => {
         const href = linkInRange(currentView.state, pos, pos + 1);
         if (!href) return false;
         event.preventDefault();
-        openExternalUrl(href).catch((error) => {
-          console.error("open external url rejected", error);
+        openLinkAt(defaultLinkTarget(store.getState().settings), href).catch((error) => {
+          console.error("open link rejected", error);
         });
         return true;
       },
@@ -1945,6 +1979,9 @@ const closeJumpToLine = useCallback(() => {
       <LinkMenu
         state={linkMenu}
         getView={() => viewRef.current}
+        defaultTarget={defaultLinkTarget(settingsDocument)}
+        openShortcut={linkHints.openLink}
+        onOpen={openLink}
         onClose={() => setLinkMenu(closedLinkMenu)}
         onEdit={() => setLinkMenu((previous) => ({ ...previous, editing: true }))}
       />

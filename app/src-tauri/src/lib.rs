@@ -169,6 +169,7 @@ pub fn run() {
             auth::load_auth_token,
             auth::store_auth_token,
             auth::clear_auth_token,
+            commands::links::open_link_window,
             commands::workspace::bootstrap_workspace,
             commands::workspace::load_sidebar_expansion,
             commands::workspace::save_sidebar_expansion,

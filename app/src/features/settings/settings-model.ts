@@ -41,6 +41,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   editorDefaultRawMode: false,
   openNotesInTabs: false,
   showToasts: true,
+  openLinksInApp: false,
   aiEnabled: false,
 };
 
@@ -57,6 +58,7 @@ export type SettingsViewModel = {
   editorDefaultRawMode: boolean;
   openNotesInTabs: boolean;
   showToasts: boolean;
+  openLinksInApp: boolean;
   aiEnabled: boolean;
 };
 
@@ -96,6 +98,7 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     editorDefaultRawMode: settings.editorDefaultRawMode === true,
     openNotesInTabs: settings.openNotesInTabs === true,
     showToasts: showsToasts(settings),
+    openLinksInApp: opensLinksInApp(settings),
     aiEnabled: settings.aiEnabled === true,
   };
 }
@@ -106,6 +109,15 @@ export function opensNotesInTabs(settings: WorkspaceSettings): boolean {
 
 export function showsToasts(settings: WorkspaceSettings): boolean {
   return settings.showToasts !== false;
+}
+
+/**
+ * Whether links open in Skriuw's own browser window instead of the system
+ * browser. Off unless explicitly turned on, so workspaces written before the
+ * setting existed keep handing links to the operating system.
+ */
+export function opensLinksInApp(settings: WorkspaceSettings): boolean {
+  return settings.openLinksInApp === true;
 }
 
 /**
