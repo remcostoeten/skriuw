@@ -2,3 +2,6 @@
 BETTER_AUTH_SECRET="generate-at-least-32-random-characters"
 BETTER_AUTH_URL="http://localhost:8787"
 AUTH_TRUSTED_ORIGINS="http://localhost:5183,http://tauri.localhost,tauri://localhost"
+# Optional. Connects this deployment to the Better Auth Infrastructure
+# dashboard and enables Sentinel abuse checks. Leave unset to run without it.
+# BETTER_AUTH_API_KEY="ba_..."

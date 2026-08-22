@@ -8,6 +8,7 @@ import {
   CodeIcon,
   ItalicIcon,
   LinkIcon,
+  MessageSquareIcon,
   StarIcon,
   StrikethroughIcon,
   TextQuoteIcon,
@@ -34,6 +35,7 @@ export type BubbleMenuState = {
   highlightColor: HighlightColor | null;
   code: boolean;
   link: boolean;
+  annotated: boolean;
   textAlign: TextAlignment;
   headingLevel: number | null;
   blockquote: boolean;
@@ -51,6 +53,7 @@ export const closedBubbleMenu: BubbleMenuState = {
   highlightColor: null,
   code: false,
   link: false,
+  annotated: false,
   textAlign: "left",
   headingLevel: null,
   blockquote: false,
@@ -72,6 +75,7 @@ export function bubbleMenuStateEqual(
     left.highlightColor === right.highlightColor &&
     left.code === right.code &&
     left.link === right.link &&
+    left.annotated === right.annotated &&
     left.textAlign === right.textAlign &&
     left.headingLevel === right.headingLevel &&
     left.blockquote === right.blockquote
@@ -150,6 +154,7 @@ export function computeBubbleMenu(view: EditorView): BubbleMenuState {
     highlightColor: activeHighlightColor(state),
     code: markActive(state, requiredMark("code")),
     link: markActive(state, requiredMark("link")),
+    annotated: markActive(state, requiredMark("annotation")),
     textAlign: parent.attrs.textAlign === "center" || parent.attrs.textAlign === "right"
       ? parent.attrs.textAlign
       : "left",
@@ -258,6 +263,7 @@ type Props = {
   state: BubbleMenuState;
   getView: () => EditorView | null;
   onLink: () => void;
+  onComment: () => void;
   /** Null keeps the AI entry out of the toolbar entirely while AI is opted out. */
   onAskAi: (() => void) | null;
   onDismiss: () => void;
@@ -269,6 +275,7 @@ export function BubbleMenu({
   state,
   getView,
   onLink,
+  onComment,
   onAskAi,
   onDismiss,
   onCancel,
@@ -331,6 +338,15 @@ export function BubbleMenu({
       content: <LinkIcon size={14} />,
       command: () => true,
       onPress: onLink,
+    },
+    {
+      id: "comment",
+      label: "Comment",
+      active: state.annotated,
+      group: "marks",
+      content: <MessageSquareIcon size={14} />,
+      command: () => true,
+      onPress: onComment,
     },
     ...Object.entries(highlightColors).map(([color, backgroundColor]) => ({
       id: `highlight-${color}`,

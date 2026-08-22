@@ -143,6 +143,87 @@ test("rich formatting survives JSON, DOM specs, and Markdown roundtrips", () => 
   assert.deepEqual(parsedHighlight, { color: "blue" });
 });
 
+test("annotation anchors survive JSON, DOM specs, and Markdown roundtrips", () => {
+  const annotation = productSchema.marks.annotation;
+  assert.ok(annotation);
+  const document = productSchema.node("doc", null, [
+    productSchema.node("paragraph", null, [
+      productSchema.text("before "),
+      productSchema.text("anchored", [annotation.create({ threadId: "thread-1" })]),
+      productSchema.text(" after"),
+    ]),
+  ]);
+
+  assert.deepEqual(productSchema.nodeFromJSON(document.toJSON()).toJSON(), document.toJSON());
+  const markdown = serializeProductMarkdown(document);
+  assert.match(markdown, /<mark data-skriuw-annotation="thread-1">anchored<\/mark>/);
+  assert.deepEqual(parseProductMarkdown(markdown).toJSON(), document.toJSON());
+
+  const toDom = annotation.spec.toDOM;
+  assert.deepEqual(toDom?.(annotation.create({ threadId: "thread-1" }), true), [
+    "mark",
+    {
+      "data-skriuw-annotation": "thread-1",
+      "aria-details": "skriuw-annotation-thread-1",
+    },
+    0,
+  ]);
+});
+
+test("overlapping annotation and highlight marks close against the right tag", () => {
+  const annotation = productSchema.marks.annotation;
+  const highlight = productSchema.marks.highlight;
+  assert.ok(annotation && highlight);
+  const document = productSchema.node("doc", null, [
+    productSchema.node("paragraph", null, [
+      productSchema.text("plain ", [highlight.create({ color: "blue" })]),
+      productSchema.text("both", [
+        highlight.create({ color: "blue" }),
+        annotation.create({ threadId: "thread-2" }),
+      ]),
+    ]),
+  ]);
+
+  const markdown = serializeProductMarkdown(document);
+  assert.deepEqual(parseProductMarkdown(markdown).toJSON(), document.toJSON());
+});
+
+test("two annotations on adjacent ranges stay distinct through markdown", () => {
+  const annotation = productSchema.marks.annotation;
+  assert.ok(annotation);
+  const document = productSchema.node("doc", null, [
+    productSchema.node("paragraph", null, [
+      productSchema.text("first", [annotation.create({ threadId: "thread-a" })]),
+      productSchema.text(" and "),
+      productSchema.text("second", [annotation.create({ threadId: "thread-b" })]),
+    ]),
+  ]);
+
+  assert.deepEqual(
+    parseProductMarkdown(serializeProductMarkdown(document)).toJSON(),
+    document.toJSON(),
+  );
+});
+
+test("a pasted annotation element does not become a stray highlight", () => {
+  const highlightRule = productSchema.marks.highlight?.spec.parseDOM?.[0];
+  assert.ok(highlightRule && "getAttrs" in highlightRule && highlightRule.getAttrs);
+  const attributes: Record<string, string> = { "data-skriuw-annotation": "thread-3" };
+  const parsed = highlightRule.getAttrs?.({
+    getAttribute: (name: string) => attributes[name] ?? null,
+  } as unknown as HTMLElement);
+  assert.equal(parsed, false);
+});
+
+test("an annotation anchor with an unusable thread id is rejected", () => {
+  const annotationRule = productSchema.marks.annotation?.spec.parseDOM?.[0];
+  assert.ok(annotationRule && "getAttrs" in annotationRule && annotationRule.getAttrs);
+  const parsed = annotationRule.getAttrs?.({
+    getAttribute: () => "not a valid id",
+  } as unknown as HTMLElement);
+  assert.equal(parsed, false);
+});
+
 test("parseProductMarkdownWithImages relinks known image ids back to image_ref", () => {
   const doc = productSchema.node("doc", null, [
     productSchema.node("paragraph", null, [

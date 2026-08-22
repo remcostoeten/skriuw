@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use skriuw_domain::{
-    EntityRevision, NodePlacement, NodePosition, NodeRankChange, NotePropertyField,
-    NotePropertyValue, OperationAck, TaskSourceDocument, WorkspaceOperation,
+    AnnotationComment, EntityRevision, NodePlacement, NodePosition, NodeRankChange,
+    NotePropertyField, NotePropertyValue, OperationAck, TaskSourceDocument, WorkspaceOperation,
     WorkspaceOperationEnvelope, WorkspacePrompt, WorkspaceTask,
 };
 use skriuw_storage::StorageError;
@@ -571,6 +571,7 @@ fn apply_operation(
                 &[&root_id],
                 *trashed_before,
             )?;
+            purge_annotations_for_notes(transaction, &subtree_ids)?;
             transaction
                 .execute(
                     "WITH RECURSIVE subtree(id) AS (\
@@ -883,6 +884,95 @@ fn apply_operation(
             detach_tasks(transaction, "id = ?1", &[&id], *at)?;
             save_task_document(transaction, document.as_deref(), *at, revisions)?;
         }
+        WorkspaceOperation::CreateAnnotation { annotation } => {
+            require_note(transaction, &annotation.note_id)?;
+            transaction
+                .execute(
+                    "INSERT INTO note_annotations \
+                     (id, note_id, status, anchor_text, created_at, resolved_at) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![
+                        annotation.id,
+                        annotation.note_id,
+                        annotation.status.as_str(),
+                        annotation.anchor_text,
+                        annotation.created_at,
+                        annotation.resolved_at
+                    ],
+                )
+                .map_err(|error| StorageError::AlreadyExists(error.to_string()))?;
+            for comment in &annotation.comments {
+                insert_annotation_comment(transaction, &annotation.id, comment)?;
+            }
+        }
+        WorkspaceOperation::AddAnnotationComment {
+            annotation_id,
+            comment,
+        } => {
+            require_annotation(transaction, annotation_id)?;
+            insert_annotation_comment(transaction, annotation_id, comment)?;
+        }
+        WorkspaceOperation::UpdateAnnotationComment {
+            annotation_id,
+            comment_id,
+            body_markdown,
+            updated_at,
+        } => {
+            require_annotation(transaction, annotation_id)?;
+            let changed = transaction
+                .execute(
+                    "UPDATE note_annotation_comments SET body_markdown = ?3, updated_at = ?4 \
+                     WHERE id = ?1 AND annotation_id = ?2",
+                    params![comment_id, annotation_id, body_markdown, updated_at],
+                )
+                .map_err(backend)?;
+            require_changed(changed, comment_id)?;
+        }
+        WorkspaceOperation::DeleteAnnotationComment {
+            annotation_id,
+            comment_id,
+        } => {
+            let changed = transaction
+                .execute(
+                    "DELETE FROM note_annotation_comments WHERE id = ?1 AND annotation_id = ?2",
+                    params![comment_id, annotation_id],
+                )
+                .map_err(backend)?;
+            require_changed(changed, comment_id)?;
+        }
+        WorkspaceOperation::ResolveAnnotation { id, at } => {
+            let changed = transaction
+                .execute(
+                    "UPDATE note_annotations SET status = 'resolved', resolved_at = ?2 \
+                     WHERE id = ?1",
+                    params![id, at],
+                )
+                .map_err(backend)?;
+            require_changed(changed, id)?;
+        }
+        WorkspaceOperation::ReopenAnnotation { id } => {
+            let changed = transaction
+                .execute(
+                    "UPDATE note_annotations SET status = 'open', resolved_at = NULL \
+                     WHERE id = ?1",
+                    [id],
+                )
+                .map_err(backend)?;
+            require_changed(changed, id)?;
+        }
+        WorkspaceOperation::DeleteAnnotation { id } => {
+            transaction
+                .execute(
+                    "DELETE FROM note_annotation_comments WHERE annotation_id = ?1",
+                    [id],
+                )
+                .map_err(backend)?;
+            let changed = transaction
+                .execute("DELETE FROM note_annotations WHERE id = ?1", [id])
+                .map_err(backend)?;
+            require_changed(changed, id)?;
+            insert_terminal_tombstone(transaction, "annotation", id, "", None)?;
+        }
         WorkspaceOperation::SetPrompt { prompt } => {
             upsert_prompt(transaction, prompt)?;
         }
@@ -963,6 +1053,78 @@ fn upsert_prompt(
             ],
         )
         .map_err(backend)?;
+    Ok(())
+}
+
+/// A thread outlives its anchor text but not its note. Tasks detach and
+/// survive a purge because they carry their own title and status; a thread is
+/// only ever a comment on words that no longer exist, so it is tombstoned with
+/// the note rather than left pointing at nothing.
+fn purge_annotations_for_notes(
+    transaction: &Transaction<'_>,
+    note_ids: &[String],
+) -> Result<(), StorageError> {
+    for note_id in note_ids {
+        let annotation_ids = {
+            let mut statement = transaction
+                .prepare("SELECT id FROM note_annotations WHERE note_id = ?1 ORDER BY id")
+                .map_err(backend)?;
+            statement
+                .query_map([note_id], |row| row.get::<_, String>(0))
+                .map_err(backend)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(backend)?
+        };
+        for annotation_id in &annotation_ids {
+            transaction
+                .execute(
+                    "DELETE FROM note_annotation_comments WHERE annotation_id = ?1",
+                    [annotation_id],
+                )
+                .map_err(backend)?;
+            insert_terminal_tombstone(transaction, "annotation", annotation_id, "", None)?;
+        }
+        transaction
+            .execute("DELETE FROM note_annotations WHERE note_id = ?1", [note_id])
+            .map_err(backend)?;
+    }
+    Ok(())
+}
+
+fn require_annotation(transaction: &Transaction<'_>, id: &str) -> Result<(), StorageError> {
+    let exists: bool = transaction
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM note_annotations WHERE id = ?1)",
+            [id],
+            |row| row.get(0),
+        )
+        .map_err(backend)?;
+    if exists {
+        return Ok(());
+    }
+    Err(StorageError::NotFound(id.to_string()))
+}
+
+fn insert_annotation_comment(
+    transaction: &Transaction<'_>,
+    annotation_id: &str,
+    comment: &AnnotationComment,
+) -> Result<(), StorageError> {
+    transaction
+        .execute(
+            "INSERT INTO note_annotation_comments \
+             (id, annotation_id, body_markdown, author_id, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                comment.id,
+                annotation_id,
+                comment.body_markdown,
+                comment.author_id,
+                comment.created_at,
+                comment.updated_at
+            ],
+        )
+        .map_err(|error| StorageError::AlreadyExists(error.to_string()))?;
     Ok(())
 }
 

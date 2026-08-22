@@ -1,5 +1,6 @@
 import type { AuthAdapter } from "@remcostoeten/auth-drawer";
 import { createBetterAuthAdapter } from "@remcostoeten/auth-drawer/adapters/better-auth";
+import { sentinelClient } from "@better-auth/infra/client";
 import { createAuthClient } from "better-auth/react";
 import { noop } from "@/shared/lib/noop";
 import { authConfiguration } from "./config";
@@ -38,6 +39,10 @@ function configuredAdapter(baseURL: string): AuthAdapter {
   // Signalling once the credential changes refetches it for all of them.
   const client = createAuthClient({
     baseURL,
+    // Server-side Sentinel answers an abuse verdict with a 423 proof-of-work
+    // challenge. Without this the drawer would surface that as an opaque
+    // failure the user cannot act on.
+    plugins: [sentinelClient({ autoSolveChallenge: true })],
     fetchOptions: {
       auth: { type: "Bearer", token: currentSessionToken },
       async onSuccess(context) {

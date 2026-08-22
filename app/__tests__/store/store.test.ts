@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type {
+  WorkspaceAnnotation,
   WorkspaceNode,
   WorkspacePrompt,
   WorkspaceSnapshot,
@@ -582,4 +583,86 @@ test("select-all selects exactly the visible tree ids", () => {
   store.toggleExpanded("folder");
   assert.equal(store.getState().selectedNodeIds.has("note-child"), false);
   assert.equal(store.getState().selectedNodeIds.has("trashed"), false);
+});
+
+function annotation(): WorkspaceAnnotation {
+  return {
+    id: "thread-1",
+    noteId: "note-child",
+    status: "open",
+    anchorText: "the anchored words",
+    createdAt: 1,
+    resolvedAt: null,
+    comments: [
+      { id: "comment-1", bodyMarkdown: "Why this?", authorId: null, createdAt: 1, updatedAt: 1 },
+    ],
+  };
+}
+
+test("annotations hydrate and thread operations fold into the projection", () => {
+  const initial = createInitialState({ ...snapshot(), annotations: [annotation()] });
+  assert.equal(initial.annotations.get("thread-1")?.comments.length, 1);
+
+  const store = createRendererStore(initial);
+  store.applyOperations([
+    {
+      type: "add_annotation_comment",
+      annotationId: "thread-1",
+      comment: {
+        id: "comment-2",
+        bodyMarkdown: "Deadline",
+        authorId: null,
+        createdAt: 2,
+        updatedAt: 2,
+      },
+    },
+    {
+      type: "update_annotation_comment",
+      annotationId: "thread-1",
+      commentId: "comment-2",
+      bodyMarkdown: "Friday deadline",
+      updatedAt: 3,
+    },
+  ]);
+  const replied = store.getState().annotations.get("thread-1");
+  assert.deepEqual(
+    replied?.comments.map((comment) => comment.bodyMarkdown),
+    ["Why this?", "Friday deadline"],
+  );
+
+  store.applyOperations([{ type: "resolve_annotation", id: "thread-1", at: 4 }]);
+  assert.equal(store.getState().annotations.get("thread-1")?.status, "resolved");
+  assert.equal(store.getState().annotations.get("thread-1")?.resolvedAt, 4);
+
+  store.applyOperations([{ type: "reopen_annotation", id: "thread-1" }]);
+  assert.equal(store.getState().annotations.get("thread-1")?.status, "open");
+  assert.equal(store.getState().annotations.get("thread-1")?.resolvedAt, null);
+});
+
+test("deleting every comment keeps the thread but deleting the thread removes it", () => {
+  const store = createRendererStore(
+    createInitialState({ ...snapshot(), annotations: [annotation()] }),
+  );
+
+  store.applyOperations([
+    { type: "delete_annotation_comment", annotationId: "thread-1", commentId: "comment-1" },
+  ]);
+  const stripped = store.getState().annotations.get("thread-1");
+  assert.ok(stripped, "the thread should survive losing its last comment");
+  assert.equal(stripped.comments.length, 0);
+
+  store.applyOperations([{ type: "delete_annotation", id: "thread-1" }]);
+  assert.equal(store.getState().annotations.has("thread-1"), false);
+});
+
+test("thread operations against an unknown thread leave state untouched", () => {
+  const initial = createInitialState({ ...snapshot(), annotations: [annotation()] });
+  const store = createRendererStore(initial);
+
+  store.applyOperations([
+    { type: "resolve_annotation", id: "thread-absent", at: 9 },
+    { type: "delete_annotation_comment", annotationId: "thread-1", commentId: "comment-absent" },
+  ]);
+
+  assert.equal(store.getState().annotations, initial.annotations);
 });

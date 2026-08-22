@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 use serde_json::json;
-use skriuw_domain::{WORKSPACE_ARCHIVE_VERSION, WorkspaceArchive, WorkspaceDocument};
+use skriuw_domain::{
+    SUPPORTED_ARCHIVE_VERSIONS, WORKSPACE_ARCHIVE_VERSION, WorkspaceArchive, WorkspaceDocument,
+};
 use skriuw_sqlite::SqliteWorkspace;
 use skriuw_storage::{StorageError, WorkspaceMaintenance, WorkspaceStorage};
 
@@ -177,8 +179,14 @@ fn invalid_archives_fail_before_mutation_and_preserve_workspace() {
         .replace_from_archive(&archive)
         .expect("import representative fixture");
 
+    // Derived so that shipping a new archive version does not turn this into
+    // an assertion that a supported version is rejected.
     let mut future = archive.clone();
-    future.archive_version = 6;
+    future.archive_version = SUPPORTED_ARCHIVE_VERSIONS
+        .into_iter()
+        .max()
+        .expect("at least one supported archive version")
+        + 1;
     assert!(matches!(
         storage.replace_from_archive(&future),
         Err(StorageError::InvalidOperation(_))

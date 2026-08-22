@@ -14,6 +14,9 @@ export const NOTE_EDITOR_SHORTCUT_IDS = [
   "goToDocumentStart",
   "goToDocumentEnd",
   "insertLink",
+  "commentOnSelection",
+  "nextAnnotation",
+  "previousAnnotation",
   "toggleChecklistItem",
   "jumpToLine",
 ] as const satisfies readonly ShortcutActionId[];

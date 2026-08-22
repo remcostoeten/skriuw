@@ -120,6 +120,34 @@
     "replicationClass": "device_local"
   },
   {
+    "operationType": "create_annotation",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "add_annotation_comment",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "update_annotation_comment",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "delete_annotation_comment",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "resolve_annotation",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "reopen_annotation",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "delete_annotation",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
     "operationType": "create_task",
     "replicationClass": "replicated_workspace_content"
   },

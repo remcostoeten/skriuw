@@ -57,6 +57,7 @@ fn snapshot_from_archive(archive: &WorkspaceArchive) -> WorkspaceSnapshot {
         property_templates: archive.property_templates.clone(),
         tasks: archive.tasks.clone(),
         prompts: archive.prompts.clone(),
+        annotations: archive.annotations.clone(),
         import_receipts: Vec::new(),
     }
 }
@@ -355,13 +356,22 @@ fn archives_reject_tasks_whose_source_block_is_gone() {
 
 #[test]
 fn future_archive_versions_fail_explicitly() {
+    // Derived rather than written down, so shipping a new archive version does
+    // not leave this asserting that a now-supported version is rejected.
+    let unsupported = SUPPORTED_ARCHIVE_VERSIONS
+        .into_iter()
+        .max()
+        .expect("at least one supported archive version")
+        + 1;
     let mut value = load_fixture_value("v1/representative.json");
-    value["archiveVersion"] = json!(6);
+    value["archiveVersion"] = json!(unsupported);
     let future =
         serde_json::from_value::<WorkspaceArchive>(value).expect("parse future-version archive");
     assert_eq!(
         future.validate(),
-        Err(ArchiveValidationError::UnsupportedArchiveVersion(6))
+        Err(ArchiveValidationError::UnsupportedArchiveVersion(
+            unsupported
+        ))
     );
 
     let mut value = load_fixture_value("v1/representative.json");

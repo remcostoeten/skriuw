@@ -136,6 +136,26 @@ export type WorkspaceTask = {
   updatedAt: number;
 };
 
+export type AnnotationStatus = "open" | "resolved";
+
+export type AnnotationComment = {
+  id: string;
+  bodyMarkdown: string;
+  authorId?: string | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type WorkspaceAnnotation = {
+  id: string;
+  noteId: string;
+  status: AnnotationStatus;
+  anchorText: string;
+  createdAt: number;
+  resolvedAt?: number | null;
+  comments: AnnotationComment[];
+};
+
 export type TaskSourceDocument = {
   noteId: string;
   documentJson: unknown;
@@ -193,6 +213,7 @@ export type WorkspaceSnapshot = {
   propertyTemplates?: NotePropertyTemplate[];
   tasks?: WorkspaceTask[];
   prompts?: WorkspacePrompt[];
+  annotations?: WorkspaceAnnotation[];
   importReceipts?: ProviderImportReceipt[];
 };
 
@@ -218,6 +239,7 @@ export type WorkspaceArchive = {
   propertyTemplates?: NotePropertyTemplate[];
   tasks?: WorkspaceTask[];
   prompts?: WorkspacePrompt[];
+  annotations?: WorkspaceAnnotation[];
 };
 
 export type NodePosition =
@@ -328,6 +350,19 @@ export type WorkspaceOperation =
   | { type: "delete_task"; id: string; document: TaskSourceDocument | null; at: number }
   | { type: "detach_task"; id: string; document: TaskSourceDocument | null; at: number }
   | { type: "promote_checklist_task"; task: WorkspaceTask; document: TaskSourceDocument }
+  | { type: "create_annotation"; annotation: WorkspaceAnnotation }
+  | { type: "add_annotation_comment"; annotationId: string; comment: AnnotationComment }
+  | {
+      type: "update_annotation_comment";
+      annotationId: string;
+      commentId: string;
+      bodyMarkdown: string;
+      updatedAt: number;
+    }
+  | { type: "delete_annotation_comment"; annotationId: string; commentId: string }
+  | { type: "resolve_annotation"; id: string; at: number }
+  | { type: "reopen_annotation"; id: string }
+  | { type: "delete_annotation"; id: string }
   | { type: "set_prompt"; prompt: WorkspacePrompt }
   | { type: "delete_prompt"; id: string };
 

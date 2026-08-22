@@ -91,6 +91,13 @@ export function reduceOperation(
     case "record_provider_import":
     case "set_prompt":
     case "delete_prompt":
+    case "create_annotation":
+    case "add_annotation_comment":
+    case "update_annotation_comment":
+    case "delete_annotation_comment":
+    case "resolve_annotation":
+    case "reopen_annotation":
+    case "delete_annotation":
       return nodes;
     case "create_folder":
     case "create_note": {

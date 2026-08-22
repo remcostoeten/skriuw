@@ -46,6 +46,7 @@ import {
   tableNodes,
 } from "prosemirror-tables";
 import { createCodeHighlightPlugin } from "./code-highlight";
+import { createAnnotationDecorationPlugin } from "./annotation-decorations";
 import { createSearchPlugin } from "./search-plugin";
 import {
   createDefaultDiagram,
@@ -573,6 +574,12 @@ const underlineSpec: MarkSpec = {
   toDOM: () => ["u", 0],
 };
 
+const ANNOTATION_THREAD_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+
+export function isAnnotationThreadId(value: unknown): value is string {
+  return typeof value === "string" && ANNOTATION_THREAD_ID_PATTERN.test(value);
+}
+
 const highlightSpec: MarkSpec = {
   attrs: {
     color: { default: "yellow" },
@@ -582,6 +589,9 @@ const highlightSpec: MarkSpec = {
       tag: "mark",
       getAttrs: (dom) => {
         const color = dom.getAttribute("data-skriuw-highlight");
+        if (color === null && dom.getAttribute("data-skriuw-annotation") !== null) {
+          return false;
+        }
         return { color: isHighlightColor(color) ? color : "yellow" };
       },
     },
@@ -597,6 +607,39 @@ const highlightSpec: MarkSpec = {
       0,
     ];
   },
+};
+
+/**
+ * Anchors a comment thread to a text range. The thread body lives in SQLite;
+ * the document carries only this id.
+ *
+ * `inclusive: false` keeps typing at either edge outside the anchor, and
+ * `excludes: ""` lets overlapping threads stack rather than evicting each
+ * other — the default would make a mark exclude its own type.
+ */
+const annotationSpec: MarkSpec = {
+  attrs: {
+    threadId: {},
+  },
+  inclusive: false,
+  excludes: "",
+  parseDOM: [
+    {
+      tag: "mark[data-skriuw-annotation]",
+      getAttrs: (dom) => {
+        const threadId = dom.getAttribute("data-skriuw-annotation");
+        return isAnnotationThreadId(threadId) ? { threadId } : false;
+      },
+    },
+  ],
+  toDOM: (mark) => [
+    "mark",
+    {
+      "data-skriuw-annotation": mark.attrs.threadId,
+      "aria-details": `skriuw-annotation-${mark.attrs.threadId}`,
+    },
+    0,
+  ],
 };
 
 const tableSpecs = tableNodes({
@@ -630,7 +673,8 @@ export const productSchema = new Schema({
   marks: basicSchema.spec.marks
     .addToEnd("strikethrough", strikethroughSpec)
     .addToEnd("underline", underlineSpec)
-    .addToEnd("highlight", highlightSpec),
+    .addToEnd("highlight", highlightSpec)
+    .addToEnd("annotation", annotationSpec),
 });
 
 export const slashMenuKey = new PluginKey<SlashMenuState>("skriuw-slash-menu");
@@ -1182,6 +1226,7 @@ export function createProductPlugins(): Plugin[] {
     createSlashMenuPlugin(),
     createPlaceholderPlugin(),
     createSearchPlugin(),
+    createAnnotationDecorationPlugin(),
     createCodeHighlightPlugin(),
     createCheckboxTogglePlugin(),
     createToggleListPlugin(),
@@ -1449,6 +1494,10 @@ const productMarkdownSerializer = new MarkdownSerializer(
       },
       close: "</mark>",
     },
+    annotation: {
+      open: (_state, mark) => `<mark data-skriuw-annotation="${mark.attrs.threadId}">`,
+      close: "</mark>",
+    },
   },
 );
 
@@ -1502,6 +1551,12 @@ if (!(defaultMarkdownParser.tokenizer.inline.ruler as any).__rules?.some((r: any
   defaultMarkdownParser.tokenizer.inline.ruler.before("link", "wiki_link", inlineWikiLinkRule);
 }
 
+type RichMarkTag = "highlight" | "annotation";
+
+function openRichMarkTags(state: any): RichMarkTag[] {
+  return (state.env.skriuwOpenRichMarkTags ??= []);
+}
+
 function richFormattingTagRule(state: any, silent: boolean): boolean {
   const source = state.src.slice(state.pos, state.posMax);
   const underline = source.match(/^<(\/?)u>/i);
@@ -1516,17 +1571,45 @@ function richFormattingTagRule(state: any, silent: boolean): boolean {
     state.pos += underline[0].length;
     return true;
   }
-  const highlight = source.match(/^<(\/?)mark(?:\s+data-skriuw-highlight=["']([a-z]+)["'])?>/i);
+  const closing = source.match(/^<\/mark>/i);
+  if (closing) {
+    if (!silent) {
+      /**
+       * Highlight and annotation both close with a bare `</mark>`, so the tag
+       * alone cannot say which mark it ends. Track the open tags and let the
+       * close pop the innermost one; an unbalanced close stays a highlight,
+       * which is how the parser behaved before annotations existed.
+       */
+      const stack = openRichMarkTags(state);
+      state.push(`skriuw_${stack.pop() ?? "highlight"}_close`, "mark", -1);
+    }
+    state.pos += closing[0].length;
+    return true;
+  }
+
+  const annotation = source.match(
+    /^<mark\s+data-skriuw-annotation=["']([A-Za-z0-9_-]+)["']\s*>/i,
+  );
+  if (annotation) {
+    const threadId = annotation[1];
+    if (!isAnnotationThreadId(threadId)) return false;
+    if (!silent) {
+      const token = state.push("skriuw_annotation_open", "mark", 1);
+      token.meta = { threadId };
+      openRichMarkTags(state).push("annotation");
+    }
+    state.pos += annotation[0].length;
+    return true;
+  }
+
+  const highlight = source.match(/^<mark(?:\s+data-skriuw-highlight=["']([a-z]+)["'])?\s*>/i);
   if (!highlight) return false;
-  const color = highlight[2]?.toLowerCase();
-  if (!highlight[1] && !isHighlightColor(color)) return false;
+  const color = highlight[1]?.toLowerCase();
+  if (!isHighlightColor(color)) return false;
   if (!silent) {
-    const token = state.push(
-      highlight[1] ? "skriuw_highlight_close" : "skriuw_highlight_open",
-      "mark",
-      highlight[1] ? -1 : 1,
-    );
-    if (!highlight[1]) token.meta = { color };
+    const token = state.push("skriuw_highlight_open", "mark", 1);
+    token.meta = { color };
+    openRichMarkTags(state).push("highlight");
   }
   state.pos += highlight[0].length;
   return true;
@@ -1647,6 +1730,10 @@ const productMarkdownParser = new MarkdownParser(
     skriuw_highlight: {
       mark: "highlight",
       getAttrs: (tok: any) => ({ color: tok.meta?.color ?? "yellow" }),
+    },
+    skriuw_annotation: {
+      mark: "annotation",
+      getAttrs: (tok: any) => ({ threadId: tok.meta?.threadId ?? "" }),
     },
     skriuw_diagram: {
       node: "diagram",

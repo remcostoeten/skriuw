@@ -6,6 +6,7 @@ import { projectVersionList, type VersionListItem } from "@/features/history/ver
 import { noteHistoryHash } from "@/app-route";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { NoteOutline } from "./note-outline";
+import { AnnotationList } from "./annotation-list";
 import { RelationshipExplorer } from "@/features/references/relationship-explorer";
 import { projectHasRelationships } from "@/features/references/relationship-model";
 import type { RendererState, RendererStore } from "@/store/types";
@@ -16,6 +17,7 @@ type Props = {
 
 type SectionKey =
   | "outline"
+  | "annotations"
   | "revisions"
   | "details"
   | "relationships";
@@ -58,6 +60,7 @@ const OPEN_STORAGE_KEY = "skriuw.inspector-sections-open";
 
 const defaultOpenSections: Record<SectionKey, boolean> = {
   outline: true,
+  annotations: true,
   revisions: true,
   details: true,
   relationships: true,
@@ -221,6 +224,18 @@ export function MetadataPanel({ store }: Props) {
       [activeNoteId],
     ),
   );
+  const annotationCount = useRendererSelector(
+    store,
+    useCallback(
+      (state: RendererState) =>
+        activeNoteId === null
+          ? 0
+          : [...state.annotations.values()].filter(
+              (annotation) => annotation.noteId === activeNoteId,
+            ).length,
+      [activeNoteId],
+    ),
+  );
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(readOpenSections);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [outlineCount, setOutlineCount] = useState(0);
@@ -273,6 +288,16 @@ export function MetadataPanel({ store }: Props) {
                 onCountChange={handleOutlineCountChange}
               />
             </div>
+          </InspectorSection>
+        )}
+        {activeNoteId && annotationCount > 0 && (
+          <InspectorSection
+            id="metadata-annotations"
+            title="Comments"
+            open={openSections.annotations}
+            onToggle={() => toggleSection("annotations")}
+          >
+            <AnnotationList key={activeNoteId} store={store} noteId={activeNoteId} />
           </InspectorSection>
         )}
         {activeNoteId && (

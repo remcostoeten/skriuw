@@ -616,6 +616,7 @@ function WorkspaceShell({ store }: Props) {
       )}
       {route === "tags" && <EntityView store={store} kind="tag" />}
       {route === "people" && <EntityView store={store} kind="person" />}
+      </div>
       <CommandPaletteHost
         store={store}
         registry={registry}
@@ -663,7 +664,6 @@ function WorkspaceShell({ store }: Props) {
         activeWhileSuspended={settingsOpen ? "openSettings" : undefined}
         actions={shortcutActions}
       />
-      </div>
       {needsOnboarding ? (
         <WindowControls className="fixed right-0 top-0 z-50" />
       ) : null}
