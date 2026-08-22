@@ -38,6 +38,30 @@ describe("v2 auth boundary", () => {
     expect(headers?.get("Access-Control-Allow-Headers")).toContain("Authorization");
   });
 
+  it("preflights and exposes the Sentinel browser protocol headers", async () => {
+    const response = await handleAuthRequest(
+      new Request("http://localhost:8787/api/auth/get-session", {
+        method: "OPTIONS",
+        headers: {
+          Origin: "https://skriuw.com",
+          "Access-Control-Request-Headers": "x-request-id,x-visitor-id",
+          "Access-Control-Request-Method": "GET",
+        },
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(204);
+    const allowedHeaders = response.headers.get("Access-Control-Allow-Headers") ?? "";
+    for (const header of ["X-PoW-Solution", "X-Request-Id", "X-Visitor-Id"]) {
+      expect(allowedHeaders).toContain(header);
+    }
+    const exposedHeaders = response.headers.get("Access-Control-Expose-Headers") ?? "";
+    for (const header of ["set-auth-token", "X-PoW-Challenge", "X-PoW-Reason"]) {
+      expect(exposedHeaders).toContain(header);
+    }
+  });
+
   it("fails closed without a production session secret", async () => {
     const response = await handleAuthRequest(
       new Request("http://localhost:8787/api/auth/get-session", {

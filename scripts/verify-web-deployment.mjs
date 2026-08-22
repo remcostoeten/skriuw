@@ -72,8 +72,12 @@ async function verifyStaticDeployment(url) {
   if (!response.ok) throw new Error(`app shell returned HTTP ${response.status}`);
   const html = await response.text();
   const assets = [...html.matchAll(/(?:src|href)="([^"]+)"/gu)].map((match) => match[1]);
+  const faviconAsset = assets.find((asset) => asset.endsWith("favicon.ico"));
   const wasmAsset = assets.find((asset) => asset.endsWith(".wasm"));
   const scriptAsset = assets.find((asset) => asset.endsWith(".js"));
+  if (!faviconAsset) throw new Error("app shell has no favicon");
+  const faviconResponse = await fetch(new URL(faviconAsset, url), { method: "HEAD" });
+  if (!faviconResponse.ok) throw new Error(`favicon returned HTTP ${faviconResponse.status}`);
   if (!scriptAsset) throw new Error("app shell has no production script asset");
   const scriptResponse = await fetch(new URL(scriptAsset, url), { method: "HEAD" });
   if (!scriptResponse.ok) throw new Error(`app script returned HTTP ${scriptResponse.status}`);
