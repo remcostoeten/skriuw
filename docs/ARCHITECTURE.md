@@ -205,4 +205,6 @@ Rust and Tauri suites rather than simulated browser state.
 - [ADR-0029: stored video media](adr/0029-stored-video-media.md)
 - [ADR-0030: remote cover download](adr/0030-remote-cover-download.md)
 - [ADR-0031: explicit task promotion](adr/0031-explicit-task-promotion.md)
+- [ADR-0032: task-shaped typing is explicit intent](adr/0032-task-shaped-typing-is-explicit.md)
 - [ADR-0033: provider-agnostic AI completion seam](adr/0033-ai-provider-completion-seam.md)
+- [ADR-0034: annotation anchors are document data](adr/0034-annotation-anchors-are-document-data.md)
