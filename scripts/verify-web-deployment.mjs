@@ -82,20 +82,27 @@ async function verifyStaticDeployment(url) {
   const scriptResponse = await fetch(new URL(scriptAsset, url), { method: "HEAD" });
   if (!scriptResponse.ok) throw new Error(`app script returned HTTP ${scriptResponse.status}`);
 
-  // The WASM URL is emitted by the worker chunk rather than the HTML shell.
-  const script = await fetch(new URL(scriptAsset, url)).then((result) => result.text());
-  const emittedScripts = [
-    scriptAsset,
-    ...script.matchAll(/\/app\/assets\/[A-Za-z0-9_-]+\.js/gu),
-  ].map((match) => (typeof match === "string" ? match : match[0]));
-  let emittedWasm = wasmAsset;
-  for (const emittedScript of new Set(emittedScripts)) {
-    const source = await fetch(new URL(emittedScript, url)).then((result) => result.text());
-    emittedWasm = source.match(/\/app\/assets\/[A-Za-z0-9_-]+\.wasm/u)?.[0];
-    if (emittedWasm) break;
+  const pendingScripts = assets
+    .filter((asset) => asset.endsWith(".js"))
+    .map((asset) => new URL(asset, url));
+  const visitedScripts = new Set();
+  let emittedWasm = wasmAsset ? new URL(wasmAsset, url).href : undefined;
+  while (!emittedWasm && pendingScripts.length > 0) {
+    const emittedScript = pendingScripts.shift();
+    if (!emittedScript || visitedScripts.has(emittedScript.href)) continue;
+    visitedScripts.add(emittedScript.href);
+    const source = await fetch(emittedScript).then((result) => result.text());
+    const wasmMatch = source.match(/(?:\/app\/assets\/|\.\/)[A-Za-z0-9_-]+\.wasm/u)?.[0];
+    if (wasmMatch) {
+      emittedWasm = new URL(wasmMatch, emittedScript).href;
+      break;
+    }
+    for (const match of source.matchAll(/(?:\/app\/assets\/|\.\/)[A-Za-z0-9_-]+\.js/gu)) {
+      pendingScripts.push(new URL(match[0], emittedScript));
+    }
   }
   if (!emittedWasm) throw new Error("production bundle has no discoverable WASM asset");
-  const wasmResponse = await fetch(new URL(emittedWasm, url), { method: "HEAD" });
+  const wasmResponse = await fetch(emittedWasm, { method: "HEAD" });
   if (!wasmResponse.ok) throw new Error(`WASM asset returned HTTP ${wasmResponse.status}`);
   if (wasmResponse.headers.get("content-type") !== "application/wasm") {
     throw new Error(`WASM asset has unexpected content type: ${wasmResponse.headers.get("content-type")}`);
