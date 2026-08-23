@@ -77,6 +77,20 @@ type ShellProps = {
   showHeader: boolean;
 };
 
+const FIRST_CONTROL_SELECTOR =
+  'input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
+
+// `showModal()` focuses the first focusable area in tree order. Chromium 144+
+// makes scroll containers focusable, so the dialog body outranks the input it
+// wraps, and React's `autoFocus` leaves no `autofocus` attribute for the
+// platform to delegate to — the palette opened with its query field unfocused.
+function moveFocusOffScrollContainer(body: HTMLElement): void {
+  if (document.activeElement !== body) {
+    return;
+  }
+  body.querySelector<HTMLElement>(FIRST_CONTROL_SELECTOR)?.focus();
+}
+
 function isTopmostOpenDialog(dialog: HTMLDialogElement): boolean {
   const open = document.querySelectorAll("dialog[open]");
   return open[open.length - 1] === dialog;
@@ -92,6 +106,7 @@ function DialogShell({
   showHeader,
 }: ShellProps) {
   const ref = useRef<HTMLDialogElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(
     document.activeElement instanceof HTMLElement ? document.activeElement : null,
   );
@@ -163,6 +178,9 @@ function DialogShell({
     dialog.addEventListener("pointerdown", handlePointerDown);
     window.addEventListener("keydown", handleWindowKeyDown);
     dialog.showModal();
+    if (bodyRef.current) {
+      moveFocusOffScrollContainer(bodyRef.current);
+    }
     return () => {
       dialog.removeEventListener("keydown", handleKeyDown);
       dialog.removeEventListener("cancel", handleCancel);
@@ -214,7 +232,9 @@ function DialogShell({
         )}
         {/* flex-auto, not flex-1: WebKitGTK collapses basis-0 items inside an
             auto-height column, rendering every dialog body at zero height. */}
-        <div className="dialog-body min-h-0 flex-auto overflow-y-auto">{children}</div>
+        <div ref={bodyRef} className="dialog-body min-h-0 flex-auto overflow-y-auto">
+          {children}
+        </div>
       </dialog>
     </DialogCloseContext.Provider>,
     document.body,
