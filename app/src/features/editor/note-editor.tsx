@@ -183,7 +183,7 @@ import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
 import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
 import type { NoteEditorShortcutId } from "./editor-bound-shortcut-ids";
 import { useEditorSearch } from "./use-editor-search";
-import { taskPromotionOperations } from "./task-linking";
+import { documentSaveOperations } from "./task-linking";
 import { withFreshPastedTaskIdentities } from "./task-paste";
 import {
   resolvedThreadIdsForNote,
@@ -673,51 +673,36 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const at = Date.now();
     const documentJson = document.toJSON();
     preparedDocuments.stage(noteId, documentJson, document);
-    const operations: WorkspaceOperation[] = [
-      {
-        type: "save_document",
-        noteId,
-        documentJson,
-        markdown: serializeProductMarkdown(document),
-        wordCount: countWords(document),
-        expectedRevision: record.revision,
-        at,
-      },
-    ];
+    const source = {
+      documentJson,
+      markdown: serializeProductMarkdown(document),
+      wordCount: countWords(document),
+      expectedRevision: record.revision,
+    };
+    const operations: WorkspaceOperation[] = documentSaveOperations(
+      document,
+      noteId,
+      source,
+      store.getState().tasks,
+      at,
+    );
     const title = deriveTitle(document);
     if (title !== cached.derivedTitle) {
       cached.derivedTitle = title;
       operations.push({ type: "rename_node", id: noteId, title, at });
     }
-    return commitOperations(store, operations).then(async () => {
-        const entry = cacheRef.current.get(noteId);
-        const saved = store.getState().documents.get(noteId);
-        if (entry && saved) {
-          entry.revision = saved.revision;
-          const current = entry.bounded?.fullDocument() ?? entry.state.doc;
-          if (current.eq(document)) {
-            dirtyNoteIdsRef.current.delete(noteId);
-          }
+    return commitOperations(store, operations).then(() => {
+      const entry = cacheRef.current.get(noteId);
+      const saved = store.getState().documents.get(noteId);
+      if (entry && saved) {
+        entry.revision = saved.revision;
+        const current = entry.bounded?.fullDocument() ?? entry.state.doc;
+        if (current.eq(document)) {
+          dirtyNoteIdsRef.current.delete(noteId);
         }
-        pruneEditorWorkingSet();
-
-        const promotionSource = store.getState().documents.get(noteId);
-        if (promotionSource) {
-          const promotionOperations = taskPromotionOperations(
-            document,
-            noteId,
-            {
-              documentJson,
-              markdown: serializeProductMarkdown(document),
-              wordCount: countWords(document),
-              expectedRevision: promotionSource.revision,
-            },
-            store.getState().tasks,
-            at,
-          );
-          if (promotionOperations.length > 0) await commitOperations(store, promotionOperations);
-        }
-      });
+      }
+      pruneEditorWorkingSet();
+    });
   }
 
   function saveNow(noteId: string): Promise<void> {
