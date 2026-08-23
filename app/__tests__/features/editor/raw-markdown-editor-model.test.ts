@@ -15,7 +15,8 @@ test("raw Markdown status counts words and always retains one line", () => {
   assert.equal(countRawMarkdownWords(" \n\t "), 0);
   assert.equal(rawMarkdownLineCount(""), 1);
   assert.equal(rawMarkdownLineCount("one\ntwo\n"), 3);
-  assert.equal(rawMarkdownLineNumbers(3), "1\n2\n3");
+  assert.deepEqual(rawMarkdownLineNumbers(3), [1, 2, 3]);
+  assert.deepEqual(rawMarkdownLineNumbers(0), [1]);
 });
 
 test("raw Markdown cursor status is one-based and selection-aware", () => {

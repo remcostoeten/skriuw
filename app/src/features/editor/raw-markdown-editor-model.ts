@@ -17,8 +17,8 @@ export function rawMarkdownLineCount(markdown: string): number {
   return markdown.split("\n").length;
 }
 
-export function rawMarkdownLineNumbers(lineCount: number): string {
-  return Array.from({ length: Math.max(lineCount, 1) }, (_, index) => String(index + 1)).join("\n");
+export function rawMarkdownLineNumbers(lineCount: number): readonly number[] {
+  return Array.from({ length: Math.max(lineCount, 1) }, (_, index) => index + 1);
 }
 
 /**

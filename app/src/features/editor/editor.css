@@ -271,17 +271,214 @@
   cursor: col-resize;
 }
 
+.raw-markdown-root {
+  --raw-markdown-size: 0.9rem;
+  --raw-markdown-leading: 1.7;
+  --raw-markdown-row: calc(var(--raw-markdown-size) * var(--raw-markdown-leading));
+  --raw-markdown-gutter: 3rem;
+  --raw-markdown-inset: 0.75rem;
+}
+
+.raw-markdown-root[data-line-numbers="true"] {
+  --raw-markdown-inset: calc(var(--raw-markdown-gutter) + 0.75rem);
+}
+
+.raw-markdown-surface {
+  position: relative;
+  min-height: 60vh;
+}
+
+.raw-markdown-editor,
+.raw-markdown-highlight,
+.raw-markdown-gutter {
+  font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+  font-size: var(--raw-markdown-size);
+  line-height: var(--raw-markdown-leading);
+  font-variant-ligatures: none;
+  letter-spacing: 0;
+  tab-size: 2;
+}
+
+.raw-markdown-editor,
+.raw-markdown-highlight {
+  padding: 0 1rem 0 var(--raw-markdown-inset);
+  white-space: pre;
+  margin: 0;
+  border: 0;
+}
+
 .raw-markdown-editor {
+  position: relative;
+  z-index: 1;
+  display: block;
   width: 100%;
   min-height: 60vh;
   resize: none;
-  border: none;
   outline: none;
   background: transparent;
   color: inherit;
+}
+
+/* The overlay paints the text; the textarea keeps only its caret and
+   selection so the two stay pixel-aligned without a second layout pass. */
+.raw-markdown-root[data-highlighted="true"] .raw-markdown-editor {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: hsl(var(--foreground));
+}
+
+.raw-markdown-root[data-highlighted="true"] .raw-markdown-editor::selection {
+  background: hsl(var(--editor-selection) / 0.32);
+}
+
+.raw-markdown-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.raw-markdown-scroller {
+  position: relative;
+  height: 100%;
+  will-change: transform;
+}
+
+.raw-markdown-active-line {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: var(--raw-markdown-row);
+  background: hsl(var(--muted) / 0.5);
+}
+
+.raw-markdown-highlight {
+  position: relative;
+  width: max-content;
+  min-width: 100%;
+  color: hsl(var(--foreground));
+  will-change: transform;
+}
+
+.raw-markdown-line {
+  display: block;
+  min-height: var(--raw-markdown-row);
+}
+
+.raw-markdown-gutter {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  z-index: 2;
+  width: var(--raw-markdown-gutter);
+  overflow: hidden;
+  color: hsl(var(--muted-foreground) / 0.4);
+  text-align: right;
+  user-select: none;
+  pointer-events: none;
+}
+
+.raw-markdown-gutter-content {
+  will-change: transform;
+}
+
+.raw-markdown-gutter-line {
+  display: block;
+  min-height: var(--raw-markdown-row);
+  padding-right: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.raw-markdown-gutter-line[data-active="true"] {
+  color: hsl(var(--foreground) / 0.75);
+}
+
+.raw-markdown-token-marker {
+  color: hsl(var(--muted-foreground) / 0.55);
+}
+
+.raw-markdown-token-heading {
+  color: hsl(var(--foreground));
+  font-weight: 650;
+}
+
+.raw-markdown-token-strong {
+  font-weight: 650;
+}
+
+.raw-markdown-token-emphasis {
+  font-style: italic;
+}
+
+.raw-markdown-token-strike {
+  color: hsl(var(--muted-foreground));
+  text-decoration: line-through;
+}
+
+.raw-markdown-token-code {
+  color: hsl(var(--project-teal));
+}
+
+.raw-markdown-token-fence-info {
+  color: hsl(var(--project-amber));
+}
+
+.raw-markdown-token-quote {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+.raw-markdown-token-link-label {
+  color: hsl(var(--foreground));
+}
+
+.raw-markdown-token-link-target {
+  color: hsl(var(--project-blue));
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--project-blue) / 0.35);
+  text-underline-offset: 2px;
+}
+
+.raw-markdown-token-reference {
+  color: hsl(var(--project-blue));
+}
+
+.raw-markdown-token-tag {
+  color: hsl(var(--project-purple));
+}
+
+.raw-markdown-token-person {
+  color: hsl(var(--project-amber));
+}
+
+.raw-markdown-token-task-done {
+  color: hsl(var(--project-green));
+}
+
+.raw-markdown-token-property {
+  color: hsl(var(--project-teal));
+}
+
+.raw-markdown-token-html {
+  color: hsl(var(--project-orange));
+}
+
+.raw-markdown-token-comment {
+  color: hsl(var(--muted-foreground) / 0.45);
+  font-style: italic;
+}
+
+.raw-markdown-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 1.5rem;
+  padding: 0.375rem 1rem 0 var(--raw-markdown-inset);
+  color: hsl(var(--muted-foreground) / 0.75);
   font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
-  font-size: 0.9rem;
-  line-height: 1.7;
+  font-size: 11px;
+  letter-spacing: -0.01em;
 }
 
 .bounded-editor-spacer {
