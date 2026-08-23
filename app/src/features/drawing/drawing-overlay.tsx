@@ -27,6 +27,7 @@ import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";
 import {
   DEFAULT_BRUSH,
+  accentFromTriplet,
   brushWidth,
   clampStrokeWidth,
   isDarkBackground,
@@ -37,7 +38,19 @@ import {
   type DrawingBrush,
   type DrawingToolId,
 } from "./drawing-brush";
-import { paintDrawingElement, paintDrawingLayer } from "./drawing-canvas";
+import {
+  paintDrawingElement,
+  paintDrawingLayer,
+  paintMarquee,
+  paintSelectionOutline,
+} from "./drawing-canvas";
+import {
+  elementsAlongStroke,
+  elementsWithinBox,
+  moveElement,
+  selectionBounds,
+  topmostHit,
+} from "./drawing-hit";
 import {
   constrainGesture,
   isDegenerateGesture,
@@ -69,6 +82,20 @@ type LiveShape = {
   shift: boolean;
 };
 
+type EraseGesture = {
+  pointerId: number;
+  points: number[];
+  hit: Set<string>;
+};
+
+type SelectGesture = {
+  pointerId: number;
+  from: GesturePoint;
+  to: GesturePoint;
+  /** Empty for a rubber band; otherwise the ids being dragged. */
+  moving: readonly string[];
+};
+
 type SizeIndicator = {
   x: number;
   y: number;
@@ -96,10 +123,12 @@ function selectTheme(state: RendererState): string {
   return projectSettings(state.settings).theme;
 }
 
-function readBackgroundLightness(): boolean {
-  return isDarkBackground(
-    getComputedStyle(document.documentElement).getPropertyValue("--background"),
-  );
+function readSurfaceTokens(): { dark: boolean; accent: string } {
+  const style = getComputedStyle(document.documentElement);
+  return {
+    dark: isDarkBackground(style.getPropertyValue("--background")),
+    accent: accentFromTriplet(style.getPropertyValue("--ring"), "hsl(220 90% 65%)"),
+  };
 }
 
 /**
@@ -123,6 +152,14 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
   const frameRef = useRef<number | null>(null);
   const liveRef = useRef<LiveStroke | null>(null);
   const liveShapeRef = useRef<LiveShape | null>(null);
+  const eraseRef = useRef<EraseGesture | null>(null);
+  const selectRef = useRef<SelectGesture | null>(null);
+  const [selection, setSelection] = useState<readonly string[]>([]);
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
+  const [accent, setAccent] = useState("#7aa2f7");
+  const accentRef = useRef(accent);
+  accentRef.current = accent;
   const [placement, setPlacement] = useState<GesturePoint | null>(null);
   const placementRef = useRef(placement);
   placementRef.current = placement;
@@ -173,6 +210,12 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
     return layerCacheRef.current.layer;
   }, []);
 
+  const applySurfaceTokens = useCallback(() => {
+    const tokens = readSurfaceTokens();
+    setDark(tokens.dark);
+    setAccent(tokens.accent);
+  }, []);
+
   const paintNow = useCallback(() => {
     frameRef.current = null;
     const canvas = canvasRef.current;
@@ -194,7 +237,27 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
       scrollTop: scrollHostRef.current?.scrollTop ?? 0,
       dark: darkRef.current,
     };
-    paintDrawingLayer(context, currentLayer(), viewport);
+    const layer = currentLayer();
+    const erasing = eraseRef.current;
+    const dragging = selectRef.current;
+    const offset =
+      dragging && dragging.moving.length > 0
+        ? { x: dragging.to.x - dragging.from.x, y: dragging.to.y - dragging.from.y }
+        : null;
+    const movingIds = new Set(offset && dragging ? dragging.moving : []);
+    paintDrawingLayer(
+      context,
+      offset && layer
+        ? {
+            ...layer,
+            elements: layer.elements.map((element) =>
+              movingIds.has(element.id) ? moveElement(element, offset.x, offset.y) : element,
+            ),
+          }
+        : layer,
+      viewport,
+      { dimmed: erasing?.hit },
+    );
     const live = liveRef.current;
     if (live) {
       paintDrawingElement(context, liveStrokeElement(live, brushRef.current), viewport);
@@ -202,6 +265,21 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
     const shape = liveShapeRef.current;
     if (shape) {
       paintDrawingElement(context, liveShapeElement(shape, brushRef.current), viewport);
+    }
+    if (dragging && dragging.moving.length === 0) {
+      paintMarquee(context, dragging.from, dragging.to, viewport, accentRef.current);
+    }
+    const selected = selectionRef.current;
+    if (selected.length > 0 && layer) {
+      const chosen = layer.elements
+        .filter((element) => selected.includes(element.id))
+        .map((element) =>
+          offset && movingIds.has(element.id)
+            ? moveElement(element, offset.x, offset.y)
+            : element,
+        );
+      const bounds = selectionBounds(chosen);
+      if (bounds) paintSelectionOutline(context, bounds, viewport, accentRef.current);
     }
     const cursor = placementRef.current;
     if (cursor && isShapeTool(brushRef.current.tool)) {
@@ -232,7 +310,7 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
     if (!host) return;
     const scrollHost = host.parentElement?.querySelector<HTMLElement>(".editor-scroll") ?? null;
     scrollHostRef.current = scrollHost;
-    setDark(readBackgroundLightness());
+    applySurfaceTokens();
     schedulePaint();
     const onScroll = () => schedulePaint();
     scrollHost?.addEventListener("scroll", onScroll, { passive: true });
@@ -247,15 +325,15 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
         frameRef.current = null;
       }
     };
-  }, [host, schedulePaint]);
+  }, [host, schedulePaint, applySurfaceTokens]);
 
   useEffect(() => {
-    setDark(readBackgroundLightness());
-  }, [theme]);
+    applySurfaceTokens();
+  }, [theme, applySurfaceTokens]);
 
   useEffect(() => {
     schedulePaint();
-  }, [storedSource, committedAt, dark, schedulePaint]);
+  }, [storedSource, committedAt, dark, accent, selection, schedulePaint]);
 
   useEffect(() => {
     BRUSH_BY_NOTE.set(noteId, brush);
@@ -271,6 +349,7 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
 
   useEffect(() => {
     if (!isShapeTool(brush.tool)) setPlacement(null);
+    if (brush.tool !== "select") setSelection([]);
   }, [brush.tool]);
 
   useEffect(() => {
@@ -306,6 +385,8 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
     [currentLayer],
   );
 
+  const currentLayerRef = useRef(currentLayer);
+  currentLayerRef.current = currentLayer;
   const commitElementRef = useRef(commitElement);
   commitElementRef.current = commitElement;
 
@@ -319,6 +400,51 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
     };
   }, []);
 
+  /** Replaces the whole element list in one transaction. */
+  const commitElements = useCallback(
+    (elements: readonly DrawingElement[]): void => {
+      const view = getViewRef.current();
+      if (!view) return;
+      const next = elements.length > 0 ? { version: 1, elements: [...elements] } : null;
+      view.dispatch(view.state.tr.setDocAttribute("drawing", next));
+      setCommittedAt(Date.now());
+    },
+    [],
+  );
+  const commitElementsRef = useRef(commitElements);
+  commitElementsRef.current = commitElements;
+
+  const eraseElements = useCallback(
+    (ids: ReadonlySet<string>): void => {
+      if (ids.size === 0) return;
+      const layer = currentLayer();
+      if (!layer) return;
+      commitElementsRef.current(layer.elements.filter((element) => !ids.has(element.id)));
+      setSelection((current) => current.filter((id) => !ids.has(id)));
+      setAtCapacity(false);
+    },
+    [currentLayer],
+  );
+  const eraseElementsRef = useRef(eraseElements);
+  eraseElementsRef.current = eraseElements;
+
+  const nudgeSelection = useCallback(
+    (deltaX: number, deltaY: number): void => {
+      const chosen = selectionRef.current;
+      if (chosen.length === 0) return;
+      const layer = currentLayer();
+      if (!layer) return;
+      commitElementsRef.current(
+        layer.elements.map((element) =>
+          chosen.includes(element.id) ? moveElement(element, deltaX, deltaY) : element,
+        ),
+      );
+    },
+    [currentLayer],
+  );
+  const nudgeSelectionRef = useRef(nudgeSelection);
+  nudgeSelectionRef.current = nudgeSelection;
+
   const documentPoint = useCallback((clientX: number, clientY: number): [number, number] => {
     const canvas = canvasRef.current;
     if (!canvas) return [0, 0];
@@ -331,12 +457,38 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
 
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
     if (!active || event.button !== 0) return;
-    if (!isInkingTool(brush.tool)) return;
     setPicker(null);
     setPlacement(null);
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     const [x, y] = documentPoint(event.clientX, event.clientY);
+    if (brush.tool === "eraser") {
+      const layer = currentLayer();
+      const hit = new Set(elementsAlongStroke(layer?.elements ?? [], [x, y]));
+      eraseRef.current = { pointerId: event.pointerId, points: [x, y], hit };
+      schedulePaint();
+      return;
+    }
+    if (brush.tool === "select") {
+      const layer = currentLayer();
+      const target = topmostHit(layer?.elements ?? [], { x, y });
+      const chosen = target
+        ? selectionRef.current.includes(target.id)
+          ? selectionRef.current
+          : [target.id]
+        : [];
+      if (!target) setSelection([]);
+      else if (chosen !== selectionRef.current) setSelection(chosen);
+      selectRef.current = {
+        pointerId: event.pointerId,
+        from: { x, y },
+        to: { x, y },
+        moving: target ? chosen : [],
+      };
+      schedulePaint();
+      return;
+    }
+    if (!isInkingTool(brush.tool)) return;
     if (isShapeTool(brush.tool)) {
       liveShapeRef.current = {
         pointerId: event.pointerId,
@@ -352,6 +504,26 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLCanvasElement>) {
+    const erasing = eraseRef.current;
+    if (erasing && erasing.pointerId === event.pointerId) {
+      event.preventDefault();
+      const [x, y] = documentPoint(event.clientX, event.clientY);
+      erasing.points.push(x, y);
+      const layer = currentLayer();
+      for (const id of elementsAlongStroke(layer?.elements ?? [], [x, y])) {
+        erasing.hit.add(id);
+      }
+      schedulePaint();
+      return;
+    }
+    const selecting = selectRef.current;
+    if (selecting && selecting.pointerId === event.pointerId) {
+      event.preventDefault();
+      const [x, y] = documentPoint(event.clientX, event.clientY);
+      selecting.to = { x, y };
+      schedulePaint();
+      return;
+    }
     const shape = liveShapeRef.current;
     if (shape && shape.pointerId === event.pointerId) {
       event.preventDefault();
@@ -377,12 +549,33 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
   }
 
   function handlePointerUp(event: ReactPointerEvent<HTMLCanvasElement>) {
+    const erasing = eraseRef.current;
+    if (erasing && erasing.pointerId === event.pointerId) {
+      eraseRef.current = null;
+      releaseCapture(event);
+      eraseElements(erasing.hit);
+      schedulePaint();
+      return;
+    }
+    const selecting = selectRef.current;
+    if (selecting && selecting.pointerId === event.pointerId) {
+      selectRef.current = null;
+      releaseCapture(event);
+      const deltaX = selecting.to.x - selecting.from.x;
+      const deltaY = selecting.to.y - selecting.from.y;
+      if (selecting.moving.length > 0) {
+        if (deltaX !== 0 || deltaY !== 0) nudgeSelection(deltaX, deltaY);
+      } else if (!isDegenerateGesture(selecting.from, selecting.to)) {
+        const layer = currentLayer();
+        setSelection(elementsWithinBox(layer?.elements ?? [], selecting.from, selecting.to));
+      }
+      schedulePaint();
+      return;
+    }
     const shape = liveShapeRef.current;
     if (shape && shape.pointerId === event.pointerId) {
       liveShapeRef.current = null;
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
+      releaseCapture(event);
       const settled: LiveShape = { ...shape, shift: event.shiftKey };
       const to = settled.shift
         ? constrainGesture(settled.kind, settled.from, settled.to)
@@ -399,9 +592,7 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
     const live = liveRef.current;
     if (!live || live.pointerId !== event.pointerId) return;
     liveRef.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
+    releaseCapture(event);
     const points = simplifyStrokePoints(live.points);
     if (points.length >= 2) {
       commitElement({ ...liveStrokeElement({ ...live, points }, brush), id: newElementId() });
@@ -455,9 +646,11 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
-        if (liveRef.current || liveShapeRef.current) {
+        if (liveRef.current || liveShapeRef.current || eraseRef.current || selectRef.current) {
           liveRef.current = null;
           liveShapeRef.current = null;
+          eraseRef.current = null;
+          selectRef.current = null;
           schedulePaint();
           return;
         }
@@ -481,6 +674,30 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
         return;
       }
       if (mod || event.altKey) return;
+      if (brushRef.current.tool === "select") {
+        if (event.key === "Delete" || event.key === "Backspace") {
+          if (selectionRef.current.length === 0) return;
+          event.preventDefault();
+          event.stopPropagation();
+          eraseElementsRef.current(new Set(selectionRef.current));
+          return;
+        }
+        if (event.key === "Tab") {
+          const elements = currentLayerRef.current()?.elements ?? [];
+          if (elements.length === 0) return;
+          event.preventDefault();
+          event.stopPropagation();
+          setSelection([cycleSelection(elements, selectionRef.current, event.shiftKey)]);
+          return;
+        }
+        const nudge = movePlacement({ x: 0, y: 0 }, event.key, event.shiftKey);
+        if (nudge && selectionRef.current.length > 0) {
+          event.preventDefault();
+          event.stopPropagation();
+          nudgeSelectionRef.current(nudge.x, nudge.y);
+          return;
+        }
+      }
       if (isShapeTool(brushRef.current.tool)) {
         const moved = movePlacement(
           placementRef.current ?? centreOfViewport(),
@@ -625,6 +842,25 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
       ) : null}
     </div>
   );
+}
+
+/** Tab walks the layer in paint order so every element is keyboard-reachable. */
+function cycleSelection(
+  elements: readonly DrawingElement[],
+  selection: readonly string[],
+  backwards: boolean,
+): string {
+  const current = elements.findIndex((element) => element.id === selection[0]);
+  const step = backwards ? -1 : 1;
+  const next = (current + step + elements.length) % elements.length;
+  return (elements[current === -1 ? (backwards ? elements.length - 1 : 0) : next] as DrawingElement)
+    .id;
+}
+
+function releaseCapture(event: ReactPointerEvent<HTMLCanvasElement>): void {
+  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
 }
 
 function liveStrokeElement(live: LiveStroke, brush: DrawingBrush): DrawingStroke {

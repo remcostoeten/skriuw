@@ -50,15 +50,24 @@ export type DrawingContext = {
 /** Elements whose bounds fall outside this margin of the viewport are skipped. */
 const CULL_MARGIN = 64;
 
+export type PaintOptions = {
+  /** Elements the eraser is about to remove, drawn faint while the drag runs. */
+  dimmed?: ReadonlySet<string>;
+};
+
+/** How much of an element survives while the eraser hovers it. */
+const DIMMED_ALPHA = 0.25;
+
 export function paintDrawingLayer(
   context: DrawingContext,
   layer: DrawingLayer | null,
   viewport: DrawingViewport,
+  options: PaintOptions = {},
 ): void {
   context.clearRect(0, 0, viewport.width, viewport.height);
   if (!layer) return;
   for (const element of layer.elements) {
-    paintDrawingElement(context, element, viewport);
+    paintDrawingElement(context, element, viewport, options.dimmed?.has(element.id) ?? false);
   }
 }
 
@@ -66,21 +75,23 @@ export function paintDrawingElement(
   context: DrawingContext,
   element: DrawingElement,
   viewport: DrawingViewport,
+  dimmed = false,
 ): void {
   if (!intersectsViewport(element, viewport)) return;
   context.save();
   context.lineCap = "round";
   context.lineJoin = "round";
   const ink = resolveInk(element.color, viewport.dark);
+  const fade = dimmed ? DIMMED_ALPHA : 1;
   context.strokeStyle = ink;
   context.fillStyle = ink;
   context.lineWidth = element.width;
   if (element.kind === "stroke") {
-    context.globalAlpha = element.tool === "highlighter" ? HIGHLIGHTER_OPACITY : 1;
+    context.globalAlpha = (element.tool === "highlighter" ? HIGHLIGHTER_OPACITY : 1) * fade;
     traceStroke(context, element, viewport.scrollTop);
     context.stroke();
   } else {
-    context.globalAlpha = 1;
+    context.globalAlpha = fade;
     traceShape(context, element, viewport.scrollTop);
     if (element.kind !== "line" && element.filled) {
       context.fill();
@@ -187,4 +198,62 @@ function intersectsViewport(element: DrawingElement, viewport: DrawingViewport):
   const top = viewport.scrollTop - CULL_MARGIN;
   const bottom = viewport.scrollTop + viewport.height + CULL_MARGIN;
   return bounds.maxY >= top && bounds.minY <= bottom;
+}
+
+const SELECTION_PADDING = 3;
+const MARQUEE_FILL_ALPHA = 0.12;
+
+/**
+ * The outline around a selection, and the band the rubber-band drag sweeps.
+ * Both take their colour from a theme token resolved by the caller, so neither
+ * hardcodes an accent that only reads in one palette.
+ */
+export function paintSelectionOutline(
+  context: DrawingContext,
+  bounds: DrawingBounds,
+  viewport: DrawingViewport,
+  color: string,
+): void {
+  context.save();
+  context.globalAlpha = 1;
+  context.strokeStyle = color;
+  context.lineWidth = 1;
+  context.lineCap = "butt";
+  context.lineJoin = "miter";
+  context.beginPath();
+  context.rect(
+    bounds.minX - SELECTION_PADDING,
+    bounds.minY - viewport.scrollTop - SELECTION_PADDING,
+    bounds.maxX - bounds.minX + SELECTION_PADDING * 2,
+    bounds.maxY - bounds.minY + SELECTION_PADDING * 2,
+  );
+  context.stroke();
+  context.restore();
+}
+
+export function paintMarquee(
+  context: DrawingContext,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  viewport: DrawingViewport,
+  color: string,
+): void {
+  context.save();
+  context.strokeStyle = color;
+  context.fillStyle = color;
+  context.lineWidth = 1;
+  context.lineCap = "butt";
+  context.lineJoin = "miter";
+  context.beginPath();
+  context.rect(
+    Math.min(from.x, to.x),
+    Math.min(from.y, to.y) - viewport.scrollTop,
+    Math.abs(to.x - from.x),
+    Math.abs(to.y - from.y),
+  );
+  context.globalAlpha = MARQUEE_FILL_ALPHA;
+  context.fill();
+  context.globalAlpha = 1;
+  context.stroke();
+  context.restore();
 }

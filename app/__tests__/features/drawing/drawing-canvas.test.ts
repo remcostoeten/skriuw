@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   drawingElementBounds,
   paintDrawingLayer,
+  paintMarquee,
+  paintSelectionOutline,
   type DrawingContext,
   type DrawingViewport,
 } from "../../../src/features/drawing/drawing-canvas";
@@ -206,4 +208,56 @@ test("shape bounds normalise a rectangle dragged upward and to the left", () => 
   });
 
   assert.deepEqual(bounds, { minX: 9, minY: 19, maxX: 51, maxY: 61 });
+});
+
+test("ink the eraser is about to remove is dimmed, not hidden", () => {
+  const { context, alphas } = recordingContext();
+  const ink = layer(
+    stroke([0, 0, 10, 10], { id: "doomed" }),
+    stroke([0, 0, 10, 10], { id: "safe" }),
+  );
+
+  paintDrawingLayer(context, ink, VIEWPORT, { dimmed: new Set(["doomed"]) });
+
+  assert.equal(alphas.length, 2);
+  assert.ok((alphas[0] as number) > 0, "a dimmed element still paints");
+  assert.ok((alphas[0] as number) < (alphas[1] as number));
+});
+
+test("the highlighter keeps its own translucency when dimmed", () => {
+  const plain = recordingContext();
+  const dimmed = recordingContext();
+  const ink = layer(stroke([0, 0, 10, 10], { id: "h", tool: "highlighter" }));
+
+  paintDrawingLayer(plain.context, ink, VIEWPORT);
+  paintDrawingLayer(dimmed.context, ink, VIEWPORT, { dimmed: new Set(["h"]) });
+
+  assert.equal(plain.alphas[0], HIGHLIGHTER_OPACITY);
+  assert.ok((dimmed.alphas[0] as number) < HIGHLIGHTER_OPACITY);
+});
+
+test("the selection outline follows the scroll and takes the accent it is given", () => {
+  const { context, calls, strokeStyles } = recordingContext();
+
+  paintSelectionOutline(
+    context,
+    { minX: 10, minY: 210, maxX: 60, maxY: 260 },
+    { ...VIEWPORT, scrollTop: 200 },
+    "hsl(220 90% 65%)",
+  );
+
+  const rect = calls.find((call) => call.op === "rect");
+  assert.ok(rect);
+  assert.equal(rect.args[1], 7, "y is offset by scrollTop, minus the outline padding");
+  assert.equal(strokeStyles[0], "hsl(220 90% 65%)");
+});
+
+test("the rubber band paints a filled body under its border", () => {
+  const { context, calls } = recordingContext();
+
+  paintMarquee(context, { x: 0, y: 0 }, { x: 40, y: 20 }, VIEWPORT, "hsl(220 90% 65%)");
+
+  const order = calls.map((call) => call.op);
+  assert.ok(order.indexOf("fill") < order.indexOf("stroke"), "border draws over the body");
+  assert.deepEqual(calls.find((call) => call.op === "rect")?.args, [0, 0, 40, 20]);
 });

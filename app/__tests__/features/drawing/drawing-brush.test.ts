@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DEFAULT_BRUSH,
+  accentFromTriplet,
   DRAWING_INKS,
   HIGHLIGHTER_WIDTH_STOPS,
   PEN_WIDTH_STOPS,
@@ -90,4 +91,11 @@ test("theme darkness comes from the resolved background lightness", () => {
   assert.equal(isDarkBackground("40 16% 95%"), false, "paper");
   assert.equal(isDarkBackground("  20 15% 9%  "), true);
   assert.equal(isDarkBackground(""), true, "an unreadable value must not wash ink out");
+});
+
+test("selection chrome resolves its accent from a theme token", () => {
+  assert.equal(accentFromTriplet("217 91% 60%", "#fff"), "hsl(217 91% 60%)");
+  assert.equal(accentFromTriplet("  217 91% 60%  ", "#fff"), "hsl(217 91% 60%)");
+  assert.equal(accentFromTriplet("", "#fff"), "#fff", "an unreadable token falls back");
+  assert.equal(accentFromTriplet("217 91%", "#fff"), "#fff");
 });

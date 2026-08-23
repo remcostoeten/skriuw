@@ -129,3 +129,14 @@ export function isDarkBackground(background: string): boolean {
   const lightness = Number.parseFloat(background.trim().split(/\s+/)[2] ?? "");
   return Number.isFinite(lightness) ? lightness < 50 : true;
 }
+
+/**
+ * Turns an `H S% L%` theme triplet into a canvas-usable color. Selection chrome
+ * takes its accent from a token this way rather than hardcoding one that only
+ * reads in a single palette.
+ */
+export function accentFromTriplet(triplet: string, fallback: string): string {
+  const parts = triplet.trim().split(/\s+/);
+  if (parts.length < 3) return fallback;
+  return `hsl(${parts[0]} ${parts[1]} ${parts[2]})`;
+}
