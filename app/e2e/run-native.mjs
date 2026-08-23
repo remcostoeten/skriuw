@@ -158,7 +158,7 @@ async function runProviderImport(session) {
     { release: KEY.control },
   ]);
   await session.waitFor(
-    "return document.querySelector('[role=\"dialog\"][aria-label=\"Command palette\"]') !== null",
+    "return document.querySelector('dialog[open] h2')?.textContent === 'Command palette'",
     "command palette",
   );
   await session.keys([{ type: "Import provider export" }]);
