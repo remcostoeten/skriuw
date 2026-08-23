@@ -135,3 +135,100 @@
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
+
+.drawing-size-indicator {
+  position: fixed;
+  z-index: 45;
+  transform: translate(12px, -50%);
+  padding: 2px 6px;
+  border: 1px solid hsl(var(--border) / 0.6);
+  border-radius: 6px;
+  background-color: hsl(var(--popover) / 0.95);
+  color: hsl(var(--foreground));
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.drawing-capacity-notice {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 45;
+  max-width: 32ch;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid hsl(var(--warning) / 0.4);
+  border-radius: 8px;
+  background-color: hsl(var(--warning-soft));
+  color: hsl(var(--warning-foreground));
+  font-size: 12px;
+  text-align: center;
+}
+
+.drawing-ink-picker {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  width: 208px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid hsl(var(--border) / 0.6);
+  border-radius: 8px;
+  background-color: hsl(var(--popover));
+  box-shadow: 0 8px 24px hsl(var(--scrim) / 0.32);
+}
+
+.drawing-ink-presets {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+}
+
+.drawing-ink-preset {
+  display: flex;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+}
+
+.drawing-ink-preset:focus-visible,
+.drawing-ink-input:focus-visible,
+.drawing-ink-apply:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
+}
+
+.drawing-ink-custom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.drawing-ink-input {
+  min-width: 0;
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.drawing-ink-apply {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background-color: hsl(var(--foreground) / 0.1);
+  color: hsl(var(--foreground));
+  font-size: 11px;
+}
+
+.drawing-ink-apply:disabled {
+  cursor: default;
+  opacity: 0.4;
+}

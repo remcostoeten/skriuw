@@ -151,6 +151,8 @@ import {
   clearPendingAiAction,
   requestAiAction,
 } from "@/features/ai/editor-action-controller";
+import { DrawingOverlay } from "@/features/drawing/drawing-overlay";
+import { closeAnnotateMode } from "@/store/actions/annotate-mode";
 import {
   AnnotationMenu,
   annotationAtCursor,
@@ -489,6 +491,14 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const blockMenuTriggerRef = useRef<HTMLSpanElement>(null);
   const [blockMenuPos, setBlockMenuPos] = useState<number | null>(null);
   const activeNoteId = useRendererSelector(store, selectNoteId);
+  const selectAnnotating = useMemo(
+    () => (state: RendererState) => {
+      const noteId = selectNoteId(state);
+      return noteId !== null && state.annotatingNoteId === noteId;
+    },
+    [selectNoteId],
+  );
+  const annotating = useRendererSelector(store, selectAnnotating);
   /**
    * Anchor appearance is derived here rather than inside the plugin so the walk
    * runs on store and popover changes only. An editor keystroke re-paints
@@ -1939,6 +1949,19 @@ const closeJumpToLine = useCallback(() => {
           </button>
         </div>
       )}
+      {editorPane && activeNoteId !== null
+        ? createPortal(
+            <DrawingOverlay
+              key={activeNoteId}
+              store={store}
+              noteId={activeNoteId}
+              active={annotating}
+              getView={() => viewRef.current}
+              onDone={() => closeAnnotateMode(store)}
+            />,
+            editorPane,
+          )
+        : null}
       {utilityMode && editorPane
         ? createPortal(
             <motion.div
