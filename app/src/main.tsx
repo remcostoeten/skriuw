@@ -23,9 +23,9 @@ import { listenForSyncedWorkspaceChanges } from "@/features/sync/live-workspace"
 import { bindWindowClosePersistence } from "@/shell/window-close";
 import { flushPendingWork, registerPendingWork } from "@/shell/pending-work";
 import { bindSettingsToRoot } from "@/features/settings/apply-settings";
-import { opensNotesInTabs } from "@/features/settings/settings-model";
 import { bindPaneLayoutPersistence } from "@/store/pane-layout-persistence";
-import { parsePaneLayout, restorePanes } from "@/store/panes";
+import { parsePaneLayout } from "@/store/panes";
+import { restoreSession } from "@/store/session-restore";
 import { bindSidebarExpansionPersistence } from "@/store/sidebar-expansion-persistence";
 import { createInitialState, createRendererStore } from "@/store/store";
 import type { RendererStore } from "@/store/types";
@@ -147,17 +147,7 @@ async function start(): Promise<void> {
     }));
     const restoredLayout = parsePaneLayout(paneLayoutJson);
     if (restoredLayout) {
-      store.update((current) => ({
-        ...current,
-        panes: restorePanes(
-          restoredLayout.panes,
-          current.activeNoteId,
-          current.sourceNodes,
-          opensNotesInTabs(current.settings),
-        ),
-        splitOrientation: restoredLayout.orientation,
-        splitRatio: restoredLayout.ratio,
-      }));
+      store.update((current) => restoreSession(current, restoredLayout, snapshot.activeNoteId));
     }
     const unbindWindowClosePersistence = isBrowserRuntime()
       ? () => {}
