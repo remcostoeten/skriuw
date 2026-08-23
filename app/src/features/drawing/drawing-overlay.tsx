@@ -9,6 +9,8 @@ import {
   simplifyStrokePoints,
   type DrawingElement,
   type DrawingLayer,
+  type DrawingShape,
+  type DrawingShapeKind,
   type DrawingStroke,
 } from "@/features/editor/drawing-layer";
 import {
@@ -36,6 +38,13 @@ import {
   type DrawingToolId,
 } from "./drawing-brush";
 import { paintDrawingElement, paintDrawingLayer } from "./drawing-canvas";
+import {
+  constrainGesture,
+  isDegenerateGesture,
+  movePlacement,
+  stampedGesture,
+  type GesturePoint,
+} from "./drawing-geometry";
 import { DrawingInkPicker } from "./drawing-ink-picker";
 import { DrawingToolbar } from "./drawing-toolbar";
 
@@ -50,6 +59,14 @@ type Props = {
 type LiveStroke = {
   pointerId: number;
   points: number[];
+};
+
+type LiveShape = {
+  pointerId: number;
+  kind: DrawingShapeKind;
+  from: GesturePoint;
+  to: GesturePoint;
+  shift: boolean;
 };
 
 type SizeIndicator = {
@@ -105,6 +122,10 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
   const scrollHostRef = useRef<HTMLElement | null>(null);
   const frameRef = useRef<number | null>(null);
   const liveRef = useRef<LiveStroke | null>(null);
+  const liveShapeRef = useRef<LiveShape | null>(null);
+  const [placement, setPlacement] = useState<GesturePoint | null>(null);
+  const placementRef = useRef(placement);
+  placementRef.current = placement;
   const [brush, setBrush] = useState<DrawingBrush>(
     () => BRUSH_BY_NOTE.get(noteId) ?? DEFAULT_BRUSH,
   );
@@ -178,6 +199,28 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
     if (live) {
       paintDrawingElement(context, liveStrokeElement(live, brushRef.current), viewport);
     }
+    const shape = liveShapeRef.current;
+    if (shape) {
+      paintDrawingElement(context, liveShapeElement(shape, brushRef.current), viewport);
+    }
+    const cursor = placementRef.current;
+    if (cursor && isShapeTool(brushRef.current.tool)) {
+      const stamped = stampedGesture(cursor);
+      paintDrawingElement(
+        context,
+        liveShapeElement(
+          {
+            pointerId: -1,
+            kind: brushRef.current.tool,
+            from: stamped.from,
+            to: stamped.to,
+            shift: false,
+          },
+          brushRef.current,
+        ),
+        viewport,
+      );
+    }
   }, [currentLayer]);
 
   const schedulePaint = useCallback(() => {
@@ -226,6 +269,14 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
     if (!active) setPicker(null);
   }, [active]);
 
+  useEffect(() => {
+    if (!isShapeTool(brush.tool)) setPlacement(null);
+  }, [brush.tool]);
+
+  useEffect(() => {
+    schedulePaint();
+  }, [placement, brush, schedulePaint]);
+
   const finish = useCallback(() => {
     const editor = scrollHostRef.current?.querySelector<HTMLElement>(".ProseMirror");
     onDoneRef.current();
@@ -255,6 +306,19 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
     [currentLayer],
   );
 
+  const commitElementRef = useRef(commitElement);
+  commitElementRef.current = commitElement;
+
+  /** Where the keyboard placement cursor starts when no drag has set it. */
+  const centreOfViewport = useCallback((): GesturePoint => {
+    const canvas = canvasRef.current;
+    const scrollTop = scrollHostRef.current?.scrollTop ?? 0;
+    return {
+      x: (canvas?.clientWidth ?? 0) / 2,
+      y: scrollTop + (canvas?.clientHeight ?? 0) / 2,
+    };
+  }, []);
+
   const documentPoint = useCallback((clientX: number, clientY: number): [number, number] => {
     const canvas = canvasRef.current;
     if (!canvas) return [0, 0];
@@ -267,16 +331,36 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
 
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
     if (!active || event.button !== 0) return;
-    if (!isInkingTool(brush.tool) || isShapeTool(brush.tool)) return;
+    if (!isInkingTool(brush.tool)) return;
     setPicker(null);
+    setPlacement(null);
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     const [x, y] = documentPoint(event.clientX, event.clientY);
-    liveRef.current = { pointerId: event.pointerId, points: [x, y] };
+    if (isShapeTool(brush.tool)) {
+      liveShapeRef.current = {
+        pointerId: event.pointerId,
+        kind: brush.tool,
+        from: { x, y },
+        to: { x, y },
+        shift: event.shiftKey,
+      };
+    } else {
+      liveRef.current = { pointerId: event.pointerId, points: [x, y] };
+    }
     schedulePaint();
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLCanvasElement>) {
+    const shape = liveShapeRef.current;
+    if (shape && shape.pointerId === event.pointerId) {
+      event.preventDefault();
+      const [x, y] = documentPoint(event.clientX, event.clientY);
+      shape.to = { x, y };
+      shape.shift = event.shiftKey;
+      schedulePaint();
+      return;
+    }
     const live = liveRef.current;
     if (!live || live.pointerId !== event.pointerId) return;
     event.preventDefault();
@@ -293,6 +377,25 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
   }
 
   function handlePointerUp(event: ReactPointerEvent<HTMLCanvasElement>) {
+    const shape = liveShapeRef.current;
+    if (shape && shape.pointerId === event.pointerId) {
+      liveShapeRef.current = null;
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      const settled: LiveShape = { ...shape, shift: event.shiftKey };
+      const to = settled.shift
+        ? constrainGesture(settled.kind, settled.from, settled.to)
+        : settled.to;
+      if (!isDegenerateGesture(settled.from, to)) {
+        commitElement({
+          ...liveShapeElement({ ...settled, to, shift: false }, brush),
+          id: newElementId(),
+        });
+      }
+      schedulePaint();
+      return;
+    }
     const live = liveRef.current;
     if (!live || live.pointerId !== event.pointerId) return;
     liveRef.current = null;
@@ -352,8 +455,14 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
-        if (liveRef.current) {
+        if (liveRef.current || liveShapeRef.current) {
           liveRef.current = null;
+          liveShapeRef.current = null;
+          schedulePaint();
+          return;
+        }
+        if (placementRef.current) {
+          setPlacement(null);
           schedulePaint();
           return;
         }
@@ -372,11 +481,48 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
         return;
       }
       if (mod || event.altKey) return;
+      if (isShapeTool(brushRef.current.tool)) {
+        const moved = movePlacement(
+          placementRef.current ?? centreOfViewport(),
+          event.key,
+          event.shiftKey,
+        );
+        if (moved) {
+          event.preventDefault();
+          event.stopPropagation();
+          setPlacement(moved);
+          schedulePaint();
+          return;
+        }
+        if (event.key === "Enter" || event.key === " ") {
+          const at = placementRef.current;
+          if (at) {
+            event.preventDefault();
+            event.stopPropagation();
+            const stamped = stampedGesture(at);
+            commitElementRef.current({
+              ...liveShapeElement(
+                {
+                  pointerId: -1,
+                  kind: brushRef.current.tool as DrawingShapeKind,
+                  from: stamped.from,
+                  to: stamped.to,
+                  shift: false,
+                },
+                brushRef.current,
+              ),
+              id: newElementId(),
+            });
+            schedulePaint();
+            return;
+          }
+        }
+      }
       if (event.key.length === 1) event.stopPropagation();
     }
     host.addEventListener("keydown", onKeyDown, { capture: true });
     return () => host.removeEventListener("keydown", onKeyDown, { capture: true });
-  }, [host, active, finish, schedulePaint]);
+  }, [host, active, finish, schedulePaint, centreOfViewport]);
 
   const handlers = useMemo<EditorBoundHandlersFor<DrawingShortcutId>>(() => {
     const selectTool = (tool: DrawingToolId) => () =>
@@ -489,6 +635,21 @@ function liveStrokeElement(live: LiveStroke, brush: DrawingBrush): DrawingStroke
     color: brush.colorId,
     width: brushWidth(brush),
     points: live.points,
+  };
+}
+
+function liveShapeElement(shape: LiveShape, brush: DrawingBrush): DrawingShape {
+  const to = shape.shift ? constrainGesture(shape.kind, shape.from, shape.to) : shape.to;
+  return {
+    id: "live",
+    kind: shape.kind,
+    color: brush.colorId,
+    width: brushWidth(brush),
+    filled: shape.kind !== "line" && brush.filled,
+    x1: shape.from.x,
+    y1: shape.from.y,
+    x2: to.x,
+    y2: to.y,
   };
 }
 
