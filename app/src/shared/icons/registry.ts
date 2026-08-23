@@ -41,9 +41,19 @@ type IconEntry = {
   animated?: AnimatedIconComponent;
 };
 
-function animated(
-  load: () => Promise<{ default: unknown }>,
-): AnimatedIconComponent {
+type AnimatedIconModule = typeof import("./animated-components");
+type AnimatedIconName = keyof AnimatedIconModule["ANIMATED_ICONS"];
+
+let animatedIconModule: Promise<AnimatedIconModule> | undefined;
+
+function loadAnimatedIconModule(): Promise<AnimatedIconModule> {
+  return (animatedIconModule ??= import("./animated-components"));
+}
+
+function animated(name: AnimatedIconName): AnimatedIconComponent {
+  const load = () => loadAnimatedIconModule().then((module) => ({
+    default: module.ANIMATED_ICONS[name],
+  }));
   const component = lazy(
     load as () => Promise<{ default: AnimatedIconComponent }>,
   ) as unknown as AnimatedIconComponent;
@@ -65,75 +75,53 @@ function animated(
 export const APP_ICONS = {
   notes: {
     static: FolderOpenIcon,
-    animated: animated(() =>
-      import("./adapt-animateicons").then((module) => ({ default: module.FolderOpen })),
-    ),
+    animated: animated("notes"),
   },
   journal: {
     static: CalendarDaysIcon,
-    animated: animated(() =>
-      import("./adapt-animateicons").then((module) => ({ default: module.CalendarDays })),
-    ),
+    animated: animated("journal"),
   },
   tasks: {
     static: ListTodoIcon,
   },
   tags: {
     static: TagsIcon,
-    animated: animated(() =>
-      import("./adapt-animateicons").then((module) => ({ default: module.Tags })),
-    ),
+    animated: animated("tags"),
   },
   people: {
     static: UsersIcon,
-    animated: animated(() =>
-      import("@/shared/icons/animate-ui/icons/users").then((module) => ({ default: module.Users })),
-    ),
+    animated: animated("people"),
   },
   trash: {
     static: Trash2Icon,
-    animated: animated(() =>
-      import("@/shared/icons/animate-ui/icons/trash-2").then((module) => ({ default: module.Trash2 })),
-    ),
+    animated: animated("trash"),
   },
   settings: {
     static: SettingsIcon,
-    animated: animated(() =>
-      import("@/shared/icons/animate-ui/icons/settings").then((module) => ({ default: module.Settings })),
-    ),
+    animated: animated("settings"),
   },
   "previous-note": {
     static: ChevronLeftIcon,
-    animated: animated(() =>
-      import("@/shared/icons/animate-ui/icons/chevron-left").then((module) => ({ default: module.ChevronLeft })),
-    ),
+    animated: animated("previous-note"),
   },
   "next-note": {
     static: ChevronRightIcon,
-    animated: animated(() =>
-      import("@/shared/icons/animate-ui/icons/chevron-right").then((module) => ({ default: module.ChevronRight })),
-    ),
+    animated: animated("next-note"),
   },
   "version-history": {
     static: RotateCcwIcon,
-    animated: animated(() =>
-      import("@/shared/icons/animate-ui/icons/rotate-ccw").then((module) => ({ default: module.RotateCcw })),
-    ),
+    animated: animated("version-history"),
   },
   "toggle-sidebar": {
     static: PanelLeftToggleIcon,
-    animated: animated(() =>
-      import("@/shared/icons/animate-ui/icons/panel-left").then((module) => ({ default: module.PanelLeft })),
-    ),
+    animated: animated("toggle-sidebar"),
   },
   "find-in-note": {
     static: SearchIcon,
   },
   "toggle-metadata": {
     static: PanelRightToggleIcon,
-    animated: animated(() =>
-      import("@/shared/icons/animate-ui/icons/panel-right").then((module) => ({ default: module.PanelRight })),
-    ),
+    animated: animated("toggle-metadata"),
   },
 } as const satisfies Record<string, IconEntry>;
 
