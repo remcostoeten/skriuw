@@ -552,6 +552,15 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * The editor's 0.2em rhythm reads fine between paragraphs, which carry their
+ * own line-height, but two code blocks are bordered boxes: their margins
+ * collapse to one 0.2em gap and the pair reads as a single merged block.
+ */
+.prosemirror-host .ProseMirror pre + pre {
+  margin-top: 0.75em;
+}
+
 .prosemirror-host .ProseMirror pre code {
   padding: 0;
   background: none;
