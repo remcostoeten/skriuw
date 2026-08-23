@@ -37,11 +37,33 @@ export const EDITOR_SEARCH_SHORTCUT_IDS = [
   "searchRegex",
 ] as const satisfies readonly ShortcutActionId[];
 
+export const DRAWING_SHORTCUT_IDS = [
+  "drawPen",
+  "drawHighlighter",
+  "drawLine",
+  "drawRectangle",
+  "drawEllipse",
+  "drawToggleFill",
+  "drawEraser",
+  "drawSelect",
+  "drawWidthDecrease",
+  "drawWidthIncrease",
+  "drawInkDefault",
+  "drawInkRed",
+  "drawInkOrange",
+  "drawInkYellow",
+  "drawInkGreen",
+  "drawInkTeal",
+  "drawInkBlue",
+  "drawInkViolet",
+] as const satisfies readonly ShortcutActionId[];
+
 export type NoteEditorShortcutId = (typeof NOTE_EDITOR_SHORTCUT_IDS)[number];
 export type RawMarkdownEdgeShortcutId = (typeof RAW_MARKDOWN_EDGE_SHORTCUT_IDS)[number];
 export type RawMarkdownSurfaceShortcutId =
   (typeof RAW_MARKDOWN_SURFACE_SHORTCUT_IDS)[number];
 export type EditorSearchShortcutId = (typeof EDITOR_SEARCH_SHORTCUT_IDS)[number];
+export type DrawingShortcutId = (typeof DRAWING_SHORTCUT_IDS)[number];
 
 /** Every id some editor surface handles, across all surfaces. */
 export const EDITOR_BOUND_SHORTCUT_IDS: readonly ShortcutActionId[] = [
@@ -49,4 +71,5 @@ export const EDITOR_BOUND_SHORTCUT_IDS: readonly ShortcutActionId[] = [
   ...RAW_MARKDOWN_EDGE_SHORTCUT_IDS,
   ...RAW_MARKDOWN_SURFACE_SHORTCUT_IDS,
   ...EDITOR_SEARCH_SHORTCUT_IDS,
+  ...DRAWING_SHORTCUT_IDS,
 ];

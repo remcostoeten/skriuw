@@ -69,6 +69,8 @@ export type RendererState = {
   /** Per-pane reopen stack for closed tabs. Session-only, never persisted. */
   closedTabsByPaneId: ReadonlyMap<string, readonly ClosedTab[]>;
   editorModeByNoteId: ReadonlyMap<string, "rendered" | "raw">;
+  /** The note whose annotation layer is open for editing. Session-only. */
+  annotatingNoteId: string | null;
   activeNoteId: string | null;
   focusedNodeId: string | null;
   selectedNodeIds: ReadonlySet<string>;

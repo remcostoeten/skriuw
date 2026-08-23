@@ -7,6 +7,8 @@ import { useRendererSelector } from "@/store/use-renderer-selector";
 import { WaypointsIcon, iconStrokeWidth } from "@/shared/icons/static";
 import type { RendererState, RendererStore } from "@/store/types";
 import { NoteCover } from "@/features/note-chrome/note-cover";
+import { DrawingOverlay } from "@/features/drawing/drawing-overlay";
+import { closeAnnotateMode } from "@/store/actions/annotate-mode";
 
 type Props = {
   store: RendererStore;
@@ -45,33 +47,52 @@ export function EditorHost({
     [selectNoteId],
   );
   const hasCover = useRendererSelector(store, selectHasCover);
+  const selectAnnotating = useMemo(
+    () => (state: RendererState) => {
+      const selected = selectNoteId(state);
+      return selected !== null && state.annotatingNoteId === selected;
+    },
+    [selectNoteId],
+  );
+  const annotating = useRendererSelector(store, selectAnnotating);
   const isRawMode = useRendererSelector(store, selectRawMode);
   const hasActiveNote = noteId !== null;
   return (
-    <div className="editor-scroll h-full min-w-0 overflow-y-auto bg-theme-editor">
-      <div className={hasActiveNote ? "relative w-full" : "hidden"}>
-        {noteId !== null && <NoteCover store={store} selectNoteId={selectNoteId} />}
-        <div
-          className={`mx-auto w-[calc(100%_-_6rem)] max-w-[72ch]${hasCover ? "" : " pt-8"}`}
-        >
-          {noteId !== null && (
-            <NotePropertiesShelf key={noteId} store={store} selectNoteId={selectNoteId} />
-          )}
-          {isRawMode ? (
-            <RawMarkdownEditor store={store} selectNoteId={selectNoteId} />
-          ) : (
-            <NoteEditor store={store} selectNoteId={selectNoteId} />
-          )}
-        </div>
-      </div>
-      {!hasActiveNote && (
-        <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-          <WaypointsIcon size={40} strokeWidth={iconStrokeWidth(40, 1.25)} className="text-muted-foreground" />
-          <div className="max-w-md space-y-2">
-            <p className="text-sm font-medium text-foreground">No note selected</p>
-            <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+    <div className="relative h-full min-w-0">
+      <div className="editor-scroll h-full min-w-0 overflow-y-auto bg-theme-editor">
+        <div className={hasActiveNote ? "relative w-full" : "hidden"}>
+          {noteId !== null && <NoteCover store={store} selectNoteId={selectNoteId} />}
+          <div
+            className={`mx-auto w-[calc(100%_-_6rem)] max-w-[72ch]${hasCover ? "" : " pt-8"}`}
+          >
+            {noteId !== null && (
+              <NotePropertiesShelf key={noteId} store={store} selectNoteId={selectNoteId} />
+            )}
+            {isRawMode ? (
+              <RawMarkdownEditor store={store} selectNoteId={selectNoteId} />
+            ) : (
+              <NoteEditor store={store} selectNoteId={selectNoteId} />
+            )}
           </div>
         </div>
+        {!hasActiveNote && (
+          <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
+            <WaypointsIcon size={40} strokeWidth={iconStrokeWidth(40, 1.25)} className="text-muted-foreground" />
+            <div className="max-w-md space-y-2">
+              <p className="text-sm font-medium text-foreground">No note selected</p>
+              <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+            </div>
+          </div>
+        )}
+      </div>
+      {noteId !== null && !isRawMode && (
+        <DrawingOverlay
+          key={noteId}
+          store={store}
+          noteId={noteId}
+          active={annotating}
+          onDone={() => closeAnnotateMode(store)}
+        />
       )}
     </div>
   );

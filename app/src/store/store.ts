@@ -268,6 +268,7 @@ export function createInitialState(
     focusedPaneId: PRIMARY_PANE_ID,
     closedTabsByPaneId: new Map(),
     editorModeByNoteId: new Map(),
+    annotatingNoteId: null,
     activeNoteId: rememberedNoteId,
     focusedNodeId: rememberedNoteId,
     selectedNodeIds: new Set(),

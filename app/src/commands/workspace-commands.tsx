@@ -14,6 +14,7 @@ import {
   toggleSplitOrientation,
 } from "@/store/actions/panes";
 import { toggleEditorMode } from "@/store/actions/editor-mode";
+import { toggleAnnotateMode } from "@/store/actions/annotate-mode";
 import {
   activateNote,
   createFolder,
@@ -431,6 +432,16 @@ export function createWorkspaceCommands(
         }
         toggleEditorMode(store, noteId);
       },
+    },
+    {
+      id: "annotate-note",
+      label: "Annotate note",
+      group: "Actions",
+      keywords: ["draw", "annotate", "ink", "pen", "highlight", "sketch"],
+      icon: <PencilIcon size={15} />,
+      shortcut: "toggleAnnotateMode",
+      enabled: (state) => state.activeNoteId !== null,
+      run: () => toggleAnnotateMode(store),
     },
     {
       id: "close-tab",
