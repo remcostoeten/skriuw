@@ -272,6 +272,7 @@ test("unparseable markdown imports as plain paragraphs instead of failing", () =
   }
   assert.deepEqual(JSON.parse(JSON.stringify(operation.documentJson)), {
     type: "doc",
+    attrs: { drawing: null },
     content: [{ type: "paragraph", attrs: { textAlign: "left" } }],
   });
 });
