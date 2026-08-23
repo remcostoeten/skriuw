@@ -3,6 +3,7 @@ import test from "node:test";
 import { EditorState, TextSelection } from "prosemirror-state";
 import {
   annotationAtCursor,
+  annotationAtPosition,
   annotationRanges,
 } from "../../../src/features/editor/annotation-menu";
 import { productSchema } from "../../../src/features/editor/schema";
@@ -72,6 +73,44 @@ test("the caret inside overlapping threads picks the innermost", () => {
 
   const cursor = withCursor(state, innerRange.from + 1);
   assert.equal(annotationAtCursor(cursor)?.threadId, "inner");
+  assert.equal(annotationAtPosition(state, innerRange.from + 1)?.threadId, "inner");
+});
+
+test("an anchor edge is outside the thread for caret and pointer discovery", () => {
+  const annotation = requiredAnnotation();
+  const doc = productSchema.node("doc", null, [
+    productSchema.node("paragraph", null, [
+      productSchema.text("anchored", [annotation.create({ threadId: "thread-1" })]),
+    ]),
+  ]);
+  const state = stateWith(doc);
+  const range = annotationRanges(state)[0];
+  assert.ok(range);
+
+  assert.equal(annotationAtPosition(state, range.from), null);
+  assert.equal(annotationAtPosition(state, range.to), null);
+  assert.equal(annotationAtPosition(state, range.from + 1)?.threadId, "thread-1");
+});
+
+test("the caret on an internal junction of a split anchor stays in the thread", () => {
+  const annotation = requiredAnnotation();
+  const strong = productSchema.marks.strong;
+  assert.ok(strong);
+  const mark = annotation.create({ threadId: "thread-1" });
+  const doc = productSchema.node("doc", null, [
+    productSchema.node("paragraph", null, [
+      productSchema.text("start ", []),
+      productSchema.text("plain", [mark]),
+      productSchema.text("bold", [mark, strong.create()]),
+    ]),
+  ]);
+  const state = stateWith(doc);
+  const range = annotationRanges(state)[0];
+  assert.ok(range);
+  const junction = range.from + "plain".length;
+
+  assert.equal(annotationAtCursor(withCursor(state, junction))?.threadId, "thread-1");
+  assert.equal(annotationAtPosition(state, junction)?.threadId, "thread-1");
 });
 
 test("a caret outside every anchor resolves to no thread", () => {
