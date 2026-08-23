@@ -10,6 +10,7 @@ import {
   extractDrawingFence,
   isEmptyDrawingLayer,
   parseDrawingLayer,
+  readDrawingPayload,
   simplifyStrokePoints,
 } from "../../../src/features/editor/drawing-layer";
 import {
@@ -88,14 +89,57 @@ test("an unreadable drawing fence survives as a code block instead of vanishing"
   assert.match(parsed.textContent, /not json at all/);
 });
 
-test("a fence from a future version is preserved rather than downgraded", () => {
-  const payload = JSON.stringify({ version: DRAWING_LAYER_VERSION + 1, elements: [] });
-  const markdown = `Notes\n\n\`\`\`drawing\n${payload}\n\`\`\``;
+test("a layer from a future version is kept verbatim, not downgraded", () => {
+  const future = {
+    version: DRAWING_LAYER_VERSION + 1,
+    elements: [{ id: "x", kind: "arc", unknownField: 7 }],
+  };
+  const markdown = `Notes\n\n\`\`\`drawing\n${JSON.stringify(future)}\n\`\`\``;
+
+  const parsed = parseProductMarkdown(markdown);
+
+  assert.deepEqual(parsed.attrs.drawing, future, "the payload survives this build");
+  assert.equal(parseDrawingLayer(parsed.attrs.drawing), null, "but nothing here can render it");
+  assert.equal(readDrawingPayload(parsed.attrs.drawing).kind, "foreign");
+});
+
+test("a foreign layer is written back out instead of dropped on export", () => {
+  const future = { version: 99, elements: [{ id: "x", kind: "arc" }] };
+  const document = productSchema.node("doc", { drawing: future }, [
+    productSchema.node("paragraph", null, [productSchema.text("Notes")]),
+  ]);
+
+  const markdown = serializeProductMarkdown(document);
+
+  assert.match(markdown, /```drawing/);
+  assert.deepEqual(parseProductMarkdown(markdown).attrs.drawing, future);
+});
+
+test("a v1 Excalidraw scene survives import as opaque payload", () => {
+  const scene = {
+    type: "excalidraw",
+    version: 2,
+    source: "https://excalidraw.com",
+    elements: [{ id: "abc", type: "freedraw", points: [[0, 0]] }],
+  };
+  const markdown = `Notes\n\n\`\`\`drawing\n${JSON.stringify(scene)}\n\`\`\``;
+
+  const parsed = parseProductMarkdown(markdown);
+
+  assert.deepEqual(parsed.attrs.drawing, scene);
+  assert.deepEqual(parseProductMarkdown(serializeProductMarkdown(parsed)).attrs.drawing, scene);
+});
+
+test("fenced JSON that is not a layer at all stays a code block", () => {
+  const markdown = 'Notes\n\n```drawing\n{"hello":"world"}\n```';
 
   const parsed = parseProductMarkdown(markdown);
 
   assert.equal(parsed.attrs.drawing, null);
-  assert.match(parsed.textContent, /"version"/);
+  const kinds: string[] = [];
+  parsed.forEach((node) => kinds.push(node.type.name));
+  assert.ok(kinds.includes("code_block"));
+  assert.match(parsed.textContent, /hello/);
 });
 
 test("extracting a fence leaves the surrounding markdown intact", () => {

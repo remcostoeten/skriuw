@@ -5,7 +5,7 @@ import type { EditorView } from "prosemirror-view";
 import {
   drawingCapacity,
   isEmptyDrawingLayer,
-  parseDrawingLayer,
+  readDrawingPayload,
   simplifyStrokePoints,
   type DrawingElement,
   type DrawingLayer,
@@ -190,10 +190,12 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
   darkRef.current = dark;
   const storedSourceRef = useRef(storedSource);
   storedSourceRef.current = storedSource;
-  const layerCacheRef = useRef<{ source: unknown; layer: DrawingLayer | null }>({
-    source: undefined,
-    layer: null,
-  });
+  const layerCacheRef = useRef<{
+    source: unknown;
+    layer: DrawingLayer | null;
+    foreign: boolean;
+  }>({ source: undefined, layer: null, foreign: false });
+  const [foreign, setForeign] = useState(false);
 
   /**
    * The editor's document is the live truth; the stored record only catches up
@@ -205,10 +207,22 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
     const source = view ? (view.state.doc.attrs.drawing ?? null) : storedSourceRef.current;
     const cache = layerCacheRef.current;
     if (source !== cache.source) {
-      layerCacheRef.current = { source, layer: parseDrawingLayer(source) };
+      const payload = readDrawingPayload(source);
+      layerCacheRef.current = {
+        source,
+        layer: payload.kind === "layer" ? payload.layer : null,
+        foreign: payload.kind === "foreign",
+      };
     }
     return layerCacheRef.current.layer;
   }, []);
+
+  /**
+   * A layer this build cannot read is shown as read-only rather than parsed
+   * into nothing: editing would replace a payload that belongs to the note,
+   * which is the one way ink written by a newer version could be lost.
+   */
+  const readOnly = foreign;
 
   const applySurfaceTokens = useCallback(() => {
     const tokens = readSurfaceTokens();
@@ -332,8 +346,10 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
   }, [theme, applySurfaceTokens]);
 
   useEffect(() => {
+    currentLayer();
+    setForeign(layerCacheRef.current.foreign);
     schedulePaint();
-  }, [storedSource, committedAt, dark, accent, selection, schedulePaint]);
+  }, [storedSource, committedAt, dark, accent, selection, currentLayer, schedulePaint]);
 
   useEffect(() => {
     BRUSH_BY_NOTE.set(noteId, brush);
@@ -366,7 +382,7 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
   const commitElement = useCallback(
     (element: DrawingElement): void => {
       const view = getViewRef.current();
-      if (!view) return;
+      if (!view || layerCacheRef.current.foreign) return;
       const layer = currentLayer();
       const capacity = drawingCapacity(layer);
       const points = element.kind === "stroke" ? element.points.length / 2 : 0;
@@ -404,7 +420,7 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
   const commitElements = useCallback(
     (elements: readonly DrawingElement[]): void => {
       const view = getViewRef.current();
-      if (!view) return;
+      if (!view || layerCacheRef.current.foreign) return;
       const next = elements.length > 0 ? { version: 1, elements: [...elements] } : null;
       view.dispatch(view.state.tr.setDocAttribute("drawing", next));
       setCommittedAt(Date.now());
@@ -456,7 +472,7 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
   }, []);
 
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
-    if (!active || event.button !== 0) return;
+    if (!active || readOnly || event.button !== 0) return;
     setPicker(null);
     setPlacement(null);
     event.preventDefault();
@@ -770,7 +786,7 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
   const activeScopes = useMemo(() => (active ? ["drawing"] : []), [active]);
   useEditorBoundShortcuts(store, active ? host : null, handlers, activeScopes);
 
-  if (!active && isEmptyDrawingLayer(currentLayer())) return null;
+  if (!active && isEmptyDrawingLayer(currentLayer()) && !foreign) return null;
 
   return (
     <div
@@ -835,7 +851,13 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
           {Math.round(sizeIndicator.width)}
         </span>
       ) : null}
-      {active && atCapacity ? (
+      {active && readOnly ? (
+        <p className="drawing-capacity-notice" role="status">
+          This note's annotation layer was written by a newer version of Skriuw. It is kept as it
+          is, and cannot be edited here.
+        </p>
+      ) : null}
+      {active && atCapacity && !readOnly ? (
         <p className="drawing-capacity-notice" role="status">
           This note's annotation layer is full. Erase something to keep drawing.
         </p>

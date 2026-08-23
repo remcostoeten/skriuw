@@ -27,11 +27,10 @@ import {
   MarkdownSerializer,
 } from "prosemirror-markdown";
 import {
-  type DrawingLayer,
   drawingFence,
   extractDrawingFence,
   isEmptyDrawingLayer,
-  parseDrawingLayer,
+  readDrawingPayload,
 } from "./drawing-layer";
 import {
   Schema,
@@ -1529,11 +1528,14 @@ export function serializeProductMarkdown(document: ProseMirrorNode): string {
     document.childCount === 1 && document.firstChild?.type.name === "raw_markdown"
       ? document.firstChild.textContent
       : productMarkdownSerializer.serialize(document);
-  const layer = parseDrawingLayer(document.attrs.drawing);
-  if (isEmptyDrawingLayer(layer) || !layer) {
+  // A payload this build cannot read still belongs to the note, so it is
+  // written back out verbatim rather than dropped on export.
+  const payload = readDrawingPayload(document.attrs.drawing);
+  if (payload.kind === "empty" || (payload.kind === "layer" && isEmptyDrawingLayer(payload.layer))) {
     return body;
   }
-  return body.length > 0 ? `${body}\n\n${drawingFence(layer)}` : drawingFence(layer);
+  const fence = drawingFence(payload.kind === "layer" ? payload.layer : payload.payload);
+  return body.length > 0 ? `${body}\n\n${fence}` : fence;
 }
 
 function inlineWikiLinkRule(state: any, silent: boolean): boolean {
@@ -2017,11 +2019,8 @@ export function parseProductMarkdown(markdown: string): ProseMirrorNode {
   return withDrawingLayer(parseMarkdownBody(body), layer);
 }
 
-function withDrawingLayer(
-  document: ProseMirrorNode,
-  layer: DrawingLayer | null,
-): ProseMirrorNode {
-  if (!layer) return document;
+function withDrawingLayer(document: ProseMirrorNode, layer: unknown): ProseMirrorNode {
+  if (layer === null || layer === undefined) return document;
   return productSchema.node("doc", { drawing: layer }, document.content);
 }
 

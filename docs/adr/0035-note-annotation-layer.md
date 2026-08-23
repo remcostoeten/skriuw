@@ -50,10 +50,18 @@ its shape at a fraction of the samples a pointer produces.
 
 Markdown export projects a non-empty layer as one trailing fenced `drawing`
 block holding the model as JSON, and import lifts that fence back into the
-document root. A payload this build cannot read — malformed, or written by a
-future version — is left exactly where it is and lands as an ordinary code
-block. It is never silently discarded, matching the contract ADR-0025 keeps for
-unsupported `mermaid` sources.
+document root. Nothing is ever silently discarded, matching the contract
+ADR-0025 keeps for unsupported `mermaid` sources, but there are two distinct
+recovery cases and they are handled differently.
+
+A payload that is still recognisably a layer envelope — an object with a
+numeric `version` and an array of `elements` — but that this build cannot
+render is *foreign*: a layer written by a newer version, or a scene carried in
+from another tool. It is kept byte-for-byte on the document root, exported
+verbatim, and surfaced as read-only. Annotate mode refuses to edit it, because
+committing a stroke would replace it, which is the one way ink written by a
+newer version could be lost. A payload that is not a layer envelope at all is
+left exactly where it is and lands as an ordinary code block.
 
 Layers, text elements, images, arrows, panning or zooming the annotation space,
 PNG and SVG export, pressure sensitivity, and collaboration cursors are not part
@@ -74,7 +82,12 @@ not in scope; a v1 scene survives import as opaque payload.
 - Documents now serialize a `drawing` key on the root even when empty, so stored
   `document_json` gains one null-valued attribute on its next write.
 - The renderer ships no new runtime dependency, and a note without ink keeps no
-  canvas warm and installs no live handlers.
+  canvas warm and installs no live handlers. Idle, the overlay is
+  `pointer-events: none`, hidden from assistive technology, and absent from the
+  tree entirely when the note has never been drawn on.
+- A conflicting two-device annotation edit is an ordinary `SaveDocument`
+  revision conflict, and the losing device's alternative is preserved for
+  resolution like any other document conflict.
 - The model is deliberately narrower than any drawing library. New element
   kinds require their own geometry, accessibility contract, and bounds rather
   than growing an unbounded union.

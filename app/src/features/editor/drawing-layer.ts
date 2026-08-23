@@ -161,6 +161,38 @@ export function parseDrawingLayer(value: unknown): DrawingLayer | null {
   return { version: DRAWING_LAYER_VERSION, elements };
 }
 
+/**
+ * What a stored payload is, from this build's point of view.
+ *
+ * `foreign` is the load-bearing case: a layer written by a newer version, or a
+ * scene carried in from another tool, is still recognisably a layer envelope.
+ * It is kept byte-for-byte and surfaced as read-only rather than parsed into
+ * nothing and then overwritten by the next stroke.
+ */
+export type DrawingPayload =
+  | { kind: "empty" }
+  | { kind: "layer"; layer: DrawingLayer }
+  | { kind: "foreign"; payload: unknown };
+
+export function readDrawingPayload(value: unknown): DrawingPayload {
+  if (value === null || value === undefined) return { kind: "empty" };
+  const layer = parseDrawingLayer(value);
+  if (layer) return { kind: "layer", layer };
+  if (isDrawingEnvelope(value)) return { kind: "foreign", payload: value };
+  return { kind: "empty" };
+}
+
+/**
+ * Whether a payload is shaped like some version of an annotation layer at all.
+ * Deliberately loose: enough to tell a layer from arbitrary fenced JSON, and
+ * not so tight that a future field or a scene from another editor fails it.
+ */
+export function isDrawingEnvelope(value: unknown): boolean {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.version === "number" && Array.isArray(record.elements);
+}
+
 export function countDrawingPoints(elements: readonly DrawingElement[]): number {
   let total = 0;
   for (const element of elements) {
@@ -266,8 +298,8 @@ const FENCE_OPEN = "```" + DRAWING_FENCE_LANGUAGE;
 const FENCE_CLOSE = "```";
 
 /** The layer's Markdown projection: one fence, always last in the document. */
-export function drawingFence(layer: DrawingLayer): string {
-  return `${FENCE_OPEN}\n${JSON.stringify(layer)}\n${FENCE_CLOSE}`;
+export function drawingFence(payload: DrawingLayer | unknown): string {
+  return `${FENCE_OPEN}\n${JSON.stringify(payload)}\n${FENCE_CLOSE}`;
 }
 
 /**
@@ -280,7 +312,7 @@ export function drawingFence(layer: DrawingLayer): string {
  */
 export function extractDrawingFence(markdown: string): {
   markdown: string;
-  layer: DrawingLayer | null;
+  layer: unknown;
 } {
   const lines = markdown.split("\n");
   for (let open = lines.length - 1; open >= 0; open -= 1) {
@@ -289,7 +321,7 @@ export function extractDrawingFence(markdown: string): {
     while (close < lines.length && lines[close]?.trimEnd() !== FENCE_CLOSE) close += 1;
     if (close >= lines.length) continue;
     const layer = readLayerPayload(lines.slice(open + 1, close).join("\n"));
-    if (!layer) continue;
+    if (layer === null) continue;
     let start = open;
     while (start > 0 && lines[start - 1]?.trim() === "") start -= 1;
     return { markdown: lines.slice(0, start).concat(lines.slice(close + 1)).join("\n"), layer };
@@ -297,10 +329,20 @@ export function extractDrawingFence(markdown: string): {
   return { markdown, layer: null };
 }
 
-function readLayerPayload(payload: string): DrawingLayer | null {
+/**
+ * The payload to lift out of a fence, or null to leave the fence alone. A
+ * readable layer and a foreign envelope both come back; anything else stays
+ * where it is and lands in the document as a code block.
+ */
+function readLayerPayload(payload: string): unknown {
+  let parsed: unknown;
   try {
-    return parseDrawingLayer(JSON.parse(payload));
+    parsed = JSON.parse(payload);
   } catch {
     return null;
   }
+  const read = readDrawingPayload(parsed);
+  if (read.kind === "layer") return read.layer;
+  if (read.kind === "foreign") return read.payload;
+  return null;
 }
