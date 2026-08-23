@@ -23,7 +23,12 @@
   <a href="https://github.com/remcostoeten/skriuw/releases"><img src="https://img.shields.io/github/downloads/remcostoeten/skriuw/total?label=downloads" alt="Total downloads" /></a>
 </p>
 
-![The Skriuw workspace](docs/assets/preview.png)
+<p align="center">
+  <img src="docs/assets/demo.gif" width="100%" alt="Creating a note in Skriuw: the slash menu, Markdown shortcuts, a #tag, an @note link, raw Markdown mode, then jumping to the linked note from the command palette" />
+</p>
+<p align="center">
+  <sub>The browser build at <a href="https://skriuw.com/app">skriuw.com/app</a>, driven from the keyboard, captured in real time and uncut. The desktop app is the same renderer on the same Rust core.</sub>
+</p>
 
 Your workspace is a SQLite database on your machine. Open the app, type, and
 every keystroke paints in the same frame: no spinners, no server round-trips,
@@ -35,6 +40,8 @@ browser** at [skriuw.com/app](https://skriuw.com/app).
 - Automatic Git history and verified backups, in the background
 - Imports from Obsidian, Notion, Bear, Apple Notes, and plain Markdown
 - Keyboard-first, fast at thousands of notes, sync strictly opt-in
+- Nine themes (Skriuw, Paper, Embers, Catppuccin, Rosé Pine, Gruvbox, Tokyo
+  Night) and sans, serif, or mono editor type
 - Optional AI writing tools: invisible until enabled, local-first via Ollama,
   or bring your own Gemini/Groq key
 
@@ -49,10 +56,38 @@ the desktop app links against native SQLite, and the browser runs **the same
 core compiled to WebAssembly** with a real SQLite database in OPFS.
 [skriuw.com/app](https://skriuw.com/app) is the entire application, not a demo.
 
+```text
+             React 19 · ProseMirror · Tailwind 4
+                              │
+         Tauri IPC (desktop) · WebAssembly (browser)
+                              │
+  Rust core — domain · operations · search · history · sync
+               │                                │
+     native SQLite on disk              SQLite-WASM in OPFS
+  Git history, verified backups     same schema, same migrations
+```
+
 Writes paint in the same frame and become durable on a background queue the
 UI never waits for; history, backups, and sync can fail and retry without
 ever touching typing or navigation. The full system shape is in
 [ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+### Fast on purpose
+
+Speed is a contract, not a vibe. [docs/performance-contract.md](docs/performance-contract.md)
+budgets keystroke-to-paint and cached note switches at **P95 under 8 ms**
+and forbids IPC, database reads, Markdown parsing, and chunk loading on the
+navigation path; a production benchmark suite enforces it and keeps its raw
+samples in [docs/benchmarks](docs/benchmarks). Some of the numbers behind the
+GIF above:
+
+| Measurement | Result |
+| --- | ---: |
+| 300 rapid cached note switches | 0 dropped frames, 0 bridge calls, 0 editor remounts |
+| Tag/people suggestions at 5,000 notes | P95 0.4 ms |
+| Browser: cold page load to hydrated 5,000-note workspace | 139 ms |
+| Browser: warm bootstrap, 5,000 notes | 50 ms |
+| Browser: full-text search over 5,000 notes | 6.7 ms |
 
 ## Installation
 
