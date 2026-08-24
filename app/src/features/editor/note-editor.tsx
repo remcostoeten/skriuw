@@ -151,11 +151,15 @@ import {
   clearPendingAiAction,
   requestAiAction,
 } from "@/features/ai/editor-action-controller";
+import { DrawingOverlay } from "@/features/drawing/drawing-overlay";
+import { closeAnnotateMode } from "@/store/actions/annotate-mode";
 import {
   AnnotationMenu,
   annotationAtCursor,
+  annotationRanges,
   annotationMenuAnchor,
   closedAnnotationMenu,
+  type AnnotationRange,
 } from "./annotation-menu";
 import {
   closedLinkMenu,
@@ -181,7 +185,7 @@ import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
 import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
 import type { NoteEditorShortcutId } from "./editor-bound-shortcut-ids";
 import { useEditorSearch } from "./use-editor-search";
-import { taskPromotionOperations } from "./task-linking";
+import { documentSaveOperations } from "./task-linking";
 import { withFreshPastedTaskIdentities } from "./task-paste";
 import {
   resolvedThreadIdsForNote,
@@ -204,6 +208,7 @@ function selectAnnotations(state: RendererState) {
 }
 
 const SAVE_DEBOUNCE_MS = 500;
+const ANNOTATION_HOVER_CLOSE_MS = 160;
 const VIRTUAL_BLOCK_HEIGHT = 32;
 const WINDOW_SHIFT = Math.floor(BOUNDED_BLOCK_LIMIT / 2);
 const EASE_IN_OUT = [0.77, 0, 0.175, 1] as [number, number, number, number];
@@ -476,6 +481,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const [annotationMenu, setAnnotationMenu] = useState(closedAnnotationMenu);
   const annotationMenuRef = useRef(annotationMenu);
   annotationMenuRef.current = annotationMenu;
+  const annotationMenuHostRef = useRef<HTMLDivElement>(null);
+  const annotationHoverCloseTimerRef = useRef<number | null>(null);
   const annotations = useRendererSelector(store, selectAnnotations);
   const imageMenuTriggerRef = useRef<HTMLSpanElement>(null);
   const [imageMenuImageId, setImageMenuImageId] = useState<string | null>(null);
@@ -484,6 +491,14 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const blockMenuTriggerRef = useRef<HTMLSpanElement>(null);
   const [blockMenuPos, setBlockMenuPos] = useState<number | null>(null);
   const activeNoteId = useRendererSelector(store, selectNoteId);
+  const selectAnnotating = useMemo(
+    () => (state: RendererState) => {
+      const noteId = selectNoteId(state);
+      return noteId !== null && state.annotatingNoteId === noteId;
+    },
+    [selectNoteId],
+  );
+  const annotating = useRendererSelector(store, selectAnnotating);
   /**
    * Anchor appearance is derived here rather than inside the plugin so the walk
    * runs on store and popover changes only. An editor keystroke re-paints
@@ -668,51 +683,36 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const at = Date.now();
     const documentJson = document.toJSON();
     preparedDocuments.stage(noteId, documentJson, document);
-    const operations: WorkspaceOperation[] = [
-      {
-        type: "save_document",
-        noteId,
-        documentJson,
-        markdown: serializeProductMarkdown(document),
-        wordCount: countWords(document),
-        expectedRevision: record.revision,
-        at,
-      },
-    ];
+    const source = {
+      documentJson,
+      markdown: serializeProductMarkdown(document),
+      wordCount: countWords(document),
+      expectedRevision: record.revision,
+    };
+    const operations: WorkspaceOperation[] = documentSaveOperations(
+      document,
+      noteId,
+      source,
+      store.getState().tasks,
+      at,
+    );
     const title = deriveTitle(document);
     if (title !== cached.derivedTitle) {
       cached.derivedTitle = title;
       operations.push({ type: "rename_node", id: noteId, title, at });
     }
-    return commitOperations(store, operations).then(async () => {
-        const entry = cacheRef.current.get(noteId);
-        const saved = store.getState().documents.get(noteId);
-        if (entry && saved) {
-          entry.revision = saved.revision;
-          const current = entry.bounded?.fullDocument() ?? entry.state.doc;
-          if (current.eq(document)) {
-            dirtyNoteIdsRef.current.delete(noteId);
-          }
+    return commitOperations(store, operations).then(() => {
+      const entry = cacheRef.current.get(noteId);
+      const saved = store.getState().documents.get(noteId);
+      if (entry && saved) {
+        entry.revision = saved.revision;
+        const current = entry.bounded?.fullDocument() ?? entry.state.doc;
+        if (current.eq(document)) {
+          dirtyNoteIdsRef.current.delete(noteId);
         }
-        pruneEditorWorkingSet();
-
-        const promotionSource = store.getState().documents.get(noteId);
-        if (promotionSource) {
-          const promotionOperations = taskPromotionOperations(
-            document,
-            noteId,
-            {
-              documentJson,
-              markdown: serializeProductMarkdown(document),
-              wordCount: countWords(document),
-              expectedRevision: promotionSource.revision,
-            },
-            store.getState().tasks,
-            at,
-          );
-          if (promotionOperations.length > 0) await commitOperations(store, promotionOperations);
-        }
-      });
+      }
+      pruneEditorWorkingSet();
+    });
   }
 
   function saveNow(noteId: string): Promise<void> {
@@ -804,6 +804,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         setLinkMenu(closedLinkMenu);
       }
     }
+    if (transaction.selectionSet) syncAnnotationMenuToSelection(next);
     const menu = slashMenuState(next);
     if (!menu.open) {
       slashDismissedRef.current = false;
@@ -972,6 +973,80 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     return { from, to, threadId: anchored ? anchored.threadId : "" };
   }
 
+  function cancelAnnotationHoverClose(): void {
+    if (annotationHoverCloseTimerRef.current === null) return;
+    window.clearTimeout(annotationHoverCloseTimerRef.current);
+    annotationHoverCloseTimerRef.current = null;
+  }
+
+  function showAnnotationThread(
+    range: AnnotationRange,
+    source: "caret" | "hover" | "intent",
+    focusComposer: boolean,
+  ): void {
+    const view = viewRef.current;
+    if (!view) return;
+    const current = annotationMenuRef.current;
+    if (
+      current.open &&
+      !current.composing &&
+      current.threadId === range.threadId &&
+      current.from === range.from &&
+      current.to === range.to &&
+      current.source === source &&
+      current.focusComposer === focusComposer
+    ) {
+      return;
+    }
+    setBubbleMenu(closedBubbleMenu);
+    setLinkMenu(closedLinkMenu);
+    setAnnotationMenu({
+      open: true,
+      composing: false,
+      focusComposer,
+      source,
+      threadId: range.threadId,
+      from: range.from,
+      to: range.to,
+      ...annotationMenuAnchor(view, range.from, range.to),
+    });
+  }
+
+  function syncAnnotationMenuToSelection(state: EditorState): void {
+    const range = annotationAtCursor(state);
+    if (range) {
+      cancelAnnotationHoverClose();
+      showAnnotationThread(range, "caret", false);
+      return;
+    }
+    if (annotationMenuRef.current.source !== "hover") {
+      setAnnotationMenu(closedAnnotationMenu);
+    }
+  }
+
+  function scheduleAnnotationHoverClose(): void {
+    cancelAnnotationHoverClose();
+    annotationHoverCloseTimerRef.current = window.setTimeout(() => {
+      annotationHoverCloseTimerRef.current = null;
+      const menu = annotationMenuRef.current;
+      if (!menu.open || menu.source !== "hover") return;
+      const view = viewRef.current;
+      const caretRange = view ? annotationAtCursor(view.state) : null;
+      if (caretRange?.threadId === menu.threadId) {
+        showAnnotationThread(caretRange, "caret", false);
+      } else {
+        setAnnotationMenu(closedAnnotationMenu);
+      }
+    }, ANNOTATION_HOVER_CLOSE_MS);
+  }
+
+  function interactWithAnnotationMenu(): void {
+    cancelAnnotationHoverClose();
+    const current = annotationMenuRef.current;
+    if (!current.open || current.source === "intent") return;
+    setAnnotationMenu({ ...current, focusComposer: false, source: "intent" });
+  }
+
   function openAnnotationMenu(): void {
     const view = viewRef.current;
     const range = annotationEditorRange();
@@ -981,6 +1056,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     setAnnotationMenu({
       open: true,
       composing: range.threadId === "",
+      focusComposer: true,
+      source: "intent",
       threadId: range.threadId,
       from: range.from,
       to: range.to,
@@ -1472,6 +1549,22 @@ const closeJumpToLine = useCallback(() => {
           !mod &&
           !event.shiftKey &&
           event.key === "Tab" &&
+          annotationMenuRef.current.open &&
+          !annotationMenuRef.current.composing
+        ) {
+          const input = annotationMenuHostRef.current?.querySelector(
+            ".annotation-menu-composer textarea",
+          );
+          if (input instanceof HTMLTextAreaElement) {
+            event.preventDefault();
+            input.focus();
+            return true;
+          }
+        }
+        if (
+          !mod &&
+          !event.shiftKey &&
+          event.key === "Tab" &&
           bubbleMenuRef.current.open &&
           !slashMenuRef.current.open
         ) {
@@ -1571,6 +1664,31 @@ const closeJumpToLine = useCallback(() => {
       const entry = activeEntry();
       if (entry && pending !== null) moveBoundedWindow(entry, pending);
     };
+    const handleAnnotationMouseOver = (event: MouseEvent) => {
+      if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest<HTMLElement>("mark[data-skriuw-annotation]");
+      if (!anchor || !view.dom.contains(anchor)) return;
+      const threadId = anchor.dataset.skriuwAnnotation ?? "";
+      if (!threadId || !store.getState().annotations.has(threadId)) return;
+      const range = annotationRanges(view.state).find(
+        (candidate) => candidate.threadId === threadId,
+      );
+      if (!range) return;
+      cancelAnnotationHoverClose();
+      showAnnotationThread(range, "hover", false);
+    };
+    const handleAnnotationMouseOut = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest<HTMLElement>("mark[data-skriuw-annotation]");
+      if (!anchor || !view.dom.contains(anchor)) return;
+      const next = event.relatedTarget;
+      if (next instanceof Node && anchor.contains(next)) return;
+      if (next instanceof Node && annotationMenuHostRef.current?.contains(next)) return;
+      scheduleAnnotationHoverClose();
+    };
     const handleBlur = (event: FocusEvent) => {
       const focused = event.relatedTarget;
       const intoBubbleMenu =
@@ -1581,6 +1699,11 @@ const closeJumpToLine = useCallback(() => {
       const next = event.relatedTarget;
       if (!(next instanceof HTMLElement) || !next.closest(".link-menu")) {
         setLinkMenu((previous) => (previous.open ? closedLinkMenu : previous));
+      }
+      const intoAnnotationMenu =
+        next instanceof HTMLElement && next.closest(".annotation-menu") !== null;
+      if (!intoAnnotationMenu && annotationMenuRef.current.source !== "hover") {
+        setAnnotationMenu(closedAnnotationMenu);
       }
     };
     const handleCopy = (event: ClipboardEvent) => {
@@ -1606,6 +1729,8 @@ const closeJumpToLine = useCallback(() => {
     scrollHost?.addEventListener("scroll", handleScroll, { passive: true });
     view.dom.addEventListener("compositionstart", handleCompositionStart);
     view.dom.addEventListener("compositionend", handleCompositionEnd);
+    view.dom.addEventListener("mouseover", handleAnnotationMouseOver);
+    view.dom.addEventListener("mouseout", handleAnnotationMouseOut);
     view.dom.addEventListener("blur", handleBlur);
     view.dom.addEventListener("copy", handleCopy);
     view.dom.addEventListener("contextmenu", handleContextMenu);
@@ -1616,9 +1741,12 @@ const closeJumpToLine = useCallback(() => {
       scrollHost?.removeEventListener("scroll", handleScroll);
       view.dom.removeEventListener("compositionstart", handleCompositionStart);
       view.dom.removeEventListener("compositionend", handleCompositionEnd);
+      view.dom.removeEventListener("mouseover", handleAnnotationMouseOver);
+      view.dom.removeEventListener("mouseout", handleAnnotationMouseOut);
       view.dom.removeEventListener("blur", handleBlur);
       view.dom.removeEventListener("copy", handleCopy);
       view.dom.removeEventListener("contextmenu", handleContextMenu);
+      cancelAnnotationHoverClose();
       dragHandleRef.current = null;
       dragHandle.destroy();
       viewRef.current = null;
@@ -1644,6 +1772,7 @@ const closeJumpToLine = useCallback(() => {
     setSlashMenu(closedSlashMenu);
     setBubbleMenu(closedBubbleMenu);
     setLinkMenu(closedLinkMenu);
+    setAnnotationMenu(closedAnnotationMenu);
     dragHandleRef.current?.hide();
     if (activeNoteId === null) {
       view.updateState(createEditorState(emptyDocument(), editorPlugins));
@@ -1820,6 +1949,19 @@ const closeJumpToLine = useCallback(() => {
           </button>
         </div>
       )}
+      {editorPane && activeNoteId !== null
+        ? createPortal(
+            <DrawingOverlay
+              key={activeNoteId}
+              store={store}
+              noteId={activeNoteId}
+              active={annotating}
+              getView={() => viewRef.current}
+              onDone={() => closeAnnotateMode(store)}
+            />,
+            editorPane,
+          )
+        : null}
       {utilityMode && editorPane
         ? createPortal(
             <motion.div
@@ -1949,6 +2091,7 @@ const closeJumpToLine = useCallback(() => {
       <AnnotationMenu
         state={annotationMenu}
         thread={annotationMenu.threadId ? (annotations.get(annotationMenu.threadId) ?? null) : null}
+        containerRef={annotationMenuHostRef}
         getView={() => viewRef.current}
         onCreate={(body) => commitNewAnnotation(body)}
         onReply={(body) => {
@@ -1975,6 +2118,9 @@ const closeJumpToLine = useCallback(() => {
         }
         onDelete={() => removeAnnotationThread()}
         onClose={() => setAnnotationMenu(closedAnnotationMenu)}
+        onHoverStart={cancelAnnotationHoverClose}
+        onHoverEnd={scheduleAnnotationHoverClose}
+        onInteract={interactWithAnnotationMenu}
       />
       <LinkMenu
         state={linkMenu}

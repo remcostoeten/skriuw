@@ -113,3 +113,72 @@ test("canonical positions map to top-level blocks and text offsets", () => {
   const position = topLevelTextPosition(document, 7, 3);
   assert.equal(topLevelBlockAtPosition(document, position), 7);
 });
+
+function createDrawnDocument(count: number, drawing: unknown) {
+  return productSchema.node(
+    "doc",
+    { drawing },
+    Array.from({ length: count }, (_, index) =>
+      productSchema.node("paragraph", null, productSchema.text(`block ${index}`)),
+    ),
+  );
+}
+
+const INK = {
+  version: 1,
+  elements: [
+    { id: "s1", kind: "stroke", tool: "pen", color: "ink", width: 2, points: [0, 0, 4, 4] },
+  ],
+};
+
+test("a bounded note keeps its annotation layer through every rebuild", () => {
+  const bounded = createBoundedDocument(createDrawnDocument(400, INK));
+
+  assert.deepEqual(bounded.fullDocument().attrs.drawing, INK);
+  assert.deepEqual(bounded.windowDocument().attrs.drawing, INK);
+
+  bounded.moveWindow(120);
+  const edited = bounded.windowDocument();
+  bounded.replaceWindow(
+    productSchema.node("doc", edited.attrs, [
+      productSchema.node("paragraph", null, productSchema.text("edited")),
+      ...Array.from({ length: edited.childCount - 1 }, (_, index) => edited.child(index + 1)),
+    ]),
+    1,
+  );
+
+  assert.deepEqual(
+    bounded.fullDocument().attrs.drawing,
+    INK,
+    "editing text off the drawing must not erase the layer",
+  );
+});
+
+test("a drawing-only edit is recorded and undoes without touching the text", () => {
+  const bounded = createBoundedDocument(createDrawnDocument(400, null));
+  const before = bounded.fullDocument();
+
+  const changed = bounded.replaceWindow(
+    productSchema.node("doc", { drawing: INK }, bounded.windowDocument().content),
+    1,
+  );
+
+  assert.equal(changed, true, "an attributes-only change still changes the document");
+  assert.deepEqual(bounded.fullDocument().attrs.drawing, INK);
+  assert.equal(bounded.undoDepth(), 1);
+
+  assert.equal(bounded.undo(), true);
+  assert.equal(bounded.fullDocument().attrs.drawing, null);
+  assert.equal(bounded.fullDocument().content.eq(before.content), true);
+
+  assert.equal(bounded.redo(), true);
+  assert.deepEqual(bounded.fullDocument().attrs.drawing, INK);
+});
+
+test("reconciling an external write adopts its annotation layer", () => {
+  const bounded = createBoundedDocument(createDrawnDocument(400, INK));
+
+  bounded.reconcile(createDrawnDocument(400, null));
+
+  assert.equal(bounded.fullDocument().attrs.drawing, null);
+});

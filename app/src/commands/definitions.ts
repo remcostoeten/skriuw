@@ -85,7 +85,26 @@ export type ShortcutActionId =
   | "findAndReplaceInNote"
   | "searchMatchCase"
   | "searchWholeWord"
-  | "searchRegex";
+  | "searchRegex"
+  | "toggleAnnotateMode"
+  | "drawPen"
+  | "drawHighlighter"
+  | "drawLine"
+  | "drawRectangle"
+  | "drawEllipse"
+  | "drawToggleFill"
+  | "drawEraser"
+  | "drawSelect"
+  | "drawWidthDecrease"
+  | "drawWidthIncrease"
+  | "drawInkDefault"
+  | "drawInkRed"
+  | "drawInkOrange"
+  | "drawInkYellow"
+  | "drawInkGreen"
+  | "drawInkTeal"
+  | "drawInkBlue"
+  | "drawInkViolet";
 
 /**
  * Focus contexts that veto a binding:
@@ -321,6 +340,16 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     group: "Workspace",
     worksWhileTyping: true,
     guards: ["modal"],
+  },
+  {
+    id: "toggleAnnotateMode",
+    keys: "mod+shift+a",
+    label: "Annotate note",
+    description:
+      "Draw over the whole note. Escape leaves annotate mode and returns focus to the text.",
+    group: "Workspace",
+    worksWhileTyping: true,
+    scopes: "notes-route",
   },
   {
     id: "toggleEditorMode",
@@ -744,6 +773,178 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Toggle regular expression",
     group: "Editor search",
     worksWhileTyping: true,
+    boundInEditor: true,
+  },
+  {
+    id: "drawPen",
+    keys: "p",
+    label: "Pen",
+    description: "Freehand ink at the current width.",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawHighlighter",
+    keys: "h",
+    label: "Highlighter",
+    description: "Freehand ink at a fat, translucent width.",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawLine",
+    keys: "l",
+    label: "Line",
+    description: "Drag a straight line; shift snaps to 0, 45, and 90 degrees.",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawRectangle",
+    keys: "r",
+    label: "Rectangle",
+    description: "Drag a rectangle; shift constrains it to a square.",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawEllipse",
+    keys: "o",
+    label: "Ellipse",
+    description: "Drag an ellipse; shift constrains it to a circle.",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawToggleFill",
+    keys: "f",
+    label: "Toggle shape fill",
+    description: "Switch rectangles and ellipses between filled and border-only.",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawEraser",
+    keys: "e",
+    label: "Eraser",
+    description: "Drag over ink to remove whole elements.",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawSelect",
+    keys: "v",
+    label: "Select and move",
+    description: "Click to select an element, drag to move it.",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawWidthDecrease",
+    keys: "minus",
+    label: "Thinner stroke",
+    description: "Step the brush down to the previous width.",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawWidthIncrease",
+    keys: "equal",
+    label: "Thicker stroke",
+    description: "Step the brush up to the next width.",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawInkDefault",
+    keys: "1",
+    label: "Ink ink",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawInkRed",
+    keys: "2",
+    label: "Red ink",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawInkOrange",
+    keys: "3",
+    label: "Orange ink",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawInkYellow",
+    keys: "4",
+    label: "Yellow ink",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawInkGreen",
+    keys: "5",
+    label: "Green ink",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawInkTeal",
+    keys: "6",
+    label: "Teal ink",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawInkBlue",
+    keys: "7",
+    label: "Blue ink",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
+    boundInEditor: true,
+  },
+  {
+    id: "drawInkViolet",
+    keys: "8",
+    label: "Violet ink",
+    group: "Drawing",
+    guards: ["modal"],
+    scopes: "drawing",
     boundInEditor: true,
   },
 ];

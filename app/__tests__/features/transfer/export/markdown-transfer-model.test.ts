@@ -15,6 +15,10 @@ import {
 import type { MarkdownTree } from "../../../../src/features/transfer/export/markdown-transfer-model";
 import { createInitialState, createRendererStore } from "../../../../src/store/store";
 import type { RendererState } from "../../../../src/store/types";
+import {
+  productSchema,
+  serializeProductMarkdown,
+} from "../../../../src/features/editor/schema";
 
 function node(
   partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">,
@@ -198,6 +202,41 @@ test("sibling folders with colliding names get numbered suffixes", () => {
   );
 });
 
+test("a note's annotation layer survives a workspace export and re-import", () => {
+  const layer = {
+    version: 1,
+    elements: [
+      {
+        id: "s1",
+        kind: "stroke",
+        tool: "pen",
+        color: "ink",
+        width: 2,
+        points: [10, 20, 30, 40],
+      },
+    ],
+  };
+  const drawn = productSchema.node("doc", { drawing: layer }, [
+    productSchema.node("paragraph", null, [productSchema.text("Reviewed")]),
+  ]);
+
+  const plan = planMarkdownImport(
+    {
+      directories: [],
+      files: [{ relativePath: "Drawn.md", content: serializeProductMarkdown(drawn) }],
+      skipped: 0,
+    },
+    1,
+    () => "drawn-note",
+  );
+
+  const [operation] = plan.contentOperations;
+  assert.equal(operation?.type, "save_document");
+  if (operation?.type !== "save_document") return;
+  const imported = operation.documentJson as { attrs?: { drawing?: unknown } };
+  assert.deepEqual(imported.attrs?.drawing, layer);
+});
+
 test("round trip preserves hierarchy, titles, and markdown", () => {
   const exported = buildWorkspaceExportEntries(fixtureState());
   const tree: MarkdownTree = {
@@ -272,6 +311,7 @@ test("unparseable markdown imports as plain paragraphs instead of failing", () =
   }
   assert.deepEqual(JSON.parse(JSON.stringify(operation.documentJson)), {
     type: "doc",
+    attrs: { drawing: null },
     content: [{ type: "paragraph", attrs: { textAlign: "left" } }],
   });
 });

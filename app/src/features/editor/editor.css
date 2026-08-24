@@ -552,6 +552,15 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * The editor's 0.2em rhythm reads fine between paragraphs, which carry their
+ * own line-height, but two code blocks are bordered boxes: their margins
+ * collapse to one 0.2em gap and the pair reads as a single merged block.
+ */
+.prosemirror-host .ProseMirror pre + pre {
+  margin-top: 0.75em;
+}
+
 .prosemirror-host .ProseMirror pre code {
   padding: 0;
   background: none;
@@ -1839,6 +1848,16 @@ body.is-dragging-block {
   list-style: none;
 }
 
+.annotation-menu-anchor {
+  max-height: 2.8em;
+  overflow: hidden;
+  margin: 0 0 6px;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 .annotation-menu-body {
   margin: 0;
   font-size: 12px;
@@ -1909,8 +1928,10 @@ body.is-dragging-block {
   font-size: 12px;
 }
 
-.annotation-menu button:hover {
-  background-color: hsl(var(--foreground) / 0.16);
+.annotation-menu-input:focus-visible,
+.annotation-menu button:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
 }
 
 .annotation-menu button:disabled {
@@ -1918,8 +1939,13 @@ body.is-dragging-block {
   cursor: default;
 }
 
-/* Destructive actions stay quiet at rest and only turn red once armed. */
-.annotation-menu button.annotation-menu-destructive:hover {
-  background-color: hsl(var(--destructive) / 0.16);
-  color: hsl(var(--destructive));
+@media (hover: hover) and (pointer: fine) {
+  .annotation-menu button:hover {
+    background-color: hsl(var(--foreground) / 0.16);
+  }
+
+  .annotation-menu button.annotation-menu-destructive:hover {
+    background-color: hsl(var(--destructive) / 0.16);
+    color: hsl(var(--destructive));
+  }
 }

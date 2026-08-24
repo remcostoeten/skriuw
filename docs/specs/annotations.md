@@ -106,11 +106,14 @@ checksum list for shipped migrations, and the archive-fixture manifest.
 - **Create** — with a non-empty selection, `mod+shift+m` or the bubble-menu
   button opens the composer. Submitting applies the mark and emits
   `create_annotation` in one batch.
-- **Open** — placing the caret inside an anchor and pressing `mod+shift+m`
-  opens that thread's popover. Nested anchors resolve to the innermost.
+- **Open** — hovering an anchor or moving a collapsed caret inside it opens the
+  thread without moving focus. Nested anchors resolve to the innermost. From
+  the caret, Tab moves into the reply composer; `mod+shift+m` opens it there
+  directly.
 - **Popover** — comment list with per-comment edit and delete, a reply
   composer, Resolve/Reopen, and Delete thread. Enter submits, `shift`+Enter
-  inserts a newline, Escape closes and returns focus to the editor.
+  inserts a newline, Escape closes and returns focus to the editor. Every
+  action is a native keyboard-operable button with a visible focus state.
 - **Navigate** — `mod+alt+arrowdown` and `mod+alt+arrowup` step to the next and
   previous anchor in document order and open it, wrapping at either end.
 

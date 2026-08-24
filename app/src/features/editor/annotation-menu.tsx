@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
@@ -10,6 +11,8 @@ import { productSchema } from "./schema";
 export type AnnotationMenuState = {
   open: boolean;
   composing: boolean;
+  focusComposer: boolean;
+  source: "caret" | "hover" | "intent";
   threadId: string;
   from: number;
   to: number;
@@ -21,6 +24,8 @@ export type AnnotationMenuState = {
 export const closedAnnotationMenu: AnnotationMenuState = {
   open: false,
   composing: false,
+  focusComposer: false,
+  source: "caret",
   threadId: "",
   from: 0,
   to: 0,
@@ -80,13 +85,29 @@ export function annotationRangesInDoc(doc: ProseMirrorNode): AnnotationRange[] {
     .sort((left, right) => left.from - right.from || left.to - right.to);
 }
 
-/** The innermost anchor containing a collapsed caret, or null. */
+/**
+ * The innermost anchor containing a collapsed caret, or null.
+ *
+ * Every selection change consults this, so the full-document walk is gated on
+ * the marks the caret already carries: a strictly interior position always
+ * carries its anchor's mark, and the edges where `inclusive: false` strips it
+ * are the same edges {@link annotationAtPosition} rejects.
+ */
 export function annotationAtCursor(state: EditorState): AnnotationRange | null {
   const { $from, empty } = state.selection;
   if (!empty) return null;
-  const cursor = $from.pos;
+  const annotation = productSchema.marks.annotation;
+  if (!annotation || !$from.marks().some((mark) => mark.type === annotation)) return null;
+  return annotationAtPosition(state, $from.pos);
+}
+
+/** Returns the innermost annotation containing a document position. */
+export function annotationAtPosition(
+  state: EditorState,
+  position: number,
+): AnnotationRange | null {
   const containing = annotationRanges(state).filter(
-    (range) => cursor > range.from && cursor < range.to,
+    (range) => position > range.from && position < range.to,
   );
   return containing.reduce<AnnotationRange | null>(
     (innermost, range) =>
@@ -116,6 +137,7 @@ function relativeTime(at: number, now: number): string {
 type Props = {
   state: AnnotationMenuState;
   thread: WorkspaceAnnotation | null;
+  containerRef: RefObject<HTMLDivElement | null>;
   getView: () => EditorView | null;
   onCreate: (body: string) => void;
   onReply: (body: string) => void;
@@ -125,11 +147,15 @@ type Props = {
   onReopen: () => void;
   onDelete: () => void;
   onClose: () => void;
+  onHoverStart: () => void;
+  onHoverEnd: () => void;
+  onInteract: () => void;
 };
 
 export function AnnotationMenu({
   state,
   thread,
+  containerRef,
   getView,
   onCreate,
   onReply,
@@ -139,18 +165,29 @@ export function AnnotationMenu({
   onReopen,
   onDelete,
   onClose,
+  onHoverStart,
+  onHoverEnd,
+  onInteract,
 }: Props) {
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!state.open) return;
     setDraft("");
     setEditingId(null);
-    inputRef.current?.focus();
   }, [state.open, state.composing, state.threadId]);
+
+  useEffect(() => {
+    if (state.open && state.focusComposer) inputRef.current?.focus();
+  }, [state.focusComposer, state.open, state.threadId]);
+
+  useEffect(() => {
+    if (editingId) editInputRef.current?.focus();
+  }, [editingId]);
 
   if (!state.open) return null;
 
@@ -180,10 +217,20 @@ export function AnnotationMenu({
 
   return (
     <div
+      ref={containerRef}
       className="annotation-menu"
       id={state.threadId ? `skriuw-annotation-${state.threadId}` : undefined}
+      role={state.source === "intent" ? "dialog" : "region"}
+      aria-label={thread ? "Comment thread" : "New comment"}
       data-below={state.below ? "true" : undefined}
       style={{ left: state.x, top: state.y }}
+      onMouseEnter={onHoverStart}
+      onMouseLeave={onHoverEnd}
+      onFocusCapture={onInteract}
+      onBlurCapture={(event) => {
+        const next = event.relatedTarget;
+        if (!(next instanceof Node) || !event.currentTarget.contains(next)) onClose();
+      }}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -192,8 +239,14 @@ export function AnnotationMenu({
         }
       }}
     >
+      {thread && state.source !== "intent" ? (
+        <p className="sr-only" role="status">
+          Comment thread available. Press Tab to reply or edit comments.
+        </p>
+      ) : null}
       {thread ? (
         <div className="annotation-menu-thread">
+          <p className="annotation-menu-anchor">“{thread.anchorText}”</p>
           {thread.comments.length === 0 ? (
             <p className="annotation-menu-empty">
               Every comment here was deleted. The thread stays until you delete it.
@@ -205,6 +258,7 @@ export function AnnotationMenu({
                   {editingId === comment.id ? (
                     <div className="annotation-menu-edit">
                       <textarea
+                        ref={editInputRef}
                         className="annotation-menu-input"
                         aria-label="Edit comment"
                         value={editDraft}
@@ -221,8 +275,7 @@ export function AnnotationMenu({
                         type="button"
                         title="Save comment"
                         aria-label="Save comment"
-                        onMouseDown={(event) => {
-                          event.preventDefault();
+                        onClick={() => {
                           submitEdit();
                         }}
                       >
@@ -238,8 +291,7 @@ export function AnnotationMenu({
                           type="button"
                           title="Edit comment"
                           aria-label="Edit comment"
-                          onMouseDown={(event) => {
-                            event.preventDefault();
+                          onClick={() => {
                             setEditingId(comment.id);
                             setEditDraft(comment.bodyMarkdown);
                           }}
@@ -251,8 +303,7 @@ export function AnnotationMenu({
                           className="annotation-menu-destructive"
                           title="Delete comment"
                           aria-label="Delete comment"
-                          onMouseDown={(event) => {
-                            event.preventDefault();
+                          onClick={() => {
                             onDeleteComment(comment.id);
                           }}
                         >
@@ -268,8 +319,7 @@ export function AnnotationMenu({
           <div className="annotation-menu-actions">
             <button
               type="button"
-              onMouseDown={(event) => {
-                event.preventDefault();
+              onClick={() => {
                 if (resolved) onReopen();
                 else onResolve();
               }}
@@ -279,8 +329,7 @@ export function AnnotationMenu({
             <button
               type="button"
               className="annotation-menu-destructive"
-              onMouseDown={(event) => {
-                event.preventDefault();
+              onClick={() => {
                 onDelete();
                 closeAndFocus();
               }}
@@ -312,8 +361,7 @@ export function AnnotationMenu({
           title={state.composing ? "Add comment" : "Reply"}
           aria-label={state.composing ? "Add comment" : "Reply"}
           disabled={!draft.trim()}
-          onMouseDown={(event) => {
-            event.preventDefault();
+          onClick={() => {
             submitDraft();
           }}
         >

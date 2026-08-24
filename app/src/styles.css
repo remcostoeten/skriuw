@@ -12,5 +12,6 @@
 @import "./shared/ui/shortcut-recorder.css";
 @import "./features/auth/auth-drawer.css";
 @import "./features/onboarding/onboarding.css";
+@import "./features/drawing/drawing.css";
 
 @plugin "tailwindcss-animate";

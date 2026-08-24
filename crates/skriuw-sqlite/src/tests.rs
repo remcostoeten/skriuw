@@ -1564,6 +1564,77 @@ fn rejects_stale_document_revision() {
     ));
 }
 
+/// Two devices annotating the same note converge the way any other document
+/// edit does: the layer rides `SaveDocument` inside `document_json`, so the
+/// second writer loses on revision and the winner's ink is intact. Stable
+/// element ids are what make the preserved alternative mergeable afterwards.
+#[test]
+fn concurrent_annotation_edits_conflict_like_any_document_edit() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-1")])
+        .expect("create note");
+
+    let first_device = json!({
+        "type": "doc",
+        "attrs": {"drawing": {"version": 1, "elements": [
+            {"id": "a", "kind": "stroke", "tool": "pen", "color": "ink",
+             "width": 2, "points": [0, 0, 10, 10]}
+        ]}},
+        "content": []
+    });
+    let second_device = json!({
+        "type": "doc",
+        "attrs": {"drawing": {"version": 1, "elements": [
+            {"id": "b", "kind": "stroke", "tool": "pen", "color": "red",
+             "width": 2, "points": [50, 50, 60, 60]}
+        ]}},
+        "content": []
+    });
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SaveDocument {
+            note_id: "note-1".into(),
+            document_json: first_device.clone(),
+            markdown: "one".into(),
+            word_count: 1,
+            expected_revision: 1,
+            at: 2,
+        })])
+        .expect("first device saves");
+
+    let error = storage
+        .apply_operations(&[op(WorkspaceOperation::SaveDocument {
+            note_id: "note-1".into(),
+            document_json: second_device,
+            markdown: "two".into(),
+            word_count: 1,
+            expected_revision: 1,
+            at: 3,
+        })])
+        .expect_err("second device is stale");
+
+    assert!(matches!(
+        error,
+        StorageError::RevisionConflict {
+            expected: 1,
+            current: 2,
+            ..
+        }
+    ));
+
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    let document = snapshot
+        .documents
+        .iter()
+        .find(|document| document.note_id == "note-1")
+        .expect("stored document");
+    assert_eq!(
+        document.document_json, first_device,
+        "the winning device keeps its ink untouched"
+    );
+}
+
 #[test]
 fn batches_saves_without_losing_conflicts_or_history() {
     let storage = SqliteWorkspace::open_in_memory().expect("open database");

@@ -27,6 +27,12 @@ import {
   MarkdownSerializer,
 } from "prosemirror-markdown";
 import {
+  drawingFence,
+  extractDrawingFence,
+  isEmptyDrawingLayer,
+  readDrawingPayload,
+} from "./drawing-layer";
+import {
   Schema,
   type MarkSpec,
   type MarkType,
@@ -648,7 +654,23 @@ const tableSpecs = tableNodes({
   cellAttributes: {},
 });
 
+/**
+ * The note's annotation layer hangs off the document root rather than being a
+ * block of its own: it is drawn over the whole note, including the margins
+ * outside any block, and must not be movable, deletable, or reorderable as
+ * content. Living in `document_json` keeps it on the existing `SaveDocument`
+ * operation, history outbox, archive, backup, and sync paths. See ADR-0035.
+ *
+ * The payload is stored opaquely and validated on read by `parseDrawingLayer`,
+ * so a layer written by a newer build survives an older build untouched.
+ */
+const documentSpec: NodeSpec = {
+  ...(basicSchema.spec.nodes.get("doc") as NodeSpec),
+  attrs: { drawing: { default: null } },
+};
+
 const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
+  .update("doc", documentSpec)
   .update("image", blockedImageSpec)
   .update("paragraph", paragraphSpec)
   .update("heading", headingSpec)
@@ -1502,13 +1524,18 @@ const productMarkdownSerializer = new MarkdownSerializer(
 );
 
 export function serializeProductMarkdown(document: ProseMirrorNode): string {
-  if (
-    document.childCount === 1 &&
-    document.firstChild?.type.name === "raw_markdown"
-  ) {
-    return document.firstChild.textContent;
+  const body =
+    document.childCount === 1 && document.firstChild?.type.name === "raw_markdown"
+      ? document.firstChild.textContent
+      : productMarkdownSerializer.serialize(document);
+  // A payload this build cannot read still belongs to the note, so it is
+  // written back out verbatim rather than dropped on export.
+  const payload = readDrawingPayload(document.attrs.drawing);
+  if (payload.kind === "empty" || (payload.kind === "layer" && isEmptyDrawingLayer(payload.layer))) {
+    return body;
   }
-  return productMarkdownSerializer.serialize(document);
+  const fence = drawingFence(payload.kind === "layer" ? payload.layer : payload.payload);
+  return body.length > 0 ? `${body}\n\n${fence}` : fence;
 }
 
 function inlineWikiLinkRule(state: any, silent: boolean): boolean {
@@ -1986,6 +2013,18 @@ function upgradeSpecialLists(node: unknown): unknown[] {
 }
 
 export function parseProductMarkdown(markdown: string): ProseMirrorNode {
+  // The annotation layer is lifted out first so it reaches the document root
+  // even for sources that otherwise parse as opaque Markdown.
+  const { markdown: body, layer } = extractDrawingFence(markdown);
+  return withDrawingLayer(parseMarkdownBody(body), layer);
+}
+
+function withDrawingLayer(document: ProseMirrorNode, layer: unknown): ProseMirrorNode {
+  if (layer === null || layer === undefined) return document;
+  return productSchema.node("doc", { drawing: layer }, document.content);
+}
+
+function parseMarkdownBody(markdown: string): ProseMirrorNode {
   if (markdown.trim().length === 0) {
     return plainParagraphDocument("");
   }

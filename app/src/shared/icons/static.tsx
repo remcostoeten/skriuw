@@ -1147,3 +1147,57 @@ export function UsersIcon(props: IconProps) {
     </LucideIcon>
   );
 }
+
+export function HighlighterIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="m9 11-6 6v3h9l3-3" />
+      <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />
+    </LucideIcon>
+  );
+}
+
+export function EraserIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21" />
+      <path d="m5.082 11.09 8.828 8.828" />
+    </LucideIcon>
+  );
+}
+
+export function PointerIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M12.586 12.586 19 19" />
+      <path d="M3.688 3.037a.497.497 0 0 0-.651.651l6.5 15.999a.501.501 0 0 0 .947-.062l1.569-6.083a2 2 0 0 1 1.448-1.479l6.124-1.579a.5.5 0 0 0 .063-.947z" />
+    </LucideIcon>
+  );
+}
+
+export function DiagonalLineIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M5 19 19 5" />
+    </LucideIcon>
+  );
+}
+
+export function PaintBucketIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2a2 2 0 0 0 2.8 0z" />
+      <path d="m5 2 5 5" />
+      <path d="M2 13h15" />
+      <path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4" />
+    </LucideIcon>
+  );
+}
+
+export function SquareIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+    </LucideIcon>
+  );
+}

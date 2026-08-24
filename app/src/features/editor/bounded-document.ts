@@ -1,4 +1,4 @@
-import { Fragment, type Node as ProseMirrorNode } from "prosemirror-model";
+import { Fragment, type Attrs, type Node as ProseMirrorNode } from "prosemirror-model";
 import { productSchema } from "./schema";
 
 export const BOUNDED_BLOCK_LIMIT = 192;
@@ -15,6 +15,8 @@ type HistoryEntry = {
   start: number;
   before: ProseMirrorNode[];
   after: ProseMirrorNode[];
+  beforeAttrs: Attrs;
+  afterAttrs: Attrs;
   at: number;
 };
 
@@ -43,11 +45,32 @@ function blocksFromDocument(document: ProseMirrorNode): ProseMirrorNode[] {
   return blocks;
 }
 
-function documentFromBlocks(blocks: readonly ProseMirrorNode[]): ProseMirrorNode {
+/**
+ * Rebuilds a document from its top-level blocks, carrying the root's own
+ * attributes across. The annotation layer (ADR-0035) lives there, so dropping
+ * them would erase a note's ink every time a bounded note was saved.
+ */
+function documentFromBlocks(
+  blocks: readonly ProseMirrorNode[],
+  attrs: Attrs,
+): ProseMirrorNode {
   if (blocks.length === 0) {
-    return productSchema.node("doc", null, [productSchema.node("paragraph")]);
+    return productSchema.node("doc", attrs, [productSchema.node("paragraph")]);
   }
-  return productSchema.node("doc", null, Fragment.fromArray([...blocks]));
+  return productSchema.node("doc", attrs, Fragment.fromArray([...blocks]));
+}
+
+/**
+ * Identity comparison is deliberate: ProseMirror allocates a fresh attribute
+ * object only when a step actually rewrites one, so this stays O(keys) on the
+ * typing path instead of walking a full annotation layer per transaction.
+ */
+function attributesEqual(left: Attrs, right: Attrs): boolean {
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    if (left[key] !== right[key]) return false;
+  }
+  return true;
 }
 
 function nodesEqual(left: ProseMirrorNode, right: ProseMirrorNode): boolean {
@@ -97,6 +120,7 @@ export function shouldUseBoundedEditor(document: ProseMirrorNode): boolean {
 
 export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument {
   let blocks = blocksFromDocument(source);
+  let attrs: Attrs = source.attrs;
   let start = 0;
   let rememberedSelection: BoundedSelection | null = null;
   const history: HistoryEntry[] = [];
@@ -128,6 +152,7 @@ export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument 
       previous.after.length === entry.before.length
     ) {
       previous.after = entry.after;
+      previous.afterAttrs = entry.afterAttrs;
       previous.at = entry.at;
     } else {
       history.push(entry);
@@ -159,30 +184,75 @@ export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument 
   function replaceWindow(document: ProseMirrorNode, at: number): boolean {
     const before = blocks.slice(start, end());
     const after = blocksFromDocument(document);
+    const beforeAttrs = attrs;
     const change = changedRange(before, after);
     if (!change) {
-      return false;
+      return adoptAttributes(document, start, at);
     }
     const entryStart = start + change.offset;
+    attrs = document.attrs;
     replaceRange(entryStart, change.before.length, change.after);
-    record({ start: entryStart, before: change.before, after: change.after, at });
+    record({
+      start: entryStart,
+      before: change.before,
+      after: change.after,
+      beforeAttrs,
+      afterAttrs: attrs,
+      at,
+    });
     return true;
   }
 
   function replaceFullDocument(document: ProseMirrorNode, at: number): boolean {
     const next = blocksFromDocument(document);
+    const beforeAttrs = attrs;
     const change = changedRange(blocks, next);
     if (!change) {
+      return adoptAttributes(document, start, at);
+    }
+    attrs = document.attrs;
+    replaceRange(change.offset, change.before.length, change.after);
+    record({
+      start: change.offset,
+      before: change.before,
+      after: change.after,
+      beforeAttrs,
+      afterAttrs: attrs,
+      at,
+    });
+    return true;
+  }
+
+  /**
+   * A drawing edit rewrites the root's attributes and nothing else, so it
+   * reaches here with an unchanged block range and still has to be recorded —
+   * otherwise the stroke is dropped and cannot be undone.
+   */
+  function adoptAttributes(
+    document: ProseMirrorNode,
+    entryStart: number,
+    at: number,
+  ): boolean {
+    if (attributesEqual(attrs, document.attrs)) {
       return false;
     }
-    replaceRange(change.offset, change.before.length, change.after);
-    record({ start: change.offset, before: change.before, after: change.after, at });
+    const beforeAttrs = attrs;
+    attrs = document.attrs;
+    record({
+      start: entryStart,
+      before: [],
+      after: [],
+      beforeAttrs,
+      afterAttrs: attrs,
+      at,
+    });
     return true;
   }
 
   function applyHistory(entry: HistoryEntry, reverse: boolean): void {
     const remove = reverse ? entry.after : entry.before;
     const insert = reverse ? entry.before : entry.after;
+    attrs = reverse ? entry.beforeAttrs : entry.afterAttrs;
     replaceRange(entry.start, remove.length, insert);
     revealBlock(entry.start);
   }
@@ -191,14 +261,15 @@ export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument 
     blockCount: () => blocks.length,
     windowStart: () => start,
     windowEnd: end,
-    fullDocument: () => documentFromBlocks(blocks),
-    windowDocument: () => documentFromBlocks(blocks.slice(start, end())),
+    fullDocument: () => documentFromBlocks(blocks, attrs),
+    windowDocument: () => documentFromBlocks(blocks.slice(start, end()), attrs),
     moveWindow,
     revealBlock,
     replaceWindow,
     replaceFullDocument,
     reconcile(document) {
       blocks = blocksFromDocument(document);
+      attrs = document.attrs;
       start = clamp(start, 0, maximumStart());
       history.length = 0;
       redoHistory.length = 0;
