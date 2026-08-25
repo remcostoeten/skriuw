@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const appUrl = new URL(process.argv[2] ?? "https://skriuw.com/app/");
+const siteUrl = new URL("/", appUrl);
 const chromeBinary = process.env.CHROME_BINARY ?? "google-chrome-stable";
 const profileDirectory = await mkdtemp(join(tmpdir(), "skriuw-live-smoke-"));
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -13,6 +14,7 @@ let browser;
 let socket;
 
 try {
+  await verifyPublicSite(siteUrl);
   await verifyStaticDeployment(appUrl);
   const launched = await launchChrome(profileDirectory);
   browser = launched.child;
@@ -67,10 +69,55 @@ try {
   await rm(profileDirectory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }
 
+async function verifyPublicSite(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`public site returned HTTP ${response.status}`);
+  const html = await response.text();
+  if (!html.includes('<link rel="canonical" href="https://skriuw.com/"')) {
+    throw new Error("public site has no canonical URL");
+  }
+  if (!html.includes("<h1")) throw new Error("public site has no static heading");
+  if (!html.includes('type="application/ld+json"')) {
+    throw new Error("public site has no structured data");
+  }
+
+  const [robotsResponse, sitemapResponse, socialImageResponse] = await Promise.all([
+    fetch(new URL("/robots.txt", url)),
+    fetch(new URL("/sitemap.xml", url)),
+    fetch(new URL("/og-image.png", url), { method: "HEAD" }),
+  ]);
+  if (!robotsResponse.ok) throw new Error(`robots.txt returned HTTP ${robotsResponse.status}`);
+  if (!sitemapResponse.ok) throw new Error(`sitemap.xml returned HTTP ${sitemapResponse.status}`);
+  if (!socialImageResponse.ok) {
+    throw new Error(`social image returned HTTP ${socialImageResponse.status}`);
+  }
+  if (socialImageResponse.headers.get("content-type") !== "image/png") {
+    throw new Error(
+      `social image has unexpected content type: ${socialImageResponse.headers.get("content-type")}`,
+    );
+  }
+  const [robots, sitemap] = await Promise.all([
+    robotsResponse.text(),
+    sitemapResponse.text(),
+  ]);
+  if (!robots.includes("Sitemap: https://skriuw.com/sitemap.xml")) {
+    throw new Error("robots.txt does not advertise the canonical sitemap");
+  }
+  if (!sitemap.includes("<loc>https://skriuw.com/</loc>")) {
+    throw new Error("sitemap.xml does not contain the canonical homepage");
+  }
+}
+
 async function verifyStaticDeployment(url) {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`app shell returned HTTP ${response.status}`);
   const html = await response.text();
+  if (!html.includes('<link rel="canonical" href="https://skriuw.com/app/"')) {
+    throw new Error("app shell has no canonical URL");
+  }
+  if (!html.includes('<meta name="robots" content="noindex, follow"')) {
+    throw new Error("app shell is not excluded from search results");
+  }
   const assets = [...html.matchAll(/(?:src|href)="([^"]+)"/gu)].map((match) => match[1]);
   const faviconAsset = assets.find((asset) => asset.endsWith("favicon.ico"));
   const wasmAsset = assets.find((asset) => asset.endsWith(".wasm"));

@@ -69,11 +69,14 @@ with shared state in `state.rs` and one command module per capability under
 
 ## Web deployment
 
-The repository-root Vercel project serves the browser build at
-`https://skriuw.com/app/` and redirects the bare domain there. Its build runs
-`scripts/vercel-build.sh`, which compiles the pinned Rust core to WASM,
-builds the renderer with the `/app/` asset base, and stages one static
-deployment artifact. The Cloudflare Worker remains the separate
+The repository-root Vercel project serves an indexable static product page at
+`https://skriuw.com/` and the browser build at `https://skriuw.com/app/`.
+Its build runs `scripts/vercel-build.sh`, which compiles the pinned Rust core
+to WASM, builds the renderer with the `/app/` asset base, and stages the site,
+crawl metadata, and application as one static deployment artifact. The
+`skriuw.vercel.app` and `www.skriuw.com` hosts permanently redirect to the apex
+domain, and the application shell stays out of search results so crawlers land
+on the public product page. The Cloudflare Worker remains the separate
 authentication and sync data plane. After deployment, run
 `node scripts/verify-web-deployment.mjs` to check the static assets, WASM
 MIME type, browser bootstrap, OPFS initialization, and browser console.

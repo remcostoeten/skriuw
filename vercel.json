@@ -6,10 +6,26 @@
 	"buildCommand": "bash scripts/vercel-build.sh",
 	"outputDirectory": ".build/vercel-public",
 	"redirects": [
-		{ "source": "/", "destination": "/app/", "permanent": false },
+		{
+			"source": "/:path*",
+			"has": [{ "type": "host", "value": "skriuw.vercel.app" }],
+			"destination": "https://skriuw.com/:path*",
+			"permanent": true
+		},
+		{
+			"source": "/:path*",
+			"has": [{ "type": "host", "value": "www.skriuw.com" }],
+			"destination": "https://skriuw.com/:path*",
+			"permanent": true
+		},
 		{ "source": "/app", "destination": "/app/", "permanent": true }
 	],
 	"headers": [
+		{
+			"source": "/(.*)",
+			"has": [{ "type": "host", "value": "skriuw.vercel.app" }],
+			"headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+		},
 		{
 			"source": "/app/assets/:asset*",
 			"headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
