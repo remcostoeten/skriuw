@@ -81,12 +81,21 @@ async function verifyPublicSite(url) {
     throw new Error("public site has no structured data");
   }
 
-  const [robotsResponse, sitemapResponse] = await Promise.all([
+  const [robotsResponse, sitemapResponse, socialImageResponse] = await Promise.all([
     fetch(new URL("/robots.txt", url)),
     fetch(new URL("/sitemap.xml", url)),
+    fetch(new URL("/og-image.png", url), { method: "HEAD" }),
   ]);
   if (!robotsResponse.ok) throw new Error(`robots.txt returned HTTP ${robotsResponse.status}`);
   if (!sitemapResponse.ok) throw new Error(`sitemap.xml returned HTTP ${sitemapResponse.status}`);
+  if (!socialImageResponse.ok) {
+    throw new Error(`social image returned HTTP ${socialImageResponse.status}`);
+  }
+  if (socialImageResponse.headers.get("content-type") !== "image/png") {
+    throw new Error(
+      `social image has unexpected content type: ${socialImageResponse.headers.get("content-type")}`,
+    );
+  }
   const [robots, sitemap] = await Promise.all([
     robotsResponse.text(),
     sitemapResponse.text(),

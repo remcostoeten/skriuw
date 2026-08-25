@@ -23,6 +23,7 @@ grep -Fq 'run: ./scripts/check-wasm.sh' .github/workflows/ci-v2.yml
 grep -Fq 'wasm-bindgen-0.2.126' .github/workflows/ci-v2.yml
 grep -Fq 'SKRIUW_WEB_BASE="/app/" bun run build:frontend' scripts/vercel-build.sh
 grep -Fq 'cp "$site_dir/index.html" "$output_dir/index.html"' scripts/vercel-build.sh
+grep -Fq 'cp "$site_dir/og-image.png" "$output_dir/og-image.png"' scripts/vercel-build.sh
 grep -Fq 'run_step "Browser SQLite WASM module"' scripts/build.sh
 grep -Fq '(cd cloud && bun install --frozen-lockfile)' .github/workflows/ci-v2.yml
 grep -Fq 'exec "$repo_dir/scripts/build.sh" check "$@"' scripts/check.sh

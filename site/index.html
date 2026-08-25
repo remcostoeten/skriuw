@@ -10,8 +10,10 @@
     />
     <link rel="canonical" href="https://skriuw.com/" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/app-icon.png" />
     <link rel="stylesheet" href="/styles.css" />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:site_name" content="Skriuw" />
     <meta property="og:title" content="Skriuw — Fast, private, local-first notes" />
     <meta
@@ -19,10 +21,14 @@
       content="A writing workspace that stays fast, keeps your notes local, and puts sync in your hands."
     />
     <meta property="og:url" content="https://skriuw.com/" />
-    <meta property="og:image" content="https://skriuw.com/demo.gif" />
+    <meta property="og:image" content="https://skriuw.com/og-image.png" />
+    <meta property="og:image:secure_url" content="https://skriuw.com/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta
       property="og:image:alt"
-      content="Creating and connecting notes in the Skriuw writing workspace"
+      content="Skriuw: fast, private, local-first notes on your device and on your terms"
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Skriuw — Fast, private, local-first notes" />
@@ -30,28 +36,57 @@
       name="twitter:description"
       content="A writing workspace that stays fast, keeps your notes local, and puts sync in your hands."
     />
-    <meta name="twitter:image" content="https://skriuw.com/demo.gif" />
+    <meta name="twitter:image" content="https://skriuw.com/og-image.png" />
+    <meta
+      name="twitter:image:alt"
+      content="Skriuw: fast, private, local-first notes on your device and on your terms"
+    />
     <title>Skriuw — Fast, Private, Local-First Notes App</title>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "Skriuw",
-        "url": "https://skriuw.com/",
-        "downloadUrl": "https://github.com/remcostoeten/skriuw/releases/latest",
-        "description": "A fast, private, local-first writing workspace for notes, journals, Markdown, and connected knowledge.",
-        "applicationCategory": "ProductivityApplication",
-        "operatingSystem": "macOS, Windows, Linux, Web",
-        "softwareHelp": "https://docs.skriuw.com/v2",
-        "image": "https://skriuw.com/app-icon.png",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        },
-        "sameAs": [
-          "https://github.com/remcostoeten/skriuw",
-          "https://docs.skriuw.com/"
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://skriuw.com/#website",
+            "url": "https://skriuw.com/",
+            "name": "Skriuw",
+            "alternateName": "Skriuw App"
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://skriuw.com/#organization",
+            "name": "Skriuw",
+            "url": "https://skriuw.com/",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://skriuw.com/app-icon.png",
+              "width": 512,
+              "height": 512
+            },
+            "sameAs": ["https://github.com/remcostoeten/skriuw"]
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "Skriuw",
+            "url": "https://skriuw.com/",
+            "downloadUrl": "https://github.com/remcostoeten/skriuw/releases/latest",
+            "description": "A fast, private, local-first writing workspace for notes, journals, Markdown, and connected knowledge.",
+            "applicationCategory": "ProductivityApplication",
+            "operatingSystem": "macOS, Windows, Linux, Web",
+            "softwareHelp": "https://docs.skriuw.com/v2",
+            "image": "https://skriuw.com/og-image.png",
+            "publisher": { "@id": "https://skriuw.com/#organization" },
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "sameAs": [
+              "https://github.com/remcostoeten/skriuw",
+              "https://docs.skriuw.com/v2"
+            ]
+          }
         ]
       }
     </script>
