@@ -14,7 +14,7 @@ you write without ever making you wait for it.
 <Callout title="Documenting v2 as it runs">
 	This section describes what v2 actually does today. Where a subsystem is designed but not yet
 	shipped, the page says so explicitly rather than describing the plan in the present tense. For
-	the current shipping app, switch to [Skriuw](/) with the version picker above the sidebar.
+	the frozen previous generation, switch to [Skriuw v1](/) with the version picker above the sidebar.
 </Callout>
 
 ## What is different from v1
@@ -74,10 +74,10 @@ startup UI. From that point on, every user action updates renderer state
 synchronously first, then submits durable work to the backend. Acknowledgements
 carry revisions; navigation never waits for them.
 
-<Callout type="warn" title="Adapter status">
-	The desktop adapter and the memory adapter are what run today. The browser adapter -
-	worker-owned SQLite WASM over OPFS - is specified in `v2/docs/specs/web-runtime.md` but is not a
-	shipped runtime. Treat the web column of any comparison as design, not availability.
+<Callout title="Desktop and browser">
+	The desktop app stores its workspace in native SQLite. The browser app at
+	[skriuw.com/app](https://skriuw.com/app/) runs the same core as SQLite WASM over OPFS, keeping
+	local-only work in the browser unless you explicitly enable sync.
 </Callout>
 
 ## What v2 does
@@ -115,11 +115,11 @@ archive, or a multi-file selection of loose notes.
 
 | Area                                                    | Path            |
 | ------------------------------------------------------- | --------------- |
-| Application shell, editor, renderer                     | `v2/app/src`    |
-| Rust crates (domain, storage, runtime, history, images) | `v2/crates`     |
-| Generated contracts between the two                     | `v2/contracts`  |
-| Specifications                                          | `v2/docs/specs` |
-| Architecture decision records                           | `v2/docs/adr`   |
+| Application shell, editor, renderer                     | `app/src`    |
+| Rust crates (domain, storage, runtime, history, images) | `crates`     |
+| Generated contracts between the two                     | `contracts`  |
+| Specifications                                          | `docs/specs` |
+| Architecture decision records                           | `docs/adr`   |
 
 The domain crate has no I/O. Storage, runtime, and history sit above it, and the
 JSON Schema in `contracts/` is generated from the Rust types rather than
@@ -129,7 +129,7 @@ maintained alongside them - CI fails on drift.
 
 - **[Keyboard shortcuts](/v2/keyboard-shortcuts)** - the full binding table, and how
   rebinding works.
-- **[Architecture](https://github.com/remcostoeten/skriuw/blob/daddy/v2/ARCHITECTURE.md)** -
+- **[Architecture](https://github.com/remcostoeten/skriuw/blob/daddy/docs/ARCHITECTURE.md)** -
   the runtime queue, the storage model, and how the performance contract is enforced.
 - **[Importing](/v2/importing)** - moving a vault or workspace in from another
   tool, including multi-file selections for Apple Notes.

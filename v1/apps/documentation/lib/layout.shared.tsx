@@ -4,12 +4,12 @@ import { site } from "@/lib/site";
 
 export const docsVersions = [
 	{
-		description: "The current shipping app",
-		title: "Skriuw",
+		description: "Frozen legacy release",
+		title: "Skriuw v1",
 		url: "/",
 	},
 	{
-		description: "The Rust-first rewrite",
+		description: "The current local-first app",
 		title: "Skriuw v2",
 		url: "/v2",
 	},

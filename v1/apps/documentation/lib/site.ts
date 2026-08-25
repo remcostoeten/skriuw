@@ -1,6 +1,6 @@
 export const site = {
 	description:
-		"Official Skriuw documentation for notes, journaling, self-hosting, desktop, and development.",
+		"Official documentation for the current Skriuw local-first app and the frozen Skriuw v1 release.",
 	name: "Skriuw Documentation",
 	url: "https://docs.skriuw.com",
 };
