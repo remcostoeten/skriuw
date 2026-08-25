@@ -29,6 +29,7 @@ type BrowserCommand = {
 };
 
 let browserStorage: Promise<BrowserStorageWorkerClient> | null = null;
+let storageReleased = false;
 
 /** True when the renderer is running in a browser rather than the Tauri shell. */
 export function isBrowserRuntime(): boolean {
@@ -48,8 +49,35 @@ export function requireDesktopRuntime(capability: string): void {
   }
 }
 
+/**
+ * Hands the durable database to another browser tab. The worker is closed so
+ * its exclusive OPFS handles are dropped, and the release latches: a stray
+ * caller must not silently reopen the database this tab just gave away.
+ */
+export async function releaseBrowserStorage(): Promise<void> {
+  if (!isBrowserRuntime() || storageReleased) return;
+  storageReleased = true;
+  browserSyncDriver(syncWorkerPort).stop();
+  const pending = browserStorage;
+  browserStorage = null;
+  if (!pending) return;
+  const client = await pending.catch(() => null);
+  if (client) {
+    await client.close().catch(noop);
+  }
+}
+
 function getBrowserStorage(): Promise<BrowserStorageWorkerClient> {
   if (browserStorage) return browserStorage;
+  if (storageReleased) {
+    return Promise.reject(
+      browserFailure(
+        "shutdown",
+        "This tab handed the workspace to another Skriuw tab.",
+        true,
+      ),
+    );
+  }
   const worker = new Worker(new URL("./browser-worker.ts", import.meta.url), {
     type: "module",
     name: "skriuw-storage",

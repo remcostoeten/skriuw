@@ -1,7 +1,8 @@
 import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { AppWindow, TriangleAlert } from "lucide-react";
 import { App } from "./app";
 import { currentSessionToken } from "@/features/auth/session-token";
 import { bindStarterReclaim } from "@/features/onboarding/reclaim";
@@ -16,12 +17,19 @@ import {
   savePaneLayout,
   saveSidebarExpansion,
 } from "@/bridge/commands";
-import { isBrowserRuntime } from "@/bridge/runtime";
+import { isBrowserRuntime, releaseBrowserStorage } from "@/bridge/runtime";
 import type { HistoryHeader } from "@/contracts/workspace";
 import { listenForHistoryHeaders } from "@/features/history/live-history";
 import { listenForSyncedWorkspaceChanges } from "@/features/sync/live-workspace";
 import { bindWindowClosePersistence } from "@/shell/window-close";
 import { flushPendingWork, registerPendingWork } from "@/shell/pending-work";
+import { StartupScreen } from "@/shell/startup-screen";
+import {
+  browserTabLockChannel,
+  claimWorkspaceTab,
+  holdWorkspaceTab,
+  watchWorkspaceRelease,
+} from "@/shell/workspace-tab-lock";
 import { bindSettingsToRoot } from "@/features/settings/apply-settings";
 import { bindPaneLayoutPersistence } from "@/store/pane-layout-persistence";
 import { parsePaneLayout } from "@/store/panes";
@@ -35,8 +43,10 @@ import "@remcostoeten/notifier/styles";
 import "./styles.css";
 
 const REVEAL_FRAME_TIMEOUT_MS = 100;
+const BLOCKED_RETRY_INTERVAL_MS = 5_000;
 
 type StartupFailure = {
+  code: string | null;
   message: string;
   recovery: string | null;
 };
@@ -48,7 +58,7 @@ type StartupFailure = {
  */
 function describeStartupFailure(error: unknown): StartupFailure {
   if (error instanceof Error) {
-    return { message: error.message, recovery: null };
+    return { code: null, message: error.message, recovery: null };
   }
   if (typeof error === "object" && error !== null) {
     const failure = error as { code?: unknown; message?: unknown; recovery?: unknown };
@@ -56,13 +66,16 @@ function describeStartupFailure(error: unknown): StartupFailure {
     const code = typeof failure.code === "string" ? failure.code : null;
     if (message !== null || code !== null) {
       return {
+        code,
         message: message ?? `Browser storage failed (${code}).`,
         recovery: typeof failure.recovery === "string" ? failure.recovery : null,
       };
     }
   }
-  return { message: String(error), recovery: null };
+  return { code: null, message: String(error), recovery: null };
 }
+
+let revealed = false;
 
 /**
  * Reveals the main window once the first application frame has painted. The
@@ -70,10 +83,9 @@ function describeStartupFailure(error: unknown): StartupFailure {
  * a Rust-side failsafe reveals it anyway if the renderer never gets here.
  */
 function revealWindow(): void {
-  if (isBrowserRuntime()) {
+  if (isBrowserRuntime() || revealed) {
     return;
   }
-  let revealed = false;
   function reveal(): void {
     if (revealed) {
       return;
@@ -93,14 +105,12 @@ function revealWindow(): void {
   setTimeout(reveal, REVEAL_FRAME_TIMEOUT_MS);
 }
 
-async function start(): Promise<void> {
-  const unbindZoom = initZoom();
-  window.addEventListener("pagehide", unbindZoom, { once: true });
-  const container = document.getElementById("root");
-  if (!container) {
-    throw new Error("missing root container");
-  }
-  const root = createRoot(container);
+/**
+ * Opens the workspace and mounts the application. Resolves with a `detach`
+ * that flushes and unbinds everything the session registered, so the tab can
+ * give the durable database up without losing accepted writes.
+ */
+async function openWorkspace(root: Root): Promise<() => Promise<void>> {
   let unlistenHistory: UnlistenFn | null = null;
   let unlistenSyncWorkspace: UnlistenFn | null = null;
   try {
@@ -197,10 +207,13 @@ async function start(): Promise<void> {
       await flushPendingWork();
       store.replaceFromSnapshot(await bootstrapWorkspace());
     }
-    window.addEventListener("pagehide", unlistenHistory ?? (() => {}), { once: true });
-    window.addEventListener("pagehide", unlistenSyncWorkspace ?? (() => {}), { once: true });
-    window.addEventListener("pagehide", unbindWindowClosePersistence, { once: true });
-    window.addEventListener("pagehide", disposeUiPersistence, { once: true });
+    function teardownSession(): void {
+      unlistenHistory?.();
+      unlistenSyncWorkspace?.();
+      unbindWindowClosePersistence();
+      disposeUiPersistence();
+    }
+    window.addEventListener("pagehide", teardownSession, { once: true });
     bindStarterReclaim(store);
     await seedStarterWorkspace(
       store,
@@ -217,19 +230,165 @@ async function start(): Promise<void> {
         <App store={store} />
       </StrictMode>,
     );
+    return async () => {
+      window.removeEventListener("pagehide", teardownSession);
+      await flushPendingWork();
+      teardownSession();
+    };
   } catch (error) {
     unlistenHistory?.();
     unlistenSyncWorkspace?.();
-    console.error("workspace failed to open", error);
-    const failure = describeStartupFailure(error);
-    root.render(
-      <div className="p-6 text-[hsl(var(--mood-rough))]" role="alert">
-        <p>Workspace failed to open: {failure.message}</p>
-        {failure.recovery === null ? null : <p className="mt-2">{failure.recovery}</p>}
-      </div>,
-    );
+    throw error;
   }
-  revealWindow();
 }
 
-void start();
+/**
+ * Drives startup, and in the browser arbitrates the single-writer database
+ * between tabs: a blocked tab waits for the holder instead of dead-ending on an
+ * error, and the holder yields on request rather than forcing a manual close.
+ */
+function main(): void {
+  const unbindZoom = initZoom();
+  window.addEventListener("pagehide", unbindZoom, { once: true });
+  const container = document.getElementById("root");
+  if (!container) {
+    throw new Error("missing root container");
+  }
+  const root = createRoot(container);
+  const lock = isBrowserRuntime() ? browserTabLockChannel() : null;
+  let unbindHolder: (() => void) | null = null;
+  let unbindWaiting: (() => void) | null = null;
+  let opening = false;
+
+  function stopWaiting(): void {
+    unbindWaiting?.();
+    unbindWaiting = null;
+  }
+
+  // A holder that crashes never announces its release, so the blocked tab also
+  // retries whenever it regains focus and on a slow timer while it is visible.
+  function startWaiting(): void {
+    if (!lock || unbindWaiting) {
+      return;
+    }
+    const unsubscribe = watchWorkspaceRelease(lock, () => void attemptOpen());
+    const retryWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void attemptOpen();
+      }
+    };
+    document.addEventListener("visibilitychange", retryWhenVisible);
+    const timer = setInterval(retryWhenVisible, BLOCKED_RETRY_INTERVAL_MS);
+    unbindWaiting = () => {
+      unsubscribe();
+      document.removeEventListener("visibilitychange", retryWhenVisible);
+      clearInterval(timer);
+    };
+  }
+
+  async function takeOver(): Promise<void> {
+    if (!lock) {
+      return;
+    }
+    renderBlocked(true);
+    await claimWorkspaceTab(lock);
+    await attemptOpen();
+  }
+
+  function renderBlocked(claiming: boolean): void {
+    root.render(
+      <StartupScreen
+        icon={<AppWindow />}
+        title="Skriuw is open in another tab"
+        detail="Your workspace is a single database on this device, so only one tab can hold it at a time."
+        hint={
+          claiming
+            ? "Asking the other tab to hand it over…"
+            : "This tab opens on its own as soon as the other one lets go."
+        }
+        actions={[
+          {
+            label: "Use this tab instead",
+            variant: "primary",
+            disabled: claiming,
+            onSelect: () => void takeOver(),
+          },
+          { label: "Retry", disabled: claiming, onSelect: () => void attemptOpen() },
+        ]}
+      />,
+    );
+  }
+
+  function renderHandedOver(): void {
+    root.render(
+      <StartupScreen
+        icon={<AppWindow />}
+        title="Skriuw moved to another tab"
+        detail="This tab handed the workspace over and stopped saving. Everything you wrote here was stored first."
+        actions={[
+          {
+            label: "Use this tab instead",
+            variant: "primary",
+            onSelect: () => void reclaim(),
+          },
+        ]}
+      />,
+    );
+  }
+
+  async function reclaim(): Promise<void> {
+    if (lock) {
+      await claimWorkspaceTab(lock);
+    }
+    // The release latched in the bridge, so this tab reopens by reloading.
+    window.location.reload();
+  }
+
+  function renderFailure(failure: StartupFailure): void {
+    if (lock && failure.code === "already_open") {
+      startWaiting();
+      renderBlocked(false);
+      return;
+    }
+    root.render(
+      <StartupScreen
+        icon={<TriangleAlert />}
+        title="Skriuw could not open your workspace"
+        detail={failure.message}
+        hint={failure.recovery}
+        actions={[{ label: "Retry", variant: "primary", onSelect: () => void attemptOpen() }]}
+      />,
+    );
+  }
+
+  async function attemptOpen(): Promise<void> {
+    if (opening) {
+      return;
+    }
+    opening = true;
+    unbindHolder?.();
+    unbindHolder = null;
+    try {
+      const detach = await openWorkspace(root);
+      stopWaiting();
+      if (lock) {
+        unbindHolder = holdWorkspaceTab(lock, async () => {
+          await detach();
+          renderHandedOver();
+          await releaseBrowserStorage();
+        });
+        window.addEventListener("pagehide", () => lock.post({ kind: "released" }), { once: true });
+      }
+    } catch (error) {
+      console.error("workspace failed to open", error);
+      renderFailure(describeStartupFailure(error));
+    } finally {
+      opening = false;
+    }
+    revealWindow();
+  }
+
+  void attemptOpen();
+}
+
+main();
