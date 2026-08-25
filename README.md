@@ -9,18 +9,39 @@
   "to write"</em>
 </p>
 
+
 <p align="center">
-  A blazingly fast, private writing workspace for notes, journals, and connected knowledge.<br />
-  Desktop-first on macOS, Windows, and Linux, with a Rust core and SQLite on disk.<br />
-  It runs in the browser too, on the same engine compiled to WebAssembly, storing notes locally.<br />
-  Sign in and your workspace syncs, so you can pick up on the web where your desktop left off.
+  A blazing-fast, local-first workspace for writing, journaling, and connected knowledge.<br />
+  Runs fully offline on macOS, Windows, and Linux. No account required.<br />
+  Sign in to sync your workspace and continue in the browser,<br />
+  running the same Rust core compiled to WebAssembly.
 </p>
 
 <p align="center">
-  <a href="https://github.com/remcostoeten/skriuw/releases/latest"><img src="https://img.shields.io/github/v/release/remcostoeten/skriuw?label=release" alt="Latest release" /></a>
-  <a href="https://github.com/remcostoeten/skriuw/actions/workflows/ci-v2.yml"><img src="https://github.com/remcostoeten/skriuw/actions/workflows/ci-v2.yml/badge.svg" alt="CI status" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/remcostoeten/skriuw" alt="MIT license" /></a>
-  <a href="https://github.com/remcostoeten/skriuw/releases"><img src="https://img.shields.io/github/downloads/remcostoeten/skriuw/total?label=downloads" alt="Total downloads" /></a>
+  <img
+    src="https://shieldcn.dev/github/remcostoeten/skriuw/release.svg?font=jetbrains-mono"
+    alt="release"
+  />
+  <img
+    src="https://shieldcn.dev/github/remcostoeten/skriuw/ci.svg?font=jetbrains-mono"
+    alt="CI"
+  />
+  <img
+    src="https://shieldcn.dev/github/remcostoeten/skriuw/license.svg?font=jetbrains-mono"
+    alt="license"
+  />
+  <img
+    src="https://shieldcn.dev/badge/storage-local--first-black.svg?font=jetbrains-mono"
+    alt="storage local-first"
+  />
+  <img
+    src="https://shieldcn.dev/badge/core-Rust-black.svg?font=jetbrains-mono&logo=rust"
+    alt="core Rust"
+  />
+  <img
+    src="https://shieldcn.dev/badge/web-WebAssembly-black.svg?font=jetbrains-mono&logo=webassembly"
+    alt="web WebAssembly"
+  />
 </p>
 
 <p align="center">
@@ -157,6 +178,16 @@ To work on v1 in this repository instead, use `v1/` on the current branch, or
 `f74af74f` for the last commit that touched it before the freeze. Setup lives
 in [`v1/README.md`](v1/README.md).
 
-## License
+### Thanks
+
+- Anthropic for sponsoring six months of Claude Max through their [Claude for Open Source](https://claude.com/contact-sales/claude-for-oss) program.
+- An abandoned Svelte Markdown project that originally inspired Skriuw's UI. I can no longer find it, so if you recognize it, please get in touch so I can give proper credit.
+
+- ## License
 
 [MIT](LICENSE)
+
+
+
+xxx,<br/>
+[Remco Stoeten](https://remcostoeten.com)
