@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#eef0f3" />
+    <meta
+      name="description"
+      content="Skriuw is a private, local-first notes app with SQLite storage, no required account, no telemetry, portable Markdown, and opt-in sync."
+    />
+    <link rel="canonical" href="https://skriuw.com/local-first-notes/" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/app-icon.png" />
+    <link rel="stylesheet" href="/styles.css" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Skriuw" />
+    <meta property="og:title" content="A private, local-first notes app" />
+    <meta
+      property="og:description"
+      content="Write without an account. Keep your workspace in local SQLite. Turn on sync only when you choose."
+    />
+    <meta property="og:url" content="https://skriuw.com/local-first-notes/" />
+    <meta property="og:image" content="https://skriuw.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Skriuw — private, local-first notes" />
+    <meta
+      name="twitter:description"
+      content="No required account, no telemetry, local SQLite storage, and sync that stays off until you choose it."
+    />
+    <meta name="twitter:image" content="https://skriuw.com/og-image.png" />
+    <title>Private, Local-First Notes App — Skriuw</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "Private, local-first notes",
+        "url": "https://skriuw.com/local-first-notes/",
+        "description": "How Skriuw stores, protects, and optionally syncs a local-first workspace.",
+        "isPartOf": { "@id": "https://skriuw.com/#website" },
+        "about": { "@type": "SoftwareApplication", "name": "Skriuw" }
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="Skriuw home">
+        <img src="/app-icon.png" alt="" width="38" height="38" />
+        <span>Skriuw</span>
+      </a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="/local-first-notes/" aria-current="page">Local-first</a>
+        <a href="/markdown-notes/">Markdown</a>
+        <a href="/import/">Import</a>
+        <a href="/download/">Download</a>
+        <a href="https://github.com/remcostoeten/skriuw">GitHub</a>
+        <a class="nav-action" href="/app/">Try in browser</a>
+      </nav>
+    </header>
+
+    <main id="main" class="route-main">
+      <section class="route-hero" aria-labelledby="local-title">
+        <aside class="route-index" aria-label="Page context">
+          <p class="folio">02 / Local-first</p>
+          <p>Write locally<br />Recover locally<br />Choose the network</p>
+        </aside>
+        <div class="route-hero-copy">
+          <p class="route-kicker">Private by default, explicit by design</p>
+          <h1 id="local-title">A notes app that starts on your machine.</h1>
+          <p class="route-deck">
+            Open Skriuw and write. No account gate, no cloud round-trip, no telemetry. The
+            workspace is local first; every network feature waits for your decision.
+          </p>
+          <div class="hero-actions route-actions">
+            <a class="button button-primary" href="/app/">Write in the browser</a>
+            <a class="button button-secondary" href="/download/">Install the desktop app</a>
+          </div>
+        </div>
+        <div class="route-signal" aria-hidden="true"></div>
+      </section>
+
+      <section class="content-section" aria-labelledby="local-means-title">
+        <p class="section-label">What local means</p>
+        <div class="section-body">
+          <h2 class="content-heading" id="local-means-title">The page does not wait for a server to agree that it exists.</h2>
+          <p class="section-intro">
+            Desktop workspaces live in SQLite on disk. Browser workspaces use the same Rust core
+            compiled to WebAssembly and store SQLite through the browser's private filesystem.
+          </p>
+          <div class="ledger">
+            <article class="ledger-row">
+              <h3>Write and navigate</h3>
+              <p>Notes are already present in memory. Typing and switching notes give immediate local feedback instead of waiting on disk, IPC, or a network response.</p>
+            </article>
+            <article class="ledger-row">
+              <h3>Store</h3>
+              <p>SQLite is the canonical workspace. Images are content-addressed local files rather than remote placeholders or inflated document data.</p>
+            </article>
+            <article class="ledger-row">
+              <h3>Recover</h3>
+              <p>Verified backups, trash recovery, portable workspace archives, and background Git history give mistakes more than one way back.</p>
+            </article>
+            <article class="ledger-row">
+              <h3>Leave</h3>
+              <p>Export a note or the whole workspace as Markdown. Links, images, and readable source remain useful outside Skriuw.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-section" aria-labelledby="boundary-title">
+        <p class="section-label">The boundary</p>
+        <div class="section-body">
+          <h2 class="content-heading" id="boundary-title">Nothing crosses the network because a setting was easy to miss.</h2>
+          <p class="section-intro">
+            Skriuw has network features. It does not disguise them as local features. Sync,
+            remote AI, and update checks each have a visible boundary.
+          </p>
+          <div class="boundary">
+            <article class="boundary-column">
+              <h3>Before you opt in</h3>
+              <ul>
+                <li>No account is required</li>
+                <li>No analytics or telemetry are sent</li>
+                <li>Sync is off</li>
+                <li>AI tools are off and hidden</li>
+                <li>Your notes stay on this device</li>
+              </ul>
+            </article>
+            <article class="boundary-column">
+              <h3>If you choose the network</h3>
+              <ul>
+                <li>Signing in can enable multi-device sync</li>
+                <li>Sync is encrypted in transit, not end-to-end</li>
+                <li>Remote AI uses only the provider you configure</li>
+                <li>Local Ollama keeps prompts on your machine</li>
+                <li>You can return to a local-only workflow</li>
+              </ul>
+            </article>
+          </div>
+          <p class="release-note">
+            The sync server can read content stored through sync because end-to-end encryption is
+            not implemented yet. If that boundary does not fit your work, keep sync off; the local
+            application remains fully usable.
+          </p>
+        </div>
+      </section>
+
+      <section class="content-section" aria-labelledby="portable-title">
+        <p class="section-label">Durability</p>
+        <div class="section-body">
+          <h2 class="content-heading" id="portable-title">Local should not mean trapped in one database.</h2>
+          <div class="fact-grid">
+            <article class="fact">
+              <p class="fact-label">Notes</p>
+              <strong>Plain Markdown out</strong>
+              <p>Single notes and whole workspaces export to files you can open elsewhere.</p>
+            </article>
+            <article class="fact">
+              <p class="fact-label">Workspace</p>
+              <strong>Versioned archives</strong>
+              <p>Portable archives carry structured workspace state and remain compatibility-tested.</p>
+            </article>
+            <article class="fact">
+              <p class="fact-label">History</p>
+              <strong>Git off the writing path</strong>
+              <p>Background versions protect the archive without slowing the editor.</p>
+            </article>
+          </div>
+          <div class="product-frame">
+            <div class="product-caption"><span>Skriuw / local workspace</span><span>no account</span></div>
+            <img src="/preview.png" width="2000" height="1200" alt="Skriuw showing a local writing workspace with notes, links, calendar, and revision panels" />
+          </div>
+        </div>
+      </section>
+
+      <section class="route-cta" aria-labelledby="local-cta-title">
+        <div>
+          <h2 id="local-cta-title">Start with one device. Add nothing you do not need.</h2>
+          <p>The browser app and desktop app both work without an account.</p>
+        </div>
+        <div class="hero-actions">
+          <a class="button button-primary" href="/app/">Open a local workspace</a>
+          <a class="button button-secondary" href="/markdown-notes/">See how notes stay portable</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <a class="wordmark footer-wordmark" href="/">
+        <img src="/app-icon.png" alt="" width="30" height="30" />
+        <span>Skriuw</span>
+      </a>
+      <p>Fast, private writing for macOS, Windows, Linux, and the web.</p>
+      <div class="footer-links">
+        <a href="/download/">Download</a>
+        <a href="/import/">Import</a>
+        <a href="https://docs.skriuw.com/v2">Documentation</a>
+        <a href="https://github.com/remcostoeten/skriuw">Source</a>
+      </div>
+    </footer>
+  </body>
+</html>
