@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#eef0f3" />
+    <meta
+      name="description"
+      content="Import notes into Skriuw from Obsidian, Notion, Bear, Apple Notes, Evernote, Joplin, Simplenote, and Markdown with a preview before anything changes."
+    />
+    <link rel="canonical" href="https://skriuw.com/import/" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/app-icon.png" />
+    <link rel="stylesheet" href="/styles.css" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Skriuw" />
+    <meta property="og:title" content="Import notes into Skriuw" />
+    <meta
+      property="og:description"
+      content="Preview and import local exports from Obsidian, Notion, Bear, Apple Notes, and more."
+    />
+    <meta property="og:url" content="https://skriuw.com/import/" />
+    <meta property="og:image" content="https://skriuw.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Bring your notes to Skriuw" />
+    <meta
+      name="twitter:description"
+      content="Scan a local export, inspect the plan, and commit the import atomically."
+    />
+    <meta name="twitter:image" content="https://skriuw.com/og-image.png" />
+    <title>Import Notes from Obsidian, Notion, Bear, and More — Skriuw</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "Import notes into Skriuw",
+        "url": "https://skriuw.com/import/",
+        "description": "Supported provider exports and the previewed import process in Skriuw.",
+        "isPartOf": { "@id": "https://skriuw.com/#website" },
+        "about": { "@type": "SoftwareApplication", "name": "Skriuw" }
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="Skriuw home">
+        <img src="/app-icon.png" alt="" width="38" height="38" />
+        <span>Skriuw</span>
+      </a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="/local-first-notes/">Local-first</a>
+        <a href="/markdown-notes/">Markdown</a>
+        <a href="/import/" aria-current="page">Import</a>
+        <a href="/download/">Download</a>
+        <a href="https://github.com/remcostoeten/skriuw">GitHub</a>
+        <a class="nav-action" href="/app/">Try in browser</a>
+      </nav>
+    </header>
+
+    <main id="main" class="route-main">
+      <section class="route-hero" aria-labelledby="import-title">
+        <aside class="route-index" aria-label="Page context">
+          <p class="folio">04 / Import</p>
+          <p>Local source<br />Previewed plan<br />Atomic commit</p>
+        </aside>
+        <div class="route-hero-copy">
+          <p class="route-kicker">Obsidian · Notion · Bear · Apple Notes · and more</p>
+          <h1 id="import-title">Bring the archive. Inspect it before it moves.</h1>
+          <p class="route-deck">
+            Skriuw scans local exports and shows the notes, folders, properties, images, and
+            warnings it found. Nothing enters your workspace until you approve the plan.
+          </p>
+          <div class="hero-actions route-actions">
+            <a class="button button-primary" href="/download/">Download the desktop app</a>
+            <a class="button button-secondary" href="https://docs.skriuw.com/v2/importing">Read the complete import guide</a>
+          </div>
+        </div>
+        <div class="route-signal" aria-hidden="true"></div>
+      </section>
+
+      <section class="content-section" aria-labelledby="process-title">
+        <p class="section-label">The import path</p>
+        <div class="section-body">
+          <h2 class="content-heading" id="process-title">A migration should explain itself before it changes the archive.</h2>
+          <p class="section-intro">
+            Import is a preview-plan-apply operation. Cancelling during intake, preview, or image
+            transfer leaves the workspace unchanged.
+          </p>
+          <div class="process">
+            <article class="process-step">
+              <p class="step-number">01 / Select</p>
+              <h3>Choose the local export</h3>
+              <p>Use a folder, individual files, ZIP, provider backup, or JSON export. Skriuw detects the likely format without uploading it.</p>
+            </article>
+            <article class="process-step">
+              <p class="step-number">02 / Inspect</p>
+              <h3>Read the plan</h3>
+              <p>Review counts, destination, detected format, re-import behavior, and every fidelity or safety warning.</p>
+            </article>
+            <article class="process-step">
+              <p class="step-number">03 / Apply</p>
+              <h3>Commit once</h3>
+              <p>Confirmed notes, folders, tags, properties, images, and import receipts enter the workspace as one atomic operation.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-section" aria-labelledby="providers-title">
+        <p class="section-label">Supported sources</p>
+        <div class="section-body">
+          <h2 class="content-heading" id="providers-title">Use the export your current app already gives you.</h2>
+          <p class="section-intro">
+            Skriuw reads documented export formats and ordinary local files. It does not log in
+            to another notes service or read a private application database.
+          </p>
+
+          <div class="provider-list">
+            <article class="provider-row">
+              <h3>Obsidian</h3>
+              <p class="provider-format">Vault folder</p>
+              <p>Preserves the folder tree, supported frontmatter, unambiguous local image embeds, and wikilinks with a unique target. Alias and heading links stay exact source when conversion would lose meaning.</p>
+            </article>
+            <article class="provider-row">
+              <h3>Notion</h3>
+              <p class="provider-format">Markdown &amp; CSV ZIP</p>
+              <p>Imports the downloaded ZIP directly, removes page UUID suffixes, turns database rows into notes, and maps CSV columns to typed properties.</p>
+            </article>
+            <article class="provider-row">
+              <h3>Bear</h3>
+              <p class="provider-format">.bear2bk / TextBundle</p>
+              <p>Reads Markdown, images, timestamps, and exported tags. Encrypted and trashed notes stay skipped and appear in the completion report.</p>
+            </article>
+            <article class="provider-row">
+              <h3>Apple Notes</h3>
+              <p class="provider-format">Markdown files</p>
+              <p>Uses Apple's official selected-note Markdown export. Collect the exported files in a folder; Skriuw does not access Apple's private Notes database.</p>
+            </article>
+            <article class="provider-row">
+              <h3>Evernote</h3>
+              <p class="provider-format">ENEX</p>
+              <p>Imports notebooks, checkboxes, code blocks, tables, and formatting. Encrypted content and embedded attachments become visible placeholders in the report.</p>
+            </article>
+            <article class="provider-row">
+              <h3>Joplin</h3>
+              <p class="provider-format">RAW export folder</p>
+              <p>Turns notebooks into nested folders and resolves links to exported resources. Use Joplin's RAW export rather than JEX.</p>
+            </article>
+            <article class="provider-row">
+              <h3>Simplenote</h3>
+              <p class="provider-format">notes.json</p>
+              <p>Imports active notes, tags, timestamps, and pins. Trashed notes remain skipped and counted.</p>
+            </article>
+            <article class="provider-row">
+              <h3>Plain files</h3>
+              <p class="provider-format">Markdown / text / ZIP</p>
+              <p>Bring ordinary files and folders without naming a provider. Skriuw also recognizes Google Keep Takeout, Standard Notes backups, and several structured export formats.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-section" aria-labelledby="fidelity-title">
+        <p class="section-label">Fidelity over guesses</p>
+        <div class="section-body">
+          <h2 class="content-heading" id="fidelity-title">Ambiguous content remains visible, portable source.</h2>
+          <div class="ledger">
+            <article class="ledger-row">
+              <h3>Links</h3>
+              <p>Only unique targets resolve automatically. Ambiguous wikilinks and image names remain source text instead of pointing to a guessed note or file.</p>
+            </article>
+            <article class="ledger-row">
+              <h3>Unsupported syntax</h3>
+              <p>Markdown that the structured editor cannot represent safely stays intact in raw mode. The import report tells you what was preserved.</p>
+            </article>
+            <article class="ledger-row">
+              <h3>Remote content</h3>
+              <p>Remote images remain blocked. Local images transfer through a bounded, cancellable path and are verified before the import commits.</p>
+            </article>
+            <article class="ledger-row">
+              <h3>Re-import</h3>
+              <p>Durable receipts let a later import skip previous matches, update imported content, or create deliberate copies.</p>
+            </article>
+          </div>
+          <p class="release-note">
+            Archives reject absolute paths, parent traversal, symlinks, duplicate case-insensitive
+            paths, excessive depth, excessive entry counts, and expanded data beyond bounded safety limits.
+          </p>
+        </div>
+      </section>
+
+      <section class="route-cta" aria-labelledby="import-cta-title">
+        <div>
+          <h2 id="import-cta-title">Your old archive should arrive with a receipt, not a leap of faith.</h2>
+          <p>Install Skriuw, open the command palette, and choose an import. The preview comes first.</p>
+        </div>
+        <div class="hero-actions">
+          <a class="button button-primary" href="/download/">Download Skriuw</a>
+          <a class="button button-secondary" href="https://docs.skriuw.com/v2/importing">Open the import guide</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <a class="wordmark footer-wordmark" href="/">
+        <img src="/app-icon.png" alt="" width="30" height="30" />
+        <span>Skriuw</span>
+      </a>
+      <p>Fast, private writing for macOS, Windows, Linux, and the web.</p>
+      <div class="footer-links">
+        <a href="/local-first-notes/">Local-first</a>
+        <a href="/markdown-notes/">Markdown</a>
+        <a href="https://docs.skriuw.com/v2">Documentation</a>
+        <a href="https://github.com/remcostoeten/skriuw">Source</a>
+      </div>
+    </footer>
+  </body>
+</html>

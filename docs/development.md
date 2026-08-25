@@ -69,8 +69,10 @@ with shared state in `state.rs` and one command module per capability under
 
 ## Web deployment
 
-The repository-root Vercel project serves an indexable static product page at
-`https://skriuw.com/` and the browser build at `https://skriuw.com/app/`.
+The repository-root Vercel project serves indexable static product pages at
+`https://skriuw.com/`, `/download/`, `/local-first-notes/`,
+`/markdown-notes/`, and `/import/`, plus the browser build at
+`https://skriuw.com/app/`.
 Its build runs `scripts/vercel-build.sh`, which compiles the pinned Rust core
 to WASM, builds the renderer with the `/app/` asset base, and stages the site,
 crawl metadata, and application as one static deployment artifact. The
