@@ -1,4 +1,5 @@
-use std::sync::OnceLock;
+use std::collections::{BTreeMap, VecDeque};
+use std::sync::{Mutex, OnceLock};
 
 use std::sync::Arc;
 
@@ -6,7 +7,9 @@ use skriuw_ai::{AiCompletionChannel, AiCompletionService, FakeAiProvider, FakeCo
 use skriuw_ai_ollama::OllamaRuntime;
 use skriuw_ai_remote::{RemoteAiProvider, remote_ai_catalog};
 use skriuw_domain::{
-    AiComplete, AiCompletionEvent, AiCompletionRequest, AiModelPricing, AiRunRecorder, AiSinkError,
+    AiComplete, AiCompletionEvent, AiCompletionRequest, AiModelPricing, AiProviderError,
+    AiProviderErrorCategory, AiRecoveryAction, AiRunRecorder, AiSinkError, AiTranscribe,
+    AiTranscriptionRequest, AiTranscriptionTerminal, MAX_AI_AUDIO_BYTES,
 };
 use tauri::ipc::Channel;
 
@@ -100,6 +103,97 @@ impl LazyAiCompletion {
     }
 }
 
+/// Recordings staged for transcription. Audio arrives over IPC as a raw-body
+/// command, which Tauri only offers synchronously, while the provider call
+/// must not run on the main thread — so the bytes are parked here between the
+/// synchronous stage command and the async transcribe command that spends
+/// them. The queue is bounded: a renderer that stages and never transcribes
+/// evicts its own oldest recording instead of growing the process.
+const MAX_STAGED_RECORDINGS: usize = 2;
+
+/// Speech-to-text through the same lazily-built remote adapters as
+/// completions. Nothing here is constructed until the first explicit
+/// transcription request, so an opted-out workspace never builds a client.
+pub(crate) struct LazyAiTranscription {
+    providers: OnceLock<BTreeMap<String, Arc<dyn AiTranscribe>>>,
+    credentials: Arc<AiCredentialStore>,
+    staged: Mutex<VecDeque<(String, Vec<u8>)>>,
+}
+
+impl LazyAiTranscription {
+    pub(crate) fn new(credentials: Arc<AiCredentialStore>) -> Self {
+        Self {
+            providers: OnceLock::new(),
+            credentials,
+            staged: Mutex::new(VecDeque::new()),
+        }
+    }
+
+    pub(crate) fn stage(&self, audio: Vec<u8>) -> Result<String, String> {
+        if audio.is_empty() {
+            return Err("recording is empty".to_owned());
+        }
+        if audio.len() > MAX_AI_AUDIO_BYTES {
+            return Err(format!(
+                "recording exceeds {MAX_AI_AUDIO_BYTES} bytes; record a shorter note"
+            ));
+        }
+        let staged_id = uuid::Uuid::new_v4().to_string();
+        let mut staged = self
+            .staged
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        while staged.len() >= MAX_STAGED_RECORDINGS {
+            staged.pop_front();
+        }
+        staged.push_back((staged_id.clone(), audio));
+        Ok(staged_id)
+    }
+
+    pub(crate) fn take_staged(&self, staged_id: &str) -> Option<Vec<u8>> {
+        let mut staged = self
+            .staged
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let index = staged.iter().position(|(id, _)| id == staged_id)?;
+        staged.remove(index).map(|(_, audio)| audio)
+    }
+
+    fn providers(&self) -> &BTreeMap<String, Arc<dyn AiTranscribe>> {
+        self.providers.get_or_init(|| {
+            let mut providers: BTreeMap<String, Arc<dyn AiTranscribe>> = BTreeMap::new();
+            for kind in REMOTE_PROVIDERS {
+                match RemoteAiProvider::new(kind, self.credentials.clone()) {
+                    Ok(provider) => {
+                        providers.insert(kind.id().to_owned(), Arc::new(provider));
+                    }
+                    Err(error) => {
+                        eprintln!(
+                            "remote transcription provider {} unavailable: {error}",
+                            kind.id()
+                        );
+                    }
+                }
+            }
+            providers
+        })
+    }
+
+    pub(crate) fn transcribe(&self, request: &AiTranscriptionRequest) -> AiTranscriptionTerminal {
+        let Some(provider) = self.providers().get(&request.provider_id) else {
+            // The renderer-sent provider id is not echoed: it would put
+            // arbitrary text into an error the dictation surface renders.
+            return AiTranscriptionTerminal::ProviderError(AiProviderError::new(
+                "remote",
+                AiProviderErrorCategory::UnavailableProvider,
+                "selected transcription provider is unavailable",
+                AiRecoveryAction::CheckProviderStatus,
+            ));
+        };
+        provider.transcribe(request, &skriuw_domain::AiCancellation::new())
+    }
+}
+
 struct UnpricedModels;
 
 impl AiModelPricing for UnpricedModels {
@@ -168,12 +262,11 @@ mod tests {
         let ollama = Arc::new(
             OllamaRuntime::new(directory.path().to_path_buf(), None).expect("ollama runtime"),
         );
-        let completion =
-            LazyAiCompletion::new(
-                ollama,
-                Arc::new(AiCredentialStore::new(directory.path())),
-                history(&directory),
-            );
+        let completion = LazyAiCompletion::new(
+            ollama,
+            Arc::new(AiCredentialStore::new(directory.path())),
+            history(&directory),
+        );
 
         for provider_id in ["gemini", "groq"] {
             let events = Arc::new(Mutex::new(Vec::new()));
@@ -192,6 +285,70 @@ mod tests {
             assert_eq!(error.recovery_action, AiRecoveryAction::ConfigureCredential);
         }
         completion.shutdown();
+    }
+
+    /// The transcription adapters sit behind the same credential gate as
+    /// completions, and an unstaged or unconsented provider terminalizes
+    /// before any socket is opened. Nothing here touches the network.
+    #[test]
+    fn routes_transcription_through_the_credential_gate() {
+        use skriuw_ai_remote::ai_transcription_models;
+        use skriuw_domain::{AiTranscriptionRequest, AiTranscriptionTerminal};
+
+        let directory = tempdir().expect("tempdir");
+        let transcription =
+            super::LazyAiTranscription::new(Arc::new(AiCredentialStore::new(directory.path())));
+
+        for provider_id in ["gemini", "groq"] {
+            let model_id = ai_transcription_models()
+                .iter()
+                .find(|model| model.provider_id == provider_id)
+                .expect("catalogued transcription model")
+                .model_id
+                .clone();
+            let terminal = transcription.transcribe(&AiTranscriptionRequest {
+                request_id: format!("request-{provider_id}"),
+                provider_id: provider_id.to_owned(),
+                model_id,
+                mime_type: "audio/webm".to_owned(),
+                language: None,
+                audio: vec![1, 2, 3],
+            });
+
+            let AiTranscriptionTerminal::ProviderError(error) = terminal else {
+                panic!("expected a provider error for {provider_id}");
+            };
+            assert_eq!(error.provider_id, provider_id);
+            assert_eq!(error.category, AiProviderErrorCategory::MissingCredential);
+            assert_eq!(error.recovery_action, AiRecoveryAction::ConfigureCredential);
+        }
+    }
+
+    /// Staged recordings are bounded and consumed exactly once, so an
+    /// abandoned recording cannot pin audio in process memory.
+    #[test]
+    fn staging_is_bounded_and_single_use() {
+        let directory = tempdir().expect("tempdir");
+        let transcription =
+            super::LazyAiTranscription::new(Arc::new(AiCredentialStore::new(directory.path())));
+
+        assert!(transcription.stage(Vec::new()).is_err());
+
+        let first = transcription.stage(vec![1]).expect("stage first");
+        let second = transcription.stage(vec![2]).expect("stage second");
+        let third = transcription.stage(vec![3]).expect("stage third");
+
+        assert!(
+            transcription.take_staged(&first).is_none(),
+            "oldest staged recording must be evicted"
+        );
+        assert_eq!(transcription.take_staged(&second), Some(vec![2]));
+        assert_eq!(
+            transcription.take_staged(&second),
+            None,
+            "a staged recording is consumed exactly once"
+        );
+        assert_eq!(transcription.take_staged(&third), Some(vec![3]));
     }
 
     /// The model is taken from the catalogue rather than written here: a

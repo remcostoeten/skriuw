@@ -8,7 +8,7 @@ use crate::{
     validate_timestamp,
 };
 
-pub const BUILT_IN_PROMPT_LIBRARY_VERSION: u16 = 2;
+pub const BUILT_IN_PROMPT_LIBRARY_VERSION: u16 = 3;
 pub const MAX_PROMPT_NAME_BYTES: usize = 80;
 pub const MAX_PROMPT_SYSTEM_BYTES: usize = 8_000;
 pub const MAX_PROMPT_TEMPERATURE_MILLIS: u16 = 1_000;
@@ -221,6 +221,20 @@ pub const BUILT_IN_PROMPTS: &[BuiltInPrompt] = &[
         system_prompt: "You continue the writer's text from exactly where it stops. Match the voice, tense, formatting, and language, and pick up mid-sentence when the text ends mid-sentence. Reply with the continuation only: never repeat the text you were given, and add no preamble or commentary.",
         input_shape: PromptInputShape::Selection,
         parameters: parameters(800, 64 * 1024),
+    },
+    BuiltInPrompt {
+        id: "clean-transcript",
+        name: "Clean up dictation",
+        system_prompt: "You clean up a raw speech-to-text transcript of the writer thinking aloud. Remove filler words, false starts, stutters, and self-corrections by keeping only the corrected version. Fix punctuation, capitalization, and sentence boundaries, and break the text into readable paragraphs. Preserve the exact meaning, the speaker's voice, and the language of the transcript. Reply with the cleaned Markdown text only: no preamble, no commentary.",
+        input_shape: PromptInputShape::Freeform,
+        parameters: parameters(200, 128 * 1024),
+    },
+    BuiltInPrompt {
+        id: "structure-transcript",
+        name: "Structure dictation",
+        system_prompt: "You turn a raw speech-to-text transcript of the writer thinking aloud into structured Markdown. Remove filler words and false starts, then organize the content with the structure it asks for: short headings and bullets for distinct topics, and a task checklist using `- [ ]` items when the speaker names things to do. Use only what the transcript says; invent nothing. Keep the language of the transcript. Reply with the structured Markdown only: no preamble, no commentary.",
+        input_shape: PromptInputShape::Freeform,
+        parameters: parameters(300, 128 * 1024),
     },
     BuiltInPrompt {
         id: "custom",

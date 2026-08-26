@@ -91,6 +91,33 @@ pub fn run() {
             {
                 eprintln!("asset scope extension failed: {error}");
             }
+            // WebKitGTK's default answer to a permission request is denial, so
+            // without this handler `getUserMedia` on Linux fails silently and
+            // dictation can never reach the microphone. Only audio-only
+            // capture is granted; camera or combined requests stay denied.
+            #[cfg(target_os = "linux")]
+            if let Some(window) = app.get_webview_window("main") {
+                let granted = window.with_webview(|webview| {
+                    use webkit2gtk::{
+                        PermissionRequestExt, UserMediaPermissionRequest,
+                        UserMediaPermissionRequestExt, WebViewExt, glib::Cast,
+                    };
+                    webview.inner().connect_permission_request(|_, request| {
+                        let Some(media) = request.dynamic_cast_ref::<UserMediaPermissionRequest>()
+                        else {
+                            return false;
+                        };
+                        if media.is_for_audio_device() && !media.is_for_video_device() {
+                            media.allow();
+                            return true;
+                        }
+                        false
+                    });
+                });
+                if let Err(error) = granted {
+                    eprintln!("microphone permission handler unavailable: {error}");
+                }
+            }
             let reveal_handle = app.handle().clone();
             let _ = std::thread::Builder::new()
                 .name("skriuw-window-reveal-failsafe".into())
@@ -121,6 +148,7 @@ pub fn run() {
                     Arc::clone(&ai_credentials),
                     Arc::new(ai_history::AiHistoryRecorder::new(&path, now_millis)),
                 ),
+                transcription: Arc::new(ai::LazyAiTranscription::new(Arc::clone(&ai_credentials))),
                 ai_credentials,
                 ollama,
                 maintenance,
@@ -162,6 +190,9 @@ pub fn run() {
             commands::ai::accept_remote_ai_disclosure,
             commands::ai::revoke_remote_ai_provider,
             commands::ai::verify_remote_ai_key,
+            commands::ai::ai_transcription_catalogue,
+            commands::ai::stage_transcription_audio,
+            commands::ai::transcribe_staged_audio,
             commands::ai::ai_run_history,
             commands::ai::ai_history_settings,
             commands::ai::set_ai_history_settings,

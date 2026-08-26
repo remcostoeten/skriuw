@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AiTranscriptionModel",
+  "description": "One speech-to-text model the repository ships an adapter mapping for. This\nis a separate catalogue from [`crate::RemoteAiCatalog`]: transcription\nmodels are priced per audio minute rather than per token, so forcing them\ninto the completion catalogue would fabricate token prices.",
+  "type": "object",
+  "properties": {
+    "label": {
+      "type": "string"
+    },
+    "modelId": {
+      "type": "string"
+    },
+    "providerId": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "providerId",
+    "modelId",
+    "label"
+  ]
+}
