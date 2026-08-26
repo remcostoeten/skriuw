@@ -92,6 +92,7 @@ import {
   selectAiEnabled,
 } from "@/features/ai/opt-in-gate";
 import { aiEditorActionCommands } from "@/features/ai/editor-action-controller";
+import { voiceDictationCommands } from "@/features/ai/voice-dictation-controller";
 
 const ModelSwitcherHost = lazy(async () => {
   const module = await import("@/features/ai/model-switcher");
@@ -282,6 +283,7 @@ function WorkspaceShell({ store }: Props) {
             },
           ),
           ...aiEditorActionCommands(aiEnabled),
+          ...voiceDictationCommands(aiEnabled),
         ],
       ),
     [aiEnabled, openSettingsAt, openSignIn, store, toggleMetadata, toggleSidebar],

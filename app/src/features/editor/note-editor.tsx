@@ -151,6 +151,7 @@ import {
   clearPendingAiAction,
   requestAiAction,
 } from "@/features/ai/editor-action-controller";
+import { clearPendingVoiceDictation } from "@/features/ai/voice-dictation-controller";
 import { DrawingOverlay } from "@/features/drawing/drawing-overlay";
 import { closeAnnotateMode } from "@/store/actions/annotate-mode";
 import {
@@ -416,6 +417,11 @@ const AiEditorActionHost = lazy(async () => {
   return { default: module.AiEditorActionHost };
 });
 
+const VoiceDictationHost = lazy(async () => {
+  const module = await import("@/features/ai/voice-dictation-host");
+  return { default: module.VoiceDictationHost };
+});
+
 export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [shortcutHost, setShortcutHost] = useState<HTMLDivElement | null>(null);
@@ -473,7 +479,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   // A palette request queued before the gated host chunk arrives would
   // otherwise survive an opt-out and replay when AI is switched back on.
   useEffect(() => {
-    if (!aiEnabled) clearPendingAiAction();
+    if (!aiEnabled) {
+      clearPendingAiAction();
+      clearPendingVoiceDictation();
+    }
   }, [aiEnabled]);
   const [linkMenu, setLinkMenu] = useState(closedLinkMenu);
   const linkMenuRef = useRef(linkMenu);
@@ -2067,6 +2076,12 @@ const closeJumpToLine = useCallback(() => {
         {(signal) => (
           <Suspense fallback={null}>
             <AiEditorActionHost
+              store={store}
+              signal={signal}
+              getView={getActiveView}
+              getNoteId={getActiveNoteId}
+            />
+            <VoiceDictationHost
               store={store}
               signal={signal}
               getView={getActiveView}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AiTranscriptionResult",
+  "description": "What the renderer receives for a finished transcription.",
+  "type": "object",
+  "properties": {
+    "requestId": {
+      "type": "string"
+    },
+    "transcript": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "requestId",
+    "transcript"
+  ]
+}

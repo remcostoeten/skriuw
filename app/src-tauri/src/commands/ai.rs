@@ -1,13 +1,19 @@
 use std::sync::Arc;
 
-use skriuw_ai_remote::{RemoteAiProvider, RemoteProviderKind, remote_ai_catalog};
+use skriuw_ai_remote::{
+    RemoteAiProvider, RemoteProviderKind, ai_transcription_models, remote_ai_catalog,
+};
 use skriuw_domain::{
     AI_RUN_ORIGIN_PLAYGROUND, AiCompletionEvent, AiCompletionRequest, AiHistorySettings,
     AiHistoryView, AiProviderError, AiProviderErrorCategory, AiRecoveryAction, AiRunFilter,
+    AiTranscriptionModel, AiTranscriptionRequest, AiTranscriptionResult, AiTranscriptionTerminal,
     CredentialVaultDetection, LocalAiError, LocalAiModel, LocalAiProgress, LocalAiStatus,
     MAX_AI_IDENTIFIER_BYTES, RemoteAiCatalog, RemoteAiKeyTier, RemoteAiProviderState,
 };
-use tauri::{State, ipc::Channel};
+use tauri::{
+    State,
+    ipc::{Channel, InvokeBody, Request},
+};
 
 use crate::state::AppState;
 
@@ -41,7 +47,9 @@ pub async fn ai_run_history(
 ) -> Result<AiHistoryView, String> {
     let history = Arc::clone(state.ai.history());
     let filter = filter.unwrap_or_default();
-    let pricing_as_of = remote_ai_catalog().ok().map(|catalog| catalog.pricing_as_of);
+    let pricing_as_of = remote_ai_catalog()
+        .ok()
+        .map(|catalog| catalog.pricing_as_of);
     tauri::async_runtime::spawn_blocking(move || history.view(&filter, since_ms, pricing_as_of))
         .await
         .map_err(|error| error.to_string())?
@@ -77,6 +85,99 @@ pub async fn clear_ai_run_history(state: State<'_, AppState>) -> Result<u32, Str
 #[tauri::command]
 pub fn cancel_ai_completion(request_id: String, state: State<'_, AppState>) -> bool {
     state.ai.cancel(&request_id)
+}
+
+/// The shipped speech-to-text catalogue. Like the completion catalogue it is a
+/// repository-owned document: an entry exists exactly when an adapter ships.
+#[tauri::command]
+pub fn ai_transcription_catalogue() -> Vec<AiTranscriptionModel> {
+    ai_transcription_models()
+}
+
+/// Parks one recording's raw bytes for the async transcription command.
+/// Raw-body commands are synchronous in Tauri, so this does nothing but a
+/// bounded copy; the provider request runs off the main thread in
+/// [`transcribe_staged_audio`].
+#[tauri::command]
+pub fn stage_transcription_audio(
+    request: Request<'_>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let InvokeBody::Raw(bytes) = request.body() else {
+        return Err("recording payload must be raw bytes".into());
+    };
+    state.transcription.stage(bytes.clone())
+}
+
+/// Spends one staged recording on one provider transcription. The staged
+/// bytes are consumed whatever the outcome, so a failed request never leaves
+/// a recording parked in memory.
+#[tauri::command]
+pub async fn transcribe_staged_audio(
+    staged_id: String,
+    request_id: String,
+    provider_id: String,
+    model_id: String,
+    mime_type: String,
+    language: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<AiTranscriptionResult, AiProviderError> {
+    fn refused(message: &str) -> AiProviderError {
+        AiProviderError::new(
+            "remote",
+            AiProviderErrorCategory::RejectedRequest,
+            message,
+            AiRecoveryAction::None,
+        )
+    }
+
+    let Some(audio) = state.transcription.take_staged(&staged_id) else {
+        return Err(refused(
+            "that recording is no longer staged; record it again",
+        ));
+    };
+    let result_request_id = request_id.clone();
+    let request = AiTranscriptionRequest {
+        request_id,
+        provider_id,
+        model_id,
+        mime_type,
+        language,
+        audio,
+    };
+    if request.validate().is_err() {
+        return Err(refused("the transcription request is invalid"));
+    }
+    let transcription = Arc::clone(&state.transcription);
+    let terminal = tauri::async_runtime::spawn_blocking(move || transcription.transcribe(&request))
+        .await
+        .map_err(|error| {
+            AiProviderError::new(
+                "remote",
+                AiProviderErrorCategory::InternalFailure,
+                &error.to_string(),
+                AiRecoveryAction::Retry,
+            )
+        })?;
+    match terminal {
+        AiTranscriptionTerminal::Done { transcript } => Ok(AiTranscriptionResult {
+            request_id: result_request_id,
+            transcript,
+        }),
+        AiTranscriptionTerminal::Cancelled => Err(AiProviderError::new(
+            "remote",
+            AiProviderErrorCategory::InternalFailure,
+            "the transcription was cancelled",
+            AiRecoveryAction::None,
+        )),
+        AiTranscriptionTerminal::Timeout => Err(AiProviderError::new(
+            "remote",
+            AiProviderErrorCategory::TransportFailure,
+            "the provider did not respond in time",
+            AiRecoveryAction::Retry,
+        )),
+        AiTranscriptionTerminal::ProviderError(error) => Err(error),
+    }
 }
 
 #[tauri::command]

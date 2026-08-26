@@ -208,3 +208,5 @@ Rust and Tauri suites rather than simulated browser state.
 - [ADR-0032: task-shaped typing is explicit intent](adr/0032-task-shaped-typing-is-explicit.md)
 - [ADR-0033: provider-agnostic AI completion seam](adr/0033-ai-provider-completion-seam.md)
 - [ADR-0034: annotation anchors are document data](adr/0034-annotation-anchors-are-document-data.md)
+- [ADR-0035: note annotation layer](adr/0035-note-annotation-layer.md)
+- [ADR-0036: provider-agnostic voice transcription seam](adr/0036-voice-transcription-seam.md)

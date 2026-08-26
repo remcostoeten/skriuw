@@ -210,3 +210,14 @@ export type AiHistoryView = {
   aggregates: AiUsageAggregate[];
   runs: AiRunRecord[];
 };
+
+export type AiTranscriptionModel = {
+  providerId: string;
+  modelId: string;
+  label: string;
+};
+
+export type AiTranscriptionResult = {
+  requestId: string;
+  transcript: string;
+};

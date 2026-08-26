@@ -19,6 +19,7 @@ mod reconcile;
 mod remote_ai;
 mod sync;
 mod task;
+mod transcribe;
 
 pub use ai::{
     AiCancellation, AiComplete, AiCompletionDelta, AiCompletionEvent, AiCompletionParameters,
@@ -83,6 +84,12 @@ pub use task::{
     DocumentTaskLink, MAX_TASK_ASSIGNEES, MAX_TASK_DESCRIPTION_BYTES, MAX_TASK_TAGS, TaskPriority,
     TaskSource, TaskSourceDocument, TaskStatus, WorkspaceTask, document_task_links,
     unique_document_task_link, validate_workspace_tasks,
+};
+
+pub use transcribe::{
+    AI_AUDIO_MIME_TYPES, AiTranscribe, AiTranscriptionModel, AiTranscriptionRequest,
+    AiTranscriptionResult, AiTranscriptionTerminal, MAX_AI_AUDIO_BYTES, MAX_AI_LANGUAGE_BYTES,
+    MAX_AI_TRANSCRIPT_BYTES,
 };
 
 pub use annotation::{

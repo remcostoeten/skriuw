@@ -6,6 +6,7 @@
 //! line, a contract type, or a safe provider error.
 
 mod provider;
+mod transcribe;
 
 use std::{
     io::{BufRead, BufReader, Read},
@@ -22,6 +23,7 @@ use skriuw_domain::{
 
 use provider::ProviderEvent;
 pub use provider::{GEMINI_PROVIDER_ID, GROQ_PROVIDER_ID, RemoteProviderKind};
+pub use transcribe::ai_transcription_models;
 
 const CATALOG_SOURCE: &str = include_str!("../models.json");
 const MAX_STREAM_EVENT_BYTES: u64 = 64 * 1024;
@@ -77,6 +79,18 @@ impl RemoteAiProvider {
     #[must_use]
     pub fn kind(&self) -> RemoteProviderKind {
         self.kind
+    }
+
+    pub(crate) fn base_url(&self) -> &Url {
+        &self.base_url
+    }
+
+    pub(crate) fn client(&self) -> &Client {
+        &self.client
+    }
+
+    pub(crate) fn credentials(&self) -> &Arc<dyn AiCredentialSource> {
+        &self.credentials
     }
 
     #[must_use]
