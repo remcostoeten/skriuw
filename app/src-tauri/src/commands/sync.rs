@@ -66,3 +66,35 @@ pub async fn discard_blocked_sync_operation(
         .await
         .map_err(|error| error.to_string())?
 }
+
+#[tauri::command]
+pub async fn list_sync_conflicts(
+    state: State<'_, AppState>,
+) -> Result<skriuw_domain::SyncConflictReviewView, String> {
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || sync.conflict_review())
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn read_sync_conflict_versions(
+    conflict_id: String,
+    state: State<'_, AppState>,
+) -> Result<skriuw_domain::DocumentConflictVersionsView, String> {
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || sync.conflict_versions(&conflict_id))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn resolve_sync_conflict(
+    request: skriuw_domain::ResolveDocumentConflict,
+    state: State<'_, AppState>,
+) -> Result<skriuw_domain::SyncConflictReviewView, String> {
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || sync.resolve_conflict(&request))
+        .await
+        .map_err(|error| error.to_string())?
+}
