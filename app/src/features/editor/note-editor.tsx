@@ -1535,8 +1535,13 @@ const closeJumpToLine = useCallback(() => {
         ) {
           const selection = readSelection(currentView.state, bounded.windowStart());
           const atEnd =
-            event.key === "ArrowDown" && selection.blockIndex >= bounded.windowEnd() - 1;
-          const atStart = event.key === "ArrowUp" && selection.blockIndex <= bounded.windowStart();
+            event.key === "ArrowDown" &&
+            bounded.windowEnd() < bounded.blockCount() &&
+            selection.blockIndex >= bounded.windowEnd() - 1;
+          const atStart =
+            event.key === "ArrowUp" &&
+            bounded.windowStart() > 0 &&
+            selection.blockIndex <= bounded.windowStart();
           if (atEnd || atStart) {
             moveBoundedWindow(
               entry,
