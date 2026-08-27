@@ -226,6 +226,9 @@ where
             version_id: materialization.version_id,
             created_at: item.created_at,
             summary: materialization.summary,
+            additions: Some(materialization.additions),
+            deletions: Some(materialization.deletions),
+            word_count: materialization.word_count,
         };
         Ok(HistoryWorkResult::Materialized {
             item_id: item.id,
@@ -459,6 +462,9 @@ mod tests {
             Ok(HistoryMaterialization {
                 version_id: "version-1".into(),
                 summary: "Created note".into(),
+                additions: 1,
+                deletions: 0,
+                word_count: Some(1),
             })
         }
     }
@@ -487,6 +493,9 @@ mod tests {
             Ok(HistoryMaterialization {
                 version_id: format!("version-{}", item.note_id),
                 summary: "Created note".into(),
+                additions: 1,
+                deletions: 0,
+                word_count: Some(1),
             })
         }
     }

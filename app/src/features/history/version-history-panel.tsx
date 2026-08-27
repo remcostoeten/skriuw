@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { motion, useReducedMotion } from "motion/react";
 import { DOMSerializer } from "prosemirror-model";
 import { restoreNoteVersion } from "@/store/actions/workspace";
 import type { HistoryVersionContent } from "@/bridge/commands";
@@ -7,13 +8,19 @@ import { readHistoryVersion } from "@/bridge/commands";
 import { productSchema } from "@/features/editor/schema";
 import { CloseIcon, HistoryIcon, RotateCcwIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
-import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { HistoryGraphRail } from "./history-graph-rail";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import type { RendererState, RendererStore } from "@/store/types";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import { VersionDiffView, useMarkdownDiff } from "./version-diff-view";
-import { groupVersionRows, parseHistoryMarkdown, type VersionListItem } from "./version-model";
+import { VersionStats } from "./version-stats";
+import {
+  formatVersionClock,
+  formatVersionTimestamp,
+  groupVersionRows,
+  parseHistoryMarkdown,
+  type VersionListItem,
+} from "./version-model";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 
 type Props = {
@@ -33,23 +40,10 @@ type PreviewState =
 const VERSION_ROW_HEIGHT = 52;
 const GROUP_ROW_HEIGHT = 30;
 
-const timeFormatter = new Intl.DateTimeFormat(undefined, { timeStyle: "short" });
-const fullFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-function formatClock(value: number): string {
-  return timeFormatter.format(new Date(value));
-}
-
-function formatTimestamp(value: number): string {
-  return fullFormatter.format(new Date(value));
-}
-
 export function VersionHistoryPanel({ store, noteId, versions, requestedVersionId }: Props) {
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [mode, setMode] = useState<PreviewMode>("diff");
+  const [revealing, setRevealing] = useState(false);
   const parentRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
   const appliedRequestRef = useRef<string | null>(null);
@@ -83,6 +77,7 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
 
   function loadVersion(versionId: string): void {
     const requestId = ++requestIdRef.current;
+    setRevealing(preview === null);
     setPreview({ status: "loading", versionId });
     readHistoryVersion(noteId, versionId)
       .then((content) => {
@@ -243,18 +238,11 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
                         "shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground transition-colors",
                         selected && "text-foreground",
                       )}
-                      title={formatTimestamp(version.createdAt)}
+                      title={formatVersionTimestamp(version.createdAt)}
                     >
-                      {formatClock(version.createdAt)}
+                      {formatVersionClock(version.createdAt)}
                     </span>
-                    {isHead && (
-                      <span className="shrink-0 rounded-full bg-success-soft px-1.5 py-px text-[9px] font-[650] uppercase tracking-[0.06em] text-success">
-                        Latest
-                      </span>
-                    )}
-                    <span className="ml-auto shrink-0 text-[10px] text-muted-foreground/45 opacity-0 transition-opacity group-hover:opacity-100">
-                      {formatRelativeTime(version.createdAt)}
-                    </span>
+                    <VersionStats wordDelta={version.wordDelta} />
                   </span>
                   <span
                     className={cn(
@@ -283,13 +271,19 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
           </div>
         )}
         {preview?.status === "ready" && (
-          <>
+          <div
+            className={cn(
+              "flex min-h-0 min-w-0 flex-1 flex-col",
+              revealing &&
+                "animate-in fade-in-0 duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:animate-none",
+            )}
+          >
             <div className="flex h-[46px] shrink-0 items-center gap-2.5 border-b border-theme-divider px-4">
               <span className="rounded-[var(--radius-sm)] bg-theme-hover px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-theme-secondary">
                 r{preview.content.revision}
               </span>
               <span className="truncate text-[12px] font-[560] text-foreground">
-                {formatTimestamp(preview.content.createdAt)}
+                {formatVersionTimestamp(preview.content.createdAt)}
               </span>
               {currentMarkdown !== null && (
                 <DiffStats
@@ -327,7 +321,7 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
             ) : (
               <VersionMarkdownPreview markdown={preview.content.markdown} />
             )}
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -388,27 +382,41 @@ const MODE_OPTIONS: readonly { value: PreviewMode; label: string }[] = [
 ];
 
 function ModeToggle({ mode, onChange }: ModeToggleProps) {
+  const reduceMotion = useReducedMotion();
   return (
     <div
       role="tablist"
       aria-label="Preview mode"
       className="flex shrink-0 items-center gap-0.5 rounded-[var(--radius-md)] bg-theme-hover p-0.5"
     >
-      {MODE_OPTIONS.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          role="tab"
-          aria-selected={mode === option.value}
-          onClick={() => onChange(option.value)}
-          className={cn(
-            "h-[22px] cursor-pointer rounded-[calc(var(--radius-md)-2px)] border-none bg-transparent px-2 text-[11px] font-[560] text-muted-foreground transition-colors hover:text-foreground",
-            mode === option.value && "bg-theme-editor text-foreground shadow-sm",
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
+      {MODE_OPTIONS.map((option) => {
+        const active = mode === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              "relative h-[22px] cursor-pointer border-none bg-transparent px-2 text-[11px] font-[560] transition-colors",
+              active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {active && (
+              <motion.span
+                aria-hidden
+                layoutId="history-mode-indicator"
+                className="absolute inset-0 rounded-[calc(var(--radius-md)-2px)] bg-theme-editor shadow-sm"
+                transition={
+                  reduceMotion ? { duration: 0 } : { type: "spring", duration: 0.3, bounce: 0.15 }
+                }
+              />
+            )}
+            <span className="relative">{option.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -33,6 +33,9 @@ export type HistoryHeader = {
   versionId: string;
   createdAt: number;
   summary: string;
+  additions?: number | null;
+  deletions?: number | null;
+  wordCount?: number | null;
 };
 
 export type WorkspaceSettings = {

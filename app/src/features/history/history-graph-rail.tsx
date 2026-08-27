@@ -36,16 +36,16 @@ export function HistoryGraphRail({ isFirst, isLast, isHead, isSelected }: Props)
         )}
         style={{ left: TRUNK_X }}
       />
-      {isSelected && (
-        <span
-          aria-hidden
-          className={cn(
-            "absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full ring-1 transition-opacity",
-            isHead ? "ring-success/35" : "ring-foreground/20",
-          )}
-          style={{ left: TRUNK_X }}
-        />
-      )}
+      <span
+        aria-hidden
+        className={cn(
+          "absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full ring-1",
+          "transition-[opacity,scale] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
+          isHead ? "ring-success/35" : "ring-foreground/20",
+          isSelected ? "scale-100 opacity-100" : "scale-75 opacity-0",
+        )}
+        style={{ left: TRUNK_X }}
+      />
     </>
   );
 }

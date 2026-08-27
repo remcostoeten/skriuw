@@ -6,7 +6,7 @@ use std::{
 };
 
 use git2::{Commit, ObjectType, Oid, Repository, RepositoryOpenFlags, Signature, Time};
-use skriuw_domain::HistoryHeader;
+use skriuw_domain::{HistoryHeader, count_words};
 use skriuw_history::{
     HistoryMaterializer, HistoryReadError, HistoryReader, HistoryVersion, MaterializationError,
 };
@@ -54,6 +54,7 @@ pub enum HistoryIntegrityIssue {
     MissingNoteContent,
     NonBlobNoteContent,
     InvalidMarkdownUtf8,
+    UnreadableDiff,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -205,8 +206,9 @@ impl GitHistoryMaterializer {
         let parents = parent.iter().collect::<Vec<_>>();
         let signature = signature(item.created_at)?;
         let summary = summary(item.revision);
+        let word_count = count_words(&item.markdown);
         let message = format!(
-            "{summary}\n\nSkriuw-Outbox: {}\nSkriuw-Note: {}\nSkriuw-Revision: {}\nSkriuw-Created-At: {}",
+            "{summary}\n\nSkriuw-Outbox: {}\nSkriuw-Note: {}\nSkriuw-Revision: {}\nSkriuw-Created-At: {}\nSkriuw-Word-Count: {word_count}",
             item.id, item.note_id, item.revision, item.created_at
         );
         let commit_id = repository.commit(
@@ -218,10 +220,15 @@ impl GitHistoryMaterializer {
             &parents,
         )?;
         repository.set_head(HISTORY_REF)?;
+        let commit = repository.find_commit(commit_id)?;
+        let (additions, deletions) = revision_diff_stats(&repository, &commit)?;
 
         Ok(HistoryMaterialization {
             version_id: commit_id.to_string(),
             summary,
+            additions,
+            deletions,
+            word_count: Some(word_count),
         })
     }
 
@@ -297,7 +304,10 @@ struct CommitMetadata {
     revision: i64,
 }
 
-fn commit_metadata(commit: &Commit<'_>) -> Result<CommitMetadata, HistoryReadError> {
+fn commit_metadata(
+    repository: &Repository,
+    commit: &Commit<'_>,
+) -> Result<CommitMetadata, HistoryReadError> {
     let message = commit
         .message()
         .map_err(|_| HistoryReadError::backend("history commit message is not UTF-8"))?;
@@ -323,15 +333,37 @@ fn commit_metadata(commit: &Commit<'_>) -> Result<CommitMetadata, HistoryReadErr
         .flatten()
         .unwrap_or("Saved note")
         .to_owned();
+    let word_count = trailer(message, "Skriuw-Word-Count")
+        .and_then(|value| value.parse::<i64>().ok())
+        .filter(|count| *count >= 0);
+    let (additions, deletions) = revision_diff_stats(repository, commit).map_err(read_backend)?;
     Ok(CommitMetadata {
         header: HistoryHeader {
             note_id: note_id.into(),
             version_id: commit.id().to_string(),
             created_at,
             summary,
+            additions: Some(additions),
+            deletions: Some(deletions),
+            word_count,
         },
         revision,
     })
+}
+
+fn revision_diff_stats(
+    repository: &Repository,
+    commit: &Commit<'_>,
+) -> Result<(i64, i64), git2::Error> {
+    let tree = commit.tree()?;
+    let parent_tree = if commit.parent_count() == 0 {
+        None
+    } else {
+        Some(commit.parent(0)?.tree()?)
+    };
+    let diff = repository.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None)?;
+    let stats = diff.stats()?;
+    Ok((stats.insertions() as i64, stats.deletions() as i64))
 }
 
 fn trailer<'a>(message: &'a str, key: &str) -> Option<&'a str> {
@@ -413,7 +445,7 @@ fn inspect_history(root: &Path) -> Result<HistoryInspection, GitHistoryIntegrity
             issues.push(HistoryIntegrityIssue::MergeCommit);
         }
 
-        let metadata = inspect_commit_metadata(&commit, &mut issues);
+        let metadata = inspect_commit_metadata(&repository, &commit, &mut issues);
         if let Some(metadata) = metadata {
             if !outboxes.insert(metadata.outbox) {
                 issues.push(HistoryIntegrityIssue::DuplicateOutbox);
@@ -453,6 +485,7 @@ struct IntegrityCommitMetadata {
 }
 
 fn inspect_commit_metadata(
+    repository: &Repository,
     commit: &Commit<'_>,
     issues: &mut Vec<HistoryIntegrityIssue>,
 ) -> Option<IntegrityCommitMetadata> {
@@ -495,12 +528,24 @@ fn inspect_commit_metadata(
         .flatten()
         .unwrap_or("Saved note")
         .to_owned();
+    let (additions, deletions) = match revision_diff_stats(repository, commit) {
+        Ok(stats) => stats,
+        Err(_) => {
+            issues.push(HistoryIntegrityIssue::UnreadableDiff);
+            return None;
+        }
+    };
     Some(IntegrityCommitMetadata {
         header: HistoryHeader {
             note_id,
             version_id: commit.id().to_string(),
             created_at,
             summary,
+            additions: Some(additions),
+            deletions: Some(deletions),
+            word_count: trailer(message, "Skriuw-Word-Count")
+                .and_then(|value| value.parse::<i64>().ok())
+                .filter(|count| *count >= 0),
         },
         outbox,
         revision,
@@ -586,7 +631,7 @@ fn read_history_version(
             read_backend(error)
         }
     })?;
-    let metadata = commit_metadata(&commit)?;
+    let metadata = commit_metadata(&repository, &commit)?;
     if metadata.header.note_id != note_id {
         return Err(HistoryReadError::NotFound(version_id.into()));
     }
@@ -650,6 +695,7 @@ fn existing_materialization(
     if !matches_item {
         return Ok(None);
     }
+    let (additions, deletions) = revision_diff_stats(repository, &commit)?;
     Ok(Some(HistoryMaterialization {
         version_id: commit.id().to_string(),
         summary: commit
@@ -658,6 +704,11 @@ fn existing_materialization(
             .flatten()
             .unwrap_or("Saved note")
             .into(),
+        additions,
+        deletions,
+        word_count: trailer(message, "Skriuw-Word-Count")
+            .and_then(|value| value.parse::<i64>().ok())
+            .filter(|count| *count >= 0),
     }))
 }
 
@@ -696,7 +747,7 @@ mod tests {
     use serde_json::json;
     use skriuw_domain::{NodePlacement, WorkspaceOperation, WorkspaceOperationEnvelope};
     use skriuw_history::rebuild_history_cache;
-    use skriuw_history::{HistoryWorkResult, HistoryWorker};
+    use skriuw_history::{HistoryReader, HistoryWorkResult, HistoryWorker};
     use skriuw_sqlite::{HISTORY_COALESCE_WINDOW_MS, SqliteWorkspace};
     use skriuw_storage::{HistoryCache, PendingHistoryRevision, WorkspaceStorage};
     use tempfile::tempdir;
@@ -723,6 +774,7 @@ mod tests {
 
         assert_eq!(commit.id().to_string(), result.version_id);
         assert_eq!(result.summary, "Created note");
+        assert_eq!((result.additions, result.deletions), (1, 0));
         assert_eq!(
             std::fs::read_to_string(directory.path().join("notes/note-1.md"))
                 .expect("note projection"),
@@ -777,6 +829,68 @@ mod tests {
             first.version_id
         );
         assert_eq!(second.summary, "Saved revision 2");
+        assert_eq!((second.additions, second.deletions), (1, 1));
+    }
+
+    #[test]
+    fn records_the_word_count_of_each_revision() {
+        let directory = tempdir().expect("temporary directory");
+        let materializer = GitHistoryMaterializer::open(directory.path()).expect("open history");
+
+        let first = materializer
+            .materialize_revision(&item("item-1", 1, "# Notes\n\nOne two three"))
+            .expect("first materialization");
+        let second = materializer
+            .materialize_revision(&item("item-2", 2, "# Notes\n\nOne two"))
+            .expect("second materialization");
+
+        assert_eq!(first.word_count, Some(4));
+        assert_eq!(second.word_count, Some(3));
+
+        let headers = GitHistoryReader::open(directory.path())
+            .expect("open reader")
+            .list_headers()
+            .expect("list headers");
+        assert_eq!(
+            headers
+                .iter()
+                .map(|header| header.word_count)
+                .collect::<Vec<_>>(),
+            vec![Some(3), Some(4)],
+        );
+    }
+
+    #[test]
+    fn reads_no_word_count_from_commits_written_before_it_was_recorded() {
+        let directory = tempdir().expect("temporary directory");
+        let materializer = GitHistoryMaterializer::open(directory.path()).expect("open history");
+        materializer
+            .materialize_revision(&item("item-1", 1, "# First"))
+            .expect("materialize history");
+
+        let repository = Repository::open(directory.path()).expect("open repository");
+        let commit = repository
+            .find_reference(HISTORY_REF)
+            .expect("history reference")
+            .peel_to_commit()
+            .expect("history commit");
+        let legacy = commit
+            .message()
+            .expect("commit message")
+            .lines()
+            .filter(|line| !line.starts_with("Skriuw-Word-Count:"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        commit
+            .amend(Some(HISTORY_REF), None, None, None, Some(&legacy), None)
+            .expect("amend commit");
+
+        let headers = GitHistoryReader::open(directory.path())
+            .expect("open reader")
+            .list_headers()
+            .expect("list headers");
+        assert_eq!(headers.len(), 1);
+        assert_eq!(headers[0].word_count, None);
     }
 
     #[test]
@@ -824,6 +938,10 @@ mod tests {
         assert!(matches!(result, HistoryWorkResult::Materialized { .. }));
         assert_eq!(snapshot.history_headers.len(), 1);
         assert_eq!(snapshot.history_headers[0].summary, "Created note");
+        assert_eq!(snapshot.history_headers[0].additions, Some(1));
+        assert_eq!(snapshot.history_headers[0].deletions, Some(0));
+        assert_eq!(snapshot.history_headers[0].additions, Some(1));
+        assert_eq!(snapshot.history_headers[0].deletions, Some(0));
         assert_eq!(
             std::fs::read_to_string(directory.path().join("notes/note-1.md"))
                 .expect("note projection"),
@@ -856,6 +974,18 @@ mod tests {
         assert_eq!(headers.len(), 2);
         assert_eq!(headers[0].created_at, 2_345);
         assert_eq!(headers[1].created_at, 1_234);
+        assert_eq!(
+            (headers[0].additions, headers[0].deletions),
+            (Some(1), Some(1))
+        );
+        assert_eq!(
+            (headers[0].additions, headers[0].deletions),
+            (Some(1), Some(1))
+        );
+        assert_eq!(
+            (headers[1].additions, headers[1].deletions),
+            (Some(1), Some(0))
+        );
         assert_eq!(version.revision, 1);
         assert_eq!(version.markdown, "# First");
     }
@@ -1107,6 +1237,9 @@ mod tests {
                 version_id: "version-old".into(),
                 created_at: 1,
                 summary: "Old".into(),
+                additions: None,
+                deletions: None,
+                word_count: None,
             }])
             .expect("seed cache");
 
@@ -1131,6 +1264,9 @@ mod tests {
                 version_id: "version-old".into(),
                 created_at: 1,
                 summary: "Old".into(),
+                additions: None,
+                deletions: None,
+                word_count: None,
             }])
             .expect("restore old cache");
         let corrupt_directory = tempdir().expect("temporary directory");
