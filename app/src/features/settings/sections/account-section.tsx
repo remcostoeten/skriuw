@@ -5,7 +5,9 @@ import {
   type BlockedSyncOperation,
   discardBlockedSyncOperation,
   listBlockedSyncOperations,
+  listSyncConflicts,
   retryBlockedSyncOperation,
+  type SyncConflictReview,
   type SyncRecoveryView,
 } from "@/bridge/commands";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
@@ -21,6 +23,7 @@ import {
   settingsRowLabel,
   settingsSection,
 } from "./settings-shared";
+import { ConflictReview } from "./conflict-review";
 import {
   blockedCauseText,
   blockedItemLabel,
@@ -45,6 +48,8 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
   const [recovery, setRecovery] = useState<SyncRecoveryView | null>(null);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [recoveryBusyId, setRecoveryBusyId] = useState<string | null>(null);
+  const [conflicts, setConflicts] = useState<SyncConflictReview | null>(null);
+  const [conflictError, setConflictError] = useState<string | null>(null);
   const unavailableReason = authConfiguration.available ? null : authConfiguration.reason;
   const browser = sync.browser;
 
@@ -60,6 +65,16 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
         },
         (error: unknown) => {
           if (mounted) setRecoveryError(error instanceof Error ? error.message : String(error));
+        },
+      );
+      listSyncConflicts().then(
+        (view) => {
+          if (!mounted) return;
+          setConflicts(view);
+          setConflictError(null);
+        },
+        (error: unknown) => {
+          if (mounted) setConflictError(error instanceof Error ? error.message : String(error));
         },
       );
     };
@@ -158,6 +173,18 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
           </div>
         ) : null}
       </div>
+      {user && !browser ? (
+        <ConflictReview
+          review={conflicts}
+          error={conflictError}
+          onResolved={(next) => {
+            setConflicts(next);
+            setConflictError(null);
+            void sync.refresh();
+          }}
+          onError={setConflictError}
+        />
+      ) : null}
       {user && !browser ? (
         <BlockedChanges
           recovery={recovery}
