@@ -36,6 +36,10 @@
     },
     "providerId": {
       "type": "string"
+    },
+    "supportsModelListing": {
+      "description": "Whether the provider publishes a model-listing endpoint. When false the\nsettings surface offers no \"Refresh models\" action for it.",
+      "type": "boolean"
     }
   },
   "additionalProperties": false,
@@ -43,7 +47,8 @@
     "providerId",
     "label",
     "destination",
-    "currentDisclosureVersion"
+    "currentDisclosureVersion",
+    "supportsModelListing"
   ],
   "$defs": {
     "RemoteAiKeyTier": {

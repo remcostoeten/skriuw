@@ -112,7 +112,7 @@ export function PromptPlaygroundView({ store, signal }: Props) {
           ollamaStatus: ollama.status,
           ollamaModels: ollama.models,
           remoteProviders: remote.providers,
-          remoteCatalog: remote.catalog,
+          remoteModels: remote.models,
         });
       })
       .catch(() => {
@@ -121,7 +121,7 @@ export function PromptPlaygroundView({ store, signal }: Props) {
           ollamaStatus: null,
           ollamaModels: [],
           remoteProviders: [],
-          remoteCatalog: null,
+          remoteModels: null,
         });
       });
     return () => {
@@ -331,7 +331,7 @@ export function PromptPlaygroundView({ store, signal }: Props) {
       aria-labelledby="prompt-playground-title"
       onKeyDown={handleSurfaceKeys}
     >
-      <header className="flex h-[52px] items-center gap-2.5 border-b border-theme-divider pl-3">
+      <header className="flex h-11 items-center gap-2.5 border-b border-theme-divider pl-3">
         <button
           type="button"
           onClick={() => {

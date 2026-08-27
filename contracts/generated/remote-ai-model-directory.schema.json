@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RemoteAiModelDirectory",
+  "description": "Every remote model the renderer may offer: the shipped catalog merged with\nthe models each provider reported for the user's key. A fetched model that\nthe catalog already lists keeps its catalog entry, so shipped pricing and\nlabels always win.",
+  "type": "object",
+  "properties": {
+    "models": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RemoteAiModelListing"
+      }
+    },
+    "pricingAsOf": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "pricingAsOf",
+    "models"
+  ],
+  "$defs": {
+    "RemoteAiModelListing": {
+      "description": "One model a remote provider can serve. Catalog entries carry the shipped\npricing; fetched entries carry only what the provider's listing reports, so\ntheir prices stay absent rather than guessed and runs on them go unpriced.",
+      "type": "object",
+      "properties": {
+        "contextWindowTokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "inputPriceMicrosPerMtok": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "label": {
+          "type": "string"
+        },
+        "modelId": {
+          "type": "string"
+        },
+        "outputPriceMicrosPerMtok": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/RemoteAiModelSource"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "providerId",
+        "modelId",
+        "label",
+        "source"
+      ]
+    },
+    "RemoteAiModelSource": {
+      "description": "Whether a listed model comes from the repository-owned catalog or was\nfetched from the provider's model-listing endpoint with the user's key.",
+      "type": "string",
+      "enum": [
+        "catalog",
+        "fetched"
+      ]
+    }
+  }
+}

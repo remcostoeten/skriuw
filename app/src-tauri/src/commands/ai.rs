@@ -5,7 +5,8 @@ use skriuw_domain::{
     AI_RUN_ORIGIN_PLAYGROUND, AiCompletionEvent, AiCompletionRequest, AiHistorySettings,
     AiHistoryView, AiProviderError, AiProviderErrorCategory, AiRecoveryAction, AiRunFilter,
     CredentialVaultDetection, LocalAiError, LocalAiModel, LocalAiProgress, LocalAiStatus,
-    MAX_AI_IDENTIFIER_BYTES, RemoteAiCatalog, RemoteAiKeyTier, RemoteAiProviderState,
+    MAX_AI_IDENTIFIER_BYTES, RemoteAiCatalog, RemoteAiKeyTier, RemoteAiModelDirectory,
+    RemoteAiProviderState,
 };
 use tauri::{State, ipc::Channel};
 
@@ -41,7 +42,9 @@ pub async fn ai_run_history(
 ) -> Result<AiHistoryView, String> {
     let history = Arc::clone(state.ai.history());
     let filter = filter.unwrap_or_default();
-    let pricing_as_of = remote_ai_catalog().ok().map(|catalog| catalog.pricing_as_of);
+    let pricing_as_of = remote_ai_catalog()
+        .ok()
+        .map(|catalog| catalog.pricing_as_of);
     tauri::async_runtime::spawn_blocking(move || history.view(&filter, since_ms, pricing_as_of))
         .await
         .map_err(|error| error.to_string())?
@@ -170,6 +173,49 @@ pub fn remote_ai_catalogue() -> Result<RemoteAiCatalog, AiProviderError> {
     })
 }
 
+/// The shipped catalog merged with every model the user has fetched from a
+/// provider. Reading it never reaches the network.
+#[tauri::command]
+pub fn remote_ai_models(state: State<'_, AppState>) -> Result<RemoteAiModelDirectory, AiProviderError> {
+    state.ai_models.directory()
+}
+
+/// Asks one provider which models the stored key can reach and records the
+/// answer on this device. Sends the key but spends no tokens; runs only from
+/// the explicit "Refresh models" action, and the credential resolve refuses an
+/// unconsented or keyless provider before any socket opens.
+#[tauri::command]
+pub async fn refresh_remote_ai_models(
+    provider_id: String,
+    state: State<'_, AppState>,
+) -> Result<RemoteAiModelDirectory, AiProviderError> {
+    let kind = remote_provider(&provider_id)?;
+    let credentials = Arc::clone(&state.ai_credentials);
+    let models = Arc::clone(&state.ai_models);
+    tauri::async_runtime::spawn_blocking(move || {
+        let provider = RemoteAiProvider::new(kind, credentials).map_err(|error| {
+            AiProviderError::new(
+                kind.id(),
+                AiProviderErrorCategory::TransportFailure,
+                &error.to_string(),
+                AiRecoveryAction::Retry,
+            )
+        })?;
+        let fetched = provider.list_models()?;
+        models.replace(kind.id(), fetched, crate::state::now_millis())?;
+        models.directory()
+    })
+    .await
+    .map_err(|error| {
+        AiProviderError::new(
+            kind.id(),
+            AiProviderErrorCategory::InternalFailure,
+            &error.to_string(),
+            AiRecoveryAction::Retry,
+        )
+    })?
+}
+
 #[tauri::command]
 pub fn save_remote_ai_key(
     provider_id: String,
@@ -224,9 +270,11 @@ pub async fn verify_remote_ai_key(
 ) -> Result<(), AiProviderError> {
     let kind = remote_provider(&provider_id)?;
     let credentials = Arc::clone(&state.ai_credentials);
+    let models = Arc::clone(&state.ai_models);
     tauri::async_runtime::spawn_blocking(move || {
         let credential = credentials.take_key_for_verification(kind, key)?;
-        let provider = RemoteAiProvider::new(kind, credentials).map_err(|error| {
+        let provider = RemoteAiProvider::with_model_authority(kind, credentials, models)
+            .map_err(|error| {
             AiProviderError::new(
                 kind.id(),
                 AiProviderErrorCategory::TransportFailure,

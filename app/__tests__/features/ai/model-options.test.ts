@@ -13,7 +13,7 @@ import type {
   LocalAiModel,
   LocalAiRuntimeState,
   LocalAiStatus,
-  RemoteAiCatalog,
+  RemoteAiModelDirectory,
   RemoteAiProviderState,
 } from "../../../src/contracts/ai";
 
@@ -39,6 +39,7 @@ function groqProvider(overrides: Partial<RemoteAiProviderState> = {}): RemoteAiP
     keyTier: "vault",
     acceptedDisclosureVersion: 1,
     currentDisclosureVersion: 1,
+    supportsModelListing: true,
     ...overrides,
   };
 }
@@ -52,10 +53,9 @@ const GROQ_MODEL = {
   outputPriceMicrosPerMtok: 790_000,
 };
 
-const CATALOG: RemoteAiCatalog = {
-  version: 1,
+const CATALOG: RemoteAiModelDirectory = {
   pricingAsOf: "2026-08-01",
-  models: [GROQ_MODEL],
+  models: [{ ...GROQ_MODEL, source: "catalog" }],
 };
 
 function inventory(overrides: Partial<AiModelInventory> = {}): AiModelInventory {
@@ -63,7 +63,7 @@ function inventory(overrides: Partial<AiModelInventory> = {}): AiModelInventory 
     ollamaStatus: ollamaStatus("running"),
     ollamaModels: [],
     remoteProviders: [],
-    remoteCatalog: null,
+    remoteModels: null,
     ...overrides,
   };
 }
@@ -131,7 +131,7 @@ test("a missing Ollama install names the install gap", () => {
 
 test("a consented remote provider with a stored key offers its catalog models", () => {
   const groups = aiModelGroups(
-    inventory({ remoteProviders: [groqProvider()], remoteCatalog: CATALOG }),
+    inventory({ remoteProviders: [groqProvider()], remoteModels: CATALOG }),
   );
   const groq = groups.find((group) => group.providerId === "groq");
   assert.ok(groq);
@@ -151,7 +151,7 @@ test("a remote provider without a key is disabled with the missing-key reason", 
   const groups = aiModelGroups(
     inventory({
       remoteProviders: [groqProvider({ keyTier: null })],
-      remoteCatalog: CATALOG,
+      remoteModels: CATALOG,
     }),
   );
   const groq = groups.find((group) => group.providerId === "groq");
@@ -164,7 +164,7 @@ test("stale or missing consent surfaces the matching disclosure reason", () => {
   const unaccepted = aiModelGroups(
     inventory({
       remoteProviders: [groqProvider({ acceptedDisclosureVersion: null })],
-      remoteCatalog: CATALOG,
+      remoteModels: CATALOG,
     }),
   );
   assert.equal(
@@ -177,7 +177,7 @@ test("stale or missing consent surfaces the matching disclosure reason", () => {
       remoteProviders: [
         groqProvider({ acceptedDisclosureVersion: 1, currentDisclosureVersion: 2 }),
       ],
-      remoteCatalog: CATALOG,
+      remoteModels: CATALOG,
     }),
   );
   assert.equal(
@@ -192,7 +192,7 @@ test("a remote provider with no catalog models is omitted entirely", () => {
       remoteProviders: [
         groqProvider({ providerId: "gemini", label: "Gemini", destination: "api.gemini" }),
       ],
-      remoteCatalog: CATALOG,
+      remoteModels: CATALOG,
     }),
   );
   assert.equal(groups.some((group) => group.providerId === "gemini"), false);

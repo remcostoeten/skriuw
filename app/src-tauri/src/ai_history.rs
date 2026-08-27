@@ -43,9 +43,10 @@ impl AiHistoryRecorder {
         if let Some(storage) = self.storage.get() {
             return Ok(Arc::clone(storage));
         }
-        let opened = Arc::new(SqliteWorkspace::open(&self.database_path).map_err(|error| {
-            format!("open {}: {error}", self.database_path.display())
-        })?);
+        let opened = Arc::new(
+            SqliteWorkspace::open(&self.database_path)
+                .map_err(|error| format!("open {}: {error}", self.database_path.display()))?,
+        );
         let _ = self.storage.set(opened);
         self.storage
             .get()

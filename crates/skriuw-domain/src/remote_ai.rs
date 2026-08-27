@@ -201,6 +201,120 @@ impl RemoteAiCatalog {
     }
 }
 
+/// Whether a listed model comes from the repository-owned catalog or was
+/// fetched from the provider's model-listing endpoint with the user's key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum RemoteAiModelSource {
+    Catalog,
+    Fetched,
+}
+
+/// One model a remote provider can serve. Catalog entries carry the shipped
+/// pricing; fetched entries carry only what the provider's listing reports, so
+/// their prices stay absent rather than guessed and runs on them go unpriced.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RemoteAiModelListing {
+    pub provider_id: String,
+    pub model_id: String,
+    pub label: String,
+    pub context_window_tokens: Option<u32>,
+    pub input_price_micros_per_mtok: Option<u64>,
+    pub output_price_micros_per_mtok: Option<u64>,
+    pub source: RemoteAiModelSource,
+}
+
+impl RemoteAiModelListing {
+    pub fn validate(&self) -> Result<(), RemoteAiCatalogError> {
+        let invalid = |field| RemoteAiCatalogError::InvalidModel { index: 0, field };
+        if !valid_provider_identifier(&self.provider_id) {
+            return Err(invalid("provider id"));
+        }
+        if !valid_provider_identifier(&self.model_id) {
+            return Err(invalid("model id"));
+        }
+        if !valid_label(&self.label) {
+            return Err(invalid("label"));
+        }
+        if let Some(window) = self.context_window_tokens
+            && (window == 0 || window > MAX_REMOTE_AI_CONTEXT_TOKENS)
+        {
+            return Err(invalid("context window"));
+        }
+        for price in [
+            self.input_price_micros_per_mtok,
+            self.output_price_micros_per_mtok,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if price > MAX_REMOTE_AI_PRICE_MICROS {
+                return Err(invalid("price"));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl From<&RemoteAiModel> for RemoteAiModelListing {
+    fn from(model: &RemoteAiModel) -> Self {
+        Self {
+            provider_id: model.provider_id.clone(),
+            model_id: model.model_id.clone(),
+            label: model.label.clone(),
+            context_window_tokens: Some(model.context_window_tokens),
+            input_price_micros_per_mtok: Some(model.input_price_micros_per_mtok),
+            output_price_micros_per_mtok: Some(model.output_price_micros_per_mtok),
+            source: RemoteAiModelSource::Catalog,
+        }
+    }
+}
+
+/// Every remote model the renderer may offer: the shipped catalog merged with
+/// the models each provider reported for the user's key. A fetched model that
+/// the catalog already lists keeps its catalog entry, so shipped pricing and
+/// labels always win.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RemoteAiModelDirectory {
+    pub pricing_as_of: String,
+    pub models: Vec<RemoteAiModelListing>,
+}
+
+impl RemoteAiModelDirectory {
+    #[must_use]
+    pub fn merge(catalog: &RemoteAiCatalog, fetched: &[RemoteAiModelListing]) -> Self {
+        let mut models: Vec<RemoteAiModelListing> = catalog
+            .models
+            .iter()
+            .map(RemoteAiModelListing::from)
+            .collect();
+        for listing in fetched {
+            if listing.validate().is_err() || listing.source != RemoteAiModelSource::Fetched {
+                continue;
+            }
+            let known = models.iter().any(|model| {
+                model.provider_id == listing.provider_id && model.model_id == listing.model_id
+            });
+            if !known {
+                models.push(listing.clone());
+            }
+        }
+        Self {
+            pricing_as_of: catalog.pricing_as_of.clone(),
+            models,
+        }
+    }
+
+    #[must_use]
+    pub fn contains(&self, provider_id: &str, model_id: &str) -> bool {
+        self.models
+            .iter()
+            .any(|model| model.provider_id == provider_id && model.model_id == model_id)
+    }
+}
+
 /// Where a device can persist remote provider keys. Detection runs only when
 /// the opt-in-gated provider settings surface asks for it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -258,6 +372,9 @@ pub struct RemoteAiProviderState {
     pub key_tier: Option<RemoteAiKeyTier>,
     pub accepted_disclosure_version: Option<u32>,
     pub current_disclosure_version: u32,
+    /// Whether the provider publishes a model-listing endpoint. When false the
+    /// settings surface offers no "Refresh models" action for it.
+    pub supports_model_listing: bool,
 }
 
 impl RemoteAiProviderState {
@@ -435,6 +552,7 @@ mod tests {
             key_tier: None,
             accepted_disclosure_version: None,
             current_disclosure_version: REMOTE_AI_DISCLOSURE_VERSION,
+            supports_model_listing: true,
         };
         assert!(!state.can_complete());
 
@@ -464,6 +582,71 @@ mod tests {
             }
             .authorises("gemini")
         );
+    }
+
+    fn fetched(provider_id: &str, model_id: &str) -> super::RemoteAiModelListing {
+        super::RemoteAiModelListing {
+            provider_id: provider_id.into(),
+            model_id: model_id.into(),
+            label: model_id.into(),
+            context_window_tokens: Some(131_072),
+            input_price_micros_per_mtok: None,
+            output_price_micros_per_mtok: None,
+            source: super::RemoteAiModelSource::Fetched,
+        }
+    }
+
+    #[test]
+    fn merges_fetched_models_after_the_catalog_without_duplicating_entries() {
+        let directory = super::RemoteAiModelDirectory::merge(
+            &catalog(vec![model("groq", "a")]),
+            &[fetched("groq", "a"), fetched("groq", "b")],
+        );
+
+        assert_eq!(directory.pricing_as_of, "2026-08-01");
+        assert_eq!(directory.models.len(), 2);
+        assert_eq!(
+            directory.models[0].source,
+            super::RemoteAiModelSource::Catalog,
+            "the priced catalog entry must win over the fetched duplicate"
+        );
+        assert!(directory.models[0].input_price_micros_per_mtok.is_some());
+        assert_eq!(directory.models[1].model_id, "b");
+        assert_eq!(directory.models[1].input_price_micros_per_mtok, None);
+        assert!(directory.contains("groq", "b"));
+        assert!(!directory.contains("gemini", "b"));
+    }
+
+    #[test]
+    fn merge_drops_invalid_or_mislabelled_fetched_entries() {
+        let mut traversal = fetched("groq", "ok");
+        traversal.model_id = "../secret".into();
+        let mut fake_catalog_entry = fetched("groq", "self-priced");
+        fake_catalog_entry.source = super::RemoteAiModelSource::Catalog;
+
+        let directory = super::RemoteAiModelDirectory::merge(
+            &catalog(vec![model("groq", "a")]),
+            &[traversal, fake_catalog_entry],
+        );
+
+        assert_eq!(directory.models.len(), 1);
+    }
+
+    #[test]
+    fn validates_fetched_listings_with_the_catalog_bounds() {
+        assert_eq!(fetched("groq", "a").validate(), Ok(()));
+
+        let mut window = fetched("groq", "a");
+        window.context_window_tokens = Some(0);
+        assert!(window.validate().is_err());
+
+        let mut price = fetched("groq", "a");
+        price.input_price_micros_per_mtok = Some(super::MAX_REMOTE_AI_PRICE_MICROS + 1);
+        assert!(price.validate().is_err());
+
+        let mut absent = fetched("groq", "a");
+        absent.context_window_tokens = None;
+        assert_eq!(absent.validate(), Ok(()));
     }
 
     #[test]

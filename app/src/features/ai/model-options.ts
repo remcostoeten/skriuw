@@ -1,7 +1,7 @@
 import type {
   LocalAiModel,
   LocalAiStatus,
-  RemoteAiCatalog,
+  RemoteAiModelDirectory,
   RemoteAiProviderState,
 } from "@/contracts/ai";
 import { formatByteSize } from "@/shared/lib/format-bytes";
@@ -37,7 +37,7 @@ export type AiModelInventory = {
   ollamaStatus: LocalAiStatus | null;
   ollamaModels: readonly LocalAiModel[];
   remoteProviders: readonly RemoteAiProviderState[];
-  remoteCatalog: RemoteAiCatalog | null;
+  remoteModels: RemoteAiModelDirectory | null;
 };
 
 const OLLAMA_UNAVAILABLE_REASONS: Record<string, string> = {
@@ -109,11 +109,11 @@ function remoteProviderReason(provider: RemoteAiProviderState): string | null {
 
 function remoteGroup(
   provider: RemoteAiProviderState,
-  catalog: RemoteAiCatalog | null,
+  models: RemoteAiModelDirectory | null,
 ): AiProviderGroup {
   const available = remoteAiCanComplete(provider);
   const reason = available ? null : remoteProviderReason(provider);
-  const options = remoteAiModelsFor(catalog, provider.providerId).map((model) => ({
+  const options = remoteAiModelsFor(models, provider.providerId).map((model) => ({
     providerId: provider.providerId,
     modelId: model.modelId,
     label: model.label,
@@ -127,7 +127,7 @@ function remoteGroup(
 export function aiModelGroups(inventory: AiModelInventory): AiProviderGroup[] {
   const groups = [ollamaGroup(inventory.ollamaStatus, inventory.ollamaModels)];
   for (const provider of inventory.remoteProviders) {
-    const group = remoteGroup(provider, inventory.remoteCatalog);
+    const group = remoteGroup(provider, inventory.remoteModels);
     if (group.options.length > 0) {
       groups.push(group);
     }
