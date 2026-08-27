@@ -713,6 +713,25 @@ pub fn create_note(id: &str, title: &str, at: i64) -> WorkspaceOperationEnvelope
 }
 
 #[must_use]
+pub fn create_folder(id: &str, title: &str, at: i64) -> WorkspaceOperationEnvelope {
+    envelope(WorkspaceOperation::CreateFolder {
+        id: id.into(),
+        title: title.into(),
+        placement: NodePlacement::last(None),
+        at,
+    })
+}
+
+#[must_use]
+pub fn move_into(id: &str, parent_id: &str, at: i64) -> WorkspaceOperationEnvelope {
+    envelope(WorkspaceOperation::MoveNode {
+        id: id.into(),
+        placement: NodePlacement::last(Some(parent_id.into())),
+        at,
+    })
+}
+
+#[must_use]
 pub fn rename_node(id: &str, title: &str, at: i64) -> WorkspaceOperationEnvelope {
     envelope(WorkspaceOperation::RenameNode {
         id: id.into(),

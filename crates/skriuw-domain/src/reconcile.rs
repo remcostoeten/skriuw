@@ -115,6 +115,15 @@ pub struct RemoteTargetState {
     /// For `SaveDocument`: the expected revision matches the current
     /// canonical revision, so optimistic application is safe.
     pub document_revision_matches: bool,
+    /// The operation's causal base already covers every write this device has
+    /// incorporated for the target, so the author saw at least as much as we
+    /// hold and the operation is downstream rather than concurrent.
+    ///
+    /// Revision equality cannot answer this on its own: a device that joined
+    /// through the replicated log rebuilds documents from scratch and starts
+    /// its counter over, so two devices holding identical content routinely
+    /// disagree about the number.
+    pub remote_supersedes_local: bool,
 }
 
 /// Decide how a validated replicated remote operation reconciles against
@@ -252,7 +261,7 @@ fn reconcile_save_document(state: &RemoteTargetState) -> RemoteOperationDecision
     if state.target_trashed {
         return conflict(SyncConflictReason::TombstoneBlocked);
     }
-    if state.document_revision_matches {
+    if state.document_revision_matches || state.remote_supersedes_local {
         return RemoteOperationDecision::Apply;
     }
     conflict(SyncConflictReason::ConcurrentDocumentVersion)
@@ -383,7 +392,11 @@ pub fn classify_apply_failure(operation: &WorkspaceOperation) -> SyncConflictRea
 /// resolutions replicate their canonical result as an ordinary
 /// `SaveDocument`; the unselected alternative is never deleted.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", tag = "choice")]
+#[serde(
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    tag = "choice"
+)]
 pub enum DocumentConflictResolutionChoice {
     /// Keep the current local canonical document; the remote alternative
     /// remains preserved as recovery evidence.
@@ -467,6 +480,58 @@ mod tests {
             decision,
             RemoteOperationDecision::Conflict {
                 reason: SyncConflictReason::ConcurrentDocumentVersion
+            }
+        );
+    }
+
+    #[test]
+    fn a_downstream_document_save_applies_despite_a_foreign_revision() {
+        let decision = reconcile_remote_operation(
+            &save_document(),
+            &RemoteTargetState {
+                target_exists: true,
+                document_revision_matches: false,
+                remote_supersedes_local: true,
+                ..RemoteTargetState::default()
+            },
+        );
+        assert_eq!(decision, RemoteOperationDecision::Apply);
+    }
+
+    #[test]
+    fn a_concurrent_document_save_conflicts_even_with_a_matching_counter() {
+        let decision = reconcile_remote_operation(
+            &save_document(),
+            &RemoteTargetState {
+                target_exists: true,
+                document_revision_matches: false,
+                remote_supersedes_local: false,
+                ..RemoteTargetState::default()
+            },
+        );
+        assert_eq!(
+            decision,
+            RemoteOperationDecision::Conflict {
+                reason: SyncConflictReason::ConcurrentDocumentVersion
+            }
+        );
+    }
+
+    #[test]
+    fn a_tombstone_outranks_a_downstream_causal_base() {
+        let decision = reconcile_remote_operation(
+            &save_document(),
+            &RemoteTargetState {
+                target_exists: true,
+                target_tombstoned: true,
+                remote_supersedes_local: true,
+                ..RemoteTargetState::default()
+            },
+        );
+        assert_eq!(
+            decision,
+            RemoteOperationDecision::Conflict {
+                reason: SyncConflictReason::TombstoneBlocked
             }
         );
     }

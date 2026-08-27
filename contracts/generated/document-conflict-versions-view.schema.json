@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DocumentConflictVersionsView",
+  "description": "Both preserved versions of one divergence.",
+  "type": "object",
+  "properties": {
+    "conflictId": {
+      "type": "string"
+    },
+    "local": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DocumentConflictVersionView"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "noteId": {
+      "type": "string"
+    },
+    "remote": {
+      "$ref": "#/$defs/DocumentConflictVersionView"
+    }
+  },
+  "required": [
+    "conflictId",
+    "noteId",
+    "remote"
+  ],
+  "$defs": {
+    "DocumentConflictVersionView": {
+      "description": "One complete side of a divergence, as Markdown the review surface renders\nand diffs.",
+      "type": "object",
+      "properties": {
+        "markdown": {
+          "type": "string"
+        },
+        "revision": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "markdown"
+      ]
+    }
+  }
+}

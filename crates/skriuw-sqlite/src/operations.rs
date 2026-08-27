@@ -2007,12 +2007,7 @@ pub(crate) fn enqueue_history(
     Ok(())
 }
 
-pub(crate) fn count_words(markdown: &str) -> i64 {
-    markdown
-        .split_whitespace()
-        .filter(|token| token.chars().any(char::is_alphanumeric))
-        .count() as i64
-}
+pub(crate) use skriuw_domain::count_words;
 
 pub(crate) fn fts_query(input: &str) -> String {
     input

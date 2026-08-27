@@ -261,6 +261,10 @@ pub struct PendingHistoryRevision {
 pub struct HistoryMaterialization {
     pub version_id: String,
     pub summary: String,
+    pub additions: i64,
+    pub deletions: i64,
+    /// Absent for revisions committed before word counts were recorded.
+    pub word_count: Option<i64>,
 }
 
 pub trait HistoryQueue: Send + Sync {
@@ -496,6 +500,17 @@ pub trait SyncRecovery: Send + Sync {
         blocked_id: &str,
         now_ms: i64,
     ) -> Result<(), StorageError>;
+
+    /// List preserved document divergences for the review surface: the ones
+    /// still waiting on a decision, and the ones already settled.
+    fn sync_conflict_review(&self) -> Result<skriuw_domain::SyncConflictReviewView, StorageError>;
+
+    /// Both complete versions of one divergence, loaded only when the user
+    /// opens it.
+    fn sync_conflict_versions(
+        &self,
+        conflict_id: &str,
+    ) -> Result<skriuw_domain::DocumentConflictVersionsView, StorageError>;
 }
 
 /// Local-only, diagnostics-class accounting of AI runs. Nothing here takes
@@ -777,6 +792,17 @@ where
     ) -> Result<(), StorageError> {
         self.as_ref()
             .discard_blocked_sync_operation(blocked_id, now_ms)
+    }
+
+    fn sync_conflict_review(&self) -> Result<skriuw_domain::SyncConflictReviewView, StorageError> {
+        self.as_ref().sync_conflict_review()
+    }
+
+    fn sync_conflict_versions(
+        &self,
+        conflict_id: &str,
+    ) -> Result<skriuw_domain::DocumentConflictVersionsView, StorageError> {
+        self.as_ref().sync_conflict_versions(conflict_id)
     }
 }
 
