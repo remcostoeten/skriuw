@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveAuthConfiguration } from "../../../src/features/auth/config";
 
-test("uses environment-appropriate defaults", () => {
+test("uses production cloud by default in development and release", () => {
   assert.deepEqual(resolveAuthConfiguration(undefined, true), {
     available: true,
-    baseUrl: "http://localhost:8787",
+    baseUrl: "https://skriuw-v2-cloud.remcostoeten.workers.dev",
   });
   assert.deepEqual(resolveAuthConfiguration(undefined, false), {
     available: true,

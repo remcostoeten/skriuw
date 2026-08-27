@@ -48,8 +48,8 @@ pub async fn store_auth_token(token: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn clear_auth_token() -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(clear_auth_token_blocking)
-    .await
-    .map_err(|error| error.to_string())?
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 pub(crate) fn clear_auth_token_blocking() -> Result<(), String> {

@@ -6,7 +6,9 @@ fn parse_openable_link(url: &str) -> Result<Url, String> {
     let parsed = Url::parse(url).map_err(|error| format!("link is not a valid URL: {error}"))?;
     match parsed.scheme() {
         "http" | "https" => Ok(parsed),
-        scheme => Err(format!("only http and https links can open in Skriuw, not {scheme}:")),
+        scheme => Err(format!(
+            "only http and https links can open in Skriuw, not {scheme}:"
+        )),
     }
 }
 
@@ -26,7 +28,9 @@ pub fn open_link_window(url: String, app: AppHandle) -> Result<(), String> {
     let title = link_window_title(&target);
     if let Some(window) = app.get_webview_window(LINK_WINDOW_LABEL) {
         window.navigate(target).map_err(|error| error.to_string())?;
-        window.set_title(&title).map_err(|error| error.to_string())?;
+        window
+            .set_title(&title)
+            .map_err(|error| error.to_string())?;
         window.unminimize().map_err(|error| error.to_string())?;
         window.set_focus().map_err(|error| error.to_string())?;
         return Ok(());

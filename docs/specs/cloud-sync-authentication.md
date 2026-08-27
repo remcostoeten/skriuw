@@ -13,10 +13,10 @@ workspace Durable Object.
 The production identity provider is Better Auth with its email/password and
 bearer plugins. Accounts, credential hashes, sessions, and verification records
 live in the `skriuw-v2-auth` D1 database. The production Worker is
-`https://skriuw-v2-cloud.remcostoeten.workers.dev`; `https://skriuw.com` is the
-trusted web origin for the app mounted at `/app`. v1 authentication is not a
-dependency. Test credentials and the deterministic in-memory membership adapter
-remain test-only behavior.
+`https://skriuw-v2-cloud.remcostoeten.workers.dev`; `https://skriuw.com` and
+`http://localhost:5183` are the trusted browser origins for the deployed app
+and local development. v1 authentication is not a dependency. Test credentials
+and the deterministic in-memory membership adapter remain test-only behavior.
 
 `POST /v1/sync/provision` accepts only a bounded `deviceId`. It derives a stable,
 opaque private workspace ID from the trusted Better Auth subject and atomically
