@@ -2014,6 +2014,13 @@ fn upgrades_legacy_pre_release_database_without_data_loss() {
         )
         .expect("create legacy history item");
     connection
+        .execute(
+            "INSERT INTO history_cache(note_id, commit_id, created_at, summary) \
+                 VALUES ('note-1', 'version-1', 1, 'Legacy revision')",
+            [],
+        )
+        .expect("create legacy history header");
+    connection
         .execute_batch(
             "INSERT INTO app_state(key, value_json) VALUES ('setting:theme', '\"dark\"');\
                  INSERT INTO app_state(key, value_json) VALUES ('setting:custom_flag', 'true');",
@@ -2036,8 +2043,16 @@ fn upgrades_legacy_pre_release_database_without_data_loss() {
             |row| row.get::<_, String>(0),
         )
         .expect("upgraded migration checksum");
+    let legacy_diff_stats = connection
+        .query_row(
+            "SELECT additions, deletions FROM history_cache WHERE note_id = 'note-1'",
+            [],
+            |row| Ok((row.get::<_, Option<i64>>(0)?, row.get::<_, Option<i64>>(1)?)),
+        )
+        .expect("upgraded history diff stats");
 
     assert_eq!(pending, ("note-1".into(), 0));
+    assert_eq!(legacy_diff_stats, (None, None));
     assert_eq!(checksum.len(), 64);
     assert!(
         table_columns(&connection, "history_cache")
@@ -2127,6 +2142,9 @@ fn rolls_back_invalid_history_cache_rebuild() {
             version_id: "version-old".into(),
             created_at: 1,
             summary: "Old".into(),
+            additions: Some(1),
+            deletions: Some(0),
+            word_count: Some(1),
         }])
         .expect("seed history cache");
 
@@ -2137,12 +2155,18 @@ fn rolls_back_invalid_history_cache_rebuild() {
                 version_id: "version-new".into(),
                 created_at: 2,
                 summary: "New".into(),
+                additions: Some(2),
+                deletions: Some(1),
+                word_count: Some(1),
             },
             HistoryHeader {
                 note_id: "note-1".into(),
                 version_id: "version-invalid".into(),
                 created_at: -1,
                 summary: "Invalid".into(),
+                additions: Some(1),
+                deletions: Some(0),
+                word_count: Some(1),
             },
         ])
         .expect_err("invalid cache rebuild");
@@ -2291,12 +2315,18 @@ fn trash_hides_complete_subtree_and_clears_active_note() {
                 version_id: "nested-version".into(),
                 created_at: 3,
                 summary: "Nested".into(),
+                additions: None,
+                deletions: None,
+                word_count: None,
             },
             HistoryHeader {
                 note_id: "note-outside".into(),
                 version_id: "outside-version".into(),
                 created_at: 4,
                 summary: "Outside".into(),
+                additions: None,
+                deletions: None,
+                word_count: None,
             },
         ])
         .expect("seed history cache");
@@ -2495,6 +2525,9 @@ fn purge_removes_subtree_projections_and_history_atomically() {
             version_id: "nested-version".into(),
             created_at: 3,
             summary: "Nested".into(),
+            additions: None,
+            deletions: None,
+            word_count: None,
         }])
         .expect("seed history cache");
     storage
@@ -2542,6 +2575,9 @@ fn purge_enforces_retention_and_rolls_back_with_batch() {
             version_id: "nested-version".into(),
             created_at: 3,
             summary: "Nested".into(),
+            additions: None,
+            deletions: None,
+            word_count: None,
         }])
         .expect("seed history cache");
     storage

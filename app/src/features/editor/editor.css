@@ -1717,6 +1717,15 @@ body.is-dragging-block {
   color: hsl(var(--editor-link));
 }
 
+/* :focus, not :focus-visible — the buttons cancel mousedown so they can only
+   ever be focused from the keyboard. */
+.link-menu button:focus,
+.link-menu button.link-menu-href:focus {
+  outline: none;
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
 .link-menu-href span {
   overflow: hidden;
   text-overflow: ellipsis;

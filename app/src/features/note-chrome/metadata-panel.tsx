@@ -1,8 +1,18 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import { cn } from "@/shared/lib/utils";
-import { SectionToggle } from "@/shared/ui/section-header";
-import { projectVersionList, type VersionListItem } from "@/features/history/version-model";
+import { ChevronDownIcon, ChevronRightIcon } from "@/shared/icons/static";
+import { SectionToggle, sectionLabelClass } from "@/shared/ui/section-header";
+import { Collapse } from "@/shared/ui/collapse";
+import {
+  formatVersionClock,
+  formatVersionTimestamp,
+  groupVersionRows,
+  projectVersionList,
+  type VersionListItem,
+  type VersionRow,
+} from "@/features/history/version-model";
+import { VersionStats } from "@/features/history/version-stats";
 import { noteHistoryHash } from "@/app-route";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { NoteOutline } from "./note-outline";
@@ -41,15 +51,22 @@ function InspectorSection({
   className,
   keepMounted = false,
 }: SectionProps) {
+  const [rendered, setRendered] = useState(open || keepMounted);
+  if ((open || keepMounted) && !rendered) {
+    setRendered(true);
+  }
+
   return (
     <section
       aria-labelledby={id}
       className={cn("group relative border-b border-border/60", className)}
     >
       <SectionToggle id={id} title={title} open={open} onToggle={onToggle} />
-      {open || keepMounted ? (
-        <div className={cn("px-4 pb-2.5 pt-2.5", !open && "hidden")}>{children}</div>
-      ) : null}
+      {rendered && (
+        <Collapse open={open}>
+          <div className="px-4 pb-2.5 pt-2.5">{children}</div>
+        </Collapse>
+      )}
     </section>
   );
 }
@@ -100,7 +117,64 @@ function writeOpenSections(sections: Record<SectionKey, boolean>): void {
 const collapsedRevisionCount = 6;
 
 const quietActionClass =
-  "cursor-pointer bg-transparent p-0 text-[12px] text-muted-foreground/70 transition-colors hover:text-foreground";
+  "inline-flex cursor-pointer items-center gap-1 whitespace-nowrap bg-transparent p-0 text-[11px] text-muted-foreground/70 transition-colors hover:text-foreground";
+
+type RevisionRowsProps = {
+  rows: readonly VersionRow[];
+  label: string;
+  onOpen: (versionId: string) => void;
+  className?: string;
+};
+
+function RevisionRows({ rows, label, onOpen, className }: RevisionRowsProps) {
+  return (
+    <ul aria-label={label} className={cn("m-0 list-none p-0", className)}>
+      {rows.map((row) =>
+        row.kind === "group" ? (
+          <li key={row.key} className={cn(sectionLabelClass, "px-2 pb-1 pt-2.5")}>
+            {row.label}
+          </li>
+        ) : (
+          <li key={row.key}>
+            <button
+              type="button"
+              onClick={() => onOpen(row.item.versionId)}
+              title={formatVersionTimestamp(row.item.createdAt)}
+              className="group/revision flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] bg-transparent px-2 py-1 text-left transition-colors hover:bg-muted"
+            >
+              <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground transition-colors group-hover/revision:text-foreground">
+                {formatVersionClock(row.item.createdAt)}
+              </span>
+              <VersionStats wordDelta={row.item.wordDelta} />
+              <span className="shrink-0 text-[10px] text-muted-foreground/45 opacity-0 transition-opacity group-hover/revision:opacity-100">
+                {formatRelativeTime(row.item.createdAt)}
+              </span>
+            </button>
+          </li>
+        ),
+      )}
+    </ul>
+  );
+}
+
+/**
+ * Index of the row just past the `limit`-th revision, so the list can split
+ * into an always-visible head and a collapsible tail. Day headers stay with the
+ * revisions they introduce and the two halves render flush, so the seam is
+ * invisible once expanded.
+ */
+function findRevisionSplit(rows: readonly VersionRow[], limit: number): number {
+  let seen = 0;
+  for (let index = 0; index < rows.length; index += 1) {
+    if (rows[index]?.kind === "version") {
+      seen += 1;
+      if (seen === limit) {
+        return index + 1;
+      }
+    }
+  }
+  return rows.length;
+}
 
 type RevisionListProps = {
   versions: readonly VersionListItem[];
@@ -110,50 +184,55 @@ type RevisionListProps = {
 function RevisionList({ versions, onOpen }: RevisionListProps) {
   const [expanded, setExpanded] = useState(false);
   const hiddenCount = versions.length - collapsedRevisionCount;
-  const visible = expanded ? versions : versions.slice(0, collapsedRevisionCount);
+  const rows = useMemo(() => groupVersionRows(versions), [versions]);
+  const splitIndex = useMemo(() => findRevisionSplit(rows, collapsedRevisionCount), [rows]);
 
   if (versions.length === 0) {
     return <p className="m-0 text-[13px] text-muted-foreground/70">No revisions yet</p>;
   }
 
+  const tail = rows.slice(splitIndex);
+
   return (
     <div className="space-y-1.5">
-      <ul
-        className={cn(
-          "m-0 list-none space-y-0.5 p-0",
-          expanded && "max-h-64 overflow-y-auto overscroll-contain",
+      <div className="max-h-64 overflow-y-auto overscroll-contain">
+        <RevisionRows
+          rows={rows.slice(0, splitIndex)}
+          label="Revisions"
+          onOpen={onOpen}
+          className="[&>li:first-child]:pt-0"
+        />
+        {tail.length > 0 && (
+          <Collapse open={expanded}>
+            <RevisionRows rows={tail} label="Older revisions" onOpen={onOpen} />
+          </Collapse>
         )}
-      >
-        {visible.map((version) => (
-          <li key={version.versionId}>
-            <button
-              type="button"
-              onClick={() => onOpen(version.versionId)}
-              className="flex w-full cursor-pointer items-baseline justify-between gap-3 rounded-[var(--radius)] bg-transparent px-2 py-1.5 text-left text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <span className="truncate">{version.summary}</span>
-              <span className="shrink-0 tabular-nums text-muted-foreground/60">
-                {formatRelativeTime(version.createdAt)}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      <div className="flex items-center justify-between gap-3 px-2 pt-0.5">
-        {hiddenCount > 0 ? (
+      </div>
+      <div className="flex items-center gap-3 px-2 pt-1">
+        {hiddenCount > 0 && (
           <button
             type="button"
             onClick={() => setExpanded((current) => !current)}
             aria-expanded={expanded}
             className={quietActionClass}
           >
-            {expanded ? "Show less" : `Show ${hiddenCount} more`}
+            <ChevronDownIcon
+              size={10}
+              className={cn(
+                "transition-transform duration-150 motion-reduce:transition-none",
+                expanded && "rotate-180",
+              )}
+            />
+            {expanded ? "Show less" : `${hiddenCount} more`}
           </button>
-        ) : (
-          <span />
         )}
-        <button type="button" onClick={() => onOpen()} className={quietActionClass}>
+        <button
+          type="button"
+          onClick={() => onOpen()}
+          className={cn(quietActionClass, "ml-auto gap-0.5")}
+        >
           Open history
+          <ChevronRightIcon size={11} />
         </button>
       </div>
     </div>

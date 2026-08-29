@@ -115,7 +115,7 @@ function ModelSwitcherBody({ store, openAiSettings }: BodyProps) {
           ollamaStatus: ollama.status,
           ollamaModels: ollama.models,
           remoteProviders: remote.providers,
-          remoteCatalog: remote.catalog,
+          remoteModels: remote.models,
         });
       })
       .catch((reason: unknown) => {

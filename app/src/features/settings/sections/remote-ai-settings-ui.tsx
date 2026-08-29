@@ -1,8 +1,8 @@
 import type { FormEvent } from "react";
 import type {
   CredentialVaultDetection,
-  RemoteAiCatalog,
   RemoteAiKeyTier,
+  RemoteAiModelDirectory,
   RemoteAiProviderState,
 } from "@/contracts/ai";
 import {
@@ -31,7 +31,7 @@ import { emptyDraft, type RemoteProviderDraft } from "./remote-ai-draft";
 
 type PanelProps = {
   providers: RemoteAiProviderState[];
-  catalog: RemoteAiCatalog | null;
+  models: RemoteAiModelDirectory | null;
   vault: CredentialVaultDetection | null;
   drafts: Record<string, RemoteProviderDraft>;
   onDraftChange: (providerId: string, change: Partial<RemoteProviderDraft>) => void;
@@ -40,18 +40,19 @@ type PanelProps = {
   onVerifyKey: (providerId: string) => void;
   onRemoveKey: (providerId: string) => void;
   onRevoke: (providerId: string) => void;
-  onRefreshCatalog: () => void;
+  onRefreshModels: (providerId: string) => void;
 };
 
 type CardProps = Pick<
   PanelProps,
-  | "catalog"
+  | "models"
   | "onDraftChange"
   | "onAcceptDisclosure"
   | "onSaveKey"
   | "onVerifyKey"
   | "onRemoveKey"
   | "onRevoke"
+  | "onRefreshModels"
 > & {
   provider: RemoteAiProviderState;
   draft: RemoteProviderDraft;
@@ -60,7 +61,7 @@ type CardProps = Pick<
 
 export function RemoteProvidersPanel({
   providers,
-  catalog,
+  models,
   vault,
   drafts,
   onDraftChange,
@@ -69,7 +70,7 @@ export function RemoteProvidersPanel({
   onVerifyKey,
   onRemoveKey,
   onRevoke,
-  onRefreshCatalog,
+  onRefreshModels,
 }: PanelProps) {
   const vaultNote = vaultMessage(vault);
   const vaultAvailable = vaultAcceptsNewKeys(vault);
@@ -91,7 +92,7 @@ export function RemoteProvidersPanel({
             key={provider.providerId}
             provider={provider}
             draft={drafts[provider.providerId] ?? emptyDraft()}
-            catalog={catalog}
+            models={models}
             vaultAvailable={vaultAvailable}
             onDraftChange={onDraftChange}
             onAcceptDisclosure={onAcceptDisclosure}
@@ -99,15 +100,11 @@ export function RemoteProvidersPanel({
             onVerifyKey={onVerifyKey}
             onRemoveKey={onRemoveKey}
             onRevoke={onRevoke}
+            onRefreshModels={onRefreshModels}
           />
         ))}
       </div>
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <span className="text-[11px] text-muted-foreground">{catalogPricingNote(catalog)}</span>
-        <button type="button" className={settingsButton} onClick={onRefreshCatalog}>
-          Refresh catalog
-        </button>
-      </div>
+      <p className="mt-3 text-[11px] text-muted-foreground">{catalogPricingNote(models)}</p>
     </div>
   );
 }
@@ -115,7 +112,7 @@ export function RemoteProvidersPanel({
 function RemoteProviderCard({
   provider,
   draft,
-  catalog,
+  models,
   vaultAvailable,
   onDraftChange,
   onAcceptDisclosure,
@@ -123,8 +120,9 @@ function RemoteProviderCard({
   onVerifyKey,
   onRemoveKey,
   onRevoke,
+  onRefreshModels,
 }: CardProps) {
-  const models = remoteAiModelsFor(catalog, provider.providerId);
+  const providerModels = remoteAiModelsFor(models, provider.providerId);
   const consented = remoteAiConsentIsCurrent(provider);
   const ready = remoteAiCanComplete(provider);
 
@@ -219,18 +217,18 @@ function RemoteProviderCard({
             />
           </div>
 
-          {models.length > 0 ? (
+          {providerModels.length > 0 ? (
             <label className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground max-[620px]:flex-col max-[620px]:items-start">
               <span>Test with</span>
               <select
                 className={cn(settingsTextInput, "w-auto min-w-0 max-[620px]:w-full")}
-                value={draft.modelId ?? models[0]?.modelId ?? ""}
+                value={draft.modelId ?? providerModels[0]?.modelId ?? ""}
                 disabled={draft.busy}
                 onChange={(event) =>
                   onDraftChange(provider.providerId, { modelId: event.currentTarget.value })
                 }
               >
-                {models.map((model) => (
+                {providerModels.map((model) => (
                   <option key={model.modelId} value={model.modelId}>
                     {model.label} — {remoteAiModelSummary(model)}
                   </option>
@@ -247,12 +245,22 @@ function RemoteProviderCard({
             <button
               type="button"
               className={settingsButton}
-              disabled={draft.busy || models.length === 0 ||
+              disabled={draft.busy || providerModels.length === 0 ||
                 (!provider.keyTier && draft.key.trim().length === 0)}
               onClick={() => onVerifyKey(provider.providerId)}
             >
               Test key
             </button>
+            {ready && provider.supportsModelListing ? (
+              <button
+                type="button"
+                className={settingsButton}
+                disabled={draft.busy}
+                onClick={() => onRefreshModels(provider.providerId)}
+              >
+                Refresh models
+              </button>
+            ) : null}
             {provider.keyTier ? (
               <button
                 type="button"

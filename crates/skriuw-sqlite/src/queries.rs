@@ -658,7 +658,8 @@ pub(crate) fn read_history_headers(
 ) -> Result<Vec<HistoryHeader>, StorageError> {
     let mut statement = connection
         .prepare_cached(
-            "SELECT history_cache.note_id, version_id, created_at, summary \
+            "SELECT history_cache.note_id, version_id, created_at, summary, additions, deletions, \
+             word_count \
              FROM history_cache \
              WHERE NOT EXISTS (\
                  WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (\
@@ -681,6 +682,9 @@ pub(crate) fn read_history_headers(
                 version_id: row.get(1)?,
                 created_at: row.get(2)?,
                 summary: row.get(3)?,
+                additions: row.get(4)?,
+                deletions: row.get(5)?,
+                word_count: row.get(6)?,
             })
         })
         .map_err(backend)?;

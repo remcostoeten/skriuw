@@ -201,18 +201,14 @@ export function JournalCalendar({
               {hasEntry && (
                 <span
                   aria-hidden="true"
-                  className={`absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${
-                    isSelected ? "bg-foreground/60" : "bg-primary"
-                  }`}
+                  className={`absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${isSelected ? "bg-foreground/60" : "bg-primary"
+                    }`}
                 />
               )}
             </button>
           );
         })}
       </div>
-      <p aria-hidden="true" className="mt-1 text-[9px] leading-tight text-muted-foreground/45">
-        Arrows move by day, shift+arrows jump, Enter opens
-      </p>
     </div>
   );
 }

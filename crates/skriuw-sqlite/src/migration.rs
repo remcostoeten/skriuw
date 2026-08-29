@@ -102,6 +102,21 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "note_annotations",
         sql: include_str!("../migrations/0019_note_annotations.sql"),
     },
+    Migration {
+        version: 20,
+        name: "history_diff_stats",
+        sql: include_str!("../migrations/0020_history_diff_stats.sql"),
+    },
+    Migration {
+        version: 21,
+        name: "sync_document_heads",
+        sql: include_str!("../migrations/0021_sync_document_heads.sql"),
+    },
+    Migration {
+        version: 22,
+        name: "history_word_count",
+        sql: include_str!("../migrations/0022_history_word_count.sql"),
+    },
 ];
 
 pub(crate) struct Migration {
@@ -355,6 +370,18 @@ mod tests {
             (
                 19,
                 "c03e157ab01c7e970ec42663c4c22d1e934e3eb8aaff44368700cda1219f9db2",
+            ),
+            (
+                20,
+                "ed5f96b13b1e02fbfe941bdf886fe89b05e298b459f163229b3352e9c709122c",
+            ),
+            (
+                21,
+                "5e5d566989fd590cbc757ce8aca82a84d1c5a064c5e714a9eac1f06b954fe3a6",
+            ),
+            (
+                22,
+                "12ed51da7e6ca5c725ffd407edc6ba033369005011c1660faf28f7cc68b0ffb5",
             ),
         ];
         assert_eq!(MIGRATIONS.len(), SHIPPED.len(), "append new checksums here");

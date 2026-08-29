@@ -132,6 +132,60 @@ export function discardBlockedSyncOperation(blockedId: string): Promise<SyncReco
   return invoke<SyncRecoveryView>("discard_blocked_sync_operation", { blockedId });
 }
 
+export type DocumentConflict = {
+  conflictId: string;
+  noteId: string;
+  title: string;
+  reasonCode: string;
+  subreason: string | null;
+  createdAt: number;
+  localVersionAvailable: boolean;
+  resolvedChoice: "local" | "remote" | "merged" | "superseded" | null;
+  resolvedAt: number | null;
+};
+
+export type DocumentConflictVersion = {
+  title: string | null;
+  markdown: string;
+  revision: number | null;
+};
+
+export type DocumentConflictVersions = {
+  conflictId: string;
+  noteId: string;
+  remote: DocumentConflictVersion;
+  local: DocumentConflictVersion | null;
+};
+
+export type SyncConflictReview = {
+  viewVersion: number;
+  open: DocumentConflict[];
+  settled: DocumentConflict[];
+};
+
+export type ResolveConflictChoice =
+  | { choice: "keepLocal" }
+  | { choice: "keepRemote" }
+  | { choice: "merged"; documentJson: unknown; markdown: string };
+
+export function listSyncConflicts(): Promise<SyncConflictReview> {
+  return invoke<SyncConflictReview>("list_sync_conflicts");
+}
+
+export function readSyncConflictVersions(conflictId: string): Promise<DocumentConflictVersions> {
+  return invoke<DocumentConflictVersions>("read_sync_conflict_versions", { conflictId });
+}
+
+export function resolveSyncConflict(
+  conflictId: string,
+  choice: ResolveConflictChoice,
+  at: number,
+): Promise<SyncConflictReview> {
+  return invoke<SyncConflictReview>("resolve_sync_conflict", {
+    request: { conflictId, at, ...choice },
+  });
+}
+
 export function searchWorkspace(query: string, limit: number): Promise<SearchHit[]> {
   return invoke<SearchHit[]>("search_workspace", { query, limit });
 }

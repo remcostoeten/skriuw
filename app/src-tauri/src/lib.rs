@@ -1,6 +1,7 @@
 mod ai;
 mod ai_credentials;
 mod ai_history;
+mod ai_models;
 mod auth;
 mod commands;
 mod maintenance;
@@ -59,6 +60,7 @@ pub fn run() {
             )?);
             let ollama = Arc::new(ollama::OllamaManager::new(Arc::clone(&ollama_runtime)));
             let ai_credentials = Arc::new(ai_credentials::AiCredentialStore::new(&app_data_dir));
+            let ai_models = Arc::new(ai_models::FetchedModelStore::new(&app_data_dir));
             let repository_path = history_repository_path(&path);
             let history_reader = Arc::new(
                 GitHistoryMaterializer::open(&repository_path)
@@ -120,8 +122,10 @@ pub fn run() {
                     ollama_runtime,
                     Arc::clone(&ai_credentials),
                     Arc::new(ai_history::AiHistoryRecorder::new(&path, now_millis)),
+                    Arc::clone(&ai_models),
                 ),
                 ai_credentials,
+                ai_models,
                 ollama,
                 maintenance,
                 rotation,
@@ -157,6 +161,8 @@ pub fn run() {
             commands::ai::remote_ai_providers,
             commands::ai::credential_vault_state,
             commands::ai::remote_ai_catalogue,
+            commands::ai::remote_ai_models,
+            commands::ai::refresh_remote_ai_models,
             commands::ai::save_remote_ai_key,
             commands::ai::remove_remote_ai_key,
             commands::ai::accept_remote_ai_disclosure,
@@ -214,7 +220,10 @@ pub fn run() {
             commands::sync::refresh_workspace_sync,
             commands::sync::list_blocked_sync_operations,
             commands::sync::retry_blocked_sync_operation,
-            commands::sync::discard_blocked_sync_operation
+            commands::sync::discard_blocked_sync_operation,
+            commands::sync::list_sync_conflicts,
+            commands::sync::read_sync_conflict_versions,
+            commands::sync::resolve_sync_conflict
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Focused(true) = event

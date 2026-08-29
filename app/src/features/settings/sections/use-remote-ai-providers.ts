@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import type {
   CredentialVaultDetection,
-  RemoteAiCatalog,
+  RemoteAiModelDirectory,
   RemoteAiProviderState,
 } from "@/contracts/ai";
 import {
   acceptRemoteAiDisclosure,
   loadRemoteAiSnapshot,
-  remoteAiCatalog,
+  refreshRemoteAiModels,
   removeRemoteAiKey,
   revokeRemoteAiProvider,
   saveRemoteAiKey,
@@ -23,7 +23,7 @@ import { emptyDraft, type RemoteProviderDraft } from "./remote-ai-draft";
 
 export type RemoteAiProviders = {
   providers: RemoteAiProviderState[];
-  catalog: RemoteAiCatalog | null;
+  models: RemoteAiModelDirectory | null;
   vault: CredentialVaultDetection | null;
   drafts: Record<string, RemoteProviderDraft>;
   error: string | null;
@@ -33,7 +33,7 @@ export type RemoteAiProviders = {
   verifyKey: (providerId: string) => void;
   removeKey: (providerId: string) => void;
   revoke: (providerId: string) => void;
-  refreshCatalog: () => void;
+  refreshModels: (providerId: string) => void;
 };
 
 /**
@@ -43,7 +43,7 @@ export type RemoteAiProviders = {
  */
 export function useRemoteAiProviders(signal: AbortSignal): RemoteAiProviders {
   const [providers, setProviders] = useState<RemoteAiProviderState[]>([]);
-  const [catalog, setCatalog] = useState<RemoteAiCatalog | null>(null);
+  const [models, setModels] = useState<RemoteAiModelDirectory | null>(null);
   const [vault, setVault] = useState<CredentialVaultDetection | null>(null);
   const [drafts, setDrafts] = useState<Record<string, RemoteProviderDraft>>({});
   const [error, setError] = useState<string | null>(null);
@@ -54,9 +54,9 @@ export function useRemoteAiProviders(signal: AbortSignal): RemoteAiProviders {
       (snapshot) => {
         if (!active || signal.aborted) return;
         setVault(snapshot.vault);
-        setCatalog(snapshot.catalog);
+        setModels(snapshot.models);
         setProviders(snapshot.providers);
-        setDrafts(seedDrafts(snapshot.providers, snapshot.catalog, snapshot.vault));
+        setDrafts(seedDrafts(snapshot.providers, snapshot.models, snapshot.vault));
       },
       (reason: unknown) => {
         if (active && !signal.aborted) setError(remoteAiErrorMessage(reason));
@@ -111,7 +111,7 @@ export function useRemoteAiProviders(signal: AbortSignal): RemoteAiProviders {
     const draft = drafts[providerId];
     const modelId = availableRemoteModel(
       draft?.modelId ?? null,
-      remoteAiModelsFor(catalog, providerId),
+      remoteAiModelsFor(models, providerId),
     );
     if (!modelId) return;
     void run(
@@ -140,20 +140,28 @@ export function useRemoteAiProviders(signal: AbortSignal): RemoteAiProviders {
     );
   }
 
-  function refreshCatalog(): void {
-    void remoteAiCatalog().then(
-      (next) => {
-        if (!signal.aborted) setCatalog(next);
-      },
-      (reason: unknown) => {
-        if (!signal.aborted) setError(remoteAiErrorMessage(reason));
-      },
-    );
+  async function refreshModels(providerId: string): Promise<void> {
+    changeDraft(providerId, { busy: true, error: null, status: null });
+    try {
+      const next = await refreshRemoteAiModels(providerId);
+      if (signal.aborted) return;
+      setModels(next);
+      const fetched = next.models.filter(
+        (model) => model.providerId === providerId && model.source === "fetched",
+      ).length;
+      changeDraft(providerId, {
+        busy: false,
+        status: `The provider listed ${fetched} model${fetched === 1 ? "" : "s"} beyond the catalog.`,
+      });
+    } catch (reason) {
+      if (signal.aborted) return;
+      changeDraft(providerId, { busy: false, error: remoteAiErrorMessage(reason) });
+    }
   }
 
   return {
     providers,
-    catalog,
+    models,
     vault,
     drafts,
     error,
@@ -169,13 +177,13 @@ export function useRemoteAiProviders(signal: AbortSignal): RemoteAiProviders {
         () => revokeRemoteAiProvider(providerId),
         "Consent withdrawn and the key deleted.",
       ),
-    refreshCatalog,
+    refreshModels: (providerId) => void refreshModels(providerId),
   };
 }
 
 function seedDrafts(
   providers: readonly RemoteAiProviderState[],
-  catalog: RemoteAiCatalog | null,
+  models: RemoteAiModelDirectory | null,
   vault: CredentialVaultDetection | null,
 ): Record<string, RemoteProviderDraft> {
   const tier = vaultAcceptsNewKeys(vault) ? "vault" : "session-only";
@@ -185,7 +193,7 @@ function seedDrafts(
       {
         ...emptyDraft(),
         tier,
-        modelId: availableRemoteModel(null, remoteAiModelsFor(catalog, provider.providerId)),
+        modelId: availableRemoteModel(null, remoteAiModelsFor(models, provider.providerId)),
       },
     ]),
   );

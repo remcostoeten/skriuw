@@ -69,8 +69,10 @@ with shared state in `state.rs` and one command module per capability under
 
 ## Web deployment
 
-The repository-root Vercel project serves an indexable static product page at
-`https://skriuw.com/` and the browser build at `https://skriuw.com/app/`.
+The repository-root Vercel project serves indexable static product pages at
+`https://skriuw.com/`, `/download/`, `/local-first-notes/`,
+`/markdown-notes/`, and `/import/`, plus the browser build at
+`https://skriuw.com/app/`.
 Its build runs `scripts/vercel-build.sh`, which compiles the pinned Rust core
 to WASM, builds the renderer with the `/app/` asset base, and stages the site,
 crawl metadata, and application as one static deployment artifact. The
@@ -84,17 +86,25 @@ MIME type, browser bootstrap, OPFS initialization, and browser console.
 ## Cloud development
 
 The sync service is a Cloudflare Worker in `cloud/`; see
-[cloud/README.md](../cloud/README.md) for deployment. Apply its D1 migrations
-and create `.dev.vars` from `.dev.vars.example`, then start it locally —
-debug desktop builds use `http://localhost:8787`, release builds use the
-production Worker. Set `VITE_SKRIUW_CLOUD_URL` to override at build time.
+[cloud/README.md](../cloud/README.md) for deployment. Development and release
+builds both use the production Worker by default. To develop against a local
+Worker instead, apply its D1 migrations, create `.dev.vars` from
+`.dev.vars.example`, and opt in when starting Tauri:
+
+```bash
+SKRIUW_DEV_CLOUD=local bun run tauri dev
+```
+
+`SKRIUW_DEV_CLOUD=cloud` selects the default explicitly. The development
+script passes the selected URL to both the renderer and native sync transport
+and only starts Wrangler for `local`. Set `SKRIUW_CLOUD_URL` for a custom
+preview Worker; the development script forwards that URL to Vite as well.
 
 The Worker only answers origins in `AUTH_TRUSTED_ORIGINS` (403 otherwise).
-Production trusts `https://skriuw.com` and the Tauri origins — never widen
-that list to make a test pass. For end-to-end runs against real
-infrastructure use the `preview` environment, which has its own D1/R2/Durable
-Object storage and is the only deployment trusting the
-`http://localhost:5183` dev origin:
+Production trusts `https://skriuw.com`, the Tauri origins, and the fixed
+`http://localhost:5183` development origin. For end-to-end runs against
+isolated real infrastructure use the `preview` environment, which has its own
+D1/R2/Durable Object storage:
 
 ```bash
 bun --cwd cloud run check

@@ -28,8 +28,7 @@ const VAULT_SERVICE: &str = "dev.skriuw.app";
 const CONSENT_FILE: &str = "ai-consent.json";
 const CONSENT_DOCUMENT_VERSION: u32 = 1;
 
-pub(crate) const REMOTE_PROVIDERS: [RemoteProviderKind; 2] =
-    [RemoteProviderKind::Gemini, RemoteProviderKind::Groq];
+pub(crate) const REMOTE_PROVIDERS: [RemoteProviderKind; 7] = RemoteProviderKind::ALL;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -82,6 +81,7 @@ impl AiCredentialStore {
                 key_tier: self.key_tier(kind.id()),
                 accepted_disclosure_version: accepted.get(kind.id()).copied(),
                 current_disclosure_version: REMOTE_AI_DISCLOSURE_VERSION,
+                supports_model_listing: kind.supports_model_listing(),
             })
             .collect()
     }
@@ -430,12 +430,12 @@ mod tests {
     }
 
     #[test]
-    fn reports_both_providers_without_a_key_or_consent_by_default() {
+    fn reports_every_provider_without_a_key_or_consent_by_default() {
         let (store, _directory) = store();
 
         let states = store.provider_states();
 
-        assert_eq!(states.len(), 2);
+        assert_eq!(states.len(), RemoteProviderKind::ALL.len());
         for state in &states {
             assert_eq!(state.accepted_disclosure_version, None);
             assert!(!state.consent_is_current());
@@ -445,8 +445,20 @@ mod tests {
                 REMOTE_AI_DISCLOSURE_VERSION
             );
         }
-        assert!(states.iter().any(|state| state.provider_id == "gemini"));
-        assert!(states.iter().any(|state| state.provider_id == "groq"));
+        for provider_id in [
+            "gemini",
+            "groq",
+            "deepseek",
+            "moonshot",
+            "zai",
+            "dashscope",
+            "aimlapi",
+        ] {
+            assert!(
+                states.iter().any(|state| state.provider_id == provider_id),
+                "missing provider state for {provider_id}"
+            );
+        }
     }
 
     #[test]

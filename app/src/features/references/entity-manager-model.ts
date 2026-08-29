@@ -92,6 +92,35 @@ export function projectEntities(state: RendererState, kind: EntityKind): EntityR
   return rows;
 }
 
+export type EntitySummary = {
+  total: number;
+  referenced: number;
+  unused: number;
+  references: number;
+  busiest: number;
+};
+
+/**
+ * The shape of the whole collection, used by the header strip so the page can
+ * say how much is here before the reader scans a single row. `busiest` scales
+ * the per-row usage bars.
+ */
+export function summarizeEntities(rows: readonly EntityRow[]): EntitySummary {
+  let referenced = 0;
+  let references = 0;
+  let busiest = 0;
+  for (const row of rows) {
+    references += row.noteCount;
+    if (row.noteCount > 0) {
+      referenced += 1;
+    }
+    if (row.noteCount > busiest) {
+      busiest = row.noteCount;
+    }
+  }
+  return { total: rows.length, referenced, unused: rows.length - referenced, references, busiest };
+}
+
 export function entityRowsEqual(
   left: readonly EntityRow[],
   right: readonly EntityRow[],

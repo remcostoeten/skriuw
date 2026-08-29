@@ -5,7 +5,7 @@ import { taskCheckItemAttrs } from "@/features/editor/task-promotion";
 import { productSchema, serializeProductMarkdown } from "@/features/editor/schema";
 import type { AiPlanItem } from "./action-plan";
 import type { AiActionScope } from "./editor-actions";
-import type { AiActionTarget } from "./editor-action-model";
+import { applyRefusal, type AiActionTarget } from "./editor-action-model";
 
 const NO_IMAGES: ReadonlySet<string> = new Set();
 
@@ -58,6 +58,20 @@ export function currentInputText(
   }
   const from = scope === "caret" ? 0 : target.from;
   return state.doc.textBetween(from, target.to, "\n\n", "\n");
+}
+
+/**
+ * Why a result may not touch this editor state, or null when it may. Every
+ * surface that offers a result asks the same question in the same place, so a
+ * run that outlived its range is refused identically wherever it was reviewed.
+ */
+export function liveEditorRefusal(
+  state: EditorState,
+  target: AiActionTarget,
+  scope: AiActionScope,
+  currentNoteId: string | null,
+): string | null {
+  return applyRefusal(target, currentNoteId, currentInputText(state, target, scope));
 }
 
 function resultSlice(state: EditorState, text: string): Slice {

@@ -165,8 +165,10 @@ import {
   closedLinkMenu,
   LinkMenu,
   linkAtCursor,
+  linkAtPos,
   linkInRange,
   linkMenuAnchor,
+  type LinkMenuSource,
 } from "./link-menu";
 import {
   documentEdgeSelection,
@@ -209,6 +211,7 @@ function selectAnnotations(state: RendererState) {
 
 const SAVE_DEBOUNCE_MS = 500;
 const ANNOTATION_HOVER_CLOSE_MS = 160;
+const LINK_HOVER_CLOSE_MS = 200;
 const VIRTUAL_BLOCK_HEIGHT = 32;
 const WINDOW_SHIFT = Math.floor(BOUNDED_BLOCK_LIMIT / 2);
 const EASE_IN_OUT = [0.77, 0, 0.175, 1] as [number, number, number, number];
@@ -478,6 +481,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const [linkMenu, setLinkMenu] = useState(closedLinkMenu);
   const linkMenuRef = useRef(linkMenu);
   linkMenuRef.current = linkMenu;
+  const linkMenuHostRef = useRef<HTMLDivElement>(null);
+  const linkHoverCloseTimerRef = useRef<number | null>(null);
   const [annotationMenu, setAnnotationMenu] = useState(closedAnnotationMenu);
   const annotationMenuRef = useRef(annotationMenu);
   annotationMenuRef.current = annotationMenu;
@@ -792,15 +797,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     if (!linkMenuRef.current.editing) {
       const cursorLink = linkAtCursor(next);
       if (cursorLink) {
-        setLinkMenu({
-          open: true,
-          editing: false,
-          href: cursorLink.href,
-          from: cursorLink.from,
-          to: cursorLink.to,
-          ...linkMenuAnchor(view, cursorLink.from, cursorLink.to),
-        });
-      } else if (linkMenuRef.current.open) {
+        cancelLinkHoverClose();
+        showLinkMenu(view, cursorLink, "caret");
+      } else if (linkMenuRef.current.open && linkMenuRef.current.source !== "hover") {
         setLinkMenu(closedLinkMenu);
       }
     }
@@ -943,9 +942,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const range = linkEditorRange();
     if (!view || !range) return;
     setBubbleMenu(closedBubbleMenu);
+    cancelLinkHoverClose();
     setLinkMenu({
       open: true,
       editing: true,
+      source: "caret",
       href: range.href,
       from: range.from,
       to: range.to,
@@ -977,6 +978,50 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     if (annotationHoverCloseTimerRef.current === null) return;
     window.clearTimeout(annotationHoverCloseTimerRef.current);
     annotationHoverCloseTimerRef.current = null;
+  }
+
+  function showLinkMenu(
+    view: EditorView,
+    range: { href: string; from: number; to: number },
+    source: LinkMenuSource,
+  ): void {
+    setLinkMenu({
+      open: true,
+      editing: false,
+      source,
+      href: range.href,
+      from: range.from,
+      to: range.to,
+      ...linkMenuAnchor(view, range.from, range.to),
+    });
+  }
+
+  function cancelLinkHoverClose(): void {
+    if (linkHoverCloseTimerRef.current === null) return;
+    window.clearTimeout(linkHoverCloseTimerRef.current);
+    linkHoverCloseTimerRef.current = null;
+  }
+
+  /**
+   * A hovered menu outlives the pointer briefly so the trip from the link to
+   * the menu does not close it, and hands back to the link the caret sits in
+   * rather than closing over it.
+   */
+  function scheduleLinkHoverClose(): void {
+    cancelLinkHoverClose();
+    linkHoverCloseTimerRef.current = window.setTimeout(() => {
+      linkHoverCloseTimerRef.current = null;
+      const menu = linkMenuRef.current;
+      if (!menu.open || menu.editing || menu.source !== "hover") return;
+      if (linkMenuHostRef.current?.contains(document.activeElement)) return;
+      const view = viewRef.current;
+      const caretLink = view ? linkAtCursor(view.state) : null;
+      if (view && caretLink) {
+        showLinkMenu(view, caretLink, "caret");
+      } else {
+        setLinkMenu(closedLinkMenu);
+      }
+    }, LINK_HOVER_CLOSE_MS);
   }
 
   function showAnnotationThread(
@@ -1535,8 +1580,13 @@ const closeJumpToLine = useCallback(() => {
         ) {
           const selection = readSelection(currentView.state, bounded.windowStart());
           const atEnd =
-            event.key === "ArrowDown" && selection.blockIndex >= bounded.windowEnd() - 1;
-          const atStart = event.key === "ArrowUp" && selection.blockIndex <= bounded.windowStart();
+            event.key === "ArrowDown" &&
+            bounded.windowEnd() < bounded.blockCount() &&
+            selection.blockIndex >= bounded.windowEnd() - 1;
+          const atStart =
+            event.key === "ArrowUp" &&
+            bounded.windowStart() > 0 &&
+            selection.blockIndex <= bounded.windowStart();
           if (atEnd || atStart) {
             moveBoundedWindow(
               entry,
@@ -1558,6 +1608,22 @@ const closeJumpToLine = useCallback(() => {
           if (input instanceof HTMLTextAreaElement) {
             event.preventDefault();
             input.focus();
+            return true;
+          }
+        }
+        if (
+          !mod &&
+          !event.shiftKey &&
+          event.key === "Tab" &&
+          linkMenuRef.current.open &&
+          !linkMenuRef.current.editing &&
+          !slashMenuRef.current.open
+        ) {
+          const first = linkMenuHostRef.current?.querySelector("button");
+          if (first instanceof HTMLButtonElement) {
+            event.preventDefault();
+            cancelLinkHoverClose();
+            first.focus();
             return true;
           }
         }
@@ -1689,6 +1755,30 @@ const closeJumpToLine = useCallback(() => {
       if (next instanceof Node && annotationMenuHostRef.current?.contains(next)) return;
       scheduleAnnotationHoverClose();
     };
+    const handleLinkMouseOver = (event: MouseEvent) => {
+      if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest<HTMLElement>("a[href]");
+      if (!anchor || !view.dom.contains(anchor)) return;
+      if (linkMenuRef.current.editing || annotationMenuRef.current.open) return;
+      const range = linkAtPos(view.state, view.posAtDOM(anchor, 0));
+      if (!range) return;
+      cancelLinkHoverClose();
+      const menu = linkMenuRef.current;
+      if (menu.open && menu.from === range.from && menu.to === range.to) return;
+      showLinkMenu(view, range, "hover");
+    };
+    const handleLinkMouseOut = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest<HTMLElement>("a[href]");
+      if (!anchor || !view.dom.contains(anchor)) return;
+      const next = event.relatedTarget;
+      if (next instanceof Node && anchor.contains(next)) return;
+      if (next instanceof Node && linkMenuHostRef.current?.contains(next)) return;
+      scheduleLinkHoverClose();
+    };
     const handleBlur = (event: FocusEvent) => {
       const focused = event.relatedTarget;
       const intoBubbleMenu =
@@ -1731,6 +1821,8 @@ const closeJumpToLine = useCallback(() => {
     view.dom.addEventListener("compositionend", handleCompositionEnd);
     view.dom.addEventListener("mouseover", handleAnnotationMouseOver);
     view.dom.addEventListener("mouseout", handleAnnotationMouseOut);
+    view.dom.addEventListener("mouseover", handleLinkMouseOver);
+    view.dom.addEventListener("mouseout", handleLinkMouseOut);
     view.dom.addEventListener("blur", handleBlur);
     view.dom.addEventListener("copy", handleCopy);
     view.dom.addEventListener("contextmenu", handleContextMenu);
@@ -1743,10 +1835,13 @@ const closeJumpToLine = useCallback(() => {
       view.dom.removeEventListener("compositionend", handleCompositionEnd);
       view.dom.removeEventListener("mouseover", handleAnnotationMouseOver);
       view.dom.removeEventListener("mouseout", handleAnnotationMouseOut);
+      view.dom.removeEventListener("mouseover", handleLinkMouseOver);
+      view.dom.removeEventListener("mouseout", handleLinkMouseOut);
       view.dom.removeEventListener("blur", handleBlur);
       view.dom.removeEventListener("copy", handleCopy);
       view.dom.removeEventListener("contextmenu", handleContextMenu);
       cancelAnnotationHoverClose();
+      cancelLinkHoverClose();
       dragHandleRef.current = null;
       dragHandle.destroy();
       viewRef.current = null;
@@ -2128,8 +2223,17 @@ const closeJumpToLine = useCallback(() => {
         defaultTarget={defaultLinkTarget(settingsDocument)}
         openShortcut={linkHints.openLink}
         onOpen={openLink}
-        onClose={() => setLinkMenu(closedLinkMenu)}
-        onEdit={() => setLinkMenu((previous) => ({ ...previous, editing: true }))}
+        onClose={() => {
+          cancelLinkHoverClose();
+          setLinkMenu(closedLinkMenu);
+        }}
+        onEdit={() => {
+          cancelLinkHoverClose();
+          setLinkMenu((previous) => ({ ...previous, editing: true }));
+        }}
+        onHoverStart={cancelLinkHoverClose}
+        onHoverEnd={scheduleLinkHoverClose}
+        containerRef={linkMenuHostRef}
       />
       {slashMenu.open && slashItems.length > 0 && (
         <div

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#eef0f3" />
+    <meta
+      name="description"
+      content="Write Markdown notes in a rich editor or edit the raw source. Skriuw supports tables, code, checklists, wikilinks, tags, and portable export."
+    />
+    <link rel="canonical" href="https://skriuw.com/markdown-notes/" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/app-icon.png" />
+    <link rel="stylesheet" href="/styles.css" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Skriuw" />
+    <meta property="og:title" content="Markdown notes without living in source mode" />
+    <meta
+      property="og:description"
+      content="Use a real rich-text editor, switch to raw Markdown when needed, and keep portable source underneath."
+    />
+    <meta property="og:url" content="https://skriuw.com/markdown-notes/" />
+    <meta property="og:image" content="https://skriuw.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Markdown notes in Skriuw" />
+    <meta
+      name="twitter:description"
+      content="Rich text and raw Markdown, with portable wikilinks, tables, code, tasks, and exports."
+    />
+    <meta name="twitter:image" content="https://skriuw.com/og-image.png" />
+    <title>Markdown Notes App with Rich and Raw Editing — Skriuw</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "Markdown notes in Skriuw",
+        "url": "https://skriuw.com/markdown-notes/",
+        "description": "Rich and raw Markdown writing, linking, and export in Skriuw.",
+        "isPartOf": { "@id": "https://skriuw.com/#website" },
+        "about": { "@type": "SoftwareApplication", "name": "Skriuw" }
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="Skriuw home">
+        <img src="/app-icon.png" alt="" width="38" height="38" />
+        <span>Skriuw</span>
+      </a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="/local-first-notes/">Local-first</a>
+        <a href="/markdown-notes/" aria-current="page">Markdown</a>
+        <a href="/import/">Import</a>
+        <a href="/download/">Download</a>
+        <a href="https://github.com/remcostoeten/skriuw">GitHub</a>
+        <a class="nav-action" href="/app/">Try in browser</a>
+      </nav>
+    </header>
+
+    <main id="main" class="route-main">
+      <section class="route-hero" aria-labelledby="markdown-title">
+        <aside class="route-index" aria-label="Page context">
+          <p class="folio">03 / Markdown</p>
+          <p>Readable source<br />Structured editor<br />Portable archive</p>
+        </aside>
+        <div class="route-hero-copy">
+          <p class="route-kicker">Rich when writing · raw when precision matters</p>
+          <h1 id="markdown-title">Markdown when you want it. A real editor when you don't.</h1>
+          <p class="route-deck">
+            Type headings, lists, code, and links naturally. Drop into the source when exact
+            syntax matters. Both views edit the same note.
+          </p>
+          <div class="hero-actions route-actions">
+            <a class="button button-primary" href="/app/">Try the Markdown editor</a>
+            <a class="button button-secondary" href="/import/">Bring existing Markdown</a>
+          </div>
+        </div>
+        <div class="route-signal" aria-hidden="true"></div>
+      </section>
+
+      <section class="content-section" aria-labelledby="two-views-title">
+        <p class="section-label">One note, two views</p>
+        <div class="section-body">
+          <h2 class="content-heading" id="two-views-title">The source stays close without sitting between you and every sentence.</h2>
+          <p class="section-intro">
+            Markdown input rules turn familiar punctuation into structure as you type. Raw mode
+            exposes the underlying text with line numbers, position, counts, and synchronized scrolling.
+          </p>
+
+          <div class="markdown-sheet">
+            <div class="markdown-source">
+              <p class="fact-label">Raw Markdown</p>
+              <pre># Field notes
+
+Folders decide where a note lives.
+Links decide what it is about.
+
+## Keep the useful parts
+
+- Link to [[Reading list]]
+- Tag the idea with #reference
+- [ ] Revisit the source
+
+```rust
+let notes = local_first();
+```</pre>
+            </div>
+            <div class="markdown-result">
+              <p class="fact-label">Structured editor</p>
+              <h3>Field notes</h3>
+              <p>Folders decide where a note lives. Links decide what it is about.</p>
+              <h3>Keep the useful parts</h3>
+              <ul>
+                <li>Link to <code>[[Reading list]]</code></li>
+                <li>Tag the idea with <code>#reference</code></li>
+                <li>Revisit the source</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-section" aria-labelledby="writing-tools-title">
+        <p class="section-label">Writing surface</p>
+        <div class="section-body">
+          <h2 class="content-heading" id="writing-tools-title">Enough structure for serious notes. No schema ceremony before the first line.</h2>
+          <div class="ledger">
+            <article class="ledger-row">
+              <h3>Blocks and marks</h3>
+              <p>Six heading levels, quotes, tables, fenced code, bullets, numbered and collapsible lists, checklists, alignment, underline, and restrained highlights.</p>
+            </article>
+            <article class="ledger-row">
+              <h3>Paste</h3>
+              <p>Paste Markdown and it arrives rendered. Paste rich HTML and it keeps useful formatting. Raw mode leaves source untouched.</p>
+            </article>
+            <article class="ledger-row">
+              <h3>Links and references</h3>
+              <p>Wikilinks export as <code>[[title]]</code>. Tags, people, backlinks, and note relationships stay connected by stable identity inside the workspace.</p>
+            </article>
+            <article class="ledger-row">
+              <h3>Large notes</h3>
+              <p>A bounded editor window keeps thousands of blocks responsive while search, copy, undo, and accessibility still cover the complete document.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-section" aria-labelledby="portable-markdown-title">
+        <p class="section-label">Portability</p>
+        <div class="section-body">
+          <h2 class="content-heading" id="portable-markdown-title">Unsupported does not mean discarded.</h2>
+          <p class="section-intro">
+            When Skriuw cannot represent Markdown safely in the structured editor, it preserves
+            the exact source in raw mode. Frontmatter and footnotes remain source text until they
+            have a lossless structured representation.
+          </p>
+          <div class="fact-grid">
+            <article class="fact">
+              <p class="fact-label">Export</p>
+              <strong>Readable files and folders</strong>
+              <p>Export one note or the full workspace with images kept beside the Markdown.</p>
+            </article>
+            <article class="fact">
+              <p class="fact-label">Links</p>
+              <strong>Labels follow renames</strong>
+              <p>Stable identities keep internal links intact; exported labels refresh when titles change.</p>
+            </article>
+            <article class="fact">
+              <p class="fact-label">Source</p>
+              <strong>Ambiguity stays visible</strong>
+              <p>Unresolved links and syntax remain source text instead of becoming a guessed conversion.</p>
+            </article>
+          </div>
+          <div class="product-frame">
+            <div class="product-caption"><span>Skriuw / Writing</span><span>rich text ↔ raw Markdown</span></div>
+            <img src="/demo.gif" width="1280" height="800" alt="Skriuw editing a note with Markdown shortcuts, tags, wikilinks, raw source, and keyboard navigation" />
+          </div>
+        </div>
+      </section>
+
+      <section class="route-cta" aria-labelledby="markdown-cta-title">
+        <div>
+          <h2 id="markdown-cta-title">Write the note first. Inspect the syntax when it earns your attention.</h2>
+          <p>The full editor runs locally in your browser, with no account required.</p>
+        </div>
+        <div class="hero-actions">
+          <a class="button button-primary" href="/app/">Open the editor</a>
+          <a class="button button-secondary" href="/download/">Install for desktop</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <a class="wordmark footer-wordmark" href="/">
+        <img src="/app-icon.png" alt="" width="30" height="30" />
+        <span>Skriuw</span>
+      </a>
+      <p>Fast, private writing for macOS, Windows, Linux, and the web.</p>
+      <div class="footer-links">
+        <a href="/local-first-notes/">Local-first</a>
+        <a href="/import/">Import</a>
+        <a href="https://docs.skriuw.com/v2">Documentation</a>
+        <a href="https://github.com/remcostoeten/skriuw">Source</a>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -12,7 +12,7 @@ use skriuw_sync::{
 };
 use support::{
     FakeAssetStore, FakeClock, FakeServer, FakeTransport, PullFault, PushFault, attach_image,
-    create_note, rename_node, save_document, save_large_document,
+    create_folder, create_note, move_into, rename_node, save_document, save_large_document,
 };
 
 const WORKSPACE: &str = "workspace-1";
@@ -115,6 +115,49 @@ impl Device {
             .collect::<Vec<_>>();
         titles.sort();
         titles
+    }
+
+    fn markdown(&self, note_id: &str) -> String {
+        self.storage
+            .bootstrap()
+            .expect("bootstrap")
+            .documents
+            .iter()
+            .find(|document| document.note_id == note_id)
+            .expect("document present")
+            .markdown
+            .clone()
+    }
+
+    /// Every replicated fact the two devices are expected to agree on. Node
+    /// ranks are excluded on purpose: placements are anchor-based, so sibling
+    /// order converges while the absolute numbers are recomputed per device.
+    fn replicated_shape(&self) -> String {
+        let bootstrap = self.storage.bootstrap().expect("bootstrap");
+        let mut lines = bootstrap
+            .nodes
+            .iter()
+            .map(|node| {
+                format!(
+                    "node {} kind={:?} parent={:?} title={} pinned={:?} deleted={:?}",
+                    node.id, node.kind, node.parent_id, node.title, node.pinned_at, node.deleted_at
+                )
+            })
+            .chain(bootstrap.documents.iter().map(|document| {
+                format!(
+                    "doc {} words={} markdown={}",
+                    document.note_id, document.word_count, document.markdown
+                )
+            }))
+            .chain(
+                bootstrap
+                    .tags
+                    .iter()
+                    .map(|tag| format!("tag {} {} {:?}", tag.id, tag.name, tag.color)),
+            )
+            .collect::<Vec<_>>();
+        lines.sort();
+        lines.join("\n")
     }
 }
 
@@ -512,6 +555,264 @@ fn two_databases_exchange_operations_after_offline_edits_and_restart() {
             .sync_conflicts()
             .expect("conflicts")
             .is_empty()
+    );
+}
+
+/// The local-first onboarding order: write locally, sign in second, add a
+/// device third. Nothing concurrent happens, so nothing may be preserved as a
+/// conflict — the devices simply agree. Documents seeded from an existing
+/// workspace arrive as `CreateNote`, which restarts the receiving device's
+/// revision counter, so this converges only while merge decisions ignore that
+/// counter.
+#[test]
+fn a_workspace_written_before_the_first_sign_in_converges_on_a_second_device() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let mut device_a = Device::with_storage(
+        SqliteWorkspace::open(directory.path().join("device-a.db")).expect("open device a"),
+        &server,
+        "device-a",
+        &clock,
+    );
+    device_a.apply(vec![create_folder("folder-1", "Projects", 1)]);
+    device_a.apply(vec![create_note("note-1", "First", 1)]);
+    device_a.apply(vec![create_note("note-2", "Second", 1)]);
+    device_a.apply(vec![move_into("note-1", "folder-1", 2)]);
+    device_a.apply(vec![save_document("note-1", 1, "First body", 3)]);
+    device_a.apply(vec![save_document("note-2", 1, "Second body", 3)]);
+    device_a.apply(vec![save_document("note-1", 2, "First body revised", 4)]);
+
+    device_a.connect("device-a");
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+
+    let mut device_b = Device::with_storage(
+        SqliteWorkspace::open(directory.path().join("device-b.db")).expect("open device b"),
+        &server,
+        "device-b",
+        &clock,
+    );
+    device_b.connect("device-b");
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_a.replicated_shape(), device_b.replicated_shape());
+
+    // The first edit after the join is the one the revision counter used to
+    // reject, and every edit after it compounded the divergence.
+    device_a.apply(vec![save_document("note-1", 3, "Edited on device A", 5)]);
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+    device_a.apply(vec![save_document(
+        "note-1",
+        4,
+        "Edited again on device A",
+        6,
+    )]);
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+
+    assert_eq!(device_b.markdown("note-1"), "Edited again on device A");
+    assert_eq!(device_a.replicated_shape(), device_b.replicated_shape());
+    for device in [&device_a, &device_b] {
+        assert!(
+            device
+                .storage
+                .sync_conflicts()
+                .expect("conflicts")
+                .is_empty(),
+            "sequential editing must not preserve a conflict"
+        );
+    }
+}
+
+/// The reverse direction of the same path: the device that joined second is
+/// the one editing, so the origin device has to accept a write whose revision
+/// number it never issued.
+#[test]
+fn the_joining_device_can_edit_a_seeded_note_back_to_the_origin() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let mut device_a = Device::with_storage(
+        SqliteWorkspace::open(directory.path().join("device-a.db")).expect("open device a"),
+        &server,
+        "device-a",
+        &clock,
+    );
+    device_a.apply(vec![create_note("note-1", "Shared", 1)]);
+    device_a.apply(vec![save_document("note-1", 1, "Written offline", 2)]);
+    device_a.connect("device-a");
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+
+    let mut device_b = Device::with_storage(
+        SqliteWorkspace::open(directory.path().join("device-b.db")).expect("open device b"),
+        &server,
+        "device-b",
+        &clock,
+    );
+    device_b.connect("device-b");
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+
+    let revision_b = device_b.storage.bootstrap().expect("bootstrap b").documents[0].revision;
+    device_b.apply(vec![save_document(
+        "note-1",
+        revision_b,
+        "Edited on device B",
+        3,
+    )]);
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+
+    assert_eq!(device_a.markdown("note-1"), "Edited on device B");
+    assert!(
+        device_a
+            .storage
+            .sync_conflicts()
+            .expect("conflicts")
+            .is_empty()
+    );
+}
+
+/// An edit that has not reached the log yet is invisible to the remote author,
+/// so it stays a conflict no matter how recent the incoming operation's causal
+/// base is. This is the guard that keeps the fast-forward path from quietly
+/// overwriting offline work.
+#[test]
+fn an_unpushed_local_edit_still_conflicts_with_an_incoming_write() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let mut device_a = Device::with_storage(
+        SqliteWorkspace::open(directory.path().join("device-a.db")).expect("open device a"),
+        &server,
+        "device-a",
+        &clock,
+    );
+    device_a.connect("device-a");
+    device_a.apply(vec![create_note("note-1", "Shared", 1)]);
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+
+    let mut device_b = Device::with_storage(
+        SqliteWorkspace::open(directory.path().join("device-b.db")).expect("open device b"),
+        &server,
+        "device-b",
+        &clock,
+    );
+    device_b.connect("device-b");
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+
+    let revision = device_b.storage.bootstrap().expect("bootstrap b").documents[0].revision;
+    device_a.apply(vec![save_document(
+        "note-1",
+        revision,
+        "Edited on device A",
+        2,
+    )]);
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+
+    // Device B writes while offline and pulls before its own push lands.
+    device_b.apply(vec![save_document(
+        "note-1",
+        revision,
+        "Edited on device B",
+        2,
+    )]);
+    device_b.transport.script_push_fault(PushFault::Transient);
+    let outcome = device_b.cycle();
+    assert!(
+        matches!(outcome.status, SyncStatus::Retrying { .. }),
+        "expected the failed push to retry, got {:?}",
+        outcome.status
+    );
+    // The clock does not move, so the released operation is still in backoff:
+    // this cycle pulls with the local write sitting unsent in the outbox.
+    assert_eq!(
+        device_b.cycle().status,
+        SyncStatus::Conflict { open_conflicts: 1 },
+        "an unpushed local edit must be preserved, not fast-forwarded over"
+    );
+    assert_eq!(device_b.markdown("note-1"), "Edited on device B");
+}
+
+/// A divergence one device resolves is settled for both. The resolution
+/// replicates as an ordinary save that is causally downstream of everything
+/// either device holds, so the other device fast-forwards and its own open
+/// conflict closes as superseded instead of demanding a second answer to a
+/// question that no longer has two sides.
+#[test]
+fn a_resolution_on_one_device_settles_the_conflict_on_the_other() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let mut device_a = Device::with_storage(
+        SqliteWorkspace::open(directory.path().join("device-a.db")).expect("open device a"),
+        &server,
+        "device-a",
+        &clock,
+    );
+    device_a.connect("device-a");
+    device_a.apply(vec![create_note("note-shared", "Shared", 1)]);
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+
+    let mut device_b = Device::with_storage(
+        SqliteWorkspace::open(directory.path().join("device-b.db")).expect("open device b"),
+        &server,
+        "device-b",
+        &clock,
+    );
+    device_b.connect("device-b");
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+
+    let base = device_b.storage.bootstrap().expect("bootstrap b").documents[0].revision;
+    device_a.apply(vec![save_document("note-shared", base, "Kept version", 2)]);
+    device_b.apply(vec![save_document(
+        "note-shared",
+        base,
+        "Discarded version",
+        2,
+    )]);
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(
+        device_b.cycle().status,
+        SyncStatus::Conflict { open_conflicts: 1 }
+    );
+
+    // Device A merges both sides; device B never touches its own conflict.
+    let outcome_a = device_a.cycle();
+    assert_eq!(outcome_a.status, SyncStatus::Conflict { open_conflicts: 1 });
+    let conflicts_a = device_a.storage.document_conflicts().expect("conflicts a");
+    device_a
+        .storage
+        .resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
+            conflict_id: conflicts_a[0].conflict_id.clone(),
+            choice: skriuw_domain::DocumentConflictResolutionChoice::Merged {
+                document_json: serde_json::json!({"type": "doc", "content": []}),
+                markdown: "Both versions merged".into(),
+            },
+            at: 3,
+        })
+        .expect("resolve on a");
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_b.markdown("note-shared"), "Both versions merged");
+    assert_eq!(device_a.markdown("note-shared"), "Both versions merged");
+
+    let settled = device_b.storage.document_conflicts().expect("records b");
+    assert_eq!(settled.len(), 1, "the divergence stays on the record");
+    assert_eq!(settled[0].resolved_choice.as_deref(), Some("superseded"));
+    let versions = device_b
+        .storage
+        .document_conflict_versions(&settled[0].conflict_id)
+        .expect("versions b");
+    assert_eq!(
+        versions.local.expect("local version").markdown,
+        "Discarded version",
+        "both versions must remain recoverable after an automatic settle",
     );
 }
 

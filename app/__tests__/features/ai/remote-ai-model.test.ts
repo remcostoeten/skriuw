@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { RemoteAiCatalog, RemoteAiProviderState } from "../../../src/contracts/ai";
+import type { RemoteAiModelDirectory, RemoteAiProviderState } from "../../../src/contracts/ai";
 import {
   availableRemoteModel,
   catalogPricingNote,
@@ -26,12 +26,12 @@ function provider(overrides: Partial<RemoteAiProviderState> = {}): RemoteAiProvi
     keyTier: null,
     acceptedDisclosureVersion: null,
     currentDisclosureVersion: 1,
+    supportsModelListing: true,
     ...overrides,
   };
 }
 
-const catalog: RemoteAiCatalog = {
-  version: 1,
+const catalog: RemoteAiModelDirectory = {
   pricingAsOf: "2026-08-01",
   models: [
     {
@@ -41,6 +41,7 @@ const catalog: RemoteAiCatalog = {
       contextWindowTokens: 131_072,
       inputPriceMicrosPerMtok: 75_000,
       outputPriceMicrosPerMtok: 300_000,
+      source: "catalog",
     },
     {
       providerId: "gemini",
@@ -49,6 +50,16 @@ const catalog: RemoteAiCatalog = {
       contextWindowTokens: 1_048_576,
       inputPriceMicrosPerMtok: 1_250_000,
       outputPriceMicrosPerMtok: 10_000_000,
+      source: "catalog",
+    },
+    {
+      providerId: "groq",
+      modelId: "brand-new-model",
+      label: "brand-new-model",
+      contextWindowTokens: null,
+      inputPriceMicrosPerMtok: null,
+      outputPriceMicrosPerMtok: null,
+      source: "fetched",
     },
   ],
 };
@@ -110,7 +121,7 @@ test("vault detail from the device wins over the generic message", () => {
 test("catalog models are selected per provider and fall back to the first entry", () => {
   const groq = remoteAiModelsFor(catalog, "groq");
 
-  assert.equal(groq.length, 1);
+  assert.equal(groq.length, 2);
   assert.equal(availableRemoteModel("missing-model", groq), "openai/gpt-oss-20b");
   assert.equal(availableRemoteModel("openai/gpt-oss-20b", groq), "openai/gpt-oss-20b");
   assert.equal(availableRemoteModel(null, []), null);
@@ -131,7 +142,13 @@ test("model summary and pricing note admit how old the figures are", () => {
     remoteAiModelSummary(catalog.models[1]!),
     "1M context · in $1.25/MTok · out $10.00/MTok",
   );
-  assert.match(catalogPricingNote(catalog), /prices recorded 2026-08-01, not read live/);
+  assert.equal(
+    remoteAiModelSummary(catalog.models[2]!),
+    "pricing unknown",
+    "a fetched model admits its pricing is unknown instead of implying $0",
+  );
+  assert.match(catalogPricingNote(catalog), /Prices recorded 2026-08-01, not read live/);
+  assert.match(catalogPricingNote(catalog), /1 model fetched from providers runs? unpriced/);
   assert.equal(catalogPricingNote(null), "Catalog unavailable.");
 });
 

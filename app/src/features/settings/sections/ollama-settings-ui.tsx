@@ -4,10 +4,14 @@ import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion
 import type { LocalAiModel, LocalAiProgress, LocalAiStatus } from "@/contracts/ai";
 import {
   ollamaOwnershipLabel,
+  ollamaPendingButtonLabel,
+  ollamaPendingDescription,
+  ollamaPendingLabel,
   ollamaProgressPercent,
   ollamaProgressText,
   ollamaProgressTiming,
   ollamaStatusLabel,
+  type OllamaRuntimeAction,
 } from "@/features/ai/ollama-model";
 import {
   OLLAMA_MODEL_CATALOG,
@@ -16,6 +20,7 @@ import {
   type OllamaSuggestedModelId,
 } from "@/features/ai/ollama-model-catalog";
 import { formatByteSize } from "@/shared/lib/format-bytes";
+import { formatDuration } from "@/shared/lib/format-duration";
 import { cn } from "@/shared/lib/utils";
 import { CheckIcon, ChevronDownIcon } from "@/shared/icons/static";
 import {
@@ -34,6 +39,7 @@ type RuntimeCardProps = {
   elapsedMs: number;
   sourceUrl: string | null;
   busy: boolean;
+  pending: OllamaRuntimeAction | null;
   error: string | null;
   onInstall: () => void;
   onStart: () => void;
@@ -96,6 +102,7 @@ export function OllamaRuntimeCard({
   elapsedMs,
   sourceUrl,
   busy,
+  pending,
   error,
   onInstall,
   onStart,
@@ -108,35 +115,54 @@ export function OllamaRuntimeCard({
   const percent = ollamaProgressPercent(progress);
   const timing = ollamaProgressTiming(progress, elapsedMs);
   const reduceMotion = useReducedMotion();
+  const pendingAction = pending ?? (status?.state === "starting" ? "start" : null);
+  const pendingSeconds = usePendingSeconds(pendingAction);
   return (
     <div className={settingsGroup}>
       <div className={settingsGroupTitle}>Local runtime</div>
       <div className="overflow-hidden rounded-xl border border-border bg-muted/20">
         <div className="flex items-center gap-3 px-3.5 py-3">
-          <span
+          <motion.span
             className={cn(
               "h-2.5 w-2.5 shrink-0 rounded-full border",
-              status?.state === "running"
-                ? "border-emerald-500/40 bg-emerald-500"
-                : status?.state === "failed"
-                  ? "border-destructive/40 bg-destructive"
-                  : "border-border bg-muted-foreground/45",
+              pendingAction
+                ? "border-amber-500/40 bg-amber-500"
+                : status?.state === "running"
+                  ? "border-emerald-500/40 bg-emerald-500"
+                  : status?.state === "failed"
+                    ? "border-destructive/40 bg-destructive"
+                    : "border-border bg-muted-foreground/45",
             )}
+            animate={pendingAction ? { opacity: [1, 0.3, 1] } : { opacity: 1 }}
+            transition={
+              pendingAction
+                ? { duration: 1.3, ease: "easeInOut", repeat: Infinity }
+                : { duration: 0.15 }
+            }
             aria-hidden="true"
           />
-          <span className="min-w-0 flex-1">
+          <span className="min-w-0 flex-1" aria-live="polite">
             <span className="block text-[13px] font-medium">
-              {status ? ollamaStatusLabel(status) : "Checking Ollama…"}
+              {pendingAction
+                ? ollamaPendingLabel(pendingAction)
+                : status
+                  ? ollamaStatusLabel(status)
+                  : "Checking Ollama…"}
             </span>
-            <span className={settingsRowDescription}>
-              {status
-                ? ollamaOwnershipLabel(status)
-                : "No process or network work runs until this page opens."}
+            <span className={cn(settingsRowDescription, "block truncate")}>
+              {pendingAction
+                ? `${ollamaPendingDescription(pendingAction)}${
+                    pendingSeconds > 0 ? ` · ${formatDuration(pendingSeconds)}` : ""
+                  }`
+                : status
+                  ? ollamaOwnershipLabel(status)
+                  : "No process or network work runs until this page opens."}
             </span>
           </span>
           <RuntimeAction
             status={status}
             busy={busy}
+            pending={pendingAction}
             onInstall={onInstall}
             onStart={onStart}
             onStop={onStop}
@@ -145,6 +171,20 @@ export function OllamaRuntimeCard({
           />
         </div>
         <AnimatePresence initial={false}>
+          {!progress && pendingAction ? (
+            <motion.div
+              key="pending"
+              className="overflow-hidden"
+              variants={reduceMotion ? undefined : progressPanelVariants}
+              initial={reduceMotion ? { opacity: 0 } : "hidden"}
+              animate={reduceMotion ? { opacity: 1 } : "shown"}
+              exit={reduceMotion ? { opacity: 0 } : "exit"}
+            >
+              <div className="border-t border-border px-3.5 py-3">
+                <IndeterminateBar label={ollamaPendingLabel(pendingAction)} />
+              </div>
+            </motion.div>
+          ) : null}
           {progress ? (
             <motion.div
               key="progress"
@@ -220,6 +260,7 @@ export function OllamaRuntimeCard({
 function RuntimeAction({
   status,
   busy,
+  pending,
   onInstall,
   onStart,
   onStop,
@@ -229,12 +270,21 @@ function RuntimeAction({
   RuntimeCardProps,
   | "status"
   | "busy"
+  | "pending"
   | "onInstall"
   | "onStart"
   | "onStop"
   | "onOpenInstaller"
   | "onRefresh"
 >) {
+  if (pending) {
+    return (
+      <button type="button" className={settingsButton} disabled>
+        <PendingSpinner />
+        {ollamaPendingButtonLabel(pending)}
+      </button>
+    );
+  }
   if (status?.state === "not_installed") {
     return <button type="button" className={settingsButton} disabled={busy} onClick={onInstall}>Install</button>;
   }
@@ -248,7 +298,12 @@ function RuntimeAction({
     return (
       <span className="flex shrink-0 items-center gap-1.5">
         {status.managed ? (
-          <button type="button" className={settingsButtonDanger} disabled={busy} onClick={onStop}>
+          <button
+            type="button"
+            className={cn(settingsButton, settingsButtonDanger)}
+            disabled={busy}
+            onClick={onStop}
+          >
             Stop
           </button>
         ) : null}
@@ -259,6 +314,58 @@ function RuntimeAction({
     );
   }
   return null;
+}
+
+function PendingSpinner() {
+  const reduceMotion = useReducedMotion();
+  return (
+    <motion.span
+      aria-hidden="true"
+      className="size-3 shrink-0 rounded-full border-[1.5px] border-current border-t-transparent opacity-70"
+      animate={{ transform: "rotate(360deg)" }}
+      transition={{ duration: reduceMotion ? 1.6 : 0.75, ease: "linear", repeat: Infinity }}
+    />
+  );
+}
+
+function IndeterminateBar({ label }: { label: string }) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <div
+      role="progressbar"
+      aria-label={label}
+      aria-valuetext="In progress"
+      className="h-1 overflow-hidden rounded-full bg-muted"
+    >
+      <motion.div
+        className="h-full w-1/3 rounded-full bg-foreground/75"
+        animate={
+          reduceMotion
+            ? { opacity: [0.4, 1, 0.4], transform: "translateX(100%)" }
+            : { transform: ["translateX(-100%)", "translateX(300%)"] }
+        }
+        transition={{
+          duration: reduceMotion ? 1.6 : 1.15,
+          ease: reduceMotion ? "easeInOut" : [0.65, 0, 0.35, 1],
+          repeat: Infinity,
+        }}
+      />
+    </div>
+  );
+}
+
+function usePendingSeconds(pending: OllamaRuntimeAction | null): number {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    setSeconds(0);
+    if (!pending) return;
+    const startedAt = Date.now();
+    const id = window.setInterval(() => {
+      setSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1_000);
+    return () => window.clearInterval(id);
+  }, [pending]);
+  return seconds;
 }
 
 export function OllamaModelsPanel({

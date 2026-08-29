@@ -410,6 +410,61 @@ impl SyncRecovery for SqliteWorkspace {
         transaction.commit().map_err(backend)
     }
 
+    fn sync_conflict_review(&self) -> Result<skriuw_domain::SyncConflictReviewView, StorageError> {
+        let mut open = Vec::new();
+        let mut settled = Vec::new();
+        for summary in self.document_conflicts()? {
+            let resolved = summary.resolved_at.is_some();
+            let view = skriuw_domain::DocumentConflictView {
+                conflict_id: summary.conflict_id,
+                note_id: summary.note_id,
+                title: summary
+                    .local_title
+                    .or(summary.remote_title)
+                    .unwrap_or_else(|| "Untitled".into()),
+                reason_code: summary.reason_code,
+                subreason: summary.subreason,
+                created_at: summary.created_at,
+                local_version_available: summary.local_version_available,
+                resolved_choice: summary.resolved_choice,
+                resolved_at: summary.resolved_at,
+            };
+            if resolved {
+                settled.push(view);
+            } else {
+                open.push(view);
+            }
+        }
+        Ok(skriuw_domain::SyncConflictReviewView {
+            view_version: skriuw_domain::SYNC_CONFLICT_REVIEW_VIEW_VERSION,
+            open,
+            settled,
+        })
+    }
+
+    fn sync_conflict_versions(
+        &self,
+        conflict_id: &str,
+    ) -> Result<skriuw_domain::DocumentConflictVersionsView, StorageError> {
+        let versions = self.document_conflict_versions(conflict_id)?;
+        Ok(skriuw_domain::DocumentConflictVersionsView {
+            conflict_id: versions.conflict_id,
+            note_id: versions.note_id,
+            remote: skriuw_domain::DocumentConflictVersionView {
+                title: versions.remote.title,
+                markdown: versions.remote.markdown,
+                revision: versions.remote.revision,
+            },
+            local: versions
+                .local
+                .map(|local| skriuw_domain::DocumentConflictVersionView {
+                    title: local.title,
+                    markdown: local.markdown,
+                    revision: local.revision,
+                }),
+        })
+    }
+
     fn discard_blocked_sync_operation(
         &self,
         blocked_id: &str,
@@ -666,6 +721,11 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
             }) {
                 let outbox = outbox_operation(&transaction, &item.operation_id)?
                     .ok_or_else(|| StorageError::NotFound(item.operation_id.clone()))?;
+                // The log now carries this write, so it becomes part of this
+                // device's incorporated history without waiting for the echo
+                // to arrive back through a pull.
+                let head_target =
+                    document_write_target(&outbox.operation.operation).map(str::to_owned);
                 let replicated = ReplicatedWorkspaceOperation {
                     operation_id: item.operation_id.clone(),
                     device_id: connection_identity.device_id.clone(),
@@ -706,6 +766,9 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                     .map_err(backend)?;
                 if changed != 1 {
                     return Err(StorageError::NotFound(item.operation_id.clone()));
+                }
+                if let Some(note_id) = head_target {
+                    advance_document_head_for_note(&transaction, &note_id, item.server_sequence)?;
                 }
             } else {
                 let existing = received_operation(&transaction, &item.operation_id)?
@@ -1028,6 +1091,11 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                         [&operation.operation_id],
                     )
                     .map_err(backend)?;
+                advance_document_head(
+                    &transaction,
+                    &envelope.operation,
+                    operation.server_sequence,
+                )?;
                 cursor = operation.server_sequence;
                 outcomes.push(RemoteSyncApplyOutcome::LocalEcho);
                 continue;
@@ -1040,7 +1108,11 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                 )));
             }
 
-            let reconcile_state = remote_target_state(&transaction, &envelope.operation)?;
+            let reconcile_state = remote_target_state(
+                &transaction,
+                &envelope.operation,
+                operation.base_server_sequence,
+            )?;
             match reconcile_remote_operation(&envelope.operation, &reconcile_state) {
                 RemoteOperationDecision::ProtocolInvalid { operation_type } => {
                     return Err(StorageError::InvalidOperation(format!(
@@ -1055,6 +1127,11 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                         "no_op",
                         None,
                         received_at,
+                    )?;
+                    advance_document_head(
+                        &transaction,
+                        &envelope.operation,
+                        operation.server_sequence,
                     )?;
                     cursor = operation.server_sequence;
                     outcomes.push(RemoteSyncApplyOutcome::NoOp);
@@ -1080,12 +1157,13 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                     outcomes.push(RemoteSyncApplyOutcome::Conflict(conflict));
                 }
                 RemoteOperationDecision::Apply => {
+                    let applied = rebase_remote_document(&transaction, envelope, &reconcile_state)?;
                     transaction
                         .execute_batch("SAVEPOINT remote_operation")
                         .map_err(backend)?;
                     match apply_operations_in_transaction(
                         &transaction,
-                        std::slice::from_ref(envelope),
+                        std::slice::from_ref(applied.as_ref()),
                     ) {
                         Ok(acknowledgement) => {
                             transaction
@@ -1098,6 +1176,16 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                                 &operation_json,
                                 "applied",
                                 None,
+                                received_at,
+                            )?;
+                            advance_document_head(
+                                &transaction,
+                                &envelope.operation,
+                                operation.server_sequence,
+                            )?;
+                            supersede_open_document_conflicts(
+                                &transaction,
+                                &envelope.operation,
                                 received_at,
                             )?;
                             cursor = operation.server_sequence;
@@ -2277,12 +2365,198 @@ fn documents_equivalent(
             .is_ok_and(|stored| &stored == document_json)
 }
 
+/// The note whose canonical document an operation writes, or `None` for the
+/// operations that leave document bodies alone.
+fn document_write_target(operation: &WorkspaceOperation) -> Option<&str> {
+    match operation {
+        WorkspaceOperation::SaveDocument { note_id, .. } => Some(note_id),
+        WorkspaceOperation::CreateNote { id, .. } => Some(id),
+        _ => None,
+    }
+}
+
+/// The server sequence of the newest document write this device has already
+/// incorporated for a note. Zero means the note's body has never arrived
+/// through the log, so nothing in the replicated history constrains it.
+fn document_head(transaction: &Transaction<'_>, note_id: &str) -> Result<u64, StorageError> {
+    transaction
+        .query_row(
+            "SELECT server_sequence FROM sync_document_heads WHERE note_id = ?1",
+            [note_id],
+            |row| row_sequence(row, 0),
+        )
+        .optional()
+        .map_err(backend)
+        .map(|sequence| sequence.unwrap_or(0))
+}
+
+/// Records that a document write is now part of this device's history. Called
+/// for applied, echoed, and already-satisfied operations, never for preserved
+/// conflicts — a conflict is exactly the case where the write was not taken.
+fn advance_document_head(
+    transaction: &Transaction<'_>,
+    operation: &WorkspaceOperation,
+    server_sequence: u64,
+) -> Result<(), StorageError> {
+    let Some(note_id) = document_write_target(operation) else {
+        return Ok(());
+    };
+    advance_document_head_for_note(transaction, note_id, server_sequence)
+}
+
+fn advance_document_head_for_note(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+    server_sequence: u64,
+) -> Result<(), StorageError> {
+    transaction
+        .execute(
+            "INSERT INTO sync_document_heads(note_id, server_sequence) VALUES (?1, ?2) \
+             ON CONFLICT(note_id) DO UPDATE SET \
+             server_sequence = MAX(server_sequence, excluded.server_sequence)",
+            params![note_id, sql_sequence(server_sequence)?],
+        )
+        .map_err(backend)?;
+    Ok(())
+}
+
+fn current_document_revision(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+) -> Result<Option<i64>, StorageError> {
+    transaction
+        .query_row(
+            "SELECT revision FROM documents WHERE note_id = ?1",
+            [note_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()
+        .map_err(backend)
+}
+
+/// A superseding remote save carries the author's own revision number, and no
+/// two devices share that counter once a document has been rebuilt from the
+/// log. The optimistic guard still runs; it is anchored to the revision this
+/// device actually holds rather than to the author's.
+fn rebase_remote_document<'a>(
+    transaction: &Transaction<'_>,
+    envelope: &'a WorkspaceOperationEnvelope,
+    state: &RemoteTargetState,
+) -> Result<std::borrow::Cow<'a, WorkspaceOperationEnvelope>, StorageError> {
+    if state.document_revision_matches || !state.remote_supersedes_local {
+        return Ok(std::borrow::Cow::Borrowed(envelope));
+    }
+    let WorkspaceOperation::SaveDocument { note_id, .. } = &envelope.operation else {
+        return Ok(std::borrow::Cow::Borrowed(envelope));
+    };
+    let Some(current) = current_document_revision(transaction, note_id)? else {
+        return Ok(std::borrow::Cow::Borrowed(envelope));
+    };
+    let mut rebased = envelope.clone();
+    if let WorkspaceOperation::SaveDocument {
+        expected_revision, ..
+    } = &mut rebased.operation
+    {
+        *expected_revision = current;
+    }
+    Ok(std::borrow::Cow::Owned(rebased))
+}
+
+/// Closes divergences a later downstream write has already settled. Both
+/// preserved versions stay on the record and the audit row keeps the history;
+/// only the open status closes, so the user is never asked to choose between
+/// two versions that no longer disagree.
+fn supersede_open_document_conflicts(
+    transaction: &Transaction<'_>,
+    operation: &WorkspaceOperation,
+    at: i64,
+) -> Result<(), StorageError> {
+    let Some(note_id) = document_write_target(operation) else {
+        return Ok(());
+    };
+    let mut statement = transaction
+        .prepare(
+            "SELECT d.conflict_id, c.created_at FROM sync_document_conflicts d \
+             JOIN sync_conflicts c ON c.id = d.conflict_id \
+             WHERE d.note_id = ?1 AND d.resolved_at IS NULL",
+        )
+        .map_err(backend)?;
+    let open = statement
+        .query_map([note_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        })
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)?;
+    if open.is_empty() {
+        return Ok(());
+    }
+    let canonical = transaction
+        .query_row(
+            "SELECT document_json, markdown, revision FROM documents WHERE note_id = ?1",
+            [note_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(backend)?;
+    let Some((document_json, markdown, revision)) = canonical else {
+        return Ok(());
+    };
+    for (conflict_id, created_at) in open {
+        let resolved_at = at.max(created_at);
+        transaction
+            .execute(
+                "UPDATE sync_document_conflicts SET resolved_choice = 'superseded', \
+                 resolved_document_json = ?2, resolved_markdown = ?3, \
+                 resolved_revision = ?4, resolved_at = ?5 WHERE conflict_id = ?1",
+                params![conflict_id, document_json, markdown, revision, resolved_at],
+            )
+            .map_err(backend)?;
+        transaction
+            .execute(
+                "UPDATE sync_conflicts SET resolved_at = ?2 WHERE id = ?1",
+                params![conflict_id, resolved_at],
+            )
+            .map_err(backend)?;
+    }
+    Ok(())
+}
+
+/// Whether this device holds a document write for the note that has not
+/// reached the log yet. A remote author cannot have seen it, so a remote write
+/// is concurrent with it no matter how recent its causal base is.
+fn outbox_writes_document(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+) -> Result<bool, StorageError> {
+    transaction
+        .query_row(
+            "SELECT EXISTS(\
+                SELECT 1 FROM sync_outbox WHERE \
+                (json_extract(operation_json, '$.operation.type') = 'save_document' \
+                 AND json_extract(operation_json, '$.operation.noteId') = ?1) \
+                OR (json_extract(operation_json, '$.operation.type') = 'create_note' \
+                 AND json_extract(operation_json, '$.operation.id') = ?1)\
+             )",
+            [note_id],
+            |row| row.get(0),
+        )
+        .map_err(backend)
+}
+
 /// Gather the facts the domain reconciliation rules need for one validated
 /// replicated operation. Facts only; every policy decision stays in
 /// `skriuw_domain::reconcile_remote_operation`.
 fn remote_target_state(
     transaction: &Transaction<'_>,
     operation: &WorkspaceOperation,
+    base_server_sequence: u64,
 ) -> Result<RemoteTargetState, StorageError> {
     let mut state = RemoteTargetState::default();
     match operation {
@@ -2489,6 +2763,9 @@ fn remote_target_state(
                 state.state_equivalent =
                     documents_equivalent(&stored_json, &stored_markdown, document_json, markdown);
                 state.document_revision_matches = revision == *expected_revision;
+                state.remote_supersedes_local = base_server_sequence
+                    >= document_head(transaction, note_id)?
+                    && !outbox_writes_document(transaction, note_id)?;
             } else {
                 state.target_exists = false;
             }

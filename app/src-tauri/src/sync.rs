@@ -62,6 +62,7 @@ impl SyncAssetStore for ImageAssetStore {
 }
 
 const PRODUCTION_CLOUD_URL: &str = "https://skriuw-v2-cloud.remcostoeten.workers.dev";
+const LOCAL_CLOUD_URL: &str = "http://localhost:8787";
 const MAX_RESPONSE_BYTES: u64 = 4 * 1024 * 1024;
 
 #[derive(Deserialize)]
@@ -230,6 +231,41 @@ impl SyncRuntime {
         workspace
             .sync_recovery_view()
             .map_err(|error| format!("could not read the blocked sync queue: {error}"))
+    }
+
+    /// Lists preserved document divergences for the conflict review surface.
+    /// Like the blocked queue this opens its own short-lived connection on the
+    /// caller's blocking thread, never on editing or navigation paths.
+    pub fn conflict_review(&self) -> Result<skriuw_domain::SyncConflictReviewView, String> {
+        self.open_workspace()?
+            .sync_conflict_review()
+            .map_err(|error| format!("could not read the sync conflicts: {error}"))
+    }
+
+    pub fn conflict_versions(
+        &self,
+        conflict_id: &str,
+    ) -> Result<skriuw_domain::DocumentConflictVersionsView, String> {
+        self.open_workspace()?
+            .sync_conflict_versions(conflict_id)
+            .map_err(|error| format!("could not read the preserved versions: {error}"))
+    }
+
+    /// Records the user's choice and replicates its canonical result. The
+    /// version that was not chosen stays preserved, so the decision is
+    /// reversible from the record even though the document is not.
+    pub fn resolve_conflict(
+        &self,
+        request: &skriuw_domain::ResolveDocumentConflict,
+    ) -> Result<skriuw_domain::SyncConflictReviewView, String> {
+        let workspace = self.open_workspace()?;
+        workspace
+            .resolve_document_conflict(request)
+            .map_err(|error| format!("could not resolve the conflict: {error}"))?;
+        self.request_refresh();
+        workspace
+            .sync_conflict_review()
+            .map_err(|error| format!("could not read the sync conflicts: {error}"))
     }
 
     /// Pause network access without discarding the durable connection or outbox.
@@ -709,14 +745,21 @@ fn transport_error(
     classify_http_failure(status.as_u16(), retry_after_ms)
 }
 
-/// Debug builds honor SKRIUW_CLOUD_URL so end-to-end verification can target
-/// the preview Worker instead of a local dev server; release builds always use
-/// the production Worker.
 fn cloud_base_url() -> String {
     if cfg!(debug_assertions) {
-        std::env::var("SKRIUW_CLOUD_URL").unwrap_or_else(|_| "http://localhost:8787".to_string())
+        std::env::var("SKRIUW_CLOUD_URL").unwrap_or_else(|_| {
+            development_cloud_base_url(std::env::var("SKRIUW_DEV_CLOUD").ok().as_deref()).into()
+        })
     } else {
         PRODUCTION_CLOUD_URL.to_string()
+    }
+}
+
+fn development_cloud_base_url(mode: Option<&str>) -> &'static str {
+    if mode == Some("local") {
+        LOCAL_CLOUD_URL
+    } else {
+        PRODUCTION_CLOUD_URL
     }
 }
 
@@ -729,7 +772,7 @@ fn now_millis() -> i64 {
 
 #[cfg(test)]
 mod tests {
-    use super::SyncRuntime;
+    use super::{LOCAL_CLOUD_URL, PRODUCTION_CLOUD_URL, SyncRuntime, development_cloud_base_url};
     use skriuw_sync::SyncStatus;
 
     #[test]
@@ -743,5 +786,12 @@ mod tests {
         runtime.request_refresh();
         runtime.shutdown();
         assert_eq!(runtime.status(), SyncStatus::LocalOnly);
+    }
+
+    #[test]
+    fn development_uses_production_cloud_unless_local_is_explicit() {
+        assert_eq!(development_cloud_base_url(None), PRODUCTION_CLOUD_URL);
+        assert_eq!(development_cloud_base_url(Some("cloud")), PRODUCTION_CLOUD_URL);
+        assert_eq!(development_cloud_base_url(Some("local")), LOCAL_CLOUD_URL);
     }
 }

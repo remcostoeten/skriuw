@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { openExternalUrl } from "@/bridge/external-links";
 import type { LocalAiModel, LocalAiProgress, LocalAiStatus } from "@/contracts/ai";
 import {
@@ -11,7 +18,11 @@ import {
   startOllamaRuntime,
   stopOllamaRuntime,
 } from "@/features/ai/ollama-bridge";
-import { OLLAMA_INSTALL_SOURCE_URL, ollamaModelSourceUrl } from "@/features/ai/ollama-model";
+import {
+  OLLAMA_INSTALL_SOURCE_URL,
+  ollamaModelSourceUrl,
+  type OllamaRuntimeAction,
+} from "@/features/ai/ollama-model";
 import {
   SettingsHeading,
   settingsButton,
@@ -51,6 +62,7 @@ import type { RendererStore } from "@/store/types";
 import { DefaultModelPicker } from "./ai-model-picker-ui";
 import { PromptLibraryPanel } from "./prompt-library-ui";
 import { AiUsagePanel } from "./ai-usage-ui";
+import { ChevronRightIcon } from "@/shared/icons/static";
 
 type Props = {
   store: RendererStore;
@@ -66,6 +78,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
   const [selectedModel, setSelectedModel] = useState(readSelectedOllamaModel);
   const [progress, setProgress] = useState<LocalAiProgress | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<OllamaRuntimeAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteArmed, setDeleteArmed] = useState<string | null>(null);
   const [pullingModel, setPullingModel] = useState<string | null>(null);
@@ -88,9 +101,9 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
         ollamaStatus: status,
         ollamaModels: models,
         remoteProviders: remote.providers,
-        remoteCatalog: remote.catalog,
+        remoteModels: remote.models,
       }),
-    [status, models, remote.providers, remote.catalog],
+    [status, models, remote.providers, remote.models],
   );
 
   useEffect(() => {
@@ -177,6 +190,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
 
   async function runInstall(): Promise<void> {
     setBusy(true);
+    setPendingAction("install");
     setError(null);
     setProgress(null);
     operationStartRef.current = Date.now();
@@ -194,12 +208,14 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
       operationRef.current = null;
       operationStartRef.current = null;
       setBusy(false);
+      setPendingAction(null);
       if (controller.signal.aborted) setProgress(null);
     }
   }
 
   async function runStart(): Promise<void> {
     setBusy(true);
+    setPendingAction("start");
     setError(null);
     try {
       const next = await startOllamaRuntime();
@@ -211,11 +227,13 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
       if (!signal.aborted) setError(errorMessage(reason));
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
   async function runStop(): Promise<void> {
     setBusy(true);
+    setPendingAction("stop");
     setError(null);
     try {
       const next = await stopOllamaRuntime();
@@ -227,6 +245,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
       if (!signal.aborted) setError(errorMessage(reason));
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -329,7 +348,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
     <section aria-label="AI settings" className={settingsSection}>
       <SettingsHeading
         title="AI"
-        detail="Run writing tools locally, or bring your own key for a remote provider."
+        detail="Choose a model for writing tools. Open the other sections only when you need them."
       />
       <DefaultModelPicker
         groups={modelGroups}
@@ -338,94 +357,146 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
       />
       <div className={settingsRow}>
         <span className={settingsRowLabel}>
-          Prompt playground
+          Try a prompt
           <span className={settingsRowDescription}>
-            Fire a raw prompt at any provider and watch the streamed result.
+            Test the selected model without changing a note.
           </span>
         </span>
         <button type="button" className={settingsButton} onClick={onOpenPlayground}>
           Open playground
         </button>
       </div>
-      <PromptLibraryPanel
-        entries={promptEntries}
-        draft={draft}
-        editingKey={editingKey}
-        onEdit={editPrompt}
-        onDraftChange={(change) =>
-          setDraft((current) => (current === null ? current : { ...current, ...change }))
-        }
-        onSave={savePromptDraft}
-        onCancel={closeEditor}
-        onDuplicate={duplicatePrompt}
-        onReset={removePrompt}
-        onDelete={removePrompt}
-        onCreate={createPrompt}
-      />
-      <OllamaRuntimeCard
-        status={status}
-        progress={progress}
-        elapsedMs={elapsedMs}
-        sourceUrl={sourceUrl}
-        busy={busy}
-        error={error}
-        onInstall={() => void runInstall()}
-        onStart={() => void runStart()}
-        onStop={() => void runStop()}
-        onOpenInstaller={() => {
-          void openExternalUrl("https://ollama.com/download/windows").catch((reason) => {
-            setError(errorMessage(reason));
-          });
-        }}
-        onRefresh={() => void refreshRuntime()}
-        onCancel={cancelOperation}
-        onOpenSource={() => {
-          if (!sourceUrl) return;
-          void openExternalUrl(sourceUrl).catch((reason) => {
-            setError(errorMessage(reason));
-          });
-        }}
-      />
-
-      {status?.state === "running" ? (
-        <OllamaModelsPanel
-          models={models}
-          modelName={modelName}
-          selectedModel={selectedModel}
-          deleteArmed={deleteArmed}
-          busy={busy}
-          onModelNameChange={setModelName}
-          onPull={() => void runPull()}
-          onSelect={selectModel}
-          onDelete={(model) => void removeModel(model)}
-          onDeleteBlur={(model) =>
-            setDeleteArmed((current) => (current === model ? null : current))
-          }
-        />
-      ) : null}
-
-      {remote.providers.length === 0 ? null : (
-        <RemoteProvidersPanel
-          providers={remote.providers}
-          catalog={remote.catalog}
-          vault={remote.vault}
-          drafts={remote.drafts}
-          onDraftChange={remote.changeDraft}
-          onAcceptDisclosure={remote.acceptDisclosure}
-          onSaveKey={remote.saveKey}
-          onVerifyKey={remote.verifyKey}
-          onRemoveKey={remote.removeKey}
-          onRevoke={remote.revoke}
-          onRefreshCatalog={remote.refreshCatalog}
-        />
-      )}
-      <AiUsagePanel signal={signal} />
-      {remote.error ? (
-        <p role="alert" className="text-xs text-destructive">
-          {remote.error}
-        </p>
-      ) : null}
+      <div className="mt-8 overflow-hidden rounded-xl border border-border/70 bg-muted/10">
+        <AiSettingsDisclosure
+          title="Local AI"
+          description="Run private models on this device with Ollama."
+        >
+          <OllamaRuntimeCard
+            status={status}
+            progress={progress}
+            elapsedMs={elapsedMs}
+            sourceUrl={sourceUrl}
+            busy={busy}
+            pending={pendingAction}
+            error={error}
+            onInstall={() => void runInstall()}
+            onStart={() => void runStart()}
+            onStop={() => void runStop()}
+            onOpenInstaller={() => {
+              void openExternalUrl("https://ollama.com/download/windows").catch((reason) => {
+                setError(errorMessage(reason));
+              });
+            }}
+            onRefresh={() => void refreshRuntime()}
+            onCancel={cancelOperation}
+            onOpenSource={() => {
+              if (!sourceUrl) return;
+              void openExternalUrl(sourceUrl).catch((reason) => {
+                setError(errorMessage(reason));
+              });
+            }}
+          />
+          {status?.state === "running" ? (
+            <OllamaModelsPanel
+              models={models}
+              modelName={modelName}
+              selectedModel={selectedModel}
+              deleteArmed={deleteArmed}
+              busy={busy}
+              onModelNameChange={setModelName}
+              onPull={() => void runPull()}
+              onSelect={selectModel}
+              onDelete={(model) => void removeModel(model)}
+              onDeleteBlur={(model) =>
+                setDeleteArmed((current) => (current === model ? null : current))
+              }
+            />
+          ) : null}
+        </AiSettingsDisclosure>
+        {remote.providers.length === 0 ? null : (
+          <AiSettingsDisclosure
+            title="Online providers"
+            description="Bring your own API key for Gemini, Groq, DeepSeek, Kimi, GLM, Qwen, or AI/ML API."
+          >
+            <RemoteProvidersPanel
+              providers={remote.providers}
+              models={remote.models}
+              vault={remote.vault}
+              drafts={remote.drafts}
+              onDraftChange={remote.changeDraft}
+              onAcceptDisclosure={remote.acceptDisclosure}
+              onSaveKey={remote.saveKey}
+              onVerifyKey={remote.verifyKey}
+              onRemoveKey={remote.removeKey}
+              onRevoke={remote.revoke}
+              onRefreshModels={remote.refreshModels}
+            />
+            {remote.error ? (
+              <p role="alert" className="text-xs text-destructive">
+                {remote.error}
+              </p>
+            ) : null}
+          </AiSettingsDisclosure>
+        )}
+        <AiSettingsDisclosure
+          title="Writing prompts"
+          description="Customize the instructions behind each writing action."
+        >
+          <PromptLibraryPanel
+            entries={promptEntries}
+            draft={draft}
+            editingKey={editingKey}
+            onEdit={editPrompt}
+            onDraftChange={(change) =>
+              setDraft((current) =>
+                current === null ? current : { ...current, ...change },
+              )
+            }
+            onSave={savePromptDraft}
+            onCancel={closeEditor}
+            onDuplicate={duplicatePrompt}
+            onReset={removePrompt}
+            onDelete={removePrompt}
+            onCreate={createPrompt}
+          />
+        </AiSettingsDisclosure>
+        <AiSettingsDisclosure
+          title="History and usage"
+          description="Review local run history, token counts, and estimated cost."
+        >
+          <AiUsagePanel signal={signal} />
+        </AiSettingsDisclosure>
+      </div>
     </section>
+  );
+}
+
+function AiSettingsDisclosure({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <details className="group border-b border-border/60 last:border-b-0">
+      <summary className="flex min-h-[58px] cursor-pointer list-none items-center gap-3 px-4 py-2.5 outline-none marker:hidden focus-visible:bg-accent/35 [&::-webkit-details-marker]:hidden">
+        <ChevronRightIcon
+          size={14}
+          aria-hidden="true"
+          className="shrink-0 text-muted-foreground transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none"
+        />
+        <span className="min-w-0">
+          <span className="block text-[13px] font-medium text-foreground">{title}</span>
+          <span className="mt-0.5 block text-[11px] text-muted-foreground">
+            {description}
+          </span>
+        </span>
+      </summary>
+      <div className="border-t border-border/50 px-4 pt-4 pb-1">{children}</div>
+    </details>
   );
 }
 

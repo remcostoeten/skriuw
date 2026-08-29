@@ -538,6 +538,14 @@ impl HistoryQueue for SqliteWorkspace {
                 "history version id cannot be empty".into(),
             ));
         }
+        if materialization.additions < 0
+            || materialization.deletions < 0
+            || materialization.word_count.is_some_and(|count| count < 0)
+        {
+            return Err(StorageError::InvalidOperation(
+                "history diff counts cannot be negative".into(),
+            ));
+        }
         let mut connection = self.lock()?;
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -554,15 +562,21 @@ impl HistoryQueue for SqliteWorkspace {
             .ok_or_else(|| StorageError::NotFound(item_id.into()))?;
         transaction
             .execute(
-                "INSERT INTO history_cache(note_id, version_id, created_at, summary) \
-                 VALUES (?1, ?2, ?3, ?4) \
+                "INSERT INTO history_cache(\
+                     note_id, version_id, created_at, summary, additions, deletions, word_count\
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) \
                  ON CONFLICT(note_id, version_id) DO UPDATE SET \
-                     created_at = excluded.created_at, summary = excluded.summary",
+                     created_at = excluded.created_at, summary = excluded.summary, \
+                     additions = excluded.additions, deletions = excluded.deletions, \
+                     word_count = excluded.word_count",
                 params![
                     item.0,
                     materialization.version_id,
                     item.1,
-                    materialization.summary
+                    materialization.summary,
+                    materialization.additions,
+                    materialization.deletions,
+                    materialization.word_count
                 ],
             )
             .map_err(backend)?;
@@ -617,6 +631,9 @@ impl HistoryCache for SqliteWorkspace {
             if header.note_id.trim().is_empty()
                 || header.version_id.trim().is_empty()
                 || header.created_at < 0
+                || header.additions.is_some_and(|count| count < 0)
+                || header.deletions.is_some_and(|count| count < 0)
+                || header.word_count.is_some_and(|count| count < 0)
             {
                 return Err(StorageError::InvalidOperation(
                     "invalid history cache header".into(),
@@ -624,16 +641,22 @@ impl HistoryCache for SqliteWorkspace {
             }
             inserted += transaction
                 .execute(
-                    "INSERT INTO history_cache(note_id, version_id, created_at, summary) \
-                     SELECT ?1, ?2, ?3, ?4 \
+                    "INSERT INTO history_cache(\
+                         note_id, version_id, created_at, summary, additions, deletions, word_count\
+                     ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7 \
                      WHERE EXISTS(SELECT 1 FROM workspace_nodes WHERE id = ?1) \
                      ON CONFLICT(note_id, version_id) DO UPDATE SET \
-                         created_at = excluded.created_at, summary = excluded.summary",
+                         created_at = excluded.created_at, summary = excluded.summary, \
+                         additions = excluded.additions, deletions = excluded.deletions, \
+                         word_count = excluded.word_count",
                     params![
                         header.note_id,
                         header.version_id,
                         header.created_at,
-                        header.summary
+                        header.summary,
+                        header.additions,
+                        header.deletions,
+                        header.word_count
                     ],
                 )
                 .map_err(backend)?;
