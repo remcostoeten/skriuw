@@ -18,7 +18,11 @@ import {
   startOllamaRuntime,
   stopOllamaRuntime,
 } from "@/features/ai/ollama-bridge";
-import { OLLAMA_INSTALL_SOURCE_URL, ollamaModelSourceUrl } from "@/features/ai/ollama-model";
+import {
+  OLLAMA_INSTALL_SOURCE_URL,
+  ollamaModelSourceUrl,
+  type OllamaRuntimeAction,
+} from "@/features/ai/ollama-model";
 import {
   SettingsHeading,
   settingsButton,
@@ -74,6 +78,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
   const [selectedModel, setSelectedModel] = useState(readSelectedOllamaModel);
   const [progress, setProgress] = useState<LocalAiProgress | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<OllamaRuntimeAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteArmed, setDeleteArmed] = useState<string | null>(null);
   const [pullingModel, setPullingModel] = useState<string | null>(null);
@@ -185,6 +190,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
 
   async function runInstall(): Promise<void> {
     setBusy(true);
+    setPendingAction("install");
     setError(null);
     setProgress(null);
     operationStartRef.current = Date.now();
@@ -202,12 +208,14 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
       operationRef.current = null;
       operationStartRef.current = null;
       setBusy(false);
+      setPendingAction(null);
       if (controller.signal.aborted) setProgress(null);
     }
   }
 
   async function runStart(): Promise<void> {
     setBusy(true);
+    setPendingAction("start");
     setError(null);
     try {
       const next = await startOllamaRuntime();
@@ -219,11 +227,13 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
       if (!signal.aborted) setError(errorMessage(reason));
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
   async function runStop(): Promise<void> {
     setBusy(true);
+    setPendingAction("stop");
     setError(null);
     try {
       const next = await stopOllamaRuntime();
@@ -235,6 +245,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
       if (!signal.aborted) setError(errorMessage(reason));
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -366,6 +377,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
             elapsedMs={elapsedMs}
             sourceUrl={sourceUrl}
             busy={busy}
+            pending={pendingAction}
             error={error}
             onInstall={() => void runInstall()}
             onStart={() => void runStart()}

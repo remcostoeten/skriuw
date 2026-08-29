@@ -2,10 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   ollamaOwnershipLabel,
+  ollamaPendingButtonLabel,
+  ollamaPendingDescription,
+  ollamaPendingLabel,
   ollamaProgressPercent,
   ollamaProgressText,
   ollamaStatusLabel,
 } from "../../../src/features/ai/ollama-model";
+
+test("names the in-flight runtime action instead of leaving the last state on screen", () => {
+  assert.equal(ollamaPendingLabel("start"), "Starting Ollama…");
+  assert.equal(ollamaPendingButtonLabel("start"), "Starting…");
+  assert.match(ollamaPendingDescription("start"), /accept connections/);
+  assert.equal(ollamaPendingButtonLabel("stop"), "Stopping…");
+  assert.equal(ollamaPendingButtonLabel("install"), "Installing…");
+});
 
 test("projects runtime state and ownership honestly", () => {
   assert.equal(

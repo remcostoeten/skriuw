@@ -28,28 +28,19 @@ import {
   actionInputText,
   appendTagPlanTransaction,
   appendTaskPlanTransaction,
-  currentInputText,
-  insertBelowTransaction,
-  replaceRangeTransaction,
+  liveEditorRefusal,
   type AiTagReference,
 } from "./editor-action-apply";
 import {
-  IDLE_RUN,
   aiActionStatusLine,
-  applyRefusal,
   canRetryRun,
-  failedRun,
   runHasResult,
   runIsStreaming,
-  runWithDelta,
-  runWithTerminal,
-  startedRun,
-  type AiActionRun,
   type AiActionTarget,
 } from "./editor-action-model";
 import { registerAiActionListener } from "./editor-action-controller";
-import { startAiCompletion, type AiCompletionHandle } from "./completion-bridge";
-import { createAiCompletionConsumer } from "./completion-consumer";
+import { AiInlineSuggestion } from "./inline-suggestion";
+import { useAiRun } from "./use-ai-run";
 import { requestModelSwitcher } from "./model-switcher-controller";
 import { promptLibraryEntries, selectWorkspacePrompts } from "./prompt-library";
 import {
@@ -72,7 +63,13 @@ type EditorCapture = {
 type Stage =
   | { kind: "closed" }
   | { kind: "picker"; capture: EditorCapture }
-  | { kind: "action"; capture: EditorCapture; action: AiEditorAction };
+  | { kind: "action"; capture: EditorCapture; action: AiEditorAction }
+  | {
+      kind: "inline";
+      action: AiEditorAction;
+      target: AiActionTarget;
+      request: AiCompletionRequest;
+    };
 
 type Props = {
   store: RendererStore;
@@ -115,6 +112,20 @@ export function AiEditorActionHost({ store, signal, getView, getNoteId }: Props)
   if (stage.kind === "closed") {
     return null;
   }
+  if (stage.kind === "inline") {
+    return (
+      <AiInlineSuggestion
+        key={stage.request.requestId}
+        signal={signal}
+        action={stage.action}
+        target={stage.target}
+        request={stage.request}
+        getView={getView}
+        getNoteId={getNoteId}
+        onClose={() => setStage({ kind: "closed" })}
+      />
+    );
+  }
   if (stage.kind === "picker") {
     return (
       <AiActionPicker
@@ -135,6 +146,9 @@ export function AiEditorActionHost({ store, signal, getView, getNoteId }: Props)
       getNoteId={getNoteId}
       onClose={() => setStage({ kind: "closed" })}
       onBack={() => setStage({ kind: "picker", capture: stage.capture })}
+      onInline={(request, target) =>
+        setStage({ kind: "inline", action: stage.action, request, target })
+      }
     />
   );
 }
@@ -298,6 +312,7 @@ type DialogProps = {
   getNoteId: () => string | null;
   onClose: () => void;
   onBack: () => void;
+  onInline: (request: AiCompletionRequest, target: AiActionTarget) => void;
 };
 
 function AiActionDialog(props: DialogProps) {
@@ -313,13 +328,6 @@ function AiActionDialog(props: DialogProps) {
   );
 }
 
-function errorMessage(reason: unknown): string {
-  if (typeof reason === "object" && reason !== null && "message" in reason) {
-    return String((reason as { message: unknown }).message);
-  }
-  return String(reason);
-}
-
 function AiActionBody({
   store,
   signal,
@@ -328,23 +336,22 @@ function AiActionBody({
   getView,
   getNoteId,
   onBack,
+  onInline,
 }: DialogProps) {
   const closeDialog = useDialogClose();
   const [instruction, setInstruction] = useState("");
-  const [run, setRun] = useState<AiActionRun>(IDLE_RUN);
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(() => new Set());
   const [applyError, setApplyError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const { run, fire, retry, cancel } = useAiRun(signal, {
+    origin: aiActionOrigin(action),
+    onStart: () => {
+      setApplyError(null);
+      setExcluded(new Set());
+      setCopied(false);
+    },
+  });
 
-  const runRef = useRef(run);
-  runRef.current = run;
-  const handleRef = useRef<AiCompletionHandle | null>(null);
-  const consumerRef = useRef<{ dispose: () => void } | null>(null);
-  const activeRequestIdRef = useRef<string | null>(null);
-  const cancelRequestedRef = useRef(false);
-  const lastRequestRef = useRef<AiCompletionRequest | null>(null);
-  const bufferRef = useRef("");
-  const flushFrameRef = useRef<number | null>(null);
   const copiedTimerRef = useRef<number | null>(null);
 
   const storedPrompts = useRendererSelector(store, selectWorkspacePrompts);
@@ -383,11 +390,6 @@ function AiActionBody({
 
   useEffect(
     () => () => {
-      consumerRef.current?.dispose();
-      handleRef.current?.dispose();
-      if (flushFrameRef.current !== null) {
-        cancelAnimationFrame(flushFrameRef.current);
-      }
       if (copiedTimerRef.current !== null) {
         window.clearTimeout(copiedTimerRef.current);
       }
@@ -395,98 +397,31 @@ function AiActionBody({
     [],
   );
 
-  function flushDeltas(): void {
-    flushFrameRef.current = null;
-    const chunk = bufferRef.current;
-    const requestId = activeRequestIdRef.current;
-    bufferRef.current = "";
-    if (chunk.length > 0 && requestId !== null) {
-      setRun((current) => runWithDelta(current, requestId, chunk));
-    }
-  }
-
-  function scheduleFlush(): void {
-    if (flushFrameRef.current === null) {
-      flushFrameRef.current = requestAnimationFrame(flushDeltas);
-    }
-  }
-
-  function fire(request: AiCompletionRequest): void {
-    consumerRef.current?.dispose();
-    handleRef.current?.dispose();
-    handleRef.current = null;
-    bufferRef.current = "";
-    lastRequestRef.current = request;
-    activeRequestIdRef.current = request.requestId;
-    cancelRequestedRef.current = false;
-    setApplyError(null);
-    setExcluded(new Set());
-    setCopied(false);
-    setRun(startedRun(request.requestId));
-
-    const consumer = createAiCompletionConsumer(request.requestId, {
-      onDelta: (text) => {
-        bufferRef.current += text;
-        scheduleFlush();
-      },
-      onTerminal: (event) => {
-        flushDeltas();
-        handleRef.current = null;
-        setRun((current) => runWithTerminal(current, event));
-      },
-    });
-    consumerRef.current = consumer;
-
-    void startAiCompletion(request, aiActionOrigin(action), (event) => {
-      consumer.accept(event);
-    }, signal)
-      .then((handle) => {
-        if (activeRequestIdRef.current !== request.requestId) {
-          handle.dispose();
-          return;
-        }
-        handleRef.current = handle;
-        if (cancelRequestedRef.current) {
-          void handle.cancel().catch(noop);
-        }
-      })
-      .catch((reason: unknown) => {
-        if (activeRequestIdRef.current !== request.requestId) {
-          return;
-        }
-        consumer.dispose();
-        setRun((current) => failedRun(current, request.requestId, errorMessage(reason)));
-      });
-  }
-
+  /**
+   * A text result is reviewed against the note itself, not on top of it, so the
+   * dialog hands the run to the inline surface and gets out of the way. Results
+   * that are not a replacement — a title, a task list, a set of tags — have
+   * nothing to diff in place and stay here.
+   */
   function submit(): void {
     if (streaming || blocked !== null || model === null || prompt === null) {
       return;
     }
-    fire(
-      buildAiActionRequest({
-        action,
-        selection: model,
-        systemPrompt: prompt.systemPrompt,
-        parameters: prompt.parameters,
-        input,
-        instruction,
-        requestId: crypto.randomUUID(),
-      }),
-    );
-  }
-
-  function retry(): void {
-    const previous = lastRequestRef.current;
-    if (streaming || previous === null) {
+    const request = buildAiActionRequest({
+      action,
+      selection: model,
+      systemPrompt: prompt.systemPrompt,
+      parameters: prompt.parameters,
+      input,
+      instruction,
+      requestId: crypto.randomUUID(),
+    });
+    if (action.outcome === "text") {
+      closeDialog();
+      onInline(request, target);
       return;
     }
-    fire({ ...previous, requestId: crypto.randomUUID() });
-  }
-
-  function cancelRun(): void {
-    cancelRequestedRef.current = true;
-    void handleRef.current?.cancel().catch(noop);
+    fire(request);
   }
 
   function copyResult(): void {
@@ -512,11 +447,7 @@ function AiActionBody({
       setApplyError("The editor is not available. Run the action again.");
       return;
     }
-    const refusal = applyRefusal(
-      target,
-      getNoteId(),
-      currentInputText(view.state, target, action.scope),
-    );
+    const refusal = liveEditorRefusal(view.state, target, action.scope, getNoteId());
     if (refusal !== null) {
       setApplyError(refusal);
       return;
@@ -528,22 +459,6 @@ function AiActionBody({
     }
     closeDialog();
     view.focus();
-  }
-
-  function replaceSelection(): void {
-    withLiveEditor((view) => {
-      view.dispatch(
-        replaceRangeTransaction(view.state, target.from, target.to, run.preview.trim()),
-      );
-      return null;
-    });
-  }
-
-  function insertBelow(): void {
-    withLiveEditor((view) => {
-      view.dispatch(insertBelowTransaction(view.state, target.to, run.preview.trim()));
-      return null;
-    });
   }
 
   function renameFromResult(): void {
@@ -732,19 +647,11 @@ function AiActionBody({
             Run
           </Button>
         )}
-        {streaming && <Button onClick={cancelRun}>Cancel</Button>}
+        {streaming && <Button onClick={cancel}>Cancel</Button>}
         {showResult && !isPlan && action.outcome === "title" && (
           <Button variant="primary" onClick={renameFromResult}>
             Rename note
           </Button>
-        )}
-        {showResult && !isPlan && action.outcome === "text" && (
-          <>
-            <Button variant="primary" onClick={replaceSelection}>
-              {action.scope === "selection" ? "Replace selection" : "Replace note"}
-            </Button>
-            <Button onClick={insertBelow}>Insert below</Button>
-          </>
         )}
         {showResult && isPlan && plan !== null && plan.ok && (
           <Button

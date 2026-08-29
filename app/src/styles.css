@@ -3,6 +3,7 @@
 @import "./themes.css";
 @import "./base.css";
 @import "./features/editor/editor.css";
+@import "./features/editor/suggestion.css";
 @import "./features/sidebar/sidebar.css";
 @import "./shell/split.css";
 @import "./features/references/references.css";

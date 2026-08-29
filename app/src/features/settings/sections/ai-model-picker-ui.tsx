@@ -2,6 +2,7 @@ import type { AiProviderGroup } from "@/features/ai/model-options";
 import { aiModelOptionFor } from "@/features/ai/model-options";
 import type { AiModelSelection } from "@/features/ai/model-selection";
 import { cn } from "@/shared/lib/utils";
+import { Select, type SelectOption } from "@/shared/ui/select";
 import {
   settingsGroup,
   settingsGroupHint,
@@ -23,44 +24,37 @@ export function DefaultModelPicker({ groups, selection, onSelect }: Props) {
   const selectedValue = selectedOption
     ? modelOptionValue(selectedOption.providerId, selectedOption.modelId)
     : "";
+  const selectOptions: SelectOption<string>[] = availableGroups.flatMap((group) =>
+    group.options.map((option) => ({
+      value: modelOptionValue(option.providerId, option.modelId),
+      label: option.label,
+      detail: option.detail,
+      group: group.label,
+    })),
+  );
 
   return (
     <div className={settingsGroup}>
       <h2 className={settingsGroupTitle}>Default model</h2>
       <p className={settingsGroupHint}>The model Skriuw uses for writing tools.</p>
-      <select
-        aria-label="Default AI model"
-        className={cn(settingsTextInput, "w-full cursor-pointer")}
+      <Select
+        label="Default AI model"
+        align="start"
+        className="w-full"
+        triggerClassName={cn(settingsTextInput, "w-full justify-between text-left")}
         disabled={availableOptions.length === 0}
+        placeholder={availableOptions.length === 0 ? "Set up a model below" : "Choose a model"}
         value={selectedValue}
-        onChange={(event) => {
+        options={selectOptions}
+        onChange={(value) => {
           const option = availableOptions.find(
-            (candidate) =>
-              modelOptionValue(candidate.providerId, candidate.modelId) === event.target.value,
+            (candidate) => modelOptionValue(candidate.providerId, candidate.modelId) === value,
           );
           if (option) {
             onSelect({ providerId: option.providerId, modelId: option.modelId });
           }
         }}
-      >
-        {selectedOption === null ? (
-          <option value="">
-            {availableOptions.length === 0 ? "Set up a model below" : "Choose a model"}
-          </option>
-        ) : null}
-        {availableGroups.map((group) => (
-          <optgroup key={group.providerId} label={group.label}>
-            {group.options.map((option) => (
-              <option
-                key={modelOptionValue(option.providerId, option.modelId)}
-                value={modelOptionValue(option.providerId, option.modelId)}
-              >
-                {option.label}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
+      />
       <p className="mt-2 text-[11px] text-muted-foreground">
         {selectedOption?.detail ??
           (availableOptions.length === 0

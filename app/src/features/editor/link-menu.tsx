@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import type { ResolvedPos } from "prosemirror-model";
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import {
@@ -13,9 +14,13 @@ import { linkTargetLabel, otherLinkTarget, type LinkTarget } from "./open-link";
 import { rangeMenuAnchor, type MenuAnchor } from "./menu-anchor";
 import { productSchema } from "./schema";
 
+/** What put the menu on screen: the caret entering a link, or the pointer over one. */
+export type LinkMenuSource = "caret" | "hover";
+
 export type LinkMenuState = {
   open: boolean;
   editing: boolean;
+  source: LinkMenuSource;
   href: string;
   from: number;
   to: number;
@@ -27,6 +32,7 @@ export type LinkMenuState = {
 export const closedLinkMenu: LinkMenuState = {
   open: false,
   editing: false,
+  source: "caret",
   href: "",
   from: 0,
   to: 0,
@@ -43,19 +49,14 @@ type LinkRange = {
   to: number;
 };
 
-/**
- * The contiguous run of text under an empty selection that carries the link
- * mark, or null when the cursor is not inside a link.
- */
-export function linkAtCursor(state: EditorState): LinkRange | null {
+/** The contiguous runs of text carrying the link mark inside the resolved textblock. */
+function linkRuns($pos: ResolvedPos): LinkRange[] {
   const link = productSchema.marks.link;
-  const { $from, empty } = state.selection;
-  if (!link || !empty || !$from.parent.isTextblock) return null;
-  const blockStart = $from.start();
-  const cursor = $from.pos;
+  if (!link) return [];
+  const blockStart = $pos.start();
   const runs: LinkRange[] = [];
   let offset = 0;
-  $from.parent.forEach((child) => {
+  $pos.parent.forEach((child) => {
     const from = blockStart + offset;
     const mark = link.isInSet(child.marks);
     if (mark) {
@@ -69,7 +70,30 @@ export function linkAtCursor(state: EditorState): LinkRange | null {
     }
     offset += child.nodeSize;
   });
-  return runs.find((run) => cursor > run.from && cursor < run.to) ?? null;
+  return runs;
+}
+
+/**
+ * The contiguous run of text under an empty selection that carries the link
+ * mark, or null when the cursor is not inside a link.
+ */
+export function linkAtCursor(state: EditorState): LinkRange | null {
+  const { $from, empty } = state.selection;
+  if (!empty || !$from.parent.isTextblock) return null;
+  const cursor = $from.pos;
+  return linkRuns($from).find((run) => cursor > run.from && cursor < run.to) ?? null;
+}
+
+/**
+ * The link run covering a document position, used to resolve the link the
+ * pointer is over. Unlike the caret lookup this includes the run's leading
+ * edge, because a hovered anchor resolves to the position before its text.
+ */
+export function linkAtPos(state: EditorState, pos: number): LinkRange | null {
+  if (pos < 0 || pos > state.doc.content.size) return null;
+  const $pos = state.doc.resolve(pos);
+  if (!$pos.parent.isTextblock) return null;
+  return linkRuns($pos).find((run) => pos >= run.from && pos < run.to) ?? null;
 }
 
 /** The href of the first link mark inside the range, or "" when there is none. */
@@ -117,6 +141,20 @@ type Props = {
   onOpen: (href: string, target: LinkTarget) => void;
   onClose: () => void;
   onEdit: () => void;
+  /** The pointer entering the menu keeps a hover-opened menu on screen. */
+  onHoverStart: () => void;
+  onHoverEnd: () => void;
+  containerRef: RefObject<HTMLDivElement | null>;
+};
+
+type LinkAction = {
+  id: string;
+  label: string;
+  title: string;
+  className?: string;
+  separatorBefore?: boolean;
+  content: ReactNode;
+  run: () => void;
 };
 
 function openTitle(target: LinkTarget, shortcut?: string): string {
@@ -136,10 +174,15 @@ export function LinkMenu({
   onOpen,
   onClose,
   onEdit,
+  onHoverStart,
+  onHoverEnd,
+  containerRef,
 }: Props) {
   const alternateTarget = otherLinkTarget(defaultTarget);
   const [draft, setDraft] = useState(state.href);
+  const [focusIndex, setFocusIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const buttonsRef = useRef<(HTMLButtonElement | null)[]>([]);
   useEffect(() => {
     if (state.editing) {
       setDraft(state.href);
@@ -147,6 +190,9 @@ export function LinkMenu({
       inputRef.current?.select();
     }
   }, [state.editing, state.href, state.from, state.to]);
+  useEffect(() => {
+    if (!state.open) setFocusIndex(0);
+  }, [state.open]);
   if (!state.open) return null;
 
   function closeAndFocus(): void {
@@ -173,11 +219,95 @@ export function LinkMenu({
     closeAndFocus();
   }
 
+  const actions: LinkAction[] = [
+    {
+      id: "open",
+      label: `${linkTargetLabel(defaultTarget)}: ${state.href}`,
+      title: `${openTitle(defaultTarget, openShortcut)}: ${state.href}`,
+      className: "link-menu-href",
+      content: (
+        <>
+          <TargetIcon target={defaultTarget} />
+          <span>{state.href}</span>
+        </>
+      ),
+      run: () => onOpen(state.href, defaultTarget),
+    },
+    {
+      id: "open-alternate",
+      label: linkTargetLabel(alternateTarget),
+      title: linkTargetLabel(alternateTarget),
+      content: <TargetIcon target={alternateTarget} />,
+      run: () => onOpen(state.href, alternateTarget),
+    },
+    {
+      id: "edit",
+      label: "Edit link",
+      title: "Edit link",
+      separatorBefore: true,
+      content: <PencilIcon size={13} />,
+      run: onEdit,
+    },
+    {
+      id: "unlink",
+      label: "Remove link",
+      title: "Remove link",
+      content: <UnlinkIcon size={13} />,
+      run: removeLink,
+    },
+  ];
+
+  function moveFocus(next: number): void {
+    const wrapped = (next + actions.length) % actions.length;
+    setFocusIndex(wrapped);
+    buttonsRef.current[wrapped]?.focus();
+  }
+
   return (
     <div
+      ref={containerRef}
       className="link-menu"
+      role={state.editing ? "group" : "toolbar"}
+      aria-label="Link"
+      aria-orientation={state.editing ? undefined : "horizontal"}
       data-below={state.below ? "true" : undefined}
       style={{ left: state.x, top: state.y }}
+      onMouseEnter={onHoverStart}
+      onMouseLeave={onHoverEnd}
+      onBlur={(event) => {
+        const next = event.relatedTarget;
+        if (
+          next instanceof HTMLElement &&
+          (next.closest(".link-menu") || next.closest(".prosemirror-host"))
+        ) {
+          return;
+        }
+        onClose();
+      }}
+      onKeyDown={(event) => {
+        if (state.editing) return;
+        if (event.key === "Tab") {
+          event.preventDefault();
+          moveFocus(focusIndex + (event.shiftKey ? -1 : 1));
+        } else if (event.key === "ArrowRight") {
+          // 60% keyboards have no Home or End, so shift+arrow jumps to either
+          // end of the toolbar; Home and End still work where they exist.
+          event.preventDefault();
+          moveFocus(event.shiftKey ? actions.length - 1 : focusIndex + 1);
+        } else if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          moveFocus(event.shiftKey ? 0 : focusIndex - 1);
+        } else if (event.key === "Home") {
+          event.preventDefault();
+          moveFocus(0);
+        } else if (event.key === "End") {
+          event.preventDefault();
+          moveFocus(actions.length - 1);
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          closeAndFocus();
+        }
+      }}
     >
       {state.editing ? (
         <>
@@ -217,55 +347,30 @@ export function LinkMenu({
           </button>
         </>
       ) : (
-        <>
-          <button
-            type="button"
-            className="link-menu-href"
-            title={`${openTitle(defaultTarget, openShortcut)}: ${state.href}`}
-            aria-label={`${linkTargetLabel(defaultTarget)}: ${state.href}`}
-            onMouseDown={(event) => {
-              event.preventDefault();
-              onOpen(state.href, defaultTarget);
-            }}
-          >
-            <TargetIcon target={defaultTarget} />
-            <span>{state.href}</span>
-          </button>
-          <button
-            type="button"
-            title={linkTargetLabel(alternateTarget)}
-            aria-label={linkTargetLabel(alternateTarget)}
-            onMouseDown={(event) => {
-              event.preventDefault();
-              onOpen(state.href, alternateTarget);
-            }}
-          >
-            <TargetIcon target={alternateTarget} />
-          </button>
-          <span className="link-menu-sep" />
-          <button
-            type="button"
-            title="Edit link"
-            aria-label="Edit link"
-            onMouseDown={(event) => {
-              event.preventDefault();
-              onEdit();
-            }}
-          >
-            <PencilIcon size={13} />
-          </button>
-          <button
-            type="button"
-            title="Remove link"
-            aria-label="Remove link"
-            onMouseDown={(event) => {
-              event.preventDefault();
-              removeLink();
-            }}
-          >
-            <UnlinkIcon size={13} />
-          </button>
-        </>
+        actions.map((action, index) => (
+          <Fragment key={action.id}>
+            {action.separatorBefore && <span className="link-menu-sep" />}
+            <button
+              ref={(element) => {
+                buttonsRef.current[index] = element;
+              }}
+              type="button"
+              className={action.className}
+              title={action.title}
+              aria-label={action.label}
+              tabIndex={index === focusIndex ? 0 : -1}
+              onFocus={() => setFocusIndex(index)}
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={() => {
+                action.run();
+              }}
+            >
+              {action.content}
+            </button>
+          </Fragment>
+        ))
       )}
     </div>
   );

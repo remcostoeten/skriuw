@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { diffMarkdown, diffWords, type DiffLine } from "../../../src/features/history/diff-model";
+import { diffMarkdown, type DiffLine } from "../../../src/features/history/diff-model";
+import { diffWords } from "../../../src/shared/lib/word-diff";
 
 function flatten(markdownDiff: ReturnType<typeof diffMarkdown>): DiffLine[] {
   return markdownDiff.hunks.flatMap((hunk) => [...hunk.lines]);

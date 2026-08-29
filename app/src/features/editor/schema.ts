@@ -54,6 +54,7 @@ import {
 } from "prosemirror-tables";
 import { createCodeHighlightPlugin } from "./code-highlight";
 import { createAnnotationDecorationPlugin } from "./annotation-decorations";
+import { createSuggestionPlugin } from "./suggestion-decorations";
 import { createSearchPlugin } from "./search-plugin";
 import {
   createDefaultDiagram,
@@ -1267,6 +1268,7 @@ export function createProductPlugins(): Plugin[] {
     createPlaceholderPlugin(),
     createSearchPlugin(),
     createAnnotationDecorationPlugin(),
+    createSuggestionPlugin(),
     createCodeHighlightPlugin(),
     createCheckboxTogglePlugin(),
     createToggleListPlugin(),
