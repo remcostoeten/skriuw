@@ -5,6 +5,7 @@ export type DiffSegment = {
 
 const WORD_PATTERN = /(\s+|[^\s]+)/g;
 const MIN_PAIR_SIMILARITY = 0.34;
+const MAX_LINE_DIFF_CHARS = 4096;
 
 /**
  * The alignment table is dense, so an unbounded pair would allocate
@@ -119,6 +120,38 @@ function wholeBlob(before: string, after: string): {
 }
 
 /**
+ * Collects the segments one diff side sees, then absorbs a single-character
+ * unchanged gap between two changed runs into the highlight so "old words" →
+ * "new words" reads as one span instead of two marks split by a space.
+ */
+function sideSegments(ops: readonly Op[], changedKind: "removed" | "added"): DiffSegment[] {
+  const runs: DiffSegment[] = [];
+  for (const op of ops) {
+    if (op.kind !== "context" && op.kind !== changedKind) {
+      continue;
+    }
+    const changed = op.kind === changedKind;
+    const last = runs[runs.length - 1];
+    if (last && last.changed === changed) {
+      last.text += op.text;
+    } else {
+      runs.push({ text: op.text, changed });
+    }
+  }
+  const joined: DiffSegment[] = [];
+  for (let index = 0; index < runs.length; index += 1) {
+    const run = runs[index]!;
+    const previous = joined[joined.length - 1];
+    if (!run.changed && run.text.length === 1 && previous?.changed && index < runs.length - 1) {
+      previous.text += run.text;
+      continue;
+    }
+    joined.push({ ...run });
+  }
+  return mergeSegments(joined);
+}
+
+/**
  * Splits a replaced text pair into word-level segments so a rendered diff can
  * highlight only the words that moved, instead of tinting the whole thing. Two
  * texts with little in common are reported as one wholesale replacement, which
@@ -128,6 +161,9 @@ export function diffWords(
   before: string,
   after: string,
 ): { before: DiffSegment[]; after: DiffSegment[] } {
+  if (before.length > MAX_LINE_DIFF_CHARS || after.length > MAX_LINE_DIFF_CHARS) {
+    return wholeBlob(before, after);
+  }
   const beforeTokens = tokenizeWords(before);
   const afterTokens = tokenizeWords(after);
   if (beforeTokens.length * afterTokens.length > MAX_MATRIX_CELLS) {
@@ -138,17 +174,5 @@ export function diffWords(
   }
 
   const ops = lcsOps(beforeTokens, afterTokens);
-  const beforeSegments: DiffSegment[] = [];
-  const afterSegments: DiffSegment[] = [];
-  for (const op of ops) {
-    if (op.kind === "context") {
-      beforeSegments.push({ text: op.text, changed: false });
-      afterSegments.push({ text: op.text, changed: false });
-    } else if (op.kind === "removed") {
-      beforeSegments.push({ text: op.text, changed: true });
-    } else {
-      afterSegments.push({ text: op.text, changed: true });
-    }
-  }
-  return { before: mergeSegments(beforeSegments), after: mergeSegments(afterSegments) };
+  return { before: sideSegments(ops, "removed"), after: sideSegments(ops, "added") };
 }
