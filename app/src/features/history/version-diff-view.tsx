@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { CheckIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { diffMarkdown, type DiffLine, type MarkdownDiff } from "./diff-model";
@@ -17,6 +17,7 @@ export function useMarkdownDiff(versionMarkdown: string, currentMarkdown: string
 
 export function VersionDiffView({ versionMarkdown, currentMarkdown }: Props) {
   const diff = useMarkdownDiff(versionMarkdown, currentMarkdown);
+  const [expandedHunks, setExpandedHunks] = useState<ReadonlySet<string>>(() => new Set());
 
   if (diff.hunks.length === 0) {
     return (
@@ -42,11 +43,21 @@ export function VersionDiffView({ versionMarkdown, currentMarkdown }: Props) {
         )}
         {diff.hunks.map((hunk) => (
           <div key={hunk.key} className="diff-hunk">
-            {hunk.skippedBefore > 0 && (
-              <p className="diff-skip m-0">
-                {hunk.skippedBefore} unchanged {hunk.skippedBefore === 1 ? "line" : "lines"}
-              </p>
-            )}
+            {hunk.hiddenBefore.length > 0 &&
+              (expandedHunks.has(hunk.key) ? (
+                hunk.hiddenBefore.map((line) => <DiffRow key={line.key} line={line} />)
+              ) : (
+                <button
+                  type="button"
+                  className="diff-skip"
+                  onClick={() => {
+                    setExpandedHunks((previous) => new Set(previous).add(hunk.key));
+                  }}
+                >
+                  Show {hunk.hiddenBefore.length} unchanged{" "}
+                  {hunk.hiddenBefore.length === 1 ? "line" : "lines"}
+                </button>
+              ))}
             {hunk.lines.map((line) => (
               <DiffRow key={line.key} line={line} />
             ))}

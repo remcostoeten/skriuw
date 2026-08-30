@@ -1,10 +1,10 @@
 :root {
   --diff-added: hsl(var(--success));
-  --diff-added-surface: color-mix(in oklab, hsl(var(--success)) 9%, transparent);
-  --diff-added-emphasis: color-mix(in oklab, hsl(var(--success)) 22%, transparent);
+  --diff-added-surface: hsl(var(--success) / 0.09);
+  --diff-added-emphasis: hsl(var(--success) / 0.22);
   --diff-removed: hsl(var(--destructive));
-  --diff-removed-surface: color-mix(in oklab, hsl(var(--destructive)) 9%, transparent);
-  --diff-removed-emphasis: color-mix(in oklab, hsl(var(--destructive)) 22%, transparent);
+  --diff-removed-surface: hsl(var(--destructive) / 0.09);
+  --diff-removed-emphasis: hsl(var(--destructive) / 0.22);
   --diff-gutter: 2.25rem;
 }
 
@@ -23,11 +23,22 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
+  margin: 0;
   padding: 10px calc(var(--diff-gutter) * 2 + 1.25rem) 10px 12px;
+  appearance: none;
+  background: transparent;
+  border: 0;
   color: hsl(var(--muted-foreground) / 0.65);
   font-family: var(--font-sans);
   font-size: 11px;
   letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.diff-skip:hover {
+  color: hsl(var(--muted-foreground));
 }
 
 .diff-skip::before,
@@ -102,6 +113,8 @@
   padding: 1px 1px;
   margin: 0 -1px;
   color: hsl(var(--foreground));
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .diff-row-added .diff-word {

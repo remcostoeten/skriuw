@@ -52,7 +52,7 @@ test("diffMarkdown numbers lines against each side independently", () => {
   assert.equal(firstAdded?.afterLine, 2);
 });
 
-test("diffMarkdown keeps bounded context and records the skipped line count", () => {
+test("diffMarkdown keeps bounded context and carries the hidden lines", () => {
   const before = Array.from({ length: 30 }, (_, index) => `line ${index}`).join("\n");
   const after = before.replace("line 20", "line twenty");
 
@@ -61,7 +61,9 @@ test("diffMarkdown keeps bounded context and records the skipped line count", ()
   assert.equal(diff.hunks.length, 1);
   const hunk = diff.hunks[0];
   assert.ok(hunk);
-  assert.equal(hunk.skippedBefore, 17);
+  assert.equal(hunk.hiddenBefore.length, 17);
+  assert.ok(hunk.hiddenBefore.every((line) => line.kind === "context"));
+  assert.equal(hunk.hiddenBefore[0]?.beforeLine, 1);
   assert.equal(hunk.lines.length, 8);
 });
 
@@ -104,6 +106,43 @@ test("diffMarkdown treats an empty document as a full removal", () => {
   assert.deepEqual(diff.stats, { added: 0, removed: 2 });
 });
 
+test("diffMarkdown pairs a replaced line with its best match when a line is inserted above it", () => {
+  const diff = diffMarkdown(
+    "alpha\nThe quick brown fox jumps\nomega\n",
+    "alpha\nA new opening line\nThe quick brown fox leaps\nomega\n",
+  );
+  const lines = flatten(diff);
+
+  assert.deepEqual(
+    lines.map((line) => line.kind),
+    ["context", "added", "removed", "added", "context"],
+  );
+  const removed = lines.find((line) => line.kind === "removed");
+  assert.deepEqual(
+    removed?.segments.filter((segment) => segment.changed).map((segment) => segment.text),
+    ["jumps"],
+  );
+  const pairedAdded = lines[3];
+  assert.deepEqual(
+    pairedAdded?.segments.filter((segment) => segment.changed).map((segment) => segment.text),
+    ["leaps"],
+  );
+  const insertedAdded = lines[1];
+  assert.deepEqual(insertedAdded?.segments, [{ text: "A new opening line", changed: false }]);
+});
+
+test("diffMarkdown anchors an inserted blank line to the content above it", () => {
+  const diff = diffMarkdown("para one\n\nnext\n", "para one\n\n\nnext\n");
+  const lines = flatten(diff);
+
+  assert.deepEqual(
+    lines.map((line) => line.kind),
+    ["context", "added", "context", "context"],
+  );
+  const added = lines.find((line) => line.kind === "added");
+  assert.equal(added?.afterLine, 2);
+});
+
 test("diffWords returns whole-line segments when the lines barely overlap", () => {
   const words = diffWords("completely different text", "another sentence entirely");
 
@@ -118,4 +157,19 @@ test("diffWords merges adjacent segments of the same kind", () => {
     words.after.map((segment) => segment.text),
     ["keep ", "that", " part"],
   );
+});
+
+test("diffWords absorbs a one-character gap between two changed words into one span", () => {
+  const words = diffWords("start alpha beta tail one two", "start gamma delta tail one two");
+
+  assert.deepEqual(words.before, [
+    { text: "start ", changed: false },
+    { text: "alpha beta", changed: true },
+    { text: " tail one two", changed: false },
+  ]);
+  assert.deepEqual(words.after, [
+    { text: "start ", changed: false },
+    { text: "gamma delta", changed: true },
+    { text: " tail one two", changed: false },
+  ]);
 });

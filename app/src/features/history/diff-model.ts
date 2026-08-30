@@ -12,8 +12,8 @@ export type DiffLine = {
 
 export type DiffHunk = {
   key: string;
-  /** Unchanged lines skipped between the previous hunk and this one. */
-  skippedBefore: number;
+  /** Unchanged lines collapsed between the previous hunk and this one. */
+  hiddenBefore: readonly DiffLine[];
   lines: readonly DiffLine[];
 };
 
@@ -31,6 +31,8 @@ export type MarkdownDiff = {
 
 const CONTEXT_LINES = 3;
 const MAX_MATRIX_CELLS = 4_000_000;
+const MAX_ALIGNMENT_COMPARISONS = 4096;
+const MIN_IMPROVEMENT_PER_PAIR = 0.5;
 
 type Op = { kind: "context" | "added" | "removed"; text: string };
 
@@ -62,33 +64,165 @@ function commonSuffixLength(
   return index;
 }
 
-function refinePairs(lines: DiffLine[]): DiffLine[] {
-  const refined = [...lines];
+/**
+ * Slides a pure insert or delete run made entirely of identical blank lines to
+ * the top of the blank run it sits in. Diffing anchors a blank-line change at
+ * the bottom of the run, so pressing Enter at the end of a paragraph marks a
+ * blank *below* the caret as added; sliding up anchors the change to the
+ * content above it instead. Texts inside the slid region are identical, so
+ * only the op kinds move.
+ */
+function slideBlankRunsUp(ops: Op[]): Op[] {
+  const result = [...ops];
   let index = 0;
-  while (index < refined.length) {
-    let removedEnd = index;
-    while (refined[removedEnd]?.kind === "removed") {
-      removedEnd += 1;
+  while (index < result.length) {
+    const first = result[index]!;
+    if (first.kind === "context") {
+      index += 1;
+      continue;
     }
-    let addedEnd = removedEnd;
-    while (refined[addedEnd]?.kind === "added") {
-      addedEnd += 1;
+    let end = index;
+    let pure = true;
+    while (end < result.length && result[end]!.kind !== "context") {
+      if (result[end]!.kind !== first.kind) {
+        pure = false;
+      }
+      end += 1;
     }
-    const removedCount = removedEnd - index;
-    const addedCount = addedEnd - removedEnd;
-    if (removedCount > 0 && removedCount === addedCount) {
-      for (let offset = 0; offset < removedCount; offset += 1) {
-        const removed = refined[index + offset];
-        const added = refined[removedEnd + offset];
-        if (!removed || !added) {
-          continue;
+    const unit = first.text;
+    const uniformBlank =
+      pure &&
+      unit.trim() === "" &&
+      result.slice(index, end).every((op) => op.text === unit);
+    if (uniformBlank) {
+      let slide = 0;
+      while (
+        slide < index &&
+        result[index - 1 - slide]!.kind === "context" &&
+        result[index - 1 - slide]!.text === unit
+      ) {
+        slide += 1;
+      }
+      if (slide > 0) {
+        const runLength = end - index;
+        for (let position = index - slide; position < end; position += 1) {
+          const kind = position < index - slide + runLength ? first.kind : "context";
+          result[position] = { kind, text: unit };
         }
-        const words = diffWords(lineText(removed), lineText(added));
-        refined[index + offset] = { ...removed, segments: words.before };
-        refined[removedEnd + offset] = { ...added, segments: words.after };
       }
     }
-    index = addedEnd > index ? addedEnd : index + 1;
+    index = end;
+  }
+  return result;
+}
+
+const WHITESPACE = /\s+/g;
+
+function lineSimilarity(before: string, after: string): number {
+  const strippedBefore = before.replace(WHITESPACE, "");
+  const strippedAfter = after.replace(WHITESPACE, "");
+  if (strippedBefore === strippedAfter) {
+    return 1;
+  }
+  const maxLength = Math.max(strippedBefore.length, strippedAfter.length);
+  const minLength = Math.min(strippedBefore.length, strippedAfter.length);
+  if (minLength === 0) {
+    return 0;
+  }
+  let prefix = 0;
+  while (prefix < minLength && strippedBefore[prefix] === strippedAfter[prefix]) {
+    prefix += 1;
+  }
+  let suffix = 0;
+  while (
+    suffix < minLength - prefix &&
+    strippedBefore[strippedBefore.length - 1 - suffix] === strippedAfter[strippedAfter.length - 1 - suffix]
+  ) {
+    suffix += 1;
+  }
+  return (prefix + suffix) / maxLength;
+}
+
+/**
+ * Picks where the paired window sits inside the longer side of a
+ * count-mismatched change block, so lines pair by content similarity instead
+ * of position. Returns 0 when no offset clearly beats positional pairing.
+ */
+function bestPairOffset(removed: readonly DiffLine[], added: readonly DiffLine[]): number {
+  const pairCount = Math.min(removed.length, added.length);
+  const surplus = Math.abs(removed.length - added.length);
+  if (pairCount === 0 || surplus === 0 || pairCount * (surplus + 1) > MAX_ALIGNMENT_COMPARISONS) {
+    return 0;
+  }
+  const removedTexts = removed.map(lineText);
+  const addedTexts = added.map(lineText);
+  const addedIsLonger = added.length > removed.length;
+  let bestOffset = 0;
+  let bestScore = -1;
+  for (let offset = 0; offset <= surplus; offset += 1) {
+    let score = 0;
+    for (let pair = 0; pair < pairCount; pair += 1) {
+      score += lineSimilarity(
+        removedTexts[pair + (addedIsLonger ? 0 : offset)]!,
+        addedTexts[pair + (addedIsLonger ? offset : 0)]!,
+      );
+    }
+    if (offset === 0) {
+      bestScore = score + pairCount * MIN_IMPROVEMENT_PER_PAIR;
+    } else if (score > bestScore) {
+      bestScore = score;
+      bestOffset = offset;
+    }
+  }
+  return bestOffset;
+}
+
+function refineChangeBlock(removed: readonly DiffLine[], added: readonly DiffLine[]): DiffLine[] {
+  if (removed.length === 0 || added.length === 0) {
+    return [...removed, ...added];
+  }
+  const offset = removed.length === added.length ? 0 : bestPairOffset(removed, added);
+  const pairCount = Math.min(removed.length, added.length);
+  const removedOffset = removed.length > added.length ? offset : 0;
+  const addedOffset = added.length > removed.length ? offset : 0;
+
+  const pairedRemoved: DiffLine[] = [];
+  const pairedAdded: DiffLine[] = [];
+  for (let pair = 0; pair < pairCount; pair += 1) {
+    const removedLine = removed[removedOffset + pair]!;
+    const addedLine = added[addedOffset + pair]!;
+    const words = diffWords(lineText(removedLine), lineText(addedLine));
+    pairedRemoved.push({ ...removedLine, segments: words.before });
+    pairedAdded.push({ ...addedLine, segments: words.after });
+  }
+
+  return [
+    ...removed.slice(0, removedOffset),
+    ...added.slice(0, addedOffset),
+    ...pairedRemoved,
+    ...pairedAdded,
+    ...removed.slice(removedOffset + pairCount),
+    ...added.slice(addedOffset + pairCount),
+  ];
+}
+
+function refinePairs(lines: readonly DiffLine[]): DiffLine[] {
+  const refined: DiffLine[] = [];
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index]!;
+    if (line.kind === "context") {
+      refined.push(line);
+      index += 1;
+      continue;
+    }
+    const removed: DiffLine[] = [];
+    const added: DiffLine[] = [];
+    while (index < lines.length && lines[index]!.kind !== "context") {
+      (lines[index]!.kind === "removed" ? removed : added).push(lines[index]!);
+      index += 1;
+    }
+    refined.push(...refineChangeBlock(removed, added));
   }
   return refined;
 }
@@ -129,11 +263,11 @@ function buildHunks(lines: readonly DiffLine[]): DiffHunk[] {
 
   let previousEnd = -1;
   return ranges.map((range, index) => {
-    const skippedBefore = range.start - previousEnd - 1;
+    const hiddenBefore = lines.slice(previousEnd + 1, range.start);
     previousEnd = range.end;
     return {
       key: `hunk-${index}`,
-      skippedBefore: Math.max(0, skippedBefore),
+      hiddenBefore,
       lines: lines.slice(range.start, range.end + 1),
     };
   });
@@ -141,7 +275,8 @@ function buildHunks(lines: readonly DiffLine[]): DiffHunk[] {
 
 /**
  * Diffs two markdown documents line by line, grouping changes into hunks with
- * bounded context and word-level segments for one-to-one replacements.
+ * bounded context. Replaced lines pair up by content similarity and carry
+ * word-level segments; blank-line insertions anchor to the content above them.
  */
 export function diffMarkdown(beforeMarkdown: string, afterMarkdown: string): MarkdownDiff {
   const before = splitLines(beforeMarkdown);
@@ -161,11 +296,12 @@ export function diffMarkdown(beforeMarkdown: string, afterMarkdown: string): Mar
       ]
     : lcsOps(beforeMiddle, afterMiddle);
 
-  const ops: Op[] = [
+  const joinedOps: Op[] = [
     ...before.slice(0, prefix).map((text): Op => ({ kind: "context", text })),
     ...middleOps,
     ...before.slice(before.length - suffix).map((text): Op => ({ kind: "context", text })),
   ];
+  const ops = truncated ? joinedOps : slideBlankRunsUp(joinedOps);
 
   let beforeCursor = 0;
   let afterCursor = 0;
