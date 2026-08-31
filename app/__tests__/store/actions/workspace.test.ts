@@ -221,6 +221,26 @@ test("renameCurrentNote keeps an in-progress rename and no-ops without a note", 
   assert.equal(empty.getState().editingNodeId, null);
 });
 
+test("renameNode publishes the new title before leaving rename mode", async () => {
+  const { renameNode } = await import("../../../src/store/actions/workspace");
+  const store = await storeWith({ activeNoteId: "a", nodes: [noteNode("a", 1)] });
+  const transitions: string[] = [];
+  store.setEditingNode("a");
+  store.subscribe(
+    (state) => `${state.nodes.get("a")?.title ?? ""}:${state.editingNodeId ?? ""}`,
+    () => {
+      const state = store.getState();
+      transitions.push(`${state.nodes.get("a")?.title ?? ""}:${state.editingNodeId ?? ""}`);
+    },
+  );
+
+  renameNode(store, "a", "Renamed");
+
+  assert.deepEqual(transitions, ["Renamed:a", "Renamed:"]);
+  assert.equal(store.getState().nodes.get("a")?.title, "Renamed");
+  assert.equal(store.getState().editingNodeId, null);
+});
+
 test("nextNoteAfterRemoval prefers the successor and falls back to the predecessor", async () => {
   const { nextNoteAfterRemoval } = await import("../../../src/store/actions/workspace");
   const store = await storeWith({
@@ -277,6 +297,198 @@ test("restoreTrashedNote brings the note back and reopens it", async () => {
   assert.equal(state.nodes.has("a"), true);
   assert.equal(state.sourceNodes.get("a")?.deletedAt, null);
   assert.equal(state.activeNoteId, "a");
+});
+
+test("restoreNoteVersion flushes pending saves before reading the current revision", async () => {
+  const { registerPendingWork } = await import("../../../src/shell/pending-work");
+  const { restoreNoteVersion } = await import("../../../src/store/actions/workspace");
+  const store = await storeWith({
+    activeNoteId: "a",
+    nodes: [noteNode("a", 1)],
+    documents: [
+      {
+        noteId: "a",
+        documentJson: { type: "doc", content: [{ type: "paragraph" }] },
+        markdown: "Current\n",
+        revision: 1,
+        wordCount: 1,
+      },
+    ],
+  });
+  const sequence: string[] = [];
+  const unregister = registerPendingWork(async () => {
+    sequence.push("flush");
+    store.applyAck({
+      applied: 1,
+      revisions: [{ id: "a", revision: 2 }],
+      rankChanges: [],
+    });
+  });
+  const globals = globalThis as typeof globalThis & {
+    window: {
+      __TAURI_INTERNALS__: {
+        invoke: (command: string, args: Record<string, unknown>) => Promise<unknown>;
+        transformCallback: (callback: unknown) => unknown;
+      };
+    };
+  };
+  globals.window.__TAURI_INTERNALS__.invoke = async (command, args) => {
+    if (command === "apply_workspace_operations") {
+      sequence.push("restore");
+      const envelopes = args.operations as Array<{
+        operation: { type: string; expectedRevision?: number };
+      }>;
+      assert.equal(envelopes[0]?.operation.type, "save_document");
+      assert.equal(envelopes[0]?.operation.expectedRevision, 2);
+      return {
+        applied: 1,
+        revisions: [{ id: "a", revision: 3 }],
+        rankChanges: [],
+      };
+    }
+    throw new Error(`unexpected command: ${command}`);
+  };
+
+  try {
+    await restoreNoteVersion(store, "a", "Restored\n");
+  } finally {
+    unregister();
+    setupTauriInvokeStub();
+  }
+
+  assert.deepEqual(sequence, ["flush", "restore"]);
+  assert.equal(store.getState().documents.get("a")?.markdown, "Restored\n");
+  assert.equal(store.getState().documents.get("a")?.revision, 3);
+});
+
+test("restoreNoteVersion retries once at the fresh revision after a conflict", async () => {
+  const { restoreNoteVersion } = await import("../../../src/store/actions/workspace");
+  const store = await storeWith({
+    activeNoteId: "a",
+    nodes: [noteNode("a", 1)],
+    documents: [
+      {
+        noteId: "a",
+        documentJson: { type: "doc", content: [{ type: "paragraph" }] },
+        markdown: "Current\n",
+        revision: 1,
+        wordCount: 1,
+      },
+    ],
+  });
+  const expectedRevisions: number[] = [];
+  const globals = globalThis as typeof globalThis & {
+    window: {
+      __TAURI_INTERNALS__: {
+        invoke: (command: string, args: Record<string, unknown>) => Promise<unknown>;
+        transformCallback: (callback: unknown) => unknown;
+      };
+    };
+  };
+  globals.window.__TAURI_INTERNALS__.invoke = async (command, args) => {
+    if (command === "apply_workspace_operations") {
+      const envelopes = args.operations as Array<{
+        operation: { expectedRevision?: number };
+      }>;
+      const expected = envelopes[0]?.operation.expectedRevision ?? -1;
+      expectedRevisions.push(expected);
+      if (expected === 1) {
+        throw "revision conflict for a: expected 1, current 2";
+      }
+      return { applied: 1, revisions: [{ id: "a", revision: 3 }], rankChanges: [] };
+    }
+    if (command === "bootstrap_workspace") {
+      return {
+        protocolVersion: 1,
+        activeNoteId: "a",
+        nodes: [noteNode("a", 1)],
+        documents: [
+          {
+            noteId: "a",
+            documentJson: { type: "doc", content: [{ type: "paragraph" }] },
+            markdown: "Concurrent\n",
+            revision: 2,
+            wordCount: 1,
+          },
+        ],
+        historyHeaders: [],
+        settings: NOTE_SETTINGS,
+      };
+    }
+    throw new Error(`unexpected command: ${command}`);
+  };
+
+  try {
+    await restoreNoteVersion(store, "a", "Restored\n");
+  } finally {
+    setupTauriInvokeStub();
+  }
+
+  assert.deepEqual(expectedRevisions, [1, 2]);
+  assert.equal(store.getState().documents.get("a")?.markdown, "Restored\n");
+  assert.equal(store.getState().documents.get("a")?.revision, 3);
+});
+
+test("restoreNoteVersion surfaces a conflict when no fresh revision appears", async () => {
+  const { restoreNoteVersion } = await import("../../../src/store/actions/workspace");
+  const store = await storeWith({
+    activeNoteId: "a",
+    nodes: [noteNode("a", 1)],
+    documents: [
+      {
+        noteId: "a",
+        documentJson: { type: "doc", content: [{ type: "paragraph" }] },
+        markdown: "Current\n",
+        revision: 1,
+        wordCount: 1,
+      },
+    ],
+  });
+  let applies = 0;
+  const globals = globalThis as typeof globalThis & {
+    window: {
+      __TAURI_INTERNALS__: {
+        invoke: (command: string, args: Record<string, unknown>) => Promise<unknown>;
+        transformCallback: (callback: unknown) => unknown;
+      };
+    };
+  };
+  globals.window.__TAURI_INTERNALS__.invoke = async (command) => {
+    if (command === "apply_workspace_operations") {
+      applies += 1;
+      throw "revision conflict for a: expected 1, current 1";
+    }
+    if (command === "bootstrap_workspace") {
+      return {
+        protocolVersion: 1,
+        activeNoteId: "a",
+        nodes: [noteNode("a", 1)],
+        documents: [
+          {
+            noteId: "a",
+            documentJson: { type: "doc", content: [{ type: "paragraph" }] },
+            markdown: "Current\n",
+            revision: 1,
+            wordCount: 1,
+          },
+        ],
+        historyHeaders: [],
+        settings: NOTE_SETTINGS,
+      };
+    }
+    throw new Error(`unexpected command: ${command}`);
+  };
+
+  let rejection: unknown = null;
+  try {
+    await restoreNoteVersion(store, "a", "Restored\n");
+  } catch (error) {
+    rejection = error;
+  } finally {
+    setupTauriInvokeStub();
+  }
+  assert.match(String(rejection), /revision conflict/);
+  assert.equal(applies, 1);
 });
 
 test("duplicateCurrentNote copies the open note after it and opens the copy", async () => {

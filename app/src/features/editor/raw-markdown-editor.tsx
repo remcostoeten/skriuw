@@ -42,6 +42,7 @@ import {
   type RawMarkdownState,
 } from "./raw-markdown-reconciliation";
 import { countWords, parseProductMarkdownWithImages } from "./schema";
+import { SaveFailureBanner } from "./save-failure-banner";
 import { SaveSequencer } from "./save-sequencer";
 
 const SAVE_DEBOUNCE_MS = 500;
@@ -207,8 +208,13 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   useEffect(() => {
     const unregister = registerPendingWork(() => flushPendingSave(sourceRef.current.noteId));
     return () => {
-      unregister();
-      void flushPendingSave(sourceRef.current.noteId).catch(reportBackgroundSaveFailure);
+      // The final save must stay registered until it settles so that a
+      // flushPendingWork() issued right after unmount (restore, window close)
+      // still waits for it instead of reading a pre-save revision.
+      const finalSave = flushPendingSave(sourceRef.current.noteId).catch(
+        reportBackgroundSaveFailure,
+      );
+      void finalSave.finally(unregister);
     };
   }, []);
 
@@ -375,29 +381,21 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   return (
     <div ref={setSurfaceHost}>
       {failedSaveNoteIds.size > 0 && (
-        <div
-          className="sticky top-3 z-40 mx-auto mb-3 flex max-w-xl items-center justify-between gap-4 rounded-[var(--radius)] border border-[hsl(var(--mood-rough)/0.45)] bg-popover px-3 py-2 text-[13px] shadow-sm"
-          role="alert"
-        >
-          <span>
-            {failedSaveNoteIds.size === 1
+        <SaveFailureBanner
+          message={
+            failedSaveNoteIds.size === 1
               ? "Changes couldn’t be saved. Your Markdown draft is still here."
-              : `Markdown changes in ${failedSaveNoteIds.size} notes couldn’t be saved. Your drafts are still here.`}
-          </span>
-          <button
-            type="button"
-            className="shrink-0 rounded-[var(--radius)] border border-border bg-muted/55 px-2 py-1 text-[12px] font-[560] hover:bg-muted"
-            onClick={() => {
-              const retries = [...failedSaveNoteIds].flatMap((noteId) => {
-                const draft = draftsByNoteIdRef.current.get(noteId);
-                return draft === undefined ? [] : [saveNow(noteId, draft)];
-              });
-              void Promise.all(retries).catch(reportBackgroundSaveFailure);
-            }}
-          >
-            Retry save
-          </button>
-        </div>
+              : `Markdown changes in ${failedSaveNoteIds.size} notes couldn’t be saved. Your drafts are still here.`
+          }
+          onRetry={() => {
+            const retries = [...failedSaveNoteIds].flatMap((noteId) => {
+              const draft = draftsByNoteIdRef.current.get(noteId);
+              return draft === undefined ? [] : [saveNow(noteId, draft)];
+            });
+            void Promise.all(retries).catch(reportBackgroundSaveFailure);
+          }}
+          getSurface={() => textareaRef.current}
+        />
       )}
       {jumpOpen && editorPane
         ? createPortal(

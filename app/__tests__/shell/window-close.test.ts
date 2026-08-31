@@ -180,52 +180,114 @@ test("overlapping close requests stay intercepted behind one persistence", async
   assert.equal(window.closeCalls(), 1);
 });
 
-test("persistence rejection is reported and keeps the window open for retry", async () => {
+test("active-note persistence rejection is reported as continuity loss and still closes", async () => {
   const store = createRendererStore(createInitialState(snapshot()));
   const window = fakeWindow();
   const failures: unknown[] = [];
+  const continuityFailures: unknown[] = [];
   await bindWindowClosePersistence(
     store,
     async () => {
       throw new Error("durable rejection");
     },
     window.port,
-    { onError: (error) => failures.push(error) },
+    {
+      onError: (error) => failures.push(error),
+      onContinuityError: (error) => continuityFailures.push(error),
+    },
   );
 
   await window.request();
-  assert.equal(failures.length, 1);
-  assert.match(String(failures[0]), /durable rejection/);
-  assert.equal(window.closeCalls(), 0);
+  assert.deepEqual(failures, []);
+  assert.equal(continuityFailures.length, 1);
+  assert.match(String(continuityFailures[0]), /durable rejection/);
+  assert.equal(window.closeCalls(), 1);
 });
 
-test("bounded wait reports a timeout while the accepted persistence may finish", async () => {
+test("hung active-note persistence closes after a bounded wait", async () => {
   const store = createRendererStore(createInitialState(snapshot()));
   const window = fakeWindow();
   const failures: unknown[] = [];
-  let finishPersistence: (() => void) | null = null;
-  let completed = false;
   await bindWindowClosePersistence(
     store,
-    () =>
-      new Promise<void>((resolve) => {
-        finishPersistence = () => {
-          completed = true;
-          resolve();
-        };
-      }),
+    () => new Promise<void>(() => {}),
     window.port,
     { timeoutMs: 1, onError: (error) => failures.push(error) },
   );
 
   await window.request();
+  assert.deepEqual(failures, []);
+  assert.equal(window.closeCalls(), 1);
+});
+
+test("best-effort pending work failure never blocks close", async () => {
+  const store = createRendererStore(createInitialState(snapshot(false)));
+  const window = fakeWindow();
+  const failures: unknown[] = [];
+  const unregister = registerPendingWork(
+    async () => {
+      throw new Error("ui state write failed");
+    },
+    { bestEffort: true },
+  );
+  await bindWindowClosePersistence(
+    store,
+    async () => {},
+    window.port,
+    { onError: (error) => failures.push(error) },
+  );
+
+  await window.request();
+  unregister();
+  assert.deepEqual(failures, []);
+  assert.equal(window.closeCalls(), 1);
+});
+
+test("hung best-effort pending work closes after a bounded wait", async () => {
+  const store = createRendererStore(createInitialState(snapshot(false)));
+  const window = fakeWindow();
+  const failures: unknown[] = [];
+  const unregister = registerPendingWork(() => new Promise<void>(() => {}), {
+    bestEffort: true,
+  });
+  await bindWindowClosePersistence(
+    store,
+    async () => {},
+    window.port,
+    { timeoutMs: 1, onError: (error) => failures.push(error) },
+  );
+
+  await window.request();
+  unregister();
+  assert.deepEqual(failures, []);
+  assert.equal(window.closeCalls(), 1);
+});
+
+test("critical pending work rejection keeps the window open for retry", async () => {
+  const store = createRendererStore(createInitialState(snapshot(false)));
+  const window = fakeWindow();
+  const failures: unknown[] = [];
+  let attempts = 0;
+  const unregister = registerPendingWork(async () => {
+    attempts += 1;
+    if (attempts === 1) throw new Error("content write failed");
+  });
+  await bindWindowClosePersistence(
+    store,
+    async () => {},
+    window.port,
+    { onError: (error) => failures.push(error) },
+  );
+
+  await window.request();
+  assert.equal(failures.length, 1);
+  assert.match(String(failures[0]), /content write failed/);
   assert.equal(window.closeCalls(), 0);
-  assert.match(String(failures[0]), /timed out/);
-  assert.equal(completed, false);
-  assert.ok(finishPersistence);
-  finishPersistence();
-  await Promise.resolve();
-  assert.equal(completed, true);
+
+  await window.request();
+  unregister();
+  assert.equal(attempts, 2);
+  assert.equal(window.closeCalls(), 1);
 });
 
 test("a timed-out attempt cannot submit stale active-note state after its flush completes", async () => {
@@ -263,26 +325,6 @@ test("a timed-out attempt cannot submit stale active-note state after its flush 
     protocolVersion: 1,
     operation: { type: "set_active_note", noteId: "note-2" },
   }]]);
-});
-
-test("a later close retries pending work after persistence failure", async () => {
-  const store = createRendererStore(createInitialState(snapshot()));
-  const window = fakeWindow();
-  let attempts = 0;
-  await bindWindowClosePersistence(
-    store,
-    async () => {
-      attempts += 1;
-      if (attempts === 1) throw new Error("temporary failure");
-    },
-    window.port,
-  );
-
-  await window.request();
-  assert.equal(window.closeCalls(), 0);
-  await window.request();
-  assert.equal(attempts, 2);
-  assert.equal(window.closeCalls(), 1);
 });
 
 test("listener registration failure degrades without failing initialization", async () => {
@@ -328,6 +370,27 @@ test("failed close completion permits a later request to retry", async () => {
   await window.request();
   assert.equal(persistenceCalls, 2);
   assert.equal(window.closeCalls(), 2);
+});
+
+test("failed close completion reports through onCloseError when provided", async () => {
+  const store = createRendererStore(createInitialState(snapshot(false)));
+  const window = fakeWindow(1);
+  const persistenceFailures: unknown[] = [];
+  const closeFailures: unknown[] = [];
+  await bindWindowClosePersistence(
+    store,
+    async () => {},
+    window.port,
+    {
+      onError: (error) => persistenceFailures.push(error),
+      onCloseError: (error) => closeFailures.push(error),
+    },
+  );
+
+  await window.request();
+  assert.deepEqual(persistenceFailures, []);
+  assert.equal(closeFailures.length, 1);
+  assert.match(String(closeFailures[0]), /close failed/);
 });
 
 test("null active-note state is persisted at close", async () => {

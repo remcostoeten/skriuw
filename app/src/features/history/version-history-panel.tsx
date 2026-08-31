@@ -40,6 +40,13 @@ type PreviewState =
 const VERSION_ROW_HEIGHT = 52;
 const GROUP_ROW_HEIGHT = 30;
 
+function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return typeof error === "string" && error.length > 0 ? error : fallback;
+}
+
 export function VersionHistoryPanel({ store, noteId, versions, requestedVersionId }: Props) {
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [mode, setMode] = useState<PreviewMode>("diff");
@@ -93,7 +100,7 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
         setPreview({
           status: "error",
           versionId,
-          message: error instanceof Error ? error.message : "Could not load this version.",
+          message: errorMessage(error, "Could not load this version."),
         });
       });
   }
@@ -112,7 +119,7 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
           setPreview({
             status: "error",
             versionId: current.versionId,
-            message: error instanceof Error ? error.message : "Restore failed.",
+            message: errorMessage(error, "Restore failed."),
           });
         });
       return { ...current, restoring: true };

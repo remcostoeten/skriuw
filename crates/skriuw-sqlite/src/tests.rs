@@ -478,6 +478,58 @@ fn connected_transaction_enqueues_only_replicated_operations_in_order() {
 }
 
 #[test]
+fn fresh_connect_purges_sync_state_left_by_an_incomplete_teardown() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    connect(&storage);
+    storage
+        .apply_operations(&[create_placed_note(
+            "note-old-epoch",
+            NodePlacement::last(None),
+            11,
+        )])
+        .expect("enqueue old-epoch operations");
+    {
+        let connection = storage.lock().expect("database lock");
+        connection
+            .execute_batch("DELETE FROM sync_connection;")
+            .expect("simulate incomplete teardown");
+    }
+
+    connect_at_cursor(&storage, 0);
+
+    let sequences: Vec<i64> = {
+        let connection = storage.lock().expect("database lock");
+        let mut statement = connection
+            .prepare("SELECT client_sequence FROM sync_outbox ORDER BY client_sequence")
+            .expect("prepare");
+        statement
+            .query_map([], |row| row.get(0))
+            .expect("query")
+            .collect::<Result<_, _>>()
+            .expect("rows")
+    };
+    assert!(!sequences.is_empty(), "fresh connect enqueues the snapshot");
+    assert_eq!(
+        sequences,
+        (1..=sequences.len() as i64).collect::<Vec<_>>(),
+        "outbox restarts contiguously from 1 with no stale rows"
+    );
+
+    storage
+        .apply_operations(&[create_placed_note(
+            "note-new-epoch",
+            NodePlacement::last(None),
+            12,
+        )])
+        .expect("post-reconnect operations enqueue without sequence collisions");
+    let connection = storage
+        .sync_connection()
+        .expect("connection")
+        .expect("active connection");
+    assert_eq!(connection.next_client_sequence, sequences.len() as u64 + 2);
+}
+
+#[test]
 fn sync_outbox_survives_restart_and_acknowledgement_loss() {
     let directory = tempdir().expect("tempdir");
     let path = directory.path().join("sync-restart.db");
