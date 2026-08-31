@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MotionConfig } from "motion/react";
 import { Notifier, notify, type NotifyInstance } from "@remcostoeten/notifier";
 import { useShortcut } from "@remcostoeten/use-shortcut/react";
 
@@ -70,9 +71,10 @@ export function showToast(request: ToastRequest): void {
 
 type HostProps = {
   visible?: boolean;
+  reduceMotion?: boolean;
 };
 
-export function ToastHost({ visible = true }: HostProps) {
+export function ToastHost({ visible = true, reduceMotion = false }: HostProps) {
   const [, rerender] = useState(0);
   const $ = useShortcut({ ignoreInputs: false });
 
@@ -107,16 +109,25 @@ export function ToastHost({ visible = true }: HostProps) {
   });
 
   return (
-    <div style={{ display: visible ? undefined : "none" }}>
-      <Notifier
-        position="bottom-center"
-        maxVisible={3}
-        duration={7_000}
-        pauseOnHover
-        colorMode="auto"
-        radius="rounded"
-        border={{ enabled: true }}
-      />
+    <div
+      className="[&_:is([role=status],[role=alert],[role=alertdialog])>div>div:first-child]:pr-2.5!"
+      style={{ display: visible ? undefined : "none" }}
+    >
+      {/* The in-app reduce-motion setting is authoritative over the OS
+          heuristic (WebKitGTK reports reduce whenever GTK animations are
+          globally off), mirroring the data-reduce-motion policy in base.css. */}
+      <MotionConfig reducedMotion={reduceMotion ? "always" : "never"}>
+        <Notifier
+          position="bottom-center"
+          maxVisible={3}
+          duration={7_000}
+          pauseOnHover
+          stack
+          colorMode="auto"
+          radius="rounded"
+          border={{ enabled: true }}
+        />
+      </MotionConfig>
     </div>
   );
 }

@@ -176,6 +176,16 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
                 durationMs: 8_000,
               });
             },
+            onCloseError: (error) => {
+              console.error("window close failed", error);
+              showToast({
+                message: "Skriuw could not close its window. Try again.",
+                durationMs: 8_000,
+              });
+            },
+            onContinuityError: (error) => {
+              console.error("window close continuity persistence failed", error);
+            },
           },
         );
     const expansionPersistence = bindSidebarExpansionPersistence(
@@ -188,8 +198,12 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
       savePaneLayout,
       { onError: (error) => console.error("pane layout persistence failed", error) },
     );
-    const unregisterExpansionFlush = registerPendingWork(expansionPersistence.flush);
-    const unregisterPaneLayoutFlush = registerPendingWork(paneLayoutPersistence.flush);
+    const unregisterExpansionFlush = registerPendingWork(expansionPersistence.flush, {
+      bestEffort: true,
+    });
+    const unregisterPaneLayoutFlush = registerPendingWork(paneLayoutPersistence.flush, {
+      bestEffort: true,
+    });
     function disposeUiPersistence(): void {
       unregisterExpansionFlush();
       unregisterPaneLayoutFlush();

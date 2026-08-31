@@ -134,13 +134,14 @@ export function createFolder(store: RendererStore, parentId: string | null): voi
 export function renameNode(store: RendererStore, id: string, title: string): void {
   const trimmed = title.trim();
   const current = store.getState().nodes.get(id);
-  store.setEditingNode(null);
   if (!current || trimmed.length === 0 || trimmed === current.title) {
+    store.setEditingNode(null);
     return;
   }
   void commitOperations(store, [
     { type: "rename_node", id, title: trimmed, at: Date.now() },
   ]).catch(reportRejection("rename"));
+  store.setEditingNode(null);
 }
 
 export function trashSubtree(store: RendererStore, rootId: string): void {
@@ -211,23 +212,48 @@ export function moveNodes(
   ).catch(reportRejection("move"));
 }
 
-export function restoreNoteVersion(
+export async function restoreNoteVersion(
   store: RendererStore,
   noteId: string,
   versionMarkdown: string,
 ): Promise<void> {
+  await flushPendingWork();
   const record = store.getState().documents.get(noteId);
   if (!record) {
-    return Promise.resolve();
+    return;
   }
-  return commitOperations(store, [
-    buildRestoreOperation({
-      noteId,
-      versionMarkdown,
-      expectedRevision: record.revision,
-      at: Date.now(),
-    }),
-  ]);
+  function restoreAt(expectedRevision: number): Promise<void> {
+    return commitOperations(store, [
+      buildRestoreOperation({
+        noteId,
+        versionMarkdown,
+        expectedRevision,
+        at: Date.now(),
+      }),
+    ]);
+  }
+  try {
+    await restoreAt(record.revision);
+  } catch (error) {
+    // A save landing between the flush and the commit fails the revision
+    // check; the rejected commit re-bootstrapped the store, so one retry at
+    // the fresh revision restores over it. The overtaken content stays
+    // recoverable in version history.
+    const fresh = store.getState().documents.get(noteId);
+    if (!isRevisionConflict(error) || !fresh || fresh.revision === record.revision) {
+      throw error;
+    }
+    await restoreAt(fresh.revision);
+  }
+}
+
+/**
+ * Matches the backend's `StorageError::RevisionConflict` message, the only
+ * form in which the conflict crosses the string-typed IPC error channel.
+ */
+function isRevisionConflict(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : error;
+  return typeof message === "string" && message.includes("revision conflict");
 }
 
 export function activateNote(store: RendererStore, id: string | null): void {

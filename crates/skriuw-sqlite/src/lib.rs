@@ -691,6 +691,7 @@ impl SqliteWorkspace {
                  DELETE FROM sync_outbox;\
                  DELETE FROM sync_blocked_operations;\
                  DELETE FROM sync_received_operations;\
+                 DELETE FROM sync_document_heads;\
                  DELETE FROM sync_document_conflicts;\
                  DELETE FROM sync_conflicts;\
                  DELETE FROM sync_tombstones;\

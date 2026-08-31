@@ -9,7 +9,7 @@ import { restoreRenameReturnFocus } from "./rename-focus";
 import type { TreeMetrics } from "./sidebar";
 
 const rowBaseClass =
-  "relative flex h-[34px] w-full items-center overflow-hidden rounded-lg border border-transparent text-left text-xs font-medium active:scale-[0.985]";
+  "sidebar-tree-row relative flex h-[34px] w-full items-center overflow-hidden rounded-lg border border-transparent text-left text-xs font-medium active:scale-[0.985]";
 
 function rowIndentStyle(depth: number, metrics: TreeMetrics): CSSProperties {
   const maximumIndent = metrics.isVeryNarrow ? 40 : metrics.isNarrow ? 56 : 80;
@@ -57,13 +57,6 @@ type RowProps = {
   top: number;
   tabIndex: 0 | -1;
   moving?: boolean;
-  /**
-   * Renders the row inside the pinned shelf: flat indentation regardless of
-   * tree depth, and a select callback that reveals the node in the main tree
-   * instead of toggling it in place.
-   */
-  shelf?: boolean;
-  onShelfSelect?: (id: string) => void;
 };
 
 export const SidebarRow = memo(function SidebarRow({
@@ -73,8 +66,6 @@ export const SidebarRow = memo(function SidebarRow({
   top,
   tabIndex,
   moving = false,
-  shelf = false,
-  onShelfSelect,
 }: RowProps) {
   const selectNode = useMemo(() => (state: RendererState) => state.nodes.get(id), [id]);
   const selectStatus = useMemo(
@@ -99,12 +90,8 @@ export const SidebarRow = memo(function SidebarRow({
   const isSelected = (status & 16) !== 0;
   const focusUnset = (status & 32) !== 0;
   const isFolder = node.kind === "folder";
-  const rowTabIndex = shelf
-    ? tabIndex
-    : isFocused || (tabIndex === 0 && focusUnset)
-      ? 0
-      : -1;
-  const rowDepth = shelf ? 1 : node.depth;
+  const rowTabIndex = isFocused || (tabIndex === 0 && focusUnset) ? 0 : -1;
+  const rowDepth = node.depth;
   const stateClass = isFocused
     ? "bg-accent text-foreground"
     : isActive
@@ -119,9 +106,9 @@ export const SidebarRow = memo(function SidebarRow({
       className="absolute inset-x-0"
       style={{ top: `${top}px` }}
     >
-      {isEditing && !shelf ? (
+      {isEditing ? (
         <div
-          className={`relative flex h-[34px] w-full items-center overflow-hidden rounded-lg border border-border bg-muted text-left text-xs font-medium text-foreground${isFolder ? " justify-between" : ""}`}
+          className={`sidebar-tree-row relative flex h-[34px] w-full items-center overflow-hidden rounded-lg border border-border bg-muted text-left text-xs font-medium text-foreground${isFolder ? " justify-between" : ""}`}
           style={rowIndentStyle(rowDepth, metrics)}
         >
           <RowLabel isFolder={isFolder} isExpanded={isExpanded} isNarrow={metrics.isNarrow} grow>
@@ -131,27 +118,19 @@ export const SidebarRow = memo(function SidebarRow({
       ) : (
         <button
           type="button"
-          id={shelf ? `pinned-${id}` : `treeitem-${id}`}
+          id={`treeitem-${id}`}
           className={`${rowBaseClass} ${isFolder ? "justify-between " : ""}${stateClass}${moving ? " opacity-45" : ""}`}
           style={rowIndentStyle(rowDepth, metrics)}
-          {...(shelf
-            ? {}
-            : {
-                role: "treeitem",
-                "aria-level": node.depth,
-                "aria-setsize": node.setSize,
-                "aria-posinset": node.posInSet,
-                "aria-selected": isSelected,
-                ...(isFolder ? { "aria-expanded": isExpanded } : {}),
-              })}
+          role="treeitem"
+          aria-level={node.depth}
+          aria-setsize={node.setSize}
+          aria-posinset={node.posInSet}
+          aria-selected={isSelected}
+          {...(isFolder ? { "aria-expanded": isExpanded } : {})}
           tabIndex={rowTabIndex}
           data-row-key={id}
-          onFocus={shelf ? undefined : () => store.setFocusedNode(id)}
+          onFocus={() => store.setFocusedNode(id)}
           onClick={(event) => {
-            if (shelf) {
-              onShelfSelect?.(id);
-              return;
-            }
             const selectionMode = event.shiftKey
               ? "range"
               : event.ctrlKey || event.metaKey
@@ -191,6 +170,16 @@ type RenameProps = {
 
 function RenameInput({ store, id, initialTitle }: RenameProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const submittedRef = useRef(false);
+
+  function submitRename(value: string): void {
+    if (submittedRef.current) {
+      return;
+    }
+    submittedRef.current = true;
+    renameNode(store, id, value);
+  }
+
   useEffect(() => {
     const input = inputRef.current;
     if (!input) {
@@ -203,15 +192,18 @@ function RenameInput({ store, id, initialTitle }: RenameProps) {
   return (
     <input
       ref={inputRef}
+      aria-label={`Rename ${initialTitle}`}
       className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-xs font-medium text-foreground caret-foreground outline-none selection:bg-primary/30"
       defaultValue={initialTitle}
-      onBlur={(event) => renameNode(store, id, event.currentTarget.value)}
+      onBlur={(event) => submitRename(event.currentTarget.value)}
       onKeyDown={(event) => {
         if (event.key === "Enter") {
-          renameNode(store, id, event.currentTarget.value);
+          event.preventDefault();
+          submitRename(event.currentTarget.value);
           restoreRenameReturnFocus();
         }
         if (event.key === "Escape") {
+          submittedRef.current = true;
           store.setEditingNode(null);
           restoreRenameReturnFocus();
         }

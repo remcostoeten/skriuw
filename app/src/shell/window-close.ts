@@ -1,7 +1,7 @@
 import type { WorkspaceOperationEnvelope } from "@/contracts/workspace";
 import { envelope } from "@/contracts/workspace";
 import type { RendererStore } from "@/store/types";
-import { flushPendingWork } from "./pending-work";
+import { flushBestEffortPendingWork, flushCriticalPendingWork } from "./pending-work";
 
 type CloseRequestedEvent = {
   preventDefault: () => void;
@@ -17,6 +17,8 @@ type WindowPort = {
 type Options = {
   timeoutMs?: number;
   onError?: (error: unknown) => void;
+  onCloseError?: (error: unknown) => void;
+  onContinuityError?: (error: unknown) => void;
 };
 
 type PersistOperations = (
@@ -33,7 +35,7 @@ function timeoutAfter(timeoutMs: number): {
   return {
     promise: new Promise((_, reject) => {
       timer = setTimeout(() => {
-        reject(new Error("active note persistence timed out"));
+        reject(new Error("pending content persistence timed out"));
       }, timeoutMs);
     }),
     cancel: () => {
@@ -44,34 +46,66 @@ function timeoutAfter(timeoutMs: number): {
   };
 }
 
+function resolveAfter(timeoutMs: number): {
+  promise: Promise<void>;
+  cancel: () => void;
+} {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return {
+    promise: new Promise((resolve) => {
+      timer = setTimeout(resolve, timeoutMs);
+    }),
+    cancel: () => {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+      }
+    },
+  };
+}
+
+/**
+ * Runs the two persistence tiers that precede a close. Unsaved content is the
+ * only work allowed to keep the window open: its flush rethrows and the
+ * caller cancels the close. UI continuity (best-effort flushes plus the
+ * remembered active note) gets a bounded chance to land and is reported
+ * instead of trapping the user when it fails or hangs.
+ */
 async function persistBeforeClose(
   store: RendererStore,
   persist: PersistOperations,
   timeoutMs: number,
   isCurrentAttempt: () => boolean,
+  onContinuityError: (error: unknown) => void,
 ): Promise<void> {
   const timeout = timeoutAfter(timeoutMs);
   try {
-    await Promise.race([
-      flushPendingWork().then(() => {
-        if (!isCurrentAttempt()) {
-          return undefined;
-        }
-        const state = store.getState();
-        if (!state.settings.rememberLastNote) {
-          return undefined;
-        }
-        return persist([
-          envelope({
-            type: "set_active_note",
-            noteId: state.activeNoteId,
-          }),
-        ]);
-      }),
-      timeout.promise,
-    ]);
+    await Promise.race([flushCriticalPendingWork(), timeout.promise]);
   } finally {
     timeout.cancel();
+  }
+  if (!isCurrentAttempt()) {
+    return;
+  }
+  const work: Promise<unknown>[] = [flushBestEffortPendingWork()];
+  const state = store.getState();
+  if (state.settings.rememberLastNote) {
+    work.push(
+      persist([
+        envelope({
+          type: "set_active_note",
+          noteId: state.activeNoteId,
+        }),
+      ]),
+    );
+  }
+  const continuity = Promise.all(work)
+    .then(() => undefined)
+    .catch((error) => onContinuityError(error));
+  const grace = resolveAfter(timeoutMs);
+  try {
+    await Promise.race([continuity, grace.promise]);
+  } finally {
+    grace.cancel();
   }
 }
 
@@ -86,6 +120,8 @@ export async function bindWindowClosePersistence(
   let attempt = 0;
   const timeoutMs = options.timeoutMs ?? DEFAULT_CLOSE_PERSISTENCE_TIMEOUT_MS;
   const onError = options.onError ?? (() => {});
+  const onCloseError = options.onCloseError ?? onError;
+  const onContinuityError = options.onContinuityError ?? (() => {});
   let unlisten: () => void;
   try {
     unlisten = await windowPort.onCloseRequested(async (event) => {
@@ -104,6 +140,7 @@ export async function bindWindowClosePersistence(
           persist,
           timeoutMs,
           () => !disposed && attempt === currentAttempt,
+          onContinuityError,
         );
       } catch (error) {
         attempt += 1;
@@ -115,7 +152,7 @@ export async function bindWindowClosePersistence(
         await windowPort.completeClose();
       } catch (error) {
         closing = false;
-        onError(error);
+        onCloseError(error);
       }
     });
   } catch (error) {

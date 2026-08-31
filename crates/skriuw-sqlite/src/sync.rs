@@ -523,6 +523,22 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                 )
                 .map_err(backend)?;
         } else {
+            // A missing connection row alongside surviving sync state means a
+            // previous epoch was torn down incompletely. Its client and server
+            // sequences belong to a dead stream and would collide with the
+            // fresh one, so the leftovers must go before the counters restart.
+            // Tombstones stay: they record entity-level deletions that remain
+            // true across epochs and carry no stream-unique constraints.
+            transaction
+                .execute_batch(
+                    "DELETE FROM sync_outbox;\
+                     DELETE FROM sync_blocked_operations;\
+                     DELETE FROM sync_received_operations;\
+                     DELETE FROM sync_document_heads;\
+                     DELETE FROM sync_document_conflicts;\
+                     DELETE FROM sync_conflicts;",
+                )
+                .map_err(backend)?;
             transaction
                 .execute(
                     "INSERT INTO sync_connection(\
