@@ -3,13 +3,13 @@ use std::{
     net::TcpStream,
     path::PathBuf,
     sync::{
-        Arc, Mutex, Weak,
+        Arc, Mutex, RwLock, Weak,
         atomic::{AtomicBool, Ordering},
     },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use reqwest::{StatusCode, blocking::Client};
+use reqwest::{Method, StatusCode, blocking::Client};
 use serde::Deserialize;
 use skriuw_domain::{
     SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView, WorkspaceCheckpoint,
@@ -20,9 +20,12 @@ use skriuw_storage::{NewSyncConnection, SyncRecovery, WorkspaceSyncQueue};
 use skriuw_sync::{
     SyncAssetStore, SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncHttpEndpoints,
     SyncStatus, SyncTransport, SyncWorkspaceObserver, SystemClock, TransportError,
-    classify_http_failure,
+    classify_http_failure, request_timeout_ms,
 };
 use uuid::Uuid;
+
+pub type SessionExpiredObserver = Arc<dyn Fn() + Send + Sync>;
+type SharedToken = Arc<RwLock<String>>;
 
 /// Bridges the sync coordinator to the workspace image blob store. Reads and
 /// writes stay off interaction paths because the coordinator only calls this
@@ -64,6 +67,8 @@ impl SyncAssetStore for ImageAssetStore {
 const PRODUCTION_CLOUD_URL: &str = "https://skriuw-v2-cloud.remcostoeten.workers.dev";
 const LOCAL_CLOUD_URL: &str = "http://localhost:8787";
 const MAX_RESPONSE_BYTES: u64 = 4 * 1024 * 1024;
+const MAX_BASE_URL_BYTES: usize = 2_048;
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -77,6 +82,7 @@ pub struct SyncRuntime {
     coordinator: Mutex<Option<Arc<SyncCoordinator>>>,
     push_listener: Mutex<Option<PushListener>>,
     workspace_observer: Option<SyncWorkspaceObserver>,
+    session_expired: Option<SessionExpiredObserver>,
 }
 
 impl SyncRuntime {
@@ -87,16 +93,19 @@ impl SyncRuntime {
             coordinator: Mutex::new(None),
             push_listener: Mutex::new(None),
             workspace_observer: None,
+            session_expired: None,
         }
     }
 
     #[must_use]
-    pub fn with_workspace_observer(
+    pub fn with_observers(
         database_path: PathBuf,
         workspace_observer: SyncWorkspaceObserver,
+        session_expired: SessionExpiredObserver,
     ) -> Self {
         let mut runtime = Self::new(database_path);
         runtime.workspace_observer = Some(workspace_observer);
+        runtime.session_expired = Some(session_expired);
         runtime
     }
 
@@ -121,10 +130,23 @@ impl SyncRuntime {
         self.with_coordinator(SyncCoordinator::request_refresh);
     }
 
-    pub fn connect(&self, token: String) -> Result<SyncStatus, String> {
-        if token.trim().is_empty() || token.len() > 4_096 {
+    pub fn set_online(&self, online: bool) {
+        self.with_coordinator(|coordinator| coordinator.set_online(online));
+    }
+
+    pub fn set_visibility(&self, visible: bool, focused: bool) {
+        self.with_coordinator(|coordinator| coordinator.set_visibility(visible, focused));
+    }
+
+    /// Opens (or reopens) the authenticated session. The renderer names the
+    /// cloud origin; it is validated here so a compromised renderer message
+    /// cannot point the bearer token at an arbitrary host.
+    pub fn connect(&self, token: String, base_url: String) -> Result<SyncStatus, String> {
+        if token.trim().is_empty() || token.len() > 4_096 || token.chars().any(char::is_control)
+        {
             return Err("a valid account session is required to enable sync".into());
         }
+        let base_url = trusted_cloud_base_url(&base_url)?;
         self.stop_coordinator();
 
         let queue = Arc::new(
@@ -138,8 +160,11 @@ impl SyncRuntime {
             .as_ref()
             .map(|connection| connection.device_id.clone())
             .unwrap_or_else(|| Uuid::new_v4().simple().to_string());
-        let listener_token = token.clone();
-        let transport = Arc::new(HttpSyncTransport::new(token)?);
+        let session_token: SharedToken = Arc::new(RwLock::new(token));
+        let transport = Arc::new(HttpSyncTransport::new(
+            Arc::clone(&session_token),
+            &base_url,
+        )?);
         let provisioned = transport.provision(&device_id)?;
         if provisioned.device_id != device_id {
             return Err("cloud provisioning returned a different device identity".into());
@@ -165,6 +190,19 @@ impl SyncRuntime {
             })
             .map_err(|error| format!("could not persist the sync connection: {error}"))?;
 
+        let listener_stop = Arc::new(AtomicBool::new(false));
+        let session_expired = self.session_expired.clone();
+        let expiry_stop = Arc::clone(&listener_stop);
+        let status_observer: skriuw_sync::SyncStatusObserver =
+            Arc::new(move |status: &SyncStatus| {
+                if *status != SyncStatus::AuthenticationRequired {
+                    return;
+                }
+                expiry_stop.store(true, Ordering::Relaxed);
+                if let Some(session_expired) = &session_expired {
+                    session_expired();
+                }
+            });
         let workspace = Arc::clone(&queue);
         let coordinator = Arc::new(SyncCoordinator::spawn(
             queue,
@@ -176,16 +214,19 @@ impl SyncRuntime {
             Arc::new(SystemClock),
             SyncCoordinatorConfig {
                 workspace_observer: self.workspace_observer.clone(),
+                status_observer: Some(status_observer),
+                session_token: Some(Arc::clone(&session_token)),
                 ..SyncCoordinatorConfig::default()
             },
         ));
         let status = coordinator.status();
         let listener = PushListener::spawn(
-            SyncHttpEndpoints::new(cloud_base_url()),
-            listener_token,
+            SyncHttpEndpoints::new(&base_url),
+            session_token,
             listener_workspace_id,
             listener_device_id,
             Arc::downgrade(&coordinator),
+            listener_stop,
         );
         *self
             .coordinator
@@ -231,41 +272,6 @@ impl SyncRuntime {
         workspace
             .sync_recovery_view()
             .map_err(|error| format!("could not read the blocked sync queue: {error}"))
-    }
-
-    /// Lists preserved document divergences for the conflict review surface.
-    /// Like the blocked queue this opens its own short-lived connection on the
-    /// caller's blocking thread, never on editing or navigation paths.
-    pub fn conflict_review(&self) -> Result<skriuw_domain::SyncConflictReviewView, String> {
-        self.open_workspace()?
-            .sync_conflict_review()
-            .map_err(|error| format!("could not read the sync conflicts: {error}"))
-    }
-
-    pub fn conflict_versions(
-        &self,
-        conflict_id: &str,
-    ) -> Result<skriuw_domain::DocumentConflictVersionsView, String> {
-        self.open_workspace()?
-            .sync_conflict_versions(conflict_id)
-            .map_err(|error| format!("could not read the preserved versions: {error}"))
-    }
-
-    /// Records the user's choice and replicates its canonical result. The
-    /// version that was not chosen stays preserved, so the decision is
-    /// reversible from the record even though the document is not.
-    pub fn resolve_conflict(
-        &self,
-        request: &skriuw_domain::ResolveDocumentConflict,
-    ) -> Result<skriuw_domain::SyncConflictReviewView, String> {
-        let workspace = self.open_workspace()?;
-        workspace
-            .resolve_document_conflict(request)
-            .map_err(|error| format!("could not resolve the conflict: {error}"))?;
-        self.request_refresh();
-        workspace
-            .sync_conflict_review()
-            .map_err(|error| format!("could not read the sync conflicts: {error}"))
     }
 
     /// Pause network access without discarding the durable connection or outbox.
@@ -323,12 +329,12 @@ struct PushListener {
 impl PushListener {
     fn spawn(
         endpoints: SyncHttpEndpoints,
-        token: String,
+        token: SharedToken,
         workspace_id: String,
         device_id: String,
         coordinator: Weak<SyncCoordinator>,
+        stop: Arc<AtomicBool>,
     ) -> Self {
-        let stop = Arc::new(AtomicBool::new(false));
         let listener_stop = Arc::clone(&stop);
         let spawned = std::thread::Builder::new()
             .name("skriuw-sync-push".into())
@@ -360,7 +366,7 @@ enum ListenerSession {
 
 fn run_push_listener(
     endpoints: &SyncHttpEndpoints,
-    token: &str,
+    token: &SharedToken,
     workspace_id: &str,
     device_id: &str,
     coordinator: &Weak<SyncCoordinator>,
@@ -371,14 +377,25 @@ fn run_push_listener(
         if stop.load(Ordering::Relaxed) || coordinator.strong_count() == 0 {
             return;
         }
-        match connect_events_socket(endpoints, token, workspace_id, device_id) {
+        let current_token = token
+            .read()
+            .map(|token| token.clone())
+            .unwrap_or_default();
+        match connect_events_socket(endpoints, &current_token, workspace_id, device_id) {
             Ok(mut socket) => {
                 backoff_ms = PUSH_LISTENER_MIN_BACKOFF_MS;
-                if let ListenerSession::Exit = listen_for_wakes(&mut socket, coordinator, stop) {
+                report_channel(coordinator, true);
+                let session = listen_for_wakes(&mut socket, coordinator, stop);
+                report_channel(coordinator, false);
+                if let ListenerSession::Exit = session {
                     return;
                 }
             }
-            Err(error) => {
+            Err(ListenerConnectError::Rejected(status)) => {
+                eprintln!("sync push listener was rejected ({status}); waiting for a new session");
+                return;
+            }
+            Err(ListenerConnectError::Failed(error)) => {
                 eprintln!("sync push listener connection failed: {error}");
             }
         }
@@ -394,26 +411,49 @@ fn run_push_listener(
     }
 }
 
+fn report_channel(coordinator: &Weak<SyncCoordinator>, connected: bool) {
+    if let Some(coordinator) = coordinator.upgrade() {
+        coordinator.set_wake_channel_connected(connected);
+    }
+}
+
+enum ListenerConnectError {
+    /// The service refused the session at the handshake; retrying with the
+    /// same token cannot succeed.
+    Rejected(u16),
+    Failed(String),
+}
+
 fn connect_events_socket(
     endpoints: &SyncHttpEndpoints,
     token: &str,
     workspace_id: &str,
     device_id: &str,
-) -> Result<tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<TcpStream>>, String> {
+) -> Result<
+    tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<TcpStream>>,
+    ListenerConnectError,
+> {
     use tungstenite::client::IntoClientRequest;
 
-    let url = websocket_url(&endpoints.events(workspace_id, device_id))?;
+    let url = websocket_url(&endpoints.events(workspace_id, device_id))
+        .map_err(ListenerConnectError::Failed)?;
     let mut request = url
         .into_client_request()
-        .map_err(|error| format!("events request was invalid: {error}"))?;
+        .map_err(|error| ListenerConnectError::Failed(format!("events request was invalid: {error}")))?;
     request.headers_mut().insert(
         "Authorization",
-        format!("Bearer {token}")
-            .parse()
-            .map_err(|_| "session token cannot be sent as a header".to_string())?,
+        format!("Bearer {token}").parse().map_err(|_| {
+            ListenerConnectError::Failed("session token cannot be sent as a header".into())
+        })?,
     );
-    let (mut socket, _response) =
-        tungstenite::connect(request).map_err(|error| format!("events connect failed: {error}"))?;
+    let (mut socket, _response) = tungstenite::connect(request).map_err(|error| match error {
+        tungstenite::Error::Http(response)
+            if matches!(response.status().as_u16(), 401 | 403) =>
+        {
+            ListenerConnectError::Rejected(response.status().as_u16())
+        }
+        error => ListenerConnectError::Failed(format!("events connect failed: {error}")),
+    })?;
     let stream = match socket.get_mut() {
         tungstenite::stream::MaybeTlsStream::Plain(stream) => Some(stream),
         tungstenite::stream::MaybeTlsStream::Rustls(stream) => Some(stream.get_mut()),
@@ -493,54 +533,117 @@ fn websocket_url(http_url: &str) -> Result<String, String> {
 
 struct HttpSyncTransport {
     client: Client,
-    token: String,
+    token: SharedToken,
     endpoints: SyncHttpEndpoints,
 }
 
+/// One outbound request: the body is owned so its length can size the
+/// per-request deadline before anything is sent.
+struct OutboundRequest {
+    method: Method,
+    url: String,
+    content_type: Option<&'static str>,
+    body: Vec<u8>,
+}
+
+impl OutboundRequest {
+    fn json(method: Method, url: String, value: &impl serde::Serialize) -> Result<Self, TransportError> {
+        let body = serde_json::to_vec(value).map_err(|error| {
+            TransportError::Validation(format!("sync request is not serializable: {error}"))
+        })?;
+        Ok(Self {
+            method,
+            url,
+            content_type: Some("application/json"),
+            body,
+        })
+    }
+
+    fn empty(method: Method, url: String) -> Self {
+        Self {
+            method,
+            url,
+            content_type: None,
+            body: Vec::new(),
+        }
+    }
+}
+
 impl HttpSyncTransport {
-    fn new(token: String) -> Result<Self, String> {
+    fn new(token: SharedToken, base_url: &str) -> Result<Self, String> {
         let client = Client::builder()
-            .connect_timeout(Duration::from_secs(2))
-            .timeout(Duration::from_secs(4))
+            .connect_timeout(CONNECT_TIMEOUT)
             .build()
             .map_err(|error| format!("could not initialize cloud sync: {error}"))?;
         Ok(Self {
             client,
             token,
-            endpoints: SyncHttpEndpoints::new(cloud_base_url()),
+            endpoints: SyncHttpEndpoints::new(base_url),
         })
     }
 
+    fn bearer(&self) -> String {
+        self.token
+            .read()
+            .map(|token| token.clone())
+            .unwrap_or_default()
+    }
+
     fn provision(&self, device_id: &str) -> Result<ProvisionedWorkspace, String> {
+        let body = serde_json::json!({ "deviceId": device_id }).to_string();
         let response = self
             .client
             .post(self.endpoints.provision())
-            .bearer_auth(&self.token)
-            .json(&serde_json::json!({ "deviceId": device_id }))
+            .bearer_auth(self.bearer())
+            .timeout(Duration::from_millis(request_timeout_ms(body.len())))
+            .header("Content-Type", "application/json")
+            .body(body)
             .send()
             .map_err(|error| format!("cloud provisioning failed: {error}"))?;
         if !response.status().is_success() {
             return Err(provision_error(response.status()));
         }
-        read_json(response)
+        let body = read_bounded(response)
+            .map_err(|error| format!("cloud provisioning response was invalid: {error}"))?;
+        serde_json::from_slice(&body)
             .map_err(|error| format!("cloud provisioning response was invalid: {error}"))
     }
 
-    fn send<T: serde::de::DeserializeOwned>(
+    fn dispatch(
         &self,
-        request: reqwest::blocking::RequestBuilder,
+        request: OutboundRequest,
         cancellation: &SyncCancellation,
-    ) -> Result<T, TransportError> {
+    ) -> Result<reqwest::blocking::Response, TransportError> {
         if cancellation.is_cancelled() {
             return Err(TransportError::Cancelled);
         }
-        let response = request
-            .bearer_auth(&self.token)
+        let timeout = Duration::from_millis(request_timeout_ms(request.body.len()));
+        let mut builder = self
+            .client
+            .request(request.method, request.url)
+            .bearer_auth(self.bearer())
+            .timeout(timeout);
+        if let Some(content_type) = request.content_type {
+            builder = builder.header("Content-Type", content_type);
+        }
+        if !request.body.is_empty() {
+            builder = builder.body(request.body);
+        }
+        let response = builder
             .send()
             .map_err(|error| TransportError::Transient(error.to_string()))?;
         if cancellation.is_cancelled() {
             return Err(TransportError::Cancelled);
         }
+        Ok(response)
+    }
+
+    fn send<T: serde::de::DeserializeOwned>(
+        &self,
+        request: OutboundRequest,
+        cancellation: &SyncCancellation,
+    ) -> Result<T, TransportError> {
+        let response = self.dispatch(request, cancellation)?;
         let status = response.status();
         if !status.is_success() {
             return Err(transport_error(
@@ -548,24 +651,16 @@ impl HttpSyncTransport {
                 response.headers().get("Retry-After"),
             ));
         }
-        read_json(response).map_err(|error| TransportError::Transient(error.to_string()))
+        let body = read_bounded(response)?;
+        serde_json::from_slice(&body).map_err(|error| TransportError::Transient(error.to_string()))
     }
 
     fn send_bytes(
         &self,
-        request: reqwest::blocking::RequestBuilder,
+        request: OutboundRequest,
         cancellation: &SyncCancellation,
     ) -> Result<Option<Vec<u8>>, TransportError> {
-        if cancellation.is_cancelled() {
-            return Err(TransportError::Cancelled);
-        }
-        let response = request
-            .bearer_auth(&self.token)
-            .send()
-            .map_err(|error| TransportError::Transient(error.to_string()))?;
-        if cancellation.is_cancelled() {
-            return Err(TransportError::Cancelled);
-        }
+        let response = self.dispatch(request, cancellation)?;
         let status = response.status();
         if status == reqwest::StatusCode::NOT_FOUND {
             return Ok(None);
@@ -576,17 +671,7 @@ impl HttpSyncTransport {
                 response.headers().get("Retry-After"),
             ));
         }
-        let mut body = Vec::new();
-        response
-            .take(MAX_RESPONSE_BYTES + 1)
-            .read_to_end(&mut body)
-            .map_err(|error| TransportError::Transient(error.to_string()))?;
-        if body.len() as u64 > MAX_RESPONSE_BYTES {
-            return Err(TransportError::Validation(
-                "cloud response exceeded its size limit".into(),
-            ));
-        }
-        Ok(Some(body))
+        read_bounded(response).map(Some)
     }
 }
 
@@ -598,9 +683,7 @@ impl SyncTransport for HttpSyncTransport {
         cancellation: &SyncCancellation,
     ) -> Result<SyncPushResponse, TransportError> {
         self.send(
-            self.client
-                .post(self.endpoints.push(workspace_id))
-                .json(request),
+            OutboundRequest::json(Method::POST, self.endpoints.push(workspace_id), request)?,
             cancellation,
         )
     }
@@ -613,7 +696,8 @@ impl SyncTransport for HttpSyncTransport {
         cancellation: &SyncCancellation,
     ) -> Result<SyncPullResponse, TransportError> {
         self.send(
-            self.client.get(
+            OutboundRequest::empty(
+                Method::GET,
                 self.endpoints
                     .pull(workspace_id, after_server_sequence, limit),
             ),
@@ -629,7 +713,7 @@ impl SyncTransport for HttpSyncTransport {
     ) -> Result<bool, TransportError> {
         let url = self.endpoints.chunk(workspace_id, digest);
         Ok(self
-            .send_bytes(self.client.head(url), cancellation)?
+            .send_bytes(OutboundRequest::empty(Method::HEAD, url), cancellation)?
             .is_some())
     }
 
@@ -642,10 +726,12 @@ impl SyncTransport for HttpSyncTransport {
     ) -> Result<(), TransportError> {
         let url = self.endpoints.chunk(workspace_id, digest);
         self.send_bytes(
-            self.client
-                .put(url)
-                .header("Content-Type", "application/octet-stream")
-                .body(bytes.to_vec()),
+            OutboundRequest {
+                method: Method::PUT,
+                url,
+                content_type: Some("application/octet-stream"),
+                body: bytes.to_vec(),
+            },
             cancellation,
         )?
         .ok_or_else(|| TransportError::Transient("chunk upload was not stored".into()))?;
@@ -659,7 +745,7 @@ impl SyncTransport for HttpSyncTransport {
         cancellation: &SyncCancellation,
     ) -> Result<Vec<u8>, TransportError> {
         let url = self.endpoints.chunk(workspace_id, digest);
-        self.send_bytes(self.client.get(url), cancellation)?
+        self.send_bytes(OutboundRequest::empty(Method::GET, url), cancellation)?
             .ok_or_else(|| TransportError::Validation(format!("chunk {digest} is not stored")))
     }
 
@@ -669,7 +755,7 @@ impl SyncTransport for HttpSyncTransport {
         cancellation: &SyncCancellation,
     ) -> Result<Option<WorkspaceCheckpoint>, TransportError> {
         let url = self.endpoints.checkpoint(workspace_id);
-        let body = self.send_bytes(self.client.get(url), cancellation)?;
+        let body = self.send_bytes(OutboundRequest::empty(Method::GET, url), cancellation)?;
         let Some(body) = body else {
             return Ok(None);
         };
@@ -687,8 +773,10 @@ impl SyncTransport for HttpSyncTransport {
         cancellation: &SyncCancellation,
     ) -> Result<(), TransportError> {
         let url = self.endpoints.checkpoint(workspace_id);
-        let _: serde_json::Value =
-            self.send(self.client.post(url).json(checkpoint), cancellation)?;
+        let _: serde_json::Value = self.send(
+            OutboundRequest::json(Method::POST, url, checkpoint)?,
+            cancellation,
+        )?;
         Ok(())
     }
 
@@ -701,28 +789,30 @@ impl SyncTransport for HttpSyncTransport {
     ) -> Result<(), TransportError> {
         let url = self.endpoints.acknowledge(workspace_id);
         let _: serde_json::Value = self.send(
-            self.client.post(url).json(&serde_json::json!({
-                "deviceId": device_id,
-                "serverSequence": server_sequence,
-            })),
+            OutboundRequest::json(
+                Method::POST,
+                url,
+                &serde_json::json!({
+                    "deviceId": device_id,
+                    "serverSequence": server_sequence,
+                }),
+            )?,
             cancellation,
         )?;
         Ok(())
     }
 }
 
-fn read_json<T: serde::de::DeserializeOwned>(
-    response: reqwest::blocking::Response,
-) -> Result<T, String> {
+fn read_bounded(response: reqwest::blocking::Response) -> Result<Vec<u8>, TransportError> {
     let mut body = Vec::new();
     response
         .take(MAX_RESPONSE_BYTES + 1)
         .read_to_end(&mut body)
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| TransportError::Transient(error.to_string()))?;
     if body.len() as u64 > MAX_RESPONSE_BYTES {
-        return Err("response exceeded the configured size limit".into());
+        return Err(TransportError::ResponseTooLarge);
     }
-    serde_json::from_slice(&body).map_err(|error| error.to_string())
+    Ok(body)
 }
 
 fn provision_error(status: StatusCode) -> String {
@@ -745,7 +835,9 @@ fn transport_error(
     classify_http_failure(status.as_u16(), retry_after_ms)
 }
 
-fn cloud_base_url() -> String {
+/// The origin used to resume a persisted session before the renderer has
+/// named one. Debug builds may point it at a local service.
+pub fn default_cloud_base_url() -> String {
     if cfg!(debug_assertions) {
         std::env::var("SKRIUW_CLOUD_URL").unwrap_or_else(|_| {
             development_cloud_base_url(std::env::var("SKRIUW_DEV_CLOUD").ok().as_deref()).into()
@@ -753,6 +845,42 @@ fn cloud_base_url() -> String {
     } else {
         PRODUCTION_CLOUD_URL.to_string()
     }
+}
+
+/// Accepts only the cloud origins this build trusts with the bearer token:
+/// `https` under a Skriuw-controlled suffix, or `http://localhost` in debug
+/// builds. In debug builds `SKRIUW_CLOUD_URL` overrides the renderer's choice.
+fn trusted_cloud_base_url(base_url: &str) -> Result<String, String> {
+    if cfg!(debug_assertions)
+        && let Ok(override_url) = std::env::var("SKRIUW_CLOUD_URL")
+    {
+        return Ok(override_url);
+    }
+    let trimmed = base_url.trim().trim_end_matches('/');
+    let trusted = trimmed.len() <= MAX_BASE_URL_BYTES
+        && !trimmed.contains(['?', '#', '@', ' '])
+        && (is_trusted_https_origin(trimmed)
+            || (cfg!(debug_assertions) && is_local_development_origin(trimmed)));
+    if trusted {
+        Ok(trimmed.to_string())
+    } else {
+        Err("the cloud sync URL is not trusted".into())
+    }
+}
+
+fn is_trusted_https_origin(base_url: &str) -> bool {
+    let Some(rest) = base_url.strip_prefix("https://") else {
+        return false;
+    };
+    let host = rest.split(['/', ':']).next().unwrap_or_default();
+    !host.is_empty() && (host.ends_with(".skriuw.app") || host.ends_with(".workers.dev"))
+}
+
+fn is_local_development_origin(base_url: &str) -> bool {
+    let Some(rest) = base_url.strip_prefix("http://localhost") else {
+        return false;
+    };
+    rest.is_empty() || rest.starts_with(':') || rest.starts_with('/')
 }
 
 fn development_cloud_base_url(mode: Option<&str>) -> &'static str {
@@ -772,8 +900,23 @@ fn now_millis() -> i64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{LOCAL_CLOUD_URL, PRODUCTION_CLOUD_URL, SyncRuntime, development_cloud_base_url};
+    use super::{
+        LOCAL_CLOUD_URL, PRODUCTION_CLOUD_URL, SyncRuntime, development_cloud_base_url,
+        is_local_development_origin, is_trusted_https_origin,
+    };
     use skriuw_sync::SyncStatus;
+
+    #[test]
+    fn only_skriuw_origins_are_trusted_with_the_session_token() {
+        assert!(is_trusted_https_origin(PRODUCTION_CLOUD_URL));
+        assert!(is_trusted_https_origin("https://sync.skriuw.app"));
+        assert!(!is_trusted_https_origin("https://evil.example"));
+        assert!(!is_trusted_https_origin("https://skriuw.app.evil.example"));
+        assert!(!is_trusted_https_origin("http://sync.skriuw.app"));
+        assert!(is_local_development_origin(LOCAL_CLOUD_URL));
+        assert!(is_local_development_origin("http://localhost"));
+        assert!(!is_local_development_origin("http://localhost.evil.example"));
+    }
 
     #[test]
     fn new_runtime_stays_local_only_and_inert() {
@@ -784,6 +927,9 @@ mod tests {
         runtime.notify_local_commit();
         runtime.notify_focus();
         runtime.request_refresh();
+        runtime.set_online(false);
+        runtime.set_visibility(false, false);
+        assert!(runtime.connect("token".into(), "https://evil.example".into()).is_err());
         runtime.shutdown();
         assert_eq!(runtime.status(), SyncStatus::LocalOnly);
     }

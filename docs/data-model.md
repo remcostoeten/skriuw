@@ -53,17 +53,19 @@ Ordered migration version, immutable name, SHA-256 checksum, and application tim
 
 Durable leased queue containing committed document revisions not yet materialized by the selected history backend. Successful processing records history metadata and removes the queue row. Failed or abandoned leases remain retryable. `last_error` stores only the bounded deterministic display of a categorized local history diagnostic, is cleared on the next claim, and is excluded from snapshots and portable archives.
 
-### `sync_connection`, `sync_outbox`, and `sync_blocked_operations`
+Each row carries a `provenance`: `local` for a revision this device wrote, `remote` for a revision applied from the sync log, and `superseded` for a document body that lost the convergence decision and is preserved here at the note's current revision without changing the canonical document. Rows are unique on note, revision, and provenance; only consecutive `local` rows coalesce. See [ADR-0037](adr/0037-automatic-sync-convergence.md).
 
-Optional connected-mode operational state. The singleton connection owns the
-stable device identity, observed server sequence, and next client sequence.
-Replicated local operations enter `sync_outbox` in the same transaction as
-canonical content and history projections. Lease/retry state makes upload
-crash-safe and preserves operation IDs across acknowledgement loss. Oversized
-or protocol-unsupported local operations remain durable and visible in
-`sync_blocked_operations` without failing the local edit or consuming a client
-sequence. All three tables are excluded from portable archives. See the
-[local sync outbox contract](specs/local-sync-outbox.md).
+### Sync tables
+
+Optional connected-mode operational state, all excluded from portable archives and retained by native backup. See the [local sync outbox contract](specs/local-sync-outbox.md).
+
+- `sync_connection`: the singleton connection owning the stable device identity, observed server sequence, next client sequence, and `rehydrated_through`.
+- `sync_outbox`: replicated local operations, entered in the same transaction as canonical content and history projections; lease/retry state makes upload crash-safe and preserves operation IDs across acknowledgement loss.
+- `sync_blocked_operations`: oversized, protocol-unsupported, missing-asset, or cloud-rejected local operations, durable and visible without failing the local edit; unresolved rows count as pending work.
+- `sync_received_operations`: every pulled envelope with outcome `applied`, `local_echo`, `no_op`, or `superseded`; a superseded row keeps its `reason` and bounded `detail`, and the full operation JSON stays available for recovery.
+- `sync_document_heads`: per note, the greatest server sequence of a document write this device has incorporated; the input to the document decision.
+- `sync_tombstones`: terminal identity tombstones for purged nodes and deleted tags, people, properties, templates, tasks, prompts, and annotations.
+- `sync_dangling_references`: note mentions whose target has not yet arrived through the log, resolved when the target's create applies.
 
 ### `app_state`
 
@@ -80,6 +82,9 @@ Small JSON values: the last active note and one versioned `WorkspaceSettings` do
 - Connected local operation: canonical mutation, projections, history enqueue,
   sync enqueue or blocked record, and client-sequence advance share one
   transaction/savepoint.
+- Remote operation: decision, canonical mutation or superseded record,
+  history row (`remote` or `superseded`), tombstone, head update, and cursor
+  advance share one transaction; pull pages apply in sub-batches of 32.
 - Claim history: short lease update only; materialization runs after the transaction releases.
 - Complete history: cached header insert and matching leased outbox deletion.
 - Failed history: release lease and persist bounded diagnostic text for retry.

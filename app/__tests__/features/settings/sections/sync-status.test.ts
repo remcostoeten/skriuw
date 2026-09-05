@@ -3,6 +3,7 @@ import test from "node:test";
 import type { WorkspaceSyncStatus } from "../../../../src/bridge/commands";
 import {
   syncDescription,
+  syncDetail,
   syncEnabled,
   syncProgressText,
   syncProgressVisible,
@@ -17,9 +18,9 @@ const EVERY_STATE: WorkspaceSyncStatus[] = [
   { state: "pending" },
   { state: "offline" },
   { state: "authenticationRequired" },
-  { state: "conflict", openConflicts: 2 },
-  { state: "retrying" },
-  { state: "blocked", reason: "rejected_batch" },
+  { state: "rehydrating" },
+  { state: "retrying", nextAttemptAt: 0 },
+  { state: "blocked", reason: "rejected_batch", detail: null },
 ];
 
 test("browser sync is no longer described as desktop-only", () => {
@@ -53,14 +54,14 @@ test("browser blocked copy never points at the desktop-only blocked list", () =>
     "rejected_checkpoint",
     "rejected_batch",
   ]) {
-    const text = syncDescription({ state: "blocked", reason }, true);
+    const text = syncDescription({ state: "blocked", reason, detail: null }, true);
     assert.ok(!text.toLowerCase().includes("below"));
     assert.ok(text.includes("Retry sync"));
   }
   for (const reason of ["push_conflict", "protocol_mismatch", "storage_failure"]) {
     assert.equal(
-      syncDescription({ state: "blocked", reason }, true),
-      syncDescription({ state: "blocked", reason }, false),
+      syncDescription({ state: "blocked", reason, detail: null }, true),
+      syncDescription({ state: "blocked", reason, detail: null }, false),
     );
   }
 });
@@ -77,7 +78,11 @@ test("progress stays visible only while a cycle can still run", () => {
   assert.equal(syncProgressVisible({ state: "pending" }, false), true);
   assert.equal(syncProgressVisible({ state: "localOnly" }, true), true);
   assert.equal(syncProgressVisible({ state: "upToDate" }, false), false);
-  assert.equal(syncProgressVisible({ state: "blocked", reason: "rejected_checkpoint" }, false), false);
+  assert.equal(syncProgressVisible({ state: "rehydrating" }, false), true);
+  assert.equal(
+    syncProgressVisible({ state: "blocked", reason: "rejected_checkpoint", detail: null }, false),
+    false,
+  );
   assert.equal(syncProgressVisible({ state: "authenticationRequired" }, false), false);
 });
 
@@ -136,7 +141,6 @@ test("states needing the user read as attention, not as a healthy dot", () => {
     const tone = syncTone(status);
     const needsUser =
       status.state === "authenticationRequired" ||
-      status.state === "conflict" ||
       status.state === "retrying" ||
       status.state === "blocked";
     assert.equal(tone === "attention", needsUser, `${status.state} tone was ${tone}`);
@@ -149,7 +153,20 @@ test("states needing the user read as attention, not as a healthy dot", () => {
   assert.equal(syncTone({ state: "connecting" }), "syncing");
 });
 
-test("conflict counts are pluralised in the menu summary", () => {
-  assert.equal(syncSummary({ state: "conflict", openConflicts: 1 }), "1 conflict needs attention");
-  assert.equal(syncSummary({ state: "conflict", openConflicts: 3 }), "3 conflicts need attention");
+test("rehydration reads as syncing work, not as a fault", () => {
+  assert.equal(syncTone({ state: "rehydrating" }), "syncing");
+  assert.equal(
+    syncDescription({ state: "rehydrating" }, false),
+    "Rebuilding this device from your cloud workspace…",
+  );
+  assert.equal(syncDetail({ state: "rehydrating" }), null);
+});
+
+test("a blocked detail is surfaced only when the coordinator provided one", () => {
+  assert.equal(syncDetail({ state: "blocked", reason: "log_truncated", detail: null }), null);
+  assert.equal(syncDetail({ state: "blocked", reason: "log_truncated", detail: "  " }), null);
+  assert.equal(
+    syncDetail({ state: "blocked", reason: "rejected_pull", detail: "sequence gap at 42" }),
+    "sequence gap at 42",
+  );
 });

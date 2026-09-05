@@ -123,9 +123,17 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
   unbounded log.
 - [x] Externalize oversized operations from the client transport end to end,
   with [chunk upload on push and verified reassembly on pull](sync-content-chunks-v1.md).
-- [ ] Add structured observability, abuse limits, and recovery procedures. The
-  [operational contract](sync-content-operations.md) is written; quotas and
-  metrics are not yet enforced or measured in production.
+- [x] Publish the compaction floor and answer a pull below it with
+  `log_truncated` (HTTP 410) so a lagging device rehydrates instead of
+  retrying forever; keep push idempotency across compaction through the
+  compaction-immune operation index. See
+  [sync content operations](sync-content-operations.md).
+- [x] Enforce the per-workspace 2 GiB content quota (`quota_exceeded`, HTTP
+  413), two-phase chunk deletion, the unreferenced-object sweep, and
+  expired-socket closing.
+- [ ] Add structured metrics and abuse limits beyond the quota. The
+  [operational contract](sync-content-operations.md) is written; request-rate
+  limits and metrics are not yet enforced or measured in production.
 
 ### Desktop connected mode
 
@@ -155,26 +163,29 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
 ### Convergence and product safety
 
 - [x] Define the [merge behavior per operation family](sync-convergence-v1.md).
-- [x] Preserve both complete document versions when automatic reconciliation is
-  unsafe, and resolve them through the
-  [pure reconciliation decision](../../crates/skriuw-domain/src/reconcile.rs)
-  and its keep-local/keep-remote/merged use case.
+- [x] Converge automatically with no user-facing conflict: documents by the
+  four-rule server-sequence decision in the
+  [pure reconciliation decision](../../crates/skriuw-domain/src/reconcile.rs),
+  every other family last-writer-by-server-sequence, losing bodies preserved
+  as history with provenance `superseded`
+  ([ADR-0037](../adr/0037-automatic-sync-convergence.md)).
 - [x] Retain terminal identity tombstones that block resurrection, with
   [delete-versus-edit coverage](../../crates/skriuw-sqlite/src/tests.rs).
-- [ ] Compact tombstones and resolved conflicts once per-device
+- [x] Recover a device below the server's compaction floor by rehydrating
+  from a checkpoint with an empty outbox, keeping blocked rows and tombstones.
+- [x] Propagate remote changes into the open editor: per-cycle change sets,
+  narrow document reads, and an in-place editor merge without an undo entry.
+- [ ] Compact client-side tombstones and received records once per-device
   acknowledgement and checkpoint evidence exists.
 - [ ] Decide whether cloud content is end-to-end encrypted before public beta.
-- [ ] Test two offline devices, clock skew, duplicate delivery, reordered
-  delivery, expired sessions, and interrupted large uploads. Two offline
-  devices forking the same document — both-version preservation, per-device
-  resolution, and convergence without resolution ping-pong — plus duplicate
-  delivery and expired sessions are covered in
-  [`cycle_scenarios.rs`](../../crates/skriuw-sync/tests/cycle_scenarios.rs);
-  clock skew, reordered delivery, and interrupted large uploads remain open.
-  Conflict records are intentionally per-device: every device that observed
-  the fork resolves it locally, and replicated resolutions apply as ordinary
-  saves (identical content is a semantic no-op).
-- [ ] Provide connected-workspace export, account deletion, and cloud purge.
+- [x] Test two offline devices reconnecting in either order, duplicate
+  delivery, three-device ack-before-echo, parked write then remote write then
+  retry, expired sessions mid-push and mid-pull, and rehydration after
+  truncation in
+  [`cycle_scenarios.rs`](../../crates/skriuw-sync/tests/cycle_scenarios.rs).
+- [ ] Test clock skew, reordered delivery, and interrupted large uploads.
+- [ ] Provide account deletion and cloud purge. Connected-workspace portable
+  export carries canonical state and is no longer gated on sync state.
 
 ## Milestones
 
@@ -186,7 +197,7 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
 3. **Browser proof:** web boots from OPFS, edits offline, and converges after a
    refresh without importing Tauri code.
 4. **Private beta:** authentication, authorization, chunks, checkpoints,
-   conflicts, observability, recovery, and deletion are complete.
+   automatic convergence, observability, recovery, and deletion are complete.
 
 ## Current implementation status
 
@@ -201,28 +212,31 @@ server-owned D1 membership/device registry now guard provisioning, push, and
 pull. Authorization runs before Durable Object resolution and is rechecked on
 every request.
 
-This is not yet an end-user sync feature. Native SQLite owns the optional
+Sync 1.0 converges without user action. Native SQLite owns the optional
 [connection and transactional outbox](local-sync-outbox.md), inbound cursor,
-received-operation idempotency, local-echo acknowledgement, durable semantic
-conflict records, terminal identity tombstones, and preserved both-version
-document conflicts with an explicit
-[resolution use case](sync-convergence-v1.md).
-The [desktop background coordinator](desktop-sync-coordinator.md)
-now uses a bounded production HTTP transport after an explicit Account-settings
-connection and resumes from the OS credential vault asynchronously on later
-launches, while local startup remains network-free. The first connection
-transactionally seeds supported existing inline workspace state — including
-`AttachImage` operations for pre-existing images, ordered after their notes —
-into the same durable outbox before later edits. The browser-local runtime now
-bundles worker-owned SQLite WASM over OPFS and has native parity plus a real
-Chromium restart-durability gate. Account bootstrap into a connected workspace,
-cross-browser/performance evidence, browser sync bootstrap, the multi-device
-convergence scenario matrix, base-proof field transforms, client-side tombstone
-and conflict compaction, media assets, and cloud purge remain open.
-The cloud now stores [content-addressed chunks, versioned checkpoints, and
-per-device retention](sync-content-operations.md), and a fresh device can
-hydrate from a verified checkpoint and replay only the ordered tail. The desktop
-transport now externalizes oversized operations into chunks on push and verifies
-and reassembles them on pull; automatic checkpoint publication and first-connect
-hydration are not wired into the coordinator yet.
-Local-only desktop behavior is unchanged.
+received-operation idempotency, local-echo acknowledgement, superseded
+received records, terminal identity tombstones, document heads, and history
+provenance; [sync convergence v1](sync-convergence-v1.md) is the merge
+contract and [ADR-0037](../adr/0037-automatic-sync-convergence.md) the
+decision. The [desktop background coordinator](desktop-sync-coordinator.md)
+uses a bounded production HTTP transport with size-based timeouts after an
+explicit Account-settings connection, resumes from the OS credential vault
+asynchronously on later launches, adapts its poll to window visibility and the
+wake channel, treats offline as a hint, stops on session expiry and hands the
+renderer a sign-in state, and reports per-cycle change sets that the renderer
+merges into the open editor; local startup remains network-free. The first
+connection transactionally seeds supported existing inline workspace state —
+including `AttachImage` and cover operations for pre-existing images, ordered
+after their notes — into the same durable outbox before later edits. The
+browser runtime bundles worker-owned SQLite WASM over OPFS with native parity,
+a real Chromium restart-durability gate, and the same cycle scheduled by a
+driver that retries transiently and re-establishes a lost session. The cloud
+stores [content-addressed chunks, versioned checkpoints, and per-device
+retention](sync-content-operations.md) behind a published compaction floor,
+a compaction-immune push index, two-phase chunk deletion, an unreferenced
+sweep, and a per-workspace quota; a fresh device hydrates from a verified
+checkpoint and a lagging device rehydrates after `log_truncated`. Open:
+request-rate limits and production metrics, client-side tombstone compaction,
+end-to-end encryption, account deletion and cloud purge, clock-skew and
+interrupted-upload tests, cross-browser performance evidence, and measured
+Cloudflare propagation latency. Local-only desktop behavior is unchanged.

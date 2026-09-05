@@ -1,29 +1,29 @@
+use std::collections::BTreeMap;
+
 use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
 use skriuw_domain::{
     AnnotationStatus, BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,
-    DocumentConflictResolutionChoice, NodeKind, NodePlacement, NodePosition, OperationAck,
-    RemoteOperationDecision, RemoteTargetState, ReplicatedWorkspaceOperation,
-    ResolveDocumentConflict, SYNC_RECOVERY_VIEW_VERSION, SyncConflictReason, SyncOperationPayload,
-    SyncRecoveryView, SyncReplicationClass, SyncValidationError, WORKSPACE_SYNC_PROTOCOL_VERSION,
-    WorkspaceAnnotation, WorkspaceArchive, WorkspaceOperation, WorkspaceOperationEnvelope,
-    classify_apply_failure, reconcile_remote_operation, validate_sync_identifier,
-    validate_sync_sequence,
+    NodeKind, NodePlacement, NodePosition, OperationAck, RemoteOperationDecision,
+    RemoteTargetState, ReplicatedWorkspaceOperation, SYNC_RECOVERY_VIEW_VERSION,
+    SyncConflictReason, SyncOperationPayload, SyncRecoveryView, SyncReplicationClass,
+    SyncValidationError, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceAnnotation, WorkspaceArchive,
+    WorkspaceOperation, WorkspaceOperationEnvelope, classify_apply_failure,
+    reconcile_remote_operation, validate_sync_identifier, validate_sync_sequence,
 };
 use skriuw_storage::{
-    BlockedSyncOperation, Diagnostic, DiagnosticContext, DocumentConflictSummary,
-    DocumentConflictVersion, DocumentConflictVersions, ImportSummary, NewSyncConnection,
-    PendingSyncBatch, RemoteSyncApplyOutcome, StorageError, SyncConflict, SyncConnection,
+    BlockedSyncOperation, Diagnostic, DiagnosticContext, HistoryProvenance, ImportSummary,
+    NewSyncConnection, PendingSyncBatch, RemoteSyncApplyOutcome, StorageError, SyncConnection,
     SyncRecovery, SyncTombstone, WorkspaceSyncQueue,
 };
 use uuid::Uuid;
 
-use crate::SqliteWorkspace;
 use crate::error::{backend, json_backend};
 use crate::operations::{
-    apply_operations_in_transaction, count_words, node_is_available, require_worker,
-    validate_operations,
+    apply_operations_in_transaction, count_words, node_is_available, preserve_document_version,
+    require_worker,
 };
 use crate::queries::read_snapshot;
+use crate::{SqliteWorkspace, replace_workspace_in_transaction};
 
 struct OutboxRow {
     operation_id: String,
@@ -246,7 +246,10 @@ fn resolve_blocked_row(
 
 /// Moves one blocked operation back into the pending outbox at the tail of
 /// the queue and resolves its blocked record as retried, in the caller's
-/// transaction, so a crash can never lose or duplicate the operation.
+/// transaction, so a crash can never lose or duplicate the operation. A parked
+/// document write whose body no longer matches the canonical document is
+/// requeued as a write of the canonical body, so the stale parked version can
+/// never overtake later local edits on other devices.
 fn requeue_blocked_row(
     transaction: &Transaction<'_>,
     row: &BlockedRow,
@@ -257,11 +260,12 @@ fn requeue_blocked_row(
             "retrying a blocked change requires an active sync connection".into(),
         )
     })?;
+    let envelope = canonical_document_write(transaction, &row.envelope, now_ms)?;
     let operation = ClientSyncOperation {
         operation_id: Uuid::new_v4().to_string(),
         client_sequence: active.next_client_sequence,
         base_server_sequence: active.observed_server_sequence,
-        payload: SyncOperationPayload::inline(row.envelope.clone()),
+        payload: SyncOperationPayload::inline(envelope.clone()),
     };
     operation
         .validate_queued(WORKSPACE_SYNC_PROTOCOL_VERSION)
@@ -275,7 +279,7 @@ fn requeue_blocked_row(
                 operation.operation_id,
                 sql_sequence(operation.client_sequence)?,
                 sql_sequence(operation.base_server_sequence)?,
-                serde_json::to_string(&row.envelope).map_err(json_backend)?,
+                serde_json::to_string(&envelope).map_err(json_backend)?,
                 now_ms.max(0)
             ],
         )
@@ -293,6 +297,78 @@ fn requeue_blocked_row(
         )
         .map_err(backend)?;
     resolve_blocked_row(transaction, &row.id, "retried", now_ms)
+}
+
+fn canonical_document_write(
+    transaction: &Transaction<'_>,
+    envelope: &WorkspaceOperationEnvelope,
+    at: i64,
+) -> Result<WorkspaceOperationEnvelope, StorageError> {
+    let Some(note_id) = document_write_target(&envelope.operation) else {
+        return Ok(envelope.clone());
+    };
+    let canonical = transaction
+        .query_row(
+            "SELECT document_json, markdown, revision, word_count FROM documents \
+             WHERE note_id = ?1",
+            [note_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, i64>(3)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(backend)?;
+    let Some((stored_json, stored_markdown, revision, word_count)) = canonical else {
+        return Ok(envelope.clone());
+    };
+    let (parked_json, parked_markdown) = match &envelope.operation {
+        WorkspaceOperation::SaveDocument {
+            document_json,
+            markdown,
+            ..
+        }
+        | WorkspaceOperation::CreateNote {
+            document_json,
+            markdown,
+            ..
+        } => (document_json, markdown),
+        _ => return Ok(envelope.clone()),
+    };
+    if documents_equivalent(&stored_json, &stored_markdown, parked_json, parked_markdown) {
+        return Ok(envelope.clone());
+    }
+    let document_json = serde_json::from_str(&stored_json).map_err(json_backend)?;
+    let mut fresh = envelope.clone();
+    fresh.operation = match &envelope.operation {
+        WorkspaceOperation::CreateNote {
+            id,
+            title,
+            placement,
+            at,
+            ..
+        } => WorkspaceOperation::CreateNote {
+            id: id.clone(),
+            title: title.clone(),
+            placement: placement.clone(),
+            document_json,
+            markdown: stored_markdown,
+            at: *at,
+        },
+        _ => WorkspaceOperation::SaveDocument {
+            note_id: note_id.to_owned(),
+            document_json,
+            markdown: stored_markdown,
+            word_count,
+            expected_revision: revision,
+            at: at.max(0),
+        },
+    };
+    Ok(fresh)
 }
 
 fn blocked_target(
@@ -410,61 +486,6 @@ impl SyncRecovery for SqliteWorkspace {
         transaction.commit().map_err(backend)
     }
 
-    fn sync_conflict_review(&self) -> Result<skriuw_domain::SyncConflictReviewView, StorageError> {
-        let mut open = Vec::new();
-        let mut settled = Vec::new();
-        for summary in self.document_conflicts()? {
-            let resolved = summary.resolved_at.is_some();
-            let view = skriuw_domain::DocumentConflictView {
-                conflict_id: summary.conflict_id,
-                note_id: summary.note_id,
-                title: summary
-                    .local_title
-                    .or(summary.remote_title)
-                    .unwrap_or_else(|| "Untitled".into()),
-                reason_code: summary.reason_code,
-                subreason: summary.subreason,
-                created_at: summary.created_at,
-                local_version_available: summary.local_version_available,
-                resolved_choice: summary.resolved_choice,
-                resolved_at: summary.resolved_at,
-            };
-            if resolved {
-                settled.push(view);
-            } else {
-                open.push(view);
-            }
-        }
-        Ok(skriuw_domain::SyncConflictReviewView {
-            view_version: skriuw_domain::SYNC_CONFLICT_REVIEW_VIEW_VERSION,
-            open,
-            settled,
-        })
-    }
-
-    fn sync_conflict_versions(
-        &self,
-        conflict_id: &str,
-    ) -> Result<skriuw_domain::DocumentConflictVersionsView, StorageError> {
-        let versions = self.document_conflict_versions(conflict_id)?;
-        Ok(skriuw_domain::DocumentConflictVersionsView {
-            conflict_id: versions.conflict_id,
-            note_id: versions.note_id,
-            remote: skriuw_domain::DocumentConflictVersionView {
-                title: versions.remote.title,
-                markdown: versions.remote.markdown,
-                revision: versions.remote.revision,
-            },
-            local: versions
-                .local
-                .map(|local| skriuw_domain::DocumentConflictVersionView {
-                    title: local.title,
-                    markdown: local.markdown,
-                    revision: local.revision,
-                }),
-        })
-    }
-
     fn discard_blocked_sync_operation(
         &self,
         blocked_id: &str,
@@ -535,8 +556,7 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                      DELETE FROM sync_blocked_operations;\
                      DELETE FROM sync_received_operations;\
                      DELETE FROM sync_document_heads;\
-                     DELETE FROM sync_document_conflicts;\
-                     DELETE FROM sync_conflicts;",
+                     DELETE FROM sync_dangling_references;",
                 )
                 .map_err(backend)?;
             transaction
@@ -764,8 +784,7 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                         &transaction,
                         &replicated,
                         &operation_json,
-                        "local_echo",
-                        None,
+                        ReceivedOutcome::LocalEcho,
                         acknowledged_at,
                     )?;
                 }
@@ -900,7 +919,10 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
         }
         if !matches!(
             reason_code,
-            "operation_too_large" | "unsupported_operation" | "asset_content_missing"
+            "operation_too_large"
+                | "unsupported_operation"
+                | "asset_content_missing"
+                | "cloud_rejected"
         ) {
             return Err(StorageError::InvalidOperation(format!(
                 "unknown sync block reason {reason_code}"
@@ -911,6 +933,20 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(backend)?;
         let claimed = claimed_operation_keys(&transaction, worker_id)?;
+        let most_attempts = transaction
+            .query_row(
+                "SELECT COALESCE(MAX(attempts), 0) FROM sync_outbox WHERE claimed_by = ?1",
+                [worker_id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(backend)?;
+        if most_attempts > 1 && reason_code != "cloud_rejected" {
+            return Err(StorageError::ReleaseRequired(
+                "a row in the claimed batch was pushed before and may be server-visible; \
+                 renumbering it could collide with an accepted client sequence"
+                    .into(),
+            ));
+        }
         let mut blocked_ids = std::collections::BTreeSet::new();
         for operation_id in operation_ids {
             validate_sync_identifier("sync operation id", operation_id).map_err(sync_validation)?;
@@ -970,9 +1006,39 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
     fn has_pending_sync_operations(&self) -> Result<bool, StorageError> {
         let connection = self.lock()?;
         connection
-            .query_row("SELECT EXISTS(SELECT 1 FROM sync_outbox)", [], |row| {
-                row.get::<_, bool>(0)
-            })
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sync_outbox) \
+                 OR EXISTS(SELECT 1 FROM sync_blocked_operations WHERE resolved_at IS NULL)",
+                [],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(backend)
+    }
+
+    fn next_sync_attempt_at(&self) -> Result<Option<i64>, StorageError> {
+        let connection = self.lock()?;
+        connection
+            .query_row(
+                "SELECT MIN(next_attempt_at) FROM sync_outbox WHERE claimed_by IS NULL",
+                [],
+                |row| row.get::<_, Option<i64>>(0),
+            )
+            .map_err(backend)
+    }
+
+    fn reset_sync_retry_times(&self, now_ms: i64) -> Result<usize, StorageError> {
+        if now_ms < 0 {
+            return Err(StorageError::InvalidOperation(
+                "sync retry reset requires a non-negative time".into(),
+            ));
+        }
+        let connection = self.lock()?;
+        connection
+            .execute(
+                "UPDATE sync_outbox SET next_attempt_at = 0 \
+                 WHERE claimed_by IS NULL AND next_attempt_at > ?1",
+                [now_ms],
+            )
             .map_err(backend)
     }
 
@@ -1097,8 +1163,7 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                     &transaction,
                     operation,
                     &operation_json,
-                    "local_echo",
-                    None,
+                    ReceivedOutcome::LocalEcho,
                     received_at,
                 )?;
                 transaction
@@ -1117,18 +1182,17 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                 continue;
             }
 
-            if operation.device_id == active.device_id {
+            if operation.device_id == active.device_id
+                && operation.server_sequence <= active.rehydrated_through
+            {
                 return Err(StorageError::InvalidOperation(format!(
                     "local echo {} has no matching outbound operation",
                     operation.operation_id
                 )));
             }
 
-            let reconcile_state = remote_target_state(
-                &transaction,
-                &envelope.operation,
-                operation.base_server_sequence,
-            )?;
+            let reconcile_state =
+                remote_target_state(&transaction, &envelope.operation, operation.server_sequence)?;
             match reconcile_remote_operation(&envelope.operation, &reconcile_state) {
                 RemoteOperationDecision::ProtocolInvalid { operation_type } => {
                     return Err(StorageError::InvalidOperation(format!(
@@ -1140,8 +1204,7 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                         &transaction,
                         operation,
                         &operation_json,
-                        "no_op",
-                        None,
+                        ReceivedOutcome::NoOp,
                         received_at,
                     )?;
                     advance_document_head(
@@ -1152,8 +1215,8 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                     cursor = operation.server_sequence;
                     outcomes.push(RemoteSyncApplyOutcome::NoOp);
                 }
-                RemoteOperationDecision::Conflict { reason } => {
-                    let conflict = record_semantic_conflict(
+                RemoteOperationDecision::Superseded { reason } => {
+                    record_superseded(
                         &transaction,
                         operation,
                         &operation_json,
@@ -1161,37 +1224,18 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                         None,
                         received_at,
                     )?;
-                    insert_received_operation(
-                        &transaction,
-                        operation,
-                        &operation_json,
-                        "conflict",
-                        Some(&conflict.id),
-                        received_at,
-                    )?;
                     cursor = operation.server_sequence;
-                    outcomes.push(RemoteSyncApplyOutcome::Conflict(conflict));
+                    outcomes.push(RemoteSyncApplyOutcome::Superseded { reason });
                 }
                 RemoteOperationDecision::Apply => {
-                    let applied = rebase_remote_document(&transaction, envelope, &reconcile_state)?;
-                    transaction
-                        .execute_batch("SAVEPOINT remote_operation")
-                        .map_err(backend)?;
-                    match apply_operations_in_transaction(
-                        &transaction,
-                        std::slice::from_ref(applied.as_ref()),
-                    ) {
+                    match apply_remote_envelope(&transaction, envelope) {
                         Ok(acknowledgement) => {
-                            transaction
-                                .execute_batch("RELEASE remote_operation")
-                                .map_err(backend)?;
                             backfill_tombstone_provenance(&transaction, operation)?;
                             insert_received_operation(
                                 &transaction,
                                 operation,
                                 &operation_json,
-                                "applied",
-                                None,
+                                ReceivedOutcome::Applied,
                                 received_at,
                             )?;
                             advance_document_head(
@@ -1199,30 +1243,15 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                                 &envelope.operation,
                                 operation.server_sequence,
                             )?;
-                            supersede_open_document_conflicts(
-                                &transaction,
-                                &envelope.operation,
-                                received_at,
-                            )?;
                             cursor = operation.server_sequence;
                             outcomes.push(RemoteSyncApplyOutcome::Applied(acknowledgement));
                         }
-                        Err(StorageError::Backend(message)) => {
-                            transaction
-                                .execute_batch(
-                                    "ROLLBACK TO remote_operation; RELEASE remote_operation",
-                                )
-                                .map_err(backend)?;
-                            return Err(StorageError::Backend(message));
+                        Err(error @ (StorageError::Backend(_) | StorageError::Busy(_))) => {
+                            return Err(error);
                         }
                         Err(error) => {
-                            transaction
-                                .execute_batch(
-                                    "ROLLBACK TO remote_operation; RELEASE remote_operation",
-                                )
-                                .map_err(backend)?;
                             let reason = refine_apply_error(&envelope.operation, &error);
-                            let conflict = record_semantic_conflict(
+                            record_superseded(
                                 &transaction,
                                 operation,
                                 &operation_json,
@@ -1230,16 +1259,8 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                                 Some(&error),
                                 received_at,
                             )?;
-                            insert_received_operation(
-                                &transaction,
-                                operation,
-                                &operation_json,
-                                "conflict",
-                                Some(&conflict.id),
-                                received_at,
-                            )?;
                             cursor = operation.server_sequence;
-                            outcomes.push(RemoteSyncApplyOutcome::Conflict(conflict));
+                            outcomes.push(RemoteSyncApplyOutcome::Superseded { reason });
                         }
                     }
                 }
@@ -1255,22 +1276,6 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
             .map_err(backend)?;
         transaction.commit().map_err(backend)?;
         Ok(outcomes)
-    }
-
-    fn sync_conflicts(&self) -> Result<Vec<SyncConflict>, StorageError> {
-        let connection = self.lock()?;
-        let mut statement = connection
-            .prepare(
-                "SELECT id, operation_id, operation_type, server_sequence, reason_code, \
-                 subreason, message, created_at FROM sync_conflicts WHERE resolved_at IS NULL \
-                 ORDER BY server_sequence",
-            )
-            .map_err(backend)?;
-        statement
-            .query_map([], read_conflict)
-            .map_err(backend)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(backend)
     }
 
     fn sync_tombstones(&self) -> Result<Vec<SyncTombstone>, StorageError> {
@@ -1311,229 +1316,6 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
             .map_err(backend)
     }
 
-    fn document_conflicts(&self) -> Result<Vec<DocumentConflictSummary>, StorageError> {
-        let connection = self.lock()?;
-        let mut statement = connection
-            .prepare(
-                "SELECT d.conflict_id, d.note_id, d.remote_title, d.local_title, \
-                 c.reason_code, c.subreason, c.server_sequence, c.created_at, \
-                 d.local_document_json IS NOT NULL, d.resolved_choice, d.resolved_at \
-                 FROM sync_document_conflicts d \
-                 JOIN sync_conflicts c ON c.id = d.conflict_id \
-                 ORDER BY c.server_sequence",
-            )
-            .map_err(backend)?;
-        statement
-            .query_map([], |row| {
-                Ok(DocumentConflictSummary {
-                    conflict_id: row.get(0)?,
-                    note_id: row.get(1)?,
-                    remote_title: row.get(2)?,
-                    local_title: row.get(3)?,
-                    reason_code: row.get(4)?,
-                    subreason: row.get(5)?,
-                    server_sequence: row_sequence(row, 6)?,
-                    created_at: row.get(7)?,
-                    local_version_available: row.get(8)?,
-                    resolved_choice: row.get(9)?,
-                    resolved_at: row.get(10)?,
-                })
-            })
-            .map_err(backend)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(backend)
-    }
-
-    fn document_conflict_versions(
-        &self,
-        conflict_id: &str,
-    ) -> Result<DocumentConflictVersions, StorageError> {
-        let connection = self.lock()?;
-        connection
-            .query_row(
-                "SELECT note_id, remote_title, remote_document_json, remote_markdown, \
-                 local_title, local_document_json, local_markdown, local_revision \
-                 FROM sync_document_conflicts WHERE conflict_id = ?1",
-                [conflict_id],
-                |row| {
-                    let local = match (
-                        row.get::<_, Option<String>>(5)?,
-                        row.get::<_, Option<String>>(6)?,
-                    ) {
-                        (Some(document_json), Some(markdown)) => Some(DocumentConflictVersion {
-                            title: row.get(4)?,
-                            document_json,
-                            markdown,
-                            revision: row.get(7)?,
-                        }),
-                        _ => None,
-                    };
-                    Ok(DocumentConflictVersions {
-                        conflict_id: conflict_id.into(),
-                        note_id: row.get(0)?,
-                        remote: DocumentConflictVersion {
-                            title: row.get(1)?,
-                            document_json: row.get(2)?,
-                            markdown: row.get(3)?,
-                            revision: None,
-                        },
-                        local,
-                    })
-                },
-            )
-            .optional()
-            .map_err(backend)?
-            .ok_or_else(|| StorageError::NotFound(conflict_id.into()))
-    }
-
-    fn resolve_document_conflict(
-        &self,
-        request: &ResolveDocumentConflict,
-    ) -> Result<Option<OperationAck>, StorageError> {
-        validate_sync_identifier("conflict id", &request.conflict_id).map_err(sync_validation)?;
-        if request.at < 0 {
-            return Err(StorageError::InvalidOperation(
-                "conflict resolution time must be non-negative".into(),
-            ));
-        }
-        let mut connection = self.lock()?;
-        let transaction = connection
-            .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(backend)?;
-        let row = transaction
-            .query_row(
-                "SELECT d.note_id, d.remote_document_json, d.remote_markdown, \
-                 d.resolved_choice, c.created_at \
-                 FROM sync_document_conflicts d \
-                 JOIN sync_conflicts c ON c.id = d.conflict_id \
-                 WHERE d.conflict_id = ?1",
-                [&request.conflict_id],
-                |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                        row.get::<_, Option<String>>(3)?,
-                        row.get::<_, i64>(4)?,
-                    ))
-                },
-            )
-            .optional()
-            .map_err(backend)?;
-        let Some((note_id, remote_json, remote_markdown, resolved_choice, created_at)) = row else {
-            return Err(StorageError::NotFound(request.conflict_id.clone()));
-        };
-        if let Some(previous) = resolved_choice {
-            if previous == request.choice.code() {
-                return Ok(None);
-            }
-            return Err(StorageError::InvalidOperation(format!(
-                "conflict {} was already resolved as {previous}",
-                request.conflict_id
-            )));
-        }
-
-        let chosen = match &request.choice {
-            DocumentConflictResolutionChoice::KeepLocal => None,
-            DocumentConflictResolutionChoice::KeepRemote => {
-                let document_json = serde_json::from_str(&remote_json).map_err(json_backend)?;
-                Some((document_json, remote_markdown.clone()))
-            }
-            DocumentConflictResolutionChoice::Merged {
-                document_json,
-                markdown,
-            } => Some((document_json.clone(), markdown.clone())),
-        };
-
-        let mut acknowledgement = None;
-        let resolved_revision = match chosen {
-            None => transaction
-                .query_row(
-                    "SELECT revision FROM documents WHERE note_id = ?1",
-                    [&note_id],
-                    |row| row.get::<_, i64>(0),
-                )
-                .optional()
-                .map_err(backend)?,
-            Some((document_json, markdown)) => {
-                let current_revision = transaction
-                    .query_row(
-                        "SELECT revision FROM documents WHERE note_id = ?1",
-                        [&note_id],
-                        |row| row.get::<_, i64>(0),
-                    )
-                    .optional()
-                    .map_err(backend)?
-                    .ok_or_else(|| {
-                        StorageError::InvalidOperation(format!(
-                            "note {note_id} no longer exists; export the preserved version instead"
-                        ))
-                    })?;
-                let word_count = count_words(&markdown);
-                let envelope = WorkspaceOperationEnvelope::v1(WorkspaceOperation::SaveDocument {
-                    note_id: note_id.clone(),
-                    document_json,
-                    markdown,
-                    word_count,
-                    expected_revision: current_revision,
-                    at: request.at,
-                });
-                let operations = [envelope];
-                validate_operations(&operations)?;
-                acknowledgement = Some(apply_operations_in_transaction(&transaction, &operations)?);
-                enqueue_sync_operations(&transaction, &operations)?;
-                Some(current_revision + 1)
-            }
-        };
-
-        let resolved_at = request.at.max(created_at);
-        let (resolved_json, resolved_markdown) = match &request.choice {
-            DocumentConflictResolutionChoice::KeepLocal => transaction
-                .query_row(
-                    "SELECT local_document_json, local_markdown \
-                     FROM sync_document_conflicts WHERE conflict_id = ?1",
-                    [&request.conflict_id],
-                    |row| {
-                        Ok((
-                            row.get::<_, Option<String>>(0)?,
-                            row.get::<_, Option<String>>(1)?,
-                        ))
-                    },
-                )
-                .map_err(backend)?,
-            DocumentConflictResolutionChoice::KeepRemote => {
-                (Some(remote_json), Some(remote_markdown))
-            }
-            DocumentConflictResolutionChoice::Merged {
-                document_json,
-                markdown,
-            } => (Some(document_json.to_string()), Some(markdown.clone())),
-        };
-        transaction
-            .execute(
-                "UPDATE sync_document_conflicts SET resolved_choice = ?2, \
-                 resolved_document_json = ?3, resolved_markdown = ?4, \
-                 resolved_revision = ?5, resolved_at = ?6 WHERE conflict_id = ?1",
-                params![
-                    request.conflict_id,
-                    request.choice.code(),
-                    resolved_json,
-                    resolved_markdown,
-                    resolved_revision,
-                    resolved_at
-                ],
-            )
-            .map_err(backend)?;
-        transaction
-            .execute(
-                "UPDATE sync_conflicts SET resolved_at = ?2 WHERE id = ?1",
-                params![request.conflict_id, resolved_at],
-            )
-            .map_err(backend)?;
-        transaction.commit().map_err(backend)?;
-        Ok(acknowledgement)
-    }
-
     fn hydrate_from_checkpoint(
         &self,
         archive: &WorkspaceArchive,
@@ -1549,39 +1331,289 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
         )
         .map_err(sync_validation)?;
 
-        let connection = self.lock()?;
-        let active = read_active_connection(&connection)?.ok_or_else(|| {
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
+        let active = read_active_connection(&transaction)?.ok_or_else(|| {
             StorageError::InvalidOperation(
                 "checkpoint hydration requires an active sync connection".into(),
             )
         })?;
-        if active.observed_server_sequence != 0 {
-            return Err(StorageError::InvalidOperation(
-                "checkpoint hydration is only allowed before the first pull".into(),
-            ));
-        }
-        let pending = connection
-            .query_row("SELECT EXISTS(SELECT 1 FROM sync_outbox)", [], |row| {
-                row.get::<_, bool>(0)
-            })
-            .map_err(backend)?;
-        if pending {
-            return Err(StorageError::InvalidOperation(
-                "checkpoint hydration cannot discard pending local operations".into(),
-            ));
-        }
-        drop(connection);
-
-        let summary = self.replace_workspace_from_archive(archive, true)?;
-        let connection = self.lock()?;
-        connection
+        require_hydration_precondition(&transaction, &active)?;
+        let summary = replace_workspace_in_transaction(&transaction, archive, true)?;
+        transaction
             .execute(
                 "UPDATE sync_connection SET observed_server_sequence = ?1 WHERE singleton = 1",
                 params![sql_sequence(checkpoint_server_sequence)?],
             )
             .map_err(backend)?;
+        transaction.commit().map_err(backend)?;
         Ok(summary)
     }
+
+    fn rehydrate_from_checkpoint(
+        &self,
+        archive: &WorkspaceArchive,
+        checkpoint_server_sequence: u64,
+    ) -> Result<ImportSummary, StorageError> {
+        archive
+            .validate()
+            .map_err(|error| StorageError::InvalidOperation(error.to_string()))?;
+        validate_sync_sequence(
+            "checkpoint server sequence",
+            checkpoint_server_sequence,
+            false,
+        )
+        .map_err(sync_validation)?;
+
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
+        read_active_connection(&transaction)?.ok_or_else(|| {
+            StorageError::InvalidOperation(
+                "checkpoint rehydration requires an active sync connection".into(),
+            )
+        })?;
+        if outbox_row_count(&transaction)? > 0 {
+            return Err(StorageError::InvalidOperation(
+                "checkpoint rehydration cannot discard pending local operations".into(),
+            ));
+        }
+        let carried_history = read_history_rows(&transaction)?;
+        let carried_cache = read_history_cache_rows(&transaction)?;
+        let mut summary = replace_workspace_in_transaction(&transaction, archive, true)?;
+        let archive_revisions = archive
+            .documents
+            .iter()
+            .map(|document| (document.note_id.as_str(), document.revision))
+            .collect::<BTreeMap<_, _>>();
+        summary.history_items +=
+            carry_history_rows(&transaction, &carried_history, &archive_revisions)?;
+        for row in carried_cache
+            .iter()
+            .filter(|row| archive_revisions.contains_key(row.note_id.as_str()))
+        {
+            transaction
+                .execute(
+                    "INSERT INTO history_cache(\
+                         note_id, version_id, created_at, summary, additions, deletions, word_count\
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    params![
+                        row.note_id,
+                        row.version_id,
+                        row.created_at,
+                        row.summary,
+                        row.additions,
+                        row.deletions,
+                        row.word_count
+                    ],
+                )
+                .map_err(backend)?;
+        }
+        transaction
+            .execute(
+                "UPDATE sync_connection SET observed_server_sequence = ?1, \
+                 rehydrated_through = ?1 WHERE singleton = 1",
+                params![sql_sequence(checkpoint_server_sequence)?],
+            )
+            .map_err(backend)?;
+        transaction.commit().map_err(backend)?;
+        Ok(summary)
+    }
+}
+
+/// Hydration replaces canonical state wholesale, so it is only legal while
+/// this device has contributed nothing the server or the log could know about.
+fn require_hydration_precondition(
+    transaction: &Transaction<'_>,
+    active: &SyncConnection,
+) -> Result<(), StorageError> {
+    if active.observed_server_sequence != 0 {
+        return Err(StorageError::InvalidOperation(
+            "checkpoint hydration is only allowed before the first pull".into(),
+        ));
+    }
+    if active.next_client_sequence != 1 {
+        return Err(StorageError::InvalidOperation(
+            "checkpoint hydration is only allowed before the first push".into(),
+        ));
+    }
+    let received = transaction
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sync_received_operations)",
+            [],
+            |row| row.get::<_, bool>(0),
+        )
+        .map_err(backend)?;
+    if received {
+        return Err(StorageError::InvalidOperation(
+            "checkpoint hydration is only allowed before any operation was received".into(),
+        ));
+    }
+    if outbox_row_count(transaction)? > 0 || unresolved_blocked_count(transaction)? > 0 {
+        return Err(StorageError::InvalidOperation(
+            "checkpoint hydration cannot discard pending local operations".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn outbox_row_count(transaction: &Transaction<'_>) -> Result<i64, StorageError> {
+    transaction
+        .query_row("SELECT COUNT(*) FROM sync_outbox", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .map_err(backend)
+}
+
+fn unresolved_blocked_count(transaction: &Transaction<'_>) -> Result<i64, StorageError> {
+    transaction
+        .query_row(
+            "SELECT COUNT(*) FROM sync_blocked_operations WHERE resolved_at IS NULL",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(backend)
+}
+
+struct HistoryRow {
+    id: String,
+    note_id: String,
+    revision: i64,
+    markdown: String,
+    created_at: i64,
+    claimed_by: Option<String>,
+    claimed_at: Option<i64>,
+    attempts: i64,
+    last_error: Option<String>,
+    next_attempt_at: i64,
+    provenance: String,
+}
+
+fn read_history_rows(transaction: &Transaction<'_>) -> Result<Vec<HistoryRow>, StorageError> {
+    let mut statement = transaction
+        .prepare(
+            "SELECT id, note_id, revision, markdown, created_at, claimed_by, claimed_at, \
+             attempts, last_error, next_attempt_at, provenance FROM history_outbox \
+             ORDER BY note_id, revision, provenance",
+        )
+        .map_err(backend)?;
+    statement
+        .query_map([], |row| {
+            Ok(HistoryRow {
+                id: row.get(0)?,
+                note_id: row.get(1)?,
+                revision: row.get(2)?,
+                markdown: row.get(3)?,
+                created_at: row.get(4)?,
+                claimed_by: row.get(5)?,
+                claimed_at: row.get(6)?,
+                attempts: row.get(7)?,
+                last_error: row.get(8)?,
+                next_attempt_at: row.get(9)?,
+                provenance: row.get(10)?,
+            })
+        })
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
+}
+
+/// Pending history for notes the checkpoint still contains survives a
+/// rebuild. Rows at or below the archive's revision are lifted above it, and
+/// the canonical revision is raised past the highest carried row so later
+/// local saves never reuse a carried revision number.
+fn carry_history_rows(
+    transaction: &Transaction<'_>,
+    rows: &[HistoryRow],
+    archive_revisions: &BTreeMap<&str, i64>,
+) -> Result<usize, StorageError> {
+    let mut by_note = BTreeMap::<&str, Vec<&HistoryRow>>::new();
+    for row in rows {
+        if archive_revisions.contains_key(row.note_id.as_str()) {
+            by_note.entry(row.note_id.as_str()).or_default().push(row);
+        }
+    }
+    let mut carried = 0;
+    for (note_id, rows) in by_note {
+        let archive_revision = archive_revisions[note_id];
+        let lowest = rows.iter().map(|row| row.revision).min().unwrap_or(1);
+        let highest = rows.iter().map(|row| row.revision).max().unwrap_or(1);
+        let shift = if lowest <= archive_revision {
+            archive_revision.saturating_sub(lowest).saturating_add(1)
+        } else {
+            0
+        };
+        for row in rows {
+            transaction
+                .execute(
+                    "INSERT INTO history_outbox(\
+                         id, note_id, revision, markdown, created_at, claimed_by, claimed_at, \
+                         attempts, last_error, next_attempt_at, provenance\
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                    params![
+                        row.id,
+                        row.note_id,
+                        row.revision.saturating_add(shift),
+                        row.markdown,
+                        row.created_at,
+                        row.claimed_by,
+                        row.claimed_at,
+                        row.attempts,
+                        row.last_error,
+                        row.next_attempt_at,
+                        row.provenance
+                    ],
+                )
+                .map_err(backend)?;
+            carried += 1;
+        }
+        transaction
+            .execute(
+                "UPDATE documents SET revision = MAX(revision, ?2) WHERE note_id = ?1",
+                params![note_id, highest.saturating_add(shift)],
+            )
+            .map_err(backend)?;
+    }
+    Ok(carried)
+}
+
+struct HistoryCacheRow {
+    note_id: String,
+    version_id: String,
+    created_at: i64,
+    summary: String,
+    additions: Option<i64>,
+    deletions: Option<i64>,
+    word_count: Option<i64>,
+}
+
+fn read_history_cache_rows(
+    transaction: &Transaction<'_>,
+) -> Result<Vec<HistoryCacheRow>, StorageError> {
+    let mut statement = transaction
+        .prepare(
+            "SELECT note_id, version_id, created_at, summary, additions, deletions, word_count \
+             FROM history_cache ORDER BY note_id, created_at, version_id",
+        )
+        .map_err(backend)?;
+    statement
+        .query_map([], |row| {
+            Ok(HistoryCacheRow {
+                note_id: row.get(0)?,
+                version_id: row.get(1)?,
+                created_at: row.get(2)?,
+                summary: row.get(3)?,
+                additions: row.get(4)?,
+                deletions: row.get(5)?,
+                word_count: row.get(6)?,
+            })
+        })
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
 }
 
 fn initial_sync_operations(
@@ -1678,6 +1710,35 @@ fn initial_sync_operations(
             .into_iter()
             .map(|image| WorkspaceOperationEnvelope::v1(WorkspaceOperation::AttachImage { image })),
     );
+    operations.extend(snapshot.nodes.iter().flat_map(|node| {
+        let cover = node
+            .cover_image_id
+            .clone()
+            .map(|image_id| {
+                [
+                    WorkspaceOperation::SetNoteCover {
+                        note_id: node.id.clone(),
+                        image_id: Some(image_id),
+                        at: node.updated_at,
+                    },
+                    WorkspaceOperation::SetNoteCoverFullWidth {
+                        note_id: node.id.clone(),
+                        full_width: node.cover_full_width,
+                        at: node.updated_at,
+                    },
+                    WorkspaceOperation::SetNoteCoverTransform {
+                        note_id: node.id.clone(),
+                        position_x: node.cover_position_x,
+                        position_y: node.cover_position_y,
+                        zoom: node.cover_zoom,
+                        at: node.updated_at,
+                    },
+                ]
+            })
+            .into_iter()
+            .flatten();
+        cover.map(WorkspaceOperationEnvelope::v1)
+    }));
 
     operations.extend(snapshot.properties.into_iter().map(|property| {
         WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetNoteProperty {
@@ -1766,18 +1827,10 @@ fn read_active_connection(
     connection
         .query_row(
             "SELECT workspace_id, device_id, connected_at, observed_server_sequence, \
-             next_client_sequence FROM sync_connection \
+             next_client_sequence, rehydrated_through FROM sync_connection \
              WHERE singleton = 1 AND disconnected_at IS NULL",
             [],
-            |row| {
-                Ok(SyncConnection {
-                    workspace_id: row.get(0)?,
-                    device_id: row.get(1)?,
-                    connected_at: row.get(2)?,
-                    observed_server_sequence: row_sequence(row, 3)?,
-                    next_client_sequence: row_sequence(row, 4)?,
-                })
-            },
+            read_connection_row,
         )
         .optional()
         .map_err(backend)
@@ -1789,20 +1842,23 @@ fn read_connection(
     connection
         .query_row(
             "SELECT workspace_id, device_id, connected_at, observed_server_sequence, \
-             next_client_sequence FROM sync_connection WHERE singleton = 1",
+             next_client_sequence, rehydrated_through FROM sync_connection WHERE singleton = 1",
             [],
-            |row| {
-                Ok(SyncConnection {
-                    workspace_id: row.get(0)?,
-                    device_id: row.get(1)?,
-                    connected_at: row.get(2)?,
-                    observed_server_sequence: row_sequence(row, 3)?,
-                    next_client_sequence: row_sequence(row, 4)?,
-                })
-            },
+            read_connection_row,
         )
         .optional()
         .map_err(backend)
+}
+
+fn read_connection_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SyncConnection> {
+    Ok(SyncConnection {
+        workspace_id: row.get(0)?,
+        device_id: row.get(1)?,
+        connected_at: row.get(2)?,
+        observed_server_sequence: row_sequence(row, 3)?,
+        next_client_sequence: row_sequence(row, 4)?,
+        rehydrated_through: row_sequence(row, 5)?,
+    })
 }
 
 fn read_outbox_rows(
@@ -1986,7 +2042,7 @@ fn require_matching_received(
         || existing.operation_json != operation_json
         || !matches!(
             existing.outcome.as_str(),
-            "applied" | "local_echo" | "conflict" | "no_op"
+            "applied" | "local_echo" | "superseded" | "no_op"
         )
     {
         return Err(StorageError::InvalidOperation(format!(
@@ -1997,20 +2053,38 @@ fn require_matching_received(
     Ok(())
 }
 
+#[derive(Clone, Copy)]
+enum ReceivedOutcome<'a> {
+    Applied,
+    LocalEcho,
+    NoOp,
+    Superseded {
+        reason: SyncConflictReason,
+        detail: Option<&'a str>,
+    },
+}
+
 fn insert_received_operation(
     transaction: &Transaction<'_>,
     operation: &ReplicatedWorkspaceOperation,
     operation_json: &str,
-    outcome: &str,
-    conflict_id: Option<&str>,
+    outcome: ReceivedOutcome<'_>,
     received_at: i64,
 ) -> Result<(), StorageError> {
+    let (outcome, reason, detail) = match outcome {
+        ReceivedOutcome::Applied => ("applied", None, None),
+        ReceivedOutcome::LocalEcho => ("local_echo", None, None),
+        ReceivedOutcome::NoOp => ("no_op", None, None),
+        ReceivedOutcome::Superseded { reason, detail } => {
+            ("superseded", Some(reason.code()), detail)
+        }
+    };
     transaction
         .execute(
             "INSERT INTO sync_received_operations(\
                 operation_id, device_id, client_sequence, base_server_sequence, \
-                server_sequence, operation_json, outcome, conflict_id, received_at\
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                server_sequence, operation_json, outcome, reason, detail, received_at\
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![
                 operation.operation_id,
                 operation.device_id,
@@ -2019,7 +2093,8 @@ fn insert_received_operation(
                 sql_sequence(operation.server_sequence)?,
                 operation_json,
                 outcome,
-                conflict_id,
+                reason,
+                detail,
                 received_at
             ],
         )
@@ -2028,8 +2103,8 @@ fn insert_received_operation(
 }
 
 /// Classify a domain/storage failure raised while applying a
-/// reconciliation-approved remote operation. Backend failures never reach
-/// this mapping.
+/// reconciliation-approved remote operation. Backend and busy failures never
+/// reach this mapping.
 fn refine_apply_error(operation: &WorkspaceOperation, error: &StorageError) -> SyncConflictReason {
     match error {
         StorageError::RevisionConflict { .. } => SyncConflictReason::ConcurrentDocumentVersion,
@@ -2037,170 +2112,53 @@ fn refine_apply_error(operation: &WorkspaceOperation, error: &StorageError) -> S
         StorageError::AlreadyExists(_) => SyncConflictReason::IdentityConflict,
         StorageError::InvalidOperation(_)
         | StorageError::UnsupportedProtocol(_)
-        | StorageError::Backend(_) => classify_apply_failure(operation),
+        | StorageError::Backend(_)
+        | StorageError::Busy(_)
+        | StorageError::ReleaseRequired(_) => classify_apply_failure(operation),
     }
 }
 
-/// Durably preserve a semantic conflict before the cursor advances. For
-/// divergent document operations the complete remote version and the current
-/// local version are stored beside the bounded diagnostic.
-fn record_semantic_conflict(
+/// Record an operation this device did not take. A losing document body is
+/// preserved as a history revision when the note still exists, and a body
+/// that lost purely on ordering moves the document head so the note's
+/// incorporated sequence stays the greatest one seen.
+fn record_superseded(
     transaction: &Transaction<'_>,
     operation: &ReplicatedWorkspaceOperation,
     operation_json: &str,
     reason: SyncConflictReason,
     source_error: Option<&StorageError>,
-    created_at: i64,
-) -> Result<SyncConflict, StorageError> {
-    if let Some(StorageError::Backend(_)) = source_error {
-        return Err(StorageError::Backend(
-            "backend failures cannot become sync conflicts".into(),
-        ));
-    }
-    let message = match source_error {
-        Some(error) => error.diagnostic(DiagnosticContext::Sync).to_string(),
-        None => Diagnostic::new(
-            DiagnosticContext::Sync,
-            skriuw_storage::DiagnosticCategory::Conflict,
-            reason.code(),
-        )
-        .to_string(),
-    };
-    let conflict = SyncConflict {
-        id: Uuid::new_v4().to_string(),
-        operation_id: operation.operation_id.clone(),
-        operation_type: replicated_envelope(operation)?
-            .operation
-            .sync_policy()
-            .operation_type
-            .into(),
-        server_sequence: operation.server_sequence,
-        reason_code: reason.broad_code().into(),
-        subreason: reason.subreason_code().map(str::to_owned),
-        message,
-        created_at,
-    };
-    transaction
-        .execute(
-            "INSERT INTO sync_conflicts(\
-                id, operation_id, operation_type, server_sequence, reason_code, subreason, \
-                operation_json, message, created_at\
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![
-                conflict.id,
-                conflict.operation_id,
-                conflict.operation_type,
-                sql_sequence(conflict.server_sequence)?,
-                conflict.reason_code,
-                conflict.subreason,
-                operation_json,
-                conflict.message,
-                conflict.created_at
-            ],
-        )
-        .map_err(backend)?;
-    preserve_document_versions(
-        transaction,
-        &conflict.id,
-        &replicated_envelope(operation)?.operation,
-    )?;
-    Ok(conflict)
-}
-
-/// Store both complete document versions for a conflicting `SaveDocument` or
-/// `CreateNote` so no user content is lost when the cursor advances.
-fn preserve_document_versions(
-    transaction: &Transaction<'_>,
-    conflict_id: &str,
-    operation: &WorkspaceOperation,
+    received_at: i64,
 ) -> Result<(), StorageError> {
-    let (note_id, remote_title, remote_json, remote_markdown, remote_word_count, expected, at) =
-        match operation {
-            WorkspaceOperation::SaveDocument {
-                note_id,
-                document_json,
-                markdown,
-                word_count,
-                expected_revision,
-                at,
-            } => (
-                note_id,
-                None,
-                document_json,
-                markdown,
-                *word_count,
-                Some(*expected_revision),
-                *at,
-            ),
-            WorkspaceOperation::CreateNote {
-                id,
-                title,
-                document_json,
-                markdown,
-                at,
-                ..
-            } => (
-                id,
-                Some(title.clone()),
-                document_json,
-                markdown,
-                count_words(markdown),
-                None,
-                *at,
-            ),
-            _ => return Ok(()),
-        };
-    let local = transaction
-        .query_row(
-            "SELECT nodes.title, documents.document_json, documents.markdown, \
-             documents.revision \
-             FROM documents JOIN workspace_nodes nodes ON nodes.id = documents.note_id \
-             WHERE documents.note_id = ?1",
-            [note_id],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, i64>(3)?,
-                ))
-            },
-        )
-        .optional()
-        .map_err(backend)?;
-    let (local_title, local_json, local_markdown, local_revision) = match local {
-        Some((title, json, markdown, revision)) => {
-            (Some(title), Some(json), Some(markdown), Some(revision))
-        }
-        None => (None, None, None, None),
+    let detail = source_error.map(|error| error.diagnostic(DiagnosticContext::Sync).to_string());
+    insert_received_operation(
+        transaction,
+        operation,
+        operation_json,
+        ReceivedOutcome::Superseded {
+            reason,
+            detail: detail.as_deref(),
+        },
+        received_at,
+    )?;
+    let envelope = replicated_envelope(operation)?;
+    let (note_id, markdown) = match &envelope.operation {
+        WorkspaceOperation::SaveDocument {
+            note_id, markdown, ..
+        } => (note_id, markdown),
+        WorkspaceOperation::CreateNote { id, markdown, .. } => (id, markdown),
+        _ => return Ok(()),
     };
-    transaction
-        .execute(
-            "INSERT INTO sync_document_conflicts(\
-                conflict_id, note_id, remote_title, remote_document_json, remote_markdown, \
-                remote_word_count, remote_expected_revision, remote_at, local_title, \
-                local_document_json, local_markdown, local_revision\
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-            params![
-                conflict_id,
-                note_id,
-                remote_title,
-                remote_json.to_string(),
-                remote_markdown,
-                remote_word_count,
-                expected,
-                at,
-                local_title,
-                local_json,
-                local_markdown,
-                local_revision
-            ],
-        )
-        .map_err(backend)?;
+    if current_document_revision(transaction, note_id)?.is_some() {
+        preserve_document_version(transaction, note_id, markdown, received_at)?;
+    }
+    if reason == SyncConflictReason::ConcurrentDocumentVersion {
+        advance_document_head_for_note(transaction, note_id, operation.server_sequence)?;
+    }
     Ok(())
 }
 
-/// Chunked payloads carry their envelope in content storage; the local apply
+/// Chunked payloads carry their envelope in content storage; the local apply/// Chunked payloads carry their envelope in content storage; the local apply
 /// path only accepts operations whose content has already been resolved.
 fn replicated_envelope(
     operation: &ReplicatedWorkspaceOperation,
@@ -2251,19 +2209,6 @@ fn backfill_tombstone_provenance(
         )
         .map_err(backend)?;
     Ok(())
-}
-
-fn read_conflict(row: &rusqlite::Row<'_>) -> rusqlite::Result<SyncConflict> {
-    Ok(SyncConflict {
-        id: row.get(0)?,
-        operation_id: row.get(1)?,
-        operation_type: row.get(2)?,
-        server_sequence: row_sequence(row, 3)?,
-        reason_code: row.get(4)?,
-        subreason: row.get(5)?,
-        message: row.get(6)?,
-        created_at: row.get(7)?,
-    })
 }
 
 struct NodeFacts {
@@ -2407,8 +2352,8 @@ fn document_head(transaction: &Transaction<'_>, note_id: &str) -> Result<u64, St
 }
 
 /// Records that a document write is now part of this device's history. Called
-/// for applied, echoed, and already-satisfied operations, never for preserved
-/// conflicts — a conflict is exactly the case where the write was not taken.
+/// for applied, echoed, and already-satisfied operations; a superseded write
+/// moves the head through `record_superseded` only when it lost on ordering.
 fn advance_document_head(
     transaction: &Transaction<'_>,
     operation: &WorkspaceOperation,
@@ -2450,104 +2395,96 @@ fn current_document_revision(
         .map_err(backend)
 }
 
-/// A superseding remote save carries the author's own revision number, and no
-/// two devices share that counter once a document has been rebuilt from the
-/// log. The optimistic guard still runs; it is anchored to the revision this
-/// device actually holds rather than to the author's.
-fn rebase_remote_document<'a>(
+/// A document write from another device carries the author's own revision
+/// counter, which no two devices share. The optimistic guard still runs,
+/// anchored to the revision this device holds. A note creation whose identity
+/// already exists becomes a write of its body: the node record stays as it is.
+fn rebase_remote_document(
     transaction: &Transaction<'_>,
-    envelope: &'a WorkspaceOperationEnvelope,
-    state: &RemoteTargetState,
-) -> Result<std::borrow::Cow<'a, WorkspaceOperationEnvelope>, StorageError> {
-    if state.document_revision_matches || !state.remote_supersedes_local {
-        return Ok(std::borrow::Cow::Borrowed(envelope));
-    }
-    let WorkspaceOperation::SaveDocument { note_id, .. } = &envelope.operation else {
-        return Ok(std::borrow::Cow::Borrowed(envelope));
-    };
-    let Some(current) = current_document_revision(transaction, note_id)? else {
-        return Ok(std::borrow::Cow::Borrowed(envelope));
-    };
+    envelope: &WorkspaceOperationEnvelope,
+) -> Result<WorkspaceOperationEnvelope, StorageError> {
     let mut rebased = envelope.clone();
-    if let WorkspaceOperation::SaveDocument {
-        expected_revision, ..
-    } = &mut rebased.operation
-    {
-        *expected_revision = current;
+    match &envelope.operation {
+        WorkspaceOperation::SaveDocument { note_id, .. } => {
+            if let Some(current) = current_document_revision(transaction, note_id)?
+                && let WorkspaceOperation::SaveDocument {
+                    expected_revision, ..
+                } = &mut rebased.operation
+            {
+                *expected_revision = current;
+            }
+        }
+        WorkspaceOperation::CreateNote {
+            id,
+            document_json,
+            markdown,
+            at,
+            ..
+        } if node_is_present(transaction, id)? => {
+            let current = current_document_revision(transaction, id)?.ok_or_else(|| {
+                StorageError::AlreadyExists(format!("node {id} exists without a document"))
+            })?;
+            rebased.operation = WorkspaceOperation::SaveDocument {
+                note_id: id.clone(),
+                document_json: document_json.clone(),
+                markdown: markdown.clone(),
+                word_count: count_words(markdown),
+                expected_revision: current,
+                at: *at,
+            };
+        }
+        _ => {}
     }
-    Ok(std::borrow::Cow::Owned(rebased))
+    Ok(rebased)
 }
 
-/// Closes divergences a later downstream write has already settled. Both
-/// preserved versions stay on the record and the audit row keeps the history;
-/// only the open status closes, so the user is never asked to choose between
-/// two versions that no longer disagree.
-fn supersede_open_document_conflicts(
-    transaction: &Transaction<'_>,
-    operation: &WorkspaceOperation,
-    at: i64,
-) -> Result<(), StorageError> {
-    let Some(note_id) = document_write_target(operation) else {
-        return Ok(());
-    };
-    let mut statement = transaction
-        .prepare(
-            "SELECT d.conflict_id, c.created_at FROM sync_document_conflicts d \
-             JOIN sync_conflicts c ON c.id = d.conflict_id \
-             WHERE d.note_id = ?1 AND d.resolved_at IS NULL",
-        )
-        .map_err(backend)?;
-    let open = statement
-        .query_map([note_id], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
-        })
-        .map_err(backend)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(backend)?;
-    if open.is_empty() {
-        return Ok(());
-    }
-    let canonical = transaction
+fn node_is_present(transaction: &Transaction<'_>, id: &str) -> Result<bool, StorageError> {
+    transaction
         .query_row(
-            "SELECT document_json, markdown, revision FROM documents WHERE note_id = ?1",
-            [note_id],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, i64>(2)?,
-                ))
-            },
+            "SELECT EXISTS(SELECT 1 FROM workspace_nodes WHERE id = ?1)",
+            [id],
+            |row| row.get(0),
         )
-        .optional()
+        .map_err(backend)
+}
+
+/// Apply one reconciliation-approved remote envelope inside its own savepoint
+/// so a semantic failure leaves the transaction clean for the next operation.
+fn apply_remote_envelope(
+    transaction: &Transaction<'_>,
+    envelope: &WorkspaceOperationEnvelope,
+) -> Result<OperationAck, StorageError> {
+    transaction
+        .execute_batch("SAVEPOINT remote_operation")
         .map_err(backend)?;
-    let Some((document_json, markdown, revision)) = canonical else {
-        return Ok(());
-    };
-    for (conflict_id, created_at) in open {
-        let resolved_at = at.max(created_at);
-        transaction
-            .execute(
-                "UPDATE sync_document_conflicts SET resolved_choice = 'superseded', \
-                 resolved_document_json = ?2, resolved_markdown = ?3, \
-                 resolved_revision = ?4, resolved_at = ?5 WHERE conflict_id = ?1",
-                params![conflict_id, document_json, markdown, revision, resolved_at],
-            )
-            .map_err(backend)?;
-        transaction
-            .execute(
-                "UPDATE sync_conflicts SET resolved_at = ?2 WHERE id = ?1",
-                params![conflict_id, resolved_at],
-            )
-            .map_err(backend)?;
+    let result = rebase_remote_document(transaction, envelope).and_then(|applied| {
+        apply_operations_in_transaction(
+            transaction,
+            std::slice::from_ref(&applied),
+            HistoryProvenance::Remote,
+        )
+    });
+    match result {
+        Ok(acknowledgement) => {
+            transaction
+                .execute_batch("RELEASE remote_operation")
+                .map_err(backend)?;
+            Ok(acknowledgement)
+        }
+        Err(error) => {
+            transaction
+                .execute_batch("ROLLBACK TO remote_operation; RELEASE remote_operation")
+                .map_err(backend)?;
+            Err(error)
+        }
     }
-    Ok(())
 }
 
 /// Whether this device holds a document write for the note that has not
-/// reached the log yet. A remote author cannot have seen it, so a remote write
-/// is concurrent with it no matter how recent its causal base is.
-fn outbox_writes_document(
+/// reached the log yet, queued in the outbox or parked as a blocked
+/// operation. A remote author cannot have seen it, so a remote write is
+/// concurrent with it no matter how recent its causal base is.
+fn local_document_write_pending(
     transaction: &Transaction<'_>,
     note_id: &str,
 ) -> Result<bool, StorageError> {
@@ -2559,11 +2496,28 @@ fn outbox_writes_document(
                  AND json_extract(operation_json, '$.operation.noteId') = ?1) \
                 OR (json_extract(operation_json, '$.operation.type') = 'create_note' \
                  AND json_extract(operation_json, '$.operation.id') = ?1)\
+             ) OR EXISTS(\
+                SELECT 1 FROM sync_blocked_operations WHERE resolved_at IS NULL AND (\
+                (json_extract(operation_json, '$.operation.type') = 'save_document' \
+                 AND json_extract(operation_json, '$.operation.noteId') = ?1) \
+                OR (json_extract(operation_json, '$.operation.type') = 'create_note' \
+                 AND json_extract(operation_json, '$.operation.id') = ?1))\
              )",
             [note_id],
             |row| row.get(0),
         )
         .map_err(backend)
+}
+
+fn fill_document_ordering(
+    transaction: &Transaction<'_>,
+    state: &mut RemoteTargetState,
+    note_id: &str,
+    server_sequence: u64,
+) -> Result<(), StorageError> {
+    state.local_write_pending = local_document_write_pending(transaction, note_id)?;
+    state.incoming_outranks_head = server_sequence > document_head(transaction, note_id)?;
+    Ok(())
 }
 
 /// Gather the facts the domain reconciliation rules need for one validated
@@ -2572,7 +2526,7 @@ fn outbox_writes_document(
 fn remote_target_state(
     transaction: &Transaction<'_>,
     operation: &WorkspaceOperation,
-    base_server_sequence: u64,
+    server_sequence: u64,
 ) -> Result<RemoteTargetState, StorageError> {
     let mut state = RemoteTargetState::default();
     match operation {
@@ -2701,7 +2655,6 @@ fn remote_target_state(
         }
         WorkspaceOperation::CreateNote {
             id,
-            title,
             placement,
             document_json,
             markdown,
@@ -2712,6 +2665,7 @@ fn remote_target_state(
                 || document_references_tombstoned(transaction, document_json)?;
             if let Some(node) = node_facts(transaction, id)? {
                 state.target_exists = true;
+                state.target_trashed = !node.available;
                 let document = transaction
                     .query_row(
                         "SELECT document_json, markdown FROM documents WHERE note_id = ?1",
@@ -2721,8 +2675,6 @@ fn remote_target_state(
                     .optional()
                     .map_err(backend)?;
                 state.state_equivalent = node.kind == "note"
-                    && node.title == *title
-                    && node.parent_id == placement.parent_id
                     && document.is_some_and(|(stored_json, stored_markdown)| {
                         documents_equivalent(
                             &stored_json,
@@ -2731,6 +2683,7 @@ fn remote_target_state(
                             markdown,
                         )
                     });
+                fill_document_ordering(transaction, &mut state, id, server_sequence)?;
             }
         }
         WorkspaceOperation::RenameNode { id, title, .. } => {
@@ -2755,7 +2708,6 @@ fn remote_target_state(
             note_id,
             document_json,
             markdown,
-            expected_revision,
             ..
         } => {
             fill_node_target(transaction, &mut state, note_id)?;
@@ -2763,25 +2715,16 @@ fn remote_target_state(
                 document_references_tombstoned(transaction, document_json)?;
             let document = transaction
                 .query_row(
-                    "SELECT document_json, markdown, revision FROM documents WHERE note_id = ?1",
+                    "SELECT document_json, markdown FROM documents WHERE note_id = ?1",
                     [note_id],
-                    |row| {
-                        Ok((
-                            row.get::<_, String>(0)?,
-                            row.get::<_, String>(1)?,
-                            row.get::<_, i64>(2)?,
-                        ))
-                    },
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
                 )
                 .optional()
                 .map_err(backend)?;
-            if let Some((stored_json, stored_markdown, revision)) = document {
+            if let Some((stored_json, stored_markdown)) = document {
                 state.state_equivalent =
                     documents_equivalent(&stored_json, &stored_markdown, document_json, markdown);
-                state.document_revision_matches = revision == *expected_revision;
-                state.remote_supersedes_local = base_server_sequence
-                    >= document_head(transaction, note_id)?
-                    && !outbox_writes_document(transaction, note_id)?;
+                fill_document_ordering(transaction, &mut state, note_id, server_sequence)?;
             } else {
                 state.target_exists = false;
             }

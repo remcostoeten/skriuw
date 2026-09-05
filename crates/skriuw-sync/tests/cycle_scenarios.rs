@@ -7,12 +7,15 @@ use skriuw_domain::{ClientSyncOperation, SyncOperationPayload, SyncPushRequest};
 use skriuw_sqlite::SqliteWorkspace;
 use skriuw_storage::{NewSyncConnection, SyncRecovery, WorkspaceStorage, WorkspaceSyncQueue};
 use skriuw_sync::{
-    SyncBackoff, SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig, SyncCycleOutcome,
-    SyncStatus, SyncTransport, run_sync_cycle,
+    BLOCKED_OPERATION_REASON_ASSET_CONTENT_MISSING, BLOCKED_REASON_LOG_TRUNCATED,
+    BLOCKED_REASON_REJECTED_BATCH, BLOCKED_REASON_REJECTED_PULL, SyncBackoffConfig,
+    SyncCancellation, SyncClock, SyncCycleConfig, SyncCycleOutcome, SyncCycleState, SyncStatus,
+    SyncTransport, run_sync_cycle,
 };
 use support::{
     FakeAssetStore, FakeClock, FakeServer, FakeTransport, PullFault, PushFault, attach_image,
     create_folder, create_note, move_into, rename_node, save_document, save_large_document,
+    superseded_history,
 };
 
 const WORKSPACE: &str = "workspace-1";
@@ -22,7 +25,7 @@ struct Device {
     transport: Arc<FakeTransport>,
     assets: Arc<FakeAssetStore>,
     clock: Arc<FakeClock>,
-    backoff: SyncBackoff,
+    state: SyncCycleState,
     cancellation: SyncCancellation,
     config: SyncCycleConfig,
 }
@@ -48,7 +51,7 @@ impl Device {
             transport: FakeTransport::new(server, device_id),
             assets: FakeAssetStore::new(),
             clock: Arc::clone(clock),
-            backoff: SyncBackoff::new(SyncBackoffConfig {
+            state: SyncCycleState::new(SyncBackoffConfig {
                 base_delay_ms: 1_000,
                 max_delay_ms: 60_000,
                 jitter_seed: 11,
@@ -82,9 +85,29 @@ impl Device {
             self.assets.as_ref(),
             self.clock.as_ref(),
             &self.cancellation,
-            &mut self.backoff,
+            &mut self.state,
             &self.config,
         )
+    }
+
+    /// Drives cycles the way the coordinator does: `pending` and
+    /// `rehydrating` run again at once, `retrying` and `blocked` wait for the
+    /// reported deadline, everything else settles.
+    fn settle(&mut self) -> SyncStatus {
+        for _ in 0..12 {
+            let outcome = self.cycle();
+            match outcome.status {
+                SyncStatus::Pending | SyncStatus::Rehydrating => {}
+                SyncStatus::Retrying { .. } | SyncStatus::Blocked { .. } => {
+                    if outcome.retry_at_ms.is_none() {
+                        return outcome.status;
+                    }
+                    self.advance_past(&outcome);
+                }
+                settled => return settled,
+            }
+        }
+        panic!("sync did not settle within the cycle budget");
     }
 
     fn advance_past(&self, outcome: &SyncCycleOutcome) {
@@ -129,6 +152,26 @@ impl Device {
             .clone()
     }
 
+    fn revision(&self, note_id: &str) -> i64 {
+        self.storage
+            .bootstrap()
+            .expect("bootstrap")
+            .documents
+            .iter()
+            .find(|document| document.note_id == note_id)
+            .expect("document present")
+            .revision
+    }
+
+    fn blocked_reasons(&self) -> Vec<String> {
+        self.storage
+            .blocked_sync_operations()
+            .expect("blocked operations")
+            .into_iter()
+            .map(|row| row.reason_code)
+            .collect()
+    }
+
     /// Every replicated fact the two devices are expected to agree on. Node
     /// ranks are excluded on purpose: placements are anchor-based, so sibling
     /// order converges while the absolute numbers are recomputed per device.
@@ -161,6 +204,33 @@ impl Device {
     }
 }
 
+fn blocked_reason(status: &SyncStatus) -> Option<&str> {
+    match status {
+        SyncStatus::Blocked { reason, .. } => Some(reason.as_str()),
+        _ => None,
+    }
+}
+
+fn blocked_detail(status: &SyncStatus) -> Option<&str> {
+    match status {
+        SyncStatus::Blocked { detail, .. } => detail.as_deref(),
+        _ => None,
+    }
+}
+
+/// A shared note that both devices hold at the same server state, so a
+/// scenario can start from a converged pair.
+fn shared_note(server: &Arc<FakeServer>, clock: &Arc<FakeClock>) -> (Device, Device) {
+    let mut device_a = Device::open(server, "device-a", clock);
+    device_a.connect("device-a");
+    device_a.apply(vec![create_note("note-shared", "Shared", 1)]);
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+    let mut device_b = Device::open(server, "device-b", clock);
+    device_b.connect("device-b");
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+    (device_a, device_b)
+}
+
 #[test]
 fn local_only_mode_performs_no_network_calls() {
     let clock = FakeClock::at(1_000);
@@ -186,6 +256,7 @@ fn connected_idle_workspace_reports_up_to_date() {
     let outcome = device.cycle();
 
     assert_eq!(outcome.status, SyncStatus::UpToDate);
+    assert!(!outcome.workspace_changed());
     assert_eq!(device.transport.push_calls(), 0);
     assert_eq!(device.transport.pull_calls(), 1);
 }
@@ -246,8 +317,7 @@ fn acknowledgement_loss_retries_the_same_operation_identity() {
 
     assert_eq!(outcome.status, SyncStatus::UpToDate);
     assert_eq!(server.log_len(), 1);
-    let ids = server.operation_ids();
-    assert_eq!(ids.len(), 1);
+    assert_eq!(server.operation_ids().len(), 1);
     assert_eq!(device.cursor(), 1);
 }
 
@@ -266,15 +336,12 @@ fn lost_acknowledgement_resolves_through_local_echo_without_reapplying() {
     let outcome = device.cycle();
 
     assert_eq!(outcome.status, SyncStatus::UpToDate);
+    assert!(
+        !outcome.workspace_changed(),
+        "a local echo is not a remote change"
+    );
     assert_eq!(device.cursor(), 1);
     assert_eq!(device.note_titles(), ["Echoed"]);
-    assert!(
-        device
-            .storage
-            .sync_conflicts()
-            .expect("conflicts")
-            .is_empty()
-    );
 
     device.advance_past(&retrying);
     assert_eq!(device.cycle().status, SyncStatus::UpToDate);
@@ -294,7 +361,9 @@ fn pull_duplicates_never_reapply_content() {
     assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
     let first_pull = reader.cycle();
     assert_eq!(first_pull.status, SyncStatus::UpToDate);
-    assert!(first_pull.workspace_changed);
+    assert_eq!(first_pull.changes.note_ids, ["note-1"]);
+    assert!(first_pull.changes.structure_changed);
+    assert!(!first_pull.changes.full);
     assert_eq!(reader.cursor(), 1);
 
     writer.apply(vec![create_note("note-2", "Second", 2)]);
@@ -304,20 +373,17 @@ fn pull_duplicates_never_reapply_content() {
     let outcome = reader.cycle();
 
     assert_eq!(outcome.status, SyncStatus::UpToDate);
-    assert!(outcome.workspace_changed);
+    assert_eq!(
+        outcome.changes.note_ids,
+        ["note-2"],
+        "the duplicate first note contributes no change"
+    );
     assert_eq!(reader.cursor(), 2);
     assert_eq!(reader.note_titles(), ["First", "Second"]);
-    assert!(
-        reader
-            .storage
-            .sync_conflicts()
-            .expect("conflicts")
-            .is_empty()
-    );
 }
 
 #[test]
-fn cursor_gaps_and_malformed_responses_do_not_advance_the_cursor() {
+fn cursor_gaps_and_malformed_responses_are_rejected_pulls_that_keep_the_cursor() {
     let clock = FakeClock::at(1_000);
     let server = FakeServer::new(WORKSPACE);
     let mut writer = Device::open(&server, "device-a", &clock);
@@ -331,13 +397,24 @@ fn cursor_gaps_and_malformed_responses_do_not_advance_the_cursor() {
 
     reader.transport.script_pull_fault(PullFault::Gap);
     let gap = reader.cycle();
-    assert!(matches!(gap.status, SyncStatus::Retrying { .. }));
+    assert_eq!(
+        blocked_reason(&gap.status),
+        Some(BLOCKED_REASON_REJECTED_PULL)
+    );
+    assert!(
+        blocked_detail(&gap.status).is_some_and(|detail| detail.contains("server sequence")),
+        "the block names the gap: {:?}",
+        gap.status
+    );
     assert_eq!(reader.cursor(), 0);
 
     reader.transport.script_pull_fault(PullFault::WrongProtocol);
     reader.advance_past(&gap);
     let malformed = reader.cycle();
-    assert!(matches!(malformed.status, SyncStatus::Retrying { .. }));
+    assert_eq!(
+        blocked_reason(&malformed.status),
+        Some(BLOCKED_REASON_REJECTED_PULL)
+    );
     assert_eq!(reader.cursor(), 0);
 
     reader.advance_past(&malformed);
@@ -347,7 +424,7 @@ fn cursor_gaps_and_malformed_responses_do_not_advance_the_cursor() {
 }
 
 #[test]
-fn semantic_conflicts_stay_durable_while_later_operations_proceed() {
+fn unappliable_remote_operations_are_superseded_while_later_operations_proceed() {
     let clock = FakeClock::at(1_000);
     let server = FakeServer::new(WORKSPACE);
     let foreign = FakeTransport::new(&server, "device-c");
@@ -355,7 +432,7 @@ fn semantic_conflicts_stay_durable_while_later_operations_proceed() {
         "device-c",
         vec![
             ClientSyncOperation {
-                operation_id: "op-conflict".into(),
+                operation_id: "op-orphan".into(),
                 client_sequence: 1,
                 base_server_sequence: 0,
                 payload: SyncOperationPayload::inline(rename_node(
@@ -370,7 +447,7 @@ fn semantic_conflicts_stay_durable_while_later_operations_proceed() {
                 base_server_sequence: 0,
                 payload: SyncOperationPayload::inline(create_note(
                     "note-c",
-                    "Survives conflict",
+                    "Survives the orphan",
                     2,
                 )),
             },
@@ -384,17 +461,17 @@ fn semantic_conflicts_stay_durable_while_later_operations_proceed() {
     device.connect("device-a");
     let outcome = device.cycle();
 
-    assert_eq!(outcome.status, SyncStatus::Conflict { open_conflicts: 1 });
+    assert_eq!(
+        outcome.status,
+        SyncStatus::UpToDate,
+        "an operation that cannot apply never asks the user anything"
+    );
     assert_eq!(device.cursor(), 2);
-    assert_eq!(device.note_titles(), ["Survives conflict"]);
-    let conflicts = device.storage.sync_conflicts().expect("conflicts");
-    assert_eq!(conflicts.len(), 1);
-    assert_eq!(conflicts[0].operation_id, "op-conflict");
-    assert_eq!(conflicts[0].reason_code, "missing_dependency");
+    assert_eq!(device.note_titles(), ["Survives the orphan"]);
+    assert!(outcome.changes.structure_changed);
 
     device.apply(vec![create_note("note-later", "Still syncing", 3)]);
-    let outcome = device.cycle();
-    assert_eq!(outcome.status, SyncStatus::Conflict { open_conflicts: 1 });
+    assert_eq!(device.cycle().status, SyncStatus::UpToDate);
     assert_eq!(server.log_len(), 3);
 }
 
@@ -427,6 +504,38 @@ fn pull_transport_failures_retry_or_pause_without_advancing() {
 }
 
 #[test]
+fn token_expiry_mid_pull_keeps_the_applied_page_and_resumes_from_it() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut writer = Device::open(&server, "device-a", &clock);
+    writer.connect("device-a");
+    writer.apply(vec![create_note("note-1", "First page", 1)]);
+    writer.apply(vec![create_note("note-2", "Second page", 2)]);
+    assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
+
+    let mut reader = Device::open(&server, "device-b", &clock);
+    reader.config.pull_batch_limit = 1;
+    reader.connect("device-b");
+    reader.transport.script_pull_fault(PullFault::Pass);
+    reader.transport.script_pull_fault(PullFault::AuthExpired);
+
+    let expired = reader.cycle();
+    assert_eq!(expired.status, SyncStatus::AuthenticationRequired);
+    assert_eq!(
+        reader.cursor(),
+        1,
+        "the page applied before expiry stays applied and the cursor stops there"
+    );
+    assert_eq!(reader.note_titles(), ["First page"]);
+    assert_eq!(expired.changes.note_ids, ["note-1"]);
+
+    let resumed = reader.cycle();
+    assert_eq!(resumed.status, SyncStatus::UpToDate);
+    assert_eq!(reader.cursor(), 2);
+    assert_eq!(reader.note_titles(), ["First page", "Second page"]);
+}
+
+#[test]
 fn expired_sessions_pause_and_resume_after_refresh() {
     let clock = FakeClock::at(1_000);
     let server = FakeServer::new(WORKSPACE);
@@ -440,6 +549,11 @@ fn expired_sessions_pause_and_resume_after_refresh() {
     assert_eq!(outcome.status, SyncStatus::AuthenticationRequired);
     assert_eq!(outcome.retry_at_ms, None);
     assert_eq!(server.log_len(), 0);
+    assert_eq!(
+        device.transport.pull_calls(),
+        0,
+        "an expired session never pulls with the dead token"
+    );
 
     let outcome = device.cycle();
     assert_eq!(outcome.status, SyncStatus::UpToDate);
@@ -447,7 +561,7 @@ fn expired_sessions_pause_and_resume_after_refresh() {
 }
 
 #[test]
-fn rate_limit_hints_set_a_durable_retry_time() {
+fn rate_limit_hints_set_a_durable_retry_time_that_refresh_clears() {
     let clock = FakeClock::at(1_000);
     let server = FakeServer::new(WORKSPACE);
     let mut device = Device::open(&server, "device-a", &clock);
@@ -466,12 +580,23 @@ fn rate_limit_hints_set_a_durable_retry_time() {
     clock.advance(1_000);
     let early = device.cycle();
     assert_eq!(server.log_len(), 0);
-    assert!(matches!(
+    assert_eq!(
         early.status,
-        SyncStatus::UpToDate | SyncStatus::Retrying { .. }
-    ));
+        SyncStatus::Retrying {
+            next_attempt_at: retry_at
+        },
+        "a delayed outbox row is never reported as up to date"
+    );
+    assert_eq!(
+        device.storage.next_sync_attempt_at().expect("next attempt"),
+        Some(retry_at)
+    );
 
-    device.advance_past(&outcome);
+    let cleared = device
+        .storage
+        .reset_sync_retry_times(clock.now_ms())
+        .expect("reset retry times");
+    assert_eq!(cleared, 1);
     assert_eq!(device.cycle().status, SyncStatus::UpToDate);
     assert_eq!(server.log_len(), 1);
 }
@@ -493,6 +618,41 @@ fn cancellation_releases_the_claim_without_losing_work() {
     clock.advance(1);
     assert_eq!(device.cycle().status, SyncStatus::UpToDate);
     assert_eq!(server.log_len(), 1);
+}
+
+#[test]
+fn pull_after_a_failed_push_still_receives_remote_changes() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut writer = Device::open(&server, "device-a", &clock);
+    writer.connect("device-a");
+    writer.apply(vec![create_note("note-remote", "From the writer", 1)]);
+    assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
+
+    let mut reader = Device::open(&server, "device-b", &clock);
+    reader.connect("device-b");
+    reader.apply(vec![create_note("note-local", "Cannot upload yet", 1)]);
+    reader.transport.script_push_fault(PushFault::Transient);
+
+    let outcome = reader.cycle();
+
+    assert!(
+        matches!(outcome.status, SyncStatus::Retrying { .. }),
+        "the failed push is reported: {:?}",
+        outcome.status
+    );
+    assert_eq!(
+        reader.note_titles(),
+        ["Cannot upload yet", "From the writer"],
+        "the pull still ran after the failed push"
+    );
+    assert_eq!(reader.cursor(), 1);
+    assert_eq!(outcome.changes.note_ids, ["note-remote"]);
+    assert_eq!(server.log_len(), 1);
+
+    reader.advance_past(&outcome);
+    assert_eq!(reader.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(server.log_len(), 2);
 }
 
 #[test]
@@ -542,28 +702,15 @@ fn two_databases_exchange_operations_after_offline_edits_and_restart() {
     assert_eq!(device_a.note_titles(), ["From device A", "From device B"]);
     assert_eq!(device_b.note_titles(), ["From device A", "From device B"]);
     assert_eq!(server.log_len(), 2);
-    assert!(
-        device_a
-            .storage
-            .sync_conflicts()
-            .expect("conflicts")
-            .is_empty()
-    );
-    assert!(
-        device_b
-            .storage
-            .sync_conflicts()
-            .expect("conflicts")
-            .is_empty()
-    );
+    assert_eq!(device_a.replicated_shape(), device_b.replicated_shape());
 }
 
 /// The local-first onboarding order: write locally, sign in second, add a
-/// device third. Nothing concurrent happens, so nothing may be preserved as a
-/// conflict — the devices simply agree. Documents seeded from an existing
+/// device third. Nothing concurrent happens, so nothing may be preserved as
+/// superseded — the devices simply agree. Documents seeded from an existing
 /// workspace arrive as `CreateNote`, which restarts the receiving device's
-/// revision counter, so this converges only while merge decisions ignore that
-/// counter.
+/// revision counter, so this converges only while merge decisions ignore
+/// that counter.
 #[test]
 fn a_workspace_written_before_the_first_sign_in_converges_on_a_second_device() {
     let directory = tempfile::tempdir().expect("temp directory");
@@ -598,8 +745,6 @@ fn a_workspace_written_before_the_first_sign_in_converges_on_a_second_device() {
     assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
     assert_eq!(device_a.replicated_shape(), device_b.replicated_shape());
 
-    // The first edit after the join is the one the revision counter used to
-    // reject, and every edit after it compounded the divergence.
     device_a.apply(vec![save_document("note-1", 3, "Edited on device A", 5)]);
     assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
     assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
@@ -616,12 +761,8 @@ fn a_workspace_written_before_the_first_sign_in_converges_on_a_second_device() {
     assert_eq!(device_a.replicated_shape(), device_b.replicated_shape());
     for device in [&device_a, &device_b] {
         assert!(
-            device
-                .storage
-                .sync_conflicts()
-                .expect("conflicts")
-                .is_empty(),
-            "sequential editing must not preserve a conflict"
+            superseded_history(&device.storage).is_empty(),
+            "sequential editing must not preserve a superseded body"
         );
     }
 }
@@ -655,7 +796,7 @@ fn the_joining_device_can_edit_a_seeded_note_back_to_the_origin() {
     device_b.connect("device-b");
     assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
 
-    let revision_b = device_b.storage.bootstrap().expect("bootstrap b").documents[0].revision;
+    let revision_b = device_b.revision("note-1");
     device_b.apply(vec![save_document(
         "note-1",
         revision_b,
@@ -663,288 +804,364 @@ fn the_joining_device_can_edit_a_seeded_note_back_to_the_origin() {
         3,
     )]);
     assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
-    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+    let outcome_a = device_a.cycle();
+    assert_eq!(outcome_a.status, SyncStatus::UpToDate);
+    assert_eq!(outcome_a.changes.note_ids, ["note-1"]);
+    assert!(!outcome_a.changes.structure_changed);
 
     assert_eq!(device_a.markdown("note-1"), "Edited on device B");
-    assert!(
-        device_a
-            .storage
-            .sync_conflicts()
-            .expect("conflicts")
-            .is_empty()
-    );
 }
 
-/// An edit that has not reached the log yet is invisible to the remote author,
-/// so it stays a conflict no matter how recent the incoming operation's causal
-/// base is. This is the guard that keeps the fast-forward path from quietly
-/// overwriting offline work.
+/// An edit that has not reached the log yet is invisible to the remote
+/// author, so the local body stays and the incoming body is preserved to
+/// history. Once the local write is pushed it carries the greater server
+/// sequence and every device converges on it.
 #[test]
-fn an_unpushed_local_edit_still_conflicts_with_an_incoming_write() {
-    let directory = tempfile::tempdir().expect("temp directory");
+fn an_unpushed_local_edit_wins_over_an_incoming_write_and_preserves_it() {
     let clock = FakeClock::at(1_000);
     let server = FakeServer::new(WORKSPACE);
+    let (mut device_a, mut device_b) = shared_note(&server, &clock);
 
-    let mut device_a = Device::with_storage(
-        SqliteWorkspace::open(directory.path().join("device-a.db")).expect("open device a"),
-        &server,
-        "device-a",
-        &clock,
-    );
-    device_a.connect("device-a");
-    device_a.apply(vec![create_note("note-1", "Shared", 1)]);
-    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
-
-    let mut device_b = Device::with_storage(
-        SqliteWorkspace::open(directory.path().join("device-b.db")).expect("open device b"),
-        &server,
-        "device-b",
-        &clock,
-    );
-    device_b.connect("device-b");
-    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
-
-    let revision = device_b.storage.bootstrap().expect("bootstrap b").documents[0].revision;
+    let revision = device_b.revision("note-shared");
     device_a.apply(vec![save_document(
-        "note-1",
-        revision,
+        "note-shared",
+        device_a.revision("note-shared"),
         "Edited on device A",
         2,
     )]);
     assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
 
-    // Device B writes while offline and pulls before its own push lands.
     device_b.apply(vec![save_document(
-        "note-1",
+        "note-shared",
         revision,
         "Edited on device B",
         2,
     )]);
     device_b.transport.script_push_fault(PushFault::Transient);
-    let outcome = device_b.cycle();
+    let failed_push = device_b.cycle();
     assert!(
-        matches!(outcome.status, SyncStatus::Retrying { .. }),
+        matches!(failed_push.status, SyncStatus::Retrying { .. }),
         "expected the failed push to retry, got {:?}",
-        outcome.status
+        failed_push.status
     );
-    // The clock does not move, so the released operation is still in backoff:
-    // this cycle pulls with the local write sitting unsent in the outbox.
     assert_eq!(
-        device_b.cycle().status,
-        SyncStatus::Conflict { open_conflicts: 1 },
-        "an unpushed local edit must be preserved, not fast-forwarded over"
+        device_b.markdown("note-shared"),
+        "Edited on device B",
+        "an unpushed local edit is never fast-forwarded over"
     );
-    assert_eq!(device_b.markdown("note-1"), "Edited on device B");
+    assert_eq!(
+        superseded_history(&device_b.storage),
+        [("note-shared".to_string(), "Edited on device A".to_string())],
+        "the incoming body is preserved to history with provenance superseded"
+    );
+
+    device_b.advance_past(&failed_push);
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_a.markdown("note-shared"), "Edited on device B");
+    assert_eq!(device_a.replicated_shape(), device_b.replicated_shape());
 }
 
-/// A divergence one device resolves is settled for both. The resolution
-/// replicates as an ordinary save that is causally downstream of everything
-/// either device holds, so the other device fast-forwards and its own open
-/// conflict closes as superseded instead of demanding a second answer to a
-/// question that no longer has two sides.
-#[test]
-fn a_resolution_on_one_device_settles_the_conflict_on_the_other() {
-    let directory = tempfile::tempdir().expect("temp directory");
+fn offline_editors_reconnect(first_is_a: bool) {
     let clock = FakeClock::at(1_000);
     let server = FakeServer::new(WORKSPACE);
-
-    let mut device_a = Device::with_storage(
-        SqliteWorkspace::open(directory.path().join("device-a.db")).expect("open device a"),
-        &server,
-        "device-a",
-        &clock,
-    );
-    device_a.connect("device-a");
-    device_a.apply(vec![create_note("note-shared", "Shared", 1)]);
-    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
-
-    let mut device_b = Device::with_storage(
-        SqliteWorkspace::open(directory.path().join("device-b.db")).expect("open device b"),
-        &server,
-        "device-b",
-        &clock,
-    );
-    device_b.connect("device-b");
-    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
-
-    let base = device_b.storage.bootstrap().expect("bootstrap b").documents[0].revision;
-    device_a.apply(vec![save_document("note-shared", base, "Kept version", 2)]);
-    device_b.apply(vec![save_document(
-        "note-shared",
-        base,
-        "Discarded version",
-        2,
-    )]);
-    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
-    assert_eq!(
-        device_b.cycle().status,
-        SyncStatus::Conflict { open_conflicts: 1 }
-    );
-
-    // Device A merges both sides; device B never touches its own conflict.
-    let outcome_a = device_a.cycle();
-    assert_eq!(outcome_a.status, SyncStatus::Conflict { open_conflicts: 1 });
-    let conflicts_a = device_a.storage.document_conflicts().expect("conflicts a");
-    device_a
-        .storage
-        .resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
-            conflict_id: conflicts_a[0].conflict_id.clone(),
-            choice: skriuw_domain::DocumentConflictResolutionChoice::Merged {
-                document_json: serde_json::json!({"type": "doc", "content": []}),
-                markdown: "Both versions merged".into(),
-            },
-            at: 3,
-        })
-        .expect("resolve on a");
-    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
-
-    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
-    assert_eq!(device_b.markdown("note-shared"), "Both versions merged");
-    assert_eq!(device_a.markdown("note-shared"), "Both versions merged");
-
-    let settled = device_b.storage.document_conflicts().expect("records b");
-    assert_eq!(settled.len(), 1, "the divergence stays on the record");
-    assert_eq!(settled[0].resolved_choice.as_deref(), Some("superseded"));
-    let versions = device_b
-        .storage
-        .document_conflict_versions(&settled[0].conflict_id)
-        .expect("versions b");
-    assert_eq!(
-        versions.local.expect("local version").markdown,
-        "Discarded version",
-        "both versions must remain recoverable after an automatic settle",
-    );
-}
-
-#[test]
-fn concurrent_document_edits_preserve_both_versions_and_resolve() {
-    let directory = tempfile::tempdir().expect("temp directory");
-    let clock = FakeClock::at(1_000);
-    let server = FakeServer::new(WORKSPACE);
-
-    let mut device_a = Device::with_storage(
-        SqliteWorkspace::open(directory.path().join("device-a.db")).expect("open device a"),
-        &server,
-        "device-a",
-        &clock,
-    );
-    device_a.connect("device-a");
-    device_a.apply(vec![create_note("note-shared", "Shared", 1)]);
-    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
-
-    let mut device_b = Device::with_storage(
-        SqliteWorkspace::open(directory.path().join("device-b.db")).expect("open device b"),
-        &server,
-        "device-b",
-        &clock,
-    );
-    device_b.connect("device-b");
-    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
-
-    let base_revision = device_b.storage.bootstrap().expect("bootstrap b").documents[0].revision;
+    let (mut device_a, mut device_b) = shared_note(&server, &clock);
 
     device_a.apply(vec![save_document(
         "note-shared",
-        base_revision,
-        "Edited on device A",
+        device_a.revision("note-shared"),
+        "Offline edit on A",
         2,
     )]);
     device_b.apply(vec![save_document(
         "note-shared",
-        base_revision,
-        "Edited on device B",
+        device_b.revision("note-shared"),
+        "Offline edit on B",
         2,
     )]);
 
-    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
-    let outcome_b = device_b.cycle();
-    assert_eq!(outcome_b.status, SyncStatus::Conflict { open_conflicts: 1 });
+    {
+        let (first, second) = if first_is_a {
+            (&mut device_a, &mut device_b)
+        } else {
+            (&mut device_b, &mut device_a)
+        };
+        assert_eq!(first.settle(), SyncStatus::UpToDate);
+        assert_eq!(second.settle(), SyncStatus::UpToDate);
+        assert_eq!(first.settle(), SyncStatus::UpToDate);
+    }
+    let second = if first_is_a { &device_b } else { &device_a };
 
-    let conflicts_b = device_b.storage.document_conflicts().expect("conflicts b");
-    assert_eq!(conflicts_b.len(), 1);
-    assert_eq!(conflicts_b[0].note_id, "note-shared");
-    let versions = device_b
-        .storage
-        .document_conflict_versions(&conflicts_b[0].conflict_id)
-        .expect("versions b");
-    assert_eq!(versions.remote.markdown, "Edited on device A");
+    let winner = if first_is_a {
+        "Offline edit on B"
+    } else {
+        "Offline edit on A"
+    };
+    let loser = if first_is_a {
+        "Offline edit on A"
+    } else {
+        "Offline edit on B"
+    };
     assert_eq!(
-        versions.local.expect("local version").markdown,
-        "Edited on device B",
+        device_a.markdown("note-shared"),
+        winner,
+        "the later server-ordered write wins everywhere"
     );
+    assert_eq!(device_b.markdown("note-shared"), winner);
+    assert_eq!(device_a.replicated_shape(), device_b.replicated_shape());
+    assert_eq!(
+        superseded_history(&second.storage),
+        [("note-shared".to_string(), loser.to_string())],
+        "the losing body is preserved on the device that outranked it"
+    );
+    assert_eq!(server.log_len(), 3);
+}
 
-    let acknowledgement = device_b
-        .storage
-        .resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
-            conflict_id: conflicts_b[0].conflict_id.clone(),
-            choice: skriuw_domain::DocumentConflictResolutionChoice::KeepRemote,
-            at: 3,
-        })
-        .expect("resolve on b");
-    assert!(acknowledgement.is_some());
+#[test]
+fn two_offline_editors_converge_when_a_reconnects_first() {
+    offline_editors_reconnect(true);
+}
 
-    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+#[test]
+fn two_offline_editors_converge_when_b_reconnects_first() {
+    offline_editors_reconnect(false);
+}
 
-    let outcome_a = device_a.cycle();
-    assert_eq!(outcome_a.status, SyncStatus::Conflict { open_conflicts: 1 });
-    let conflicts_a = device_a.storage.document_conflicts().expect("conflicts a");
-    assert_eq!(conflicts_a.len(), 1);
-    let versions_a = device_a
-        .storage
-        .document_conflict_versions(&conflicts_a[0].conflict_id)
-        .expect("versions a");
-    assert_eq!(versions_a.remote.markdown, "Edited on device B");
+#[test]
+fn offline_edits_on_both_devices_converge_when_both_reconnect_at_once() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let (mut device_a, mut device_b) = shared_note(&server, &clock);
 
-    device_a
-        .storage
-        .resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
-            conflict_id: conflicts_a[0].conflict_id.clone(),
-            choice: skriuw_domain::DocumentConflictResolutionChoice::KeepLocal,
-            at: 4,
-        })
-        .expect("resolve on a");
+    device_a.apply(vec![save_document(
+        "note-shared",
+        device_a.revision("note-shared"),
+        "Offline edit on A",
+        2,
+    )]);
+    device_b.apply(vec![save_document(
+        "note-shared",
+        device_b.revision("note-shared"),
+        "Offline edit on B",
+        2,
+    )]);
+    // Both push before either pulls: each device acknowledges its own write
+    // before it sees the other's, which is the ack-before-echo window.
+    device_a.transport.script_pull_fault(PullFault::Transient);
+    device_b.transport.script_pull_fault(PullFault::Transient);
+    assert!(matches!(
+        device_a.cycle().status,
+        SyncStatus::Retrying { .. }
+    ));
+    assert!(matches!(
+        device_b.cycle().status,
+        SyncStatus::Retrying { .. }
+    ));
+    assert_eq!(server.log_len(), 3);
 
-    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
-    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
-    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_a.settle(), SyncStatus::UpToDate);
+    assert_eq!(device_b.settle(), SyncStatus::UpToDate);
 
-    let markdown_a = device_a.storage.bootstrap().expect("bootstrap a").documents[0]
-        .markdown
-        .clone();
-    let markdown_b = device_b.storage.bootstrap().expect("bootstrap b").documents[0]
-        .markdown
-        .clone();
-    assert_eq!(markdown_a, "Edited on device A");
-    assert_eq!(markdown_a, markdown_b);
+    assert_eq!(device_a.markdown("note-shared"), "Offline edit on B");
+    assert_eq!(device_b.markdown("note-shared"), "Offline edit on B");
+    assert_eq!(device_a.replicated_shape(), device_b.replicated_shape());
+    assert_eq!(
+        superseded_history(&device_b.storage),
+        [("note-shared".to_string(), "Offline edit on A".to_string())]
+    );
+}
+
+#[test]
+fn three_devices_converge_across_the_ack_before_echo_window() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let (mut device_a, mut device_b) = shared_note(&server, &clock);
+    let mut device_c = Device::open(&server, "device-c", &clock);
+    device_c.connect("device-c");
+    assert_eq!(device_c.cycle().status, SyncStatus::UpToDate);
+
+    // B pushes and is acknowledged, but its pull fails before the echo lands.
+    device_b.apply(vec![save_document(
+        "note-shared",
+        device_b.revision("note-shared"),
+        "Edited on B",
+        2,
+    )]);
+    device_b.transport.script_pull_fault(PullFault::Transient);
+    assert!(matches!(
+        device_b.cycle().status,
+        SyncStatus::Retrying { .. }
+    ));
+    assert_eq!(server.log_len(), 2);
+
+    // A writes concurrently and lands above B's write.
+    device_a.apply(vec![save_document(
+        "note-shared",
+        device_a.revision("note-shared"),
+        "Edited on A",
+        2,
+    )]);
+    assert_eq!(device_a.settle(), SyncStatus::UpToDate);
+    assert_eq!(server.log_len(), 3);
+
+    assert_eq!(device_c.settle(), SyncStatus::UpToDate);
+    assert_eq!(device_b.settle(), SyncStatus::UpToDate);
+    assert_eq!(device_a.settle(), SyncStatus::UpToDate);
+
+    for device in [&device_a, &device_b, &device_c] {
+        assert_eq!(device.markdown("note-shared"), "Edited on A");
+    }
+    assert_eq!(device_a.replicated_shape(), device_b.replicated_shape());
+    assert_eq!(device_a.replicated_shape(), device_c.replicated_shape());
+    assert_eq!(
+        superseded_history(&device_a.storage),
+        [("note-shared".to_string(), "Edited on B".to_string())],
+        "A outranked B's write and preserved it"
+    );
     assert!(
-        device_a
-            .storage
-            .sync_conflicts()
-            .expect("open a")
-            .is_empty()
+        superseded_history(&device_c.storage).is_empty(),
+        "C applied both writes in order and superseded nothing"
     );
+}
+
+#[test]
+fn log_truncated_with_a_non_empty_outbox_blocks_then_recovers_after_the_push() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let (mut device_a, mut device_b) = shared_note(&server, &clock);
+
+    device_b.apply(vec![create_note("note-b", "Written on B", 2)]);
+    device_b.transport.script_push_fault(PushFault::Transient);
+    device_a.apply(vec![create_note("note-a", "Written on A", 2)]);
+    assert_eq!(device_a.settle(), SyncStatus::UpToDate);
+    server.compact_through(2);
+
+    let blocked = device_b.cycle();
+    assert_eq!(
+        blocked_reason(&blocked.status),
+        Some(BLOCKED_REASON_LOG_TRUNCATED),
+        "a device with unsent work cannot be rebuilt: {:?}",
+        blocked.status
+    );
+    assert!(blocked_detail(&blocked.status).is_some());
+    assert_eq!(device_b.cursor(), 1);
+    assert_eq!(server.log_len(), 1 + 1);
+
+    device_b.advance_past(&blocked);
+    let pushed = device_b.cycle();
+    assert_eq!(
+        pushed.status,
+        SyncStatus::Rehydrating,
+        "with the outbox drained the device asks to be rebuilt: {:?}",
+        pushed.status
+    );
+    assert_eq!(server.log_len(), 3);
     assert!(
-        device_b
-            .storage
-            .sync_conflicts()
-            .expect("open b")
-            .is_empty()
+        server.latest_checkpoint_sequence().is_none(),
+        "no checkpoint has been published yet"
     );
+    let without_checkpoint = device_b.cycle();
     assert_eq!(
-        device_a
-            .storage
-            .document_conflicts()
-            .expect("records a")
-            .len(),
-        1
+        blocked_reason(&without_checkpoint.status),
+        Some("log_truncated_without_checkpoint")
     );
+}
+
+#[test]
+fn oversized_pull_responses_halve_the_page_limit_until_a_page_succeeds() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut writer = Device::open(&server, "device-a", &clock);
+    writer.connect("device-a");
+    writer.apply(vec![create_note("note-1", "One", 1)]);
+    assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
+
+    let mut reader = Device::open(&server, "device-b", &clock);
+    reader.config.pull_batch_limit = 8;
+    reader.connect("device-b");
+    reader.transport.script_pull_fault(PullFault::TooLarge);
+    reader.transport.script_pull_fault(PullFault::TooLarge);
+
+    let first = reader.cycle();
+    assert!(matches!(first.status, SyncStatus::Retrying { .. }));
+    reader.advance_past(&first);
+    let second = reader.cycle();
+    assert!(matches!(second.status, SyncStatus::Retrying { .. }));
+    reader.advance_past(&second);
+    assert_eq!(reader.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(reader.cycle().status, SyncStatus::UpToDate);
+
     assert_eq!(
-        device_b
+        reader.transport.pull_limits(),
+        [8, 4, 2, 8],
+        "the page shrinks after every oversized answer and restores after success"
+    );
+    assert_eq!(reader.note_titles(), ["One"]);
+}
+
+#[test]
+fn three_identical_rejections_park_the_batch_as_cloud_rejected() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut device = Device::open(&server, "device-a", &clock);
+    device.connect("device-a");
+    device.apply(vec![create_note("note-1", "Rejected", 1)]);
+
+    for attempt in 1..=2 {
+        device.transport.script_push_fault(PushFault::Rejected);
+        let outcome = device.cycle();
+        assert_eq!(
+            blocked_reason(&outcome.status),
+            Some(BLOCKED_REASON_REJECTED_BATCH),
+            "attempt {attempt}: {:?}",
+            outcome.status
+        );
+        assert!(device.blocked_reasons().is_empty());
+        device.advance_past(&outcome);
+    }
+    device.transport.script_push_fault(PushFault::Rejected);
+    let third = device.cycle();
+    device.advance_past(&third);
+
+    assert_eq!(device.blocked_reasons(), ["cloud_rejected"]);
+    assert_eq!(server.log_len(), 0);
+    assert!(
+        !device
             .storage
-            .document_conflicts()
-            .expect("records b")
-            .len(),
-        1
+            .has_pending_sync_operations()
+            .expect("pending")
+            || device.cycle().status != SyncStatus::UpToDate,
+        "a parked batch stays visible instead of reading as up to date"
+    );
+}
+
+#[test]
+fn a_busy_local_database_is_a_short_retry_and_a_backend_failure_a_visible_block() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut device = Device::open(&server, "device-a", &clock);
+    device.connect("device-a");
+    let config = device.config.clone();
+    let busy = skriuw_sync::classify_storage_failure(
+        device.clock.as_ref(),
+        &mut device.state.backoff,
+        &config,
+        &skriuw_storage::StorageError::Busy("database is locked".into()),
+    );
+    assert!(matches!(busy.status, SyncStatus::Retrying { .. }));
+    assert!(busy.retry_at_ms.expect("retry") < clock.now_ms() + 60_000);
+
+    let backend = skriuw_sync::classify_storage_failure(
+        device.clock.as_ref(),
+        &mut device.state.backoff,
+        &config,
+        &skriuw_storage::StorageError::Backend("disk I/O error".into()),
+    );
+    assert_eq!(blocked_reason(&backend.status), Some("storage_failure"));
+    assert!(blocked_detail(&backend.status).is_some_and(|detail| detail.contains("disk I/O")));
+    assert_eq!(
+        backend.retry_at_ms,
+        Some(clock.now_ms() + config.blocked_retry_delay_ms)
     );
 }
 
@@ -960,11 +1177,7 @@ fn oversized_operations_travel_as_chunks_and_converge_on_a_second_device() {
     writer.apply(vec![save_large_document("note-large", 1, large_bytes, 2)]);
     writer.apply(vec![rename_node("note-large", "Large renamed", 3)]);
 
-    for _ in 0..4 {
-        let outcome = writer.cycle();
-        writer.advance_past(&outcome);
-    }
-
+    assert_eq!(writer.settle(), SyncStatus::UpToDate);
     assert_eq!(writer.storage.blocked_sync_operations().unwrap().len(), 0);
     assert_eq!(server.operation_ids().len(), 3);
     assert!(
@@ -974,10 +1187,7 @@ fn oversized_operations_travel_as_chunks_and_converge_on_a_second_device() {
 
     let mut reader = Device::open(&server, "device-b", &clock);
     reader.connect("device-b");
-    for _ in 0..4 {
-        let outcome = reader.cycle();
-        reader.advance_past(&outcome);
-    }
+    assert_eq!(reader.settle(), SyncStatus::UpToDate);
 
     let snapshot = reader.storage.bootstrap().expect("bootstrap");
     let document = snapshot
@@ -1025,7 +1235,9 @@ fn attached_images_converge_with_verified_asset_bytes_on_a_second_device() {
 
     let mut reader = Device::open(&server, "device-b", &clock);
     reader.connect("device-b");
-    assert_eq!(reader.cycle().status, SyncStatus::UpToDate);
+    let pulled = reader.cycle();
+    assert_eq!(pulled.status, SyncStatus::UpToDate);
+    assert!(pulled.changes.structure_changed);
 
     let snapshot = reader.storage.bootstrap().expect("bootstrap");
     let image = snapshot
@@ -1040,13 +1252,6 @@ fn attached_images_converge_with_verified_asset_bytes_on_a_second_device() {
         reader.assets.get(&content_hash),
         Some(bytes),
         "asset bytes must be stored and digest-verified on the second device"
-    );
-    assert!(
-        reader
-            .storage
-            .sync_conflicts()
-            .expect("conflicts")
-            .is_empty()
     );
     assert_eq!(reader.cursor(), 2);
 }
@@ -1102,7 +1307,16 @@ fn a_missing_image_blob_blocks_only_the_attach_operation() {
     writer.connect("device-a");
     let outcome = writer.cycle();
 
-    assert_eq!(outcome.status, SyncStatus::UpToDate);
+    assert_eq!(
+        blocked_reason(&outcome.status),
+        Some(BLOCKED_OPERATION_REASON_ASSET_CONTENT_MISSING),
+        "a parked row keeps the device out of up to date: {:?}",
+        outcome.status
+    );
+    assert_eq!(
+        outcome.retry_at_ms, None,
+        "a parked row waits for the user or the bytes, not a timer"
+    );
     assert_eq!(
         server.log_len(),
         2,
@@ -1114,7 +1328,10 @@ fn a_missing_image_blob_blocks_only_the_attach_operation() {
     assert_eq!(blocked[0].operation_type, "attach_image");
 
     writer.apply(vec![create_note("note-3", "Later work flows", 4)]);
-    assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(
+        blocked_reason(&writer.cycle().status),
+        Some(BLOCKED_OPERATION_REASON_ASSET_CONTENT_MISSING)
+    );
     assert_eq!(server.log_len(), 3);
 
     let mut reader = Device::open(&server, "device-b", &clock);
@@ -1142,7 +1359,7 @@ fn a_missing_blob_block_clears_once_the_bytes_arrive_locally() {
     writer.apply(vec![attach_image("image-1", "note-1", &bytes, 2)]);
 
     writer.connect("device-a");
-    assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
+    assert!(matches!(writer.cycle().status, SyncStatus::Blocked { .. }));
     assert_eq!(writer.storage.blocked_sync_operations().unwrap().len(), 1);
     assert_eq!(server.log_len(), 1);
 
@@ -1181,7 +1398,7 @@ fn a_user_retry_without_the_blob_stays_blocked_with_a_fresh_record() {
     writer.apply(vec![attach_image("image-1", "note-1", &bytes, 2)]);
 
     writer.connect("device-a");
-    assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
+    assert!(matches!(writer.cycle().status, SyncStatus::Blocked { .. }));
     let first_view = writer.storage.sync_recovery_view().expect("recovery view");
     assert_eq!(first_view.blocked.len(), 1);
     let first = &first_view.blocked[0];
@@ -1202,7 +1419,7 @@ fn a_user_retry_without_the_blob_stays_blocked_with_a_fresh_record() {
             .is_empty()
     );
 
-    assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
+    assert!(matches!(writer.cycle().status, SyncStatus::Blocked { .. }));
     let second_view = writer.storage.sync_recovery_view().expect("recovery view");
     assert_eq!(
         second_view.blocked.len(),
@@ -1288,10 +1505,7 @@ fn a_missing_chunk_fails_the_pull_instead_of_applying_partial_content() {
         skriuw_domain::MAX_INLINE_SYNC_OPERATION_BYTES + 4_096,
         2,
     )]);
-    for _ in 0..3 {
-        let outcome = writer.cycle();
-        writer.advance_past(&outcome);
-    }
+    assert_eq!(writer.settle(), SyncStatus::UpToDate);
     server.discard_chunks();
 
     let mut reader = Device::open(&server, "device-b", &clock);

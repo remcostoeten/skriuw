@@ -68,6 +68,14 @@ pub enum TransportError {
     Cancelled,
     #[error("unsupported sync protocol version {0}")]
     UnsupportedProtocol(u16),
+    /// The server compacted the ordered log below this device's cursor; the
+    /// device must rebuild from a checkpoint before it can pull again.
+    #[error("sync log was truncated below the device cursor")]
+    LogTruncated,
+    /// The response exceeded what this client is willing to buffer. The
+    /// cycle shrinks its pull page and retries.
+    #[error("sync response exceeded the client size limit")]
+    ResponseTooLarge,
 }
 
 impl TransportError {
@@ -75,7 +83,10 @@ impl TransportError {
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
-            Self::RateLimited { .. } | Self::Transient(_) | Self::Server { .. }
+            Self::RateLimited { .. }
+                | Self::Transient(_)
+                | Self::Server { .. }
+                | Self::ResponseTooLarge
         )
     }
 

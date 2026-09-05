@@ -445,6 +445,7 @@ function WorkspaceShell({ store }: Props) {
             onShowShortcutHelp={() => setShortcutHelpOpen(true)}
             onRunCommand={runCommand}
             isCommandEnabled={commandEnabled}
+            onRequestSignIn={() => openSignIn(false)}
           />
         </div>
       </nav>

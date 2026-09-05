@@ -3,18 +3,18 @@ use std::{path::PathBuf, time::Instant};
 use rusqlite::Connection;
 use serde_json::json;
 use skriuw_domain::{
-    AnnotationComment, AnnotationStatus, ClientSyncOperation, HistoryHeader, NodePlacement,
-    NoteProperty, NotePropertyColor, NotePropertyField, NotePropertyOption, NotePropertyTemplate,
-    NotePropertyValue, ProviderImportReceipt, ReplicatedWorkspaceOperation, SyncAcceptedOperation,
-    SyncOperationPayload, TaskPriority, TaskSource, TaskSourceDocument, TaskStatus,
-    VersionedNotePropertyValue, WorkspaceAnnotation, WorkspaceCheckpoint, WorkspaceImage,
-    WorkspaceOperation, WorkspaceOperationEnvelope, WorkspacePerson, WorkspacePrompt,
-    WorkspaceSettings, WorkspaceTag, WorkspaceTask,
+    AnnotationComment, AnnotationStatus, ClientSyncOperation, HistoryHeader, NodeKind,
+    NodePlacement, NoteProperty, NotePropertyColor, NotePropertyField, NotePropertyOption,
+    NotePropertyTemplate, NotePropertyValue, ProviderImportReceipt, ReplicatedWorkspaceOperation,
+    SyncAcceptedOperation, SyncConflictReason, SyncOperationPayload, TaskPriority, TaskSource,
+    TaskSourceDocument, TaskStatus, VersionedNotePropertyValue, WorkspaceAnnotation,
+    WorkspaceCheckpoint, WorkspaceImage, WorkspaceOperation, WorkspaceOperationEnvelope,
+    WorkspacePerson, WorkspacePrompt, WorkspaceSettings, WorkspaceTag, WorkspaceTask,
 };
 use skriuw_storage::{
-    Diagnostic, DiagnosticCategory, DiagnosticContext, HistoryCache, HistoryQueue,
-    MAX_DIAGNOSTIC_MESSAGE_BYTES, NewSyncConnection, RemoteSyncApplyOutcome, StorageError,
-    SyncRecovery, WorkspaceMaintenance, WorkspaceStorage, WorkspaceSyncQueue,
+    Diagnostic, DiagnosticCategory, DiagnosticContext, HistoryCache, HistoryProvenance,
+    HistoryQueue, MAX_DIAGNOSTIC_MESSAGE_BYTES, NewSyncConnection, RemoteSyncApplyOutcome,
+    StorageError, SyncRecovery, WorkspaceMaintenance, WorkspaceStorage, WorkspaceSyncQueue,
 };
 use tempfile::tempdir;
 
@@ -119,6 +119,103 @@ fn accepted(batch: &skriuw_storage::PendingSyncBatch) -> Vec<SyncAcceptedOperati
             server_sequence: index as u64 + 8,
         })
         .collect()
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct ReceivedRow {
+    operation_id: String,
+    server_sequence: i64,
+    outcome: String,
+    reason: Option<String>,
+}
+
+fn received_rows(storage: &SqliteWorkspace) -> Vec<ReceivedRow> {
+    let connection = storage.lock().expect("database lock");
+    let mut statement = connection
+        .prepare(
+            "SELECT operation_id, server_sequence, outcome, reason \
+             FROM sync_received_operations ORDER BY server_sequence",
+        )
+        .expect("prepare received query");
+    statement
+        .query_map([], |row| {
+            Ok(ReceivedRow {
+                operation_id: row.get(0)?,
+                server_sequence: row.get(1)?,
+                outcome: row.get(2)?,
+                reason: row.get(3)?,
+            })
+        })
+        .expect("query received rows")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect received rows")
+}
+
+fn superseded_rows(storage: &SqliteWorkspace) -> Vec<(String, String)> {
+    received_rows(storage)
+        .into_iter()
+        .filter(|row| row.outcome == "superseded")
+        .map(|row| (row.operation_id, row.reason.expect("superseded reason")))
+        .collect()
+}
+
+fn history_rows(storage: &SqliteWorkspace, note_id: &str) -> Vec<(i64, String, String)> {
+    let connection = storage.lock().expect("database lock");
+    let mut statement = connection
+        .prepare(
+            "SELECT revision, markdown, provenance FROM history_outbox \
+             WHERE note_id = ?1 ORDER BY created_at, revision, provenance",
+        )
+        .expect("prepare history query");
+    statement
+        .query_map([note_id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+        .expect("query history rows")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect history rows")
+}
+
+fn document_of(storage: &SqliteWorkspace, note_id: &str) -> skriuw_domain::WorkspaceDocument {
+    storage
+        .bootstrap()
+        .expect("bootstrap")
+        .documents
+        .into_iter()
+        .find(|document| document.note_id == note_id)
+        .expect("document exists")
+}
+
+fn superseded(reason: SyncConflictReason) -> RemoteSyncApplyOutcome {
+    RemoteSyncApplyOutcome::Superseded { reason }
+}
+
+/// Push every pending outbox row as if the server accepted it, assigning
+/// server sequences from `first_server_sequence`. Returns the last assigned
+/// sequence, or `first_server_sequence - 1` when nothing was pending.
+fn push_all(storage: &SqliteWorkspace, first_server_sequence: u64) -> u64 {
+    let mut next = first_server_sequence;
+    while let Some(batch) = storage
+        .claim_sync_operations("push-all", 1_000, 50, 64)
+        .expect("claim pending batch")
+    {
+        let accepted = batch
+            .request
+            .operations
+            .iter()
+            .map(|operation| {
+                let item = SyncAcceptedOperation {
+                    operation_id: operation.operation_id.clone(),
+                    client_sequence: operation.client_sequence,
+                    server_sequence: next,
+                };
+                next += 1;
+                item
+            })
+            .collect::<Vec<_>>();
+        storage
+            .acknowledge_sync_operations("push-all", &accepted)
+            .expect("acknowledge pushed batch");
+    }
+    next - 1
 }
 
 fn text_property(note_id: &str, id: &str, position: i64) -> NoteProperty {
@@ -974,7 +1071,7 @@ fn duplicate_remote_delivery_is_idempotent_across_restart() {
         storage.apply_remote_operations(&[conflicting_duplicate], 31),
         Err(StorageError::InvalidOperation(_))
     ));
-    assert!(storage.sync_conflicts().expect("conflicts").is_empty());
+    assert!(superseded_rows(&storage).is_empty());
 }
 
 #[test]
@@ -1025,13 +1122,13 @@ fn remote_sequence_gap_rolls_back_the_complete_pull_batch() {
 }
 
 #[test]
-fn semantic_remote_conflict_is_durable_and_does_not_block_later_operations() {
+fn superseded_remote_write_is_durable_and_does_not_block_later_operations() {
     let storage = SqliteWorkspace::open_in_memory().expect("open database");
     storage
         .apply_operations(&[create_note("note-conflict")])
         .expect("local note");
     connect_at_cursor(&storage, 0);
-    let conflicting_save = remote(
+    let losing_save = remote(
         "remote-conflict",
         "device-remote",
         1,
@@ -1059,13 +1156,13 @@ fn semantic_remote_conflict_is_durable_and_does_not_block_later_operations() {
     );
 
     let outcomes = storage
-        .apply_remote_operations(&[conflicting_save.clone(), later_create], 30)
-        .expect("record conflict and continue");
-    let RemoteSyncApplyOutcome::Conflict(conflict) = &outcomes[0] else {
-        panic!("expected conflict outcome");
-    };
-    assert_eq!(conflict.operation_id, "remote-conflict");
-    assert_eq!(conflict.reason_code, "revision_conflict");
+        .apply_remote_operations(&[losing_save.clone(), later_create], 30)
+        .expect("record superseded write and continue");
+    assert_eq!(
+        outcomes[0],
+        superseded(SyncConflictReason::ConcurrentDocumentVersion),
+        "the unpushed local creation outranks the remote body"
+    );
     assert!(matches!(outcomes[1], RemoteSyncApplyOutcome::Applied(_)));
     let snapshot = storage.bootstrap().expect("bootstrap");
     assert_eq!(snapshot.documents[0].revision, 1);
@@ -1084,16 +1181,31 @@ fn semantic_remote_conflict_is_durable_and_does_not_block_later_operations() {
         2
     );
     assert_eq!(
-        storage.sync_conflicts().expect("conflicts"),
-        vec![conflict.clone()]
+        superseded_rows(&storage),
+        vec![(
+            "remote-conflict".into(),
+            "concurrent_document_version".into()
+        )]
     );
+    assert!(history_rows(&storage, "note-conflict").iter().any(
+        |(_, markdown, provenance)| markdown == "remote conflicting body"
+            && provenance == "superseded"
+    ));
     assert_eq!(
         storage
-            .apply_remote_operations(&[conflicting_save], 31)
-            .expect("duplicate conflict"),
+            .apply_remote_operations(&[losing_save], 31)
+            .expect("duplicate superseded delivery"),
         vec![RemoteSyncApplyOutcome::Duplicate]
     );
-    assert_eq!(storage.sync_conflicts().expect("conflicts").len(), 1);
+    assert_eq!(superseded_rows(&storage).len(), 1);
+    assert_eq!(
+        history_rows(&storage, "note-conflict")
+            .iter()
+            .filter(|(_, _, provenance)| provenance == "superseded")
+            .count(),
+        1,
+        "a duplicate delivery never preserves the body twice"
+    );
 }
 
 #[test]
@@ -3326,7 +3438,7 @@ fn identical_remote_save_is_a_semantic_no_op() {
     );
     let snapshot = storage.bootstrap().expect("bootstrap");
     assert_eq!(snapshot.documents[0].revision, 1);
-    assert!(storage.sync_conflicts().expect("conflicts").is_empty());
+    assert!(superseded_rows(&storage).is_empty());
     assert_eq!(
         storage
             .sync_connection()
@@ -3344,9 +3456,9 @@ fn identical_remote_save_is_a_semantic_no_op() {
 }
 
 #[test]
-fn divergent_document_save_preserves_both_complete_versions() {
+fn pending_local_write_supersedes_the_remote_body_and_survives_restart() {
     let directory = tempdir().expect("tempdir");
-    let path = directory.path().join("document-conflict.db");
+    let path = directory.path().join("document-superseded.db");
     {
         let storage = SqliteWorkspace::open(&path).expect("open database");
         storage
@@ -3369,162 +3481,452 @@ fn divergent_document_save_preserves_both_complete_versions() {
                 30,
             )
             .expect("apply divergent save");
-        let RemoteSyncApplyOutcome::Conflict(conflict) = &outcomes[0] else {
-            panic!("expected conflict outcome");
-        };
-        assert_eq!(conflict.reason_code, "revision_conflict");
         assert_eq!(
-            conflict.subreason.as_deref(),
-            Some("concurrent_document_version")
+            outcomes,
+            vec![superseded(SyncConflictReason::ConcurrentDocumentVersion)]
         );
     }
 
     let storage = SqliteWorkspace::open(&path).expect("reopen database");
-    let snapshot = storage.bootstrap().expect("bootstrap");
-    assert_eq!(snapshot.documents[0].revision, 2);
-    assert_eq!(snapshot.documents[0].markdown, "local offline body");
-
-    let summaries = storage.document_conflicts().expect("summaries");
-    assert_eq!(summaries.len(), 1);
-    assert_eq!(summaries[0].note_id, "note-fork");
-    assert!(summaries[0].local_version_available);
-    assert_eq!(summaries[0].resolved_choice, None);
-
-    let versions = storage
-        .document_conflict_versions(&summaries[0].conflict_id)
-        .expect("versions");
-    assert_eq!(versions.remote.markdown, "remote offline body");
-    let local = versions.local.expect("local version");
-    assert_eq!(local.markdown, "local offline body");
-    assert_eq!(local.revision, Some(2));
+    let document = document_of(&storage, "note-fork");
+    assert_eq!(
+        document.revision, 2,
+        "local wins keeps the canonical revision"
+    );
+    assert_eq!(document.markdown, "local offline body");
+    assert_eq!(
+        superseded_rows(&storage),
+        vec![("remote-fork".into(), "concurrent_document_version".into())]
+    );
+    let preserved = history_rows(&storage, "note-fork");
+    assert!(preserved.contains(&(2, "remote offline body".into(), "superseded".into())));
+    assert!(preserved.contains(&(2, "local offline body".into(), "local".into())));
 }
 
 #[test]
-fn keep_remote_resolution_updates_canonical_and_keeps_the_alternative() {
+fn remote_write_above_the_head_replaces_the_local_body() {
     let storage = SqliteWorkspace::open_in_memory().expect("open database");
     storage
-        .apply_operations(&[create_note("note-resolve")])
+        .apply_operations(&[create_note("note-remote-wins")])
         .expect("local note");
     storage
-        .apply_operations(&[save_document("note-resolve", 1, "local body", 12)])
+        .apply_operations(&[save_document(
+            "note-remote-wins",
+            1,
+            "local body before push",
+            12,
+        )])
         .expect("local save");
+    connect_at_cursor(&storage, 0);
+    let pushed_through = push_all(&storage, 1);
+
+    let outcomes = storage
+        .apply_remote_operations(
+            &[remote_save(
+                "remote-newer",
+                pushed_through + 1,
+                "note-remote-wins",
+                7,
+                "remote newer body",
+            )],
+            30,
+        )
+        .expect("apply newer remote save");
+    assert!(matches!(outcomes[0], RemoteSyncApplyOutcome::Applied(_)));
+    let document = document_of(&storage, "note-remote-wins");
+    assert_eq!(document.markdown, "remote newer body");
+    assert_eq!(
+        document.revision, 3,
+        "the remote revision counter is rebased onto the local one"
+    );
+    assert!(history_rows(&storage, "note-remote-wins").contains(&(
+        3,
+        "remote newer body".into(),
+        "remote".into()
+    )));
+    assert!(superseded_rows(&storage).is_empty());
+}
+
+#[test]
+fn ack_before_echo_window_keeps_the_write_with_the_greater_sequence() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
     connect_at_cursor(&storage, 0);
     storage
         .apply_remote_operations(
-            &[remote_save(
-                "remote-resolve",
+            &[remote(
+                "remote-create",
+                "device-remote",
                 1,
-                "note-resolve",
+                1,
+                WorkspaceOperation::CreateNote {
+                    id: "note-window".into(),
+                    title: "Window".into(),
+                    placement: NodePlacement::last(None),
+                    document_json: json!({"type": "doc", "content": []}),
+                    markdown: "shared base".into(),
+                    at: 5,
+                },
+            )],
+            10,
+        )
+        .expect("shared base arrives");
+    storage
+        .apply_operations(&[save_document("note-window", 1, "local edit", 12)])
+        .expect("local edit");
+    let batch = storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("pending local edit");
+    let local_operation_id = batch.request.operations[0].operation_id.clone();
+    storage
+        .acknowledge_sync_operations(
+            "sync-worker",
+            &[SyncAcceptedOperation {
+                operation_id: local_operation_id,
+                client_sequence: 1,
+                server_sequence: 3,
+            }],
+        )
+        .expect("server accepted the local edit at sequence 3");
+
+    let outcomes = storage
+        .apply_remote_operations(
+            &[remote_save(
+                "remote-older",
+                2,
+                "note-window",
+                1,
+                "remote edit",
+            )],
+            20,
+        )
+        .expect("older remote write arrives after the acknowledgement");
+    assert_eq!(
+        outcomes,
+        vec![superseded(SyncConflictReason::ConcurrentDocumentVersion)],
+        "sequence 2 loses to the acknowledged local write at sequence 3"
+    );
+    assert_eq!(document_of(&storage, "note-window").markdown, "local edit");
+    assert!(
+        history_rows(&storage, "note-window")
+            .iter()
+            .any(
+                |(_, markdown, provenance)| markdown == "remote edit" && provenance == "superseded"
+            )
+    );
+
+    let peer = SqliteWorkspace::open_in_memory().expect("open peer database");
+    peer.connect_sync(&NewSyncConnection {
+        workspace_id: "workspace-1".into(),
+        device_id: "device-peer".into(),
+        connected_at: 10,
+        observed_server_sequence: 0,
+    })
+    .expect("connect peer");
+    let log = [
+        remote(
+            "remote-create",
+            "device-remote",
+            1,
+            1,
+            WorkspaceOperation::CreateNote {
+                id: "note-window".into(),
+                title: "Window".into(),
+                placement: NodePlacement::last(None),
+                document_json: json!({"type": "doc", "content": []}),
+                markdown: "shared base".into(),
+                at: 5,
+            },
+        ),
+        remote_save("remote-older", 2, "note-window", 1, "remote edit"),
+        remote(
+            "local-from-device-1",
+            "device-1",
+            1,
+            3,
+            WorkspaceOperation::SaveDocument {
+                note_id: "note-window".into(),
+                document_json: json!({"type": "doc", "revision": 2}),
+                markdown: "local edit".into(),
+                word_count: 2,
+                expected_revision: 1,
+                at: 12,
+            },
+        ),
+    ];
+    peer.apply_remote_operations(&log, 30)
+        .expect("peer replays the log in server order");
+    assert_eq!(
+        document_of(&peer, "note-window").markdown,
+        "local edit",
+        "both devices converge on the write with the greater server sequence"
+    );
+}
+
+#[test]
+fn a_blocked_local_document_write_counts_as_pending() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-parked")])
+        .expect("local note");
+    connect_at_cursor(&storage, 0);
+    push_all(&storage, 1);
+    storage
+        .apply_operations(&[save_document("note-parked", 1, "parked local body", 12)])
+        .expect("local save");
+    let batch = storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("pending save");
+    storage
+        .block_claimed_sync_operations(
+            "sync-worker",
+            &[batch.request.operations[0].operation_id.clone()],
+            "cloud_rejected",
+        )
+        .expect("park the save");
+    assert!(
+        storage.has_pending_sync_operations().expect("pending"),
+        "an unresolved blocked row counts as pending local work"
+    );
+
+    let outcomes = storage
+        .apply_remote_operations(
+            &[remote_save(
+                "remote-vs-parked",
+                2,
+                "note-parked",
                 1,
                 "remote body",
             )],
             30,
         )
-        .expect("divergent save");
-    let conflict_id = storage.document_conflicts().expect("summaries")[0]
-        .conflict_id
+        .expect("remote save against a parked local write");
+    assert_eq!(
+        outcomes,
+        vec![superseded(SyncConflictReason::ConcurrentDocumentVersion)]
+    );
+    assert_eq!(
+        document_of(&storage, "note-parked").markdown,
+        "parked local body"
+    );
+}
+
+#[test]
+fn requeued_blocked_document_write_carries_the_canonical_body() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-requeue")])
+        .expect("local note");
+    connect_at_cursor(&storage, 0);
+    push_all(&storage, 1);
+    storage
+        .apply_operations(&[save_document("note-requeue", 1, "first parked body", 12)])
+        .expect("first local save");
+    let batch = storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("pending save");
+    storage
+        .block_claimed_sync_operations(
+            "sync-worker",
+            &[batch.request.operations[0].operation_id.clone()],
+            "cloud_rejected",
+        )
+        .expect("park the save");
+    storage
+        .apply_operations(&[save_document("note-requeue", 2, "newer local body", 13)])
+        .expect("later local save");
+    push_all(&storage, 2);
+    let blocked_id = storage.sync_recovery_view().expect("view").blocked[0]
+        .blocked_id
         .clone();
 
-    let acknowledgement = storage
-        .resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
-            conflict_id: conflict_id.clone(),
-            choice: skriuw_domain::DocumentConflictResolutionChoice::KeepRemote,
-            at: 100,
-        })
-        .expect("resolve");
-    assert!(acknowledgement.is_some());
-
-    let snapshot = storage.bootstrap().expect("bootstrap");
-    assert_eq!(snapshot.documents[0].markdown, "remote body");
-    assert_eq!(snapshot.documents[0].revision, 3);
-    assert!(storage.sync_conflicts().expect("unresolved").is_empty());
-
-    let summary = &storage.document_conflicts().expect("summaries")[0];
-    assert_eq!(summary.resolved_choice.as_deref(), Some("remote"));
-    let versions = storage
-        .document_conflict_versions(&conflict_id)
-        .expect("versions");
-    assert_eq!(
-        versions.local.expect("preserved local").markdown,
-        "local body"
-    );
+    storage
+        .retry_blocked_sync_operation(&blocked_id, 500)
+        .expect("retry the parked save");
 
     let batch = storage
-        .claim_sync_operations("sync-worker", 200, 50, 64)
+        .claim_sync_operations("sync-worker", 600, 50, 64)
         .expect("claim")
-        .expect("resolution replicates");
-    assert!(batch.request.operations.iter().any(|operation| {
-        envelope_of(operation)
-            .operation
-            .sync_policy()
-            .operation_type
-            == "save_document"
-    }));
-
-    assert_eq!(
-        storage
-            .resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
-                conflict_id: conflict_id.clone(),
-                choice: skriuw_domain::DocumentConflictResolutionChoice::KeepRemote,
-                at: 120,
-            })
-            .expect("duplicate identical resolution"),
-        None
-    );
-    assert!(matches!(
-        storage.resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
-            conflict_id,
-            choice: skriuw_domain::DocumentConflictResolutionChoice::KeepLocal,
-            at: 130,
-        }),
-        Err(StorageError::InvalidOperation(_))
-    ));
+        .expect("requeued save");
+    match &envelope_of(&batch.request.operations[0]).operation {
+        WorkspaceOperation::SaveDocument {
+            markdown,
+            expected_revision,
+            ..
+        } => {
+            assert_eq!(markdown, "newer local body");
+            assert_eq!(*expected_revision, 3);
+        }
+        other => panic!("expected a save of the canonical body, found {other:?}"),
+    }
 }
 
 #[test]
-fn keep_local_resolution_leaves_canonical_untouched() {
+fn a_superseded_body_keeps_images_and_task_links_untouched() {
     let storage = SqliteWorkspace::open_in_memory().expect("open database");
     storage
-        .apply_operations(&[create_note("note-keep-local")])
-        .expect("local note");
+        .apply_operations(&[
+            create_note("note-media-safe"),
+            attach_image("image-safe", "note-media-safe", 'c'),
+        ])
+        .expect("note with image");
     storage
-        .apply_operations(&[save_document("note-keep-local", 1, "local body", 12)])
-        .expect("local save");
+        .apply_operations(&[op(WorkspaceOperation::SaveDocument {
+            note_id: "note-media-safe".into(),
+            document_json: json!({"type": "doc", "content": [
+                {"type": "image_ref", "attrs": {"id": "image-safe", "alt": ""}}
+            ]}),
+            markdown: "![](images/image-safe)".into(),
+            word_count: 0,
+            expected_revision: 1,
+            at: 12,
+        })])
+        .expect("local save referencing the image");
     connect_at_cursor(&storage, 0);
-    storage
+
+    let outcomes = storage
         .apply_remote_operations(
             &[remote_save(
-                "remote-keep-local",
+                "remote-drop-image",
                 1,
-                "note-keep-local",
+                "note-media-safe",
                 1,
-                "remote body",
+                "remote body without the image",
             )],
             30,
         )
-        .expect("divergent save");
-    let conflict_id = storage.document_conflicts().expect("summaries")[0]
-        .conflict_id
-        .clone();
-
+        .expect("remote save loses to the pending local write");
     assert_eq!(
-        storage
-            .resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
-                conflict_id: conflict_id.clone(),
-                choice: skriuw_domain::DocumentConflictResolutionChoice::KeepLocal,
-                at: 100,
-            })
-            .expect("resolve"),
-        None
+        outcomes,
+        vec![superseded(SyncConflictReason::ConcurrentDocumentVersion)]
     );
     let snapshot = storage.bootstrap().expect("bootstrap");
-    assert_eq!(snapshot.documents[0].markdown, "local body");
+    assert_eq!(snapshot.images.len(), 1, "preservation never prunes images");
     assert_eq!(snapshot.documents[0].revision, 2);
-    assert!(storage.sync_conflicts().expect("unresolved").is_empty());
-    let versions = storage
-        .document_conflict_versions(&conflict_id)
-        .expect("versions");
-    assert_eq!(versions.remote.markdown, "remote body");
+    assert!(
+        snapshot
+            .references
+            .iter()
+            .all(|references| references.note_id == "note-media-safe"),
+        "preservation never rewrites references"
+    );
+}
+
+#[test]
+fn superseded_history_rows_never_coalesce_with_local_rows() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-history")])
+        .expect("local note");
+    storage
+        .apply_operations(&[save_document("note-history", 1, "local burst one", 2)])
+        .expect("local save inside the window");
+    connect_at_cursor(&storage, 0);
+    storage
+        .apply_remote_operations(
+            &[
+                remote_save("remote-lost-1", 1, "note-history", 1, "remote lost one"),
+                remote_save("remote-lost-2", 2, "note-history", 1, "remote lost two"),
+            ],
+            3,
+        )
+        .expect("two losing remote writes");
+    storage
+        .apply_operations(&[save_document("note-history", 2, "local burst two", 4)])
+        .expect("local save after the superseded rows");
+
+    let rows = history_rows(&storage, "note-history");
+    assert_eq!(
+        rows,
+        vec![
+            (2, "local burst one".into(), "local".into()),
+            (2, "remote lost one".into(), "superseded".into()),
+            (3, "remote lost two".into(), "superseded".into()),
+            (3, "local burst two".into(), "local".into()),
+        ],
+        "a superseded row closes the coalescing window and two losers stay distinct"
+    );
+    assert_eq!(document_of(&storage, "note-history").revision, 3);
+    let claimed = storage
+        .claim_history_revision("worker", 10, 1_000)
+        .expect("claim")
+        .expect("superseded rows are claimable immediately");
+    assert_eq!(claimed.provenance, HistoryProvenance::Superseded);
+    assert!(claimed.markdown.starts_with("remote lost"));
+}
+
+#[test]
+fn creating_an_existing_note_keeps_the_record_and_reconciles_the_body() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-twice")])
+        .expect("local note");
+    connect_at_cursor(&storage, 0);
+    let pushed_through = push_all(&storage, 1);
+    let recreate = |operation_id: &str, sequence: u64, markdown: &str| {
+        remote(
+            operation_id,
+            "device-remote",
+            sequence,
+            sequence,
+            WorkspaceOperation::CreateNote {
+                id: "note-twice".into(),
+                title: "Remote title".into(),
+                placement: NodePlacement::last(None),
+                document_json: json!({"type": "doc", "content": [markdown]}),
+                markdown: markdown.into(),
+                at: 30,
+            },
+        )
+    };
+
+    let outcomes = storage
+        .apply_remote_operations(
+            &[recreate(
+                "remote-recreate",
+                pushed_through + 1,
+                "remote body",
+            )],
+            40,
+        )
+        .expect("recreate applies as a body write");
+    assert!(matches!(outcomes[0], RemoteSyncApplyOutcome::Applied(_)));
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert_eq!(
+        snapshot.nodes[0].title, "Fast notes",
+        "node fields keep the first record"
+    );
+    assert_eq!(snapshot.documents[0].markdown, "remote body");
+
+    storage
+        .apply_operations(&[save_document("note-twice", 2, "local pending", 50)])
+        .expect("local pending write");
+    let outcomes = storage
+        .apply_remote_operations(
+            &[recreate(
+                "remote-recreate-2",
+                pushed_through + 2,
+                "remote lost body",
+            )],
+            60,
+        )
+        .expect("recreate against pending local work");
+    assert_eq!(
+        outcomes,
+        vec![superseded(SyncConflictReason::ConcurrentDocumentVersion)]
+    );
+    assert_eq!(
+        document_of(&storage, "note-twice").markdown,
+        "local pending"
+    );
+    assert!(
+        history_rows(&storage, "note-twice")
+            .iter()
+            .any(|(_, markdown, provenance)| markdown == "remote lost body"
+                && provenance == "superseded")
+    );
 }
 
 #[test]
@@ -3591,30 +3993,25 @@ fn purge_creates_terminal_tombstones_and_blocks_resurrection() {
     let outcomes = storage
         .apply_remote_operations(&[delayed_edit, stale_recreate], 40)
         .expect("apply delayed operations");
-    for outcome in &outcomes {
-        let RemoteSyncApplyOutcome::Conflict(conflict) = outcome else {
-            panic!("expected tombstone-blocked conflict");
-        };
-        assert_eq!(conflict.subreason.as_deref(), Some("tombstone_blocked"));
-    }
-    assert!(storage.bootstrap().expect("bootstrap").nodes.is_empty());
-
-    let summaries = storage.document_conflicts().expect("summaries");
-    assert_eq!(summaries.len(), 2);
-    assert!(
-        summaries
-            .iter()
-            .all(|summary| !summary.local_version_available)
+    assert_eq!(
+        outcomes,
+        vec![
+            superseded(SyncConflictReason::TombstoneBlocked),
+            superseded(SyncConflictReason::TombstoneBlocked),
+        ]
     );
-    let versions = storage
-        .document_conflict_versions(&summaries[0].conflict_id)
-        .expect("versions");
-    assert_eq!(versions.remote.markdown, "delayed body");
-    assert_eq!(versions.local, None);
+    assert!(storage.bootstrap().expect("bootstrap").nodes.is_empty());
+    assert_eq!(
+        superseded_rows(&storage),
+        vec![
+            ("remote-delayed-edit".into(), "tombstone_blocked".into()),
+            ("remote-stale-recreate".into(), "tombstone_blocked".into()),
+        ]
+    );
 }
 
 #[test]
-fn edit_of_trashed_note_becomes_a_preserved_conflict() {
+fn edit_of_trashed_note_applies_and_survives_restore() {
     let storage = SqliteWorkspace::open_in_memory().expect("open database");
     storage
         .apply_operations(&[create_note("note-trashed")])
@@ -3626,12 +4023,13 @@ fn edit_of_trashed_note_becomes_a_preserved_conflict() {
         })])
         .expect("trash note");
     connect_at_cursor(&storage, 0);
+    let pushed_through = push_all(&storage, 1);
 
     let outcomes = storage
         .apply_remote_operations(
             &[remote_save(
                 "remote-trash-edit",
-                1,
+                pushed_through + 1,
                 "note-trashed",
                 1,
                 "edited while trashed",
@@ -3639,21 +4037,25 @@ fn edit_of_trashed_note_becomes_a_preserved_conflict() {
             30,
         )
         .expect("apply edit");
-    let RemoteSyncApplyOutcome::Conflict(conflict) = &outcomes[0] else {
-        panic!("expected conflict outcome");
-    };
-    assert_eq!(conflict.subreason.as_deref(), Some("tombstone_blocked"));
-
-    let summaries = storage.document_conflicts().expect("summaries");
-    assert!(summaries[0].local_version_available);
-    let versions = storage
-        .document_conflict_versions(&summaries[0].conflict_id)
-        .expect("versions");
-    assert_eq!(versions.remote.markdown, "edited while trashed");
-    assert_eq!(
-        versions.local.expect("trashed local version").markdown,
-        "# Fast notes\n\nSQLite search"
+    assert!(matches!(outcomes[0], RemoteSyncApplyOutcome::Applied(_)));
+    let document = document_of(&storage, "note-trashed");
+    assert_eq!(document.markdown, "edited while trashed");
+    assert!(
+        storage.bootstrap().expect("bootstrap").nodes[0]
+            .deleted_at
+            .is_some(),
+        "the body converges without touching tree state"
     );
+    assert!(storage.search("edited", 10).expect("search").is_empty());
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::RestoreSubtree {
+            root_id: "note-trashed".into(),
+            placement: NodePlacement::last(None),
+            at: 40,
+        })])
+        .expect("restore note");
+    assert_eq!(storage.search("edited", 10).expect("search").len(), 1);
 }
 
 #[test]
@@ -3695,11 +4097,11 @@ fn duplicate_remote_delete_with_matching_tombstone_is_a_no_op() {
             .expect("duplicate delete"),
         vec![RemoteSyncApplyOutcome::NoOp]
     );
-    assert!(storage.sync_conflicts().expect("conflicts").is_empty());
+    assert!(superseded_rows(&storage).is_empty());
 }
 
 #[test]
-fn concurrent_create_identity_collision_preserves_divergent_records() {
+fn concurrent_create_identity_collision_keeps_the_first_record() {
     let storage = SqliteWorkspace::open_in_memory().expect("open database");
     storage
         .apply_operations(&[op(WorkspaceOperation::CreateTag {
@@ -3751,12 +4153,16 @@ fn concurrent_create_identity_collision_preserves_divergent_records() {
         .apply_remote_operations(&[equivalent, divergent], 30)
         .expect("apply creates");
     assert_eq!(outcomes[0], RemoteSyncApplyOutcome::NoOp);
-    let RemoteSyncApplyOutcome::Conflict(conflict) = &outcomes[1] else {
-        panic!("expected identity conflict");
-    };
-    assert_eq!(conflict.reason_code, "identity_conflict");
+    assert_eq!(
+        outcomes[1],
+        superseded(SyncConflictReason::IdentityConflict)
+    );
     let snapshot = storage.bootstrap().expect("bootstrap");
     assert_eq!(snapshot.tags[0].name, "Local");
+    assert_eq!(
+        superseded_rows(&storage),
+        vec![("remote-divergent-create".into(), "identity_conflict".into())]
+    );
 }
 
 #[test]
@@ -3812,10 +4218,10 @@ fn property_reference_to_deleted_person_is_tombstone_blocked() {
             30,
         )
         .expect("apply property");
-    let RemoteSyncApplyOutcome::Conflict(conflict) = &outcomes[0] else {
-        panic!("expected conflict outcome");
-    };
-    assert_eq!(conflict.subreason.as_deref(), Some("tombstone_blocked"));
+    assert_eq!(
+        outcomes[0],
+        superseded(SyncConflictReason::TombstoneBlocked)
+    );
     assert!(
         storage
             .bootstrap()
@@ -3896,22 +4302,11 @@ fn replay_is_deterministic_across_batch_partitions() {
     let stepped_snapshot = stepped.bootstrap().expect("stepped bootstrap");
     assert_eq!(batched_snapshot, stepped_snapshot);
 
-    let conflict_keys = |storage: &SqliteWorkspace| {
-        storage
-            .sync_conflicts()
-            .expect("conflicts")
-            .into_iter()
-            .map(|conflict| {
-                (
-                    conflict.operation_id,
-                    conflict.reason_code,
-                    conflict.subreason,
-                    conflict.server_sequence,
-                )
-            })
-            .collect::<Vec<_>>()
-    };
-    assert_eq!(conflict_keys(&batched), conflict_keys(&stepped));
+    assert_eq!(received_rows(&batched), received_rows(&stepped));
+    assert_eq!(
+        history_rows(&batched, "note-replay"),
+        history_rows(&stepped, "note-replay")
+    );
 
     let cursor = |storage: &SqliteWorkspace| {
         storage
@@ -3925,7 +4320,7 @@ fn replay_is_deterministic_across_batch_partitions() {
 }
 
 #[test]
-fn portable_export_fails_closed_while_a_conflict_is_unresolved() {
+fn portable_export_succeeds_after_a_superseded_write() {
     let storage = SqliteWorkspace::open_in_memory().expect("open database");
     storage
         .apply_operations(&[create_note("note-export")])
@@ -3945,34 +4340,12 @@ fn portable_export_fails_closed_while_a_conflict_is_unresolved() {
             )],
             30,
         )
-        .expect("divergent save");
+        .expect("superseded save");
 
-    let error = storage
+    let archive = storage
         .export_archive(100)
-        .expect_err("export must fail closed");
-    assert!(matches!(&error, StorageError::InvalidOperation(message)
-        if message.contains("unresolved sync conflict")));
-
-    let conflict_id = storage.document_conflicts().expect("summaries")[0]
-        .conflict_id
-        .clone();
-    storage
-        .resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
-            conflict_id,
-            choice: skriuw_domain::DocumentConflictResolutionChoice::Merged {
-                document_json: json!({"type": "doc", "content": ["merged"]}),
-                markdown: "merged body".into(),
-            },
-            at: 100,
-        })
-        .expect("resolve by merge");
-    assert_eq!(
-        storage.bootstrap().expect("bootstrap").documents[0].markdown,
-        "merged body"
-    );
-    storage
-        .export_archive(200)
-        .expect("export after resolution");
+        .expect("export never fails closed");
+    assert_eq!(archive.documents[0].markdown, "local body");
 }
 
 #[test]
@@ -5080,4 +5453,1101 @@ fn annotations_survive_an_archive_round_trip() {
     let annotation = only_annotation(&imported);
     assert_eq!(annotation.status, AnnotationStatus::Resolved);
     assert_eq!(annotation.comments.len(), 1);
+}
+
+fn remote_folder(
+    operation_id: &str,
+    sequence: u64,
+    id: &str,
+    parent: Option<&str>,
+) -> ReplicatedWorkspaceOperation {
+    remote(
+        operation_id,
+        "device-remote",
+        sequence,
+        sequence,
+        WorkspaceOperation::CreateFolder {
+            id: id.into(),
+            title: id.into(),
+            placement: NodePlacement::last(parent.map(str::to_owned)),
+            at: sequence as i64,
+        },
+    )
+}
+
+fn remote_note(
+    operation_id: &str,
+    sequence: u64,
+    id: &str,
+    parent: Option<&str>,
+    markdown: &str,
+) -> ReplicatedWorkspaceOperation {
+    remote(
+        operation_id,
+        "device-remote",
+        sequence,
+        sequence,
+        WorkspaceOperation::CreateNote {
+            id: id.into(),
+            title: id.into(),
+            placement: NodePlacement::last(parent.map(str::to_owned)),
+            document_json: json!({"type": "doc", "content": [markdown]}),
+            markdown: markdown.into(),
+            at: sequence as i64,
+        },
+    )
+}
+
+fn remote_move(
+    operation_id: &str,
+    sequence: u64,
+    id: &str,
+    parent: Option<&str>,
+) -> ReplicatedWorkspaceOperation {
+    remote(
+        operation_id,
+        "device-remote",
+        sequence,
+        sequence,
+        WorkspaceOperation::MoveNode {
+            id: id.into(),
+            placement: NodePlacement::last(parent.map(str::to_owned)),
+            at: sequence as i64,
+        },
+    )
+}
+
+fn remote_trash(operation_id: &str, sequence: u64, root_id: &str) -> ReplicatedWorkspaceOperation {
+    remote(
+        operation_id,
+        "device-remote",
+        sequence,
+        sequence,
+        WorkspaceOperation::TrashSubtree {
+            root_id: root_id.into(),
+            at: sequence as i64,
+        },
+    )
+}
+
+fn parent_of(storage: &SqliteWorkspace, id: &str) -> Option<String> {
+    storage
+        .bootstrap()
+        .expect("bootstrap")
+        .nodes
+        .into_iter()
+        .find(|node| node.id == id)
+        .expect("node exists")
+        .parent_id
+}
+
+fn connected_fresh() -> SqliteWorkspace {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    connect_at_cursor(&storage, 0);
+    storage
+}
+
+fn own_operations(storage: &SqliteWorkspace) -> Vec<ReplicatedWorkspaceOperation> {
+    let connection = storage.lock().expect("database lock");
+    let mut statement = connection
+        .prepare(
+            "SELECT operation_id, device_id, client_sequence, base_server_sequence, \
+             server_sequence, operation_json FROM sync_received_operations \
+             WHERE outcome = 'local_echo' ORDER BY server_sequence",
+        )
+        .expect("prepare echo query");
+    statement
+        .query_map([], |row| {
+            let operation_json = row.get::<_, String>(5)?;
+            let envelope: WorkspaceOperationEnvelope =
+                serde_json::from_str(&operation_json).expect("stored envelope");
+            Ok(ReplicatedWorkspaceOperation {
+                operation_id: row.get(0)?,
+                device_id: row.get(1)?,
+                client_sequence: row.get::<_, i64>(2)? as u64,
+                base_server_sequence: row.get::<_, i64>(3)? as u64,
+                server_sequence: row.get::<_, i64>(4)? as u64,
+                payload: SyncOperationPayload::inline(envelope),
+            })
+        })
+        .expect("query echoes")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect echoes")
+}
+
+#[test]
+fn hydration_refuses_work_queued_by_another_connection_inside_its_transaction() {
+    let directory = tempdir().expect("tempdir");
+    let path = directory.path().join("hydration-race.db");
+    let first = SqliteWorkspace::open(&path).expect("open first connection");
+    let second = SqliteWorkspace::open(&path).expect("open second connection");
+    connect_at_cursor(&first, 0);
+    assert!(!first.has_pending_sync_operations().expect("pending"));
+    let archive = SqliteWorkspace::open_in_memory()
+        .expect("open database")
+        .export_archive(5)
+        .expect("export archive");
+
+    second
+        .apply_operations(&[folder("folder-raced", "Raced", 11)])
+        .expect("second connection queues local work between check and hydrate");
+
+    let error = first
+        .hydrate_from_checkpoint(&archive, 3)
+        .expect_err("the in-transaction precondition sees the new outbox row");
+    assert!(matches!(error, StorageError::InvalidOperation(_)));
+    assert_eq!(first.bootstrap().expect("bootstrap").nodes.len(), 1);
+    assert_eq!(
+        first
+            .sync_connection()
+            .expect("connection")
+            .expect("active")
+            .observed_server_sequence,
+        0
+    );
+    assert!(first.has_pending_sync_operations().expect("pending"));
+}
+
+#[test]
+fn hydration_precondition_covers_pushed_and_blocked_work_at_cursor_zero() {
+    let archive = SqliteWorkspace::open_in_memory()
+        .expect("open database")
+        .export_archive(5)
+        .expect("export archive");
+
+    let pushed = connected_fresh();
+    pushed
+        .apply_operations(&[folder("folder-pushed", "Pushed", 11)])
+        .expect("queue local work");
+    let batch = pushed
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("pending batch");
+    pushed
+        .acknowledge_sync_operations(
+            "sync-worker",
+            &[SyncAcceptedOperation {
+                operation_id: batch.request.operations[0].operation_id.clone(),
+                client_sequence: 1,
+                server_sequence: 5,
+            }],
+        )
+        .expect("non-contiguous acknowledgement leaves the cursor at zero");
+    let connection = pushed
+        .sync_connection()
+        .expect("connection")
+        .expect("active");
+    assert_eq!(connection.observed_server_sequence, 0);
+    assert_eq!(connection.next_client_sequence, 2);
+    assert!(!pushed.has_pending_sync_operations().expect("pending"));
+    assert!(matches!(
+        pushed.hydrate_from_checkpoint(&archive, 3),
+        Err(StorageError::InvalidOperation(_))
+    ));
+    assert_eq!(pushed.bootstrap().expect("bootstrap").nodes.len(), 1);
+
+    let blocked = connected_fresh();
+    block_middle_of_three(&blocked);
+    push_all(&blocked, 1);
+    let connection = blocked
+        .sync_connection()
+        .expect("connection")
+        .expect("active");
+    assert_eq!(connection.observed_server_sequence, 2);
+    assert!(blocked.has_pending_sync_operations().expect("pending"));
+    assert!(matches!(
+        blocked.hydrate_from_checkpoint(&archive, 3),
+        Err(StorageError::InvalidOperation(_))
+    ));
+}
+
+#[test]
+fn rehydration_keeps_local_evidence_and_reapplies_own_operations() {
+    let storage = connected_fresh();
+    storage
+        .apply_remote_operations(
+            &[remote_note("remote-x", 1, "note-x", None, "shared base")],
+            10,
+        )
+        .expect("shared note arrives");
+    storage
+        .apply_operations(&[
+            save_document("note-x", 1, "own edit", 12),
+            op(WorkspaceOperation::CreateTag {
+                tag: WorkspaceTag {
+                    id: "tag-gone".into(),
+                    name: "Gone".into(),
+                    color: None,
+                    created_at: 13,
+                    updated_at: 13,
+                    created_in: None,
+                },
+            }),
+            op(WorkspaceOperation::DeleteTag {
+                id: "tag-gone".into(),
+            }),
+            create_placed_note("note-y", NodePlacement::last(None), 14),
+        ])
+        .expect("local work");
+    let pushed_through = push_all(&storage, 2);
+    assert_eq!(pushed_through, 5);
+    storage
+        .apply_operations(&[save_document("note-y", 1, "parked body", 15)])
+        .expect("later local save");
+    let batch = storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("pending save");
+    storage
+        .block_claimed_sync_operations(
+            "sync-worker",
+            &[batch.request.operations[0].operation_id.clone()],
+            "cloud_rejected",
+        )
+        .expect("park the save");
+    let own = own_operations(&storage);
+    assert_eq!(own.len(), 4);
+
+    let source = SqliteWorkspace::open_in_memory().expect("open checkpoint source");
+    source
+        .apply_operations(&[op(WorkspaceOperation::CreateNote {
+            id: "note-x".into(),
+            title: "note-x".into(),
+            placement: NodePlacement::last(None),
+            document_json: json!({"type": "doc", "content": ["shared base"]}),
+            markdown: "shared base".into(),
+            at: 1,
+        })])
+        .expect("checkpoint content");
+    let archive = source.export_archive(20).expect("export checkpoint");
+
+    let summary = storage
+        .rehydrate_from_checkpoint(&archive, 1)
+        .expect("rehydrate after log truncation");
+    assert_eq!(summary.documents, 1);
+    let connection = storage
+        .sync_connection()
+        .expect("connection")
+        .expect("active");
+    assert_eq!(connection.observed_server_sequence, 1);
+    assert_eq!(connection.rehydrated_through, 1);
+    assert_eq!(connection.next_client_sequence, 5);
+    assert!(
+        storage
+            .sync_tombstones()
+            .expect("tombstones")
+            .iter()
+            .any(|tombstone| tombstone.entity_kind == "tag" && tombstone.entity_id == "tag-gone"),
+        "tombstones survive rehydration"
+    );
+    assert_eq!(
+        storage.sync_recovery_view().expect("view").blocked.len(),
+        1,
+        "blocked rows survive rehydration"
+    );
+    assert!(received_rows(&storage).is_empty());
+    let history = history_rows(&storage, "note-x");
+    assert!(history.contains(&(3, "own edit".into(), "local".into())));
+    assert!(history.contains(&(2, "shared base".into(), "remote".into())));
+    assert!(history_rows(&storage, "note-y").is_empty());
+    assert_eq!(document_of(&storage, "note-x").revision, 3);
+    assert_eq!(document_of(&storage, "note-x").markdown, "shared base");
+
+    let outcomes = storage
+        .apply_remote_operations(&own, 40)
+        .expect("own operations above the checkpoint re-apply");
+    assert!(matches!(outcomes[0], RemoteSyncApplyOutcome::Applied(_)));
+    assert_eq!(
+        outcomes[1],
+        superseded(SyncConflictReason::TombstoneBlocked),
+        "the kept tombstone stops the deleted tag from being recreated"
+    );
+    assert_eq!(outcomes[2], RemoteSyncApplyOutcome::NoOp);
+    assert!(matches!(outcomes[3], RemoteSyncApplyOutcome::Applied(_)));
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert_eq!(document_of(&storage, "note-x").markdown, "own edit");
+    assert!(snapshot.tags.is_empty());
+    assert!(snapshot.nodes.iter().any(|node| node.id == "note-y"));
+    assert_eq!(
+        storage
+            .sync_connection()
+            .expect("connection")
+            .expect("active")
+            .observed_server_sequence,
+        5
+    );
+
+    storage
+        .apply_operations(&[save_document("note-x", 4, "after rehydration", 50)])
+        .expect("local save continues from the raised revision");
+    assert!(history_rows(&storage, "note-x").contains(&(
+        5,
+        "after rehydration".into(),
+        "local".into()
+    )));
+}
+
+#[test]
+fn rehydration_requires_an_empty_outbox_but_tolerates_blocked_rows() {
+    let storage = connected_fresh();
+    storage
+        .apply_operations(&[folder("folder-pending", "Pending", 11)])
+        .expect("queue local work");
+    let archive = SqliteWorkspace::open_in_memory()
+        .expect("open database")
+        .export_archive(5)
+        .expect("export archive");
+    assert!(matches!(
+        storage.rehydrate_from_checkpoint(&archive, 3),
+        Err(StorageError::InvalidOperation(_))
+    ));
+    assert_eq!(storage.bootstrap().expect("bootstrap").nodes.len(), 1);
+
+    let batch = storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("pending batch");
+    storage
+        .block_claimed_sync_operations(
+            "sync-worker",
+            &[batch.request.operations[0].operation_id.clone()],
+            "cloud_rejected",
+        )
+        .expect("park the folder");
+    storage
+        .rehydrate_from_checkpoint(&archive, 3)
+        .expect("blocked rows do not stop rehydration");
+    assert_eq!(storage.sync_recovery_view().expect("view").blocked.len(), 1);
+}
+
+#[test]
+fn notes_mentioning_each_other_seed_to_a_second_device() {
+    let storage = connected_fresh();
+    let mention = |target: &str| {
+        json!({"type": "doc", "content": [
+            {"type": "mention_ref", "attrs": {"kind": "note", "id": target}}
+        ]})
+    };
+    let log = [
+        remote(
+            "remote-a",
+            "device-remote",
+            1,
+            1,
+            WorkspaceOperation::CreateNote {
+                id: "note-a".into(),
+                title: "A".into(),
+                placement: NodePlacement::last(None),
+                document_json: mention("note-b"),
+                markdown: "mentions b".into(),
+                at: 1,
+            },
+        ),
+        remote(
+            "remote-b",
+            "device-remote",
+            2,
+            2,
+            WorkspaceOperation::CreateNote {
+                id: "note-b".into(),
+                title: "B".into(),
+                placement: NodePlacement::last(None),
+                document_json: mention("note-a"),
+                markdown: "mentions a".into(),
+                at: 2,
+            },
+        ),
+    ];
+
+    let outcomes = storage
+        .apply_remote_operations(&log, 10)
+        .expect("mutual mentions seed in log order");
+    assert!(
+        outcomes
+            .iter()
+            .all(|outcome| matches!(outcome, RemoteSyncApplyOutcome::Applied(_)))
+    );
+    let references = storage.bootstrap().expect("bootstrap").references;
+    let targets = |note_id: &str| {
+        references
+            .iter()
+            .find(|references| references.note_id == note_id)
+            .map(|references| {
+                references
+                    .targets
+                    .iter()
+                    .map(|target| target.target_id.clone())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    };
+    assert_eq!(targets("note-a"), vec!["note-b".to_owned()]);
+    assert_eq!(targets("note-b"), vec!["note-a".to_owned()]);
+    let dangling = storage
+        .lock()
+        .expect("database lock")
+        .query_row("SELECT COUNT(*) FROM sync_dangling_references", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .expect("count dangling");
+    assert_eq!(dangling, 0);
+
+    let error = storage
+        .apply_operations(&[op(WorkspaceOperation::CreateNote {
+            id: "note-c".into(),
+            title: "C".into(),
+            placement: NodePlacement::last(None),
+            document_json: mention("note-missing"),
+            markdown: "mentions nothing".into(),
+            at: 3,
+        })])
+        .expect_err("local writes keep failing closed on dangling mentions");
+    assert!(matches!(error, StorageError::InvalidOperation(_)));
+}
+
+#[test]
+fn first_connection_seeds_note_covers_after_their_images() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[
+            create_note("note-covered"),
+            attach_image("cover-1", "note-covered", 'd'),
+            op(WorkspaceOperation::SetNoteCover {
+                note_id: "note-covered".into(),
+                image_id: Some("cover-1".into()),
+                at: 3,
+            }),
+            op(WorkspaceOperation::SetNoteCoverFullWidth {
+                note_id: "note-covered".into(),
+                full_width: true,
+                at: 4,
+            }),
+            op(WorkspaceOperation::SetNoteCoverTransform {
+                note_id: "note-covered".into(),
+                position_x: 25.0,
+                position_y: 75.0,
+                zoom: 1.5,
+                at: 5,
+            }),
+        ])
+        .expect("note with a cover");
+    connect_at_cursor(&storage, 0);
+
+    let batch = storage
+        .claim_sync_operations("initial-upload", 100, 50, 64)
+        .expect("claim")
+        .expect("initial upload");
+    let operation_types = batch
+        .request
+        .operations
+        .iter()
+        .map(|operation| {
+            envelope_of(operation)
+                .operation
+                .sync_policy()
+                .operation_type
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        operation_types,
+        vec![
+            "create_note",
+            "attach_image",
+            "set_note_cover",
+            "set_note_cover_full_width",
+            "set_note_cover_transform",
+        ]
+    );
+
+    let peer = SqliteWorkspace::open_in_memory().expect("open peer");
+    peer.apply_operations(&[
+        create_note("note-covered"),
+        attach_image("cover-1", "note-covered", 'd'),
+    ])
+    .expect("peer already holds the note and its image bytes");
+    peer.connect_sync(&NewSyncConnection {
+        workspace_id: "workspace-1".into(),
+        device_id: "device-peer".into(),
+        connected_at: 10,
+        observed_server_sequence: 0,
+    })
+    .expect("connect peer");
+    let pushed_through = push_all(&peer, 1);
+    let log = batch
+        .request
+        .operations
+        .iter()
+        .skip(2)
+        .enumerate()
+        .map(|(index, operation)| ReplicatedWorkspaceOperation {
+            operation_id: operation.operation_id.clone(),
+            device_id: "device-1".into(),
+            client_sequence: operation.client_sequence,
+            base_server_sequence: 0,
+            server_sequence: pushed_through + index as u64 + 1,
+            payload: operation.payload.clone(),
+        })
+        .collect::<Vec<_>>();
+    let outcomes = peer.apply_remote_operations(&log, 20).expect("seed peer");
+    assert!(
+        outcomes
+            .iter()
+            .all(|outcome| matches!(outcome, RemoteSyncApplyOutcome::Applied(_)))
+    );
+    let node = &peer.bootstrap().expect("bootstrap").nodes[0];
+    assert_eq!(node.cover_image_id.as_deref(), Some("cover-1"));
+    assert!(node.cover_full_width);
+    assert_eq!(
+        (
+            node.cover_position_x,
+            node.cover_position_y,
+            node.cover_zoom
+        ),
+        (25.0, 75.0, 1.5)
+    );
+}
+
+#[test]
+fn migration_0023_rewrites_open_conflicts_as_superseded_rows() {
+    let mut connection = Connection::open_in_memory().expect("open database");
+    SqliteWorkspace::configure(&connection).expect("configure database");
+    connection
+        .execute_batch(
+            "CREATE TABLE schema_migrations (\
+                 version INTEGER PRIMARY KEY,\
+                 name TEXT NOT NULL,\
+                 checksum TEXT NOT NULL,\
+                 applied_at INTEGER NOT NULL\
+             ) STRICT;",
+        )
+        .expect("create ledger");
+    for migration in MIGRATIONS.iter().filter(|migration| migration.version < 23) {
+        connection
+            .execute_batch(migration.sql)
+            .expect("apply pre-0023 migration");
+        connection
+            .execute(
+                "INSERT INTO schema_migrations(version, name, checksum, applied_at) \
+                 VALUES (?1, ?2, ?3, 1)",
+                rusqlite::params![migration.version, migration.name, checksum(migration.sql)],
+            )
+            .expect("record migration");
+    }
+    connection
+        .execute_batch(
+            "INSERT INTO workspace_nodes(id, kind, rank, title, created_at, updated_at) \
+                 VALUES ('note-1', 'note', 1024, 'Old', 1, 1);\
+             INSERT INTO documents(note_id, document_json, markdown, revision, word_count) \
+                 VALUES ('note-1', '{\"type\":\"doc\"}', 'local body', 2, 2);\
+             INSERT INTO history_outbox(id, note_id, revision, markdown, created_at) \
+                 VALUES ('history-1', 'note-1', 2, 'local body', 5);\
+             INSERT INTO sync_connection(singleton, workspace_id, device_id, connected_at, \
+                 observed_server_sequence, next_client_sequence) \
+                 VALUES (1, 'workspace-1', 'device-1', 1, 1, 1);\
+             INSERT INTO sync_conflicts(id, operation_id, operation_type, server_sequence, \
+                 reason_code, subreason, operation_json, message, created_at) \
+                 VALUES ('conflict-1', 'remote-1', 'save_document', 1, 'revision_conflict', \
+                 'concurrent_document_version', '{}', 'sync.conflict: concurrent', 9);\
+             INSERT INTO sync_document_conflicts(conflict_id, note_id, remote_document_json, \
+                 remote_markdown, remote_word_count, remote_at) \
+                 VALUES ('conflict-1', 'note-1', '{\"type\":\"doc\"}', 'remote body', 2, 8);\
+             INSERT INTO sync_received_operations(operation_id, device_id, client_sequence, \
+                 base_server_sequence, server_sequence, operation_json, outcome, conflict_id, \
+                 received_at) \
+                 VALUES ('remote-1', 'device-remote', 1, 0, 1, '{}', 'conflict', 'conflict-1', 9);",
+        )
+        .expect("seed a pre-0023 open conflict");
+
+    SqliteWorkspace::migrate(&mut connection).expect("upgrade database");
+
+    let (outcome, reason, detail) = connection
+        .query_row(
+            "SELECT outcome, reason, detail FROM sync_received_operations \
+             WHERE operation_id = 'remote-1'",
+            [],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                ))
+            },
+        )
+        .expect("migrated received row");
+    assert_eq!(outcome, "superseded");
+    assert_eq!(reason.as_deref(), Some("concurrent_document_version"));
+    assert_eq!(detail.as_deref(), Some("sync.conflict: concurrent"));
+    let conflict_tables = connection
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' \
+             AND name IN ('sync_conflicts', 'sync_document_conflicts')",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .expect("count conflict tables");
+    assert_eq!(conflict_tables, 0);
+    let provenance = connection
+        .query_row(
+            "SELECT provenance FROM history_outbox WHERE id = 'history-1'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .expect("migrated history row");
+    assert_eq!(provenance, "local");
+    let rehydrated_through = connection
+        .query_row(
+            "SELECT rehydrated_through FROM sync_connection WHERE singleton = 1",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .expect("rehydrated_through column");
+    assert_eq!(rehydrated_through, 0);
+    assert!(
+        table_columns(&connection, "sync_dangling_references")
+            .expect("dangling table")
+            .contains(&"target_id".to_owned())
+    );
+    connection
+        .execute(
+            "INSERT INTO sync_blocked_operations(id, operation_type, operation_json, reason_code, \
+             created_at) VALUES ('blocked-1', 'save_document', '{}', 'cloud_rejected', 1)",
+            [],
+        )
+        .expect("cloud_rejected is an accepted reason");
+}
+
+#[test]
+fn retry_delay_is_reported_and_cleared_by_an_explicit_refresh() {
+    let storage = connected_fresh();
+    assert_eq!(storage.next_sync_attempt_at().expect("idle"), None);
+    storage
+        .apply_operations(&[folder("folder-retry", "Retry", 11)])
+        .expect("queue local work");
+    assert_eq!(storage.next_sync_attempt_at().expect("immediate"), Some(0));
+    let batch = storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("pending batch");
+    assert_eq!(
+        storage
+            .next_sync_attempt_at()
+            .expect("claimed rows are not waiting"),
+        None
+    );
+    storage
+        .release_sync_operations(
+            "sync-worker",
+            &[batch.request.operations[0].operation_id.clone()],
+            5_000,
+            &Diagnostic::new(
+                DiagnosticContext::Sync,
+                DiagnosticCategory::Unavailable,
+                "offline",
+            ),
+        )
+        .expect("release with retry");
+    assert_eq!(
+        storage.next_sync_attempt_at().expect("delayed"),
+        Some(5_000)
+    );
+    assert!(
+        storage
+            .claim_sync_operations("sync-worker", 200, 50, 64)
+            .expect("claim")
+            .is_none()
+    );
+
+    assert_eq!(storage.reset_sync_retry_times(200).expect("reset"), 1);
+    assert_eq!(storage.next_sync_attempt_at().expect("cleared"), Some(0));
+    assert!(
+        storage
+            .claim_sync_operations("sync-worker", 200, 50, 64)
+            .expect("claim after reset")
+            .is_some()
+    );
+    assert_eq!(
+        storage.reset_sync_retry_times(200).expect("nothing left"),
+        0
+    );
+}
+
+#[test]
+fn reads_a_workspace_delta_for_specific_identifiers() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[
+            folder("folder-1", "Folder", 1),
+            create_placed_note("note-1", NodePlacement::last(Some("folder-1".into())), 2),
+            create_placed_note("note-2", NodePlacement::last(None), 3),
+        ])
+        .expect("seed workspace");
+
+    let delta = storage
+        .read_workspace_delta(&["note-1".into(), "folder-1".into(), "missing".into()])
+        .expect("read delta");
+    assert_eq!(
+        delta
+            .documents
+            .iter()
+            .map(|document| document.note_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["note-1"]
+    );
+    assert_eq!(
+        delta
+            .nodes
+            .iter()
+            .map(|node| (node.id.as_str(), node.kind))
+            .collect::<Vec<_>>(),
+        vec![("folder-1", NodeKind::Folder), ("note-1", NodeKind::Note)]
+    );
+    assert!(
+        storage
+            .read_workspace_delta(&[])
+            .expect("empty delta")
+            .documents
+            .is_empty()
+    );
+}
+
+#[test]
+fn concurrent_valid_moves_take_the_later_placement_in_server_order() {
+    let log = [
+        remote_folder("s9-p", 1, "folder-p", None),
+        remote_folder("s9-q", 2, "folder-q", None),
+        remote_note("s9-x", 3, "note-x", None, "moved"),
+        remote_move("s9-move-p", 4, "note-x", Some("folder-p")),
+        remote_move("s9-move-q", 5, "note-x", Some("folder-q")),
+    ];
+    let batched = connected_fresh();
+    let outcomes = batched
+        .apply_remote_operations(&log, 10)
+        .expect("apply as one batch");
+    assert!(
+        outcomes
+            .iter()
+            .all(|outcome| matches!(outcome, RemoteSyncApplyOutcome::Applied(_)))
+    );
+    assert_eq!(parent_of(&batched, "note-x").as_deref(), Some("folder-q"));
+
+    let stepped = connected_fresh();
+    for operation in &log {
+        stepped
+            .apply_remote_operations(std::slice::from_ref(operation), 10)
+            .expect("apply one operation");
+    }
+    assert_eq!(
+        batched.bootstrap().expect("batched"),
+        stepped.bootstrap().expect("stepped")
+    );
+}
+
+#[test]
+fn move_against_a_deleted_parent_keeps_the_last_valid_placement() {
+    let storage = connected_fresh();
+    let outcomes = storage
+        .apply_remote_operations(
+            &[
+                remote_folder("s10-p", 1, "folder-p", None),
+                remote_folder("s10-q", 2, "folder-q", None),
+                remote_note("s10-x", 3, "note-x", Some("folder-q"), "stays"),
+                remote_trash("s10-trash-p", 4, "folder-p"),
+                remote_move("s10-move-trashed", 5, "note-x", Some("folder-p")),
+                remote(
+                    "s10-purge-p",
+                    "device-remote",
+                    6,
+                    6,
+                    WorkspaceOperation::PurgeSubtree {
+                        root_id: "folder-p".into(),
+                        trashed_before: 10,
+                    },
+                ),
+                remote_move("s10-move-purged", 7, "note-x", Some("folder-p")),
+            ],
+            10,
+        )
+        .expect("apply the log");
+    assert_eq!(outcomes[4], superseded(SyncConflictReason::TreeConflict));
+    assert_eq!(
+        outcomes[6],
+        superseded(SyncConflictReason::TombstoneBlocked)
+    );
+    assert_eq!(parent_of(&storage, "note-x").as_deref(), Some("folder-q"));
+    assert_eq!(
+        storage
+            .sync_connection()
+            .expect("connection")
+            .expect("active")
+            .observed_server_sequence,
+        7
+    );
+    assert_eq!(
+        superseded_rows(&storage),
+        vec![
+            ("s10-move-trashed".into(), "tree_conflict".into()),
+            ("s10-move-purged".into(), "tombstone_blocked".into()),
+        ]
+    );
+}
+
+#[test]
+fn crossed_moves_keep_the_first_valid_placement_and_stay_acyclic() {
+    let storage = connected_fresh();
+    let outcomes = storage
+        .apply_remote_operations(
+            &[
+                remote_folder("s11-a", 1, "folder-a", None),
+                remote_folder("s11-b", 2, "folder-b", None),
+                remote_move("s11-a-under-b", 3, "folder-a", Some("folder-b")),
+                remote_move("s11-b-under-a", 4, "folder-b", Some("folder-a")),
+            ],
+            10,
+        )
+        .expect("apply the log");
+    assert!(matches!(outcomes[2], RemoteSyncApplyOutcome::Applied(_)));
+    assert_eq!(outcomes[3], superseded(SyncConflictReason::TreeConflict));
+    assert_eq!(parent_of(&storage, "folder-a").as_deref(), Some("folder-b"));
+    assert_eq!(parent_of(&storage, "folder-b"), None);
+}
+
+#[test]
+fn restore_into_a_deleted_destination_leaves_the_subtree_trashed() {
+    let storage = connected_fresh();
+    let restore = |operation_id: &str, sequence: u64, parent: Option<&str>| {
+        remote(
+            operation_id,
+            "device-remote",
+            sequence,
+            sequence,
+            WorkspaceOperation::RestoreSubtree {
+                root_id: "note-x".into(),
+                placement: NodePlacement::last(parent.map(str::to_owned)),
+                at: sequence as i64,
+            },
+        )
+    };
+    let outcomes = storage
+        .apply_remote_operations(
+            &[
+                remote_folder("s13-d", 1, "folder-d", None),
+                remote_note("s13-x", 2, "note-x", None, "trashed"),
+                remote_trash("s13-trash-x", 3, "note-x"),
+                remote_trash("s13-trash-d", 4, "folder-d"),
+                restore("s13-restore-lost", 5, Some("folder-d")),
+                restore("s13-restore-root", 6, None),
+            ],
+            10,
+        )
+        .expect("apply the log");
+    assert_eq!(outcomes[4], superseded(SyncConflictReason::TreeConflict));
+    assert!(matches!(outcomes[5], RemoteSyncApplyOutcome::Applied(_)));
+    let nodes = storage.bootstrap().expect("bootstrap").nodes;
+    let note = nodes.iter().find(|node| node.id == "note-x").expect("note");
+    assert_eq!(note.deleted_at, None);
+    assert_eq!(note.parent_id, None);
+}
+
+#[test]
+fn property_remove_outranks_a_later_edit_and_reorder() {
+    let storage = connected_fresh();
+    let set = |operation_id: &str, sequence: u64, name: &str| {
+        let mut property = text_property("note-x", "property-p", 0);
+        property.field.name = name.into();
+        remote(
+            operation_id,
+            "device-remote",
+            sequence,
+            sequence,
+            WorkspaceOperation::SetNoteProperty {
+                property,
+                at: sequence as i64,
+            },
+        )
+    };
+    let outcomes = storage
+        .apply_remote_operations(
+            &[
+                remote_note("s15-x", 1, "note-x", None, "properties"),
+                set("s15-set", 2, "Owner"),
+                remote(
+                    "s15-remove",
+                    "device-remote",
+                    3,
+                    3,
+                    WorkspaceOperation::RemoveNoteProperty {
+                        note_id: "note-x".into(),
+                        property_id: "property-p".into(),
+                        at: 3,
+                    },
+                ),
+                set("s15-edit", 4, "Renamed owner"),
+                remote(
+                    "s15-reorder",
+                    "device-remote",
+                    5,
+                    5,
+                    WorkspaceOperation::ReorderNoteProperties {
+                        note_id: "note-x".into(),
+                        ordered_property_ids: vec!["property-p".into()],
+                        at: 5,
+                    },
+                ),
+            ],
+            10,
+        )
+        .expect("apply the log");
+    assert_eq!(
+        outcomes[3],
+        superseded(SyncConflictReason::TombstoneBlocked)
+    );
+    assert_eq!(
+        outcomes[4],
+        superseded(SyncConflictReason::CollectionConflict)
+    );
+    assert!(
+        storage
+            .bootstrap()
+            .expect("bootstrap")
+            .properties
+            .is_empty()
+    );
+}
+
+#[test]
+fn template_updates_commute_and_the_last_writer_wins() {
+    let storage = connected_fresh();
+    let template = |operation_id: &str, sequence: u64, id: &str, name: &str, position: i64| {
+        remote(
+            operation_id,
+            "device-remote",
+            sequence,
+            sequence,
+            WorkspaceOperation::SetNotePropertyTemplate {
+                template: NotePropertyTemplate {
+                    id: id.into(),
+                    name: name.into(),
+                    position,
+                    properties: Vec::new(),
+                },
+            },
+        )
+    };
+    let outcomes = storage
+        .apply_remote_operations(
+            &[
+                template("s16-t1", 1, "template-1", "One", 0),
+                template("s16-t2", 2, "template-2", "Two", 1),
+                template("s16-t1-a", 3, "template-1", "One from A", 0),
+                template("s16-t2-b", 4, "template-2", "Two from B", 1),
+                template("s16-t1-b", 5, "template-1", "One from B", 0),
+            ],
+            10,
+        )
+        .expect("apply the log");
+    assert!(
+        outcomes
+            .iter()
+            .all(|outcome| matches!(outcome, RemoteSyncApplyOutcome::Applied(_)))
+    );
+    let templates = storage.bootstrap().expect("bootstrap").property_templates;
+    assert_eq!(
+        templates
+            .iter()
+            .map(|template| (
+                template.id.as_str(),
+                template.name.as_str(),
+                template.position
+            ))
+            .collect::<Vec<_>>(),
+        vec![
+            ("template-1", "One from B", 0),
+            ("template-2", "Two from B", 1)
+        ]
+    );
+}
+
+#[test]
+fn blocking_refuses_to_renumber_a_batch_that_was_pushed_before() {
+    let storage = connected_fresh();
+    storage
+        .apply_operations(&[folder("folder-1", "First", 11)])
+        .expect("queue one operation");
+    let batch = storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("pending batch");
+    let operation_id = batch.request.operations[0].operation_id.clone();
+    storage
+        .release_sync_operations(
+            "sync-worker",
+            std::slice::from_ref(&operation_id),
+            150,
+            &Diagnostic::new(
+                DiagnosticContext::Sync,
+                DiagnosticCategory::Backend,
+                "lost ack",
+            ),
+        )
+        .expect("release after a push whose acknowledgement was lost");
+    storage
+        .claim_sync_operations("sync-worker", 200, 50, 64)
+        .expect("claim")
+        .expect("second attempt");
+
+    let error = storage
+        .block_claimed_sync_operations(
+            "sync-worker",
+            std::slice::from_ref(&operation_id),
+            "asset_content_missing",
+        )
+        .expect_err("a second attempt may already be server-visible");
+    assert!(matches!(error, StorageError::ReleaseRequired(_)));
+    assert!(
+        storage
+            .blocked_sync_operations()
+            .expect("blocked")
+            .is_empty()
+    );
+    storage
+        .release_sync_operations(
+            "sync-worker",
+            &[operation_id],
+            300,
+            &Diagnostic::new(
+                DiagnosticContext::Sync,
+                DiagnosticCategory::Backend,
+                "retry",
+            ),
+        )
+        .expect("the lease is still intact and can be released");
+}
+
+#[test]
+fn busy_and_locked_sqlite_failures_map_to_a_transient_error() {
+    let busy = rusqlite::Error::SqliteFailure(
+        rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),
+        Some("database is locked".into()),
+    );
+    let locked = rusqlite::Error::SqliteFailure(
+        rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_LOCKED),
+        None,
+    );
+    let corrupt = rusqlite::Error::SqliteFailure(
+        rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CORRUPT),
+        None,
+    );
+    assert!(matches!(crate::error::backend(busy), StorageError::Busy(_)));
+    assert!(matches!(
+        crate::error::backend(locked),
+        StorageError::Busy(_)
+    ));
+    assert!(matches!(
+        crate::error::backend(corrupt),
+        StorageError::Backend(_)
+    ));
+    assert!(matches!(
+        crate::error::backend(std::io::Error::other("disk")),
+        StorageError::Backend(_)
+    ));
 }

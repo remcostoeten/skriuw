@@ -8,12 +8,16 @@ use skriuw_storage::{
     NewSyncConnection, WorkspaceMaintenance, WorkspaceStorage, WorkspaceSyncQueue,
 };
 use skriuw_sync::{
+    BLOCKED_REASON_LOG_TRUNCATED, BLOCKED_REASON_LOG_TRUNCATED_WITHOUT_CHECKPOINT,
     BLOCKED_REASON_REJECTED_CHECKPOINT, CheckpointPublication, CheckpointPublicationConfig,
-    CheckpointPublicationState, SyncBackoff, SyncBackoffConfig, SyncCancellation, SyncClock,
-    SyncCycleConfig, SyncCycleOutcome, SyncStatus, TransportError, run_checkpoint_publication,
+    CheckpointPublicationState, SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig,
+    SyncCycleOutcome, SyncCycleState, SyncStatus, TransportError, run_checkpoint_publication,
     run_sync_cycle,
 };
-use support::{FakeAssetStore, FakeClock, FakeServer, FakeTransport, create_note};
+use support::{
+    FakeAssetStore, FakeClock, FakeServer, FakeTransport, PullFault, PushFault, create_note,
+    save_document,
+};
 
 const WORKSPACE: &str = "workspace-1";
 
@@ -22,7 +26,7 @@ struct Device {
     transport: Arc<FakeTransport>,
     assets: Arc<FakeAssetStore>,
     clock: Arc<FakeClock>,
-    backoff: SyncBackoff,
+    state: SyncCycleState,
     cancellation: SyncCancellation,
     config: SyncCycleConfig,
     checkpoint_config: CheckpointPublicationConfig,
@@ -36,7 +40,7 @@ impl Device {
             transport: FakeTransport::new(server, device_id),
             assets: FakeAssetStore::new(),
             clock: Arc::clone(clock),
-            backoff: SyncBackoff::new(SyncBackoffConfig {
+            state: SyncCycleState::new(SyncBackoffConfig {
                 base_delay_ms: 1_000,
                 max_delay_ms: 60_000,
                 jitter_seed: 7,
@@ -72,7 +76,7 @@ impl Device {
             self.assets.as_ref(),
             self.clock.as_ref(),
             &self.cancellation,
-            &mut self.backoff,
+            &mut self.state,
             &self.config,
         )
     }
@@ -88,9 +92,26 @@ impl Device {
                 cycle_config: &self.config,
                 config: &self.checkpoint_config,
             },
-            &mut self.backoff,
+            &mut self.state.backoff,
             &mut self.checkpoint_state,
         )
+    }
+
+    /// One coordinator wake: the cycle followed by due checkpoint
+    /// publication, repeated while the outcome asks to run again at once.
+    fn settle(&mut self) -> SyncCycleOutcome {
+        for _ in 0..12 {
+            let outcome = self.cycle();
+            match outcome.status {
+                SyncStatus::Pending | SyncStatus::Rehydrating => {}
+                SyncStatus::UpToDate => {
+                    assert_eq!(self.publish_checkpoints(), None);
+                    return outcome;
+                }
+                _ => return outcome,
+            }
+        }
+        panic!("sync did not settle within the cycle budget");
     }
 
     fn cursor(&self) -> u64 {
@@ -112,6 +133,36 @@ impl Device {
             .collect::<Vec<_>>();
         titles.sort();
         titles
+    }
+
+    fn markdown(&self, note_id: &str) -> String {
+        self.storage
+            .bootstrap()
+            .expect("bootstrap")
+            .documents
+            .iter()
+            .find(|document| document.note_id == note_id)
+            .expect("document present")
+            .markdown
+            .clone()
+    }
+
+    fn revision(&self, note_id: &str) -> i64 {
+        self.storage
+            .bootstrap()
+            .expect("bootstrap")
+            .documents
+            .iter()
+            .find(|document| document.note_id == note_id)
+            .expect("document present")
+            .revision
+    }
+}
+
+fn blocked_reason(status: &SyncStatus) -> Option<&str> {
+    match status {
+        SyncStatus::Blocked { reason, .. } => Some(reason.as_str()),
+        _ => None,
     }
 }
 
@@ -146,7 +197,10 @@ fn new_device_hydrates_from_the_latest_checkpoint_and_pulls_only_the_tail() {
     let outcome = fresh.cycle();
 
     assert_eq!(outcome.status, SyncStatus::UpToDate);
-    assert!(outcome.workspace_changed);
+    assert!(
+        outcome.changes.full,
+        "a hydration demands a full renderer reload"
+    );
     assert_eq!(fresh.cursor(), 4);
     assert_eq!(fresh.note_titles(), publisher.note_titles());
     assert_eq!(fresh.transport.checkpoint_fetch_calls(), 1);
@@ -264,11 +318,13 @@ fn hydration_failure_from_missing_checkpoint_content_stays_visible() {
     let outcome = fresh.cycle();
 
     assert_eq!(
-        outcome.status,
-        SyncStatus::Blocked {
-            reason: BLOCKED_REASON_REJECTED_CHECKPOINT.into(),
-        }
+        blocked_reason(&outcome.status),
+        Some(BLOCKED_REASON_REJECTED_CHECKPOINT)
     );
+    assert!(matches!(
+        &outcome.status,
+        SyncStatus::Blocked { detail: Some(detail), .. } if !detail.is_empty()
+    ));
     assert!(outcome.retry_at_ms.is_some());
     assert_eq!(
         fresh.cursor(),
@@ -308,4 +364,133 @@ fn export_maintenance_stays_available_to_the_publisher() {
         .storage
         .export_archive(clock.now_ms())
         .expect("export still available after publication");
+}
+
+/// A device that stayed offline past the compaction horizon: its cursor sits
+/// below the floor, so the log can no longer be replayed. It rebuilds from
+/// the latest checkpoint, keeps the writes it made before going offline, and
+/// re-applies its own acknowledged-but-never-echoed writes above the
+/// checkpoint as ordinary remote operations.
+#[test]
+fn a_device_offline_beyond_the_compaction_horizon_rehydrates_from_the_checkpoint() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut publisher = seed_publisher(&server, &clock, 2);
+    publisher.checkpoint_config = CheckpointPublicationConfig {
+        publish_interval_operations: 2,
+    };
+
+    let mut stale = Device::open(&server, "device-b", &clock);
+    stale.connect("device-b");
+    assert_eq!(stale.settle().status, SyncStatus::UpToDate);
+    assert_eq!(stale.cursor(), 2);
+
+    stale.apply(vec![create_note(
+        "note-b",
+        "Written on the stale device",
+        2,
+    )]);
+    stale.apply(vec![save_document(
+        "note-1",
+        stale.revision("note-1"),
+        "Edited on B",
+        3,
+    )]);
+    assert_eq!(stale.settle().status, SyncStatus::UpToDate);
+    assert_eq!(stale.cursor(), 4);
+    assert_eq!(publisher.settle().status, SyncStatus::UpToDate);
+    assert_eq!(server.latest_checkpoint_sequence(), Some(4));
+
+    publisher.apply(vec![create_note("note-5", "Note 5", 5)]);
+    publisher.apply(vec![create_note("note-6", "Note 6", 6)]);
+    assert_eq!(publisher.settle().status, SyncStatus::UpToDate);
+    assert_eq!(server.latest_checkpoint_sequence(), Some(6));
+
+    // The stale device pushes one more write above the checkpoint whose echo
+    // it never receives, then the service retires the log below the
+    // checkpoint while the device sits at cursor 4.
+    stale.apply(vec![create_note("note-b-2", "Pushed but never echoed", 7)]);
+    stale.transport.script_pull_fault(PullFault::Transient);
+    assert!(matches!(stale.cycle().status, SyncStatus::Retrying { .. }));
+    assert_eq!(server.log_len(), 7);
+    assert_eq!(stale.cursor(), 4);
+    server.compact_through(6);
+
+    let truncated = stale.cycle();
+    assert_eq!(
+        truncated.status,
+        SyncStatus::Rehydrating,
+        "a truncated log with an empty outbox asks for a rebuild"
+    );
+    assert_eq!(truncated.retry_at_ms, Some(clock.now_ms()));
+    assert_eq!(stale.cursor(), 4, "nothing moved before the rebuild");
+
+    let rebuilt = stale.cycle();
+    assert_eq!(rebuilt.status, SyncStatus::UpToDate, "{:?}", rebuilt.status);
+    assert!(rebuilt.changes.full);
+    assert_eq!(stale.cursor(), 7, "the cursor reaches the latest sequence");
+    assert_eq!(stale.markdown("note-1"), "Edited on B");
+    assert!(
+        stale
+            .note_titles()
+            .contains(&"Written on the stale device".to_string()),
+        "own writes inside the checkpoint survive the rebuild"
+    );
+    assert!(
+        stale
+            .note_titles()
+            .contains(&"Pushed but never echoed".to_string()),
+        "own writes above the checkpoint reappear through the ordered tail"
+    );
+    assert_eq!(
+        stale
+            .storage
+            .sync_connection()
+            .expect("connection")
+            .expect("active")
+            .rehydrated_through,
+        6
+    );
+
+    stale.apply(vec![create_note("note-after", "After the rebuild", 8)]);
+    assert_eq!(stale.settle().status, SyncStatus::UpToDate);
+    assert_eq!(publisher.settle().status, SyncStatus::UpToDate);
+    assert_eq!(publisher.note_titles(), stale.note_titles());
+}
+
+#[test]
+fn rehydration_is_refused_while_local_work_is_waiting_and_blocked_without_a_checkpoint() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut publisher = Device::open(&server, "device-a", &clock);
+    publisher.connect("device-a");
+    publisher.apply(vec![create_note("note-1", "Note 1", 1)]);
+    assert_eq!(publisher.cycle().status, SyncStatus::UpToDate);
+
+    let mut stale = Device::open(&server, "device-b", &clock);
+    stale.connect("device-b");
+    assert_eq!(stale.cycle().status, SyncStatus::UpToDate);
+
+    publisher.apply(vec![create_note("note-2", "Note 2", 2)]);
+    assert_eq!(publisher.cycle().status, SyncStatus::UpToDate);
+    server.compact_through(2);
+
+    stale.apply(vec![create_note("note-b", "Unsent", 3)]);
+    stale.transport.script_push_fault(PushFault::Transient);
+    let blocked = stale.cycle();
+    assert_eq!(
+        blocked_reason(&blocked.status),
+        Some(BLOCKED_REASON_LOG_TRUNCATED)
+    );
+    assert_eq!(stale.cursor(), 1);
+
+    clock.advance(blocked.retry_at_ms.expect("retry") - clock.now_ms() + 1);
+    assert_eq!(stale.cycle().status, SyncStatus::Rehydrating);
+    let without_checkpoint = stale.cycle();
+    assert_eq!(
+        blocked_reason(&without_checkpoint.status),
+        Some(BLOCKED_REASON_LOG_TRUNCATED_WITHOUT_CHECKPOINT)
+    );
+    assert_eq!(stale.cursor(), 1);
+    assert_eq!(stale.note_titles(), ["Note 1", "Unsent"]);
 }

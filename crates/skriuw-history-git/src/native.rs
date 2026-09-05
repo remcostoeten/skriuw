@@ -11,7 +11,7 @@ use skriuw_history::{
     HistoryMaterializer, HistoryReadError, HistoryReader, HistoryVersion, MaterializationError,
 };
 use skriuw_storage::{Diagnostic, DiagnosticCategory, DiagnosticContext};
-use skriuw_storage::{HistoryMaterialization, PendingHistoryRevision};
+use skriuw_storage::{HistoryMaterialization, HistoryProvenance, PendingHistoryRevision};
 use thiserror::Error;
 
 const HISTORY_REF: &str = "refs/heads/history";
@@ -205,11 +205,15 @@ impl GitHistoryMaterializer {
         let parent = history_commit(&repository)?;
         let parents = parent.iter().collect::<Vec<_>>();
         let signature = signature(item.created_at)?;
-        let summary = summary(item.revision);
+        let summary = summary(item);
         let word_count = count_words(&item.markdown);
         let message = format!(
-            "{summary}\n\nSkriuw-Outbox: {}\nSkriuw-Note: {}\nSkriuw-Revision: {}\nSkriuw-Created-At: {}\nSkriuw-Word-Count: {word_count}",
-            item.id, item.note_id, item.revision, item.created_at
+            "{summary}\n\nSkriuw-Outbox: {}\nSkriuw-Note: {}\nSkriuw-Revision: {}\nSkriuw-Created-At: {}\nSkriuw-Word-Count: {word_count}\nSkriuw-Provenance: {}",
+            item.id,
+            item.note_id,
+            item.revision,
+            item.created_at,
+            item.provenance.as_str()
         );
         let commit_id = repository.commit(
             Some(HISTORY_REF),
@@ -731,11 +735,15 @@ fn signature(created_at: i64) -> Result<Signature<'static>, GitHistoryError> {
     )?)
 }
 
-fn summary(revision: i64) -> String {
-    if revision == 1 {
-        "Created note".into()
-    } else {
-        format!("Saved revision {revision}")
+fn summary(item: &PendingHistoryRevision) -> String {
+    match item.provenance {
+        HistoryProvenance::Superseded => "Version from another device (superseded)".into(),
+        HistoryProvenance::Local | HistoryProvenance::Remote if item.revision == 1 => {
+            "Created note".into()
+        }
+        HistoryProvenance::Local | HistoryProvenance::Remote => {
+            format!("Saved revision {}", item.revision)
+        }
     }
 }
 
@@ -749,7 +757,9 @@ mod tests {
     use skriuw_history::rebuild_history_cache;
     use skriuw_history::{HistoryReader, HistoryWorkResult, HistoryWorker};
     use skriuw_sqlite::{HISTORY_COALESCE_WINDOW_MS, SqliteWorkspace};
-    use skriuw_storage::{HistoryCache, PendingHistoryRevision, WorkspaceStorage};
+    use skriuw_storage::{
+        HistoryCache, HistoryProvenance, PendingHistoryRevision, WorkspaceStorage,
+    };
     use tempfile::tempdir;
 
     use super::{
@@ -1056,6 +1066,7 @@ mod tests {
                 markdown: "# Second".into(),
                 created_at: 2_000,
                 attempts: 1,
+                provenance: HistoryProvenance::Local,
             })
             .expect("second note");
         let report = GitHistoryReader::open(directory.path())
@@ -1327,7 +1338,39 @@ mod tests {
             markdown: markdown.into(),
             created_at: revision * 1_000,
             attempts: 1,
+            provenance: HistoryProvenance::Local,
         }
+    }
+
+    #[test]
+    fn a_superseded_version_is_named_after_its_origin() {
+        let directory = tempdir().expect("temporary directory");
+        let materializer = GitHistoryMaterializer::open(directory.path()).expect("open history");
+        materializer
+            .materialize_revision(&item("item-1", 1, "# First"))
+            .expect("first note");
+        let superseded = materializer
+            .materialize_revision(&PendingHistoryRevision {
+                provenance: HistoryProvenance::Superseded,
+                ..item("item-2", 1, "# Lost")
+            })
+            .expect("superseded version");
+        let remote = materializer
+            .materialize_revision(&PendingHistoryRevision {
+                provenance: HistoryProvenance::Remote,
+                ..item("item-3", 2, "# Remote")
+            })
+            .expect("remote version");
+
+        assert_eq!(
+            superseded.summary,
+            "Version from another device (superseded)"
+        );
+        assert_eq!(remote.summary, "Saved revision 2");
+        let version = materializer
+            .read_history_version("note-1", &superseded.version_id)
+            .expect("read superseded version");
+        assert_eq!(version.markdown, "# Lost");
     }
 
     #[derive(Clone, Copy)]

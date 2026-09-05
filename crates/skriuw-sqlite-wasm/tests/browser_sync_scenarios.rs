@@ -22,12 +22,12 @@ use skriuw_sqlite_wasm::{
 };
 use skriuw_storage::{WorkspaceStorage, WorkspaceSyncQueue};
 use skriuw_sync::{
-    SyncBackoff, SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig, SyncStatus,
-    SyncTransport, TransportError, run_sync_cycle,
+    RemoteChangeSet, SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig,
+    SyncCycleState, SyncStatus, SyncTransport, TransportError, run_sync_cycle,
 };
 use support::{
     FakeAssetStore, FakeClock, FakeServer, FakeTransport, PullFault, PushFault, attach_image,
-    create_note, rename_node,
+    create_note, rename_node, save_document, superseded_history,
 };
 
 const WORKSPACE: &str = "workspace-1";
@@ -185,20 +185,27 @@ impl BrowserDevice {
     }
 
     fn cycle(&mut self) -> (SyncStatus, Option<i64>) {
+        let (status, retry_at_ms, _) = self.cycle_with_changes();
+        (status, retry_at_ms)
+    }
+
+    fn cycle_with_changes(&mut self) -> (SyncStatus, Option<i64>, RemoteChangeSet) {
         match self.expect_value(BrowserWorkerCommand::SyncCycle) {
-            BrowserWorkerValue::SyncCycle(report) => (report.status, report.retry_at_ms),
+            BrowserWorkerValue::SyncCycle(report) => {
+                (report.status, report.retry_at_ms, report.changes)
+            }
             other => panic!("unexpected value: {other:?}"),
         }
     }
 
-    /// Drives cycles the way the JavaScript scheduler does: `pending` retries
-    /// immediately, `retrying` and `blocked` wait until the reported retry
-    /// deadline, everything else settles.
+    /// Drives cycles the way the JavaScript scheduler does: `pending` and
+    /// `rehydrating` retry immediately, `retrying` and `blocked` wait until
+    /// the reported retry deadline, everything else settles.
     fn settle(&mut self) -> SyncStatus {
         for _ in 0..12 {
             let (status, retry_at_ms) = self.cycle();
             match status {
-                SyncStatus::Pending => {}
+                SyncStatus::Pending | SyncStatus::Rehydrating => {}
                 SyncStatus::Retrying { .. } | SyncStatus::Blocked { .. } => {
                     let Some(retry_at) = retry_at_ms else {
                         return status;
@@ -236,6 +243,33 @@ impl BrowserDevice {
         }
     }
 
+    fn markdown(&mut self, note_id: &str) -> String {
+        match self.expect_value(BrowserWorkerCommand::Bootstrap) {
+            BrowserWorkerValue::Bootstrap(snapshot) => snapshot
+                .documents
+                .iter()
+                .find(|document| document.note_id == note_id)
+                .expect("document present")
+                .markdown
+                .clone(),
+            other => panic!("unexpected value: {other:?}"),
+        }
+    }
+
+    fn revision(&mut self, note_id: &str) -> i64 {
+        match self.expect_value(BrowserWorkerCommand::Bootstrap) {
+            BrowserWorkerValue::Bootstrap(snapshot) => {
+                snapshot
+                    .documents
+                    .iter()
+                    .find(|document| document.note_id == note_id)
+                    .expect("document present")
+                    .revision
+            }
+            other => panic!("unexpected value: {other:?}"),
+        }
+    }
+
     fn runtime_backend(&self) -> &SqliteWorkspace {
         self.runtime
             .backend()
@@ -248,7 +282,7 @@ struct NativeDevice {
     transport: Arc<FakeTransport>,
     assets: Arc<FakeAssetStore>,
     clock: Arc<FakeClock>,
-    backoff: SyncBackoff,
+    state: SyncCycleState,
     cancellation: SyncCancellation,
     config: SyncCycleConfig,
 }
@@ -269,7 +303,7 @@ impl NativeDevice {
             transport: FakeTransport::new(server, device_id),
             assets: FakeAssetStore::new(),
             clock: Arc::clone(clock),
-            backoff: SyncBackoff::new(SyncBackoffConfig {
+            state: SyncCycleState::new(SyncBackoffConfig {
                 base_delay_ms: 1_000,
                 max_delay_ms: 60_000,
                 jitter_seed: 11,
@@ -287,11 +321,11 @@ impl NativeDevice {
                 self.assets.as_ref(),
                 self.clock.as_ref(),
                 &self.cancellation,
-                &mut self.backoff,
+                &mut self.state,
                 &self.config,
             );
             match outcome.status {
-                SyncStatus::Pending => {}
+                SyncStatus::Pending | SyncStatus::Rehydrating => {}
                 SyncStatus::Retrying { .. } | SyncStatus::Blocked { .. } => {
                     let Some(retry_at) = outcome.retry_at_ms else {
                         return outcome.status;
@@ -318,6 +352,29 @@ impl NativeDevice {
             .collect::<Vec<_>>();
         titles.sort();
         titles
+    }
+
+    fn markdown(&self, note_id: &str) -> String {
+        self.storage
+            .bootstrap()
+            .expect("bootstrap")
+            .documents
+            .iter()
+            .find(|document| document.note_id == note_id)
+            .expect("document present")
+            .markdown
+            .clone()
+    }
+
+    fn revision(&self, note_id: &str) -> i64 {
+        self.storage
+            .bootstrap()
+            .expect("bootstrap")
+            .documents
+            .iter()
+            .find(|document| document.note_id == note_id)
+            .expect("document present")
+            .revision
     }
 }
 
@@ -481,11 +538,9 @@ fn discarded_checkpoint_content_blocks_hydration_in_a_restartable_state() {
     let mut fresh = BrowserDevice::open(&server, "fresh-device", &clock);
     fresh.connect();
     let (status, retry_at) = fresh.cycle();
-    assert_eq!(
-        status,
-        SyncStatus::Blocked {
-            reason: "rejected_checkpoint".into()
-        }
+    assert!(
+        matches!(&status, SyncStatus::Blocked { reason, detail: Some(_) } if reason == "rejected_checkpoint"),
+        "unexpected status: {status:?}"
     );
     assert!(retry_at.is_some());
     assert_eq!(
@@ -514,7 +569,11 @@ fn missing_local_asset_bytes_block_the_operation_visibly() {
         create_note("n-1", "Holds an image", 1_000),
         attach_image("img-1", "n-1", &image_bytes, 1_050),
     ]);
-    assert_eq!(browser.settle(), SyncStatus::UpToDate);
+    let status = browser.settle();
+    assert!(
+        matches!(&status, SyncStatus::Blocked { reason, .. } if reason == "asset_content_missing"),
+        "a parked row keeps the device out of up to date: {status:?}"
+    );
 
     let blocked = browser
         .runtime_backend()
@@ -608,4 +667,142 @@ fn sync_lifecycle_commands_report_connection_and_reject_misuse() {
         BrowserWorkerOutcome::Error(error)
             if error.code == BrowserStorageErrorCode::InvalidRequest
     ));
+}
+
+#[test]
+fn concurrent_document_edits_converge_on_browser_and_native_devices() {
+    let server = FakeServer::new(WORKSPACE);
+    let clock = FakeClock::at(1_000);
+    let mut native = NativeDevice::open(&server, "native-device", &clock);
+    let mut browser = BrowserDevice::open(&server, "browser-device", &clock);
+    native
+        .storage
+        .apply_operations(&[create_note("n-1", "Shared", 1_000)])
+        .expect("apply native note");
+    assert_eq!(native.settle(), SyncStatus::UpToDate);
+    browser.connect();
+    assert_eq!(browser.settle(), SyncStatus::UpToDate);
+
+    let native_revision = native.revision("n-1");
+    let browser_revision = browser.revision("n-1");
+    native
+        .storage
+        .apply_operations(&[save_document(
+            "n-1",
+            native_revision,
+            "Edited natively",
+            1_100,
+        )])
+        .expect("apply native edit");
+    browser.apply(vec![save_document(
+        "n-1",
+        browser_revision,
+        "Edited in the browser",
+        1_100,
+    )]);
+
+    assert_eq!(native.settle(), SyncStatus::UpToDate);
+    let (status, _, changes) = browser.cycle_with_changes();
+    assert_eq!(status, SyncStatus::UpToDate);
+    assert_eq!(
+        changes.note_ids,
+        ["n-1"],
+        "the superseded incoming write is still reported for reconciliation"
+    );
+    assert_eq!(native.settle(), SyncStatus::UpToDate);
+
+    assert_eq!(browser.markdown("n-1"), "Edited in the browser");
+    assert_eq!(native.markdown("n-1"), "Edited in the browser");
+    assert_eq!(
+        superseded_history(browser.runtime_backend()),
+        [("n-1".to_string(), "Edited natively".to_string())],
+        "the browser preserved the body it outranked"
+    );
+    assert!(superseded_history(&native.storage).is_empty());
+}
+
+#[test]
+fn browser_device_rehydrates_after_log_truncation() {
+    let server = FakeServer::new(WORKSPACE);
+    let clock = FakeClock::at(1_000);
+    let mut publisher = BrowserDevice::open(&server, "publisher-device", &clock);
+    publisher.connect();
+    publisher.apply(vec![create_note("n-1", "Checkpointed", 1_000)]);
+    assert_eq!(publisher.settle(), SyncStatus::UpToDate);
+    assert_eq!(server.latest_checkpoint_sequence(), Some(1));
+
+    let mut stale = BrowserDevice::open(&server, "stale-device", &clock);
+    stale.connect();
+    assert_eq!(stale.settle(), SyncStatus::UpToDate);
+    stale.apply(vec![create_note(
+        "n-stale",
+        "Written before going offline",
+        1_100,
+    )]);
+    assert_eq!(stale.settle(), SyncStatus::UpToDate);
+
+    assert_eq!(publisher.settle(), SyncStatus::UpToDate);
+    for index in 0..64 {
+        publisher.apply(vec![create_note(
+            &format!("n-fill-{index}"),
+            &format!("Fill {index}"),
+            1_200 + index,
+        )]);
+    }
+    assert_eq!(publisher.settle(), SyncStatus::UpToDate);
+    let checkpoint = server
+        .latest_checkpoint_sequence()
+        .expect("a later checkpoint was published");
+    assert!(checkpoint > 2);
+    server.compact_through(checkpoint);
+
+    let (status, retry_at) = stale.cycle();
+    assert_eq!(status, SyncStatus::Rehydrating);
+    assert_eq!(retry_at, Some(clock.now_ms()));
+    let (status, _, changes) = stale.cycle_with_changes();
+    assert_eq!(status, SyncStatus::UpToDate);
+    assert!(changes.full, "a rebuild demands a full renderer reload");
+    assert_eq!(stale.note_titles(), publisher.note_titles());
+    assert!(
+        stale
+            .note_titles()
+            .contains(&"Written before going offline".to_string())
+    );
+    let cursor = stale
+        .runtime_backend()
+        .sync_connection()
+        .expect("read connection")
+        .expect("active connection")
+        .observed_server_sequence;
+    assert_eq!(cursor, server.log_len() as u64);
+}
+
+#[test]
+fn sync_interrupt_makes_the_next_cycle_yield_and_delta_reads_serve_changed_notes() {
+    let server = FakeServer::new(WORKSPACE);
+    let clock = FakeClock::at(1_000);
+    let mut browser = BrowserDevice::open(&server, "browser-device", &clock);
+    browser.connect();
+    browser.apply(vec![create_note("n-1", "Interrupted", 1_000)]);
+
+    match browser.expect_value(BrowserWorkerCommand::SyncInterrupt) {
+        BrowserWorkerValue::Unit => {}
+        other => panic!("unexpected value: {other:?}"),
+    }
+    let (status, _) = browser.cycle();
+    assert_eq!(status, SyncStatus::Pending, "an interrupted cycle yields");
+    assert_eq!(server.log_len(), 0);
+    assert_eq!(browser.settle(), SyncStatus::UpToDate);
+    assert_eq!(server.log_len(), 1);
+
+    match browser.expect_value(BrowserWorkerCommand::ReadWorkspaceDelta {
+        ids: vec!["n-1".into(), "missing".into()],
+    }) {
+        BrowserWorkerValue::WorkspaceDelta(delta) => {
+            assert_eq!(delta.documents.len(), 1);
+            assert_eq!(delta.nodes.len(), 1);
+            assert_eq!(delta.nodes[0].id, "n-1");
+        }
+        other => panic!("unexpected value: {other:?}"),
+    }
 }

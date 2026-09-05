@@ -9,6 +9,7 @@ import {
   openBeside as openBesidePanes,
   secondaryPane,
 } from "@/store/panes";
+import { commitGate } from "@/store/commit-gate";
 import { ancestorIds, flattenVisible } from "@/store/tree";
 import type { RendererState, RendererStore } from "@/store/types";
 import type { ReferenceOperation } from "@/features/references/types";
@@ -22,7 +23,9 @@ export function commitReferenceOperations(
   if (!store.applyReferenceOperations(operations)) {
     return;
   }
-  void applyWorkspaceOperations(operations.map((operation) => envelope(operation)))
+  commitGate.noteLocalCommit();
+  void commitGate
+    .enterCommit(() => applyWorkspaceOperations(operations.map((operation) => envelope(operation))))
     .catch(async (error) => {
       store.replaceFromSnapshot(await bootstrapWorkspace());
       throw error;
@@ -41,8 +44,11 @@ export async function commitOperations(
   operations: WorkspaceOperation[],
 ): Promise<void> {
   store.applyOperations(operations);
+  commitGate.noteLocalCommit();
   try {
-    const ack = await applyWorkspaceOperations(operations.map(envelope));
+    const ack = await commitGate.enterCommit(() =>
+      applyWorkspaceOperations(operations.map(envelope)),
+    );
     store.applyAck(ack);
   } catch (error) {
     const snapshot = await bootstrapWorkspace();
@@ -251,7 +257,7 @@ export async function restoreNoteVersion(
  * Matches the backend's `StorageError::RevisionConflict` message, the only
  * form in which the conflict crosses the string-typed IPC error channel.
  */
-function isRevisionConflict(error: unknown): boolean {
+export function isRevisionConflict(error: unknown): boolean {
   const message = error instanceof Error ? error.message : error;
   return typeof message === "string" && message.includes("revision conflict");
 }

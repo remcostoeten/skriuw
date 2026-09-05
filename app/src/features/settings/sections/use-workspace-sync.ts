@@ -1,19 +1,27 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@remcostoeten/auth-drawer";
-import { currentSessionToken } from "@/features/auth/session-token";
+import { connectSyncForCurrentSession } from "@/features/auth/connect-sync";
+import {
+  clearConnectFailure,
+  connectFailureDescription,
+  connectFailureText,
+  latestConnectFailure,
+  reportConnectFailure,
+  subscribeConnectFailure,
+} from "@/features/auth/connect-state";
 import {
   type BrowserSyncProgress,
   latestBrowserSyncProgress,
   subscribeBrowserSyncProgress,
 } from "@/bridge/browser-sync";
 import {
-  connectWorkspaceSync,
   pauseWorkspaceSync,
   retryWorkspaceSync,
   type WorkspaceSyncStatus,
   workspaceSyncStatus,
 } from "@/bridge/commands";
 import { isBrowserRuntime } from "@/bridge/runtime";
+import { showToast } from "@/shared/ui/toast";
 
 /** Cadence for a surface the user is actively watching, such as the settings row. */
 export const SYNC_POLL_ACTIVE_MS = 2_000;
@@ -37,16 +45,15 @@ function readNoProgress(): BrowserSyncProgress | null {
   return null;
 }
 
-function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 export type WorkspaceSync = {
   status: WorkspaceSyncStatus;
   pending: boolean;
+  /** Action or connect failure text; replaces the status description while set. */
   error: string | null;
   progress: BrowserSyncProgress | null;
   browser: boolean;
+  /** The session is dead: every surface offers sign-in, whatever the session hook says. */
+  signInRequired: boolean;
   retry: () => void;
   resume: () => void;
   pause: () => void;
@@ -64,12 +71,13 @@ export function useWorkspaceSync(pollIntervalMs = SYNC_POLL_ACTIVE_MS): Workspac
   const { user, signOut } = useAuth();
   const [status, setStatus] = useState<WorkspaceSyncStatus>({ state: "localOnly" });
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const browser = isBrowserRuntime();
   const progress = useSyncExternalStore(
     browser ? subscribeProgress : subscribeNever,
     browser ? latestBrowserSyncProgress : readNoProgress,
   );
+  const connectFailure = useSyncExternalStore(subscribeConnectFailure, latestConnectFailure);
 
   useEffect(() => {
     if (!user) return;
@@ -81,10 +89,12 @@ export function useWorkspaceSync(pollIntervalMs = SYNC_POLL_ACTIVE_MS): Workspac
       void workspaceSyncStatus()
         .then(
           (next) => {
-            if (mounted) setStatus(next);
+            if (!mounted) return;
+            setStatus(next);
+            if (next.state !== "localOnly") clearConnectFailure();
           },
           (reason: unknown) => {
-            if (mounted) setError(errorText(reason));
+            if (mounted) setActionError(connectFailureText(reason));
           },
         )
         .finally(() => {
@@ -101,22 +111,32 @@ export function useWorkspaceSync(pollIntervalMs = SYNC_POLL_ACTIVE_MS): Workspac
 
   async function run(action: () => Promise<WorkspaceSyncStatus>): Promise<void> {
     setPending(true);
-    setError(null);
+    setActionError(null);
     try {
       setStatus(await action());
     } catch (reason) {
-      setError(errorText(reason));
+      setActionError(connectFailureText(reason));
     } finally {
       setPending(false);
     }
   }
 
   async function resumeSync(): Promise<void> {
-    await run(async () => {
-      const token = await currentSessionToken();
-      if (!token) throw new Error("Your session is unavailable. Sign in again.");
-      return connectWorkspaceSync(token);
-    });
+    setPending(true);
+    setActionError(null);
+    try {
+      await connectSyncForCurrentSession();
+      clearConnectFailure();
+      setStatus(await workspaceSyncStatus());
+    } catch (reason) {
+      reportConnectFailure(reason);
+      showToast({
+        message: connectFailureDescription(connectFailureText(reason)),
+        durationMs: 10_000,
+      });
+    } finally {
+      setPending(false);
+    }
   }
 
   async function signOutSafely(): Promise<void> {
@@ -125,12 +145,19 @@ export function useWorkspaceSync(pollIntervalMs = SYNC_POLL_ACTIVE_MS): Workspac
     setStatus({ state: "localOnly" });
   }
 
+  const error =
+    actionError ??
+    (connectFailure !== null && status.state === "localOnly"
+      ? connectFailureDescription(connectFailure)
+      : null);
+
   return {
     status,
     pending,
     error,
     progress,
     browser,
+    signInRequired: status.state === "authenticationRequired",
     retry: () => void run(retryWorkspaceSync),
     resume: () => void resumeSync(),
     pause: () => void run(pauseWorkspaceSync),

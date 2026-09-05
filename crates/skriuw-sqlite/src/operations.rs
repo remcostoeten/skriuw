@@ -6,7 +6,7 @@ use skriuw_domain::{
     NotePropertyField, NotePropertyValue, OperationAck, TaskSourceDocument, WorkspaceOperation,
     WorkspaceOperationEnvelope, WorkspacePrompt, WorkspaceTask,
 };
-use skriuw_storage::StorageError;
+use skriuw_storage::{HistoryProvenance, StorageError};
 use uuid::Uuid;
 
 use crate::error::{backend, json_backend, validation};
@@ -20,10 +20,16 @@ pub(crate) fn validate_operations(
     skriuw_domain::validate_operation_group(operations).map_err(validation)
 }
 
+/// Rebuild the outgoing reference rows of one note from its document. A local
+/// write fails closed on a dangling reference. The sync apply path tolerates a
+/// mention of a note that has not arrived yet: the row is skipped and
+/// remembered in `sync_dangling_references`, and `resolve_dangling_references`
+/// re-runs this once the mentioned note is created.
 pub(crate) fn replace_references(
     transaction: &Transaction<'_>,
     note_id: &str,
     document: &serde_json::Value,
+    provenance: HistoryProvenance,
 ) -> Result<(), StorageError> {
     transaction
         .execute(
@@ -62,6 +68,18 @@ pub(crate) fn replace_references(
                 .is_some(),
         };
         if !exists {
+            if provenance == HistoryProvenance::Remote
+                && reference.kind == skriuw_domain::ReferenceKind::Note
+            {
+                transaction
+                    .execute(
+                        "INSERT OR IGNORE INTO sync_dangling_references(note_id, target_id) \
+                         VALUES (?1, ?2)",
+                        params![note_id, reference.target_id],
+                    )
+                    .map_err(backend)?;
+                continue;
+            }
             return Err(StorageError::InvalidOperation(format!(
                 "dangling reference {}",
                 reference.target_id
@@ -77,9 +95,55 @@ pub(crate) fn replace_references(
     Ok(())
 }
 
+/// Re-resolve every note whose mention of `target_id` was parked as dangling,
+/// now that the target exists. Sources whose document is gone are forgotten.
+pub(crate) fn resolve_dangling_references(
+    transaction: &Transaction<'_>,
+    target_id: &str,
+) -> Result<(), StorageError> {
+    let sources = {
+        let mut statement = transaction
+            .prepare("SELECT note_id FROM sync_dangling_references WHERE target_id = ?1 ORDER BY note_id")
+            .map_err(backend)?;
+        statement
+            .query_map([target_id], |row| row.get::<_, String>(0))
+            .map_err(backend)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(backend)?
+    };
+    for source_note_id in sources {
+        transaction
+            .execute(
+                "DELETE FROM sync_dangling_references WHERE note_id = ?1 AND target_id = ?2",
+                params![source_note_id, target_id],
+            )
+            .map_err(backend)?;
+        let document = transaction
+            .query_row(
+                "SELECT document_json FROM documents WHERE note_id = ?1",
+                [&source_note_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(backend)?;
+        let Some(document) = document else {
+            continue;
+        };
+        let document = serde_json::from_str(&document).map_err(json_backend)?;
+        replace_references(
+            transaction,
+            &source_note_id,
+            &document,
+            HistoryProvenance::Remote,
+        )?;
+    }
+    Ok(())
+}
+
 pub(crate) fn apply_operations_in_transaction(
     transaction: &Transaction<'_>,
     operations: &[WorkspaceOperationEnvelope],
+    provenance: HistoryProvenance,
 ) -> Result<OperationAck, StorageError> {
     let mut revisions = Vec::new();
     let mut rank_changes = BTreeMap::new();
@@ -87,6 +151,7 @@ pub(crate) fn apply_operations_in_transaction(
         apply_operation(
             transaction,
             &envelope.operation,
+            provenance,
             &mut revisions,
             &mut rank_changes,
         )?;
@@ -101,6 +166,7 @@ pub(crate) fn apply_operations_in_transaction(
 fn apply_operation(
     transaction: &Transaction<'_>,
     operation: &WorkspaceOperation,
+    provenance: HistoryProvenance,
     revisions: &mut Vec<EntityRevision>,
     rank_changes: &mut BTreeMap<String, NodeRankChange>,
 ) -> Result<(), StorageError> {
@@ -292,8 +358,11 @@ fn apply_operation(
                 )
                 .map_err(backend)?;
             replace_fts(transaction, id, title, markdown)?;
-            replace_references(transaction, id, document_json)?;
-            enqueue_history(transaction, id, 1, markdown, *at)?;
+            replace_references(transaction, id, document_json, provenance)?;
+            enqueue_history(transaction, id, 1, markdown, *at, provenance)?;
+            if provenance == HistoryProvenance::Remote {
+                resolve_dangling_references(transaction, id)?;
+            }
             revisions.push(EntityRevision {
                 id: id.clone(),
                 revision: 1,
@@ -478,6 +547,7 @@ fn apply_operation(
                 *word_count,
                 *expected_revision,
                 *at,
+                provenance,
                 revisions,
             )?;
         }
@@ -831,6 +901,7 @@ fn apply_operation(
                 transaction,
                 Some(document.as_ref()),
                 task.updated_at,
+                provenance,
                 revisions,
             )?;
             insert_task(transaction, task)?;
@@ -863,7 +934,13 @@ fn apply_operation(
                     ],
                 )
                 .map_err(backend)?;
-            save_task_document(transaction, document.as_deref(), task.updated_at, revisions)?;
+            save_task_document(
+                transaction,
+                document.as_deref(),
+                task.updated_at,
+                provenance,
+                revisions,
+            )?;
         }
         WorkspaceOperation::DeleteTask { id, document, at } => {
             let changed = transaction
@@ -871,7 +948,7 @@ fn apply_operation(
                 .map_err(backend)?;
             require_changed(changed, id)?;
             insert_terminal_tombstone(transaction, "task", id, "", None)?;
-            save_task_document(transaction, document.as_deref(), *at, revisions)?;
+            save_task_document(transaction, document.as_deref(), *at, provenance, revisions)?;
         }
         WorkspaceOperation::DetachTask { id, document, at } => {
             let stored =
@@ -882,7 +959,7 @@ fn apply_operation(
                 )));
             }
             detach_tasks(transaction, "id = ?1", &[&id], *at)?;
-            save_task_document(transaction, document.as_deref(), *at, revisions)?;
+            save_task_document(transaction, document.as_deref(), *at, provenance, revisions)?;
         }
         WorkspaceOperation::CreateAnnotation { annotation } => {
             require_note(transaction, &annotation.note_id)?;
@@ -1230,6 +1307,7 @@ fn save_task_document(
     transaction: &Transaction<'_>,
     document: Option<&TaskSourceDocument>,
     at: i64,
+    provenance: HistoryProvenance,
     revisions: &mut Vec<EntityRevision>,
 ) -> Result<(), StorageError> {
     let Some(document) = document else {
@@ -1243,10 +1321,14 @@ fn save_task_document(
         document.word_count,
         document.expected_revision,
         at,
+        provenance,
         revisions,
     )
 }
 
+/// A remote document write lands on a trashed note too: trash is a tree fact
+/// that every device already agrees on, and the body must converge regardless
+/// of where the note sits. Local writes keep requiring an available note.
 #[allow(clippy::too_many_arguments)]
 fn save_document(
     transaction: &Transaction<'_>,
@@ -1256,9 +1338,14 @@ fn save_document(
     word_count: i64,
     expected_revision: i64,
     at: i64,
+    provenance: HistoryProvenance,
     revisions: &mut Vec<EntityRevision>,
 ) -> Result<(), StorageError> {
-    require_note(transaction, note_id)?;
+    if provenance == HistoryProvenance::Remote {
+        require_note_any_availability(transaction, note_id)?;
+    } else {
+        require_note(transaction, note_id)?;
+    }
     let next_revision = expected_revision.saturating_add(1);
     let changed = transaction
         .execute(
@@ -1291,10 +1378,17 @@ fn save_document(
         .map_err(backend)?;
     let title = node_title(transaction, note_id)?;
     replace_fts(transaction, note_id, &title, markdown)?;
-    replace_references(transaction, note_id, document_json)?;
+    replace_references(transaction, note_id, document_json, provenance)?;
     prune_detached_images(transaction, note_id, document_json)?;
     reconcile_note_tasks(transaction, note_id, document_json, at)?;
-    enqueue_history(transaction, note_id, next_revision, markdown, at)?;
+    enqueue_history(
+        transaction,
+        note_id,
+        next_revision,
+        markdown,
+        at,
+        provenance,
+    )?;
     revisions.push(EntityRevision {
         id: note_id.to_string(),
         revision: next_revision,
@@ -1793,6 +1887,21 @@ fn require_note(transaction: &Transaction<'_>, id: &str) -> Result<(), StorageEr
     }
 }
 
+fn require_note_any_availability(
+    transaction: &Transaction<'_>,
+    id: &str,
+) -> Result<(), StorageError> {
+    match node_kind(transaction, id)?
+        .ok_or_else(|| StorageError::NotFound(id.into()))?
+        .as_str()
+    {
+        "note" => Ok(()),
+        _ => Err(StorageError::InvalidOperation(format!(
+            "entity {id} is not a note"
+        ))),
+    }
+}
+
 fn require_available_node(transaction: &Transaction<'_>, id: &str) -> Result<String, StorageError> {
     let kind = transaction
         .query_row(
@@ -1964,47 +2073,96 @@ pub(crate) fn insert_fts(
 /// this only bounds how many restore points a burst of typing produces.
 pub const HISTORY_COALESCE_WINDOW_MS: i64 = 120_000;
 
+/// Queue one document revision for history materialization. A local save
+/// coalesces into the note's newest unclaimed row only when that row is also
+/// local and still inside the window; a remote or superseded row closes the
+/// window so revisions from different sources never merge.
 pub(crate) fn enqueue_history(
     transaction: &Transaction<'_>,
     note_id: &str,
     revision: i64,
     markdown: &str,
     created_at: i64,
+    provenance: HistoryProvenance,
 ) -> Result<(), StorageError> {
-    let coalesced = transaction
-        .execute(
-            "UPDATE history_outbox SET revision = ?2, markdown = ?3 \
-             WHERE id = (\
-                 SELECT id FROM history_outbox \
-                 WHERE note_id = ?1 AND claimed_by IS NULL AND created_at > ?4 \
-                 ORDER BY created_at DESC, id DESC LIMIT 1\
-             )",
-            params![
-                note_id,
-                revision,
-                markdown,
-                created_at.saturating_sub(HISTORY_COALESCE_WINDOW_MS)
-            ],
-        )
-        .map_err(backend)?;
-    if coalesced > 0 {
-        return Ok(());
+    if provenance == HistoryProvenance::Local {
+        let coalesced = transaction
+            .execute(
+                "UPDATE history_outbox SET revision = ?2, markdown = ?3 \
+                 WHERE id = (\
+                     SELECT id FROM history_outbox \
+                     WHERE note_id = ?1 AND claimed_by IS NULL \
+                     AND created_at > ?4 AND provenance = 'local' \
+                     AND id = (\
+                         SELECT id FROM history_outbox WHERE note_id = ?1 \
+                         ORDER BY created_at DESC, id DESC LIMIT 1\
+                     )\
+                 )",
+                params![
+                    note_id,
+                    revision,
+                    markdown,
+                    created_at.saturating_sub(HISTORY_COALESCE_WINDOW_MS)
+                ],
+            )
+            .map_err(backend)?;
+        if coalesced > 0 {
+            return Ok(());
+        }
     }
+    let next_attempt_at = match provenance {
+        HistoryProvenance::Local => created_at.saturating_add(HISTORY_COALESCE_WINDOW_MS),
+        HistoryProvenance::Remote | HistoryProvenance::Superseded => created_at,
+    };
     transaction
         .execute(
-            "INSERT INTO history_outbox(id, note_id, revision, markdown, created_at, next_attempt_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO history_outbox(\
+                id, note_id, revision, markdown, created_at, next_attempt_at, provenance\
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 Uuid::new_v4().to_string(),
                 note_id,
                 revision,
                 markdown,
                 created_at,
-                created_at.saturating_add(HISTORY_COALESCE_WINDOW_MS)
+                next_attempt_at,
+                provenance.as_str()
             ],
         )
         .map_err(backend)?;
     Ok(())
+}
+
+/// Keep a document body this device did not make canonical as a history row.
+/// Nothing else changes: no document row, projection, image, task, or sync
+/// side effect. The row sits at the current revision, or above the newest
+/// superseded row for the note when several losers arrive at one revision.
+pub(crate) fn preserve_document_version(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+    markdown: &str,
+    at: i64,
+) -> Result<(), StorageError> {
+    let revision = transaction
+        .query_row(
+            "SELECT MAX(documents.revision, COALESCE((\
+                 SELECT MAX(revision) + 1 FROM history_outbox \
+                 WHERE note_id = ?1 AND provenance = 'superseded'\
+             ), 0)) FROM documents WHERE note_id = ?1",
+            [note_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()
+        .map_err(backend)?
+        .ok_or_else(|| StorageError::NotFound(note_id.into()))?;
+    enqueue_history(
+        transaction,
+        note_id,
+        revision,
+        markdown,
+        at,
+        HistoryProvenance::Superseded,
+    )
 }
 
 pub(crate) use skriuw_domain::count_words;

@@ -57,8 +57,7 @@ pub use prompt::{
     validate_workspace_prompts,
 };
 pub use reconcile::{
-    DocumentConflictResolutionChoice, RemoteOperationDecision, RemoteTargetState,
-    ResolveDocumentConflict, SyncConflictReason, classify_apply_failure,
+    RemoteOperationDecision, RemoteTargetState, SyncConflictReason, classify_apply_failure,
     reconcile_remote_operation,
 };
 pub use remote_ai::{
@@ -71,12 +70,10 @@ pub use remote_ai::{
 };
 pub use sync::{
     BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,
-    DocumentConflictVersionView, DocumentConflictVersionsView, DocumentConflictView,
     MAX_INLINE_SYNC_OPERATION_BYTES, MAX_OPERATION_ASSET_MANIFESTS, MAX_SAFE_SYNC_SEQUENCE,
     MAX_SYNC_BATCH_BYTES, MAX_SYNC_BATCH_OPERATIONS, MAX_SYNC_PULL_OPERATIONS,
     MIN_CHUNKED_CONTENT_PROTOCOL_VERSION, ReplicatedWorkspaceOperation, RequiredAssetContent,
-    SUPPORTED_SYNC_PROTOCOL_VERSIONS, SYNC_CONFLICT_REVIEW_VIEW_VERSION,
-    SYNC_RECOVERY_VIEW_VERSION, SyncAcceptedOperation, SyncConflictReviewView,
+    SUPPORTED_SYNC_PROTOCOL_VERSIONS, SYNC_RECOVERY_VIEW_VERSION, SyncAcceptedOperation,
     SyncOperationPayload, SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView,
     SyncReplicationClass, SyncValidationError, WORKSPACE_OPERATION_SYNC_POLICY_V1,
     WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceOperationSyncPolicy, validate_sync_identifier,
@@ -232,6 +229,16 @@ pub struct WorkspaceDocument {
     pub markdown: String,
     pub revision: i64,
     pub word_count: i64,
+}
+
+/// The subset of canonical state a renderer needs after specific notes
+/// changed underneath it: the current document bodies plus the node records
+/// for the same identifiers, so title and placement stay in step.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceDelta {
+    pub documents: Vec<WorkspaceDocument>,
+    pub nodes: Vec<WorkspaceNode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

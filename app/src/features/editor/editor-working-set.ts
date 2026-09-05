@@ -17,9 +17,22 @@ export class EditorWorkingSet<Value> {
     return value;
   }
 
+  /** Reads without refreshing recency, for sweeps that must not reorder eviction. */
+  peek(key: string): Value | undefined {
+    return this.entries.get(key);
+  }
+
   set(key: string, value: Value): void {
     this.entries.delete(key);
     this.entries.set(key, value);
+  }
+
+  delete(key: string): boolean {
+    return this.entries.delete(key);
+  }
+
+  keys(): string[] {
+    return [...this.entries.keys()];
   }
 
   prune(protectedKeys: ReadonlySet<string>): string[] {

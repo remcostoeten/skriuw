@@ -12,15 +12,22 @@ import {
   type SyncOperationPayload,
   MAX_RETAINED_CHECKPOINTS,
   MAX_SYNC_PULL_OPERATIONS,
+  MAX_SYNC_PULL_PAGE_BYTES,
+  MAX_WORKSPACE_STORAGE_BYTES,
   SyncContractError,
   type ReplicatedWorkspaceOperation,
   type SyncAcceptedOperation,
   type SyncPullResponse,
+  type SyncPullResult,
   type SyncPushRequest,
   type SyncPushResult,
   type SyncPushResponse,
+  UNREFERENCED_CHUNK_GRACE_SECONDS,
   WORKSPACE_SYNC_PROTOCOL_VERSION,
   type WorkspaceCheckpointRecord,
+  type WorkspaceStorageUsage,
+  type WorkspaceSyncState,
+  jsonByteLength,
   parseStoredJson,
   parseSyncOperationPayload,
   parseSyncPushRequest,
@@ -46,9 +53,36 @@ type ExistingOperationRow = {
   payload_json: string;
 };
 
+type IndexedOperationRow = {
+  device_id: string;
+  client_sequence: number;
+  operation_id: string;
+  server_sequence: number;
+  base_server_sequence: number;
+  payload_sha256: string;
+};
+
+type LogFloorRow = {
+  compacted_through: number;
+  checkpoint_server_sequence: number;
+};
+
+type HashedPushOperation = {
+  operation: SyncPushRequest["operations"][number];
+  payloadJson: string;
+  payloadSha256: string;
+};
+
 type EventsSocketAttachment = {
   deviceId: string;
   expiresAtEpochSeconds: number;
+};
+
+type CompactionPlan = {
+  expiredDevices: number;
+  removedCheckpoints: number;
+  removedOperations: number;
+  deleting: string[];
 };
 
 export class WorkspaceSyncObject extends DurableObject<Env> {
@@ -61,7 +95,7 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
     this.workspaceKey = ctx.id.name ?? "";
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
     void ctx.blockConcurrencyWhile(async () => {
-      this.migrate();
+      await this.migrate();
     });
   }
 
@@ -87,6 +121,7 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
       deviceId,
       expiresAtEpochSeconds,
     } satisfies EventsSocketAttachment);
+    await this.scheduleExpiryAlarm(expiresAtEpochSeconds);
     const headers = new Headers();
     const subprotocol = request.headers.get("Sec-WebSocket-Protocol");
     if (subprotocol !== null) {
@@ -108,10 +143,56 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
     closeQuietly(socket);
   }
 
+  /**
+   * Revoked or expired sessions must not keep receiving wake hints; the alarm
+   * closes every socket whose session expiry has passed and re-arms for the
+   * next one so a hibernating object never needs a broadcast to notice.
+   */
+  override async alarm(): Promise<void> {
+    const nowEpochSeconds = Math.floor(Date.now() / 1_000);
+    let nextExpiry: number | null = null;
+    for (const socket of this.ctx.getWebSockets()) {
+      const attachment = readAttachment(socket);
+      if (attachment === null || attachment.expiresAtEpochSeconds <= nowEpochSeconds) {
+        closeQuietly(socket);
+        continue;
+      }
+      nextExpiry =
+        nextExpiry === null
+          ? attachment.expiresAtEpochSeconds
+          : Math.min(nextExpiry, attachment.expiresAtEpochSeconds);
+    }
+    if (nextExpiry !== null) {
+      await this.ctx.storage.setAlarm(nextExpiry * 1_000);
+    }
+  }
+
+  private async scheduleExpiryAlarm(expiresAtEpochSeconds: number): Promise<void> {
+    const expiresAtMs = expiresAtEpochSeconds * 1_000;
+    const scheduled = await this.ctx.storage.getAlarm();
+    if (scheduled === null || expiresAtMs < scheduled) {
+      await this.ctx.storage.setAlarm(expiresAtMs);
+    }
+  }
+
+  /**
+   * Content is verified only for operations not already committed: an
+   * identical retry of an indexed operation is answered from the index even
+   * after retention removed its log row and chunks.
+   */
   async pushOperations(input: unknown): Promise<SyncPushResult> {
     try {
       const request = parseSyncPushRequest(input);
-      const missing = await this.missingPushContent(request);
+      const hashed = await Promise.all(
+        request.operations.map(async (operation): Promise<HashedPushOperation> => {
+          const payloadJson = JSON.stringify(operation.payload);
+          return { operation, payloadJson, payloadSha256: await sha256Hex(payloadJson) };
+        }),
+      );
+      const pending = hashed
+        .filter((entry) => !this.isIndexedIdentical(request.deviceId, entry))
+        .map((entry) => entry.operation);
+      const missing = await this.missingPushContent(pending);
       if (missing.length > 0) {
         return {
           ok: false,
@@ -122,7 +203,7 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         };
       }
       const response = this.ctx.storage.transactionSync(() =>
-        this.pushTransaction(request),
+        this.pushTransaction(request.deviceId, hashed),
       );
       this.broadcastWorkspaceChanged(response.latestServerSequence, request.deviceId);
       return { ok: true, response };
@@ -137,11 +218,25 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
     }
   }
 
-  async pullOperations(afterServerSequence: number, requestedLimit = 128): Promise<string> {
+  /**
+   * A page is bounded by both a row cap and a serialized byte budget so one
+   * response never exceeds what a client can buffer; the first operation is
+   * always included so a large entry cannot stall a cursor forever.
+   */
+  async pullOperations(afterServerSequence: number, requestedLimit = 128): Promise<SyncPullResult> {
     const cursor = requireSafeSequence(afterServerSequence, "afterServerSequence", true);
     const limit = requireSafeSequence(requestedLimit, "limit", false);
     if (limit > MAX_SYNC_PULL_OPERATIONS) {
       throw new SyncContractError(`limit cannot exceed ${MAX_SYNC_PULL_OPERATIONS}`);
+    }
+    const floor = this.logFloor();
+    if (cursor < floor.compacted_through) {
+      return {
+        ok: false,
+        code: "log_truncated",
+        compactedThrough: floor.compacted_through,
+        checkpointServerSequence: floor.checkpoint_server_sequence,
+      };
     }
 
     const rows = this.ctx.storage.sql
@@ -153,16 +248,75 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         limit,
       )
       .toArray();
-    const operations = rows.map(toReplicatedOperation);
+    const latestServerSequence = this.latestServerSequence();
+    const envelopeBytes = jsonByteLength({
+      syncProtocolVersion: WORKSPACE_SYNC_PROTOCOL_VERSION,
+      operations: [],
+      latestServerSequence,
+    });
+    const operations: ReplicatedWorkspaceOperation[] = [];
+    let pageBytes = envelopeBytes;
+    for (const row of rows) {
+      const operation = toReplicatedOperation(row);
+      const operationBytes = jsonByteLength(operation) + 1;
+      if (operations.length > 0 && pageBytes + operationBytes > MAX_SYNC_PULL_PAGE_BYTES) {
+        break;
+      }
+      operations.push(operation);
+      pageBytes += operationBytes;
+    }
     const response: SyncPullResponse = {
       syncProtocolVersion: WORKSPACE_SYNC_PROTOCOL_VERSION,
       operations,
-      latestServerSequence: this.latestServerSequence(),
+      latestServerSequence,
     };
-    return JSON.stringify(response);
+    return { ok: true, responseJson: JSON.stringify(response) };
   }
 
-  private migrate(): void {
+  async workspaceState(): Promise<WorkspaceSyncState> {
+    return {
+      latestServerSequence: this.latestServerSequence(),
+      compactedThrough: this.logFloor().compacted_through,
+    };
+  }
+
+  async storageUsage(): Promise<WorkspaceStorageUsage> {
+    return {
+      byteLength: this.storageUsageBytes(),
+      quotaBytes: MAX_WORKSPACE_STORAGE_BYTES,
+    };
+  }
+
+  /**
+   * Idempotent per digest: an identical re-upload of stored bytes never counts
+   * twice, and a chunk counts again only after retention removed it.
+   */
+  async recordChunkUpload(digest: string, byteLength: number): Promise<WorkspaceStorageUsage> {
+    const size = requireSafeSequence(byteLength, "byteLength", false);
+    const usage = this.ctx.storage.transactionSync(() => {
+      const known = this.ctx.storage.sql
+        .exec<{ count: number }>(
+          "SELECT COUNT(*) AS count FROM sync_chunk_sizes WHERE digest = ?",
+          digest,
+        )
+        .one().count;
+      if (known === 0) {
+        this.ctx.storage.sql.exec(
+          "INSERT INTO sync_chunk_sizes(digest, byte_length) VALUES (?, ?)",
+          digest,
+          size,
+        );
+        this.ctx.storage.sql.exec(
+          "UPDATE sync_storage_usage SET byte_length = byte_length + ? WHERE id = 1",
+          size,
+        );
+      }
+      return this.storageUsageBytes();
+    });
+    return { byteLength: usage, quotaBytes: MAX_WORKSPACE_STORAGE_BYTES };
+  }
+
+  private async migrate(): Promise<void> {
     this.ctx.storage.sql.exec(`
       CREATE TABLE IF NOT EXISTS _sql_schema_migrations (
         id INTEGER PRIMARY KEY,
@@ -174,10 +328,10 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         "SELECT COALESCE(MAX(id), 0) AS version FROM _sql_schema_migrations",
       )
       .one().version;
-    if (currentVersion > 2) {
+    if (currentVersion > 3) {
       throw new Error(`workspace sync schema ${currentVersion} is newer than this service`);
     }
-    if (currentVersion === 2) {
+    if (currentVersion === 3) {
       return;
     }
     if (currentVersion === 0) {
@@ -202,7 +356,11 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         `);
       });
     }
-    this.upgradeStoredOperationsToPayloads();
+    if (currentVersion < 2) {
+      this.upgradeStoredOperationsToPayloads();
+    }
+    this.createContentTables();
+    await this.createRetentionTables();
   }
 
   private upgradeStoredOperationsToPayloads(): void {
@@ -227,7 +385,6 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
       }
       this.ctx.storage.sql.exec("INSERT INTO _sql_schema_migrations(id) VALUES (2)");
     });
-    this.createContentTables();
   }
 
   private createContentTables(): void {
@@ -258,12 +415,79 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
   }
 
   /**
+   * Migration 3 backfills the compaction-immune operation index from the
+   * rows still in the log; entries already compacted before this migration
+   * cannot be recovered and their retries fall through to the sequence check.
+   */
+  private async createRetentionTables(): Promise<void> {
+    const logged = this.ctx.storage.sql
+      .exec<StoredOperationRow>(
+        "SELECT operation_id, device_id, client_sequence, base_server_sequence, " +
+          "server_sequence, payload_json FROM sync_operations ORDER BY server_sequence",
+      )
+      .toArray();
+    const indexed = await Promise.all(
+      logged.map(async (row) => ({ row, payloadSha256: await sha256Hex(row.payload_json) })),
+    );
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE sync_log_floor (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          compacted_through INTEGER NOT NULL CHECK (compacted_through >= 0),
+          checkpoint_server_sequence INTEGER NOT NULL CHECK (checkpoint_server_sequence >= 0),
+          compacted_at INTEGER NOT NULL CHECK (compacted_at >= 0)
+        ) STRICT;
+        INSERT INTO sync_log_floor(id, compacted_through, checkpoint_server_sequence, compacted_at)
+          VALUES (1, 0, 0, 0);
+        CREATE TABLE sync_operation_index (
+          device_id TEXT NOT NULL,
+          client_sequence INTEGER NOT NULL CHECK (client_sequence > 0),
+          operation_id TEXT NOT NULL UNIQUE,
+          server_sequence INTEGER NOT NULL CHECK (server_sequence > 0),
+          base_server_sequence INTEGER NOT NULL CHECK (base_server_sequence >= 0),
+          payload_sha256 TEXT NOT NULL,
+          PRIMARY KEY (device_id, client_sequence)
+        ) STRICT;
+        CREATE TABLE sync_chunk_deleting (
+          digest TEXT PRIMARY KEY,
+          marked_at INTEGER NOT NULL CHECK (marked_at >= 0)
+        ) STRICT;
+        CREATE TABLE sync_chunk_sizes (
+          digest TEXT PRIMARY KEY,
+          byte_length INTEGER NOT NULL CHECK (byte_length > 0)
+        ) STRICT;
+        CREATE TABLE sync_storage_usage (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          byte_length INTEGER NOT NULL CHECK (byte_length >= 0)
+        ) STRICT;
+        INSERT INTO sync_storage_usage(id, byte_length) VALUES (1, 0);
+      `);
+      for (const { row, payloadSha256 } of indexed) {
+        this.ctx.storage.sql.exec(
+          "INSERT INTO sync_operation_index(" +
+            "device_id, client_sequence, operation_id, server_sequence, base_server_sequence, payload_sha256" +
+            ") VALUES (?, ?, ?, ?, ?, ?)",
+          row.device_id,
+          row.client_sequence,
+          row.operation_id,
+          row.server_sequence,
+          row.base_server_sequence,
+          payloadSha256,
+        );
+      }
+      this.ctx.storage.sql.exec("INSERT INTO _sql_schema_migrations(id) VALUES (3)");
+    });
+  }
+
+  /**
    * An operation is never appended while any chunk it references is missing,
    * so a published log entry always resolves to available content.
    */
-  private async missingPushContent(request: SyncPushRequest): Promise<string[]> {
+  private async missingPushContent(
+    operations: readonly SyncPushRequest["operations"][number][],
+  ): Promise<string[]> {
     const missing = new Set<string>();
-    for (const operation of request.operations) {
+    for (const operation of operations) {
       for (const manifest of referencedManifests(operation.payload)) {
         for (const digest of await this.content.missingChunks(this.workspaceKey, manifest)) {
           missing.add(digest);
@@ -308,8 +532,9 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
 
   /**
    * Publication is atomic from a client's perspective: the record is only
-   * written after every referenced chunk is confirmed stored, so an incomplete
-   * checkpoint is never discoverable as current.
+   * written after every referenced chunk is confirmed stored and, inside the
+   * same transaction that records the references, confirmed not marked for
+   * deletion, so an incomplete checkpoint is never discoverable as current.
    */
   async publishCheckpoint(input: unknown): Promise<
     { ok: true; serverSequence: number } | { ok: false; code: string; message: string }
@@ -339,7 +564,23 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
       };
     }
 
-    this.ctx.storage.transactionSync(() => {
+    const digests = new Set(checkpoint.content.chunks.map((chunk) => chunk.digest));
+    return this.ctx.storage.transactionSync(() => {
+      if (checkpoint.serverSequence < this.logFloor().compacted_through) {
+        return {
+          ok: false,
+          code: "sync_rejected",
+          message: "checkpoint sequence is below the compaction floor",
+        };
+      }
+      const deleting = this.digestsMarkedForDeletion(digests);
+      if (deleting.length > 0) {
+        return {
+          ok: false,
+          code: "content_unavailable",
+          message: `checkpoint content is being removed: ${deleting.join(",")}`,
+        };
+      }
       this.ctx.storage.sql.exec(
         "INSERT INTO sync_checkpoints(server_sequence, checkpoint_json, created_at) " +
           "VALUES (?, ?, ?) ON CONFLICT(server_sequence) DO UPDATE SET " +
@@ -348,16 +589,15 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         JSON.stringify(checkpoint),
         checkpoint.createdAt,
       );
-      for (const digest of new Set(checkpoint.content.chunks.map((chunk) => chunk.digest))) {
+      for (const digest of digests) {
         this.ctx.storage.sql.exec(
           "INSERT OR IGNORE INTO sync_chunk_refs(digest, ref_kind, ref_id) VALUES (?, 'checkpoint', ?)",
           digest,
           String(checkpoint.serverSequence),
         );
       }
+      return { ok: true, serverSequence: checkpoint.serverSequence };
     });
-    this.broadcastWorkspaceChanged(this.latestServerSequence(), null);
-    return { ok: true, serverSequence: checkpoint.serverSequence };
   }
 
   /**
@@ -372,14 +612,8 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
     const nowEpochSeconds = Math.floor(Date.now() / 1_000);
     const message = JSON.stringify({ type: "workspaceChanged", latestServerSequence });
     for (const socket of this.ctx.getWebSockets()) {
-      let attachment: EventsSocketAttachment | null = null;
-      try {
-        attachment = socket.deserializeAttachment() as EventsSocketAttachment;
-      } catch {
-        closeQuietly(socket);
-        continue;
-      }
-      if (attachment.expiresAtEpochSeconds <= nowEpochSeconds) {
+      const attachment = readAttachment(socket);
+      if (attachment === null || attachment.expiresAtEpochSeconds <= nowEpochSeconds) {
         closeQuietly(socket);
         continue;
       }
@@ -407,7 +641,10 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
    * Removes log entries and chunks that no retained checkpoint, active device
    * cursor, or newer operation still needs. Without a retained checkpoint
    * nothing is removable, because a new device would still have to replay the
-   * log from zero.
+   * log from zero. Chunk removal is two-phase: a digest is marked in
+   * sync_chunk_deleting inside the planning transaction, which makes every
+   * concurrent push or checkpoint publication that references it fail closed,
+   * and the mark is cleared only after the object store confirmed the delete.
    */
   async compact(
     nowEpochSeconds: number,
@@ -416,81 +653,181 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
     const now = requireSafeSequence(nowEpochSeconds, "nowEpochSeconds", true);
     const idle = requireSafeSequence(maxDeviceIdleSeconds, "maxDeviceIdleSeconds", true);
 
-    const plan = this.ctx.storage.transactionSync(() => {
-      const expiredDevices = this.ctx.storage.sql
-        .exec<{ device_id: string }>(
-          "DELETE FROM sync_device_cursors WHERE updated_at < ? RETURNING device_id",
-          Math.max(0, now - idle),
-        )
-        .toArray().length;
+    const plan = this.ctx.storage.transactionSync(() => this.planCompaction(now, idle));
+    await this.content.deleteChunks(this.workspaceKey, plan.deleting);
+    this.ctx.storage.transactionSync(() => this.finishChunkDeletion(plan.deleting));
 
-      const candidates = new Set<string>();
-      const retained = this.ctx.storage.sql
-        .exec<{ server_sequence: number }>(
-          "SELECT server_sequence FROM sync_checkpoints ORDER BY server_sequence DESC LIMIT ?",
-          MAX_RETAINED_CHECKPOINTS,
-        )
-        .toArray()
-        .map((row) => row.server_sequence);
-
-      let removedCheckpoints = 0;
-      if (retained.length > 0) {
-        const oldestRetained = Math.min(...retained);
-        const superseded = this.ctx.storage.sql
-          .exec<{ server_sequence: number }>(
-            "DELETE FROM sync_checkpoints WHERE server_sequence < ? RETURNING server_sequence",
-            oldestRetained,
-          )
-          .toArray();
-        removedCheckpoints = superseded.length;
-        for (const row of superseded) {
-          this.collectReferencedDigests(candidates, "checkpoint", String(row.server_sequence));
-          this.ctx.storage.sql.exec(
-            "DELETE FROM sync_chunk_refs WHERE ref_kind = 'checkpoint' AND ref_id = ?",
-            String(row.server_sequence),
-          );
-        }
-      }
-
-      const cursors = this.ctx.storage.sql
-        .exec<{ sequence: number }>(
-          "SELECT acknowledged_server_sequence AS sequence FROM sync_device_cursors",
-        )
-        .toArray()
-        .map((row) => row.sequence);
-      const hydratableFrom = retained.length === 0 ? 0 : Math.min(...retained);
-      const acknowledgedEverywhere = cursors.length === 0 ? 0 : Math.min(...cursors);
-      const compactBelow = Math.min(hydratableFrom, acknowledgedEverywhere);
-
-      let removedOperations = 0;
-      if (compactBelow > 0) {
-        const superseded = this.ctx.storage.sql
-          .exec<{ operation_id: string }>(
-            "DELETE FROM sync_operations WHERE server_sequence <= ? RETURNING operation_id",
-            compactBelow,
-          )
-          .toArray();
-        removedOperations = superseded.length;
-        for (const row of superseded) {
-          this.collectReferencedDigests(candidates, "operation", row.operation_id);
-          this.ctx.storage.sql.exec(
-            "DELETE FROM sync_chunk_refs WHERE ref_kind = 'operation' AND ref_id = ?",
-            row.operation_id,
-          );
-        }
-      }
-
-      const orphaned = [...candidates].filter((digest) => !this.isChunkReferenced(digest));
-      return { expiredDevices, removedCheckpoints, removedOperations, orphaned };
-    });
-
-    await this.content.deleteChunks(this.workspaceKey, plan.orphaned);
+    const swept = await this.sweepUnreferencedChunks(now);
     return {
       expiredDevices: plan.expiredDevices,
       removedCheckpoints: plan.removedCheckpoints,
       removedOperations: plan.removedOperations,
-      removedChunks: plan.orphaned.length,
+      removedChunks: plan.deleting.length + swept,
     };
+  }
+
+  private planCompaction(now: number, idle: number): CompactionPlan {
+    const expiredDevices = this.ctx.storage.sql
+      .exec<{ device_id: string }>(
+        "DELETE FROM sync_device_cursors WHERE updated_at < ? RETURNING device_id",
+        Math.max(0, now - idle),
+      )
+      .toArray().length;
+
+    const candidates = new Set<string>();
+    const retained = this.ctx.storage.sql
+      .exec<{ server_sequence: number }>(
+        "SELECT server_sequence FROM sync_checkpoints ORDER BY server_sequence DESC LIMIT ?",
+        MAX_RETAINED_CHECKPOINTS,
+      )
+      .toArray()
+      .map((row) => row.server_sequence);
+
+    let removedCheckpoints = 0;
+    if (retained.length > 0) {
+      const oldestRetained = Math.min(...retained);
+      const superseded = this.ctx.storage.sql
+        .exec<{ server_sequence: number }>(
+          "DELETE FROM sync_checkpoints WHERE server_sequence < ? RETURNING server_sequence",
+          oldestRetained,
+        )
+        .toArray();
+      removedCheckpoints = superseded.length;
+      for (const row of superseded) {
+        this.collectReferencedDigests(candidates, "checkpoint", String(row.server_sequence));
+        this.ctx.storage.sql.exec(
+          "DELETE FROM sync_chunk_refs WHERE ref_kind = 'checkpoint' AND ref_id = ?",
+          String(row.server_sequence),
+        );
+      }
+    }
+
+    const cursors = this.ctx.storage.sql
+      .exec<{ sequence: number }>(
+        "SELECT acknowledged_server_sequence AS sequence FROM sync_device_cursors",
+      )
+      .toArray()
+      .map((row) => row.sequence);
+    const hydratableFrom = retained.length === 0 ? 0 : Math.min(...retained);
+    const acknowledgedEverywhere = cursors.length === 0 ? 0 : Math.min(...cursors);
+    const compactBelow = Math.min(hydratableFrom, acknowledgedEverywhere);
+
+    let removedOperations = 0;
+    if (compactBelow > 0) {
+      const superseded = this.ctx.storage.sql
+        .exec<{ operation_id: string }>(
+          "DELETE FROM sync_operations WHERE server_sequence <= ? RETURNING operation_id",
+          compactBelow,
+        )
+        .toArray();
+      removedOperations = superseded.length;
+      for (const row of superseded) {
+        this.collectReferencedDigests(candidates, "operation", row.operation_id);
+        this.ctx.storage.sql.exec(
+          "DELETE FROM sync_chunk_refs WHERE ref_kind = 'operation' AND ref_id = ?",
+          row.operation_id,
+        );
+      }
+      this.raiseLogFloor(compactBelow, Math.max(...retained), hydratableFrom, now);
+    }
+
+    const orphaned = [...candidates].filter((digest) => !this.isChunkReferenced(digest));
+    for (const digest of orphaned) {
+      this.markChunkDeleting(digest, now);
+    }
+    const deleting = this.ctx.storage.sql
+      .exec<{ digest: string }>("SELECT digest FROM sync_chunk_deleting ORDER BY digest")
+      .toArray()
+      .map((row) => row.digest);
+    return { expiredDevices, removedCheckpoints, removedOperations, deleting };
+  }
+
+  /**
+   * The floor only ever rises, and it must stay at or below the oldest
+   * retained checkpoint: a device below the floor recovers by hydrating from a
+   * checkpoint and pulling from there, which is impossible if the checkpoint
+   * itself sits below the floor.
+   */
+  private raiseLogFloor(
+    compactedThrough: number,
+    checkpointServerSequence: number,
+    oldestRetainedCheckpoint: number,
+    now: number,
+  ): void {
+    this.ctx.storage.sql.exec(
+      "UPDATE sync_log_floor SET " +
+        "compacted_through = MAX(compacted_through, ?), " +
+        "checkpoint_server_sequence = ?, compacted_at = ? WHERE id = 1",
+      compactedThrough,
+      checkpointServerSequence,
+      now,
+    );
+    const floor = this.logFloor();
+    if (floor.compacted_through > oldestRetainedCheckpoint) {
+      throw new Error(
+        `compaction floor ${floor.compacted_through} exceeds retained checkpoint ${oldestRetainedCheckpoint}`,
+      );
+    }
+  }
+
+  private markChunkDeleting(digest: string, now: number): void {
+    this.ctx.storage.sql.exec(
+      "INSERT OR IGNORE INTO sync_chunk_deleting(digest, marked_at) VALUES (?, ?)",
+      digest,
+      now,
+    );
+  }
+
+  private finishChunkDeletion(digests: readonly string[]): void {
+    for (const digest of digests) {
+      const removed = this.ctx.storage.sql
+        .exec<{ byte_length: number }>(
+          "DELETE FROM sync_chunk_sizes WHERE digest = ? RETURNING byte_length",
+          digest,
+        )
+        .toArray()[0];
+      if (removed !== undefined) {
+        this.ctx.storage.sql.exec(
+          "UPDATE sync_storage_usage SET byte_length = MAX(0, byte_length - ?) WHERE id = 1",
+          removed.byte_length,
+        );
+      }
+      this.ctx.storage.sql.exec("DELETE FROM sync_chunk_deleting WHERE digest = ?", digest);
+    }
+  }
+
+  /**
+   * Uploads that never became referenced (abandoned pushes, rejected
+   * checkpoints) are reclaimed after a grace window long enough for any
+   * in-flight upload-then-push sequence to complete. The reference check is
+   * repeated inside the marking transaction so a push that referenced the
+   * chunk after the listing keeps it.
+   */
+  private async sweepUnreferencedChunks(now: number): Promise<number> {
+    const stored = await this.content.listChunks(this.workspaceKey);
+    const stale = stored.filter(
+      (chunk) => chunk.uploadedAtEpochSeconds + UNREFERENCED_CHUNK_GRACE_SECONDS <= now,
+    );
+    if (stale.length === 0) {
+      return 0;
+    }
+    const deleting = this.ctx.storage.transactionSync(() => {
+      const marked: string[] = [];
+      for (const chunk of stale) {
+        if (this.isChunkReferenced(chunk.digest) || this.isChunkMarkedDeleting(chunk.digest)) {
+          continue;
+        }
+        this.markChunkDeleting(chunk.digest, now);
+        marked.push(chunk.digest);
+      }
+      return marked;
+    });
+    if (deleting.length === 0) {
+      return 0;
+    }
+    await this.content.deleteChunks(this.workspaceKey, deleting);
+    this.ctx.storage.transactionSync(() => this.finishChunkDeletion(deleting));
+    return deleting.length;
   }
 
   private collectReferencedDigests(
@@ -520,10 +857,66 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
     );
   }
 
-  private pushTransaction(request: SyncPushRequest): SyncPushResponse {
+  private isChunkMarkedDeleting(digest: string): boolean {
+    return (
+      this.ctx.storage.sql
+        .exec<{ count: number }>(
+          "SELECT COUNT(*) AS count FROM sync_chunk_deleting WHERE digest = ?",
+          digest,
+        )
+        .one().count > 0
+    );
+  }
+
+  private digestsMarkedForDeletion(digests: Iterable<string>): string[] {
+    return [...digests].filter((digest) => this.isChunkMarkedDeleting(digest)).sort();
+  }
+
+  private logFloor(): LogFloorRow {
+    return this.ctx.storage.sql
+      .exec<LogFloorRow>(
+        "SELECT compacted_through, checkpoint_server_sequence FROM sync_log_floor WHERE id = 1",
+      )
+      .one();
+  }
+
+  private storageUsageBytes(): number {
+    return this.ctx.storage.sql
+      .exec<{ byte_length: number }>("SELECT byte_length FROM sync_storage_usage WHERE id = 1")
+      .one().byte_length;
+  }
+
+  private indexedOperation(
+    deviceId: string,
+    operation: HashedPushOperation["operation"],
+  ): IndexedOperationRow | undefined {
+    return this.ctx.storage.sql
+      .exec<IndexedOperationRow>(
+        "SELECT device_id, client_sequence, operation_id, server_sequence, " +
+          "base_server_sequence, payload_sha256 FROM sync_operation_index " +
+          "WHERE operation_id = ? OR (device_id = ? AND client_sequence = ?)",
+        operation.operationId,
+        deviceId,
+        operation.clientSequence,
+      )
+      .toArray()[0];
+  }
+
+  private isIndexedIdentical(deviceId: string, entry: HashedPushOperation): boolean {
+    const indexed = this.indexedOperation(deviceId, entry.operation);
+    return (
+      indexed !== undefined &&
+      indexed.operation_id === entry.operation.operationId &&
+      indexed.device_id === deviceId &&
+      indexed.client_sequence === entry.operation.clientSequence &&
+      indexed.base_server_sequence === entry.operation.baseServerSequence &&
+      indexed.payload_sha256 === entry.payloadSha256
+    );
+  }
+
+  private pushTransaction(deviceId: string, operations: HashedPushOperation[]): SyncPushResponse {
     const accepted: SyncAcceptedOperation[] = [];
-    for (const operation of request.operations) {
-      const payloadJson = JSON.stringify(operation.payload);
+    for (const { operation, payloadJson, payloadSha256 } of operations) {
       const existing = this.ctx.storage.sql
         .exec<ExistingOperationRow>(
           "SELECT device_id, client_sequence, base_server_sequence, server_sequence, " +
@@ -533,7 +926,7 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         .toArray()[0];
       if (existing !== undefined) {
         if (
-          existing.device_id !== request.deviceId ||
+          existing.device_id !== deviceId ||
           existing.client_sequence !== operation.clientSequence ||
           existing.base_server_sequence !== operation.baseServerSequence ||
           existing.payload_json !== payloadJson
@@ -550,6 +943,27 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         continue;
       }
 
+      const indexed = this.indexedOperation(deviceId, operation);
+      if (indexed !== undefined) {
+        if (
+          indexed.operation_id !== operation.operationId ||
+          indexed.device_id !== deviceId ||
+          indexed.client_sequence !== operation.clientSequence ||
+          indexed.base_server_sequence !== operation.baseServerSequence ||
+          indexed.payload_sha256 !== payloadSha256
+        ) {
+          throw new SyncContractError(
+            `operation id ${operation.operationId} was reused with different content`,
+          );
+        }
+        accepted.push({
+          operationId: operation.operationId,
+          clientSequence: operation.clientSequence,
+          serverSequence: indexed.server_sequence,
+        });
+        continue;
+      }
+
       const latestServerSequence = this.latestServerSequence();
       if (operation.baseServerSequence > latestServerSequence) {
         throw new SyncContractError("base server sequence is ahead of the workspace");
@@ -558,7 +972,7 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         .exec<{ sequence: number }>(
           "SELECT COALESCE(MAX(last_client_sequence), 0) AS sequence " +
             "FROM sync_device_heads WHERE device_id = ?",
-          request.deviceId,
+          deviceId,
         )
         .one().sequence;
       if (operation.clientSequence !== currentDeviceSequence + 1) {
@@ -567,17 +981,16 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         );
       }
 
-      const conflictingSequence = this.ctx.storage.sql
-        .exec<{ operation_id: string }>(
-          "SELECT operation_id FROM sync_operations " +
-            "WHERE device_id = ? AND client_sequence = ?",
-          request.deviceId,
-          operation.clientSequence,
-        )
-        .toArray()[0];
-      if (conflictingSequence !== undefined) {
+      const referencedDigests = new Set(
+        referencedManifests(operation.payload).flatMap((manifest) =>
+          manifest.chunks.map((chunk) => chunk.digest),
+        ),
+      );
+      const deleting = this.digestsMarkedForDeletion(referencedDigests);
+      if (deleting.length > 0) {
         throw new SyncContractError(
-          `client sequence ${operation.clientSequence} already belongs to ${conflictingSequence.operation_id}`,
+          `chunked content is being removed: ${deleting.join(",")}`,
+          "content_unavailable",
         );
       }
 
@@ -587,22 +1000,28 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
             "operation_id, device_id, client_sequence, base_server_sequence, payload_json" +
             ") VALUES (?, ?, ?, ?, ?) RETURNING server_sequence",
           operation.operationId,
-          request.deviceId,
+          deviceId,
           operation.clientSequence,
           operation.baseServerSequence,
           payloadJson,
         )
         .one().server_sequence;
       this.ctx.storage.sql.exec(
+        "INSERT INTO sync_operation_index(" +
+          "device_id, client_sequence, operation_id, server_sequence, base_server_sequence, payload_sha256" +
+          ") VALUES (?, ?, ?, ?, ?, ?)",
+        deviceId,
+        operation.clientSequence,
+        operation.operationId,
+        serverSequence,
+        operation.baseServerSequence,
+        payloadSha256,
+      );
+      this.ctx.storage.sql.exec(
         "INSERT INTO sync_device_heads(device_id, last_client_sequence) VALUES (?, ?) " +
           "ON CONFLICT(device_id) DO UPDATE SET last_client_sequence = excluded.last_client_sequence",
-        request.deviceId,
+        deviceId,
         operation.clientSequence,
-      );
-      const referencedDigests = new Set(
-        referencedManifests(operation.payload).flatMap((manifest) =>
-          manifest.chunks.map((chunk) => chunk.digest),
-        ),
       );
       for (const digest of referencedDigests) {
         this.ctx.storage.sql.exec(
@@ -646,6 +1065,14 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
   }
 }
 
+function readAttachment(socket: WebSocket): EventsSocketAttachment | null {
+  try {
+    return socket.deserializeAttachment() as EventsSocketAttachment;
+  } catch {
+    return null;
+  }
+}
+
 function closeQuietly(socket: WebSocket): void {
   try {
     socket.close(1011, "sync events channel closed");
@@ -670,4 +1097,11 @@ function toReplicatedOperation(row: StoredOperationRow): ReplicatedWorkspaceOper
     serverSequence: row.server_sequence,
     payload: parseSyncOperationPayload(parseStoredJson(row.payload_json)),
   };
+}
+
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }

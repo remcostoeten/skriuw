@@ -117,6 +117,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "history_word_count",
         sql: include_str!("../migrations/0022_history_word_count.sql"),
     },
+    Migration {
+        version: 23,
+        name: "automatic_convergence",
+        sql: include_str!("../migrations/0023_automatic_convergence.sql"),
+    },
 ];
 
 pub(crate) struct Migration {
@@ -382,6 +387,10 @@ mod tests {
             (
                 22,
                 "12ed51da7e6ca5c725ffd407edc6ba033369005011c1660faf28f7cc68b0ffb5",
+            ),
+            (
+                23,
+                "441305db66ad147cc9b4c04c08b7719140a850f5b3a5d92530879181e9eea915",
             ),
         ];
         assert_eq!(MIGRATIONS.len(), SHIPPED.len(), "append new checksums here");

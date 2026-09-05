@@ -91,9 +91,13 @@ whether the workspace exists or why access is absent.
 
 The guarded route shapes are:
 
-- `POST /v1/sync/provision`
+- `POST /v1/sync/provision` (body read through a bounded reader before
+  parsing)
+- `GET /v1/sync/state`
 - `POST /v1/workspaces/{workspaceId}/push`
 - `GET /v1/workspaces/{workspaceId}/pull?syncProtocolVersion=1&afterServerSequence={cursor}&limit={limit}`
+- the chunk, checkpoint, and acknowledge routes in
+  [sync content operations](sync-content-operations.md)
 
 The production entry point supplies Better Auth verification plus the D1
 membership adapter. Tests inject deterministic adapters through the same
@@ -112,14 +116,21 @@ Credential failures also return a generic Bearer challenge.
 | 403 | `workspace_permission_denied`, `device_not_authorized` |
 | 404 | `workspace_access_denied`, `not_found` |
 | 405 | `method_not_allowed` |
-| 413 | `request_too_large` |
+| 410 | `log_truncated` — the pull cursor is below the workspace's compaction floor; the client rehydrates from the latest checkpoint |
+| 413 | `request_too_large`, `quota_exceeded` — a chunk upload would take the workspace above its 2 GiB content quota |
 | 500 | `internal_error` |
 | 503 | `sync_authentication_not_configured`, `sync_authorization_not_configured`, `sync_security_configuration_invalid`, `sync_authentication_unavailable`, `sync_authorization_unavailable`, `sync_service_unavailable` |
 
 Provider responses, exception text, credentials, workspace identifiers,
-operation content, and note content never enter public errors or structured
-security logs. Logs contain only event, stable code, status, route kind, and
-HTTP method.
+device identifiers, content digests, operation content, and note content never
+enter public errors or structured security logs. Logs contain only event,
+stable code, status, route kind, and HTTP method; the test suite spies the
+console to keep it that way.
+
+`GET /v1/sync/state` reports the workspace's `latestServerSequence`, the
+latest checkpoint sequence, and `compactedThrough`, the compaction floor. A
+client whose cursor is below `compactedThrough` will receive `log_truncated`
+on its next pull and may start rehydration without a round trip.
 
 ## Expiry, removal, deletion, and revocation
 
@@ -130,7 +141,18 @@ extend the expiry returned to the Worker.
 
 Credential verification and membership lookup run on every request. There is
 no authorization cache, so credential revocation, membership removal, device
-removal, and workspace deletion take effect on the next request. A provider
+removal, and workspace deletion take effect on the next request. The wake
+channel is authorized at its handshake and additionally closed by a Durable
+Object alarm scheduled for the earliest session expiry among its sockets, so
+a revoked or expired session cannot keep receiving notifications.
+
+Clients treat a 401 on any sync call as session expiry, not a transient
+failure: the coordinator stops polling, the shell stops the wake listener and
+clears the stored token, and the account surface offers "Sign in" regardless
+of any cached user. The wake listener exits on a 401/403 handshake rather than
+retrying with the same token. Session refresh extends the session's expiry
+without rotating the token, so a device that syncs regularly keeps one valid
+token; a device that stays away past expiry signs in again. A provider
 adapter must consult a revocation-capable source on every verification or prove
 that the credential itself has a sufficiently short, explicitly approved
 validity bound. Key rotation must preserve verification only for credentials

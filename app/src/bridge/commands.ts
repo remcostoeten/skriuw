@@ -2,6 +2,7 @@ import { invoke } from "./runtime";
 import type {
   OperationAck,
   SearchHit,
+  WorkspaceDelta,
   WorkspaceOperationEnvelope,
   WorkspaceSnapshot,
 } from "@/contracts/workspace";
@@ -26,6 +27,14 @@ export function browserStorageCapabilities(): Promise<BrowserStorageCapabilities
 
 export function bootstrapWorkspace(): Promise<WorkspaceSnapshot> {
   return invoke<WorkspaceSnapshot>("bootstrap_workspace");
+}
+
+/**
+ * The current bodies and node records for specific notes, for reconciling a
+ * remote change without re-reading the whole workspace.
+ */
+export function readWorkspaceDelta(ids: readonly string[]): Promise<WorkspaceDelta> {
+  return invoke<WorkspaceDelta>("read_workspace_delta", { ids: [...ids] });
 }
 
 export function loadSidebarExpansion(): Promise<string[] | null> {
@@ -73,16 +82,19 @@ export type WorkspaceSyncStatus =
   | { state: "pending" }
   | { state: "offline" }
   | { state: "authenticationRequired" }
-  | { state: "conflict"; openConflicts: number }
+  | { state: "rehydrating" }
   | { state: "retrying"; nextAttemptAt: number }
-  | { state: "blocked"; reason: string };
+  | { state: "blocked"; reason: string; detail: string | null };
 
 export function workspaceSyncStatus(): Promise<WorkspaceSyncStatus> {
   return invoke<WorkspaceSyncStatus>("workspace_sync_status");
 }
 
-export function connectWorkspaceSync(token: string): Promise<WorkspaceSyncStatus> {
-  return invoke<WorkspaceSyncStatus>("connect_workspace_sync", { token });
+export function connectWorkspaceSync(
+  token: string,
+  baseUrl: string,
+): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("connect_workspace_sync", { token, baseUrl });
 }
 
 export function pauseWorkspaceSync(): Promise<WorkspaceSyncStatus> {
@@ -91,6 +103,19 @@ export function pauseWorkspaceSync(): Promise<WorkspaceSyncStatus> {
 
 export function retryWorkspaceSync(): Promise<WorkspaceSyncStatus> {
   return invoke<WorkspaceSyncStatus>("retry_workspace_sync");
+}
+
+/** Asks the coordinator for an immediate cycle without touching its configuration. */
+export function refreshWorkspaceSync(): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("refresh_workspace_sync");
+}
+
+export function setWorkspaceSyncOnline(online: boolean): Promise<void> {
+  return invoke<void>("set_workspace_sync_online", { online });
+}
+
+export function setWorkspaceSyncVisibility(visible: boolean, focused: boolean): Promise<void> {
+  return invoke<void>("set_workspace_sync_visibility", { visible, focused });
 }
 
 export type BlockedSyncOperation = {
@@ -130,60 +155,6 @@ export function retryBlockedSyncOperation(blockedId: string): Promise<SyncRecove
 
 export function discardBlockedSyncOperation(blockedId: string): Promise<SyncRecoveryView> {
   return invoke<SyncRecoveryView>("discard_blocked_sync_operation", { blockedId });
-}
-
-export type DocumentConflict = {
-  conflictId: string;
-  noteId: string;
-  title: string;
-  reasonCode: string;
-  subreason: string | null;
-  createdAt: number;
-  localVersionAvailable: boolean;
-  resolvedChoice: "local" | "remote" | "merged" | "superseded" | null;
-  resolvedAt: number | null;
-};
-
-export type DocumentConflictVersion = {
-  title: string | null;
-  markdown: string;
-  revision: number | null;
-};
-
-export type DocumentConflictVersions = {
-  conflictId: string;
-  noteId: string;
-  remote: DocumentConflictVersion;
-  local: DocumentConflictVersion | null;
-};
-
-export type SyncConflictReview = {
-  viewVersion: number;
-  open: DocumentConflict[];
-  settled: DocumentConflict[];
-};
-
-export type ResolveConflictChoice =
-  | { choice: "keepLocal" }
-  | { choice: "keepRemote" }
-  | { choice: "merged"; documentJson: unknown; markdown: string };
-
-export function listSyncConflicts(): Promise<SyncConflictReview> {
-  return invoke<SyncConflictReview>("list_sync_conflicts");
-}
-
-export function readSyncConflictVersions(conflictId: string): Promise<DocumentConflictVersions> {
-  return invoke<DocumentConflictVersions>("read_sync_conflict_versions", { conflictId });
-}
-
-export function resolveSyncConflict(
-  conflictId: string,
-  choice: ResolveConflictChoice,
-  at: number,
-): Promise<SyncConflictReview> {
-  return invoke<SyncConflictReview>("resolve_sync_conflict", {
-    request: { conflictId, at, ...choice },
-  });
 }
 
 export function searchWorkspace(query: string, limit: number): Promise<SearchHit[]> {

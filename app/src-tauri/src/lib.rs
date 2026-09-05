@@ -30,6 +30,7 @@ const ROTATION_RETRY_DELAY: Duration = Duration::from_secs(60);
 const WINDOW_REVEAL_FAILSAFE: Duration = Duration::from_secs(2);
 const HISTORY_HEADER_PUBLISHED_EVENT: &str = "history-header-published";
 const SYNC_WORKSPACE_CHANGED_EVENT: &str = "sync-workspace-changed";
+const SYNC_SESSION_EXPIRED_EVENT: &str = "sync-session-expired";
 /// Excludes StateFlags::VISIBLE: the main window ships hidden and is revealed
 /// by the renderer/failsafe above, so the plugin must never show it early.
 const WINDOW_STATE_FLAGS: tauri_plugin_window_state::StateFlags =
@@ -109,14 +110,30 @@ pub fn run() {
                         eprintln!("window reveal failsafe failed: {error}");
                     }
                 });
-            let sync = Arc::new(sync::SyncRuntime::with_workspace_observer(path.clone(), {
-                let app_handle = app.handle().clone();
-                Arc::new(move || {
-                    if let Err(error) = app_handle.emit(SYNC_WORKSPACE_CHANGED_EVENT, ()) {
-                        eprintln!("sync workspace publication failed: {error}");
-                    }
-                })
-            }));
+            let sync = Arc::new(sync::SyncRuntime::with_observers(
+                path.clone(),
+                {
+                    let app_handle = app.handle().clone();
+                    Arc::new(move |changes: &skriuw_sync::RemoteChangeSet| {
+                        if let Err(error) =
+                            app_handle.emit(SYNC_WORKSPACE_CHANGED_EVENT, changes.clone())
+                        {
+                            eprintln!("sync workspace publication failed: {error}");
+                        }
+                    })
+                },
+                {
+                    let app_handle = app.handle().clone();
+                    Arc::new(move || {
+                        if let Err(error) = auth::clear_auth_token_blocking() {
+                            eprintln!("expired cloud session credential could not be cleared: {error}");
+                        }
+                        if let Err(error) = app_handle.emit(SYNC_SESSION_EXPIRED_EVENT, ()) {
+                            eprintln!("sync session expiry publication failed: {error}");
+                        }
+                    })
+                },
+            ));
             app.manage(AppState {
                 ai: ai::LazyAiCompletion::new(
                     ollama_runtime,
@@ -138,7 +155,7 @@ pub fn run() {
                 .name("skriuw-sync-resume".into())
                 .spawn(move || match auth::load_auth_token_blocking() {
                     Ok(Some(token)) => {
-                        if let Err(error) = sync.connect(token) {
+                        if let Err(error) = sync.connect(token, sync::default_cloud_base_url()) {
                             eprintln!("background sync resume failed: {error}");
                         }
                     }
@@ -184,6 +201,7 @@ pub fn run() {
             commands::workspace::apply_workspace_operations,
             commands::workspace::close_workspace_window,
             commands::workspace::search_workspace,
+            commands::workspace::read_workspace_delta,
             commands::history::read_history_version,
             commands::maintenance::export_workspace_archive,
             commands::maintenance::import_workspace_archive,
@@ -221,9 +239,8 @@ pub fn run() {
             commands::sync::list_blocked_sync_operations,
             commands::sync::retry_blocked_sync_operation,
             commands::sync::discard_blocked_sync_operation,
-            commands::sync::list_sync_conflicts,
-            commands::sync::read_sync_conflict_versions,
-            commands::sync::resolve_sync_conflict
+            commands::sync::set_workspace_sync_online,
+            commands::sync::set_workspace_sync_visibility
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Focused(true) = event

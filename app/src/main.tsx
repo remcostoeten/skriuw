@@ -4,7 +4,9 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { AppWindow, TriangleAlert } from "lucide-react";
 import { App } from "./app";
-import { currentSessionToken } from "@/features/auth/session-token";
+import { refreshSessionState } from "@/features/auth/adapter";
+import { listenForSessionExpiry } from "@/features/auth/session-expiry";
+import { currentSessionToken, forgetSessionToken } from "@/features/auth/session-token";
 import { bindStarterReclaim } from "@/features/onboarding/reclaim";
 import { seedRelationshipFixture } from "@/features/onboarding/debug-seed";
 import { seedStarterWorkspace } from "@/features/onboarding/seed";
@@ -14,13 +16,19 @@ import {
   closeWorkspaceWindow,
   loadPaneLayout,
   loadSidebarExpansion,
+  readWorkspaceDelta,
   savePaneLayout,
   saveSidebarExpansion,
 } from "@/bridge/commands";
 import { isBrowserRuntime, releaseBrowserStorage } from "@/bridge/runtime";
 import type { HistoryHeader } from "@/contracts/workspace";
 import { listenForHistoryHeaders } from "@/features/history/live-history";
-import { listenForSyncedWorkspaceChanges } from "@/features/sync/live-workspace";
+import {
+  listenForSyncedWorkspaceChanges,
+  type WorkspaceChange,
+} from "@/features/sync/live-workspace";
+import { bindPropagationTriggers } from "@/features/sync/propagation-triggers";
+import { createSyncReconciler } from "@/features/sync/reconcile";
 import { bindWindowClosePersistence } from "@/shell/window-close";
 import { flushPendingWork, registerPendingWork } from "@/shell/pending-work";
 import { StartupScreen } from "@/shell/startup-screen";
@@ -31,6 +39,7 @@ import {
   watchWorkspaceRelease,
 } from "@/shell/workspace-tab-lock";
 import { bindSettingsToRoot } from "@/features/settings/apply-settings";
+import { commitGate } from "@/store/commit-gate";
 import { bindPaneLayoutPersistence } from "@/store/pane-layout-persistence";
 import { parsePaneLayout } from "@/store/panes";
 import { restoreSession } from "@/store/session-restore";
@@ -113,22 +122,23 @@ function revealWindow(): void {
 async function openWorkspace(root: Root): Promise<() => Promise<void>> {
   let unlistenHistory: UnlistenFn | null = null;
   let unlistenSyncWorkspace: UnlistenFn | null = null;
+  let unlistenSessionExpiry: UnlistenFn | null = null;
   try {
     let store: RendererStore | null = null;
+    let reconciler: ReturnType<typeof createSyncReconciler> | null = null;
     const pendingHeaders: HistoryHeader[] = [];
-    let syncReconcilePending = false;
-    let syncReconciliation = Promise.resolve();
-    unlistenSyncWorkspace = await listenForSyncedWorkspaceChanges(() => {
-      if (!store) {
-        syncReconcilePending = true;
+    let changeBeforeStore: WorkspaceChange | null = null;
+    unlistenSyncWorkspace = await listenForSyncedWorkspaceChanges((change) => {
+      if (!reconciler) {
+        changeBeforeStore = { noteIds: [], structureChanged: true, full: true };
         return;
       }
-      syncReconciliation = syncReconciliation
-        .then(async () => {
-          await flushPendingWork();
-          store?.replaceFromSnapshot(await bootstrapWorkspace());
-        })
-        .catch((error) => console.error("synced workspace reconciliation failed", error));
+      reconciler.report(change);
+    });
+    unlistenSessionExpiry = await listenForSessionExpiry(() => {
+      void forgetSessionToken()
+        .catch((error) => console.error("expired session credential clear failed", error))
+        .finally(refreshSessionState);
     });
     if (!isBrowserRuntime()) {
       unlistenHistory = await listenForHistoryHeaders((header) => {
@@ -217,13 +227,23 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
     for (const header of pendingHeaders) {
       store.publishHistoryHeader(header);
     }
-    if (syncReconcilePending) {
-      await flushPendingWork();
-      store.replaceFromSnapshot(await bootstrapWorkspace());
+    reconciler = createSyncReconciler({
+      store,
+      gate: commitGate,
+      bootstrap: bootstrapWorkspace,
+      readDelta: readWorkspaceDelta,
+      onError: (error) => console.error("synced workspace reconciliation failed", error),
+    });
+    if (changeBeforeStore) {
+      reconciler.report(changeBeforeStore);
+      changeBeforeStore = null;
     }
+    const unbindPropagationTriggers = bindPropagationTriggers();
     function teardownSession(): void {
       unlistenHistory?.();
       unlistenSyncWorkspace?.();
+      unlistenSessionExpiry?.();
+      unbindPropagationTriggers();
       unbindWindowClosePersistence();
       disposeUiPersistence();
     }
@@ -252,6 +272,7 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
   } catch (error) {
     unlistenHistory?.();
     unlistenSyncWorkspace?.();
+    unlistenSessionExpiry?.();
     throw error;
   }
 }

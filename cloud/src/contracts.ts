@@ -21,6 +21,9 @@ export const MAX_INLINE_SYNC_OPERATION_BYTES = 1_500_000;
 export const MAX_SYNC_BATCH_BYTES = 8 * 1024 * 1024;
 export const MAX_SAFE_SYNC_SEQUENCE = Number.MAX_SAFE_INTEGER;
 export const MAX_OPERATION_ASSET_MANIFESTS = 4;
+export const MAX_SYNC_PULL_PAGE_BYTES = 3 * 1024 * 1024;
+export const MAX_WORKSPACE_STORAGE_BYTES = 2 * 1024 * 1024 * 1024;
+export const UNREFERENCED_CHUNK_GRACE_SECONDS = 60 * 60 * 24;
 
 export type JsonPrimitive = boolean | number | string | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -115,6 +118,30 @@ export type SyncPullResponse = {
   syncProtocolVersion: number;
   operations: ReplicatedWorkspaceOperation[];
   latestServerSequence: number;
+};
+
+/**
+ * The accepted page travels serialized: the operation payloads contain the
+ * recursive JsonValue type, which the RPC stub's return-type mapping cannot
+ * instantiate, and the Worker re-validates the page before serving it.
+ */
+export type SyncPullResult =
+  | { ok: true; responseJson: string }
+  | {
+      ok: false;
+      code: "log_truncated";
+      compactedThrough: number;
+      checkpointServerSequence: number;
+    };
+
+export type WorkspaceSyncState = {
+  latestServerSequence: number;
+  compactedThrough: number;
+};
+
+export type WorkspaceStorageUsage = {
+  byteLength: number;
+  quotaBytes: number;
 };
 
 export class SyncContractError extends Error {
@@ -671,7 +698,7 @@ function requireExactKeys(
   }
 }
 
-function jsonByteLength(value: unknown): number {
+export function jsonByteLength(value: unknown): number {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength;
 }
 

@@ -11,6 +11,7 @@ import type {
   WorkspaceSnapshot,
   WorkspacePrompt,
   WorkspaceAnnotation,
+  WorkspaceDelta,
   WorkspaceTask,
 } from "@/contracts/workspace";
 import type {
@@ -127,5 +128,12 @@ export type RendererStore = {
   applyAck: (ack: OperationAck) => boolean;
   publishHistoryHeader: (header: HistoryHeader) => boolean;
   replaceFromSnapshot: (snapshot: WorkspaceSnapshot) => boolean;
+  /**
+   * Adopts remotely changed documents and their node records without a full
+   * snapshot. A record only moves forward: a current revision above the
+   * delta's is kept, and an equal revision with equal markdown keeps its
+   * object identity so unchanged subscribers stay quiet.
+   */
+  applyRemoteDocuments: (delta: WorkspaceDelta) => boolean;
   destroy: () => void;
 };

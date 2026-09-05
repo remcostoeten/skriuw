@@ -13,9 +13,17 @@ import {
   parseSyncPushRequest,
   type ClientSyncOperation,
   type JsonValue,
+  type SyncPullResult,
   type SyncPushResult,
   type SyncPushResponse,
 } from "../src/contracts";
+
+function pulledPage(result: SyncPullResult): unknown {
+  if (!result.ok) {
+    throw new Error(`log truncated through ${result.compactedThrough}`);
+  }
+  return JSON.parse(result.responseJson);
+}
 
 function inlineOperation(operation: ClientSyncOperation): {
   [key: string]: JsonValue;
@@ -133,7 +141,7 @@ describe("WorkspaceSyncObject", () => {
     expect(pushed.latestServerSequence).toBe(1);
 
     const pulled = parseSyncPullResponse(
-      JSON.parse(await workspace.pullOperations(0, 16)),
+      pulledPage(await workspace.pullOperations(0, 16)),
     );
     expect(pulled.latestServerSequence).toBe(1);
     expect(pulled.operations).toHaveLength(1);
@@ -141,7 +149,7 @@ describe("WorkspaceSyncObject", () => {
     expect(inlineOperation(pulled.operations[0]!).type).toBe("create_folder");
 
     const exhausted = parseSyncPullResponse(
-      JSON.parse(await workspace.pullOperations(1, 16)),
+      pulledPage(await workspace.pullOperations(1, 16)),
     );
     expect(exhausted.operations).toEqual([]);
   });
@@ -166,7 +174,7 @@ describe("WorkspaceSyncObject", () => {
     expect(currentResult.latestServerSequence).toBe(3);
 
     const pulled = parseSyncPullResponse(
-      JSON.parse(await workspace.pullOperations(0, 16)),
+      pulledPage(await workspace.pullOperations(0, 16)),
     );
     expect(pulled.syncProtocolVersion).toBe(WORKSPACE_SYNC_PROTOCOL_VERSION);
     expect(pulled.operations.map((operation) => operation.payload.form)).toEqual([
@@ -233,7 +241,7 @@ describe("WorkspaceSyncObject", () => {
     const retry = requirePushSuccess(await workspace.pushOperations(request));
     expect(retry).toEqual(first);
     const pulled = parseSyncPullResponse(
-      JSON.parse(await workspace.pullOperations(0)),
+      pulledPage(await workspace.pullOperations(0)),
     );
     expect(pulled.operations).toHaveLength(1);
   });
@@ -330,7 +338,7 @@ describe("WorkspaceSyncObject", () => {
     ]);
 
     const pulled = parseSyncPullResponse(
-      JSON.parse(await workspace.pullOperations(0, 16)),
+      pulledPage(await workspace.pullOperations(0, 16)),
     );
     expect(pulled.operations).toHaveLength(1);
     const payload = pulled.operations[0]!.payload;
@@ -394,7 +402,7 @@ describe("WorkspaceSyncObject", () => {
       },
     });
     const pulled = parseSyncPullResponse(
-      JSON.parse(await workspace.pullOperations(0)),
+      pulledPage(await workspace.pullOperations(0)),
     );
     expect(pulled.operations).toEqual([]);
   });
@@ -418,7 +426,7 @@ describe("WorkspaceSyncObject", () => {
       },
     });
     const pulled = parseSyncPullResponse(
-      JSON.parse(await workspace.pullOperations(0)),
+      pulledPage(await workspace.pullOperations(0)),
     );
     expect(pulled.operations).toEqual([]);
   });
@@ -431,10 +439,10 @@ describe("WorkspaceSyncObject", () => {
     );
 
     const firstPull = parseSyncPullResponse(
-      JSON.parse(await first.pullOperations(0)),
+      pulledPage(await first.pullOperations(0)),
     );
     const secondPull = parseSyncPullResponse(
-      JSON.parse(await second.pullOperations(0)),
+      pulledPage(await second.pullOperations(0)),
     );
     expect(firstPull.operations).toHaveLength(1);
     expect(secondPull.operations).toEqual([]);

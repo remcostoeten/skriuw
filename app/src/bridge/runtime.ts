@@ -130,14 +130,27 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
     return browserSyncDriver(syncWorkerPort).status() as Promise<T>;
   }
   if (command === "connect_workspace_sync") {
-    const { token } = args as { token: string };
-    return browserSyncDriver(syncWorkerPort).connect(token) as Promise<T>;
+    const { token, baseUrl } = args as { token: string; baseUrl?: string };
+    return browserSyncDriver(syncWorkerPort).connect(token, baseUrl) as Promise<T>;
   }
   if (command === "disconnect_workspace_sync") {
     return browserSyncDriver(syncWorkerPort).pause() as Promise<T>;
   }
   if (command === "retry_workspace_sync") {
     return browserSyncDriver(syncWorkerPort).retry() as Promise<T>;
+  }
+  if (command === "refresh_workspace_sync") {
+    return browserSyncDriver(syncWorkerPort).refresh() as Promise<T>;
+  }
+  if (command === "set_workspace_sync_online") {
+    const { online } = args as { online: boolean };
+    browserSyncDriver(syncWorkerPort).setOnline(online);
+    return undefined as T;
+  }
+  if (command === "set_workspace_sync_visibility") {
+    const { visible, focused } = args as { visible: boolean; focused: boolean };
+    browserSyncDriver(syncWorkerPort).setVisibility(visible, focused);
+    return undefined as T;
   }
   if (command === "store_note_image") {
     return storeBrowserMediaBlob(args as Uint8Array) as Promise<T>;
@@ -162,6 +175,9 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
   }
 
   const mapped = browserCommand(command, args);
+  if (command === "apply_workspace_operations") {
+    browserSyncDriver(syncWorkerPort).interruptForCommit();
+  }
   const value = await requestExpecting(mapped.kind, mapped.payload, mapped.expected);
   if (command === "apply_workspace_operations") {
     browserSyncDriver(syncWorkerPort).notifyLocalCommit();
@@ -320,6 +336,8 @@ function browserCommand(command: string, args: unknown): BrowserCommand {
       return { kind: "apply_operations", payload: args, expected: "operation" };
     case "search_workspace":
       return { kind: "search", payload: args, expected: "search" };
+    case "read_workspace_delta":
+      return { kind: "read_workspace_delta", payload: args, expected: "workspace_delta" };
     default:
       throw browserFailure(
         "invalid_request",

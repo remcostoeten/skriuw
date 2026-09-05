@@ -258,8 +258,6 @@ impl WorkspaceOperation {
 
 pub const SYNC_RECOVERY_VIEW_VERSION: u16 = 1;
 
-pub const SYNC_CONFLICT_REVIEW_VIEW_VERSION: u16 = 1;
-
 /// One replicable operation the sync queue set aside because it can not be
 /// pushed. The record keeps its stable `blocked_id` until it is retried or
 /// discarded, so the UI can list and act on it across refreshes.
@@ -297,57 +295,6 @@ pub struct SyncRecoveryView {
     pub view_version: u16,
     pub blocked: Vec<BlockedSyncOperationView>,
     pub discarded: Vec<DiscardedSyncOperationView>,
-}
-
-/// One note whose document diverged across devices. Listing carries only what
-/// the review list renders; the two complete versions are fetched per conflict
-/// so a long list never loads every body.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct DocumentConflictView {
-    pub conflict_id: String,
-    pub note_id: String,
-    pub title: String,
-    pub reason_code: String,
-    pub subreason: Option<String>,
-    pub created_at: i64,
-    /// False when the local side could not be preserved, which leaves the
-    /// incoming version as the only complete copy.
-    pub local_version_available: bool,
-    /// `local`, `remote`, `merged`, or `superseded` once settled.
-    pub resolved_choice: Option<String>,
-    pub resolved_at: Option<i64>,
-}
-
-/// One complete side of a divergence, as Markdown the review surface renders
-/// and diffs.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct DocumentConflictVersionView {
-    pub title: Option<String>,
-    pub markdown: String,
-    pub revision: Option<i64>,
-}
-
-/// Both preserved versions of one divergence.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct DocumentConflictVersionsView {
-    pub conflict_id: String,
-    pub note_id: String,
-    pub remote: DocumentConflictVersionView,
-    pub local: Option<DocumentConflictVersionView>,
-}
-
-/// Versioned projection of preserved document divergences. Settled records are
-/// kept beside the open ones because a resolution never deletes the version it
-/// did not choose.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct SyncConflictReviewView {
-    pub view_version: u16,
-    pub open: Vec<DocumentConflictView>,
-    pub settled: Vec<DocumentConflictView>,
 }
 
 impl SyncOperationPayload {

@@ -56,8 +56,15 @@ digest is not 64 lowercase hex characters does not match a route at all.
 | Chunks per manifest | 256 |
 | Content per manifest | 256 MiB |
 | Sync batch | 64 operations / 8 MiB |
+| Pull page | 3 MiB serialized, at least one operation |
+| Content per workspace | 2 GiB (`quota_exceeded`, HTTP 413) |
 | Retained checkpoints | 2 |
 | Device idle expiry | 30 days |
+| Unreferenced chunk grace | 24 h after upload |
+
+The workspace byte total lives in the Durable Object (`sync_storage_usage`)
+and is incremented by a `recordChunkUpload` call after each successful `PUT`;
+a `PUT` that would exceed the quota is rejected before any R2 write.
 
 ## Deduplication and isolation
 
@@ -87,19 +94,45 @@ An operation is removable only when **both** hold:
 With no retained checkpoint nothing is removable, because a device with no
 checkpoint would have to replay from zero. A device that has not acknowledged
 within the idle window is expired and stops pinning the log; it recovers by
-hydrating from a checkpoint rather than by replaying, which is why expiry is
+rehydrating from a checkpoint rather than by replaying, which is why expiry is
 safe but not free.
+
+Compaction writes its floor in the same transaction that removes rows:
+`sync_log_floor(id = 1, compacted_through, checkpoint_server_sequence,
+compacted_at)` is monotone and `compacted_through` never exceeds the oldest
+retained checkpoint. A pull whose cursor is below `compacted_through` returns
+`{ ok: false, code: 'log_truncated' }` from the object and HTTP 410
+`{ "error": "log_truncated" }` from the Worker; `GET /v1/sync/state` reports
+`compactedThrough`. The client recovers as specified in
+[the coordinator contract](desktop-sync-coordinator.md#checkpoints-rehydration-and-retention).
+
+Push idempotency survives compaction. `sync_operation_index(device_id,
+client_sequence, operation_id, server_sequence, payload_sha256,
+base_server_sequence)` is never compacted; when a push misses
+`sync_operations`, the object consults the index and returns the stored server
+sequence for an identical retry, or rejects a retry whose payload digest
+differs.
 
 A chunk is deleted only after every reference to it is gone. References are
 tracked in `sync_chunk_refs` per operation and per checkpoint, and are removed
-in the same transaction that removes the referring row. Orphans are computed
-from that table before the R2 delete, so a chunk reachable from a retained
-operation or checkpoint is never collected.
+in the same transaction that removes the referring row. Deletion is two-phase:
+compaction records each orphan digest in `sync_chunk_deleting(digest,
+marked_at)` inside its transaction, push and checkpoint publication treat any
+referenced digest present there as missing (`content_unavailable`) and
+re-verify references inside the synchronous transaction, and the row is
+cleared only after the R2 delete completes. Compaction also lists the
+workspace prefix and deletes any object with no `sync_chunk_refs` row that was
+uploaded more than 24 hours earlier, so an abandoned upload cannot pin storage
+forever.
 
-Client-side tombstones, unresolved conflicts, and recovery artifacts are **not**
-governed by this policy. They live in the local database and are covered by
-[sync convergence v1](sync-convergence-v1.md); server compaction cannot remove
-them and must never be assumed to.
+Checkpoint publication does not broadcast `workspaceChanged`; only accepted
+pushes wake other devices. The object schedules an alarm at the earliest
+socket session expiry and closes expired sockets when it fires.
+
+Client-side tombstones, superseded received records, document heads, and
+history rows are **not** governed by this policy. They live in the local
+database and are covered by [sync convergence v1](sync-convergence-v1.md);
+server compaction cannot remove them and must never be assumed to.
 
 ## Observability
 
@@ -125,16 +158,26 @@ the client verifies again through `ContentManifest::verify_assembled`, which
 checks length, every chunk digest, and the whole-content digest. A mismatch on
 either side is a hard failure; the operation or checkpoint is not applied.
 
-**Failed hydration.** `hydrate_from_checkpoint` is refused unless the device has
-an active connection, a zero cursor, and an empty outbox, so a failed or
-repeated attempt cannot discard local work. A device that fails verification
-should discard the downloaded bytes and retry, or fall back to replaying the
-ordered log from zero if the workspace still retains it.
+**Failed hydration.** `hydrate_from_checkpoint` is refused unless, inside its
+own transaction, the device has an active connection, a zero cursor, next
+client sequence one, no received rows, an empty outbox, and no unresolved
+blocked rows, so a failed or repeated attempt cannot discard local work. A
+device that fails verification discards the downloaded bytes and retries, or
+falls back to replaying the ordered log from zero if the workspace still
+retains it.
+
+**Truncated log.** A device that pulls below the floor rehydrates from the
+latest checkpoint once its outbox is empty; blocked rows and tombstones
+survive, and its own pushed operations above the checkpoint re-apply from the
+log. A workspace with no checkpoint above the floor leaves the device
+`blocked { log_truncated_without_checkpoint }` until a checkpoint is
+published.
 
 **Lost bucket contents.** Chunked operations become unresolvable and the client
-records them as conflicts rather than applying partial state. Inline history is
-unaffected. There is no server-side rebuild path: the authoritative copy of a
-workspace is the local SQLite database on each connected device.
+fails the pull with `content_unavailable` rather than applying partial state.
+Inline history is unaffected. There is no server-side rebuild path: the
+authoritative copy of a workspace is the local SQLite database on each
+connected device.
 
 ## Deletion
 

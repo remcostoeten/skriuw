@@ -2,6 +2,27 @@ use skriuw_domain::WORKSPACE_SYNC_PROTOCOL_VERSION;
 
 use crate::transport::TransportError;
 
+/// Stable `Validation` detail for a 413 response: the workspace's cloud
+/// storage quota or the request size ceiling was exceeded.
+pub const VALIDATION_DETAIL_QUOTA_EXCEEDED: &str = "quota_exceeded";
+
+const REQUEST_TIMEOUT_BASE_MS: u64 = 10_000;
+const REQUEST_TIMEOUT_PER_UNIT_MS: u64 = 1_000;
+const REQUEST_TIMEOUT_UNIT_BYTES: u64 = 64 * 1024;
+const REQUEST_TIMEOUT_CAP_MS: u64 = 180_000;
+
+/// Per-request deadline shared by the desktop and browser transports:
+/// 10 s plus 1 s for every started 64 KiB of request body, capped at 180 s,
+/// so a large chunk upload on a slow link is not cut off by a fixed timeout
+/// while an idle request still fails fast.
+#[must_use]
+pub fn request_timeout_ms(body_len: usize) -> u64 {
+    let units = (body_len as u64).div_ceil(REQUEST_TIMEOUT_UNIT_BYTES);
+    REQUEST_TIMEOUT_BASE_MS
+        .saturating_add(units.saturating_mul(REQUEST_TIMEOUT_PER_UNIT_MS))
+        .min(REQUEST_TIMEOUT_CAP_MS)
+}
+
 /// Transport-neutral URL layout of the workspace sync service. Both the
 /// desktop HTTP transport and the browser worker transport build their
 /// requests from this one contract so the two runtimes cannot drift apart on
@@ -83,6 +104,8 @@ pub fn classify_http_failure(status: u16, retry_after_ms: Option<i64>) -> Transp
         401 => TransportError::AuthenticationRequired,
         403 | 404 => TransportError::AuthorizationDenied,
         409 => TransportError::Conflict("server_sequence_conflict".into()),
+        410 => TransportError::LogTruncated,
+        413 => TransportError::Validation(VALIDATION_DETAIL_QUOTA_EXCEEDED.into()),
         429 => TransportError::RateLimited { retry_after_ms },
         400..=499 => TransportError::Validation("request_rejected".into()),
         _ => TransportError::Server { retry_after_ms },
@@ -145,10 +168,29 @@ mod tests {
             TransportError::Validation(_)
         ));
         assert_eq!(
+            classify_http_failure(410, None),
+            TransportError::LogTruncated
+        );
+        assert_eq!(
+            classify_http_failure(413, None),
+            TransportError::Validation(VALIDATION_DETAIL_QUOTA_EXCEEDED.into())
+        );
+        assert_eq!(
             classify_http_failure(503, Some(1_000)),
             TransportError::Server {
                 retry_after_ms: Some(1_000)
             }
         );
+    }
+
+    #[test]
+    fn request_timeout_grows_with_the_body_and_stays_capped() {
+        assert_eq!(request_timeout_ms(0), 10_000);
+        assert_eq!(request_timeout_ms(1), 11_000);
+        assert_eq!(request_timeout_ms(64 * 1024), 11_000);
+        assert_eq!(request_timeout_ms(64 * 1024 + 1), 12_000);
+        assert_eq!(request_timeout_ms(1024 * 1024), 26_000);
+        assert_eq!(request_timeout_ms(64 * 1024 * 1024), 180_000);
+        assert_eq!(request_timeout_ms(usize::MAX), 180_000);
     }
 }

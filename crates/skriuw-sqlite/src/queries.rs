@@ -578,48 +578,79 @@ pub(crate) fn write_pane_layout(
     Ok(())
 }
 
+const NODE_COLUMNS: &str = "id, kind, parent_id, rank, title, icon, cover_image_id, cover_full_width, \
+     cover_position_x, cover_position_y, cover_zoom, created_at, updated_at, deleted_at, \
+     pinned_at";
+
+fn read_node_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspaceNode> {
+    let kind = match row.get::<_, String>(1)?.as_str() {
+        "note" => NodeKind::Note,
+        "folder" => NodeKind::Folder,
+        other => {
+            return Err(rusqlite::Error::FromSqlConversionFailure(
+                1,
+                rusqlite::types::Type::Text,
+                format!("unknown node kind {other}").into(),
+            ));
+        }
+    };
+    Ok(WorkspaceNode {
+        id: row.get(0)?,
+        kind,
+        parent_id: row.get(2)?,
+        rank: row.get(3)?,
+        title: row.get(4)?,
+        icon: row.get(5)?,
+        cover_image_id: row.get(6)?,
+        cover_full_width: row.get(7)?,
+        cover_position_x: row.get(8)?,
+        cover_position_y: row.get(9)?,
+        cover_zoom: row.get(10)?,
+        created_at: row.get(11)?,
+        updated_at: row.get(12)?,
+        deleted_at: row.get(13)?,
+        pinned_at: row.get(14)?,
+    })
+}
+
 pub(crate) fn read_nodes(connection: &Connection) -> Result<Vec<WorkspaceNode>, StorageError> {
     let mut statement = connection
-        .prepare_cached(
-            "SELECT id, kind, parent_id, rank, title, icon, cover_image_id, cover_full_width, \
-             cover_position_x, cover_position_y, cover_zoom, created_at, updated_at, deleted_at, \
-             pinned_at \
-             FROM workspace_nodes ORDER BY parent_id, rank, id",
-        )
+        .prepare_cached(&format!(
+            "SELECT {NODE_COLUMNS} FROM workspace_nodes ORDER BY parent_id, rank, id"
+        ))
+        .map_err(backend)?;
+    let rows = statement.query_map([], read_node_row).map_err(backend)?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(backend)
+}
+
+pub(crate) fn read_nodes_by_id(
+    connection: &Connection,
+    ids: &[String],
+) -> Result<Vec<WorkspaceNode>, StorageError> {
+    let mut statement = connection
+        .prepare_cached(&format!(
+            "SELECT {NODE_COLUMNS} FROM workspace_nodes \
+             WHERE id IN (SELECT value FROM json_each(?1)) ORDER BY parent_id, rank, id"
+        ))
         .map_err(backend)?;
     let rows = statement
-        .query_map([], |row| {
-            let kind = match row.get::<_, String>(1)?.as_str() {
-                "note" => NodeKind::Note,
-                "folder" => NodeKind::Folder,
-                other => {
-                    return Err(rusqlite::Error::FromSqlConversionFailure(
-                        1,
-                        rusqlite::types::Type::Text,
-                        format!("unknown node kind {other}").into(),
-                    ));
-                }
-            };
-            Ok(WorkspaceNode {
-                id: row.get(0)?,
-                kind,
-                parent_id: row.get(2)?,
-                rank: row.get(3)?,
-                title: row.get(4)?,
-                icon: row.get(5)?,
-                cover_image_id: row.get(6)?,
-                cover_full_width: row.get(7)?,
-                cover_position_x: row.get(8)?,
-                cover_position_y: row.get(9)?,
-                cover_zoom: row.get(10)?,
-                created_at: row.get(11)?,
-                updated_at: row.get(12)?,
-                deleted_at: row.get(13)?,
-                pinned_at: row.get(14)?,
-            })
-        })
+        .query_map([id_list(ids)?], read_node_row)
         .map_err(backend)?;
     rows.collect::<Result<Vec<_>, _>>().map_err(backend)
+}
+
+fn read_document_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspaceDocument> {
+    let raw = row.get::<_, String>(1)?;
+    let document_json = serde_json::from_str(&raw).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Text, Box::new(error))
+    })?;
+    Ok(WorkspaceDocument {
+        note_id: row.get(0)?,
+        document_json,
+        markdown: row.get(2)?,
+        revision: row.get(3)?,
+        word_count: row.get(4)?,
+    })
 }
 
 pub(crate) fn read_documents(
@@ -632,25 +663,30 @@ pub(crate) fn read_documents(
         )
         .map_err(backend)?;
     let rows = statement
-        .query_map([], |row| {
-            let raw = row.get::<_, String>(1)?;
-            let document_json = serde_json::from_str(&raw).map_err(|error| {
-                rusqlite::Error::FromSqlConversionFailure(
-                    1,
-                    rusqlite::types::Type::Text,
-                    Box::new(error),
-                )
-            })?;
-            Ok(WorkspaceDocument {
-                note_id: row.get(0)?,
-                document_json,
-                markdown: row.get(2)?,
-                revision: row.get(3)?,
-                word_count: row.get(4)?,
-            })
-        })
+        .query_map([], read_document_row)
         .map_err(backend)?;
     rows.collect::<Result<Vec<_>, _>>().map_err(backend)
+}
+
+pub(crate) fn read_documents_by_id(
+    connection: &Connection,
+    ids: &[String],
+) -> Result<Vec<WorkspaceDocument>, StorageError> {
+    let mut statement = connection
+        .prepare_cached(
+            "SELECT note_id, document_json, markdown, revision, word_count \
+             FROM documents WHERE note_id IN (SELECT value FROM json_each(?1)) \
+             ORDER BY note_id",
+        )
+        .map_err(backend)?;
+    let rows = statement
+        .query_map([id_list(ids)?], read_document_row)
+        .map_err(backend)?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(backend)
+}
+
+fn id_list(ids: &[String]) -> Result<String, StorageError> {
+    serde_json::to_string(ids).map_err(json_backend)
 }
 
 pub(crate) fn read_history_headers(

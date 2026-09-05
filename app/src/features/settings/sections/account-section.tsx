@@ -5,9 +5,7 @@ import {
   type BlockedSyncOperation,
   discardBlockedSyncOperation,
   listBlockedSyncOperations,
-  listSyncConflicts,
   retryBlockedSyncOperation,
-  type SyncConflictReview,
   type SyncRecoveryView,
 } from "@/bridge/commands";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
@@ -23,7 +21,6 @@ import {
   settingsRowLabel,
   settingsSection,
 } from "./settings-shared";
-import { ConflictReview } from "./conflict-review";
 import {
   blockedCauseText,
   blockedItemLabel,
@@ -31,6 +28,7 @@ import {
 } from "./sync-recovery";
 import {
   syncDescription,
+  syncDetail,
   syncEnabled,
   syncProgressText,
   syncProgressVisible,
@@ -48,10 +46,9 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
   const [recovery, setRecovery] = useState<SyncRecoveryView | null>(null);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [recoveryBusyId, setRecoveryBusyId] = useState<string | null>(null);
-  const [conflicts, setConflicts] = useState<SyncConflictReview | null>(null);
-  const [conflictError, setConflictError] = useState<string | null>(null);
   const unavailableReason = authConfiguration.available ? null : authConfiguration.reason;
   const browser = sync.browser;
+  const signedIn = user !== null && !sync.signInRequired;
 
   useEffect(() => {
     if (!user || browser) return;
@@ -65,16 +62,6 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
         },
         (error: unknown) => {
           if (mounted) setRecoveryError(error instanceof Error ? error.message : String(error));
-        },
-      );
-      listSyncConflicts().then(
-        (view) => {
-          if (!mounted) return;
-          setConflicts(view);
-          setConflictError(null);
-        },
-        (error: unknown) => {
-          if (mounted) setConflictError(error instanceof Error ? error.message : String(error));
         },
       );
     };
@@ -119,7 +106,7 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
                 : unavailableReason ?? "Use email and password to sign in or create an account."}
             </span>
           </span>
-          {user ? (
+          {signedIn ? (
             <button type="button" className={settingsButton} onClick={sync.signOut}>
               Sign out
             </button>
@@ -141,6 +128,9 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
               <span className={settingsRowDescription}>
                 {sync.error ?? syncDescription(sync.status, browser)}
               </span>
+              {syncDetail(sync.status) ? (
+                <span className={settingsRowDescription}>{syncDetail(sync.status)}</span>
+              ) : null}
               {browser ? (
                 <span aria-live="polite" className={settingsRowDescription}>
                   {sync.progress && syncProgressVisible(sync.status, sync.pending)
@@ -149,7 +139,16 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
                 </span>
               ) : null}
             </span>
-            {syncEnabled(sync.status) ? (
+            {sync.signInRequired ? (
+              <button
+                type="button"
+                className={settingsButton}
+                disabled={unavailableReason !== null}
+                onClick={onRequestSignIn}
+              >
+                Sign in
+              </button>
+            ) : syncEnabled(sync.status) ? (
               <span className="flex items-center gap-1.5">
                 {sync.status.state === "blocked" ? (
                   <button
@@ -173,18 +172,6 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
           </div>
         ) : null}
       </div>
-      {user && !browser ? (
-        <ConflictReview
-          review={conflicts}
-          error={conflictError}
-          onResolved={(next) => {
-            setConflicts(next);
-            setConflictError(null);
-            void sync.refresh();
-          }}
-          onError={setConflictError}
-        />
-      ) : null}
       {user && !browser ? (
         <BlockedChanges
           recovery={recovery}

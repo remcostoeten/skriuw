@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { KeyboardEvent } from "react";
+import type { CSSProperties, KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { commitOperations } from "@/store/actions/workspace";
 import { registerPendingWork } from "@/shell/pending-work";
@@ -419,6 +419,11 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
         className="raw-markdown-root"
         data-line-numbers={showLineNumbers ? "true" : "false"}
         data-highlighted={highlight === null ? "false" : "true"}
+        style={
+          {
+            "--raw-markdown-digits": Math.max(2, String(lineCount).length),
+          } as CSSProperties
+        }
       >
         <div className="raw-markdown-surface">
           {showLineNumbers ? (

@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkspaceDelta",
+  "description": "The subset of canonical state a renderer needs after specific notes\nchanged underneath it: the current document bodies plus the node records\nfor the same identifiers, so title and placement stay in step.",
+  "type": "object",
+  "properties": {
+    "documents": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/WorkspaceDocument"
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/WorkspaceNode"
+      }
+    }
+  },
+  "required": [
+    "documents",
+    "nodes"
+  ],
+  "$defs": {
+    "NodeKind": {
+      "type": "string",
+      "enum": [
+        "note",
+        "folder"
+      ]
+    },
+    "WorkspaceDocument": {
+      "type": "object",
+      "properties": {
+        "documentJson": true,
+        "markdown": {
+          "type": "string"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "wordCount": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "noteId",
+        "documentJson",
+        "markdown",
+        "revision",
+        "wordCount"
+      ]
+    },
+    "WorkspaceNode": {
+      "type": "object",
+      "properties": {
+        "coverFullWidth": {
+          "type": "boolean",
+          "default": false
+        },
+        "coverImageId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "coverPositionX": {
+          "type": "number",
+          "format": "double",
+          "default": 50.0
+        },
+        "coverPositionY": {
+          "type": "number",
+          "format": "double",
+          "default": 50.0
+        },
+        "coverZoom": {
+          "type": "number",
+          "format": "double",
+          "default": 1.0
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "deletedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "icon": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/NodeKind"
+        },
+        "parentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pinnedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64",
+          "default": null
+        },
+        "rank": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "rank",
+        "title",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  }
+}

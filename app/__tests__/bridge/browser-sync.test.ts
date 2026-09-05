@@ -1,11 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  classifyDriverFailure,
   createBrowserSyncDriver,
+  DRIVER_FAILURE_AFTER_RECONNECTS,
+  OFFLINE_PROBE_MS,
+  POLL_CHANNEL_CONNECTED_MS,
+  POLL_HIDDEN_MS,
+  POLL_VISIBLE_FOCUSED_MS,
+  POLL_VISIBLE_UNFOCUSED_MS,
+  pollIntervalMs,
   publishBrowserSyncEvent,
+  subscribeBrowserSessionExpired,
   subscribeBrowserWorkspaceChanges,
   subscribeBrowserSyncProgress,
   SyncSessionRejectedError,
+  type BrowserSyncChange,
   type BrowserSyncDriverDependencies,
   type BrowserSyncProgress,
   type PushChannelConnection,
@@ -20,6 +30,7 @@ type ScheduledTimer = {
 type FakePushChannel = {
   connection: PushChannelConnection;
   onWake: () => void;
+  onChannelState: (connected: boolean) => void;
   closed: boolean;
 };
 
@@ -30,8 +41,11 @@ type Harness = {
   provisionCalls: { token: string; deviceId: string }[];
   discardedSessions: number[];
   pushChannels: FakePushChannel[];
+  clock: { now: number };
   respondWith(kind: string, value: unknown): void;
+  failWith(kind: string, error: unknown): void;
   runDueTimer(): Promise<void>;
+  dueTimers(): ScheduledTimer[];
 };
 
 function createHarness(overrides?: Partial<BrowserSyncDriverDependencies>): Harness {
@@ -41,19 +55,26 @@ function createHarness(overrides?: Partial<BrowserSyncDriverDependencies>): Harn
   const discardedSessions: number[] = [];
   const pushChannels: FakePushChannel[] = [];
   const responses = new Map<string, unknown>();
+  const failures = new Map<string, unknown>();
+  const clock = { now: 1_000 };
   responses.set("sync_connection", null);
   responses.set("sync_connect", { state: "connecting" });
   responses.set("sync_status", { state: "upToDate" });
+  responses.set("sync_refresh", undefined);
+  responses.set("sync_interrupt", undefined);
   responses.set("sync_cycle", {
     status: { state: "upToDate" },
     retryAtMs: null,
-    workspaceChanged: false,
+    changes: { noteIds: [], structureChanged: false, full: false },
   });
 
   const dependencies: BrowserSyncDriverDependencies = {
     port: {
       request: (kind, payload) => {
         requests.push({ kind, payload });
+        if (failures.has(kind)) {
+          return Promise.reject(failures.get(kind));
+        }
         if (!responses.has(kind)) {
           return Promise.reject(new Error(`unexpected worker request ${kind}`));
         }
@@ -66,7 +87,7 @@ function createHarness(overrides?: Partial<BrowserSyncDriverDependencies>): Harn
       return Promise.resolve({ workspaceId: "w_1", deviceId });
     },
     createDeviceId: () => "generated-device",
-    now: () => 1_000,
+    now: () => clock.now,
     setTimer: (callback, delayMs) => {
       const timer: ScheduledTimer = { callback, delayMs, cleared: false };
       timers.push(timer);
@@ -79,8 +100,8 @@ function createHarness(overrides?: Partial<BrowserSyncDriverDependencies>): Harn
     discardPersistedSession: () => {
       discardedSessions.push(discardedSessions.length + 1);
     },
-    openPushChannel: (connection, onWake) => {
-      const channel: FakePushChannel = { connection, onWake, closed: false };
+    openPushChannel: (connection, onWake, onChannelState) => {
+      const channel: FakePushChannel = { connection, onWake, onChannelState, closed: false };
       pushChannels.push(channel);
       return () => {
         channel.closed = true;
@@ -95,18 +116,27 @@ function createHarness(overrides?: Partial<BrowserSyncDriverDependencies>): Harn
     provisionCalls,
     discardedSessions,
     pushChannels,
+    clock,
     respondWith: (kind, value) => {
+      failures.delete(kind);
       responses.set(kind, value);
+    },
+    failWith: (kind, error) => {
+      failures.set(kind, error);
     },
     runDueTimer: async () => {
       const due = timers.filter((timer) => !timer.cleared).pop();
       assert.ok(due, "a timer is scheduled");
       due.cleared = true;
       due.callback();
-      await Promise.resolve();
-      await Promise.resolve();
+      for (let index = 0; index < 4; index += 1) await Promise.resolve();
     },
+    dueTimers: () => timers.filter((timer) => !timer.cleared),
   };
+}
+
+function lastDelay(harness: Harness): number | undefined {
+  return harness.dueTimers().pop()?.delayMs;
 }
 
 test("connect provisions with the durable device identity and starts cycling", async () => {
@@ -289,7 +319,7 @@ test("a cycle that applies remote state notifies the renderer once", async () =>
   harness.respondWith("sync_cycle", {
     status: { state: "upToDate" },
     retryAtMs: null,
-    workspaceChanged: true,
+    changes: { noteIds: ["n-1"], structureChanged: false, full: false },
   });
 
   await harness.runDueTimer();
@@ -307,6 +337,7 @@ test("connect opens the push channel for the provisioned workspace", async () =>
     workspaceId: "w_1",
     deviceId: "generated-device",
     token: "token-1",
+    baseUrl: "http://localhost:8787",
   });
   assert.equal(harness.pushChannels[0]?.closed, false);
 });
@@ -381,4 +412,274 @@ test("worker progress events reach subscribers and ignore malformed payloads", (
   assert.equal(seen.length, 1);
   assert.equal(seen[0]?.phase, "hydrating");
   assert.equal(seen[0]?.expectedChunks, 8);
+});
+
+test("the change payload reaches listeners and empty reports stay silent", async () => {
+  const harness = createHarness();
+  const seen: BrowserSyncChange[] = [];
+  const unsubscribe = subscribeBrowserWorkspaceChanges((change) => {
+    seen.push(change);
+  });
+  await harness.driver.connect("token-1");
+  await harness.runDueTimer();
+  harness.respondWith("sync_cycle", {
+    status: { state: "upToDate" },
+    retryAtMs: null,
+    changes: { noteIds: ["n-1", "n-2"], structureChanged: true, full: false },
+  });
+  await harness.runDueTimer();
+  unsubscribe();
+
+  assert.deepEqual(seen, [{ noteIds: ["n-1", "n-2"], structureChanged: true, full: false }]);
+});
+
+test("a transient cycle failure backs off from one second and doubles to a minute", async () => {
+  const harness = createHarness();
+  await harness.driver.connect("token-1");
+  harness.failWith("sync_cycle", { code: "backend", message: "busy", recovery: "", terminal: false });
+
+  const delays: number[] = [];
+  for (let index = 0; index < 8; index += 1) {
+    await harness.runDueTimer();
+    delays.push(lastDelay(harness) ?? -1);
+  }
+  assert.deepEqual(delays, [1_000, 2_000, 4_000, 8_000, 16_000, 32_000, 60_000, 60_000]);
+  assert.equal(harness.pushChannels[0]?.closed, false, "the session stays active");
+
+  harness.respondWith("sync_cycle", {
+    status: { state: "upToDate" },
+    retryAtMs: null,
+    changes: { noteIds: [], structureChanged: false, full: false },
+  });
+  await harness.runDueTimer();
+  assert.deepEqual(await harness.driver.status(), { state: "upToDate" });
+});
+
+test("status overlays retrying after two consecutive failures", async () => {
+  const harness = createHarness();
+  await harness.driver.connect("token-1");
+  harness.failWith("sync_cycle", new Error("worker hiccup"));
+
+  await harness.runDueTimer();
+  assert.deepEqual(await harness.driver.status(), { state: "upToDate" });
+  await harness.runDueTimer();
+  assert.deepEqual(await harness.driver.status(), {
+    state: "retrying",
+    nextAttemptAt: 1_000 + 2_000,
+  });
+});
+
+test("a terminal failure drops the session and re-establishes it from the persisted token on the next wake", async () => {
+  const harness = createHarness({ persistedToken: () => "persisted-token" });
+  await harness.driver.connect("token-1");
+  harness.failWith("sync_cycle", {
+    code: "worker_crashed",
+    message: "The browser storage worker crashed.",
+    recovery: "",
+    terminal: true,
+  });
+  await harness.runDueTimer();
+
+  assert.equal(harness.dueTimers().length, 0, "nothing is scheduled on a lost session");
+  assert.equal(harness.pushChannels[0]?.closed, true);
+  assert.equal(harness.discardedSessions.length, 0, "the persisted session is kept");
+
+  harness.respondWith("sync_connection", {
+    workspaceId: "w_1",
+    deviceId: "generated-device",
+    observedServerSequence: 4,
+  });
+  harness.respondWith("sync_cycle", {
+    status: { state: "upToDate" },
+    retryAtMs: null,
+    changes: { noteIds: [], structureChanged: false, full: false },
+  });
+  harness.driver.wake();
+  for (let index = 0; index < 8; index += 1) await Promise.resolve();
+
+  assert.equal(harness.provisionCalls.length, 2);
+  assert.equal(harness.provisionCalls[1]?.token, "persisted-token");
+  assert.equal(harness.pushChannels.length, 2);
+  assert.equal(harness.dueTimers().length, 1);
+});
+
+test("five failed reconnects surface as a driver failure block", async () => {
+  const harness = createHarness({
+    persistedToken: () => "persisted-token",
+  });
+  await harness.driver.connect("token-1");
+  harness.failWith("sync_cycle", { code: "timed_out", message: "", recovery: "", terminal: true });
+  await harness.runDueTimer();
+  harness.respondWith("sync_connection", {
+    workspaceId: "w_1",
+    deviceId: "generated-device",
+    observedServerSequence: 4,
+  });
+  harness.failWith("sync_connect", { code: "worker_crashed", message: "", recovery: "", terminal: true });
+
+  for (let attempt = 0; attempt < DRIVER_FAILURE_AFTER_RECONNECTS; attempt += 1) {
+    harness.driver.wake();
+    for (let index = 0; index < 24; index += 1) await Promise.resolve();
+  }
+  assert.equal(
+    harness.requests.filter((request) => request.kind === "sync_connect").length,
+    DRIVER_FAILURE_AFTER_RECONNECTS + 1,
+    "every wake after a lost session retries the reconnect",
+  );
+
+  const status = await harness.driver.status();
+  assert.equal(status.state, "blocked");
+  assert.equal(status.state === "blocked" ? status.reason : null, "driver_failure");
+});
+
+test("authenticationRequired notifies session-expired listeners after discarding the session", async () => {
+  const harness = createHarness();
+  let expired = 0;
+  const unsubscribe = subscribeBrowserSessionExpired(() => {
+    expired += 1;
+  });
+  await harness.driver.connect("token-1");
+  harness.respondWith("sync_cycle", {
+    status: { state: "authenticationRequired" },
+    retryAtMs: null,
+    changes: { noteIds: [], structureChanged: false, full: false },
+  });
+  await harness.runDueTimer();
+  unsubscribe();
+
+  assert.equal(expired, 1);
+  assert.equal(harness.discardedSessions.length, 1);
+});
+
+test("a rejected provision notifies session-expired listeners", async () => {
+  const harness = createHarness({
+    provision: () => Promise.reject(new SyncSessionRejectedError("expired")),
+  });
+  let expired = 0;
+  const unsubscribe = subscribeBrowserSessionExpired(() => {
+    expired += 1;
+  });
+  await assert.rejects(() => harness.driver.connect("expired-token"), /expired/);
+  unsubscribe();
+  assert.equal(expired, 1);
+});
+
+test("the fallback poll follows the wake channel and window visibility", async () => {
+  assert.equal(pollIntervalMs(true, false, false), POLL_CHANNEL_CONNECTED_MS);
+  assert.equal(pollIntervalMs(false, true, true), POLL_VISIBLE_FOCUSED_MS);
+  assert.equal(pollIntervalMs(false, true, false), POLL_VISIBLE_UNFOCUSED_MS);
+  assert.equal(pollIntervalMs(false, false, true), POLL_HIDDEN_MS);
+
+  const harness = createHarness();
+  await harness.driver.connect("token-1");
+  await harness.runDueTimer();
+  assert.equal(lastDelay(harness), POLL_VISIBLE_FOCUSED_MS);
+
+  harness.driver.setVisibility(true, false);
+  assert.equal(lastDelay(harness), POLL_VISIBLE_UNFOCUSED_MS);
+  harness.driver.setVisibility(false, false);
+  assert.equal(lastDelay(harness), POLL_HIDDEN_MS);
+  harness.pushChannels[0]?.onChannelState(true);
+  assert.equal(lastDelay(harness), POLL_CHANNEL_CONNECTED_MS);
+  harness.pushChannels[0]?.onChannelState(false);
+  harness.driver.setVisibility(true, true);
+  assert.equal(lastDelay(harness), POLL_VISIBLE_FOCUSED_MS);
+});
+
+test("offline is a hint that probes every fifteen seconds and any wake clears it", async () => {
+  const harness = createHarness();
+  await harness.driver.connect("token-1");
+  await harness.runDueTimer();
+
+  harness.driver.setOnline(false);
+  assert.equal(lastDelay(harness), OFFLINE_PROBE_MS);
+  await harness.runDueTimer();
+  assert.ok(harness.requests.filter((request) => request.kind === "sync_cycle").length >= 2);
+
+  harness.driver.notifyLocalCommit();
+  assert.equal(lastDelay(harness), 0);
+  await harness.runDueTimer();
+  assert.equal(lastDelay(harness), POLL_VISIBLE_FOCUSED_MS, "a successful cycle flips online");
+});
+
+test("refresh clears the retry delay through the worker and cycles at once", async () => {
+  const harness = createHarness();
+  await harness.driver.connect("token-1");
+  harness.respondWith("sync_cycle", {
+    status: { state: "retrying", nextAttemptAt: 9_000 },
+    retryAtMs: 9_000,
+    changes: { noteIds: [], structureChanged: false, full: false },
+  });
+  await harness.runDueTimer();
+  assert.equal(lastDelay(harness), 8_000);
+
+  await harness.driver.refresh();
+  assert.ok(harness.requests.some((request) => request.kind === "sync_refresh"));
+  assert.equal(lastDelay(harness), 0);
+});
+
+test("a commit during a running cycle interrupts it and the cycle reschedules", async () => {
+  const harness = createHarness();
+  await harness.driver.connect("token-1");
+  let finishCycle: (() => void) | null = null;
+  harness.respondWith("sync_cycle", undefined);
+  const dependencies = harness.driver;
+  const pendingCycle = new Promise<unknown>((resolve) => {
+    finishCycle = () =>
+      resolve({
+        status: { state: "pending" },
+        retryAtMs: null,
+        changes: { noteIds: [], structureChanged: false, full: false },
+      });
+  });
+  const harnessWithSlowCycle = createHarness({
+    port: {
+      request: (kind) => {
+        if (kind === "sync_cycle") return pendingCycle;
+        if (kind === "sync_interrupt") {
+          interrupts += 1;
+          return Promise.resolve(undefined);
+        }
+        return Promise.resolve(kind === "sync_connection" ? null : { state: "connecting" });
+      },
+    },
+  });
+  let interrupts = 0;
+  void dependencies;
+  await harnessWithSlowCycle.driver.connect("token-1");
+  await harnessWithSlowCycle.runDueTimer();
+  harnessWithSlowCycle.driver.interruptForCommit();
+  harnessWithSlowCycle.driver.notifyLocalCommit();
+  assert.equal(interrupts, 1, "the interrupt is posted while the cycle runs");
+  finishCycle?.();
+  for (let index = 0; index < 8; index += 1) await Promise.resolve();
+  assert.equal(lastDelay(harnessWithSlowCycle), 0, "the interrupted cycle reschedules");
+
+  harnessWithSlowCycle.driver.interruptForCommit();
+  assert.equal(interrupts, 1, "no interrupt is posted while no cycle runs");
+});
+
+test("driver failures classify by code, terminal flag, and lost-session messages", () => {
+  assert.equal(classifyDriverFailure(new Error("network")), "transient");
+  assert.equal(
+    classifyDriverFailure({ code: "backend", message: "", recovery: "", terminal: false }),
+    "transient",
+  );
+  assert.equal(
+    classifyDriverFailure({ code: "worker_crashed", message: "", recovery: "", terminal: true }),
+    "terminal",
+  );
+  assert.equal(
+    classifyDriverFailure({ code: "not_ready", message: "", recovery: "", terminal: false }),
+    "terminal",
+  );
+  assert.equal(
+    classifyDriverFailure({
+      code: "invalid_request",
+      message: "Cloud sync has no active session; connect before requesting a cycle.",
+      recovery: "",
+      terminal: false,
+    }),
+    "terminal",
+  );
 });

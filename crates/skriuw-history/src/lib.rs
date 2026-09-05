@@ -252,8 +252,9 @@ mod tests {
     use skriuw_domain::{NodePlacement, WorkspaceOperation, WorkspaceOperationEnvelope};
     use skriuw_sqlite::{HISTORY_COALESCE_WINDOW_MS, SqliteWorkspace};
     use skriuw_storage::{
-        DiagnosticCategory, DiagnosticContext, HistoryMaterialization, HistoryQueue,
-        MAX_DIAGNOSTIC_MESSAGE_BYTES, PendingHistoryRevision, StorageError, WorkspaceStorage,
+        DiagnosticCategory, DiagnosticContext, HistoryMaterialization, HistoryProvenance,
+        HistoryQueue, MAX_DIAGNOSTIC_MESSAGE_BYTES, PendingHistoryRevision, StorageError,
+        WorkspaceStorage,
     };
 
     use super::{
@@ -355,6 +356,7 @@ mod tests {
                 markdown: "history".into(),
                 created_at: 1,
                 attempts: 1,
+                provenance: HistoryProvenance::Local,
             })),
         };
         let worker =
@@ -401,6 +403,7 @@ mod tests {
                 markdown: "history".into(),
                 created_at: 1,
                 attempts: 1,
+                provenance: HistoryProvenance::Local,
             })),
             released: Arc::clone(&released),
         };

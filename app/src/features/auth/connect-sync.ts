@@ -49,11 +49,14 @@ async function cloudWorkspaceState(token: string): Promise<CloudWorkspaceState> 
 export async function connectSyncForCurrentSession(): Promise<void> {
   const token = await currentSessionToken();
   if (!token) return;
+  if (!authConfiguration.available) {
+    throw new Error(authConfiguration.reason);
+  }
   const state = await cloudWorkspaceState(token);
   if (state === "empty") {
     await adoptBoundStarterPreview();
   } else {
     await reclaimBoundStarterPreview();
   }
-  await connectWorkspaceSync(token);
+  await connectWorkspaceSync(token, authConfiguration.baseUrl);
 }

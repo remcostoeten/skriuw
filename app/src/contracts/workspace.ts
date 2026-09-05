@@ -28,6 +28,15 @@ export type WorkspaceDocument = {
   wordCount: number;
 };
 
+/**
+ * The subset of canonical state the renderer needs after specific notes
+ * changed underneath it; mirrors `contracts/generated/workspace-delta.schema.json`.
+ */
+export type WorkspaceDelta = {
+  documents: WorkspaceDocument[];
+  nodes: WorkspaceNode[];
+};
+
 export type HistoryHeader = {
   noteId: string;
   versionId: string;

@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use skriuw_domain::{
-    OperationAck, SearchHit, WorkspaceArchive, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    OperationAck, SearchHit, WorkspaceArchive, WorkspaceDelta, WorkspaceOperationEnvelope,
+    WorkspaceSnapshot,
 };
-use skriuw_sync::SyncStatus;
+use skriuw_sync::{RemoteChangeSet, SyncStatus};
 
 pub const WORKER_PROTOCOL_VERSION: u16 = 1;
 pub const MAX_SYNC_TOKEN_BYTES: usize = 4_096;
@@ -15,6 +16,7 @@ pub const MAX_QUERY_BYTES: usize = 4 * 1024;
 pub const MAX_LAYOUT_BYTES: usize = 256 * 1024;
 pub const MAX_EXPANDED_FOLDER_IDS: usize = 100_000;
 pub const MAX_DATABASE_NAME_BYTES: usize = 128;
+pub const MAX_DELTA_IDS_PER_REQUEST: usize = 4_096;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -62,6 +64,9 @@ pub enum BrowserWorkerCommand {
         archive: Box<WorkspaceArchive>,
     },
     IntegrityCheck,
+    ReadWorkspaceDelta {
+        ids: Vec<String>,
+    },
     SyncConnection,
     SyncConnect {
         token: String,
@@ -72,6 +77,12 @@ pub enum BrowserWorkerCommand {
     SyncDisconnect,
     SyncStatus,
     SyncCycle,
+    /// Interrupts the in-flight or next queued cycle so a local commit queued
+    /// behind it is served promptly; the scheduler runs the cycle again.
+    SyncInterrupt,
+    /// Clears durable retry delays and the backoff before the next cycle,
+    /// like the desktop coordinator's refresh request.
+    SyncRefresh,
     Close,
 }
 
@@ -104,6 +115,7 @@ pub enum BrowserWorkerValue {
     Archive(Box<WorkspaceArchive>),
     ImportSummary(BrowserImportSummary),
     Integrity(BrowserIntegrityReport),
+    WorkspaceDelta(Box<WorkspaceDelta>),
     SyncConnection(Option<BrowserSyncConnection>),
     SyncStatus(SyncStatus),
     SyncCycle(BrowserSyncCycleReport),
@@ -124,7 +136,7 @@ pub struct BrowserSyncConnection {
 pub struct BrowserSyncCycleReport {
     pub status: SyncStatus,
     pub retry_at_ms: Option<i64>,
-    pub workspace_changed: bool,
+    pub changes: RemoteChangeSet,
 }
 
 /// One bounded content transfer observed by the browser sync transport,

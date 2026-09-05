@@ -24,8 +24,18 @@ export type ChunkReadResult =
  * a caller can never probe another workspace's content by guessing a digest.
  */
 export function chunkKey(workspaceId: string, digest: string): string {
-  return `workspaces/${workspaceId}/chunks/${digest}`;
+  return `${chunkPrefix(workspaceId)}${digest}`;
 }
+
+function chunkPrefix(workspaceId: string): string {
+  return `workspaces/${workspaceId}/chunks/`;
+}
+
+export type StoredChunkListing = {
+  digest: string;
+  byteLength: number;
+  uploadedAtEpochSeconds: number;
+};
 
 export function isContentDigest(value: string): boolean {
   return (
@@ -110,5 +120,34 @@ export class WorkspaceContentStore {
       return;
     }
     await this.bucket.delete(digests.map((digest) => chunkKey(workspaceId, digest)));
+  }
+
+  /**
+   * Walks every stored chunk of one workspace. Keys outside the digest shape
+   * are skipped rather than reported, so a foreign object under the prefix can
+   * never be mistaken for a chunk and deleted.
+   */
+  async listChunks(workspaceId: string): Promise<StoredChunkListing[]> {
+    const prefix = chunkPrefix(workspaceId);
+    const listing: StoredChunkListing[] = [];
+    let cursor: string | undefined;
+    while (true) {
+      const page = await this.bucket.list({ prefix, cursor });
+      for (const object of page.objects) {
+        const digest = object.key.slice(prefix.length);
+        if (!isContentDigest(digest)) {
+          continue;
+        }
+        listing.push({
+          digest,
+          byteLength: object.size,
+          uploadedAtEpochSeconds: Math.floor(object.uploaded.getTime() / 1_000),
+        });
+      }
+      if (!page.truncated) {
+        return listing;
+      }
+      cursor = page.cursor;
+    }
   }
 }

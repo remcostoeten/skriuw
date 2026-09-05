@@ -7,10 +7,10 @@ use skriuw_storage::{
 use crate::protocol::{
     BatchOutcome, BrowserImportSummary, BrowserIntegrityReport, BrowserStorageError,
     BrowserStorageErrorCode, BrowserWorkerCommand, BrowserWorkerRequest, BrowserWorkerResponse,
-    BrowserWorkerValue, MAX_BATCHES_PER_REQUEST, MAX_DATABASE_NAME_BYTES, MAX_EXPANDED_FOLDER_IDS,
-    MAX_LAYOUT_BYTES, MAX_OPERATIONS_PER_REQUEST, MAX_QUERY_BYTES, MAX_REQUEST_BYTES,
-    MAX_SYNC_BASE_URL_BYTES, MAX_SYNC_IDENTIFIER_BYTES, MAX_SYNC_TOKEN_BYTES,
-    WORKER_PROTOCOL_VERSION,
+    BrowserWorkerValue, MAX_BATCHES_PER_REQUEST, MAX_DATABASE_NAME_BYTES,
+    MAX_DELTA_IDS_PER_REQUEST, MAX_EXPANDED_FOLDER_IDS, MAX_LAYOUT_BYTES,
+    MAX_OPERATIONS_PER_REQUEST, MAX_QUERY_BYTES, MAX_REQUEST_BYTES, MAX_SYNC_BASE_URL_BYTES,
+    MAX_SYNC_IDENTIFIER_BYTES, MAX_SYNC_TOKEN_BYTES, WORKER_PROTOCOL_VERSION,
 };
 use crate::sync::{BrowserSyncEnvironment, BrowserSyncRuntime};
 
@@ -181,11 +181,17 @@ where
                     })
                 })
                 .map_err(map_storage_error),
+            BrowserWorkerCommand::ReadWorkspaceDelta { ids } => backend
+                .read_workspace_delta(&ids)
+                .map(|delta| BrowserWorkerValue::WorkspaceDelta(Box::new(delta)))
+                .map_err(map_storage_error),
             BrowserWorkerCommand::SyncConnection
             | BrowserWorkerCommand::SyncConnect { .. }
             | BrowserWorkerCommand::SyncDisconnect
             | BrowserWorkerCommand::SyncStatus
-            | BrowserWorkerCommand::SyncCycle => Err(BrowserStorageError::invalid(
+            | BrowserWorkerCommand::SyncCycle
+            | BrowserWorkerCommand::SyncInterrupt
+            | BrowserWorkerCommand::SyncRefresh => Err(BrowserStorageError::invalid(
                 "Sync commands require the sync-capable worker dispatcher.",
             )),
             BrowserWorkerCommand::IntegrityCheck => backend
@@ -278,6 +284,14 @@ where
             BrowserWorkerCommand::SyncCycle => sync
                 .cycle(backend, environment)
                 .map(BrowserWorkerValue::SyncCycle),
+            BrowserWorkerCommand::SyncInterrupt => {
+                sync.interrupt();
+                Ok(BrowserWorkerValue::Unit)
+            }
+            BrowserWorkerCommand::SyncRefresh => {
+                sync.refresh(backend, environment.clock.now_ms());
+                Ok(BrowserWorkerValue::Unit)
+            }
             _ => unreachable!("only sync commands reach this dispatcher"),
         };
         match outcome {
@@ -300,6 +314,8 @@ fn is_sync_command(command: &BrowserWorkerCommand) -> bool {
             | BrowserWorkerCommand::SyncDisconnect
             | BrowserWorkerCommand::SyncStatus
             | BrowserWorkerCommand::SyncCycle
+            | BrowserWorkerCommand::SyncInterrupt
+            | BrowserWorkerCommand::SyncRefresh
     )
 }
 
@@ -405,6 +421,16 @@ fn validate_command(command: &BrowserWorkerCommand) -> Result<(), BrowserStorage
             } else {
                 Ok(())
             }
+        }
+        BrowserWorkerCommand::ReadWorkspaceDelta { ids } => {
+            if ids.len() > MAX_DELTA_IDS_PER_REQUEST
+                || ids.iter().any(|id| id.is_empty() || id.len() > 256)
+            {
+                return Err(BrowserStorageError::invalid(
+                    "Workspace delta requests must name 1 to 256 byte identifiers, at most 4096 of them.",
+                ));
+            }
+            Ok(())
         }
         BrowserWorkerCommand::ReplaceFromArchive { archive } => archive
             .validate()
@@ -578,7 +604,9 @@ pub(crate) fn map_storage_error(error: StorageError) -> BrowserStorageError {
 mod tests {
     use super::*;
     use crate::protocol::{BrowserWorkerOutcome, BrowserWorkerValue};
-    use skriuw_domain::{OperationAck, SearchHit, WorkspaceArchive, WorkspaceSnapshot};
+    use skriuw_domain::{
+        OperationAck, SearchHit, WorkspaceArchive, WorkspaceDelta, WorkspaceSnapshot,
+    };
     use skriuw_storage::{ImportSummary, IntegrityReport};
 
     struct Probe;
@@ -601,6 +629,13 @@ mod tests {
 
         fn search(&self, _query: &str, _limit: usize) -> Result<Vec<SearchHit>, StorageError> {
             Ok(Vec::new())
+        }
+
+        fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
+            Ok(WorkspaceDelta {
+                documents: Vec::new(),
+                nodes: Vec::new(),
+            })
         }
     }
 

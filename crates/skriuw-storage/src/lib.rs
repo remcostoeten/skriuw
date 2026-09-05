@@ -2,7 +2,8 @@ use std::{fmt, sync::Arc};
 
 use skriuw_domain::{
     HistoryHeader, OperationAck, ReplicatedWorkspaceOperation, SearchHit, SyncAcceptedOperation,
-    SyncPushRequest, WorkspaceArchive, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    SyncConflictReason, SyncPushRequest, WorkspaceArchive, WorkspaceDelta,
+    WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 use thiserror::Error;
 
@@ -144,6 +145,14 @@ pub enum StorageError {
     AlreadyExists(String),
     #[error("storage backend failed: {0}")]
     Backend(String),
+    /// The database is locked by another connection; the same call succeeds
+    /// when retried shortly.
+    #[error("storage backend is busy: {0}")]
+    Busy(String),
+    /// A leased sync batch cannot be blocked because a row in it may already be
+    /// server-visible; release the batch with retry instead.
+    #[error("leased sync batch must be released instead of blocked: {0}")]
+    ReleaseRequired(String),
 }
 
 impl StorageError {
@@ -181,6 +190,16 @@ impl StorageError {
                 context,
                 DiagnosticCategory::Backend,
                 "storage backend failed",
+            ),
+            Self::Busy(_) => Diagnostic::new(
+                context,
+                DiagnosticCategory::Unavailable,
+                "storage backend is busy",
+            ),
+            Self::ReleaseRequired(_) => Diagnostic::new(
+                context,
+                DiagnosticCategory::Conflict,
+                "leased sync batch must be released instead of blocked",
             ),
         }
     }
@@ -221,6 +240,11 @@ pub trait WorkspaceStorage: Send + Sync {
     }
 
     fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>, StorageError>;
+
+    /// The current documents and node records for the given identifiers, so a
+    /// renderer can reconcile exactly the notes a sync cycle changed. Unknown
+    /// identifiers are skipped.
+    fn read_workspace_delta(&self, ids: &[String]) -> Result<WorkspaceDelta, StorageError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -247,6 +271,37 @@ pub trait WorkspaceMaintenance: Send + Sync {
     fn integrity_check(&self) -> Result<IntegrityReport, StorageError>;
 }
 
+/// Where a pending history revision came from. Local edits coalesce into one
+/// revision per burst; a remote apply is its own revision; a superseded body
+/// is a version the device never made canonical but must keep.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HistoryProvenance {
+    Local,
+    Remote,
+    Superseded,
+}
+
+impl HistoryProvenance {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Local => "local",
+            Self::Remote => "remote",
+            Self::Superseded => "superseded",
+        }
+    }
+
+    #[must_use]
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "local" => Some(Self::Local),
+            "remote" => Some(Self::Remote),
+            "superseded" => Some(Self::Superseded),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PendingHistoryRevision {
     pub id: String,
@@ -255,6 +310,7 @@ pub struct PendingHistoryRevision {
     pub markdown: String,
     pub created_at: i64,
     pub attempts: i64,
+    pub provenance: HistoryProvenance,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -310,6 +366,10 @@ pub struct SyncConnection {
     pub connected_at: i64,
     pub observed_server_sequence: u64,
     pub next_client_sequence: u64,
+    /// The checkpoint sequence this device was last rebuilt from; own-device
+    /// operations above it with no outbox or received row are re-applied as
+    /// remote operations.
+    pub rehydrated_through: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -326,23 +386,15 @@ pub struct BlockedSyncOperation {
     pub created_at: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SyncConflict {
-    pub id: String,
-    pub operation_id: String,
-    pub operation_type: String,
-    pub server_sequence: u64,
-    pub reason_code: String,
-    pub subreason: Option<String>,
-    pub message: String,
-    pub created_at: i64,
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum RemoteSyncApplyOutcome {
     Applied(OperationAck),
     LocalEcho,
-    Conflict(SyncConflict),
+    /// The operation lost to state this device already holds; the cursor
+    /// advanced and the received record carries the reason.
+    Superseded {
+        reason: SyncConflictReason,
+    },
     Duplicate,
     NoOp,
 }
@@ -356,37 +408,6 @@ pub struct SyncTombstone {
     pub operation_id: Option<String>,
     pub server_sequence: Option<u64>,
     pub created_at: i64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DocumentConflictSummary {
-    pub conflict_id: String,
-    pub note_id: String,
-    pub remote_title: Option<String>,
-    pub local_title: Option<String>,
-    pub reason_code: String,
-    pub subreason: Option<String>,
-    pub server_sequence: u64,
-    pub created_at: i64,
-    pub local_version_available: bool,
-    pub resolved_choice: Option<String>,
-    pub resolved_at: Option<i64>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DocumentConflictVersion {
-    pub title: Option<String>,
-    pub document_json: String,
-    pub markdown: String,
-    pub revision: Option<i64>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DocumentConflictVersions {
-    pub conflict_id: String,
-    pub note_id: String,
-    pub remote: DocumentConflictVersion,
-    pub local: Option<DocumentConflictVersion>,
 }
 
 pub trait WorkspaceSyncQueue: Send + Sync {
@@ -425,6 +446,15 @@ pub trait WorkspaceSyncQueue: Send + Sync {
     /// Every listed operation must be leased by `worker_id`; the remaining
     /// leased operations are released and the pending queue is renumbered to
     /// stay contiguous, all in one transaction.
+    ///
+    /// Renumbering is only safe while no row in the batch can be known to the
+    /// server. When any leased row has been claimed more than once and the
+    /// block is a local decision, the call fails with
+    /// `StorageError::ReleaseRequired` and changes nothing; the caller must
+    /// release the batch with retry so the server's idempotent accept settles
+    /// it on the next push. A `cloud_rejected` block is exempt: the server
+    /// rejects only batches it never accepted, so those rows cannot be
+    /// server-visible.
     fn block_claimed_sync_operations(
         &self,
         worker_id: &str,
@@ -432,10 +462,19 @@ pub trait WorkspaceSyncQueue: Send + Sync {
         reason_code: &str,
     ) -> Result<(), StorageError>;
 
-    /// Reports whether any locally committed operation is still queued for
-    /// upload, so checkpoint hydration and publication can refuse to run over
-    /// unpushed local work without claiming a lease.
+    /// Reports whether any locally committed operation is still waiting to
+    /// reach the server: a pending outbox row or an unresolved blocked row.
+    /// Checkpoint hydration and publication refuse to run over such work.
     fn has_pending_sync_operations(&self) -> Result<bool, StorageError>;
+
+    /// The earliest durable retry time among unclaimed outbox rows, or `None`
+    /// when nothing is waiting on a retry delay.
+    fn next_sync_attempt_at(&self) -> Result<Option<i64>, StorageError>;
+
+    /// Clears the retry delay of every unclaimed outbox row scheduled after
+    /// `now_ms`, so an explicit refresh pushes immediately. Returns how many
+    /// rows were rescheduled.
+    fn reset_sync_retry_times(&self, now_ms: i64) -> Result<usize, StorageError>;
 
     fn apply_remote_operations(
         &self,
@@ -443,25 +482,26 @@ pub trait WorkspaceSyncQueue: Send + Sync {
         received_at: i64,
     ) -> Result<Vec<RemoteSyncApplyOutcome>, StorageError>;
 
-    fn sync_conflicts(&self) -> Result<Vec<SyncConflict>, StorageError>;
-
     fn sync_tombstones(&self) -> Result<Vec<SyncTombstone>, StorageError>;
 
-    fn document_conflicts(&self) -> Result<Vec<DocumentConflictSummary>, StorageError>;
-
-    fn document_conflict_versions(
-        &self,
-        conflict_id: &str,
-    ) -> Result<DocumentConflictVersions, StorageError>;
-
-    fn resolve_document_conflict(
-        &self,
-        request: &skriuw_domain::ResolveDocumentConflict,
-    ) -> Result<Option<OperationAck>, StorageError>;
-
     /// Initialize a freshly connected device from a verified checkpoint so it
-    /// only replays the ordered tail after `checkpoint_server_sequence`.
+    /// only replays the ordered tail after `checkpoint_server_sequence`. The
+    /// precondition (cursor 0, no client sequence consumed, no received rows,
+    /// empty outbox, no unresolved blocked rows) is checked inside the same
+    /// transaction that replaces canonical state.
     fn hydrate_from_checkpoint(
+        &self,
+        archive: &WorkspaceArchive,
+        checkpoint_server_sequence: u64,
+    ) -> Result<ImportSummary, StorageError>;
+
+    /// Rebuild an already-connected device from a verified checkpoint after the
+    /// server truncated the log below its cursor. Requires an empty outbox;
+    /// blocked rows, tombstones, and pending history for notes in the archive
+    /// survive, every received row and document head is dropped so own
+    /// operations above the checkpoint re-apply, and the cursor moves to
+    /// `checkpoint_server_sequence`.
+    fn rehydrate_from_checkpoint(
         &self,
         archive: &WorkspaceArchive,
         checkpoint_server_sequence: u64,
@@ -500,17 +540,6 @@ pub trait SyncRecovery: Send + Sync {
         blocked_id: &str,
         now_ms: i64,
     ) -> Result<(), StorageError>;
-
-    /// List preserved document divergences for the review surface: the ones
-    /// still waiting on a decision, and the ones already settled.
-    fn sync_conflict_review(&self) -> Result<skriuw_domain::SyncConflictReviewView, StorageError>;
-
-    /// Both complete versions of one divergence, loaded only when the user
-    /// opens it.
-    fn sync_conflict_versions(
-        &self,
-        conflict_id: &str,
-    ) -> Result<skriuw_domain::DocumentConflictVersionsView, StorageError>;
 }
 
 /// Local-only, diagnostics-class accounting of AI runs. Nothing here takes
@@ -590,6 +619,10 @@ where
 
     fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>, StorageError> {
         self.as_ref().search(query, limit)
+    }
+
+    fn read_workspace_delta(&self, ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
+        self.as_ref().read_workspace_delta(ids)
     }
 }
 
@@ -714,6 +747,14 @@ where
         self.as_ref().has_pending_sync_operations()
     }
 
+    fn next_sync_attempt_at(&self) -> Result<Option<i64>, StorageError> {
+        self.as_ref().next_sync_attempt_at()
+    }
+
+    fn reset_sync_retry_times(&self, now_ms: i64) -> Result<usize, StorageError> {
+        self.as_ref().reset_sync_retry_times(now_ms)
+    }
+
     fn apply_remote_operations(
         &self,
         operations: &[ReplicatedWorkspaceOperation],
@@ -723,30 +764,8 @@ where
             .apply_remote_operations(operations, received_at)
     }
 
-    fn sync_conflicts(&self) -> Result<Vec<SyncConflict>, StorageError> {
-        self.as_ref().sync_conflicts()
-    }
-
     fn sync_tombstones(&self) -> Result<Vec<SyncTombstone>, StorageError> {
         self.as_ref().sync_tombstones()
-    }
-
-    fn document_conflicts(&self) -> Result<Vec<DocumentConflictSummary>, StorageError> {
-        self.as_ref().document_conflicts()
-    }
-
-    fn document_conflict_versions(
-        &self,
-        conflict_id: &str,
-    ) -> Result<DocumentConflictVersions, StorageError> {
-        self.as_ref().document_conflict_versions(conflict_id)
-    }
-
-    fn resolve_document_conflict(
-        &self,
-        request: &skriuw_domain::ResolveDocumentConflict,
-    ) -> Result<Option<OperationAck>, StorageError> {
-        self.as_ref().resolve_document_conflict(request)
     }
 
     fn hydrate_from_checkpoint(
@@ -756,6 +775,15 @@ where
     ) -> Result<ImportSummary, StorageError> {
         self.as_ref()
             .hydrate_from_checkpoint(archive, checkpoint_server_sequence)
+    }
+
+    fn rehydrate_from_checkpoint(
+        &self,
+        archive: &WorkspaceArchive,
+        checkpoint_server_sequence: u64,
+    ) -> Result<ImportSummary, StorageError> {
+        self.as_ref()
+            .rehydrate_from_checkpoint(archive, checkpoint_server_sequence)
     }
 
     fn requeue_blocked_sync_operations_with_assets(
@@ -792,17 +820,6 @@ where
     ) -> Result<(), StorageError> {
         self.as_ref()
             .discard_blocked_sync_operation(blocked_id, now_ms)
-    }
-
-    fn sync_conflict_review(&self) -> Result<skriuw_domain::SyncConflictReviewView, StorageError> {
-        self.as_ref().sync_conflict_review()
-    }
-
-    fn sync_conflict_versions(
-        &self,
-        conflict_id: &str,
-    ) -> Result<skriuw_domain::DocumentConflictVersionsView, StorageError> {
-        self.as_ref().sync_conflict_versions(conflict_id)
     }
 }
 
@@ -903,6 +920,14 @@ mod tests {
             (
                 StorageError::Backend("detail".into()),
                 DiagnosticCategory::Backend,
+            ),
+            (
+                StorageError::Busy("database is locked".into()),
+                DiagnosticCategory::Unavailable,
+            ),
+            (
+                StorageError::ReleaseRequired("attempts".into()),
+                DiagnosticCategory::Conflict,
             ),
         ];
 

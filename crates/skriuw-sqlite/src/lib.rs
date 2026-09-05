@@ -7,15 +7,17 @@ use std::{
 };
 
 use rusqlite::{
-    Connection, OpenFlags, OptionalExtension, TransactionBehavior, backup::Backup, params,
+    Connection, OpenFlags, OptionalExtension, Transaction, TransactionBehavior, backup::Backup,
+    params,
 };
 use skriuw_domain::{
-    HistoryHeader, NodeKind, OperationAck, SearchHit, WorkspaceArchive, WorkspaceOperationEnvelope,
-    WorkspaceSnapshot,
+    HistoryHeader, NodeKind, OperationAck, SearchHit, WorkspaceArchive, WorkspaceDelta,
+    WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 use skriuw_storage::{
-    Diagnostic, HistoryCache, HistoryMaterialization, HistoryQueue, ImportSummary, IntegrityReport,
-    PendingHistoryRevision, StorageError, WorkspaceMaintenance, WorkspaceStorage,
+    Diagnostic, HistoryCache, HistoryMaterialization, HistoryProvenance, HistoryQueue,
+    ImportSummary, IntegrityReport, PendingHistoryRevision, StorageError, WorkspaceMaintenance,
+    WorkspaceStorage,
 };
 
 mod ai_history;
@@ -41,8 +43,8 @@ use crate::operations::{
     require_changed, require_worker, validate_operations,
 };
 use crate::queries::{
-    read_archive, read_pane_layout, read_sidebar_expansion, read_snapshot, write_pane_layout,
-    write_sidebar_expansion,
+    read_archive, read_documents_by_id, read_nodes_by_id, read_pane_layout, read_sidebar_expansion,
+    read_snapshot, write_pane_layout, write_sidebar_expansion,
 };
 use crate::sync::enqueue_sync_operations;
 
@@ -206,6 +208,11 @@ impl SqliteWorkspace {
             let transaction = connection
                 .transaction_with_behavior(TransactionBehavior::Immediate)
                 .map_err(backend)?;
+            if let Some(record) = read_migrations(&transaction)?.get(&migration.version) {
+                verify_migration(migration, record)?;
+                transaction.rollback().map_err(backend)?;
+                continue;
+            }
             transaction.execute_batch(migration.sql).map_err(backend)?;
             transaction
                 .execute(
@@ -272,7 +279,8 @@ impl WorkspaceStorage for SqliteWorkspace {
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(backend)?;
-        let acknowledgement = apply_operations_in_transaction(&transaction, operations)?;
+        let acknowledgement =
+            apply_operations_in_transaction(&transaction, operations, HistoryProvenance::Local)?;
         enqueue_sync_operations(&transaction, operations)?;
         transaction.commit().map_err(backend)?;
         Ok(acknowledgement)
@@ -295,7 +303,11 @@ impl WorkspaceStorage for SqliteWorkspace {
             transaction
                 .execute_batch("SAVEPOINT operation_batch")
                 .map_err(backend)?;
-            match apply_operations_in_transaction(&transaction, operations) {
+            match apply_operations_in_transaction(
+                &transaction,
+                operations,
+                HistoryProvenance::Local,
+            ) {
                 Ok(acknowledgement) => {
                     if let Err(error) = enqueue_sync_operations(&transaction, operations) {
                         transaction
@@ -364,24 +376,19 @@ impl WorkspaceStorage for SqliteWorkspace {
 
         rows.collect::<Result<Vec<_>, _>>().map_err(backend)
     }
+
+    fn read_workspace_delta(&self, ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
+        let connection = self.lock()?;
+        Ok(WorkspaceDelta {
+            documents: read_documents_by_id(&connection, ids)?,
+            nodes: read_nodes_by_id(&connection, ids)?,
+        })
+    }
 }
 
 impl WorkspaceMaintenance for SqliteWorkspace {
     fn export_archive(&self, exported_at: i64) -> Result<WorkspaceArchive, StorageError> {
         let connection = self.lock()?;
-        let unresolved_conflicts = connection
-            .query_row(
-                "SELECT COUNT(*) FROM sync_conflicts WHERE resolved_at IS NULL",
-                [],
-                |row| row.get::<_, i64>(0),
-            )
-            .map_err(backend)?;
-        if unresolved_conflicts > 0 {
-            return Err(StorageError::InvalidOperation(format!(
-                "{unresolved_conflicts} unresolved sync conflict(s) hold recovery data the \
-                 portable archive cannot preserve; resolve them before exporting"
-            )));
-        }
         let archive = read_archive(&connection, exported_at)?;
         archive
             .validate()
@@ -393,23 +400,29 @@ impl WorkspaceMaintenance for SqliteWorkspace {
         &self,
         archive: &WorkspaceArchive,
     ) -> Result<ImportSummary, StorageError> {
-        {
-            let connection = self.lock()?;
-            let sync_connected = connection
-                .query_row(
-                    "SELECT EXISTS(SELECT 1 FROM sync_connection \
-                     WHERE singleton = 1 AND disconnected_at IS NULL)",
-                    [],
-                    |row| row.get::<_, bool>(0),
-                )
-                .map_err(backend)?;
-            if sync_connected {
-                return Err(StorageError::InvalidOperation(
-                    "disconnect sync before replacing the workspace archive".into(),
-                ));
-            }
+        archive
+            .validate()
+            .map_err(|error| StorageError::InvalidOperation(error.to_string()))?;
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
+        let sync_connected = transaction
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sync_connection \
+                 WHERE singleton = 1 AND disconnected_at IS NULL)",
+                [],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(backend)?;
+        if sync_connected {
+            return Err(StorageError::InvalidOperation(
+                "disconnect sync before replacing the workspace archive".into(),
+            ));
         }
-        self.replace_workspace_from_archive(archive, false)
+        let summary = replace_workspace_in_transaction(&transaction, archive, false)?;
+        transaction.commit().map_err(backend)?;
+        Ok(summary)
     }
 
     fn integrity_check(&self) -> Result<IntegrityReport, StorageError> {
@@ -479,7 +492,7 @@ impl HistoryQueue for SqliteWorkspace {
             .map_err(backend)?;
         let item = transaction
             .query_row(
-                "SELECT id, note_id, revision, markdown, created_at, attempts \
+                "SELECT id, note_id, revision, markdown, created_at, attempts, provenance \
                  FROM history_outbox \
                  WHERE next_attempt_at <= ?2 \
                  AND (claimed_at IS NULL OR claimed_at <= ?1) \
@@ -497,6 +510,14 @@ impl HistoryQueue for SqliteWorkspace {
                  ORDER BY created_at, id LIMIT 1",
                 params![lease_expired_before, now_ms],
                 |row| {
+                    let provenance = row.get::<_, String>(6)?;
+                    let provenance = HistoryProvenance::parse(&provenance).ok_or_else(|| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            6,
+                            rusqlite::types::Type::Text,
+                            format!("unknown history provenance {provenance}").into(),
+                        )
+                    })?;
                     Ok(PendingHistoryRevision {
                         id: row.get(0)?,
                         note_id: row.get(1)?,
@@ -504,6 +525,7 @@ impl HistoryQueue for SqliteWorkspace {
                         markdown: row.get(3)?,
                         created_at: row.get(4)?,
                         attempts: row.get::<_, i64>(5)? + 1,
+                        provenance,
                     })
                 },
             )
@@ -666,293 +688,297 @@ impl HistoryCache for SqliteWorkspace {
     }
 }
 
-impl SqliteWorkspace {
-    pub(crate) fn replace_workspace_from_archive(
-        &self,
-        archive: &WorkspaceArchive,
-        preserve_sync_connection: bool,
-    ) -> Result<ImportSummary, StorageError> {
-        archive
-            .validate()
-            .map_err(|error| StorageError::InvalidOperation(error.to_string()))?;
-        let note_projection = archive
-            .nodes
-            .iter()
-            .filter(|node| node.kind == NodeKind::Note)
-            .map(|node| (node.id.as_str(), (node.title.as_str(), node.updated_at)))
-            .collect::<HashMap<_, _>>();
-        let mut connection = self.lock()?;
-        let transaction = connection
-            .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(backend)?;
+/// Replace every canonical table from a validated archive inside the caller's
+/// transaction. Operational sync state is cleared with it; when
+/// `preserve_sync_connection` is set the connection row, tombstones, and
+/// blocked rows survive because the caller is rebuilding a linked device from
+/// a checkpoint rather than importing a portable archive.
+pub(crate) fn replace_workspace_in_transaction(
+    transaction: &Transaction<'_>,
+    archive: &WorkspaceArchive,
+    preserve_sync_connection: bool,
+) -> Result<ImportSummary, StorageError> {
+    archive
+        .validate()
+        .map_err(|error| StorageError::InvalidOperation(error.to_string()))?;
+    let note_projection = archive
+        .nodes
+        .iter()
+        .filter(|node| node.kind == NodeKind::Note)
+        .map(|node| (node.id.as_str(), (node.title.as_str(), node.updated_at)))
+        .collect::<HashMap<_, _>>();
+    transaction
+        .execute_batch(
+            "DELETE FROM history_outbox;\
+             DELETE FROM sync_outbox;\
+             DELETE FROM sync_received_operations;\
+             DELETE FROM sync_document_heads;\
+             DELETE FROM sync_dangling_references;\
+             DELETE FROM history_cache;\
+             DELETE FROM documents_fts;\
+             DELETE FROM documents;\
+             DELETE FROM document_references;\
+             DELETE FROM note_images;\
+             DELETE FROM note_properties;\
+             DELETE FROM note_property_templates;\
+             DELETE FROM note_annotation_comments;\
+             DELETE FROM note_annotations;\
+             DELETE FROM workspace_prompts;\
+             DELETE FROM workspace_tasks;\
+             DELETE FROM workspace_tags;\
+             DELETE FROM workspace_people;\
+             DELETE FROM workspace_nodes;\
+             DELETE FROM app_state;",
+        )
+        .map_err(backend)?;
+    if !preserve_sync_connection {
         transaction
             .execute_batch(
-                "DELETE FROM history_outbox;\
-                 DELETE FROM sync_outbox;\
+                "DELETE FROM sync_connection;\
                  DELETE FROM sync_blocked_operations;\
-                 DELETE FROM sync_received_operations;\
-                 DELETE FROM sync_document_heads;\
-                 DELETE FROM sync_document_conflicts;\
-                 DELETE FROM sync_conflicts;\
-                 DELETE FROM sync_tombstones;\
-                 DELETE FROM history_cache;\
-                 DELETE FROM documents_fts;\
-                 DELETE FROM documents;\
-                 DELETE FROM document_references;\
-                 DELETE FROM note_images;\
-                 DELETE FROM note_properties;\
-                 DELETE FROM note_property_templates;\
-                 DELETE FROM note_annotation_comments;\
-                 DELETE FROM note_annotations;\
-                 DELETE FROM workspace_prompts;\
-                 DELETE FROM workspace_tasks;\
-                 DELETE FROM workspace_tags;\
-                 DELETE FROM workspace_people;\
-                 DELETE FROM workspace_nodes;\
-                 DELETE FROM app_state;",
+                 DELETE FROM sync_tombstones;",
             )
             .map_err(backend)?;
-        if !preserve_sync_connection {
-            transaction
-                .execute_batch("DELETE FROM sync_connection;")
-                .map_err(backend)?;
-        }
-
-        for node in &archive.nodes {
-            transaction
-                .execute(
-                    "INSERT INTO workspace_nodes \
-                     (id, kind, parent_id, rank, title, icon, cover_image_id, cover_full_width, \
-                      cover_position_x, cover_position_y, cover_zoom, created_at, updated_at, deleted_at, \
-                     pinned_at) \
-                     VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
-                    params![
-                        node.id,
-                        match node.kind {
-                            NodeKind::Note => "note",
-                            NodeKind::Folder => "folder",
-                        },
-                        node.rank,
-                        node.title,
-                        node.icon,
-                        node.cover_image_id,
-                        node.cover_full_width,
-                        node.cover_position_x,
-                        node.cover_position_y,
-                        node.cover_zoom,
-                        node.created_at,
-                        node.updated_at,
-                        node.deleted_at,
-                        node.pinned_at
-                    ],
-                )
-                .map_err(backend)?;
-        }
-        for node in archive.nodes.iter().filter(|node| node.parent_id.is_some()) {
-            transaction
-                .execute(
-                    "UPDATE workspace_nodes SET parent_id = ?2 WHERE id = ?1",
-                    params![node.id, node.parent_id],
-                )
-                .map_err(backend)?;
-        }
-
-        for document in &archive.documents {
-            transaction
-                .execute(
-                    "INSERT INTO documents \
-                     (note_id, document_json, markdown, revision, word_count) \
-                     VALUES (?1, ?2, ?3, ?4, ?5)",
-                    params![
-                        document.note_id,
-                        document.document_json.to_string(),
-                        document.markdown,
-                        document.revision,
-                        document.word_count
-                    ],
-                )
-                .map_err(backend)?;
-            let (title, updated_at) = note_projection
-                .get(document.note_id.as_str())
-                .copied()
-                .ok_or_else(|| StorageError::NotFound(document.note_id.clone()))?;
-            insert_fts(&transaction, &document.note_id, title, &document.markdown)?;
-            enqueue_history(
-                &transaction,
-                &document.note_id,
-                document.revision,
-                &document.markdown,
-                updated_at,
-            )?;
-        }
-
-        for tag in &archive.tags {
-            transaction
-                .execute(
-                    "INSERT INTO workspace_tags (id, name, color, created_at, updated_at, created_in) \
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                    params![
-                        tag.id,
-                        tag.name,
-                        tag.color,
-                        tag.created_at,
-                        tag.updated_at,
-                        tag.created_in
-                    ],
-                )
-                .map_err(backend)?;
-        }
-        for person in &archive.people {
-            transaction.execute("INSERT INTO workspace_people (id, name, initials, color, note, created_at, updated_at, created_in) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)", params![person.id, person.name, person.initials, person.color, person.note, person.created_at, person.updated_at, person.created_in]).map_err(backend)?;
-        }
-        for property in &archive.properties {
-            transaction
-                .execute(
-                    "INSERT INTO note_properties \
-                     (note_id, id, name, value_json, options_json, position) \
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                    params![
-                        property.note_id,
-                        property.field.id,
-                        property.field.name,
-                        serde_json::to_string(&property.field.value).map_err(json_backend)?,
-                        serde_json::to_string(&property.field.options).map_err(json_backend)?,
-                        property.field.position
-                    ],
-                )
-                .map_err(backend)?;
-        }
-        for template in &archive.property_templates {
-            transaction
-                .execute(
-                    "INSERT INTO note_property_templates (id, name, position) \
-                     VALUES (?1, ?2, ?3)",
-                    params![template.id, template.name, template.position],
-                )
-                .map_err(backend)?;
-            for field in &template.properties {
-                transaction
-                    .execute(
-                        "INSERT INTO note_property_template_fields \
-                         (template_id, id, name, value_json, options_json, position) \
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                        params![
-                            template.id,
-                            field.id,
-                            field.name,
-                            serde_json::to_string(&field.value).map_err(json_backend)?,
-                            serde_json::to_string(&field.options).map_err(json_backend)?,
-                            field.position
-                        ],
-                    )
-                    .map_err(backend)?;
-            }
-        }
-        for task in &archive.tasks {
-            transaction
-                .execute(
-                    "INSERT INTO workspace_tasks \
-                     (id, title, status, priority, due_date, description, tag_ids_json, \
-                      assignee_ids_json, source_note_id, source_block_id, detached_at, \
-                      created_at, updated_at) \
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
-                    params![
-                        task.id,
-                        task.title,
-                        task.status.as_str(),
-                        task.priority.as_str(),
-                        task.due_date,
-                        task.description,
-                        serde_json::to_string(&task.tag_ids).map_err(json_backend)?,
-                        serde_json::to_string(&task.assignee_ids).map_err(json_backend)?,
-                        task.source.as_ref().map(|source| &source.note_id),
-                        task.source.as_ref().map(|source| &source.block_id),
-                        task.detached_at,
-                        task.created_at,
-                        task.updated_at
-                    ],
-                )
-                .map_err(backend)?;
-        }
-        for annotation in &archive.annotations {
-            transaction
-                .execute(
-                    "INSERT INTO note_annotations \
-                     (id, note_id, status, anchor_text, created_at, resolved_at) \
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                    params![
-                        annotation.id,
-                        annotation.note_id,
-                        annotation.status.as_str(),
-                        annotation.anchor_text,
-                        annotation.created_at,
-                        annotation.resolved_at
-                    ],
-                )
-                .map_err(backend)?;
-            for comment in &annotation.comments {
-                transaction
-                    .execute(
-                        "INSERT INTO note_annotation_comments \
-                         (id, annotation_id, body_markdown, author_id, created_at, updated_at) \
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                        params![
-                            comment.id,
-                            annotation.id,
-                            comment.body_markdown,
-                            comment.author_id,
-                            comment.created_at,
-                            comment.updated_at
-                        ],
-                    )
-                    .map_err(backend)?;
-            }
-        }
-        for prompt in &archive.prompts {
-            transaction
-                .execute(
-                    "INSERT INTO workspace_prompts \
-                     (id, name, system_prompt, input_shape, temperature_millis, \
-                      max_output_bytes, built_in_id, created_at, updated_at) \
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-                    params![
-                        prompt.id,
-                        prompt.name,
-                        prompt.system_prompt,
-                        prompt.input_shape.as_str(),
-                        prompt.parameters.temperature_millis,
-                        prompt.parameters.max_output_bytes,
-                        prompt.built_in_id,
-                        prompt.created_at,
-                        prompt.updated_at
-                    ],
-                )
-                .map_err(backend)?;
-        }
-        for document in &archive.documents {
-            replace_references(&transaction, &document.note_id, &document.document_json)?;
-        }
-
+    }
+    for node in &archive.nodes {
         transaction
             .execute(
-                "INSERT INTO app_state(key, value_json) VALUES ('settings', ?1)",
-                [serde_json::to_string(&archive.settings).map_err(json_backend)?],
+                "INSERT INTO workspace_nodes \
+                 (id, kind, parent_id, rank, title, icon, cover_image_id, cover_full_width, \
+                  cover_position_x, cover_position_y, cover_zoom, created_at, updated_at, deleted_at, \
+                 pinned_at) \
+                 VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                params![
+                    node.id,
+                    match node.kind {
+                        NodeKind::Note => "note",
+                        NodeKind::Folder => "folder",
+                    },
+                    node.rank,
+                    node.title,
+                    node.icon,
+                    node.cover_image_id,
+                    node.cover_full_width,
+                    node.cover_position_x,
+                    node.cover_position_y,
+                    node.cover_zoom,
+                    node.created_at,
+                    node.updated_at,
+                    node.deleted_at,
+                    node.pinned_at
+                ],
             )
             .map_err(backend)?;
-        if let Some(active_note_id) = &archive.active_note_id {
+    }
+    for node in archive.nodes.iter().filter(|node| node.parent_id.is_some()) {
+        transaction
+            .execute(
+                "UPDATE workspace_nodes SET parent_id = ?2 WHERE id = ?1",
+                params![node.id, node.parent_id],
+            )
+            .map_err(backend)?;
+    }
+
+    for document in &archive.documents {
+        transaction
+            .execute(
+                "INSERT INTO documents \
+                 (note_id, document_json, markdown, revision, word_count) \
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    document.note_id,
+                    document.document_json.to_string(),
+                    document.markdown,
+                    document.revision,
+                    document.word_count
+                ],
+            )
+            .map_err(backend)?;
+        let (title, updated_at) = note_projection
+            .get(document.note_id.as_str())
+            .copied()
+            .ok_or_else(|| StorageError::NotFound(document.note_id.clone()))?;
+        insert_fts(transaction, &document.note_id, title, &document.markdown)?;
+        enqueue_history(
+            transaction,
+            &document.note_id,
+            document.revision,
+            &document.markdown,
+            updated_at,
+            HistoryProvenance::Local,
+        )?;
+    }
+
+    for tag in &archive.tags {
+        transaction
+            .execute(
+                "INSERT INTO workspace_tags (id, name, color, created_at, updated_at, created_in) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    tag.id,
+                    tag.name,
+                    tag.color,
+                    tag.created_at,
+                    tag.updated_at,
+                    tag.created_in
+                ],
+            )
+            .map_err(backend)?;
+    }
+    for person in &archive.people {
+        transaction.execute("INSERT INTO workspace_people (id, name, initials, color, note, created_at, updated_at, created_in) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)", params![person.id, person.name, person.initials, person.color, person.note, person.created_at, person.updated_at, person.created_in]).map_err(backend)?;
+    }
+    for property in &archive.properties {
+        transaction
+            .execute(
+                "INSERT INTO note_properties \
+                 (note_id, id, name, value_json, options_json, position) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    property.note_id,
+                    property.field.id,
+                    property.field.name,
+                    serde_json::to_string(&property.field.value).map_err(json_backend)?,
+                    serde_json::to_string(&property.field.options).map_err(json_backend)?,
+                    property.field.position
+                ],
+            )
+            .map_err(backend)?;
+    }
+    for template in &archive.property_templates {
+        transaction
+            .execute(
+                "INSERT INTO note_property_templates (id, name, position) \
+                 VALUES (?1, ?2, ?3)",
+                params![template.id, template.name, template.position],
+            )
+            .map_err(backend)?;
+        for field in &template.properties {
             transaction
                 .execute(
-                    "INSERT INTO app_state(key, value_json) VALUES ('active_note_id', ?1)",
-                    [serde_json::to_string(&Some(active_note_id)).map_err(json_backend)?],
+                    "INSERT INTO note_property_template_fields \
+                     (template_id, id, name, value_json, options_json, position) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![
+                        template.id,
+                        field.id,
+                        field.name,
+                        serde_json::to_string(&field.value).map_err(json_backend)?,
+                        serde_json::to_string(&field.options).map_err(json_backend)?,
+                        field.position
+                    ],
                 )
                 .map_err(backend)?;
         }
-
-        transaction.commit().map_err(backend)?;
-        Ok(ImportSummary {
-            nodes: archive.nodes.len(),
-            documents: archive.documents.len(),
-            history_items: archive.documents.len(),
-        })
     }
+    for task in &archive.tasks {
+        transaction
+            .execute(
+                "INSERT INTO workspace_tasks \
+                 (id, title, status, priority, due_date, description, tag_ids_json, \
+                  assignee_ids_json, source_note_id, source_block_id, detached_at, \
+                  created_at, updated_at) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                params![
+                    task.id,
+                    task.title,
+                    task.status.as_str(),
+                    task.priority.as_str(),
+                    task.due_date,
+                    task.description,
+                    serde_json::to_string(&task.tag_ids).map_err(json_backend)?,
+                    serde_json::to_string(&task.assignee_ids).map_err(json_backend)?,
+                    task.source.as_ref().map(|source| &source.note_id),
+                    task.source.as_ref().map(|source| &source.block_id),
+                    task.detached_at,
+                    task.created_at,
+                    task.updated_at
+                ],
+            )
+            .map_err(backend)?;
+    }
+    for annotation in &archive.annotations {
+        transaction
+            .execute(
+                "INSERT INTO note_annotations \
+                 (id, note_id, status, anchor_text, created_at, resolved_at) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    annotation.id,
+                    annotation.note_id,
+                    annotation.status.as_str(),
+                    annotation.anchor_text,
+                    annotation.created_at,
+                    annotation.resolved_at
+                ],
+            )
+            .map_err(backend)?;
+        for comment in &annotation.comments {
+            transaction
+                .execute(
+                    "INSERT INTO note_annotation_comments \
+                     (id, annotation_id, body_markdown, author_id, created_at, updated_at) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![
+                        comment.id,
+                        annotation.id,
+                        comment.body_markdown,
+                        comment.author_id,
+                        comment.created_at,
+                        comment.updated_at
+                    ],
+                )
+                .map_err(backend)?;
+        }
+    }
+    for prompt in &archive.prompts {
+        transaction
+            .execute(
+                "INSERT INTO workspace_prompts \
+                 (id, name, system_prompt, input_shape, temperature_millis, \
+                  max_output_bytes, built_in_id, created_at, updated_at) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    prompt.id,
+                    prompt.name,
+                    prompt.system_prompt,
+                    prompt.input_shape.as_str(),
+                    prompt.parameters.temperature_millis,
+                    prompt.parameters.max_output_bytes,
+                    prompt.built_in_id,
+                    prompt.created_at,
+                    prompt.updated_at
+                ],
+            )
+            .map_err(backend)?;
+    }
+    for document in &archive.documents {
+        replace_references(
+            transaction,
+            &document.note_id,
+            &document.document_json,
+            HistoryProvenance::Local,
+        )?;
+    }
+
+    transaction
+        .execute(
+            "INSERT INTO app_state(key, value_json) VALUES ('settings', ?1)",
+            [serde_json::to_string(&archive.settings).map_err(json_backend)?],
+        )
+        .map_err(backend)?;
+    if let Some(active_note_id) = &archive.active_note_id {
+        transaction
+            .execute(
+                "INSERT INTO app_state(key, value_json) VALUES ('active_note_id', ?1)",
+                [serde_json::to_string(&Some(active_note_id)).map_err(json_backend)?],
+            )
+            .map_err(backend)?;
+    }
+
+    Ok(ImportSummary {
+        nodes: archive.nodes.len(),
+        documents: archive.documents.len(),
+        history_items: archive.documents.len(),
+    })
 }

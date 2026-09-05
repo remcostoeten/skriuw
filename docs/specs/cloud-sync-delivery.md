@@ -221,38 +221,37 @@ Done when a browser build creates/opens an OPFS workspace, edits offline,
 refreshes without loss, exports/imports a validated archive, and passes the
 same relevant fixture and interaction gates as desktop.
 
-### F. Convergence, conflict, and recovery owner
+### F. Convergence and recovery owner
 
-**Owns:** merge policy implementation and tests, conflict records/UI contract,
-tombstone retention, connected archive/export/import, account deletion and
-cloud purge requirements.
+**Owns:** merge policy implementation and tests, superseded-record and
+history-provenance contract, tombstone retention, connected archive/export/
+import, account deletion and cloud purge requirements.
 **Prerequisite:** A; integration requires B/C/D or E as relevant.
 **Unblocks:** H.
 
 This stream converts ordered delivery into correct product behavior. Server
-order is not a merge algorithm. Define deterministic behavior for each operation
-family, including delete-versus-edit and structural moves; use explicit conflict
-records and preserved document versions whenever automatic reconciliation is
-unsafe.
+order is the deterministic decision for every family; documents add the
+pending-local-write rule so every device decides identically. No operation
+produces a user-facing conflict ([ADR-0037](../adr/0037-automatic-sync-convergence.md)).
 
 Subagents may work in parallel on:
 
 1. **Merge matrix/tests:** property-style and scenario tests for reordered and
    duplicate deliveries, two offline devices, clock skew, sequence gaps, and
    every classified operation family.
-2. **Document conflicts:** preservation format, user-visible resolution flow,
-   history/archive behavior, and tests proving neither version is silently lost.
+2. **Document preservation:** history provenance, editor merge, and tests
+   proving both devices converge and every losing body is in history.
 3. **Tombstones/deletion:** retention rules tied to device cursors/checkpoints,
    safe resurrection prevention, account deletion, workspace cloud purge, and
    connected export semantics.
 
 F should publish the merge matrix before modifying storage so B/D/E can build
-the correct persistence seams. Conflicts are product data, not console-only
-errors.
+the correct persistence seams. Superseded records are product data, not
+console-only errors.
 
-Done when all conflict classes have a specified result and public test, deleted
-content cannot reappear incorrectly, user-visible recovery is possible, and
-export/deletion flows have documented cloud behavior.
+Done when every family has a specified result and public test, deleted
+content cannot reappear incorrectly, every superseded body is recoverable from
+history, and export/deletion flows have documented cloud behavior.
 
 ### G. Web account bootstrap and connected browser owner
 

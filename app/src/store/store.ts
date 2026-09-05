@@ -8,6 +8,8 @@ import type {
   WorkspaceSnapshot,
   WorkspacePrompt,
   WorkspaceAnnotation,
+  WorkspaceDelta,
+  WorkspaceDocument,
   WorkspaceTask,
 } from "@/contracts/workspace";
 import { extractReferences } from "@/features/references/extract";
@@ -114,6 +116,107 @@ function hasLosslessMarkdown(documentJson: unknown): boolean {
       node !== null &&
       (node as { type?: unknown }).type === "raw_markdown",
   );
+}
+
+/**
+ * Chooses between the renderer's record and a freshly read one so a remote
+ * reconcile never rewinds a document and never hands unchanged notes a new
+ * identity. Null means the fresh record should be adopted.
+ */
+function retainedDocument(
+  current: DocumentRecord | undefined,
+  fresh: WorkspaceDocument,
+): DocumentRecord | null {
+  if (!current) return null;
+  if (current.revision > fresh.revision) return current;
+  if (current.revision === fresh.revision && current.markdown === fresh.markdown) return current;
+  return null;
+}
+
+function documentFromRecord(fresh: WorkspaceDocument): DocumentRecord {
+  return { ...fresh, hasLosslessMarkdown: hasLosslessMarkdown(fresh.documentJson) };
+}
+
+/**
+ * Whether two node records place and label a node identically. Timestamps and
+ * icons are deliberately excluded: they never move a row, so a change to them
+ * alone must not rebuild the tree index.
+ */
+function nodePlacementEqual(left: WorkspaceNode, right: WorkspaceNode): boolean {
+  return (
+    left.id === right.id &&
+    left.kind === right.kind &&
+    left.parentId === right.parentId &&
+    left.rank === right.rank &&
+    left.title === right.title &&
+    left.deletedAt === right.deletedAt &&
+    left.pinnedAt === right.pinnedAt &&
+    (left.coverImageId ?? null) === (right.coverImageId ?? null) &&
+    (left.coverFullWidth ?? false) === (right.coverFullWidth ?? false) &&
+    (left.coverPositionX ?? 50) === (right.coverPositionX ?? 50) &&
+    (left.coverPositionY ?? 50) === (right.coverPositionY ?? 50) &&
+    (left.coverZoom ?? 1) === (right.coverZoom ?? 1)
+  );
+}
+
+function nodeRecordEqual(left: WorkspaceNode, right: WorkspaceNode): boolean {
+  return (
+    nodePlacementEqual(left, right) &&
+    left.icon === right.icon &&
+    left.createdAt === right.createdAt &&
+    left.updatedAt === right.updatedAt
+  );
+}
+
+function nodeListPlacementEqual(
+  current: ReadonlyMap<string, WorkspaceNode>,
+  fresh: ReadonlyMap<string, WorkspaceNode>,
+): boolean {
+  if (current.size !== fresh.size) return false;
+  for (const [id, node] of fresh) {
+    const existing = current.get(id);
+    if (!existing || !nodePlacementEqual(existing, node)) return false;
+  }
+  return true;
+}
+
+/**
+ * Reuses node objects whose every field is unchanged so row subscribers keep
+ * their identity; returns the current map itself when nothing differs.
+ */
+function mergeNodeRecords(
+  current: ReadonlyMap<string, WorkspaceNode>,
+  fresh: ReadonlyMap<string, WorkspaceNode>,
+): ReadonlyMap<string, WorkspaceNode> {
+  let changed = current.size !== fresh.size;
+  const merged = new Map<string, WorkspaceNode>();
+  for (const [id, node] of fresh) {
+    const existing = current.get(id);
+    if (existing && nodeRecordEqual(existing, node)) {
+      merged.set(id, existing);
+    } else {
+      merged.set(id, node);
+      changed = true;
+    }
+  }
+  return changed ? merged : current;
+}
+
+function metadataFor(
+  node: WorkspaceNode,
+  document: DocumentRecord | undefined,
+  previous: NoteMetadata | undefined,
+): NoteMetadata {
+  const wordCount = document?.wordCount ?? 0;
+  if (
+    previous &&
+    previous.title === node.title &&
+    previous.wordCount === wordCount &&
+    previous.updatedAt === node.updatedAt
+  ) {
+    return previous;
+  }
+  return { title: node.title, wordCount, updatedAt: node.updatedAt };
 }
 
 function compareHistoryHeaders(left: HistoryHeader, right: HistoryHeader): number {
@@ -1229,11 +1332,24 @@ export function createRendererStore(initialState: RendererState): RendererStore 
             targets,
           })),
       });
+      let documentsChanged = fresh.documents.size !== current.documents.size;
+      const documents = new Map<string, DocumentRecord>();
+      for (const document of snapshot.documents) {
+        const retained = retainedDocument(current.documents.get(document.noteId), document);
+        if (retained) {
+          documents.set(document.noteId, retained);
+        } else {
+          documents.set(document.noteId, documentFromRecord(document));
+          documentsChanged = true;
+        }
+      }
       const expandedIds = new Set(
         [...current.expandedIds].filter((id) => fresh.nodes.get(id)?.kind === "folder"),
       );
-      return derive({
+      const sourceNodes = mergeNodeRecords(current.sourceNodes, fresh.sourceNodes);
+      const carried = {
         ...fresh,
+        documents: documentsChanged ? documents : current.documents,
         expandedIds,
         panes: current.panes,
         splitOrientation: current.splitOrientation,
@@ -1251,7 +1367,75 @@ export function createRendererStore(initialState: RendererState): RendererStore 
         outgoingReferences: fresh.outgoingReferences,
         incomingReferences: fresh.incomingReferences,
         coVisits: current.coVisits,
-      });
+      };
+      if (!nodeListPlacementEqual(current.sourceNodes, fresh.sourceNodes)) {
+        return derive({ ...carried, sourceNodes });
+      }
+      const metadata = new Map<string, NoteMetadata>();
+      for (const [id, previous] of current.metadata) {
+        const node = sourceNodes.get(id);
+        if (node) metadata.set(id, metadataFor(node, carried.documents.get(id), previous));
+      }
+      return {
+        ...carried,
+        sourceNodes,
+        nodes: current.nodes,
+        childrenByParent: current.childrenByParent,
+        nodeOrder: current.nodeOrder,
+        noteIds: current.noteIds,
+        visibleIds: flattenVisible(current.nodes, current.childrenByParent, expandedIds),
+        metadata,
+      };
+    });
+  }
+
+  function applyRemoteDocuments(delta: WorkspaceDelta): boolean {
+    return update((current) => {
+      let documentsChanged = false;
+      const documents = new Map(current.documents);
+      let projection = referenceState(current);
+      for (const document of delta.documents) {
+        const existing = current.documents.get(document.noteId);
+        if (retainedDocument(existing, document)) continue;
+        documents.set(document.noteId, documentFromRecord(document));
+        documentsChanged = true;
+        projection =
+          updateNoteReferences(
+            projection,
+            document.noteId,
+            extractReferences(document.documentJson),
+          ) ?? projection;
+      }
+      let nodesChanged = false;
+      let placementChanged = false;
+      const sourceNodes = new Map(current.sourceNodes);
+      for (const node of delta.nodes) {
+        const existing = current.sourceNodes.get(node.id);
+        if (existing && (nodeRecordEqual(existing, node) || existing.updatedAt > node.updatedAt)) {
+          continue;
+        }
+        sourceNodes.set(node.id, node);
+        nodesChanged = true;
+        if (!existing || !nodePlacementEqual(existing, node)) placementChanged = true;
+      }
+      if (!documentsChanged && !nodesChanged) return current;
+      const next = {
+        ...current,
+        documents: documentsChanged ? documents : current.documents,
+        sourceNodes: nodesChanged ? sourceNodes : current.sourceNodes,
+        ...projection,
+      };
+      if (placementChanged) return derive(next);
+      const metadata = new Map(current.metadata);
+      for (const id of new Set([
+        ...delta.documents.map((document) => document.noteId),
+        ...delta.nodes.map((node) => node.id),
+      ])) {
+        const node = next.sourceNodes.get(id);
+        if (!node || node.kind !== "note") continue;
+        metadata.set(id, metadataFor(node, next.documents.get(id), current.metadata.get(id)));
+      }
+      return { ...next, metadata };
     });
   }
 
@@ -1285,6 +1469,7 @@ export function createRendererStore(initialState: RendererState): RendererStore 
     applyAck,
     publishHistoryHeader,
     replaceFromSnapshot,
+    applyRemoteDocuments,
     destroy: () => {
       destroyed = true;
       for (const subscriber of subscribers) {

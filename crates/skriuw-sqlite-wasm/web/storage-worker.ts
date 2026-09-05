@@ -104,6 +104,7 @@ worker.onmessage = (event) => {
       return;
     }
     try {
+      postStarted(request.requestId);
       const json = JSON.stringify(request);
       const response = !initialized ? await initialize(json) : dispatch(json);
       const value = JSON.parse(response) as { status?: string };
@@ -118,6 +119,18 @@ worker.onmessage = (event) => {
     }
   });
 };
+
+// The client starts a request's deadline only once the worker reports it
+// began, so a request queued behind a long sync cycle never times out the
+// worker while the cycle is still healthy.
+function postStarted(requestId: number): void {
+  worker.postMessage({
+    protocolVersion: 1,
+    requestId,
+    status: "event",
+    value: { kind: "started" },
+  });
+}
 
 function postTerminal(requestId: number, initializationDetail: string | null = null): void {
   worker.postMessage({

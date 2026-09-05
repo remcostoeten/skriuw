@@ -73,6 +73,7 @@ import {
   commitOperations,
   commitReferenceOperations,
   createLinkedNote,
+  isRevisionConflict,
 } from "@/store/actions/workspace";
 import { cssStringLiteral } from "@/features/settings/apply-settings";
 import { projectSettings } from "@/features/settings/settings-model";
@@ -205,12 +206,20 @@ import { SaveFailureBanner } from "./save-failure-banner";
 import { SaveSequencer } from "./save-sequencer";
 import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "./editor-working-set";
 import { preparedEditorDocuments } from "./prepared-documents";
+import { REMOTE_APPLY_META, buildRemoteTr, mergeDocuments } from "./remote-merge";
+import { saveWithConflictRetry } from "./save-retry";
 
 function selectAnnotations(state: RendererState) {
   return state.annotations;
 }
 
 const SAVE_DEBOUNCE_MS = 500;
+/**
+ * A save that loses the revision race merges against the winner and tries
+ * again; after this many losses the sequencer records the failure so the user
+ * gets the retry banner instead of a silent loop.
+ */
+const SAVE_CONFLICT_RETRIES = 3;
 const ANNOTATION_HOVER_CLOSE_MS = 160;
 const LINK_HOVER_CLOSE_MS = 200;
 const VIRTUAL_BLOCK_HEIGHT = 32;
@@ -253,6 +262,10 @@ type Props = {
 type CachedNote = {
   state: EditorState;
   revision: number;
+  /** The last document this device knew to be durable; the merge base for remote changes. */
+  baseDoc: ProseMirrorNode;
+  /** The store record identity this entry already reflects, so acks never read as remote edits. */
+  seenJson: unknown;
   bounded: BoundedDocument | null;
   searchState: EditorState | null;
   scrollTop: number;
@@ -288,6 +301,16 @@ type ImageDialogState =
   | { kind: "bigger"; image: WorkspaceImage; alt: string }
   | { kind: "info"; image: WorkspaceImage; alt: string }
   | null;
+
+/** Carries the revision a rejected save attempted, for the conflict retry. */
+class SaveAttemptError extends Error {
+  constructor(
+    override readonly cause: unknown,
+    readonly expectedRevision: number,
+  ) {
+    super("save attempt rejected");
+  }
+}
 
 function emptyDocument(): ProseMirrorNode {
   return productSchema.nodeFromJSON({ type: "doc", content: [{ type: "paragraph" }] });
@@ -326,14 +349,6 @@ function createSearchState(document: ProseMirrorNode): EditorState {
   return EditorState.create({ doc: document, plugins: [createSearchPlugin()] });
 }
 
-function documentFromJson(json: unknown): ProseMirrorNode {
-  try {
-    return productSchema.nodeFromJSON(json);
-  } catch {
-    return emptyDocument();
-  }
-}
-
 function createCachedNote(
   record: DocumentRecord,
   document: ProseMirrorNode,
@@ -343,6 +358,8 @@ function createCachedNote(
   return {
     state: createEditorState(bounded?.windowDocument() ?? document, extraPlugins),
     revision: record.revision,
+    baseDoc: document,
+    seenJson: record.documentJson,
     bounded,
     searchState: null,
     scrollTop: 0,
@@ -376,14 +393,6 @@ function selectStarterTitle(view: EditorView, entry: CachedNote): void {
   );
   view.updateState(next);
   entry.state = next;
-}
-
-function documentsEqual(left: ProseMirrorNode, json: unknown): boolean {
-  try {
-    return left.eq(productSchema.nodeFromJSON(json));
-  } catch {
-    return false;
-  }
 }
 
 function readSelection(state: EditorState, windowStart: number) {
@@ -458,6 +467,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const jumpFieldId = useId();
   const composingRef = useRef(false);
   const pendingWindowRef = useRef<number | null>(null);
+  const pendingRemoteRef = useRef<string | null>(null);
   const scrollHostRef = useRef<HTMLElement | null>(null);
   const boundedSurfaceKeyRef = useRef("");
   const [slashMenu, setSlashMenu] = useState<SlashMenu>(closedSlashMenu);
@@ -681,14 +691,15 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     }
   }
 
-  function persistCurrentDocument(noteId: string): Promise<void> {
+  async function persistOnce(noteId: string): Promise<number | null> {
     const cached = cacheRef.current.get(noteId);
     const record = store.getState().documents.get(noteId);
-    if (!cached || !record) return Promise.resolve();
+    if (!cached || !record) return null;
     const document = cached.bounded?.fullDocument() ?? cached.state.doc;
     const at = Date.now();
     const documentJson = document.toJSON();
     preparedDocuments.stage(noteId, documentJson, document);
+    cached.seenJson = documentJson;
     const source = {
       documentJson,
       markdown: serializeProductMarkdown(document),
@@ -707,18 +718,154 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       cached.derivedTitle = title;
       operations.push({ type: "rename_node", id: noteId, title, at });
     }
-    return commitOperations(store, operations).then(() => {
-      const entry = cacheRef.current.get(noteId);
-      const saved = store.getState().documents.get(noteId);
-      if (entry && saved) {
-        entry.revision = saved.revision;
-        const current = entry.bounded?.fullDocument() ?? entry.state.doc;
-        if (current.eq(document)) {
-          dirtyNoteIdsRef.current.delete(noteId);
-        }
+    try {
+      await commitOperations(store, operations);
+    } catch (error) {
+      throw new SaveAttemptError(error, record.revision);
+    }
+    const entry = cacheRef.current.get(noteId);
+    const saved = store.getState().documents.get(noteId);
+    if (entry && saved) {
+      entry.revision = saved.revision;
+      entry.baseDoc = document;
+      const current = entry.bounded?.fullDocument() ?? entry.state.doc;
+      if (saved.documentJson === documentJson && current.eq(document)) {
+        dirtyNoteIdsRef.current.delete(noteId);
       }
-      pruneEditorWorkingSet();
+    }
+    pruneEditorWorkingSet();
+    return record.revision;
+  }
+
+  function persistCurrentDocument(noteId: string): Promise<void> {
+    let lastRevision: number | null = null;
+    return saveWithConflictRetry({
+      attempt: async () => {
+        try {
+          lastRevision = await persistOnce(noteId);
+        } catch (error) {
+          if (error instanceof SaveAttemptError) {
+            lastRevision = error.expectedRevision;
+            throw error.cause;
+          }
+          throw error;
+        }
+      },
+      adoptFresh: () => {
+        const fresh = store.getState().documents.get(noteId);
+        if (!fresh || fresh.revision === lastRevision) return false;
+        adoptRecord(noteId, fresh);
+        return true;
+      },
+      isConflict: isRevisionConflict,
+      retries: SAVE_CONFLICT_RETRIES,
     });
+  }
+
+  /**
+   * Turns the editor's document into `target` through a remote transaction so
+   * plugin state, decorations and undo history map across; a detached entry
+   * applies it to its cached state, the entry on screen dispatches it so the
+   * view and menus follow. Only when no step can express the change is the
+   * state rebuilt.
+   */
+  function applyRemoteToEntry(entry: CachedNote, target: ProseMirrorNode, onScreen: boolean): void {
+    const view = viewRef.current;
+    const application = buildRemoteTr(entry.state, target);
+    if (application.kind === "unchanged") return;
+    if (application.kind === "transaction") {
+      if (onScreen && view) view.dispatch(application.tr);
+      else entry.state = entry.state.apply(application.tr);
+      return;
+    }
+    const head = Math.min(entry.state.selection.head, target.content.size);
+    const rebuilt = createEditorState(target, editorPlugins);
+    entry.state = rebuilt.apply(
+      rebuilt.tr.setSelection(TextSelection.near(rebuilt.doc.resolve(head))),
+    );
+    if (onScreen && view) {
+      view.updateState(entry.state);
+      setAnnotationDecorations(view, annotationDecorationInputsRef.current);
+      entry.state = view.state;
+    }
+  }
+
+  function installRemoteDocument(
+    noteId: string,
+    entry: CachedNote,
+    document: ProseMirrorNode,
+    base: ProseMirrorNode,
+  ): void {
+    const view = viewRef.current;
+    const onScreen = activeIdRef.current === noteId && view !== null;
+    entry.baseDoc = base;
+    entry.wholeSelected = false;
+    if (entry.bounded) {
+      if (!shouldUseBoundedEditor(document)) {
+        entry.bounded = null;
+        entry.searchState = null;
+        applyRemoteToEntry(entry, document, onScreen);
+        if (onScreen) syncBoundedSurface(entry);
+        return;
+      }
+      const windowChanged = entry.bounded.adoptRemoteDocument(document);
+      if (onScreen && searchRef.current.searchOpen) rebuildBoundedSearchState(entry);
+      else entry.searchState = null;
+      if (windowChanged) applyRemoteToEntry(entry, entry.bounded.windowDocument(), onScreen);
+      if (onScreen) syncBoundedSurface(entry);
+      return;
+    }
+    if (shouldUseBoundedEditor(document)) {
+      entry.bounded = createBoundedDocument(document);
+      entry.searchState = null;
+      if (onScreen) installBoundedWindow(entry, view?.hasFocus() ?? false);
+      else entry.state = createEditorState(entry.bounded.windowDocument(), editorPlugins);
+      return;
+    }
+    applyRemoteToEntry(entry, document, onScreen);
+    if (onScreen) syncBoundedSurface(entry);
+  }
+
+  /**
+   * Brings a cached note in line with a store record that changed underneath
+   * it. A record the entry already produced (its own staged save, or the
+   * acknowledgement bumping its revision) only moves the revision. Anything
+   * else is a remote write: a clean detached entry is simply dropped, a clean
+   * visible one adopts the document in place, and a dirty one merges at block
+   * granularity and stays dirty so the merged body is saved. While the user
+   * is composing text the change waits for the composition to end.
+   */
+  function adoptRecord(noteId: string, record: DocumentRecord): void {
+    const entry = cacheRef.current.peek(noteId);
+    if (!entry) return;
+    if (record.documentJson === entry.seenJson) {
+      entry.revision = record.revision;
+      return;
+    }
+    const onScreen = activeIdRef.current === noteId && viewRef.current !== null;
+    if (onScreen && composingRef.current) {
+      pendingRemoteRef.current = noteId;
+      return;
+    }
+    entry.seenJson = record.documentJson;
+    entry.revision = record.revision;
+    const incoming = preparedDocuments.documentFor(record);
+    const current = entry.bounded?.fullDocument() ?? entry.state.doc;
+    if (!dirtyNoteIdsRef.current.has(noteId)) {
+      if (current.eq(incoming)) {
+        entry.baseDoc = incoming;
+        return;
+      }
+      if (!onScreen) {
+        cacheRef.current.delete(noteId);
+        return;
+      }
+      installRemoteDocument(noteId, entry, incoming, incoming);
+      return;
+    }
+    const merged = mergeDocuments(entry.baseDoc, current, incoming);
+    installRemoteDocument(noteId, entry, merged, incoming);
+    if (onScreen) schedulePendingSave();
   }
 
   function saveNow(noteId: string): Promise<void> {
@@ -756,6 +903,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const entry = activeEntry();
     if (!view || !entry) return;
     const next = view.state.apply(transaction);
+    const remote = transaction.getMeta(REMOTE_APPLY_META) === true;
     view.updateState(next);
     entry.state = next;
     if (entry.bounded) {
@@ -764,7 +912,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       if (transaction.selectionSet && !transaction.docChanged) {
         entry.wholeSelected = next.selection instanceof AllSelection;
       }
-      if (transaction.docChanged) {
+      if (transaction.docChanged && !remote) {
         if (replaceWholeDocument) {
           entry.bounded.replaceFullDocument(next.doc, Date.now());
         } else {
@@ -776,7 +924,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         syncBoundedSurface(entry);
       }
     }
-    if (transaction.docChanged) schedulePendingSave();
+    if (transaction.docChanged && !remote) schedulePendingSave();
     if (transaction.docChanged && searchRef.current.searchOpen) {
       searchRef.current.syncMatchInfo();
     }
@@ -1730,6 +1878,10 @@ const closeJumpToLine = useCallback(() => {
       pendingWindowRef.current = null;
       const entry = activeEntry();
       if (entry && pending !== null) moveBoundedWindow(entry, pending);
+      const pendingRemote = pendingRemoteRef.current;
+      pendingRemoteRef.current = null;
+      const record = pendingRemote ? store.getState().documents.get(pendingRemote) : undefined;
+      if (pendingRemote && record) adoptRecord(pendingRemote, record);
     };
     const handleAnnotationMouseOver = (event: MouseEvent) => {
       if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
@@ -1878,6 +2030,8 @@ const closeJumpToLine = useCallback(() => {
       syncBoundedSurface({
         state: view.state,
         revision: 0,
+        baseDoc: view.state.doc,
+        seenJson: null,
         bounded: null,
         searchState: null,
         scrollTop: 0,
@@ -1892,15 +2046,14 @@ const closeJumpToLine = useCallback(() => {
       return;
     }
     let entry = cacheRef.current.get(activeNoteId);
-    if (!entry || (entry.revision !== record.revision && !documentsEqual(
-      entry.bounded?.fullDocument() ?? entry.state.doc,
-      record.documentJson,
-    ))) {
+    if (entry) {
+      adoptRecord(activeNoteId, record);
+      entry = cacheRef.current.get(activeNoteId);
+    }
+    if (!entry) {
       entry = createCachedNote(record, preparedDocuments.documentFor(record), editorPlugins);
       cacheRef.current.set(activeNoteId, entry);
       pruneEditorWorkingSet();
-    } else {
-      entry.revision = record.revision;
     }
     if (entry.bounded) {
       installBoundedWindow(entry, false, false);
@@ -1945,30 +2098,10 @@ const closeJumpToLine = useCallback(() => {
       store.subscribe(
         (state) => state.documents,
         () => {
-          const id = activeIdRef.current;
-          const record = id ? store.getState().documents.get(id) : undefined;
-          const entry = id ? cacheRef.current.get(id) : undefined;
-          if (!record || !entry) return;
-          if (id && dirtyNoteIdsRef.current.has(id)) return;
-          const current = entry.bounded?.fullDocument() ?? entry.state.doc;
-          if (documentsEqual(current, record.documentJson)) {
-            entry.revision = record.revision;
-            return;
-          }
-          const replacement = documentFromJson(record.documentJson);
-          entry.revision = record.revision;
-          entry.wholeSelected = false;
-          if (shouldUseBoundedEditor(replacement)) {
-            if (entry.bounded) entry.bounded.reconcile(replacement);
-            else entry.bounded = createBoundedDocument(replacement);
-            rebuildBoundedSearchState(entry);
-            installBoundedWindow(entry, false);
-          } else {
-            entry.bounded = null;
-            entry.searchState = null;
-            entry.state = createEditorState(replacement, editorPlugins);
-            viewRef.current?.updateState(entry.state);
-            syncBoundedSurface(entry);
+          const documents = store.getState().documents;
+          for (const noteId of cacheRef.current.keys()) {
+            const record = documents.get(noteId);
+            if (record) adoptRecord(noteId, record);
           }
         },
       ),

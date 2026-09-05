@@ -12,7 +12,26 @@ use skriuw_domain::{
     SyncPushRequest, SyncPushResponse, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceCheckpoint,
     WorkspaceImage, WorkspaceOperation, WorkspaceOperationEnvelope, content_digest,
 };
+use skriuw_storage::{HistoryProvenance, HistoryQueue};
 use skriuw_sync::{SyncAssetStore, SyncCancellation, SyncClock, SyncTransport, TransportError};
+
+/// Every history row on a device that was written for a body another device
+/// outranked, read through the history queue port so the assertion does not
+/// depend on the table layout. Claiming leases the rows; call it once per
+/// device at the end of a scenario.
+pub fn superseded_history(queue: &dyn HistoryQueue) -> Vec<(String, String)> {
+    let mut rows = Vec::new();
+    while let Some(item) = queue
+        .claim_history_revision("scenario-history-probe", i64::MAX / 2, 60_000)
+        .expect("claim history revision")
+    {
+        if item.provenance == HistoryProvenance::Superseded {
+            rows.push((item.note_id, item.markdown));
+        }
+    }
+    rows.sort();
+    rows
+}
 
 /// In-memory stand-in for the workspace image blob store, keyed by content
 /// hash so digest verification mirrors the production store.
@@ -100,6 +119,7 @@ pub struct FakeServer {
     state: Mutex<Vec<ReplicatedWorkspaceOperation>>,
     checkpoints: Mutex<Vec<WorkspaceCheckpoint>>,
     device_cursors: Mutex<std::collections::HashMap<String, u64>>,
+    compacted_through: AtomicI64,
 }
 
 impl FakeServer {
@@ -111,7 +131,22 @@ impl FakeServer {
             state: Mutex::new(Vec::new()),
             checkpoints: Mutex::new(Vec::new()),
             device_cursors: Mutex::new(std::collections::HashMap::new()),
+            compacted_through: AtomicI64::new(0),
         })
+    }
+
+    /// Retires every log entry at or below `server_sequence`, like the
+    /// service's retention pass: a pull whose cursor sits below the floor is
+    /// answered with `log_truncated`, and identical re-pushes of retired
+    /// operations are still accepted with their original sequence.
+    pub fn compact_through(&self, server_sequence: u64) {
+        self.compacted_through
+            .fetch_max(server_sequence as i64, Ordering::SeqCst);
+    }
+
+    #[must_use]
+    pub fn compacted_through(&self) -> u64 {
+        self.compacted_through.load(Ordering::SeqCst) as u64
     }
 
     #[must_use]
@@ -398,6 +433,9 @@ impl FakeServer {
         if workspace_id != self.workspace_id {
             return Err(TransportError::AuthorizationDenied);
         }
+        if after_server_sequence < self.compacted_through() {
+            return Err(TransportError::LogTruncated);
+        }
         let log = self.state.lock().expect("server state");
         let operations = log
             .iter()
@@ -420,6 +458,8 @@ pub enum PushFault {
     Transient,
     AuthExpired,
     RateLimited(i64),
+    /// The service rejects the batch as invalid with a stable answer.
+    Rejected,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -431,7 +471,15 @@ pub enum PullFault {
     /// Deliver the page starting one operation before the requested cursor.
     Overlap,
     WrongProtocol,
+    /// The page exceeded what the client buffers.
+    TooLarge,
+    /// Deliver the page normally; lets a later scripted fault land on the
+    /// second page of one cycle.
+    Pass,
 }
+
+pub type PushHook = Box<dyn Fn(&SyncCancellation) + Send + Sync>;
+pub type PushCommittedHook = Box<dyn Fn() + Send + Sync>;
 
 /// Deterministic per-device transport over one [`FakeServer`] with scripted
 /// fault injection and call accounting for no-network-path assertions.
@@ -442,6 +490,9 @@ pub struct FakeTransport {
     pull_faults: Mutex<VecDeque<PullFault>>,
     checkpoint_fetch_faults: Mutex<VecDeque<TransportError>>,
     checkpoint_publish_faults: Mutex<VecDeque<TransportError>>,
+    push_hook: Mutex<Option<PushHook>>,
+    push_committed_hook: Mutex<Option<PushCommittedHook>>,
+    pull_limits: Mutex<Vec<usize>>,
     push_calls: AtomicUsize,
     pull_calls: AtomicUsize,
     checkpoint_fetch_calls: AtomicUsize,
@@ -459,6 +510,9 @@ impl FakeTransport {
             pull_faults: Mutex::new(VecDeque::new()),
             checkpoint_fetch_faults: Mutex::new(VecDeque::new()),
             checkpoint_publish_faults: Mutex::new(VecDeque::new()),
+            push_hook: Mutex::new(None),
+            push_committed_hook: Mutex::new(None),
+            pull_limits: Mutex::new(Vec::new()),
             push_calls: AtomicUsize::new(0),
             pull_calls: AtomicUsize::new(0),
             checkpoint_fetch_calls: AtomicUsize::new(0),
@@ -493,6 +547,27 @@ impl FakeTransport {
             .lock()
             .expect("checkpoint publish faults")
             .push_back(fault);
+    }
+
+    /// Runs before every push reaches the server, with the cycle's
+    /// cancellation so a scenario can hold the push open until it is
+    /// interrupted.
+    pub fn set_push_hook(&self, hook: PushHook) {
+        *self.push_hook.lock().expect("push hook") = Some(hook);
+    }
+
+    /// Runs after the server accepted a push, like the service's
+    /// `workspaceChanged` broadcast to the other devices.
+    pub fn set_push_committed_hook(&self, hook: PushCommittedHook) {
+        *self
+            .push_committed_hook
+            .lock()
+            .expect("push committed hook") = Some(hook);
+    }
+
+    #[must_use]
+    pub fn pull_limits(&self) -> Vec<usize> {
+        self.pull_limits.lock().expect("pull limits").clone()
     }
 
     #[must_use]
@@ -636,8 +711,14 @@ impl SyncTransport for FakeTransport {
         if cancellation.is_cancelled() {
             return Err(TransportError::Cancelled);
         }
+        if let Some(hook) = self.push_hook.lock().expect("push hook").as_ref() {
+            hook(cancellation);
+        }
+        if cancellation.is_cancelled() {
+            return Err(TransportError::Cancelled);
+        }
         let fault = self.push_faults.lock().expect("push faults").pop_front();
-        match fault {
+        let result = match fault {
             Some(PushFault::DropResponse) => {
                 self.server.push(&self.device_id, workspace_id, request)?;
                 Err(TransportError::Transient("response was lost".into()))
@@ -649,8 +730,19 @@ impl SyncTransport for FakeTransport {
             Some(PushFault::RateLimited(retry_after_ms)) => Err(TransportError::RateLimited {
                 retry_after_ms: Some(retry_after_ms),
             }),
+            Some(PushFault::Rejected) => Err(TransportError::Validation("request_rejected".into())),
             None => self.server.push(&self.device_id, workspace_id, request),
+        };
+        if result.is_ok()
+            && let Some(hook) = self
+                .push_committed_hook
+                .lock()
+                .expect("push committed hook")
+                .as_ref()
+        {
+            hook();
         }
+        result
     }
 
     fn pull(
@@ -661,11 +753,14 @@ impl SyncTransport for FakeTransport {
         cancellation: &SyncCancellation,
     ) -> Result<SyncPullResponse, TransportError> {
         self.pull_calls.fetch_add(1, Ordering::SeqCst);
+        self.pull_limits.lock().expect("pull limits").push(limit);
         if cancellation.is_cancelled() {
             return Err(TransportError::Cancelled);
         }
         let fault = self.pull_faults.lock().expect("pull faults").pop_front();
         match fault {
+            Some(PullFault::TooLarge) => Err(TransportError::ResponseTooLarge),
+            Some(PullFault::Pass) => self.server.pull(workspace_id, after_server_sequence, limit),
             Some(PullFault::Transient) => {
                 Err(TransportError::Transient("network unreachable".into()))
             }

@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::WorkspaceOperation;
 
@@ -39,8 +38,8 @@ impl SyncConflictReason {
         }
     }
 
-    /// The broad category persisted in `sync_conflicts.reason_code`, which
-    /// keeps the four-value compatibility contract of the current schema.
+    /// The broad category of a reason, kept for diagnostics that group the
+    /// precise codes into four families.
     #[must_use]
     pub const fn broad_code(self) -> &'static str {
         match self {
@@ -85,9 +84,10 @@ pub enum RemoteOperationDecision {
     /// The complete intended state is already present; record the operation
     /// without reapplying it.
     AlreadyApplied,
-    /// Preserve a durable semantic conflict instead of mutating canonical
-    /// state.
-    Conflict { reason: SyncConflictReason },
+    /// The operation lost to state this device already holds. The cursor
+    /// advances and the outcome is recorded with its reason; a losing document
+    /// body is preserved in history.
+    Superseded { reason: SyncConflictReason },
     /// The operation class can never appear in the replicated v1 log. The
     /// whole inbound transaction is rejected; this is not a semantic
     /// conflict and must not consume the cursor.
@@ -112,18 +112,15 @@ pub struct RemoteTargetState {
     /// The operation's complete intended state is already the canonical
     /// state, as verified by the adapter against current rows.
     pub state_equivalent: bool,
-    /// For `SaveDocument`: the expected revision matches the current
-    /// canonical revision, so optimistic application is safe.
-    pub document_revision_matches: bool,
-    /// The operation's causal base already covers every write this device has
-    /// incorporated for the target, so the author saw at least as much as we
-    /// hold and the operation is downstream rather than concurrent.
-    ///
-    /// Revision equality cannot answer this on its own: a device that joined
-    /// through the replicated log rebuilds documents from scratch and starts
-    /// its counter over, so two devices holding identical content routinely
-    /// disagree about the number.
-    pub remote_supersedes_local: bool,
+    /// For document writes: this device holds a document write for the note
+    /// that has not reached the log yet, in the outbox or parked as a blocked
+    /// operation. The remote author cannot have seen it, so the incoming
+    /// write is concurrent with local work regardless of its causal base.
+    pub local_write_pending: bool,
+    /// For document writes: the incoming server sequence is greater than the
+    /// newest document write this device has already incorporated for the
+    /// note.
+    pub incoming_outranks_head: bool,
 }
 
 /// Decide how a validated replicated remote operation reconciles against
@@ -138,8 +135,8 @@ pub fn reconcile_remote_operation(
     match operation {
         WorkspaceOperation::CreateTag { .. }
         | WorkspaceOperation::CreatePerson { .. }
-        | WorkspaceOperation::CreateFolder { .. }
-        | WorkspaceOperation::CreateNote { .. } => reconcile_create(state),
+        | WorkspaceOperation::CreateFolder { .. } => reconcile_create(state),
+        WorkspaceOperation::CreateNote { .. } => reconcile_create_note(state),
         WorkspaceOperation::RenameTag { .. }
         | WorkspaceOperation::RecolorTag { .. }
         | WorkspaceOperation::RenamePerson { .. }
@@ -192,26 +189,26 @@ pub fn reconcile_remote_operation(
 
 fn reconcile_create(state: &RemoteTargetState) -> RemoteOperationDecision {
     if state.target_tombstoned {
-        return conflict(SyncConflictReason::TombstoneBlocked);
+        return superseded(SyncConflictReason::TombstoneBlocked);
     }
     if state.dependency_tombstoned {
-        return conflict(SyncConflictReason::TombstoneBlocked);
+        return superseded(SyncConflictReason::TombstoneBlocked);
     }
     if state.target_exists {
         if state.state_equivalent {
             return RemoteOperationDecision::AlreadyApplied;
         }
-        return conflict(SyncConflictReason::IdentityConflict);
+        return superseded(SyncConflictReason::IdentityConflict);
     }
     RemoteOperationDecision::Apply
 }
 
 fn reconcile_scalar_update(state: &RemoteTargetState) -> RemoteOperationDecision {
     if state.target_tombstoned {
-        return conflict(SyncConflictReason::TombstoneBlocked);
+        return superseded(SyncConflictReason::TombstoneBlocked);
     }
     if !state.target_exists {
-        return conflict(SyncConflictReason::MissingDependency);
+        return superseded(SyncConflictReason::MissingDependency);
     }
     if state.state_equivalent {
         return RemoteOperationDecision::AlreadyApplied;
@@ -224,23 +221,23 @@ fn reconcile_delete(state: &RemoteTargetState) -> RemoteOperationDecision {
         return RemoteOperationDecision::AlreadyApplied;
     }
     if state.dependency_tombstoned {
-        return conflict(SyncConflictReason::TombstoneBlocked);
+        return superseded(SyncConflictReason::TombstoneBlocked);
     }
     if !state.target_exists {
-        return conflict(SyncConflictReason::MissingDependency);
+        return superseded(SyncConflictReason::MissingDependency);
     }
     RemoteOperationDecision::Apply
 }
 
 fn reconcile_node_update(state: &RemoteTargetState) -> RemoteOperationDecision {
     if state.target_tombstoned || state.dependency_tombstoned {
-        return conflict(SyncConflictReason::TombstoneBlocked);
+        return superseded(SyncConflictReason::TombstoneBlocked);
     }
     if !state.target_exists {
-        return conflict(SyncConflictReason::MissingDependency);
+        return superseded(SyncConflictReason::MissingDependency);
     }
     if state.target_trashed {
-        return conflict(SyncConflictReason::TombstoneBlocked);
+        return superseded(SyncConflictReason::TombstoneBlocked);
     }
     if state.state_equivalent {
         return RemoteOperationDecision::AlreadyApplied;
@@ -248,23 +245,40 @@ fn reconcile_node_update(state: &RemoteTargetState) -> RemoteOperationDecision {
     RemoteOperationDecision::Apply
 }
 
+/// Document writes converge by server order alone: the greatest incorporated
+/// sequence for a note wins, and an unpushed local write (which has no
+/// sequence yet) outranks anything that could not have observed it.
 fn reconcile_save_document(state: &RemoteTargetState) -> RemoteOperationDecision {
     if state.target_tombstoned || state.dependency_tombstoned {
-        return conflict(SyncConflictReason::TombstoneBlocked);
+        return superseded(SyncConflictReason::TombstoneBlocked);
     }
     if !state.target_exists {
-        return conflict(SyncConflictReason::MissingDependency);
+        return superseded(SyncConflictReason::MissingDependency);
     }
+    reconcile_document_body(state)
+}
+
+/// A note creation whose identity already exists keeps the existing node
+/// record and reconciles only its body, exactly like a `SaveDocument` of that
+/// body.
+fn reconcile_create_note(state: &RemoteTargetState) -> RemoteOperationDecision {
+    if state.target_tombstoned || state.dependency_tombstoned {
+        return superseded(SyncConflictReason::TombstoneBlocked);
+    }
+    if !state.target_exists {
+        return RemoteOperationDecision::Apply;
+    }
+    reconcile_document_body(state)
+}
+
+fn reconcile_document_body(state: &RemoteTargetState) -> RemoteOperationDecision {
     if state.state_equivalent {
         return RemoteOperationDecision::AlreadyApplied;
     }
-    if state.target_trashed {
-        return conflict(SyncConflictReason::TombstoneBlocked);
+    if state.local_write_pending || !state.incoming_outranks_head {
+        return superseded(SyncConflictReason::ConcurrentDocumentVersion);
     }
-    if state.document_revision_matches || state.remote_supersedes_local {
-        return RemoteOperationDecision::Apply;
-    }
-    conflict(SyncConflictReason::ConcurrentDocumentVersion)
+    RemoteOperationDecision::Apply
 }
 
 fn reconcile_trash(state: &RemoteTargetState) -> RemoteOperationDecision {
@@ -272,7 +286,7 @@ fn reconcile_trash(state: &RemoteTargetState) -> RemoteOperationDecision {
         return RemoteOperationDecision::AlreadyApplied;
     }
     if !state.target_exists {
-        return conflict(SyncConflictReason::MissingDependency);
+        return superseded(SyncConflictReason::MissingDependency);
     }
     if state.state_equivalent {
         return RemoteOperationDecision::AlreadyApplied;
@@ -282,13 +296,13 @@ fn reconcile_trash(state: &RemoteTargetState) -> RemoteOperationDecision {
 
 fn reconcile_restore(state: &RemoteTargetState) -> RemoteOperationDecision {
     if state.target_tombstoned {
-        return conflict(SyncConflictReason::TombstoneBlocked);
+        return superseded(SyncConflictReason::TombstoneBlocked);
     }
     if state.dependency_tombstoned {
-        return conflict(SyncConflictReason::TombstoneBlocked);
+        return superseded(SyncConflictReason::TombstoneBlocked);
     }
     if !state.target_exists {
-        return conflict(SyncConflictReason::MissingDependency);
+        return superseded(SyncConflictReason::MissingDependency);
     }
     RemoteOperationDecision::Apply
 }
@@ -298,17 +312,17 @@ fn reconcile_purge(state: &RemoteTargetState) -> RemoteOperationDecision {
         return RemoteOperationDecision::AlreadyApplied;
     }
     if !state.target_exists {
-        return conflict(SyncConflictReason::MissingDependency);
+        return superseded(SyncConflictReason::MissingDependency);
     }
     RemoteOperationDecision::Apply
 }
 
 fn reconcile_field_upsert(state: &RemoteTargetState) -> RemoteOperationDecision {
     if state.target_tombstoned || state.dependency_tombstoned {
-        return conflict(SyncConflictReason::TombstoneBlocked);
+        return superseded(SyncConflictReason::TombstoneBlocked);
     }
     if state.target_trashed {
-        return conflict(SyncConflictReason::TombstoneBlocked);
+        return superseded(SyncConflictReason::TombstoneBlocked);
     }
     if state.state_equivalent {
         return RemoteOperationDecision::AlreadyApplied;
@@ -318,10 +332,10 @@ fn reconcile_field_upsert(state: &RemoteTargetState) -> RemoteOperationDecision 
 
 fn reconcile_reorder(state: &RemoteTargetState) -> RemoteOperationDecision {
     if state.target_tombstoned || state.dependency_tombstoned {
-        return conflict(SyncConflictReason::TombstoneBlocked);
+        return superseded(SyncConflictReason::TombstoneBlocked);
     }
     if state.target_trashed {
-        return conflict(SyncConflictReason::TombstoneBlocked);
+        return superseded(SyncConflictReason::TombstoneBlocked);
     }
     if state.state_equivalent {
         return RemoteOperationDecision::AlreadyApplied;
@@ -329,8 +343,8 @@ fn reconcile_reorder(state: &RemoteTargetState) -> RemoteOperationDecision {
     RemoteOperationDecision::Apply
 }
 
-const fn conflict(reason: SyncConflictReason) -> RemoteOperationDecision {
-    RemoteOperationDecision::Conflict { reason }
+const fn superseded(reason: SyncConflictReason) -> RemoteOperationDecision {
+    RemoteOperationDecision::Superseded { reason }
 }
 
 /// Classify a validation failure raised while applying a remote operation
@@ -388,52 +402,6 @@ pub fn classify_apply_failure(operation: &WorkspaceOperation) -> SyncConflictRea
     }
 }
 
-/// The user's durable resolution of a preserved document conflict. Version 1
-/// resolutions replicate their canonical result as an ordinary
-/// `SaveDocument`; the unselected alternative is never deleted.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase",
-    tag = "choice"
-)]
-pub enum DocumentConflictResolutionChoice {
-    /// Keep the current local canonical document; the remote alternative
-    /// remains preserved as recovery evidence.
-    KeepLocal,
-    /// Make the preserved remote alternative canonical; the previous local
-    /// version remains preserved as recovery evidence.
-    KeepRemote,
-    /// Save an explicit user-merged document as canonical; both original
-    /// alternatives remain preserved as recovery evidence.
-    Merged {
-        document_json: Value,
-        markdown: String,
-    },
-}
-
-impl DocumentConflictResolutionChoice {
-    #[must_use]
-    pub const fn code(&self) -> &'static str {
-        match self {
-            Self::KeepLocal => "local",
-            Self::KeepRemote => "remote",
-            Self::Merged { .. } => "merged",
-        }
-    }
-}
-
-/// A complete, versioned resolution request for one preserved document
-/// conflict.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ResolveDocumentConflict {
-    pub conflict_id: String,
-    #[serde(flatten)]
-    pub choice: DocumentConflictResolutionChoice,
-    pub at: i64,
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
@@ -454,44 +422,97 @@ mod tests {
         }
     }
 
-    #[test]
-    fn identical_document_save_is_already_applied() {
-        let decision = reconcile_remote_operation(
-            &save_document(),
-            &RemoteTargetState {
-                target_exists: true,
-                state_equivalent: true,
-                ..RemoteTargetState::default()
-            },
-        );
-        assert_eq!(decision, RemoteOperationDecision::AlreadyApplied);
+    fn create_note() -> WorkspaceOperation {
+        WorkspaceOperation::CreateNote {
+            id: "note-1".into(),
+            title: "Note".into(),
+            placement: NodePlacement::last(None),
+            document_json: json!({"type": "doc"}),
+            markdown: String::new(),
+            at: 1,
+        }
+    }
+
+    fn superseded(reason: SyncConflictReason) -> RemoteOperationDecision {
+        RemoteOperationDecision::Superseded { reason }
     }
 
     #[test]
-    fn divergent_document_save_preserves_both_versions() {
-        let decision = reconcile_remote_operation(
-            &save_document(),
-            &RemoteTargetState {
-                target_exists: true,
-                ..RemoteTargetState::default()
-            },
-        );
-        assert_eq!(
-            decision,
-            RemoteOperationDecision::Conflict {
-                reason: SyncConflictReason::ConcurrentDocumentVersion
-            }
-        );
+    fn rule_one_equivalent_document_is_already_applied() {
+        for operation in [save_document(), create_note()] {
+            let decision = reconcile_remote_operation(
+                &operation,
+                &RemoteTargetState {
+                    target_exists: true,
+                    state_equivalent: true,
+                    local_write_pending: true,
+                    ..RemoteTargetState::default()
+                },
+            );
+            assert_eq!(decision, RemoteOperationDecision::AlreadyApplied);
+        }
     }
 
     #[test]
-    fn a_downstream_document_save_applies_despite_a_foreign_revision() {
+    fn rule_two_pending_local_write_supersedes_the_incoming_write() {
+        for operation in [save_document(), create_note()] {
+            let decision = reconcile_remote_operation(
+                &operation,
+                &RemoteTargetState {
+                    target_exists: true,
+                    local_write_pending: true,
+                    incoming_outranks_head: true,
+                    ..RemoteTargetState::default()
+                },
+            );
+            assert_eq!(
+                decision,
+                superseded(SyncConflictReason::ConcurrentDocumentVersion)
+            );
+        }
+    }
+
+    #[test]
+    fn rule_three_incoming_write_above_the_head_applies() {
+        for operation in [save_document(), create_note()] {
+            let decision = reconcile_remote_operation(
+                &operation,
+                &RemoteTargetState {
+                    target_exists: true,
+                    incoming_outranks_head: true,
+                    ..RemoteTargetState::default()
+                },
+            );
+            assert_eq!(decision, RemoteOperationDecision::Apply);
+        }
+    }
+
+    #[test]
+    fn rule_four_incoming_write_below_the_head_is_superseded() {
+        for operation in [save_document(), create_note()] {
+            let decision = reconcile_remote_operation(
+                &operation,
+                &RemoteTargetState {
+                    target_exists: true,
+                    incoming_outranks_head: false,
+                    ..RemoteTargetState::default()
+                },
+            );
+            assert_eq!(
+                decision,
+                superseded(SyncConflictReason::ConcurrentDocumentVersion)
+            );
+        }
+    }
+
+    #[test]
+    fn a_trashed_note_still_takes_document_writes() {
         let decision = reconcile_remote_operation(
             &save_document(),
             &RemoteTargetState {
                 target_exists: true,
-                document_revision_matches: false,
-                remote_supersedes_local: true,
+                target_trashed: true,
+                incoming_outranks_head: true,
                 ..RemoteTargetState::default()
             },
         );
@@ -499,41 +520,35 @@ mod tests {
     }
 
     #[test]
-    fn a_concurrent_document_save_conflicts_even_with_a_matching_counter() {
+    fn a_missing_note_cannot_take_a_document_write() {
         let decision = reconcile_remote_operation(
             &save_document(),
             &RemoteTargetState {
-                target_exists: true,
-                document_revision_matches: false,
-                remote_supersedes_local: false,
+                incoming_outranks_head: true,
                 ..RemoteTargetState::default()
             },
         );
-        assert_eq!(
-            decision,
-            RemoteOperationDecision::Conflict {
-                reason: SyncConflictReason::ConcurrentDocumentVersion
-            }
-        );
+        assert_eq!(decision, superseded(SyncConflictReason::MissingDependency));
     }
 
     #[test]
-    fn a_tombstone_outranks_a_downstream_causal_base() {
+    fn a_new_note_identity_applies_without_document_rules() {
+        let decision = reconcile_remote_operation(&create_note(), &RemoteTargetState::default());
+        assert_eq!(decision, RemoteOperationDecision::Apply);
+    }
+
+    #[test]
+    fn a_tombstone_outranks_every_document_rule() {
         let decision = reconcile_remote_operation(
             &save_document(),
             &RemoteTargetState {
                 target_exists: true,
                 target_tombstoned: true,
-                remote_supersedes_local: true,
+                incoming_outranks_head: true,
                 ..RemoteTargetState::default()
             },
         );
-        assert_eq!(
-            decision,
-            RemoteOperationDecision::Conflict {
-                reason: SyncConflictReason::TombstoneBlocked
-            }
-        );
+        assert_eq!(decision, superseded(SyncConflictReason::TombstoneBlocked));
     }
 
     #[test]
@@ -544,14 +559,7 @@ mod tests {
         };
         for operation in [
             save_document(),
-            WorkspaceOperation::CreateNote {
-                id: "note-1".into(),
-                title: "Note".into(),
-                placement: NodePlacement::last(None),
-                document_json: json!({"type": "doc"}),
-                markdown: String::new(),
-                at: 1,
-            },
+            create_note(),
             WorkspaceOperation::RenameNode {
                 id: "note-1".into(),
                 title: "Renamed".into(),
@@ -565,13 +573,28 @@ mod tests {
         ] {
             assert_eq!(
                 reconcile_remote_operation(&operation, &state),
-                RemoteOperationDecision::Conflict {
-                    reason: SyncConflictReason::TombstoneBlocked
-                },
+                superseded(SyncConflictReason::TombstoneBlocked),
                 "operation {:?} must be tombstone-blocked",
                 operation.sync_policy().operation_type
             );
         }
+    }
+
+    #[test]
+    fn divergent_identity_creation_keeps_the_first_record() {
+        let decision = reconcile_remote_operation(
+            &WorkspaceOperation::CreateFolder {
+                id: "folder-1".into(),
+                title: "Folder".into(),
+                placement: NodePlacement::last(None),
+                at: 1,
+            },
+            &RemoteTargetState {
+                target_exists: true,
+                ..RemoteTargetState::default()
+            },
+        );
+        assert_eq!(decision, superseded(SyncConflictReason::IdentityConflict));
     }
 
     #[test]
@@ -651,9 +674,7 @@ mod tests {
                     ..RemoteTargetState::default()
                 }
             ),
-            RemoteOperationDecision::Conflict {
-                reason: SyncConflictReason::TombstoneBlocked
-            }
+            superseded(SyncConflictReason::TombstoneBlocked)
         );
         assert_eq!(
             classify_apply_failure(&operation),

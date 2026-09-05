@@ -8,6 +8,7 @@ import {
   offersSyncEventsSubprotocol,
   requestWithSubprotocolCredential,
 } from "./access";
+import { readBoundedBytes } from "./bounded-body";
 import { requireIdentifier } from "./contracts";
 import { type WorkspaceContentStore, isContentDigest } from "./content-store";
 import {
@@ -19,8 +20,10 @@ import {
   SyncContractError,
   type CompactionResult,
   type SyncErrorCode,
-  type SyncPullResponse,
+  type SyncPullResult,
   type SyncPushResult,
+  type WorkspaceStorageUsage,
+  type WorkspaceSyncState,
   parseSyncPullResponse,
   parseSyncPushRequest,
   requireSafeSequence,
@@ -31,7 +34,10 @@ const MAX_DEVICE_IDLE_SECONDS = 60 * 60 * 24 * 30;
 type WorkspaceSyncRpc = {
   fetch(request: Request): Promise<Response>;
   pushOperations(input: unknown): Promise<SyncPushResult>;
-  pullOperations(afterServerSequence: number, requestedLimit?: number): Promise<string>;
+  pullOperations(afterServerSequence: number, requestedLimit?: number): Promise<SyncPullResult>;
+  workspaceState(): Promise<WorkspaceSyncState>;
+  storageUsage(): Promise<WorkspaceStorageUsage>;
+  recordChunkUpload(digest: string, byteLength: number): Promise<WorkspaceStorageUsage>;
   publishCheckpoint(
     input: unknown,
   ): Promise<
@@ -60,12 +66,17 @@ export type SyncRouteName =
 export const SYNC_EVENTS_DEVICE_HEADER = "x-skriuw-device-id";
 export const SYNC_EVENTS_EXPIRY_HEADER = "x-skriuw-session-expires-at";
 
+/**
+ * Every field is a stable, server-chosen code. Workspace ids, device ids,
+ * operation ids, digests, and message text never enter the log.
+ */
 export type SyncSecurityLogEvent = {
   event: "sync_request_rejected" | "sync_request_failed";
   code: string;
   status: number;
   route: SyncRouteName;
   method: string;
+  reason?: string;
 };
 
 export type PublicSyncDependencies = {
@@ -95,6 +106,8 @@ type PublicErrorCode =
   | "chunk_empty"
   | "chunk_not_found"
   | "checkpoint_not_found"
+  | "log_truncated"
+  | "quota_exceeded"
   | "upgrade_required"
   | "internal_error";
 
@@ -102,6 +115,7 @@ class PublicApiError extends Error {
   constructor(
     readonly status: number,
     readonly code: PublicErrorCode,
+    readonly reason?: string,
   ) {
     super(code);
   }
@@ -172,8 +186,7 @@ export async function handlePublicSyncRequest(
         .resolveWorkspace(route.workspaceId)
         .acknowledgeOperations(deviceId, serverSequence, dependencies.nowEpochSeconds());
       if (!acknowledged.ok) {
-        console.warn(JSON.stringify({ event: "sync_ack_rejected_detail", code: acknowledged.code, deviceId, serverSequence }));
-        throw new PublicApiError(400, "sync_rejected");
+        throw new PublicApiError(400, "sync_rejected", acknowledged.code);
       }
       return jsonResponse({
         deviceId,
@@ -191,19 +204,20 @@ export async function handlePublicSyncRequest(
         .resolveWorkspace(route.workspaceId)
         .pushOperations(pushRequest);
       if (!result.ok) {
-        console.warn(JSON.stringify({ event: "sync_push_rejected_detail", code: result.error.code, message: result.error.message.slice(0, 200) }));
         throw contractError(result.error.code);
       }
       return jsonResponse(result.response);
     }
 
     const { cursor, limit } = parsePullQuery(new URL(request.url));
-    const rawResponse = await dependencies
+    const pulled = await dependencies
       .resolveWorkspace(route.workspaceId)
       .pullOperations(cursor, limit);
-    const parsedResponse: unknown = JSON.parse(rawResponse);
-    const response: SyncPullResponse = parseSyncPullResponse(parsedResponse);
-    return jsonResponse(response);
+    if (!pulled.ok) {
+      throw new PublicApiError(410, "log_truncated");
+    }
+    const page: unknown = JSON.parse(pulled.responseJson);
+    return jsonResponse(parseSyncPullResponse(page));
   } catch (error) {
     const publicError = normalizePublicError(error);
     dependencies.log({
@@ -215,6 +229,7 @@ export async function handlePublicSyncRequest(
       status: publicError.status,
       route: route.name,
       method: request.method,
+      ...(publicError.reason === undefined ? {} : { reason: publicError.reason }),
     });
     return jsonError(publicError.status, publicError.code, authHeaders(publicError.code));
   }
@@ -362,7 +377,12 @@ async function handleChunkRequest(
     });
   }
 
-  const bytes = await readBoundedBytes(request, CANONICAL_CHUNK_BYTES);
+  const bytes = await readBody(request, CANONICAL_CHUNK_BYTES);
+  const workspace = dependencies.resolveWorkspace(route.workspaceId);
+  const usage = await workspace.storageUsage();
+  if (usage.byteLength + bytes.byteLength > usage.quotaBytes) {
+    throw new PublicApiError(413, "quota_exceeded");
+  }
   const stored = await dependencies.contentStore.putChunk(
     route.workspaceId,
     digest,
@@ -371,49 +391,16 @@ async function handleChunkRequest(
   if (!stored.ok) {
     throw new PublicApiError(stored.code === "chunk_too_large" ? 413 : 400, stored.code);
   }
+  await workspace.recordChunkUpload(digest, bytes.byteLength);
   return jsonResponse({ digest, created: stored.created });
 }
 
-async function readBoundedBytes(
-  request: Request,
-  maximumBytes: number,
-): Promise<Uint8Array> {
-  const declaredLength = request.headers.get("Content-Length");
-  if (declaredLength !== null) {
-    if (!/^\d+$/.test(declaredLength)) {
-      throw new PublicApiError(400, "invalid_request");
-    }
-    if (Number(declaredLength) > maximumBytes) {
-      throw new PublicApiError(413, "request_too_large");
-    }
+async function readBody(request: Request, maximumBytes: number): Promise<Uint8Array> {
+  const body = await readBoundedBytes(request, maximumBytes);
+  if (!body.ok) {
+    throw new PublicApiError(body.code === "request_too_large" ? 413 : 400, body.code);
   }
-  if (request.body === null) {
-    throw new PublicApiError(400, "invalid_request");
-  }
-
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let byteLength = 0;
-  while (true) {
-    const chunk = await reader.read();
-    if (chunk.done) {
-      break;
-    }
-    byteLength += chunk.value.byteLength;
-    if (byteLength > maximumBytes) {
-      await reader.cancel();
-      throw new PublicApiError(413, "request_too_large");
-    }
-    chunks.push(chunk.value);
-  }
-
-  const body = new Uint8Array(byteLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return body;
+  return body.bytes;
 }
 
 function parseAcknowledgement(input: unknown): {
@@ -449,41 +436,7 @@ async function readBoundedJson(request: Request): Promise<unknown> {
   if (contentType?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") {
     throw new PublicApiError(400, "invalid_request");
   }
-  const declaredLength = request.headers.get("Content-Length");
-  if (declaredLength !== null) {
-    if (!/^\d+$/.test(declaredLength)) {
-      throw new PublicApiError(400, "invalid_request");
-    }
-    if (Number(declaredLength) > MAX_SYNC_BATCH_BYTES) {
-      throw new PublicApiError(413, "request_too_large");
-    }
-  }
-  if (request.body === null) {
-    throw new PublicApiError(400, "invalid_request");
-  }
-
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let byteLength = 0;
-  while (true) {
-    const chunk = await reader.read();
-    if (chunk.done) {
-      break;
-    }
-    byteLength += chunk.value.byteLength;
-    if (byteLength > MAX_SYNC_BATCH_BYTES) {
-      await reader.cancel();
-      throw new PublicApiError(413, "request_too_large");
-    }
-    chunks.push(chunk.value);
-  }
-
-  const body = new Uint8Array(byteLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
+  const body = await readBody(request, MAX_SYNC_BATCH_BYTES);
   try {
     return JSON.parse(
       new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(body),

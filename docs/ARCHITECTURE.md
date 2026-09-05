@@ -86,6 +86,8 @@ User action
 
 `skriuw-sync` owns the optional background sync lifecycle: a narrow push/pull transport seam over the generated v1 sync contracts, classified failure handling with bounded jittered backoff, and one coalesced coordinator loop per workspace database that claims, pushes, acknowledges, pulls, and applies through the durable `WorkspaceSyncQueue` port. It holds no SQLite transaction across network work and never runs on interaction or recovery paths; see `specs/desktop-sync-coordinator.md`.
 
+Convergence is automatic and deterministic: every device that consumes the same ordered log reaches the same canonical state without user action. Document writes converge by server sequence with a pending local write winning until it is sequenced, every other family is last-writer-by-server-sequence, an operation that cannot apply becomes a superseded received record, and a losing document body is preserved as a history revision with provenance `superseded`. There is no conflict state, table, or surface. Remote changes reach the open editor through per-cycle change sets and an in-place merge. See [ADR-0037](adr/0037-automatic-sync-convergence.md) and `specs/sync-convergence-v1.md`.
+
 ### AI completion
 
 `skriuw-domain` owns the provider-neutral completion request, streaming event,
@@ -155,7 +157,8 @@ Native backup uses SQLite's Online Backup API against a live WAL database. It pu
 - `history_outbox`: durable pending history materialization.
 - `sync_connection`: optional connected-workspace/device identity and cursors.
 - `sync_outbox`: durable pending replicated local operations.
-- `sync_blocked_operations`: recovery-visible operations awaiting later sync capabilities.
+- `sync_blocked_operations`: recovery-visible operations awaiting later sync capabilities or a retry.
+- `sync_received_operations`, `sync_document_heads`, `sync_tombstones`, `sync_dangling_references`: inbound provenance, document heads, terminal tombstones, and deferred references.
 
 See [docs/data-model.md](data-model.md).
 
@@ -208,3 +211,6 @@ Rust and Tauri suites rather than simulated browser state.
 - [ADR-0032: task-shaped typing is explicit intent](adr/0032-task-shaped-typing-is-explicit.md)
 - [ADR-0033: provider-agnostic AI completion seam](adr/0033-ai-provider-completion-seam.md)
 - [ADR-0034: annotation anchors are document data](adr/0034-annotation-anchors-are-document-data.md)
+- [ADR-0035: note annotation layer](adr/0035-note-annotation-layer.md)
+- [ADR-0036: AI results are reviewed in place](adr/0036-ai-results-are-reviewed-in-place.md)
+- [ADR-0037: automatic sync convergence](adr/0037-automatic-sync-convergence.md)
