@@ -5,10 +5,18 @@
 Headless Chrome over CDP against the Vite-built harness in this directory,
 with the Rust side replaced by the deterministic `bridge-mock.ts`. Covers the
 full keyboard workflow; `--provider-import-only` runs just the import slice.
+`--tasks-only` checks task creation, completion, source navigation, accessible
+names, and focus retention from the keyboard.
 
 ```bash
-node app/e2e/run.mjs [--provider-import-only]
+node app/e2e/run.mjs [--provider-import-only | --tasks-only | --personal-only]
 ```
+
+The harness is hermetic: `main.tsx` installs a fake `__TAURI_INTERNALS__` so the
+renderer takes the desktop bridge path instead of spawning the browser storage
+worker, and `vite.config.ts` pins `VITE_SKRIUW_CLOUD_URL` to an untrusted host
+so cloud sign-in resolves to the unavailable adapter and never reaches the
+network. `app/performance` uses the same two seams.
 
 ## Native import E2E (`run-native.mjs`)
 
@@ -57,3 +65,12 @@ Not wired into CI. The script passed 3 consecutive local runs (Arch,
 2026-07-26), but it needs a full debug desktop build, a WebKitWebDriver
 matched to the runner's WebKitGTK, and a display server; that CI setup has
 not been built or verified, so this stays a manually-invoked release check.
+
+## Personal templates and saved searches
+
+```bash
+node app/e2e/run.mjs --personal-only --output /tmp/skriuw-personal-e2e.json
+```
+
+Exercises command-palette template registration and creation, then keyboard-only
+saving, reopening, and removing a sidebar search. Requires zero browser errors.

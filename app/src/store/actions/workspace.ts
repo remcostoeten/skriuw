@@ -92,17 +92,15 @@ export function createNote(store: RendererStore, parentId: string | null): void 
   void commitOperations(store, operations).catch(reportRejection("create note"));
 }
 
-export function createNoteFromTemplate(
+export async function createNoteFromTemplate(
   store: RendererStore,
   template: NoteTemplate,
   parentId: string | null,
-): void {
+): Promise<void> {
   const plan = planTemplateNote(template, parentId, Date.now(), () =>
     crypto.randomUUID(),
   );
-  void commitOperations(store, [...plan.operations]).catch(
-    reportRejection("create note from template"),
-  );
+  await commitOperations(store, [...plan.operations]);
 }
 
 export function createLinkedNote(store: RendererStore, id: string, title: string): void {

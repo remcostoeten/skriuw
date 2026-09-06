@@ -233,6 +233,11 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
       bootstrap: bootstrapWorkspace,
       readDelta: readWorkspaceDelta,
       onError: (error) => console.error("synced workspace reconciliation failed", error),
+      onRecoveryNeeded: () => showToast({
+        message: "Synced changes could not refresh. Retry to update this view.",
+        action: { label: "Retry refresh", run: () => reconciler?.retry() },
+        durationMs: 60_000,
+      }),
     });
     if (changeBeforeStore) {
       reconciler.report(changeBeforeStore);
@@ -240,6 +245,7 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
     }
     const unbindPropagationTriggers = bindPropagationTriggers();
     function teardownSession(): void {
+      reconciler?.dispose();
       unlistenHistory?.();
       unlistenSyncWorkspace?.();
       unlistenSessionExpiry?.();

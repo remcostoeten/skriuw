@@ -400,6 +400,8 @@ const checkListSpec: NodeSpec = {
   parseDOM: [{ tag: "ul[data-check-list]", priority: 60 }],
 };
 
+let checkboxDomId = 0;
+
 const checkItemSpec: NodeSpec = {
   content: "paragraph block*",
   defining: true,
@@ -408,27 +410,31 @@ const checkItemSpec: NodeSpec = {
     taskId: { default: null },
     blockId: { default: null },
   },
-  toDOM: (node) => [
-    "li",
-    {
-      class: "check-item",
-      "data-checked": node.attrs.checked ? "true" : "false",
-      ...(node.attrs.taskId ? { "data-task-id": String(node.attrs.taskId) } : {}),
-      ...(node.attrs.blockId ? { "data-block-id": String(node.attrs.blockId) } : {}),
-    },
-    [
-      "span",
+  toDOM: (node) => {
+    const contentId = `check-item-content-${++checkboxDomId}`;
+    return [
+      "li",
       {
-        class: "check-item-box",
-        contenteditable: "false",
-        role: "checkbox",
-        "aria-checked": node.attrs.checked ? "true" : "false",
-        tabindex: "0",
-        "aria-keyshortcuts": "Alt+Shift+Enter",
+        class: "check-item",
+        "data-checked": node.attrs.checked ? "true" : "false",
+        ...(node.attrs.taskId ? { "data-task-id": String(node.attrs.taskId) } : {}),
+        ...(node.attrs.blockId ? { "data-block-id": String(node.attrs.blockId) } : {}),
       },
-    ],
-    ["div", { class: "check-item-content" }, 0],
-  ],
+      [
+        "span",
+        {
+          class: "check-item-box",
+          contenteditable: "false",
+          role: "checkbox",
+          "aria-labelledby": contentId,
+          "aria-checked": node.attrs.checked ? "true" : "false",
+          tabindex: "0",
+          "aria-keyshortcuts": "Alt+Shift+Enter",
+        },
+      ],
+      ["div", { class: "check-item-content", id: contentId }, 0],
+    ];
+  },
   parseDOM: [
     {
       tag: "li[data-checked]",
@@ -990,10 +996,18 @@ function checkboxItemAtDom(view: EditorView, target: HTMLElement): boolean {
   for (let depth = $pos.depth; depth > 0; depth -= 1) {
     const node = $pos.node(depth);
     if (node.type.name !== "check_item") continue;
-    view.dispatch(view.state.tr.setNodeMarkup($pos.before(depth), undefined, {
+    const position = $pos.before(depth);
+    const restoreFocus = target.ownerDocument.activeElement === target;
+    view.dispatch(view.state.tr.setNodeMarkup(position, undefined, {
       ...node.attrs,
       checked: !node.attrs.checked,
     }));
+    if (restoreFocus) {
+      const item = view.nodeDOM(position);
+      if (item instanceof HTMLElement) {
+        item.querySelector<HTMLElement>(".check-item-box")?.focus({ preventScroll: true });
+      }
+    }
     return true;
   }
   return false;

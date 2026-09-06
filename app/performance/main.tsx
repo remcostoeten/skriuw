@@ -11,6 +11,11 @@ import { createPerformanceController } from "./harness";
 import type { PerformanceWindow } from "./types";
 import { preparedEditorDocuments } from "../src/features/editor/prepared-documents";
 import "../src/styles.css";
+import { invoke } from "./bridge-mock";
+
+Object.defineProperty(window, "__TAURI_INTERNALS__", {
+  value: { invoke, transformCallback: () => 0, unregisterCallback: () => undefined },
+});
 
 async function start(): Promise<void> {
   const parameters = new URLSearchParams(window.location.search);

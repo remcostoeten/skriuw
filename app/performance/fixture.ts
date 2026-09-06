@@ -37,6 +37,8 @@ const MEASURED_NOTE_COUNT = 8;
 const WORKING_SET_NOTE_COUNT = 100;
 
 const settings: WorkspaceSettings = {
+  onboardingVersion: 1,
+  savedSearches: ["#design", "$Ada", "planning"],
   settingsVersion: 1,
   theme: "dark",
   compactSidebar: true,

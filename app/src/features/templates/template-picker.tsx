@@ -1,3 +1,9 @@
+import { flushPendingWork } from "@/shell/pending-work";
+import {
+  personalTemplates,
+  removePersonalTemplate,
+} from "./personal-templates";
+import { showToast } from "@/shared/ui/toast";
 import { useEffect, useId, useMemo, useState } from "react";
 import { createNoteFromTemplate } from "@/store/actions/workspace";
 import { SearchIcon } from "@/shared/icons/static";
@@ -19,6 +25,27 @@ type HostProps = {
   store: RendererStore;
 };
 
+async function createPickedTemplate(
+  store: RendererStore,
+  template: NoteTemplate,
+  parentId: string | null,
+): Promise<void> {
+  if (template.sourceNoteId) {
+    await flushPendingWork();
+    const current = personalTemplates(store.getState()).find(
+      (entry) => entry.sourceNoteId === template.sourceNoteId,
+    );
+    if (!current)
+      throw new Error("The template source is no longer available.");
+    template = current;
+  }
+  await createNoteFromTemplate(
+    store,
+    template,
+    parentId ?? template.defaultParentId ?? null,
+  );
+}
+
 /**
  * Mounts the template picker on demand. The dialog mounts fresh per request so
  * query and selection always start clean, and nothing renders — or subscribes
@@ -32,16 +59,20 @@ export function TemplatePickerHost({ store }: HostProps) {
   }
   return (
     <TemplatePickerDialog
+      store={store}
       onClose={() => setRequest(null)}
       onPick={(template) => {
         setRequest(null);
-        createNoteFromTemplate(store, template, request.parentId);
+        void createPickedTemplate(store, template, request.parentId).catch(
+          (error: unknown) => showToast({ message: String(error) }),
+        );
       }}
     />
   );
 }
 
 type DialogProps = {
+  store: RendererStore;
   onClose: () => void;
   onPick: (template: NoteTemplate) => void;
 };
@@ -52,10 +83,10 @@ function propertyHint(template: NoteTemplate): string | null {
     return null;
   }
   const count = propertyTemplate.properties.length;
-  return `${count} ${count === 1 ? "field" : "fields"}`;
+  return count === 0 ? null : `${count} ${count === 1 ? "field" : "fields"}`;
 }
 
-function TemplatePickerDialog({ onClose, onPick }: DialogProps) {
+function TemplatePickerDialog({ store, onClose, onPick }: DialogProps) {
   return (
     <Dialog
       open
@@ -64,31 +95,39 @@ function TemplatePickerDialog({ onClose, onPick }: DialogProps) {
       showHeader={false}
       className="mx-auto mb-auto mt-[16vh] max-h-[56vh] w-[calc(100vw-1.5rem)] max-w-md overflow-hidden"
     >
-      <TemplatePickerBody onPick={onPick} />
+      <TemplatePickerBody store={store} onPick={onPick} />
     </Dialog>
   );
 }
 
 type BodyProps = {
+  store: RendererStore;
   onPick: (template: NoteTemplate) => void;
 };
 
-function TemplatePickerBody({ onPick }: BodyProps) {
+function TemplatePickerBody({ store, onPick }: BodyProps) {
+  const [personal, setPersonal] = useState(() =>
+    personalTemplates(store.getState()),
+  );
   const [query, setQuery] = useState("");
   const listboxId = useId();
   const closeDialog = useDialogClose();
 
-  const templates = useMemo(() => filterNoteTemplates(NOTE_TEMPLATES, query), [query]);
+  const templates = useMemo(
+    () => filterNoteTemplates([...personal, ...NOTE_TEMPLATES], query),
+    [personal, query],
+  );
 
-  const { activeIndex, listRef, onKeyDown, setActiveIndex } = useListboxNavigation({
-    count: templates.length,
-    onSelect: (index) => {
-      const template = templates[index];
-      if (template) {
-        pick(template);
-      }
-    },
-  });
+  const { activeIndex, listRef, onKeyDown, setActiveIndex } =
+    useListboxNavigation({
+      count: templates.length,
+      onSelect: (index) => {
+        const template = templates[index];
+        if (template) {
+          pick(template);
+        }
+      },
+    });
   const activeTemplate = templates[activeIndex];
 
   function pick(template: NoteTemplate): void {
@@ -173,6 +212,24 @@ function TemplatePickerBody({ onPick }: BodyProps) {
       </div>
 
       <div className="flex flex-none items-center gap-4 border-t border-border px-3.5 py-2 text-[11px] text-muted-foreground">
+        {activeTemplate?.sourceNoteId && (
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              void removePersonalTemplate(store, activeTemplate.sourceNoteId!)
+                .then(() => {
+                  setPersonal(personalTemplates(store.getState()));
+                  setActiveIndex(0);
+                })
+                .catch((error: unknown) =>
+                  showToast({ message: String(error) }),
+                );
+            }}
+          >
+            Remove template
+          </button>
+        )}
         <span>↑↓ navigate</span>
         <span>↵ create</span>
         <span className="ml-auto">esc close</span>

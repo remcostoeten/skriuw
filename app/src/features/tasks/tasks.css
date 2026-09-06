@@ -1,0 +1,119 @@
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.task-row:focus-within {
+  background: hsl(var(--foreground) / 0.045);
+}
+
+.task-row-label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.task-checkbox {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 1.5px solid hsl(var(--theme-text-secondary));
+  border-radius: 7px;
+  background: hsl(var(--theme-bg-editor));
+  cursor: pointer;
+}
+
+.task-checkbox:checked {
+  border-color: hsl(var(--success));
+  background: hsl(var(--success));
+}
+
+.task-checkbox:checked::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  width: 5px;
+  height: 9px;
+  border: solid hsl(var(--theme-bg-editor));
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.task-checkbox:focus-visible,
+.task-source:focus-visible {
+  outline: 2px solid hsl(var(--foreground) / 0.75);
+  outline-offset: 4px;
+}
+
+.task-row-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 8px 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: hsl(var(--foreground));
+}
+
+.task-row[data-completed="true"] .task-row-title {
+  color: hsl(var(--theme-text-secondary));
+  text-decoration: line-through;
+  text-decoration-color: hsl(var(--theme-text-secondary) / 0.5);
+}
+
+.task-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  min-height: 32px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: hsl(var(--theme-text-secondary));
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.tasks-keyboard-help {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  padding: 12px 8px 20px;
+  color: hsl(var(--theme-text-secondary));
+  font-size: 11px;
+}
+
+.tasks-keyboard-help kbd {
+  font: inherit;
+  font-size: 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .task-row:hover { background: hsl(var(--foreground) / 0.03); }
+  .task-row-label:hover .task-checkbox { border-color: hsl(var(--primary)); }
+  .task-source:hover { color: hsl(var(--foreground)); background: hsl(var(--muted)); }
+  .task-checkbox:active:not(:focus-visible) { transform: scale(0.94); }
+}
+
+@media (max-width: 480px) {
+  .task-source-label { display: none; }
+}
+
+@media (forced-colors: active) {
+  .task-checkbox { appearance: auto; }
+  .task-checkbox:checked::after { display: none; }
+}

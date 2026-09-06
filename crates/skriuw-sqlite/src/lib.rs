@@ -334,6 +334,29 @@ impl WorkspaceStorage for SqliteWorkspace {
     }
 
     fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>, StorageError> {
+        self.search_filtered(query, limit, None)
+    }
+
+    fn search_filtered(
+        &self,
+        query: &str,
+        limit: usize,
+        note_ids: Option<&[String]>,
+    ) -> Result<Vec<SearchHit>, StorageError> {
+        if query.len() > 16_384
+            || limit > 100_000
+            || note_ids.is_some_and(|ids| {
+                ids.len() > 100_000 || ids.iter().any(|id| id.is_empty() || id.len() > 256)
+            })
+        {
+            return Err(StorageError::InvalidOperation(
+                "Search request exceeds limits".into(),
+            ));
+        }
+        let filter = note_ids
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|error| StorageError::InvalidOperation(error.to_string()))?;
         let query = fts_query(query);
         if query.is_empty() || limit == 0 {
             return Ok(Vec::new());
@@ -348,6 +371,7 @@ impl WorkspaceStorage for SqliteWorkspace {
                  FROM documents_fts \
                  JOIN workspace_nodes ON workspace_nodes.id = documents_fts.note_id \
                  WHERE documents_fts MATCH ?1 \
+                 AND (?3 IS NULL OR documents_fts.note_id IN (SELECT value FROM json_each(?3))) \
                  AND NOT EXISTS (\
                      WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (\
                          SELECT id, parent_id, deleted_at FROM workspace_nodes \
@@ -364,7 +388,7 @@ impl WorkspaceStorage for SqliteWorkspace {
             )
             .map_err(backend)?;
         let rows = statement
-            .query_map(params![query, limit as i64], |row| {
+            .query_map(params![query, limit as i64, filter], |row| {
                 Ok(SearchHit {
                     note_id: row.get(0)?,
                     title: row.get(1)?,

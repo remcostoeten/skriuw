@@ -159,7 +159,7 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
       return;
     }
     const timer = window.setTimeout(() => {
-      searchWorkspace(plan.text, plan.fullTextLimit)
+      searchWorkspace(plan.text, plan.fullTextLimit, plan.allowedNoteIds === null ? null : [...plan.allowedNoteIds])
         .then((results) => {
           if (requestRef.current === requestId) {
             setHits(results);

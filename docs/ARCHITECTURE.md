@@ -214,4 +214,7 @@ Rust and Tauri suites rather than simulated browser state.
 - [ADR-0035: note annotation layer](adr/0035-note-annotation-layer.md)
 - [ADR-0036: AI results are reviewed in place](adr/0036-ai-results-are-reviewed-in-place.md)
 - [ADR-0037: automatic sync convergence](adr/0037-automatic-sync-convergence.md)
-- [ADR-0038: provider-agnostic voice transcription seam](adr/0038-voice-transcription-seam.md)
+- [ADR-0038: personal template and search preferences](adr/0038-personal-template-and-search-preferences.md)
+- [ADR-0039: provider-agnostic voice transcription seam](adr/0039-voice-transcription-seam.md)
+
+Personal templates reuse ordinary source notes; saved searches and template membership use bounded workspace preferences. See [ADR-0038](adr/0038-personal-template-and-search-preferences.md). Sync refresh retries and candidate-filtered full-text search follow the [refresh and search contract](specs/refresh-and-filtered-search.md).

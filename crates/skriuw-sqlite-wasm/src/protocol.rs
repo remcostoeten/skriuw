@@ -54,6 +54,8 @@ pub enum BrowserWorkerCommand {
         batches: Vec<Vec<WorkspaceOperationEnvelope>>,
     },
     Search {
+        #[serde(default)]
+        note_ids: Option<Vec<String>>,
         query: String,
         limit: usize,
     },

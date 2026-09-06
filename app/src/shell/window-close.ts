@@ -148,6 +148,7 @@ export async function bindWindowClosePersistence(
         closing = false;
         return;
       }
+      if (disposed || attempt !== currentAttempt) return;
       try {
         await windowPort.completeClose();
       } catch (error) {
