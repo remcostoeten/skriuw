@@ -1,15 +1,15 @@
 import { invoke, requireDesktopRuntime } from "@/bridge/runtime";
 import type {
   CredentialVaultDetection,
-  RemoteAiCatalog,
   RemoteAiKeyTier,
+  RemoteAiModelDirectory,
   RemoteAiProviderState,
 } from "@/contracts/ai";
 
 export type RemoteAiSnapshot = {
   vault: CredentialVaultDetection;
   providers: RemoteAiProviderState[];
-  catalog: RemoteAiCatalog;
+  models: RemoteAiModelDirectory;
 };
 
 export function remoteAiProviders(): Promise<RemoteAiProviderState[]> {
@@ -22,18 +22,28 @@ export function credentialVaultState(): Promise<CredentialVaultDetection> {
   return invoke<CredentialVaultDetection>("credential_vault_state");
 }
 
-export function remoteAiCatalog(): Promise<RemoteAiCatalog> {
+export function remoteAiModels(): Promise<RemoteAiModelDirectory> {
   requireDesktop();
-  return invoke<RemoteAiCatalog>("remote_ai_catalogue");
+  return invoke<RemoteAiModelDirectory>("remote_ai_models");
+}
+
+/**
+ * Asks the provider which models the stored key can reach and records the
+ * answer on this device. Sends the key but spends no tokens; callers must run
+ * this from the explicit "Refresh models" action, never on mount.
+ */
+export function refreshRemoteAiModels(providerId: string): Promise<RemoteAiModelDirectory> {
+  requireDesktop();
+  return invoke<RemoteAiModelDirectory>("refresh_remote_ai_models", { providerId });
 }
 
 export async function loadRemoteAiSnapshot(): Promise<RemoteAiSnapshot> {
-  const [vault, providers, catalog] = await Promise.all([
+  const [vault, providers, models] = await Promise.all([
     credentialVaultState(),
     remoteAiProviders(),
-    remoteAiCatalog(),
+    remoteAiModels(),
   ]);
-  return { vault, providers, catalog };
+  return { vault, providers, models };
 }
 
 export function saveRemoteAiKey(

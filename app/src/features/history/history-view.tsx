@@ -43,7 +43,7 @@ export function HistoryView({ store }: Props) {
       className="col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
       aria-labelledby="history-title"
     >
-      <header className="flex h-[52px] items-center gap-2.5 border-b border-theme-divider pl-3">
+      <header className="flex h-11 items-center gap-2.5 border-b border-theme-divider pl-3">
         <button
           type="button"
           onClick={backToNote}

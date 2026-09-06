@@ -42,7 +42,8 @@ type WorkerResponse = {
 type PendingRequest = {
   resolve(value: unknown): void;
   reject(reason: BrowserStorageFailure): void;
-  timeout: ReturnType<typeof setTimeout>;
+  timeoutMs: number;
+  timeout: ReturnType<typeof setTimeout> | null;
 };
 
 type Lifecycle = "initializing" | "ready" | "closing" | "closed" | "terminal";
@@ -69,7 +70,7 @@ export class BrowserStorageWorkerClient {
         "Reuse this worker or terminate it before opening another workspace.",
       );
     }
-    await this.#send("initialize", { databaseName }, INITIALIZATION_TIMEOUT_MS);
+    await this.#send("initialize", { databaseName }, INITIALIZATION_TIMEOUT_MS, true);
     this.#lifecycle = "ready";
   }
 
@@ -125,7 +126,12 @@ export class BrowserStorageWorkerClient {
     this.#lifecycle = "terminal";
   }
 
-  #send(kind: string, payload: unknown, timeoutMs: number): Promise<unknown> {
+  #send(
+    kind: string,
+    payload: unknown,
+    timeoutMs: number,
+    deadlineFromEnqueue = false,
+  ): Promise<unknown> {
     const requestId = this.#nextRequestId++;
     if (!Number.isSafeInteger(requestId)) {
       this.terminate();
@@ -134,18 +140,8 @@ export class BrowserStorageWorkerClient {
       );
     }
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        const error = failure(
-          "timed_out",
-          "The browser storage worker did not respond in time.",
-          "Reload Skriuw; accepted writes may already be durable.",
-          true,
-        );
-        this.#worker.terminate();
-        this.#lifecycle = "terminal";
-        this.#rejectAll(error);
-      }, timeoutMs);
-      this.#pending.set(requestId, { resolve, reject, timeout });
+      this.#pending.set(requestId, { resolve, reject, timeoutMs, timeout: null });
+      if (deadlineFromEnqueue) this.#startDeadline(requestId);
       try {
         this.#worker.postMessage({
           protocolVersion: WORKER_PROTOCOL_VERSION,
@@ -154,7 +150,6 @@ export class BrowserStorageWorkerClient {
           ...(payload === undefined ? {} : { payload }),
         });
       } catch {
-        clearTimeout(timeout);
         this.#pending.delete(requestId);
         reject(
           failure(
@@ -178,17 +173,40 @@ export class BrowserStorageWorkerClient {
       this.terminate();
       return;
     }
-    if (response.requestId === 0 && response.status === "event") {
-      this.#eventListener?.(response.value);
+    if (response.status === "event") {
+      if (response.requestId === 0) {
+        this.#eventListener?.(response.value);
+      } else if (isStartedEvent(response.value)) {
+        this.#startDeadline(response.requestId);
+      }
       return;
     }
     const pending = this.#pending.get(response.requestId);
     if (!pending) return;
     this.#pending.delete(response.requestId);
-    clearTimeout(pending.timeout);
+    if (pending.timeout !== null) clearTimeout(pending.timeout);
     if (response.status === "ok") pending.resolve(response.value);
     else pending.reject(response.value as BrowserStorageFailure);
   };
+
+  /** The deadline runs from the moment the worker reports the request began,
+   * never from enqueue, so a request waiting behind a long sync cycle cannot
+   * terminate a healthy worker. */
+  #startDeadline(requestId: number): void {
+    const pending = this.#pending.get(requestId);
+    if (!pending || pending.timeout !== null) return;
+    pending.timeout = setTimeout(() => {
+      const error = failure(
+        "timed_out",
+        "The browser storage worker did not respond in time.",
+        "Reload Skriuw; accepted writes may already be durable.",
+        true,
+      );
+      this.#worker.terminate();
+      this.#lifecycle = "terminal";
+      this.#rejectAll(error);
+    }, pending.timeoutMs);
+  }
 
   readonly #handleCrash = (): void => {
     this.#rejectAll(
@@ -208,11 +226,19 @@ export class BrowserStorageWorkerClient {
 
   #rejectAll(error: BrowserStorageFailure): void {
     for (const pending of this.#pending.values()) {
-      clearTimeout(pending.timeout);
+      if (pending.timeout !== null) clearTimeout(pending.timeout);
       pending.reject(error);
     }
     this.#pending.clear();
   }
+}
+
+function isStartedEvent(value: unknown): boolean {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { kind?: unknown }).kind === "started"
+  );
 }
 
 function failure(

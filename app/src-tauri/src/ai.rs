@@ -12,12 +12,14 @@ use tauri::ipc::Channel;
 
 use crate::ai_credentials::{AiCredentialStore, REMOTE_PROVIDERS};
 use crate::ai_history::AiHistoryRecorder;
+use crate::ai_models::FetchedModelStore;
 
 pub(crate) struct LazyAiCompletion {
     service: OnceLock<AiCompletionService>,
     ollama: Arc<OllamaRuntime>,
     credentials: Arc<AiCredentialStore>,
     history: Arc<AiHistoryRecorder>,
+    models: Arc<FetchedModelStore>,
 }
 
 impl LazyAiCompletion {
@@ -25,12 +27,14 @@ impl LazyAiCompletion {
         ollama: Arc<OllamaRuntime>,
         credentials: Arc<AiCredentialStore>,
         history: Arc<AiHistoryRecorder>,
+        models: Arc<FetchedModelStore>,
     ) -> Self {
         Self {
             service: OnceLock::new(),
             ollama,
             credentials,
             history,
+            models,
         }
     }
 
@@ -49,7 +53,11 @@ impl LazyAiCompletion {
             let mut providers: Vec<(String, Arc<dyn AiComplete>)> =
                 vec![("fake".to_owned(), fake), ("ollama".to_owned(), ollama)];
             for kind in REMOTE_PROVIDERS {
-                match RemoteAiProvider::new(kind, self.credentials.clone()) {
+                match RemoteAiProvider::with_model_authority(
+                    kind,
+                    self.credentials.clone(),
+                    self.models.clone(),
+                ) {
                     Ok(provider) => {
                         providers.push((kind.id().to_owned(), Arc::new(provider)));
                     }
@@ -151,7 +159,12 @@ mod tests {
             OllamaRuntime::new(directory.path().to_path_buf(), None).expect("ollama runtime"),
         );
         let credentials = Arc::new(AiCredentialStore::new(directory.path()));
-        let completion = LazyAiCompletion::new(ollama, credentials, history(&directory));
+        let completion = LazyAiCompletion::new(
+            ollama,
+            credentials,
+            history(&directory),
+            Arc::new(crate::ai_models::FetchedModelStore::new(directory.path())),
+        );
 
         assert!(!completion.cancel("missing"));
         completion.shutdown();
@@ -168,12 +181,12 @@ mod tests {
         let ollama = Arc::new(
             OllamaRuntime::new(directory.path().to_path_buf(), None).expect("ollama runtime"),
         );
-        let completion =
-            LazyAiCompletion::new(
-                ollama,
-                Arc::new(AiCredentialStore::new(directory.path())),
-                history(&directory),
-            );
+        let completion = LazyAiCompletion::new(
+            ollama,
+            Arc::new(AiCredentialStore::new(directory.path())),
+            history(&directory),
+            Arc::new(crate::ai_models::FetchedModelStore::new(directory.path())),
+        );
 
         for provider_id in ["gemini", "groq"] {
             let events = Arc::new(Mutex::new(Vec::new()));

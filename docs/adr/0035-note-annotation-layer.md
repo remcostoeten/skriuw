@@ -85,9 +85,10 @@ not in scope; a v1 scene survives import as opaque payload.
   canvas warm and installs no live handlers. Idle, the overlay is
   `pointer-events: none`, hidden from assistive technology, and absent from the
   tree entirely when the note has never been drawn on.
-- A conflicting two-device annotation edit is an ordinary `SaveDocument`
-  revision conflict, and the losing device's alternative is preserved for
-  resolution like any other document conflict.
+- A concurrent two-device annotation edit is an ordinary `SaveDocument`
+  write and converges under
+  [ADR-0037](0037-automatic-sync-convergence.md); the losing body is
+  preserved in history like any other document write.
 - The model is deliberately narrower than any drawing library. New element
   kinds require their own geometry, accessibility contract, and bounds rather
   than growing an unbounded union.

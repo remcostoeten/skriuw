@@ -47,7 +47,6 @@ import {
   ContextMenuTrigger,
 } from "@/shared/ui/context-menu";
 import { Tooltip } from "@/shared/ui/tooltip";
-import { SectionToggle } from "@/shared/ui/section-header";
 import { useShortcutHints } from "@/commands/hints";
 import {
   ancestorIds,
@@ -78,6 +77,7 @@ import type { DropTarget } from "./sidebar-dnd";
 import { noop } from "@/shared/lib/noop";
 import { SidebarCalendar } from "@/features/journal/sidebar-calendar";
 import { nextFolderExpansion } from "./sidebar-search";
+import { PinnedChips } from "./pinned-chips";
 import { SidebarRow } from "./sidebar-row";
 import { SidebarSearchResults } from "./sidebar-search-results";
 
@@ -202,24 +202,6 @@ function moveWithinSiblings(store: RendererStore, id: string, direction: -1 | 1)
 
 const HEADER_SHORTCUT_IDS = ["createNote", "createFolder", "toggleCommandPalette"] as const;
 
-const PINNED_OPEN_STORAGE_KEY = "skriuw.sidebar-pinned-open";
-
-function readPinnedOpen(): boolean {
-  try {
-    return window.localStorage.getItem(PINNED_OPEN_STORAGE_KEY) !== "closed";
-  } catch {
-    return true;
-  }
-}
-
-function writePinnedOpen(open: boolean): void {
-  try {
-    window.localStorage.setItem(PINNED_OPEN_STORAGE_KEY, open ? "open" : "closed");
-  } catch {
-    return;
-  }
-}
-
 const SWAP_TRANSITION = { duration: 0.18, ease: [0.22, 1, 0.36, 1] } as const;
 const REDUCED_SWAP_TRANSITION = { duration: 0.1, ease: "linear" } as const;
 
@@ -242,7 +224,6 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   const [treeViewportHeight, setTreeViewportHeight] = useState(0);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [moveIds, setMoveIds] = useState<readonly string[] | null>(null);
-  const [pinnedOpen, setPinnedOpen] = useState(readPinnedOpen);
   const dragRef = useRef<DragSession | null>(null);
   const hoverExpandRef = useRef<number | null>(null);
   const autoScrollRef = useRef<{ raf: number; pointerX: number; pointerY: number } | null>(
@@ -1317,43 +1298,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
               onContextMenu={onListContextMenu}
             >
               {pinnedIds.length > 0 && (
-                <section
-                  className="group relative shrink-0 border-b border-sidebar-border/50 pb-1"
-                  aria-label="Pinned"
-                >
-                  <SectionToggle
-                    title="Pinned"
-                    open={pinnedOpen}
-                    onToggle={() => {
-                      setPinnedOpen((current) => {
-                        writePinnedOpen(!current);
-                        return !current;
-                      });
-                    }}
-                    className="bg-sidebar/90"
-                  />
-                  {pinnedOpen && (
-                    <div className="px-1.5 pt-1">
-                      <div
-                        className="relative w-full"
-                        style={{ height: `${pinnedIds.length * rowPitch}px` }}
-                      >
-                        {pinnedIds.map((id, index) => (
-                          <SidebarRow
-                            key={id}
-                            store={store}
-                            id={id}
-                            metrics={metrics}
-                            top={index * rowPitch}
-                            tabIndex={0}
-                            shelf
-                            onShelfSelect={onPinnedSelect}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </section>
+                <PinnedChips store={store} ids={pinnedIds} onSelect={onPinnedSelect} />
               )}
               <div
                 ref={treeRef}

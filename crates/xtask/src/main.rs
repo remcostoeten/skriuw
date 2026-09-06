@@ -11,10 +11,10 @@ use serde::Serialize;
 use skriuw_domain::{
     AiCompletionEvent, AiCompletionRequest, AiHistorySettings, AiHistoryView, AiRunFilter,
     BuiltInPromptLibrary, ContentManifest, CredentialVaultDetection, LocalAiError, LocalAiModel,
-    LocalAiProgress, LocalAiStatus, OperationAck, RemoteAiCatalog, RemoteAiProviderState,
-    SearchHit, SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView,
-    WORKSPACE_OPERATION_SYNC_POLICY_V1, WorkspaceArchive, WorkspaceCheckpoint,
-    WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    LocalAiProgress, LocalAiStatus, OperationAck, RemoteAiCatalog, RemoteAiModelDirectory,
+    RemoteAiProviderState, SearchHit, SyncPullResponse, SyncPushRequest, SyncPushResponse,
+    SyncRecoveryView, WORKSPACE_OPERATION_SYNC_POLICY_V1, WorkspaceArchive, WorkspaceCheckpoint,
+    WorkspaceDelta, WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 
 fn main() -> ExitCode {
@@ -50,6 +50,11 @@ fn run() -> Result<(), Box<dyn Error>> {
     write_schema::<LocalAiProgress>(&output, "local-ai-progress.schema.json", check)?;
     write_schema::<LocalAiError>(&output, "local-ai-error.schema.json", check)?;
     write_schema::<RemoteAiCatalog>(&output, "remote-ai-catalog.schema.json", check)?;
+    write_schema::<RemoteAiModelDirectory>(
+        &output,
+        "remote-ai-model-directory.schema.json",
+        check,
+    )?;
     write_schema::<RemoteAiProviderState>(&output, "remote-ai-provider-state.schema.json", check)?;
     write_schema::<CredentialVaultDetection>(
         &output,
@@ -67,6 +72,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     write_schema::<ContentManifest>(&output, "content-manifest.schema.json", check)?;
     write_schema::<WorkspaceCheckpoint>(&output, "workspace-checkpoint.schema.json", check)?;
     write_schema::<SyncRecoveryView>(&output, "sync-recovery-view.schema.json", check)?;
+    write_schema::<WorkspaceDelta>(&output, "workspace-delta.schema.json", check)?;
     write_schema::<BuiltInPromptLibrary>(&output, "built-in-prompts.schema.json", check)?;
     write_json(
         &output,

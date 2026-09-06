@@ -226,6 +226,9 @@ where
             version_id: materialization.version_id,
             created_at: item.created_at,
             summary: materialization.summary,
+            additions: Some(materialization.additions),
+            deletions: Some(materialization.deletions),
+            word_count: materialization.word_count,
         };
         Ok(HistoryWorkResult::Materialized {
             item_id: item.id,
@@ -249,8 +252,9 @@ mod tests {
     use skriuw_domain::{NodePlacement, WorkspaceOperation, WorkspaceOperationEnvelope};
     use skriuw_sqlite::{HISTORY_COALESCE_WINDOW_MS, SqliteWorkspace};
     use skriuw_storage::{
-        DiagnosticCategory, DiagnosticContext, HistoryMaterialization, HistoryQueue,
-        MAX_DIAGNOSTIC_MESSAGE_BYTES, PendingHistoryRevision, StorageError, WorkspaceStorage,
+        DiagnosticCategory, DiagnosticContext, HistoryMaterialization, HistoryProvenance,
+        HistoryQueue, MAX_DIAGNOSTIC_MESSAGE_BYTES, PendingHistoryRevision, StorageError,
+        WorkspaceStorage,
     };
 
     use super::{
@@ -352,6 +356,7 @@ mod tests {
                 markdown: "history".into(),
                 created_at: 1,
                 attempts: 1,
+                provenance: HistoryProvenance::Local,
             })),
         };
         let worker =
@@ -398,6 +403,7 @@ mod tests {
                 markdown: "history".into(),
                 created_at: 1,
                 attempts: 1,
+                provenance: HistoryProvenance::Local,
             })),
             released: Arc::clone(&released),
         };
@@ -459,6 +465,9 @@ mod tests {
             Ok(HistoryMaterialization {
                 version_id: "version-1".into(),
                 summary: "Created note".into(),
+                additions: 1,
+                deletions: 0,
+                word_count: Some(1),
             })
         }
     }
@@ -487,6 +496,9 @@ mod tests {
             Ok(HistoryMaterialization {
                 version_id: format!("version-{}", item.note_id),
                 summary: "Created note".into(),
+                additions: 1,
+                deletions: 0,
+                word_count: Some(1),
             })
         }
     }

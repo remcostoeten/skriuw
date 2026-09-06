@@ -130,6 +130,7 @@ export type RemoteAiProviderState = {
   keyTier?: RemoteAiKeyTier | null;
   acceptedDisclosureVersion?: number | null;
   currentDisclosureVersion: number;
+  supportsModelListing: boolean;
 };
 
 export type RemoteAiModel = {
@@ -145,6 +146,23 @@ export type RemoteAiCatalog = {
   version: number;
   pricingAsOf: string;
   models: RemoteAiModel[];
+};
+
+export type RemoteAiModelSource = "catalog" | "fetched";
+
+export type RemoteAiModelListing = {
+  providerId: string;
+  modelId: string;
+  label: string;
+  contextWindowTokens?: number | null;
+  inputPriceMicrosPerMtok?: number | null;
+  outputPriceMicrosPerMtok?: number | null;
+  source: RemoteAiModelSource;
+};
+
+export type RemoteAiModelDirectory = {
+  pricingAsOf: string;
+  models: RemoteAiModelListing[];
 };
 
 export type AiRunState = "done" | "cancelled" | "timed_out" | "failed";

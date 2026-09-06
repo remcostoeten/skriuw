@@ -3,7 +3,7 @@ mod support;
 
 use std::{
     sync::{
-        Arc,
+        Arc, Mutex, RwLock,
         atomic::{AtomicUsize, Ordering},
         mpsc,
     },
@@ -17,10 +17,10 @@ use skriuw_storage::{
     NewSyncConnection, WorkspaceMaintenance, WorkspaceStorage, WorkspaceSyncQueue,
 };
 use skriuw_sync::{
-    SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncStatus, SyncTransport,
-    TransportError,
+    SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncPollIntervals, SyncStatus,
+    SyncTransport, TransportError,
 };
-use support::{FakeServer, FakeTransport, create_note};
+use support::{FakeServer, FakeTransport, PushFault, create_note};
 
 const WORKSPACE: &str = "workspace-1";
 
@@ -49,6 +49,14 @@ fn wait_for_status(
             Instant::now() < deadline,
             "timed out waiting for status, last status: {status:?}"
         );
+        thread::sleep(Duration::from_millis(5));
+    }
+}
+
+fn wait_until(accept: impl Fn() -> bool, what: &str) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !accept() {
+        assert!(Instant::now() < deadline, "timed out waiting for {what}");
         thread::sleep(Duration::from_millis(5));
     }
 }
@@ -245,9 +253,123 @@ impl SyncTransport for BlockingTransport {
     }
 }
 
+/// Reads the shared session token on every call like the production
+/// transports and answers with an expired session while it says so.
+struct TokenCheckedTransport {
+    inner: Arc<FakeTransport>,
+    token: Arc<RwLock<String>>,
+}
+
+impl TokenCheckedTransport {
+    fn session(&self) -> Result<(), TransportError> {
+        let token = self.token.read().expect("token").clone();
+        if token == "expired" {
+            Err(TransportError::AuthenticationRequired)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl SyncTransport for TokenCheckedTransport {
+    fn has_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<bool, TransportError> {
+        self.session()?;
+        self.inner.has_chunk(workspace_id, digest, cancellation)
+    }
+
+    fn put_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        bytes: &[u8],
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        self.session()?;
+        self.inner
+            .put_chunk(workspace_id, digest, bytes, cancellation)
+    }
+
+    fn get_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Vec<u8>, TransportError> {
+        self.session()?;
+        self.inner.get_chunk(workspace_id, digest, cancellation)
+    }
+
+    fn latest_checkpoint(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<WorkspaceCheckpoint>, TransportError> {
+        self.session()?;
+        self.inner.latest_checkpoint(workspace_id, cancellation)
+    }
+
+    fn publish_checkpoint(
+        &self,
+        workspace_id: &str,
+        checkpoint: &WorkspaceCheckpoint,
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        self.session()?;
+        self.inner
+            .publish_checkpoint(workspace_id, checkpoint, cancellation)
+    }
+
+    fn acknowledge(
+        &self,
+        workspace_id: &str,
+        device_id: &str,
+        server_sequence: u64,
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        self.session()?;
+        self.inner
+            .acknowledge(workspace_id, device_id, server_sequence, cancellation)
+    }
+
+    fn push(
+        &self,
+        workspace_id: &str,
+        request: &SyncPushRequest,
+        cancellation: &SyncCancellation,
+    ) -> Result<SyncPushResponse, TransportError> {
+        self.session()?;
+        self.inner.push(workspace_id, request, cancellation)
+    }
+
+    fn pull(
+        &self,
+        workspace_id: &str,
+        after_server_sequence: u64,
+        limit: usize,
+        cancellation: &SyncCancellation,
+    ) -> Result<SyncPullResponse, TransportError> {
+        self.session()?;
+        self.inner
+            .pull(workspace_id, after_server_sequence, limit, cancellation)
+    }
+}
+
 fn spawn_coordinator(
     queue: Arc<SqliteWorkspace>,
     transport: Arc<dyn SyncTransport>,
+) -> SyncCoordinator {
+    spawn_coordinator_with(queue, transport, SyncCoordinatorConfig::default())
+}
+
+fn spawn_coordinator_with(
+    queue: Arc<SqliteWorkspace>,
+    transport: Arc<dyn SyncTransport>,
+    config: SyncCoordinatorConfig,
 ) -> SyncCoordinator {
     let workspace = Arc::clone(&queue);
     SyncCoordinator::spawn(
@@ -256,7 +378,7 @@ fn spawn_coordinator(
         transport,
         support::FakeAssetStore::new(),
         Arc::new(skriuw_sync::SystemClock),
-        SyncCoordinatorConfig::default(),
+        config,
     )
 }
 
@@ -370,7 +492,7 @@ fn logout_pauses_sync_and_preserves_pending_work() {
         "Pending through logout"
     );
 
-    coordinator.resume_with_session();
+    coordinator.resume_with_session("fresh-token");
     wait_for_status(&coordinator, |status| {
         *status == SyncStatus::UpToDate && server.log_len() == 1
     });
@@ -378,7 +500,168 @@ fn logout_pauses_sync_and_preserves_pending_work() {
 }
 
 #[test]
-fn offline_transition_pauses_network_until_reconnected() {
+fn sign_out_mid_push_preserves_the_outbox_and_resume_pushes_once() {
+    let server = FakeServer::new(WORKSPACE);
+    let storage = Arc::new(SqliteWorkspace::open_in_memory().expect("open database"));
+    connect(&storage, "device-a");
+    storage
+        .apply_operations(&[create_note("note-1", "Mid-push sign-out", 1)])
+        .expect("apply operation");
+    let transport = FakeTransport::new(&server, "device-a");
+    let (push_started, started) = mpsc::channel();
+    let hold = Arc::new(Mutex::new(true));
+    let gate = Arc::clone(&hold);
+    transport.set_push_hook(Box::new(move |cancellation| {
+        let _ = push_started.send(());
+        while *gate.lock().expect("gate") && !cancellation.is_cancelled() {
+            thread::sleep(Duration::from_millis(1));
+        }
+    }));
+    let coordinator = spawn_coordinator(
+        Arc::clone(&storage),
+        Arc::clone(&transport) as Arc<dyn SyncTransport>,
+    );
+    started
+        .recv_timeout(Duration::from_secs(10))
+        .expect("push started");
+
+    coordinator.pause_for_logout();
+    wait_for_status(&coordinator, |status| {
+        *status == SyncStatus::AuthenticationRequired
+    });
+    assert_eq!(server.log_len(), 0, "the interrupted push never landed");
+    assert!(
+        storage
+            .has_pending_sync_operations()
+            .expect("pending operations"),
+        "the outbox survives the sign-out"
+    );
+    assert_eq!(transport.push_calls(), 1);
+
+    *hold.lock().expect("gate") = false;
+    coordinator.resume_with_session("fresh-token");
+    wait_for_status(&coordinator, |status| {
+        *status == SyncStatus::UpToDate && server.log_len() == 1
+    });
+    thread::sleep(Duration::from_millis(30));
+    assert_eq!(
+        transport.push_calls(),
+        2,
+        "resume pushes the preserved operation exactly once"
+    );
+    assert_eq!(server.operation_ids().len(), 1);
+    coordinator.shutdown();
+}
+
+#[test]
+fn an_expired_session_stops_polling_and_a_refreshed_token_resumes_through_the_shared_lock() {
+    let server = FakeServer::new(WORKSPACE);
+    let storage = Arc::new(SqliteWorkspace::open_in_memory().expect("open database"));
+    connect(&storage, "device-a");
+    let inner = FakeTransport::new(&server, "device-a");
+    let token = Arc::new(RwLock::new("valid".to_string()));
+    let transport = Arc::new(TokenCheckedTransport {
+        inner: Arc::clone(&inner),
+        token: Arc::clone(&token),
+    });
+    let observed = Arc::new(Mutex::new(Vec::<SyncStatus>::new()));
+    let sink = Arc::clone(&observed);
+    let coordinator = spawn_coordinator_with(
+        Arc::clone(&storage),
+        transport as Arc<dyn SyncTransport>,
+        SyncCoordinatorConfig {
+            session_token: Some(Arc::clone(&token)),
+            status_observer: Some(Arc::new(move |status: &SyncStatus| {
+                sink.lock().expect("observed").push(status.clone());
+            })),
+            ..SyncCoordinatorConfig::default()
+        },
+    );
+    wait_for_status(&coordinator, |status| *status == SyncStatus::UpToDate);
+
+    *token.write().expect("token") = "expired".into();
+    storage
+        .apply_operations(&[create_note("note-1", "Waits for a session", 1)])
+        .expect("apply operation");
+    coordinator.notify_local_commit();
+    wait_for_status(&coordinator, |status| {
+        *status == SyncStatus::AuthenticationRequired
+    });
+    let calls_when_expired = inner.total_calls();
+    coordinator.notify_local_commit();
+    coordinator.notify_focus();
+    thread::sleep(Duration::from_millis(50));
+    assert_eq!(
+        inner.total_calls(),
+        calls_when_expired,
+        "no cycle runs against a dead session"
+    );
+    assert_eq!(
+        observed
+            .lock()
+            .expect("observed")
+            .iter()
+            .filter(|status| **status == SyncStatus::AuthenticationRequired)
+            .count(),
+        1,
+        "the observer sees the expiry exactly once"
+    );
+
+    coordinator.resume_with_session("renewed");
+    assert_eq!(token.read().expect("token").as_str(), "renewed");
+    wait_for_status(&coordinator, |status| {
+        *status == SyncStatus::UpToDate && server.log_len() == 1
+    });
+    coordinator.shutdown();
+}
+
+#[test]
+fn offline_is_a_hint_that_probes_and_clears_on_any_wake() {
+    let server = FakeServer::new(WORKSPACE);
+    let storage = Arc::new(SqliteWorkspace::open_in_memory().expect("open database"));
+    connect(&storage, "device-a");
+    let transport = FakeTransport::new(&server, "device-a");
+    let coordinator = spawn_coordinator_with(
+        Arc::clone(&storage),
+        Arc::clone(&transport) as Arc<dyn SyncTransport>,
+        SyncCoordinatorConfig {
+            poll: SyncPollIntervals {
+                offline_probe_ms: 40,
+                ..SyncPollIntervals::default()
+            },
+            ..SyncCoordinatorConfig::default()
+        },
+    );
+    wait_for_status(&coordinator, |status| *status == SyncStatus::UpToDate);
+
+    transport.script_push_fault(PushFault::Transient);
+    transport.script_push_fault(PushFault::Transient);
+    storage
+        .apply_operations(&[create_note("note-1", "Offline edit", 1)])
+        .expect("apply operation");
+    coordinator.set_online(false);
+    wait_for_status(&coordinator, |status| *status == SyncStatus::Offline);
+    let calls_when_offline = transport.total_calls();
+
+    wait_until(
+        || transport.total_calls() > calls_when_offline,
+        "an offline probe",
+    );
+    assert_eq!(
+        coordinator.status(),
+        SyncStatus::Offline,
+        "a failed probe keeps the offline projection instead of retrying"
+    );
+
+    coordinator.notify_local_commit();
+    wait_for_status(&coordinator, |status| {
+        *status == SyncStatus::UpToDate && server.log_len() == 1
+    });
+    coordinator.shutdown();
+}
+
+#[test]
+fn reconnecting_resets_the_backoff_and_refresh_clears_durable_retry_times() {
     let server = FakeServer::new(WORKSPACE);
     let storage = Arc::new(SqliteWorkspace::open_in_memory().expect("open database"));
     connect(&storage, "device-a");
@@ -389,20 +672,27 @@ fn offline_transition_pauses_network_until_reconnected() {
     );
     wait_for_status(&coordinator, |status| *status == SyncStatus::UpToDate);
 
-    coordinator.set_online(false);
-    wait_for_status(&coordinator, |status| *status == SyncStatus::Offline);
-    let calls_when_offline = transport.total_calls();
+    transport.script_push_fault(PushFault::RateLimited(600_000));
     storage
-        .apply_operations(&[create_note("note-1", "Offline edit", 1)])
+        .apply_operations(&[create_note("note-1", "Rate limited", 1)])
         .expect("apply operation");
     coordinator.notify_local_commit();
-    thread::sleep(Duration::from_millis(50));
-    assert_eq!(transport.total_calls(), calls_when_offline);
+    wait_for_status(&coordinator, |status| {
+        matches!(status, SyncStatus::Retrying { .. })
+    });
+    assert!(
+        storage
+            .next_sync_attempt_at()
+            .expect("next attempt")
+            .is_some(),
+        "the rate limit left a durable retry time"
+    );
 
-    coordinator.notify_reconnected();
+    coordinator.request_refresh();
     wait_for_status(&coordinator, |status| {
         *status == SyncStatus::UpToDate && server.log_len() == 1
     });
+    assert_eq!(storage.next_sync_attempt_at().expect("next attempt"), None);
     coordinator.shutdown();
 }
 
@@ -431,6 +721,8 @@ fn local_only_interactions_start_no_transport_work() {
     interactive.integrity_check().expect("integrity check");
     coordinator.notify_focus();
     coordinator.request_refresh();
+    coordinator.set_visibility(false, false);
+    coordinator.set_wake_channel_connected(true);
     thread::sleep(Duration::from_millis(75));
 
     assert_eq!(transport.total_calls(), 0);

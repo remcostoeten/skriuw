@@ -1,7 +1,8 @@
 import { env } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import goldenPush from "../../contracts/fixtures/sync-push-v1.json";
+import goldenPushV2 from "../../contracts/fixtures/sync-push-v2.json";
 import { WorkspaceContentStore } from "../src/content-store";
 import {
   type CredentialVerification,
@@ -15,6 +16,7 @@ import {
   type PublicSyncDependencies,
   type SyncSecurityLogEvent,
   handlePublicSyncRequest,
+  logSyncSecurityEvent,
 } from "../src/public-api";
 
 const NOW = 1_900_000_000;
@@ -495,6 +497,92 @@ describe("public sync validation and ordered-log integration", () => {
     expect(await isolated.json<{ operations: unknown[] }>()).toMatchObject({
       operations: [],
     });
+  });
+
+  it("writes only stable codes to the console for rejected requests", async () => {
+    const context = createContext();
+    context.dependencies.log = logSyncSecurityEvent;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const workspaceId = "workspace-console-never-log";
+      const deviceId = "device-console-never-log";
+      const operationId = "operation-console-never-log";
+      const digest = goldenPushV2.operations[1]!.payload.manifest!.chunks[0]!.digest;
+      context.memberships.allow(workspaceId, "editor", [deviceId]);
+
+      const acknowledgement = await handlePublicSyncRequest(
+        new Request(`https://example.test/v1/workspaces/${workspaceId}/acknowledge`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${VALID_TOKEN}`,
+          },
+          body: JSON.stringify({ deviceId, serverSequence: 99 }),
+        }),
+        context.dependencies,
+      );
+      expect(acknowledgement.status).toBe(400);
+
+      const missingContent = await handlePublicSyncRequest(
+        pushRequest(workspaceId, {
+          ...goldenPushV2,
+          deviceId,
+          operations: [{ ...goldenPushV2.operations[1]!, operationId, clientSequence: 1 }],
+        }),
+        context.dependencies,
+      );
+      expect(missingContent.status).toBe(400);
+      expect(await responseBody(missingContent)).toEqual({ error: "content_unavailable" });
+
+      await handlePublicSyncRequest(
+        pushRequest(workspaceId, {
+          ...goldenPush,
+          deviceId,
+          operations: [{ ...goldenPush.operations[0]!, operationId }],
+        }),
+        context.dependencies,
+      );
+      const reused = await handlePublicSyncRequest(
+        pushRequest(workspaceId, {
+          ...goldenPush,
+          deviceId,
+          operations: [
+            {
+              ...goldenPush.operations[0]!,
+              operationId,
+              operation: {
+                ...goldenPush.operations[0]!.operation,
+                operation: {
+                  ...goldenPush.operations[0]!.operation.operation,
+                  title: "Renamed console never log",
+                },
+              },
+            },
+          ],
+        }),
+        context.dependencies,
+      );
+      expect(reused.status).toBe(400);
+
+      const consoleText = JSON.stringify([...warn.mock.calls, ...error.mock.calls]);
+      expect(warn.mock.calls.length + error.mock.calls.length).toBeGreaterThanOrEqual(3);
+      for (const secret of [workspaceId, deviceId, operationId, digest, "Renamed", VALID_TOKEN]) {
+        expect(consoleText).not.toContain(secret);
+      }
+      for (const call of [...warn.mock.calls, ...error.mock.calls]) {
+        const entry = JSON.parse(String(call[0])) as Record<string, unknown>;
+        expect(Object.keys(entry).sort()).toEqual(
+          expect.arrayContaining(["code", "event", "method", "route", "status"]),
+        );
+        for (const value of Object.values(entry)) {
+          expect(typeof value === "number" || /^[a-z_]+$|^[A-Z]+$/.test(String(value))).toBe(true);
+        }
+      }
+    } finally {
+      warn.mockRestore();
+      error.mockRestore();
+    }
   });
 
   it("returns and logs only stable sanitized fields", async () => {

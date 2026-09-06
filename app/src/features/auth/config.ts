@@ -8,7 +8,6 @@ export type AuthConfiguration =
 export function resolveAuthConfiguration(raw: string | undefined, development: boolean): AuthConfiguration {
   const configured = raw?.trim();
   if (!configured) {
-    if (development) return { available: true, baseUrl: "http://localhost:8787" };
     return { available: true, baseUrl: PRODUCTION_CLOUD_URL };
   }
 

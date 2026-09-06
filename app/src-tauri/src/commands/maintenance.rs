@@ -263,6 +263,11 @@ mod clear_data_tests {
         remove_workspace_data(&database).expect("clear workspace data");
 
         assert!(directory.path().join("my-notes.md").exists());
-        assert_eq!(fs::read_dir(directory.path()).expect("read directory").count(), 1);
+        assert_eq!(
+            fs::read_dir(directory.path())
+                .expect("read directory")
+                .count(),
+            1
+        );
     }
 }

@@ -12,9 +12,10 @@ use std::sync::{Arc, Mutex};
 use skriuw_domain::{SyncPullResponse, SyncPushRequest, SyncPushResponse, WorkspaceCheckpoint};
 use skriuw_storage::{NewSyncConnection, WorkspaceMaintenance, WorkspaceSyncQueue};
 use skriuw_sync::{
-    CheckpointPublication, CheckpointPublicationConfig, CheckpointPublicationState, SyncBackoff,
-    SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig, SyncCycleOutcome, SyncStatus,
-    SyncTransport, TransportError, run_checkpoint_publication, run_sync_cycle,
+    CheckpointPublication, CheckpointPublicationConfig, CheckpointPublicationState,
+    SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig, SyncCycleOutcome,
+    SyncCycleState, SyncStatus, SyncTransport, TransportError, run_checkpoint_publication,
+    run_sync_cycle,
 };
 
 use crate::protocol::{
@@ -38,7 +39,7 @@ pub struct BrowserSyncEnvironment<'a> {
 
 struct BrowserSyncSession {
     transport: Box<dyn SyncTransport>,
-    backoff: SyncBackoff,
+    state: SyncCycleState,
     checkpoint_state: CheckpointPublicationState,
     cancellation: SyncCancellation,
 }
@@ -131,7 +132,7 @@ impl BrowserSyncRuntime {
             .map_err(map_storage_error)?;
         self.session = Some(BrowserSyncSession {
             transport,
-            backoff: SyncBackoff::new(SyncBackoffConfig::default()),
+            state: SyncCycleState::new(SyncBackoffConfig::default()),
             checkpoint_state: CheckpointPublicationState::new(),
             cancellation: SyncCancellation::new(),
         });
@@ -162,6 +163,25 @@ impl BrowserSyncRuntime {
         Ok(self.last_status.clone())
     }
 
+    /// Marks the session interrupted. The worker serves requests one at a
+    /// time, so this lands between cycles: a cycle queued behind it yields at
+    /// once as `pending`, letting a local commit queued after the interrupt
+    /// run before the next full cycle. A session without work ignores it.
+    pub fn interrupt(&mut self) {
+        if let Some(session) = self.session.as_ref() {
+            session.cancellation.interrupt();
+        }
+    }
+
+    /// Clears a durable retry delay and the backoff so the next cycle pushes
+    /// at once, like the desktop coordinator's `request_refresh`.
+    pub fn refresh(&mut self, queue: &dyn WorkspaceSyncQueue, now_ms: i64) {
+        let _ = queue.reset_sync_retry_times(now_ms);
+        if let Some(session) = self.session.as_mut() {
+            session.state.backoff.reset();
+        }
+    }
+
     /// One deterministic push-then-pull pass plus due checkpoint publication,
     /// exactly like a single wake of the desktop coordinator worker thread.
     pub fn cycle<B>(
@@ -177,16 +197,16 @@ impl BrowserSyncRuntime {
                 "Cloud sync has no active session; connect before requesting a cycle.",
             ));
         };
-        session.cancellation.clear_interrupt();
         let mut outcome = run_sync_cycle(
             backend,
             session.transport.as_ref(),
             environment.assets,
             environment.clock,
             &session.cancellation,
-            &mut session.backoff,
+            &mut session.state,
             &self.cycle_config,
         );
+        session.cancellation.clear_interrupt();
         if outcome.status == SyncStatus::UpToDate
             && let Some(failure) = run_checkpoint_publication(
                 &CheckpointPublication {
@@ -198,12 +218,12 @@ impl BrowserSyncRuntime {
                     cycle_config: &self.cycle_config,
                     config: &self.checkpoint_config,
                 },
-                &mut session.backoff,
+                &mut session.state.backoff,
                 &mut session.checkpoint_state,
             )
         {
             outcome = SyncCycleOutcome {
-                workspace_changed: outcome.workspace_changed,
+                changes: outcome.changes,
                 ..failure
             };
         }
@@ -211,7 +231,7 @@ impl BrowserSyncRuntime {
         Ok(BrowserSyncCycleReport {
             status: outcome.status,
             retry_at_ms: outcome.retry_at_ms,
-            workspace_changed: outcome.workspace_changed,
+            changes: outcome.changes,
         })
     }
 

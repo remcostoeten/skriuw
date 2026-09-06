@@ -2,6 +2,7 @@ import {
   baseKeymap,
   chainCommands,
   createParagraphNear,
+  exitCode,
   liftEmptyBlock,
   newlineInCode,
   splitBlock,
@@ -53,6 +54,7 @@ import {
 } from "prosemirror-tables";
 import { createCodeHighlightPlugin } from "./code-highlight";
 import { createAnnotationDecorationPlugin } from "./annotation-decorations";
+import { createSuggestionPlugin } from "./suggestion-decorations";
 import { createSearchPlugin } from "./search-plugin";
 import {
   createDefaultDiagram,
@@ -1212,6 +1214,23 @@ function breakOrSplitParagraph(
   return true;
 }
 
+function exitTerminalCodeBlockOnArrowDown(
+  state: EditorState,
+  dispatch?: (transaction: EditorState["tr"]) => void,
+): boolean {
+  const { selection } = state;
+  if (!(selection instanceof TextSelection) || !selection.empty) return false;
+  const { $from } = selection;
+  if (
+    !$from.parent.type.spec.code ||
+    $from.parentOffset !== $from.parent.content.size ||
+    $from.indexAfter(-1) !== $from.node(-1).childCount
+  ) {
+    return false;
+  }
+  return exitCode(state, dispatch);
+}
+
 export function createProductPlugins(): Plugin[] {
   const blockquote = productSchema.nodes.blockquote;
   const codeBlock = productSchema.nodes.code_block;
@@ -1249,6 +1268,7 @@ export function createProductPlugins(): Plugin[] {
     createPlaceholderPlugin(),
     createSearchPlugin(),
     createAnnotationDecorationPlugin(),
+    createSuggestionPlugin(),
     createCodeHighlightPlugin(),
     createCheckboxTogglePlugin(),
     createToggleListPlugin(),
@@ -1296,6 +1316,7 @@ export function createProductPlugins(): Plugin[] {
       "Mod-a": selectBlockThenDocument(),
       "Alt-ArrowUp": moveSelectedBlock(-1),
       "Alt-ArrowDown": moveSelectedBlock(1),
+      ArrowDown: exitTerminalCodeBlockOnArrowDown,
       "Alt-Enter": toggleItemAtSelection,
       "Alt-Shift-Enter": toggleCheckItemAtSelection,
       Enter: chainCommands(

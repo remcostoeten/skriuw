@@ -9,7 +9,7 @@
     "@better-auth/sso": "./src/infra-optional.ts"
   },
   "vars": {
-    "AUTH_TRUSTED_ORIGINS": "https://skriuw.com,http://tauri.localhost,tauri://localhost,https://dash.better-auth.com",
+    "AUTH_TRUSTED_ORIGINS": "https://skriuw.com,http://localhost:5183,http://tauri.localhost,tauri://localhost,https://dash.better-auth.com",
     "BETTER_AUTH_URL": "https://skriuw-v2-cloud.remcostoeten.workers.dev"
   },
   "d1_databases": [

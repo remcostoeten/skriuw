@@ -25,13 +25,23 @@ export function syncDescription(status: WorkspaceSyncStatus, browser: boolean): 
       return browser
         ? "Paused. Your cloud session ended; sign in again to reconnect."
         : "Paused. Sign in again to reconnect this device.";
-    case "conflict":
-      return `${status.openConflicts} sync conflict${status.openConflicts === 1 ? "" : "s"} need attention.`;
+    case "rehydrating":
+      return "Rebuilding this device from your cloud workspace…";
     case "retrying":
       return "Cloud is temporarily unavailable; retrying automatically.";
     case "blocked":
       return browser ? browserBlockedText(status.reason) : blockedStateText(status.reason);
   }
+}
+
+/**
+ * The coordinator's bounded detail for a blocked state, shown under the
+ * description so the user sees what the cloud actually objected to.
+ */
+export function syncDetail(status: WorkspaceSyncStatus): string | null {
+  if (status.state !== "blocked") return null;
+  const detail = status.detail?.trim() ?? "";
+  return detail.length > 0 ? detail : null;
 }
 
 export type SyncTone = "synced" | "syncing" | "offline" | "attention";
@@ -46,12 +56,12 @@ export function syncTone(status: WorkspaceSyncStatus): SyncTone {
       return "synced";
     case "connecting":
     case "pending":
+    case "rehydrating":
       return "syncing";
     case "localOnly":
     case "offline":
       return "offline";
     case "authenticationRequired":
-    case "conflict":
     case "retrying":
     case "blocked":
       return "attention";
@@ -73,10 +83,8 @@ export function syncSummary(status: WorkspaceSyncStatus): string {
       return "Offline, changes stay local";
     case "authenticationRequired":
       return "Sign in again to sync";
-    case "conflict":
-      return status.openConflicts === 1
-        ? "1 conflict needs attention"
-        : `${status.openConflicts} conflicts need attention`;
+    case "rehydrating":
+      return "Rebuilding from the cloud…";
     case "retrying":
       return "Cloud unavailable, retrying…";
     case "blocked":
@@ -104,7 +112,12 @@ export function syncProgressVisible(
   status: WorkspaceSyncStatus,
   connectPending: boolean,
 ): boolean {
-  return connectPending || status.state === "connecting" || status.state === "pending";
+  return (
+    connectPending ||
+    status.state === "connecting" ||
+    status.state === "pending" ||
+    status.state === "rehydrating"
+  );
 }
 
 const PROGRESS_PHASE_LABELS: Record<BrowserSyncProgress["phase"], string> = {

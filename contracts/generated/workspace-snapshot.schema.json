@@ -172,8 +172,22 @@
     "HistoryHeader": {
       "type": "object",
       "properties": {
+        "additions": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
         "createdAt": {
           "type": "integer",
+          "format": "int64"
+        },
+        "deletions": {
+          "type": [
+            "integer",
+            "null"
+          ],
           "format": "int64"
         },
         "noteId": {
@@ -184,6 +198,13 @@
         },
         "versionId": {
           "type": "string"
+        },
+        "wordCount": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
         }
       },
       "required": [

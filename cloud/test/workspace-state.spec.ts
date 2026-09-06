@@ -7,6 +7,7 @@ import type {
   WorkspaceMembershipLookup,
   WorkspaceMembershipSource,
 } from "../src/access";
+import type { WorkspaceSyncState } from "../src/contracts";
 import {
   handleSyncWorkspaceStateRequest,
   provisionInternals,
@@ -38,26 +39,21 @@ class DenyingMembershipSource implements WorkspaceMembershipSource {
   }
 }
 
-function makeContext(pull: (afterServerSequence: number, requestedLimit?: number) => Promise<string>) {
+function makeContext(state: () => Promise<unknown>) {
   const accessConfiguration: SyncAccessConfiguration = {
     state: "ready",
     credentialVerifier: new DeterministicCredentialVerifier(),
     membershipSource: new DenyingMembershipSource(),
   };
   const resolved: string[] = [];
-  const pulls: Array<{ afterServerSequence: number; requestedLimit?: number }> = [];
   return {
     resolved,
-    pulls,
     dependencies: {
       accessConfiguration,
       resolveWorkspace: (workspaceId: string) => {
         resolved.push(workspaceId);
         return {
-          pullOperations: (afterServerSequence: number, requestedLimit?: number) => {
-            pulls.push({ afterServerSequence, requestedLimit });
-            return pull(afterServerSequence, requestedLimit);
-          },
+          workspaceState: () => state() as Promise<WorkspaceSyncState>,
         };
       },
       nowEpochSeconds: () => NOW,
@@ -73,17 +69,13 @@ function stateRequest(token: string | null, method = "GET"): Request {
   return new Request("https://cloud.test/v1/sync/state", { method, headers });
 }
 
-function pullResponse(latestServerSequence: number): string {
-  return JSON.stringify({
-    syncProtocolVersion: 1,
-    operations: [],
-    latestServerSequence,
-  });
+function workspaceState(latestServerSequence: number, compactedThrough = 0): WorkspaceSyncState {
+  return { latestServerSequence, compactedThrough };
 }
 
 describe("sync workspace state", () => {
   it("reports the caller's own workspace and its latest sequence", async () => {
-    const context = makeContext(async () => pullResponse(42));
+    const context = makeContext(async () => workspaceState(42, 40));
 
     const response = await handleSyncWorkspaceStateRequest(
       stateRequest(VALID_TOKEN),
@@ -96,13 +88,13 @@ describe("sync workspace state", () => {
     expect(await response.json()).toEqual({
       workspaceId: expectedWorkspaceId,
       latestServerSequence: 42,
+      compactedThrough: 40,
     });
     expect(context.resolved).toEqual([expectedWorkspaceId]);
-    expect(context.pulls).toEqual([{ afterServerSequence: 0, requestedLimit: 1 }]);
   });
 
   it("reports zero for an account whose workspace holds no history", async () => {
-    const context = makeContext(async () => pullResponse(0));
+    const context = makeContext(async () => workspaceState(0));
 
     const response = await handleSyncWorkspaceStateRequest(
       stateRequest(VALID_TOKEN),
@@ -110,11 +102,11 @@ describe("sync workspace state", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ latestServerSequence: 0 });
+    expect(await response.json()).toMatchObject({ latestServerSequence: 0, compactedThrough: 0 });
   });
 
   it("rejects an invalid credential without touching the workspace", async () => {
-    const context = makeContext(async () => pullResponse(1));
+    const context = makeContext(async () => workspaceState(1));
 
     const response = await handleSyncWorkspaceStateRequest(
       stateRequest("invalid-token"),
@@ -126,7 +118,7 @@ describe("sync workspace state", () => {
   });
 
   it("rejects non-GET methods", async () => {
-    const context = makeContext(async () => pullResponse(1));
+    const context = makeContext(async () => workspaceState(1));
 
     const response = await handleSyncWorkspaceStateRequest(
       stateRequest(VALID_TOKEN, "POST"),
@@ -140,7 +132,7 @@ describe("sync workspace state", () => {
     const failing = makeContext(async () => {
       throw new Error("durable object unavailable");
     });
-    const malformed = makeContext(async () => JSON.stringify({ operations: [] }));
+    const malformed = makeContext(async () => ({ operations: [] }));
 
     const failure = await handleSyncWorkspaceStateRequest(
       stateRequest(VALID_TOKEN),

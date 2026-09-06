@@ -25,7 +25,7 @@ export function CloudSignInDrawer({ open, onOpenChange }: Props) {
             providers: [],
             allowRegister: true,
             showForgotPassword: false,
-            showRememberMe: true,
+            showRememberMe: false,
           },
           presentation: { variant: "drawer" },
         },

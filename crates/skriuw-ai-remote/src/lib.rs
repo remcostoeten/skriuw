@@ -17,15 +17,20 @@ use reqwest::{StatusCode, Url, blocking::Client};
 use skriuw_domain::{
     AiCancellation, AiComplete, AiCompletionDelta, AiCompletionRequest, AiCompletionTerminal,
     AiCredential, AiCredentialSource, AiEventSink, AiProviderError, AiProviderErrorCategory,
-    AiRecoveryAction, AiUsage, MAX_AI_RESPONSE_BYTES, RemoteAiCatalog, RemoteAiCatalogError,
+    AiRecoveryAction, AiUsage, MAX_AI_RESPONSE_BYTES, MAX_REMOTE_AI_CATALOG_MODELS,
+    RemoteAiCatalog, RemoteAiCatalogError, RemoteAiModelListing,
 };
 
 use provider::ProviderEvent;
-pub use provider::{GEMINI_PROVIDER_ID, GROQ_PROVIDER_ID, RemoteProviderKind};
+pub use provider::{
+    AIMLAPI_PROVIDER_ID, DASHSCOPE_PROVIDER_ID, DEEPSEEK_PROVIDER_ID, GEMINI_PROVIDER_ID,
+    GROQ_PROVIDER_ID, MOONSHOT_PROVIDER_ID, RemoteProviderKind, ZAI_PROVIDER_ID,
+};
 
 const CATALOG_SOURCE: &str = include_str!("../models.json");
 const MAX_STREAM_EVENT_BYTES: u64 = 64 * 1024;
 const MAX_VERIFICATION_RESPONSE_BYTES: u64 = 256 * 1024;
+const MAX_MODEL_LIST_RESPONSE_BYTES: u64 = 2 * 1024 * 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const VERIFICATION_TIMEOUT: Duration = Duration::from_secs(30);
 const SSE_DATA_PREFIX: &str = "data:";
@@ -40,11 +45,33 @@ pub fn remote_ai_catalog() -> Result<RemoteAiCatalog, RemoteAiCatalogError> {
     Ok(catalog)
 }
 
+/// The set of models a provider adapter may address. The shipped catalog is the
+/// default authority; the application widens it with models the provider itself
+/// reported, and every admitted id has passed domain identifier validation, so
+/// the gate keeps renderer text out of provider URLs.
+pub trait RemoteAiModelAuthority: Send + Sync {
+    fn permits(&self, provider_id: &str, model_id: &str) -> bool;
+}
+
+struct CatalogModelAuthority;
+
+impl RemoteAiModelAuthority for CatalogModelAuthority {
+    fn permits(&self, provider_id: &str, model_id: &str) -> bool {
+        remote_ai_catalog().ok().is_some_and(|catalog| {
+            catalog
+                .models_for(provider_id)
+                .iter()
+                .any(|model| model.model_id == model_id)
+        })
+    }
+}
+
 pub struct RemoteAiProvider {
     kind: RemoteProviderKind,
     base_url: Url,
     client: Client,
     credentials: Arc<dyn AiCredentialSource>,
+    models: Arc<dyn RemoteAiModelAuthority>,
 }
 
 impl RemoteAiProvider {
@@ -52,13 +79,22 @@ impl RemoteAiProvider {
         kind: RemoteProviderKind,
         credentials: Arc<dyn AiCredentialSource>,
     ) -> Result<Self, RemoteAiSetupError> {
-        Self::with_base_url(kind, kind.default_base_url(), credentials)
+        Self::with_model_authority(kind, credentials, Arc::new(CatalogModelAuthority))
+    }
+
+    pub fn with_model_authority(
+        kind: RemoteProviderKind,
+        credentials: Arc<dyn AiCredentialSource>,
+        models: Arc<dyn RemoteAiModelAuthority>,
+    ) -> Result<Self, RemoteAiSetupError> {
+        Self::with_base_url(kind, kind.default_base_url(), credentials, models)
     }
 
     fn with_base_url(
         kind: RemoteProviderKind,
         base_url: &str,
         credentials: Arc<dyn AiCredentialSource>,
+        models: Arc<dyn RemoteAiModelAuthority>,
     ) -> Result<Self, RemoteAiSetupError> {
         let base_url = Url::parse(base_url).map_err(|_| RemoteAiSetupError::InvalidEndpoint)?;
         let client = Client::builder()
@@ -71,6 +107,7 @@ impl RemoteAiProvider {
             base_url,
             client,
             credentials,
+            models,
         })
     }
 
@@ -81,12 +118,48 @@ impl RemoteAiProvider {
 
     #[must_use]
     pub fn supports_model(&self, model_id: &str) -> bool {
-        remote_ai_catalog().ok().is_some_and(|catalog| {
-            catalog
-                .models_for(self.kind.id())
-                .iter()
-                .any(|model| model.model_id == model_id)
-        })
+        self.models.permits(self.kind.id(), model_id)
+    }
+
+    /// Asks the provider which models the stored key can reach. This spends no
+    /// tokens but does send the key, so callers run it only from the explicit
+    /// "Refresh models" action; the credential resolve enforces consent first.
+    pub fn list_models(&self) -> Result<Vec<RemoteAiModelListing>, AiProviderError> {
+        let Some(url) = self.kind.models_endpoint(&self.base_url) else {
+            return Err(self.error(
+                AiProviderErrorCategory::UnavailableProvider,
+                "this provider does not publish a model listing; its models come from the catalog",
+                AiRecoveryAction::None,
+            ));
+        };
+        let credential = self
+            .credentials
+            .resolve(self.kind.id())
+            .map_err(|error| error.into_provider_error(self.kind.id()))?;
+        let response = self
+            .kind
+            .authorize(self.client.get(url), &credential)
+            .timeout(VERIFICATION_TIMEOUT)
+            .send()
+            .map_err(|error| self.transport_error(&error))?;
+        let status = response.status();
+        let mut body = Vec::new();
+        let _ = response
+            .take(MAX_MODEL_LIST_RESPONSE_BYTES)
+            .read_to_end(&mut body);
+        if !status.is_success() {
+            return Err(self.status_error(status));
+        }
+        let payload = String::from_utf8_lossy(&body);
+        let mut listings = self.kind.parse_model_listing(&payload).ok_or_else(|| {
+            self.error(
+                AiProviderErrorCategory::MalformedResponse,
+                "the provider returned an unrecognisable model listing",
+                AiRecoveryAction::Retry,
+            )
+        })?;
+        listings.truncate(MAX_REMOTE_AI_CATALOG_MODELS);
+        Ok(listings)
     }
 
     /// Spends one key on the smallest metered request the provider supports and
@@ -530,7 +603,13 @@ mod tests {
         base_url: &str,
         credentials: Arc<dyn AiCredentialSource>,
     ) -> RemoteAiProvider {
-        RemoteAiProvider::with_base_url(kind, base_url, credentials).expect("provider")
+        RemoteAiProvider::with_base_url(
+            kind,
+            base_url,
+            credentials,
+            Arc::new(super::CatalogModelAuthority),
+        )
+        .expect("provider")
     }
 
     #[test]
@@ -543,11 +622,17 @@ mod tests {
     }
 
     #[test]
-    fn ships_a_valid_repository_catalogue_for_both_providers() {
+    fn ships_a_valid_repository_catalogue_covering_every_provider() {
         let catalog = super::remote_ai_catalog().expect("catalog");
 
         assert_eq!(catalog.validate(), Ok(()));
-        assert!(!catalog.models_for(GEMINI_PROVIDER_ID).is_empty());
+        for kind in RemoteProviderKind::ALL {
+            assert!(
+                !catalog.models_for(kind.id()).is_empty(),
+                "no catalog model seeds provider {}",
+                kind.id()
+            );
+        }
         assert_eq!(catalog.models_for(GROQ_PROVIDER_ID).len(), 3);
         assert!(
             catalog
@@ -556,6 +641,46 @@ mod tests {
                 .all(|model| model.provider_id == GROQ_PROVIDER_ID)
         );
         assert!(catalog.models_for("openai").is_empty());
+    }
+
+    /// Z.ai's OpenAI-compatible endpoint is the one dialect speaker whose
+    /// tolerance of `stream_options` is unverified, so its body omits it.
+    #[test]
+    fn stream_usage_option_is_gated_per_provider() {
+        let request = request("deepseek", "deepseek-v4-flash");
+        let deepseek = RemoteProviderKind::DeepSeek.completion_body(&request, true);
+        assert_eq!(
+            deepseek["stream_options"]["include_usage"],
+            serde_json::json!(true)
+        );
+
+        let zai = RemoteProviderKind::Zai.completion_body(&request, true);
+        assert!(zai.get("stream_options").is_none());
+    }
+
+    #[test]
+    fn streams_an_openai_compatible_first_party_provider_through_the_shared_path() {
+        let body = concat!(
+            "data: {\"choices\":[{\"delta\":{\"content\":\"blue\"},\"finish_reason\":null}]}\n\n",
+            "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":1}}\n\n",
+            "data: [DONE]\n\n"
+        )
+        .to_owned();
+        let (base, server) = serve_once("200 OK", "text/event-stream", body);
+        let provider = build_provider(RemoteProviderKind::DeepSeek, &base, Arc::new(StoredKey));
+        let mut sink = RecordingSink::default();
+
+        let terminal = provider.complete(
+            &request("deepseek", "deepseek-v4-flash"),
+            &AiCancellation::new(),
+            &mut sink,
+        );
+
+        assert!(matches!(terminal, AiCompletionTerminal::Done { .. }));
+        assert_eq!(sink.deltas.len(), 1);
+        let captured = server.join().expect("server");
+        assert!(captured.request.contains("POST /chat/completions"));
+        assert!(captured.request.contains("authorization: Bearer"));
     }
 
     #[test]
@@ -571,7 +696,7 @@ mod tests {
         let mut sink = RecordingSink::default();
 
         let terminal = provider.complete(
-            &request(GEMINI_PROVIDER_ID, "gemini-2.5-flash"),
+            &request(GEMINI_PROVIDER_ID, "gemini-3.7-flash"),
             &AiCancellation::new(),
             &mut sink,
         );
@@ -592,7 +717,7 @@ mod tests {
         assert!(
             captured
                 .request
-                .contains("POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse")
+                .contains("POST /v1beta/models/gemini-3.7-flash:streamGenerateContent?alt=sse")
         );
         assert!(captured.request.contains("x-goog-api-key"));
     }
@@ -651,8 +776,8 @@ mod tests {
             let mut sink = RecordingSink::default();
 
             let model_id = match kind {
-                RemoteProviderKind::Gemini => "gemini-2.5-flash",
-                RemoteProviderKind::Groq => "openai/gpt-oss-20b",
+                RemoteProviderKind::Gemini => "gemini-3.7-flash",
+                _ => "openai/gpt-oss-20b",
             };
             let terminal = provider.complete(
                 &request(provider_id, model_id),
@@ -762,7 +887,7 @@ mod tests {
         let mut sink = RecordingSink::default();
 
         let terminal = provider.complete(
-            &request(GEMINI_PROVIDER_ID, "gemini-2.5-flash"),
+            &request(GEMINI_PROVIDER_ID, "gemini-3.7-flash"),
             &AiCancellation::new(),
             &mut sink,
         );
@@ -898,7 +1023,7 @@ mod tests {
         let mut sink = RecordingSink::default();
 
         let terminal = provider.complete(
-            &request(GEMINI_PROVIDER_ID, "gemini-2.5-flash"),
+            &request(GEMINI_PROVIDER_ID, "gemini-3.7-flash"),
             &AiCancellation::new(),
             &mut sink,
         );
@@ -916,14 +1041,14 @@ mod tests {
         let credential = AiCredential::new(KEY).expect("credential");
 
         assert_eq!(
-            provider.verify_credential("gemini-2.5-flash", &credential),
+            provider.verify_credential("gemini-3.7-flash", &credential),
             Ok(())
         );
         let captured = server.join().expect("server");
         assert!(
             captured
                 .request
-                .contains("POST /v1beta/models/gemini-2.5-flash:generateContent")
+                .contains("POST /v1beta/models/gemini-3.7-flash:generateContent")
         );
         assert!(!captured.request.contains("?alt=sse"));
 
@@ -935,7 +1060,7 @@ mod tests {
         let rejecting = build_provider(RemoteProviderKind::Gemini, &base, Arc::new(StoredKey));
 
         let error = rejecting
-            .verify_credential("gemini-2.5-flash", &credential)
+            .verify_credential("gemini-3.7-flash", &credential)
             .expect_err("rejection");
 
         assert_eq!(error.category, AiProviderErrorCategory::InvalidCredential);
@@ -945,20 +1070,149 @@ mod tests {
 
     #[test]
     fn resolves_provider_identity_from_a_bounded_identifier() {
-        assert_eq!(
-            RemoteProviderKind::from_id(GEMINI_PROVIDER_ID),
-            Some(RemoteProviderKind::Gemini)
-        );
-        assert_eq!(
-            RemoteProviderKind::from_id(GROQ_PROVIDER_ID),
-            Some(RemoteProviderKind::Groq)
-        );
+        for kind in RemoteProviderKind::ALL {
+            assert_eq!(RemoteProviderKind::from_id(kind.id()), Some(kind));
+            assert!(!kind.label().is_empty());
+        }
         assert_eq!(RemoteProviderKind::from_id("ollama"), None);
         assert_eq!(
             RemoteProviderKind::Gemini.destination(),
             "generativelanguage.googleapis.com"
         );
         assert_eq!(RemoteProviderKind::Groq.destination(), "api.groq.com");
+        assert_eq!(RemoteProviderKind::AimlApi.destination(), "api.aimlapi.com");
+    }
+
+    /// Every request an OpenAI-compatible kind can make must reach the host
+    /// its privacy disclosure names.
+    #[test]
+    fn every_endpoint_stays_on_the_disclosed_destination() {
+        for kind in RemoteProviderKind::ALL {
+            let base = super::Url::parse(kind.default_base_url()).expect("default base url parses");
+            let mut endpoints = vec![
+                kind.endpoint(&base, "some-model", true)
+                    .expect("chat endpoint"),
+                kind.endpoint(&base, "some-model", false)
+                    .expect("verify endpoint"),
+            ];
+            match kind.models_endpoint(&base) {
+                Some(url) => endpoints.push(url),
+                None => assert!(
+                    !kind.supports_model_listing(),
+                    "{} has no listing endpoint but claims listing support",
+                    kind.id()
+                ),
+            }
+            for url in endpoints {
+                assert_eq!(
+                    url.host_str(),
+                    Some(kind.destination()),
+                    "{} endpoint left the disclosed destination: {url}",
+                    kind.id()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn lists_gemini_completion_models_from_the_provider() {
+        let body = concat!(
+            "{\"models\":[",
+            "{\"name\":\"models/gemini-3.0-flash\",\"displayName\":\"Gemini 3.0 Flash\",",
+            "\"inputTokenLimit\":1048576,\"supportedGenerationMethods\":[\"generateContent\"]},",
+            "{\"name\":\"models/embedding-001\",\"displayName\":\"Embedding\",",
+            "\"supportedGenerationMethods\":[\"embedContent\"]},",
+            "{\"name\":\"models/../escape\",\"supportedGenerationMethods\":[\"generateContent\"]}",
+            "]}"
+        )
+        .to_owned();
+        let (base, server) = serve_once("200 OK", "application/json", body);
+        let provider = build_provider(RemoteProviderKind::Gemini, &base, Arc::new(StoredKey));
+
+        let listings = provider.list_models().expect("listing");
+
+        assert_eq!(listings.len(), 1, "non-completion and invalid ids drop out");
+        assert_eq!(listings[0].model_id, "gemini-3.0-flash");
+        assert_eq!(listings[0].label, "Gemini 3.0 Flash");
+        assert_eq!(listings[0].context_window_tokens, Some(1_048_576));
+        assert_eq!(listings[0].input_price_micros_per_mtok, None);
+        assert_eq!(
+            listings[0].source,
+            skriuw_domain::RemoteAiModelSource::Fetched
+        );
+        let captured = server.join().expect("server");
+        assert!(captured.request.contains("GET /v1beta/models"));
+        assert!(captured.request.contains("x-goog-api-key"));
+    }
+
+    #[test]
+    fn lists_groq_models_and_skips_inactive_entries() {
+        let body = concat!(
+            "{\"object\":\"list\",\"data\":[",
+            "{\"id\":\"openai/gpt-oss-20b\",\"context_window\":131072,\"active\":true},",
+            "{\"id\":\"whisper-large-v3\",\"active\":false}",
+            "]}"
+        )
+        .to_owned();
+        let (base, server) = serve_once("200 OK", "application/json", body);
+        let provider = build_provider(RemoteProviderKind::Groq, &base, Arc::new(StoredKey));
+
+        let listings = provider.list_models().expect("listing");
+
+        assert_eq!(listings.len(), 1);
+        assert_eq!(listings[0].model_id, "openai/gpt-oss-20b");
+        assert_eq!(listings[0].context_window_tokens, Some(131_072));
+        let captured = server.join().expect("server");
+        assert!(captured.request.contains("GET /openai/v1/models"));
+        assert!(captured.request.contains("authorization: Bearer"));
+    }
+
+    #[test]
+    fn model_listing_never_opens_a_socket_without_consent_and_maps_rejections() {
+        let provider = build_provider(
+            RemoteProviderKind::Groq,
+            "http://127.0.0.1:1/",
+            Arc::new(RefusedKey(AiCredentialError::ConsentStale)),
+        );
+        let error = provider.list_models().expect_err("consent gate");
+        assert_eq!(error.category, AiProviderErrorCategory::MissingCredential);
+
+        let (base, server) = serve_once(
+            "401 Unauthorized",
+            "application/json",
+            format!("{{\"error\":\"{KEY} rejected\"}}"),
+        );
+        let rejecting = build_provider(RemoteProviderKind::Groq, &base, Arc::new(StoredKey));
+        let error = rejecting.list_models().expect_err("rejection");
+        assert_eq!(error.category, AiProviderErrorCategory::InvalidCredential);
+        assert!(!error.message.contains(KEY));
+        server.join().expect("server");
+
+        let (base, server) = serve_once("200 OK", "application/json", "not json".to_owned());
+        let malformed = build_provider(RemoteProviderKind::Gemini, &base, Arc::new(StoredKey));
+        let error = malformed.list_models().expect_err("malformed");
+        assert_eq!(error.category, AiProviderErrorCategory::MalformedResponse);
+        server.join().expect("server");
+    }
+
+    #[test]
+    fn a_model_authority_can_widen_the_supported_set_beyond_the_catalog() {
+        struct FetchedToo;
+        impl super::RemoteAiModelAuthority for FetchedToo {
+            fn permits(&self, provider_id: &str, model_id: &str) -> bool {
+                provider_id == GROQ_PROVIDER_ID && model_id == "brand-new-model"
+            }
+        }
+        let provider = RemoteAiProvider::with_base_url(
+            RemoteProviderKind::Groq,
+            "http://127.0.0.1:1/",
+            Arc::new(StoredKey),
+            Arc::new(FetchedToo),
+        )
+        .expect("provider");
+
+        assert!(provider.supports_model("brand-new-model"));
+        assert!(!provider.supports_model("openai/gpt-oss-20b"));
     }
 
     #[test]

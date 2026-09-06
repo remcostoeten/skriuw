@@ -27,6 +27,10 @@ export function selectAnimatedIcons(state: RendererState): boolean {
   return usesAnimatedIcons(state.settings);
 }
 
+export function selectReduceMotion(state: RendererState): boolean {
+  return state.settings.reduceMotion === true;
+}
+
 export function selectEditorPlaceholder(state: RendererState): string {
   return state.settings.editorPlaceholder;
 }
