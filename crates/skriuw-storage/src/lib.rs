@@ -241,6 +241,22 @@ pub trait WorkspaceStorage: Send + Sync {
 
     fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>, StorageError>;
 
+    /// Searches within an optional set of note identities before ranking and limiting.
+    fn search_filtered(
+        &self,
+        query: &str,
+        limit: usize,
+        note_ids: Option<&[String]>,
+    ) -> Result<Vec<SearchHit>, StorageError> {
+        match note_ids {
+            None => self.search(query, limit),
+            Some([]) => Ok(Vec::new()),
+            Some(_) => Err(StorageError::Backend(
+                "Filtered search is unavailable in this adapter".into(),
+            )),
+        }
+    }
+
     /// The current documents and node records for the given identifiers, so a
     /// renderer can reconcile exactly the notes a sync cycle changed. Unknown
     /// identifiers are skipped.
@@ -619,6 +635,15 @@ where
 
     fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>, StorageError> {
         self.as_ref().search(query, limit)
+    }
+
+    fn search_filtered(
+        &self,
+        query: &str,
+        limit: usize,
+        note_ids: Option<&[String]>,
+    ) -> Result<Vec<SearchHit>, StorageError> {
+        self.as_ref().search_filtered(query, limit, note_ids)
     }
 
     fn read_workspace_delta(&self, ids: &[String]) -> Result<WorkspaceDelta, StorageError> {

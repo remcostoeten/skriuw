@@ -7,6 +7,9 @@ export default defineConfig({
   root: resolve(import.meta.dirname, ".."),
   base: "./",
   plugins: [react(), tailwindcss()],
+  define: {
+    "import.meta.env.VITE_SKRIUW_CLOUD_URL": JSON.stringify("http://e2e.invalid"),
+  },
   resolve: {
     alias: [
       { find: "@", replacement: resolve(import.meta.dirname, "../src") },

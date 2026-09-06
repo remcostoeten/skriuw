@@ -15,6 +15,8 @@ import type { RendererStore } from "@/store/types";
 import { commitOperations } from "./workspace";
 
 const LIFECYCLE_SETTING_KEYS = [
+  "noteTemplateIds",
+  "savedSearches",
   "onboardingVersion",
   "starterSeedVersion",
   "starterSeedNoteIds",

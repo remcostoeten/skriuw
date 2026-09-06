@@ -1,3 +1,4 @@
+import "./tasks.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouteFocus } from "@/app-route";
 import { requestBlockReveal } from "@/features/editor/reveal-controller";
@@ -14,7 +15,7 @@ import { flattenTaskRows, projectTasks, taskGroupsEqual, type TaskRow } from "./
 
 const columnClass = "mx-auto w-[min(100%,720px)] px-[clamp(20px,4vw,40px)]";
 
-type Props = {
+type TasksViewProps = {
   store: RendererStore;
 };
 
@@ -22,7 +23,7 @@ function rowElement(host: HTMLElement | null, taskId: string): HTMLInputElement 
   return host?.querySelector<HTMLInputElement>(`[data-task-id="${CSS.escape(taskId)}"]`) ?? null;
 }
 
-export function TasksView({ store }: Props) {
+export function TasksView({ store }: TasksViewProps) {
   const groups = useRendererSelector(store, projectTasks, taskGroupsEqual);
   const rows = useMemo(() => flattenTaskRows(groups), [groups]);
   const indexById = useMemo(
@@ -31,15 +32,19 @@ export function TasksView({ store }: Props) {
   );
   const focusId = useRouteFocus();
   const [notice, setNotice] = useState<string | null>(null);
+  const revealedFocusId = useRef<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const openCount = rows.filter((row) => !row.done).length;
 
   useEffect(() => {
     if (focusId === null) {
+      revealedFocusId.current = null;
       return;
     }
+    if (revealedFocusId.current === focusId) return;
     const target = rowElement(listRef.current, focusId);
     if (target) {
+      revealedFocusId.current = focusId;
       target.scrollIntoView({ block: "center" });
       target.focus();
     }
@@ -92,24 +97,16 @@ export function TasksView({ store }: Props) {
       aria-labelledby="tasks-title"
     >
       <WindowControls className="absolute right-0 top-0" />
-      <header className={cn(columnClass, "border-b border-theme-divider pb-4 pt-[26px]")}>
+      <header className={cn(columnClass, "pb-5 pt-[38px]")}>
         <div className="flex items-center gap-2">
-          <h1 id="tasks-title" className="text-base font-[650] tracking-[-0.015em] text-foreground">
+          <h1 id="tasks-title" className="text-2xl font-[650] tracking-[-0.035em] text-foreground">
             Tasks
           </h1>
-          {rows.length > 0 && (
-            <span className="min-w-[19px] rounded-lg border border-border px-1.5 py-0.5 text-center font-mono text-[10px] leading-[1.3] text-theme-secondary">
-              {openCount}
-            </span>
-          )}
         </div>
         <p className="mt-1 max-w-xl text-xs leading-[1.45] text-theme-secondary">
-          Every task in this workspace, grouped by the note it came from. Completing one here
-          updates its checklist item too.
+          {rows.length === 0 ? "A little space for what’s next." : `${openCount} remaining · ${rows.length - openCount} completed`}
         </p>
-        <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs text-destructive">
-          {notice}
-        </p>
+        {notice && <p role="alert" className="mt-3 text-xs text-destructive">{notice}</p>}
       </header>
 
       {rows.length === 0 ? (
@@ -127,12 +124,13 @@ export function TasksView({ store }: Props) {
           </p>
         </div>
       ) : (
-        <div ref={listRef} className="min-h-0 overflow-y-auto">
+        <div ref={listRef} className="min-h-0 overflow-y-auto" aria-describedby="tasks-keyboard-help">
           <div className={cn(columnClass, "py-2")}>
             {groups.map((group) => (
-              <section key={group.noteId ?? "unsourced"} className="mb-1.5">
-                <h2 className="flex h-7 items-center text-[11px] font-medium text-muted-foreground/60">
+              <section key={group.noteId ?? "unsourced"} className="mb-6">
+                <h2 className="flex min-h-9 items-center gap-2 px-2 text-xs font-medium text-theme-secondary">
                   <span className="truncate">{group.noteTitle}</span>
+                  <span className="font-mono text-[10px] text-theme-dim">{group.rows.length}</span>
                 </h2>
                 <ul aria-label={group.noteTitle}>
                   {group.rows.map((row) => (
@@ -149,6 +147,12 @@ export function TasksView({ store }: Props) {
                 </ul>
               </section>
             ))}
+            <p id="tasks-keyboard-help" className="tasks-keyboard-help">
+              <span><kbd>↑</kbd> <kbd>↓</kbd> Move</span>
+              <span><kbd>Space</kbd> Complete</span>
+              <span><kbd>Enter</kbd> Open note</span>
+              <span><kbd>Tab</kbd> Next control</span>
+            </p>
           </div>
         </div>
       )}
@@ -166,54 +170,54 @@ type RowProps = {
 };
 
 function TaskListRow({ row, index, lastIndex, onToggle, onOpenSource, onFocusRow }: RowProps) {
-  const linked = row.noteId !== null;
+  const linked = row.noteId !== null && row.blockId !== null;
   return (
-    <li className="flex items-center gap-2.5 border-b border-theme-divider py-1.5 pl-1.5 pr-2 transition-colors hover:bg-foreground/[0.035] focus-within:bg-foreground/[0.05]">
-      <input
-        type="checkbox"
-        data-task-id={row.id}
-        className="h-[15px] w-[15px] shrink-0 cursor-pointer accent-[hsl(var(--primary))]"
-        checked={row.done}
-        aria-label={row.title}
-        onChange={onToggle}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && linked) {
-            event.preventDefault();
-            onOpenSource();
-          } else if (event.key === "Home" || (event.key === "ArrowUp" && event.shiftKey)) {
-            event.preventDefault();
-            onFocusRow(0);
-          } else if (event.key === "End" || (event.key === "ArrowDown" && event.shiftKey)) {
-            event.preventDefault();
-            onFocusRow(lastIndex);
-          } else if (event.key === "ArrowDown") {
-            event.preventDefault();
-            onFocusRow(index + 1);
-          } else if (event.key === "ArrowUp") {
-            event.preventDefault();
-            onFocusRow(index - 1);
-          }
-        }}
-      />
-      <span
-        className={cn(
-          "min-w-0 flex-1 truncate text-[13px] text-foreground",
-          row.done && "text-theme-dim",
-        )}
-      >
-        {row.title}
-      </span>
+    <li className="task-row" data-completed={row.done}>
+      <label className="task-row-label">
+        <input
+          type="checkbox"
+          data-task-id={row.id}
+          className="task-checkbox"
+          checked={row.done}
+          aria-label={row.title}
+          aria-describedby="tasks-keyboard-help"
+          onChange={onToggle}
+          onKeyDown={(event) => {
+            if (event.altKey || event.ctrlKey || event.metaKey) return;
+            if (event.key === "Enter" && linked) {
+              event.preventDefault();
+              onOpenSource();
+            } else if (event.key === "Home" || (event.key === "ArrowUp" && event.shiftKey)) {
+              event.preventDefault();
+              onFocusRow(0);
+            } else if (event.key === "End" || (event.key === "ArrowDown" && event.shiftKey)) {
+              event.preventDefault();
+              onFocusRow(lastIndex);
+            } else if (event.key === "ArrowDown") {
+              event.preventDefault();
+              onFocusRow(index + 1);
+            } else if (event.key === "ArrowUp") {
+              event.preventDefault();
+              onFocusRow(index - 1);
+            }
+          }}
+        />
+        <span className="task-row-title">{row.title}</span>
+      </label>
       {linked ? (
         <button
           type="button"
-          className="max-w-[40%] shrink-0 cursor-pointer truncate rounded-lg px-1.5 py-0.5 text-[11px] text-theme-dim hover:bg-muted/60 hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+          className="task-source"
+          aria-label={`Open source note for ${row.title}: ${row.noteTitle}`}
+          title={`Open ${row.noteTitle}`}
           onClick={onOpenSource}
         >
-          {row.noteTitle}
+          <span aria-hidden="true">↗</span>
+          <span className="task-source-label">Open note</span>
         </button>
       ) : (
         <span className="shrink-0 px-1.5 text-[11px] text-theme-dim">
-          {row.detached ? "detached" : "note removed"}
+          {row.detached ? "Detached" : "No source"}
         </span>
       )}
     </li>

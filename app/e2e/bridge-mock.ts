@@ -1,3 +1,4 @@
+export { Channel } from "../node_modules/@tauri-apps/api/core.js";
 import type { WorkspaceOperationEnvelope, WorkspaceSnapshot } from "../src/contracts/workspace";
 
 type InvokeArguments = {
@@ -51,6 +52,12 @@ export function invoke<T>(command: string, arguments_: InvokeArguments = {}): Pr
     nextFailures.delete(command);
     return Promise.reject(new Error(failure));
   }
+  if (command === "load_auth_token") {
+    return Promise.resolve(null as T);
+  }
+  if (command === "plugin:event|listen" || command === "plugin:event|unlisten") {
+    return Promise.resolve(0 as T);
+  }
   if (command === "apply_workspace_operations") {
     const operations = arguments_.operations ?? [];
     return Promise.resolve({
@@ -62,7 +69,10 @@ export function invoke<T>(command: string, arguments_: InvokeArguments = {}): Pr
   if (command === "pick_import_file") {
     return Promise.resolve("/tmp/skriuw-provider-export" as T);
   }
-  if (command === "prepare_import_source") {
+  if (command === "pick_import_files") {
+    return Promise.resolve(["/tmp/skriuw-provider-export"] as T);
+  }
+  if (command === "prepare_import_source" || command === "prepare_import_sources") {
     return Promise.resolve({
       rootPath: "/tmp/skriuw-provider-export",
       temporary: false,

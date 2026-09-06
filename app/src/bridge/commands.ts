@@ -157,8 +157,8 @@ export function discardBlockedSyncOperation(blockedId: string): Promise<SyncReco
   return invoke<SyncRecoveryView>("discard_blocked_sync_operation", { blockedId });
 }
 
-export function searchWorkspace(query: string, limit: number): Promise<SearchHit[]> {
-  return invoke<SearchHit[]>("search_workspace", { query, limit });
+export function searchWorkspace(query: string, limit: number, noteIds: readonly string[] | null = null): Promise<SearchHit[]> {
+  return invoke<SearchHit[]>("search_workspace", { query, limit, noteIds });
 }
 
 export function readHistoryVersion(

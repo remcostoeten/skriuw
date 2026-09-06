@@ -73,11 +73,12 @@ pub fn close_workspace_window(window: tauri::WebviewWindow) -> Result<(), String
 #[tauri::command]
 pub async fn search_workspace(
     query: String,
+    note_ids: Option<Vec<String>>,
     limit: usize,
     state: State<'_, AppState>,
 ) -> Result<Vec<SearchHit>, String> {
     let completion = workspace_runtime(&state)?
-        .search(query, limit)
+        .search_filtered(query, limit, note_ids)
         .map_err(|error| error.to_string())?;
     wait_for(completion).await
 }

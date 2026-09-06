@@ -1,3 +1,4 @@
+import { savePersonalTemplate } from "@/features/templates/personal-templates";
 import { quitApp, toggleMaximize } from "@/store/actions/window";
 import {
   activateTabAtIndex,
@@ -296,6 +297,18 @@ export function createWorkspaceCommands(
       shortcut: "createNote",
       enabled: onNotesRoute,
       run: () => createNote(store, null),
+    },
+    {
+      id: "save-note-as-template",
+      label: "Save note as template",
+      group: "Actions",
+      keywords: ["personal", "template", "reuse"],
+      enabled: (state, ui) => onNotesRoute(state, ui) && targetNoteId(state) !== null,
+      run: () => {
+        const id = targetNoteId(store.getState());
+        if (!id) return;
+        void savePersonalTemplate(store, id).then(() => showToast({ message: "Template saved. Edit this note to update it. Use {{date}} for today’s date." })).catch((error: unknown) => showToast({ message: String(error) }));
+      },
     },
     {
       id: "new-note-from-template",

@@ -21,6 +21,7 @@ type IndexEntry = {
 };
 
 const entryCache = new WeakMap<object, IndexEntry[]>();
+const labelCollator = new Intl.Collator();
 
 function indexEntries(
   source: ReadonlyMap<string, unknown>,
@@ -35,7 +36,7 @@ function indexEntries(
     const label = toLabel(value);
     entries.push({ id, label, normalized: label.toLowerCase() });
   }
-  entries.sort((left, right) => left.normalized.localeCompare(right.normalized));
+  entries.sort((left, right) => labelCollator.compare(left.normalized, right.normalized));
   entryCache.set(source, entries);
   return entries;
 }

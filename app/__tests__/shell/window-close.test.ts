@@ -457,3 +457,24 @@ test("persisted close selection remains the next bootstrap selection", async () 
   assert.equal(nextState.activeNoteId, "note-2");
   assert.equal(nextState.focusedNodeId, "note-2");
 });
+
+test("disposing an in-flight close attempt never closes its replacement session", async () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  const window = fakeWindow();
+  let acknowledge: () => void = () => undefined;
+  const save = new Promise<void>((resolve) => { acknowledge = resolve; });
+  const unregister = registerPendingWork(() => save);
+  const cleanup = await bindWindowClosePersistence(store, async () => undefined, window.port);
+  try {
+    const close = window.request();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    cleanup();
+    acknowledge();
+    await close;
+    assert.equal(window.closeCalls(), 0);
+  } finally {
+    acknowledge();
+    unregister();
+    cleanup();
+  }
+});

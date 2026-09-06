@@ -378,7 +378,8 @@ export function EntityView({ store, kind }: Props) {
         <section
           aria-label={titleFor(kind)}
           className={cn(
-            "min-h-0 grid-rows-[auto_minmax(0,1fr)] border-r border-theme-divider md:grid",
+            "min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)]",
+            "border-r border-theme-divider md:grid",
             detailOpen ? "hidden" : "grid",
           )}
         >

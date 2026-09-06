@@ -11,16 +11,6 @@ import { parseSearchQuery, type ParsedSearchQuery } from "./query-parser";
  */
 export const MIN_FULL_TEXT_LENGTH = 2;
 
-/**
- * Full-text search ranks by bm25 across the whole workspace and knows nothing
- * about tags or people, so a filtered query has to over-fetch and intersect.
- * A note matching the filter but ranking below this many rows for the free
- * text will not appear; the bound is deliberate and measurable rather than an
- * operator pushed down into renderer-authored SQL.
- */
-const FILTERED_FETCH_MULTIPLIER = 25;
-const FILTERED_FETCH_MINIMUM = 200;
-
 const SNIPPET_LENGTH = 96;
 
 export type SearchPlanStatus = "idle" | "blocked" | "ready";
@@ -36,7 +26,7 @@ export type WorkspaceSearchPlan = {
    * notes, matching the backend's own exclusion.
    */
   allowedNoteIds: ReadonlySet<string> | null;
-  /** Rows to request from full-text search; over-fetches when filtered. */
+  /** Maximum results after applying relationship filters in storage. */
   fullTextLimit: number;
   requiresFullText: boolean;
   status: SearchPlanStatus;
@@ -73,9 +63,7 @@ export function planWorkspaceSearch(state: RendererState, raw: string, limit: nu
   const filtered = allowedNoteIds !== null;
   const minimumTextLength = filtered ? 1 : MIN_FULL_TEXT_LENGTH;
   const requiresFullText = parsed.text.length >= minimumTextLength;
-  const fullTextLimit = filtered
-    ? Math.max(limit * FILTERED_FETCH_MULTIPLIER, FILTERED_FETCH_MINIMUM)
-    : limit;
+  const fullTextLimit = limit;
 
   let status: SearchPlanStatus = "ready";
   if (resolution.problems.length > 0) {

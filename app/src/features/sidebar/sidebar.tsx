@@ -1,3 +1,4 @@
+import { SavedSearchList } from "./saved-search-list";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
@@ -218,6 +219,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   // one menu at it, instead of mounting a Radix ContextMenu per row.
   const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const savedSearchesRef = useRef<HTMLDivElement | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [metrics, setMetrics] = useState(() => treeMetrics(null));
   const [treeScrollRow, setTreeScrollRow] = useState(0);
@@ -365,7 +367,8 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
     const staysInside =
       next !== null &&
       (searchOverlayRef.current?.contains(next) === true ||
-        searchResultsRef.current?.contains(next) === true);
+        searchResultsRef.current?.contains(next) === true ||
+        savedSearchesRef.current?.contains(next) === true);
     if (!staysInside) {
       closeSearch();
     }
@@ -1267,6 +1270,16 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
             )}
           </AnimatePresence>
         </div>
+      </div>
+      <div ref={savedSearchesRef} onBlur={onSearchAreaBlur} className="shrink-0">
+        <SavedSearchList
+          store={store}
+          query={trimmedQuery}
+          onSelect={(query) => {
+            setSearchQuery(query);
+            setIsSearchOpen(true);
+          }}
+        />
       </div>
       {trimmedQuery ? (
         <SidebarSearchResults
