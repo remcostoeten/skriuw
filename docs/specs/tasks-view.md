@@ -17,6 +17,23 @@ Two things the implementation added beyond the plan below:
 - **The paste identity gap is closed**, not just documented; see the final
   section.
 
+## Task polish and keyboard behavior
+
+Task rows use rounded, theme-aware native checkboxes, a clickable title label,
+wrapped task text, and a separate source button. Completed titles are struck
+through while the checkbox exposes completion to assistive technology. The
+header shows remaining and completed totals, and each source heading shows its
+row count. Editor checkboxes use matching styling and are named by their text.
+
+Tab and Shift+Tab visit checkboxes and source buttons; Space toggles completion.
+Arrow keys move between checkboxes, Home/End jump to the first/last task, and
+Shift+Up/Down provide the same jumps. Enter on a linked checkbox opens its
+source. Visible focus rings and an inline keyboard guide expose these controls.
+Deep links focus once, so later updates do not take focus from another task.
+Keyboard actions and completion have no animation, including with reduced motion.
+
+Run `node app/e2e/run.mjs --tasks-only` for the task keyboard regression workflow.
+
 ## Goal
 
 A workspace-wide surface listing every task, grouped by its source note, that

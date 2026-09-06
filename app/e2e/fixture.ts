@@ -9,6 +9,7 @@ const now = 1_753_000_000_000;
 
 const settings: WorkspaceSettings = {
   settingsVersion: 1,
+  onboardingVersion: 1,
   theme: "midnight",
   compactSidebar: false,
   showPageIcons: true,

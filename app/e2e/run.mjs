@@ -15,6 +15,8 @@ const output = resolve(
     : "app/e2e/results/latest.json",
 );
 const chromeBinary = process.env.CHROME_BINARY ?? "google-chrome-stable";
+const personalOnly = process.argv.includes("--personal-only");
+const tasksOnly = process.argv.includes("--tasks-only");
 const providerImportOnly = process.argv.includes("--provider-import-only");
 const sleep = (milliseconds) =>
   new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
@@ -185,7 +187,17 @@ async function waitFor(cdp, sessionId, expression, description) {
     }
     await sleep(50);
   }
-  throw new Error(`timed out waiting for ${description}`);
+  const diagnostic = await evaluate(
+    cdp,
+    sessionId,
+    `JSON.stringify({
+      hash: window.location.hash,
+      activeElement: document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.textContent?.trim().slice(0, 40) ?? null,
+      openDialogs: [...document.querySelectorAll('dialog[open]')].map((dialog) => dialog.querySelector('h2')?.textContent ?? '(untitled)'),
+      status: [...document.querySelectorAll('[role="status"]')].map((node) => node.textContent.trim()).filter(Boolean).slice(0, 4),
+    })`,
+  );
+  throw new Error(`timed out waiting for ${description}: ${diagnostic}`);
 }
 
 async function dispatchKey(
@@ -269,6 +281,139 @@ function assert(checks, name, pass, detail) {
   }
 }
 
+async function runProviderImport(cdp, sessionId, checks, control, settle, state) {
+  let current = null;
+  await dispatchKey(cdp, sessionId, "k", "KeyK", 75, "", 2);
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('dialog[open] [role=\"combobox\"]') !== null",
+    "provider import command palette",
+  );
+  await typeText(cdp, sessionId, "Import provider export");
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('dialog[open] h2')?.textContent === 'Preview import'",
+    "provider import preview",
+  );
+  await control('focusNamed("Destination")');
+  await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('[role=\"listbox\"][aria-label=\"Destination\"] [role=\"option\"]') !== null",
+    "import destination options",
+  );
+  await evaluate(
+    cdp,
+    sessionId,
+    `[...document.querySelectorAll('[role="listbox"][aria-label="Destination"] [role="option"]')]
+      .find((option) => option.textContent.trim() === 'Projects')
+      .click()`,
+  );
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('button[aria-label=\"Destination\"]')?.textContent.includes('Projects')",
+    "import destination selected",
+  );
+  await control('focusContaining("Import 1 note")');
+  await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.body.textContent.includes('Import complete (Obsidian)')",
+    "provider import completion",
+  );
+  await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
+  await waitFor(
+    cdp,
+    sessionId,
+    "[...document.querySelectorAll('dialog[open] h2')].every((heading) => !heading.textContent.includes('Import complete'))",
+    "import report dismissed",
+  );
+  await settle();
+  current = await state();
+  const importedNoteId = Object.keys(current.nodeTitles).find(
+    (id) => current.nodeTitles[id] === "Provider note",
+  );
+  assert(
+    checks,
+    "provider-import-destination-and-commit",
+    importedNoteId &&
+      current.parents[current.parents[importedNoteId]] === "folder-a",
+    JSON.stringify({ importedNoteId, parents: current.parents }),
+  );
+  assert(
+    checks,
+    "provider-import-bridge-command-flow",
+    current.bridgeCommands.includes("prepare_import_sources") &&
+      current.bridgeCommands.includes("apply_workspace_operations"),
+    JSON.stringify(current.bridgeCommands),
+  );
+  return current;
+}
+
+async function checkTaskKeyboard(cdp, sessionId, checks) {
+  await evaluate(cdp, sessionId, "window.location.hash = '#/notes'");
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.settle()");
+  await evaluate(cdp, sessionId, 'window.__SKRIUW_WORKFLOW_E2E__.focusRow("note-alpha")');
+  await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('.ProseMirror[contenteditable=\"true\"]') !== null",
+    "editable note for task keyboard checks",
+  );
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.focusEditor()");
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13, "", 8);
+  await typeText(cdp, sessionId, "- [] Plan the next release");
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await typeText(cdp, sessionId, "Review the keyboard experience");
+  await waitFor(cdp, sessionId, "document.querySelectorAll('.check-item').length === 2", "two editor tasks");
+  const firstId = await evaluate(cdp, sessionId, "document.querySelector('.check-item').dataset.taskId");
+  await evaluate(cdp, sessionId, `window.location.hash = '#/tasks/${firstId}'`);
+  await waitFor(cdp, sessionId, "document.querySelectorAll('.task-checkbox').length === 2", "saved workspace tasks");
+  await evaluate(cdp, sessionId, "window.location.hash = '#/tasks/' + document.querySelector('.task-checkbox').dataset.taskId");
+  await waitFor(cdp, sessionId, "document.activeElement === document.querySelector('.task-checkbox')", "deep-linked task focus");
+  const secondTitle = await evaluate(cdp, sessionId, "document.querySelectorAll('.task-checkbox')[1].getAttribute('aria-label')");
+  await dispatchKey(cdp, sessionId, "ArrowDown", "ArrowDown", 40);
+  await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+  await waitFor(cdp, sessionId, "document.querySelectorAll('.task-checkbox')[1].checked", "Space completes task");
+  assert(checks, "task-toggle-retains-moved-focus", await evaluate(cdp, sessionId,
+    "document.activeElement === document.querySelectorAll('.task-checkbox')[1]"), "focus stays on the second task after a deep link");
+  await dispatchKey(cdp, sessionId, "Home", "Home", 36);
+  assert(checks, "task-home-focus", await evaluate(cdp, sessionId,
+    "document.activeElement === document.querySelector('.task-checkbox')"), "Home focuses first task");
+  await dispatchKey(cdp, sessionId, "End", "End", 35);
+  assert(checks, "task-end-focus", await evaluate(cdp, sessionId,
+    "document.activeElement === document.querySelectorAll('.task-checkbox')[1]"), "End focuses last task");
+  await dispatchKey(cdp, sessionId, "Tab", "Tab", 9);
+  assert(checks, "task-source-tab-focus", await evaluate(cdp, sessionId,
+    "document.activeElement.classList.contains('task-source')"), "Tab reaches source button");
+  await dispatchKey(cdp, sessionId, "Tab", "Tab", 9, "", 8);
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await waitFor(cdp, sessionId, "window.location.hash === '#/notes'", "Enter opens source");
+  assert(checks, "task-source-completion-matches", await evaluate(cdp, sessionId,
+    `[...document.querySelectorAll('.check-item')].find(item => item.textContent === ${JSON.stringify(secondTitle)})?.dataset.checked === 'true'`), "source checklist reflects completion");
+  const uncheckedTitle = await evaluate(cdp, sessionId, "document.querySelector('.check-item[data-checked=false]').textContent");
+  await evaluate(cdp, sessionId, 'window.__SKRIUW_WORKFLOW_E2E__.focusSelector(".check-item[data-checked=false] .check-item-box")');
+  await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+  await waitFor(cdp, sessionId, "document.querySelectorAll('.check-item[data-checked=true]').length === 2", "editor keyboard completion");
+  assert(checks, "editor-toggle-retains-focus", await evaluate(cdp, sessionId,
+    "document.activeElement?.classList.contains('check-item-box')"), "editor checkbox retains keyboard focus");
+  assert(checks, "editor-checkbox-accessible-name", await evaluate(cdp, sessionId,
+    `document.getElementById(document.activeElement.getAttribute("aria-labelledby"))?.textContent === ${JSON.stringify(uncheckedTitle)}`), "checkbox is named by task text");
+  const accessibility = await cdp.send("Accessibility.getFullAXTree", {}, sessionId);
+  assert(checks, "editor-checkbox-accessibility-tree", accessibility.nodes.some((node) =>
+    node.role?.value === "checkbox" && node.name?.value === uncheckedTitle &&
+    node.properties?.some((property) => property.name === "checked" && property.value.value === "true")),
+    "browser exposes the task name and checked state to assistive technology");
+
+}
+
 async function runWorkflow() {
   const profileDirectory = await mkdtemp(join(tmpdir(), "skriuw-c3-workflow-"));
   let chrome;
@@ -322,6 +467,54 @@ async function runWorkflow() {
     const settle = () => control("settle()");
     const state = () => control("state()");
 
+    if (personalOnly) {
+      await control('focusNamed("Command menu")');
+      await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+      await typeText(cdp, sessionId, "Save note as template");
+      await settle();
+      await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+      await waitFor(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.state().settings.noteTemplateIds?.length === 1", "saved template");
+      await control('focusNamed("Command menu")');
+      await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+      await typeText(cdp, sessionId, "New note from template");
+      await settle();
+      await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+      await waitFor(cdp, sessionId, `document.querySelector('[aria-label="Note templates"]') !== null`, "template picker");
+      assert(checks, "personal-template-visible", await evaluate(cdp, sessionId, 'document.body.textContent.includes("Personal template")'), "personal source in picker");
+      const before = (await state()).nodeOrder.length;
+      await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+      await waitFor(cdp, sessionId, `window.__SKRIUW_WORKFLOW_E2E__.state().nodeOrder.length === ${before + 1}`, "template copy");
+      assert(checks, "template-copy-created", true, "new canonical note created");
+      await control('focusNamed("Search notes")');
+      await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+      await settle();
+      await evaluate(cdp, sessionId, `document.querySelector('input[aria-label="Search notes"]').focus()`);
+      await typeText(cdp, sessionId, "Alpha");
+      await settle();
+      await control('focusNamed("Save this search")');
+      await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+      await waitFor(cdp, sessionId, 'window.__SKRIUW_WORKFLOW_E2E__.state().settings.savedSearches?.includes("Alpha")', "saved query");
+      await control('focusNamed("Close search")');
+      await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+      await evaluate(cdp, sessionId, `document.querySelector('nav[aria-label="Saved searches"] button').focus()`);
+      await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+      await waitFor(cdp, sessionId, `document.querySelector('input[aria-label="Search notes"]')?.value === "Alpha"`, "reopened query");
+      assert(checks, "saved-search-reopened", true, "saved query restores sidebar search");
+      await control('focusNamed("Remove saved search Alpha")');
+      await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+      await waitFor(cdp, sessionId, 'window.__SKRIUW_WORKFLOW_E2E__.state().settings.savedSearches?.length === 0', "removed query");
+      assert(checks, "personal-browser-errors-empty", consoleErrors.length === 0 && pageErrors.length === 0, JSON.stringify({ consoleErrors, pageErrors }));
+      cdp.close();
+      return { browser: browser.product, steps: ["personal-template", "saved-search"], checks, consoleErrors, pageErrors };
+    }
+
+    if (tasksOnly) {
+      await checkTaskKeyboard(cdp, sessionId, checks);
+      assert(checks, "task-browser-errors-empty", consoleErrors.length === 0 && pageErrors.length === 0, JSON.stringify({ consoleErrors, pageErrors }));
+      cdp.close();
+      return { browser: browser.product, steps: ["task-keyboard"], checks, consoleErrors, pageErrors };
+    }
+
     let current = await state();
     assert(checks, "initial-route", current.route === "#/notes", current.route);
     assert(
@@ -344,57 +537,7 @@ async function runWorkflow() {
     );
 
     if (providerImportOnly) {
-      await dispatchKey(cdp, sessionId, "k", "KeyK", 75, "", 2);
-      await waitFor(
-        cdp,
-        sessionId,
-        "document.querySelector('[role=\"dialog\"][aria-label=\"Command palette\"]') !== null",
-        "provider import command palette",
-      );
-      await typeText(cdp, sessionId, "Import provider export");
-      await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
-      await waitFor(
-        cdp,
-        sessionId,
-        "document.querySelector('dialog[open] h2')?.textContent === 'Preview import'",
-        "provider import preview",
-      );
-      await evaluate(
-        cdp,
-        sessionId,
-        `(() => {
-          const destination = document.querySelector('#import-destination');
-          destination.value = 'folder-a';
-          destination.dispatchEvent(new Event('change', { bubbles: true }));
-        })()`,
-      );
-      await control('focusContaining("Import 1 note")');
-      await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-      await waitFor(
-        cdp,
-        sessionId,
-        "document.body.textContent.includes('Import complete (Obsidian)')",
-        "provider import completion",
-      );
-      await settle();
-      current = await state();
-      const importedNoteId = Object.keys(current.nodeTitles).find(
-        (id) => current.nodeTitles[id] === "Provider note",
-      );
-      assert(
-        checks,
-        "provider-import-destination-and-commit",
-        importedNoteId &&
-          current.parents[current.parents[importedNoteId]] === "folder-a",
-        JSON.stringify({ importedNoteId, parents: current.parents }),
-      );
-      assert(
-        checks,
-        "provider-import-bridge-command-flow",
-        current.bridgeCommands.includes("prepare_import_source") &&
-          current.bridgeCommands.includes("apply_workspace_operations"),
-        JSON.stringify(current.bridgeCommands),
-      );
+      current = await runProviderImport(cdp, sessionId, checks, control, settle, state);
       assert(
         checks,
         "provider-import-console-clean",
@@ -668,7 +811,12 @@ async function runWorkflow() {
       "document.querySelector('input[aria-label^=\"Jump to line\"]') !== null",
       "jump-to-line input after find",
     );
-    await settle();
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('input[aria-label=\"Find\"]') === null",
+      "find panel exit after morph to jump",
+    );
     assert(
       checks,
       "find-and-jump-share-one-resizing-overlay",
@@ -694,7 +842,12 @@ async function runWorkflow() {
       "document.querySelector('input[aria-label=\"Find\"]') !== null",
       "find input after jump",
     );
-    await settle();
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('input[aria-label^=\"Jump to line\"]') === null",
+      "jump panel exit after morph to find",
+    );
     assert(
       checks,
       "jump-switches-back-to-find-in-the-same-overlay",
@@ -756,10 +909,10 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('button[aria-label=\"Replace All\"]:not([disabled])') !== null",
+      "document.querySelector('button[aria-label=\"Replace all\"]:not([disabled])') !== null",
       "enabled replace-all action",
     );
-    await control('focusNamed("Replace All")');
+    await control('focusNamed("Replace all")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
     await settle();
     assert(
@@ -822,7 +975,7 @@ async function runWorkflow() {
       current.deleted.includes("note-beta"),
       JSON.stringify(current.deleted),
     );
-    await dispatchKey(cdp, sessionId, "4", "Digit4", 52, "", 10);
+    await dispatchKey(cdp, sessionId, "6", "Digit6", 54, "", 10);
     await waitFor(
       cdp,
       sessionId,
@@ -830,7 +983,7 @@ async function runWorkflow() {
       "trash route",
     );
     await settle();
-    await control('focusContaining("Restore note")');
+    await control('focusNamed("Restore Beta note")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
     await settle();
     current = await state();
@@ -858,7 +1011,7 @@ async function runWorkflow() {
       current.deleted.includes("note-beta"),
       JSON.stringify(current.deleted),
     );
-    await dispatchKey(cdp, sessionId, "4", "Digit4", 52, "", 10);
+    await dispatchKey(cdp, sessionId, "6", "Digit6", 54, "", 10);
     await waitFor(
       cdp,
       sessionId,
@@ -866,15 +1019,15 @@ async function runWorkflow() {
       "trash route for purge",
     );
     await settle();
-    await control('focusNamed("Delete permanently")');
+    await control('focusNamed("Delete Beta note permanently")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('[role=\"group\"][aria-label=\"Delete permanently\"] button') !== null",
+      "document.querySelector('[role=\"group\"][aria-label=\"Delete forever\"] button') !== null",
       "armed purge confirmation",
     );
-    await control('focusLastNamed("Delete permanently")');
+    await control('focusLastNamed("Delete forever")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
     await settle();
     current = await state();
@@ -920,6 +1073,13 @@ async function runWorkflow() {
       current.activeNoteId === "note-alpha",
       JSON.stringify(current),
     );
+    await evaluate(cdp, sessionId, "window.location.hash = '#/history/note-alpha'");
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('[role=\"listbox\"][aria-label=\"Version history\"] [role=\"option\"]') !== null",
+      "history route",
+    );
     await control('focusContaining("Earlier alpha version")');
     current = await state();
     assert(
@@ -932,24 +1092,42 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('dialog[open] h2')?.textContent === 'Version preview'",
+      "document.querySelector('[aria-label=\"Preview mode\"]') !== null",
       "history preview",
     );
-    await control('focusNamed("Restore this version")');
+    await control('focusNamed("Restore")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-    await settle();
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('[role=\"group\"][aria-label=\"Restore\"] button') !== null",
+      "armed history restore confirmation",
+    );
     await control('focusLastNamed("Restore")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-    await settle();
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('[aria-label=\"Preview mode\"]') === null",
+      "history preview closed after restore",
+    );
     current = await state();
     assert(
       checks,
       "keyboard-history-restore",
-      current.dialog === null &&
-        current.bridgeCommands.includes("read_history_version") &&
+      current.bridgeCommands.includes("read_history_version") &&
         current.bridgeCommands.includes("apply_workspace_operations"),
       JSON.stringify(current),
     );
+    await control('focusNamed("Back to note")');
+    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+    await waitFor(
+      cdp,
+      sessionId,
+      "window.location.hash === '#/notes'",
+      "notes route after history",
+    );
+    await settle();
     assert(
       checks,
       "metadata-state",
@@ -966,10 +1144,11 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('[role=\"dialog\"][aria-label=\"Command palette\"]') !== null",
+      "document.querySelector('dialog[open] [role=\"combobox\"]') !== null",
       "command palette",
     );
     await typeText(cdp, sessionId, "Toggle sidebar");
+    await settle();
     await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
     await settle();
     assert(
@@ -978,7 +1157,7 @@ async function runWorkflow() {
       (await evaluate(
         cdp,
         sessionId,
-        "document.querySelector('[role=\"tree\"]') === null",
+        "document.querySelector('[role=\"tree\"]')?.closest('[aria-hidden=\"true\"]') !== null",
       )) === true,
       "palette command did not toggle sidebar",
     );
@@ -986,57 +1165,7 @@ async function runWorkflow() {
     await settle();
     steps.push("palette");
 
-    await dispatchKey(cdp, sessionId, "k", "KeyK", 75, "", 2);
-    await waitFor(
-      cdp,
-      sessionId,
-      "document.querySelector('[role=\"dialog\"][aria-label=\"Command palette\"]') !== null",
-      "provider import command palette",
-    );
-    await typeText(cdp, sessionId, "Import provider export");
-    await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
-    await waitFor(
-      cdp,
-      sessionId,
-      "document.querySelector('dialog[open] h2')?.textContent === 'Preview import'",
-      "provider import preview",
-    );
-    await evaluate(
-      cdp,
-      sessionId,
-      `(() => {
-        const destination = document.querySelector('#import-destination');
-        destination.value = 'folder-a';
-        destination.dispatchEvent(new Event('change', { bubbles: true }));
-      })()`,
-    );
-    await control('focusContaining("Import 1 note")');
-    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-    await waitFor(
-      cdp,
-      sessionId,
-      "document.body.textContent.includes('Import complete (Obsidian)')",
-      "provider import completion",
-    );
-    await settle();
-    current = await state();
-    const importedNoteId = Object.keys(current.nodeTitles).find(
-      (id) => current.nodeTitles[id] === "Provider note",
-    );
-    assert(
-      checks,
-      "provider-import-destination-and-commit",
-      importedNoteId &&
-        current.parents[current.parents[importedNoteId]] === "folder-a",
-      JSON.stringify({ importedNoteId, parents: current.parents }),
-    );
-    assert(
-      checks,
-      "provider-import-bridge-command-flow",
-      current.bridgeCommands.includes("prepare_import_source") &&
-        current.bridgeCommands.includes("apply_workspace_operations"),
-      JSON.stringify(current.bridgeCommands),
-    );
+    current = await runProviderImport(cdp, sessionId, checks, control, settle, state);
     steps.push("provider-import");
 
     await control('focusNamed("Settings")');
@@ -1044,7 +1173,7 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('dialog[open] h2')?.textContent === 'Settings'",
+      "[...document.querySelectorAll('dialog[open] h2')].some((heading) => heading.textContent === 'Settings')",
       "settings dialog",
     );
     await control('focusLabel("Reduce motion")');
@@ -1078,7 +1207,7 @@ async function runWorkflow() {
     );
     steps.push("settings-shortcut-rebind");
 
-    await control('focusNamed("Data")');
+    await control('focusNamed("Data & recovery")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
     await settle();
     await control('failNext("export_workspace_archive", "injected export failure")');
@@ -1102,11 +1231,22 @@ async function runWorkflow() {
       current.statusText.some((text) => text.includes("Exported")),
       JSON.stringify(current.statusText),
     );
-    await control('focusSelector("#settings-import-path")');
-    await typeText(cdp, sessionId, "/tmp/skriuw-e2e-export.json");
-    await control('focusNamed("Import…")');
+    await control('focusNamed("Choose archive…")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-    await settle();
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.body.textContent.includes('/tmp/skriuw-provider-export')",
+      "chosen archive path",
+    );
+    await control('focusNamed("Replace…")');
+    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('[role=\"group\"][aria-label=\"Replace workspace\"] button') !== null",
+      "armed archive replace confirmation",
+    );
     await control('focusLastNamed("Replace workspace")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
     await settle();
@@ -1135,7 +1275,12 @@ async function runWorkflow() {
     );
     await control('focusNamed("Restore…")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-    await settle();
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('[role=\"group\"][aria-label=\"Restore backup\"] button') !== null",
+      "armed backup restore confirmation",
+    );
     await control('focusLastNamed("Restore backup")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
     await settle();
@@ -1162,7 +1307,7 @@ async function runWorkflow() {
       current.activeElement === "Settings",
       current.activeElement,
     );
-    await dispatchKey(cdp, sessionId, "2", "Digit2", 50, "", 10);
+    await dispatchKey(cdp, sessionId, "4", "Digit4", 52, "", 10);
     await waitFor(
       cdp,
       sessionId,
@@ -1183,11 +1328,11 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('dialog[open] h2')?.textContent === 'New tag'",
-      "new tag dialog",
+      "document.querySelector('form[aria-label=\"New tag\"] input[aria-label=\"Name\"]') !== null",
+      "new tag form",
     );
     await settle();
-    await control('focusSelector("dialog[open] input[type=\\"text\\"]")');
+    await control('focusSelector("form[aria-label=\\"New tag\\"] input[aria-label=\\"Name\\"]")');
     await typeText(cdp, sessionId, "Urgent");
     await dispatchKey(cdp, sessionId, "Enter", "Enter", 13, "\r");
     await settle();
@@ -1203,11 +1348,11 @@ async function runWorkflow() {
     assert(
       checks,
       "entity-row-arrow-focus",
-      (await evaluate(
+      await evaluate(
         cdp,
         sessionId,
-        "document.activeElement?.getAttribute('data-entity-id')",
-      )) === "tag-research",
+        "document.activeElement?.textContent.includes('Urgent') === true",
+      ),
       "ArrowDown did not move entity row focus",
     );
     await dispatchKey(cdp, sessionId, "End", "End", 35);
@@ -1229,7 +1374,7 @@ async function runWorkflow() {
         cdp,
         sessionId,
         "document.activeElement?.getAttribute('data-entity-id')",
-      )) === "tag-ideas",
+      )) === "tag-research",
       "Home did not focus the first entity row",
     );
     async function openEntityMenu(rowName, itemLabel) {
@@ -1240,6 +1385,12 @@ async function runWorkflow() {
         sessionId,
         `[...document.querySelectorAll('[role="menuitem"]')].some((item) => item.textContent.includes(${JSON.stringify(itemLabel)}))`,
         `${itemLabel} entity context item`,
+      );
+      await settle();
+      await evaluate(
+        cdp,
+        sessionId,
+        "document.activeElement?.getAttribute('role') === 'menuitem' || document.querySelector('[role=\"menu\"] [role=\"menuitem\"]')?.focus()",
       );
       await settle();
       const isTarget = `document.activeElement?.getAttribute('role') === 'menuitem' && document.activeElement.textContent.includes(${JSON.stringify(itemLabel)})`;
@@ -1296,7 +1447,7 @@ async function runWorkflow() {
     );
     steps.push("entity-tags");
 
-    await dispatchKey(cdp, sessionId, "3", "Digit3", 51, "", 10);
+    await dispatchKey(cdp, sessionId, "5", "Digit5", 53, "", 10);
     await waitFor(
       cdp,
       sessionId,
@@ -1321,11 +1472,11 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('dialog[open] h2')?.textContent === 'New person'",
-      "new person dialog",
+      "document.querySelector('form[aria-label=\"New person\"] input[aria-label=\"Name\"]') !== null",
+      "new person form",
     );
     await settle();
-    await control('focusSelector("dialog[open] input[type=\\"text\\"]")');
+    await control('focusSelector("form[aria-label=\\"New person\\"] input[aria-label=\\"Name\\"]")');
     await typeText(cdp, sessionId, "Ada Lovelace");
     await dispatchKey(cdp, sessionId, "Enter", "Enter", 13, "\r");
     await settle();
@@ -1380,9 +1531,11 @@ async function runWorkflow() {
     assert(
       checks,
       "complete-workflow-step-set",
-      steps.length === 16,
+      steps.length === 18,
       JSON.stringify(steps),
     );
+    await checkTaskKeyboard(cdp, sessionId, checks);
+    steps.push("task-keyboard");
     cdp.close();
     return {
       browser: browser.product,
@@ -1440,7 +1593,7 @@ try {
     schemaVersion: 1,
     verifiedAt: new Date().toISOString(),
     revision: git.stdout.trim(),
-    command: `node app/e2e/run.mjs${providerImportOnly ? " --provider-import-only" : ""} --output ${output}`,
+    command: `node app/e2e/run.mjs${personalOnly ? " --personal-only" : providerImportOnly ? " --provider-import-only" : tasksOnly ? " --tasks-only" : ""} --output ${output}`,
     machine: {
       hostname: hostname(),
       platform: platform(),

@@ -1,3 +1,4 @@
+import type { Node } from "prosemirror-model";
 import type { WorkspaceOperation } from "@/contracts/workspace";
 import { documentTitleText, type IdFactory } from "@/store/actions/duplicate-note";
 import { boundTitle } from "@/features/editor/note-title";
@@ -10,6 +11,10 @@ import type { NotePropertyTemplate, PropertyIdFactory } from "@/features/propert
 
 export type NoteTemplate = {
   id: string;
+  sourceNoteId?: string;
+  defaultParentId?: string | null;
+  propertyTemplate?: NotePropertyTemplate;
+  buildDocument?: (at: number, createId: IdFactory) => Node;
   name: string;
   description: string;
   /**
@@ -187,6 +192,7 @@ export function noteTemplate(id: string): NoteTemplate | null {
 export function templatePropertyTemplate(
   template: NoteTemplate,
 ): NotePropertyTemplate | null {
+  if (template.propertyTemplate) return template.propertyTemplate;
   if (template.propertyTemplateId === null) {
     return null;
   }
@@ -230,7 +236,7 @@ export function planTemplateNote(
   at: number,
   createId: IdFactory,
 ): NoteTemplatePlan {
-  const document = parseProductMarkdown(template.buildMarkdown(at));
+  const document = template.buildDocument?.(at, createId) ?? parseProductMarkdown(template.buildMarkdown(at));
   const documentJson = document.toJSON();
   const markdown = serializeProductMarkdown(document);
   const noteId = createId();

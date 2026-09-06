@@ -149,9 +149,9 @@ test("stacked filters intersect rather than union", () => {
   assert.deepEqual(resultIds(store, "#design #ops budget", all), []);
 });
 
-test("a filtered query over-fetches so intersection has rows to work with", () => {
+test("a filtered query limits after storage applies its candidate IDs", () => {
   const plan = planWorkspaceSearch(fixtureStore().getState(), "#design budget", LIMIT);
-  assert.ok(plan.fullTextLimit > LIMIT * 10);
+  assert.equal(plan.fullTextLimit, LIMIT);
   assert.equal(plan.requiresFullText, true);
 });
 

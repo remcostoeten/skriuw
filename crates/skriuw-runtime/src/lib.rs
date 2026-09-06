@@ -135,9 +135,19 @@ impl WorkspaceRuntime {
         query: impl Into<String>,
         limit: usize,
     ) -> Result<Completion<Vec<SearchHit>>, RuntimeError> {
+        self.search_filtered(query, limit, None)
+    }
+
+    pub fn search_filtered(
+        &self,
+        query: impl Into<String>,
+        limit: usize,
+        note_ids: Option<Vec<String>>,
+    ) -> Result<Completion<Vec<SearchHit>>, RuntimeError> {
         let (sender, receiver) = mpsc::channel();
         self.shared.submit(Request::Search {
             query: query.into(),
+            note_ids,
             limit,
             sender,
         })?;
@@ -244,6 +254,7 @@ enum Request {
         sender: Sender<Result<OperationAck, StorageError>>,
     },
     Search {
+        note_ids: Option<Vec<String>>,
         query: String,
         limit: usize,
         sender: Sender<Result<Vec<SearchHit>, StorageError>>,
@@ -305,11 +316,12 @@ fn run(storage: impl WorkspaceStorage, receiver: Receiver<Request>) {
                 let _ = sender.send(storage.apply_operations(&operations));
             }
             Request::Search {
+                note_ids,
                 query,
                 limit,
                 sender,
             } => {
-                let _ = sender.send(storage.search(&query, limit));
+                let _ = sender.send(storage.search_filtered(&query, limit, note_ids.as_deref()));
             }
             Request::ReadDelta { ids, sender } => {
                 let _ = sender.send(storage.read_workspace_delta(&ids));

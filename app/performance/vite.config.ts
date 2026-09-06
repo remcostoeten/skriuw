@@ -8,6 +8,9 @@ export default defineConfig({
   base: "./",
   publicDir: resolve(import.meta.dirname, "public"),
   plugins: [react(), tailwindcss()],
+  define: {
+    "import.meta.env.VITE_SKRIUW_CLOUD_URL": JSON.stringify("http://performance.invalid"),
+  },
   resolve: {
     alias: [
       { find: "@", replacement: resolve(import.meta.dirname, "../src") },

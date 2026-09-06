@@ -321,7 +321,35 @@ impl WorkspaceSettings {
         validate_id("editor font", &self.editor_font)?;
         validate_id("editor line height", &self.editor_line_height)?;
         validate_setting_text("editor placeholder", &self.editor_placeholder)?;
-        for key in self.extensions.keys() {
+        for (key, value) in &self.extensions {
+            if key == "noteTemplateIds" || key == "savedSearches" {
+                let maximum = if key == "noteTemplateIds" { 200 } else { 100 };
+                let entries = value
+                    .as_array()
+                    .ok_or(OperationValidationError::InvalidDocument)?;
+                if entries.len() > maximum {
+                    return Err(OperationValidationError::TooLong {
+                        field: "saved preferences",
+                        maximum,
+                    });
+                }
+                for entry in entries {
+                    let text = entry
+                        .as_str()
+                        .ok_or(OperationValidationError::InvalidDocument)?;
+                    if key == "noteTemplateIds" {
+                        validate_id("template note id", text)?;
+                    } else {
+                        validate_bounded_text("saved search", text, 2048)?;
+                        if text.encode_utf16().count() > 512 {
+                            return Err(OperationValidationError::TooLong {
+                                field: "saved search",
+                                maximum: 512,
+                            });
+                        }
+                    }
+                }
+            }
             validate_setting_key(key)?;
             if SETTINGS_FIELDS.contains(&key.as_str()) {
                 return Err(OperationValidationError::SettingFieldCollision { key: key.clone() });

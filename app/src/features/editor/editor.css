@@ -95,37 +95,44 @@
 .prosemirror-host .ProseMirror .check-item-box {
   position: relative;
   flex: none;
-  width: 15px;
-  height: 15px;
-  margin-top: 0.42em;
-  border: 1.5px solid hsl(var(--border));
-  border-radius: 4px;
+  width: 18px;
+  height: 18px;
+  margin-top: 0.34em;
+  border: 1.5px solid hsl(var(--theme-text-secondary));
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 100ms ease, border-color 100ms ease;
 }
 
-.prosemirror-host .ProseMirror .check-item-box:hover {
-  border-color: hsl(var(--ring));
+.prosemirror-host .ProseMirror .check-item-box::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .prosemirror-host .ProseMirror .check-item-box:hover {
+    border-color: hsl(var(--ring));
+  }
 }
 
 .prosemirror-host .ProseMirror .check-item-box:focus-visible {
-  outline: 2px solid hsl(var(--ring));
+  outline: 2px solid hsl(var(--foreground) / 0.75);
   outline-offset: 2px;
 }
 
 .prosemirror-host .ProseMirror .check-item[data-checked="true"] > .check-item-box {
-  background: hsl(var(--primary));
-  border-color: hsl(var(--primary));
+  background: hsl(var(--success));
+  border-color: hsl(var(--success));
 }
 
 .prosemirror-host .ProseMirror .check-item[data-checked="true"] > .check-item-box::after {
   content: "";
   position: absolute;
-  left: 4px;
-  top: 1px;
+  left: 5px;
+  top: 2px;
   width: 4px;
   height: 8px;
-  border: solid hsl(var(--primary-foreground));
+  border: solid hsl(var(--theme-bg-editor));
   border-width: 0 1.5px 1.5px 0;
   transform: rotate(45deg);
 }
@@ -279,6 +286,7 @@
   --raw-markdown-gutter: 0px;
   --raw-markdown-inset: 0px;
   --raw-markdown-edge: 0.5rem;
+  --raw-markdown-scrollbar: 0px;
   position: relative;
   font-family: var(--font-mono);
   font-size: var(--raw-markdown-size);
@@ -306,7 +314,8 @@
   padding: 0 var(--raw-markdown-edge) 0 var(--raw-markdown-inset);
   margin: 0;
   font: inherit;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
   border: 0;
 }
 
@@ -316,6 +325,7 @@
   display: block;
   width: 100%;
   min-height: 60vh;
+  overflow-x: hidden;
   resize: none;
   outline: none;
   background: transparent;
@@ -373,62 +383,45 @@
   will-change: transform;
 }
 
-.raw-markdown-active-line {
-  position: absolute;
-  right: 0;
-  left: 0;
-  height: var(--raw-markdown-row);
-  border-radius: 4px;
-  background: hsl(var(--muted) / 0.4);
-  opacity: 0;
-  transition: opacity 120ms ease-out;
-}
-
-.raw-markdown-surface:focus-within .raw-markdown-active-line {
-  opacity: 1;
-}
-
 .raw-markdown-highlight {
   position: relative;
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  padding-right: calc(var(--raw-markdown-edge) + var(--raw-markdown-scrollbar));
   color: hsl(var(--foreground));
-  will-change: transform;
 }
 
+/* Wrapped lines have no fixed height, so the active-line band is the line box
+   itself rather than a row-indexed strip behind it. */
 .raw-markdown-line {
   display: block;
+  position: relative;
   min-height: var(--raw-markdown-row);
+  border-radius: 4px;
+  transition: background-color 120ms ease-out;
 }
 
-.raw-markdown-gutter {
-  position: absolute;
-  inset-block: 0;
-  left: 0;
-  z-index: 2;
-  width: var(--raw-markdown-gutter);
-  overflow: hidden;
-  color: hsl(var(--muted-foreground) / 0.38);
-  text-align: right;
-  user-select: none;
-  pointer-events: none;
+.raw-markdown-surface:focus-within .raw-markdown-line[data-active="true"] {
+  background: hsl(var(--muted) / 0.4);
 }
 
-.raw-markdown-gutter-content {
-  will-change: transform;
-}
-
+/* The number hangs out of the line box so it never joins the wrapped text. */
 .raw-markdown-gutter-line {
-  display: block;
+  position: absolute;
+  top: 0;
+  left: calc(-1 * var(--raw-markdown-inset));
+  width: var(--raw-markdown-gutter);
   height: var(--raw-markdown-row);
   padding-right: 0.75rem;
+  color: hsl(var(--muted-foreground) / 0.38);
   font-size: 0.8em;
   line-height: var(--raw-markdown-row);
   font-variant-numeric: tabular-nums;
+  text-align: right;
+  user-select: none;
   transition: color 120ms ease-out;
 }
 
-.raw-markdown-gutter-line[data-active="true"] {
+.raw-markdown-line[data-active="true"] .raw-markdown-gutter-line {
   color: hsl(var(--foreground) / 0.8);
 }
 

@@ -27,7 +27,6 @@ import {
   parseJumpToLineInput,
   rawMarkdownCursorStatus,
   rawMarkdownLineCount,
-  rawMarkdownLineNumbers,
   rawMarkdownLineOffset,
   rawMarkdownLineScrollTop,
 } from "./raw-markdown-editor-model";
@@ -51,6 +50,8 @@ const MARKDOWN_SCOPES = ["markdown"];
  * Highlighting walks the whole source on every keystroke. Past this size the
  * overlay is dropped and the textarea paints its own text, which keeps very
  * large imported notes typeable instead of trading correctness for colour.
+ * Line numbers ride along with the overlay lines — wrapped rows have no fixed
+ * height — so they degrade with it.
  */
 const HIGHLIGHT_CHARACTER_LIMIT = 200_000;
 
@@ -74,11 +75,24 @@ function renderToken(token: RawMarkdownToken, index: number) {
   );
 }
 
-function HighlightedSource({ highlight }: { highlight: RawMarkdownHighlight }) {
+type SourceProps = {
+  highlight: RawMarkdownHighlight;
+  activeLine: number;
+  showLineNumbers: boolean;
+};
+
+function HighlightedSource({ highlight, activeLine, showLineNumbers }: SourceProps) {
   return (
     <>
       {highlight.map((line, index) => (
-        <span key={index} className="raw-markdown-line">
+        <span
+          key={index}
+          className="raw-markdown-line"
+          data-active={index + 1 === activeLine ? "true" : "false"}
+        >
+          {showLineNumbers ? (
+            <span className="raw-markdown-gutter-line">{index + 1}</span>
+          ) : null}
           {line.map(renderToken)}
         </span>
       ))}
@@ -116,9 +130,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
       setFailedSaveNoteIds(new Set(failures.map(({ noteId }) => noteId)));
     });
   }
-  const lineNumberContentRef = useRef<HTMLDivElement>(null);
   const overlayScrollerRef = useRef<HTMLDivElement>(null);
-  const highlightRef = useRef<HTMLPreElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const jumpInputRef = useRef<HTMLInputElement>(null);
   const [textareaHost, setTextareaHost] = useState<HTMLTextAreaElement | null>(null);
@@ -141,12 +153,13 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   // overlay paints what the caret sits on, so a frame of lag would show the
   // gutter and the active-line band drifting away from the cursor.
   const lineCount = rawMarkdownLineCount(source.text);
-  const lineNumbers = useMemo(() => rawMarkdownLineNumbers(lineCount), [lineCount]);
   const highlighted = source.text.length <= HIGHLIGHT_CHARACTER_LIMIT;
   const highlight = useMemo(
     () => (highlighted ? highlightRawMarkdown(source.text) : null),
     [highlighted, source.text],
   );
+  const lineNumbersVisible = showLineNumbers && highlight !== null;
+  const [scrollbarWidth, setScrollbarWidth] = useState(0);
 
   function persistMarkdown(noteId: string, markdown: string): Promise<void> {
     const current = store.getState().documents.get(noteId);
@@ -235,6 +248,21 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     [store],
   );
 
+  // Wrapping only lines up when the overlay measures the same text column as
+  // the textarea, whose own scrollbar eats into it.
+  useEffect(() => {
+    if (textareaHost === null) {
+      return;
+    }
+    const measure = () => {
+      setScrollbarWidth(textareaHost.offsetWidth - textareaHost.clientWidth);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(textareaHost);
+    return () => observer.disconnect();
+  }, [textareaHost]);
+
   useEffect(() => {
     const previous = sourceRef.current;
     const noteChanged = previous.noteId !== activeNoteId;
@@ -283,15 +311,8 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   }
 
   function handleScroll(target: HTMLTextAreaElement): void {
-    const verticalOffset = `translateY(${-target.scrollTop}px)`;
     if (overlayScrollerRef.current) {
-      overlayScrollerRef.current.style.transform = verticalOffset;
-    }
-    if (lineNumberContentRef.current) {
-      lineNumberContentRef.current.style.transform = verticalOffset;
-    }
-    if (highlightRef.current) {
-      highlightRef.current.style.transform = `translateX(${-target.scrollLeft}px)`;
+      overlayScrollerRef.current.style.transform = `translateY(${-target.scrollTop}px)`;
     }
   }
 
@@ -325,6 +346,19 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     });
   }, [closeJumpToLine]);
 
+  // With wrapping on, a line's top is no longer `row * (line - 1)`; the painted
+  // overlay knows the real offset, and the proportional estimate is the
+  // fallback for sources too large to highlight.
+  const lineScrollTop = useCallback((textarea: HTMLTextAreaElement, line: number, total: number) => {
+    const painted = overlayScrollerRef.current?.querySelectorAll<HTMLElement>(".raw-markdown-line");
+    const target = painted?.[line - 1];
+    if (target === undefined) {
+      return rawMarkdownLineScrollTop(line, total, textarea.scrollHeight, textarea.clientHeight);
+    }
+    const centered = target.offsetTop - textarea.clientHeight / 2 + target.offsetHeight / 2;
+    return Math.max(0, Math.min(centered, Math.max(0, textarea.scrollHeight - textarea.clientHeight)));
+  }, []);
+
   const commitJumpToLine = useCallback(() => {
     const textarea = textareaRef.current;
     if (textarea === null) {
@@ -339,15 +373,10 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     setJumpOpen(false);
     textarea.focus();
     textarea.setSelectionRange(offset, offset);
-    textarea.scrollTop = rawMarkdownLineScrollTop(
-      line,
-      total,
-      textarea.scrollHeight,
-      textarea.clientHeight,
-    );
+    textarea.scrollTop = lineScrollTop(textarea, line, total);
     handleScroll(textarea);
     setCursorStatus(rawMarkdownCursorStatus(textarea.value, offset, offset));
-  }, [jumpValue]);
+  }, [jumpValue, lineScrollTop]);
 
   const edgeShortcuts = useMemo<EditorBoundHandlersFor<RawMarkdownEdgeShortcutId>>(
     () => ({
@@ -417,41 +446,25 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
         : null}
       <div
         className="raw-markdown-root"
-        data-line-numbers={showLineNumbers ? "true" : "false"}
+        data-line-numbers={lineNumbersVisible ? "true" : "false"}
         data-highlighted={highlight === null ? "false" : "true"}
         style={
           {
             "--raw-markdown-digits": Math.max(2, String(lineCount).length),
+            "--raw-markdown-scrollbar": `${scrollbarWidth}px`,
           } as CSSProperties
         }
       >
         <div className="raw-markdown-surface">
-          {showLineNumbers ? (
-            <div aria-hidden="true" className="raw-markdown-gutter">
-              <div ref={lineNumberContentRef} className="raw-markdown-gutter-content">
-                {lineNumbers.map((number) => (
-                  <span
-                    key={number}
-                    className="raw-markdown-gutter-line"
-                    data-active={number === cursorStatus.line ? "true" : "false"}
-                  >
-                    {number}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
           <div aria-hidden="true" className="raw-markdown-overlay">
             <div ref={overlayScrollerRef} className="raw-markdown-scroller">
-              <div
-                className="raw-markdown-active-line"
-                style={{
-                  top: `calc(var(--raw-markdown-row) * ${cursorStatus.line - 1})`,
-                }}
-              />
               {highlight === null ? null : (
-                <pre ref={highlightRef} className="raw-markdown-highlight">
-                  <HighlightedSource highlight={highlight} />
+                <pre className="raw-markdown-highlight">
+                  <HighlightedSource
+                    highlight={highlight}
+                    activeLine={cursorStatus.line}
+                    showLineNumbers={lineNumbersVisible}
+                  />
                 </pre>
               )}
             </div>
@@ -460,7 +473,6 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
             ref={adoptTextarea}
             className="raw-markdown-editor"
             aria-label="Raw Markdown source"
-            wrap="off"
             value={source.text}
             spellCheck={false}
             onChange={(event) => handleChange(event.currentTarget)}

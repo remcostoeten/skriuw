@@ -6551,3 +6551,144 @@ fn busy_and_locked_sqlite_failures_map_to_a_transient_error() {
         StorageError::Backend(_)
     ));
 }
+
+#[test]
+fn filtered_search_applies_candidates_before_limit() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    for index in 0..250 {
+        storage
+            .apply_operations(&[create_note(&format!("search-{index}"))])
+            .expect("create");
+    }
+    let global = storage.search("SQLite", 250).expect("global search");
+    let last = global.last().expect("last ranked result").note_id.clone();
+    let hits = storage
+        .search_filtered("SQLite", 1, Some(std::slice::from_ref(&last)))
+        .expect("filtered search");
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].note_id, last);
+    assert!(
+        storage
+            .search_filtered("SQLite", 1, Some(&[]))
+            .expect("empty candidates")
+            .is_empty()
+    );
+    storage
+        .apply_operations(&[op(WorkspaceOperation::TrashSubtree {
+            root_id: last.clone(),
+            at: 2,
+        })])
+        .expect("trash");
+    assert!(
+        storage
+            .search_filtered("SQLite", 1, Some(&[last]))
+            .expect("trashed candidate")
+            .is_empty()
+    );
+}
+
+#[test]
+fn personal_preferences_survive_restart_and_archive_and_reject_invalid_updates() {
+    let directory = tempdir().expect("tempdir");
+    let path = directory.path().join("personal-preferences.db");
+    let archive = {
+        let storage = SqliteWorkspace::open(&path).expect("open");
+        storage
+            .apply_operations(&[create_note("template-source")])
+            .expect("source");
+        let mut settings = storage.bootstrap().expect("bootstrap").settings;
+        settings.extensions.insert(
+            "noteTemplateIds".into(),
+            serde_json::json!(["template-source"]),
+        );
+        settings.extensions.insert(
+            "savedSearches".into(),
+            serde_json::json!(["#design planning"]),
+        );
+        storage
+            .apply_operations(&[op(WorkspaceOperation::UpdateSettings {
+                settings: settings.clone(),
+            })])
+            .expect("save preferences");
+        settings
+            .extensions
+            .insert("savedSearches".into(), serde_json::json!([42]));
+        assert!(
+            storage
+                .apply_operations(&[op(WorkspaceOperation::UpdateSettings { settings })])
+                .is_err()
+        );
+        storage.export_archive(50).expect("export")
+    };
+    let reopened = SqliteWorkspace::open(&path).expect("reopen");
+    assert_eq!(
+        reopened.bootstrap().expect("bootstrap").settings,
+        archive.settings
+    );
+    let imported = SqliteWorkspace::open_in_memory().expect("import target");
+    imported.replace_from_archive(&archive).expect("import");
+    assert_eq!(
+        imported.bootstrap().expect("bootstrap").settings,
+        archive.settings
+    );
+}
+
+#[test]
+fn stale_editor_saves_cannot_undo_task_toggles_after_restart() {
+    let directory = tempdir().expect("tempdir");
+    let path = directory.path().join("task-races.db");
+    let storage = SqliteWorkspace::open(&path).expect("open");
+    storage
+        .apply_operations(&[
+            create_note("note-1"),
+            promote(
+                promoted_task("task-1", "note-1", "block-1", "Draft", 5),
+                source_document("note-1", 1, Some(("task-1", "block-1")), false, "Draft"),
+            ),
+        ])
+        .expect("promote");
+    for round in 0..30 {
+        let before = storage.bootstrap().expect("bootstrap");
+        let revision = before.documents[0].revision;
+        let mut task = only_task(&storage);
+        let checked = round % 2 == 0;
+        task.status = if checked {
+            TaskStatus::Done
+        } else {
+            TaskStatus::Todo
+        };
+        task.title = format!("Accepted edit {round}");
+        task.updated_at = 10 + round;
+        storage
+            .apply_operations(&[op(WorkspaceOperation::UpdateTask {
+                document: Some(Box::new(source_document(
+                    "note-1",
+                    revision,
+                    Some(("task-1", "block-1")),
+                    checked,
+                    &task.title,
+                ))),
+                task: Box::new(task.clone()),
+            })])
+            .expect("paired write");
+        assert!(matches!(
+            storage.apply_operations(&[op(WorkspaceOperation::SaveDocument {
+                note_id: "note-1".into(),
+                document_json: before.documents[0].document_json.clone(),
+                markdown: before.documents[0].markdown.clone(),
+                word_count: before.documents[0].word_count,
+                expected_revision: revision,
+                at: 100 + round,
+            })]),
+            Err(StorageError::RevisionConflict { .. })
+        ));
+        let reopened = SqliteWorkspace::open(&path).expect("reopen");
+        let snapshot = reopened.bootstrap().expect("restart snapshot");
+        assert_eq!(snapshot.tasks[0], task);
+        assert!(snapshot.documents[0].markdown.contains(&task.title));
+        assert_eq!(
+            snapshot.documents[0].document_json["content"][0]["content"][0]["attrs"]["checked"],
+            checked
+        );
+    }
+}

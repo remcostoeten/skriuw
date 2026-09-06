@@ -163,8 +163,12 @@ where
                     )
                 })
                 .map_err(map_storage_error),
-            BrowserWorkerCommand::Search { query, limit } => backend
-                .search(&query, limit)
+            BrowserWorkerCommand::Search {
+                query,
+                limit,
+                note_ids,
+            } => backend
+                .search_filtered(&query, limit, note_ids.as_deref())
                 .map(BrowserWorkerValue::Search)
                 .map_err(map_storage_error),
             BrowserWorkerCommand::ExportArchive { exported_at } => backend
@@ -413,8 +417,17 @@ fn validate_command(command: &BrowserWorkerCommand) -> Result<(), BrowserStorage
                 Ok(())
             }
         }
-        BrowserWorkerCommand::Search { query, limit } => {
-            if query.len() > MAX_QUERY_BYTES || *limit > 100_000 {
+        BrowserWorkerCommand::Search {
+            query,
+            limit,
+            note_ids,
+        } => {
+            if query.len() > MAX_QUERY_BYTES
+                || *limit > 100_000
+                || note_ids.as_ref().is_some_and(|ids| {
+                    ids.len() > 100_000 || ids.iter().any(|id| id.is_empty() || id.len() > 256)
+                })
+            {
                 Err(BrowserStorageError::invalid(
                     "Search request exceeds worker limits.",
                 ))
@@ -718,6 +731,33 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn search_candidates_round_trip_and_omitted_candidates_remain_unrestricted() {
+        for ids in [None, Some(Vec::new()), Some(vec!["note-1".to_string()])] {
+            let search = request(
+                12,
+                BrowserWorkerCommand::Search {
+                    query: "planning".into(),
+                    limit: 8,
+                    note_ids: ids.clone(),
+                },
+            );
+            let encoded = serde_json::to_string(&search).expect("encode");
+            let decoded = decode_request(&encoded).expect("decode");
+            assert_eq!(decoded.command, search.command);
+            let mut legacy = serde_json::to_value(search).expect("value");
+            legacy["payload"]
+                .as_object_mut()
+                .expect("payload")
+                .remove("noteIds");
+            let decoded = decode_request(&legacy.to_string()).expect("legacy request");
+            assert!(matches!(
+                decoded.command,
+                BrowserWorkerCommand::Search { note_ids: None, .. }
+            ));
+        }
     }
 
     #[test]

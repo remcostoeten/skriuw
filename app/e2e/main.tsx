@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "../src/app";
 import { bindSettingsToRoot } from "../src/features/settings/apply-settings";
 import { createInitialState, createRendererStore } from "../src/store/store";
-import { configureBridge } from "./bridge-mock";
+import { configureBridge, invoke } from "./bridge-mock";
 import { createWorkflowSnapshot } from "./fixture";
 import { createWorkflowController } from "./harness";
 import type { WorkflowController } from "./harness";
@@ -14,6 +14,10 @@ declare global {
     __SKRIUW_WORKFLOW_E2E__: WorkflowController;
   }
 }
+
+Object.defineProperty(window, "__TAURI_INTERNALS__", {
+  value: { invoke, transformCallback: () => 0, unregisterCallback: () => undefined },
+});
 
 const snapshot = createWorkflowSnapshot();
 configureBridge(snapshot);
