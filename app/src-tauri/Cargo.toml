@@ -46,6 +46,10 @@ uuid = { version = "1", features = ["v4"] }
 # Same 0.18 line the gtk stack in the lockfile resolves to; used only for
 # set_prgname in main.rs (Wayland taskbar-icon fix).
 glib = "0.18"
+# WebKitGTK denies getUserMedia unless the embedder answers the permission
+# request signal, so the microphone grant in lib.rs needs the webview's own
+# bindings. Same 2.0 line wry resolves to; features are inherited from wry.
+webkit2gtk = "2.0"
 keyring = { version = "3.6.3", features = ["linux-native-sync-persistent", "crypto-rust"] }
 # Secret Service is queried directly so a locked or absent keyring is a visible,
 # actionable settings state rather than a failed save inside the keyring crate.

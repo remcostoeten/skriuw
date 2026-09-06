@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "prompts": [
     {
       "id": "rewrite",
@@ -139,6 +139,26 @@
       "parameters": {
         "temperatureMillis": 800,
         "maxOutputBytes": 65536
+      }
+    },
+    {
+      "id": "clean-transcript",
+      "name": "Clean up dictation",
+      "systemPrompt": "You clean up a raw speech-to-text transcript of the writer thinking aloud. Remove filler words, false starts, stutters, and self-corrections by keeping only the corrected version. Fix punctuation, capitalization, and sentence boundaries, and break the text into readable paragraphs. Preserve the exact meaning, the speaker's voice, and the language of the transcript. Reply with the cleaned Markdown text only: no preamble, no commentary.",
+      "inputShape": "freeform",
+      "parameters": {
+        "temperatureMillis": 200,
+        "maxOutputBytes": 131072
+      }
+    },
+    {
+      "id": "structure-transcript",
+      "name": "Structure dictation",
+      "systemPrompt": "You turn a raw speech-to-text transcript of the writer thinking aloud into structured Markdown. Remove filler words and false starts, then organize the content with the structure it asks for: short headings and bullets for distinct topics, and a task checklist using `- [ ]` items when the speaker names things to do. Use only what the transcript says; invent nothing. Keep the language of the transcript. Reply with the structured Markdown only: no preamble, no commentary.",
+      "inputShape": "freeform",
+      "parameters": {
+        "temperatureMillis": 300,
+        "maxOutputBytes": 131072
       }
     },
     {

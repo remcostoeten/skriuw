@@ -7,7 +7,7 @@ use std::{
 
 use crate::sync::SyncRuntime;
 use crate::{
-    ai::LazyAiCompletion,
+    ai::{LazyAiCompletion, LazyAiTranscription},
     ai_credentials::AiCredentialStore,
     ai_models::FetchedModelStore,
     maintenance::{BackupRotationHandle, MaintenanceCoordinator},
@@ -20,6 +20,7 @@ use tauri::{Manager, State};
 
 pub(crate) struct AppState {
     pub(crate) ai: LazyAiCompletion,
+    pub(crate) transcription: Arc<LazyAiTranscription>,
     pub(crate) ai_credentials: Arc<AiCredentialStore>,
     pub(crate) ai_models: Arc<FetchedModelStore>,
     pub(crate) ollama: Arc<OllamaManager>,
