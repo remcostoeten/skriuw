@@ -26,6 +26,12 @@ license = "MIT"
 rust-version = "1.95"
 
 [workspace.dependencies]
+# The extracted AI SDK. Path dependencies on a sibling checkout, not a registry
+# or git release: the SDK has no published version yet, and Phase 3 of its
+# extraction plan is exactly this integration. Both checkouts must sit side by
+# side under the same parent directory.
+ai-core = { path = "../remcostoeten-aIo/crates/ai-core" }
+ai-providers = { path = "../remcostoeten-aIo/crates/ai-providers" }
 git2 = { version = "0.21", default-features = false, features = ["vendored-libgit2"] }
 rusqlite = { version = "0.40", features = ["backup", "bundled"] }
 schemars = { version = "1", features = ["derive", "uuid1"] }

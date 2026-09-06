@@ -6,4 +6,5 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+ai-core.workspace = true
 skriuw-domain = { path = "../skriuw-domain" }

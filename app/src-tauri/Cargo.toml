@@ -15,6 +15,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
+# The extracted AI SDK. This crate is its own workspace, so the sibling-checkout
+# paths are spelled out rather than inherited from the Skriuw workspace.
+ai-core = { path = "../../../remcostoeten-aIo/crates/ai-core" }
+ai-providers = { path = "../../../remcostoeten-aIo/crates/ai-providers" }
 base64 = "0.22"
 reqwest = { version = "0.13.4", default-features = false, features = ["blocking", "json", "rustls"] }
 serde = { version = "1", features = ["derive"] }

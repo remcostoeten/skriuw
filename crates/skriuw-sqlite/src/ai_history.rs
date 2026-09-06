@@ -1,7 +1,8 @@
 use rusqlite::{Connection, Row, TransactionBehavior, params, types::Value};
 use skriuw_domain::{
     AiHistoryRetention, AiHistorySettings, AiProviderErrorCategory, AiRunFilter, AiRunPrompts,
-    AiRunRecord, AiRunState, AiRunTokens, AiTokenSource, AiUsageAggregate,
+    AiRunRecord, AiRunState, AiRunTokens, AiTokenSource, AiUsageAggregate, ai_token_source_as_str,
+    parse_ai_token_source,
 };
 use skriuw_storage::{AiRunHistory, StorageError};
 
@@ -179,7 +180,7 @@ fn append_run(
                 i64::from(record.duration_ms),
                 token_column(record.tokens.input_tokens),
                 token_column(record.tokens.output_tokens),
-                record.tokens.source.as_str(),
+                ai_token_source_as_str(record.tokens.source),
                 record.cost_micros.map(token_column),
             ],
         )
@@ -278,7 +279,7 @@ fn read_run(row: &Row<'_>) -> rusqlite::Result<AiRunRecord> {
         tokens: AiRunTokens {
             input_tokens: token_value(row.get::<_, i64>(10)?),
             output_tokens: token_value(row.get::<_, i64>(11)?),
-            source: AiTokenSource::parse(&token_source).unwrap_or(AiTokenSource::Estimated),
+            source: parse_ai_token_source(&token_source).unwrap_or(AiTokenSource::Estimated),
         },
         cost_micros: cost_micros.map(token_value),
     })

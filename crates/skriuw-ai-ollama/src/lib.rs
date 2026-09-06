@@ -13,10 +13,8 @@ use reqwest::{StatusCode, Url, blocking::Client};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use skriuw_domain::{
-    AiCancellation, AiComplete, AiCompletionDelta, AiCompletionRequest, AiCompletionTerminal,
-    AiEventSink, AiProviderError, AiProviderErrorCategory, AiRecoveryAction, AiUsage, LocalAiError,
-    LocalAiErrorCategory, LocalAiModel, LocalAiOperation, LocalAiProgress, LocalAiProgressSink,
-    LocalAiRuntime, LocalAiRuntimeState, LocalAiStatus, MAX_AI_RESPONSE_BYTES,
+    AiCancellation, LocalAiError, LocalAiErrorCategory, LocalAiModel, LocalAiOperation,
+    LocalAiProgress, LocalAiProgressSink, LocalAiRuntime, LocalAiRuntimeState, LocalAiStatus,
 };
 use tempfile::TempDir;
 
@@ -494,161 +492,6 @@ impl LocalAiRuntime for OllamaRuntime {
     }
 }
 
-impl AiComplete for OllamaRuntime {
-    fn complete(
-        &self,
-        request: &AiCompletionRequest,
-        cancellation: &AiCancellation,
-        sink: &mut dyn AiEventSink,
-    ) -> AiCompletionTerminal {
-        if request.validate().is_err() || request.provider_id != "ollama" {
-            return provider_error(
-                AiProviderErrorCategory::RejectedRequest,
-                "Ollama completion request is invalid",
-                AiRecoveryAction::ReduceRequest,
-            );
-        }
-        let body = GenerateRequest {
-            model: &request.model_id,
-            system: &request.system_prompt,
-            prompt: &request.user_prompt,
-            stream: true,
-            options: GenerateOptions {
-                temperature: request
-                    .parameters
-                    .temperature_millis
-                    .map(|value| f32::from(value) / 1_000.0),
-                top_p: request
-                    .parameters
-                    .top_p_millis
-                    .map(|value| f32::from(value) / 1_000.0),
-            },
-        };
-        let response = match self
-            .client
-            .post(match self.api_url("/api/generate") {
-                Ok(url) => url,
-                Err(_) => {
-                    return provider_error(
-                        AiProviderErrorCategory::InternalFailure,
-                        "Ollama endpoint is invalid",
-                        AiRecoveryAction::CheckProviderStatus,
-                    );
-                }
-            })
-            .timeout(Duration::from_millis(u64::from(
-                request.parameters.timeout_ms,
-            )))
-            .json(&body)
-            .send()
-        {
-            Ok(response) if response.status().is_success() => response,
-            Ok(response) if response.status() == StatusCode::NOT_FOUND => {
-                return provider_error(
-                    AiProviderErrorCategory::UnavailableProvider,
-                    "Ollama model is not installed",
-                    AiRecoveryAction::ChooseDifferentModel,
-                );
-            }
-            Ok(_) => {
-                return provider_error(
-                    AiProviderErrorCategory::TransportFailure,
-                    "Ollama rejected the completion request",
-                    AiRecoveryAction::CheckProviderStatus,
-                );
-            }
-            Err(error) if error.is_timeout() => return AiCompletionTerminal::Timeout,
-            Err(_) => {
-                return provider_error(
-                    AiProviderErrorCategory::UnavailableProvider,
-                    "Ollama is not reachable",
-                    AiRecoveryAction::CheckProviderStatus,
-                );
-            }
-        };
-        let mut reader = BufReader::new(response.take(MAX_AI_RESPONSE_BYTES as u64 + 1));
-        let mut line = String::new();
-        let mut sequence = 0u32;
-        let mut response_bytes = 0usize;
-        loop {
-            if cancellation.is_cancelled() {
-                return AiCompletionTerminal::Cancelled;
-            }
-            line.clear();
-            match reader.read_line(&mut line) {
-                Ok(0) => {
-                    return provider_error(
-                        AiProviderErrorCategory::MalformedResponse,
-                        "Ollama ended the response without a terminal event",
-                        AiRecoveryAction::Retry,
-                    );
-                }
-                Ok(_) => {}
-                Err(_) => {
-                    return provider_error(
-                        AiProviderErrorCategory::TransportFailure,
-                        "Ollama response stream failed",
-                        AiRecoveryAction::Retry,
-                    );
-                }
-            }
-            let event: GenerateResponse = match serde_json::from_str(line.trim()) {
-                Ok(event) => event,
-                Err(_) => {
-                    return provider_error(
-                        AiProviderErrorCategory::MalformedResponse,
-                        "Ollama returned malformed completion data",
-                        AiRecoveryAction::Retry,
-                    );
-                }
-            };
-            if !event.response.is_empty() {
-                response_bytes = response_bytes.saturating_add(event.response.len());
-                if response_bytes > request.parameters.max_output_bytes as usize
-                    || response_bytes > MAX_AI_RESPONSE_BYTES
-                {
-                    cancellation.cancel();
-                    return provider_error(
-                        AiProviderErrorCategory::MalformedResponse,
-                        "Ollama response exceeded the output limit",
-                        AiRecoveryAction::ReduceRequest,
-                    );
-                }
-                let delta = AiCompletionDelta {
-                    request_id: request.request_id.clone(),
-                    sequence,
-                    text: event.response,
-                };
-                if delta.validate().is_err() || sink.send_delta(delta).is_err() {
-                    cancellation.cancel();
-                    return AiCompletionTerminal::Cancelled;
-                }
-                sequence = match sequence.checked_add(1) {
-                    Some(next) => next,
-                    None => {
-                        return provider_error(
-                            AiProviderErrorCategory::MalformedResponse,
-                            "Ollama returned too many deltas",
-                            AiRecoveryAction::Retry,
-                        );
-                    }
-                };
-            }
-            if event.done {
-                return AiCompletionTerminal::Done {
-                    usage: match (event.prompt_eval_count, event.eval_count) {
-                        (Some(input_tokens), Some(output_tokens)) => Some(AiUsage {
-                            input_tokens,
-                            output_tokens,
-                        }),
-                        _ => None,
-                    },
-                };
-            }
-        }
-    }
-}
-
 #[derive(Deserialize)]
 struct VersionResponse {
     version: String,
@@ -698,31 +541,6 @@ struct PullResponse {
     status: String,
     completed: Option<u64>,
     total: Option<u64>,
-}
-
-#[derive(Serialize)]
-struct GenerateRequest<'a> {
-    model: &'a str,
-    system: &'a str,
-    prompt: &'a str,
-    stream: bool,
-    options: GenerateOptions,
-}
-
-#[derive(Serialize)]
-struct GenerateOptions {
-    temperature: Option<f32>,
-    top_p: Option<f32>,
-}
-
-#[derive(Deserialize)]
-struct GenerateResponse {
-    #[serde(default)]
-    response: String,
-    #[serde(default)]
-    done: bool,
-    prompt_eval_count: Option<u64>,
-    eval_count: Option<u64>,
 }
 
 fn validate_model(response: OllamaModelResponse) -> Result<LocalAiModel, LocalAiError> {
@@ -1007,19 +825,6 @@ fn valid_short_text(value: &str) -> bool {
     !value.is_empty() && value.len() <= 256 && !value.chars().any(char::is_control)
 }
 
-fn provider_error(
-    category: AiProviderErrorCategory,
-    message: &str,
-    recovery_action: AiRecoveryAction,
-) -> AiCompletionTerminal {
-    AiCompletionTerminal::ProviderError(AiProviderError::new(
-        "ollama",
-        category,
-        message,
-        recovery_action,
-    ))
-}
-
 fn local_error(category: LocalAiErrorCategory, error: impl std::fmt::Display) -> LocalAiError {
     LocalAiError::new(category, error.to_string())
 }
@@ -1106,8 +911,11 @@ mod tests {
         server.join().unwrap();
     }
 
+    /// Generation moved to `ai-providers`, but the composition it depends on is
+    /// Skriuw's: the completion adapter must reach the very endpoint this
+    /// lifetime-managing runtime resolved, including an overridden one.
     #[test]
-    fn streams_ollama_completion_through_the_provider_seam() {
+    fn the_completion_adapter_reaches_the_runtime_resolved_endpoint() {
         let body = concat!(
             "{\"response\":\"local \",\"done\":false}\n",
             "{\"response\":\"answer\",\"done\":true,\"prompt_eval_count\":3,\"eval_count\":2}\n"
@@ -1115,6 +923,7 @@ mod tests {
         .to_owned();
         let (endpoint, server) = serve_once("application/x-ndjson", body);
         let (runtime, _directory) = runtime(&endpoint);
+        let provider = completion_provider(&runtime);
         let mut sink = RecordingSink::default();
         let request = AiCompletionRequest {
             request_id: "request-1".into(),
@@ -1125,7 +934,7 @@ mod tests {
             parameters: AiCompletionParameters::default(),
         };
 
-        let terminal = runtime.complete(&request, &AiCancellation::new(), &mut sink);
+        let terminal = provider.complete(&request, &AiCancellation::new(), &mut sink);
 
         assert_eq!(sink.deltas.len(), 2);
         assert_eq!(sink.deltas[0].text, "local ");
@@ -1135,6 +944,13 @@ mod tests {
             AiCompletionTerminal::Done { usage: Some(_) }
         ));
         server.join().unwrap();
+    }
+
+    /// How the application composes the two: lifecycle owns the endpoint,
+    /// generation is bound to whatever it resolved.
+    fn completion_provider(runtime: &OllamaRuntime) -> ai_providers::OllamaProvider {
+        ai_providers::OllamaProvider::new(Some(runtime.endpoint().as_str()), "Skriuw local AI")
+            .unwrap()
     }
 
     #[test]
@@ -1376,7 +1192,7 @@ mod tests {
         assert!(pulled.iter().any(|model| model.name == MODEL));
 
         let mut sink = RecordingSink::default();
-        let terminal = runtime.complete(
+        let terminal = completion_provider(&runtime).complete(
             &AiCompletionRequest {
                 request_id: "device-1".into(),
                 provider_id: "ollama".into(),
@@ -1444,7 +1260,7 @@ mod tests {
                 let mut sink = SharedSink {
                     deltas: Arc::clone(&deltas),
                 };
-                runtime.complete(&request, &cancellation, &mut sink)
+                completion_provider(&runtime).complete(&request, &cancellation, &mut sink)
             });
             let first_delta_deadline = Instant::now() + Duration::from_secs(120);
             while lock(&deltas).is_empty() {

@@ -1,24 +1,31 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "AiCompletionRequest",
+  "description": "One completion request.\n\nProvider and model identity are flat by design; a nested model reference is\na later, breaking wire change. `origin` is deliberately absent: it is an\napplication concept passed separately to the service and never sent to a\nprovider.",
   "type": "object",
   "properties": {
     "modelId": {
+      "description": "Provider-scoped model identity.",
       "type": "string"
     },
     "parameters": {
+      "description": "Execution parameters.",
       "$ref": "#/$defs/AiCompletionParameters"
     },
     "providerId": {
+      "description": "Identifies a registered provider instance, not a vendor globally.",
       "type": "string"
     },
     "requestId": {
+      "description": "Caller-chosen identity, unique among the caller's active requests.",
       "type": "string"
     },
     "systemPrompt": {
+      "description": "May be empty.",
       "type": "string"
     },
     "userPrompt": {
+      "description": "May be empty.",
       "type": "string"
     }
   },
@@ -33,20 +40,24 @@
   ],
   "$defs": {
     "AiCompletionParameters": {
+      "description": "Execution parameters for one completion.\n\n`retry_count` is accepted and validated but inert: no retry is performed.\nSampling parameters are thousandths, so 0 through 1000, and may be omitted\non the wire as well as sent explicitly as `null`.",
       "type": "object",
       "properties": {
         "maxOutputBytes": {
+          "description": "Response byte budget the provider must not exceed.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0
         },
         "retryCount": {
+          "description": "Accepted but inert. Present for wire compatibility only.",
           "type": "integer",
           "format": "uint8",
           "maximum": 255,
           "minimum": 0
         },
         "temperatureMillis": {
+          "description": "Sampling temperature in thousandths.",
           "type": [
             "integer",
             "null"
@@ -56,11 +67,13 @@
           "minimum": 0
         },
         "timeoutMs": {
+          "description": "Provider-observed timeout. This is not a service-wide deadline; see\n`docs/contracts.md` §3.2.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0
         },
         "topPMillis": {
+          "description": "Nucleus sampling threshold in thousandths.",
           "type": [
             "integer",
             "null"

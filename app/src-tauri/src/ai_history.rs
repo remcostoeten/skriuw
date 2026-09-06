@@ -8,7 +8,8 @@ use std::{
 };
 
 use skriuw_domain::{
-    AiHistorySettings, AiHistoryView, AiRunFilter, AiRunRecord, AiRunRecorder, AiUsageAggregate,
+    AiCompletionRequest, AiHistorySettings, AiHistoryView, AiRunFilter, AiRunRecord, AiRunRecorder,
+    AiRunSummary, AiUsageAggregate, ai_run_record,
 };
 use skriuw_sqlite::SqliteWorkspace;
 use skriuw_storage::AiRunHistory;
@@ -134,7 +135,18 @@ impl AiHistoryRecorder {
 }
 
 impl AiRunRecorder for AiHistoryRecorder {
-    fn record(&self, record: AiRunRecord) {
+    /// Decision D2 on the application side. The SDK hands over metadata plus
+    /// the request borrowed for this call only, so the prompts are copied out
+    /// here — inside the callback, before anything is queued — because prompt
+    /// retention is Skriuw's policy and the SDK owns no prompt field.
+    /// Redaction still happens at the storage boundary.
+    fn record(&self, summary: AiRunSummary, request: &AiCompletionRequest) {
+        self.enqueue(ai_run_record(&summary, request));
+    }
+}
+
+impl AiHistoryRecorder {
+    fn enqueue(&self, record: AiRunRecord) {
         match self.writer() {
             Ok(sender) => {
                 if let Err(error) = sender.try_send(record) {
@@ -149,8 +161,9 @@ impl AiRunRecorder for AiHistoryRecorder {
 #[cfg(test)]
 mod tests {
     use skriuw_domain::{
-        AiHistoryRetention, AiHistorySettings, AiRunFilter, AiRunPrompts, AiRunRecord,
-        AiRunRecorder, AiRunState, AiRunTokens, AiTokenSource,
+        AiCompletionParameters, AiCompletionRequest, AiHistoryRetention, AiHistorySettings,
+        AiProviderErrorCategory, AiRunFilter, AiRunRecorder, AiRunState, AiRunStatus, AiRunSummary,
+        AiRunTokens, AiTokenSource,
     };
     use std::{thread, time::Duration, time::Instant};
     use tempfile::tempdir;
@@ -161,19 +174,14 @@ mod tests {
         1_000_000
     }
 
-    fn record(run_id: &str) -> AiRunRecord {
-        AiRunRecord {
+    fn summary(run_id: &str, status: AiRunStatus) -> AiRunSummary {
+        AiRunSummary {
             run_id: run_id.to_owned(),
             started_at_ms: 1_000_000,
             origin: "playground".into(),
             provider_id: "fake".into(),
             model_id: "fake".into(),
-            prompts: Some(AiRunPrompts {
-                system_prompt: String::new(),
-                user_prompt: "keep this".into(),
-            }),
-            state: AiRunState::Done,
-            error_category: None,
+            status,
             duration_ms: 5,
             tokens: AiRunTokens {
                 input_tokens: 9,
@@ -181,6 +189,17 @@ mod tests {
                 source: AiTokenSource::Estimated,
             },
             cost_micros: None,
+        }
+    }
+
+    fn request() -> AiCompletionRequest {
+        AiCompletionRequest {
+            request_id: "run-1".into(),
+            provider_id: "fake".into(),
+            model_id: "fake".into(),
+            system_prompt: String::new(),
+            user_prompt: "keep this".into(),
+            parameters: AiCompletionParameters::default(),
         }
     }
 
@@ -192,7 +211,7 @@ mod tests {
 
         assert!(!path.exists());
 
-        recorder.record(record("run-1"));
+        recorder.record(summary("run-1", AiRunStatus::Done), &request());
         let deadline = Instant::now() + Duration::from_secs(2);
         loop {
             let view = recorder
@@ -215,6 +234,61 @@ mod tests {
                 .runs
                 .is_empty()
         );
+    }
+
+    /// The D2 proof on Skriuw's side: prompts survive the port when retention
+    /// is on and never reach storage when it is off, and a failed run keeps its
+    /// category through the status mapping.
+    #[test]
+    fn history_retains_or_redacts_prompts_and_maps_every_status() {
+        for (retain_prompts, expected_prompt) in [(true, Some("keep this")), (false, None)] {
+            let directory = tempdir().expect("tempdir");
+            let recorder = AiHistoryRecorder::new(&directory.path().join("skriuw.db"), clock);
+            recorder
+                .set_settings(AiHistorySettings {
+                    retain_prompts,
+                    retention: AiHistoryRetention::default(),
+                })
+                .expect("settings");
+
+            recorder.record(
+                summary(
+                    "run-1",
+                    AiRunStatus::ProviderError {
+                        category: AiProviderErrorCategory::MalformedResponse,
+                    },
+                ),
+                &request(),
+            );
+
+            let run = await_run(&recorder);
+            assert_eq!(run.state, AiRunState::Failed);
+            assert_eq!(
+                run.error_category,
+                Some(AiProviderErrorCategory::MalformedResponse)
+            );
+            assert_eq!(
+                run.prompts
+                    .as_ref()
+                    .map(|prompts| prompts.user_prompt.as_str()),
+                expected_prompt,
+                "retain_prompts = {retain_prompts}"
+            );
+        }
+    }
+
+    fn await_run(recorder: &AiHistoryRecorder) -> skriuw_domain::AiRunRecord {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            let view = recorder
+                .view(&AiRunFilter::default(), 0, None)
+                .expect("view");
+            if let Some(run) = view.runs.first() {
+                return run.clone();
+            }
+            assert!(Instant::now() < deadline, "the record was never written");
+            thread::sleep(Duration::from_millis(10));
+        }
     }
 
     #[test]
