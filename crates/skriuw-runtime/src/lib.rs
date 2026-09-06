@@ -8,7 +8,7 @@ use std::{
 };
 
 use skriuw_domain::{
-    OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    OperationAck, SearchHit, WorkspaceDelta, WorkspaceOperationEnvelope, WorkspaceSnapshot,
     validate_operation_group,
 };
 use skriuw_storage::{
@@ -144,6 +144,15 @@ impl WorkspaceRuntime {
         Ok(Completion { receiver })
     }
 
+    pub fn read_workspace_delta(
+        &self,
+        ids: Vec<String>,
+    ) -> Result<Completion<WorkspaceDelta>, RuntimeError> {
+        let (sender, receiver) = mpsc::channel();
+        self.shared.submit(Request::ReadDelta { ids, sender })?;
+        Ok(Completion { receiver })
+    }
+
     pub fn shutdown(&self) -> Result<(), RuntimeError> {
         self.shared.stop_accepting();
         self.shared.join_worker()
@@ -239,6 +248,10 @@ enum Request {
         limit: usize,
         sender: Sender<Result<Vec<SearchHit>, StorageError>>,
     },
+    ReadDelta {
+        ids: Vec<String>,
+        sender: Sender<Result<WorkspaceDelta, StorageError>>,
+    },
 }
 
 fn run(storage: impl WorkspaceStorage, receiver: Receiver<Request>) {
@@ -298,6 +311,9 @@ fn run(storage: impl WorkspaceStorage, receiver: Receiver<Request>) {
             } => {
                 let _ = sender.send(storage.search(&query, limit));
             }
+            Request::ReadDelta { ids, sender } => {
+                let _ = sender.send(storage.read_workspace_delta(&ids));
+            }
         }
     }
 }
@@ -352,7 +368,7 @@ mod tests {
 
     use serde_json::json;
     use skriuw_domain::{
-        EntityRevision, NodePlacement, OperationAck, SearchHit, WorkspaceOperation,
+        EntityRevision, NodePlacement, OperationAck, SearchHit, WorkspaceDelta, WorkspaceOperation,
         WorkspaceOperationEnvelope, WorkspaceSnapshot,
     };
     use skriuw_sqlite::SqliteWorkspace;
@@ -750,6 +766,10 @@ mod tests {
     }
 
     impl WorkspaceStorage for ProbeStorage {
+        fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
+            unreachable!()
+        }
+
         fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError> {
             unreachable!()
         }
@@ -778,6 +798,10 @@ mod tests {
     }
 
     impl WorkspaceStorage for GateStorage {
+        fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
+            unreachable!()
+        }
+
         fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError> {
             unreachable!()
         }
@@ -812,6 +836,10 @@ mod tests {
     }
 
     impl WorkspaceStorage for DropProbeStorage {
+        fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
+            unreachable!()
+        }
+
         fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError> {
             unreachable!()
         }
@@ -831,6 +859,10 @@ mod tests {
     struct PanickingStorage;
 
     impl WorkspaceStorage for PanickingStorage {
+        fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
+            unreachable!()
+        }
+
         fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError> {
             unreachable!()
         }
@@ -855,6 +887,10 @@ mod tests {
     }
 
     impl WorkspaceStorage for BatchProbeStorage {
+        fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
+            unreachable!()
+        }
+
         fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError> {
             unreachable!()
         }

@@ -3,8 +3,8 @@ import type {
   AiRecoveryAction,
   CredentialVaultDetection,
   CredentialVaultState,
-  RemoteAiCatalog,
-  RemoteAiModel,
+  RemoteAiModelDirectory,
+  RemoteAiModelListing,
   RemoteAiProviderState,
 } from "@/contracts/ai";
 
@@ -73,15 +73,15 @@ export function vaultAcceptsNewKeys(detection: CredentialVaultDetection | null):
 }
 
 export function remoteAiModelsFor(
-  catalog: RemoteAiCatalog | null,
+  models: RemoteAiModelDirectory | null,
   providerId: string,
-): RemoteAiModel[] {
-  return (catalog?.models ?? []).filter((model) => model.providerId === providerId);
+): RemoteAiModelListing[] {
+  return (models?.models ?? []).filter((model) => model.providerId === providerId);
 }
 
 export function availableRemoteModel(
   selected: string | null,
-  models: readonly RemoteAiModel[],
+  models: readonly RemoteAiModelListing[],
 ): string | null {
   return selected && models.some((model) => model.modelId === selected)
     ? selected
@@ -107,18 +107,29 @@ export function formatContextWindow(tokens: number): string {
   return `${tokens} context`;
 }
 
-export function remoteAiModelSummary(model: RemoteAiModel): string {
-  return [
-    formatContextWindow(model.contextWindowTokens),
-    `in ${formatPricePerMtok(model.inputPriceMicrosPerMtok)}`,
-    `out ${formatPricePerMtok(model.outputPriceMicrosPerMtok)}`,
-  ].join(" · ");
+export function remoteAiModelSummary(model: RemoteAiModelListing): string {
+  const parts: string[] = [];
+  if (model.contextWindowTokens != null) {
+    parts.push(formatContextWindow(model.contextWindowTokens));
+  }
+  if (model.inputPriceMicrosPerMtok != null && model.outputPriceMicrosPerMtok != null) {
+    parts.push(`in ${formatPricePerMtok(model.inputPriceMicrosPerMtok)}`);
+    parts.push(`out ${formatPricePerMtok(model.outputPriceMicrosPerMtok)}`);
+  } else {
+    parts.push("pricing unknown");
+  }
+  return parts.join(" · ");
 }
 
-export function catalogPricingNote(catalog: RemoteAiCatalog | null): string {
-  return catalog
-    ? `Catalog v${catalog.version} · prices recorded ${catalog.pricingAsOf}, not read live from the provider.`
-    : "Catalog unavailable.";
+export function catalogPricingNote(models: RemoteAiModelDirectory | null): string {
+  if (!models) {
+    return "Catalog unavailable.";
+  }
+  const fetched = models.models.filter((model) => model.source === "fetched").length;
+  const pricing = `Prices recorded ${models.pricingAsOf}, not read live from the provider.`;
+  return fetched > 0
+    ? `${pricing} ${fetched} model${fetched === 1 ? "" : "s"} fetched from providers run unpriced.`
+    : pricing;
 }
 
 /** Turns a rejected provider command into one actionable sentence. */

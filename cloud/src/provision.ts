@@ -3,6 +3,8 @@ import {
   type SyncAccessFailureCode,
   authenticateSyncRequest,
 } from "./access";
+import { readBoundedBytes } from "./bounded-body";
+import { type WorkspaceSyncState } from "./contracts";
 
 const MAX_PROVISION_BODY_BYTES = 1_024;
 
@@ -63,7 +65,7 @@ export async function handleSyncProvisionRequest(
 type WorkspaceStateDependencies = {
   accessConfiguration: SyncAccessConfiguration;
   resolveWorkspace(workspaceId: string): {
-    pullOperations(afterServerSequence: number, requestedLimit?: number): Promise<string>;
+    workspaceState(): Promise<WorkspaceSyncState>;
   };
   nowEpochSeconds(): number;
 };
@@ -86,19 +88,26 @@ export async function handleSyncWorkspaceStateRequest(
   );
   if (!authentication.ok) return accessError(authentication.code);
   const workspaceId = await workspaceIdFor(authentication.identity.subject);
-  let pulled: { latestServerSequence?: unknown };
+  let state: WorkspaceSyncState;
   try {
-    pulled = JSON.parse(
-      await dependencies.resolveWorkspace(workspaceId).pullOperations(0, 1),
-    ) as { latestServerSequence?: unknown };
+    state = await dependencies.resolveWorkspace(workspaceId).workspaceState();
   } catch {
     return errorResponse(503, "sync_service_unavailable");
   }
-  if (typeof pulled.latestServerSequence !== "number") {
+  if (
+    typeof state !== "object" ||
+    state === null ||
+    !Number.isSafeInteger(state.latestServerSequence) ||
+    !Number.isSafeInteger(state.compactedThrough)
+  ) {
     return errorResponse(503, "sync_service_unavailable");
   }
   return Response.json(
-    { workspaceId, latestServerSequence: pulled.latestServerSequence },
+    {
+      workspaceId,
+      latestServerSequence: state.latestServerSequence,
+      compactedThrough: state.compactedThrough,
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -112,14 +121,18 @@ async function readProvisionBody(
   if (request.headers.get("Content-Type")?.split(";", 1)[0]?.trim() !== "application/json") {
     return { ok: false, status: 400, code: "invalid_request" };
   }
-  const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.byteLength > MAX_PROVISION_BODY_BYTES) {
-    return { ok: false, status: 413, code: "request_too_large" };
+  const body = await readBoundedBytes(request, MAX_PROVISION_BODY_BYTES);
+  if (!body.ok) {
+    return {
+      ok: false,
+      status: body.code === "request_too_large" ? 413 : 400,
+      code: body.code,
+    };
   }
   let value: unknown;
   try {
     value = JSON.parse(
-      new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes),
+      new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(body.bytes),
     );
   } catch {
     return { ok: false, status: 400, code: "invalid_request" };

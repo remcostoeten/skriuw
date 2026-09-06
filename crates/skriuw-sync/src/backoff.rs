@@ -9,7 +9,7 @@ impl Default for SyncBackoffConfig {
     fn default() -> Self {
         Self {
             base_delay_ms: 1_000,
-            max_delay_ms: 5 * 60 * 1_000,
+            max_delay_ms: 60 * 1_000,
             jitter_seed: 0x5b7a_11ce_9d2f_04c3,
         }
     }

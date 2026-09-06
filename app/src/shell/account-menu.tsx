@@ -159,6 +159,8 @@ type Props = {
   onShowShortcutHelp: () => void;
   onRunCommand: (commandId: string) => void;
   isCommandEnabled: (commandId: string) => boolean;
+  /** Opens the shell-level sign-in drawer when the cloud session has expired. */
+  onRequestSignIn: () => void;
   settingsOpen: boolean;
 };
 
@@ -177,6 +179,7 @@ export function AccountMenu({
   onShowShortcutHelp,
   onRunCommand,
   isCommandEnabled,
+  onRequestSignIn,
   settingsOpen,
 }: Props) {
   const { user } = useAuth();
@@ -209,9 +212,21 @@ export function AccountMenu({
   const initials = accountInitials(user.name, user.email);
   const tone = syncTone(sync.status);
   const StatusIcon = tone === "offline" ? CloudOffIcon : tone === "syncing" ? RefreshIcon : CloudIcon;
-  const syncAction = sync.status.state === "blocked" ? sync.retry : sync.pause;
-  const syncActionLabel = sync.status.state === "blocked" ? "Retry sync" : "Pause sync";
   const syncPaused = sync.status.state === "localOnly";
+  const syncAction = sync.signInRequired
+    ? onRequestSignIn
+    : syncPaused
+      ? sync.resume
+      : sync.status.state === "blocked"
+        ? sync.retry
+        : sync.pause;
+  const syncActionLabel = sync.signInRequired
+    ? "Sign in"
+    : syncPaused
+      ? "Resume"
+      : sync.status.state === "blocked"
+        ? "Retry sync"
+        : "Pause sync";
   const activePanel = compact ? panel : "root";
 
   return (
@@ -277,7 +292,7 @@ export function AccountMenu({
               type="button"
               className="mb-1 flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-background/60 px-2.5 py-2 text-left text-[11px] text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground disabled:pointer-events-none disabled:opacity-60 pointer-coarse:min-h-11 pointer-coarse:text-xs"
               disabled={sync.pending}
-              onClick={syncPaused ? sync.resume : syncAction}
+              onClick={syncAction}
             >
               <span className="flex min-w-0 items-center gap-2">
                 <StatusIcon
@@ -287,9 +302,7 @@ export function AccountMenu({
                 />
                 <span className="truncate">{sync.error ?? syncSummary(sync.status)}</span>
               </span>
-              <span className="shrink-0 text-foreground/45">
-                {syncPaused ? "Resume" : syncActionLabel}
-              </span>
+              <span className="shrink-0 text-foreground/45">{syncActionLabel}</span>
             </button>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => onOpenSettings("appearance")}>

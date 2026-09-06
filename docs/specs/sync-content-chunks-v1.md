@@ -152,15 +152,17 @@ archive validation before any state is replaced.
 
 Publication is atomic from a client's perspective: the Worker only writes the
 record after confirming every referenced chunk is stored, so an incomplete
-checkpoint is never discoverable as current. Checkpoint generation picks no
-conflict winners — a client that still holds unresolved conflicts cannot export
-a portable archive at all, which is the same fail-closed rule the local export
-path already enforces.
+checkpoint is never discoverable as current. Checkpoint generation captures
+the converged canonical state only; superseded document bodies live in each
+device's history backend and never enter a checkpoint.
 
 Hydration is refused unless the device has an active connection, a zero pull
-cursor, and an empty outbox, so it can never discard pending local work. After
+cursor, next client sequence one, no received rows, an empty outbox, and no
+unresolved blocked rows, so it can never discard pending local work. After
 hydrating, the device sets its cursor to the checkpoint sequence and pulls only
-the ordered tail.
+the ordered tail. A device whose cursor falls below the server's compaction
+floor rehydrates from the latest checkpoint under the
+[coordinator contract](desktop-sync-coordinator.md#checkpoints-rehydration-and-retention).
 
 Checkpoint publication and first-connect hydration are driven by the desktop
 coordinator; the policy and its failure classification live in the

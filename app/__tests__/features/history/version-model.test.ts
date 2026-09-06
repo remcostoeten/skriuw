@@ -14,6 +14,9 @@ function header(partial: Partial<HistoryHeader> & Pick<HistoryHeader, "versionId
     noteId: "note-1",
     createdAt: 0,
     summary: "Saved",
+    additions: null,
+    deletions: null,
+    wordCount: null,
     ...partial,
   };
 }
@@ -46,6 +49,49 @@ test("projectVersionList does not mutate the input array", () => {
   projectVersionList(headers);
 
   assert.deepEqual(headers, original);
+});
+
+test("projectVersionList includes cached diff counts", () => {
+  const [version] = projectVersionList([
+    header({ versionId: "a", additions: 12, deletions: 3 }),
+  ]);
+
+  assert.equal(version?.additions, 12);
+  assert.equal(version?.deletions, 3);
+});
+
+test("projectVersionList measures each revision's word delta against the previous one", () => {
+  const versions = projectVersionList([
+    header({ versionId: "a", createdAt: 100, wordCount: 40 }),
+    header({ versionId: "b", createdAt: 300, wordCount: 52 }),
+    header({ versionId: "c", createdAt: 200, wordCount: 61 }),
+  ]);
+
+  assert.deepEqual(
+    versions.map((version) => [version.versionId, version.wordDelta]),
+    [
+      ["b", -9],
+      ["c", 21],
+      ["a", null],
+    ],
+  );
+});
+
+test("projectVersionList reports no word delta when either revision lacks a count", () => {
+  const versions = projectVersionList([
+    header({ versionId: "a", createdAt: 100, wordCount: null }),
+    header({ versionId: "b", createdAt: 200, wordCount: 30 }),
+    header({ versionId: "c", createdAt: 300, wordCount: 45 }),
+  ]);
+
+  assert.deepEqual(
+    versions.map((version) => [version.versionId, version.wordDelta]),
+    [
+      ["c", 15],
+      ["b", null],
+      ["a", null],
+    ],
+  );
 });
 
 function atLocalTime(dayOffset: number, hour: number): number {

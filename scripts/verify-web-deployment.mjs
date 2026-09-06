@@ -7,6 +7,12 @@ import { join } from "node:path";
 
 const appUrl = new URL(process.argv[2] ?? "https://skriuw.com/app/");
 const siteUrl = new URL("/", appUrl);
+const marketingRoutes = [
+  "/download/",
+  "/local-first-notes/",
+  "/markdown-notes/",
+  "/import/",
+];
 const chromeBinary = process.env.CHROME_BINARY ?? "google-chrome-stable";
 const profileDirectory = await mkdtemp(join(tmpdir(), "skriuw-live-smoke-"));
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -70,7 +76,10 @@ try {
 }
 
 async function verifyPublicSite(url) {
-  const response = await fetch(url);
+  const [response, ...routeResponses] = await Promise.all([
+    fetch(url),
+    ...marketingRoutes.map((path) => fetch(new URL(path, url))),
+  ]);
   if (!response.ok) throw new Error(`public site returned HTTP ${response.status}`);
   const html = await response.text();
   if (!html.includes('<link rel="canonical" href="https://skriuw.com/"')) {
@@ -80,12 +89,28 @@ async function verifyPublicSite(url) {
   if (!html.includes('type="application/ld+json"')) {
     throw new Error("public site has no structured data");
   }
+  for (const [index, routeResponse] of routeResponses.entries()) {
+    const path = marketingRoutes[index];
+    if (!routeResponse.ok) {
+      throw new Error(`${path} returned HTTP ${routeResponse.status}`);
+    }
+    const routeHtml = await routeResponse.text();
+    if (!routeHtml.includes(`<link rel="canonical" href="https://skriuw.com${path}"`)) {
+      throw new Error(`${path} has no canonical URL`);
+    }
+    if (!routeHtml.includes("<h1")) throw new Error(`${path} has no static heading`);
+    if (!routeHtml.includes('type="application/ld+json"')) {
+      throw new Error(`${path} has no structured data`);
+    }
+  }
 
-  const [robotsResponse, sitemapResponse, socialImageResponse] = await Promise.all([
-    fetch(new URL("/robots.txt", url)),
-    fetch(new URL("/sitemap.xml", url)),
-    fetch(new URL("/og-image.png", url), { method: "HEAD" }),
-  ]);
+  const [robotsResponse, sitemapResponse, socialImageResponse, previewImageResponse] =
+    await Promise.all([
+      fetch(new URL("/robots.txt", url)),
+      fetch(new URL("/sitemap.xml", url)),
+      fetch(new URL("/og-image.png", url), { method: "HEAD" }),
+      fetch(new URL("/preview.png", url), { method: "HEAD" }),
+    ]);
   if (!robotsResponse.ok) throw new Error(`robots.txt returned HTTP ${robotsResponse.status}`);
   if (!sitemapResponse.ok) throw new Error(`sitemap.xml returned HTTP ${sitemapResponse.status}`);
   if (!socialImageResponse.ok) {
@@ -94,6 +119,14 @@ async function verifyPublicSite(url) {
   if (socialImageResponse.headers.get("content-type") !== "image/png") {
     throw new Error(
       `social image has unexpected content type: ${socialImageResponse.headers.get("content-type")}`,
+    );
+  }
+  if (!previewImageResponse.ok) {
+    throw new Error(`product preview returned HTTP ${previewImageResponse.status}`);
+  }
+  if (previewImageResponse.headers.get("content-type") !== "image/png") {
+    throw new Error(
+      `product preview has unexpected content type: ${previewImageResponse.headers.get("content-type")}`,
     );
   }
   const [robots, sitemap] = await Promise.all([
@@ -105,6 +138,11 @@ async function verifyPublicSite(url) {
   }
   if (!sitemap.includes("<loc>https://skriuw.com/</loc>")) {
     throw new Error("sitemap.xml does not contain the canonical homepage");
+  }
+  for (const path of marketingRoutes) {
+    if (!sitemap.includes(`<loc>https://skriuw.com${path}</loc>`)) {
+      throw new Error(`sitemap.xml does not contain ${path}`);
+    }
   }
 }
 

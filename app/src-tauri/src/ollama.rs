@@ -95,9 +95,13 @@ impl OllamaManager {
         model: String,
         channel: Channel<LocalAiProgress>,
     ) -> Result<(), LocalAiError> {
-        self.run(operation_id, channel, move |runtime, id, cancellation, sink| {
-            runtime.pull_model(id, &model, cancellation, sink)
-        })
+        self.run(
+            operation_id,
+            channel,
+            move |runtime, id, cancellation, sink| {
+                runtime.pull_model(id, &model, cancellation, sink)
+            },
+        )
     }
 
     pub(crate) fn remove_model(&self, model: &str) -> Result<(), LocalAiError> {
@@ -147,7 +151,9 @@ impl LocalAiProgressSink for TauriProgressSink {
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    mutex.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    mutex
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 #[cfg(test)]

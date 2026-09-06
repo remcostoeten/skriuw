@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 import goldenPushV2 from "../../contracts/fixtures/sync-push-v2.json";
@@ -10,7 +10,13 @@ import {
   type WorkspaceMembershipSource,
 } from "../src/access";
 import { WorkspaceContentStore, contentDigest } from "../src/content-store";
-import { CANONICAL_CHUNK_BYTES } from "../src/contracts";
+import {
+  CANONICAL_CHUNK_BYTES,
+  MAX_WORKSPACE_STORAGE_BYTES,
+  type SyncPullResponse,
+  type SyncPullResult,
+  parseSyncPullResponse,
+} from "../src/contracts";
 import {
   type PublicSyncDependencies,
   type SyncSecurityLogEvent,
@@ -168,6 +174,13 @@ async function buildCheckpoint(
   };
 }
 
+function pulledPage(result: SyncPullResult): SyncPullResponse {
+  if (!result.ok) {
+    throw new Error(`log truncated through ${result.compactedThrough}`);
+  }
+  return parseSyncPullResponse(JSON.parse(result.responseJson));
+}
+
 describe("authorized chunk transfer", () => {
   it("stores a chunk once and treats an identical retry as a no-op", async () => {
     const harness = createHarness();
@@ -289,6 +302,52 @@ describe("authorized chunk transfer", () => {
     expect(await pulled.json<{ operations: unknown[] }>()).toMatchObject({
       operations: [],
     });
+  });
+});
+
+describe("workspace storage quota", () => {
+  it("records uploads against the workspace and refuses one that would exceed the quota", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-quota");
+    const workspace = env.WORKSPACES.getByName("workspace-quota");
+
+    const first = await handlePublicSyncRequest(
+      chunkRequest("workspace-quota", chunkedDigest, "PUT", chunkedContentBytes),
+      harness.dependencies,
+    );
+    expect(first.status).toBe(200);
+    await handlePublicSyncRequest(
+      chunkRequest("workspace-quota", chunkedDigest, "PUT", chunkedContentBytes),
+      harness.dependencies,
+    );
+    expect(await workspace.storageUsage()).toEqual({
+      byteLength: chunkedContentBytes.byteLength,
+      quotaBytes: MAX_WORKSPACE_STORAGE_BYTES,
+    });
+
+    await runInDurableObject(workspace, (_instance, state) => {
+      state.storage.sql.exec(
+        "UPDATE sync_storage_usage SET byte_length = ? WHERE id = 1",
+        MAX_WORKSPACE_STORAGE_BYTES - 8,
+      );
+    });
+    const other = new TextEncoder().encode("another chunk of content");
+    const rejected = await handlePublicSyncRequest(
+      chunkRequest("workspace-quota", await contentDigest(other), "PUT", other),
+      harness.dependencies,
+    );
+    expect(rejected.status).toBe(413);
+    expect(await rejected.json()).toEqual({ error: "quota_exceeded" });
+    expect(await harness.store.hasChunk("workspace-quota", await contentDigest(other))).toBe(false);
+    expect(harness.logs).toEqual([
+      {
+        event: "sync_request_rejected",
+        code: "quota_exceeded",
+        status: 413,
+        route: "chunk",
+        method: "PUT",
+      },
+    ]);
   });
 });
 
@@ -446,10 +505,68 @@ describe("acknowledgement cursors and compaction", () => {
     expect(compacted.removedChunks).toBe(1);
     expect(await store.hasChunk(workspaceId, chunkedDigest)).toBe(false);
 
-    const remaining = JSON.parse(await workspace.pullOperations(0, 128)) as {
-      operations: unknown[];
-    };
+    const remaining = pulledPage(await workspace.pullOperations(2, 128));
     expect(remaining.operations).toEqual([]);
+  });
+
+  it("answers a pull below the compaction floor with 410 log_truncated", async () => {
+    const harness = createHarness();
+    const workspaceId = "workspace-truncated";
+    harness.memberships.allow(workspaceId);
+    const workspace = env.WORKSPACES.getByName(workspaceId);
+    await harness.store.putChunk(workspaceId, chunkedDigest, chunkedContentBytes);
+    await workspace.pushOperations({ ...goldenPushV2, deviceId: DEVICE_ID });
+    await workspace.acknowledgeOperations(DEVICE_ID, 2, NOW);
+    const checkpoint = await buildCheckpoint(workspaceId, 2, harness.store);
+    const published = await handlePublicSyncRequest(
+      jsonRequest(workspaceId, "checkpoint", "POST", checkpoint),
+      harness.dependencies,
+    );
+    expect(await published.json()).toMatchObject({
+      serverSequence: 2,
+      compaction: { removedOperations: 2 },
+    });
+
+    const truncated = await handlePublicSyncRequest(
+      new Request(
+        `https://example.test/v1/workspaces/${workspaceId}/pull?` +
+          "syncProtocolVersion=2&afterServerSequence=1&limit=128",
+        { headers: { Authorization: `Bearer ${TOKEN}` } },
+      ),
+      harness.dependencies,
+    );
+    expect(truncated.status).toBe(410);
+    expect(truncated.headers.get("Cache-Control")).toBe("no-store");
+    expect(await truncated.text()).toBe('{"error":"log_truncated"}');
+    expect(harness.logs).toEqual([
+      {
+        event: "sync_request_rejected",
+        code: "log_truncated",
+        status: 410,
+        route: "pull",
+        method: "GET",
+      },
+    ]);
+
+    const atFloor = await handlePublicSyncRequest(
+      new Request(
+        `https://example.test/v1/workspaces/${workspaceId}/pull?` +
+          "syncProtocolVersion=2&afterServerSequence=2&limit=128",
+        { headers: { Authorization: `Bearer ${TOKEN}` } },
+      ),
+      harness.dependencies,
+    );
+    expect(atFloor.status).toBe(200);
+    expect(await atFloor.json()).toMatchObject({ operations: [], latestServerSequence: 2 });
+
+    const acknowledged = await handlePublicSyncRequest(
+      jsonRequest(workspaceId, "acknowledge", "POST", {
+        deviceId: DEVICE_ID,
+        serverSequence: 1,
+      }),
+      harness.dependencies,
+    );
+    expect(acknowledged.status).toBe(200);
   });
 
   it("keeps the sequence high-water mark after compaction empties the log", async () => {

@@ -83,7 +83,11 @@ import type { AppIconName } from "@/shared/icons/registry";
 import { ToastHost } from "@/shared/ui/toast";
 import { Tooltip } from "@/shared/ui/tooltip";
 import { useNoteNavigation } from "@/shell/use-note-navigation";
-import { selectAnimatedIcons, selectShowToasts } from "@/features/settings/sections/selectors";
+import {
+  selectAnimatedIcons,
+  selectReduceMotion,
+  selectShowToasts,
+} from "@/features/settings/sections/selectors";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";
 import {
@@ -177,6 +181,7 @@ function WorkspaceShell({ store }: Props) {
   const settling = !panelResizing && tracksAnimated;
   const route = useAppRoute();
   const showToasts = useRendererSelector(store, selectShowToasts);
+  const reduceMotion = useRendererSelector(store, selectReduceMotion);
   const animatedIcons = useRendererSelector(store, selectAnimatedIcons);
   const aiEnabled = useRendererSelector(store, selectAiEnabled);
   const [onboardingOverride, setOnboardingOverride] = useState(readOnboardingOverride);
@@ -442,6 +447,7 @@ function WorkspaceShell({ store }: Props) {
             onShowShortcutHelp={() => setShortcutHelpOpen(true)}
             onRunCommand={runCommand}
             isCommandEnabled={commandEnabled}
+            onRequestSignIn={() => openSignIn(false)}
           />
         </div>
       </nav>
@@ -644,7 +650,7 @@ function WorkspaceShell({ store }: Props) {
         open={shortcutHelpOpen}
         onOpenChange={setShortcutHelpOpen}
       />
-      <ToastHost visible={showToasts} />
+      <ToastHost visible={showToasts} reduceMotion={reduceMotion} />
       <TemplatePickerHost store={store} />
       <AiOptInGate store={store}>
         {() => (

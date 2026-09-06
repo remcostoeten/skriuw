@@ -68,6 +68,7 @@ fn transcription_endpoint(kind: RemoteProviderKind, base: &Url, model_id: &str) 
             .join(&format!("v1beta/models/{model_id}:generateContent"))
             .ok(),
         RemoteProviderKind::Groq => base.join("openai/v1/audio/transcriptions").ok(),
+        _ => None,
     }
 }
 
@@ -149,6 +150,7 @@ fn parse_transcript(kind: RemoteProviderKind, body: &str) -> Option<String> {
             Some(transcript)
         }
         RemoteProviderKind::Groq => value.get("text").and_then(Value::as_str).map(str::to_owned),
+        _ => None,
     }
 }
 
@@ -220,6 +222,13 @@ impl AiTranscribe for RemoteAiProvider {
                     );
                 };
                 builder.multipart(form)
+            }
+            _ => {
+                return self.transcription_error(
+                    AiProviderErrorCategory::RejectedRequest,
+                    "this provider has no transcription adapter",
+                    AiRecoveryAction::None,
+                );
             }
         };
         let response = match builder.send() {
@@ -335,7 +344,13 @@ mod tests {
         base_url: &str,
         credentials: Arc<dyn AiCredentialSource>,
     ) -> RemoteAiProvider {
-        RemoteAiProvider::with_base_url(kind, base_url, credentials).expect("provider")
+        RemoteAiProvider::with_base_url(
+            kind,
+            base_url,
+            credentials,
+            Arc::new(crate::CatalogModelAuthority),
+        )
+        .expect("provider")
     }
 
     #[test]

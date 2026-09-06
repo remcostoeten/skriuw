@@ -63,7 +63,8 @@ export function loadBrowserSessionToken(): string | undefined {
   return token;
 }
 
-export function storeBrowserSessionToken(token: string): void {
+/** Returns whether the credential reached durable storage. */
+export function storeBrowserSessionToken(token: string): boolean {
   memoryToken = token;
   const stored: StoredSession = { version: 1, token };
   const storage = storageArea();
@@ -71,7 +72,7 @@ export function storeBrowserSessionToken(token: string): void {
     console.error(
       "This browser blocks local storage; the Skriuw cloud session will not survive a reload.",
     );
-    return;
+    return false;
   }
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify(stored));
@@ -79,7 +80,9 @@ export function storeBrowserSessionToken(token: string): void {
     console.error(
       "Storing the Skriuw cloud session failed; the session will not survive a reload.",
     );
+    return false;
   }
+  return true;
 }
 
 export function clearBrowserSessionToken(): void {

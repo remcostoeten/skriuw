@@ -5,8 +5,9 @@ use crate::{
     backoff::SyncBackoff,
     content::{download_content, upload_missing_chunks},
     cycle::{
-        BLOCKED_REASON_AUTHORIZATION_DENIED, BLOCKED_REASON_REJECTED_CHECKPOINT, SyncCycleConfig,
-        SyncCycleOutcome, SyncStatus, storage_failure,
+        BLOCKED_REASON_AUTHORIZATION_DENIED, BLOCKED_REASON_LOG_TRUNCATED,
+        BLOCKED_REASON_LOG_TRUNCATED_WITHOUT_CHECKPOINT, BLOCKED_REASON_REJECTED_CHECKPOINT,
+        SyncCycleConfig, SyncCycleOutcome, SyncStatus, storage_failure,
     },
     transport::{SyncCancellation, SyncClock, SyncTransport, TransportError},
 };
@@ -67,8 +68,98 @@ pub(crate) fn hydrate_from_latest_checkpoint(
     let Some(checkpoint) = checkpoint else {
         return Ok(false);
     };
-    if checkpoint.workspace_id != connection.workspace_id || checkpoint.server_sequence == 0 {
-        return Err(rejected(clock, config));
+    let archive = fetch_verified_archive(
+        transport,
+        clock,
+        cancellation,
+        backoff,
+        config,
+        connection,
+        &checkpoint,
+    )?;
+    match queue.hydrate_from_checkpoint(&archive, checkpoint.server_sequence) {
+        Ok(_) => {
+            backoff.reset();
+            Ok(true)
+        }
+        Err(StorageError::InvalidOperation(_)) => Ok(false),
+        Err(error) => Err(storage_failure(clock, backoff, config, &error)),
+    }
+}
+
+/// Rebuild an already-connected device whose cursor fell below the server's
+/// compaction floor. The push phase has already drained the outbox, so the
+/// durable port only has to refuse the race with a local commit; a workspace
+/// without any checkpoint cannot recover and stays visibly blocked.
+pub(crate) fn rehydrate_from_latest_checkpoint(
+    queue: &dyn WorkspaceSyncQueue,
+    transport: &dyn SyncTransport,
+    clock: &dyn SyncClock,
+    cancellation: &SyncCancellation,
+    backoff: &mut SyncBackoff,
+    config: &SyncCycleConfig,
+    connection: &SyncConnection,
+) -> Result<(), SyncCycleOutcome> {
+    if cancellation.is_cancelled() {
+        return Err(SyncCycleOutcome::retry(SyncStatus::Pending, clock.now_ms()));
+    }
+    let checkpoint = transport
+        .latest_checkpoint(&connection.workspace_id, cancellation)
+        .map_err(|error| checkpoint_failure(clock, backoff, config, &error))?;
+    let Some(checkpoint) = checkpoint else {
+        return Err(blocked(
+            clock,
+            config,
+            BLOCKED_REASON_LOG_TRUNCATED_WITHOUT_CHECKPOINT,
+            "the cloud compacted operations this device has not received and holds no checkpoint to rebuild from",
+        ));
+    };
+    let archive = fetch_verified_archive(
+        transport,
+        clock,
+        cancellation,
+        backoff,
+        config,
+        connection,
+        &checkpoint,
+    )?;
+    match queue.rehydrate_from_checkpoint(&archive, checkpoint.server_sequence) {
+        Ok(_) => {
+            backoff.reset();
+            Ok(())
+        }
+        Err(StorageError::InvalidOperation(detail)) => Err(blocked(
+            clock,
+            config,
+            BLOCKED_REASON_LOG_TRUNCATED,
+            &detail,
+        )),
+        Err(error) => Err(storage_failure(clock, backoff, config, &error)),
+    }
+}
+
+fn fetch_verified_archive(
+    transport: &dyn SyncTransport,
+    clock: &dyn SyncClock,
+    cancellation: &SyncCancellation,
+    backoff: &mut SyncBackoff,
+    config: &SyncCycleConfig,
+    connection: &SyncConnection,
+    checkpoint: &WorkspaceCheckpoint,
+) -> Result<skriuw_domain::WorkspaceArchive, SyncCycleOutcome> {
+    if checkpoint.workspace_id != connection.workspace_id {
+        return Err(rejected(
+            clock,
+            config,
+            "the latest checkpoint names another workspace",
+        ));
+    }
+    if checkpoint.server_sequence == 0 {
+        return Err(rejected(
+            clock,
+            config,
+            "the latest checkpoint has no server sequence",
+        ));
     }
     let bytes = download_content(
         transport,
@@ -77,17 +168,9 @@ pub(crate) fn hydrate_from_latest_checkpoint(
         cancellation,
     )
     .map_err(|error| checkpoint_failure(clock, backoff, config, &error))?;
-    let archive = checkpoint
+    checkpoint
         .verify_content(&bytes)
-        .map_err(|_| rejected(clock, config))?;
-    match queue.hydrate_from_checkpoint(&archive, checkpoint.server_sequence) {
-        Ok(_) => {
-            backoff.reset();
-            Ok(true)
-        }
-        Err(StorageError::InvalidOperation(_)) => Ok(false),
-        Err(error) => Err(storage_failure(clock, config, &error)),
-    }
+        .map_err(|error| rejected(clock, config, &error.to_string()))
 }
 
 /// Borrowed capabilities and configuration for one publication attempt; the
@@ -129,7 +212,7 @@ pub fn run_checkpoint_publication(
     let connection = match queue.sync_connection() {
         Ok(Some(connection)) => connection,
         Ok(None) => return None,
-        Err(error) => return Some(storage_failure(clock, cycle_config, &error)),
+        Err(error) => return Some(storage_failure(clock, backoff, cycle_config, &error)),
     };
     let cursor = connection.observed_server_sequence;
     if cursor == 0 {
@@ -157,12 +240,12 @@ pub fn run_checkpoint_publication(
 
     let archive = match workspace.export_archive(clock.now_ms().max(1)) {
         Ok(archive) => archive,
-        Err(error) => return Some(storage_failure(clock, cycle_config, &error)),
+        Err(error) => return Some(storage_failure(clock, backoff, cycle_config, &error)),
     };
     match queue.has_pending_sync_operations() {
         Ok(false) => {}
         Ok(true) => return None,
-        Err(error) => return Some(storage_failure(clock, cycle_config, &error)),
+        Err(error) => return Some(storage_failure(clock, backoff, cycle_config, &error)),
     }
 
     let (checkpoint, bytes) = match WorkspaceCheckpoint::build(
@@ -172,7 +255,7 @@ pub fn run_checkpoint_publication(
         &archive,
     ) {
         Ok(built) => built,
-        Err(_) => return Some(rejected(clock, cycle_config)),
+        Err(error) => return Some(rejected(clock, cycle_config, &error.to_string())),
     };
     if let Err(error) = upload_missing_chunks(
         transport,
@@ -193,14 +276,18 @@ pub fn run_checkpoint_publication(
     None
 }
 
-fn rejected(clock: &dyn SyncClock, config: &SyncCycleConfig) -> SyncCycleOutcome {
+fn rejected(clock: &dyn SyncClock, config: &SyncCycleConfig, detail: &str) -> SyncCycleOutcome {
+    blocked(clock, config, BLOCKED_REASON_REJECTED_CHECKPOINT, detail)
+}
+
+fn blocked(
+    clock: &dyn SyncClock,
+    config: &SyncCycleConfig,
+    reason: &str,
+    detail: &str,
+) -> SyncCycleOutcome {
     let retry_at = clock.now_ms().saturating_add(config.blocked_retry_delay_ms);
-    SyncCycleOutcome::retry(
-        SyncStatus::Blocked {
-            reason: BLOCKED_REASON_REJECTED_CHECKPOINT.into(),
-        },
-        retry_at,
-    )
+    SyncCycleOutcome::retry(SyncStatus::blocked(reason, detail), retry_at)
 }
 
 fn checkpoint_failure(
@@ -215,21 +302,20 @@ fn checkpoint_failure(
         TransportError::AuthenticationRequired => {
             SyncCycleOutcome::settled(SyncStatus::AuthenticationRequired)
         }
-        TransportError::AuthorizationDenied => {
-            let retry_at = now.saturating_add(config.blocked_retry_delay_ms);
-            SyncCycleOutcome::retry(
-                SyncStatus::Blocked {
-                    reason: BLOCKED_REASON_AUTHORIZATION_DENIED.into(),
-                },
-                retry_at,
-            )
-        }
+        TransportError::AuthorizationDenied => blocked(
+            clock,
+            config,
+            BLOCKED_REASON_AUTHORIZATION_DENIED,
+            &error.to_string(),
+        ),
         TransportError::Validation(_)
         | TransportError::Conflict(_)
-        | TransportError::UnsupportedProtocol(_) => rejected(clock, config),
+        | TransportError::UnsupportedProtocol(_)
+        | TransportError::LogTruncated => rejected(clock, config, &error.to_string()),
         TransportError::RateLimited { .. }
         | TransportError::Transient(_)
-        | TransportError::Server { .. } => {
+        | TransportError::Server { .. }
+        | TransportError::ResponseTooLarge => {
             let retry_at = now.saturating_add(backoff.next_delay_ms(error.retry_hint_ms()));
             SyncCycleOutcome::retry(
                 SyncStatus::Retrying {

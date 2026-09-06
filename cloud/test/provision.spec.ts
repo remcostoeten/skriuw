@@ -29,4 +29,45 @@ describe("sync workspace provisioning", () => {
     );
     expect(rejected).toEqual({ ok: false, status: 400, code: "invalid_request" });
   });
+
+  it("refuses an oversized body before buffering it", async () => {
+    const oversized = JSON.stringify({ deviceId: "d".repeat(4_096) });
+    let bytesRead = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        const chunk = new TextEncoder().encode(oversized.slice(bytesRead, bytesRead + 512));
+        if (chunk.byteLength === 0) {
+          controller.close();
+          return;
+        }
+        bytesRead += 512;
+        controller.enqueue(chunk);
+      },
+    });
+
+    const streamed = await provisionInternals.readProvisionBody(
+      new Request("https://cloud.test/v1/sync/provision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        duplex: "half",
+      } as RequestInit),
+    );
+    expect(streamed).toEqual({ ok: false, status: 413, code: "request_too_large" });
+    expect(bytesRead).toBeLessThan(oversized.length);
+
+    const declared = await provisionInternals.readProvisionBody(
+      new Request("https://cloud.test/v1/sync/provision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Content-Length": "4096" },
+        body: new ReadableStream<Uint8Array>({
+          pull() {
+            throw new Error("body must not be read");
+          },
+        }),
+        duplex: "half",
+      } as RequestInit),
+    );
+    expect(declared).toEqual({ ok: false, status: 413, code: "request_too_large" });
+  });
 });

@@ -20,6 +20,38 @@ export function ollamaStatusLabel(status: LocalAiStatus): string {
   return STATE_LABELS[status.state];
 }
 
+export type OllamaRuntimeAction = "install" | "start" | "stop";
+
+const PENDING_LABELS: Record<OllamaRuntimeAction, string> = {
+  install: "Installing Ollama…",
+  start: "Starting Ollama…",
+  stop: "Stopping Ollama…",
+};
+
+const PENDING_DESCRIPTIONS: Record<OllamaRuntimeAction, string> = {
+  install: "Downloading the runtime from ollama.com",
+  start: "Waiting for the runtime to accept connections",
+  stop: "Shutting the runtime down",
+};
+
+const PENDING_BUTTON_LABELS: Record<OllamaRuntimeAction, string> = {
+  install: "Installing…",
+  start: "Starting…",
+  stop: "Stopping…",
+};
+
+export function ollamaPendingLabel(action: OllamaRuntimeAction): string {
+  return PENDING_LABELS[action];
+}
+
+export function ollamaPendingDescription(action: OllamaRuntimeAction): string {
+  return PENDING_DESCRIPTIONS[action];
+}
+
+export function ollamaPendingButtonLabel(action: OllamaRuntimeAction): string {
+  return PENDING_BUTTON_LABELS[action];
+}
+
 export function ollamaOwnershipLabel(status: LocalAiStatus): string {
   if (status.state !== "running") {
     return status.endpoint;

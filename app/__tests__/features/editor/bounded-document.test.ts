@@ -182,3 +182,74 @@ test("reconciling an external write adopts its annotation layer", () => {
 
   assert.equal(bounded.fullDocument().attrs.drawing, null);
 });
+
+test("adoptRemoteDocument shifts later undo entries and drops the ones the change overlaps", () => {
+  const bounded = createBoundedDocument(createDocument(400));
+  const window = bounded.windowDocument();
+  const edited = (index: number, text: string, at: number) => {
+    const replacement = productSchema.node(
+      "doc",
+      null,
+      Array.from({ length: window.childCount }, (_, position) =>
+        position === index
+          ? productSchema.node("paragraph", null, productSchema.text(text))
+          : bounded.windowDocument().child(position),
+      ),
+    );
+    assert.equal(bounded.replaceWindow(replacement, at), true);
+  };
+  edited(10, "local ten", 1_000);
+  edited(100, "local hundred", 5_000);
+  assert.equal(bounded.undoDepth(), 2);
+  bounded.rememberSelection({ blockIndex: 100, offset: 3 });
+
+  const remoteBlocks = () => {
+    const blocks: ReturnType<typeof window.child>[] = [];
+    bounded.fullDocument().forEach((block) => blocks.push(block));
+    return blocks;
+  };
+  const inserted = remoteBlocks();
+  inserted.splice(5, 0, productSchema.node("paragraph", null, productSchema.text("remote inserted")));
+  assert.equal(bounded.adoptRemoteDocument(productSchema.node("doc", null, inserted)), true);
+  assert.equal(bounded.blockCount(), 401);
+  assert.equal(bounded.fullDocument().child(5).textContent, "remote inserted");
+  assert.equal(bounded.fullDocument().child(11).textContent, "local ten");
+  assert.equal(bounded.fullDocument().child(101).textContent, "local hundred");
+  assert.equal(bounded.undoDepth(), 2, "entries after an insertion survive, shifted");
+  assert.deepEqual(bounded.selection(), { blockIndex: 101, offset: 3 });
+
+  const overwritten = remoteBlocks();
+  overwritten.splice(101, 1, productSchema.node("paragraph", null, productSchema.text("remote hundred")));
+  assert.equal(bounded.adoptRemoteDocument(productSchema.node("doc", null, overwritten)), true);
+  assert.equal(bounded.undoDepth(), 1, "the entry the remote change overwrote is gone");
+  assert.deepEqual(bounded.selection(), { blockIndex: 101, offset: 0 });
+  assert.equal(bounded.undo(), true);
+  assert.equal(bounded.fullDocument().child(11).textContent, "block 10");
+  assert.equal(bounded.fullDocument().child(101).textContent, "remote hundred");
+});
+
+test("adoptRemoteDocument keeps the window on its blocks when the change lies before it", () => {
+  const bounded = createBoundedDocument(createDocument(600));
+  bounded.moveWindow(300);
+  const before = bounded.windowDocument();
+  const remote = bounded.fullDocument();
+  const blocks: ReturnType<typeof remote.child>[] = [];
+  remote.forEach((block) => blocks.push(block));
+  blocks.splice(2, 1);
+  blocks.splice(2, 0, productSchema.node("paragraph", null, productSchema.text("one")));
+  blocks.splice(3, 0, productSchema.node("paragraph", null, productSchema.text("two")));
+
+  const windowChanged = bounded.adoptRemoteDocument(productSchema.node("doc", null, blocks));
+
+  assert.equal(windowChanged, false);
+  assert.equal(bounded.windowStart(), 301);
+  assert.ok(bounded.windowDocument().eq(before));
+});
+
+test("adoptRemoteDocument reports an attribute-only change so the layer reaches the editor", () => {
+  const bounded = createBoundedDocument(createDocument(300));
+  const drawn = productSchema.node("doc", { drawing: "{}" }, bounded.fullDocument().content);
+  assert.equal(bounded.adoptRemoteDocument(drawn), true);
+  assert.equal(bounded.fullDocument().attrs.drawing, "{}");
+  assert.equal(bounded.undoDepth(), 0);
+});

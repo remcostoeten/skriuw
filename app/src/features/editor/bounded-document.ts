@@ -31,6 +31,14 @@ export type BoundedDocument = {
   replaceWindow(document: ProseMirrorNode, at: number): boolean;
   replaceFullDocument(document: ProseMirrorNode, at: number): boolean;
   reconcile(document: ProseMirrorNode): void;
+  /**
+   * Adopts a document that changed in storage without recording an undo
+   * entry. Undo entries after the change shift with it, entries that overlap
+   * it are dropped, the remembered selection and the window follow their
+   * blocks. Returns whether the window's own document changed, which is when
+   * the caller has to update the editor state.
+   */
+  adoptRemoteDocument(document: ProseMirrorNode): boolean;
   rememberSelection(selection: BoundedSelection | null): void;
   selection(): BoundedSelection | null;
   undo(): boolean;
@@ -50,7 +58,7 @@ function blocksFromDocument(document: ProseMirrorNode): ProseMirrorNode[] {
  * attributes across. The annotation layer (ADR-0035) lives there, so dropping
  * them would erase a note's ink every time a bounded note was saved.
  */
-function documentFromBlocks(
+export function documentFromBlocks(
   blocks: readonly ProseMirrorNode[],
   attrs: Attrs,
 ): ProseMirrorNode {
@@ -112,6 +120,28 @@ function changedRange(
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+function spansIntersect(
+  leftStart: number,
+  leftEnd: number,
+  rightStart: number,
+  rightEnd: number,
+): boolean {
+  return leftStart < rightEnd && rightStart < leftEnd;
+}
+
+function windowsEqual(
+  before: readonly ProseMirrorNode[],
+  after: readonly ProseMirrorNode[],
+): boolean {
+  if (before.length !== after.length) return false;
+  for (let index = 0; index < before.length; index += 1) {
+    const left = before[index] as ProseMirrorNode;
+    const right = after[index] as ProseMirrorNode;
+    if (left !== right && !left.eq(right)) return false;
+  }
+  return true;
 }
 
 export function shouldUseBoundedEditor(document: ProseMirrorNode): boolean {
@@ -249,6 +279,63 @@ export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument 
     return true;
   }
 
+  function shiftHistory(
+    entries: HistoryEntry[],
+    occupied: (entry: HistoryEntry) => number,
+    changeStart: number,
+    changeEnd: number,
+    delta: number,
+  ): void {
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      const entry = entries[index] as HistoryEntry;
+      const entryEnd = entry.start + occupied(entry);
+      const insertionInside =
+        entry.start === entryEnd && changeStart < entry.start && entry.start < changeEnd;
+      if (spansIntersect(entry.start, entryEnd, changeStart, changeEnd) || insertionInside) {
+        entries.splice(index, 1);
+      } else if (entry.start >= changeEnd) {
+        entry.start += delta;
+      }
+    }
+  }
+
+  function adoptRemoteDocument(document: ProseMirrorNode): boolean {
+    const next = blocksFromDocument(document);
+    const attrsChanged = !attributesEqual(attrs, document.attrs);
+    attrs = document.attrs;
+    const change = changedRange(blocks, next);
+    if (!change) return attrsChanged;
+    const changeStart = change.offset;
+    const changeEnd = changeStart + change.before.length;
+    const delta = change.after.length - change.before.length;
+    const windowBefore = blocks.slice(start, end());
+    blocks.splice(changeStart, change.before.length, ...change.after);
+    shiftHistory(history, (entry) => entry.after.length, changeStart, changeEnd, delta);
+    shiftHistory(redoHistory, (entry) => entry.before.length, changeStart, changeEnd, delta);
+    if (rememberedSelection) {
+      if (rememberedSelection.blockIndex >= changeEnd) {
+        rememberedSelection.blockIndex += delta;
+      } else if (rememberedSelection.blockIndex >= changeStart) {
+        rememberedSelection = {
+          blockIndex: clamp(
+            rememberedSelection.blockIndex,
+            changeStart,
+            Math.max(changeStart, changeStart + change.after.length - 1),
+          ),
+          offset: 0,
+        };
+      }
+      rememberedSelection.blockIndex = clamp(
+        rememberedSelection.blockIndex,
+        0,
+        Math.max(0, blocks.length - 1),
+      );
+    }
+    if (start >= changeEnd) start += delta;
+    start = clamp(start, 0, maximumStart());
+    return attrsChanged || !windowsEqual(windowBefore, blocks.slice(start, end()));
+  }
+
   function applyHistory(entry: HistoryEntry, reverse: boolean): void {
     const remove = reverse ? entry.after : entry.before;
     const insert = reverse ? entry.before : entry.after;
@@ -267,6 +354,7 @@ export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument 
     revealBlock,
     replaceWindow,
     replaceFullDocument,
+    adoptRemoteDocument,
     reconcile(document) {
       blocks = blocksFromDocument(document);
       attrs = document.attrs;

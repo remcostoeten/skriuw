@@ -1,5 +1,4 @@
-.sidebar-compact [role="treeitem"] > button,
-.sidebar-compact [role="treeitem"] > div {
+.sidebar-compact .sidebar-tree-row {
   height: 28px;
 }
 

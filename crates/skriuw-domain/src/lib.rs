@@ -58,8 +58,7 @@ pub use prompt::{
     validate_workspace_prompts,
 };
 pub use reconcile::{
-    DocumentConflictResolutionChoice, RemoteOperationDecision, RemoteTargetState,
-    ResolveDocumentConflict, SyncConflictReason, classify_apply_failure,
+    RemoteOperationDecision, RemoteTargetState, SyncConflictReason, classify_apply_failure,
     reconcile_remote_operation,
 };
 pub use remote_ai::{
@@ -67,7 +66,8 @@ pub use remote_ai::{
     CredentialVaultState, MAX_AI_API_KEY_BYTES, MAX_REMOTE_AI_CATALOG_MODELS,
     MAX_REMOTE_AI_CONTEXT_TOKENS, MAX_REMOTE_AI_LABEL_BYTES, MAX_REMOTE_AI_PRICE_MICROS,
     MIN_AI_API_KEY_BYTES, REMOTE_AI_DISCLOSURE_VERSION, RemoteAiCatalog, RemoteAiCatalogError,
-    RemoteAiConsent, RemoteAiKeyTier, RemoteAiModel, RemoteAiProviderState,
+    RemoteAiConsent, RemoteAiKeyTier, RemoteAiModel, RemoteAiModelDirectory, RemoteAiModelListing,
+    RemoteAiModelSource, RemoteAiProviderState,
 };
 pub use sync::{
     BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,
@@ -238,6 +238,16 @@ pub struct WorkspaceDocument {
     pub word_count: i64,
 }
 
+/// The subset of canonical state a renderer needs after specific notes
+/// changed underneath it: the current document bodies plus the node records
+/// for the same identifiers, so title and placement stay in step.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceDelta {
+    pub documents: Vec<WorkspaceDocument>,
+    pub nodes: Vec<WorkspaceNode>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct HistoryHeader {
@@ -245,6 +255,21 @@ pub struct HistoryHeader {
     pub version_id: String,
     pub created_at: i64,
     pub summary: String,
+    pub additions: Option<i64>,
+    pub deletions: Option<i64>,
+    pub word_count: Option<i64>,
+}
+
+/// The product's word rule: whitespace-separated tokens containing at least one
+/// alphanumeric character, so markdown punctuation and list bullets do not
+/// count as words. Shared by document storage and history capture so a note's
+/// word count means the same thing everywhere it is shown.
+#[must_use]
+pub fn count_words(markdown: &str) -> i64 {
+    markdown
+        .split_whitespace()
+        .filter(|token| token.chars().any(char::is_alphanumeric))
+        .count() as i64
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]

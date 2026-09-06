@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#eef0f3" />
+    <meta
+      name="description"
+      content="Download Skriuw for macOS, Windows, or Linux, or run the full local-first notes app in your browser. Free and open source."
+    />
+    <link rel="canonical" href="https://skriuw.com/download/" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/app-icon.png" />
+    <link rel="stylesheet" href="/styles.css" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Skriuw" />
+    <meta property="og:title" content="Download Skriuw for macOS, Windows, and Linux" />
+    <meta
+      property="og:description"
+      content="Install the private, local-first notes app—or use the same engine in your browser."
+    />
+    <meta property="og:url" content="https://skriuw.com/download/" />
+    <meta property="og:image" content="https://skriuw.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Download Skriuw" />
+    <meta
+      name="twitter:description"
+      content="Skriuw runs on macOS, Windows, Linux, and the web. Free and open source."
+    />
+    <meta name="twitter:image" content="https://skriuw.com/og-image.png" />
+    <title>Download Skriuw for macOS, Windows, and Linux</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "Download Skriuw",
+        "url": "https://skriuw.com/download/",
+        "description": "Download Skriuw for macOS, Windows, or Linux, or use the browser app.",
+        "isPartOf": { "@id": "https://skriuw.com/#website" },
+        "about": { "@type": "SoftwareApplication", "name": "Skriuw" }
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="Skriuw home">
+        <img src="/app-icon.png" alt="" width="38" height="38" />
+        <span>Skriuw</span>
+      </a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="/local-first-notes/">Local-first</a>
+        <a href="/markdown-notes/">Markdown</a>
+        <a href="/import/">Import</a>
+        <a href="/download/" aria-current="page">Download</a>
+        <a href="https://github.com/remcostoeten/skriuw">GitHub</a>
+        <a class="nav-action" href="/app/">Try in browser</a>
+      </nav>
+    </header>
+
+    <main id="main" class="route-main">
+      <section class="route-hero" aria-labelledby="download-title">
+        <aside class="route-index" aria-label="Page context">
+          <p class="folio">01 / Download</p>
+          <p>Native shell<br />Local database<br />Your filesystem</p>
+        </aside>
+        <div class="route-hero-copy">
+          <p class="route-kicker">Free · open source · no account required</p>
+          <h1 id="download-title">Install it.<br />Keep your data.</h1>
+          <p class="route-deck">
+            Skriuw runs natively on macOS, Windows, and Linux. The browser build uses the
+            same Rust core and keeps its database in browser-local storage.
+          </p>
+          <div class="hero-actions route-actions">
+            <a class="button button-primary" href="https://github.com/remcostoeten/skriuw/releases/latest">Get the latest desktop build</a>
+            <a class="button button-secondary" href="/app/">Open the browser app</a>
+          </div>
+        </div>
+        <div class="route-signal" aria-hidden="true"></div>
+      </section>
+
+      <section class="content-section" aria-labelledby="install-title">
+        <p class="section-label">Install channels</p>
+        <div class="section-body">
+          <h2 class="content-heading" id="install-title">Use the package manager already on your machine.</h2>
+          <p class="section-intro">
+            Every desktop build stores the workspace locally in SQLite. Package-manager installs
+            and direct release assets run the same application.
+          </p>
+
+          <div class="platform-list">
+            <article class="platform-row">
+              <div>
+                <p class="platform-label">macOS</p>
+                <h3>Homebrew</h3>
+              </div>
+              <p>Install the signed desktop application through a dedicated cask.</p>
+              <pre class="command"><span class="prompt">$</span> brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw
+<span class="prompt">$</span> brew install --cask skriuw</pre>
+            </article>
+            <article class="platform-row">
+              <div>
+                <p class="platform-label">Windows</p>
+                <h3>Scoop</h3>
+              </div>
+              <p>Add the Skriuw bucket once, then install and update from the terminal.</p>
+              <pre class="command"><span class="prompt">&gt;</span> scoop bucket add skriuw https://github.com/remcostoeten/skriuw
+<span class="prompt">&gt;</span> scoop install skriuw</pre>
+            </article>
+            <article class="platform-row">
+              <div>
+                <p class="platform-label">Debian / Ubuntu</p>
+                <h3>APT</h3>
+              </div>
+              <p>The repository publishes signed packages for Debian-family systems.</p>
+              <pre class="command"><span class="prompt">$</span> curl -fsSL https://remcostoeten.github.io/skriuw/apt/key.gpg \
+  | sudo gpg --dearmor -o /usr/share/keyrings/skriuw.gpg
+<span class="prompt">$</span> echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://remcostoeten.github.io/skriuw/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/skriuw.list
+<span class="prompt">$</span> sudo apt update &amp;&amp; sudo apt install skriuw</pre>
+            </article>
+            <article class="platform-row">
+              <div>
+                <p class="platform-label">Fedora / RHEL</p>
+                <h3>dnf</h3>
+              </div>
+              <p>Use the published RPM repository, or download an RPM directly.</p>
+              <pre class="command"><span class="prompt">$</span> sudo dnf config-manager addrepo \
+  --from-repofile=https://remcostoeten.github.io/skriuw/rpm/skriuw.repo
+<span class="prompt">$</span> sudo dnf install skriuw</pre>
+            </article>
+          </div>
+          <p class="release-note">
+            Direct <code>.dmg</code>, <code>.exe</code>/<code>.msi</code>, <code>.deb</code>,
+            <code>.rpm</code>, and AppImage files are attached to each GitHub release. The AUR
+            package can lag behind while upstream publication is paused; Winget and Snap are not
+            current install channels.
+          </p>
+        </div>
+      </section>
+
+      <section class="content-section" aria-labelledby="same-core-title">
+        <p class="section-label">One product</p>
+        <div class="section-body">
+          <h2 class="content-heading" id="same-core-title">Desktop when you want the filesystem. Browser when you want a blank page now.</h2>
+          <div class="fact-grid">
+            <article class="fact">
+              <p class="fact-label">Desktop</p>
+              <strong>SQLite on disk</strong>
+              <p>Native storage, local images, automatic Git history, backups, and OS integration.</p>
+            </article>
+            <article class="fact">
+              <p class="fact-label">Browser</p>
+              <strong>SQLite through WebAssembly</strong>
+              <p>The same core stores the workspace in the browser through OPFS. No demo shell.</p>
+            </article>
+            <article class="fact">
+              <p class="fact-label">Both</p>
+              <strong>Sync stays optional</strong>
+              <p>Start without an account. Sign in only if you want the same workspace elsewhere.</p>
+            </article>
+          </div>
+          <div class="product-frame">
+            <div class="product-caption"><span>Skriuw / Linking</span><span>local workspace</span></div>
+            <img src="/preview.png" width="3200" height="2000" alt="Skriuw desktop app showing a linked note, workspace tree, calendar, backlinks, and note details" />
+          </div>
+        </div>
+      </section>
+
+      <section class="route-cta" aria-labelledby="download-cta-title">
+        <div>
+          <h2 id="download-cta-title">Pick a build. Your first note stays with you.</h2>
+          <p>Skriuw is free, open source, and usable without creating an account.</p>
+        </div>
+        <div class="hero-actions">
+          <a class="button button-primary" href="https://github.com/remcostoeten/skriuw/releases/latest">View the latest release</a>
+          <a class="button button-secondary" href="/local-first-notes/">Read the storage boundary</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <a class="wordmark footer-wordmark" href="/">
+        <img src="/app-icon.png" alt="" width="30" height="30" />
+        <span>Skriuw</span>
+      </a>
+      <p>Fast, private writing for macOS, Windows, Linux, and the web.</p>
+      <div class="footer-links">
+        <a href="/markdown-notes/">Markdown</a>
+        <a href="/import/">Import</a>
+        <a href="https://docs.skriuw.com/v2">Documentation</a>
+        <a href="https://github.com/remcostoeten/skriuw">Source</a>
+      </div>
+    </footer>
+  </body>
+</html>

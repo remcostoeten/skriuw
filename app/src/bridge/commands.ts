@@ -2,6 +2,7 @@ import { invoke } from "./runtime";
 import type {
   OperationAck,
   SearchHit,
+  WorkspaceDelta,
   WorkspaceOperationEnvelope,
   WorkspaceSnapshot,
 } from "@/contracts/workspace";
@@ -26,6 +27,14 @@ export function browserStorageCapabilities(): Promise<BrowserStorageCapabilities
 
 export function bootstrapWorkspace(): Promise<WorkspaceSnapshot> {
   return invoke<WorkspaceSnapshot>("bootstrap_workspace");
+}
+
+/**
+ * The current bodies and node records for specific notes, for reconciling a
+ * remote change without re-reading the whole workspace.
+ */
+export function readWorkspaceDelta(ids: readonly string[]): Promise<WorkspaceDelta> {
+  return invoke<WorkspaceDelta>("read_workspace_delta", { ids: [...ids] });
 }
 
 export function loadSidebarExpansion(): Promise<string[] | null> {
@@ -73,16 +82,19 @@ export type WorkspaceSyncStatus =
   | { state: "pending" }
   | { state: "offline" }
   | { state: "authenticationRequired" }
-  | { state: "conflict"; openConflicts: number }
+  | { state: "rehydrating" }
   | { state: "retrying"; nextAttemptAt: number }
-  | { state: "blocked"; reason: string };
+  | { state: "blocked"; reason: string; detail: string | null };
 
 export function workspaceSyncStatus(): Promise<WorkspaceSyncStatus> {
   return invoke<WorkspaceSyncStatus>("workspace_sync_status");
 }
 
-export function connectWorkspaceSync(token: string): Promise<WorkspaceSyncStatus> {
-  return invoke<WorkspaceSyncStatus>("connect_workspace_sync", { token });
+export function connectWorkspaceSync(
+  token: string,
+  baseUrl: string,
+): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("connect_workspace_sync", { token, baseUrl });
 }
 
 export function pauseWorkspaceSync(): Promise<WorkspaceSyncStatus> {
@@ -91,6 +103,19 @@ export function pauseWorkspaceSync(): Promise<WorkspaceSyncStatus> {
 
 export function retryWorkspaceSync(): Promise<WorkspaceSyncStatus> {
   return invoke<WorkspaceSyncStatus>("retry_workspace_sync");
+}
+
+/** Asks the coordinator for an immediate cycle without touching its configuration. */
+export function refreshWorkspaceSync(): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("refresh_workspace_sync");
+}
+
+export function setWorkspaceSyncOnline(online: boolean): Promise<void> {
+  return invoke<void>("set_workspace_sync_online", { online });
+}
+
+export function setWorkspaceSyncVisibility(visible: boolean, focused: boolean): Promise<void> {
+  return invoke<void>("set_workspace_sync_visibility", { visible, focused });
 }
 
 export type BlockedSyncOperation = {

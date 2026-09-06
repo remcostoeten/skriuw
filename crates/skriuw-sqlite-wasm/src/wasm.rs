@@ -4,7 +4,7 @@ use std::sync::Arc;
 use skriuw_sqlite::SqliteWorkspace;
 use skriuw_sync::{
     SyncCancellation, SyncClock, SyncHttpEndpoints, SyncTransport, TransportError,
-    classify_http_failure,
+    classify_http_failure, request_timeout_ms,
 };
 use sqlite_wasm_vfs::sahpool::{
     OpfsSAHError, OpfsSAHPoolCfgBuilder, install as install_opfs_sahpool,
@@ -21,8 +21,6 @@ use crate::{
 };
 
 const OPFS_DIRECTORY: &str = ".skriuw-v2";
-const JSON_REQUEST_TIMEOUT_MS: u32 = 10_000;
-const CHUNK_REQUEST_TIMEOUT_MS: u32 = 30_000;
 const MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
 
 thread_local! {
@@ -244,12 +242,12 @@ impl XhrSyncTransport {
         url: &str,
         content_type: Option<&str>,
         body: Option<&[u8]>,
-        timeout_ms: u32,
         cancellation: &SyncCancellation,
     ) -> Result<HttpResponse, TransportError> {
         if cancellation.is_cancelled() {
             return Err(TransportError::Cancelled);
         }
+        let timeout_ms = request_timeout_ms(body.map_or(0, <[u8]>::len));
         let request_json = serde_json::json!({
             "method": method,
             "url": url,
@@ -277,9 +275,7 @@ impl XhrSyncTransport {
             .map(|body| js_sys::Uint8Array::new(&body).to_vec())
             .unwrap_or_default();
         if body.len() > MAX_RESPONSE_BYTES {
-            return Err(TransportError::Validation(
-                "cloud response exceeded its size limit".into(),
-            ));
+            return Err(TransportError::ResponseTooLarge);
         }
         Ok(HttpResponse {
             status,
@@ -307,7 +303,6 @@ impl XhrSyncTransport {
             url,
             body.as_ref().map(|_| "application/json"),
             body.as_deref(),
-            JSON_REQUEST_TIMEOUT_MS,
             cancellation,
         )?;
         if !(200..300).contains(&response.status) {
@@ -377,7 +372,6 @@ impl SyncTransport for XhrSyncTransport {
             &self.endpoints.chunk(workspace_id, digest),
             None,
             None,
-            JSON_REQUEST_TIMEOUT_MS,
             cancellation,
         )?;
         match response.status {
@@ -399,7 +393,6 @@ impl SyncTransport for XhrSyncTransport {
             &self.endpoints.chunk(workspace_id, digest),
             Some("application/octet-stream"),
             Some(bytes),
-            CHUNK_REQUEST_TIMEOUT_MS,
             cancellation,
         )?;
         match response.status {
@@ -422,7 +415,6 @@ impl SyncTransport for XhrSyncTransport {
             &self.endpoints.chunk(workspace_id, digest),
             None,
             None,
-            CHUNK_REQUEST_TIMEOUT_MS,
             cancellation,
         )?;
         match response.status {
@@ -444,7 +436,6 @@ impl SyncTransport for XhrSyncTransport {
             &self.endpoints.checkpoint(workspace_id),
             None,
             None,
-            JSON_REQUEST_TIMEOUT_MS,
             cancellation,
         )?;
         match response.status {

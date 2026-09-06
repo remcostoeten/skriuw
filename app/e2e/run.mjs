@@ -442,7 +442,7 @@ async function runWorkflow() {
     steps.push("create");
 
     await control(`focusTree(${JSON.stringify(createdNoteId)})`);
-    await dispatchKey(cdp, sessionId, "F2", "F2", 113);
+    await dispatchKey(cdp, sessionId, "r", "KeyR", 82, "r");
     await settle();
     await replaceText(cdp, sessionId, "Renamed note");
     await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
