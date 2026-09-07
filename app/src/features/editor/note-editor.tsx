@@ -76,7 +76,10 @@ import {
   isRevisionConflict,
 } from "@/store/actions/workspace";
 import { cssStringLiteral } from "@/features/settings/apply-settings";
-import { projectSettings } from "@/features/settings/settings-model";
+import { opensNotesInTabs, projectSettings, usesVimMode } from "@/features/settings/settings-model";
+import { closeTab } from "@/store/actions/panes";
+import { noop } from "@/shared/lib/noop";
+import { toastActionIsAvailable } from "@/shared/ui/toast";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import {
   addAnnotationComment,
@@ -209,6 +212,13 @@ import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "./editor-working-set
 import { preparedEditorDocuments } from "./prepared-documents";
 import { REMOTE_APPLY_META, buildRemoteTr, mergeDocuments } from "./remote-merge";
 import { saveWithConflictRetry } from "./save-retry";
+import {
+  carryVimState,
+  createVimPlugin,
+  isVimVisual,
+  setVimEnabled,
+  type VimHost,
+} from "./vim/vim-plugin";
 
 function selectAnnotations(state: RendererState) {
   return state.annotations;
@@ -561,9 +571,77 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     mentionPluginsRef.current = [createMentionPlugin(mentionContext)];
   }
   const mentionPlugins = mentionPluginsRef.current;
+  const jumpToDocumentEdgeRef = useRef<(edge: DocumentEdge) => void>(() => undefined);
+  const vimHostRef = useRef<VimHost | null>(null);
+  if (vimHostRef.current === null) {
+    vimHostRef.current = {
+      enabled: () => usesVimMode(store.getState().settings),
+      noteKey: () => activeIdRef.current,
+      undo: () => {
+        const entry = activeEntry();
+        if (!entry?.bounded) return false;
+        if (entry.bounded.undo()) {
+          rebuildBoundedSearchState(entry);
+          installBoundedWindow(entry, true);
+          schedulePendingSave();
+        }
+        return true;
+      },
+      redo: () => {
+        const entry = activeEntry();
+        if (!entry?.bounded) return false;
+        if (entry.bounded.redo()) {
+          rebuildBoundedSearchState(entry);
+          installBoundedWindow(entry, true);
+          schedulePendingSave();
+        }
+        return true;
+      },
+      write: () => {
+        const noteId = activeIdRef.current;
+        if (!noteId) return;
+        if (saveTimerRef.current !== null) {
+          window.clearTimeout(saveTimerRef.current);
+          saveTimerRef.current = null;
+        }
+        void saveNow(noteId).catch(reportBackgroundSaveFailure);
+      },
+      quit: () => {
+        const noteId = activeIdRef.current;
+        if (noteId && opensNotesInTabs(store.getState().settings)) closeTab(store, noteId);
+      },
+      jumpToLine: (line) => jumpToMarkdownLine(line),
+      documentEdge: (edge) => {
+        const entry = activeEntry();
+        if (!entry?.bounded) return false;
+        jumpToDocumentEdgeRef.current(edge);
+        return true;
+      },
+      windowStep: (direction) => {
+        const entry = activeEntry();
+        const bounded = entry?.bounded;
+        if (!entry || !bounded) return false;
+        const canShift =
+          direction === 1
+            ? bounded.windowEnd() < bounded.blockCount()
+            : bounded.windowStart() > 0;
+        if (!canShift) return false;
+        moveBoundedWindow(entry, bounded.windowStart() + direction * WINDOW_SHIFT);
+        return true;
+      },
+      scrollContainer: () => scrollHostRef.current,
+      clipboard: {
+        write: (text) => {
+          void navigator.clipboard?.writeText(text).catch(noop);
+        },
+        read: () => navigator.clipboard?.readText().catch(() => "") ?? Promise.resolve(""),
+      },
+    };
+  }
+  const vimHost = vimHostRef.current;
   const editorPluginsRef = useRef<Plugin[] | null>(null);
   if (editorPluginsRef.current === null) {
-    editorPluginsRef.current = [...mentionPlugins, ...createProductPlugins()];
+    editorPluginsRef.current = [createVimPlugin(vimHost), ...mentionPlugins, ...createProductPlugins()];
   }
   const editorPlugins = editorPluginsRef.current;
   const preparedDocumentsRef = useRef<ReturnType<typeof preparedEditorDocuments> | null>(null);
@@ -649,7 +727,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const view = viewRef.current;
     if (!bounded || !view) return;
     if (rebuild) {
-      entry.state = createEditorState(bounded.windowDocument(), editorPlugins);
+      entry.state = carryVimState(
+        entry.state,
+        createEditorState(bounded.windowDocument(), editorPlugins),
+      );
       const remembered = bounded.selection();
       if (
         remembered &&
@@ -788,7 +869,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       return;
     }
     const head = Math.min(entry.state.selection.head, target.content.size);
-    const rebuilt = createEditorState(target, editorPlugins);
+    const rebuilt = carryVimState(entry.state, createEditorState(target, editorPlugins));
     entry.state = rebuilt.apply(
       rebuilt.tr.setSelection(TextSelection.near(rebuilt.doc.resolve(head))),
     );
@@ -946,7 +1027,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       bubbleDismissedRef.current = null;
     }
     const nextBubbleMenu =
-      linkMenuRef.current.editing || bubbleDismissedRef.current !== null
+      linkMenuRef.current.editing ||
+      bubbleDismissedRef.current !== null ||
+      isVimVisual(next, vimHost.enabled())
         ? closedBubbleMenu
         : computeBubbleMenu(view);
     if (!bubbleMenuStateEqual(bubbleMenuRef.current, nextBubbleMenu)) {
@@ -1435,6 +1518,34 @@ const closeJumpToLine = useCallback(() => {
     view.focus();
   }, [jumpValue]);
 
+  /** `:N` and `NG` from Vim mode: the panel's jump without the panel. */
+  function jumpToMarkdownLine(line: number): void {
+    const view = viewRef.current;
+    const entry = activeEntry();
+    if (!view || !entry) return;
+    const document = entry.bounded ? entry.bounded.fullDocument() : view.state.doc;
+    const index = buildDocumentLineIndex(document);
+    const target = parseJumpToLineInput(String(line), index.lineCount);
+    if (target === null) return;
+    const { blockIndex, offset } = documentLineTarget(document, index, target);
+    const bounded = entry.bounded;
+    if (bounded) {
+      bounded.rememberSelection({ blockIndex, offset });
+      bounded.revealBlock(blockIndex);
+      installBoundedWindow(entry, true);
+      const revealed = viewRef.current;
+      if (revealed) revealed.dispatch(revealed.state.tr.scrollIntoView());
+      return;
+    }
+    const position = topLevelTextPosition(view.state.doc, blockIndex, offset);
+    view.dispatch(
+      view.state.tr
+        .setSelection(TextSelection.create(view.state.doc, position))
+        .scrollIntoView(),
+    );
+    view.focus();
+  }
+
   function handleJumpKeyDown(event: ReactKeyboardEvent<HTMLInputElement>): void {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -1568,6 +1679,12 @@ const closeJumpToLine = useCallback(() => {
     );
     view.focus();
   }, []);
+  jumpToDocumentEdgeRef.current = jumpToDocumentEdge;
+  const vimEnabled = editorSettings.vimMode;
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view) setVimEnabled(view, vimEnabled);
+  }, [vimEnabled]);
   const editorShortcuts = useMemo<EditorBoundHandlersFor<NoteEditorShortcutId>>(
     () => ({
       goToDocumentStart: () => jumpToDocumentEdge("start"),
@@ -1712,6 +1829,14 @@ const closeJumpToLine = useCallback(() => {
           const position = currentView.state.selection.from;
           const coords = currentView.coordsAtPos(position);
           return openTableMenu(currentView, position, coords.left, coords.bottom);
+        }
+        if (
+          toastActionIsAvailable() &&
+          mod &&
+          event.shiftKey &&
+          event.key.toLowerCase() === "z"
+        ) {
+          return true;
         }
         if (entry && bounded && mod && event.key.toLowerCase() === "a") {
           entry.wholeSelected = true;

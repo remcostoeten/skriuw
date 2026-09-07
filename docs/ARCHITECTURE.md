@@ -216,5 +216,6 @@ Rust and Tauri suites rather than simulated browser state.
 - [ADR-0037: automatic sync convergence](adr/0037-automatic-sync-convergence.md)
 - [ADR-0038: personal template and search preferences](adr/0038-personal-template-and-search-preferences.md)
 - [ADR-0039: provider-agnostic voice transcription seam](adr/0039-voice-transcription-seam.md)
+- [ADR-0040: modal Vim editing](adr/0040-modal-vim-editing.md)
 
-Personal templates reuse ordinary source notes; saved searches and template membership use bounded workspace preferences. See [ADR-0038](adr/0038-personal-template-and-search-preferences.md). Sync refresh retries and candidate-filtered full-text search follow the [refresh and search contract](specs/refresh-and-filtered-search.md).
+Personal templates reuse ordinary source notes; saved searches and template membership use bounded workspace preferences. See [ADR-0038](adr/0038-personal-template-and-search-preferences.md). Modal Vim editing is one `vimMode` setting driving CodeMirror's Vim extension in the raw Markdown view and a document-model Vim plugin in the rendered editor; see [ADR-0040](adr/0040-modal-vim-editing.md). Sync refresh retries and candidate-filtered full-text search follow the [refresh and search contract](specs/refresh-and-filtered-search.md).

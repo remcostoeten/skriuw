@@ -58,11 +58,11 @@ export const settingsTextInput = cn(
 );
 
 const settingsToggleInput = cn(
-  "h-[17px] w-[30px] flex-none cursor-pointer appearance-none rounded-full border border-border bg-muted transition-colors duration-[120ms] motion-reduce:duration-[1ms]",
-  "checked:border-foreground/45 checked:bg-accent",
-  "after:m-0.5 after:block after:h-[11px] after:w-[11px] after:rounded-full after:bg-muted-foreground after:transition-transform after:duration-[120ms] after:content-[''] motion-reduce:after:duration-[1ms]",
-  "checked:after:translate-x-[13px] checked:after:bg-foreground",
-  "outline-none focus-visible:border-foreground/70",
+  "relative h-5 w-9 flex-none cursor-pointer appearance-none rounded-full border border-foreground/25 bg-foreground/15 shadow-[inset_0_1px_1px_hsl(var(--scrim)/0.18)] transition-[background-color,border-color,box-shadow] duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)]",
+  "checked:border-success checked:bg-success checked:shadow-[inset_0_1px_1px_hsl(var(--scrim)/0.12)]",
+  "after:absolute after:top-1/2 after:left-[3px] after:size-[14px] after:-translate-y-1/2 after:rounded-full after:bg-foreground/75 after:shadow-[0_1px_2px_hsl(var(--scrim)/0.38)] after:transition-[transform,background-color,box-shadow] after:duration-[160ms] after:ease-[cubic-bezier(0.23,1,0.32,1)] after:content-['']",
+  "checked:after:translate-x-4 checked:after:bg-success-foreground",
+  "outline-none focus-visible:border-foreground/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground/70",
 );
 
 type ToggleProps = {

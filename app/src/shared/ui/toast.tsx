@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { MotionConfig } from "motion/react";
 import { Notifier, notify, type NotifyInstance } from "@remcostoeten/notifier";
-import { useShortcut } from "@remcostoeten/use-shortcut/react";
+import { useShortcutBinding } from "@remcostoeten/use-shortcut/react";
 
 export type ToastAction = {
   label: string;
@@ -35,6 +35,10 @@ function clearAction(id: string): void {
   }
   actionableToast = null;
   publishActionChange();
+}
+
+export function toastActionIsAvailable(): boolean {
+  return actionableToast !== null;
 }
 
 /** Shows a notification through @remcostoeten/notifier. */
@@ -76,7 +80,20 @@ type HostProps = {
 
 export function ToastHost({ visible = true, reduceMotion = false }: HostProps) {
   const [, rerender] = useState(0);
-  const $ = useShortcut({ ignoreInputs: false });
+  function undoLatestAction(): void {
+    const current = actionableToast;
+    if (current === null) {
+      return;
+    }
+    current.run();
+    current.dismiss();
+  }
+
+  useShortcutBinding("mod+shift+z", undoLatestAction, {
+    description: "Undo latest notification action",
+    disabled: actionableToast === null,
+    preventDefault: true,
+  }, { ignoreInputs: false });
 
   useEffect(() => {
     const listener = () => rerender((value) => value + 1);
@@ -85,28 +102,6 @@ export function ToastHost({ visible = true, reduceMotion = false }: HostProps) {
       actionListeners.delete(listener);
     };
   }, []);
-
-  useEffect(() => {
-    if (actionableToast === null) {
-      return;
-    }
-    const binding = $.bind("mod+z").on(
-      () => {
-        const current = actionableToast;
-        if (current === null) {
-          return;
-        }
-        current.run();
-        current.dismiss();
-      },
-      {
-        description: "Undo latest notification action",
-        preventDefault: true,
-        except: "typing",
-      },
-    );
-    return () => binding.unbind();
-  });
 
   return (
     <div

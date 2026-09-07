@@ -9,11 +9,22 @@ import {
 } from "react";
 import type { CSSProperties, KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { Annotation, Compartment, EditorState, type Extension } from "@codemirror/state";
+import {
+  EditorView,
+  drawSelection,
+  highlightActiveLine,
+  keymap,
+  placeholder,
+} from "@codemirror/view";
 import { commitOperations } from "@/store/actions/workspace";
+import { setEditorMode } from "@/store/actions/editor-mode";
 import { registerPendingWork } from "@/shell/pending-work";
+import { usesVimMode } from "@/features/settings/settings-model";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { DocumentRecord, RendererState, RendererStore } from "@/store/types";
-import { textEdgeOffset, type DocumentEdge } from "./document-edges";
+import type { DocumentEdge } from "./document-edges";
 import { JumpToLinePanel } from "./jump-to-line-panel";
 import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
 import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
@@ -27,33 +38,33 @@ import {
   parseJumpToLineInput,
   rawMarkdownCursorStatus,
   rawMarkdownLineCount,
-  rawMarkdownLineOffset,
-  rawMarkdownLineScrollTop,
 } from "./raw-markdown-editor-model";
-import {
-  highlightRawMarkdown,
-  type RawMarkdownHighlight,
-  type RawMarkdownToken,
-} from "./raw-markdown-highlight";
 import {
   reconcileRawMarkdown,
   updateRawMarkdown,
   type RawMarkdownState,
 } from "./raw-markdown-reconciliation";
+import { rawMarkdownSyntax } from "./raw-markdown-syntax";
+import {
+  bindRawMarkdownVimHandlers,
+  observeRawMarkdownVimMode,
+  rawMarkdownVim,
+  type RawMarkdownVimMode,
+} from "./raw-markdown-vim";
+import {
+  jumpToRawMarkdownRow,
+  rawMarkdownRowLayout,
+  rawMarkdownRowNumbers,
+  rawMarkdownRowStatus,
+  type RawMarkdownRowStatus,
+} from "./raw-markdown-rows";
 import { countWords, parseProductMarkdownWithImages } from "./schema";
 import { SaveFailureBanner } from "./save-failure-banner";
 import { SaveSequencer } from "./save-sequencer";
+import { toastActionIsAvailable } from "@/shared/ui/toast";
 
 const SAVE_DEBOUNCE_MS = 500;
 const MARKDOWN_SCOPES = ["markdown"];
-/**
- * Highlighting walks the whole source on every keystroke. Past this size the
- * overlay is dropped and the textarea paints its own text, which keeps very
- * large imported notes typeable instead of trading correctness for colour.
- * Line numbers ride along with the overlay lines — wrapped rows have no fixed
- * height — so they degrade with it.
- */
-const HIGHLIGHT_CHARACTER_LIMIT = 200_000;
 
 type Props = {
   store: RendererStore;
@@ -64,45 +75,42 @@ function selectShowLineNumbers(state: RendererState): boolean {
   return state.settings.showLineNumbers === true;
 }
 
-function renderToken(token: RawMarkdownToken, index: number) {
-  if (token.kind === null) {
-    return token.text;
-  }
-  return (
-    <span key={index} className={`raw-markdown-token-${token.kind}`}>
-      {token.text}
-    </span>
-  );
+function selectVimMode(state: RendererState): boolean {
+  return usesVimMode(state.settings);
 }
 
-type SourceProps = {
-  highlight: RawMarkdownHighlight;
-  activeLine: number;
-  showLineNumbers: boolean;
-};
+function selectEditorPlaceholder(state: RendererState): string {
+  return state.settings.editorPlaceholder;
+}
 
-function HighlightedSource({ highlight, activeLine, showLineNumbers }: SourceProps) {
-  return (
-    <>
-      {highlight.map((line, index) => (
-        <span
-          key={index}
-          className="raw-markdown-line"
-          data-active={index + 1 === activeLine ? "true" : "false"}
-        >
-          {showLineNumbers ? (
-            <span className="raw-markdown-gutter-line">{index + 1}</span>
-          ) : null}
-          {line.map(renderToken)}
-        </span>
-      ))}
-    </>
-  );
+/** Marks document replacements driven by the store, which must never schedule a save. */
+const externalChange = Annotation.define<boolean>();
+
+function lineNumbersExtension(enabled: boolean): Extension {
+  return enabled ? rawMarkdownRowNumbers() : [];
+}
+
+function vimExtension(enabled: boolean): Extension {
+  return enabled ? rawMarkdownVim() : [];
+}
+
+function replaceDocument(view: EditorView, text: string, resetCursor: boolean): void {
+  const current = view.state.doc.toString();
+  if (current === text && !resetCursor) return;
+  view.dispatch({
+    changes: current === text ? undefined : { from: 0, to: current.length, insert: text },
+    selection: resetCursor ? { anchor: 0 } : undefined,
+    scrollIntoView: resetCursor,
+    annotations: externalChange.of(true),
+  });
+  if (resetCursor) view.scrollDOM.scrollTo(0, 0);
 }
 
 export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   const activeNoteId = useRendererSelector(store, selectNoteId);
   const showLineNumbers = useRendererSelector(store, selectShowLineNumbers);
+  const vimEnabled = useRendererSelector(store, selectVimMode);
+  const editorPlaceholder = useRendererSelector(store, selectEditorPlaceholder);
   const selectRecord = useMemo(
     () =>
       (state: RendererState): DocumentRecord | undefined => {
@@ -130,36 +138,25 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
       setFailedSaveNoteIds(new Set(failures.map(({ noteId }) => noteId)));
     });
   }
-  const overlayScrollerRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const jumpInputRef = useRef<HTMLInputElement>(null);
-  const [textareaHost, setTextareaHost] = useState<HTMLTextAreaElement | null>(null);
-  // A stable callback keeps React from detaching and reattaching the ref on
-  // every render; an inline closure here re-runs setState per commit, which
-  // loops once anything else blocks the same-state render bailout.
-  const adoptTextarea = useCallback((node: HTMLTextAreaElement | null) => {
-    textareaRef.current = node;
-    setTextareaHost(node);
-  }, []);
+  const viewRef = useRef<EditorView | null>(null);
+  const lineNumbersCompartmentRef = useRef(new Compartment());
+  const vimCompartmentRef = useRef(new Compartment());
+  const placeholderCompartmentRef = useRef(new Compartment());
+  const [editorHost, setEditorHost] = useState<HTMLDivElement | null>(null);
+  const [contentHost, setContentHost] = useState<HTMLElement | null>(null);
   const [surfaceHost, setSurfaceHost] = useState<HTMLDivElement | null>(null);
+  const jumpInputRef = useRef<HTMLInputElement>(null);
   const [jumpOpen, setJumpOpen] = useState(false);
   const [jumpValue, setJumpValue] = useState("");
   const jumpOpenRef = useRef(jumpOpen);
   jumpOpenRef.current = jumpOpen;
   const jumpFieldId = useId();
   const [cursorStatus, setCursorStatus] = useState(() => rawMarkdownCursorStatus(source.text, 0, 0));
+  const [vimMode, setVimMode] = useState<RawMarkdownVimMode | null>(null);
+  const [rowStatus, setRowStatus] = useState<RawMarkdownRowStatus | null>(null);
   const wordCount = useMemo(() => countRawMarkdownWords(deferredText), [deferredText]);
-  // Line-derived chrome tracks the live text rather than the deferred copy: the
-  // overlay paints what the caret sits on, so a frame of lag would show the
-  // gutter and the active-line band drifting away from the cursor.
-  const lineCount = rawMarkdownLineCount(source.text);
-  const highlighted = source.text.length <= HIGHLIGHT_CHARACTER_LIMIT;
-  const highlight = useMemo(
-    () => (highlighted ? highlightRawMarkdown(source.text) : null),
-    [highlighted, source.text],
-  );
-  const lineNumbersVisible = showLineNumbers && highlight !== null;
-  const [scrollbarWidth, setScrollbarWidth] = useState(0);
+  const rowCount = rowStatus?.rowCount ?? rawMarkdownLineCount(source.text);
+  const cursorRow = rowStatus?.row ?? cursorStatus.line;
 
   function persistMarkdown(noteId: string, markdown: string): Promise<void> {
     const current = store.getState().documents.get(noteId);
@@ -248,48 +245,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     [store],
   );
 
-  // Wrapping only lines up when the overlay measures the same text column as
-  // the textarea, whose own scrollbar eats into it.
-  useEffect(() => {
-    if (textareaHost === null) {
-      return;
-    }
-    const measure = () => {
-      setScrollbarWidth(textareaHost.offsetWidth - textareaHost.clientWidth);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(textareaHost);
-    return () => observer.disconnect();
-  }, [textareaHost]);
-
-  useEffect(() => {
-    const previous = sourceRef.current;
-    const noteChanged = previous.noteId !== activeNoteId;
-    if (noteChanged) {
-      void flushPendingSave(previous.noteId).catch(reportBackgroundSaveFailure);
-    }
-    const next =
-      !noteChanged && previous.dirty && previous.noteId !== null && savingNoteIdsRef.current.has(previous.noteId)
-        ? previous
-        : reconcileRawMarkdown(previous, activeNoteId, record?.markdown ?? "");
-    if (next !== previous) {
-      sourceRef.current = next;
-      setSource(next);
-    }
-    if (noteChanged) {
-      setCursorStatus(rawMarkdownCursorStatus(record?.markdown ?? "", 0, 0));
-      const textarea = textareaRef.current;
-      if (textarea !== null) {
-        textarea.scrollTo(0, 0);
-        handleScroll(textarea);
-      }
-    }
-  }, [activeNoteId, record?.markdown, record?.revision]);
-
-  function handleChange(target: HTMLTextAreaElement): void {
-    const value = target.value;
-    setCursorStatus(rawMarkdownCursorStatus(value, target.selectionStart, target.selectionEnd));
+  function handleChange(value: string): void {
     const next = updateRawMarkdown(sourceRef.current, value);
     sourceRef.current = next;
     setSource(next);
@@ -306,32 +262,156 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     }, SAVE_DEBOUNCE_MS);
   }
 
-  function handleSelection(target: HTMLTextAreaElement): void {
-    setCursorStatus(rawMarkdownCursorStatus(target.value, target.selectionStart, target.selectionEnd));
-  }
+  const handleChangeRef = useRef(handleChange);
+  handleChangeRef.current = handleChange;
 
-  function handleScroll(target: HTMLTextAreaElement): void {
-    if (overlayScrollerRef.current) {
-      overlayScrollerRef.current.style.transform = `translateY(${-target.scrollTop}px)`;
-    }
-  }
-
-  const jumpToDocumentEdge = useCallback((edge: DocumentEdge) => {
-    const textarea = textareaRef.current;
-    if (textarea === null) {
+  useEffect(() => {
+    if (editorHost === null) {
       return;
     }
-    const offset = textEdgeOffset(textarea.value, edge);
-    textarea.focus();
-    textarea.setSelectionRange(offset, offset);
-    textarea.scrollTop = edge === "start" ? 0 : textarea.scrollHeight;
-    handleScroll(textarea);
-    setCursorStatus(rawMarkdownCursorStatus(textarea.value, offset, offset));
+    const view = new EditorView({
+      parent: editorHost,
+      state: EditorState.create({
+        doc: sourceRef.current.text,
+        extensions: [
+          vimCompartmentRef.current.of(vimExtension(usesVimMode(store.getState().settings))),
+          rawMarkdownRowLayout(),
+          lineNumbersCompartmentRef.current.of(
+            lineNumbersExtension(store.getState().settings.showLineNumbers === true),
+          ),
+          placeholderCompartmentRef.current.of(
+            placeholder(store.getState().settings.editorPlaceholder),
+          ),
+          history(),
+          drawSelection(),
+          highlightActiveLine(),
+          EditorView.lineWrapping,
+          EditorView.contentAttributes.of({
+            spellcheck: "false",
+            "aria-label": "Raw Markdown source",
+          }),
+          rawMarkdownSyntax(),
+          keymap.of([
+            {
+              key: "Mod-Shift-z",
+              run: () => toastActionIsAvailable(),
+            },
+            ...defaultKeymap,
+            ...historyKeymap,
+            indentWithTab,
+          ]),
+          EditorView.updateListener.of((update) => {
+            const external = update.transactions.some(
+              (transaction) => transaction.annotation(externalChange) === true,
+            );
+            if (update.docChanged && !external) {
+              handleChangeRef.current(update.state.doc.toString());
+            }
+            if (update.docChanged || update.selectionSet) {
+              const { from, to } = update.state.selection.main;
+              setCursorStatus(rawMarkdownCursorStatus(update.state.doc.toString(), from, to));
+            }
+            const rows = rawMarkdownRowStatus(update.view);
+            setRowStatus((previous) =>
+              previous?.row === rows.row && previous.rowCount === rows.rowCount ? previous : rows,
+            );
+          }),
+        ],
+      }),
+    });
+    viewRef.current = view;
+    setContentHost(view.contentDOM);
+    return () => {
+      setContentHost(null);
+      viewRef.current = null;
+      view.destroy();
+    };
+  }, [editorHost, store]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: lineNumbersCompartmentRef.current.reconfigure(lineNumbersExtension(showLineNumbers)),
+    });
+  }, [showLineNumbers, contentHost]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: placeholderCompartmentRef.current.reconfigure(placeholder(editorPlaceholder)),
+    });
+  }, [editorPlaceholder, contentHost]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: vimCompartmentRef.current.reconfigure(vimExtension(vimEnabled)),
+    });
+    if (!vimEnabled) {
+      setVimMode(null);
+      return;
+    }
+    const unbind = bindRawMarkdownVimHandlers(view, {
+      write: () => {
+        const noteId = sourceRef.current.noteId;
+        if (noteId === null) return;
+        if (saveTimerRef.current !== null) {
+          window.clearTimeout(saveTimerRef.current);
+          saveTimerRef.current = null;
+        }
+        void saveNow(noteId, sourceRef.current.text).catch(reportBackgroundSaveFailure);
+      },
+      quit: () => {
+        const noteId = sourceRef.current.noteId;
+        if (noteId === null) return;
+        setEditorMode(store, noteId, "rendered");
+      },
+    });
+    const unobserve = observeRawMarkdownVimMode(view, setVimMode);
+    return () => {
+      unobserve();
+      unbind();
+    };
+  }, [vimEnabled, contentHost, store]);
+
+  useEffect(() => {
+    const previous = sourceRef.current;
+    const noteChanged = previous.noteId !== activeNoteId;
+    if (noteChanged) {
+      void flushPendingSave(previous.noteId).catch(reportBackgroundSaveFailure);
+    }
+    const next =
+      !noteChanged && previous.dirty && previous.noteId !== null && savingNoteIdsRef.current.has(previous.noteId)
+        ? previous
+        : reconcileRawMarkdown(previous, activeNoteId, record?.markdown ?? "");
+    if (next !== previous) {
+      sourceRef.current = next;
+      setSource(next);
+    }
+    const view = viewRef.current;
+    if (view) {
+      replaceDocument(view, next.text, noteChanged);
+    }
+    if (noteChanged) {
+      setCursorStatus(rawMarkdownCursorStatus(next.text, 0, 0));
+    }
+  }, [activeNoteId, record?.markdown, record?.revision, contentHost]);
+
+  const jumpToDocumentEdge = useCallback((edge: DocumentEdge) => {
+    const view = viewRef.current;
+    if (view === null) {
+      return;
+    }
+    const offset = edge === "start" ? 0 : view.state.doc.length;
+    view.focus();
+    view.dispatch({
+      selection: { anchor: offset },
+      effects: EditorView.scrollIntoView(offset, { y: edge === "start" ? "start" : "end" }),
+    });
   }, []);
 
   const closeJumpToLine = useCallback(() => {
     setJumpOpen(false);
-    textareaRef.current?.focus();
+    viewRef.current?.focus();
   }, []);
 
   const toggleJumpToLine = useCallback(() => {
@@ -346,37 +426,19 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     });
   }, [closeJumpToLine]);
 
-  // With wrapping on, a line's top is no longer `row * (line - 1)`; the painted
-  // overlay knows the real offset, and the proportional estimate is the
-  // fallback for sources too large to highlight.
-  const lineScrollTop = useCallback((textarea: HTMLTextAreaElement, line: number, total: number) => {
-    const painted = overlayScrollerRef.current?.querySelectorAll<HTMLElement>(".raw-markdown-line");
-    const target = painted?.[line - 1];
-    if (target === undefined) {
-      return rawMarkdownLineScrollTop(line, total, textarea.scrollHeight, textarea.clientHeight);
-    }
-    const centered = target.offsetTop - textarea.clientHeight / 2 + target.offsetHeight / 2;
-    return Math.max(0, Math.min(centered, Math.max(0, textarea.scrollHeight - textarea.clientHeight)));
-  }, []);
-
   const commitJumpToLine = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (textarea === null) {
+    const view = viewRef.current;
+    if (view === null) {
       return;
     }
-    const total = rawMarkdownLineCount(textarea.value);
-    const line = parseJumpToLineInput(jumpValue, total);
-    if (line === null) {
+    const row = parseJumpToLineInput(jumpValue, rawMarkdownRowStatus(view).rowCount);
+    if (row === null) {
       return;
     }
-    const offset = rawMarkdownLineOffset(textarea.value, line);
     setJumpOpen(false);
-    textarea.focus();
-    textarea.setSelectionRange(offset, offset);
-    textarea.scrollTop = lineScrollTop(textarea, line, total);
-    handleScroll(textarea);
-    setCursorStatus(rawMarkdownCursorStatus(textarea.value, offset, offset));
-  }, [jumpValue, lineScrollTop]);
+    view.focus();
+    jumpToRawMarkdownRow(view, row);
+  }, [jumpValue]);
 
   const edgeShortcuts = useMemo<EditorBoundHandlersFor<RawMarkdownEdgeShortcutId>>(
     () => ({
@@ -389,7 +451,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     () => ({ jumpToLine: toggleJumpToLine }),
     [toggleJumpToLine],
   );
-  useEditorBoundShortcuts(store, textareaHost, edgeShortcuts);
+  useEditorBoundShortcuts(store, contentHost, edgeShortcuts);
   useEditorBoundShortcuts(store, surfaceHost, surfaceShortcuts, MARKDOWN_SCOPES);
 
   function handleJumpKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
@@ -404,7 +466,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
 
   const selectionSummary = cursorStatus.selectedCharacters > 0
     ? `${cursorStatus.selectedWords} words · ${cursorStatus.selectedCharacters} chars selected`
-    : `Ln ${cursorStatus.line}, Col ${cursorStatus.column}`;
+    : `Ln ${cursorRow}, Col ${cursorStatus.column}`;
   const editorPane = surfaceHost?.closest<HTMLElement>(".editor-pane") ?? null;
 
   return (
@@ -423,7 +485,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
             });
             void Promise.all(retries).catch(reportBackgroundSaveFailure);
           }}
-          getSurface={() => textareaRef.current}
+          getSurface={() => viewRef.current?.contentDOM ?? null}
         />
       )}
       {jumpOpen && editorPane
@@ -437,8 +499,8 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
                 onKeyDown={handleJumpKeyDown}
                 onBlur={() => setJumpOpen(false)}
                 onClose={closeJumpToLine}
-                lineCount={lineCount}
-                placeholder={String(cursorStatus.line)}
+                lineCount={rowCount}
+                placeholder={String(cursorRow)}
               />
             </div>,
             editorPane,
@@ -446,43 +508,17 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
         : null}
       <div
         className="raw-markdown-root"
-        data-line-numbers={lineNumbersVisible ? "true" : "false"}
-        data-highlighted={highlight === null ? "false" : "true"}
-        style={
-          {
-            "--raw-markdown-digits": Math.max(2, String(lineCount).length),
-            "--raw-markdown-scrollbar": `${scrollbarWidth}px`,
-          } as CSSProperties
-        }
+        data-line-numbers={showLineNumbers ? "true" : "false"}
+        data-vim-mode={vimMode ?? "off"}
+        style={{ "--raw-markdown-digits": Math.max(2, String(rowCount).length) } as CSSProperties}
       >
-        <div className="raw-markdown-surface">
-          <div aria-hidden="true" className="raw-markdown-overlay">
-            <div ref={overlayScrollerRef} className="raw-markdown-scroller">
-              {highlight === null ? null : (
-                <pre className="raw-markdown-highlight">
-                  <HighlightedSource
-                    highlight={highlight}
-                    activeLine={cursorStatus.line}
-                    showLineNumbers={lineNumbersVisible}
-                  />
-                </pre>
-              )}
-            </div>
-          </div>
-          <textarea
-            ref={adoptTextarea}
-            className="raw-markdown-editor"
-            aria-label="Raw Markdown source"
-            value={source.text}
-            spellCheck={false}
-            onChange={(event) => handleChange(event.currentTarget)}
-            onSelect={(event) => handleSelection(event.currentTarget)}
-            onScroll={(event) => handleScroll(event.currentTarget)}
-          />
-        </div>
+        <div ref={setEditorHost} className="raw-markdown-surface" />
         <div className="raw-markdown-status" aria-label={`${wordCount} words, ${selectionSummary}`}>
           <span>{wordCount} words</span>
-          <span>{selectionSummary}</span>
+          <span className="raw-markdown-status-end">
+            {vimMode ? <span className="vim-mode-badge" data-mode={vimMode}>{vimMode}</span> : null}
+            <span>{selectionSummary}</span>
+          </span>
         </div>
       </div>
     </div>

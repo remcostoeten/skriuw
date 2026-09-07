@@ -133,6 +133,12 @@ export function EditorSection({ store }: SectionProps) {
           checked={settings.editorDefaultRawMode}
           onChange={(checked) => change("editorDefaultRawMode", checked)}
         />
+        <SettingToggle
+          label="Vim keybindings"
+          detail="Modal editing in both editors: normal, insert, and visual modes with counts, operators, text objects, registers, dot repeat, and : commands. Toggle anywhere with mod+alt+i."
+          checked={settings.vimMode}
+          onChange={(checked) => change("vimMode", checked)}
+        />
       </div>
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Tabs</div>

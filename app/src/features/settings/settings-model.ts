@@ -39,6 +39,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   showLineNumbers: true,
   editorPlaceholder: "Start writing...",
   editorDefaultRawMode: false,
+  vimMode: false,
   openNotesInTabs: false,
   showToasts: true,
   openLinksInApp: false,
@@ -56,6 +57,7 @@ export type SettingsViewModel = {
   editorLineHeight: string;
   editorPlaceholder: string;
   editorDefaultRawMode: boolean;
+  vimMode: boolean;
   openNotesInTabs: boolean;
   showToasts: boolean;
   openLinksInApp: boolean;
@@ -96,6 +98,7 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     ),
     editorPlaceholder: settings.editorPlaceholder,
     editorDefaultRawMode: settings.editorDefaultRawMode === true,
+    vimMode: usesVimMode(settings),
     openNotesInTabs: settings.openNotesInTabs === true,
     showToasts: showsToasts(settings),
     openLinksInApp: opensLinksInApp(settings),
@@ -105,6 +108,14 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
 
 export function opensNotesInTabs(settings: WorkspaceSettings): boolean {
   return settings.openNotesInTabs === true;
+}
+
+/**
+ * Whether both editors run modal Vim keybindings. Off unless explicitly turned
+ * on, so a workspace written before the setting existed keeps ordinary typing.
+ */
+export function usesVimMode(settings: WorkspaceSettings): boolean {
+  return settings.vimMode === true;
 }
 
 export function showsToasts(settings: WorkspaceSettings): boolean {

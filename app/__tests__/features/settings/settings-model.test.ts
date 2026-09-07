@@ -11,6 +11,7 @@ import {
   opensLinksInApp,
   showsToasts,
   usesAnimatedIcons,
+  usesVimMode,
 } from "../../../src/features/settings/settings-model";
 
 function extendedSettings(): WorkspaceSettings {
@@ -37,11 +38,20 @@ test("default settings project every editable field", () => {
     editorLineHeight: "comfortable",
     editorPlaceholder: "Start writing...",
     editorDefaultRawMode: false,
+    vimMode: false,
     openNotesInTabs: false,
     showToasts: true,
     openLinksInApp: false,
     aiEnabled: false,
   });
+});
+
+test("Vim mode stays off unless the persisted preference is explicitly true", () => {
+  assert.equal(usesVimMode(DEFAULT_WORKSPACE_SETTINGS), false);
+  assert.equal(usesVimMode({ ...DEFAULT_WORKSPACE_SETTINGS, vimMode: true }), true);
+  assert.equal(usesVimMode({ ...DEFAULT_WORKSPACE_SETTINGS, vimMode: "yes" }), false);
+  const { vimMode: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
+  assert.equal(projectSettings(withoutField as WorkspaceSettings).vimMode, false);
 });
 
 test("AI stays disabled unless the persisted preference is explicitly true", () => {
