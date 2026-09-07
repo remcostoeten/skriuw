@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "AiCompletionRequest",
-  "description": "One completion request.\n\nProvider and model identity are flat by design; a nested model reference is\na later, breaking wire change. `origin` is deliberately absent: it is an\napplication concept passed separately to the service and never sent to a\nprovider.",
+  "description": "One completion request.\n\nProvider and model identity are flat by design; a nested model reference is\na later, breaking wire change. `origin` is deliberately absent: it is an\napplication concept passed separately to the service and never sent to a\nprovider.\n\nThe conversation a provider receives is exactly\n`system_prompt`, then `prior_messages` in order, then `user_prompt` as the\nfinal user turn. `user_prompt` is the sole authority for that final turn, so\na consumer holding a `messages` array sends everything but its last entry as\n`prior_messages`.",
   "type": "object",
   "properties": {
     "modelId": {
@@ -11,6 +11,14 @@
     "parameters": {
       "description": "Execution parameters.",
       "$ref": "#/$defs/AiCompletionParameters"
+    },
+    "priorMessages": {
+      "description": "Turns preceding `user_prompt`, oldest first. Omission means none.\n\nNo alternation rule is imposed: whether consecutive same-role turns are\nmeaningful is the consuming application's judgement, and providers\ndiffer on it.",
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/AiMessage"
+      }
     },
     "providerId": {
       "description": "Identifies a registered provider instance, not a vendor globally.",
@@ -25,7 +33,7 @@
       "type": "string"
     },
     "userPrompt": {
-      "description": "May be empty.",
+      "description": "The final user turn. May be empty.",
       "type": "string"
     }
   },
@@ -47,6 +55,16 @@
           "description": "Response byte budget the provider must not exceed.",
           "type": "integer",
           "format": "uint32",
+          "minimum": 0
+        },
+        "maxOutputTokens": {
+          "description": "Output token ceiling asked of the provider, or `null` for its default.\n\nDistinct from `max_output_bytes`, which is this side's accumulation cap\nand is enforced locally. A provider that ignores this field is not a\ncontract violation; the byte cap still applies.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
           "minimum": 0
         },
         "retryCount": {
@@ -88,6 +106,40 @@
         "maxOutputBytes",
         "timeoutMs",
         "retryCount"
+      ]
+    },
+    "AiMessage": {
+      "description": "One turn of conversation preceding the final user prompt.\n\nText only. Content parts, tool calls, attachments and names are absent\nuntil a consumer needs them; see `docs/contracts.md` §4.1.",
+      "type": "object",
+      "properties": {
+        "content": {
+          "description": "Turn text. Never empty.",
+          "type": "string"
+        },
+        "role": {
+          "description": "Who produced this turn.",
+          "$ref": "#/$defs/AiMessageRole"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "content"
+      ]
+    },
+    "AiMessageRole": {
+      "description": "Who produced a conversation turn.\n\nClosed on the wire, and deliberately without a `system` value: the system\ninstruction is [`AiCompletionRequest::system_prompt`], so a conversation\ncannot carry a second, competing instruction channel.",
+      "oneOf": [
+        {
+          "description": "A turn from the person.",
+          "type": "string",
+          "const": "user"
+        },
+        {
+          "description": "A turn the model previously produced.",
+          "type": "string",
+          "const": "assistant"
+        }
       ]
     }
   }

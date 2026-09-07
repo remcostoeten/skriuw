@@ -400,6 +400,7 @@ mod tests {
             model_id,
             system_prompt: String::new(),
             user_prompt: "Name a colour.".to_owned(),
+            prior_messages: Vec::new(),
             parameters: AiCompletionParameters::default(),
         }
     }

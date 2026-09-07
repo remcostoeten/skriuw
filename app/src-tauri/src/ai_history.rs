@@ -199,6 +199,7 @@ mod tests {
             model_id: "fake".into(),
             system_prompt: String::new(),
             user_prompt: "keep this".into(),
+            prior_messages: Vec::new(),
             parameters: AiCompletionParameters::default(),
         }
     }

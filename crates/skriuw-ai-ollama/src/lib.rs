@@ -931,6 +931,7 @@ mod tests {
             model_id: "gemma3:4b".into(),
             system_prompt: "Be concise.".into(),
             user_prompt: "Answer locally.".into(),
+            prior_messages: Vec::new(),
             parameters: AiCompletionParameters::default(),
         };
 
@@ -1199,6 +1200,7 @@ mod tests {
                 model_id: MODEL.into(),
                 system_prompt: "Answer with one word.".into(),
                 user_prompt: "Name a colour.".into(),
+                prior_messages: Vec::new(),
                 parameters: AiCompletionParameters::default(),
             },
             &AiCancellation::new(),
@@ -1247,6 +1249,7 @@ mod tests {
             model_id: MODEL.into(),
             system_prompt: "Follow the instruction exactly.".into(),
             user_prompt: "Count from 1 to 1000, one number per line.".into(),
+            prior_messages: Vec::new(),
             parameters: AiCompletionParameters {
                 timeout_ms: 300_000,
                 ..AiCompletionParameters::default()

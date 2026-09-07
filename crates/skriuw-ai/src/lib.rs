@@ -94,6 +94,7 @@ mod tests {
                 model_id: "deterministic-v1".into(),
                 system_prompt: built_in.system_prompt.into(),
                 user_prompt: "The text the writer selected.".into(),
+                prior_messages: Vec::new(),
                 parameters: AiCompletionParameters {
                     max_output_bytes: built_in.parameters.max_output_bytes,
                     temperature_millis: built_in.parameters.temperature_millis,
