@@ -98,7 +98,7 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
 } from "@/shared/icons/static";
-import { opensNotesInTabs } from "@/features/settings/settings-model";
+import { opensNotesInTabs, usesVimMode } from "@/features/settings/settings-model";
 import { THEME_ENTRIES } from "@/features/settings/themes";
 import type { SectionId } from "@/features/settings/sections/sections";
 import { updateSetting } from "@/store/actions/settings";
@@ -444,6 +444,17 @@ export function createWorkspaceCommands(
           return;
         }
         toggleEditorMode(store, noteId);
+      },
+    },
+    {
+      id: "toggle-vim-mode",
+      label: "Toggle Vim mode",
+      group: "Actions",
+      keywords: ["vim", "modal", "keybindings", "normal", "insert", "motions"],
+      icon: <KeyboardIcon size={15} />,
+      shortcut: "toggleVimMode",
+      run: () => {
+        updateSetting(store, "vimMode", !usesVimMode(store.getState().settings));
       },
     },
     {
