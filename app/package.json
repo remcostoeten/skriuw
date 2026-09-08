@@ -11,6 +11,7 @@
     "test": "tsx scripts/test-verdict.ts",
     "e2e": "node e2e/run.mjs",
     "e2e:browser-storage": "node e2e/browser-storage.mjs",
+    "e2e:browser-reset": "node e2e/browser-reset.mjs",
     "e2e:browser-storage:firefox": "node e2e/browser-storage-firefox.mjs",
     "e2e:browser-scale": "node e2e/browser-scale.mjs",
     "e2e:native": "node e2e/run-native.mjs",

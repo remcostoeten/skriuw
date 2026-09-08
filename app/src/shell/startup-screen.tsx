@@ -4,7 +4,7 @@ import { Button } from "@/shared/ui/button";
 export type StartupScreenAction = {
   label: string;
   onSelect: () => void;
-  variant?: "default" | "primary";
+  variant?: "default" | "primary" | "danger" | "dangerFilled";
   disabled?: boolean;
 };
 

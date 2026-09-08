@@ -185,7 +185,12 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
   return value as T;
 }
 
-async function clearBrowserData(): Promise<void> {
+/**
+ * Deletes the durable browser workspace and reloads. Exported so the startup
+ * failure screen can offer it too: a database that cannot open leaves the
+ * settings surface unreachable, and without it the terminal states dead-end.
+ */
+export async function clearBrowserData(): Promise<void> {
   browserSyncDriver(syncWorkerPort).stop();
   if (browserStorage) {
     const client = await browserStorage;

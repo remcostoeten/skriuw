@@ -20,7 +20,7 @@ import {
   savePaneLayout,
   saveSidebarExpansion,
 } from "@/bridge/commands";
-import { isBrowserRuntime, releaseBrowserStorage } from "@/bridge/runtime";
+import { clearBrowserData, isBrowserRuntime, releaseBrowserStorage } from "@/bridge/runtime";
 import type { HistoryHeader } from "@/contracts/workspace";
 import { listenForHistoryHeaders } from "@/features/history/live-history";
 import {
@@ -31,6 +31,11 @@ import { bindPropagationTriggers } from "@/features/sync/propagation-triggers";
 import { createSyncReconciler } from "@/features/sync/reconcile";
 import { bindWindowClosePersistence } from "@/shell/window-close";
 import { flushPendingWork, registerPendingWork } from "@/shell/pending-work";
+import {
+  createStartupFailureFlow,
+  describeStartupFailure,
+  type StartupFailure,
+} from "@/shell/startup-failure";
 import { StartupScreen } from "@/shell/startup-screen";
 import {
   browserTabLockChannel,
@@ -53,36 +58,6 @@ import "./styles.css";
 
 const REVEAL_FRAME_TIMEOUT_MS = 100;
 const BLOCKED_RETRY_INTERVAL_MS = 5_000;
-
-type StartupFailure = {
-  code: string | null;
-  message: string;
-  recovery: string | null;
-};
-
-/**
- * Startup rejections arrive either as `Error`s or as the plain
- * `BrowserStorageFailure` records the storage worker rejects with, so the
- * fallback screen has to read both instead of stringifying an object.
- */
-function describeStartupFailure(error: unknown): StartupFailure {
-  if (error instanceof Error) {
-    return { code: null, message: error.message, recovery: null };
-  }
-  if (typeof error === "object" && error !== null) {
-    const failure = error as { code?: unknown; message?: unknown; recovery?: unknown };
-    const message = typeof failure.message === "string" ? failure.message : null;
-    const code = typeof failure.code === "string" ? failure.code : null;
-    if (message !== null || code !== null) {
-      return {
-        code,
-        message: message ?? `Browser storage failed (${code}).`,
-        recovery: typeof failure.recovery === "string" ? failure.recovery : null,
-      };
-    }
-  }
-  return { code: null, message: String(error), recovery: null };
-}
 
 let revealed = false;
 
@@ -385,21 +360,31 @@ function main(): void {
     window.location.reload();
   }
 
+  const failureFlow = createStartupFailureFlow({
+    browserRuntime: isBrowserRuntime(),
+    resetWorkspace: clearBrowserData,
+    retry: () => void attemptOpen(),
+    render: (view) => {
+      root.render(
+        <StartupScreen
+          icon={<TriangleAlert />}
+          title={view.title}
+          detail={view.detail}
+          hint={view.hint}
+          actions={view.actions}
+        />,
+      );
+    },
+    reportError: (error) => console.error("workspace reset failed", error),
+  });
+
   function renderFailure(failure: StartupFailure): void {
     if (lock && failure.code === "already_open") {
       startWaiting();
       renderBlocked(false);
       return;
     }
-    root.render(
-      <StartupScreen
-        icon={<TriangleAlert />}
-        title="Skriuw could not open your workspace"
-        detail={failure.message}
-        hint={failure.recovery}
-        actions={[{ label: "Retry", variant: "primary", onSelect: () => void attemptOpen() }]}
-      />,
-    );
+    failureFlow.show(failure);
   }
 
   async function attemptOpen(): Promise<void> {
