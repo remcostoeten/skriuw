@@ -94,6 +94,17 @@ pub fn run() {
             {
                 eprintln!("asset scope extension failed: {error}");
             }
+            // Only an installed desktop entry gives Wayland an icon, so `tauri
+            // dev` and un-integrated AppImages fall back to a generic tile.
+            // X11 and Windows read the window's own icon instead, which the
+            // bundled brand mark can supply at runtime on every build.
+            if let Some(icon) = app.default_window_icon().cloned() {
+                if let Some(window) = app.get_webview_window("main") {
+                    if let Err(error) = window.set_icon(icon) {
+                        eprintln!("window icon could not be applied: {error}");
+                    }
+                }
+            }
             // WebKitGTK's default answer to a permission request is denial, so
             // without this handler `getUserMedia` on Linux fails silently and
             // dictation can never reach the microphone. Only audio-only
