@@ -177,7 +177,11 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
   narrow document reads, and an in-place editor merge without an undo entry.
 - [ ] Compact client-side tombstones and received records once per-device
   acknowledgement and checkpoint evidence exists.
-- [ ] Decide whether cloud content is end-to-end encrypted before public beta.
+- [x] Encrypt cloud content end to end: a sealed payload form and sealed
+  checkpoints, keyed by a per-workspace content key derived from a recovery
+  code, with the metadata boundary fixed in
+  [ADR-0041](../adr/0041-end-to-end-encrypted-sync.md) and covered by
+  [`encrypted_scenarios.rs`](../../crates/skriuw-sync/tests/encrypted_scenarios.rs).
 - [x] Test two offline devices reconnecting in either order, duplicate
   delivery, three-device ack-before-echo, parked write then remote write then
   retry, expired sessions mid-push and mid-pull, and rehydration after
