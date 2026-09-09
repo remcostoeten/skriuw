@@ -48,6 +48,10 @@
     "replicationClass": "replicated_workspace_content"
   },
   {
+    "operationType": "set_note_cover_gradient",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
     "operationType": "set_note_cover_full_width",
     "replicationClass": "replicated_workspace_content"
   },
