@@ -270,6 +270,9 @@ pub fn run() {
             commands::sync::list_blocked_sync_operations,
             commands::sync::retry_blocked_sync_operation,
             commands::sync::discard_blocked_sync_operation,
+            commands::sync::workspace_encryption_state,
+            commands::sync::enable_workspace_encryption,
+            commands::sync::unlock_workspace_encryption,
             commands::sync::set_workspace_sync_online,
             commands::sync::set_workspace_sync_visibility
         ])

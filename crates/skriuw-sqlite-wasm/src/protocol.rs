@@ -17,6 +17,8 @@ pub const MAX_LAYOUT_BYTES: usize = 256 * 1024;
 pub const MAX_EXPANDED_FOLDER_IDS: usize = 100_000;
 pub const MAX_DATABASE_NAME_BYTES: usize = 128;
 pub const MAX_DELTA_IDS_PER_REQUEST: usize = 4_096;
+pub const MAX_RECOVERY_CODE_BYTES: usize = 128;
+pub const RECOVERY_CODE_ENTROPY_BYTES: usize = 20;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -85,6 +87,16 @@ pub enum BrowserWorkerCommand {
     /// Clears durable retry delays and the backoff before the next cycle,
     /// like the desktop coordinator's refresh request.
     SyncRefresh,
+    SyncEncryptionState,
+    /// Turns on end-to-end encryption with entropy the page supplied from
+    /// `crypto.getRandomValues`, so no random-number source enters the
+    /// shared crates.
+    EnableSyncEncryption {
+        entropy: Vec<u8>,
+    },
+    UnlockSyncEncryption {
+        recovery_code: String,
+    },
     Close,
 }
 
@@ -121,6 +133,8 @@ pub enum BrowserWorkerValue {
     SyncConnection(Option<BrowserSyncConnection>),
     SyncStatus(SyncStatus),
     SyncCycle(BrowserSyncCycleReport),
+    SyncEncryptionState(BrowserSyncEncryptionState),
+    SyncRecoveryCode(String),
     Unit,
     Closed,
 }
@@ -139,6 +153,17 @@ pub struct BrowserSyncCycleReport {
     pub status: SyncStatus,
     pub retry_at_ms: Option<i64>,
     pub changes: RemoteChangeSet,
+}
+
+/// What the settings surface renders about a workspace's encryption. Key
+/// material is deliberately absent: it stays in the worker's database.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrowserSyncEncryptionState {
+    pub enabled: bool,
+    pub linked: bool,
+    pub key_id: Option<String>,
+    pub sealed_checkpoint_at: Option<i64>,
 }
 
 /// One bounded content transfer observed by the browser sync transport,

@@ -14,13 +14,13 @@ use skriuw_storage::{NewSyncConnection, WorkspaceMaintenance, WorkspaceSyncQueue
 use skriuw_sync::{
     CheckpointPublication, CheckpointPublicationConfig, CheckpointPublicationState,
     SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig, SyncCycleOutcome,
-    SyncCycleState, SyncStatus, SyncTransport, TransportError, run_checkpoint_publication,
-    run_sync_cycle,
+    SyncCycleState, SyncStatus, SyncTransport, TransportError, derive_workspace_seal,
+    new_recovery_code, run_checkpoint_publication, run_sync_cycle,
 };
 
 use crate::protocol::{
-    BrowserStorageError, BrowserSyncConnection, BrowserSyncCycleReport, BrowserSyncProgress,
-    BrowserSyncProgressPhase,
+    BrowserStorageError, BrowserSyncConnection, BrowserSyncCycleReport, BrowserSyncEncryptionState,
+    BrowserSyncProgress, BrowserSyncProgressPhase,
 };
 use crate::runtime::map_storage_error;
 
@@ -138,6 +138,78 @@ impl BrowserSyncRuntime {
         });
         self.last_status = SyncStatus::Connecting;
         Ok(self.last_status.clone())
+    }
+
+    /// What the settings surface renders about this workspace's encryption.
+    pub fn encryption_state(
+        &self,
+        queue: &dyn WorkspaceSyncQueue,
+    ) -> Result<BrowserSyncEncryptionState, BrowserStorageError> {
+        let seal = queue.workspace_seal().map_err(map_storage_error)?;
+        let linked = queue
+            .sync_connection()
+            .map_err(map_storage_error)?
+            .is_some();
+        Ok(BrowserSyncEncryptionState {
+            enabled: seal.is_some(),
+            linked,
+            key_id: seal.as_ref().map(|seal| seal.key_id.clone()),
+            sealed_checkpoint_at: seal.as_ref().and_then(|seal| seal.sealed_checkpoint_at),
+        })
+    }
+
+    /// Turns encryption on and returns the recovery code exactly once. The
+    /// code itself is never stored, so losing it means losing the cloud copy
+    /// while local canonical state stays untouched.
+    pub fn enable_encryption(
+        &mut self,
+        queue: &dyn WorkspaceSyncQueue,
+        entropy: &[u8],
+        now_ms: i64,
+    ) -> Result<String, BrowserStorageError> {
+        let workspace_id = self.linked_workspace(queue)?;
+        if queue.workspace_seal().map_err(map_storage_error)?.is_some() {
+            return Err(BrowserStorageError::invalid(
+                "This workspace is already encrypted.",
+            ));
+        }
+        let recovery_code = new_recovery_code(entropy).map_err(BrowserStorageError::invalid)?;
+        let seal = derive_workspace_seal(&workspace_id, &recovery_code, now_ms)
+            .map_err(BrowserStorageError::invalid)?;
+        queue.set_workspace_seal(&seal).map_err(map_storage_error)?;
+        self.refresh(queue, now_ms);
+        Ok(recovery_code)
+    }
+
+    /// Joins an already-encrypted workspace on this device from the recovery
+    /// code alone.
+    pub fn unlock_encryption(
+        &mut self,
+        queue: &dyn WorkspaceSyncQueue,
+        recovery_code: &str,
+        now_ms: i64,
+    ) -> Result<BrowserSyncEncryptionState, BrowserStorageError> {
+        let workspace_id = self.linked_workspace(queue)?;
+        let seal = derive_workspace_seal(&workspace_id, recovery_code, now_ms)
+            .map_err(BrowserStorageError::invalid)?;
+        queue.set_workspace_seal(&seal).map_err(map_storage_error)?;
+        self.refresh(queue, now_ms);
+        self.encryption_state(queue)
+    }
+
+    fn linked_workspace(
+        &self,
+        queue: &dyn WorkspaceSyncQueue,
+    ) -> Result<String, BrowserStorageError> {
+        queue
+            .sync_connection()
+            .map_err(map_storage_error)?
+            .map(|connection| connection.workspace_id)
+            .ok_or_else(|| {
+                BrowserStorageError::invalid(
+                    "Connect this workspace to Skriuw cloud before encrypting it.",
+                )
+            })
     }
 
     /// Pauses network work without discarding the durable connection or the

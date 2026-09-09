@@ -152,6 +152,25 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
     browserSyncDriver(syncWorkerPort).setVisibility(visible, focused);
     return undefined as T;
   }
+  if (command === "workspace_encryption_state") {
+    return requestExpecting("sync_encryption_state", null, "sync_encryption_state") as Promise<T>;
+  }
+  if (command === "enable_workspace_encryption") {
+    const entropy = crypto.getRandomValues(new Uint8Array(20));
+    return requestExpecting(
+      "enable_sync_encryption",
+      { entropy: Array.from(entropy) },
+      "sync_recovery_code",
+    ) as Promise<T>;
+  }
+  if (command === "unlock_workspace_encryption") {
+    const { recoveryCode } = args as { recoveryCode: string };
+    return requestExpecting(
+      "unlock_sync_encryption",
+      { recoveryCode },
+      "sync_encryption_state",
+    ) as Promise<T>;
+  }
   if (command === "store_note_image") {
     return storeBrowserMediaBlob(args as Uint8Array) as Promise<T>;
   }
