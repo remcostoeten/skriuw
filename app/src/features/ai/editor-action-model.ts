@@ -23,26 +23,74 @@ export type AiActionPhase =
   | "error";
 
 /**
+ * How far a live run has actually got. `phase` says whether a run is in flight;
+ * this says what it is doing, which is the difference between "nothing is
+ * happening" and "the provider has not answered yet" — the two a writer staring
+ * at an unchanged note cannot otherwise tell apart.
+ *
+ * `sending` covers the round trip that opens the stream, which is where a cold
+ * local model spends most of a slow run. `waiting` is an open stream that has
+ * produced no token yet. `generating` starts at the first delta.
+ */
+export type AiRunStage = "idle" | "sending" | "waiting" | "generating" | "settled";
+
+/**
  * Streamed output lives here and nowhere else until the writer accepts it. The
  * canonical document is never a stream target, so cancelling at any point
  * leaves the note byte-for-byte as it was.
  */
 export type AiActionRun = {
   phase: AiActionPhase;
+  stage: AiRunStage;
   requestId: string | null;
   preview: string;
   error: AiProviderError | null;
+  /** `performance.now()` at the moment the request was fired, for elapsed time. */
+  startedAt: number | null;
 };
 
 export const IDLE_RUN: AiActionRun = {
   phase: "composing",
+  stage: "idle",
   requestId: null,
   preview: "",
   error: null,
+  startedAt: null,
 };
 
-export function startedRun(requestId: string): AiActionRun {
-  return { phase: "streaming", requestId, preview: "", error: null };
+export function startedRun(requestId: string, startedAt = 0): AiActionRun {
+  return {
+    phase: "streaming",
+    stage: "sending",
+    requestId,
+    preview: "",
+    error: null,
+    startedAt,
+  };
+}
+
+/**
+ * The stream is open but silent. Reached when the provider accepted the request
+ * and has not produced a token, so a stalled run says which half it is stuck in.
+ */
+export function connectedRun(run: AiActionRun, requestId: string): AiActionRun {
+  if (run.phase !== "streaming" || run.requestId !== requestId || run.stage !== "sending") {
+    return run;
+  }
+  return { ...run, stage: "waiting" };
+}
+
+/**
+ * Stopping is answered locally rather than waited for. The provider is asked to
+ * cancel too, but its acknowledgement may never arrive — and the note is
+ * untouched either way, so there is nothing to be careful about: the writer
+ * pressed stop and the run is over.
+ */
+export function stoppedRun(run: AiActionRun): AiActionRun {
+  if (run.phase !== "streaming") {
+    return run;
+  }
+  return { ...run, phase: "cancelled", stage: "settled" };
 }
 
 /**
@@ -58,7 +106,7 @@ export function runWithDelta(
   if (run.phase !== "streaming" || run.requestId !== requestId) {
     return run;
   }
-  return { ...run, preview: run.preview + text };
+  return { ...run, stage: "generating", preview: run.preview + text };
 }
 
 export function runWithTerminal(
@@ -68,16 +116,17 @@ export function runWithTerminal(
   if (run.phase !== "streaming" || run.requestId !== event.requestId) {
     return run;
   }
+  const settled = { ...run, stage: "settled" as const };
   if (event.type === "done") {
-    return { ...run, phase: "done" };
+    return { ...settled, phase: "done" };
   }
   if (event.type === "cancelled") {
-    return { ...run, phase: "cancelled" };
+    return { ...settled, phase: "cancelled" };
   }
   if (event.type === "timeout") {
-    return { ...run, phase: "timeout" };
+    return { ...settled, phase: "timeout" };
   }
-  return { ...run, phase: "error", error: event.error };
+  return { ...settled, phase: "error", error: event.error };
 }
 
 export function failedRun(
@@ -91,6 +140,7 @@ export function failedRun(
   return {
     ...run,
     phase: "error",
+    stage: "settled",
     error: {
       providerId: "editor",
       category: "internal_failure",
@@ -123,6 +173,9 @@ export function aiActionStatusLine(run: AiActionRun, action: AiEditorAction): st
     return `${action.label} is ready to run.`;
   }
   if (run.phase === "streaming") {
+    if (run.stage === "sending") {
+      return `${action.label} is running. Sending the request.`;
+    }
     return run.preview.length === 0
       ? `${action.label} is running. Waiting for the first words.`
       : `${action.label} is streaming: ${run.preview.length} characters so far.`;

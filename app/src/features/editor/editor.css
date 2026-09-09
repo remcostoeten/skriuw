@@ -1681,6 +1681,21 @@ body.is-dragging-block {
   color: hsl(var(--accent-foreground));
 }
 
+/* The AI entry is named, not just drawn, and tinted so it reads as the one
+   thing on this toolbar that is not a formatting mark. */
+.bubble-menu button[aria-label="Ask AI"] {
+  gap: 5px;
+  padding: 0 9px;
+  color: hsl(var(--editor-link));
+  font-weight: 600;
+}
+
+.bubble-menu button[aria-label="Ask AI"]:hover,
+.bubble-menu button[aria-label="Ask AI"]:focus {
+  background: hsl(var(--editor-link) / 0.16);
+  color: hsl(var(--editor-link));
+}
+
 .bubble-menu button.is-active {
   background: hsl(var(--editor-link) / 0.18);
   color: hsl(var(--editor-link));
