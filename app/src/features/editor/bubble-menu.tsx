@@ -9,7 +9,7 @@ import {
   ItalicIcon,
   LinkIcon,
   MessageSquareIcon,
-  StarIcon,
+  SparklesIcon,
   StrikethroughIcon,
   TextQuoteIcon,
 } from "@/shared/icons/static";
@@ -380,20 +380,27 @@ export function BubbleMenu({
       content: <TextQuoteIcon size={14} />,
       command: toggleBlockquote(state.blockquote),
     },
-    ...(onAskAi === null
-      ? []
-      : [
-        {
-          id: "ask-ai",
-          label: "Ask AI",
-          active: false,
-          group: "ai" as const,
-          content: <StarIcon size={14} />,
-          command: (() => true) as Command,
-          onPress: onAskAi,
-        },
-      ]),
   ];
+  // The AI entry leads the toolbar and carries its name. Buried at the end
+  // behind an unlabelled icon it read as one more mark, and writers found AI
+  // through the command palette or not at all.
+  if (onAskAi !== null) {
+    buttons.unshift({
+      id: "ask-ai",
+      label: "Ask AI",
+      active: false,
+      group: "ai",
+      content: (
+        <>
+          <SparklesIcon size={13} />
+          <span>Ask AI</span>
+        </>
+      ),
+      command: (() => true) as Command,
+      onPress: onAskAi,
+    });
+  }
+
   function moveFocus(next: number): void {
     const wrapped = (next + buttons.length) % buttons.length;
     setFocusIndex(wrapped);

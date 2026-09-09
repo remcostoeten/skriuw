@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AiCompletionRequest } from "@/contracts/ai";
 import { noop } from "@/shared/lib/noop";
 import { startAiCompletion, type AiCompletionHandle } from "./completion-bridge";
 import { createAiCompletionConsumer } from "./completion-consumer";
 import {
   IDLE_RUN,
+  connectedRun,
   failedRun,
   runWithDelta,
   runWithTerminal,
   startedRun,
+  stoppedRun,
   type AiActionRun,
 } from "./editor-action-model";
 
@@ -79,7 +81,13 @@ export function useAiRun(signal: AbortSignal, { origin, onStart }: Options): AiR
     }
   }
 
-  function fire(request: AiCompletionRequest): void {
+  /**
+   * Stable across renders so a caller can start a run from an effect keyed on
+   * the request alone. A caller guarding with a "have I fired yet" ref instead
+   * cannot re-fire when the effect is torn down and replayed, and the run is
+   * then left with a disposed consumer and no way back.
+   */
+  const fire = useCallback(function fire(request: AiCompletionRequest): void {
     consumerRef.current?.dispose();
     handleRef.current?.dispose();
     handleRef.current = null;
@@ -88,7 +96,7 @@ export function useAiRun(signal: AbortSignal, { origin, onStart }: Options): AiR
     activeRequestIdRef.current = request.requestId;
     cancelRequestedRef.current = false;
     onStartRef.current?.();
-    setRun(startedRun(request.requestId));
+    setRun(startedRun(request.requestId, performance.now()));
 
     const consumer = createAiCompletionConsumer(request.requestId, {
       onDelta: (text) => {
@@ -112,7 +120,9 @@ export function useAiRun(signal: AbortSignal, { origin, onStart }: Options): AiR
         handleRef.current = handle;
         if (cancelRequestedRef.current) {
           void handle.cancel().catch(noop);
+          return;
         }
+        setRun((current) => connectedRun(current, request.requestId));
       })
       .catch((reason: unknown) => {
         if (activeRequestIdRef.current !== request.requestId) {
@@ -121,7 +131,7 @@ export function useAiRun(signal: AbortSignal, { origin, onStart }: Options): AiR
         consumer.dispose();
         setRun((current) => failedRun(current, request.requestId, errorMessage(reason)));
       });
-  }
+  }, [origin, signal]);
 
   function retry(): void {
     const previous = lastRequestRef.current;
@@ -131,9 +141,19 @@ export function useAiRun(signal: AbortSignal, { origin, onStart }: Options): AiR
     fire({ ...previous, requestId: crypto.randomUUID() });
   }
 
+  /**
+   * Answered here rather than at the provider. The seam is still asked to stop,
+   * but a run whose start invocation has not resolved has nothing to ask yet,
+   * and one whose provider never acknowledges would leave the writer pressing a
+   * dead button. Nothing was written to the note, so ending it locally is safe:
+   * the consumer is disposed first, so no straggling delta can reopen it.
+   */
   function cancel(): void {
     cancelRequestedRef.current = true;
+    consumerRef.current?.dispose();
+    flushDeltas();
     void handleRef.current?.cancel().catch(noop);
+    setRun(stoppedRun);
   }
 
   return { run, fire, retry, cancel };
