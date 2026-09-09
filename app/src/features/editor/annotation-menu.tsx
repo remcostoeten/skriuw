@@ -5,6 +5,7 @@ import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import type { AnnotationComment, WorkspaceAnnotation } from "@/contracts/workspace";
 import { CheckIcon, PencilIcon, Trash2Icon } from "@/shared/icons/static";
+import { Tooltip } from "@/shared/ui/tooltip";
 import { rangeMenuAnchor, type MenuAnchor } from "./menu-anchor";
 import { productSchema } from "./schema";
 
@@ -271,44 +272,47 @@ export function AnnotationMenu({
                           }
                         }}
                       />
-                      <button
-                        type="button"
-                        title="Save comment"
-                        aria-label="Save comment"
-                        onClick={() => {
-                          submitEdit();
-                        }}
-                      >
-                        <CheckIcon size={13} />
-                      </button>
+                      <Tooltip label="Save comment">
+                        <button
+                          type="button"
+                          aria-label="Save comment"
+                          onClick={() => {
+                            submitEdit();
+                          }}
+                        >
+                          <CheckIcon size={13} />
+                        </button>
+                      </Tooltip>
                     </div>
                   ) : (
                     <>
                       <p className="annotation-menu-body">{comment.bodyMarkdown}</p>
                       <div className="annotation-menu-meta">
                         <span>{relativeTime(comment.createdAt, now)}</span>
-                        <button
-                          type="button"
-                          title="Edit comment"
-                          aria-label="Edit comment"
-                          onClick={() => {
-                            setEditingId(comment.id);
-                            setEditDraft(comment.bodyMarkdown);
-                          }}
-                        >
-                          <PencilIcon size={12} />
-                        </button>
-                        <button
-                          type="button"
-                          className="annotation-menu-destructive"
-                          title="Delete comment"
-                          aria-label="Delete comment"
-                          onClick={() => {
-                            onDeleteComment(comment.id);
-                          }}
-                        >
-                          <Trash2Icon size={12} />
-                        </button>
+                        <Tooltip label="Edit comment">
+                          <button
+                            type="button"
+                            aria-label="Edit comment"
+                            onClick={() => {
+                              setEditingId(comment.id);
+                              setEditDraft(comment.bodyMarkdown);
+                            }}
+                          >
+                            <PencilIcon size={12} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip label="Delete comment">
+                          <button
+                            type="button"
+                            className="annotation-menu-destructive"
+                            aria-label="Delete comment"
+                            onClick={() => {
+                              onDeleteComment(comment.id);
+                            }}
+                          >
+                            <Trash2Icon size={12} />
+                          </button>
+                        </Tooltip>
                       </div>
                     </>
                   )}

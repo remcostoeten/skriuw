@@ -121,7 +121,7 @@ export function MediaLibraryPicker({
           type="search"
           value={query}
           placeholder={`Search ${label} assets`}
-          className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs outline-none [&::-webkit-search-cancel-button]:hidden placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           onChange={(event) => setQuery(event.currentTarget.value)}
         />
       </label>

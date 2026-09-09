@@ -4,6 +4,7 @@ import type { AiCompletionRequest } from "@/contracts/ai";
 import { appRouteHash } from "@/app-route";
 import { ChevronLeftIcon, StarIcon } from "@/shared/icons/static";
 import { Button } from "@/shared/ui/button";
+import { Select } from "@/shared/ui/select";
 import { WindowControls } from "@/shell/window-controls";
 import { cn } from "@/shared/lib/utils";
 import { noop } from "@/shared/lib/noop";
@@ -331,7 +332,10 @@ export function PromptPlaygroundView({ store, signal }: Props) {
       aria-labelledby="prompt-playground-title"
       onKeyDown={handleSurfaceKeys}
     >
-      <header className="flex h-11 items-center gap-2.5 border-b border-theme-divider pl-3">
+      <header
+        data-tauri-drag-region
+        className="flex h-11 items-center gap-2.5 border-b border-theme-divider pl-3"
+      >
         <button
           type="button"
           onClick={() => {
@@ -357,23 +361,25 @@ export function PromptPlaygroundView({ store, signal }: Props) {
 
       <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-y-auto">
         <div className="mx-auto w-[min(100%,860px)] px-[clamp(20px,4vw,40px)] pt-5">
-          <label className={cn(paramLabelClass, "mb-2")}>
+          <div className={cn(paramLabelClass, "mb-2")}>
             Prompt
-            <select
-              aria-label="Prompt"
-              className={cn(paramFieldClass, "w-auto max-w-[280px] cursor-pointer")}
+            <Select
+              label="Prompt"
+              className="max-w-[280px]"
               value={promptKey}
+              options={[
+                { value: "", label: "Blank" },
+                ...promptEntries.map((entry) => ({
+                  value: entry.key,
+                  label:
+                    entry.origin === "customised" ? `${entry.name} (modified)` : entry.name,
+                })),
+              ]}
               disabled={streaming}
-              onChange={(event) => applyPromptEntry(event.target.value)}
-            >
-              <option value="">Blank</option>
-              {promptEntries.map((entry) => (
-                <option key={entry.key} value={entry.key}>
-                  {entry.origin === "customised" ? `${entry.name} (modified)` : entry.name}
-                </option>
-              ))}
-            </select>
-          </label>
+              onChange={applyPromptEntry}
+              align="start"
+            />
+          </div>
           <label className="mb-3 block">
             <span className="mb-1 block text-[11px] font-[560] text-theme-secondary">
               System prompt
@@ -405,34 +411,29 @@ export function PromptPlaygroundView({ store, signal }: Props) {
           </label>
 
           <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <label className={paramLabelClass}>
+            <div className={paramLabelClass}>
               Model
-              <select
-                aria-label="Model"
-                className={cn(paramFieldClass, "w-auto max-w-[260px] cursor-pointer")}
+              <Select
+                label="Model"
+                className="max-w-[260px]"
                 value={modelValue}
+                options={groups.flatMap((group) =>
+                  group.options.map((option) => ({
+                    value: encodeSelection(option),
+                    label: option.label,
+                    group: group.label,
+                  })),
+                )}
                 disabled={streaming}
-                onChange={(event) => {
-                  const next = decodeSelection(event.target.value);
+                onChange={(value) => {
+                  const next = decodeSelection(value);
                   if (next !== null) {
                     setSelected(next);
                   }
                 }}
-              >
-                {groups.map((group) => (
-                  <optgroup key={group.providerId} label={group.label}>
-                    {group.options.map((option) => (
-                      <option
-                        key={`${option.providerId}:${option.modelId}`}
-                        value={encodeSelection(option)}
-                      >
-                        {option.label}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            </label>
+                align="start"
+              />
+            </div>
             <label className={paramLabelClass}>
               Temperature
               <input

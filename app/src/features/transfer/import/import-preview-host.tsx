@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/shared/ui/button";
+import { Checkbox } from "@/shared/ui/checkbox";
 import { Dialog } from "@/shared/ui/dialog";
 import { Select } from "@/shared/ui/select";
 import {
@@ -124,34 +125,28 @@ export function ImportPreviewHost() {
           <span className="text-muted-foreground">Organize</span>
           <div className="grid gap-1.5">
             <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
-              <input
-                type="checkbox"
+              <Checkbox
                 name="import-group-source-folder"
                 checked={groupIntoSourceFolder}
                 onChange={(event) => setGroupIntoSourceFolder(event.target.checked)}
-                className="size-3.5 cursor-pointer accent-[var(--primary)]"
               />
               <span>Place everything in a "{selectedSource.sourceLabel}" folder</span>
             </label>
             <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
-              <input
-                type="checkbox"
+              <Checkbox
                 name="import-group-by-year"
                 checked={groupByYear}
                 onChange={(event) => setGroupByYear(event.target.checked)}
-                className="size-3.5 cursor-pointer accent-[var(--primary)]"
               />
               <span>Group notes into folders by year created</span>
             </label>
           </div>
           <span className="text-muted-foreground">Provenance</span>
           <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
-            <input
-              type="checkbox"
+            <Checkbox
               name="import-record-source"
               checked={recordSource}
               onChange={(event) => setRecordSource(event.target.checked)}
-              className="size-3.5 cursor-pointer accent-[var(--primary)]"
             />
             <span>
               Record the import source as a property on

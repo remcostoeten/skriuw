@@ -4,6 +4,7 @@ import { useShortcut } from "@remcostoeten/use-shortcut/react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { RotateCcwIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
+import { Tooltip } from "./tooltip";
 
 export type ShortcutRecorderHandle = {
   /** Focuses the recorder button and opens capture, as if it was clicked. */
@@ -151,18 +152,19 @@ export function ShortcutRecorder({
         )}
       </button>
       {onReset && !isDefault && (
-        <button
-          type="button"
-          className="flex cursor-pointer rounded-lg p-1 text-muted-foreground hover:text-foreground"
-          aria-label="Reset to default"
-          title="Reset to default"
-          onClick={() => {
-            setError(null);
-            onReset();
-          }}
-        >
-          <RotateCcwIcon size={13} />
-        </button>
+        <Tooltip label="Reset to default">
+          <button
+            type="button"
+            className="flex cursor-pointer rounded-lg p-1 text-muted-foreground hover:text-foreground"
+            aria-label="Reset to default"
+            onClick={() => {
+              setError(null);
+              onReset();
+            }}
+          >
+            <RotateCcwIcon size={13} />
+          </button>
+        </Tooltip>
       )}
       <span className="text-[11px] text-destructive" role="status" aria-live="polite">
         {error}

@@ -5,6 +5,7 @@ import type { AiCompletionRequest } from "@/contracts/ai";
 import { noop } from "@/shared/lib/noop";
 import { diffWords, type DiffSegment } from "@/shared/lib/word-diff";
 import { Button } from "@/shared/ui/button";
+import { Checkbox } from "@/shared/ui/checkbox";
 import { setSuggestionPreview } from "@/features/editor/suggestion-decorations";
 import { commitReferenceOperations, renameNode } from "@/store/actions/workspace";
 import type { RendererStore } from "@/store/types";
@@ -474,8 +475,7 @@ export function AiRunCard({
             {plan.items.map((item) => (
               <li key={item.key}>
                 <label>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={!excluded.has(item.key)}
                     onChange={() =>
                       setExcluded((current) => {

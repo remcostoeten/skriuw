@@ -394,7 +394,7 @@ export function EntityView({ store, kind }: Props) {
               <input
                 ref={filterRef}
                 type="search"
-                className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none"
+                className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none [&::-webkit-search-cancel-button]:hidden"
                 placeholder="Filter"
                 value={filter}
                 onChange={(event) => setFilter(event.target.value)}
@@ -619,7 +619,10 @@ function EntityTopBar({
   onCancelCreate,
 }: EntityTopBarProps) {
   return (
-    <header className="flex h-11 shrink-0 items-center gap-2.5 border-b border-theme-divider pl-4">
+    <header
+      data-tauri-drag-region
+      className="flex h-11 shrink-0 items-center gap-2.5 border-b border-theme-divider pl-4"
+    >
       <span className="shrink-0 text-theme-secondary" aria-hidden="true">
         {entityGlyph(kind, 14)}
       </span>

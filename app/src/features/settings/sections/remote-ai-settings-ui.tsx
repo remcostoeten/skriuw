@@ -18,6 +18,8 @@ import {
   vaultMessage,
 } from "@/features/ai/remote-ai-model";
 import { cn } from "@/shared/lib/utils";
+import { Radio } from "@/shared/ui/radio";
+import { Select } from "@/shared/ui/select";
 import {
   settingsButton,
   settingsButtonDanger,
@@ -218,23 +220,23 @@ function RemoteProviderCard({
           </div>
 
           {providerModels.length > 0 ? (
-            <label className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground max-[620px]:flex-col max-[620px]:items-start">
+            <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground max-[620px]:flex-col max-[620px]:items-start">
               <span>Test with</span>
-              <select
-                className={cn(settingsTextInput, "w-auto min-w-0 max-[620px]:w-full")}
+              <Select
+                label="Test with"
+                className="min-w-0 max-[620px]:w-full"
+                triggerClassName="w-full"
                 value={draft.modelId ?? providerModels[0]?.modelId ?? ""}
+                options={providerModels.map((model) => ({
+                  value: model.modelId,
+                  label: model.label,
+                  detail: remoteAiModelSummary(model),
+                }))}
                 disabled={draft.busy}
-                onChange={(event) =>
-                  onDraftChange(provider.providerId, { modelId: event.currentTarget.value })
-                }
-              >
-                {providerModels.map((model) => (
-                  <option key={model.modelId} value={model.modelId}>
-                    {model.label} — {remoteAiModelSummary(model)}
-                  </option>
-                ))}
-              </select>
-            </label>
+                onChange={(modelId) => onDraftChange(provider.providerId, { modelId })}
+                align="start"
+              />
+            </div>
           ) : (
             <p className="mt-3 text-[11px] text-muted-foreground">
               No models are listed for this provider in the catalog.
@@ -306,8 +308,7 @@ function KeyTierChoice({
   return (
     <>
       <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <input
-          type="radio"
+        <Radio
           name={`${providerId}-key-tier`}
           checked={tier === "vault"}
           disabled={disabled || !vaultAvailable}
@@ -316,8 +317,7 @@ function KeyTierChoice({
         System keyring
       </label>
       <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <input
-          type="radio"
+        <Radio
           name={`${providerId}-key-tier`}
           checked={tier === "session-only"}
           disabled={disabled}

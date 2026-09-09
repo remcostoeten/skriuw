@@ -26,6 +26,8 @@ import {
   ContextMenuTrigger,
 } from "@/shared/ui/context-menu";
 import { Dialog } from "@/shared/ui/dialog";
+import { Select } from "@/shared/ui/select";
+import { Tooltip } from "@/shared/ui/tooltip";
 import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
 import {
   projectCoverMediaPicker,
@@ -626,17 +628,17 @@ export function NoteCover({ store, selectNoteId }: Props) {
                   aria-label="Focal point presets"
                 >
                   {COVER_FOCAL_PRESETS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      aria-label={preset.label}
-                      title={preset.label}
-                      className="h-2.5 w-2.5 rounded-[2px] border border-foreground/25 bg-muted hover:border-foreground hover:bg-foreground/25"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setFocalPoint(preset.id, false);
-                      }}
-                    />
+                    <Tooltip key={preset.id} label={preset.label}>
+                      <button
+                        type="button"
+                        aria-label={preset.label}
+                        className="h-2.5 w-2.5 rounded-[2px] border border-foreground/25 bg-muted hover:border-foreground hover:bg-foreground/25"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setFocalPoint(preset.id, false);
+                        }}
+                      />
+                    </Tooltip>
                   ))}
                 </span>
                 <span className="mx-0.5 h-3.5 w-px bg-border" aria-hidden="true" />
@@ -712,16 +714,17 @@ export function NoteCover({ store, selectNoteId }: Props) {
                 {fullWidth ? "Content width" : "Full width"}
               </button>
               <span className="mx-0.5 h-3.5 w-px bg-border" aria-hidden="true" />
-              <button
-                type="button"
-                aria-label="Remove cover"
-                title="Remove cover"
-                className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-                disabled={busy}
-                onClick={removeCover}
-              >
-                <CloseIcon size={12} />
-              </button>
+              <Tooltip label="Remove cover">
+                <button
+                  type="button"
+                  aria-label="Remove cover"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  disabled={busy}
+                  onClick={removeCover}
+                >
+                  <CloseIcon size={12} />
+                </button>
+              </Tooltip>
             </div>
           )}
           {error && (
@@ -891,35 +894,31 @@ function CoverMediaPicker({
             type="search"
             value={query}
             placeholder="Search media"
-            className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs outline-none [&::-webkit-search-cancel-button]:hidden placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
             onChange={(event) => setQuery(event.currentTarget.value)}
           />
         </label>
-        <select
-          aria-label="Filter media"
+        <Select
+          label="Filter media"
           value={filter}
-          className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          onChange={(event) =>
-            setFilter(event.currentTarget.value as CoverMediaPickerFilter)
-          }
-        >
-          <option value="all">All assets</option>
-          <option value="used">Used</option>
-          <option value="unused">Unused</option>
-          <option value="duplicates">Reused</option>
-        </select>
-        <select
-          aria-label="Sort media"
+          options={[
+            { value: "all", label: "All assets" },
+            { value: "used", label: "Used" },
+            { value: "unused", label: "Unused" },
+            { value: "duplicates", label: "Reused" },
+          ]}
+          onChange={setFilter}
+        />
+        <Select
+          label="Sort media"
           value={sort}
-          className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          onChange={(event) =>
-            setSort(event.currentTarget.value as CoverMediaPickerSort)
-          }
-        >
-          <option value="recent">Recent</option>
-          <option value="size">Largest</option>
-          <option value="usage">Most used</option>
-        </select>
+          options={[
+            { value: "recent", label: "Recent" },
+            { value: "size", label: "Largest" },
+            { value: "usage", label: "Most used" },
+          ]}
+          onChange={setSort}
+        />
       </div>
       {failed ? (
         <p className="p-6 text-center text-sm text-destructive">

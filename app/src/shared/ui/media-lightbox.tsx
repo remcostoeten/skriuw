@@ -153,6 +153,24 @@ export function MediaLightbox({
 const videoControlClass =
   "grid size-8 shrink-0 place-items-center rounded-full text-white transition-[background,transform] duration-150 hover:bg-white/15 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
+const videoSliderClass = cn(
+  "h-1 cursor-pointer appearance-none rounded-full bg-transparent outline-none",
+  "[&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full",
+  "[&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:-translate-y-1 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_rgba(0,0,0,0.4)]",
+  "[&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent",
+  "[&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+  "forced-colors:appearance-auto",
+);
+
+/** Paints the filled portion of a range track, since no cross-browser property does. */
+function sliderTrackStyle(fraction: number): { background: string } {
+  const percent = `${Math.round(Math.min(1, Math.max(0, fraction)) * 100)}%`;
+  return {
+    background: `linear-gradient(to right, #fff ${percent}, rgb(255 255 255 / 0.3) ${percent})`,
+  };
+}
+
 function MediaLightboxVideo({
   src,
   onError,
@@ -253,7 +271,8 @@ function MediaLightboxVideo({
         </output>
         <input
           type="range"
-          className="h-1 min-w-8 w-full cursor-pointer accent-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(videoSliderClass, "w-full min-w-8")}
+          style={sliderTrackStyle(duration > 0 ? currentTime / duration : 0)}
           min="0"
           max={duration || 0}
           step="0.1"
@@ -276,7 +295,8 @@ function MediaLightboxVideo({
         </button>
         <input
           type="range"
-          className="h-1 w-16 cursor-pointer accent-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(videoSliderClass, "w-16")}
+          style={sliderTrackStyle(volume)}
           min="0"
           max="1"
           step="0.01"

@@ -6,6 +6,7 @@ import {
   type PromptLibraryEntry,
 } from "@/features/ai/prompt-library";
 import { cn } from "@/shared/lib/utils";
+import { Select } from "@/shared/ui/select";
 import {
   settingsButton,
   settingsButtonDanger,
@@ -190,23 +191,16 @@ function PromptEditor({ draft, onDraftChange, onSave, onCancel }: EditorProps) {
         />
       </label>
       <div className="mb-2.5 flex flex-wrap items-end gap-3">
-        <label className="flex flex-col">
+        <div className="flex flex-col">
           <span className={fieldLabelClass}>Expects</span>
-          <select
-            aria-label="Expects"
-            className={cn(settingsTextInput, "w-auto cursor-pointer")}
+          <Select
+            label="Expects"
             value={draft.inputShape}
-            onChange={(event) =>
-              onDraftChange({ inputShape: event.target.value as PromptInputShape })
-            }
-          >
-            {INPUT_SHAPES.map((shape) => (
-              <option key={shape.value} value={shape.value}>
-                {shape.label}
-              </option>
-            ))}
-          </select>
-        </label>
+            options={INPUT_SHAPES}
+            onChange={(inputShape) => onDraftChange({ inputShape })}
+            align="start"
+          />
+        </div>
         <label className="flex flex-col">
           <span className={fieldLabelClass}>Temperature</span>
           <input
