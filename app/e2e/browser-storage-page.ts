@@ -5,6 +5,9 @@ import {
   closeWorkspaceWindow,
   exportWorkspaceArchive,
   importWorkspaceArchive,
+  rebuildSearchIndex,
+  searchIndexStatus,
+  searchWorkspace,
 } from "../src/bridge/commands";
 import type { WorkspaceOperationEnvelope } from "../src/contracts/workspace";
 
@@ -15,8 +18,35 @@ declare global {
       count(id: string): Promise<number>;
       archiveRoundTrip(): Promise<{ markerCopies: number; extraCopies: number }>;
       invalidArchiveRejected(): Promise<{ code: string; nodesAfter: number }>;
+      contentSearch(): Promise<{
+        hits: number;
+        snippet: string;
+        diacriticHits: number;
+        opaqueHits: number;
+        rebuiltHits: number;
+        needsRebuildAfter: boolean;
+      }>;
     };
   }
+}
+
+function createNoteOperation(
+  id: string,
+  title: string,
+  markdown: string,
+): WorkspaceOperationEnvelope {
+  return {
+    protocolVersion: 1,
+    operation: {
+      type: "create_note",
+      id,
+      title,
+      placement: { parentId: null, position: { type: "last" } },
+      documentJson: { type: "doc", content: [] },
+      markdown,
+      at: Date.now(),
+    },
+  };
 }
 
 function createFolderOperation(id: string, title: string): WorkspaceOperationEnvelope {
@@ -71,6 +101,35 @@ window.browserStorageE2e = {
     return {
       markerCopies: snapshot.nodes.filter((node) => node.id === markerId).length,
       extraCopies: snapshot.nodes.filter((node) => node.id === extraId).length,
+    };
+  },
+  /**
+   * FTS5 has to be compiled into the browser SQLite build, not only the
+   * desktop one, or content search silently returns nothing on the web.
+   */
+  async contentSearch() {
+    const id = `browser-search-${crypto.randomUUID()}`;
+    await bootstrapWorkspace();
+    await applyWorkspaceOperations([
+      createNoteOperation(
+        id,
+        "Reisverslag",
+        'Het geërfde café lag naast een oud terras.\n\n```drawing\n{"strokes":[{"pressure":12}]}\n```',
+      ),
+    ]);
+    const hits = await searchWorkspace("terras", 10, [id]);
+    const diacritic = await searchWorkspace("cafe", 10, [id]);
+    const opaque = await searchWorkspace("pressure", 10, [id]);
+    await rebuildSearchIndex();
+    const rebuilt = await searchWorkspace("terras", 10, [id]);
+    const status = await rebuildSearchIndex();
+    return {
+      hits: hits.length,
+      snippet: hits[0]?.snippet ?? "",
+      diacriticHits: diacritic.length,
+      opaqueHits: opaque.length,
+      rebuiltHits: rebuilt.length,
+      needsRebuildAfter: (await searchIndexStatus()).needsRebuild || status.needsRebuild,
     };
   },
   async invalidArchiveRejected() {

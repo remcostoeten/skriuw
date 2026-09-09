@@ -232,6 +232,8 @@ pub fn run() {
             commands::workspace::apply_workspace_operations,
             commands::workspace::close_workspace_window,
             commands::workspace::search_workspace,
+            commands::workspace::search_index_status,
+            commands::workspace::rebuild_search_index,
             commands::workspace::read_workspace_delta,
             commands::history::read_history_version,
             commands::maintenance::export_workspace_archive,

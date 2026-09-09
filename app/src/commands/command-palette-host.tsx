@@ -13,6 +13,7 @@ import {
 } from "@/features/references/entity-manager-model";
 import { describeSearchFilterProblem } from "@/features/search/filter-resolution";
 import { applySearchPlan, planWorkspaceSearch } from "@/features/search/search-plan";
+import { snippetPlainText, snippetSegments } from "@/features/search/snippet";
 import { CircleIcon, FileTextIcon, SearchIcon, WaypointsIcon } from "@/shared/icons/static";
 import { fuzzyMatchScore } from "@/shared/lib/fuzzy-match";
 import { CommandPalette } from "./command-palette";
@@ -49,10 +50,6 @@ function selectNoteEntries(state: RendererState): NoteEntry[] {
   return notes;
 }
 
-function snippetText(snippet: string): string {
-  return snippet.replaceAll("<mark>", "").replaceAll("</mark>", "");
-}
-
 /**
  * Full-text hits the palette shows under "Content". Hits whose title already
  * fuzzy-matches the query are dropped: the title index surfaces those in the
@@ -70,7 +67,8 @@ function contentItems(
     .map((hit) => ({
       id: `note:${hit.noteId}`,
       label: hit.title,
-      hint: snippetText(hit.snippet),
+      hint: snippetPlainText(hit.snippet),
+      hintSegments: snippetSegments(hit.snippet),
       group: "Content",
       searchOnly: true,
       alwaysShow: true,

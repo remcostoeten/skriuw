@@ -1,6 +1,7 @@
 use crate::state::{AppState, wait_for, workspace_runtime};
 use skriuw_domain::{
-    OperationAck, SearchHit, WorkspaceDelta, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    OperationAck, SearchHit, SearchIndexStatus, WorkspaceDelta, WorkspaceOperationEnvelope,
+    WorkspaceSnapshot,
 };
 use tauri::State;
 
@@ -79,6 +80,26 @@ pub async fn search_workspace(
 ) -> Result<Vec<SearchHit>, String> {
     let completion = workspace_runtime(&state)?
         .search_filtered(query, limit, note_ids)
+        .map_err(|error| error.to_string())?;
+    wait_for(completion).await
+}
+
+#[tauri::command]
+pub async fn search_index_status(
+    state: State<'_, AppState>,
+) -> Result<SearchIndexStatus, String> {
+    let completion = workspace_runtime(&state)?
+        .search_index_status()
+        .map_err(|error| error.to_string())?;
+    wait_for(completion).await
+}
+
+#[tauri::command]
+pub async fn rebuild_search_index(
+    state: State<'_, AppState>,
+) -> Result<SearchIndexStatus, String> {
+    let completion = workspace_runtime(&state)?
+        .rebuild_search_index()
         .map_err(|error| error.to_string())?;
     wait_for(completion).await
 }

@@ -11,13 +11,13 @@ use rusqlite::{
     params,
 };
 use skriuw_domain::{
-    HistoryHeader, NodeKind, OperationAck, SearchHit, WorkspaceArchive, WorkspaceDelta,
-    WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    HistoryHeader, NodeKind, OperationAck, SEARCH_INDEX_VERSION, SearchHit, SearchIndexStatus,
+    WorkspaceArchive, WorkspaceDelta, WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 use skriuw_storage::{
     Diagnostic, HistoryCache, HistoryMaterialization, HistoryProvenance, HistoryQueue,
-    ImportSummary, IntegrityReport, PendingHistoryRevision, StorageError, WorkspaceMaintenance,
-    WorkspaceStorage,
+    ImportSummary, IntegrityReport, PendingHistoryRevision, SearchIndexMaintenance, StorageError,
+    WorkspaceMaintenance, WorkspaceStorage,
 };
 
 mod ai_history;
@@ -367,7 +367,7 @@ impl WorkspaceStorage for SqliteWorkspace {
             .prepare_cached(
                 "SELECT documents_fts.note_id, documents_fts.title, \
                  snippet(documents_fts, 2, '<mark>', '</mark>', '…', 24), \
-                 bm25(documents_fts) \
+                 bm25(documents_fts, 0.0, 8.0, 1.0) \
                  FROM documents_fts \
                  JOIN workspace_nodes ON workspace_nodes.id = documents_fts.note_id \
                  WHERE documents_fts MATCH ?1 \
@@ -383,7 +383,7 @@ impl WorkspaceStorage for SqliteWorkspace {
                      ) \
                      SELECT 1 FROM ancestors WHERE deleted_at IS NOT NULL\
                  ) \
-                 ORDER BY bm25(documents_fts) \
+                 ORDER BY bm25(documents_fts, 0.0, 8.0, 1.0) \
                  LIMIT ?2",
             )
             .map_err(backend)?;
@@ -407,6 +407,100 @@ impl WorkspaceStorage for SqliteWorkspace {
             documents: read_documents_by_id(&connection, ids)?,
             nodes: read_nodes_by_id(&connection, ids)?,
         })
+    }
+}
+
+/// `app_state` key holding the [`SEARCH_INDEX_VERSION`] the stored full-text
+/// projection was written with.
+const SEARCH_INDEX_VERSION_KEY: &str = "search_index_version";
+
+fn read_search_index_version(connection: &Connection) -> Result<u32, StorageError> {
+    let stored = connection
+        .query_row(
+            "SELECT value_json FROM app_state WHERE key = ?1",
+            [SEARCH_INDEX_VERSION_KEY],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(backend)?;
+    Ok(stored
+        .and_then(|raw| serde_json::from_str::<u32>(&raw).ok())
+        .unwrap_or_default())
+}
+
+pub(crate) fn write_search_index_version(
+    transaction: &Transaction<'_>,
+) -> Result<(), StorageError> {
+    transaction
+        .execute(
+            "INSERT INTO app_state(key, value_json) VALUES (?1, ?2) \
+             ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json",
+            params![SEARCH_INDEX_VERSION_KEY, SEARCH_INDEX_VERSION.to_string()],
+        )
+        .map_err(backend)?;
+    Ok(())
+}
+
+fn read_search_index_status(connection: &Connection) -> Result<SearchIndexStatus, StorageError> {
+    let index_version = read_search_index_version(connection)?;
+    let indexed_notes = connection
+        .query_row("SELECT count(*) FROM documents_fts", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .map_err(backend)? as u32;
+    let note_count = connection
+        .query_row("SELECT count(*) FROM documents", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .map_err(backend)? as u32;
+    Ok(SearchIndexStatus {
+        index_version,
+        current_version: SEARCH_INDEX_VERSION,
+        indexed_notes,
+        note_count,
+        needs_rebuild: index_version != SEARCH_INDEX_VERSION || indexed_notes != note_count,
+    })
+}
+
+impl SearchIndexMaintenance for SqliteWorkspace {
+    fn search_index_status(&self) -> Result<SearchIndexStatus, StorageError> {
+        let connection = self.lock()?;
+        read_search_index_status(&connection)
+    }
+
+    fn rebuild_search_index(&self) -> Result<SearchIndexStatus, StorageError> {
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
+        let documents = {
+            let mut statement = transaction
+                .prepare(
+                    "SELECT documents.note_id, workspace_nodes.title, documents.markdown \
+                     FROM documents \
+                     JOIN workspace_nodes ON workspace_nodes.id = documents.note_id",
+                )
+                .map_err(backend)?;
+            let rows = statement
+                .query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                })
+                .map_err(backend)?;
+            rows.collect::<Result<Vec<_>, _>>().map_err(backend)?
+        };
+        transaction
+            .execute("DELETE FROM documents_fts", [])
+            .map_err(backend)?;
+        for (note_id, title, markdown) in &documents {
+            insert_fts(&transaction, note_id, title, markdown)?;
+        }
+        write_search_index_version(&transaction)?;
+        transaction.commit().map_err(backend)?;
+        read_search_index_status(&connection)
     }
 }
 
@@ -1000,6 +1094,8 @@ pub(crate) fn replace_workspace_in_transaction(
             )
             .map_err(backend)?;
     }
+
+    write_search_index_version(transaction)?;
 
     Ok(ImportSummary {
         nodes: archive.nodes.len(),

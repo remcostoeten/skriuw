@@ -71,6 +71,7 @@ import {
 } from "@/commands/rail-items";
 import { appRouteHash, useAppRoute } from "./app-route";
 import { installBackNavigation } from "@/features/references/reference-navigation";
+import { scheduleSearchIndexReconciliation } from "@/features/search/index-maintenance";
 import {
   createCommandRegistry,
   registryShortcutActions,
@@ -190,6 +191,7 @@ function WorkspaceShell({ store }: Props) {
     useRendererSelector(store, selectNeedsOnboarding) || onboardingOverride;
   const shortcutHints = useShortcutHints(store, TOOLBAR_SHORTCUT_IDS);
   useEffect(() => installBackNavigation(store), [store]);
+  useEffect(() => scheduleSearchIndexReconciliation(), []);
   useTitleBarDoubleClickMaximize();
   const ui: CommandUiState = { route, sidebarOpen, metadataOpen, settingsOpen };
   const uiRef = useRef(ui);

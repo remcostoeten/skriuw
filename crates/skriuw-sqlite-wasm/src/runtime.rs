@@ -1,7 +1,7 @@
 use serde_json::Value;
 use skriuw_storage::{
-    DiagnosticCategory, DiagnosticContext, StorageError, WorkspaceMaintenance, WorkspaceStorage,
-    WorkspaceSyncQueue,
+    DiagnosticCategory, DiagnosticContext, SearchIndexMaintenance, StorageError,
+    WorkspaceMaintenance, WorkspaceStorage, WorkspaceSyncQueue,
 };
 
 use crate::protocol::{
@@ -83,7 +83,7 @@ impl<B> BrowserWorkerRuntime<B> {
 
 impl<B> BrowserWorkerRuntime<B>
 where
-    B: WorkspaceStorage + WorkspaceMaintenance,
+    B: WorkspaceStorage + WorkspaceMaintenance + SearchIndexMaintenance,
 {
     pub fn dispatch(&mut self, request: BrowserWorkerRequest) -> BrowserWorkerResponse {
         let request_id = request.request_id;
@@ -171,6 +171,14 @@ where
                 .search_filtered(&query, limit, note_ids.as_deref())
                 .map(BrowserWorkerValue::Search)
                 .map_err(map_storage_error),
+            BrowserWorkerCommand::SearchIndexStatus => backend
+                .search_index_status()
+                .map(BrowserWorkerValue::SearchIndex)
+                .map_err(map_storage_error),
+            BrowserWorkerCommand::RebuildSearchIndex => backend
+                .rebuild_search_index()
+                .map(BrowserWorkerValue::SearchIndex)
+                .map_err(map_storage_error),
             BrowserWorkerCommand::ExportArchive { exported_at } => backend
                 .export_archive(exported_at)
                 .map(|archive| BrowserWorkerValue::Archive(Box::new(archive)))
@@ -234,7 +242,7 @@ where
 
 impl<B> BrowserWorkerRuntime<B>
 where
-    B: WorkspaceStorage + WorkspaceMaintenance + WorkspaceSyncQueue,
+    B: WorkspaceStorage + WorkspaceMaintenance + SearchIndexMaintenance + WorkspaceSyncQueue,
 {
     /// Dispatches sync commands against the worker-owned sync runtime and
     /// routes everything else through [`Self::dispatch`]. Sync stays a
@@ -623,6 +631,8 @@ mod tests {
     use skriuw_storage::{ImportSummary, IntegrityReport};
 
     struct Probe;
+
+    impl SearchIndexMaintenance for Probe {}
 
     impl WorkspaceStorage for Probe {
         fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError> {

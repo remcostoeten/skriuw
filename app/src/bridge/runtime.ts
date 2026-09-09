@@ -341,6 +341,10 @@ function browserCommand(command: string, args: unknown): BrowserCommand {
       return { kind: "apply_operations", payload: args, expected: "operation" };
     case "search_workspace":
       return { kind: "search", payload: args, expected: "search" };
+    case "search_index_status":
+      return { kind: "search_index_status", expected: "search_index" };
+    case "rebuild_search_index":
+      return { kind: "rebuild_search_index", expected: "search_index" };
     case "read_workspace_delta":
       return { kind: "read_workspace_delta", payload: args, expected: "workspace_delta" };
     default:
