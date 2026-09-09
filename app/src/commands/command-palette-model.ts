@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { parseSearchQuery } from "@/features/search/query-parser";
+import type { SnippetSegment } from "@/features/search/snippet";
 import { fuzzyMatchScore } from "@/shared/lib/fuzzy-match";
 
 export type CommandPaletteItem = {
@@ -9,6 +10,11 @@ export type CommandPaletteItem = {
   keywords?: readonly string[];
   description?: string;
   hint?: string;
+  /**
+   * The hint rendered as matched and unmatched runs. Ranking still reads the
+   * plain `hint`, so a highlight never changes which rows the palette shows.
+   */
+  hintSegments?: readonly SnippetSegment[];
   icon?: ReactNode;
   group?: string;
   alwaysShow?: boolean;
