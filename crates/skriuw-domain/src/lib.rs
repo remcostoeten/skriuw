@@ -38,8 +38,8 @@ pub use ai_history::{
     parse_ai_token_source,
 };
 pub use checkpoint::{
-    CHECKPOINT_CONTENT_MIME_TYPE, CheckpointValidationError, WORKSPACE_CHECKPOINT_VERSION,
-    WorkspaceCheckpoint,
+    CHECKPOINT_CONTENT_MIME_TYPE, CheckpointSeal, CheckpointValidationError,
+    WORKSPACE_CHECKPOINT_VERSION, WorkspaceCheckpoint,
 };
 pub use chunk::{
     CANONICAL_CHUNK_BYTES, CONTENT_DIGEST_HEX_BYTES, CONTENT_MANIFEST_VERSION, ContentChunkRef,
@@ -72,13 +72,15 @@ pub use remote_ai::{
 pub use sync::{
     BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,
     MAX_INLINE_SYNC_OPERATION_BYTES, MAX_OPERATION_ASSET_MANIFESTS, MAX_SAFE_SYNC_SEQUENCE,
-    MAX_SYNC_BATCH_BYTES, MAX_SYNC_BATCH_OPERATIONS, MAX_SYNC_PULL_OPERATIONS,
-    MIN_CHUNKED_CONTENT_PROTOCOL_VERSION, ReplicatedWorkspaceOperation, RequiredAssetContent,
-    SUPPORTED_SYNC_PROTOCOL_VERSIONS, SYNC_RECOVERY_VIEW_VERSION, SyncAcceptedOperation,
-    SyncOperationPayload, SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView,
-    SyncReplicationClass, SyncValidationError, WORKSPACE_OPERATION_SYNC_POLICY_V1,
-    WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceOperationSyncPolicy, validate_sync_identifier,
-    validate_sync_sequence,
+    MAX_SEAL_SCHEME_BYTES, MAX_SYNC_BATCH_BYTES, MAX_SYNC_BATCH_OPERATIONS,
+    MAX_SYNC_PULL_OPERATIONS, MIN_CHUNKED_CONTENT_PROTOCOL_VERSION,
+    MIN_SEALED_CONTENT_PROTOCOL_VERSION, ReplicatedWorkspaceOperation, RequiredAssetContent,
+    SEAL_KEY_ID_HEX_CHARACTERS, SEAL_NONCE_BASE64_CHARACTERS, SEALED_CONTENT_MIME_TYPE,
+    SUPPORTED_SYNC_PROTOCOL_VERSIONS, SYNC_RECOVERY_VIEW_VERSION, SealedContent, SealedTransport,
+    SyncAcceptedOperation, SyncOperationPayload, SyncPullResponse, SyncPushRequest,
+    SyncPushResponse, SyncRecoveryView, SyncReplicationClass, SyncValidationError,
+    WORKSPACE_OPERATION_SYNC_POLICY_V1, WORKSPACE_SYNC_PROTOCOL_VERSION,
+    WorkspaceOperationSyncPolicy, validate_sync_identifier, validate_sync_sequence,
 };
 pub use task::{
     DocumentTaskLink, MAX_TASK_ASSIGNEES, MAX_TASK_DESCRIPTION_BYTES, MAX_TASK_TAGS, TaskPriority,

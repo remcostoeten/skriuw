@@ -487,6 +487,60 @@
         "payload"
       ]
     },
+    "SealedContent": {
+      "description": "One sealed blob on the wire. Everything the server may read about it is\nhere: which key sealed it, under which scheme, with which nonce, and how\nlarge the ciphertext is. The bytes themselves are opaque.",
+      "type": "object",
+      "properties": {
+        "keyId": {
+          "type": "string"
+        },
+        "nonce": {
+          "type": "string"
+        },
+        "scheme": {
+          "type": "string"
+        }
+      },
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "ciphertext": {
+              "type": "string"
+            },
+            "transport": {
+              "type": "string",
+              "const": "inline"
+            }
+          },
+          "required": [
+            "transport",
+            "ciphertext"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "manifest": {
+              "$ref": "#/$defs/ContentManifest"
+            },
+            "transport": {
+              "type": "string",
+              "const": "chunked"
+            }
+          },
+          "required": [
+            "transport",
+            "manifest"
+          ]
+        }
+      ],
+      "required": [
+        "scheme",
+        "keyId",
+        "nonce"
+      ]
+    },
     "SyncOperationPayload": {
       "oneOf": [
         {
@@ -525,6 +579,29 @@
           "required": [
             "form",
             "manifest"
+          ]
+        },
+        {
+          "description": "An end-to-end encrypted operation. The server stores and orders it\nwithout ever holding the key that opens it.",
+          "type": "object",
+          "properties": {
+            "assets": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SealedContent"
+              }
+            },
+            "form": {
+              "type": "string",
+              "const": "sealed"
+            },
+            "operation": {
+              "$ref": "#/$defs/SealedContent"
+            }
+          },
+          "required": [
+            "form",
+            "operation"
           ]
         }
       ]
