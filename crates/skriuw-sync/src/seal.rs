@@ -9,7 +9,7 @@
 //! product has to know whether a workspace is encrypted.
 //!
 //! The metadata boundary this draws is documented in
-//! `docs/adr/0041-end-to-end-encrypted-sync.md`.
+//! `docs/adr/0042-end-to-end-encrypted-sync.md`.
 
 use skriuw_crypto::{
     ContentKey, CryptoError, RecoveryCode, SEAL_SCHEME_V1, decode_base64, derive_content_key,

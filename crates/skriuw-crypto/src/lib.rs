@@ -12,7 +12,7 @@
 //! plaintext. Sealing the same bytes in the same slot twice therefore
 //! reproduces the same ciphertext, and two different plaintexts never share a
 //! nonce. The threat model and what that determinism reveals are documented
-//! in `docs/adr/0041-end-to-end-encrypted-sync.md`.
+//! in `docs/adr/0042-end-to-end-encrypted-sync.md`.
 
 use argon2::{Algorithm, Argon2, Params, Version};
 use base64::{Engine, engine::general_purpose::STANDARD_NO_PAD};

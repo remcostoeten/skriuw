@@ -58,7 +58,7 @@ export type ContentManifest = {
  * An end-to-end encrypted blob. The service orders and stores it, bills its
  * bytes, and hands it back; it never holds the key that opens it. Everything
  * declared here is deliberately readable metadata — see
- * `docs/adr/0041-end-to-end-encrypted-sync.md`.
+ * `docs/adr/0042-end-to-end-encrypted-sync.md`.
  */
 export type SealedContent = {
   scheme: string;

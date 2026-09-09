@@ -180,7 +180,7 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
 - [x] Encrypt cloud content end to end: a sealed payload form and sealed
   checkpoints, keyed by a per-workspace content key derived from a recovery
   code, with the metadata boundary fixed in
-  [ADR-0041](../adr/0041-end-to-end-encrypted-sync.md) and covered by
+  [ADR-0042](../adr/0042-end-to-end-encrypted-sync.md) and covered by
   [`encrypted_scenarios.rs`](../../crates/skriuw-sync/tests/encrypted_scenarios.rs).
 - [x] Test two offline devices reconnecting in either order, duplicate
   delivery, three-device ack-before-echo, parked write then remote write then
