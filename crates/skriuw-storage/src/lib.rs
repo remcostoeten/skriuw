@@ -426,8 +426,34 @@ pub struct SyncTombstone {
     pub created_at: i64,
 }
 
+/// Device-local record of the workspace content key. The key material never
+/// reaches the sync service: it is derived from the recovery code on each
+/// device and cached here so the code is entered once per device. Local
+/// canonical state stays plaintext, so a lost cache is re-derivable and never
+/// loses data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkspaceSeal {
+    pub key_id: String,
+    pub scheme: String,
+    pub key_material: Vec<u8>,
+    pub enabled_at: i64,
+    /// When the first sealed checkpoint was published, which is what lets the
+    /// service compact the workspace's remaining plaintext operations away.
+    pub sealed_checkpoint_at: Option<i64>,
+}
+
 pub trait WorkspaceSyncQueue: Send + Sync {
     fn sync_connection(&self) -> Result<Option<SyncConnection>, StorageError>;
+
+    /// The workspace content key this device holds, or `None` while the
+    /// workspace replicates in the clear.
+    fn workspace_seal(&self) -> Result<Option<WorkspaceSeal>, StorageError>;
+
+    fn set_workspace_seal(&self, seal: &WorkspaceSeal) -> Result<(), StorageError>;
+
+    /// Stops sealing new content. Content already sealed in the cloud stays
+    /// sealed, so this never silently republishes plaintext.
+    fn clear_workspace_seal(&self) -> Result<(), StorageError>;
 
     fn connect_sync(&self, connection: &NewSyncConnection) -> Result<SyncConnection, StorageError>;
 
@@ -713,6 +739,18 @@ where
 {
     fn sync_connection(&self) -> Result<Option<SyncConnection>, StorageError> {
         self.as_ref().sync_connection()
+    }
+
+    fn workspace_seal(&self) -> Result<Option<WorkspaceSeal>, StorageError> {
+        self.as_ref().workspace_seal()
+    }
+
+    fn set_workspace_seal(&self, seal: &WorkspaceSeal) -> Result<(), StorageError> {
+        self.as_ref().set_workspace_seal(seal)
+    }
+
+    fn clear_workspace_seal(&self) -> Result<(), StorageError> {
+        self.as_ref().clear_workspace_seal()
     }
 
     fn connect_sync(&self, connection: &NewSyncConnection) -> Result<SyncConnection, StorageError> {

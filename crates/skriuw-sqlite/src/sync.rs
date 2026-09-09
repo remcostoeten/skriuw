@@ -13,7 +13,7 @@ use skriuw_domain::{
 use skriuw_storage::{
     BlockedSyncOperation, Diagnostic, DiagnosticContext, HistoryProvenance, ImportSummary,
     NewSyncConnection, PendingSyncBatch, RemoteSyncApplyOutcome, StorageError, SyncConnection,
-    SyncRecovery, SyncTombstone, WorkspaceSyncQueue,
+    SyncRecovery, SyncTombstone, WorkspaceSeal, WorkspaceSyncQueue,
 };
 use uuid::Uuid;
 
@@ -510,6 +510,63 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
     fn sync_connection(&self) -> Result<Option<SyncConnection>, StorageError> {
         let connection = self.lock()?;
         read_active_connection(&connection)
+    }
+
+    fn workspace_seal(&self) -> Result<Option<WorkspaceSeal>, StorageError> {
+        let connection = self.lock()?;
+        connection
+            .query_row(
+                "SELECT key_id, scheme, key_material, enabled_at, sealed_checkpoint_at \
+                 FROM sync_encryption WHERE singleton = 1",
+                [],
+                |row| {
+                    Ok(WorkspaceSeal {
+                        key_id: row.get(0)?,
+                        scheme: row.get(1)?,
+                        key_material: row.get(2)?,
+                        enabled_at: row.get(3)?,
+                        sealed_checkpoint_at: row.get(4)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(backend)
+    }
+
+    fn set_workspace_seal(&self, seal: &WorkspaceSeal) -> Result<(), StorageError> {
+        if seal.key_id.is_empty() || seal.scheme.is_empty() || seal.key_material.is_empty() {
+            return Err(StorageError::InvalidOperation(
+                "a workspace seal needs a key id, a scheme, and key material".into(),
+            ));
+        }
+        let connection = self.lock()?;
+        connection
+            .execute(
+                "INSERT INTO sync_encryption( \
+                     singleton, key_id, scheme, key_material, enabled_at, sealed_checkpoint_at \
+                 ) VALUES (1, ?1, ?2, ?3, ?4, ?5) \
+                 ON CONFLICT(singleton) DO UPDATE SET \
+                     key_id = excluded.key_id, scheme = excluded.scheme, \
+                     key_material = excluded.key_material, enabled_at = excluded.enabled_at, \
+                     sealed_checkpoint_at = excluded.sealed_checkpoint_at",
+                params![
+                    seal.key_id,
+                    seal.scheme,
+                    seal.key_material,
+                    seal.enabled_at.max(0),
+                    seal.sealed_checkpoint_at,
+                ],
+            )
+            .map_err(backend)?;
+        Ok(())
+    }
+
+    fn clear_workspace_seal(&self) -> Result<(), StorageError> {
+        let connection = self.lock()?;
+        connection
+            .execute("DELETE FROM sync_encryption WHERE singleton = 1", [])
+            .map_err(backend)?;
+        Ok(())
     }
 
     fn connect_sync(&self, requested: &NewSyncConnection) -> Result<SyncConnection, StorageError> {
