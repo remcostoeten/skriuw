@@ -16,6 +16,7 @@ mod content;
 mod coordinator;
 mod cycle;
 mod http;
+mod seal;
 mod transport;
 
 pub use backoff::{SyncBackoff, SyncBackoffConfig};
@@ -47,6 +48,7 @@ pub use cycle::{
 pub use http::{
     SyncHttpEndpoints, VALIDATION_DETAIL_QUOTA_EXCEEDED, classify_http_failure, request_timeout_ms,
 };
+pub use seal::{WorkspaceSealer, sealed_ciphertext_base64};
 #[cfg(not(target_arch = "wasm32"))]
 pub use transport::SystemClock;
 pub use transport::{SyncCancellation, SyncClock, SyncTransport, TransportError};
