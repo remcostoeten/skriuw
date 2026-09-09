@@ -3,6 +3,7 @@ import test from "node:test";
 import { EditorState, TextSelection } from "prosemirror-state";
 import {
   bubbleMenuStateEqual,
+  clearHighlight,
   closedBubbleMenu,
   setHighlightColor,
   setTextAlignment,
@@ -33,6 +34,14 @@ test("choosing a different highlight color replaces the selected highlight", () 
   assert.ok(pink.doc.rangeHasMark(1, 7, highlight));
   const mark = highlight.isInSet(pink.doc.firstChild?.firstChild?.marks ?? []);
   assert.equal(mark?.attrs.color, "pink");
+});
+
+test("the highlight submenu's None clears a highlight of any color", () => {
+  const highlight = productSchema.marks.highlight;
+  assert.ok(highlight);
+  const orange = runCommand(selectedState("Marked"), setHighlightColor("orange"));
+  const cleared = runCommand(orange, clearHighlight());
+  assert.equal(cleared.doc.rangeHasMark(1, 7, highlight), false);
 });
 
 test("alignment applies to every selected text block", () => {
