@@ -9,8 +9,9 @@ use crate::protocol::{
     BrowserStorageErrorCode, BrowserWorkerCommand, BrowserWorkerRequest, BrowserWorkerResponse,
     BrowserWorkerValue, MAX_BATCHES_PER_REQUEST, MAX_DATABASE_NAME_BYTES,
     MAX_DELTA_IDS_PER_REQUEST, MAX_EXPANDED_FOLDER_IDS, MAX_LAYOUT_BYTES,
-    MAX_OPERATIONS_PER_REQUEST, MAX_QUERY_BYTES, MAX_REQUEST_BYTES, MAX_SYNC_BASE_URL_BYTES,
-    MAX_SYNC_IDENTIFIER_BYTES, MAX_SYNC_TOKEN_BYTES, WORKER_PROTOCOL_VERSION,
+    MAX_OPERATIONS_PER_REQUEST, MAX_QUERY_BYTES, MAX_RECOVERY_CODE_BYTES, MAX_REQUEST_BYTES,
+    MAX_SYNC_BASE_URL_BYTES, MAX_SYNC_IDENTIFIER_BYTES, MAX_SYNC_TOKEN_BYTES,
+    RECOVERY_CODE_ENTROPY_BYTES, WORKER_PROTOCOL_VERSION,
 };
 use crate::sync::{BrowserSyncEnvironment, BrowserSyncRuntime};
 
@@ -195,9 +196,14 @@ where
             | BrowserWorkerCommand::SyncStatus
             | BrowserWorkerCommand::SyncCycle
             | BrowserWorkerCommand::SyncInterrupt
-            | BrowserWorkerCommand::SyncRefresh => Err(BrowserStorageError::invalid(
-                "Sync commands require the sync-capable worker dispatcher.",
-            )),
+            | BrowserWorkerCommand::SyncRefresh
+            | BrowserWorkerCommand::SyncEncryptionState
+            | BrowserWorkerCommand::EnableSyncEncryption { .. }
+            | BrowserWorkerCommand::UnlockSyncEncryption { .. } => {
+                Err(BrowserStorageError::invalid(
+                    "Sync commands require the sync-capable worker dispatcher.",
+                ))
+            }
             BrowserWorkerCommand::IntegrityCheck => backend
                 .integrity_check()
                 .map(|report| {
@@ -296,6 +302,15 @@ where
                 sync.refresh(backend, environment.clock.now_ms());
                 Ok(BrowserWorkerValue::Unit)
             }
+            BrowserWorkerCommand::SyncEncryptionState => sync
+                .encryption_state(backend)
+                .map(BrowserWorkerValue::SyncEncryptionState),
+            BrowserWorkerCommand::EnableSyncEncryption { entropy } => sync
+                .enable_encryption(backend, &entropy, environment.clock.now_ms())
+                .map(BrowserWorkerValue::SyncRecoveryCode),
+            BrowserWorkerCommand::UnlockSyncEncryption { recovery_code } => sync
+                .unlock_encryption(backend, &recovery_code, environment.clock.now_ms())
+                .map(BrowserWorkerValue::SyncEncryptionState),
             _ => unreachable!("only sync commands reach this dispatcher"),
         };
         match outcome {
@@ -320,6 +335,9 @@ fn is_sync_command(command: &BrowserWorkerCommand) -> bool {
             | BrowserWorkerCommand::SyncCycle
             | BrowserWorkerCommand::SyncInterrupt
             | BrowserWorkerCommand::SyncRefresh
+            | BrowserWorkerCommand::SyncEncryptionState
+            | BrowserWorkerCommand::EnableSyncEncryption { .. }
+            | BrowserWorkerCommand::UnlockSyncEncryption { .. }
     )
 }
 
@@ -373,6 +391,22 @@ fn request_id_from_json(json: &str) -> u64 {
 
 fn validate_command(command: &BrowserWorkerCommand) -> Result<(), BrowserStorageError> {
     match command {
+        BrowserWorkerCommand::EnableSyncEncryption { entropy } => {
+            if entropy.len() != RECOVERY_CODE_ENTROPY_BYTES {
+                return Err(BrowserStorageError::invalid(
+                    "A recovery code needs exactly 20 bytes of entropy.",
+                ));
+            }
+            Ok(())
+        }
+        BrowserWorkerCommand::UnlockSyncEncryption { recovery_code } => {
+            if recovery_code.is_empty() || recovery_code.len() > MAX_RECOVERY_CODE_BYTES {
+                return Err(BrowserStorageError::invalid(
+                    "That is not a Skriuw recovery code.",
+                ));
+            }
+            Ok(())
+        }
         BrowserWorkerCommand::Initialize { database_name } => validate_database_name(database_name),
         BrowserWorkerCommand::SaveSidebarExpansion { folder_ids } => {
             if folder_ids.len() > MAX_EXPANDED_FOLDER_IDS {

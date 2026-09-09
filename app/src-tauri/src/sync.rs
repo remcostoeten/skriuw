@@ -20,9 +20,20 @@ use skriuw_storage::{NewSyncConnection, SyncRecovery, WorkspaceSyncQueue};
 use skriuw_sync::{
     SyncAssetStore, SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncHttpEndpoints,
     SyncStatus, SyncTransport, SyncWorkspaceObserver, SystemClock, TransportError,
-    classify_http_failure, request_timeout_ms,
+    classify_http_failure, derive_workspace_seal, new_recovery_code, request_timeout_ms,
 };
 use uuid::Uuid;
+
+/// The encryption facts the settings surface renders. Key material is
+/// deliberately absent: the renderer never needs it and must never hold it.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceEncryptionState {
+    pub enabled: bool,
+    pub linked: bool,
+    pub key_id: Option<String>,
+    pub sealed_checkpoint_at: Option<i64>,
+}
 
 pub type SessionExpiredObserver = Arc<dyn Fn() + Send + Sync>;
 type SharedToken = Arc<RwLock<String>>;
@@ -272,6 +283,76 @@ impl SyncRuntime {
         workspace
             .sync_recovery_view()
             .map_err(|error| format!("could not read the blocked sync queue: {error}"))
+    }
+
+    /// What the settings surface needs to describe this workspace's
+    /// encryption without ever handling key material.
+    pub fn encryption_state(&self) -> Result<WorkspaceEncryptionState, String> {
+        let workspace = self.open_workspace()?;
+        let seal = workspace
+            .workspace_seal()
+            .map_err(|error| format!("could not read the workspace encryption state: {error}"))?;
+        let linked = workspace
+            .sync_connection()
+            .map_err(|error| format!("could not read the local sync connection: {error}"))?
+            .is_some();
+        Ok(WorkspaceEncryptionState {
+            enabled: seal.is_some(),
+            linked,
+            key_id: seal.as_ref().map(|seal| seal.key_id.clone()),
+            sealed_checkpoint_at: seal.as_ref().and_then(|seal| seal.sealed_checkpoint_at),
+        })
+    }
+
+    /// Turns encryption on and returns the recovery code exactly once. The
+    /// code is never stored: only the key it derives is, so a lost code is
+    /// unrecoverable by design and the cloud copy dies with it.
+    pub fn enable_encryption(&self) -> Result<String, String> {
+        let workspace = self.open_workspace()?;
+        let connection = workspace
+            .sync_connection()
+            .map_err(|error| format!("could not read the local sync connection: {error}"))?
+            .ok_or_else(|| {
+                "connect this workspace to Skriuw cloud before encrypting it".to_string()
+            })?;
+        if workspace
+            .workspace_seal()
+            .map_err(|error| format!("could not read the workspace encryption state: {error}"))?
+            .is_some()
+        {
+            return Err("this workspace is already encrypted".into());
+        }
+        let mut entropy = [0_u8; 20];
+        let first = Uuid::new_v4();
+        let second = Uuid::new_v4();
+        entropy[..16].copy_from_slice(first.as_bytes());
+        entropy[16..].copy_from_slice(&second.as_bytes()[..4]);
+        let recovery_code = new_recovery_code(&entropy)?;
+        let seal = derive_workspace_seal(&connection.workspace_id, &recovery_code, now_millis())?;
+        workspace
+            .set_workspace_seal(&seal)
+            .map_err(|error| format!("could not store the workspace encryption key: {error}"))?;
+        self.request_refresh();
+        Ok(recovery_code)
+    }
+
+    /// Joins an already-encrypted workspace from a second device. The code is
+    /// the only input: the key derives from it and the workspace identity.
+    pub fn unlock_encryption(&self, recovery_code: &str) -> Result<(), String> {
+        let workspace = self.open_workspace()?;
+        let connection = workspace
+            .sync_connection()
+            .map_err(|error| format!("could not read the local sync connection: {error}"))?
+            .ok_or_else(|| {
+                "connect this workspace to Skriuw cloud before entering its recovery code"
+                    .to_string()
+            })?;
+        let seal = derive_workspace_seal(&connection.workspace_id, recovery_code, now_millis())?;
+        workspace
+            .set_workspace_seal(&seal)
+            .map_err(|error| format!("could not store the workspace encryption key: {error}"))?;
+        self.request_refresh();
+        Ok(())
     }
 
     /// Pause network access without discarding the durable connection or outbox.

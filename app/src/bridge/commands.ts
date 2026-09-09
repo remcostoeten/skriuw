@@ -145,6 +145,32 @@ export type SyncRecoveryView = {
   discarded: DiscardedSyncOperation[];
 };
 
+/**
+ * What the settings surface renders about a workspace's end-to-end
+ * encryption. Key material never crosses this boundary: the recovery code is
+ * returned exactly once, when encryption is first enabled.
+ */
+export type WorkspaceEncryptionState = {
+  enabled: boolean;
+  linked: boolean;
+  keyId: string | null;
+  sealedCheckpointAt: number | null;
+};
+
+export function workspaceEncryptionState(): Promise<WorkspaceEncryptionState> {
+  return invoke<WorkspaceEncryptionState>("workspace_encryption_state");
+}
+
+export function enableWorkspaceEncryption(): Promise<string> {
+  return invoke<string>("enable_workspace_encryption");
+}
+
+export function unlockWorkspaceEncryption(
+  recoveryCode: string,
+): Promise<WorkspaceEncryptionState> {
+  return invoke<WorkspaceEncryptionState>("unlock_workspace_encryption", { recoveryCode });
+}
+
 export function listBlockedSyncOperations(): Promise<SyncRecoveryView> {
   return invoke<SyncRecoveryView>("list_blocked_sync_operations");
 }

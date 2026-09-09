@@ -1085,6 +1085,11 @@ function referencedManifests(payload: SyncOperationPayload): ContentManifest[] {
   if (payload.form === "chunked") {
     return [payload.manifest];
   }
+  if (payload.form === "sealed") {
+    return [payload.operation, ...(payload.assets ?? [])].flatMap((sealed) =>
+      sealed.transport === "chunked" ? [sealed.manifest] : [],
+    );
+  }
   return payload.assets ?? [];
 }
 

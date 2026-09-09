@@ -127,6 +127,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "media_metadata",
         sql: include_str!("../migrations/0024_media_metadata.sql"),
     },
+    Migration {
+        version: 25,
+        name: "sync_encryption",
+        sql: include_str!("../migrations/0025_sync_encryption.sql"),
+    },
 ];
 
 pub(crate) struct Migration {
@@ -400,6 +405,10 @@ mod tests {
             (
                 24,
                 "989c42e9d529d9b73d8bd1bd079b27fa407a351fccd9b59d7ba306607c60c781",
+            ),
+            (
+                25,
+                "0dd0aea54503e7b79a40e1fac2d1804bb6352a4ddec421930b32122a0f6023b5",
             ),
         ];
         assert_eq!(MIGRATIONS.len(), SHIPPED.len(), "append new checksums here");

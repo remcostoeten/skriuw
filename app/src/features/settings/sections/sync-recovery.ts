@@ -76,6 +76,10 @@ export function blockedStateText(reason: string): string {
       return "The cloud rejected the workspace checkpoint. Retry sync; blocked changes are listed below.";
     case "storage_failure":
       return "The local sync queue hit a storage failure. Retry sync; if this persists, check the Data section.";
+    case "encryption_key_required":
+      return "This workspace is encrypted and this device has no key. Enter its recovery code in the encryption settings above.";
+    case "sealed_content_unreadable":
+      return "The encrypted cloud copy could not be opened with this device's recovery code. Check the code, or the cloud copy was altered.";
     default:
       return "Sync stopped because the server rejected a local change. Blocked changes are listed below.";
   }

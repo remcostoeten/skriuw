@@ -10,11 +10,14 @@ use skriuw_storage::{
 
 use crate::{
     backoff::{SyncBackoff, SyncBackoffConfig},
-    checkpoint::{hydrate_from_latest_checkpoint, rehydrate_from_latest_checkpoint},
+    checkpoint::{
+        CheckpointHydration, hydrate_from_latest_checkpoint, rehydrate_from_latest_checkpoint,
+    },
     content::{
         SyncAssetStore, externalize_asset_content, externalize_oversized_operations,
         resolve_asset_content, resolve_chunked_operations,
     },
+    seal::WorkspaceSealer,
     transport::{SyncCancellation, SyncClock, SyncTransport, TransportError},
 };
 
@@ -32,6 +35,13 @@ pub const BLOCKED_REASON_LOG_TRUNCATED_WITHOUT_CHECKPOINT: &str =
 /// Unresolved parked operations keep the device out of `upToDate`; the reason
 /// names the parked rows when they do not all share one durable reason code.
 pub const BLOCKED_REASON_BLOCKED_OPERATIONS: &str = "blocked_operations";
+/// The cloud holds sealed content this device has no key for. Only entering
+/// the workspace recovery code clears it; retrying cannot.
+pub const BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED: &str = "encryption_key_required";
+/// Sealed content arrived that this device's key cannot open: a different
+/// recovery code, or bytes that changed after they were sealed. Neither is
+/// transient, so the cycle parks with the reason instead of retrying.
+pub const BLOCKED_REASON_SEALED_CONTENT_UNREADABLE: &str = "sealed_content_unreadable";
 
 /// Durable per-operation blocked reason recorded in storage when an
 /// operation's declared asset bytes are absent locally at push time. The
@@ -294,6 +304,7 @@ pub fn run_sync_cycle(
         cancellation,
         state,
         config,
+        sealer: None,
         changes: RemoteChangeSet::default(),
     };
     let mut outcome = cycle.run();
@@ -309,6 +320,7 @@ struct Cycle<'a> {
     cancellation: &'a SyncCancellation,
     state: &'a mut SyncCycleState,
     config: &'a SyncCycleConfig,
+    sealer: Option<WorkspaceSealer>,
     changes: RemoteChangeSet,
 }
 
@@ -330,36 +342,41 @@ impl Cycle<'_> {
             Ok(None) => return SyncCycleOutcome::settled(SyncStatus::LocalOnly),
             Err(error) => return self.storage_failure(&error),
         };
+        match self.queue.workspace_seal() {
+            Ok(Some(seal)) => match WorkspaceSealer::from_seal(&connection.workspace_id, &seal) {
+                Ok(sealer) => self.sealer = Some(sealer),
+                Err(error) => return self.encryption_key_required(&error.to_string()),
+            },
+            Ok(None) => self.sealer = None,
+            Err(error) => return self.storage_failure(&error),
+        }
+        let hydration = CheckpointHydration {
+            queue: self.queue,
+            transport: self.transport,
+            clock: self.clock,
+            cancellation: self.cancellation,
+            config: self.config,
+            connection: &connection,
+            sealer: self.sealer.as_ref(),
+        };
         if self.state.rehydration_requested {
             self.state.rehydration_requested = false;
-            if let Err(outcome) = rehydrate_from_latest_checkpoint(
-                self.queue,
-                self.transport,
-                self.clock,
-                self.cancellation,
-                &mut self.state.backoff,
-                self.config,
-                &connection,
-            ) {
+            if let Err(outcome) =
+                rehydrate_from_latest_checkpoint(&hydration, &mut self.state.backoff)
+            {
                 return outcome;
             }
             self.changes.mark_full();
         } else if is_hydration_candidate(&connection) {
             match self.queue.has_pending_sync_operations() {
                 Ok(true) => {}
-                Ok(false) => match hydrate_from_latest_checkpoint(
-                    self.queue,
-                    self.transport,
-                    self.clock,
-                    self.cancellation,
-                    &mut self.state.backoff,
-                    self.config,
-                    &connection,
-                ) {
-                    Ok(true) => self.changes.mark_full(),
-                    Ok(false) => {}
-                    Err(outcome) => return outcome,
-                },
+                Ok(false) => {
+                    match hydrate_from_latest_checkpoint(&hydration, &mut self.state.backoff) {
+                        Ok(true) => self.changes.mark_full(),
+                        Ok(false) => {}
+                        Err(outcome) => return outcome,
+                    }
+                }
                 Err(error) => return self.storage_failure(&error),
             }
         }
@@ -438,6 +455,8 @@ impl Cycle<'_> {
             let mut request = batch.request.clone();
             let prepared = if self.cancellation.is_cancelled() {
                 Err(TransportError::Cancelled)
+            } else if let Some(sealer) = &self.sealer {
+                sealer.seal_push_batch(self.transport, self.assets, &mut request, self.cancellation)
             } else {
                 externalize_oversized_operations(
                     self.transport,
@@ -719,6 +738,34 @@ impl Cycle<'_> {
             Err(TransportError::LogTruncated) => return Err(self.log_truncated()),
             Err(error) => return Err(self.pull_failure(&error)),
         };
+        match &self.sealer {
+            Some(sealer) => {
+                if let Err(error) = sealer.open_pull_response(
+                    self.transport,
+                    self.assets,
+                    &mut response,
+                    self.cancellation,
+                ) {
+                    return Err(match &error {
+                        TransportError::Validation(detail) => {
+                            self.sealed_content_unreadable(detail)
+                        }
+                        error => self.pull_failure(error),
+                    });
+                }
+            }
+            None => {
+                if response
+                    .operations
+                    .iter()
+                    .any(|operation| operation.payload.is_sealed())
+                {
+                    return Err(self.encryption_key_required(
+                        "another device encrypted this workspace; enter its recovery code to keep syncing",
+                    ));
+                }
+            }
+        }
         if let Err(error) = resolve_chunked_operations(
             self.transport,
             &connection.workspace_id,
@@ -863,6 +910,30 @@ impl Cycle<'_> {
             SyncStatus::Retrying {
                 next_attempt_at: retry_at,
             },
+            retry_at,
+        )
+    }
+
+    /// A key problem is never transient: the cycle parks with a reason the
+    /// settings surface can act on instead of retrying into a loop.
+    fn encryption_key_required(&self, detail: &str) -> SyncCycleOutcome {
+        let retry_at = self
+            .clock
+            .now_ms()
+            .saturating_add(self.config.blocked_retry_delay_ms);
+        SyncCycleOutcome::retry(
+            SyncStatus::blocked(BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED, detail),
+            retry_at,
+        )
+    }
+
+    fn sealed_content_unreadable(&self, detail: &str) -> SyncCycleOutcome {
+        let retry_at = self
+            .clock
+            .now_ms()
+            .saturating_add(self.config.blocked_retry_delay_ms);
+        SyncCycleOutcome::retry(
+            SyncStatus::blocked(BLOCKED_REASON_SEALED_CONTENT_UNREADABLE, detail),
             retry_at,
         )
     }

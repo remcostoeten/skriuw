@@ -12,6 +12,17 @@ use crate::{
 pub const WORKSPACE_SYNC_PROTOCOL_VERSION: u16 = 2;
 pub const SUPPORTED_SYNC_PROTOCOL_VERSIONS: [u16; 2] = [1, 2];
 pub const MIN_CHUNKED_CONTENT_PROTOCOL_VERSION: u16 = 2;
+/// Sealed payloads ride the same protocol version as chunked content: they
+/// are a new payload form, not a new protocol. A workspace that never enables
+/// encryption keeps pushing the plaintext forms, so released clients and the
+/// worker stay interoperable.
+pub const MIN_SEALED_CONTENT_PROTOCOL_VERSION: u16 = 2;
+/// Sealed bytes carry no readable type. Their manifests always declare the
+/// opaque mime type so the transport reveals nothing about what was sealed.
+pub const SEALED_CONTENT_MIME_TYPE: &str = "application/octet-stream";
+pub const MAX_SEAL_SCHEME_BYTES: usize = 64;
+pub const SEAL_KEY_ID_HEX_CHARACTERS: usize = 16;
+pub const SEAL_NONCE_BASE64_CHARACTERS: usize = 32;
 pub const MAX_SYNC_BATCH_OPERATIONS: usize = 64;
 pub const MAX_SYNC_PULL_OPERATIONS: usize = 256;
 pub const MAX_INLINE_SYNC_OPERATION_BYTES: usize = 1_500_000;
@@ -161,10 +172,127 @@ pub enum SyncValidationError {
     MissingAssetContent { operation_type: &'static str },
     #[error("asset manifest does not match the content {operation_type} declares")]
     AssetManifestMismatch { operation_type: &'static str },
+    #[error("sealed content requires sync protocol version {minimum} or later")]
+    SealedContentRequiresProtocol { minimum: u16 },
+    #[error("sealed content names an unsupported sealing scheme")]
+    UnsupportedSealScheme,
+    #[error("sealed content key id is not a lowercase hexadecimal key identifier")]
+    InvalidSealKeyId,
+    #[error("sealed content nonce is not a {expected}-character base64 nonce")]
+    InvalidSealNonce { expected: usize },
+    #[error("sealed content ciphertext is empty or not base64")]
+    InvalidSealCiphertext,
+    #[error("sealed {slot} content must carry a {expected} manifest of opaque bytes")]
+    UnexpectedSealManifest {
+        slot: &'static str,
+        expected: &'static str,
+    },
     #[error(transparent)]
     Content(#[from] ContentValidationError),
     #[error(transparent)]
     Operation(#[from] OperationValidationError),
+}
+
+/// How the ciphertext of one sealed slot travels. Small operations ride
+/// inline; anything larger uses the same content-addressed chunk transport as
+/// plaintext content, with the digests taken over ciphertext.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(
+    tag = "transport",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum SealedTransport {
+    Inline { ciphertext: String },
+    Chunked { manifest: ContentManifest },
+}
+
+/// One sealed blob on the wire. Everything the server may read about it is
+/// here: which key sealed it, under which scheme, with which nonce, and how
+/// large the ciphertext is. The bytes themselves are opaque.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SealedContent {
+    pub scheme: String,
+    pub key_id: String,
+    pub nonce: String,
+    #[serde(flatten)]
+    pub transport: SealedTransport,
+}
+
+impl SealedContent {
+    pub fn validate(
+        &self,
+        slot: &'static str,
+        expected_kind: ContentManifestKind,
+    ) -> Result<(), SyncValidationError> {
+        if self.scheme.is_empty()
+            || self.scheme.len() > MAX_SEAL_SCHEME_BYTES
+            || !self
+                .scheme
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+        {
+            return Err(SyncValidationError::UnsupportedSealScheme);
+        }
+        if self.key_id.len() != SEAL_KEY_ID_HEX_CHARACTERS
+            || !self
+                .key_id
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        {
+            return Err(SyncValidationError::InvalidSealKeyId);
+        }
+        if self.nonce.len() != SEAL_NONCE_BASE64_CHARACTERS || !is_base64(&self.nonce) {
+            return Err(SyncValidationError::InvalidSealNonce {
+                expected: SEAL_NONCE_BASE64_CHARACTERS,
+            });
+        }
+        match &self.transport {
+            SealedTransport::Inline { ciphertext } => {
+                if ciphertext.is_empty() || !is_base64(ciphertext) {
+                    return Err(SyncValidationError::InvalidSealCiphertext);
+                }
+                Ok(())
+            }
+            SealedTransport::Chunked { manifest } => {
+                if manifest.kind != expected_kind || manifest.mime_type != SEALED_CONTENT_MIME_TYPE
+                {
+                    return Err(SyncValidationError::UnexpectedSealManifest {
+                        slot,
+                        expected: match expected_kind {
+                            ContentManifestKind::OperationEnvelope => "operation-envelope",
+                            ContentManifestKind::Asset => "asset",
+                            ContentManifestKind::Checkpoint => "checkpoint",
+                        },
+                    });
+                }
+                manifest.validate().map_err(SyncValidationError::from)
+            }
+        }
+    }
+
+    #[must_use]
+    pub fn manifest(&self) -> Option<&ContentManifest> {
+        match &self.transport {
+            SealedTransport::Chunked { manifest } => Some(manifest),
+            SealedTransport::Inline { .. } => None,
+        }
+    }
+
+    #[must_use]
+    pub fn inline_ciphertext(&self) -> Option<&str> {
+        match &self.transport {
+            SealedTransport::Inline { ciphertext } => Some(ciphertext),
+            SealedTransport::Chunked { .. } => None,
+        }
+    }
+}
+
+fn is_base64(value: &str) -> bool {
+    value
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'/' | b'='))
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -181,6 +309,13 @@ pub enum SyncOperationPayload {
     },
     Chunked {
         manifest: ContentManifest,
+    },
+    /// An end-to-end encrypted operation. The server stores and orders it
+    /// without ever holding the key that opens it.
+    Sealed {
+        operation: SealedContent,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        assets: Vec<SealedContent>,
     },
 }
 
@@ -309,10 +444,15 @@ impl SyncOperationPayload {
     }
 
     #[must_use]
+    pub fn sealed(operation: SealedContent, assets: Vec<SealedContent>) -> Self {
+        Self::Sealed { operation, assets }
+    }
+
+    #[must_use]
     pub fn inline_operation(&self) -> Option<&WorkspaceOperationEnvelope> {
         match self {
             Self::Inline { operation, .. } => Some(operation),
-            Self::Chunked { .. } => None,
+            Self::Chunked { .. } | Self::Sealed { .. } => None,
         }
     }
 
@@ -320,7 +460,7 @@ impl SyncOperationPayload {
     pub fn assets(&self) -> &[ContentManifest] {
         match self {
             Self::Inline { assets, .. } => assets,
-            Self::Chunked { .. } => &[],
+            Self::Chunked { .. } | Self::Sealed { .. } => &[],
         }
     }
 
@@ -328,8 +468,23 @@ impl SyncOperationPayload {
     pub fn manifest(&self) -> Option<&ContentManifest> {
         match self {
             Self::Chunked { manifest } => Some(manifest),
-            Self::Inline { .. } => None,
+            Self::Inline { .. } | Self::Sealed { .. } => None,
         }
+    }
+
+    /// The sealed operation blob and its sealed assets, or `None` for a
+    /// payload that travels in the clear.
+    #[must_use]
+    pub fn sealed_content(&self) -> Option<(&SealedContent, &[SealedContent])> {
+        match self {
+            Self::Sealed { operation, assets } => Some((operation, assets)),
+            Self::Inline { .. } | Self::Chunked { .. } => None,
+        }
+    }
+
+    #[must_use]
+    pub fn is_sealed(&self) -> bool {
+        matches!(self, Self::Sealed { .. })
     }
 
     pub fn validate(&self, protocol_version: u16) -> Result<(), SyncValidationError> {
@@ -364,6 +519,23 @@ impl SyncOperationPayload {
                     return Err(SyncValidationError::UnexpectedManifestKind);
                 }
                 manifest.validate()?;
+                Ok(())
+            }
+            Self::Sealed { operation, assets } => {
+                if protocol_version < MIN_SEALED_CONTENT_PROTOCOL_VERSION {
+                    return Err(SyncValidationError::SealedContentRequiresProtocol {
+                        minimum: MIN_SEALED_CONTENT_PROTOCOL_VERSION,
+                    });
+                }
+                operation.validate("operation", ContentManifestKind::OperationEnvelope)?;
+                if assets.len() > MAX_OPERATION_ASSET_MANIFESTS {
+                    return Err(SyncValidationError::TooManyAssets {
+                        maximum: MAX_OPERATION_ASSET_MANIFESTS,
+                    });
+                }
+                for asset in assets {
+                    asset.validate("asset", ContentManifestKind::Asset)?;
+                }
                 Ok(())
             }
         }

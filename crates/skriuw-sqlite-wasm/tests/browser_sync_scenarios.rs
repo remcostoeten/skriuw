@@ -806,3 +806,63 @@ fn sync_interrupt_makes_the_next_cycle_yield_and_delta_reads_serve_changed_notes
         other => panic!("unexpected value: {other:?}"),
     }
 }
+
+#[test]
+fn a_browser_device_encrypts_a_workspace_and_a_second_one_joins_with_the_recovery_code() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let mut first = BrowserDevice::open(&server, "device-a", &clock);
+    first.connect();
+    let state = match first.expect_value(BrowserWorkerCommand::SyncEncryptionState) {
+        BrowserWorkerValue::SyncEncryptionState(state) => state,
+        other => panic!("unexpected value: {other:?}"),
+    };
+    assert!(!state.enabled);
+    assert!(state.linked);
+
+    let recovery_code = match first.expect_value(BrowserWorkerCommand::EnableSyncEncryption {
+        entropy: vec![9; 20],
+    }) {
+        BrowserWorkerValue::SyncRecoveryCode(code) => code,
+        other => panic!("unexpected value: {other:?}"),
+    };
+    assert_eq!(recovery_code.len(), 39);
+    assert!(matches!(
+        first
+            .dispatch(BrowserWorkerCommand::EnableSyncEncryption {
+                entropy: vec![9; 20],
+            })
+            .outcome,
+        BrowserWorkerOutcome::Error(_)
+    ));
+    assert!(matches!(
+        first
+            .dispatch(BrowserWorkerCommand::EnableSyncEncryption {
+                entropy: vec![9; 3]
+            })
+            .outcome,
+        BrowserWorkerOutcome::Error(_)
+    ));
+
+    first.apply(vec![create_note("n-1", "Lease agreement", 1)]);
+    assert_eq!(first.settle(), SyncStatus::UpToDate);
+    assert!(!server.readable_state().contains("Lease agreement"));
+
+    let mut second = BrowserDevice::open(&server, "device-b", &clock);
+    second.connect();
+    let (status, _) = second.cycle();
+    assert!(matches!(
+        status,
+        SyncStatus::Blocked { ref reason, .. } if reason == "encryption_key_required"
+    ));
+
+    match second.expect_value(BrowserWorkerCommand::UnlockSyncEncryption {
+        recovery_code: recovery_code.to_lowercase(),
+    }) {
+        BrowserWorkerValue::SyncEncryptionState(state) => assert!(state.enabled),
+        other => panic!("unexpected value: {other:?}"),
+    }
+    assert_eq!(second.settle(), SyncStatus::UpToDate);
+    assert_eq!(second.note_titles(), vec!["Lease agreement".to_string()]);
+}

@@ -77,3 +77,35 @@ pub async fn discard_blocked_sync_operation(
         .await
         .map_err(|error| error.to_string())?
 }
+
+#[tauri::command]
+pub async fn workspace_encryption_state(
+    state: State<'_, AppState>,
+) -> Result<crate::sync::WorkspaceEncryptionState, String> {
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || sync.encryption_state())
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn enable_workspace_encryption(state: State<'_, AppState>) -> Result<String, String> {
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || sync.enable_encryption())
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn unlock_workspace_encryption(
+    recovery_code: String,
+    state: State<'_, AppState>,
+) -> Result<crate::sync::WorkspaceEncryptionState, String> {
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || {
+        sync.unlock_encryption(&recovery_code)?;
+        sync.encryption_state()
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
