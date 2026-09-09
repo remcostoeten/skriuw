@@ -1054,6 +1054,45 @@ async function runWorkflow() {
       cdp,
       sessionId,
       "window.location.hash === '#/notes'",
+      "notes route before empty trash",
+    );
+    await settle();
+    await control('focusTree("note-root")');
+    await dispatchKey(cdp, sessionId, "Delete", "Delete", 46);
+    await settle();
+    await dispatchKey(cdp, sessionId, "6", "Digit6", 54, "", 10);
+    await waitFor(
+      cdp,
+      sessionId,
+      "window.location.hash === '#/trash'",
+      "trash route for empty",
+    );
+    await settle();
+    await control('focusNamed("Empty trash")');
+    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('[role=\"group\"][aria-label=\"Delete 1 item forever\"] button') !== null",
+      "armed empty-trash confirmation",
+    );
+    await control('focusLastNamed("Delete 1 item forever")');
+    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+    await settle();
+    current = await state();
+    assert(
+      checks,
+      "keyboard-trash-empty",
+      current.nodeTitles["note-root"] === undefined,
+      JSON.stringify(current.nodeTitles),
+    );
+    steps.push("trash-empty-inline-confirm");
+
+    await dispatchKey(cdp, sessionId, "1", "Digit1", 49, "", 10);
+    await waitFor(
+      cdp,
+      sessionId,
+      "window.location.hash === '#/notes'",
       "notes route after trash",
     );
     await settle();
@@ -1531,7 +1570,7 @@ async function runWorkflow() {
     assert(
       checks,
       "complete-workflow-step-set",
-      steps.length === 18,
+      steps.length === 19,
       JSON.stringify(steps),
     );
     await checkTaskKeyboard(cdp, sessionId, checks);
