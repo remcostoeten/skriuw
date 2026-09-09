@@ -135,6 +135,15 @@ export function EditorSection({ store }: SectionProps) {
         />
       </div>
       <div className={settingsGroup}>
+        <div className={settingsGroupTitle}>Blocks</div>
+        <SettingToggle
+          label="Block handle on hover"
+          detail="Hovering a block shows a gutter to drag it somewhere else, insert below it, or open its actions. Alt+Arrow and the slash menu keep working when this is off."
+          checked={settings.blockDragHandle}
+          onChange={(checked) => change("blockDragHandle", checked)}
+        />
+      </div>
+      <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Tabs</div>
         <SettingToggle
           label="Open notes in tabs"

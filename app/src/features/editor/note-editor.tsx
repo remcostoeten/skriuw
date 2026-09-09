@@ -544,6 +544,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   }, [annotationDecorationInputs]);
   const settingsDocument = useRendererSelector(store, selectSettingsDocument);
   const editorSettings = projectSettings(settingsDocument);
+  const blockDragHandle = editorSettings.blockDragHandle;
   const linkHints = useShortcutHints(store, LINK_MENU_SHORTCUT_IDS);
   const prefersReducedMotion = useReducedMotion();
   const reduceUtilityMotion = editorSettings.reduceMotion || prefersReducedMotion === true;
@@ -1848,30 +1849,15 @@ const closeJumpToLine = useCallback(() => {
     viewRef.current = view;
     const scrollHost = host.closest<HTMLElement>(".editor-scroll");
     scrollHostRef.current = scrollHost;
-    const dragHandle = createDragHandle(view, {
-      scrollHost,
-      onInsert: (position) => {
-        insertBlockAfter(position)(view.state, view.dispatch);
-        view.dispatch(view.state.tr.insertText("/"));
-        view.focus();
-      },
-      onMenu: (target: BlockMenuTarget) => {
-        setBlockMenuPos(target.pos);
-        blockMenuTriggerRef.current?.dispatchEvent(
-          new MouseEvent("contextmenu", { bubbles: true, clientX: target.x, clientY: target.y }),
-        );
-      },
-    });
-    dragHandleRef.current = dragHandle;
     const handleScroll = () => {
       setBubbleMenu((previous) => (previous.open ? closedBubbleMenu : previous));
       setLinkMenu((previous) =>
         previous.open && !previous.editing ? closedLinkMenu : previous,
       );
-      dragHandle.hide();
+      dragHandleRef.current?.hide();
       const entry = activeEntry();
       if (!entry?.bounded || !scrollHost) return;
-      if (dragHandle.isDragging()) return;
+      if (dragHandleRef.current?.isDragging() === true) return;
       entry.scrollTop = scrollHost.scrollTop;
       const target = Math.floor(scrollHost.scrollTop / VIRTUAL_BLOCK_HEIGHT) - WINDOW_SHIFT;
       if (Math.abs(target - entry.bounded.windowStart()) >= WINDOW_SHIFT) {
@@ -2007,14 +1993,39 @@ const closeJumpToLine = useCallback(() => {
       view.dom.removeEventListener("contextmenu", handleContextMenu);
       cancelAnnotationHoverClose();
       cancelLinkHoverClose();
-      dragHandleRef.current = null;
-      dragHandle.destroy();
       viewRef.current = null;
       view.destroy();
       referenceViews.destroy();
       imageViews.destroy();
     };
   }, []);
+
+  // The gutter owns its own effect so switching the setting attaches or removes
+  // it against the live view; remounting the editor to pick the change up would
+  // discard the cached note states and the selection.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !blockDragHandle) return;
+    const dragHandle = createDragHandle(view, {
+      scrollHost: scrollHostRef.current,
+      onInsert: (position) => {
+        insertBlockAfter(position)(view.state, view.dispatch);
+        view.dispatch(view.state.tr.insertText("/"));
+        view.focus();
+      },
+      onMenu: (target: BlockMenuTarget) => {
+        setBlockMenuPos(target.pos);
+        blockMenuTriggerRef.current?.dispatchEvent(
+          new MouseEvent("contextmenu", { bubbles: true, clientX: target.x, clientY: target.y }),
+        );
+      },
+    });
+    dragHandleRef.current = dragHandle;
+    return () => {
+      dragHandleRef.current = null;
+      dragHandle.destroy();
+    };
+  }, [blockDragHandle]);
 
   useEffect(() => {
     const view = viewRef.current;
