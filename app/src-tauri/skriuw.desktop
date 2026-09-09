@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name={{name}}
+GenericName=Writing workspace
+Comment=A quiet writing workspace for notes, journaling, sharing, and planning
+Exec={{exec}}
+Icon={{icon}}
+Terminal=false
+Categories=Office;TextEditor;Utility;
+Keywords=notes;markdown;journal;writing;notebook;
+MimeType=text/markdown;text/x-markdown;
+StartupNotify=true
+StartupWMClass=Skriuw

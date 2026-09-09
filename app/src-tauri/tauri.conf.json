@@ -44,6 +44,12 @@
     "linux": {
       "appimage": {
         "bundleMediaFramework": true
+      },
+      "deb": {
+        "desktopTemplate": "skriuw.desktop"
+      },
+      "rpm": {
+        "desktopTemplate": "skriuw.desktop"
       }
     }
   },
