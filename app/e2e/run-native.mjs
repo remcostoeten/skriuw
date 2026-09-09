@@ -206,6 +206,8 @@ async function confirmImport(session) {
   return report;
 }
 
+const STARTER_TITLES = ["Welcome", "Reading list", "Launch checklist", "Writing"];
+
 function treeState(session) {
   return session.script(`
     const rows = [...document.querySelectorAll('[role="tree"] [role="treeitem"]')];
@@ -221,14 +223,16 @@ async function runScenario(session) {
     600,
   );
   // A fresh workspace is planted with the starter preview before the first
-  // render, so an empty tree here would mean seeding silently failed. Exact
-  // node counts are asserted against SQLite, which does not depend on which
-  // rows the sidebar has rendered yet.
+  // render, so an empty tree here would mean seeding silently failed. The tree
+  // is virtualized, so only a window of rows exists in the DOM; any starter
+  // title proves the seed. Exact node counts are asserted against SQLite,
+  // which does not depend on which rows the sidebar has rendered yet.
   const before = await treeState(session);
   assert(
     checks,
     "starts-with-seeded-preview",
-    before.count > 0 && before.titles.some((title) => title.includes("Welcome")),
+    before.count > 0 &&
+      before.titles.some((title) => STARTER_TITLES.some((starter) => title.includes(starter))),
     JSON.stringify(before),
   );
 
