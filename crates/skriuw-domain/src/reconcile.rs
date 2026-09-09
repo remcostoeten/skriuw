@@ -147,6 +147,7 @@ pub fn reconcile_remote_operation(
         WorkspaceOperation::RenameNode { .. }
         | WorkspaceOperation::SetNodePinned { .. }
         | WorkspaceOperation::SetNoteCover { .. }
+        | WorkspaceOperation::SetNoteCoverGradient { .. }
         | WorkspaceOperation::SetNoteCoverFullWidth { .. }
         | WorkspaceOperation::SetNoteCoverTransform { .. }
         | WorkspaceOperation::MoveNode { .. } => reconcile_node_update(state),
@@ -390,6 +391,7 @@ pub fn classify_apply_failure(operation: &WorkspaceOperation) -> SyncConflictRea
         | WorkspaceOperation::DeletePerson { .. }
         | WorkspaceOperation::RenameNode { .. }
         | WorkspaceOperation::SetNoteCover { .. }
+        | WorkspaceOperation::SetNoteCoverGradient { .. }
         | WorkspaceOperation::SetNoteCoverFullWidth { .. }
         | WorkspaceOperation::SetNoteCoverTransform { .. }
         | WorkspaceOperation::SetNodePinned { .. }

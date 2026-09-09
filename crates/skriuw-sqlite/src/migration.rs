@@ -127,6 +127,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "media_metadata",
         sql: include_str!("../migrations/0024_media_metadata.sql"),
     },
+    Migration {
+        version: 25,
+        name: "note_cover_gradient",
+        sql: include_str!("../migrations/0025_note_cover_gradient.sql"),
+    },
 ];
 
 pub(crate) struct Migration {
@@ -400,6 +405,10 @@ mod tests {
             (
                 24,
                 "989c42e9d529d9b73d8bd1bd079b27fa407a351fccd9b59d7ba306607c60c781",
+            ),
+            (
+                25,
+                "a2bb087f0fd1e0c75337ec420444aa8e3f910b623ee2b9da57ee40f842ae60a2",
             ),
         ];
         assert_eq!(MIGRATIONS.len(), SHIPPED.len(), "append new checksums here");

@@ -153,6 +153,7 @@ function nodePlacementEqual(left: WorkspaceNode, right: WorkspaceNode): boolean 
     left.deletedAt === right.deletedAt &&
     left.pinnedAt === right.pinnedAt &&
     (left.coverImageId ?? null) === (right.coverImageId ?? null) &&
+    (left.coverGradient ?? null) === (right.coverGradient ?? null) &&
     (left.coverFullWidth ?? false) === (right.coverFullWidth ?? false) &&
     (left.coverPositionX ?? 50) === (right.coverPositionX ?? 50) &&
     (left.coverPositionY ?? 50) === (right.coverPositionY ?? 50) &&
@@ -896,6 +897,7 @@ function reduceImportBatch(
         title: operation.title,
         icon: null,
         coverImageId: null,
+        coverGradient: null,
         coverFullWidth: false,
         coverPositionX: 50,
         coverPositionY: 50,

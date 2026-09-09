@@ -13,6 +13,7 @@ const OPERATION_LABELS: Record<string, string> = {
   create_note: "Create note",
   rename_node: "Rename",
   set_note_cover: "Change note cover",
+  set_note_cover_gradient: "Change note cover gradient",
   set_note_cover_full_width: "Change note cover layout",
   set_note_cover_transform: "Adjust note cover",
   move_node: "Move",

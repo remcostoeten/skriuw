@@ -40,7 +40,11 @@ export function EditorHost({
   const selectHasCover = useMemo(
     () => (state: RendererState) => {
       const selected = selectNoteId(state);
-      return selected !== null && state.sourceNodes.get(selected)?.coverImageId != null;
+      if (selected === null) {
+        return false;
+      }
+      const node = state.sourceNodes.get(selected);
+      return node?.coverImageId != null || node?.coverGradient != null;
     },
     [selectNoteId],
   );

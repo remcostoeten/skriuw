@@ -771,8 +771,8 @@ pub(crate) fn replace_workspace_in_transaction(
                 "INSERT INTO workspace_nodes \
                  (id, kind, parent_id, rank, title, icon, cover_image_id, cover_full_width, \
                   cover_position_x, cover_position_y, cover_zoom, created_at, updated_at, deleted_at, \
-                 pinned_at) \
-                 VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                 pinned_at, cover_gradient) \
+                 VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
                 params![
                     node.id,
                     match node.kind {
@@ -790,7 +790,8 @@ pub(crate) fn replace_workspace_in_transaction(
                     node.created_at,
                     node.updated_at,
                     node.deleted_at,
-                    node.pinned_at
+                    node.pinned_at,
+                    node.cover_gradient
                 ],
             )
             .map_err(backend)?;
