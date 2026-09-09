@@ -743,6 +743,7 @@ pub(crate) fn replace_workspace_in_transaction(
              DELETE FROM documents;\
              DELETE FROM document_references;\
              DELETE FROM note_images;\
+             DELETE FROM media_metadata;\
              DELETE FROM note_properties;\
              DELETE FROM note_property_templates;\
              DELETE FROM note_annotation_comments;\

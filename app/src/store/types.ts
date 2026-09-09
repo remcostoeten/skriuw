@@ -1,5 +1,6 @@
 import type {
   HistoryHeader,
+  MediaMetadata,
   NoteProperty,
   NotePropertyTemplate,
   OperationAck,
@@ -84,6 +85,8 @@ export type RendererState = {
   tags: ReadonlyMap<string, TagRecord>;
   people: ReadonlyMap<string, PersonRecord>;
   images: ReadonlyMap<string, WorkspaceImage>;
+  /** Editable media names and alt text, keyed by content hash. */
+  mediaMetadata: ReadonlyMap<string, MediaMetadata>;
   tasks: ReadonlyMap<string, WorkspaceTask>;
   annotations: ReadonlyMap<string, WorkspaceAnnotation>;
   prompts: ReadonlyMap<string, WorkspacePrompt>;

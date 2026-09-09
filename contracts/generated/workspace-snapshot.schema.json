@@ -42,6 +42,13 @@
         "$ref": "#/$defs/ProviderImportReceipt"
       }
     },
+    "mediaMetadata": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/MediaMetadata"
+      }
+    },
     "nodes": {
       "type": "array",
       "items": {
@@ -212,6 +219,31 @@
         "versionId",
         "createdAt",
         "summary"
+      ]
+    },
+    "MediaMetadata": {
+      "description": "Librarian metadata a person types about one stored file. Keyed by content\nhash rather than by image row: the same bytes are attached once per note,\nand detaching an image prunes those rows, which would take the name with\nthem.",
+      "type": "object",
+      "properties": {
+        "alt": {
+          "type": "string"
+        },
+        "contentHash": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "contentHash",
+        "name",
+        "alt",
+        "updatedAt"
       ]
     },
     "NodeKind": {

@@ -93,6 +93,46 @@ test("tasks hydrate and task operations update the narrow task projection", () =
   assert.equal(store.getState().tasks.has("task-1"), false);
 });
 
+test("media metadata hydrates by content hash and clears when blanked", () => {
+  const contentHash = "a".repeat(64);
+  const initial = createInitialState({
+    ...snapshot(),
+    mediaMetadata: [{ contentHash, name: "Hero", alt: "Team wall", updatedAt: 3 }],
+  });
+  assert.equal(initial.mediaMetadata.get(contentHash)?.name, "Hero");
+
+  const store = createRendererStore(initial);
+  store.applyOperations([
+    {
+      type: "set_media_metadata",
+      metadata: { contentHash, name: "  Hero shot  ", alt: "  Team wall  ", updatedAt: 4 },
+    },
+  ]);
+  assert.equal(store.getState().mediaMetadata.get(contentHash)?.name, "Hero shot");
+  assert.equal(store.getState().mediaMetadata.get(contentHash)?.alt, "Team wall");
+
+  store.applyOperations([
+    {
+      type: "set_media_metadata",
+      metadata: { contentHash, name: "   ", alt: "", updatedAt: 5 },
+    },
+  ]);
+  assert.equal(
+    store.getState().mediaMetadata.has(contentHash),
+    false,
+    "emptying both fields drops the record instead of storing a blank one",
+  );
+
+  const unchanged = store.getState();
+  store.applyOperations([
+    {
+      type: "set_media_metadata",
+      metadata: { contentHash: "b".repeat(64), name: "", alt: "", updatedAt: 6 },
+    },
+  ]);
+  assert.equal(store.getState(), unchanged, "a blank write for an unnamed file is a no-op");
+});
+
 test("prompts hydrate and prompt operations update the narrow prompt projection", () => {
   const prompt: WorkspacePrompt = {
     id: "prompt-1",

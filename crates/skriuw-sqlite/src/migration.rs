@@ -122,6 +122,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "automatic_convergence",
         sql: include_str!("../migrations/0023_automatic_convergence.sql"),
     },
+    Migration {
+        version: 24,
+        name: "media_metadata",
+        sql: include_str!("../migrations/0024_media_metadata.sql"),
+    },
 ];
 
 pub(crate) struct Migration {
@@ -391,6 +396,10 @@ mod tests {
             (
                 23,
                 "441305db66ad147cc9b4c04c08b7719140a850f5b3a5d92530879181e9eea915",
+            ),
+            (
+                24,
+                "989c42e9d529d9b73d8bd1bd079b27fa407a351fccd9b59d7ba306607c60c781",
             ),
         ];
         assert_eq!(MIGRATIONS.len(), SHIPPED.len(), "append new checksums here");

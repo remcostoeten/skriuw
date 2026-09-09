@@ -99,6 +99,7 @@ define_workspace_operation_sync_policy! {
     SetActiveNote => ("set_active_note", DeviceLocal),
     UpdateSettings => ("update_settings", DeviceLocal),
     AttachImage => ("attach_image", ReplicatedWorkspaceContent),
+    SetMediaMetadata => ("set_media_metadata", ReplicatedWorkspaceContent),
     SetNoteProperty => ("set_note_property", ReplicatedWorkspaceContent),
     RemoveNoteProperty => ("remove_note_property", ReplicatedWorkspaceContent),
     ReorderNoteProperties => ("reorder_note_properties", ReplicatedWorkspaceContent),
@@ -250,6 +251,7 @@ impl WorkspaceOperation {
             Self::UpdateSettings { .. }
             | Self::ReorderNotePropertyTemplates { .. }
             | Self::RecordProviderImport { .. }
+            | Self::SetMediaMetadata { .. }
             | Self::SetPrompt { .. }
             | Self::DeletePrompt { .. } => None,
         }
@@ -781,7 +783,7 @@ mod tests {
             operation_types.len(),
             WORKSPACE_OPERATION_SYNC_POLICY_V1.len()
         );
-        assert_eq!(WORKSPACE_OPERATION_SYNC_POLICY_V1.len(), 44);
+        assert_eq!(WORKSPACE_OPERATION_SYNC_POLICY_V1.len(), 45);
         assert_eq!(
             operation_types,
             serde_json::from_str::<serde_json::Value>(include_str!(

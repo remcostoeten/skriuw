@@ -11,6 +11,7 @@ import {
   opensLinksInApp,
   showsToasts,
   usesAnimatedIcons,
+  usesBlockDragHandle,
 } from "../../../src/features/settings/settings-model";
 
 function extendedSettings(): WorkspaceSettings {
@@ -37,6 +38,7 @@ test("default settings project every editable field", () => {
     editorLineHeight: "comfortable",
     editorPlaceholder: "Start writing...",
     editorDefaultRawMode: false,
+    blockDragHandle: true,
     openNotesInTabs: false,
     showToasts: true,
     openLinksInApp: false,
@@ -76,6 +78,30 @@ test("toasts stay enabled unless the setting is explicitly false", () => {
   assert.equal(showsToasts({ ...DEFAULT_WORKSPACE_SETTINGS, showToasts: false }), false);
   const { showToasts: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
   assert.equal(showsToasts(withoutField as WorkspaceSettings), true);
+});
+
+test("the block gutter stays enabled unless the setting is explicitly false", () => {
+  assert.equal(usesBlockDragHandle(DEFAULT_WORKSPACE_SETTINGS), true);
+  assert.equal(
+    usesBlockDragHandle({ ...DEFAULT_WORKSPACE_SETTINGS, blockDragHandle: false }),
+    false,
+  );
+  const { blockDragHandle: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
+  assert.equal(usesBlockDragHandle(withoutField as WorkspaceSettings), true);
+  assert.equal(
+    usesBlockDragHandle({ ...DEFAULT_WORKSPACE_SETTINGS, blockDragHandle: "no" }),
+    true,
+  );
+});
+
+test("turning the block gutter off keeps unknown settings data", () => {
+  const settings = extendedSettings();
+  const changed = changeSetting(settings, "blockDragHandle", false);
+  assert.equal(projectSettings(changed).blockDragHandle, false);
+  assert.equal(changed.settingsVersion, 1);
+  assert.deepEqual(changed.futureSetting, settings.futureSetting);
+  assert.deepEqual(changed.shortcutOverrides, settings.shortcutOverrides);
+  assert.equal(projectSettings(settings).blockDragHandle, true);
 });
 
 test("unsupported identifiers project to defaults without changing the document", () => {

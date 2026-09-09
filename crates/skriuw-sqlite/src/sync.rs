@@ -1710,6 +1710,9 @@ fn initial_sync_operations(
             .into_iter()
             .map(|image| WorkspaceOperationEnvelope::v1(WorkspaceOperation::AttachImage { image })),
     );
+    operations.extend(snapshot.media_metadata.into_iter().map(|metadata| {
+        WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetMediaMetadata { metadata })
+    }));
     operations.extend(snapshot.nodes.iter().flat_map(|node| {
         let cover = node
             .cover_image_id
@@ -2896,6 +2899,20 @@ fn remote_target_state(
         WorkspaceOperation::DeletePrompt { id } => {
             state.target_tombstoned = tombstoned(transaction, "prompt", id, "")?;
             state.target_exists = entity_exists(transaction, "workspace_prompts", id)?;
+        }
+        WorkspaceOperation::SetMediaMetadata { metadata } => {
+            let existing = transaction
+                .query_row(
+                    "SELECT name, alt FROM media_metadata WHERE content_hash = ?1",
+                    [&metadata.content_hash],
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                )
+                .optional()
+                .map_err(backend)?;
+            if let Some((name, alt)) = existing {
+                state.target_exists = true;
+                state.state_equivalent = name == metadata.name.trim() && alt == metadata.alt.trim();
+            }
         }
         WorkspaceOperation::SetActiveNote { .. }
         | WorkspaceOperation::UpdateSettings { .. }
