@@ -8,9 +8,10 @@ use std::{
 
 use serde_json::json;
 use skriuw_domain::{
-    NodePlacement, ReplicatedWorkspaceOperation, SyncAcceptedOperation, SyncPullResponse,
-    SyncPushRequest, SyncPushResponse, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceCheckpoint,
-    WorkspaceImage, WorkspaceOperation, WorkspaceOperationEnvelope, content_digest,
+    NodePlacement, ReplicatedWorkspaceOperation, SealedContent, SealedTransport,
+    SyncAcceptedOperation, SyncOperationPayload, SyncPullResponse, SyncPushRequest,
+    SyncPushResponse, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceCheckpoint, WorkspaceImage,
+    WorkspaceOperation, WorkspaceOperationEnvelope, content_digest,
 };
 use skriuw_storage::{HistoryProvenance, HistoryQueue};
 use skriuw_sync::{SyncAssetStore, SyncCancellation, SyncClock, SyncTransport, TransportError};
@@ -208,6 +209,57 @@ impl FakeServer {
             .ok_or_else(|| TransportError::Validation(format!("chunk {digest} is not stored")))
     }
 
+    /// Everything the service could read: every stored payload and every
+    /// stored chunk, as one lossy string a plaintext assertion can search.
+    #[must_use]
+    pub fn readable_state(&self) -> String {
+        let payloads = serde_json::to_string(&*self.state.lock().expect("server state"))
+            .expect("serialize server log");
+        let checkpoints = serde_json::to_string(&*self.checkpoints.lock().expect("checkpoints"))
+            .expect("serialize checkpoints");
+        let chunks = self
+            .chunks
+            .lock()
+            .expect("chunk store")
+            .values()
+            .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!("{payloads}\n{checkpoints}\n{chunks}")
+    }
+
+    /// Flips one symbol of every sealed ciphertext on the log, standing in
+    /// for a service that returns bytes it was not given.
+    pub fn tamper_with_sealed_content(&self) {
+        let mut log = self.state.lock().expect("server state");
+        for entry in log.iter_mut() {
+            let SyncOperationPayload::Sealed { operation, assets } = &entry.payload else {
+                continue;
+            };
+            let Some(ciphertext) = operation.inline_ciphertext() else {
+                continue;
+            };
+            let mut tampered = ciphertext.to_string();
+            let first = if tampered.starts_with('A') { 'B' } else { 'A' };
+            tampered.replace_range(0..1, &first.to_string());
+            entry.payload = SyncOperationPayload::Sealed {
+                operation: SealedContent {
+                    transport: SealedTransport::Inline {
+                        ciphertext: tampered,
+                    },
+                    ..operation.clone()
+                },
+                assets: assets.clone(),
+            };
+        }
+        let mut chunks = self.chunks.lock().expect("chunk store");
+        for bytes in chunks.values_mut() {
+            if let Some(first) = bytes.first_mut() {
+                *first ^= 0x01;
+            }
+        }
+    }
+
     #[must_use]
     pub fn stored_chunks(&self) -> usize {
         self.chunks.lock().expect("chunk store").len()
@@ -341,11 +393,22 @@ impl FakeServer {
             return Err(TransportError::AuthorizationDenied);
         }
         for operation in &request.operations {
+            let sealed =
+                operation
+                    .payload
+                    .sealed_content()
+                    .into_iter()
+                    .flat_map(|(content, assets)| {
+                        std::iter::once(content)
+                            .chain(assets.iter())
+                            .filter_map(SealedContent::manifest)
+                    });
             let referenced = operation
                 .payload
                 .manifest()
                 .into_iter()
-                .chain(operation.payload.assets());
+                .chain(operation.payload.assets())
+                .chain(sealed);
             for manifest in referenced {
                 let chunks = self.chunks.lock().expect("chunk store");
                 if manifest
@@ -788,6 +851,13 @@ impl SyncTransport for FakeTransport {
             None => self.server.pull(workspace_id, after_server_sequence, limit),
         }
     }
+}
+
+/// The content digest of asset bytes, so a scenario can look an asset up in
+/// the store the way the sync layer does.
+#[must_use]
+pub fn digest(bytes: &[u8]) -> String {
+    content_digest(bytes)
 }
 
 #[must_use]

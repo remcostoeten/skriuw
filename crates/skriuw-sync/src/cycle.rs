@@ -38,6 +38,10 @@ pub const BLOCKED_REASON_BLOCKED_OPERATIONS: &str = "blocked_operations";
 /// The cloud holds sealed content this device has no key for. Only entering
 /// the workspace recovery code clears it; retrying cannot.
 pub const BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED: &str = "encryption_key_required";
+/// Sealed content arrived that this device's key cannot open: a different
+/// recovery code, or bytes that changed after they were sealed. Neither is
+/// transient, so the cycle parks with the reason instead of retrying.
+pub const BLOCKED_REASON_SEALED_CONTENT_UNREADABLE: &str = "sealed_content_unreadable";
 
 /// Durable per-operation blocked reason recorded in storage when an
 /// operation's declared asset bytes are absent locally at push time. The
@@ -742,7 +746,12 @@ impl Cycle<'_> {
                     &mut response,
                     self.cancellation,
                 ) {
-                    return Err(self.pull_failure(&error));
+                    return Err(match &error {
+                        TransportError::Validation(detail) => {
+                            self.sealed_content_unreadable(detail)
+                        }
+                        error => self.pull_failure(error),
+                    });
                 }
             }
             None => {
@@ -914,6 +923,17 @@ impl Cycle<'_> {
             .saturating_add(self.config.blocked_retry_delay_ms);
         SyncCycleOutcome::retry(
             SyncStatus::blocked(BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED, detail),
+            retry_at,
+        )
+    }
+
+    fn sealed_content_unreadable(&self, detail: &str) -> SyncCycleOutcome {
+        let retry_at = self
+            .clock
+            .now_ms()
+            .saturating_add(self.config.blocked_retry_delay_ms);
+        SyncCycleOutcome::retry(
+            SyncStatus::blocked(BLOCKED_REASON_SEALED_CONTENT_UNREADABLE, detail),
             retry_at,
         )
     }

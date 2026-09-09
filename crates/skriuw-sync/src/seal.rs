@@ -12,7 +12,8 @@
 //! `docs/adr/0041-end-to-end-encrypted-sync.md`.
 
 use skriuw_crypto::{
-    ContentKey, CryptoError, SEAL_SCHEME_V1, decode_base64, encode_base64, open, seal,
+    ContentKey, CryptoError, RecoveryCode, SEAL_SCHEME_V1, decode_base64, derive_content_key,
+    encode_base64, open, seal,
 };
 use skriuw_domain::{
     CheckpointSeal, ClientSyncOperation, ContentManifest, ContentManifestKind,
@@ -26,6 +27,35 @@ use crate::content::{
     AssetExternalization, SyncAssetStore, download_content, upload_missing_chunks,
 };
 use crate::transport::{SyncCancellation, SyncTransport, TransportError};
+
+/// Formats fresh cryptographic entropy as the recovery code shown once at
+/// enable time. The caller owns the randomness: the desktop runtime uses the
+/// platform generator and the browser worker uses `crypto.getRandomValues`,
+/// so no random-number dependency enters the shared crates.
+pub fn new_recovery_code(entropy: &[u8]) -> Result<String, String> {
+    RecoveryCode::from_entropy(entropy)
+        .map(|code| code.formatted())
+        .map_err(|error| error.to_string())
+}
+
+/// Derives the device-local seal record for a workspace from a recovery code.
+/// The same code and workspace always derive the same key, which is what lets
+/// a second device join by typing the code and nothing else.
+pub fn derive_workspace_seal(
+    workspace_id: &str,
+    recovery_code: &str,
+    now_ms: i64,
+) -> Result<WorkspaceSeal, String> {
+    let code = RecoveryCode::parse(recovery_code).map_err(|error| error.to_string())?;
+    let key = derive_content_key(&code, workspace_id).map_err(|error| error.to_string())?;
+    Ok(WorkspaceSeal {
+        key_id: key.key_id(),
+        scheme: SEAL_SCHEME_V1.into(),
+        key_material: key.material().to_vec(),
+        enabled_at: now_ms.max(0),
+        sealed_checkpoint_at: None,
+    })
+}
 
 /// The device's workspace content key, in the one shape the cycle needs it.
 pub struct WorkspaceSealer {
