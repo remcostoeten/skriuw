@@ -709,6 +709,31 @@ fn apply_operation(
                 )
                 .map_err(|error| StorageError::AlreadyExists(error.to_string()))?;
         }
+        WorkspaceOperation::SetMediaMetadata { metadata } => {
+            if metadata.is_empty() {
+                transaction
+                    .execute(
+                        "DELETE FROM media_metadata WHERE content_hash = ?1",
+                        [&metadata.content_hash],
+                    )
+                    .map_err(backend)?;
+            } else {
+                transaction
+                    .execute(
+                        "INSERT INTO media_metadata (content_hash, name, alt, updated_at) \
+                         VALUES (?1, ?2, ?3, ?4) \
+                         ON CONFLICT(content_hash) DO UPDATE SET \
+                         name = excluded.name, alt = excluded.alt, updated_at = excluded.updated_at",
+                        params![
+                            metadata.content_hash,
+                            metadata.name.trim(),
+                            metadata.alt.trim(),
+                            metadata.updated_at
+                        ],
+                    )
+                    .map_err(backend)?;
+            }
+        }
         WorkspaceOperation::SetNoteProperty { property, at } => {
             require_note(transaction, &property.note_id)?;
             require_property_people(transaction, &property.field)?;

@@ -110,6 +110,8 @@ pub const MAX_REFERENCE_NAME_BYTES: usize = 512;
 pub const MAX_REFERENCE_COLOR_BYTES: usize = 64;
 pub const MAX_IMAGE_MIME_BYTES: usize = 128;
 pub const IMAGE_CONTENT_HASH_BYTES: usize = 64;
+pub const MAX_MEDIA_NAME_BYTES: usize = 200;
+pub const MAX_MEDIA_ALT_BYTES: usize = 1_000;
 pub const MAX_NOTE_PROPERTIES: usize = 64;
 pub const MAX_PROPERTY_OPTIONS: usize = 64;
 pub const MAX_PROPERTY_NAME_BYTES: usize = 80;
@@ -431,6 +433,35 @@ impl WorkspaceImage {
     }
 }
 
+/// Librarian metadata a person types about one stored file. Keyed by content
+/// hash rather than by image row: the same bytes are attached once per note,
+/// and detaching an image prunes those rows, which would take the name with
+/// them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaMetadata {
+    pub content_hash: String,
+    pub name: String,
+    pub alt: String,
+    pub updated_at: i64,
+}
+
+impl MediaMetadata {
+    pub fn validate(&self) -> Result<(), OperationValidationError> {
+        validate_content_hash(&self.content_hash)?;
+        validate_optional_bounded_text("media name", &self.name, MAX_MEDIA_NAME_BYTES)?;
+        validate_optional_bounded_text("media alt text", &self.alt, MAX_MEDIA_ALT_BYTES)?;
+        validate_timestamp(self.updated_at)
+    }
+
+    /// A record whose fields are all blank carries nothing; storage drops it
+    /// instead of keeping an empty row alive.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.name.trim().is_empty() && self.alt.trim().is_empty()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum NotePropertyColor {
@@ -623,6 +654,8 @@ pub struct WorkspaceSnapshot {
     pub references: Vec<NoteReferences>,
     #[serde(default)]
     pub images: Vec<WorkspaceImage>,
+    #[serde(default)]
+    pub media_metadata: Vec<MediaMetadata>,
     #[serde(default)]
     pub properties: Vec<NoteProperty>,
     #[serde(default)]
@@ -1546,6 +1579,9 @@ pub enum WorkspaceOperation {
     AttachImage {
         image: WorkspaceImage,
     },
+    SetMediaMetadata {
+        metadata: MediaMetadata,
+    },
     SetNoteProperty {
         property: NoteProperty,
         at: i64,
@@ -1753,6 +1789,7 @@ impl WorkspaceOperation {
             Self::SetActiveNote { note_id } => validate_optional_id("note id", note_id),
             Self::UpdateSettings { settings } => settings.validate(),
             Self::AttachImage { image } => image.validate(),
+            Self::SetMediaMetadata { metadata } => metadata.validate(),
             Self::SetNoteProperty { property, at } => {
                 validate_id("note id", &property.note_id)?;
                 property.field.validate()?;
@@ -2809,6 +2846,66 @@ mod tests {
             archive.validate(),
             Err(ArchiveValidationError::Invalid(_))
         ));
+    }
+
+    #[test]
+    fn set_media_metadata_wire_format_and_validation() {
+        fn metadata() -> super::MediaMetadata {
+            super::MediaMetadata {
+                content_hash: "a".repeat(64),
+                name: "Roadmap hero".into(),
+                alt: "A wide shot of the team wall".into(),
+                updated_at: 9,
+            }
+        }
+
+        let envelope = WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetMediaMetadata {
+            metadata: metadata(),
+        });
+        envelope.validate().expect("valid media metadata");
+        let value = serde_json::to_value(&envelope).expect("serialize media metadata");
+        assert_eq!(value["operation"]["type"], "set_media_metadata");
+        assert_eq!(
+            value["operation"]["metadata"]["contentHash"],
+            "a".repeat(64)
+        );
+        assert_eq!(value["operation"]["metadata"]["name"], "Roadmap hero");
+
+        let mut blank = metadata();
+        blank.name = "  ".into();
+        blank.alt = String::new();
+        blank
+            .validate()
+            .expect("a blank record is valid; storage drops it");
+        assert!(blank.is_empty());
+        assert!(!metadata().is_empty());
+
+        let mut short_hash = metadata();
+        short_hash.content_hash = "abc".into();
+        assert_eq!(
+            short_hash.validate(),
+            Err(OperationValidationError::InvalidIdentifier {
+                field: "content hash"
+            })
+        );
+        let mut long_name = metadata();
+        long_name.name = "n".repeat(super::MAX_MEDIA_NAME_BYTES + 1);
+        assert_eq!(
+            long_name.validate(),
+            Err(OperationValidationError::TooLong {
+                field: "media name",
+                maximum: super::MAX_MEDIA_NAME_BYTES
+            })
+        );
+        let mut long_alt = metadata();
+        long_alt.alt = "a".repeat(super::MAX_MEDIA_ALT_BYTES + 1);
+        assert_eq!(
+            long_alt.validate(),
+            Err(OperationValidationError::TooLong {
+                field: "media alt text",
+                maximum: super::MAX_MEDIA_ALT_BYTES
+            })
+        );
     }
 
     #[test]

@@ -1,6 +1,12 @@
 import type { MediaBlobPayload } from "@/bridge/commands";
-import type { WorkspaceImage } from "@/contracts/workspace";
+import type { MediaMetadata, WorkspaceImage } from "@/contracts/workspace";
 import { JOURNAL_ROOT_ID } from "@/features/journal/constants";
+
+/** Mirrors `MAX_MEDIA_NAME_BYTES` in `skriuw-domain`. */
+export const MEDIA_NAME_MAX_BYTES = 200;
+
+/** Mirrors `MAX_MEDIA_ALT_BYTES` in `skriuw-domain`. */
+export const MEDIA_ALT_MAX_BYTES = 1000;
 
 export type MediaUsage = {
   noteId: string;
@@ -12,6 +18,8 @@ export type MediaUsage = {
 
 export type MediaLibraryEntry = {
   contentHash: string;
+  name: string;
+  alt: string;
   mimeType: string;
   byteSize: number;
   modifiedAt: number;
@@ -59,6 +67,7 @@ export function projectMediaLibrary(
   images: ReadonlyMap<string, WorkspaceImage>,
   nodes: ReadonlyMap<string, MediaNode>,
   documents: ReadonlyMap<string, MediaDocument> = new Map(),
+  metadata: ReadonlyMap<string, MediaMetadata> = new Map(),
 ): MediaLibraryEntry[] {
   const usageByHash = new Map<string, Map<string, MediaUsage>>();
   const referenceMeta = new Map<
@@ -124,6 +133,8 @@ export function projectMediaLibrary(
     const meta = referenceMeta.get(blob.contentHash);
     return {
       contentHash: blob.contentHash,
+      name: metadata.get(blob.contentHash)?.name ?? "",
+      alt: metadata.get(blob.contentHash)?.alt ?? "",
       mimeType: blob.mimeType,
       byteSize: blob.byteSize,
       modifiedAt: Math.max(blob.modifiedAtMs, meta?.createdAt ?? 0),
@@ -142,6 +153,8 @@ export function projectMediaLibrary(
     }
     entries.push({
       contentHash,
+      name: metadata.get(contentHash)?.name ?? "",
+      alt: metadata.get(contentHash)?.alt ?? "",
       mimeType: meta.mimeType,
       byteSize: meta.byteSize,
       modifiedAt: meta.createdAt,
@@ -203,4 +216,43 @@ export function describeMediaUsage(entry: MediaLibraryEntry): string {
   const more = entry.usages.length > 3 ? ` and ${entry.usages.length - 3} more` : "";
   const times = references === 1 ? "once" : `${references} times`;
   return `Used ${times} in ${shown}${more}`;
+}
+
+/**
+ * The label shown wherever a file is listed: the name a person gave it, or a
+ * stable fallback built from its format and hash prefix.
+ */
+export function mediaDisplayName(entry: {
+  name: string;
+  mimeType: string;
+  contentHash: string;
+}): string {
+  const named = entry.name.trim();
+  if (named !== "") {
+    return named;
+  }
+  return `${imageFormatLabel(entry.mimeType)} ${entry.contentHash.slice(0, 8)}`;
+}
+
+/**
+ * Clamps typed text to the byte budget the domain layer enforces, cutting on a
+ * code-point boundary so a multi-byte character is never split in half.
+ */
+export function clampMediaText(value: string, maximumBytes: number): string {
+  const trimmed = value.trim();
+  const encoder = new TextEncoder();
+  if (encoder.encode(trimmed).length <= maximumBytes) {
+    return trimmed;
+  }
+  let result = "";
+  let used = 0;
+  for (const character of trimmed) {
+    const size = encoder.encode(character).length;
+    if (used + size > maximumBytes) {
+      break;
+    }
+    result += character;
+    used += size;
+  }
+  return result.trimEnd();
 }

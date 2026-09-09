@@ -7,7 +7,12 @@ import {
   sweepUnusedMediaBlobs,
 } from "@/bridge/commands";
 import type { MediaBlobPayload } from "@/bridge/commands";
-import { FolderOpenIcon, Trash2Icon, UploadIcon } from "@/shared/icons/static";
+import {
+  FolderOpenIcon,
+  PencilIcon,
+  Trash2Icon,
+  UploadIcon,
+} from "@/shared/icons/static";
 import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
 import { resolveMediaPlaybackUrl } from "@/shared/lib/media-playback-url";
 import { isBrowserRuntime } from "@/bridge/runtime";
@@ -21,12 +26,16 @@ import {
   imageFormatLabel,
   isUnusedMedia,
   isVideoMime,
+  mediaDisplayName,
   projectMediaLibrary,
+  MEDIA_ALT_MAX_BYTES,
+  MEDIA_NAME_MAX_BYTES,
 } from "@/features/settings/media-library-model";
 import type { MediaLibraryEntry } from "@/features/settings/media-library-model";
 import type { MediaUsage } from "@/features/settings/media-library-model";
 import { formatSizeBytes } from "@/features/settings/maintenance-model";
 import type { RendererState } from "@/store/types";
+import { setMediaMetadata } from "@/store/actions/media";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import {
   SettingsHeading,
@@ -66,6 +75,10 @@ function selectDocuments(state: RendererState) {
   return state.documents;
 }
 
+function selectMediaMetadata(state: RendererState) {
+  return state.mediaMetadata;
+}
+
 type MediaFilter = "all" | "inline" | "cover" | "journal" | "unused";
 
 const MEDIA_FILTERS: readonly { id: MediaFilter; label: string }[] = [
@@ -80,6 +93,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
   const images = useRendererSelector(store, selectImages);
   const nodes = useRendererSelector(store, selectNodes);
   const documents = useRendererSelector(store, selectDocuments);
+  const metadata = useRendererSelector(store, selectMediaMetadata);
   const [blobs, setBlobs] = useState<MediaBlobPayload[] | null>(null);
   const [listFailed, setListFailed] = useState(false);
   const [status, setStatus] = useState<MediaStatus>({ kind: "idle" });
@@ -90,6 +104,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
   const [previewEntry, setPreviewEntry] = useState<MediaLibraryEntry | null>(
     null,
   );
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const filterBeforeSweepRef = useRef<MediaFilter>("all");
   const mountedRef = useRef(true);
@@ -118,8 +133,8 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
   }, []);
 
   const entries = useMemo(
-    () => projectMediaLibrary(blobs ?? [], images, nodes, documents),
-    [blobs, documents, images, nodes],
+    () => projectMediaLibrary(blobs ?? [], images, nodes, documents, metadata),
+    [blobs, documents, images, metadata, nodes],
   );
   const visibleEntries = useMemo(
     () =>
@@ -134,6 +149,17 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
     [entries, filter],
   );
   const unusedCount = countUnusedMedia(entries);
+  const selectableHashes = useMemo(
+    () =>
+      visibleEntries
+        .filter((entry) => isUnusedMedia(entry) && !entry.missingBlob)
+        .map((entry) => entry.contentHash),
+    [visibleEntries],
+  );
+  const selectedEntries = useMemo(
+    () => entries.filter((entry) => selected.has(entry.contentHash)),
+    [entries, selected],
+  );
 
   function finish(next: MediaStatus): void {
     if (mountedRef.current) {
@@ -173,6 +199,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
     setBusy(true);
     deleteMediaBlob(entry.contentHash, entry.mimeType)
       .then(() => {
+        clearSelection();
         finish({ kind: "info", message: "Image deleted." });
       })
       .catch((error) => {
@@ -180,9 +207,60 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
       });
   }
 
+  function clearSelection(): void {
+    setSelected(new Set());
+  }
+
+  function toggleSelected(contentHash: string): void {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (!next.delete(contentHash)) {
+        next.add(contentHash);
+      }
+      return next;
+    });
+  }
+
+  function selectAllShown(): void {
+    setSelected(new Set(selectableHashes));
+  }
+
+  function deleteSelected(): void {
+    if (selectedEntries.length === 0) {
+      return;
+    }
+    setBusy(true);
+    const count = selectedEntries.length;
+    Promise.all(
+      selectedEntries.map((entry) =>
+        deleteMediaBlob(entry.contentHash, entry.mimeType),
+      ),
+    )
+      .then(() => {
+        clearSelection();
+        finish({
+          kind: "info",
+          message: `Deleted ${count} ${count === 1 ? "image" : "images"}.`,
+        });
+      })
+      .catch((error) => {
+        finish({ kind: "error", message: `Delete failed: ${String(error)}` });
+      });
+  }
+
+  function renameEntry(
+    entry: MediaLibraryEntry,
+    fields: { name: string; alt: string },
+  ): void {
+    void setMediaMetadata(store, entry.contentHash, fields).catch((error) => {
+      setStatus({ kind: "error", message: `Rename failed: ${String(error)}` });
+    });
+  }
+
   function changeFilter(next: MediaFilter): void {
     setFilter(next);
     setVisibleLimit(PAGE_SIZE);
+    setSelected(new Set());
   }
 
   function armSweep(): void {
@@ -337,6 +415,50 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
           {visibleEntries.length} of {entries.length}
         </span>
       </div>
+      {selectableHashes.length > 0 && (
+        <div
+          className="mb-3 flex flex-wrap items-center gap-2"
+          aria-label="Media selection"
+        >
+          <button
+            type="button"
+            className={settingsButton}
+            disabled={busy || selected.size === selectableHashes.length}
+            onClick={selectAllShown}
+          >
+            Select all deletable ({selectableHashes.length})
+          </button>
+          {selected.size > 0 && (
+            <>
+              <button
+                type="button"
+                className={settingsButton}
+                disabled={busy}
+                onClick={clearSelection}
+              >
+                Clear selection
+              </button>
+              <InlineConfirm
+                size="sm"
+                confirmLabel={`Delete ${selected.size}`}
+                message="This cannot be undone."
+                onConfirm={deleteSelected}
+                renderIdle={(arm) => (
+                  <button
+                    type="button"
+                    className={cn(settingsButton, settingsButtonDanger)}
+                    disabled={busy}
+                    onClick={arm}
+                  >
+                    <Trash2Icon size={13} />
+                    Delete {selected.size} selected
+                  </button>
+                )}
+              />
+            </>
+          )}
+        </div>
+      )}
       <MediaGrid
         entries={visibleEntries.slice(0, visibleLimit)}
         loading={blobs === null && !listFailed}
@@ -351,6 +473,9 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
         onOpenReference={onOpenReference}
         onPreview={setPreviewEntry}
         onDelete={deleteEntry}
+        selected={selected}
+        onToggleSelected={toggleSelected}
+        onRename={renameEntry}
       />
       {visibleEntries.length > visibleLimit && (
         <div className="mt-3 flex justify-center">
@@ -385,6 +510,12 @@ type MediaGridProps = {
   onOpenReference: (usage: MediaUsage) => void;
   onPreview: (entry: MediaLibraryEntry) => void;
   onDelete: (entry: MediaLibraryEntry) => void;
+  selected: ReadonlySet<string>;
+  onToggleSelected: (contentHash: string) => void;
+  onRename: (
+    entry: MediaLibraryEntry,
+    fields: { name: string; alt: string },
+  ) => void;
 };
 
 function MediaGrid({
@@ -397,6 +528,9 @@ function MediaGrid({
   onOpenReference,
   onPreview,
   onDelete,
+  selected,
+  onToggleSelected,
+  onRename,
 }: MediaGridProps) {
   if (failed) {
     return (
@@ -434,9 +568,12 @@ function MediaGrid({
           key={entry.contentHash}
           entry={entry}
           busy={busy}
+          selected={selected.has(entry.contentHash)}
           onOpenReference={onOpenReference}
           onPreview={onPreview}
           onDelete={onDelete}
+          onToggleSelected={onToggleSelected}
+          onRename={onRename}
         />
       ))}
     </ul>
@@ -446,27 +583,80 @@ function MediaGrid({
 type MediaCardProps = {
   entry: MediaLibraryEntry;
   busy: boolean;
+  selected: boolean;
   onOpenReference: (usage: MediaUsage) => void;
   onPreview: (entry: MediaLibraryEntry) => void;
   onDelete: (entry: MediaLibraryEntry) => void;
+  onToggleSelected: (contentHash: string) => void;
+  onRename: (
+    entry: MediaLibraryEntry,
+    fields: { name: string; alt: string },
+  ) => void;
 };
 
 function MediaCard({
   entry,
   busy,
+  selected,
   onOpenReference,
   onPreview,
   onDelete,
+  onToggleSelected,
+  onRename,
 }: MediaCardProps) {
+  const [editing, setEditing] = useState(false);
   const unused = isUnusedMedia(entry);
+  const selectable = unused && !entry.missingBlob;
   const dimensions =
     entry.width !== null && entry.height !== null
       ? `${entry.width}×${entry.height}`
       : "Dimensions unavailable";
   return (
-    <li className="flex flex-col overflow-hidden rounded-lg border border-border">
+    <li
+      className={cn(
+        "flex flex-col overflow-hidden rounded-lg border",
+        selected ? "border-foreground/60" : "border-border",
+      )}
+    >
       <MediaPreview entry={entry} onOpen={() => onPreview(entry)} />
       <div className="flex flex-1 flex-col gap-1.5 px-2.5 py-2">
+        <span className="flex items-start gap-2">
+          {selectable && (
+            <input
+              type="checkbox"
+              className="mt-0.5 shrink-0"
+              checked={selected}
+              disabled={busy}
+              aria-label={`Select ${mediaDisplayName(entry)}`}
+              onChange={() => onToggleSelected(entry.contentHash)}
+            />
+          )}
+          <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">
+            {mediaDisplayName(entry)}
+          </span>
+          <button
+            type="button"
+            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label={entry.name === "" ? "Name this file" : "Rename this file"}
+            aria-expanded={editing}
+            onClick={() => setEditing((open) => !open)}
+          >
+            <PencilIcon size={13} />
+          </button>
+        </span>
+        {editing && (
+          <MediaDetailsForm
+            entry={entry}
+            onCancel={() => setEditing(false)}
+            onSubmit={(fields) => {
+              onRename(entry, fields);
+              setEditing(false);
+            }}
+          />
+        )}
+        {!editing && entry.alt !== "" && (
+          <span className={settingsRowDescription}>{entry.alt}</span>
+        )}
         <span className="font-mono text-[11px] text-muted-foreground">
           {imageFormatLabel(entry.mimeType)} · {formatSizeBytes(entry.byteSize)}{" "}
           · {dimensions}
@@ -531,6 +721,71 @@ function MediaCard({
         )}
       </div>
     </li>
+  );
+}
+
+type MediaDetailsFormProps = {
+  entry: MediaLibraryEntry;
+  onCancel: () => void;
+  onSubmit: (fields: { name: string; alt: string }) => void;
+};
+
+const detailsInputClass =
+  "h-7 w-full rounded border border-border bg-background px-2 text-[11px] outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring";
+
+function MediaDetailsForm({ entry, onCancel, onSubmit }: MediaDetailsFormProps) {
+  const [name, setName] = useState(entry.name);
+  const [alt, setAlt] = useState(entry.alt);
+  return (
+    <form
+      className="flex flex-col gap-1.5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit({ name, alt });
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.stopPropagation();
+          onCancel();
+        }
+      }}
+    >
+      <label className="flex flex-col gap-0.5">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          Name
+        </span>
+        <input
+          autoFocus
+          type="text"
+          value={name}
+          maxLength={MEDIA_NAME_MAX_BYTES}
+          placeholder={mediaDisplayName({ ...entry, name: "" })}
+          className={detailsInputClass}
+          onChange={(event) => setName(event.currentTarget.value)}
+        />
+      </label>
+      <label className="flex flex-col gap-0.5">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          Description
+        </span>
+        <input
+          type="text"
+          value={alt}
+          maxLength={MEDIA_ALT_MAX_BYTES}
+          placeholder="Alt text for screen readers"
+          className={detailsInputClass}
+          onChange={(event) => setAlt(event.currentTarget.value)}
+        />
+      </label>
+      <span className="flex gap-1.5">
+        <button type="submit" className={settingsButton}>
+          Save
+        </button>
+        <button type="button" className={settingsButton} onClick={onCancel}>
+          Cancel
+        </button>
+      </span>
+    </form>
   );
 }
 
@@ -632,7 +887,7 @@ function MediaPreview({
           onError={() => setUseBlobFallback(true)}
         />
       ) : (
-        <img className={previewClass} src={url} alt="" loading="lazy" />
+        <img className={previewClass} src={url} alt={entry.alt} loading="lazy" />
       )}
     </button>
   );

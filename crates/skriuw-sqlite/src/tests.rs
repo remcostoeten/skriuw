@@ -2960,6 +2960,70 @@ fn attaches_images_and_shares_blobs_between_notes() {
 }
 
 #[test]
+fn media_metadata_survives_image_detachment_and_clears_when_blanked() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open");
+    let content_hash = "a".repeat(64);
+    storage
+        .apply_operations(&[
+            create_note("note-1"),
+            attach_image("image-1", "note-1", 'a'),
+        ])
+        .expect("attach image");
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SetMediaMetadata {
+            metadata: skriuw_domain::MediaMetadata {
+                content_hash: content_hash.clone(),
+                name: "  Roadmap hero  ".into(),
+                alt: "  Team wall  ".into(),
+                updated_at: 4,
+            },
+        })])
+        .expect("name the file");
+
+    let stored = storage.bootstrap().expect("bootstrap").media_metadata;
+    assert_eq!(stored.len(), 1);
+    assert_eq!(stored[0].content_hash, content_hash);
+    assert_eq!(stored[0].name, "Roadmap hero");
+    assert_eq!(stored[0].alt, "Team wall");
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SaveDocument {
+            note_id: "note-1".into(),
+            document_json: json!({"type": "doc"}),
+            markdown: String::new(),
+            word_count: 0,
+            expected_revision: 1,
+            at: 5,
+        })])
+        .expect("detach every image");
+    let after_detach = storage.bootstrap().expect("bootstrap");
+    assert!(after_detach.images.is_empty());
+    assert_eq!(
+        after_detach.media_metadata.len(),
+        1,
+        "the name belongs to the stored bytes, not to one note's attachment"
+    );
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SetMediaMetadata {
+            metadata: skriuw_domain::MediaMetadata {
+                content_hash: content_hash.clone(),
+                name: "   ".into(),
+                alt: String::new(),
+                updated_at: 6,
+            },
+        })])
+        .expect("clear the name");
+    assert!(
+        storage
+            .bootstrap()
+            .expect("bootstrap")
+            .media_metadata
+            .is_empty()
+    );
+}
+
+#[test]
 fn save_document_prunes_detached_image_rows() {
     let storage = SqliteWorkspace::open_in_memory().expect("open");
     storage

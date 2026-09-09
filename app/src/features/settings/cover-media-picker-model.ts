@@ -1,5 +1,5 @@
 import type { MediaBlobPayload } from "@/bridge/commands";
-import type { WorkspaceImage } from "@/contracts/workspace";
+import type { MediaMetadata, WorkspaceImage } from "@/contracts/workspace";
 
 export type CoverMediaPickerFilter = "all" | "used" | "unused" | "duplicates";
 
@@ -11,9 +11,11 @@ export type CoverMediaPickerOptions = {
   sort?: CoverMediaPickerSort;
   currentCoverContentHash?: string | null;
   currentCoverImageId?: string | null;
+  metadata?: ReadonlyMap<string, MediaMetadata>;
 };
 
 export type CoverMediaPickerItem = MediaBlobPayload & {
+  name: string;
   usageCount: number;
   referenceIds: string[];
   noteIds: string[];
@@ -44,6 +46,7 @@ export function projectCoverMediaPicker(
   const query = options.query?.trim().toLocaleLowerCase() ?? "";
   const filter = options.filter ?? "all";
   const sort = options.sort ?? "recent";
+  const metadata = options.metadata ?? new Map<string, MediaMetadata>();
 
   return blobs
     .filter((blob) => !blob.mimeType.startsWith("video/"))
@@ -58,6 +61,7 @@ export function projectCoverMediaPicker(
       const usageCount = references.length;
       return {
         ...blob,
+        name: metadata.get(blob.contentHash)?.name ?? "",
         usageCount,
         referenceIds,
         noteIds,
@@ -99,6 +103,7 @@ function matchesQuery(item: CoverMediaPickerItem, query: string): boolean {
     return true;
   }
   return [
+    item.name,
     item.contentHash,
     item.mimeType,
     ...item.referenceIds,

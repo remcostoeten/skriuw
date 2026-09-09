@@ -61,6 +61,10 @@ const inFlightCoverWrites = new Set<Promise<void>>();
 
 registerPendingWork(() => Promise.all([...inFlightCoverWrites]).then(() => undefined));
 
+function selectMediaMetadata(state: RendererState) {
+  return state.mediaMetadata;
+}
+
 function selectImages(state: RendererState) {
   return state.images;
 }
@@ -176,6 +180,7 @@ export function NoteCover({ store, selectNoteId }: Props) {
   );
   const image = useRendererSelector(store, selectCoverImage);
   const images = useRendererSelector(store, selectImages);
+  const mediaMetadata = useRendererSelector(store, selectMediaMetadata);
   const url = useCoverUrl(image?.contentHash ?? null, image?.mimeType ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -518,6 +523,7 @@ export function NoteCover({ store, selectNoteId }: Props) {
       open={pickerOpen}
       blobs={pickerBlobs}
       images={images}
+      mediaMetadata={mediaMetadata}
       currentCoverImageId={coverImageId}
       failed={pickerFailed}
       onOpenChange={setPickerOpen}
@@ -767,6 +773,7 @@ type CoverMediaPickerProps = {
   open: boolean;
   blobs: MediaBlobPayload[] | null;
   images: RendererState["images"];
+  mediaMetadata: RendererState["mediaMetadata"];
   currentCoverImageId: string | null;
   failed: boolean;
   onOpenChange: (open: boolean) => void;
@@ -779,6 +786,7 @@ function CoverMediaPicker({
   open,
   blobs,
   images,
+  mediaMetadata,
   currentCoverImageId,
   failed,
   onOpenChange,
@@ -799,8 +807,9 @@ function CoverMediaPicker({
         filter,
         sort,
         currentCoverImageId,
+        metadata: mediaMetadata,
       }),
-    [blobs, currentCoverImageId, filter, images, query, sort],
+    [blobs, currentCoverImageId, filter, images, mediaMetadata, query, sort],
   );
 
   function submitRemoteUrl(event: React.FormEvent<HTMLFormElement>): void {
@@ -961,9 +970,16 @@ function CoverMediaPicker({
                     )}
                   </span>
                 </span>
-                <span className="flex items-center justify-between gap-2 px-2 py-1.5 font-mono text-[10px] text-muted-foreground">
-                  <span className="truncate">{item.mimeType.replace("image/", "").toUpperCase()}</span>
-                  <span className="shrink-0">{Math.ceil(item.byteSize / 1024)} KB</span>
+                <span className="flex flex-col gap-0.5 px-2 py-1.5">
+                  {item.name !== "" && (
+                    <span className="truncate text-[11px] text-foreground" title={item.name}>
+                      {item.name}
+                    </span>
+                  )}
+                  <span className="flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
+                    <span className="truncate">{item.mimeType.replace("image/", "").toUpperCase()}</span>
+                    <span className="shrink-0">{Math.ceil(item.byteSize / 1024)} KB</span>
+                  </span>
                 </span>
               </button>
             </li>

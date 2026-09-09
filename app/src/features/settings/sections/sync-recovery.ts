@@ -22,6 +22,7 @@ const OPERATION_LABELS: Record<string, string> = {
   restore_subtree: "Restore from trash",
   purge_subtree: "Delete permanently",
   attach_image: "Attach image",
+  set_media_metadata: "Rename media",
   set_note_property: "Change note property",
   remove_note_property: "Remove note property",
   reorder_note_properties: "Reorder note properties",

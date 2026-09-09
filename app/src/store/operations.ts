@@ -252,6 +252,7 @@ export function reduceOperation(
     case "set_active_note":
     case "update_settings":
     case "attach_image":
+    case "set_media_metadata":
     case "create_task":
     case "update_task":
     case "delete_task":

@@ -71,6 +71,18 @@ export type WorkspaceImage = {
   createdAt: number;
 };
 
+/**
+ * Librarian metadata a person types about one stored file. Keyed by content
+ * hash rather than by image id: the same bytes are attached once per note, and
+ * detaching an image prunes those rows.
+ */
+export type MediaMetadata = {
+  contentHash: string;
+  name: string;
+  alt: string;
+  updatedAt: number;
+};
+
 export type NotePropertyColor =
   | "gray"
   | "stone"
@@ -221,6 +233,7 @@ export type WorkspaceSnapshot = {
   }[];
   references: { noteId: string; targets: { kind: "tag" | "person" | "note"; targetId: string }[] }[];
   images?: WorkspaceImage[];
+  mediaMetadata?: MediaMetadata[];
   properties?: NoteProperty[];
   propertyTemplates?: NotePropertyTemplate[];
   tasks?: WorkspaceTask[];
@@ -345,6 +358,7 @@ export type WorkspaceOperation =
   | { type: "set_active_note"; noteId: string | null }
   | { type: "update_settings"; settings: WorkspaceSettings }
   | { type: "attach_image"; image: WorkspaceImage }
+  | { type: "set_media_metadata"; metadata: MediaMetadata }
   | { type: "set_note_property"; property: NoteProperty; at: number }
   | { type: "remove_note_property"; noteId: string; propertyId: string; at: number }
   | {
