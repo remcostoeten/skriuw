@@ -31,10 +31,11 @@ pub use ai::{
 pub use ai_history::{
     AI_RUN_ORIGIN_PLAYGROUND, AI_TOKEN_ESTIMATE_BYTES, AiHistoryRetention, AiHistorySettings,
     AiHistoryView, AiModelPrice, AiModelPricing, AiRunFilter, AiRunPrompts, AiRunRecord,
-    AiRunRecorder, AiRunState, AiRunTokens, AiTokenSource, AiUsageAggregate,
-    DEFAULT_AI_HISTORY_MAX_AGE_DAYS, DEFAULT_AI_HISTORY_MAX_RUNS, DEFAULT_AI_RUN_PAGE,
-    MAX_AI_HISTORY_MAX_AGE_DAYS, MAX_AI_HISTORY_MAX_RUNS, MAX_AI_RUN_PAGE, ai_run_cost_micros,
-    estimate_ai_tokens,
+    AiRunRecorder, AiRunState, AiRunStatus, AiRunSummary, AiRunTokens, AiTokenSource,
+    AiUsageAggregate, DEFAULT_AI_HISTORY_MAX_AGE_DAYS, DEFAULT_AI_HISTORY_MAX_RUNS,
+    DEFAULT_AI_RUN_PAGE, MAX_AI_HISTORY_MAX_AGE_DAYS, MAX_AI_HISTORY_MAX_RUNS, MAX_AI_RUN_PAGE,
+    ai_run_cost_micros, ai_run_record, ai_token_source_as_str, estimate_ai_tokens,
+    parse_ai_token_source,
 };
 pub use checkpoint::{
     CHECKPOINT_CONTENT_MIME_TYPE, CheckpointValidationError, WORKSPACE_CHECKPOINT_VERSION,
@@ -62,12 +63,11 @@ pub use reconcile::{
     reconcile_remote_operation,
 };
 pub use remote_ai::{
-    AiCredential, AiCredentialError, AiCredentialSource, CredentialVaultDetection,
-    CredentialVaultState, MAX_AI_API_KEY_BYTES, MAX_REMOTE_AI_CATALOG_MODELS,
-    MAX_REMOTE_AI_CONTEXT_TOKENS, MAX_REMOTE_AI_LABEL_BYTES, MAX_REMOTE_AI_PRICE_MICROS,
-    MIN_AI_API_KEY_BYTES, REMOTE_AI_DISCLOSURE_VERSION, RemoteAiCatalog, RemoteAiCatalogError,
-    RemoteAiConsent, RemoteAiKeyTier, RemoteAiModel, RemoteAiModelDirectory, RemoteAiModelListing,
-    RemoteAiModelSource, RemoteAiProviderState,
+    AiCredentialError, CredentialVaultDetection, CredentialVaultState,
+    MAX_REMOTE_AI_CATALOG_MODELS, MAX_REMOTE_AI_CONTEXT_TOKENS, MAX_REMOTE_AI_LABEL_BYTES,
+    MAX_REMOTE_AI_PRICE_MICROS, REMOTE_AI_DISCLOSURE_VERSION, RemoteAiCatalog,
+    RemoteAiCatalogError, RemoteAiConsent, RemoteAiKeyTier, RemoteAiModel, RemoteAiModelDirectory,
+    RemoteAiModelListing, RemoteAiModelSource, RemoteAiProviderState,
 };
 pub use sync::{
     BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,

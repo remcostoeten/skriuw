@@ -29,6 +29,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "ai-core"
+version = "0.3.0"
+source = "git+https://github.com/remcostoeten/remcostoeten-aIo?tag=ai-v0.3.0#4873a60a929c3918d24acd5f650c4cf3c60e6127"
+dependencies = [
+ "schemars 1.2.1",
+ "serde",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "ai-providers"
+version = "0.3.0"
+source = "git+https://github.com/remcostoeten/remcostoeten-aIo?tag=ai-v0.3.0#4873a60a929c3918d24acd5f650c4cf3c60e6127"
+dependencies = [
+ "ai-core",
+ "base64 0.22.1",
+ "reqwest",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "alloc-no-stdlib"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3961,6 +3985,7 @@ checksum = "8ee5873ec9cce0195efcb7a4e9507a04cd49aec9c83d0389df45b1ef7ba2e649"
 name = "skriuw-ai"
 version = "0.1.0"
 dependencies = [
+ "ai-core",
  "skriuw-domain",
 ]
 
@@ -3983,9 +4008,7 @@ dependencies = [
 name = "skriuw-ai-remote"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
- "reqwest",
- "serde",
+ "ai-providers",
  "serde_json",
  "skriuw-domain",
 ]
@@ -3994,6 +4017,8 @@ dependencies = [
 name = "skriuw-app"
 version = "0.0.0"
 dependencies = [
+ "ai-core",
+ "ai-providers",
  "base64 0.22.1",
  "dbus-secret-service",
  "glib",
@@ -4032,6 +4057,7 @@ dependencies = [
 name = "skriuw-domain"
 version = "0.1.0"
 dependencies = [
+ "ai-core",
  "schemars 1.2.1",
  "serde",
  "serde_json",

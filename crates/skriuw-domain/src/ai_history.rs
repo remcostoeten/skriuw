@@ -1,9 +1,21 @@
+//! Skriuw's AI run history.
+//!
+//! The token accounting, pricing lookup and recorder port were extracted into
+//! `ai-core` and are re-exported here. What stays is Skriuw's own record shape,
+//! its retention and redaction policy, its filters and aggregates — the parts
+//! the SDK deliberately does not own.
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+pub use ai_core::{
+    AI_TOKEN_ESTIMATE_BYTES, AiModelPrice, AiModelPricing, AiRunRecorder, AiRunStatus,
+    AiRunSummary, AiRunTokens, AiTokenSource, ai_run_cost_micros, estimate_ai_tokens,
+};
+
 use crate::{
-    AiProviderErrorCategory, AiUsage, AiValidationError, MAX_AI_IDENTIFIER_BYTES,
-    MAX_AI_PROMPT_BYTES, MAX_AI_TOKEN_COUNT, RemoteAiCatalog,
+    AiProviderErrorCategory, AiValidationError, MAX_AI_IDENTIFIER_BYTES, MAX_AI_PROMPT_BYTES,
+    MAX_AI_TOKEN_COUNT, RemoteAiCatalog,
 };
 
 /// The origin recorded for a run fired from the prompt playground. Future
@@ -17,11 +29,6 @@ pub const MAX_AI_HISTORY_MAX_RUNS: u32 = 10_000;
 pub const MAX_AI_HISTORY_MAX_AGE_DAYS: u32 = 3_650;
 pub const MAX_AI_RUN_PAGE: u32 = 200;
 pub const DEFAULT_AI_RUN_PAGE: u32 = 50;
-
-/// Bytes of prompt or response text assumed to make one token when a provider
-/// reports no usage. Deliberately coarse: every count derived from it is
-/// carried as [`AiTokenSource::Estimated`] and must be presented as such.
-pub const AI_TOKEN_ESTIMATE_BYTES: u64 = 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -55,71 +62,23 @@ impl AiRunState {
     }
 }
 
-/// Whether the token counts on a run came from the provider or from Skriuw's
-/// byte heuristic. Nothing may present an estimate as an exact count.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum AiTokenSource {
-    Provider,
-    Estimated,
-}
-
-impl AiTokenSource {
-    #[must_use]
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Provider => "provider",
-            Self::Estimated => "estimated",
-        }
-    }
-
-    #[must_use]
-    pub fn parse(value: &str) -> Option<Self> {
-        match value {
-            "provider" => Some(Self::Provider),
-            "estimated" => Some(Self::Estimated),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct AiRunTokens {
-    pub input_tokens: u64,
-    pub output_tokens: u64,
-    pub source: AiTokenSource,
-}
-
-impl AiRunTokens {
-    /// Token counts a provider reported for itself.
-    #[must_use]
-    pub fn reported(usage: &AiUsage) -> Self {
-        Self {
-            input_tokens: usage.input_tokens,
-            output_tokens: usage.output_tokens,
-            source: AiTokenSource::Provider,
-        }
-    }
-
-    /// Token counts derived from transferred bytes because the provider
-    /// reported none. Cancelled and failed runs always land here.
-    #[must_use]
-    pub fn estimated(prompt_bytes: usize, response_bytes: usize) -> Self {
-        Self {
-            input_tokens: estimate_ai_tokens(prompt_bytes),
-            output_tokens: estimate_ai_tokens(response_bytes),
-            source: AiTokenSource::Estimated,
-        }
+/// The stored column value for a token provenance. `AiTokenSource` is an SDK
+/// type now, so its SQLite encoding lives here with the schema that uses it.
+#[must_use]
+pub fn ai_token_source_as_str(source: AiTokenSource) -> &'static str {
+    match source {
+        AiTokenSource::Provider => "provider",
+        AiTokenSource::Estimated => "estimated",
     }
 }
 
 #[must_use]
-pub fn estimate_ai_tokens(bytes: usize) -> u64 {
-    let bytes = u64::try_from(bytes).unwrap_or(u64::MAX);
-    bytes
-        .div_ceil(AI_TOKEN_ESTIMATE_BYTES)
-        .min(MAX_AI_TOKEN_COUNT)
+pub fn parse_ai_token_source(value: &str) -> Option<AiTokenSource> {
+    match value {
+        "provider" => Some(AiTokenSource::Provider),
+        "estimated" => Some(AiTokenSource::Estimated),
+        _ => None,
+    }
 }
 
 /// The prompt text of one run. Absent when prompt retention is off, which is
@@ -294,18 +253,6 @@ pub struct AiHistoryView {
     pub runs: Vec<AiRunRecord>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AiModelPrice {
-    pub input_price_micros_per_mtok: u64,
-    pub output_price_micros_per_mtok: u64,
-}
-
-/// The narrow lookup the completion seam uses to price a finished run. The
-/// shipped catalog implements it, so pricing stays a single source of truth.
-pub trait AiModelPricing: Send + Sync {
-    fn price(&self, provider_id: &str, model_id: &str) -> Option<AiModelPrice>;
-}
-
 impl AiModelPricing for RemoteAiCatalog {
     fn price(&self, provider_id: &str, model_id: &str) -> Option<AiModelPrice> {
         self.models
@@ -318,22 +265,37 @@ impl AiModelPricing for RemoteAiCatalog {
     }
 }
 
-/// Micro-dollars for one run, rounded half up. Prices are quoted per million
-/// tokens, so the arithmetic runs in `u128` and never touches a float.
+/// Builds Skriuw's own history record from the SDK's metadata summary and the
+/// request it borrows for the duration of the recorder callback.
+///
+/// This is the whole of decision D2 on Skriuw's side: prompts are copied here,
+/// inside the callback, because prompt retention is Skriuw's policy and the SDK
+/// deliberately owns no prompt field. `redacted` still runs at the storage
+/// boundary, so metadata-only mode drops them before the write.
 #[must_use]
-pub fn ai_run_cost_micros(tokens: &AiRunTokens, price: AiModelPrice) -> u64 {
-    let input = u128::from(tokens.input_tokens)
-        .saturating_mul(u128::from(price.input_price_micros_per_mtok));
-    let output = u128::from(tokens.output_tokens)
-        .saturating_mul(u128::from(price.output_price_micros_per_mtok));
-    let total = input.saturating_add(output).saturating_add(500_000) / 1_000_000;
-    u64::try_from(total).unwrap_or(u64::MAX)
-}
-
-/// The capability the completion seam calls once per terminalized run. Callers
-/// must not block stream delivery on it.
-pub trait AiRunRecorder: Send + Sync {
-    fn record(&self, record: AiRunRecord);
+pub fn ai_run_record(summary: &AiRunSummary, request: &crate::AiCompletionRequest) -> AiRunRecord {
+    let (state, error_category) = match summary.status {
+        AiRunStatus::Done => (AiRunState::Done, None),
+        AiRunStatus::Cancelled => (AiRunState::Cancelled, None),
+        AiRunStatus::Timeout => (AiRunState::TimedOut, None),
+        AiRunStatus::ProviderError { category } => (AiRunState::Failed, Some(category)),
+    };
+    AiRunRecord {
+        run_id: summary.run_id.clone(),
+        started_at_ms: summary.started_at_ms,
+        origin: summary.origin.clone(),
+        provider_id: summary.provider_id.clone(),
+        model_id: summary.model_id.clone(),
+        prompts: Some(AiRunPrompts {
+            system_prompt: request.system_prompt.clone(),
+            user_prompt: request.user_prompt.clone(),
+        }),
+        state,
+        error_category,
+        duration_ms: summary.duration_ms,
+        tokens: summary.tokens.clone(),
+        cost_micros: summary.cost_micros,
+    }
 }
 
 fn validate_history_identifier(field: &'static str, value: &str) -> Result<(), AiValidationError> {

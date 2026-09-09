@@ -6,6 +6,10 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+# ai-core only. The provider crate carries an HTTP client, which has no place in
+# the domain graph; credential and listing types from `ai-providers` are adapted
+# at the provider and application layers that already depend on reqwest.
+ai-core.workspace = true
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true

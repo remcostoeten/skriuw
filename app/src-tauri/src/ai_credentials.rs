@@ -15,13 +15,14 @@ use std::{
     sync::Mutex,
 };
 
+use ai_providers::{AiCredential, AiCredentialRefusal, AiCredentialSource};
 use keyring::{Entry, Error as KeyringError};
 use serde::{Deserialize, Serialize};
 use skriuw_ai_remote::RemoteProviderKind;
 use skriuw_domain::{
-    AiCredential, AiCredentialError, AiCredentialSource, AiProviderError, AiProviderErrorCategory,
-    AiRecoveryAction, CredentialVaultDetection, CredentialVaultState, REMOTE_AI_DISCLOSURE_VERSION,
-    RemoteAiKeyTier, RemoteAiProviderState,
+    AiCredentialError, AiProviderError, AiProviderErrorCategory, AiRecoveryAction,
+    CredentialVaultDetection, CredentialVaultState, REMOTE_AI_DISCLOSURE_VERSION, RemoteAiKeyTier,
+    RemoteAiProviderState,
 };
 
 const VAULT_SERVICE: &str = "dev.skriuw.app";
@@ -92,7 +93,8 @@ impl AiCredentialStore {
         key: &str,
         tier: RemoteAiKeyTier,
     ) -> Result<(), AiProviderError> {
-        let credential = AiCredential::new(key).map_err(|error| credential_error(kind, error))?;
+        let credential = AiCredential::new(key)
+            .map_err(|_| credential_error(kind, AiCredentialError::Invalid))?;
         match tier {
             RemoteAiKeyTier::Vault => {
                 let detection = self.detect_vault();
@@ -155,9 +157,10 @@ impl AiCredentialStore {
             return Err(credential_error(kind, AiCredentialError::ConsentRequired));
         }
         match submitted {
-            Some(key) => AiCredential::new(key).map_err(|error| credential_error(kind, error)),
+            Some(key) => AiCredential::new(key)
+                .map_err(|_| credential_error(kind, AiCredentialError::Invalid)),
             None => self
-                .resolve(kind.id())
+                .resolve_credential(kind.id())
                 .map_err(|error| credential_error(kind, error)),
         }
     }
@@ -218,7 +221,33 @@ impl AiCredentialStore {
 }
 
 impl AiCredentialSource for AiCredentialStore {
-    fn resolve(&self, provider_id: &str) -> Result<AiCredential, AiCredentialError> {
+    /// The SDK's credential port. Skriuw's own six-variant vocabulary is
+    /// resolved first and then narrowed to the three generic refusals, carrying
+    /// its existing copy, so every provider error the renderer sees is
+    /// unchanged.
+    fn resolve(&self, provider_id: &str) -> Result<AiCredential, ai_providers::AiCredentialError> {
+        self.resolve_credential(provider_id).map_err(refusal)
+    }
+}
+
+/// Narrows a Skriuw refusal onto the SDK's port vocabulary. `Missing` covers
+/// everything the caller cannot spend — absent, unconsented, or an unreachable
+/// vault — which is the grouping `into_provider_error` already produced.
+fn refusal(error: AiCredentialError) -> ai_providers::AiCredentialError {
+    let refusal = match error {
+        AiCredentialError::Invalid => AiCredentialRefusal::Invalid,
+        AiCredentialError::VaultLocked | AiCredentialError::VaultUnavailable => {
+            AiCredentialRefusal::Unavailable
+        }
+        AiCredentialError::Missing
+        | AiCredentialError::ConsentRequired
+        | AiCredentialError::ConsentStale => AiCredentialRefusal::Missing,
+    };
+    ai_providers::AiCredentialError::new(refusal, error.to_string())
+}
+
+impl AiCredentialStore {
+    fn resolve_credential(&self, provider_id: &str) -> Result<AiCredential, AiCredentialError> {
         let accepted = self.accepted_versions().get(provider_id).copied();
         match accepted {
             Some(version) if version == REMOTE_AI_DISCLOSURE_VERSION => {}
@@ -226,10 +255,11 @@ impl AiCredentialSource for AiCredentialStore {
             None => return Err(AiCredentialError::ConsentRequired),
         }
         if let Some(session) = lock(&self.session_keys).get(provider_id) {
-            return AiCredential::new(String::from_utf8_lossy(session).as_ref());
+            return AiCredential::new(String::from_utf8_lossy(session).as_ref())
+                .map_err(|_| AiCredentialError::Invalid);
         }
         match entry(provider_id).and_then(|entry| entry.get_password()) {
-            Ok(key) => AiCredential::new(key),
+            Ok(key) => AiCredential::new(key).map_err(|_| AiCredentialError::Invalid),
             Err(KeyringError::NoEntry) => Err(AiCredentialError::Missing),
             Err(error) => Err(match detect_vault_state().state {
                 CredentialVaultState::VaultLocked => AiCredentialError::VaultLocked,
@@ -413,9 +443,10 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 
 #[cfg(test)]
 mod tests {
+    use ai_providers::{AiCredentialRefusal, AiCredentialSource};
     use skriuw_ai_remote::RemoteProviderKind;
     use skriuw_domain::{
-        AiCredentialError, AiCredentialSource, AiProviderErrorCategory, CredentialVaultState,
+        AiCredentialError, AiProviderErrorCategory, CredentialVaultState,
         REMOTE_AI_DISCLOSURE_VERSION, RemoteAiKeyTier,
     };
     use tempfile::{TempDir, tempdir};
@@ -469,7 +500,7 @@ mod tests {
             .expect("session key");
 
         assert_eq!(
-            store.resolve("groq").err(),
+            store.resolve_credential("groq").err(),
             Some(AiCredentialError::ConsentRequired)
         );
 
@@ -477,7 +508,13 @@ mod tests {
             .grant_consent(RemoteProviderKind::Groq)
             .expect("consent");
 
-        assert_eq!(store.resolve("groq").expect("credential").expose(), KEY);
+        assert_eq!(
+            store
+                .resolve_credential("groq")
+                .expect("credential")
+                .expose(),
+            KEY
+        );
     }
 
     #[test]
@@ -540,7 +577,7 @@ mod tests {
         assert_eq!(groq.key_tier, None, "revocation must drop the key");
         assert_eq!(groq.accepted_disclosure_version, None);
         assert_eq!(
-            store.resolve("groq").err(),
+            store.resolve_credential("groq").err(),
             Some(AiCredentialError::ConsentRequired)
         );
     }
@@ -565,7 +602,7 @@ mod tests {
         .expect("write consent");
         assert!(read_consent(&path).accepted.is_empty());
         assert_eq!(
-            store.resolve("groq").err(),
+            store.resolve_credential("groq").err(),
             Some(AiCredentialError::ConsentRequired)
         );
     }
@@ -588,8 +625,87 @@ mod tests {
         .expect("write consent");
 
         assert_eq!(
-            store.resolve("groq").err(),
+            store.resolve_credential("groq").err(),
             Some(AiCredentialError::ConsentStale)
+        );
+    }
+
+    /// The consent and vault vocabulary stays Skriuw's, but the SDK port only
+    /// carries three refusals. Every variant must arrive with its own copy
+    /// intact and land in the category it always produced.
+    #[test]
+    fn every_skriuw_refusal_reaches_the_sdk_port_with_its_own_copy() {
+        for (error, refusal, category) in [
+            (
+                AiCredentialError::Missing,
+                AiCredentialRefusal::Missing,
+                AiProviderErrorCategory::MissingCredential,
+            ),
+            (
+                AiCredentialError::ConsentRequired,
+                AiCredentialRefusal::Missing,
+                AiProviderErrorCategory::MissingCredential,
+            ),
+            (
+                AiCredentialError::ConsentStale,
+                AiCredentialRefusal::Missing,
+                AiProviderErrorCategory::MissingCredential,
+            ),
+            (
+                AiCredentialError::Invalid,
+                AiCredentialRefusal::Invalid,
+                AiProviderErrorCategory::InvalidCredential,
+            ),
+            (
+                AiCredentialError::VaultLocked,
+                AiCredentialRefusal::Unavailable,
+                AiProviderErrorCategory::MissingCredential,
+            ),
+            (
+                AiCredentialError::VaultUnavailable,
+                AiCredentialRefusal::Unavailable,
+                AiProviderErrorCategory::MissingCredential,
+            ),
+        ] {
+            let ported = super::refusal(error);
+
+            assert_eq!(ported.refusal(), refusal, "refusal for {error:?}");
+            assert_eq!(ported.to_string(), error.to_string(), "copy for {error:?}");
+            let provider_error = ported.into_provider_error("groq");
+            assert_eq!(provider_error.category, category, "category for {error:?}");
+            assert_eq!(
+                provider_error,
+                error.into_provider_error("groq"),
+                "the mapped provider error must be identical for {error:?}"
+            );
+        }
+    }
+
+    /// The store reaches the adapter through the SDK port, not only through
+    /// Skriuw's internal resolver.
+    #[test]
+    fn the_sdk_port_refuses_an_unconsented_provider() {
+        let (store, _directory) = store();
+        store
+            .save_key(RemoteProviderKind::Groq, KEY, RemoteAiKeyTier::SessionOnly)
+            .expect("session key");
+
+        let error = AiCredentialSource::resolve(&store, "groq").expect_err("consent gate");
+
+        assert_eq!(error.refusal(), AiCredentialRefusal::Missing);
+        assert_eq!(
+            error.to_string(),
+            AiCredentialError::ConsentRequired.to_string()
+        );
+
+        store
+            .grant_consent(RemoteProviderKind::Groq)
+            .expect("consent");
+        assert_eq!(
+            AiCredentialSource::resolve(&store, "groq")
+                .expect("credential")
+                .expose(),
+            KEY
         );
     }
 

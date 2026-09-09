@@ -17,4 +17,6 @@ tempfile.workspace = true
 zstd = "0.13"
 
 [dev-dependencies]
+ai-core.workspace = true
+ai-providers.workspace = true
 tempfile.workspace = true

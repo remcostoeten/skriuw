@@ -1,13 +1,9 @@
-use std::fmt;
-
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{AiProviderError, AiProviderErrorCategory, AiRecoveryAction};
 
-pub const MIN_AI_API_KEY_BYTES: usize = 8;
-pub const MAX_AI_API_KEY_BYTES: usize = 4_096;
 pub const MAX_REMOTE_AI_LABEL_BYTES: usize = 128;
 pub const MAX_REMOTE_AI_CATALOG_MODELS: usize = 256;
 pub const MAX_REMOTE_AI_CONTEXT_TOKENS: u32 = 16 * 1_024 * 1_024;
@@ -19,46 +15,12 @@ pub const MAX_REMOTE_AI_PRICE_MICROS: u64 = 1_000_000_000;
 /// stops authorising requests.
 pub const REMOTE_AI_DISCLOSURE_VERSION: u32 = 1;
 
-/// A remote provider credential in transit between the native credential store
-/// and the provider adapter that spends it. The value never derives `Clone`,
-/// `Serialize`, or a revealing `Debug`, is zeroed when dropped, and has no
-/// accessor other than [`AiCredential::expose`] so every read is greppable.
-pub struct AiCredential(Vec<u8>);
-
-impl AiCredential {
-    pub fn new(value: impl AsRef<str>) -> Result<Self, AiCredentialError> {
-        let value = value.as_ref();
-        if value.len() < MIN_AI_API_KEY_BYTES
-            || value.len() > MAX_AI_API_KEY_BYTES
-            || !value.bytes().all(|byte| byte.is_ascii_graphic())
-        {
-            return Err(AiCredentialError::Invalid);
-        }
-        Ok(Self(value.as_bytes().to_vec()))
-    }
-
-    /// Construction accepts only printable ASCII, so the stored bytes are
-    /// always valid UTF-8 and no key can leak through a decoding failure.
-    #[must_use]
-    pub fn expose(&self) -> &str {
-        std::str::from_utf8(&self.0).unwrap_or_default()
-    }
-}
-
-impl fmt::Debug for AiCredential {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("AiCredential(<redacted>)")
-    }
-}
-
-impl Drop for AiCredential {
-    fn drop(&mut self) {
-        // Overwriting in place keeps the allocation the provider adapter used,
-        // so the key bytes are not left readable in freed heap memory.
-        self.0.fill(0);
-    }
-}
-
+/// Why Skriuw declined to hand a key to a provider adapter.
+///
+/// Consent and vault state are Skriuw's policy, so this vocabulary stays here.
+/// The SDK's credential port carries three generic refusals plus a message; the
+/// application layer maps each variant below onto one of them with this copy,
+/// which reproduces the provider error each variant already produced.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub enum AiCredentialError {
     #[error("no credential is configured for this provider")]
@@ -94,14 +56,6 @@ impl AiCredentialError {
         };
         AiProviderError::new(provider_id, category, &self.to_string(), recovery_action)
     }
-}
-
-/// The narrow native capability a remote provider adapter uses to obtain a key
-/// for one consented request. Implementations are responsible for refusing
-/// providers whose current disclosure has not been accepted, so an adapter
-/// cannot reach the network before consent exists.
-pub trait AiCredentialSource: Send + Sync {
-    fn resolve(&self, provider_id: &str) -> Result<AiCredential, AiCredentialError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -434,9 +388,9 @@ fn valid_label(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        AiCredential, AiCredentialError, CredentialVaultState, MAX_AI_API_KEY_BYTES,
-        REMOTE_AI_DISCLOSURE_VERSION, RemoteAiCatalog, RemoteAiCatalogError, RemoteAiConsent,
-        RemoteAiKeyTier, RemoteAiModel, RemoteAiProviderState,
+        AiCredentialError, CredentialVaultState, REMOTE_AI_DISCLOSURE_VERSION, RemoteAiCatalog,
+        RemoteAiCatalogError, RemoteAiConsent, RemoteAiKeyTier, RemoteAiModel,
+        RemoteAiProviderState,
     };
     use crate::{AiProviderErrorCategory, AiRecoveryAction};
 
@@ -457,32 +411,6 @@ mod tests {
             pricing_as_of: "2026-08-01".into(),
             models,
         }
-    }
-
-    #[test]
-    fn bounds_api_keys_before_they_reach_a_provider() {
-        assert!(AiCredential::new("sk-test-credential").is_ok());
-        for rejected in [
-            "short",
-            "has whitespace inside",
-            "trailing-newline\n",
-            "unicodé-credential",
-            &"x".repeat(MAX_AI_API_KEY_BYTES + 1),
-        ] {
-            assert_eq!(
-                AiCredential::new(rejected).err(),
-                Some(AiCredentialError::Invalid),
-                "expected {rejected:?} to be refused"
-            );
-        }
-    }
-
-    #[test]
-    fn never_renders_a_key_through_debug() {
-        let credential = AiCredential::new("sk-secret-value").expect("credential");
-
-        assert_eq!(format!("{credential:?}"), "AiCredential(<redacted>)");
-        assert_eq!(credential.expose(), "sk-secret-value");
     }
 
     #[test]
