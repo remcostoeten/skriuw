@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SearchIndexStatus",
+  "type": "object",
+  "properties": {
+    "currentVersion": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "indexVersion": {
+      "description": "Version the stored index was built with, or `0` when no version was\never recorded — a pre-versioning workspace, which always rebuilds once.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "indexedNotes": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "needsRebuild": {
+      "type": "boolean"
+    },
+    "noteCount": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "indexVersion",
+    "currentVersion",
+    "indexedNotes",
+    "noteCount",
+    "needsRebuild"
+  ]
+}

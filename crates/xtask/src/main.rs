@@ -13,7 +13,7 @@ use skriuw_domain::{
     AiTranscriptionModel, AiTranscriptionResult, BuiltInPromptLibrary, ContentManifest,
     CredentialVaultDetection, LocalAiError, LocalAiModel, LocalAiProgress, LocalAiStatus,
     OperationAck, RemoteAiCatalog, RemoteAiModelDirectory, RemoteAiProviderState, SearchHit,
-    SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView,
+    SearchIndexStatus, SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView,
     WORKSPACE_OPERATION_SYNC_POLICY_V1, WorkspaceArchive, WorkspaceCheckpoint, WorkspaceDelta,
     WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
@@ -69,6 +69,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     write_schema::<WorkspaceArchive>(&output, "workspace-archive.schema.json", check)?;
     write_schema::<OperationAck>(&output, "operation-ack.schema.json", check)?;
     write_schema::<SearchHit>(&output, "search-hit.schema.json", check)?;
+    write_schema::<SearchIndexStatus>(&output, "search-index-status.schema.json", check)?;
     write_schema::<SyncPushRequest>(&output, "sync-push-request.schema.json", check)?;
     write_schema::<SyncPushResponse>(&output, "sync-push-response.schema.json", check)?;
     write_schema::<SyncPullResponse>(&output, "sync-pull-response.schema.json", check)?;

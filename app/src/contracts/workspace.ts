@@ -424,3 +424,16 @@ export type SearchHit = {
   snippet: string;
   score: number;
 };
+
+/**
+ * State of the rebuildable full-text projection; mirrors
+ * `contracts/generated/search-index-status.schema.json`. `indexVersion` is `0`
+ * for a workspace written before the projection was versioned.
+ */
+export type SearchIndexStatus = {
+  indexVersion: number;
+  currentVersion: number;
+  indexedNotes: number;
+  noteCount: number;
+  needsRebuild: boolean;
+};
