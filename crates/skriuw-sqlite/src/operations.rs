@@ -2076,6 +2076,9 @@ pub(crate) fn replace_fts(
     insert_fts(transaction, note_id, title, markdown)
 }
 
+/// The body column is named `markdown` because migration 0001 named it so and
+/// an FTS5 virtual table cannot rename a column; it holds the projected text
+/// of [`skriuw_domain::index_text`], not raw Markdown. See ADR-0041.
 pub(crate) fn insert_fts(
     transaction: &Transaction<'_>,
     note_id: &str,
@@ -2085,7 +2088,7 @@ pub(crate) fn insert_fts(
     transaction
         .execute(
             "INSERT INTO documents_fts(note_id, title, markdown) VALUES (?1, ?2, ?3)",
-            params![note_id, title, markdown],
+            params![note_id, title, skriuw_domain::index_text(markdown)],
         )
         .map_err(backend)?;
     Ok(())
