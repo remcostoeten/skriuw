@@ -1550,18 +1550,17 @@
   gap: 1px;
   max-width: calc(100vw - 24px);
   padding: 3px;
-  overflow-x: auto;
   transform: translate(-50%, calc(-100% - 8px));
   border: 1px solid hsl(var(--border));
   border-radius: calc(var(--radius) + 2px);
   background: hsl(var(--popover));
   color: hsl(var(--popover-foreground));
   box-shadow: 0 8px 24px hsl(var(--scrim) / 0.25);
-  scrollbar-width: thin;
   white-space: nowrap;
 }
 
 .bubble-menu-group {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 1px;
@@ -1602,19 +1601,120 @@
   color: hsl(var(--accent-foreground));
 }
 
-/* The AI entry is named, not just drawn, and tinted so it reads as the one
-   thing on this toolbar that is not a formatting mark. */
-.bubble-menu button[aria-label="Ask AI"] {
-  gap: 5px;
-  padding: 0 9px;
-  color: hsl(var(--editor-link));
-  font-weight: 600;
+/* The AI entry is named, not just drawn, and rendered as a shaded metal pill so
+   it reads as the one thing on this toolbar that is not a formatting mark. */
+.liquid-metal {
+  /* Nested concentrically inside the toolbar: the toolbar's outer radius minus
+     its 3px padding, so the pill's corners run parallel to the popover's. */
+  --liquid-metal-radius: max(2px, calc(var(--radius) + 2px - 3px));
+  position: relative;
+  display: inline-flex;
+  margin: 0 2px;
 }
 
-.bubble-menu button[aria-label="Ask AI"]:hover,
-.bubble-menu button[aria-label="Ask AI"]:focus {
-  background: hsl(var(--editor-link) / 0.16);
-  color: hsl(var(--editor-link));
+.liquid-metal-shell {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: var(--liquid-metal-radius);
+  box-shadow:
+    0 0 0 1px hsl(var(--scrim) / 0.35),
+    0 6px 10px hsl(var(--scrim) / 0.18),
+    0 1px 2px hsl(var(--scrim) / 0.22);
+  transition:
+    transform 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.liquid-metal[data-pressed="true"] .liquid-metal-shell {
+  transform: translateY(1px) scale(0.98);
+  box-shadow:
+    0 0 0 1px hsl(var(--scrim) / 0.5),
+    0 1px 2px hsl(var(--scrim) / 0.3);
+}
+
+.liquid-metal-shader,
+.liquid-metal-shader canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--liquid-metal-radius);
+}
+
+.liquid-metal-core {
+  position: absolute;
+  inset: 2px;
+  border-radius: max(1px, calc(var(--liquid-metal-radius) - 2px));
+  background: linear-gradient(180deg, #202020 0%, #000 100%);
+}
+
+.liquid-metal[data-pressed="true"] .liquid-metal-core {
+  box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.4);
+}
+
+.bubble-menu button.liquid-metal-hit {
+  position: relative;
+  z-index: 1;
+  gap: 5px;
+  min-width: 0;
+  padding: 0 11px;
+  overflow: hidden;
+  border-radius: var(--liquid-metal-radius);
+  background: transparent;
+  color: #c8c8c8;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+}
+
+.bubble-menu button.liquid-metal-hit:hover,
+.bubble-menu button.liquid-metal-hit:focus {
+  background: transparent;
+  color: #fff;
+}
+
+.bubble-menu button.liquid-metal-hit:focus {
+  box-shadow: 0 0 0 2px hsl(var(--editor-link));
+}
+
+.liquid-metal-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.liquid-metal-ripple {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(255 255 255 / 0.4) 0%, rgb(255 255 255 / 0) 70%);
+  pointer-events: none;
+  animation: liquid-metal-ripple 600ms ease-out;
+}
+
+@keyframes liquid-metal-ripple {
+  from {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0.6;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(4);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-metal-shell,
+  .liquid-metal-ripple {
+    transition: none;
+    animation: none;
+  }
+
+  .liquid-metal-shader {
+    background: linear-gradient(120deg, #3a3a3a 0%, #9a9a9a 45%, #2b2b2b 100%);
+  }
 }
 
 .bubble-menu button.is-active {
@@ -1643,6 +1743,76 @@
   height: 16px;
   margin: 0 3px;
   background: hsl(var(--border));
+}
+
+.bubble-menu-caret {
+  margin-left: 1px;
+  opacity: 0.5;
+}
+
+.bubble-menu-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Transparent until a colour is set, so the trigger answers "is this text
+   highlighted, and in what" without opening the submenu. */
+.bubble-menu-swatch-bar {
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: hsl(var(--border));
+}
+
+.bubble-menu-dot {
+  width: 13px;
+  height: 13px;
+  border: 1px solid hsl(var(--scrim) / 0.18);
+  border-radius: 50%;
+}
+
+/* Right-aligned on the trigger: the three submenus sit at the toolbar's
+   trailing edge, where a centred popover hangs past the window whenever the
+   selection is anywhere right of the column's middle. */
+.bubble-submenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px;
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) + 2px);
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  box-shadow: 0 8px 24px hsl(var(--scrim) / 0.25);
+}
+
+.bubble-menu[data-below="true"] .bubble-submenu {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.bubble-submenu-row {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.bubble-submenu-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  background: hsl(var(--border));
+}
+
+.bubble-menu-choice-label {
+  padding: 0 2px;
+  font-size: 11px;
 }
 
 .link-menu {

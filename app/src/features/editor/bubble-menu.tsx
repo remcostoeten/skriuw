@@ -4,15 +4,25 @@ import type { MarkType, NodeType } from "prosemirror-model";
 import { TextSelection, type Command, type EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import {
+  AlignCenterIcon,
+  AlignLeftIcon,
+  AlignRightIcon,
   BoldIcon,
+  ChevronDownIcon,
   CodeIcon,
+  Heading1Icon,
+  Heading2Icon,
+  Heading3Icon,
+  HighlighterIcon,
   ItalicIcon,
   LinkIcon,
   MessageSquareIcon,
+  PilcrowIcon,
   SparklesIcon,
   StrikethroughIcon,
   TextQuoteIcon,
 } from "@/shared/icons/static";
+import { LiquidMetalButton } from "./liquid-metal-button";
 import { rangeMenuAnchor } from "./menu-anchor";
 import {
   highlightColors,
@@ -21,7 +31,7 @@ import {
   type TextAlignment,
 } from "./schema";
 
-const BUBBLE_MENU_WIDTH = 560;
+const BUBBLE_MENU_WIDTH = 340;
 
 export type BubbleMenuState = {
   open: boolean;
@@ -249,47 +259,157 @@ export function setHighlightColor(color: HighlightColor): Command {
   };
 }
 
-type BubbleButton = {
+export function clearHighlight(): Command {
+  return (state, dispatch) => {
+    const highlight = requiredMark("highlight");
+    if (!toggleMark(highlight)(state)) return false;
+    if (!dispatch) return true;
+    if (state.selection.empty) {
+      dispatch(state.tr.removeStoredMark(highlight));
+      return true;
+    }
+    dispatch(
+      state.tr
+        .removeMark(state.selection.from, state.selection.to, highlight)
+        .scrollIntoView(),
+    );
+    return true;
+  };
+}
+
+type BubbleAction = {
   id: string;
   label: string;
   active: boolean;
-  group: "marks" | "highlight" | "alignment" | "blocks" | "ai";
   content: ReactNode;
   command: Command;
   onPress?: () => void;
+  /** Draws a rule above this row, separating it from the choices before it. */
+  detached?: boolean;
 };
 
-type Props = {
-  state: BubbleMenuState;
-  getView: () => EditorView | null;
-  onLink: () => void;
-  onComment: () => void;
-  /** Null keeps the AI entry out of the toolbar entirely while AI is opted out. */
-  onAskAi: (() => void) | null;
-  onDismiss: () => void;
-  onCancel: () => void;
-  containerRef: RefObject<HTMLDivElement | null>;
+/**
+ * A toolbar entry: a control the writer presses, or a trigger that opens one
+ * submenu of related choices. Only one choice in a submenu can be true of a
+ * selection at a time, which is why they collapse well — the trigger shows the
+ * one that is.
+ */
+type BubbleEntry = BubbleAction & {
+  group: "ai" | "marks" | "blocks";
+  menu?: readonly BubbleAction[];
 };
 
-export function BubbleMenu({
-  state,
-  getView,
-  onLink,
-  onComment,
-  onAskAi,
-  onDismiss,
-  onCancel,
-  containerRef,
-}: Props) {
-  const [focusIndex, setFocusIndex] = useState(0);
-  const buttonsRef = useRef<(HTMLButtonElement | null)[]>([]);
 
-  useEffect(() => {
-    if (!state.open) setFocusIndex(0);
-  }, [state.open]);
+const ALIGNMENT_ICONS = {
+  left: AlignLeftIcon,
+  center: AlignCenterIcon,
+  right: AlignRightIcon,
+} as const;
 
-  if (!state.open) return null;
-  const buttons: BubbleButton[] = [
+const HEADING_ICONS = [Heading1Icon, Heading2Icon, Heading3Icon] as const;
+
+const ALIGNMENT_LABELS = {
+  left: "Align left",
+  center: "Align center",
+  right: "Align right",
+} as const;
+
+function blockTriggerContent(headingLevel: number | null, blockquote: boolean): ReactNode {
+  if (headingLevel !== null) {
+    const HeadingIcon = HEADING_ICONS[headingLevel - 1];
+    return HeadingIcon === undefined ? `H${headingLevel}` : <HeadingIcon size={14} />;
+  }
+  if (blockquote) {
+    return <TextQuoteIcon size={14} />;
+  }
+  return <PilcrowIcon size={14} />;
+}
+
+function highlightTriggerContent(color: HighlightColor | null): ReactNode {
+  return (
+    <span className="bubble-menu-swatch">
+      <HighlighterIcon size={14} />
+      <span
+        className="bubble-menu-swatch-bar"
+        style={color === null ? undefined : { background: highlightColors[color] }}
+      />
+    </span>
+  );
+}
+
+function highlightActions(active: HighlightColor | null): BubbleAction[] {
+  const colors = Object.entries(highlightColors).map(([color, backgroundColor]) => ({
+    id: `highlight-${color}`,
+    label: `Highlight ${color}`,
+    active: active === color,
+    content: (
+      <span className="bubble-menu-dot" style={{ background: backgroundColor }} aria-hidden="true" />
+    ),
+    command: setHighlightColor(color as HighlightColor),
+  }));
+  return [
+    ...colors,
+    {
+      id: "highlight-none",
+      label: "No highlight",
+      active: active === null,
+      content: <span className="bubble-menu-choice-label">None</span>,
+      command: clearHighlight(),
+      detached: true,
+    },
+  ];
+}
+
+function alignmentActions(active: TextAlignment): BubbleAction[] {
+  return (["left", "center", "right"] as const).map((textAlign) => {
+    const Icon = ALIGNMENT_ICONS[textAlign];
+    return {
+      id: `align-${textAlign}`,
+      label: ALIGNMENT_LABELS[textAlign],
+      active: active === textAlign,
+      content: <Icon size={14} />,
+      command: setTextAlignment(textAlign),
+    };
+  });
+}
+
+function blockActions(headingLevel: number | null, blockquote: boolean): BubbleAction[] {
+  return [
+    {
+      id: "paragraph",
+      label: "Text",
+      active: headingLevel === null && !blockquote,
+      content: <PilcrowIcon size={14} />,
+      command: setBlockType(requiredNode("paragraph")),
+    },
+    ...[1, 2, 3].map((level) => {
+      const Icon = HEADING_ICONS[level - 1] ?? Heading1Icon;
+      return {
+        id: `heading-${level}`,
+        label: `Heading ${level}`,
+        active: headingLevel === level,
+        content: <Icon size={14} />,
+        command: toggleHeading(level, headingLevel === level),
+      };
+    }),
+    {
+      id: "blockquote",
+      label: "Quote",
+      active: blockquote,
+      content: <TextQuoteIcon size={14} />,
+      command: toggleBlockquote(blockquote),
+      detached: true,
+    },
+  ];
+}
+
+/**
+ * Builds the toolbar. Highlight, alignment, and block type each collapse into a
+ * submenu: they are exclusive choices the writer makes rarely, and laid out flat
+ * the thirteen of them buried bold and italic under a row of coloured dots.
+ */
+function bubbleEntries(state: BubbleMenuState, handlers: EntryHandlers): BubbleEntry[] {
+  const entries: BubbleEntry[] = [
     {
       id: "bold",
       label: "Bold",
@@ -337,7 +457,7 @@ export function BubbleMenu({
       group: "marks",
       content: <LinkIcon size={14} />,
       command: () => true,
-      onPress: onLink,
+      onPress: handlers.onLink,
     },
     {
       id: "comment",
@@ -346,46 +466,41 @@ export function BubbleMenu({
       group: "marks",
       content: <MessageSquareIcon size={14} />,
       command: () => true,
-      onPress: onComment,
+      onPress: handlers.onComment,
     },
-    ...Object.entries(highlightColors).map(([color, backgroundColor]) => ({
-      id: `highlight-${color}`,
-      label: `Highlight ${color}`,
-      active: state.highlightColor === color,
-      group: "highlight" as const,
-      content: <span aria-hidden="true" style={{ color: backgroundColor }}>●</span>,
-      command: setHighlightColor(color as HighlightColor),
-    })),
-    ...(["left", "center", "right"] as const).map((textAlign) => ({
-      id: `align-${textAlign}`,
-      label: `Align ${textAlign}`,
-      active: state.textAlign === textAlign,
-      group: "alignment" as const,
-      content: textAlign === "left" ? "≡" : textAlign === "center" ? "≣" : "☷",
-      command: setTextAlignment(textAlign),
-    })),
-    ...[1, 2, 3].map((level) => ({
-      id: `heading-${level}`,
-      label: `Heading ${level}`,
-      active: state.headingLevel === level,
-      group: "blocks" as const,
-      content: `H${level}` as ReactNode,
-      command: toggleHeading(level, state.headingLevel === level),
-    })),
     {
-      id: "blockquote",
-      label: "Quote",
-      active: state.blockquote,
+      id: "highlight",
+      label: "Highlight",
+      active: state.highlightColor !== null,
       group: "blocks",
-      content: <TextQuoteIcon size={14} />,
-      command: toggleBlockquote(state.blockquote),
+      content: highlightTriggerContent(state.highlightColor),
+      command: () => true,
+      menu: highlightActions(state.highlightColor),
+    },
+    {
+      id: "alignment",
+      label: "Alignment",
+      active: state.textAlign !== "left",
+      group: "blocks",
+      content: <AlignmentTriggerIcon textAlign={state.textAlign} />,
+      command: () => true,
+      menu: alignmentActions(state.textAlign),
+    },
+    {
+      id: "block-type",
+      label: "Block type",
+      active: state.headingLevel !== null || state.blockquote,
+      group: "blocks",
+      content: blockTriggerContent(state.headingLevel, state.blockquote),
+      command: () => true,
+      menu: blockActions(state.headingLevel, state.blockquote),
     },
   ];
   // The AI entry leads the toolbar and carries its name. Buried at the end
   // behind an unlabelled icon it read as one more mark, and writers found AI
   // through the command palette or not at all.
-  if (onAskAi !== null) {
-    buttons.unshift({
+  if (handlers.onAskAi !== null) {
+    entries.unshift({
       id: "ask-ai",
       label: "Ask AI",
       active: false,
@@ -396,26 +511,98 @@ export function BubbleMenu({
           <span>Ask AI</span>
         </>
       ),
-      command: (() => true) as Command,
-      onPress: onAskAi,
+      command: () => true,
+      onPress: handlers.onAskAi,
     });
   }
+  return entries;
+}
+
+function AlignmentTriggerIcon({ textAlign }: { textAlign: TextAlignment }) {
+  const Icon = ALIGNMENT_ICONS[textAlign];
+  return <Icon size={14} />;
+}
+
+type EntryHandlers = {
+  onLink: () => void;
+  onComment: () => void;
+  onAskAi: (() => void) | null;
+};
+
+type Props = {
+  state: BubbleMenuState;
+  getView: () => EditorView | null;
+  onLink: () => void;
+  onComment: () => void;
+  /** Null keeps the AI entry out of the toolbar entirely while AI is opted out. */
+  onAskAi: (() => void) | null;
+  onDismiss: () => void;
+  onCancel: () => void;
+  containerRef: RefObject<HTMLDivElement | null>;
+};
+
+export function BubbleMenu({
+  state,
+  getView,
+  onLink,
+  onComment,
+  onAskAi,
+  onDismiss,
+  onCancel,
+  containerRef,
+}: Props) {
+  const [focusIndex, setFocusIndex] = useState(0);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const buttonsRef = useRef<(HTMLButtonElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!state.open) {
+      setFocusIndex(0);
+      setOpenMenuId(null);
+    }
+  }, [state.open]);
+
+  // A submenu belongs to the range the toolbar was opened over; once the
+  // toolbar moves it is over different text and the open choices are stale.
+  useEffect(() => {
+    setOpenMenuId(null);
+  }, [state.x, state.y]);
+
+  if (!state.open) return null;
+
+  const entries = bubbleEntries(state, { onLink, onComment, onAskAi });
 
   function moveFocus(next: number): void {
-    const wrapped = (next + buttons.length) % buttons.length;
+    const wrapped = (next + entries.length) % entries.length;
     setFocusIndex(wrapped);
+    setOpenMenuId(null);
     buttonsRef.current[wrapped]?.focus();
   }
 
-  function activate(button: BubbleButton, returnFocus: boolean): void {
-    if (button.onPress) {
-      button.onPress();
+  function activate(action: BubbleAction, returnFocus: boolean): void {
+    if (action.onPress) {
+      action.onPress();
       return;
     }
     const view = getView();
     if (!view) return;
-    button.command(view.state, view.dispatch);
+    action.command(view.state, view.dispatch);
     if (returnFocus) view.focus();
+  }
+
+  function pressEntry(entry: BubbleEntry, index: number, returnFocus: boolean): void {
+    if (entry.menu !== undefined) {
+      setFocusIndex(index);
+      setOpenMenuId((open) => (open === entry.id ? null : entry.id));
+      return;
+    }
+    setOpenMenuId(null);
+    activate(entry, returnFocus);
+  }
+
+  function closeSubmenu(index: number): void {
+    setOpenMenuId(null);
+    buttonsRef.current[index]?.focus();
   }
 
   return (
@@ -445,7 +632,7 @@ export function BubbleMenu({
           // 60% keyboards have no Home or End, so shift+arrow jumps to either
           // end of the toolbar; Home and End still work where they exist.
           event.preventDefault();
-          moveFocus(event.shiftKey ? buttons.length - 1 : focusIndex + 1);
+          moveFocus(event.shiftKey ? entries.length - 1 : focusIndex + 1);
         } else if (event.key === "ArrowLeft") {
           event.preventDefault();
           moveFocus(event.shiftKey ? 0 : focusIndex - 1);
@@ -454,35 +641,158 @@ export function BubbleMenu({
           moveFocus(0);
         } else if (event.key === "End") {
           event.preventDefault();
-          moveFocus(buttons.length - 1);
+          moveFocus(entries.length - 1);
+        } else if (event.key === "ArrowDown" && entries[focusIndex]?.menu !== undefined) {
+          event.preventDefault();
+          setOpenMenuId(entries[focusIndex]?.id ?? null);
         } else if (event.key === "Escape") {
           event.preventDefault();
           onCancel();
         }
       }}
     >
-      {buttons.map((button, index) => (
-        <span key={button.id} className="bubble-menu-group">
-          {index > 0 && button.group !== buttons[index - 1]?.group && <span className="bubble-menu-sep" />}
+      {entries.map((entry, index) => (
+        <span key={entry.id} className="bubble-menu-group">
+          {index > 0 && entry.group !== entries[index - 1]?.group && (
+            <span className="bubble-menu-sep" />
+          )}
+          {entry.group === "ai" && entry.menu === undefined ? (
+            <LiquidMetalButton
+              label={entry.label}
+              tabIndex={index === focusIndex ? 0 : -1}
+              onRef={(element) => {
+                buttonsRef.current[index] = element;
+              }}
+              onFocus={() => setFocusIndex(index)}
+              onPress={() => pressEntry(entry, index, false)}
+            >
+              {entry.content}
+            </LiquidMetalButton>
+          ) : (
           <button
             ref={(element) => {
               buttonsRef.current[index] = element;
             }}
             type="button"
-            title={button.label}
-            aria-label={button.label}
-            aria-pressed={button.active}
+            title={entry.label}
+            aria-label={entry.label}
+            {...(entry.menu === undefined
+              ? { "aria-pressed": entry.active }
+              : { "aria-haspopup": "true" as const, "aria-expanded": openMenuId === entry.id })}
             tabIndex={index === focusIndex ? 0 : -1}
-            className={button.active ? "is-active" : ""}
+            className={entry.active ? "is-active" : ""}
             onFocus={() => setFocusIndex(index)}
             onMouseDown={(event) => {
               event.preventDefault();
             }}
             onClick={(event) => {
-              activate(button, event.detail !== 0);
+              pressEntry(entry, index, event.detail !== 0);
             }}
           >
-            {button.content}
+            {entry.content}
+            {entry.menu !== undefined && (
+              <ChevronDownIcon size={9} className="bubble-menu-caret" aria-hidden="true" />
+            )}
+          </button>
+          )}
+          {entry.menu !== undefined && openMenuId === entry.id && (
+            <BubbleSubmenu
+              label={entry.label}
+              actions={entry.menu}
+              onActivate={(action, returnFocus) => {
+                activate(action, returnFocus);
+                closeSubmenu(index);
+              }}
+              onClose={() => closeSubmenu(index)}
+            />
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+type SubmenuProps = {
+  label: string;
+  actions: readonly BubbleAction[];
+  onActivate: (action: BubbleAction, returnFocus: boolean) => void;
+  onClose: () => void;
+};
+
+/**
+ * The choices behind one trigger. It keeps its own arrow-key focus and swallows
+ * the keys the toolbar handles, so navigating a submenu never moves the
+ * toolbar's own position underneath it.
+ */
+function BubbleSubmenu({ label, actions, onActivate, onClose }: SubmenuProps) {
+  const [initialIndex] = useState(() =>
+    Math.max(
+      actions.findIndex((action) => action.active),
+      0,
+    ),
+  );
+  const [focusIndex, setFocusIndex] = useState(initialIndex);
+  const buttonsRef = useRef<(HTMLButtonElement | null)[]>([]);
+
+  function moveFocus(next: number): void {
+    const wrapped = (next + actions.length) % actions.length;
+    setFocusIndex(wrapped);
+    buttonsRef.current[wrapped]?.focus();
+  }
+
+  return (
+    <div
+      className="bubble-submenu"
+      role="menu"
+      aria-label={label}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" || event.key === "Tab") {
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+          event.preventDefault();
+          event.stopPropagation();
+          moveFocus(focusIndex + 1);
+        } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+          event.preventDefault();
+          event.stopPropagation();
+          moveFocus(focusIndex - 1);
+        } else if (event.key === "Home") {
+          event.preventDefault();
+          event.stopPropagation();
+          moveFocus(0);
+        } else if (event.key === "End") {
+          event.preventDefault();
+          event.stopPropagation();
+          moveFocus(actions.length - 1);
+        }
+      }}
+    >
+      {actions.map((action, index) => (
+        <span key={action.id} className="bubble-submenu-row">
+          {action.detached === true && <span className="bubble-submenu-sep" />}
+          <button
+            ref={(element) => {
+              buttonsRef.current[index] = element;
+            }}
+            type="button"
+            role="menuitemradio"
+            aria-checked={action.active}
+            aria-label={action.label}
+            title={action.label}
+            autoFocus={index === initialIndex}
+            tabIndex={index === focusIndex ? 0 : -1}
+            className={action.active ? "is-active" : ""}
+            onFocus={() => setFocusIndex(index)}
+            onMouseDown={(event) => {
+              event.preventDefault();
+            }}
+            onClick={(event) => {
+              onActivate(action, event.detail !== 0);
+            }}
+          >
+            {action.content}
           </button>
         </span>
       ))}

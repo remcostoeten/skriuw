@@ -734,6 +734,46 @@ export function TextQuoteIcon(props: IconProps) {
   );
 }
 
+export function PilcrowIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M13 4v16" />
+      <path d="M17 4v16" />
+      <path d="M19 4H9.5a4.5 4.5 0 0 0 0 9H13" />
+    </LucideIcon>
+  );
+}
+
+export function AlignLeftIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M21 6H3" />
+      <path d="M15 12H3" />
+      <path d="M17 18H3" />
+    </LucideIcon>
+  );
+}
+
+export function AlignCenterIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M21 6H3" />
+      <path d="M17 12H7" />
+      <path d="M19 18H5" />
+    </LucideIcon>
+  );
+}
+
+export function AlignRightIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M21 6H3" />
+      <path d="M21 12H9" />
+      <path d="M21 18H7" />
+    </LucideIcon>
+  );
+}
+
 export function TypeIcon(props: IconProps) {
   return (
     <LucideIcon {...props}>
