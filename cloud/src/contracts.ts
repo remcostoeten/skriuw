@@ -6,6 +6,11 @@ import workspaceOperationSchema from "../../contracts/generated/workspace-operat
 export const WORKSPACE_SYNC_PROTOCOL_VERSION = 2;
 export const SUPPORTED_SYNC_PROTOCOL_VERSIONS: readonly number[] = [1, 2];
 export const MIN_CHUNKED_CONTENT_PROTOCOL_VERSION = 2;
+export const MIN_SEALED_CONTENT_PROTOCOL_VERSION = 2;
+export const SEALED_CONTENT_MIME_TYPE = "application/octet-stream";
+export const MAX_SEAL_SCHEME_BYTES = 64;
+export const SEAL_KEY_ID_HEX_CHARACTERS = 16;
+export const SEAL_NONCE_BASE64_CHARACTERS = 32;
 export const CONTENT_MANIFEST_VERSION = 1;
 export const CONTENT_DIGEST_HEX_BYTES = 64;
 export const CANONICAL_CHUNK_BYTES = 1024 * 1024;
@@ -49,9 +54,22 @@ export type ContentManifest = {
   chunks: ContentChunkRef[];
 };
 
+/**
+ * An end-to-end encrypted blob. The service orders and stores it, bills its
+ * bytes, and hands it back; it never holds the key that opens it. Everything
+ * declared here is deliberately readable metadata — see
+ * `docs/adr/0041-end-to-end-encrypted-sync.md`.
+ */
+export type SealedContent = {
+  scheme: string;
+  keyId: string;
+  nonce: string;
+} & ({ transport: "inline"; ciphertext: string } | { transport: "chunked"; manifest: ContentManifest });
+
 export type SyncOperationPayload =
   | { form: "inline"; operation: WorkspaceOperationEnvelopeJson; assets?: ContentManifest[] }
-  | { form: "chunked"; manifest: ContentManifest };
+  | { form: "chunked"; manifest: ContentManifest }
+  | { form: "sealed"; operation: SealedContent; assets?: SealedContent[] };
 
 export type ClientSyncOperation = {
   operationId: string;
@@ -88,6 +106,12 @@ export type SyncErrorCode =
   | "unsupported_operation"
   | "content_unavailable";
 
+export type CheckpointSeal = {
+  scheme: string;
+  keyId: string;
+  nonce: string;
+};
+
 export type WorkspaceCheckpointRecord = {
   checkpointVersion: number;
   syncProtocolVersion: number;
@@ -96,6 +120,7 @@ export type WorkspaceCheckpointRecord = {
   serverSequence: number;
   createdAt: number;
   content: ContentManifest;
+  seal?: CheckpointSeal;
 };
 
 export type AcknowledgementResult =
@@ -315,6 +340,7 @@ export function parseWorkspaceCheckpoint(input: unknown): WorkspaceCheckpointRec
       "serverSequence",
       "createdAt",
       "content",
+      "seal",
     ],
     "workspace checkpoint",
   );
@@ -340,8 +366,26 @@ export function parseWorkspaceCheckpoint(input: unknown): WorkspaceCheckpointRec
   if (content.kind !== "checkpoint") {
     throw new SyncContractError("checkpoint content must be a checkpoint manifest");
   }
-  if (content.mimeType !== CHECKPOINT_CONTENT_MIME_TYPE) {
-    throw new SyncContractError("checkpoint content must be application/json");
+  if (checkpoint.seal === undefined) {
+    if (content.mimeType !== CHECKPOINT_CONTENT_MIME_TYPE) {
+      throw new SyncContractError("checkpoint content must be application/json");
+    }
+    return {
+      checkpointVersion,
+      syncProtocolVersion,
+      archiveVersion,
+      workspaceId,
+      serverSequence,
+      createdAt,
+      content,
+    };
+  }
+  const sealed = parseSealedContent(
+    { ...requireRecord(checkpoint.seal, "checkpoint seal"), transport: "inline", ciphertext: "AA" },
+    "checkpoint",
+  );
+  if (content.mimeType !== SEALED_CONTENT_MIME_TYPE) {
+    throw new SyncContractError("sealed checkpoint content must be opaque bytes");
   }
   return {
     checkpointVersion,
@@ -351,6 +395,7 @@ export function parseWorkspaceCheckpoint(input: unknown): WorkspaceCheckpointRec
     serverSequence,
     createdAt,
     content,
+    seal: { scheme: sealed.scheme, keyId: sealed.keyId, nonce: sealed.nonce },
   };
 }
 
@@ -409,7 +454,7 @@ function parseClientSyncOperation(
     payload,
   };
   if (
-    payload.form === "inline" &&
+    payload.form !== "chunked" &&
     jsonByteLength(parsed) > MAX_INLINE_SYNC_OPERATION_BYTES
   ) {
     throw new SyncContractError("sync operation requires chunked content transport");
@@ -438,7 +483,81 @@ export function parseSyncOperationPayload(input: unknown): SyncOperationPayload 
     }
     return { form: "chunked", manifest };
   }
+  if (payload.form === "sealed") {
+    requireExactKeys(payload, ["form", "operation", "assets"], "sync operation payload");
+    const operation = parseSealedContent(payload.operation, "operation_envelope");
+    if (payload.assets === undefined) {
+      return { form: "sealed", operation };
+    }
+    if (!Array.isArray(payload.assets) || payload.assets.length === 0) {
+      throw new SyncContractError("sealed operation assets must be a non-empty array");
+    }
+    if (payload.assets.length > MAX_OPERATION_ASSET_MANIFESTS) {
+      throw new SyncContractError("operation carries too many asset manifests");
+    }
+    const assets = payload.assets.map((asset) => parseSealedContent(asset, "asset"));
+    return { form: "sealed", operation, assets };
+  }
   throw new SyncContractError("sync operation payload form is not supported");
+}
+
+/**
+ * Sealed content is validated for shape, never for meaning: the service
+ * checks that it can transport, account for, and return the bytes, and
+ * nothing else. Operation-type replication policy therefore moves to the
+ * client for encrypted workspaces.
+ */
+export function parseSealedContent(
+  input: unknown,
+  expectedKind: ContentManifest["kind"],
+): SealedContent {
+  const sealed = requireRecord(input, "sealed content");
+  const scheme = sealed.scheme;
+  if (
+    typeof scheme !== "string" ||
+    scheme.length === 0 ||
+    scheme.length > MAX_SEAL_SCHEME_BYTES ||
+    !/^[A-Za-z0-9\-_.]+$/.test(scheme)
+  ) {
+    throw new SyncContractError("sealed content names an unsupported sealing scheme");
+  }
+  const keyId = sealed.keyId;
+  if (
+    typeof keyId !== "string" ||
+    keyId.length !== SEAL_KEY_ID_HEX_CHARACTERS ||
+    !/^[0-9a-f]+$/.test(keyId)
+  ) {
+    throw new SyncContractError("sealed content key id is not a key identifier");
+  }
+  const nonce = sealed.nonce;
+  if (
+    typeof nonce !== "string" ||
+    nonce.length !== SEAL_NONCE_BASE64_CHARACTERS ||
+    !isBase64(nonce)
+  ) {
+    throw new SyncContractError("sealed content nonce is not a base64 nonce");
+  }
+  if (sealed.transport === "inline") {
+    requireExactKeys(sealed, ["scheme", "keyId", "nonce", "transport", "ciphertext"], "sealed content");
+    const ciphertext = sealed.ciphertext;
+    if (typeof ciphertext !== "string" || ciphertext.length === 0 || !isBase64(ciphertext)) {
+      throw new SyncContractError("sealed content ciphertext is empty or not base64");
+    }
+    return { scheme, keyId, nonce, transport: "inline", ciphertext };
+  }
+  if (sealed.transport === "chunked") {
+    requireExactKeys(sealed, ["scheme", "keyId", "nonce", "transport", "manifest"], "sealed content");
+    const manifest = parseContentManifest(sealed.manifest);
+    if (manifest.kind !== expectedKind || manifest.mimeType !== SEALED_CONTENT_MIME_TYPE) {
+      throw new SyncContractError("sealed content manifest does not describe opaque bytes");
+    }
+    return { scheme, keyId, nonce, transport: "chunked", manifest };
+  }
+  throw new SyncContractError("sealed content transport is not supported");
+}
+
+function isBase64(value: string): boolean {
+  return /^[A-Za-z0-9+/=]+$/.test(value);
 }
 
 function parseBareInlinePayload(input: unknown): SyncOperationPayload {
