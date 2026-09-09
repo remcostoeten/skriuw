@@ -46,10 +46,10 @@
         "bundleMediaFramework": true
       },
       "deb": {
-        "desktopTemplate": "skriuw.desktop"
+        "desktopTemplate": "Skriuw.desktop"
       },
       "rpm": {
-        "desktopTemplate": "skriuw.desktop"
+        "desktopTemplate": "Skriuw.desktop"
       }
     }
   },

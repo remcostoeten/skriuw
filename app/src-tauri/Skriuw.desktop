@@ -1,3 +1,8 @@
+# Installed as "Skriuw.desktop" — the bundler names the entry after
+# productName, and Wayland matches it against the app_id, which main.rs pins to
+# the same "Skriuw" through the GLib prgname. This file is named to match so the
+# two cannot drift. StartupWMClass covers X11, where GTK derives the WM_CLASS
+# instance from that same prgname.
 [Desktop Entry]
 Type=Application
 Version=1.0
