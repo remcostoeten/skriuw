@@ -122,6 +122,39 @@ fn open_in_file_manager(target: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Opens the file manager with one file selected. `xdg-open` on a file hands it
+/// to the image viewer rather than the file manager, so Linux asks the desktop's
+/// FileManager1 service to show the item and falls back to opening the folder
+/// when no such service answers.
+pub(crate) fn select_in_file_manager(target: &Path) -> Result<(), String> {
+    let spawned = if cfg!(target_os = "macos") {
+        std::process::Command::new("open")
+            .arg("-R")
+            .arg(target)
+            .spawn()
+    } else if cfg!(target_os = "windows") {
+        std::process::Command::new("explorer")
+            .arg(format!("/select,{}", target.display()))
+            .spawn()
+    } else {
+        std::process::Command::new("dbus-send")
+            .args([
+                "--session",
+                "--dest=org.freedesktop.FileManager1",
+                "--type=method_call",
+                "/org/freedesktop/FileManager1",
+                "org.freedesktop.FileManager1.ShowItems",
+            ])
+            .arg(format!("array:string:file://{}", target.to_string_lossy()))
+            .arg("string:")
+            .spawn()
+    };
+    match spawned {
+        Ok(_) => Ok(()),
+        Err(_) => open_in_file_manager(target.parent().unwrap_or(target)),
+    }
+}
+
 #[tauri::command]
 pub fn reveal_workspace_storage(state: State<'_, AppState>) -> Result<(), String> {
     open_in_file_manager(state.storage_path.parent().unwrap_or(&state.storage_path))
