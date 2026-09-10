@@ -3,6 +3,14 @@
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   --selection-opacity: 0.2;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  /* Replaced with a measured pixel height by shell/viewport.ts once the
+     bundle runs; the dynamic unit keeps the first paint correct until then. */
+  --viewport-height: 100dvh;
+  --keyboard-inset: 0px;
 }
 
 :root[data-theme="paper"],
@@ -17,10 +25,14 @@
 }
 
 html,
-body,
+body {
+  height: var(--viewport-height);
+  margin: 0;
+  overflow: hidden;
+}
+
 #root {
   height: 100%;
-  margin: 0;
   overflow: hidden;
 }
 
@@ -30,6 +42,14 @@ body {
   overscroll-behavior: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  padding-block-start: var(--safe-top);
+  padding-inline: var(--safe-left) var(--safe-right);
+  /* The measured height already stops above an open keyboard, so the home
+     indicator inset is only owed while the keyboard is closed. */
+  padding-block-end: max(0px, calc(var(--safe-bottom) - var(--keyboard-inset)));
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
 }
 
 ::selection {
@@ -83,4 +103,25 @@ body {
   transition-duration: 1ms !important;
   animation-duration: 1ms !important;
   animation-iteration-count: 1 !important;
+}
+
+@media (pointer: coarse) {
+  :where(button, [role="button"], [role="menuitem"], [role="tab"], [role="option"], [role="treeitem"]) {
+    min-block-size: 2.75rem;
+  }
+
+  :where([data-radix-scroll-area-viewport], [data-scrollable]) {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
+
+@media (display-mode: standalone) {
+  body {
+    user-select: none;
+  }
+
+  :where(input, textarea, [contenteditable="true"], .ProseMirror) {
+    user-select: text;
+  }
 }
