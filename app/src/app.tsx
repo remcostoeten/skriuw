@@ -5,6 +5,7 @@ import { authAdapter } from "@/features/auth/adapter";
 import {
   clearOnboardingOverride,
   readOnboardingOverride,
+  readOnboardingSkip,
 } from "@/features/onboarding/debug-override";
 import { completeOnboarding, shouldShowOnboarding } from "@/features/onboarding/model";
 import { Onboarding } from "@/features/onboarding/onboarding";
@@ -186,8 +187,10 @@ function WorkspaceShell({ store }: Props) {
   const animatedIcons = useRendererSelector(store, selectAnimatedIcons);
   const aiEnabled = useRendererSelector(store, selectAiEnabled);
   const [onboardingOverride, setOnboardingOverride] = useState(readOnboardingOverride);
+  const [skipOnboarding] = useState(readOnboardingSkip);
+  const needsOnboardingFromSettings = useRendererSelector(store, selectNeedsOnboarding);
   const needsOnboarding =
-    useRendererSelector(store, selectNeedsOnboarding) || onboardingOverride;
+    !skipOnboarding && (needsOnboardingFromSettings || onboardingOverride);
   const shortcutHints = useShortcutHints(store, TOOLBAR_SHORTCUT_IDS);
   useEffect(() => installBackNavigation(store), [store]);
   useTitleBarDoubleClickMaximize();
