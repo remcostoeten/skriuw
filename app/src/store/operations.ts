@@ -110,6 +110,7 @@ export function reduceOperation(
         title: operation.title,
         icon: null,
         coverImageId: null,
+        coverGradient: null,
         coverFullWidth: false,
         coverPositionX: 50,
         coverPositionY: 50,
@@ -139,10 +140,35 @@ export function reduceOperation(
       next.set(operation.noteId, {
         ...existing,
         coverImageId: operation.imageId,
-        coverFullWidth: operation.imageId === null ? false : existing.coverFullWidth,
+        coverGradient: operation.imageId === null ? (existing.coverGradient ?? null) : null,
+        coverFullWidth:
+          operation.imageId === null && (existing.coverGradient ?? null) === null
+            ? false
+            : existing.coverFullWidth,
         coverPositionX: operation.imageId === existing.coverImageId ? existing.coverPositionX : 50,
         coverPositionY: operation.imageId === existing.coverImageId ? existing.coverPositionY : 50,
         coverZoom: operation.imageId === existing.coverImageId ? existing.coverZoom : 1,
+        updatedAt: operation.at,
+      });
+      return next;
+    }
+    case "set_note_cover_gradient": {
+      const existing = nodes.get(operation.noteId);
+      if (!existing || existing.kind !== "note") {
+        return nodes;
+      }
+      const next = new Map(nodes);
+      next.set(operation.noteId, {
+        ...existing,
+        coverGradient: operation.gradient,
+        coverImageId: operation.gradient === null ? (existing.coverImageId ?? null) : null,
+        coverFullWidth:
+          operation.gradient === null && (existing.coverImageId ?? null) === null
+            ? false
+            : existing.coverFullWidth,
+        coverPositionX: 50,
+        coverPositionY: 50,
+        coverZoom: 1,
         updatedAt: operation.at,
       });
       return next;

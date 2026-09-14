@@ -1006,6 +1006,33 @@
               "type": "integer",
               "format": "int64"
             },
+            "gradient": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "noteId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_note_cover_gradient"
+            }
+          },
+          "required": [
+            "type",
+            "noteId",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
             "fullWidth": {
               "type": "boolean"
             },

@@ -42,6 +42,7 @@ import {
   coverTransformForKey,
   type CoverTransform,
 } from "./cover-transform-model";
+import { COVER_GRADIENTS, coverGradientCss } from "./cover-gradient-model";
 
 type Props = {
   store: RendererStore;
@@ -143,6 +144,15 @@ export function NoteCover({ store, selectNoteId }: Props) {
     [selectNoteId],
   );
   const coverImageId = useRendererSelector(store, selectCoverImageId);
+  const selectCoverGradient = useMemo(
+    () => (state: RendererState) => {
+      const selected = selectNoteId(state);
+      return selected ? (state.sourceNodes.get(selected)?.coverGradient ?? null) : null;
+    },
+    [selectNoteId],
+  );
+  const coverGradient = useRendererSelector(store, selectCoverGradient);
+  const gradientCss = coverGradientCss(coverGradient);
   const selectFullWidth = useMemo(
     () => (state: RendererState) => {
       const selected = selectNoteId(state);
@@ -448,11 +458,28 @@ export function NoteCover({ store, selectNoteId }: Props) {
     return download;
   }
 
+  function selectGradientCover(gradient: string): void {
+    if (noteId === null || busy) return;
+    setPickerOpen(false);
+    setError(null);
+    const write = commitOperations(store, [
+      { type: "set_note_cover_gradient", noteId, gradient, at: Date.now() },
+    ])
+      .catch((reason) => {
+        console.error("gradient cover selection rejected", reason);
+        setError("Could not use this gradient.");
+      })
+      .finally(() => inFlightCoverWrites.delete(write));
+    inFlightCoverWrites.add(write);
+  }
+
   function removeCover(): void {
     if (noteId === null || busy) return;
     setError(null);
     const write = commitOperations(store, [
-      { type: "set_note_cover", noteId, imageId: null, at: Date.now() },
+      coverGradient !== null
+        ? { type: "set_note_cover_gradient" as const, noteId, gradient: null, at: Date.now() }
+        : { type: "set_note_cover" as const, noteId, imageId: null, at: Date.now() },
     ])
       .catch((reason) => {
         console.error("cover image removal rejected", reason);
@@ -527,13 +554,89 @@ export function NoteCover({ store, selectNoteId }: Props) {
       images={images}
       mediaMetadata={mediaMetadata}
       currentCoverImageId={coverImageId}
+      currentGradient={coverGradient}
       failed={pickerFailed}
       onOpenChange={setPickerOpen}
       onSelect={selectMediaCover}
+      onSelectGradient={selectGradientCover}
       onUpload={uploadCover}
       onSubmitUrl={isBrowserRuntime() ? null : addCoverFromUrl}
     />
   );
+
+  if (coverImageId === null && gradientCss !== null) {
+    return (
+      <>
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <div
+              className={cn(
+                "group relative mb-5 h-52 overflow-hidden border border-border/40",
+                fullWidth
+                  ? "w-full rounded-none border-x-0"
+                  : "mx-auto mt-8 w-[calc(100%_-_6rem)] max-w-[72ch] rounded-md",
+              )}
+              style={{ backgroundImage: gradientCss }}
+            >
+              <div className="absolute bottom-2.5 right-2.5 flex items-center rounded-md border border-border/50 bg-background/90 p-0.5 opacity-0 shadow-sm transition-opacity duration-150 ease-out group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                  disabled={busy}
+                  onClick={openMediaPicker}
+                >
+                  <ImageIcon size={12} />
+                  Change
+                </button>
+                <span className="mx-0.5 h-3.5 w-px bg-border" aria-hidden="true" />
+                <button
+                  type="button"
+                  aria-pressed={fullWidth}
+                  className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                  disabled={busy}
+                  onClick={toggleFullWidth}
+                >
+                  {fullWidth ? <RestoreIcon size={12} /> : <MaximizeIcon size={12} />}
+                  {fullWidth ? "Content width" : "Full width"}
+                </button>
+                <span className="mx-0.5 h-3.5 w-px bg-border" aria-hidden="true" />
+                <Tooltip label="Remove cover">
+                  <button
+                    type="button"
+                    aria-label="Remove cover"
+                    className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                    disabled={busy}
+                    onClick={removeCover}
+                  >
+                    <CloseIcon size={12} />
+                  </button>
+                </Tooltip>
+              </div>
+              {error && (
+                <div className="absolute bottom-3 left-3 rounded bg-background/90 px-2 py-1 text-xs text-destructive">
+                  {error}
+                </div>
+              )}
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-52">
+            <ContextMenuItem onClick={toggleFullWidth}>
+              {fullWidth ? "Use content width" : "Use full width"}
+            </ContextMenuItem>
+            <ContextMenuItem onClick={openMediaPicker}>Choose another cover…</ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={removeCover}
+            >
+              Remove cover
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+        {mediaPicker}
+      </>
+    );
+  }
 
   if (coverImageId === null) {
     return (
@@ -778,9 +881,11 @@ type CoverMediaPickerProps = {
   images: RendererState["images"];
   mediaMetadata: RendererState["mediaMetadata"];
   currentCoverImageId: string | null;
+  currentGradient: string | null;
   failed: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (blob: MediaBlobPayload) => void;
+  onSelectGradient: (gradient: string) => void;
   onUpload: () => void;
   onSubmitUrl: ((url: string) => Promise<void>) | null;
 };
@@ -791,9 +896,11 @@ function CoverMediaPicker({
   images,
   mediaMetadata,
   currentCoverImageId,
+  currentGradient,
   failed,
   onOpenChange,
   onSelect,
+  onSelectGradient,
   onUpload,
   onSubmitUrl,
 }: CoverMediaPickerProps) {
@@ -846,6 +953,32 @@ function CoverMediaPicker({
           <ImageIcon size={13} />
           Upload new
         </button>
+      </div>
+      <div className="border-b border-border px-3.5 py-2.5">
+        <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+          Gradients
+        </p>
+        <ul
+          className="flex list-none flex-wrap gap-1.5 p-0"
+          aria-label="Cover gradients"
+        >
+          {COVER_GRADIENTS.map((gradient) => (
+            <li key={gradient.id}>
+              <button
+                type="button"
+                aria-label={gradient.label}
+                aria-pressed={currentGradient === gradient.id}
+                title={gradient.label}
+                className={cn(
+                  "h-8 w-14 rounded border outline-none hover:border-foreground/40 focus-visible:ring-2 focus-visible:ring-ring",
+                  currentGradient === gradient.id ? "border-foreground/60" : "border-border",
+                )}
+                style={{ backgroundImage: gradient.css }}
+                onClick={() => onSelectGradient(gradient.id)}
+              />
+            </li>
+          ))}
+        </ul>
       </div>
       {onSubmitUrl && (
         <form

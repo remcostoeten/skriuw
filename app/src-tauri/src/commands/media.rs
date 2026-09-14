@@ -178,6 +178,22 @@ pub async fn delete_media_blob(
 }
 
 #[tauri::command]
+pub fn reveal_media_blob(
+    content_hash: String,
+    mime_type: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let path = state
+        .image_store
+        .blob_path(&content_hash, &mime_type)
+        .map_err(|error| error.to_string())?;
+    if !path.exists() {
+        return Err("the file is no longer in the workspace store".into());
+    }
+    crate::commands::maintenance::select_in_file_manager(&path)
+}
+
+#[tauri::command]
 pub async fn sweep_unused_media_blobs(state: State<'_, AppState>) -> Result<usize, String> {
     let maintenance = Arc::clone(&state.maintenance);
     let image_store = Arc::clone(&state.image_store);

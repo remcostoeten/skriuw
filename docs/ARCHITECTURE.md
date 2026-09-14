@@ -217,5 +217,6 @@ Rust and Tauri suites rather than simulated browser state.
 - [ADR-0038: personal template and search preferences](adr/0038-personal-template-and-search-preferences.md)
 - [ADR-0039: provider-agnostic voice transcription seam](adr/0039-voice-transcription-seam.md)
 - [ADR-0040: an AI run is visible work, steered from the note](adr/0040-ai-runs-are-visible-work.md)
+- [ADR-0041: cover gradients are named, not styled](adr/0041-cover-gradients-are-named-not-styled.md)
 
 Personal templates reuse ordinary source notes; saved searches and template membership use bounded workspace preferences. See [ADR-0038](adr/0038-personal-template-and-search-preferences.md). Sync refresh retries and candidate-filtered full-text search follow the [refresh and search contract](specs/refresh-and-filtered-search.md).

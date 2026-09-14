@@ -859,6 +859,13 @@
           "type": "boolean",
           "default": false
         },
+        "coverGradient": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "coverImageId": {
           "type": [
             "string",

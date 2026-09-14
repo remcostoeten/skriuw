@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   deleteMediaBlob,
   listMediaBlobs,
+  revealMediaBlob,
   revealWorkspaceImages,
   storeNoteImage,
   sweepUnusedMediaBlobs,
@@ -248,6 +249,15 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
       });
   }
 
+  function revealEntry(entry: MediaLibraryEntry): void {
+    revealMediaBlob(entry.contentHash, entry.mimeType).catch((error) => {
+      setStatus({
+        kind: "error",
+        message: `Could not show this file: ${String(error)}`,
+      });
+    });
+  }
+
   function renameEntry(
     entry: MediaLibraryEntry,
     fields: { name: string; alt: string },
@@ -473,6 +483,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
         onOpenReference={onOpenReference}
         onPreview={setPreviewEntry}
         onDelete={deleteEntry}
+        onReveal={revealEntry}
         selected={selected}
         onToggleSelected={toggleSelected}
         onRename={renameEntry}
@@ -510,6 +521,7 @@ type MediaGridProps = {
   onOpenReference: (usage: MediaUsage) => void;
   onPreview: (entry: MediaLibraryEntry) => void;
   onDelete: (entry: MediaLibraryEntry) => void;
+  onReveal: (entry: MediaLibraryEntry) => void;
   selected: ReadonlySet<string>;
   onToggleSelected: (contentHash: string) => void;
   onRename: (
@@ -528,6 +540,7 @@ function MediaGrid({
   onOpenReference,
   onPreview,
   onDelete,
+  onReveal,
   selected,
   onToggleSelected,
   onRename,
@@ -572,6 +585,7 @@ function MediaGrid({
           onOpenReference={onOpenReference}
           onPreview={onPreview}
           onDelete={onDelete}
+          onReveal={onReveal}
           onToggleSelected={onToggleSelected}
           onRename={onRename}
         />
@@ -587,6 +601,7 @@ type MediaCardProps = {
   onOpenReference: (usage: MediaUsage) => void;
   onPreview: (entry: MediaLibraryEntry) => void;
   onDelete: (entry: MediaLibraryEntry) => void;
+  onReveal: (entry: MediaLibraryEntry) => void;
   onToggleSelected: (contentHash: string) => void;
   onRename: (
     entry: MediaLibraryEntry,
@@ -601,6 +616,7 @@ function MediaCard({
   onOpenReference,
   onPreview,
   onDelete,
+  onReveal,
   onToggleSelected,
   onRename,
 }: MediaCardProps) {
@@ -643,6 +659,16 @@ function MediaCard({
           >
             <PencilIcon size={13} />
           </button>
+          {!isBrowserRuntime() && !entry.missingBlob && (
+            <button
+              type="button"
+              className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={`Show ${mediaDisplayName(entry)} in the file manager`}
+              onClick={() => onReveal(entry)}
+            >
+              <FolderOpenIcon size={13} />
+            </button>
+          )}
         </span>
         {editing && (
           <MediaDetailsForm

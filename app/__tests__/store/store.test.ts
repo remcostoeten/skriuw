@@ -229,6 +229,44 @@ test("set_note_cover updates only owning note", () => {
   assert.equal(store.getState().sourceNodes.get("note-root")?.coverZoom, 1);
 });
 
+test("set_note_cover_gradient and set_note_cover replace each other", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.applyOperations([
+    { type: "set_note_cover", noteId: "note-root", imageId: "cover-1", at: 50 },
+    {
+      type: "set_note_cover_transform",
+      noteId: "note-root",
+      positionX: 20,
+      positionY: 75,
+      zoom: 1.6,
+      at: 51,
+    },
+    { type: "set_note_cover_gradient", noteId: "note-root", gradient: "ocean", at: 52 },
+  ]);
+  const withGradient = store.getState().sourceNodes.get("note-root");
+  assert.equal(withGradient?.coverGradient, "ocean");
+  assert.equal(withGradient?.coverImageId, null);
+  assert.equal(withGradient?.coverPositionX, 50);
+  assert.equal(withGradient?.coverZoom, 1);
+
+  store.applyOperations([
+    { type: "set_note_cover_full_width", noteId: "note-root", fullWidth: true, at: 53 },
+    { type: "set_note_cover", noteId: "note-root", imageId: "cover-2", at: 54 },
+  ]);
+  const withImage = store.getState().sourceNodes.get("note-root");
+  assert.equal(withImage?.coverGradient, null);
+  assert.equal(withImage?.coverImageId, "cover-2");
+  assert.equal(withImage?.coverFullWidth, true);
+
+  store.applyOperations([
+    { type: "set_note_cover", noteId: "note-root", imageId: null, at: 55 },
+  ]);
+  const cleared = store.getState().sourceNodes.get("note-root");
+  assert.equal(cleared?.coverImageId, null);
+  assert.equal(cleared?.coverGradient, null);
+  assert.equal(cleared?.coverFullWidth, false);
+});
+
 test("pinnedNodeIds orders most-recently-pinned-first and hides trashed nodes", () => {
   const store = createRendererStore(createInitialState(snapshot()));
   store.applyOperations([

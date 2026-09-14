@@ -88,6 +88,7 @@ define_workspace_operation_sync_policy! {
     CreateNote => ("create_note", ReplicatedWorkspaceContent),
     RenameNode => ("rename_node", ReplicatedWorkspaceContent),
     SetNoteCover => ("set_note_cover", ReplicatedWorkspaceContent),
+    SetNoteCoverGradient => ("set_note_cover_gradient", ReplicatedWorkspaceContent),
     SetNoteCoverFullWidth => ("set_note_cover_full_width", ReplicatedWorkspaceContent),
     SetNoteCoverTransform => ("set_note_cover_transform", ReplicatedWorkspaceContent),
     MoveNode => ("move_node", ReplicatedWorkspaceContent),
@@ -224,6 +225,7 @@ impl WorkspaceOperation {
             | Self::MoveNode { id, .. }
             | Self::SetNodePinned { id, .. } => Some(id),
             Self::SetNoteCover { note_id, .. }
+            | Self::SetNoteCoverGradient { note_id, .. }
             | Self::SetNoteCoverFullWidth { note_id, .. }
             | Self::SetNoteCoverTransform { note_id, .. }
             | Self::SaveDocument { note_id, .. }
@@ -783,7 +785,7 @@ mod tests {
             operation_types.len(),
             WORKSPACE_OPERATION_SYNC_POLICY_V1.len()
         );
-        assert_eq!(WORKSPACE_OPERATION_SYNC_POLICY_V1.len(), 45);
+        assert_eq!(WORKSPACE_OPERATION_SYNC_POLICY_V1.len(), 46);
         assert_eq!(
             operation_types,
             serde_json::from_str::<serde_json::Value>(include_str!(

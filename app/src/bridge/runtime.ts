@@ -169,6 +169,9 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
     const { contentHash, mimeType } = args as { contentHash: string; mimeType: string };
     return deleteBrowserMediaBlob(contentHash, mimeType) as Promise<T>;
   }
+  if (command === "reveal_media_blob") {
+    throw new Error("Showing a file in the file manager needs the desktop app.");
+  }
   if (command === "sweep_unused_media_blobs") {
     const { liveContentHashes } = args as { liveContentHashes?: readonly string[] };
     return sweepBrowserMediaBlobs(liveContentHashes ?? []) as Promise<T>;
