@@ -1,0 +1,80 @@
+/* Chrome for top-level blocks: the hover gutter that inserts, drags, and opens
+   block actions, plus the indicator marking where a dragged block lands. Both
+   are appended to the editor host by drag-handle.ts and positioned by
+   transform, so they share one viewport-anchored overlay base. */
+
+.block-gutter,
+.block-drop-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.block-gutter.is-visible,
+.block-drop-indicator.is-visible {
+  opacity: 1;
+}
+
+.block-gutter {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  transition: opacity 100ms ease-out;
+}
+
+.block-gutter.is-visible {
+  pointer-events: auto;
+}
+
+.block-gutter-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+
+.block-gutter-button svg {
+  pointer-events: none;
+}
+
+.block-gutter-button:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.block-gutter-button:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
+}
+
+.block-gutter-grip {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.block-gutter-grip:active {
+  cursor: grabbing;
+}
+
+.block-drop-indicator {
+  height: 2px;
+  border-radius: 1px;
+  background: hsl(var(--primary));
+}
+
+body.is-dragging-block {
+  cursor: grabbing;
+  user-select: none;
+}

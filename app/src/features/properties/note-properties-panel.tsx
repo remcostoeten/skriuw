@@ -21,6 +21,8 @@ import {
 } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { sectionLabelClass } from "@/shared/ui/section-header";
+import { Checkbox } from "@/shared/ui/checkbox";
+import { Select } from "@/shared/ui/select";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";
@@ -493,8 +495,7 @@ function ValueEditor({
   if (value.type === "checkbox") {
     return (
       <label className="flex min-h-7 cursor-pointer items-center gap-2 px-1 text-[13px] text-muted-foreground">
-        <input
-          type="checkbox"
+        <Checkbox
           name={`property-${property.id}-value`}
           checked={value.value}
           onChange={(event) =>
@@ -530,25 +531,20 @@ function ValueEditor({
   }
   if (value.type === "select") {
     return (
-      <select
-        aria-label={`${property.name} value`}
-        name={`property-${property.id}-value`}
+      <Select
+        label={`${property.name} value`}
+        className="w-full min-w-0"
+        triggerClassName="w-full"
         value={value.value ?? ""}
-        onChange={(event) =>
-          onUpdate({
-            ...property,
-            value: { ...value, value: event.target.value || null },
-          })
+        options={[
+          { value: "", label: "Empty" },
+          ...property.options.map(({ id, label }) => ({ value: id, label })),
+        ]}
+        onChange={(next) =>
+          onUpdate({ ...property, value: { ...value, value: next || null } })
         }
-        className={cn(inputClass, "cursor-pointer", value.value === null && "text-muted-foreground/55")}
-      >
-        <option value="">Empty</option>
-        {property.options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        align="start"
+      />
     );
   }
   if (value.type === "multi-select") {
@@ -733,8 +729,7 @@ function MultiValueEditor({
               key={choice.id}
               className="flex min-h-7 cursor-pointer items-center gap-2 rounded-md px-1.5 text-[12px] hover:bg-accent/70"
             >
-              <input
-                type="checkbox"
+              <Checkbox
                 name={fieldName}
                 checked={selectedSet.has(choice.id)}
                 onChange={() => {
@@ -855,21 +850,18 @@ function OptionRow({
         }}
         className={inputClass}
       />
-      <select
-        aria-label={`${option.label} color`}
-        name={`property-option-${option.id}-color`}
+      <Select
+        label={`${option.label} color`}
+        className="w-24"
+        triggerClassName="w-full"
         value={option.color}
-        onChange={(event) =>
-          onChange({ ...option, color: event.target.value as NotePropertyColor })
-        }
-        className={cn(inputClass, "w-20 shrink-0 cursor-pointer text-[12px] text-muted-foreground")}
-      >
-        {NOTE_PROPERTY_COLORS.map((color) => (
-          <option key={color} value={color}>
-            {PROPERTY_COLOR_LABELS[color]}
-          </option>
-        ))}
-      </select>
+        options={NOTE_PROPERTY_COLORS.map((color) => ({
+          value: color,
+          label: PROPERTY_COLOR_LABELS[color],
+        }))}
+        onChange={(color) => onChange({ ...option, color: color as NotePropertyColor })}
+        align="start"
+      />
       <span className="flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/option:opacity-100">
         <button
           type="button"

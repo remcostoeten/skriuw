@@ -38,6 +38,7 @@ import { TasksView } from "@/features/tasks/tasks-view";
 import { HistoryView } from "@/features/history/history-view";
 import { JournalSidebar, JournalView } from "@/features/journal/journal-view";
 import { WindowControls } from "@/shell/window-controls";
+import { useTitleBarDoubleClickMaximize } from "@/shell/title-bar-maximize";
 import { hasTauriRuntime } from "@/bridge/external-links";
 import {
   panelGridTemplate,
@@ -206,6 +207,7 @@ function WorkspaceShell({ store }: Props) {
     useRendererSelector(store, selectNeedsOnboarding) || onboardingOverride;
   const shortcutHints = useShortcutHints(store, TOOLBAR_SHORTCUT_IDS);
   useEffect(() => installBackNavigation(store), [store]);
+  useTitleBarDoubleClickMaximize();
   const ui: CommandUiState = { route, sidebarOpen, metadataOpen, settingsOpen };
   const uiRef = useRef(ui);
   uiRef.current = ui;
@@ -618,13 +620,14 @@ function WorkspaceShell({ store }: Props) {
       <div className="contents" hidden={route !== "notes"}>
         <main className="col-[3] flex min-h-0 min-w-0 flex-col overflow-hidden">
           <div
+            data-tauri-drag-region
             className={`grid h-11 items-center border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground ${
               mode === "compact"
                 ? "grid-cols-[auto_minmax(0,1fr)_auto] px-1"
                 : "grid-cols-[1fr_minmax(0,auto)_1fr]"
             }`}
           >
-            <div className="flex min-w-0 items-center gap-1">
+            <div data-tauri-drag-region className="flex min-w-0 items-center gap-1">
             <Tooltip label="Toggle sidebar" side="bottom" shortcut={shortcutHints.toggleSidebar}>
               <button
                 type="button"
@@ -663,10 +666,10 @@ function WorkspaceShell({ store }: Props) {
             </>
             )}
             </div>
-            <div className="flex min-w-0 justify-center px-2">
+            <div data-tauri-drag-region className="flex min-w-0 justify-center px-2">
               <NoteBreadcrumbs store={store} titleOnly={mode === "compact"} />
             </div>
-            <div className="flex min-w-0 items-center justify-end gap-1">
+            <div data-tauri-drag-region className="flex min-w-0 items-center justify-end gap-1">
             <Tooltip label="Find in note" side="bottom" shortcut={shortcutHints.findInNote}>
               <button
                 type="button"

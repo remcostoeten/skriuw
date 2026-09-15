@@ -2,12 +2,12 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use rusqlite::{Connection, OptionalExtension, Transaction};
 use skriuw_domain::{
-    AnnotationComment, AnnotationStatus, HistoryHeader, NodeKind, NoteProperty, NotePropertyField,
-    NotePropertyOption, NotePropertyTemplate, PromptInputShape, PromptParameters,
-    ProviderImportReceipt, TaskPriority, TaskSource, TaskStatus, VersionedNotePropertyValue,
-    WORKSPACE_PROTOCOL_VERSION, WorkspaceAnnotation, WorkspaceArchive, WorkspaceDocument,
-    WorkspaceImage, WorkspaceNode, WorkspacePerson, WorkspacePrompt, WorkspaceSettings,
-    WorkspaceSnapshot, WorkspaceTag, WorkspaceTask,
+    AnnotationComment, AnnotationStatus, HistoryHeader, MediaMetadata, NodeKind, NoteProperty,
+    NotePropertyField, NotePropertyOption, NotePropertyTemplate, PromptInputShape,
+    PromptParameters, ProviderImportReceipt, TaskPriority, TaskSource, TaskStatus,
+    VersionedNotePropertyValue, WORKSPACE_PROTOCOL_VERSION, WorkspaceAnnotation, WorkspaceArchive,
+    WorkspaceDocument, WorkspaceImage, WorkspaceNode, WorkspacePerson, WorkspacePrompt,
+    WorkspaceSettings, WorkspaceSnapshot, WorkspaceTag, WorkspaceTask,
 };
 use skriuw_storage::StorageError;
 
@@ -26,6 +26,7 @@ pub(crate) fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot
         people: read_people(connection)?,
         references: read_references(connection)?,
         images: read_images(connection)?,
+        media_metadata: read_media_metadata(connection)?,
         properties: read_properties(connection)?,
         property_templates: read_property_templates(connection)?,
         tasks: read_tasks(connection)?,
@@ -407,6 +408,29 @@ pub(crate) fn read_images(connection: &Connection) -> Result<Vec<WorkspaceImage>
         .map_err(backend)
 }
 
+pub(crate) fn read_media_metadata(
+    connection: &Connection,
+) -> Result<Vec<MediaMetadata>, StorageError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT content_hash, name, alt, updated_at \
+             FROM media_metadata ORDER BY content_hash",
+        )
+        .map_err(backend)?;
+    statement
+        .query_map([], |row| {
+            Ok(MediaMetadata {
+                content_hash: row.get(0)?,
+                name: row.get(1)?,
+                alt: row.get(2)?,
+                updated_at: row.get(3)?,
+            })
+        })
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
+}
+
 pub(crate) fn read_tags(connection: &Connection) -> Result<Vec<WorkspaceTag>, StorageError> {
     let mut statement = connection
         .prepare(
@@ -580,7 +604,7 @@ pub(crate) fn write_pane_layout(
 
 const NODE_COLUMNS: &str = "id, kind, parent_id, rank, title, icon, cover_image_id, cover_full_width, \
      cover_position_x, cover_position_y, cover_zoom, created_at, updated_at, deleted_at, \
-     pinned_at";
+     pinned_at, cover_gradient";
 
 fn read_node_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspaceNode> {
     let kind = match row.get::<_, String>(1)?.as_str() {
@@ -602,6 +626,7 @@ fn read_node_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspaceNode> {
         title: row.get(4)?,
         icon: row.get(5)?,
         cover_image_id: row.get(6)?,
+        cover_gradient: row.get(15)?,
         cover_full_width: row.get(7)?,
         cover_position_x: row.get(8)?,
         cover_position_y: row.get(9)?,

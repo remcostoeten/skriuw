@@ -39,6 +39,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   showLineNumbers: true,
   editorPlaceholder: "Start writing...",
   editorDefaultRawMode: false,
+  blockDragHandle: true,
   openNotesInTabs: false,
   showToasts: true,
   openLinksInApp: false,
@@ -56,6 +57,7 @@ export type SettingsViewModel = {
   editorLineHeight: string;
   editorPlaceholder: string;
   editorDefaultRawMode: boolean;
+  blockDragHandle: boolean;
   openNotesInTabs: boolean;
   showToasts: boolean;
   openLinksInApp: boolean;
@@ -96,6 +98,7 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     ),
     editorPlaceholder: settings.editorPlaceholder,
     editorDefaultRawMode: settings.editorDefaultRawMode === true,
+    blockDragHandle: usesBlockDragHandle(settings),
     openNotesInTabs: settings.openNotesInTabs === true,
     showToasts: showsToasts(settings),
     openLinksInApp: opensLinksInApp(settings),
@@ -128,6 +131,17 @@ export function opensLinksInApp(settings: WorkspaceSettings): boolean {
  */
 export function usesAnimatedIcons(settings: WorkspaceSettings): boolean {
   return settings.animatedIcons !== false;
+}
+
+/**
+ * Whether hovering a top-level block reveals the gutter that drags it to a new
+ * position, inserts below it, and opens its actions. Workspaces written before
+ * the setting existed have no key and kept the gutter, so only an explicit
+ * `false` removes it. Every action the gutter offers stays reachable from the
+ * keyboard (Alt-Arrow, slash menu, block context menu) when it is off.
+ */
+export function usesBlockDragHandle(settings: WorkspaceSettings): boolean {
+  return settings.blockDragHandle !== false;
 }
 
 export function changeSetting<K extends keyof EditableSettings>(

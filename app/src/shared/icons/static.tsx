@@ -734,6 +734,46 @@ export function TextQuoteIcon(props: IconProps) {
   );
 }
 
+export function PilcrowIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M13 4v16" />
+      <path d="M17 4v16" />
+      <path d="M19 4H9.5a4.5 4.5 0 0 0 0 9H13" />
+    </LucideIcon>
+  );
+}
+
+export function AlignLeftIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M21 6H3" />
+      <path d="M15 12H3" />
+      <path d="M17 18H3" />
+    </LucideIcon>
+  );
+}
+
+export function AlignCenterIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M21 6H3" />
+      <path d="M17 12H7" />
+      <path d="M19 18H5" />
+    </LucideIcon>
+  );
+}
+
+export function AlignRightIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M21 6H3" />
+      <path d="M21 12H9" />
+      <path d="M21 18H7" />
+    </LucideIcon>
+  );
+}
+
 export function TypeIcon(props: IconProps) {
   return (
     <LucideIcon {...props}>
@@ -1049,6 +1089,18 @@ export function StarIcon(props: IconProps) {
   return (
     <LucideIcon {...props}>
       <path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
+    </LucideIcon>
+  );
+}
+
+export function SparklesIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+      <path d="M20 3v4" />
+      <path d="M22 5h-4" />
+      <path d="M4 17v2" />
+      <path d="M5 18H3" />
     </LucideIcon>
   );
 }

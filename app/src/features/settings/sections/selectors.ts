@@ -1,4 +1,8 @@
-import { showsToasts, usesAnimatedIcons } from "@/features/settings/settings-model";
+import {
+  showsToasts,
+  usesAnimatedIcons,
+  usesBlockDragHandle,
+} from "@/features/settings/settings-model";
 import { shortcutOverridesFromSettings } from "@/commands/bindings";
 import type { ShortcutOverrides } from "@/commands/bindings";
 import type { RendererState } from "@/store/types";
@@ -25,6 +29,10 @@ export function selectShowToasts(state: RendererState): boolean {
 
 export function selectAnimatedIcons(state: RendererState): boolean {
   return usesAnimatedIcons(state.settings);
+}
+
+export function selectBlockDragHandle(state: RendererState): boolean {
+  return usesBlockDragHandle(state.settings);
 }
 
 export function selectReduceMotion(state: RendererState): boolean {

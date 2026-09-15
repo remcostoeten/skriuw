@@ -3,6 +3,7 @@ import type { EditorView } from "prosemirror-view";
 import type { AiTranscriptionModel } from "@/contracts/ai";
 import { Dialog, useDialogClose } from "@/shared/ui/dialog";
 import { Button } from "@/shared/ui/button";
+import { Select } from "@/shared/ui/select";
 import { cn } from "@/shared/lib/utils";
 import { noop } from "@/shared/lib/noop";
 import { useRendererSelector } from "@/store/use-renderer-selector";
@@ -431,34 +432,32 @@ function VoiceDictationBody({ store, signal, getView, getNoteId, noteId }: BodyP
       {run.phase === "recording" && (
         <>
           {catalogue !== null && catalogue.length > 0 && voiceModel !== null && (
-            <label className="block">
+            <div className="block">
               <span className={cn(captionClass, "mb-1 block")}>Transcription model</span>
-              <select
-                className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground outline-none focus:border-ring"
+              <Select
+                label="Transcription model"
+                className="w-full"
+                triggerClassName="w-full"
                 value={`${voiceModel.providerId}/${voiceModel.modelId}`}
-                onChange={(event) => {
+                options={catalogue.map((model) => ({
+                  value: `${model.providerId}/${model.modelId}`,
+                  label: `${model.label} · ${model.providerId}`,
+                }))}
+                onChange={(value) => {
                   const chosen = catalogue.find(
-                    (model) => `${model.providerId}/${model.modelId}` === event.target.value,
+                    (model) => `${model.providerId}/${model.modelId}` === value,
                   );
                   if (chosen !== undefined) {
                     chooseModel(chosen);
                   }
                 }}
-              >
-                {catalogue.map((model) => (
-                  <option
-                    key={`${model.providerId}/${model.modelId}`}
-                    value={`${model.providerId}/${model.modelId}`}
-                  >
-                    {model.label} · {model.providerId}
-                  </option>
-                ))}
-              </select>
+                align="start"
+              />
               <span className={cn(captionClass, "mt-1 block")}>
                 The recording is sent to {voiceModel.providerId} for transcription and then
                 discarded from this device.
               </span>
-            </label>
+            </div>
           )}
         </>
       )}

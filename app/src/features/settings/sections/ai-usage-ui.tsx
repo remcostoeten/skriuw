@@ -30,6 +30,7 @@ import {
   type UsagePeriod,
 } from "@/features/ai/usage-model";
 import { cn } from "@/shared/lib/utils";
+import { Select } from "@/shared/ui/select";
 import {
   settingsButton,
   settingsButtonDanger,
@@ -39,6 +40,7 @@ import {
   settingsRow,
   settingsRowDescription,
   settingsRowLabel,
+  settingsToggleInput,
 } from "./settings-shared";
 
 type Props = {
@@ -163,21 +165,14 @@ export function AiUsagePanel({ signal }: Props) {
       </p>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          Period
-          <select
-            aria-label="Usage period"
-            className={selectClass}
-            value={period}
-            onChange={(event) => setPeriod(event.target.value as UsagePeriod)}
-          >
-            {USAGE_PERIODS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="Usage period"
+          prefix="Period"
+          value={period}
+          options={USAGE_PERIODS}
+          onChange={setPeriod}
+          align="start"
+        />
       </div>
 
       <div className="mb-2 grid grid-cols-4 gap-2 max-[560px]:grid-cols-2">
@@ -242,57 +237,36 @@ export function AiUsagePanel({ signal }: Props) {
       ) : null}
 
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          Provider
-          <select
-            aria-label="Filter by provider"
-            className={selectClass}
-            value={providerFilter}
-            onChange={(event) => {
-              setProviderFilter(event.target.value);
-              setModelFilter(ALL);
-            }}
-          >
-            <option value={ALL}>All providers</option>
-            {options.providers.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          Model
-          <select
-            aria-label="Filter by model"
-            className={selectClass}
-            value={modelFilter}
-            onChange={(event) => setModelFilter(event.target.value)}
-          >
-            <option value={ALL}>All models</option>
-            {options.models.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          State
-          <select
-            aria-label="Filter by state"
-            className={selectClass}
-            value={stateFilter}
-            onChange={(event) => setStateFilter(event.target.value as AiRunState | typeof ALL)}
-          >
-            <option value={ALL}>All states</option>
-            {RUN_STATES.map((state) => (
-              <option key={state} value={state}>
-                {runStateLabel(state)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="Filter by provider"
+          prefix="Provider"
+          value={providerFilter}
+          options={[{ value: ALL, label: "All providers" }, ...options.providers]}
+          onChange={(value) => {
+            setProviderFilter(value);
+            setModelFilter(ALL);
+          }}
+          align="start"
+        />
+        <Select
+          label="Filter by model"
+          prefix="Model"
+          value={modelFilter}
+          options={[{ value: ALL, label: "All models" }, ...options.models]}
+          onChange={setModelFilter}
+          align="start"
+        />
+        <Select
+          label="Filter by state"
+          prefix="State"
+          value={stateFilter}
+          options={[
+            { value: ALL, label: "All states" },
+            ...RUN_STATES.map((state) => ({ value: state, label: runStateLabel(state) })),
+          ]}
+          onChange={(value) => setStateFilter(value as AiRunState | typeof ALL)}
+          align="start"
+        />
       </div>
 
       {view === null ? (
@@ -387,7 +361,7 @@ export function AiUsagePanel({ signal }: Props) {
             <input
               type="checkbox"
               data-directional-focus
-              className="h-[17px] w-[30px] flex-none cursor-pointer appearance-none rounded-full border border-border bg-muted transition-colors checked:border-foreground/45 checked:bg-accent after:m-0.5 after:block after:h-[11px] after:w-[11px] after:rounded-full after:bg-muted-foreground after:transition-transform after:content-[''] checked:after:translate-x-[13px] checked:after:bg-foreground outline-none focus-visible:border-foreground/70"
+              className={settingsToggleInput}
               checked={settings.retainPrompts}
               disabled={busy}
               onChange={(event) =>

@@ -1,0 +1,324 @@
+/* The standing entry point into AI, pinned to the editor pane rather than the
+   selection toolbar so note-wide actions are reachable without selecting text
+   those actions would then ignore. */
+.ai-launcher {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px 0 9px;
+  border: 1px solid hsl(var(--editor-link) / 0.35);
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      hsl(var(--editor-link) / 0.14),
+      hsl(var(--editor-link) / 0.08)
+    ),
+    hsl(var(--popover));
+  color: hsl(var(--editor-link));
+  box-shadow: 0 8px 22px hsl(var(--scrim) / 0.3);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 560;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ai-launcher:hover:not(:disabled) {
+    border-color: hsl(var(--editor-link) / 0.6);
+    background:
+      linear-gradient(hsl(var(--editor-link) / 0.24), hsl(var(--editor-link) / 0.16)),
+      hsl(var(--popover));
+    box-shadow: 0 10px 26px hsl(var(--scrim) / 0.36);
+  }
+}
+
+.ai-launcher[data-state="menu"] {
+  border-color: hsl(var(--editor-link) / 0.7);
+  background:
+    linear-gradient(hsl(var(--editor-link) / 0.24), hsl(var(--editor-link) / 0.16)),
+    hsl(var(--popover));
+}
+
+.ai-launcher:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.ai-launcher:disabled {
+  cursor: default;
+}
+
+.ai-launcher-icon {
+  display: flex;
+}
+
+/* Constant motion while a run is in flight, so the launcher reads as a live
+   status even when the card it belongs to is scrolled off screen. */
+.ai-launcher[data-state="working"] .ai-launcher-icon {
+  animation: ai-launcher-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes ai-launcher-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.ai-menu-anchor {
+  position: fixed;
+  z-index: 40;
+  transform: translate(-50%, calc(-100% - 10px));
+}
+
+.ai-menu-anchor[data-below="true"] {
+  transform: translate(-50%, 10px);
+}
+
+.ai-menu {
+  width: min(380px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) + 3px);
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  box-shadow: 0 14px 40px hsl(var(--scrim) / 0.3);
+  font-family: var(--font-sans);
+}
+
+.ai-menu-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-menu-field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border-bottom: 1px solid hsl(var(--border) / 0.8);
+  color: hsl(var(--editor-link));
+}
+
+.ai-menu-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 13.5px;
+  outline: none;
+}
+
+.ai-menu-input::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.ai-menu-input--boxed {
+  padding: 6px 9px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--background));
+  transition: border-color 140ms ease;
+}
+
+.ai-menu-input--boxed:focus {
+  border-color: hsl(var(--ring));
+}
+
+.ai-menu-list {
+  max-height: 46vh;
+  overflow-y: auto;
+  padding: 5px;
+  scrollbar-width: thin;
+}
+
+.ai-menu-heading {
+  padding: 8px 9px 3px;
+  color: hsl(var(--muted-foreground) / 0.7);
+  font-size: 10px;
+  font-weight: 560;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ai-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 9px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: hsl(var(--sidebar-foreground));
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  transition:
+    background-color 110ms ease,
+    color 110ms ease;
+}
+
+.ai-menu-row[data-active="true"] {
+  background: hsl(var(--sidebar-accent));
+  color: hsl(var(--sidebar-accent-foreground));
+}
+
+.ai-menu-row[data-unavailable="true"] {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.ai-menu-row-label {
+  flex: 1 1 auto;
+}
+
+.ai-menu-row-reason,
+.ai-menu-row-chevron {
+  flex: none;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+}
+
+.ai-menu-error {
+  margin: 0;
+  padding: 0 12px 8px;
+  color: hsl(var(--destructive));
+  font-size: 11.5px;
+}
+
+.ai-menu-footer {
+  display: flex;
+  gap: 12px;
+  padding: 7px 12px;
+  border-top: 1px solid hsl(var(--border) / 0.8);
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+}
+
+.ai-menu-footer-end {
+  margin-left: auto;
+}
+
+.ai-menu-empty {
+  margin: 0;
+  padding: 34px 16px;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  text-align: center;
+}
+
+.ai-menu-compose-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border-bottom: 1px solid hsl(var(--border) / 0.8);
+}
+
+.ai-menu-compose-title {
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 560;
+}
+
+.ai-menu-back,
+.ai-menu-link,
+.ai-menu-disclosure {
+  border: none;
+  background: transparent;
+  color: hsl(var(--theme-text-secondary));
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  padding: 0;
+}
+
+.ai-menu-back:hover,
+.ai-menu-link:hover,
+.ai-menu-disclosure:hover {
+  color: hsl(var(--foreground));
+}
+
+.ai-menu-disclosure {
+  align-self: flex-start;
+  margin: 0 12px 8px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ai-menu-compose-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 12px 9px;
+}
+
+.ai-menu-compose-label {
+  color: hsl(var(--theme-text-secondary));
+  font-size: 11px;
+  font-weight: 560;
+}
+
+.ai-menu-payload {
+  max-height: 150px;
+  margin: 0 12px 9px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground) / 0.85);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ai-menu-compose-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border-top: 1px solid hsl(var(--border) / 0.8);
+}
+
+.ai-menu-run {
+  height: 26px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius);
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 560;
+  transition: opacity 120ms ease;
+}
+
+.ai-menu-run:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.ai-menu-model {
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -10,6 +10,7 @@ export type WorkspaceNode = {
   title: string;
   icon: string | null;
   coverImageId?: string | null;
+  coverGradient?: string | null;
   coverFullWidth?: boolean;
   coverPositionX?: number;
   coverPositionY?: number;
@@ -69,6 +70,18 @@ export type WorkspaceImage = {
   width: number | null;
   height: number | null;
   createdAt: number;
+};
+
+/**
+ * Librarian metadata a person types about one stored file. Keyed by content
+ * hash rather than by image id: the same bytes are attached once per note, and
+ * detaching an image prunes those rows.
+ */
+export type MediaMetadata = {
+  contentHash: string;
+  name: string;
+  alt: string;
+  updatedAt: number;
 };
 
 export type NotePropertyColor =
@@ -221,6 +234,7 @@ export type WorkspaceSnapshot = {
   }[];
   references: { noteId: string; targets: { kind: "tag" | "person" | "note"; targetId: string }[] }[];
   images?: WorkspaceImage[];
+  mediaMetadata?: MediaMetadata[];
   properties?: NoteProperty[];
   propertyTemplates?: NotePropertyTemplate[];
   tasks?: WorkspaceTask[];
@@ -314,6 +328,12 @@ export type WorkspaceOperation =
     }
   | { type: "rename_node"; id: string; title: string; at: number }
   | { type: "set_note_cover"; noteId: string; imageId: string | null; at: number }
+  | {
+      type: "set_note_cover_gradient";
+      noteId: string;
+      gradient: string | null;
+      at: number;
+    }
   | { type: "set_note_cover_full_width"; noteId: string; fullWidth: boolean; at: number }
   | {
       type: "set_note_cover_transform";
@@ -345,6 +365,7 @@ export type WorkspaceOperation =
   | { type: "set_active_note"; noteId: string | null }
   | { type: "update_settings"; settings: WorkspaceSettings }
   | { type: "attach_image"; image: WorkspaceImage }
+  | { type: "set_media_metadata"; metadata: MediaMetadata }
   | { type: "set_note_property"; property: NoteProperty; at: number }
   | { type: "remove_note_property"; noteId: string; propertyId: string; at: number }
   | {

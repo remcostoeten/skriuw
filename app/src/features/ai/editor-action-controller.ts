@@ -40,10 +40,11 @@ function activeListener(): AiActionListener | null {
 }
 
 /**
- * Opens an editor AI surface. A null action id opens the picker for the current
- * selection. Requests made before a host mounts are queued and replayed once
- * one registers, so the first invocation after the gate turns on is not lost to
- * a lazy chunk still loading.
+ * Opens an editor AI surface. A null action id opens the menu on its action
+ * list; a named one opens it on that action's instruction step, or starts the
+ * run outright when the action asks for nothing. Requests made before a host
+ * mounts are queued and replayed once one registers, so the first invocation
+ * after the gate turns on is not lost to a lazy chunk still loading.
  */
 export function requestAiAction(actionId: string | null): void {
   const listener = activeListener();
@@ -71,16 +72,16 @@ function actionCommand(action: AiEditorAction): AppCommand {
 }
 
 /**
- * Every action as its own palette entry, plus the picker. Selection actions
- * refuse with an actionable message when nothing is selected rather than
- * disappearing, because the palette cannot see the editor's selection without
+ * Every action as its own palette entry, plus the menu itself. Selection
+ * actions stay listed with nothing selected and refuse with an actionable
+ * message, because the palette cannot see the editor's selection without
  * pushing transient editor state into the store.
  */
 export function aiEditorActionCommands(enabled: boolean): readonly AppCommand[] {
   return guardAiRegistrations(enabled, () => [
     {
       id: "ai-actions",
-      label: "AI: Ask about the selection",
+      label: "AI: Ask AI",
       group: "AI",
       keywords: ["ai", "rewrite", "translate", "summarize", "assistant", "actions"],
       enabled: (state, ui) => ui.route === "notes" && state.activeNoteId !== null,

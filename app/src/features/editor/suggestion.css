@@ -15,7 +15,18 @@
   text-decoration-thickness: 1px;
 }
 
+/* A CSS animation rather than a JS one: the card appears at the moment the app
+   is busiest — a provider module loading and a request going out — and CSS
+   keeps running off the main thread while that happens. */
+@keyframes skriuw-suggestion-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
 .skriuw-suggestion {
+  animation: skriuw-suggestion-enter 180ms cubic-bezier(0.23, 1, 0.32, 1);
   margin: 10px 0;
   border: 1px solid hsl(var(--border));
   border-left: 2px solid var(--diff-added);
@@ -42,9 +53,167 @@
   font-weight: 560;
 }
 
+.skriuw-suggestion-model {
+  overflow: hidden;
+  max-width: 40%;
+  color: hsl(var(--muted-foreground) / 0.85);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .skriuw-suggestion-count {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
+}
+
+/* A run's actual progress, so a note that has not changed yet still says which
+   half of the round trip it is waiting on. */
+.skriuw-run-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 8px 11px;
+  border-bottom: 1px solid hsl(var(--border) / 0.7);
+  list-style: none;
+  font-family: var(--font-sans);
+  font-size: 11px;
+}
+
+.skriuw-run-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: hsl(var(--muted-foreground) / 0.75);
+  transition: color 160ms ease;
+}
+
+.skriuw-run-step-dot {
+  width: 7px;
+  height: 7px;
+  border: 1px solid hsl(var(--muted-foreground) / 0.5);
+  border-radius: 50%;
+  transition:
+    background-color 160ms cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 160ms cubic-bezier(0.23, 1, 0.32, 1),
+    scale 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.skriuw-run-step[data-state="done"] {
+  color: hsl(var(--foreground) / 0.7);
+}
+
+.skriuw-run-step[data-state="done"] .skriuw-run-step-dot {
+  border-color: var(--diff-added);
+  background: var(--diff-added);
+}
+
+.skriuw-run-step[data-state="active"] {
+  color: hsl(var(--foreground));
+}
+
+.skriuw-run-step[data-state="active"] .skriuw-run-step-dot {
+  border-color: hsl(var(--editor-link));
+  background: hsl(var(--editor-link));
+  scale: 1.15;
+  animation: skriuw-run-step-breathe 1.4s ease-in-out infinite;
+}
+
+.skriuw-run-step[data-state="failed"] .skriuw-run-step-dot {
+  border-color: hsl(var(--destructive));
+  background: hsl(var(--destructive));
+}
+
+.skriuw-run-step[data-state="stopped"] .skriuw-run-step-dot {
+  border-color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted-foreground) / 0.4);
+}
+
+@keyframes skriuw-run-step-breathe {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Stands in for the text that has not arrived, in the place it will arrive, so
+   a silent stream still looks like a stream rather than a stalled surface. */
+.skriuw-run-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 11px;
+  background: var(--diff-added-surface);
+}
+
+.skriuw-run-skeleton span {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted-foreground) / 0.14) 0%,
+    hsl(var(--muted-foreground) / 0.26) 50%,
+    hsl(var(--muted-foreground) / 0.14) 100%
+  );
+  background-size: 220% 100%;
+  animation: skriuw-run-shimmer 1.5s linear infinite;
+}
+
+.skriuw-run-skeleton span:nth-child(2) {
+  width: 88%;
+}
+
+.skriuw-run-skeleton span:nth-child(3) {
+  width: 62%;
+}
+
+@keyframes skriuw-run-shimmer {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+.skriuw-run-stall {
+  margin: 0;
+  padding: 8px 11px 0;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-sans);
+  font-size: 11px;
+}
+
+.skriuw-run-hint {
+  color: hsl(var(--muted-foreground));
+}
+
+.skriuw-run-plan {
+  margin: 9px 11px 0;
+  padding: 7px 10px 9px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
+}
+
+.skriuw-run-plan legend {
+  padding: 0 4px;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+}
+
+.skriuw-run-plan ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skriuw-run-plan label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  font-size: 13px;
 }
 
 .skriuw-suggestion-text {
@@ -84,9 +253,26 @@
   }
 }
 
+/* Reduced motion keeps the signals that carry meaning — the card still fades
+   in, the active step still stands out — and drops the ones that only move. */
 @media (prefers-reduced-motion: reduce) {
-  .skriuw-suggestion-caret {
+  .skriuw-suggestion-caret,
+  .skriuw-run-skeleton span {
     animation: none;
+  }
+
+  .skriuw-suggestion {
+    animation-name: skriuw-suggestion-fade;
+  }
+
+  .skriuw-run-step[data-state="active"] .skriuw-run-step-dot {
+    animation: skriuw-run-step-breathe 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes skriuw-suggestion-fade {
+  from {
+    opacity: 0;
   }
 }
 

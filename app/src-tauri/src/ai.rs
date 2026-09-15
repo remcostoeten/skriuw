@@ -3,9 +3,12 @@ use std::sync::{Mutex, OnceLock};
 
 use std::sync::Arc;
 
+use ai_providers::OllamaProvider;
 use skriuw_ai::{AiCompletionChannel, AiCompletionService, FakeAiProvider, FakeCompletionScript};
 use skriuw_ai_ollama::OllamaRuntime;
-use skriuw_ai_remote::{RemoteAiProvider, remote_ai_catalog};
+use skriuw_ai_remote::{
+    CatalogModelAuthority, RemoteAiTranscriber, remote_ai_catalog, remote_provider,
+};
 use skriuw_domain::{
     AiComplete, AiCompletionEvent, AiCompletionRequest, AiModelPricing, AiProviderError,
     AiProviderErrorCategory, AiRecoveryAction, AiRunRecorder, AiSinkError, AiTranscribe,
@@ -52,15 +55,20 @@ impl LazyAiCompletion {
                     "fake ",
                     "completion",
                 ])));
-            let ollama: Arc<dyn AiComplete> = self.ollama.clone();
-            let mut providers: Vec<(String, Arc<dyn AiComplete>)> =
-                vec![("fake".to_owned(), fake), ("ollama".to_owned(), ollama)];
+            let mut providers: Vec<(String, Arc<dyn AiComplete>)> = vec![("fake".to_owned(), fake)];
+            // Generation is bound to the endpoint the lifecycle runtime already
+            // resolved, so an override it accepted — or the default it fell back
+            // to — is the one this adapter reaches. Lifecycle stays in Skriuw.
+            match OllamaProvider::new(Some(self.ollama.endpoint().as_str()), OLLAMA_USER_AGENT) {
+                Ok(provider) => {
+                    providers.push(("ollama".to_owned(), Arc::new(provider)));
+                }
+                Err(error) => {
+                    eprintln!("local AI provider unavailable: {error}");
+                }
+            }
             for kind in REMOTE_PROVIDERS {
-                match RemoteAiProvider::with_model_authority(
-                    kind,
-                    self.credentials.clone(),
-                    self.models.clone(),
-                ) {
+                match remote_provider(kind, self.credentials.clone(), self.models.clone()) {
                     Ok(provider) => {
                         providers.push((kind.id().to_owned(), Arc::new(provider)));
                     }
@@ -171,7 +179,14 @@ impl LazyAiTranscription {
         self.providers.get_or_init(|| {
             let mut providers: BTreeMap<String, Arc<dyn AiTranscribe>> = BTreeMap::new();
             for kind in REMOTE_PROVIDERS {
-                match RemoteAiProvider::new(kind, self.credentials.clone()) {
+                // The transcription catalogue is the SDK's, not the completion
+                // catalogue, so the authority passed here never gates a
+                // recording; it is what building a provider requires.
+                match RemoteAiTranscriber::new(
+                    kind,
+                    self.credentials.clone(),
+                    Arc::new(CatalogModelAuthority),
+                ) {
                     Ok(provider) => {
                         providers.insert(kind.id().to_owned(), Arc::new(provider));
                     }
@@ -201,6 +216,9 @@ impl LazyAiTranscription {
         provider.transcribe(request, &skriuw_domain::AiCancellation::new())
     }
 }
+/// Preserved from `OllamaRuntime`'s own client, so local requests are
+/// indistinguishable from the ones the extraction replaced.
+const OLLAMA_USER_AGENT: &str = "Skriuw local AI";
 
 struct UnpricedModels;
 
@@ -382,6 +400,7 @@ mod tests {
             model_id,
             system_prompt: String::new(),
             user_prompt: "Name a colour.".to_owned(),
+            prior_messages: Vec::new(),
             parameters: AiCompletionParameters::default(),
         }
     }

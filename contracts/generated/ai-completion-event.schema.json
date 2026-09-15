@@ -1,19 +1,24 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "AiCompletionEvent",
+  "description": "Everything a consumer observes for one request.\n\nExactly one of the four terminal variants ends a committed run. Unknown\ntags, unknown fields, and unknown enum values are rejected on decode.",
   "oneOf": [
     {
+      "description": "Streamed output.",
       "type": "object",
       "properties": {
         "requestId": {
+          "description": "The request this delta belongs to.",
           "type": "string"
         },
         "sequence": {
+          "description": "Zero-based position in the stream.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0
         },
         "text": {
+          "description": "Output text. May be empty.",
           "type": "string"
         },
         "type": {
@@ -30,9 +35,11 @@
       ]
     },
     {
+      "description": "Normal completion.",
       "type": "object",
       "properties": {
         "requestId": {
+          "description": "The request this event belongs to.",
           "type": "string"
         },
         "type": {
@@ -40,6 +47,7 @@
           "const": "done"
         },
         "usage": {
+          "description": "Provider-reported usage, or `null` when the provider reported none.",
           "anyOf": [
             {
               "$ref": "#/$defs/AiUsage"
@@ -57,9 +65,11 @@
       ]
     },
     {
+      "description": "The run was cancelled before completing.",
       "type": "object",
       "properties": {
         "requestId": {
+          "description": "The request this event belongs to.",
           "type": "string"
         },
         "type": {
@@ -74,9 +84,11 @@
       ]
     },
     {
+      "description": "The provider's deadline elapsed.",
       "type": "object",
       "properties": {
         "requestId": {
+          "description": "The request this event belongs to.",
           "type": "string"
         },
         "type": {
@@ -91,12 +103,15 @@
       ]
     },
     {
+      "description": "The run failed with a typed provider error.",
       "type": "object",
       "properties": {
         "error": {
+          "description": "The failure.",
           "$ref": "#/$defs/AiProviderError"
         },
         "requestId": {
+          "description": "The request this event belongs to.",
           "type": "string"
         },
         "type": {
@@ -114,18 +129,23 @@
   ],
   "$defs": {
     "AiProviderError": {
+      "description": "A typed provider failure.\n\nCarries no HTTP status, response body, or diagnostics bag: provider bodies\ncan contain prompts or secrets and stay internal to the adapter.",
       "type": "object",
       "properties": {
         "category": {
+          "description": "Semantic category.",
           "$ref": "#/$defs/AiProviderErrorCategory"
         },
         "message": {
+          "description": "Bounded, whitespace-normalized display text.",
           "type": "string"
         },
         "providerId": {
+          "description": "The provider that failed.",
           "type": "string"
         },
         "recoveryAction": {
+          "description": "Presentation hint.",
           "$ref": "#/$defs/AiRecoveryAction"
         }
       },
@@ -138,40 +158,107 @@
       ]
     },
     "AiProviderErrorCategory": {
-      "type": "string",
-      "enum": [
-        "unavailable_provider",
-        "missing_credential",
-        "invalid_credential",
-        "quota_exhausted",
-        "rate_limited",
-        "rejected_request",
-        "transport_failure",
-        "malformed_response",
-        "internal_failure"
+      "description": "Semantic, provider-independent failure category.\n\nThis enum is closed on the wire. Timeout and cancellation are terminal\nvariants rather than error categories, and adding a value here is a\nbreaking change for every decoder.",
+      "oneOf": [
+        {
+          "description": "No such provider is registered, or it cannot serve requests.",
+          "type": "string",
+          "const": "unavailable_provider"
+        },
+        {
+          "description": "No credential was available.",
+          "type": "string",
+          "const": "missing_credential"
+        },
+        {
+          "description": "The credential was rejected.",
+          "type": "string",
+          "const": "invalid_credential"
+        },
+        {
+          "description": "The account's quota is exhausted.",
+          "type": "string",
+          "const": "quota_exhausted"
+        },
+        {
+          "description": "The provider applied rate limiting.",
+          "type": "string",
+          "const": "rate_limited"
+        },
+        {
+          "description": "The provider rejected the request itself.",
+          "type": "string",
+          "const": "rejected_request"
+        },
+        {
+          "description": "The exchange failed below the protocol.",
+          "type": "string",
+          "const": "transport_failure"
+        },
+        {
+          "description": "The provider's output could not be interpreted, or broke the contract.",
+          "type": "string",
+          "const": "malformed_response"
+        },
+        {
+          "description": "A defect on this side of the boundary.",
+          "type": "string",
+          "const": "internal_failure"
+        }
       ]
     },
     "AiRecoveryAction": {
-      "type": "string",
-      "enum": [
-        "configure_credential",
-        "retry",
-        "choose_different_model",
-        "check_provider_status",
-        "reduce_request",
-        "contact_provider",
-        "none"
+      "description": "A hint about what a person could do next.\n\nThis is presentation advice. It is never permission for the SDK to retry,\nswitch model, or fall back on its own.",
+      "oneOf": [
+        {
+          "description": "Supply or correct a credential.",
+          "type": "string",
+          "const": "configure_credential"
+        },
+        {
+          "description": "Try again later.",
+          "type": "string",
+          "const": "retry"
+        },
+        {
+          "description": "Pick another model.",
+          "type": "string",
+          "const": "choose_different_model"
+        },
+        {
+          "description": "Check whether the provider is up.",
+          "type": "string",
+          "const": "check_provider_status"
+        },
+        {
+          "description": "Send less input.",
+          "type": "string",
+          "const": "reduce_request"
+        },
+        {
+          "description": "Escalate to the provider.",
+          "type": "string",
+          "const": "contact_provider"
+        },
+        {
+          "description": "Nothing actionable.",
+          "type": "string",
+          "const": "none"
+        }
       ]
     },
     "AiUsage": {
+      "description": "Token counts a provider reported for itself.\n\nAbsent usage means the provider reported none. It never means zero, and\nmust not be fabricated as zero. Estimation lives in run accounting.",
       "type": "object",
       "properties": {
         "inputTokens": {
+          "description": "Prompt tokens the provider reported.",
           "type": "integer",
           "format": "uint64",
           "minimum": 0
         },
         "outputTokens": {
+          "description": "Response tokens the provider reported.",
           "type": "integer",
           "format": "uint64",
           "minimum": 0

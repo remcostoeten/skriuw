@@ -1,5 +1,6 @@
 import type {
   HistoryHeader,
+  MediaMetadata,
   NoteProperty,
   OperationAck,
   WorkspaceImage,
@@ -152,6 +153,7 @@ function nodePlacementEqual(left: WorkspaceNode, right: WorkspaceNode): boolean 
     left.deletedAt === right.deletedAt &&
     left.pinnedAt === right.pinnedAt &&
     (left.coverImageId ?? null) === (right.coverImageId ?? null) &&
+    (left.coverGradient ?? null) === (right.coverGradient ?? null) &&
     (left.coverFullWidth ?? false) === (right.coverFullWidth ?? false) &&
     (left.coverPositionX ?? 50) === (right.coverPositionX ?? 50) &&
     (left.coverPositionY ?? 50) === (right.coverPositionY ?? 50) &&
@@ -344,6 +346,10 @@ export function createInitialState(
   for (const image of snapshot.images ?? []) {
     images.set(image.id, image);
   }
+  const mediaMetadata = new Map<string, MediaMetadata>();
+  for (const metadata of snapshot.mediaMetadata ?? []) {
+    mediaMetadata.set(metadata.contentHash, metadata);
+  }
   const tasks = new Map<string, WorkspaceTask>();
   for (const task of snapshot.tasks ?? []) tasks.set(task.id, task);
   const annotations = new Map<string, WorkspaceAnnotation>();
@@ -383,6 +389,7 @@ export function createInitialState(
     tags,
     people,
     images,
+    mediaMetadata,
     tasks,
     annotations,
     prompts,
@@ -569,6 +576,25 @@ function reduceState(
     const annotations = new Map(current.annotations);
     annotations.delete(operation.id);
     return { ...current, annotations };
+  }
+  if (operation.type === "set_media_metadata") {
+    const { metadata } = operation;
+    const existing = current.mediaMetadata.get(metadata.contentHash);
+    const blank = metadata.name.trim() === "" && metadata.alt.trim() === "";
+    if (blank && !existing) {
+      return current;
+    }
+    const mediaMetadata = new Map(current.mediaMetadata);
+    if (blank) {
+      mediaMetadata.delete(metadata.contentHash);
+    } else {
+      mediaMetadata.set(metadata.contentHash, {
+        ...metadata,
+        name: metadata.name.trim(),
+        alt: metadata.alt.trim(),
+      });
+    }
+    return { ...current, mediaMetadata };
   }
   if (operation.type === "set_prompt") {
     const prompts = new Map(current.prompts);
@@ -871,6 +897,7 @@ function reduceImportBatch(
         title: operation.title,
         icon: null,
         coverImageId: null,
+        coverGradient: null,
         coverFullWidth: false,
         coverPositionX: 50,
         coverPositionY: 50,

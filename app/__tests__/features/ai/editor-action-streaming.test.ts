@@ -9,12 +9,14 @@ import {
   aiActionStatusLine,
   applyRefusal,
   canRetryRun,
+  connectedRun,
   failedRun,
   runHasResult,
   runIsStreaming,
   runWithDelta,
   runWithTerminal,
   startedRun,
+  stoppedRun,
   type AiActionRun,
   type AiActionTarget,
 } from "../../../src/features/ai/editor-action-model";
@@ -161,5 +163,55 @@ test("an untouched run is composing and offers nothing to retry or apply", () =>
   assert.equal(canRetryRun(IDLE_RUN), false);
   assert.equal(runHasResult(IDLE_RUN), false);
   assert.match(aiActionStatusLine(IDLE_RUN, REWRITE), /ready to run/);
-  assert.match(aiActionStatusLine(startedRun("r1"), REWRITE), /Waiting for the first words/);
+  assert.equal(IDLE_RUN.stage, "idle");
+});
+
+test("a run announces which half of the round trip it is waiting on", () => {
+  const sending = startedRun("r1");
+  assert.equal(sending.stage, "sending");
+  assert.match(aiActionStatusLine(sending, REWRITE), /Sending the request/);
+
+  const open = connectedRun(sending, "r1");
+  assert.equal(open.stage, "waiting");
+  assert.match(aiActionStatusLine(open, REWRITE), /Waiting for the first words/);
+
+  const writing = runWithDelta(open, "r1", "Hel");
+  assert.equal(writing.stage, "generating");
+  assert.match(aiActionStatusLine(writing, REWRITE), /streaming: 3 characters/);
+});
+
+test("a stream that opens for a superseded request cannot advance the live one", () => {
+  const live = startedRun("r2");
+
+  assert.equal(connectedRun(live, "r1").stage, "sending");
+  assert.equal(connectedRun(runWithDelta(live, "r2", "hi"), "r2").stage, "generating");
+});
+
+test("stopping ends the run locally without waiting for the provider", () => {
+  const run = stoppedRun(runWithDelta(startedRun("r1"), "r1", "half a sen"));
+
+  assert.equal(run.phase, "cancelled");
+  assert.equal(run.stage, "settled");
+  assert.equal(run.preview, "half a sen");
+  assert.equal(runHasResult(run), false);
+  assert.equal(canRetryRun(run), true);
+});
+
+test("a provider that answers a stop it was already given cannot revive the run", () => {
+  const stopped = stoppedRun(startedRun("r1"));
+
+  assert.equal(runWithTerminal(stopped, { type: "done", requestId: "r1" }).phase, "cancelled");
+  assert.equal(runWithDelta(stopped, "r1", "late").preview, "");
+  assert.equal(stoppedRun(stopped), stopped);
+});
+
+test("every terminal settles the stage so no card is left looking live", () => {
+  for (const event of [
+    { type: "done", requestId: "r1" },
+    { type: "cancelled", requestId: "r1" },
+    { type: "timeout", requestId: "r1" },
+  ] as const) {
+    assert.equal(runWithTerminal(startedRun("r1"), event).stage, "settled");
+  }
+  assert.equal(failedRun(startedRun("r1"), "r1", "boom").stage, "settled");
 });

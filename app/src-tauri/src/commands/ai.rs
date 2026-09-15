@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use skriuw_ai_remote::{
-    RemoteAiProvider, RemoteProviderKind, ai_transcription_models, remote_ai_catalog,
+    RemoteProviderKind, ai_transcription_models, model_listing, remote_ai_catalog, remote_provider,
 };
 use skriuw_domain::{
     AI_RUN_ORIGIN_PLAYGROUND, AiCompletionEvent, AiCompletionRequest, AiHistorySettings,
@@ -275,7 +275,9 @@ pub fn remote_ai_catalogue() -> Result<RemoteAiCatalog, AiProviderError> {
 /// The shipped catalog merged with every model the user has fetched from a
 /// provider. Reading it never reaches the network.
 #[tauri::command]
-pub fn remote_ai_models(state: State<'_, AppState>) -> Result<RemoteAiModelDirectory, AiProviderError> {
+pub fn remote_ai_models(
+    state: State<'_, AppState>,
+) -> Result<RemoteAiModelDirectory, AiProviderError> {
     state.ai_models.directory()
 }
 
@@ -288,11 +290,11 @@ pub async fn refresh_remote_ai_models(
     provider_id: String,
     state: State<'_, AppState>,
 ) -> Result<RemoteAiModelDirectory, AiProviderError> {
-    let kind = remote_provider(&provider_id)?;
+    let kind = provider_kind(&provider_id)?;
     let credentials = Arc::clone(&state.ai_credentials);
     let models = Arc::clone(&state.ai_models);
     tauri::async_runtime::spawn_blocking(move || {
-        let provider = RemoteAiProvider::new(kind, credentials).map_err(|error| {
+        let provider = remote_provider(kind, credentials, models.clone()).map_err(|error| {
             AiProviderError::new(
                 kind.id(),
                 AiProviderErrorCategory::TransportFailure,
@@ -300,7 +302,11 @@ pub async fn refresh_remote_ai_models(
                 AiRecoveryAction::Retry,
             )
         })?;
+        // A listing is metadata: it never widens what the authority permits,
+        // so the store it is written to is the same one the provider was built
+        // with without making the fetch self-authorising.
         let fetched = provider.list_models()?;
+        let fetched = fetched.iter().map(model_listing).collect();
         models.replace(kind.id(), fetched, crate::state::now_millis())?;
         models.directory()
     })
@@ -322,7 +328,7 @@ pub fn save_remote_ai_key(
     tier: RemoteAiKeyTier,
     state: State<'_, AppState>,
 ) -> Result<Vec<RemoteAiProviderState>, AiProviderError> {
-    let kind = remote_provider(&provider_id)?;
+    let kind = provider_kind(&provider_id)?;
     state.ai_credentials.save_key(kind, &key, tier)?;
     Ok(state.ai_credentials.provider_states())
 }
@@ -332,7 +338,7 @@ pub fn remove_remote_ai_key(
     provider_id: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<RemoteAiProviderState>, AiProviderError> {
-    let kind = remote_provider(&provider_id)?;
+    let kind = provider_kind(&provider_id)?;
     state.ai_credentials.remove_key(kind)?;
     Ok(state.ai_credentials.provider_states())
 }
@@ -342,7 +348,7 @@ pub fn accept_remote_ai_disclosure(
     provider_id: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<RemoteAiProviderState>, AiProviderError> {
-    let kind = remote_provider(&provider_id)?;
+    let kind = provider_kind(&provider_id)?;
     state.ai_credentials.grant_consent(kind)?;
     Ok(state.ai_credentials.provider_states())
 }
@@ -352,7 +358,7 @@ pub fn revoke_remote_ai_provider(
     provider_id: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<RemoteAiProviderState>, AiProviderError> {
-    let kind = remote_provider(&provider_id)?;
+    let kind = provider_kind(&provider_id)?;
     state.ai_credentials.revoke_consent(kind)?;
     Ok(state.ai_credentials.provider_states())
 }
@@ -367,13 +373,12 @@ pub async fn verify_remote_ai_key(
     key: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), AiProviderError> {
-    let kind = remote_provider(&provider_id)?;
+    let kind = provider_kind(&provider_id)?;
     let credentials = Arc::clone(&state.ai_credentials);
     let models = Arc::clone(&state.ai_models);
     tauri::async_runtime::spawn_blocking(move || {
         let credential = credentials.take_key_for_verification(kind, key)?;
-        let provider = RemoteAiProvider::with_model_authority(kind, credentials, models)
-            .map_err(|error| {
+        let provider = remote_provider(kind, credentials, models).map_err(|error| {
             AiProviderError::new(
                 kind.id(),
                 AiProviderErrorCategory::TransportFailure,
@@ -396,7 +401,7 @@ pub async fn verify_remote_ai_key(
 
 /// An unrecognised provider id is never echoed back: it would put renderer-sent
 /// text into an error the settings surface renders.
-fn remote_provider(provider_id: &str) -> Result<RemoteProviderKind, AiProviderError> {
+fn provider_kind(provider_id: &str) -> Result<RemoteProviderKind, AiProviderError> {
     RemoteProviderKind::from_id(provider_id).ok_or_else(|| {
         AiProviderError::new(
             "remote",

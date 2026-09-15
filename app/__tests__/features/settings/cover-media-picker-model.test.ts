@@ -60,6 +60,7 @@ test("derives stable usage, duplicate, and reference metadata", () => {
     mimeType: "image/png",
     byteSize: 100,
     modifiedAtMs: 100,
+    name: "",
     usageCount: 2,
     referenceIds: ["second", "first"],
     noteIds: ["inbox", "roadmap"],

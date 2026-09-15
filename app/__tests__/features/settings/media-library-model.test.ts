@@ -3,10 +3,12 @@ import test from "node:test";
 import type { MediaBlobPayload } from "../../../src/bridge/commands";
 import type { WorkspaceImage } from "../../../src/contracts/workspace";
 import {
+  clampMediaText,
   countUnusedMedia,
   describeMediaUsage,
   imageFormatLabel,
   isUnusedMedia,
+  mediaDisplayName,
   projectMediaLibrary,
 } from "../../../src/features/settings/media-library-model";
 
@@ -143,6 +145,8 @@ test("describes usage including the unused case", () => {
 
   const entry = {
     contentHash: "a".repeat(64),
+    name: "",
+    alt: "",
     mimeType: "image/png",
     byteSize: 1,
     modifiedAt: 1,
@@ -253,4 +257,74 @@ test("stored video references in media nodes count as inline usage", () => {
       placement: "inline",
     },
   ]);
+});
+
+test("carries the stored name and description onto library entries", () => {
+  const metadata = new Map([
+    [
+      "a".repeat(64),
+      {
+        contentHash: "a".repeat(64),
+        name: "Roadmap hero",
+        alt: "A wide shot of the team wall",
+        updatedAt: 500,
+      },
+    ],
+  ]);
+  const entries = projectMediaLibrary(
+    [blob({}), blob({ contentHash: "b".repeat(64) })],
+    new Map(),
+    NOTES,
+    new Map(),
+    metadata,
+  );
+  const named = entries.find((entry) => entry.contentHash === "a".repeat(64));
+  const unnamed = entries.find((entry) => entry.contentHash === "b".repeat(64));
+  assert.equal(named?.name, "Roadmap hero");
+  assert.equal(named?.alt, "A wide shot of the team wall");
+  assert.equal(unnamed?.name, "");
+  assert.equal(unnamed?.alt, "");
+});
+
+test("names a referenced file whose blob is gone", () => {
+  const metadata = new Map([
+    [
+      "a".repeat(64),
+      { contentHash: "a".repeat(64), name: "Missing hero", alt: "", updatedAt: 1 },
+    ],
+  ]);
+  const entries = projectMediaLibrary(
+    [],
+    new Map([["image-1", image({})]]),
+    NOTES,
+    documents({ "note-1": ["image-1"] }),
+    metadata,
+  );
+  assert.ok(entries[0].missingBlob);
+  assert.equal(entries[0].name, "Missing hero");
+});
+
+test("falls back to format and hash prefix when a file is unnamed", () => {
+  assert.equal(
+    mediaDisplayName({ name: "", mimeType: "image/png", contentHash: "abcdef1234567890" }),
+    "PNG abcdef12",
+  );
+  assert.equal(
+    mediaDisplayName({ name: "  Hero  ", mimeType: "image/png", contentHash: "abcdef1234567890" }),
+    "Hero",
+  );
+  assert.equal(
+    mediaDisplayName({ name: "", mimeType: "video/mp4", contentHash: "0123456789abcdef" }),
+    "MP4 01234567",
+  );
+});
+
+test("clamps typed text to the domain byte budget without splitting characters", () => {
+  assert.equal(clampMediaText("  Hero shot  ", 200), "Hero shot");
+  assert.equal(clampMediaText("abcdefghij", 4), "abcd");
+  const emoji = "😀".repeat(4);
+  const clamped = clampMediaText(emoji, 9);
+  assert.equal(clamped, "😀😀");
+  assert.ok(new TextEncoder().encode(clamped).length <= 9);
+  assert.equal(clampMediaText("ab cd", 3), "ab");
 });

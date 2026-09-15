@@ -57,6 +57,31 @@
         "resolved"
       ]
     },
+    "MediaMetadata": {
+      "description": "Librarian metadata a person types about one stored file. Keyed by content\nhash rather than by image row: the same bytes are attached once per note,\nand detaching an image prunes those rows, which would take the name with\nthem.",
+      "type": "object",
+      "properties": {
+        "alt": {
+          "type": "string"
+        },
+        "contentHash": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "contentHash",
+        "name",
+        "alt",
+        "updatedAt"
+      ]
+    },
     "NodePlacement": {
       "type": "object",
       "properties": {
@@ -981,6 +1006,33 @@
               "type": "integer",
               "format": "int64"
             },
+            "gradient": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "noteId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_note_cover_gradient"
+            }
+          },
+          "required": [
+            "type",
+            "noteId",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
             "fullWidth": {
               "type": "boolean"
             },
@@ -1237,6 +1289,22 @@
           "required": [
             "type",
             "image"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "metadata": {
+              "$ref": "#/$defs/MediaMetadata"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_media_metadata"
+            }
+          },
+          "required": [
+            "type",
+            "metadata"
           ]
         },
         {

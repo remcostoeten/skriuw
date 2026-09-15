@@ -31,10 +31,11 @@ pub use ai::{
 pub use ai_history::{
     AI_RUN_ORIGIN_PLAYGROUND, AI_TOKEN_ESTIMATE_BYTES, AiHistoryRetention, AiHistorySettings,
     AiHistoryView, AiModelPrice, AiModelPricing, AiRunFilter, AiRunPrompts, AiRunRecord,
-    AiRunRecorder, AiRunState, AiRunTokens, AiTokenSource, AiUsageAggregate,
-    DEFAULT_AI_HISTORY_MAX_AGE_DAYS, DEFAULT_AI_HISTORY_MAX_RUNS, DEFAULT_AI_RUN_PAGE,
-    MAX_AI_HISTORY_MAX_AGE_DAYS, MAX_AI_HISTORY_MAX_RUNS, MAX_AI_RUN_PAGE, ai_run_cost_micros,
-    estimate_ai_tokens,
+    AiRunRecorder, AiRunState, AiRunStatus, AiRunSummary, AiRunTokens, AiTokenSource,
+    AiUsageAggregate, DEFAULT_AI_HISTORY_MAX_AGE_DAYS, DEFAULT_AI_HISTORY_MAX_RUNS,
+    DEFAULT_AI_RUN_PAGE, MAX_AI_HISTORY_MAX_AGE_DAYS, MAX_AI_HISTORY_MAX_RUNS, MAX_AI_RUN_PAGE,
+    ai_run_cost_micros, ai_run_record, ai_token_source_as_str, estimate_ai_tokens,
+    parse_ai_token_source,
 };
 pub use checkpoint::{
     CHECKPOINT_CONTENT_MIME_TYPE, CheckpointValidationError, WORKSPACE_CHECKPOINT_VERSION,
@@ -62,12 +63,11 @@ pub use reconcile::{
     reconcile_remote_operation,
 };
 pub use remote_ai::{
-    AiCredential, AiCredentialError, AiCredentialSource, CredentialVaultDetection,
-    CredentialVaultState, MAX_AI_API_KEY_BYTES, MAX_REMOTE_AI_CATALOG_MODELS,
-    MAX_REMOTE_AI_CONTEXT_TOKENS, MAX_REMOTE_AI_LABEL_BYTES, MAX_REMOTE_AI_PRICE_MICROS,
-    MIN_AI_API_KEY_BYTES, REMOTE_AI_DISCLOSURE_VERSION, RemoteAiCatalog, RemoteAiCatalogError,
-    RemoteAiConsent, RemoteAiKeyTier, RemoteAiModel, RemoteAiModelDirectory, RemoteAiModelListing,
-    RemoteAiModelSource, RemoteAiProviderState,
+    AiCredentialError, CredentialVaultDetection, CredentialVaultState,
+    MAX_REMOTE_AI_CATALOG_MODELS, MAX_REMOTE_AI_CONTEXT_TOKENS, MAX_REMOTE_AI_LABEL_BYTES,
+    MAX_REMOTE_AI_PRICE_MICROS, REMOTE_AI_DISCLOSURE_VERSION, RemoteAiCatalog,
+    RemoteAiCatalogError, RemoteAiConsent, RemoteAiKeyTier, RemoteAiModel, RemoteAiModelDirectory,
+    RemoteAiModelListing, RemoteAiModelSource, RemoteAiProviderState,
 };
 pub use sync::{
     BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,
@@ -110,6 +110,17 @@ pub const MAX_REFERENCE_NAME_BYTES: usize = 512;
 pub const MAX_REFERENCE_COLOR_BYTES: usize = 64;
 pub const MAX_IMAGE_MIME_BYTES: usize = 128;
 pub const IMAGE_CONTENT_HASH_BYTES: usize = 64;
+/// The cover gradients a note may name. A cover gradient travels as an
+/// identifier, never as CSS, so a synced or imported workspace can never make
+/// the renderer paint style it did not ship. `app/src/features/note-chrome/cover-gradient-model.ts`
+/// mirrors this list and owns the paint for each id.
+pub const COVER_GRADIENT_IDS: [&str; 12] = [
+    "slate", "crimson", "sunset", "gold", "meadow", "lagoon", "ocean", "dusk", "bloom", "aurora",
+    "midnight", "orchid",
+];
+
+pub const MAX_MEDIA_NAME_BYTES: usize = 200;
+pub const MAX_MEDIA_ALT_BYTES: usize = 1_000;
 pub const MAX_NOTE_PROPERTIES: usize = 64;
 pub const MAX_PROPERTY_OPTIONS: usize = 64;
 pub const MAX_PROPERTY_NAME_BYTES: usize = 80;
@@ -179,6 +190,8 @@ pub enum OperationValidationError {
     NegativePosition { field: &'static str },
     #[error("cover transform is outside its supported range")]
     InvalidCoverTransform,
+    #[error("{id} is not a built-in cover gradient")]
+    UnknownCoverGradient { id: String },
     #[error("task {id} is detached but still carries a source link")]
     DetachedTaskKeepsSource { id: String },
     #[error("task {id} is not linked from its source document")]
@@ -213,6 +226,8 @@ pub struct WorkspaceNode {
     pub icon: Option<String>,
     #[serde(default)]
     pub cover_image_id: Option<String>,
+    #[serde(default)]
+    pub cover_gradient: Option<String>,
     #[serde(default)]
     pub cover_full_width: bool,
     #[serde(default = "default_cover_position")]
@@ -431,6 +446,35 @@ impl WorkspaceImage {
     }
 }
 
+/// Librarian metadata a person types about one stored file. Keyed by content
+/// hash rather than by image row: the same bytes are attached once per note,
+/// and detaching an image prunes those rows, which would take the name with
+/// them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaMetadata {
+    pub content_hash: String,
+    pub name: String,
+    pub alt: String,
+    pub updated_at: i64,
+}
+
+impl MediaMetadata {
+    pub fn validate(&self) -> Result<(), OperationValidationError> {
+        validate_content_hash(&self.content_hash)?;
+        validate_optional_bounded_text("media name", &self.name, MAX_MEDIA_NAME_BYTES)?;
+        validate_optional_bounded_text("media alt text", &self.alt, MAX_MEDIA_ALT_BYTES)?;
+        validate_timestamp(self.updated_at)
+    }
+
+    /// A record whose fields are all blank carries nothing; storage drops it
+    /// instead of keeping an empty row alive.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.name.trim().is_empty() && self.alt.trim().is_empty()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum NotePropertyColor {
@@ -624,6 +668,8 @@ pub struct WorkspaceSnapshot {
     #[serde(default)]
     pub images: Vec<WorkspaceImage>,
     #[serde(default)]
+    pub media_metadata: Vec<MediaMetadata>,
+    #[serde(default)]
     pub properties: Vec<NoteProperty>,
     #[serde(default)]
     pub property_templates: Vec<NotePropertyTemplate>,
@@ -745,7 +791,23 @@ impl WorkspaceArchive {
                     return archive_error(format!("folder {} has a cover image", node.id));
                 }
                 validate_id("cover image id", cover_image_id).map_err(archive_operation_error)?;
-            } else if node.cover_full_width {
+            }
+            if let Some(cover_gradient) = &node.cover_gradient {
+                if node.kind != NodeKind::Note {
+                    return archive_error(format!("folder {} has a cover gradient", node.id));
+                }
+                if node.cover_image_id.is_some() {
+                    return archive_error(format!(
+                        "node {} has both a cover image and a cover gradient",
+                        node.id
+                    ));
+                }
+                validate_cover_gradient(cover_gradient).map_err(archive_operation_error)?;
+            }
+            if node.cover_image_id.is_none()
+                && node.cover_gradient.is_none()
+                && node.cover_full_width
+            {
                 return archive_error(format!("node {} has cover width without a cover", node.id));
             }
             validate_cover_transform(
@@ -1494,6 +1556,11 @@ pub enum WorkspaceOperation {
         image_id: Option<String>,
         at: i64,
     },
+    SetNoteCoverGradient {
+        note_id: String,
+        gradient: Option<String>,
+        at: i64,
+    },
     SetNoteCoverFullWidth {
         note_id: String,
         full_width: bool,
@@ -1545,6 +1612,9 @@ pub enum WorkspaceOperation {
     },
     AttachImage {
         image: WorkspaceImage,
+    },
+    SetMediaMetadata {
+        metadata: MediaMetadata,
     },
     SetNoteProperty {
         property: NoteProperty,
@@ -1691,6 +1761,17 @@ impl WorkspaceOperation {
                 }
                 validate_timestamp(*at)
             }
+            Self::SetNoteCoverGradient {
+                note_id,
+                gradient,
+                at,
+            } => {
+                validate_id("note id", note_id)?;
+                if let Some(gradient) = gradient {
+                    validate_cover_gradient(gradient)?;
+                }
+                validate_timestamp(*at)
+            }
             Self::SetNoteCoverFullWidth { note_id, at, .. } => {
                 validate_id("note id", note_id)?;
                 validate_timestamp(*at)
@@ -1753,6 +1834,7 @@ impl WorkspaceOperation {
             Self::SetActiveNote { note_id } => validate_optional_id("note id", note_id),
             Self::UpdateSettings { settings } => settings.validate(),
             Self::AttachImage { image } => image.validate(),
+            Self::SetMediaMetadata { metadata } => metadata.validate(),
             Self::SetNoteProperty { property, at } => {
                 validate_id("note id", &property.note_id)?;
                 property.field.validate()?;
@@ -1896,6 +1978,15 @@ fn validate_cover_transform(
         return Err(OperationValidationError::InvalidCoverTransform);
     }
     Ok(())
+}
+
+fn validate_cover_gradient(value: &str) -> Result<(), OperationValidationError> {
+    if COVER_GRADIENT_IDS.contains(&value) {
+        return Ok(());
+    }
+    Err(OperationValidationError::UnknownCoverGradient {
+        id: value.to_owned(),
+    })
 }
 
 fn validate_mime_type(value: &str) -> Result<(), OperationValidationError> {
@@ -2428,6 +2519,7 @@ mod tests {
                     title: "Folder".into(),
                     icon: None,
                     cover_image_id: None,
+                    cover_gradient: None,
                     cover_full_width: false,
                     cover_position_x: 50.0,
                     cover_position_y: 50.0,
@@ -2445,6 +2537,7 @@ mod tests {
                     title: "Note".into(),
                     icon: None,
                     cover_image_id: None,
+                    cover_gradient: None,
                     cover_full_width: false,
                     cover_position_x: 50.0,
                     cover_position_y: 50.0,
@@ -2491,6 +2584,7 @@ mod tests {
                     title: "One".into(),
                     icon: None,
                     cover_image_id: None,
+                    cover_gradient: None,
                     cover_full_width: false,
                     cover_position_x: 50.0,
                     cover_position_y: 50.0,
@@ -2508,6 +2602,7 @@ mod tests {
                     title: "Two".into(),
                     icon: None,
                     cover_image_id: None,
+                    cover_gradient: None,
                     cover_full_width: false,
                     cover_position_x: 50.0,
                     cover_position_y: 50.0,
@@ -2706,6 +2801,7 @@ mod tests {
                     title: "Folder".into(),
                     icon: None,
                     cover_image_id: None,
+                    cover_gradient: None,
                     cover_full_width: false,
                     cover_position_x: 50.0,
                     cover_position_y: 50.0,
@@ -2723,6 +2819,7 @@ mod tests {
                     title: "Note".into(),
                     icon: None,
                     cover_image_id: None,
+                    cover_gradient: None,
                     cover_full_width: false,
                     cover_position_x: 50.0,
                     cover_position_y: 50.0,
@@ -2771,6 +2868,7 @@ mod tests {
                 title: "Note".into(),
                 icon: None,
                 cover_image_id: None,
+                cover_gradient: None,
                 cover_full_width: false,
                 cover_position_x: 50.0,
                 cover_position_y: 50.0,
@@ -2809,6 +2907,66 @@ mod tests {
             archive.validate(),
             Err(ArchiveValidationError::Invalid(_))
         ));
+    }
+
+    #[test]
+    fn set_media_metadata_wire_format_and_validation() {
+        fn metadata() -> super::MediaMetadata {
+            super::MediaMetadata {
+                content_hash: "a".repeat(64),
+                name: "Roadmap hero".into(),
+                alt: "A wide shot of the team wall".into(),
+                updated_at: 9,
+            }
+        }
+
+        let envelope = WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetMediaMetadata {
+            metadata: metadata(),
+        });
+        envelope.validate().expect("valid media metadata");
+        let value = serde_json::to_value(&envelope).expect("serialize media metadata");
+        assert_eq!(value["operation"]["type"], "set_media_metadata");
+        assert_eq!(
+            value["operation"]["metadata"]["contentHash"],
+            "a".repeat(64)
+        );
+        assert_eq!(value["operation"]["metadata"]["name"], "Roadmap hero");
+
+        let mut blank = metadata();
+        blank.name = "  ".into();
+        blank.alt = String::new();
+        blank
+            .validate()
+            .expect("a blank record is valid; storage drops it");
+        assert!(blank.is_empty());
+        assert!(!metadata().is_empty());
+
+        let mut short_hash = metadata();
+        short_hash.content_hash = "abc".into();
+        assert_eq!(
+            short_hash.validate(),
+            Err(OperationValidationError::InvalidIdentifier {
+                field: "content hash"
+            })
+        );
+        let mut long_name = metadata();
+        long_name.name = "n".repeat(super::MAX_MEDIA_NAME_BYTES + 1);
+        assert_eq!(
+            long_name.validate(),
+            Err(OperationValidationError::TooLong {
+                field: "media name",
+                maximum: super::MAX_MEDIA_NAME_BYTES
+            })
+        );
+        let mut long_alt = metadata();
+        long_alt.alt = "a".repeat(super::MAX_MEDIA_ALT_BYTES + 1);
+        assert_eq!(
+            long_alt.validate(),
+            Err(OperationValidationError::TooLong {
+                field: "media alt text",
+                maximum: super::MAX_MEDIA_ALT_BYTES
+            })
+        );
     }
 
     #[test]
@@ -2900,6 +3058,25 @@ mod tests {
             ]
         });
         assert_eq!(super::document_image_ids(&document), ["video-1", "image-1"]);
+    }
+
+    #[test]
+    fn cover_gradients_must_name_a_built_in() {
+        fn gradient(id: Option<&str>) -> WorkspaceOperation {
+            WorkspaceOperation::SetNoteCoverGradient {
+                note_id: "note-1".into(),
+                gradient: id.map(str::to_owned),
+                at: 7,
+            }
+        }
+        assert_eq!(gradient(Some("ocean")).validate(), Ok(()));
+        assert_eq!(gradient(None).validate(), Ok(()));
+        assert_eq!(
+            gradient(Some("linear-gradient(red, blue)")).validate(),
+            Err(OperationValidationError::UnknownCoverGradient {
+                id: "linear-gradient(red, blue)".into()
+            })
+        );
     }
 
     #[test]

@@ -107,7 +107,7 @@ export function TrashView({ store }: Props) {
               <SearchIcon size={14} aria-hidden="true" />
               <input
                 type="search"
-                className="flex-1 bg-transparent text-xs text-foreground outline-none"
+                className="flex-1 bg-transparent text-xs text-foreground outline-none [&::-webkit-search-cancel-button]:hidden"
                 placeholder="Search trash"
                 aria-label="Search trash"
                 value={query}

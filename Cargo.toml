@@ -26,6 +26,12 @@ license = "MIT"
 rust-version = "1.95"
 
 [workspace.dependencies]
+# The extracted AI SDK, consumed as tagged git releases per its ADR 0005:
+# `ai-providers` is taken on crates.io, and every Rust consumer is a checkout
+# the owner builds himself, so a tag pinned through Cargo.lock is reproducible
+# without publishing. Bumping the tag is a deliberate upgrade, never automatic.
+ai-core = { git = "https://github.com/remcostoeten/remcostoeten-aIo", tag = "ai-v0.3.0" }
+ai-providers = { git = "https://github.com/remcostoeten/remcostoeten-aIo", tag = "ai-v0.3.0" }
 git2 = { version = "0.21", default-features = false, features = ["vendored-libgit2"] }
 rusqlite = { version = "0.40", features = ["backup", "bundled"] }
 schemars = { version = "1", features = ["derive", "uuid1"] }

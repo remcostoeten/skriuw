@@ -3,7 +3,9 @@
 @import "./themes.css";
 @import "./base.css";
 @import "./features/editor/editor.css";
+@import "./features/editor/block-gutter.css";
 @import "./features/editor/suggestion.css";
+@import "./features/ai/ai-surfaces.css";
 @import "./features/sidebar/sidebar.css";
 @import "./shell/split.css";
 @import "./shell/mobile.css";

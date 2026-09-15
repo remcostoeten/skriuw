@@ -93,6 +93,46 @@ test("tasks hydrate and task operations update the narrow task projection", () =
   assert.equal(store.getState().tasks.has("task-1"), false);
 });
 
+test("media metadata hydrates by content hash and clears when blanked", () => {
+  const contentHash = "a".repeat(64);
+  const initial = createInitialState({
+    ...snapshot(),
+    mediaMetadata: [{ contentHash, name: "Hero", alt: "Team wall", updatedAt: 3 }],
+  });
+  assert.equal(initial.mediaMetadata.get(contentHash)?.name, "Hero");
+
+  const store = createRendererStore(initial);
+  store.applyOperations([
+    {
+      type: "set_media_metadata",
+      metadata: { contentHash, name: "  Hero shot  ", alt: "  Team wall  ", updatedAt: 4 },
+    },
+  ]);
+  assert.equal(store.getState().mediaMetadata.get(contentHash)?.name, "Hero shot");
+  assert.equal(store.getState().mediaMetadata.get(contentHash)?.alt, "Team wall");
+
+  store.applyOperations([
+    {
+      type: "set_media_metadata",
+      metadata: { contentHash, name: "   ", alt: "", updatedAt: 5 },
+    },
+  ]);
+  assert.equal(
+    store.getState().mediaMetadata.has(contentHash),
+    false,
+    "emptying both fields drops the record instead of storing a blank one",
+  );
+
+  const unchanged = store.getState();
+  store.applyOperations([
+    {
+      type: "set_media_metadata",
+      metadata: { contentHash: "b".repeat(64), name: "", alt: "", updatedAt: 6 },
+    },
+  ]);
+  assert.equal(store.getState(), unchanged, "a blank write for an unnamed file is a no-op");
+});
+
 test("prompts hydrate and prompt operations update the narrow prompt projection", () => {
   const prompt: WorkspacePrompt = {
     id: "prompt-1",
@@ -187,6 +227,44 @@ test("set_note_cover updates only owning note", () => {
   assert.equal(store.getState().sourceNodes.get("note-root")?.coverPositionX, 50);
   assert.equal(store.getState().sourceNodes.get("note-root")?.coverPositionY, 50);
   assert.equal(store.getState().sourceNodes.get("note-root")?.coverZoom, 1);
+});
+
+test("set_note_cover_gradient and set_note_cover replace each other", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.applyOperations([
+    { type: "set_note_cover", noteId: "note-root", imageId: "cover-1", at: 50 },
+    {
+      type: "set_note_cover_transform",
+      noteId: "note-root",
+      positionX: 20,
+      positionY: 75,
+      zoom: 1.6,
+      at: 51,
+    },
+    { type: "set_note_cover_gradient", noteId: "note-root", gradient: "ocean", at: 52 },
+  ]);
+  const withGradient = store.getState().sourceNodes.get("note-root");
+  assert.equal(withGradient?.coverGradient, "ocean");
+  assert.equal(withGradient?.coverImageId, null);
+  assert.equal(withGradient?.coverPositionX, 50);
+  assert.equal(withGradient?.coverZoom, 1);
+
+  store.applyOperations([
+    { type: "set_note_cover_full_width", noteId: "note-root", fullWidth: true, at: 53 },
+    { type: "set_note_cover", noteId: "note-root", imageId: "cover-2", at: 54 },
+  ]);
+  const withImage = store.getState().sourceNodes.get("note-root");
+  assert.equal(withImage?.coverGradient, null);
+  assert.equal(withImage?.coverImageId, "cover-2");
+  assert.equal(withImage?.coverFullWidth, true);
+
+  store.applyOperations([
+    { type: "set_note_cover", noteId: "note-root", imageId: null, at: 55 },
+  ]);
+  const cleared = store.getState().sourceNodes.get("note-root");
+  assert.equal(cleared?.coverImageId, null);
+  assert.equal(cleared?.coverGradient, null);
+  assert.equal(cleared?.coverFullWidth, false);
 });
 
 test("pinnedNodeIds orders most-recently-pinned-first and hides trashed nodes", () => {

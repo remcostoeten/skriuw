@@ -69,17 +69,53 @@
       ]
     },
     "AiProviderErrorCategory": {
-      "type": "string",
-      "enum": [
-        "unavailable_provider",
-        "missing_credential",
-        "invalid_credential",
-        "quota_exhausted",
-        "rate_limited",
-        "rejected_request",
-        "transport_failure",
-        "malformed_response",
-        "internal_failure"
+      "description": "Semantic, provider-independent failure category.\n\nThis enum is closed on the wire. Timeout and cancellation are terminal\nvariants rather than error categories, and adding a value here is a\nbreaking change for every decoder.",
+      "oneOf": [
+        {
+          "description": "No such provider is registered, or it cannot serve requests.",
+          "type": "string",
+          "const": "unavailable_provider"
+        },
+        {
+          "description": "No credential was available.",
+          "type": "string",
+          "const": "missing_credential"
+        },
+        {
+          "description": "The credential was rejected.",
+          "type": "string",
+          "const": "invalid_credential"
+        },
+        {
+          "description": "The account's quota is exhausted.",
+          "type": "string",
+          "const": "quota_exhausted"
+        },
+        {
+          "description": "The provider applied rate limiting.",
+          "type": "string",
+          "const": "rate_limited"
+        },
+        {
+          "description": "The provider rejected the request itself.",
+          "type": "string",
+          "const": "rejected_request"
+        },
+        {
+          "description": "The exchange failed below the protocol.",
+          "type": "string",
+          "const": "transport_failure"
+        },
+        {
+          "description": "The provider's output could not be interpreted, or broke the contract.",
+          "type": "string",
+          "const": "malformed_response"
+        },
+        {
+          "description": "A defect on this side of the boundary.",
+          "type": "string",
+          "const": "internal_failure"
+        }
       ]
     },
     "AiRunPrompts": {
@@ -182,19 +218,23 @@
       ]
     },
     "AiRunTokens": {
+      "description": "Token counts for one run, tagged with their provenance.",
       "type": "object",
       "properties": {
         "inputTokens": {
+          "description": "Prompt tokens.",
           "type": "integer",
           "format": "uint64",
           "minimum": 0
         },
         "outputTokens": {
+          "description": "Response tokens.",
           "type": "integer",
           "format": "uint64",
           "minimum": 0
         },
         "source": {
+          "description": "Where the counts came from.",
           "$ref": "#/$defs/AiTokenSource"
         }
       },
@@ -206,11 +246,18 @@
       ]
     },
     "AiTokenSource": {
-      "description": "Whether the token counts on a run came from the provider or from Skriuw's\nbyte heuristic. Nothing may present an estimate as an exact count.",
-      "type": "string",
-      "enum": [
-        "provider",
-        "estimated"
+      "description": "Whether token counts came from the provider or from the byte heuristic.\n\nNothing may present an estimate as an exact count.",
+      "oneOf": [
+        {
+          "description": "The provider reported these counts.",
+          "type": "string",
+          "const": "provider"
+        },
+        {
+          "description": "Derived from transferred bytes.",
+          "type": "string",
+          "const": "estimated"
+        }
       ]
     },
     "AiUsageAggregate": {

@@ -57,12 +57,13 @@ export const settingsTextInput = cn(
   settingsFieldFocus,
 );
 
-const settingsToggleInput = cn(
+export const settingsToggleInput = cn(
   "h-[17px] w-[30px] flex-none cursor-pointer appearance-none rounded-full border border-border bg-muted transition-colors duration-[120ms] motion-reduce:duration-[1ms]",
   "checked:border-foreground/45 checked:bg-accent",
   "after:m-0.5 after:block after:h-[11px] after:w-[11px] after:rounded-full after:bg-muted-foreground after:transition-transform after:duration-[120ms] after:content-[''] motion-reduce:after:duration-[1ms]",
   "checked:after:translate-x-[13px] checked:after:bg-foreground",
   "outline-none focus-visible:border-foreground/70",
+  "disabled:cursor-default disabled:opacity-50",
 );
 
 type ToggleProps = {

@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted, 2026-08-28.
+Accepted, 2026-08-28. Extended by
+[ADR-0040](0040-ai-runs-are-visible-work.md), which applies the same rule to the
+outcomes this one exempted and to the surface that starts a run.
 
 ## Context
 
@@ -51,7 +53,10 @@ mid-word, and a diff recomputed per frame would show word boundaries that do not
 exist yet.
 
 Results that are not a replacement — a note title, an extracted task list, a set
-of tags — have no range to diff and keep the dialog.
+of tags — have no range to diff, and this ADR kept the dialog for them.
+[ADR-0040](0040-ai-runs-are-visible-work.md) reversed that: they render in the
+same widget without a diff, because "no diff to show" turned out to be a reason
+to drop the diff, not a reason to keep the scrim.
 
 ## Consequences
 
