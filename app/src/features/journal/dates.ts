@@ -96,17 +96,32 @@ export function monthGrid(month: MonthKey): CalendarDay[] {
 
 export const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"] as const;
 
-/** Monday-first weekday index, matching the calendar grid's column order. */
-function weekdayIndex(key: DateKey): number {
-  return (parseDateKey(key).getDay() + 6) % 7;
-}
-
-function shiftMonthKeepingDay(key: DateKey, offset: number): DateKey {
+/**
+ * The same day-of-month `offset` months away, clamped to the last day when the
+ * target month is shorter — so stepping from January 31 lands on February 28
+ * rather than overflowing into March.
+ */
+export function shiftMonthKeepingDay(key: DateKey, offset: number): DateKey {
   const date = parseDateKey(key);
   const target = new Date(date.getFullYear(), date.getMonth() + offset, 1);
   const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
   target.setDate(Math.min(date.getDate(), lastDay));
   return dateKeyOf(target);
+}
+
+/** The same month and day `offset` years away, clamping February 29. */
+export function shiftYearKeepingDay(key: DateKey, offset: number): DateKey {
+  return shiftMonthKeepingDay(key, offset * 12);
+}
+
+/** The Monday starting the week that contains `key`, matching the calendar grid. */
+export function weekStart(key: DateKey): DateKey {
+  return shiftDay(key, -mondayFirstWeekday(key));
+}
+
+/** Monday-first weekday index of `key`, 0 for Monday through 6 for Sunday. */
+export function mondayFirstWeekday(key: DateKey): number {
+  return (parseDateKey(key).getDay() + 6) % 7;
 }
 
 /**
@@ -126,9 +141,9 @@ export function calendarKeyMove(key: DateKey, pressed: string): DateKey | null {
     case "ArrowDown":
       return shiftDay(key, 7);
     case "Home":
-      return shiftDay(key, -weekdayIndex(key));
+      return shiftDay(key, -mondayFirstWeekday(key));
     case "End":
-      return shiftDay(key, 6 - weekdayIndex(key));
+      return shiftDay(key, 6 - mondayFirstWeekday(key));
     case "PageUp":
       return shiftMonthKeepingDay(key, -1);
     case "PageDown":
