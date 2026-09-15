@@ -2,6 +2,7 @@ import { invoke } from "./runtime";
 import type {
   OperationAck,
   SearchHit,
+  SearchIndexStatus,
   WorkspaceDelta,
   WorkspaceOperationEnvelope,
   WorkspaceSnapshot,
@@ -185,6 +186,14 @@ export function discardBlockedSyncOperation(blockedId: string): Promise<SyncReco
 
 export function searchWorkspace(query: string, limit: number, noteIds: readonly string[] | null = null): Promise<SearchHit[]> {
   return invoke<SearchHit[]>("search_workspace", { query, limit, noteIds });
+}
+
+export function searchIndexStatus(): Promise<SearchIndexStatus> {
+  return invoke<SearchIndexStatus>("search_index_status");
+}
+
+export function rebuildSearchIndex(): Promise<SearchIndexStatus> {
+  return invoke<SearchIndexStatus>("rebuild_search_index");
 }
 
 export function readHistoryVersion(
@@ -406,6 +415,14 @@ export function listMediaBlobs(): Promise<MediaBlobPayload[]> {
 
 export function deleteMediaBlob(contentHash: string, mimeType: string): Promise<void> {
   return invoke<void>("delete_media_blob", { contentHash, mimeType });
+}
+
+/**
+ * Shows one stored file in the desktop file manager. The browser runtime has no
+ * filesystem to reveal, so callers gate this on {@link isBrowserRuntime}.
+ */
+export function revealMediaBlob(contentHash: string, mimeType: string): Promise<void> {
+  return invoke<void>("reveal_media_blob", { contentHash, mimeType });
 }
 
 /**

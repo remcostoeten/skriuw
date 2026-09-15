@@ -31,6 +31,7 @@ export type ShortcutActionId =
   | "createPerson"
   | "togglePinNote"
   | "toggleEditorMode"
+  | "toggleVimMode"
   | "renameCurrentNote"
   | "trashCurrentNote"
   | "duplicateCurrentNote"
@@ -355,6 +356,15 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "toggleEditorMode",
     keys: "mod+m",
     label: "Toggle raw Markdown mode",
+    group: "Workspace",
+    worksWhileTyping: true,
+  },
+  {
+    id: "toggleVimMode",
+    keys: "mod+alt+i",
+    label: "Toggle Vim mode",
+    description:
+      "Modal Vim editing in the rendered editor and in raw Markdown mode. Escape returns to normal mode; i, a, o and friends enter insert mode.",
     group: "Workspace",
     worksWhileTyping: true,
   },
@@ -702,7 +712,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+g",
     label: "Jump to line",
     description:
-      "Toggle the jump-to-line field. Line numbers mean lines of the note's Markdown in both modes, so the same number lands on the same content. Overrides Firefox's find-again default on web.",
+      "Toggle the jump-to-line field. The rendered editor counts lines of the note's Markdown; raw Markdown mode counts the screen rows its gutter numbers, so long paragraphs take several. Overrides Firefox's find-again default on web.",
     group: "Editor",
     worksWhileTyping: true,
     boundInEditor: true,

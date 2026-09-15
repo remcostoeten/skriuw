@@ -74,3 +74,20 @@ node app/e2e/run.mjs --personal-only --output /tmp/skriuw-personal-e2e.json
 
 Exercises command-palette template registration and creation, then keyboard-only
 saving, reopening, and removing a sidebar search. Requires zero browser errors.
+
+## Compact shell and touch gestures (`mobile-shell.mjs`)
+
+Drives the hermetic harness at a 390px touch-emulated viewport over CDP and
+checks the compact shell: tab bar in place of the rail, no horizontal
+overflow, both side panels opening as sheets and closing from their header,
+the scrim edge pull, and a note pick; then the tree's touch gestures, a held
+row opening the item menu with 44px rows, Escape closing only that menu, and a
+leftward pull trashing a row with a working undo. Requires zero console errors.
+
+```bash
+node app/e2e/mobile-shell.mjs [--output <path>]
+# or, from app/: bun run e2e:mobile
+```
+
+`CHROME_BINARY` picks the browser and `CHROME_EXTRA_ARGS` appends launch
+flags, for example `--no-sandbox` in a container that runs as root.

@@ -129,8 +129,13 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 25,
+        name: "note_cover_gradient",
+        sql: include_str!("../migrations/0025_note_cover_gradient.sql"),
+    },
+    Migration {
+        version: 26,
         name: "sync_encryption",
-        sql: include_str!("../migrations/0025_sync_encryption.sql"),
+        sql: include_str!("../migrations/0026_sync_encryption.sql"),
     },
 ];
 
@@ -408,6 +413,10 @@ mod tests {
             ),
             (
                 25,
+                "a2bb087f0fd1e0c75337ec420444aa8e3f910b623ee2b9da57ee40f842ae60a2",
+            ),
+            (
+                26,
                 "0dd0aea54503e7b79a40e1fac2d1804bb6352a4ddec421930b32122a0f6023b5",
             ),
         ];

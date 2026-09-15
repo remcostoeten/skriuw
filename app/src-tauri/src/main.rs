@@ -41,8 +41,9 @@ fn main() {
         // app_id against a desktop-entry file name. GDK derives the app_id
         // from the prgname (the binary, "skriuw"), but the bundle ships
         // "Skriuw.desktop", so KWin/GNOME fall back to a generic icon.
-        // Aligning the prgname before GTK initializes fixes the match;
-        // StartupWMClass keeps X11 covered either way.
+        // Aligning the prgname before GTK initializes fixes the match; X11
+        // takes the same value as the WM_CLASS instance, which is what the
+        // StartupWMClass in src-tauri/Skriuw.desktop matches against.
         glib::set_prgname(Some("Skriuw"));
 
         let nvidia = has_nvidia_driver();

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use skriuw_domain::{
-    OperationAck, SearchHit, WorkspaceArchive, WorkspaceDelta, WorkspaceOperationEnvelope,
-    WorkspaceSnapshot,
+    OperationAck, SearchHit, SearchIndexStatus, WorkspaceArchive, WorkspaceDelta,
+    WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 use skriuw_sync::{RemoteChangeSet, SyncStatus};
 
@@ -61,6 +61,8 @@ pub enum BrowserWorkerCommand {
         query: String,
         limit: usize,
     },
+    SearchIndexStatus,
+    RebuildSearchIndex,
     ExportArchive {
         exported_at: i64,
     },
@@ -126,6 +128,7 @@ pub enum BrowserWorkerValue {
     Operation(OperationAck),
     OperationBatches(Vec<BatchOutcome>),
     Search(Vec<SearchHit>),
+    SearchIndex(SearchIndexStatus),
     Archive(Box<WorkspaceArchive>),
     ImportSummary(BrowserImportSummary),
     Integrity(BrowserIntegrityReport),

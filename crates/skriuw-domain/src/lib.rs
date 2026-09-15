@@ -17,6 +17,7 @@ mod local_ai;
 mod prompt;
 mod reconcile;
 mod remote_ai;
+mod search;
 mod sync;
 mod task;
 mod transcribe;
@@ -69,6 +70,7 @@ pub use remote_ai::{
     RemoteAiCatalogError, RemoteAiConsent, RemoteAiKeyTier, RemoteAiModel, RemoteAiModelDirectory,
     RemoteAiModelListing, RemoteAiModelSource, RemoteAiProviderState,
 };
+pub use search::{SEARCH_INDEX_VERSION, SearchIndexStatus, index_text};
 pub use sync::{
     BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,
     MAX_INLINE_SYNC_OPERATION_BYTES, MAX_OPERATION_ASSET_MANIFESTS, MAX_SAFE_SYNC_SEQUENCE,
@@ -112,6 +114,15 @@ pub const MAX_REFERENCE_NAME_BYTES: usize = 512;
 pub const MAX_REFERENCE_COLOR_BYTES: usize = 64;
 pub const MAX_IMAGE_MIME_BYTES: usize = 128;
 pub const IMAGE_CONTENT_HASH_BYTES: usize = 64;
+/// The cover gradients a note may name. A cover gradient travels as an
+/// identifier, never as CSS, so a synced or imported workspace can never make
+/// the renderer paint style it did not ship. `app/src/features/note-chrome/cover-gradient-model.ts`
+/// mirrors this list and owns the paint for each id.
+pub const COVER_GRADIENT_IDS: [&str; 12] = [
+    "slate", "crimson", "sunset", "gold", "meadow", "lagoon", "ocean", "dusk", "bloom", "aurora",
+    "midnight", "orchid",
+];
+
 pub const MAX_MEDIA_NAME_BYTES: usize = 200;
 pub const MAX_MEDIA_ALT_BYTES: usize = 1_000;
 pub const MAX_NOTE_PROPERTIES: usize = 64;
@@ -183,6 +194,8 @@ pub enum OperationValidationError {
     NegativePosition { field: &'static str },
     #[error("cover transform is outside its supported range")]
     InvalidCoverTransform,
+    #[error("{id} is not a built-in cover gradient")]
+    UnknownCoverGradient { id: String },
     #[error("task {id} is detached but still carries a source link")]
     DetachedTaskKeepsSource { id: String },
     #[error("task {id} is not linked from its source document")]
@@ -217,6 +230,8 @@ pub struct WorkspaceNode {
     pub icon: Option<String>,
     #[serde(default)]
     pub cover_image_id: Option<String>,
+    #[serde(default)]
+    pub cover_gradient: Option<String>,
     #[serde(default)]
     pub cover_full_width: bool,
     #[serde(default = "default_cover_position")]
@@ -780,7 +795,23 @@ impl WorkspaceArchive {
                     return archive_error(format!("folder {} has a cover image", node.id));
                 }
                 validate_id("cover image id", cover_image_id).map_err(archive_operation_error)?;
-            } else if node.cover_full_width {
+            }
+            if let Some(cover_gradient) = &node.cover_gradient {
+                if node.kind != NodeKind::Note {
+                    return archive_error(format!("folder {} has a cover gradient", node.id));
+                }
+                if node.cover_image_id.is_some() {
+                    return archive_error(format!(
+                        "node {} has both a cover image and a cover gradient",
+                        node.id
+                    ));
+                }
+                validate_cover_gradient(cover_gradient).map_err(archive_operation_error)?;
+            }
+            if node.cover_image_id.is_none()
+                && node.cover_gradient.is_none()
+                && node.cover_full_width
+            {
                 return archive_error(format!("node {} has cover width without a cover", node.id));
             }
             validate_cover_transform(
@@ -1529,6 +1560,11 @@ pub enum WorkspaceOperation {
         image_id: Option<String>,
         at: i64,
     },
+    SetNoteCoverGradient {
+        note_id: String,
+        gradient: Option<String>,
+        at: i64,
+    },
     SetNoteCoverFullWidth {
         note_id: String,
         full_width: bool,
@@ -1726,6 +1762,17 @@ impl WorkspaceOperation {
                 validate_id("note id", note_id)?;
                 if let Some(image_id) = image_id {
                     validate_id("image id", image_id)?;
+                }
+                validate_timestamp(*at)
+            }
+            Self::SetNoteCoverGradient {
+                note_id,
+                gradient,
+                at,
+            } => {
+                validate_id("note id", note_id)?;
+                if let Some(gradient) = gradient {
+                    validate_cover_gradient(gradient)?;
                 }
                 validate_timestamp(*at)
             }
@@ -1935,6 +1982,15 @@ fn validate_cover_transform(
         return Err(OperationValidationError::InvalidCoverTransform);
     }
     Ok(())
+}
+
+fn validate_cover_gradient(value: &str) -> Result<(), OperationValidationError> {
+    if COVER_GRADIENT_IDS.contains(&value) {
+        return Ok(());
+    }
+    Err(OperationValidationError::UnknownCoverGradient {
+        id: value.to_owned(),
+    })
 }
 
 fn validate_mime_type(value: &str) -> Result<(), OperationValidationError> {
@@ -2467,6 +2523,7 @@ mod tests {
                     title: "Folder".into(),
                     icon: None,
                     cover_image_id: None,
+                    cover_gradient: None,
                     cover_full_width: false,
                     cover_position_x: 50.0,
                     cover_position_y: 50.0,
@@ -2484,6 +2541,7 @@ mod tests {
                     title: "Note".into(),
                     icon: None,
                     cover_image_id: None,
+                    cover_gradient: None,
                     cover_full_width: false,
                     cover_position_x: 50.0,
                     cover_position_y: 50.0,
@@ -2530,6 +2588,7 @@ mod tests {
                     title: "One".into(),
                     icon: None,
                     cover_image_id: None,
+                    cover_gradient: None,
                     cover_full_width: false,
                     cover_position_x: 50.0,
                     cover_position_y: 50.0,
@@ -2547,6 +2606,7 @@ mod tests {
                     title: "Two".into(),
                     icon: None,
                     cover_image_id: None,
+                    cover_gradient: None,
                     cover_full_width: false,
                     cover_position_x: 50.0,
                     cover_position_y: 50.0,
@@ -2745,6 +2805,7 @@ mod tests {
                     title: "Folder".into(),
                     icon: None,
                     cover_image_id: None,
+                    cover_gradient: None,
                     cover_full_width: false,
                     cover_position_x: 50.0,
                     cover_position_y: 50.0,
@@ -2762,6 +2823,7 @@ mod tests {
                     title: "Note".into(),
                     icon: None,
                     cover_image_id: None,
+                    cover_gradient: None,
                     cover_full_width: false,
                     cover_position_x: 50.0,
                     cover_position_y: 50.0,
@@ -2810,6 +2872,7 @@ mod tests {
                 title: "Note".into(),
                 icon: None,
                 cover_image_id: None,
+                cover_gradient: None,
                 cover_full_width: false,
                 cover_position_x: 50.0,
                 cover_position_y: 50.0,
@@ -2999,6 +3062,25 @@ mod tests {
             ]
         });
         assert_eq!(super::document_image_ids(&document), ["video-1", "image-1"]);
+    }
+
+    #[test]
+    fn cover_gradients_must_name_a_built_in() {
+        fn gradient(id: Option<&str>) -> WorkspaceOperation {
+            WorkspaceOperation::SetNoteCoverGradient {
+                note_id: "note-1".into(),
+                gradient: id.map(str::to_owned),
+                at: 7,
+            }
+        }
+        assert_eq!(gradient(Some("ocean")).validate(), Ok(()));
+        assert_eq!(gradient(None).validate(), Ok(()));
+        assert_eq!(
+            gradient(Some("linear-gradient(red, blue)")).validate(),
+            Err(OperationValidationError::UnknownCoverGradient {
+                id: "linear-gradient(red, blue)".into()
+            })
+        );
     }
 
     #[test]

@@ -1,4 +1,4 @@
-# ADR-0042: End-to-end encrypted sync
+# ADR-0043: End-to-end encrypted sync
 
 - Status: accepted
 - Date: 2026-09-09

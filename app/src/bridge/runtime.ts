@@ -188,6 +188,9 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
     const { contentHash, mimeType } = args as { contentHash: string; mimeType: string };
     return deleteBrowserMediaBlob(contentHash, mimeType) as Promise<T>;
   }
+  if (command === "reveal_media_blob") {
+    throw new Error("Showing a file in the file manager needs the desktop app.");
+  }
   if (command === "sweep_unused_media_blobs") {
     const { liveContentHashes } = args as { liveContentHashes?: readonly string[] };
     return sweepBrowserMediaBlobs(liveContentHashes ?? []) as Promise<T>;
@@ -360,6 +363,10 @@ function browserCommand(command: string, args: unknown): BrowserCommand {
       return { kind: "apply_operations", payload: args, expected: "operation" };
     case "search_workspace":
       return { kind: "search", payload: args, expected: "search" };
+    case "search_index_status":
+      return { kind: "search_index_status", expected: "search_index" };
+    case "rebuild_search_index":
+      return { kind: "rebuild_search_index", expected: "search_index" };
     case "read_workspace_delta":
       return { kind: "read_workspace_delta", payload: args, expected: "workspace_delta" };
     default:
