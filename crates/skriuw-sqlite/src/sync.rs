@@ -1714,33 +1714,35 @@ fn initial_sync_operations(
         WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetMediaMetadata { metadata })
     }));
     operations.extend(snapshot.nodes.iter().flat_map(|node| {
-        let cover = node
-            .cover_image_id
-            .clone()
-            .map(|image_id| {
-                [
-                    WorkspaceOperation::SetNoteCover {
-                        note_id: node.id.clone(),
-                        image_id: Some(image_id),
-                        at: node.updated_at,
-                    },
-                    WorkspaceOperation::SetNoteCoverFullWidth {
-                        note_id: node.id.clone(),
-                        full_width: node.cover_full_width,
-                        at: node.updated_at,
-                    },
-                    WorkspaceOperation::SetNoteCoverTransform {
-                        note_id: node.id.clone(),
-                        position_x: node.cover_position_x,
-                        position_y: node.cover_position_y,
-                        zoom: node.cover_zoom,
-                        at: node.updated_at,
-                    },
-                ]
-            })
-            .into_iter()
-            .flatten();
-        cover.map(WorkspaceOperationEnvelope::v1)
+        let mut cover: Vec<WorkspaceOperation> = Vec::new();
+        if let Some(image_id) = node.cover_image_id.clone() {
+            cover.push(WorkspaceOperation::SetNoteCover {
+                note_id: node.id.clone(),
+                image_id: Some(image_id),
+                at: node.updated_at,
+            });
+            cover.push(WorkspaceOperation::SetNoteCoverTransform {
+                note_id: node.id.clone(),
+                position_x: node.cover_position_x,
+                position_y: node.cover_position_y,
+                zoom: node.cover_zoom,
+                at: node.updated_at,
+            });
+        } else if let Some(gradient) = node.cover_gradient.clone() {
+            cover.push(WorkspaceOperation::SetNoteCoverGradient {
+                note_id: node.id.clone(),
+                gradient: Some(gradient),
+                at: node.updated_at,
+            });
+        }
+        if !cover.is_empty() {
+            cover.push(WorkspaceOperation::SetNoteCoverFullWidth {
+                note_id: node.id.clone(),
+                full_width: node.cover_full_width,
+                at: node.updated_at,
+            });
+        }
+        cover.into_iter().map(WorkspaceOperationEnvelope::v1)
     }));
 
     operations.extend(snapshot.properties.into_iter().map(|property| {
@@ -2696,6 +2698,7 @@ fn remote_target_state(
             }
         }
         WorkspaceOperation::SetNoteCover { note_id, .. }
+        | WorkspaceOperation::SetNoteCoverGradient { note_id, .. }
         | WorkspaceOperation::SetNoteCoverFullWidth { note_id, .. }
         | WorkspaceOperation::SetNoteCoverTransform { note_id, .. } => {
             fill_node_target(transaction, &mut state, note_id)?;

@@ -10,6 +10,7 @@ export type WorkspaceNode = {
   title: string;
   icon: string | null;
   coverImageId?: string | null;
+  coverGradient?: string | null;
   coverFullWidth?: boolean;
   coverPositionX?: number;
   coverPositionY?: number;
@@ -327,6 +328,12 @@ export type WorkspaceOperation =
     }
   | { type: "rename_node"; id: string; title: string; at: number }
   | { type: "set_note_cover"; noteId: string; imageId: string | null; at: number }
+  | {
+      type: "set_note_cover_gradient";
+      noteId: string;
+      gradient: string | null;
+      at: number;
+    }
   | { type: "set_note_cover_full_width"; noteId: string; fullWidth: boolean; at: number }
   | {
       type: "set_note_cover_transform";

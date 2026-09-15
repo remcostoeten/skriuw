@@ -417,7 +417,8 @@ fn apply_operation(
                 .execute(
                     "UPDATE workspace_nodes \
                      SET cover_image_id = ?2, \
-                         cover_full_width = CASE WHEN ?2 IS NULL THEN 0 ELSE cover_full_width END, \
+                         cover_gradient = CASE WHEN ?2 IS NULL THEN cover_gradient ELSE NULL END, \
+                         cover_full_width = CASE WHEN ?2 IS NULL AND cover_gradient IS NULL THEN 0 ELSE cover_full_width END, \
                          cover_position_x = CASE WHEN cover_image_id IS NOT ?2 THEN 50 ELSE cover_position_x END, \
                          cover_position_y = CASE WHEN cover_image_id IS NOT ?2 THEN 50 ELSE cover_position_y END, \
                          cover_zoom = CASE WHEN cover_image_id IS NOT ?2 THEN 1 ELSE cover_zoom END, \
@@ -426,25 +427,39 @@ fn apply_operation(
                     params![note_id, image_id, at],
                 )
                 .map_err(backend)?;
-            if previous_image_id.as_ref() != image_id.as_ref()
-                && let Some(previous_image_id) = previous_image_id
-            {
-                let document_json = transaction
-                    .query_row(
-                        "SELECT document_json FROM documents WHERE note_id = ?1",
-                        [note_id],
-                        |row| row.get::<_, String>(0),
-                    )
-                    .map_err(backend)?;
-                let document = serde_json::from_str(&document_json).map_err(json_backend)?;
-                if !skriuw_domain::document_image_ids(&document).contains(&previous_image_id) {
-                    transaction
-                        .execute(
-                            "DELETE FROM note_images WHERE id = ?1",
-                            [&previous_image_id],
-                        )
-                        .map_err(backend)?;
-                }
+            if previous_image_id.as_ref() != image_id.as_ref() {
+                detach_unreferenced_cover(transaction, note_id, previous_image_id)?;
+            }
+        }
+        WorkspaceOperation::SetNoteCoverGradient {
+            note_id,
+            gradient,
+            at,
+        } => {
+            require_note(transaction, note_id)?;
+            let previous_image_id = transaction
+                .query_row(
+                    "SELECT cover_image_id FROM workspace_nodes WHERE id = ?1",
+                    [note_id],
+                    |row| row.get::<_, Option<String>>(0),
+                )
+                .map_err(backend)?;
+            transaction
+                .execute(
+                    "UPDATE workspace_nodes \
+                     SET cover_gradient = ?2, \
+                         cover_image_id = CASE WHEN ?2 IS NULL THEN cover_image_id ELSE NULL END, \
+                         cover_full_width = CASE WHEN ?2 IS NULL AND cover_image_id IS NULL THEN 0 ELSE cover_full_width END, \
+                         cover_position_x = 50, \
+                         cover_position_y = 50, \
+                         cover_zoom = 1, \
+                         updated_at = ?3 \
+                     WHERE id = ?1",
+                    params![note_id, gradient, at],
+                )
+                .map_err(backend)?;
+            if gradient.is_some() {
+                detach_unreferenced_cover(transaction, note_id, previous_image_id)?;
             }
         }
         WorkspaceOperation::SetNoteCoverFullWidth {
@@ -456,14 +471,15 @@ fn apply_operation(
             if *full_width {
                 let has_cover = transaction
                     .query_row(
-                        "SELECT cover_image_id IS NOT NULL FROM workspace_nodes WHERE id = ?1",
+                        "SELECT cover_image_id IS NOT NULL OR cover_gradient IS NOT NULL \
+                         FROM workspace_nodes WHERE id = ?1",
                         [note_id],
                         |row| row.get::<_, bool>(0),
                     )
                     .map_err(backend)?;
                 if !has_cover {
                     return Err(StorageError::InvalidOperation(
-                        "full-width cover requires a cover image".into(),
+                        "full-width cover requires a cover".into(),
                     ));
                 }
             }
@@ -1899,6 +1915,36 @@ fn require_acyclic_parent(
         return Err(StorageError::InvalidOperation(format!(
             "moving {id} below {parent_id} would create a cycle"
         )));
+    }
+    Ok(())
+}
+
+/// Drops the attachment a note kept only for its cover once that cover is
+/// replaced. An image the body still references stays attached, so the blob
+/// keeps a live reference and the unused sweep leaves it alone.
+fn detach_unreferenced_cover(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+    previous_image_id: Option<String>,
+) -> Result<(), StorageError> {
+    let Some(previous_image_id) = previous_image_id else {
+        return Ok(());
+    };
+    let document_json = transaction
+        .query_row(
+            "SELECT document_json FROM documents WHERE note_id = ?1",
+            [note_id],
+            |row| row.get::<_, String>(0),
+        )
+        .map_err(backend)?;
+    let document = serde_json::from_str(&document_json).map_err(json_backend)?;
+    if !skriuw_domain::document_image_ids(&document).contains(&previous_image_id) {
+        transaction
+            .execute(
+                "DELETE FROM note_images WHERE id = ?1",
+                [&previous_image_id],
+            )
+            .map_err(backend)?;
     }
     Ok(())
 }

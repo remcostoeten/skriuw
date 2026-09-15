@@ -153,7 +153,9 @@ pub fn run() {
                     let app_handle = app.handle().clone();
                     Arc::new(move || {
                         if let Err(error) = auth::clear_auth_token_blocking() {
-                            eprintln!("expired cloud session credential could not be cleared: {error}");
+                            eprintln!(
+                                "expired cloud session credential could not be cleared: {error}"
+                            );
                         }
                         if let Err(error) = app_handle.emit(SYNC_SESSION_EXPIRED_EVENT, ()) {
                             eprintln!("sync session expiry publication failed: {error}");
@@ -261,6 +263,7 @@ pub fn run() {
             commands::media::download_remote_media,
             commands::media::list_media_blobs,
             commands::media::delete_media_blob,
+            commands::media::reveal_media_blob,
             commands::media::sweep_unused_media_blobs,
             commands::sync::workspace_sync_status,
             commands::sync::connect_workspace_sync,

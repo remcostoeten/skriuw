@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildRowLayout,
   countRawMarkdownWords,
+  locateRow,
   parseJumpToLineInput,
   rawMarkdownCursorStatus,
   rawMarkdownLineCount,
-  rawMarkdownLineNumbers,
-  rawMarkdownLineOffset,
-  rawMarkdownLineScrollTop,
+  rowNumberAt,
+  rowsForHeight,
 } from "../../../src/features/editor/raw-markdown-editor-model";
 
 test("raw Markdown status counts words and always retains one line", () => {
@@ -15,8 +16,6 @@ test("raw Markdown status counts words and always retains one line", () => {
   assert.equal(countRawMarkdownWords(" \n\t "), 0);
   assert.equal(rawMarkdownLineCount(""), 1);
   assert.equal(rawMarkdownLineCount("one\ntwo\n"), 3);
-  assert.deepEqual(rawMarkdownLineNumbers(3), [1, 2, 3]);
-  assert.deepEqual(rawMarkdownLineNumbers(0), [1]);
 });
 
 test("raw Markdown cursor status is one-based and selection-aware", () => {
@@ -50,20 +49,30 @@ test("jump-to-line entries clamp into the document and reject junk", () => {
   assert.equal(parseJumpToLineInput("12a", 10), null);
 });
 
-test("line offsets point at the first character of a one-based line", () => {
-  const markdown = "first\nsecond\nthird";
-  assert.equal(rawMarkdownLineOffset(markdown, 1), 0);
-  assert.equal(rawMarkdownLineOffset(markdown, 2), 6);
-  assert.equal(rawMarkdownLineOffset(markdown, 3), 13);
-  assert.equal(rawMarkdownLineOffset(markdown, 9), markdown.length);
-  assert.equal(rawMarkdownLineOffset("", 1), 0);
-  assert.equal(rawMarkdownLineOffset("a\n", 2), 2);
+test("row layout numbers every wrapped screen row across source lines", () => {
+  const layout = buildRowLayout([1, 4, 1, 2]);
+  assert.deepEqual(layout.starts, [1, 2, 6, 7]);
+  assert.equal(layout.total, 8);
+  assert.equal(rowNumberAt(layout, 1, 0), 2);
+  assert.equal(rowNumberAt(layout, 1, 3), 5);
+  assert.equal(rowNumberAt(layout, 1, 9), 5);
+  assert.equal(rowNumberAt(layout, 3, -1), 7);
+  assert.equal(buildRowLayout([]).total, 1);
 });
 
-test("a jump centers its line in the viewport and never scrolls out of range", () => {
-  assert.equal(rawMarkdownLineScrollTop(1, 100, 1_000, 200), 0);
-  assert.equal(rawMarkdownLineScrollTop(50, 100, 1_000, 200), 395);
-  assert.equal(rawMarkdownLineScrollTop(100, 100, 1_000, 200), 800);
-  assert.equal(rawMarkdownLineScrollTop(1, 1, 200, 200), 0);
-  assert.equal(rawMarkdownLineScrollTop(1, 0, 0, 200), 0);
+test("row heights round to whole rows and never drop below one", () => {
+  assert.equal(rowsForHeight(119, 23.8), 5);
+  assert.equal(rowsForHeight(23.8, 24), 1);
+  assert.equal(rowsForHeight(0, 24), 1);
+  assert.equal(rowsForHeight(48, 0), 1);
+});
+
+test("locating a row resolves the source line and the row inside it", () => {
+  const layout = buildRowLayout([1, 4, 1, 2]);
+  assert.deepEqual(locateRow(layout, 1), { lineIndex: 0, rowIndex: 0 });
+  assert.deepEqual(locateRow(layout, 4), { lineIndex: 1, rowIndex: 2 });
+  assert.deepEqual(locateRow(layout, 6), { lineIndex: 2, rowIndex: 0 });
+  assert.deepEqual(locateRow(layout, 8), { lineIndex: 3, rowIndex: 1 });
+  assert.deepEqual(locateRow(layout, 40), { lineIndex: 3, rowIndex: 1 });
+  assert.deepEqual(locateRow(layout, 0), { lineIndex: 0, rowIndex: 0 });
 });

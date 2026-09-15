@@ -604,7 +604,7 @@ pub(crate) fn write_pane_layout(
 
 const NODE_COLUMNS: &str = "id, kind, parent_id, rank, title, icon, cover_image_id, cover_full_width, \
      cover_position_x, cover_position_y, cover_zoom, created_at, updated_at, deleted_at, \
-     pinned_at";
+     pinned_at, cover_gradient";
 
 fn read_node_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspaceNode> {
     let kind = match row.get::<_, String>(1)?.as_str() {
@@ -626,6 +626,7 @@ fn read_node_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspaceNode> {
         title: row.get(4)?,
         icon: row.get(5)?,
         cover_image_id: row.get(6)?,
+        cover_gradient: row.get(15)?,
         cover_full_width: row.get(7)?,
         cover_position_x: row.get(8)?,
         cover_position_y: row.get(9)?,

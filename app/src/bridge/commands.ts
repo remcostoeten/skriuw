@@ -383,6 +383,14 @@ export function deleteMediaBlob(contentHash: string, mimeType: string): Promise<
 }
 
 /**
+ * Shows one stored file in the desktop file manager. The browser runtime has no
+ * filesystem to reveal, so callers gate this on {@link isBrowserRuntime}.
+ */
+export function revealMediaBlob(contentHash: string, mimeType: string): Promise<void> {
+  return invoke<void>("reveal_media_blob", { contentHash, mimeType });
+}
+
+/**
  * `liveContentHashes` is only consulted by the browser runtime, which has no
  * database-side view of attachments; the desktop backend derives the live
  * set from its own images table and ignores the argument.
