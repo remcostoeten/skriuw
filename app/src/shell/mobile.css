@@ -1,0 +1,265 @@
+/*
+ * Compact shell: one content column over a tab bar. Route views place
+ * themselves in the desktop grid's columns; here every child collapses into
+ * the single column and the tab bar takes the second row.
+ */
+.shell-compact {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.shell-compact > *,
+.shell-compact > .contents > * {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.shell-compact > .shell-edge {
+  position: absolute;
+  inset-block: 0;
+  width: 24px;
+  z-index: 30;
+  touch-action: none;
+}
+
+.shell-edge-left {
+  left: 0;
+}
+
+.shell-edge-right {
+  right: 0;
+}
+
+.shell-tab-bar {
+  grid-row: 2;
+}
+
+.shell-edge {
+  position: absolute;
+  inset-block: 0;
+  width: 24px;
+  z-index: 30;
+  touch-action: none;
+}
+
+.shell-edge-left {
+  left: 0;
+}
+
+.shell-edge-right {
+  right: 0;
+}
+
+.shell-tab-bar {
+  display: flex;
+  align-items: stretch;
+  height: 56px;
+  border-top: 1px solid hsl(var(--sidebar-border));
+  background: hsl(var(--sidebar-background));
+  color: hsl(var(--sidebar-foreground));
+}
+
+.shell-tab {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: hsl(var(--sidebar-foreground) / 0.55);
+  text-decoration: none;
+  -webkit-touch-callout: none;
+}
+
+.shell-tab[data-active="true"] {
+  color: hsl(var(--sidebar-foreground));
+}
+
+.shell-tab:active {
+  color: hsl(var(--sidebar-foreground));
+}
+
+.shell-tab-label {
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-tab-account > * {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.mobile-sheet-scrim {
+  position: absolute;
+  inset: 0;
+  background: hsl(var(--scrim) / 0.5);
+  opacity: 1;
+  transition: opacity 220ms ease;
+}
+
+.mobile-sheet-panel {
+  --sheet-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  position: absolute;
+  inset-block: 0;
+  width: min(86vw, 360px);
+  display: flex;
+  flex-direction: column;
+  background: hsl(var(--sidebar-background));
+  color: hsl(var(--sidebar-foreground));
+  padding-block: var(--safe-top) var(--safe-bottom);
+  box-shadow: 0 0 40px hsl(var(--scrim) / 0.45);
+  outline: none;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  transition: transform 260ms var(--sheet-ease);
+  will-change: transform;
+}
+
+.mobile-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 auto;
+  height: 44px;
+  padding-inline: 14px 4px;
+  border-bottom: 1px solid hsl(var(--sidebar-border));
+  font-size: 13px;
+  font-weight: 600;
+  color: hsl(var(--sidebar-foreground) / 0.8);
+}
+
+.mobile-sheet-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: hsl(var(--sidebar-foreground) / 0.6);
+}
+
+.mobile-sheet-close:active {
+  color: hsl(var(--sidebar-foreground));
+}
+
+.mobile-sheet-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-sheet-body > * {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.mobile-sheet-root[data-side="left"] .mobile-sheet-panel {
+  left: 0;
+  padding-left: var(--safe-left);
+  border-right: 1px solid hsl(var(--sidebar-border));
+}
+
+.mobile-sheet-root[data-side="right"] .mobile-sheet-panel {
+  right: 0;
+  padding-right: var(--safe-right);
+  border-left: 1px solid hsl(var(--sidebar-border));
+}
+
+.mobile-sheet-root[data-state="open"] .mobile-sheet-panel {
+  transform: translateX(0);
+}
+
+@starting-style {
+  .mobile-sheet-root[data-state="open"][data-side="left"] .mobile-sheet-panel {
+    transform: translateX(-100%);
+  }
+
+  .mobile-sheet-root[data-state="open"][data-side="right"] .mobile-sheet-panel {
+    transform: translateX(100%);
+  }
+
+  .mobile-sheet-root[data-state="open"] .mobile-sheet-scrim {
+    opacity: 0;
+  }
+}
+
+.mobile-sheet-root[data-state="closed"] {
+  pointer-events: none;
+}
+
+.mobile-sheet-root[data-state="closed"] .mobile-sheet-scrim {
+  opacity: 0;
+}
+
+.mobile-sheet-root[data-state="closed"][data-side="left"] .mobile-sheet-panel {
+  transform: translateX(-100%);
+}
+
+.mobile-sheet-root[data-state="closed"][data-side="right"] .mobile-sheet-panel {
+  transform: translateX(100%);
+}
+
+.sidebar-touch .sidebar-tree-row {
+  height: 44px;
+  font-size: 14px;
+  -webkit-touch-callout: none;
+}
+
+.sidebar-tree-row[data-swipe="true"] {
+  transition: none;
+  background: hsl(var(--destructive) / 0.16);
+}
+
+.sidebar-tree-row[data-swipe="delete"] {
+  background: hsl(var(--destructive) / 0.28);
+}
+
+.sidebar-tree-row-settle {
+  transition: transform 180ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (pointer: coarse) {
+  [data-radix-menu-content] {
+    min-width: 240px;
+  }
+
+  [data-radix-menu-content] [role="menuitem"],
+  [data-radix-menu-content] [role="menuitemcheckbox"],
+  [data-radix-menu-content] [role="menuitemradio"] {
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  .sidebar-tree-row,
+  [role="tree"] {
+    -webkit-touch-callout: none;
+  }
+
+  [role="tree"] {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-sheet-panel,
+  .mobile-sheet-scrim,
+  .sidebar-tree-row-settle {
+    transition: none;
+  }
+}

@@ -33,6 +33,8 @@ import type { RendererState, RendererStore } from "@/store/types";
 import { EditorHost } from "./editor-host";
 import { SplitDivider } from "./split-divider";
 import { splitGridTemplate, splitTrackProperty } from "./split-layout";
+import { COMPACT_SHELL_QUERY } from "./shell-layout";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
 
 type Props = {
   store: RendererStore;
@@ -104,7 +106,11 @@ const TAB_DRAG_MIME = "application/x-skriuw-tab";
 export function EditorPanes({ store }: Props) {
   const panes = useRendererSelector(store, selectPanes);
   const tabs = useRendererSelector(store, tabModels, sameTabModels);
-  const orientation = useRendererSelector(store, selectSplitOrientation);
+  const storedOrientation = useRendererSelector(store, selectSplitOrientation);
+  const compact = useMediaQuery(COMPACT_SHELL_QUERY);
+  // Two panes beside each other on a phone leaves neither wide enough to
+  // read, so compact always stacks and the stored choice waits for a wider window.
+  const orientation = compact ? "horizontal" : storedOrientation;
   const ratio = useRendererSelector(store, selectSplitRatio);
   const hasSplit = panes.length > 1;
   const splitRef = useRef<HTMLDivElement>(null);
@@ -222,7 +228,7 @@ export function EditorPanes({ store }: Props) {
                   <button
                     type="button"
                     aria-label={`Close ${tab.title}`}
-                    className="mr-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/[0.15] hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+                    className="mr-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/[0.15] hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:h-8 pointer-coarse:w-8 pointer-coarse:opacity-100"
                     onClick={() => closeTab(store, tab.id, PRIMARY_PANE_ID)}
                   >
                     <CloseIcon size={12} />
