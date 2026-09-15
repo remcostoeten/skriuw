@@ -25,7 +25,7 @@ export function isDateKey(value: string): boolean {
 export function dateKeyOf(date: Date): DateKey {
   const month = `${date.getMonth() + 1}`.padStart(2, "0");
   const day = `${date.getDate()}`.padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
+  return `${`${date.getFullYear()}`.padStart(4, "0")}-${month}-${day}`;
 }
 
 export function todayKey(): DateKey {
