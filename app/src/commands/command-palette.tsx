@@ -44,7 +44,7 @@ type Props = {
 function Kbd({ children, ...rest }: ComponentProps<"kbd">) {
   return (
     <kbd
-      className="inline-flex flex-none rounded border border-border bg-muted px-[5px] py-px font-mono text-[10px] text-muted-foreground"
+      className="inline-flex flex-none rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] leading-[1.3] text-muted-foreground"
       {...rest}
     >
       {children}
@@ -53,7 +53,7 @@ function Kbd({ children, ...rest }: ComponentProps<"kbd">) {
 }
 
 export const PALETTE_DIALOG_CLASS =
-  "command-palette mx-auto mb-auto mt-[12vh] max-h-[64vh] w-[calc(100vw-1.5rem)] max-w-2xl overflow-hidden";
+  "command-palette mx-auto mb-auto mt-[12vh] max-h-[64vh] w-[calc(100vw-1.5rem)] max-w-[46rem] overflow-hidden";
 
 export function CommandPalette({
   open,
@@ -222,24 +222,24 @@ function PaletteBody({ items, onQueryChange, notice, paletteShortcut }: BodyProp
         )}
       </div>
 
-      <div className="flex flex-none flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border px-3.5 py-2.5 text-[11px] text-muted-foreground">
-        <span className="whitespace-nowrap">↑↓ navigate</span>
-        <span className="whitespace-nowrap">↵ select</span>
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <div className="flex flex-none flex-wrap items-center gap-x-5 gap-y-2.5 border-t border-border px-4 py-3 text-[11px] leading-none text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">↑↓ navigate</span>
+        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">↵ select</span>
+        <span className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5">
           {COMMAND_BANGS.map((bang) => (
-            <span key={bang.key} className="inline-flex items-center gap-1 whitespace-nowrap">
+            <span key={bang.key} className="inline-flex items-center gap-1.5 whitespace-nowrap">
               <Kbd>!{bang.key}</Kbd> {bang.label.toLowerCase()}
             </span>
           ))}
         </span>
-        <span className="inline-flex items-center gap-1 whitespace-nowrap">
+        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
           <Kbd>#tag</Kbd>
           <Kbd>$person</Kbd> filter
         </span>
-        <span className="inline-flex items-center gap-1 whitespace-nowrap">
+        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
           <Kbd>recents</Kbd> recent notes
         </span>
-        <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap">
+        <span className="ml-auto inline-flex items-center gap-1.5 whitespace-nowrap">
           <Kbd>{paletteShortcut}</Kbd> command palette
         </span>
       </div>

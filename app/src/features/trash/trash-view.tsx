@@ -10,7 +10,6 @@ import {
 } from "@/shared/icons/static";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { Button } from "@/shared/ui/button";
-import { Dialog } from "@/shared/ui/dialog";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { Select, type SelectOption } from "@/shared/ui/select";
 import { WindowControls } from "@/shell/window-controls";
@@ -57,18 +56,18 @@ export function TrashView({ store }: Props) {
   const rows = useMemo(() => trashRows(sourceNodes, documents), [documents, sourceNodes]);
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<TrashSortKey>("newest");
-  const [emptyIds, setEmptyIds] = useState<readonly string[] | null>(null);
+  const [emptyArmed, setEmptyArmed] = useState(false);
   const visibleRows = useMemo(
     () => sortTrashRows(filterTrashRows(rows, query), sortKey),
     [query, rows, sortKey],
   );
 
   function confirmEmpty(): void {
-    if (!emptyIds) {
-      return;
-    }
-    emptyTrash(store, emptyIds);
-    setEmptyIds(null);
+    emptyTrash(
+      store,
+      rows.map((row) => row.id),
+    );
+    setEmptyArmed(false);
   }
 
   return (
@@ -121,10 +120,21 @@ export function TrashView({ store }: Props) {
               options={SORT_OPTIONS}
               onChange={setSortKey}
             />
-            <Button variant="danger" onClick={() => setEmptyIds(rows.map((row) => row.id))}>
-              <Trash2Icon size={13} />
-              Empty trash
-            </Button>
+            <InlineConfirm
+              className="h-[30px] shrink-0"
+              armed={emptyArmed}
+              onArmedChange={setEmptyArmed}
+              confirmLabel={`Delete ${rows.length} ${rows.length === 1 ? "item" : "items"} forever`}
+              cancelLabel="Keep them"
+              message="This cannot be undone."
+              onConfirm={confirmEmpty}
+              renderIdle={(arm) => (
+                <Button variant="danger" onClick={arm}>
+                  <Trash2Icon size={13} />
+                  Empty trash
+                </Button>
+              )}
+            />
           </div>
         )}
       </div>
@@ -138,32 +148,6 @@ export function TrashView({ store }: Props) {
           onPurge={(id) => purgeSubtree(store, id)}
         />
       )}
-
-      <Dialog
-        open={emptyIds !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEmptyIds(null);
-          }
-        }}
-        title="Empty the trash?"
-        className="w-[min(420px,calc(100vw-32px))]"
-      >
-        <p className="mb-2 text-xs leading-normal text-[hsl(var(--theme-text-secondary))]">
-          {`This permanently deletes ${emptyIds?.length ?? 0} ${emptyIds?.length === 1 ? "item" : "items"}.`}
-        </p>
-        <p className="mb-2 text-xs leading-normal text-[hsl(var(--theme-text-secondary))]">
-          This action cannot be undone.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="default" onClick={() => setEmptyIds(null)}>
-            Keep them
-          </Button>
-          <Button variant="dangerFilled" onClick={confirmEmpty}>
-            Delete everything
-          </Button>
-        </div>
-      </Dialog>
     </main>
   );
 }
