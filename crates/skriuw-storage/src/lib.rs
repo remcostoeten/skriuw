@@ -1,8 +1,8 @@
 use std::{fmt, sync::Arc};
 
 use skriuw_domain::{
-    HistoryHeader, OperationAck, ReplicatedWorkspaceOperation, SearchHit, SyncAcceptedOperation,
-    SyncConflictReason, SyncPushRequest, WorkspaceArchive, WorkspaceDelta,
+    HistoryHeader, OperationAck, ReplicatedWorkspaceOperation, SearchHit, SearchIndexStatus,
+    SyncAcceptedOperation, SyncConflictReason, SyncPushRequest, WorkspaceArchive, WorkspaceDelta,
     WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 use thiserror::Error;
@@ -274,6 +274,30 @@ pub struct ImportSummary {
 pub struct IntegrityReport {
     pub healthy: bool,
     pub issues: Vec<String>,
+}
+
+/// Maintenance of the rebuildable full-text projection.
+///
+/// The index is derived state: it is written inside the same serialized
+/// transaction as the durable save it describes, and it can be discarded and
+/// rebuilt from `documents` and `workspace_nodes` at any time. Rebuilding is
+/// the recovery path for an index that drifted — because the text projection
+/// changed shape, or because a partially written database lost rows — and it
+/// never runs on a navigation or editing path.
+pub trait SearchIndexMaintenance: Send + Sync {
+    fn search_index_status(&self) -> Result<SearchIndexStatus, StorageError> {
+        Err(StorageError::InvalidOperation(
+            "Search index maintenance is unavailable in this adapter".into(),
+        ))
+    }
+
+    /// Discards and reprojects the whole index in one transaction, returning
+    /// the number of indexed notes. Running it twice leaves the same index.
+    fn rebuild_search_index(&self) -> Result<SearchIndexStatus, StorageError> {
+        Err(StorageError::InvalidOperation(
+            "Search index maintenance is unavailable in this adapter".into(),
+        ))
+    }
 }
 
 pub trait WorkspaceMaintenance: Send + Sync {
@@ -648,6 +672,19 @@ where
 
     fn read_workspace_delta(&self, ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
         self.as_ref().read_workspace_delta(ids)
+    }
+}
+
+impl<T> SearchIndexMaintenance for Arc<T>
+where
+    T: SearchIndexMaintenance + ?Sized,
+{
+    fn search_index_status(&self) -> Result<SearchIndexStatus, StorageError> {
+        self.as_ref().search_index_status()
+    }
+
+    fn rebuild_search_index(&self) -> Result<SearchIndexStatus, StorageError> {
+        self.as_ref().rebuild_search_index()
     }
 }
 

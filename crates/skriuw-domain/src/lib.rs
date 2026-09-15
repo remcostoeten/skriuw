@@ -17,6 +17,7 @@ mod local_ai;
 mod prompt;
 mod reconcile;
 mod remote_ai;
+mod search;
 mod sync;
 mod task;
 mod transcribe;
@@ -69,6 +70,7 @@ pub use remote_ai::{
     RemoteAiCatalogError, RemoteAiConsent, RemoteAiKeyTier, RemoteAiModel, RemoteAiModelDirectory,
     RemoteAiModelListing, RemoteAiModelSource, RemoteAiProviderState,
 };
+pub use search::{SEARCH_INDEX_VERSION, SearchIndexStatus, index_text};
 pub use sync::{
     BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,
     MAX_INLINE_SYNC_OPERATION_BYTES, MAX_OPERATION_ASSET_MANIFESTS, MAX_SAFE_SYNC_SEQUENCE,

@@ -207,7 +207,20 @@ function PaletteBody({ items, onQueryChange, notice, paletteShortcut }: BodyProp
                           isActive ? "text-foreground/70" : "text-muted-foreground"
                         }`}
                       >
-                        {item.hint ?? item.description}
+                        {item.hintSegments
+                          ? item.hintSegments.map((segment, position) =>
+                              segment.matched ? (
+                                <mark
+                                  key={position}
+                                  className="bg-transparent font-medium text-foreground"
+                                >
+                                  {segment.text}
+                                </mark>
+                              ) : (
+                                <span key={position}>{segment.text}</span>
+                              ),
+                            )
+                          : (item.hint ?? item.description)}
                       </span>
                     )}
                     <span className="ml-auto flex flex-none items-center gap-1.5">

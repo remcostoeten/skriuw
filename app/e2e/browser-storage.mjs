@@ -70,6 +70,31 @@ try {
     );
   }
 
+  const search = await evaluate(
+    cdp,
+    sessionId,
+    "window.browserStorageE2e.contentSearch().then(value => ({ ok: true, value }), error => ({ ok: false, error }))",
+  );
+  if (!search.ok) {
+    throw new Error(`content search failed: ${JSON.stringify(search.error)}`);
+  }
+  if (search.value.hits !== 1 || !search.value.snippet.includes("<mark>")) {
+    throw new Error(
+      `browser FTS5 did not return a highlighted content hit: ${JSON.stringify(search.value)}`,
+    );
+  }
+  if (search.value.diacriticHits !== 1) {
+    throw new Error("browser FTS5 did not fold diacritics");
+  }
+  if (search.value.opaqueHits !== 0) {
+    throw new Error("browser FTS5 indexed an opaque drawing payload");
+  }
+  if (search.value.rebuiltHits !== 1 || search.value.needsRebuildAfter) {
+    throw new Error(
+      `browser search index rebuild was not idempotent: ${JSON.stringify(search.value)}`,
+    );
+  }
+
   const rejection = await evaluate(
     cdp,
     sessionId,
@@ -85,7 +110,7 @@ try {
   }
 
   process.stdout.write(
-    `browser OPFS durability passed: ${result.value.initialNodes} initial nodes, one persisted write, archive round trip restored\n`,
+    `browser OPFS durability passed: ${result.value.initialNodes} initial nodes, one persisted write, archive round trip restored, FTS5 content search and rebuild verified\n`,
   );
 } finally {
   socket?.close();
