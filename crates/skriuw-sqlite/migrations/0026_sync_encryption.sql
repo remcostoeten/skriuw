@@ -6,5 +6,8 @@ CREATE TABLE sync_encryption (
     enabled_at INTEGER NOT NULL CHECK (enabled_at >= 0),
     sealed_checkpoint_at INTEGER CHECK (
         sealed_checkpoint_at IS NULL OR sealed_checkpoint_at >= 0
+    ),
+    encrypted_from_server_sequence INTEGER NOT NULL CHECK (
+        encrypted_from_server_sequence >= 0
     )
 ) STRICT;

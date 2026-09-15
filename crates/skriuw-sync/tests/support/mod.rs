@@ -263,6 +263,46 @@ impl FakeServer {
         }
     }
 
+    /// Appends an operation to the log exactly as given, bypassing every
+    /// admission rule, standing in for a service that forges log entries.
+    pub fn inject_operation(&self, device_id: &str, envelope: WorkspaceOperationEnvelope) {
+        let mut log = self.state.lock().expect("server state");
+        let server_sequence = log.len() as u64 + 1;
+        log.push(ReplicatedWorkspaceOperation {
+            operation_id: format!("forged-{server_sequence}"),
+            device_id: device_id.into(),
+            client_sequence: 1,
+            base_server_sequence: 0,
+            server_sequence,
+            payload: SyncOperationPayload::Inline {
+                operation: envelope,
+                assets: Vec::new(),
+            },
+        });
+    }
+
+    /// Replaces every checkpoint with an unsealed one over `archive`, standing
+    /// in for a service that downgrades a sealed checkpoint it cannot read.
+    pub fn forge_plaintext_checkpoint(
+        &self,
+        archive: &skriuw_domain::WorkspaceArchive,
+        server_sequence: u64,
+    ) {
+        let (checkpoint, bytes) =
+            WorkspaceCheckpoint::build(&self.workspace_id, server_sequence, 1, archive)
+                .expect("build forged checkpoint");
+        let mut chunks = self.chunks.lock().expect("chunk store");
+        let mut offset = 0;
+        for chunk in &checkpoint.content.chunks {
+            let end = offset + chunk.byte_length as usize;
+            chunks.insert(chunk.digest.clone(), bytes[offset..end].to_vec());
+            offset = end;
+        }
+        let mut checkpoints = self.checkpoints.lock().expect("checkpoint store");
+        checkpoints.clear();
+        checkpoints.push(checkpoint);
+    }
+
     #[must_use]
     pub fn encryption_marker(&self) -> Option<WorkspaceEncryptionMarker> {
         self.encryption.lock().expect("encryption marker").clone()

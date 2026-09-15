@@ -464,6 +464,11 @@ pub struct WorkspaceSeal {
     /// When the first sealed checkpoint was published, which is what lets the
     /// service compact the workspace's remaining plaintext operations away.
     pub sealed_checkpoint_at: Option<i64>,
+    /// The server sequence encryption began after. Every pulled operation
+    /// above it must be sealed, so a service that forges or downgrades an
+    /// operation above the floor is refused rather than applied. It never
+    /// moves once recorded.
+    pub encrypted_from_server_sequence: u64,
 }
 
 pub trait WorkspaceSyncQueue: Send + Sync {

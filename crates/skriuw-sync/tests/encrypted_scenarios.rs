@@ -11,12 +11,14 @@ mod support;
 use std::sync::Arc;
 
 use skriuw_sqlite::SqliteWorkspace;
-use skriuw_storage::{NewSyncConnection, WorkspaceStorage, WorkspaceSyncQueue};
+use skriuw_storage::{
+    NewSyncConnection, WorkspaceMaintenance, WorkspaceStorage, WorkspaceSyncQueue,
+};
 use skriuw_sync::{
-    BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED, BLOCKED_REASON_SEALED_CONTENT_UNREADABLE,
-    CheckpointPublication, CheckpointPublicationConfig, CheckpointPublicationState,
-    SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig, SyncCycleOutcome,
-    SyncCycleState, SyncStatus, derive_workspace_seal, new_recovery_code,
+    BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED, BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED,
+    BLOCKED_REASON_SEALED_CONTENT_UNREADABLE, CheckpointPublication, CheckpointPublicationConfig,
+    CheckpointPublicationState, SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig,
+    SyncCycleOutcome, SyncCycleState, SyncStatus, derive_workspace_seal, new_recovery_code,
     run_checkpoint_publication, run_sync_cycle,
 };
 use support::{
@@ -31,6 +33,7 @@ const RECOVERY_CODE: &str = "0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ";
 const OTHER_RECOVERY_CODE: &str = "ZYXW-VTSR-QPNM-KJHG-FEDC-BA98-7654-3210";
 
 struct Device {
+    server: Arc<FakeServer>,
     storage: SqliteWorkspace,
     transport: Arc<FakeTransport>,
     assets: Arc<FakeAssetStore>,
@@ -44,6 +47,7 @@ struct Device {
 impl Device {
     fn open(server: &Arc<FakeServer>, device_id: &str, clock: &Arc<FakeClock>) -> Self {
         let device = Self {
+            server: Arc::clone(server),
             storage: SqliteWorkspace::open_in_memory().expect("open database"),
             transport: FakeTransport::new(server, device_id),
             assets: FakeAssetStore::new(),
@@ -70,7 +74,16 @@ impl Device {
     }
 
     fn encrypt_with(&self, recovery_code: &str) {
-        let seal = derive_workspace_seal(WORKSPACE, recovery_code, self.clock.now_ms())
+        let floor = self.server.encryption_marker().map_or_else(
+            || {
+                self.storage
+                    .sync_connection()
+                    .expect("read connection")
+                    .map_or(0, |connection| connection.observed_server_sequence)
+            },
+            |marker| marker.encrypted_from_server_sequence,
+        );
+        let seal = derive_workspace_seal(WORKSPACE, recovery_code, floor, self.clock.now_ms())
             .expect("derive workspace seal");
         self.storage
             .set_workspace_seal(&seal)
@@ -170,12 +183,12 @@ fn blocked_detail(status: &SyncStatus) -> Option<&str> {
 fn recovery_codes_are_shown_in_groups_and_derive_a_stable_key() {
     let code = new_recovery_code(&[7; 20]).expect("format recovery code");
     assert_eq!(code.len(), 39);
-    let first = derive_workspace_seal(WORKSPACE, &code, 10).expect("derive");
-    let again = derive_workspace_seal(WORKSPACE, &code.to_lowercase(), 20).expect("derive");
+    let first = derive_workspace_seal(WORKSPACE, &code, 0, 10).expect("derive");
+    let again = derive_workspace_seal(WORKSPACE, &code.to_lowercase(), 0, 20).expect("derive");
     assert_eq!(first.key_id, again.key_id);
     assert_eq!(first.key_material, again.key_material);
     assert!(
-        derive_workspace_seal(WORKSPACE, "not-a-code", 10)
+        derive_workspace_seal(WORKSPACE, "not-a-code", 0, 10)
             .expect_err("malformed code")
             .contains("recovery code")
     );
@@ -405,4 +418,66 @@ fn a_keyless_device_with_pending_ops_never_sends_plaintext_to_an_encrypted_works
             .has_pending_sync_operations()
             .expect("read outbox")
     );
+}
+
+#[test]
+fn a_plaintext_operation_the_service_forges_into_an_encrypted_log_is_refused() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let mut device_a = Device::open(&server, "device-a", &clock);
+    device_a.encrypt_with(RECOVERY_CODE);
+    device_a.apply(vec![create_note("note-1", SECRET_TITLE, 1)]);
+    assert_eq!(device_a.settle(), SyncStatus::UpToDate);
+    server.inject_operation(
+        "device-a",
+        create_note("note-forged", "Forged by the service", 2),
+    );
+
+    let mut device_b = Device::open(&server, "device-b", &clock);
+    device_b.encrypt_with(RECOVERY_CODE);
+    let status = device_b.settle();
+
+    assert_eq!(
+        blocked_reason(&status),
+        Some(BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED)
+    );
+    assert!(!device_b.shape().contains("Forged by the service"));
+}
+
+#[test]
+fn an_unsealed_checkpoint_is_refused_once_the_device_holds_the_key() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let mut device_a = Device::open(&server, "device-a", &clock);
+    device_a.encrypt_with(RECOVERY_CODE);
+    device_a.apply(vec![
+        create_note("note-1", SECRET_TITLE, 1),
+        save_document("note-1", 1, SECRET_BODY, 2),
+    ]);
+    assert_eq!(device_a.settle(), SyncStatus::UpToDate);
+    assert!(device_a.publish_checkpoint().is_none());
+
+    let forged = SqliteWorkspace::open_in_memory().expect("open forged workspace");
+    forged
+        .apply_operations(&[create_note("note-forged", "Forged checkpoint note", 1)])
+        .expect("apply forged operations");
+    server.forge_plaintext_checkpoint(
+        &forged
+            .export_archive(clock.now_ms())
+            .expect("export forged archive"),
+        2,
+    );
+    server.compact_through(2);
+
+    let mut device_c = Device::open(&server, "device-c", &clock);
+    device_c.encrypt_with(RECOVERY_CODE);
+    let status = device_c.settle();
+
+    assert_eq!(
+        blocked_reason(&status),
+        Some(BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED)
+    );
+    assert_eq!(device_c.shape(), "");
 }

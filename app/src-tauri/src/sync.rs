@@ -329,7 +329,12 @@ impl SyncRuntime {
         entropy[..16].copy_from_slice(first.as_bytes());
         entropy[16..].copy_from_slice(&second.as_bytes()[..4]);
         let recovery_code = new_recovery_code(&entropy)?;
-        let seal = derive_workspace_seal(&connection.workspace_id, &recovery_code, now_millis())?;
+        let seal = derive_workspace_seal(
+            &connection.workspace_id,
+            &recovery_code,
+            connection.observed_server_sequence,
+            now_millis(),
+        )?;
         workspace
             .set_workspace_seal(&seal)
             .map_err(|error| format!("could not store the workspace encryption key: {error}"))?;
@@ -348,7 +353,12 @@ impl SyncRuntime {
                 "connect this workspace to Skriuw cloud before entering its recovery code"
                     .to_string()
             })?;
-        let seal = derive_workspace_seal(&connection.workspace_id, recovery_code, now_millis())?;
+        let seal = derive_workspace_seal(
+            &connection.workspace_id,
+            recovery_code,
+            connection.observed_server_sequence,
+            now_millis(),
+        )?;
         workspace
             .set_workspace_seal(&seal)
             .map_err(|error| format!("could not store the workspace encryption key: {error}"))?;

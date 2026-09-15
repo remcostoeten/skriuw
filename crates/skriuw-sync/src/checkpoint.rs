@@ -7,10 +7,11 @@ use crate::{
     backoff::SyncBackoff,
     content::{download_content, upload_missing_chunks},
     cycle::{
-        BLOCKED_REASON_AUTHORIZATION_DENIED, BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED,
-        BLOCKED_REASON_LOG_TRUNCATED, BLOCKED_REASON_LOG_TRUNCATED_WITHOUT_CHECKPOINT,
-        BLOCKED_REASON_REJECTED_CHECKPOINT, SyncCycleConfig, SyncCycleOutcome, SyncStatus,
-        encryption_mismatch, refused_by_encrypted_workspace, storage_failure,
+        BLOCKED_REASON_AUTHORIZATION_DENIED, BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED,
+        BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED, BLOCKED_REASON_LOG_TRUNCATED,
+        BLOCKED_REASON_LOG_TRUNCATED_WITHOUT_CHECKPOINT, BLOCKED_REASON_REJECTED_CHECKPOINT,
+        SyncCycleConfig, SyncCycleOutcome, SyncStatus, encryption_mismatch,
+        refused_by_encrypted_workspace, storage_failure,
     },
     http::VALIDATION_DETAIL_WORKSPACE_ENCRYPTED,
     seal::WorkspaceSealer,
@@ -183,6 +184,17 @@ fn fetch_verified_archive(
     )
     .map_err(|error| checkpoint_failure(clock, backoff, config, &error))?;
     if checkpoint.seal.is_none() {
+        if sealer.is_some() {
+            return Err(blocked(
+                clock,
+                config,
+                BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED,
+                &format!(
+                    "the cloud offered an unencrypted checkpoint at sequence {} for this encrypted workspace; it was refused",
+                    checkpoint.server_sequence
+                ),
+            ));
+        }
         return checkpoint
             .verify_content(&bytes)
             .map_err(|error| rejected(clock, config, &error.to_string()));

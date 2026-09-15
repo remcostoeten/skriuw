@@ -516,8 +516,8 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
         let connection = self.lock()?;
         connection
             .query_row(
-                "SELECT key_id, scheme, key_material, enabled_at, sealed_checkpoint_at \
-                 FROM sync_encryption WHERE singleton = 1",
+                "SELECT key_id, scheme, key_material, enabled_at, sealed_checkpoint_at, \
+                 encrypted_from_server_sequence FROM sync_encryption WHERE singleton = 1",
                 [],
                 |row| {
                     Ok(WorkspaceSeal {
@@ -526,6 +526,7 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                         key_material: row.get(2)?,
                         enabled_at: row.get(3)?,
                         sealed_checkpoint_at: row.get(4)?,
+                        encrypted_from_server_sequence: row_sequence(row, 5)?,
                     })
                 },
             )
@@ -543,18 +544,21 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
         connection
             .execute(
                 "INSERT INTO sync_encryption( \
-                     singleton, key_id, scheme, key_material, enabled_at, sealed_checkpoint_at \
-                 ) VALUES (1, ?1, ?2, ?3, ?4, ?5) \
+                     singleton, key_id, scheme, key_material, enabled_at, sealed_checkpoint_at, \
+                     encrypted_from_server_sequence \
+                 ) VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6) \
                  ON CONFLICT(singleton) DO UPDATE SET \
                      key_id = excluded.key_id, scheme = excluded.scheme, \
                      key_material = excluded.key_material, enabled_at = excluded.enabled_at, \
-                     sealed_checkpoint_at = excluded.sealed_checkpoint_at",
+                     sealed_checkpoint_at = excluded.sealed_checkpoint_at, \
+                     encrypted_from_server_sequence = excluded.encrypted_from_server_sequence",
                 params![
                     seal.key_id,
                     seal.scheme,
                     seal.key_material,
                     seal.enabled_at.max(0),
                     seal.sealed_checkpoint_at,
+                    sql_sequence(seal.encrypted_from_server_sequence)?,
                 ],
             )
             .map_err(backend)?;

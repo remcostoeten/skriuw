@@ -19,7 +19,7 @@ use crate::{
         resolve_asset_content, resolve_chunked_operations,
     },
     http::VALIDATION_DETAIL_WORKSPACE_ENCRYPTED,
-    seal::WorkspaceSealer,
+    seal::{OpenFailure, WorkspaceSealer},
     transport::{SyncCancellation, SyncClock, SyncTransport, TransportError},
 };
 
@@ -44,6 +44,11 @@ pub const BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED: &str = "encryption_key_require
 /// recovery code, or bytes that changed after they were sealed. Neither is
 /// transient, so the cycle parks with the reason instead of retrying.
 pub const BLOCKED_REASON_SEALED_CONTENT_UNREADABLE: &str = "sealed_content_unreadable";
+/// The cloud returned plaintext where this device's encryption floor requires
+/// sealed content: an unsealed operation above the floor, or an unsealed
+/// checkpoint once the device holds the key. Applying it would let the
+/// service write into an encrypted workspace, so nothing applies.
+pub const BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED: &str = "encryption_downgrade_refused";
 
 /// Durable per-operation blocked reason recorded in storage when an
 /// operation's declared asset bytes are absent locally at push time. The
@@ -781,10 +786,12 @@ impl Cycle<'_> {
                     self.cancellation,
                 ) {
                     return Err(match &error {
-                        TransportError::Validation(detail) => {
-                            self.sealed_content_unreadable(detail)
-                        }
-                        error => self.pull_failure(error),
+                        OpenFailure::Unreadable(detail) => self.sealed_content_unreadable(detail),
+                        OpenFailure::Downgrade(detail) => self.parked_for_encryption(
+                            BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED,
+                            detail,
+                        ),
+                        OpenFailure::Transport(error) => self.pull_failure(error),
                     });
                 }
             }

@@ -44,6 +44,7 @@ pub fn new_recovery_code(entropy: &[u8]) -> Result<String, String> {
 pub fn derive_workspace_seal(
     workspace_id: &str,
     recovery_code: &str,
+    encrypted_from_server_sequence: u64,
     now_ms: i64,
 ) -> Result<WorkspaceSeal, String> {
     let code = RecoveryCode::parse(recovery_code).map_err(|error| error.to_string())?;
@@ -54,13 +55,28 @@ pub fn derive_workspace_seal(
         key_material: key.material().to_vec(),
         enabled_at: now_ms.max(0),
         sealed_checkpoint_at: None,
+        encrypted_from_server_sequence,
     })
+}
+
+/// Why a pulled page could not be opened. The cycle maps each to a different
+/// visible reason, because a downgrade is not a key problem and a key problem
+/// is not a transport problem.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum OpenFailure {
+    /// Sealed content this device's key cannot open.
+    Unreadable(String),
+    /// Plaintext where the workspace's encryption floor requires sealed
+    /// content.
+    Downgrade(String),
+    Transport(TransportError),
 }
 
 /// The device's workspace content key, in the one shape the cycle needs it.
 pub struct WorkspaceSealer {
     key: ContentKey,
     workspace_id: String,
+    encrypted_from_server_sequence: u64,
 }
 
 impl WorkspaceSealer {
@@ -83,6 +99,7 @@ impl WorkspaceSealer {
         Ok(Self {
             key,
             workspace_id: workspace_id.to_string(),
+            encrypted_from_server_sequence: seal.encrypted_from_server_sequence,
         })
     }
 
@@ -165,46 +182,78 @@ impl WorkspaceSealer {
     /// plaintext payload the apply path would have received from an
     /// unencrypted workspace. Asset bytes are verified against the digest the
     /// opened operation declares and stored locally before anything applies.
-    pub fn open_pull_response(
+    ///
+    /// Plaintext at or below the encryption floor is what the workspace
+    /// replicated before encryption began and passes through unchanged;
+    /// plaintext above it is a forgery or a downgrade and fails the page.
+    pub(crate) fn open_pull_response(
         &self,
         transport: &dyn SyncTransport,
         assets: &dyn SyncAssetStore,
         response: &mut SyncPullResponse,
         cancellation: &SyncCancellation,
-    ) -> Result<usize, TransportError> {
+    ) -> Result<usize, OpenFailure> {
+        self.open_pull_operations(transport, assets, response, cancellation)
+            .map_err(|failure| match failure {
+                OpenFailure::Transport(TransportError::Validation(detail)) => {
+                    OpenFailure::Unreadable(detail)
+                }
+                failure => failure,
+            })
+    }
+
+    fn open_pull_operations(
+        &self,
+        transport: &dyn SyncTransport,
+        assets: &dyn SyncAssetStore,
+        response: &mut SyncPullResponse,
+        cancellation: &SyncCancellation,
+    ) -> Result<usize, OpenFailure> {
         let mut opened = 0;
         for operation in &mut response.operations {
             if cancellation.is_cancelled() {
-                return Err(TransportError::Cancelled);
+                return Err(OpenFailure::Transport(TransportError::Cancelled));
             }
             let Some((content, sealed_assets)) = operation.payload.sealed_content() else {
+                if operation.server_sequence > self.encrypted_from_server_sequence {
+                    return Err(OpenFailure::Downgrade(format!(
+                        "the cloud returned unencrypted operation {} at sequence {}, after this workspace was encrypted from sequence {}; it was refused",
+                        operation.operation_id,
+                        operation.server_sequence,
+                        self.encrypted_from_server_sequence
+                    )));
+                }
                 continue;
             };
-            let bytes = self.open_content(
-                transport,
-                content,
-                &operation_context(&self.workspace_id, &operation.operation_id),
-                cancellation,
-            )?;
+            let bytes = self
+                .open_content(
+                    transport,
+                    content,
+                    &operation_context(&self.workspace_id, &operation.operation_id),
+                    cancellation,
+                )
+                .map_err(OpenFailure::Transport)?;
             let envelope =
                 serde_json::from_slice::<WorkspaceOperationEnvelope>(&bytes).map_err(|error| {
-                    TransportError::Validation(format!(
+                    OpenFailure::Transport(TransportError::Validation(format!(
                         "sealed operation {} did not open into a readable envelope: {error}",
                         operation.operation_id
-                    ))
+                    )))
                 })?;
-            envelope
-                .validate()
-                .map_err(|error| TransportError::Validation(error.to_string()))?;
+            envelope.validate().map_err(|error| {
+                OpenFailure::Transport(TransportError::Validation(error.to_string()))
+            })?;
 
-            let manifests = self.open_declared_asset(
-                transport,
-                assets,
-                &operation.operation_id,
-                &envelope,
-                sealed_assets,
-                cancellation,
-            )?;
+            let manifests = self
+                .open_declared_asset(
+                    transport,
+                    assets,
+                    &operation.operation_id,
+                    &envelope,
+                    sealed_assets,
+                    cancellation,
+                )
+                .map_err(OpenFailure::Transport)?;
             operation.payload = SyncOperationPayload::Inline {
                 operation: envelope,
                 assets: manifests,

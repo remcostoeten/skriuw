@@ -174,8 +174,13 @@ impl BrowserSyncRuntime {
             ));
         }
         let recovery_code = new_recovery_code(entropy).map_err(BrowserStorageError::invalid)?;
-        let seal = derive_workspace_seal(&workspace_id, &recovery_code, now_ms)
-            .map_err(BrowserStorageError::invalid)?;
+        let seal = derive_workspace_seal(
+            &workspace_id,
+            &recovery_code,
+            observed_server_sequence(queue)?,
+            now_ms,
+        )
+        .map_err(BrowserStorageError::invalid)?;
         queue.set_workspace_seal(&seal).map_err(map_storage_error)?;
         self.refresh(queue, now_ms);
         Ok(recovery_code)
@@ -190,8 +195,13 @@ impl BrowserSyncRuntime {
         now_ms: i64,
     ) -> Result<BrowserSyncEncryptionState, BrowserStorageError> {
         let workspace_id = self.linked_workspace(queue)?;
-        let seal = derive_workspace_seal(&workspace_id, recovery_code, now_ms)
-            .map_err(BrowserStorageError::invalid)?;
+        let seal = derive_workspace_seal(
+            &workspace_id,
+            recovery_code,
+            observed_server_sequence(queue)?,
+            now_ms,
+        )
+        .map_err(BrowserStorageError::invalid)?;
         queue.set_workspace_seal(&seal).map_err(map_storage_error)?;
         self.refresh(queue, now_ms);
         self.encryption_state(queue)
@@ -328,6 +338,13 @@ impl BrowserSyncRuntime {
             None => SyncStatus::LocalOnly,
         })
     }
+}
+
+fn observed_server_sequence(queue: &dyn WorkspaceSyncQueue) -> Result<u64, BrowserStorageError> {
+    Ok(queue
+        .sync_connection()
+        .map_err(map_storage_error)?
+        .map_or(0, |connection| connection.observed_server_sequence))
 }
 
 pub type SyncProgressObserver = Arc<dyn Fn(&BrowserSyncProgress) + Send + Sync>;

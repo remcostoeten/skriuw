@@ -184,7 +184,41 @@ Recovery-relevant failures stay visible, per the repository rules:
   `blocked { reason: "sealed_content_unreadable" }` with the crypto layer's
   actionable message
 
-Neither is retried into a loop, and neither applies anything.
+- plaintext where the device's encryption floor requires sealed content — an
+  unsealed operation above the floor, or an unsealed checkpoint once the
+  device holds the key — parks as
+  `blocked { reason: "encryption_downgrade_refused" }`
+
+None of them is retried into a loop, and none applies anything.
+
+### Encryption floor
+
+The device-local seal record carries `encrypted_from_server_sequence`: the
+server sequence encryption began after. Every pulled operation above it must
+arrive sealed; plaintext at or below it is what the workspace replicated
+before encryption and still applies. Once a device holds the key it also
+refuses every unsealed checkpoint, whatever its sequence. The floor never
+moves after it is recorded, so a service that later forges a plaintext
+operation or swaps a sealed checkpoint for a readable one is refused rather
+than obeyed.
+
+### What sealing does not protect
+
+Sealing authenticates each blob and binds it to its slot. It does not make
+the log as a whole authentic:
+
+- **Freshness.** The service can withhold new operations, replay an older
+  checkpoint, or roll a device back to an earlier state of the log. Nothing
+  here detects it.
+- **Omission and reordering.** The service chooses which sealed operations a
+  device sees and in which order; each one opens, so none is refused.
+- **The floor a joining device adopts.** A device that joins an already
+  encrypted workspace takes the floor from the service's encryption record.
+  A service that lies about it can admit forged plaintext operations *below*
+  the claimed floor on that device only.
+
+Closing these gaps needs a signed, hash-chained log head, which is a separate
+decision.
 
 ### Migration and recovery
 
