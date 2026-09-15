@@ -517,13 +517,15 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
         connection
             .query_row(
                 "SELECT key_id, scheme, key_material, enabled_at, sealed_checkpoint_at, \
-                 encrypted_from_server_sequence FROM sync_encryption WHERE singleton = 1",
+                 encrypted_from_server_sequence, workspace_id \
+                 FROM sync_encryption WHERE singleton = 1",
                 [],
                 |row| {
                     Ok(WorkspaceSeal {
+                        workspace_id: row.get(6)?,
                         key_id: row.get(0)?,
                         scheme: row.get(1)?,
-                        key_material: row.get(2)?,
+                        key_material: row.get::<_, Vec<u8>>(2)?.into(),
                         enabled_at: row.get(3)?,
                         sealed_checkpoint_at: row.get(4)?,
                         encrypted_from_server_sequence: row_sequence(row, 5)?,
@@ -535,9 +537,13 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
     }
 
     fn set_workspace_seal(&self, seal: &WorkspaceSeal) -> Result<(), StorageError> {
-        if seal.key_id.is_empty() || seal.scheme.is_empty() || seal.key_material.is_empty() {
+        if seal.workspace_id.is_empty()
+            || seal.key_id.is_empty()
+            || seal.scheme.is_empty()
+            || seal.key_material.is_empty()
+        {
             return Err(StorageError::InvalidOperation(
-                "a workspace seal needs a key id, a scheme, and key material".into(),
+                "a workspace seal needs a workspace, a key id, a scheme, and key material".into(),
             ));
         }
         let connection = self.lock()?;
@@ -545,9 +551,10 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
             .execute(
                 "INSERT INTO sync_encryption( \
                      singleton, key_id, scheme, key_material, enabled_at, sealed_checkpoint_at, \
-                     encrypted_from_server_sequence \
-                 ) VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6) \
+                     encrypted_from_server_sequence, workspace_id \
+                 ) VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7) \
                  ON CONFLICT(singleton) DO UPDATE SET \
+                     workspace_id = excluded.workspace_id, \
                      key_id = excluded.key_id, scheme = excluded.scheme, \
                      key_material = excluded.key_material, enabled_at = excluded.enabled_at, \
                      sealed_checkpoint_at = excluded.sealed_checkpoint_at, \
@@ -555,10 +562,11 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                 params![
                     seal.key_id,
                     seal.scheme,
-                    seal.key_material,
+                    seal.key_material.as_slice(),
                     seal.enabled_at.max(0),
                     seal.sealed_checkpoint_at,
                     sql_sequence(seal.encrypted_from_server_sequence)?,
+                    seal.workspace_id,
                 ],
             )
             .map_err(backend)?;

@@ -16,11 +16,11 @@ use skriuw_storage::{
 };
 use skriuw_sync::{
     BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED, BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED,
-    BLOCKED_REASON_SEALED_CONTENT_UNREADABLE, CheckpointPublication, CheckpointPublicationConfig,
-    CheckpointPublicationState, SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig,
-    SyncCycleOutcome, SyncCycleState, SyncStatus, derive_workspace_seal,
-    enable_workspace_encryption, new_recovery_code, run_checkpoint_publication, run_sync_cycle,
-    unlock_workspace_encryption,
+    BLOCKED_REASON_SEALED_CONTENT_UNREADABLE, BLOCKED_REASON_STORAGE_FAILURE,
+    CheckpointPublication, CheckpointPublicationConfig, CheckpointPublicationState,
+    SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig, SyncCycleOutcome,
+    SyncCycleState, SyncStatus, derive_workspace_seal, enable_workspace_encryption,
+    new_recovery_code, run_checkpoint_publication, run_sync_cycle, unlock_workspace_encryption,
 };
 use support::{
     FakeAssetStore, FakeClock, FakeServer, FakeTransport, attach_image, create_note, save_document,
@@ -546,4 +546,81 @@ fn two_devices_enabling_encryption_at_once_cannot_both_win() {
         .expect("the service records the winner");
     let winner = derive_workspace_seal(WORKSPACE, &code_a, 0, 0).expect("derive winner");
     assert_eq!(marker.key_id, winner.key_id);
+}
+
+#[test]
+fn a_sealed_operation_moved_to_another_device_does_not_open() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let mut device_a = Device::open(&server, "device-a", &clock);
+    device_a.encrypt_with(RECOVERY_CODE);
+    device_a.apply(vec![create_note("note-1", SECRET_TITLE, 1)]);
+    assert_eq!(device_a.settle(), SyncStatus::UpToDate);
+    server.reattribute_sealed_operations("device-forged");
+
+    let mut device_b = Device::open(&server, "device-b", &clock);
+    device_b.encrypt_with(RECOVERY_CODE);
+    let status = device_b.settle();
+
+    assert_eq!(
+        blocked_reason(&status),
+        Some(BLOCKED_REASON_SEALED_CONTENT_UNREADABLE)
+    );
+    assert_eq!(device_b.shape(), "");
+}
+
+#[test]
+fn a_key_stored_for_another_workspace_is_never_used() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let mut device_a = Device::open(&server, "device-a", &clock);
+    device_a.encrypt_with(RECOVERY_CODE);
+    device_a.apply(vec![create_note("note-1", SECRET_TITLE, 1)]);
+    assert_eq!(device_a.settle(), SyncStatus::UpToDate);
+
+    let mut device_b = Device::open(&server, "device-b", &clock);
+    let stale = derive_workspace_seal("workspace-previous", RECOVERY_CODE, 0, clock.now_ms())
+        .expect("derive stale seal");
+    device_b
+        .storage
+        .set_workspace_seal(&stale)
+        .expect("store stale seal");
+    device_b.apply(vec![create_note("note-b", "Written under a stale key", 2)]);
+    let status = device_b.settle();
+
+    assert_eq!(
+        blocked_reason(&status),
+        Some(BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED)
+    );
+    assert!(blocked_detail(&status).is_some_and(|detail| detail.contains("another workspace")));
+    assert!(device_b.transport.pushed_requests().is_empty());
+}
+
+#[test]
+fn a_local_storage_failure_while_opening_is_not_reported_as_unreadable_content() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let mut device_a = Device::open(&server, "device-a", &clock);
+    device_a.encrypt_with(RECOVERY_CODE);
+    let image_bytes = SECRET_BODY.repeat(4).into_bytes();
+    device_a.assets.put(&image_bytes);
+    device_a.apply(vec![
+        create_note("note-1", SECRET_TITLE, 1),
+        attach_image("image-1", "note-1", &image_bytes, 2),
+    ]);
+    assert_eq!(device_a.settle(), SyncStatus::UpToDate);
+
+    let mut device_b = Device::open(&server, "device-b", &clock);
+    device_b.encrypt_with(RECOVERY_CODE);
+    device_b.assets.refuse_writes();
+    let status = device_b.settle();
+
+    assert_eq!(
+        blocked_reason(&status),
+        Some(BLOCKED_REASON_STORAGE_FAILURE)
+    );
+    assert!(blocked_detail(&status).is_some_and(|detail| detail.contains("not writable")));
 }

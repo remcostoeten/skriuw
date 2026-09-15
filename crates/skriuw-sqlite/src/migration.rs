@@ -417,7 +417,7 @@ mod tests {
             ),
             (
                 26,
-                "d74658e56fd7491ba54b45b7e36025b28775f17282743f5d3047aa41abdd3c93",
+                "a73dea0ff37e198a0b8ac1a8ff855b56ef594ed89b9611f3e2adc40ad744ecb8",
             ),
         ];
         assert_eq!(MIGRATIONS.len(), SHIPPED.len(), "append new checksums here");

@@ -10,7 +10,7 @@ description = "Client-side content sealing for workspace sync"
 argon2 = { version = "0.6", default-features = false, features = ["alloc"] }
 base64 = { version = "0.22", default-features = false, features = ["alloc"] }
 blake2 = { version = "0.11", default-features = false, features = ["zeroize"] }
-chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc"] }
+chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc", "zeroize"] }
 sha2.workspace = true
 thiserror.workspace = true
 zeroize = { version = "1", features = ["derive"] }

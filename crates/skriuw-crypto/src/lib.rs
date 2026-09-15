@@ -250,7 +250,7 @@ impl SealedBytes {
 /// operation cannot be replayed into a different slot of the protocol.
 pub fn seal(key: &ContentKey, context: &str, plaintext: &[u8]) -> Result<SealedBytes, CryptoError> {
     let nonce = derive_nonce(key, context, plaintext)?;
-    let cipher = XChaCha20Poly1305::new(&Key::from(key.material));
+    let cipher = XChaCha20Poly1305::new(key_array(key));
     let ciphertext = cipher
         .encrypt(
             &XNonce::from(nonce),
@@ -295,7 +295,7 @@ pub fn open(
             .map_err(|_| CryptoError::MalformedNonce {
                 actual: nonce.len(),
             })?;
-    let cipher = XChaCha20Poly1305::new(&Key::from(key.material));
+    let cipher = XChaCha20Poly1305::new(key_array(key));
     cipher
         .decrypt(
             &XNonce::from(nonce),
@@ -305,6 +305,13 @@ pub fn open(
             },
         )
         .map_err(|_| CryptoError::ContentUnopenable)
+}
+
+/// Borrows the key bytes as the cipher's key type without copying them onto
+/// the stack, so the only live copies are the zeroizing `ContentKey` and the
+/// cipher state, which zeroizes on drop.
+fn key_array(key: &ContentKey) -> &Key {
+    (&key.material).into()
 }
 
 pub fn decode_base64(value: &str) -> Result<Vec<u8>, CryptoError> {

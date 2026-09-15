@@ -455,11 +455,15 @@ pub struct SyncTombstone {
 /// device and cached here so the code is entered once per device. Local
 /// canonical state stays plaintext, so a lost cache is re-derivable and never
 /// loses data.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct WorkspaceSeal {
+    /// The workspace the key was derived for. A record for any other
+    /// workspace is never used, so a reset or relink cannot seal with a
+    /// stale key.
+    pub workspace_id: String,
     pub key_id: String,
     pub scheme: String,
-    pub key_material: Vec<u8>,
+    pub key_material: zeroize::Zeroizing<Vec<u8>>,
     pub enabled_at: i64,
     /// When the first sealed checkpoint was published, which is what lets the
     /// service compact the workspace's remaining plaintext operations away.
@@ -471,6 +475,24 @@ pub struct WorkspaceSeal {
     pub encrypted_from_server_sequence: u64,
 }
 
+impl std::fmt::Debug for WorkspaceSeal {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("WorkspaceSeal")
+            .field("workspace_id", &self.workspace_id)
+            .field("key_id", &self.key_id)
+            .field("scheme", &self.scheme)
+            .field("key_material", &"redacted")
+            .field("enabled_at", &self.enabled_at)
+            .field("sealed_checkpoint_at", &self.sealed_checkpoint_at)
+            .field(
+                "encrypted_from_server_sequence",
+                &self.encrypted_from_server_sequence,
+            )
+            .finish()
+    }
+}
+
 pub trait WorkspaceSyncQueue: Send + Sync {
     fn sync_connection(&self) -> Result<Option<SyncConnection>, StorageError>;
 
@@ -480,8 +502,9 @@ pub trait WorkspaceSyncQueue: Send + Sync {
 
     fn set_workspace_seal(&self, seal: &WorkspaceSeal) -> Result<(), StorageError>;
 
-    /// Stops sealing new content. Content already sealed in the cloud stays
-    /// sealed, so this never silently republishes plaintext.
+    /// Removes this device's key. Enabling uses it to roll back a key the
+    /// service refused because another device encrypted the workspace first;
+    /// it is not an off switch, and content already sealed stays sealed.
     fn clear_workspace_seal(&self) -> Result<(), StorageError>;
 
     fn connect_sync(&self, connection: &NewSyncConnection) -> Result<SyncConnection, StorageError>;
@@ -939,6 +962,23 @@ where
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn workspace_seal_debug_output_never_shows_key_material() {
+        let seal = super::WorkspaceSeal {
+            workspace_id: "workspace-1".into(),
+            key_id: "0f1e2d3c4b5a6978".into(),
+            scheme: "argon2id-xchacha20poly1305-v2".into(),
+            key_material: vec![0xab; 32].into(),
+            enabled_at: 1,
+            sealed_checkpoint_at: None,
+            encrypted_from_server_sequence: 0,
+        };
+        let rendered = format!("{seal:?}");
+        assert!(rendered.contains("redacted"));
+        assert!(!rendered.contains("171"));
+        assert!(rendered.contains("0f1e2d3c4b5a6978"));
+    }
+
     use super::{
         Diagnostic, DiagnosticCategory, DiagnosticContext, MAX_DIAGNOSTIC_MESSAGE_BYTES,
         StorageError,

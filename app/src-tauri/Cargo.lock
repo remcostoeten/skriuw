@@ -603,6 +603,7 @@ dependencies = [
  "cipher 0.5.2",
  "cpufeatures 0.3.0",
  "rand_core 0.10.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -615,6 +616,7 @@ dependencies = [
  "chacha20",
  "cipher 0.5.2",
  "poly1305",
+ "zeroize",
 ]
 
 [[package]]
@@ -4175,6 +4177,7 @@ dependencies = [
  "ai-providers",
  "base64 0.22.1",
  "dbus-secret-service",
+ "getrandom 0.3.4",
  "glib",
  "keyring",
  "reqwest",
@@ -4204,6 +4207,7 @@ dependencies = [
  "tungstenite",
  "uuid",
  "webkit2gtk",
+ "zeroize",
  "zip 8.6.0",
 ]
 
@@ -4299,6 +4303,7 @@ version = "0.1.0"
 dependencies = [
  "skriuw-domain",
  "thiserror 2.0.19",
+ "zeroize",
 ]
 
 [[package]]

@@ -317,16 +317,15 @@ impl SyncRuntime {
     pub fn enable_encryption(&self) -> Result<String, String> {
         let workspace = self.open_workspace()?;
         let transport = self.cloud_transport()?;
-        let mut entropy = [0_u8; 20];
-        let first = Uuid::new_v4();
-        let second = Uuid::new_v4();
-        entropy[..16].copy_from_slice(first.as_bytes());
-        entropy[16..].copy_from_slice(&second.as_bytes()[..4]);
+        let mut entropy = zeroize::Zeroizing::new([0_u8; 20]);
+        getrandom::fill(entropy.as_mut_slice()).map_err(|error| {
+            format!("could not gather randomness for the recovery code: {error}")
+        })?;
         let recovery_code = enable_workspace_encryption(
             &workspace,
             transport.as_ref(),
             &SyncCancellation::new(),
-            &entropy,
+            entropy.as_slice(),
             now_millis(),
         )?;
         self.request_refresh();

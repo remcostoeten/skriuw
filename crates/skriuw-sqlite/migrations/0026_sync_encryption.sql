@@ -1,5 +1,6 @@
 CREATE TABLE sync_encryption (
     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+    workspace_id TEXT NOT NULL CHECK (length(workspace_id) > 0),
     key_id TEXT NOT NULL,
     scheme TEXT NOT NULL,
     key_material BLOB NOT NULL,

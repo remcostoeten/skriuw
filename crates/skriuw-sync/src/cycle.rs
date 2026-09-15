@@ -791,6 +791,10 @@ impl Cycle<'_> {
                             BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED,
                             detail,
                         ),
+                        OpenFailure::Rejected(detail) => self.rejected_pull(detail),
+                        OpenFailure::Storage(detail) => {
+                            self.parked_for_encryption(BLOCKED_REASON_STORAGE_FAILURE, detail)
+                        }
                         OpenFailure::Transport(error) => self.pull_failure(error),
                     });
                 }

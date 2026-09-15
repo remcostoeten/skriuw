@@ -50,9 +50,10 @@ pub fn derive_workspace_seal(
     let code = RecoveryCode::parse(recovery_code).map_err(|error| error.to_string())?;
     let key = derive_content_key(&code, workspace_id).map_err(|error| error.to_string())?;
     Ok(WorkspaceSeal {
+        workspace_id: workspace_id.to_string(),
         key_id: key.key_id(),
         scheme: SEAL_SCHEME_V2.into(),
-        key_material: key.material().to_vec(),
+        key_material: key.material().to_vec().into(),
         enabled_at: now_ms.max(0),
         sealed_checkpoint_at: None,
         encrypted_from_server_sequence,
@@ -80,7 +81,7 @@ pub fn enable_workspace_encryption(
     if queue
         .workspace_seal()
         .map_err(|error| format!("could not read the workspace encryption state: {error}"))?
-        .is_some()
+        .is_some_and(|seal| seal.workspace_id == connection.workspace_id)
     {
         return Err("this workspace is already encrypted on this device".into());
     }
@@ -160,7 +161,9 @@ pub fn unlock_workspace_encryption(
     let existing = queue
         .workspace_seal()
         .map_err(|error| format!("could not read the workspace encryption state: {error}"))?
-        .filter(|existing| existing.key_id == seal.key_id);
+        .filter(|existing| {
+            existing.workspace_id == seal.workspace_id && existing.key_id == seal.key_id
+        });
     let seal = match existing {
         Some(existing) => WorkspaceSeal {
             enabled_at: existing.enabled_at,
@@ -184,6 +187,10 @@ pub(crate) enum OpenFailure {
     /// Plaintext where the workspace's encryption floor requires sealed
     /// content.
     Downgrade(String),
+    /// Content that opened but does not describe a valid operation or asset.
+    Rejected(String),
+    /// The opened content could not be written to local storage.
+    Storage(String),
     Transport(TransportError),
 }
 
@@ -204,6 +211,11 @@ impl WorkspaceSealer {
                 "this workspace is encrypted with the unsupported scheme {}; update Skriuw to open it",
                 seal.scheme
             )));
+        }
+        if seal.workspace_id != workspace_id {
+            return Err(TransportError::Validation(
+                "the stored workspace encryption key belongs to another workspace; enter this workspace's recovery code".into(),
+            ));
         }
         let key = ContentKey::from_material(&seal.key_material).map_err(crypto_failure)?;
         if key.key_id() != seal.key_id {
@@ -236,6 +248,7 @@ impl WorkspaceSealer {
     ) -> Result<AssetExternalization, TransportError> {
         let mut attached = 0;
         let mut missing = Vec::new();
+        let device_id = request.device_id.clone();
         for operation in &mut request.operations {
             if cancellation.is_cancelled() {
                 return Err(TransportError::Cancelled);
@@ -277,10 +290,13 @@ impl WorkspaceSealer {
                     "operation envelope is not serializable: {error}"
                 ))
             })?;
-            let sealed = self.seal_bytes(
-                &operation_context(&self.workspace_id, &operation.operation_id),
-                &bytes,
-            )?;
+            let slot = OperationSlot {
+                operation_id: &operation.operation_id,
+                device_id: &device_id,
+                client_sequence: operation.client_sequence,
+                base_server_sequence: operation.base_server_sequence,
+            };
+            let sealed = self.seal_bytes(&operation_context(&self.workspace_id, &slot), &bytes)?;
             let content = self.transport_for(
                 transport,
                 ContentManifestKind::OperationEnvelope,
@@ -308,22 +324,6 @@ impl WorkspaceSealer {
         response: &mut SyncPullResponse,
         cancellation: &SyncCancellation,
     ) -> Result<usize, OpenFailure> {
-        self.open_pull_operations(transport, assets, response, cancellation)
-            .map_err(|failure| match failure {
-                OpenFailure::Transport(TransportError::Validation(detail)) => {
-                    OpenFailure::Unreadable(detail)
-                }
-                failure => failure,
-            })
-    }
-
-    fn open_pull_operations(
-        &self,
-        transport: &dyn SyncTransport,
-        assets: &dyn SyncAssetStore,
-        response: &mut SyncPullResponse,
-        cancellation: &SyncCancellation,
-    ) -> Result<usize, OpenFailure> {
         let mut opened = 0;
         for operation in &mut response.operations {
             if cancellation.is_cancelled() {
@@ -340,35 +340,37 @@ impl WorkspaceSealer {
                 }
                 continue;
             };
-            let bytes = self
-                .open_content(
-                    transport,
-                    content,
-                    &operation_context(&self.workspace_id, &operation.operation_id),
-                    cancellation,
-                )
-                .map_err(OpenFailure::Transport)?;
+            let slot = OperationSlot {
+                operation_id: &operation.operation_id,
+                device_id: &operation.device_id,
+                client_sequence: operation.client_sequence,
+                base_server_sequence: operation.base_server_sequence,
+            };
+            let bytes = self.open_content(
+                transport,
+                content,
+                &operation_context(&self.workspace_id, &slot),
+                cancellation,
+            )?;
             let envelope =
                 serde_json::from_slice::<WorkspaceOperationEnvelope>(&bytes).map_err(|error| {
-                    OpenFailure::Transport(TransportError::Validation(format!(
+                    OpenFailure::Rejected(format!(
                         "sealed operation {} did not open into a readable envelope: {error}",
                         operation.operation_id
-                    )))
+                    ))
                 })?;
-            envelope.validate().map_err(|error| {
-                OpenFailure::Transport(TransportError::Validation(error.to_string()))
-            })?;
+            envelope
+                .validate()
+                .map_err(|error| OpenFailure::Rejected(error.to_string()))?;
 
-            let manifests = self
-                .open_declared_asset(
-                    transport,
-                    assets,
-                    &operation.operation_id,
-                    &envelope,
-                    sealed_assets,
-                    cancellation,
-                )
-                .map_err(OpenFailure::Transport)?;
+            let manifests = self.open_declared_asset(
+                transport,
+                assets,
+                &operation.operation_id,
+                &envelope,
+                sealed_assets,
+                cancellation,
+            )?;
             operation.payload = SyncOperationPayload::Inline {
                 operation: envelope,
                 assets: manifests,
@@ -413,7 +415,7 @@ impl WorkspaceSealer {
             &self.key,
             &seal.scheme,
             &seal.key_id,
-            &checkpoint_context(&checkpoint.workspace_id, checkpoint.server_sequence),
+            &checkpoint_context(&self.workspace_id, checkpoint.server_sequence),
             &seal.nonce,
             ciphertext,
         )
@@ -528,43 +530,43 @@ impl WorkspaceSealer {
         envelope: &WorkspaceOperationEnvelope,
         sealed_assets: &[SealedContent],
         cancellation: &SyncCancellation,
-    ) -> Result<Vec<ContentManifest>, TransportError> {
+    ) -> Result<Vec<ContentManifest>, OpenFailure> {
         let Some(required) = envelope.operation.required_asset_content() else {
             if sealed_assets.is_empty() {
                 return Ok(Vec::new());
             }
-            return Err(TransportError::Validation(format!(
+            return Err(OpenFailure::Rejected(format!(
                 "sealed operation {operation_id} carries asset content it does not declare"
             )));
         };
         let [sealed] = sealed_assets else {
-            return Err(TransportError::Validation(format!(
+            return Err(OpenFailure::Rejected(format!(
                 "sealed operation {operation_id} arrived without its declared asset content"
             )));
         };
-        let ciphertext = self.fetch_ciphertext(transport, sealed, cancellation)?;
-        let bytes = open(
-            &self.key,
-            &sealed.scheme,
-            &sealed.key_id,
+        let bytes = self.open_content(
+            transport,
+            sealed,
             &asset_context(&self.workspace_id, operation_id, required.content_hash),
-            &sealed.nonce,
-            &ciphertext,
-        )
-        .map_err(crypto_failure)?;
+            cancellation,
+        )?;
         if content_digest(&bytes) != required.content_hash
             || bytes.len() as u64 != required.byte_length
         {
-            return Err(TransportError::Validation(format!(
+            return Err(OpenFailure::Rejected(format!(
                 "opened asset content for operation {operation_id} does not match its declared digest"
             )));
         }
         assets
             .store_asset(required.content_hash, required.mime_type, &bytes)
-            .map_err(TransportError::Validation)?;
+            .map_err(|error| {
+                OpenFailure::Storage(format!(
+                    "could not store the asset for operation {operation_id}: {error}"
+                ))
+            })?;
         let manifest =
             ContentManifest::build(ContentManifestKind::Asset, required.mime_type, &bytes)
-                .map_err(|error| TransportError::Validation(error.to_string()))?;
+                .map_err(|error| OpenFailure::Rejected(error.to_string()))?;
         Ok(vec![manifest])
     }
 
@@ -574,8 +576,10 @@ impl WorkspaceSealer {
         content: &SealedContent,
         context: &str,
         cancellation: &SyncCancellation,
-    ) -> Result<Vec<u8>, TransportError> {
-        let ciphertext = self.fetch_ciphertext(transport, content, cancellation)?;
+    ) -> Result<Vec<u8>, OpenFailure> {
+        let ciphertext = self
+            .fetch_ciphertext(transport, content, cancellation)
+            .map_err(OpenFailure::Transport)?;
         open(
             &self.key,
             &content.scheme,
@@ -584,7 +588,7 @@ impl WorkspaceSealer {
             &content.nonce,
             &ciphertext,
         )
-        .map_err(crypto_failure)
+        .map_err(|error| OpenFailure::Unreadable(error.to_string()))
     }
 
     fn fetch_ciphertext(
@@ -610,10 +614,23 @@ enum SealedAsset {
     Sealed(SealedContent),
 }
 
+/// Everything the service stores next to a sealed operation that decides how
+/// it is applied. All of it is authenticated, so the service cannot move a
+/// ciphertext to another device, sequence, or causal base.
+struct OperationSlot<'a> {
+    operation_id: &'a str,
+    device_id: &'a str,
+    client_sequence: u64,
+    base_server_sequence: u64,
+}
+
 /// Sealed content is bound to the slot it belongs in, so a ciphertext cannot
 /// be replayed into another operation, another asset, or another workspace.
-fn operation_context(workspace_id: &str, operation_id: &str) -> String {
-    format!("skriuw/sync/operation/{workspace_id}/{operation_id}")
+fn operation_context(workspace_id: &str, slot: &OperationSlot<'_>) -> String {
+    format!(
+        "skriuw/sync/operation/{workspace_id}/{}/{}/{}/{}",
+        slot.device_id, slot.client_sequence, slot.base_server_sequence, slot.operation_id
+    )
 }
 
 fn asset_context(workspace_id: &str, operation_id: &str, content_hash: &str) -> String {

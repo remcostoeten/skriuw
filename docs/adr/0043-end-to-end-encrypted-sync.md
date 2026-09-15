@@ -50,10 +50,11 @@ opaque bytes.
   in hex. It travels in the clear so a device holding the wrong code fails
   with "this device holds key …" instead of an authentication-tag failure.
 - Sealing is XChaCha20-Poly1305. The AAD binds each blob to its slot
-  (`skriuw/sync/operation/<workspace>/<operation id>`,
+  (`skriuw/sync/operation/<workspace>/<device>/<client sequence>/<base server sequence>/<operation id>`,
   `…/asset/<workspace>/<operation id>/<content hash>`,
   `…/checkpoint/<workspace>/<server sequence>`), so ciphertext cannot be
-  replayed into a different operation, asset, or workspace.
+  replayed into a different operation, asset, or workspace, nor reattributed
+  to another device, sequence, or causal base.
 - Nonces are **derived, not random**, and keyed:
   `nonce_key = BLAKE2b-MAC-256(key, persona "skriuw-nonce-key", "skriuw-sync-e2ee-nonce-subkey-v2")`,
   then `nonce = BLAKE2b-MAC-192(nonce_key, persona "skriuw-nonce-v2", len(context) ‖ context ‖ plaintext)`.
@@ -106,9 +107,9 @@ Two consequences of this boundary are explicit, not accidental:
 
 What deterministic sealing reveals: sealing the same plaintext in the same
 slot under the same key reproduces the same nonce and ciphertext. The slot
-binds the workspace and the operation id, and operations are immutable, so in
-practice this is "re-pushing the same operation looks the same", which the
-idempotency rule already requires. Across different slots the
+binds the workspace, the device, its sequences, and the operation id, and
+operations are immutable, so in practice this is "re-pushing the same
+operation looks the same", which the idempotency rule already requires. Across different slots the
 nonce is a keyed PRF output, so equal bodies in two different notes, or a body
 the service guesses, cannot be linked or confirmed without the key.
 
@@ -165,8 +166,16 @@ record parks as `sealed_content_unreadable` and the settings surface keeps
 the recovery code field open until a matching code is entered.
 
 The derived key is cached in the device-local `sync_encryption` table
-(migration `0025`) so the recovery code is entered once per device. It is
-never replicated: `WorkspaceOperation` has no variant that carries it.
+(migration `0026`) so the recovery code is entered once per device. The row
+names the workspace it was derived for and is ignored for any other workspace,
+so a reset or relink never seals with a stale key. It is never replicated:
+`WorkspaceOperation` has no variant that carries it. It never leaves the
+device in a file either: scheduled, manual, and pre-import backups, and every
+restored database, are written without it, so a device restored from a backup
+parks as `encryption_key_required` until the recovery code is entered again.
+Moving a workspace to another folder on the same device is the one copy that
+keeps it, because it is the same device. Key material is held in zeroizing
+buffers and redacted from debug output.
 
 ### The service's encryption record
 
@@ -284,3 +293,8 @@ decision.
 - A device running an older Skriuw build against a workspace that has been
   encrypted will reject the sealed payload as an unsupported form and park.
   That is correct: it has no key and could not apply the operation anyway.
+- Rollout order matters. The Worker must be deployed before any client that
+  reads the encryption record: those clients read it before every push that
+  has queued changes, and an older Worker answers the unknown route with 404,
+  which clients classify as an authorization failure and park on. Older
+  clients keep working against the new Worker.

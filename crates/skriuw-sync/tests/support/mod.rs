@@ -40,6 +40,7 @@ pub fn superseded_history(queue: &dyn HistoryQueue) -> Vec<(String, String)> {
 #[derive(Default)]
 pub struct FakeAssetStore {
     assets: Mutex<std::collections::HashMap<String, Vec<u8>>>,
+    refuse_writes: std::sync::atomic::AtomicBool,
 }
 
 impl FakeAssetStore {
@@ -55,6 +56,12 @@ impl FakeAssetStore {
             .expect("asset store")
             .insert(hash.clone(), bytes.to_vec());
         hash
+    }
+
+    /// Makes every later write fail, standing in for a full or unwritable
+    /// local blob store.
+    pub fn refuse_writes(&self) {
+        self.refuse_writes.store(true, Ordering::SeqCst);
     }
 
     #[must_use]
@@ -78,6 +85,9 @@ impl SyncAssetStore for FakeAssetStore {
         _mime_type: &str,
         bytes: &[u8],
     ) -> Result<(), String> {
+        if self.refuse_writes.load(Ordering::SeqCst) {
+            return Err("the local blob store is not writable".into());
+        }
         if content_digest(bytes) != content_hash {
             return Err("asset bytes do not match their declared content hash".into());
         }
@@ -279,6 +289,16 @@ impl FakeServer {
                 assets: Vec::new(),
             },
         });
+    }
+
+    /// Reattributes every sealed operation on the log to another device,
+    /// standing in for a service that moves a ciphertext to a different slot.
+    pub fn reattribute_sealed_operations(&self, device_id: &str) {
+        for entry in self.state.lock().expect("server state").iter_mut() {
+            if entry.payload.is_sealed() {
+                entry.device_id = device_id.into();
+            }
+        }
     }
 
     /// Replaces every checkpoint with an unsealed one over `archive`, standing

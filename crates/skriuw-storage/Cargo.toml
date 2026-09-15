@@ -8,3 +8,4 @@ rust-version.workspace = true
 [dependencies]
 skriuw-domain = { path = "../skriuw-domain" }
 thiserror.workspace = true
+zeroize = "1"

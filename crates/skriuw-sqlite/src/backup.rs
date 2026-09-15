@@ -79,6 +79,17 @@ pub(crate) fn verify_database(connection: &Connection) -> Result<(), StorageErro
         .map_err(|error| StorageError::Backend(error.to_string()))
 }
 
+/// Removes device secrets from a copied database. The workspace content key is
+/// cached per device and is re-derivable from the recovery code, so a backup
+/// or restored artifact never carries it: whoever holds the file holds the
+/// notes, but not the key to the encrypted cloud copy.
+pub(crate) fn strip_device_secrets(connection: &Connection) -> Result<(), StorageError> {
+    connection
+        .execute("DELETE FROM sync_encryption", [])
+        .map_err(backend)?;
+    Ok(())
+}
+
 pub(crate) fn normalize_backup(connection: &Connection) -> Result<(), StorageError> {
     connection
         .pragma_update(None, "journal_mode", "DELETE")
