@@ -664,7 +664,7 @@ function WorkspaceShell({ store }: Props) {
             )}
             </div>
             <div className="flex min-w-0 justify-center px-2">
-              <NoteBreadcrumbs store={store} />
+              <NoteBreadcrumbs store={store} titleOnly={mode === "compact"} />
             </div>
             <div className="flex min-w-0 items-center justify-end gap-1">
             <Tooltip label="Find in note" side="bottom" shortcut={shortcutHints.findInNote}>

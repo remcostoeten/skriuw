@@ -4,6 +4,8 @@ import { useRendererSelector } from "@/store/use-renderer-selector";
 
 type Props = {
   store: RendererStore;
+  /** Show only the note title; a phone toolbar has no room for its ancestors. */
+  titleOnly?: boolean;
 };
 
 type Crumb = {
@@ -50,7 +52,7 @@ function selectExpandedIds(state: RendererState): ReadonlySet<string> {
   return state.expandedIds;
 }
 
-export function NoteBreadcrumbs({ store }: Props) {
+export function NoteBreadcrumbs({ store, titleOnly = false }: Props) {
   const crumbs = useRendererSelector(store, selectCrumbs, sameCrumbs);
   const expandedIds = useRendererSelector(store, selectExpandedIds);
 
@@ -66,7 +68,7 @@ export function NoteBreadcrumbs({ store }: Props) {
     store.selectTreeNode(id, "replace");
   }
 
-  const ancestors = crumbs.slice(0, -1);
+  const ancestors = titleOnly ? [] : crumbs.slice(0, -1);
   const note = crumbs[crumbs.length - 1] as Crumb;
   const visibleAncestors =
     ancestors.length > MAX_ANCESTORS ? ancestors.slice(ancestors.length - MAX_ANCESTORS) : ancestors;

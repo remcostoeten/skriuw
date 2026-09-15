@@ -52,6 +52,18 @@ rather than by mode, so a touch screen on a laptop gets it too:
 - Drag reordering is pointer-only. The menu carries Move to, and a touch drag
   cannot be told from a scroll without a hold that already means the menu.
 
+The compact shell is sized from the visual viewport, not the layout viewport:
+sheets take `--viewport-top` and `--viewport-height`, so an open keyboard
+shrinks them above it rather than hiding their lower half, and the tab bar
+leaves while the keyboard is up, the way a native tab bar does. The text
+formatting popover has no room beside a selection on a phone and the native
+selection handles already sit there, so it docks at the bottom of the visual
+viewport as a sideways-scrolling bar, above the tab bar or on the keyboard's
+top edge. Inputs are at least 16px under a coarse pointer, because iOS zooms
+into anything smaller on focus. The editor's hover gutter (insert, drag grip)
+is hidden where hover does not exist: it lives in the margin the edge strip
+occupies, and block moves are pointer-only.
+
 Rows, menu items, and tab bar items grow to 44px under a coarse pointer. Hover
 revealed controls become always visible. A vibration API, where one exists,
 ticks when a hold opens the menu, when a swipe crosses the delete threshold,

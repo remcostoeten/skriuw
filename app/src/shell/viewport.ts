@@ -1,8 +1,12 @@
 const HEIGHT_PROPERTY = "--viewport-height";
+const TOP_PROPERTY = "--viewport-top";
 const KEYBOARD_PROPERTY = "--keyboard-inset";
+const KEYBOARD_ATTRIBUTE = "keyboard";
+const KEYBOARD_OPEN_PX = 120;
 
 type ViewportMetrics = {
   height: number;
+  top: number;
   keyboardInset: number;
 };
 
@@ -15,13 +19,19 @@ type ViewportMetrics = {
 export function viewportMetrics(view: Window): ViewportMetrics {
   const visual = view.visualViewport;
   if (!visual) {
-    return { height: view.innerHeight, keyboardInset: 0 };
+    return { height: view.innerHeight, top: 0, keyboardInset: 0 };
   }
   const occluded = view.innerHeight - visual.height - visual.offsetTop;
   return {
     height: visual.height,
+    top: Math.max(0, Math.round(visual.offsetTop)),
     keyboardInset: Math.max(0, Math.round(occluded)),
   };
+}
+
+/** A software keyboard is the only thing that takes this much of a phone viewport. */
+export function keyboardOpen(metrics: ViewportMetrics): boolean {
+  return metrics.keyboardInset >= KEYBOARD_OPEN_PX;
 }
 
 /**
@@ -33,7 +43,13 @@ export function bindViewport(view: Window, root: HTMLElement): () => void {
   function apply(): void {
     const metrics = viewportMetrics(view);
     root.style.setProperty(HEIGHT_PROPERTY, `${metrics.height}px`);
+    root.style.setProperty(TOP_PROPERTY, `${metrics.top}px`);
     root.style.setProperty(KEYBOARD_PROPERTY, `${metrics.keyboardInset}px`);
+    if (keyboardOpen(metrics)) {
+      root.dataset[KEYBOARD_ATTRIBUTE] = "open";
+    } else {
+      delete root.dataset[KEYBOARD_ATTRIBUTE];
+    }
   }
   apply();
   const visual = view.visualViewport;

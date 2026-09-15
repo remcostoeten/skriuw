@@ -147,7 +147,10 @@ export function Tooltip({
     },
     onFocus: (event: FocusEvent<HTMLElement>) => {
       childProps.onFocus?.(event);
-      if (event.currentTarget.matches(":focus-visible")) {
+      // Focus returned to a control after a sheet or dialog closes reads as
+      // keyboard focus, but on a screen without hover nothing can dismiss the
+      // tooltip except another tap, so it would sit over the toolbar.
+      if (event.currentTarget.matches(":focus-visible") && !matchMedia("(hover: none)").matches) {
         triggerRef.current = event.currentTarget;
         setState("instant-open");
       }

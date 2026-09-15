@@ -10,6 +10,7 @@
   /* Replaced with a measured pixel height by shell/viewport.ts once the
      bundle runs; the dynamic unit keeps the first paint correct until then. */
   --viewport-height: 100dvh;
+  --viewport-top: 0px;
   --keyboard-inset: 0px;
 }
 

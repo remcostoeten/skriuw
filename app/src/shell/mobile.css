@@ -59,6 +59,10 @@
   color: hsl(var(--sidebar-foreground));
 }
 
+:root[data-keyboard="open"] .shell-tab-bar {
+  display: none;
+}
+
 .shell-tab {
   display: flex;
   flex: 1 1 0;
@@ -98,9 +102,16 @@
   justify-content: center;
 }
 
+/*
+ * Sized from the visual viewport rather than the layout viewport, so an open
+ * keyboard shrinks the sheet above it instead of hiding its lower half.
+ */
 .mobile-sheet-root {
   position: fixed;
-  inset: 0;
+  top: var(--viewport-top);
+  left: 0;
+  right: 0;
+  height: var(--viewport-height);
   z-index: 40;
 }
 
@@ -214,6 +225,32 @@
   transform: translateX(100%);
 }
 
+/*
+ * Docked above the tab bar while the keyboard is closed; once it opens the tab
+ * bar is gone and the bar sits on the keyboard's top edge.
+ */
+.bubble-menu[data-docked="true"] {
+  left: 8px;
+  right: 8px;
+  top: calc(var(--viewport-top) + var(--viewport-height) - 56px - 56px);
+  max-width: none;
+  padding: 4px;
+  gap: 2px;
+  transform: none;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+:root[data-keyboard="open"] .bubble-menu[data-docked="true"] {
+  top: calc(var(--viewport-top) + var(--viewport-height) - 56px);
+}
+
+.bubble-menu[data-docked="true"] button {
+  min-width: 40px;
+  height: 40px;
+  font-size: 14px;
+}
+
 .sidebar-touch .sidebar-tree-row {
   height: 44px;
   font-size: 14px;
@@ -233,7 +270,30 @@
   transition: transform 180ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/*
+ * The block gutter (insert, drag grip) is a hover affordance placed in the
+ * left margin, where the edge swipe strip lives on a phone. Without hover it
+ * never appears in the right place; block moves are pointer-only, and the
+ * slash command covers insertion.
+ */
+@media (hover: none) {
+  .block-gutter {
+    display: none;
+  }
+}
+
 @media (pointer: coarse) {
+  /* iOS zooms the page into any focused field set below 16px. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+
+  kbd {
+    display: none;
+  }
+
   [data-radix-menu-content] {
     min-width: 240px;
   }
