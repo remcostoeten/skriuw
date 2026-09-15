@@ -37,10 +37,8 @@ type Outcome =
 /** The years a "Go to date…" expression may land in. */
 export const JOURNAL_YEAR_RANGE = { min: 1000, max: 9999 } as const;
 
-/** A bare four-digit run reads as a year only inside this span; otherwise it is `MMDD`. */
 const BARE_YEAR_RANGE = { min: 1900, max: 2999 } as const;
 
-/** Two-digit years resolve into the century-long window ending this many years after today. */
 const TWO_DIGIT_YEAR_LOOKAHEAD = 20;
 
 const MONTH_NAMES = [

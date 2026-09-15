@@ -30,7 +30,7 @@ export function JournalGoToDateHost({ selectedKey }: HostProps) {
       onOpenChange={setOpen}
       title="Go to date"
       showHeader={false}
-      className="mx-auto mb-auto mt-[16vh] max-h-[60vh] w-[calc(100vw-1.5rem)] max-w-md overflow-hidden"
+      className="mx-auto mb-auto mt-[12vh] max-h-[76vh] w-[calc(100vw-1.5rem)] max-w-md overflow-hidden"
     >
       <GoToDateBody context={selectedKey} />
     </Dialog>
