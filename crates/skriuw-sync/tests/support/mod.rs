@@ -10,8 +10,9 @@ use serde_json::json;
 use skriuw_domain::{
     NodePlacement, ReplicatedWorkspaceOperation, SealedContent, SealedTransport,
     SyncAcceptedOperation, SyncOperationPayload, SyncPullResponse, SyncPushRequest,
-    SyncPushResponse, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceCheckpoint, WorkspaceImage,
-    WorkspaceOperation, WorkspaceOperationEnvelope, content_digest,
+    SyncPushResponse, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceCheckpoint,
+    WorkspaceEncryptionMarker, WorkspaceImage, WorkspaceOperation, WorkspaceOperationEnvelope,
+    content_digest,
 };
 use skriuw_storage::{HistoryProvenance, HistoryQueue};
 use skriuw_sync::{SyncAssetStore, SyncCancellation, SyncClock, SyncTransport, TransportError};
@@ -121,6 +122,7 @@ pub struct FakeServer {
     checkpoints: Mutex<Vec<WorkspaceCheckpoint>>,
     device_cursors: Mutex<std::collections::HashMap<String, u64>>,
     compacted_through: AtomicI64,
+    encryption: Mutex<Option<WorkspaceEncryptionMarker>>,
 }
 
 impl FakeServer {
@@ -133,6 +135,7 @@ impl FakeServer {
             checkpoints: Mutex::new(Vec::new()),
             device_cursors: Mutex::new(std::collections::HashMap::new()),
             compacted_through: AtomicI64::new(0),
+            encryption: Mutex::new(None),
         })
     }
 
@@ -261,6 +264,47 @@ impl FakeServer {
     }
 
     #[must_use]
+    pub fn encryption_marker(&self) -> Option<WorkspaceEncryptionMarker> {
+        self.encryption.lock().expect("encryption marker").clone()
+    }
+
+    /// Mirrors the service's once-written encryption marker: unsealed content
+    /// is refused once it exists, sealed content under another key is refused
+    /// always, and the first sealed content writes it.
+    fn admit_seal_state(
+        &self,
+        seal: Option<(&str, Vec<&str>)>,
+        latest_server_sequence: u64,
+    ) -> Result<(), TransportError> {
+        let mut marker = self.encryption.lock().expect("encryption marker");
+        let Some((scheme, key_ids)) = seal else {
+            if marker.is_some() {
+                return Err(TransportError::Validation(
+                    skriuw_sync::VALIDATION_DETAIL_WORKSPACE_ENCRYPTED.into(),
+                ));
+            }
+            return Ok(());
+        };
+        let key_id = marker
+            .as_ref()
+            .map_or_else(|| key_ids[0].to_string(), |marker| marker.key_id.clone());
+        if key_ids.iter().any(|candidate| *candidate != key_id) {
+            return Err(TransportError::Validation(
+                skriuw_sync::VALIDATION_DETAIL_WORKSPACE_ENCRYPTED.into(),
+            ));
+        }
+        if marker.is_none() {
+            *marker = Some(WorkspaceEncryptionMarker {
+                scheme: scheme.to_string(),
+                key_id,
+                encrypted_from_server_sequence: latest_server_sequence,
+                enabled_at: 1,
+            });
+        }
+        Ok(())
+    }
+
+    #[must_use]
     pub fn stored_chunks(&self) -> usize {
         self.chunks.lock().expect("chunk store").len()
     }
@@ -326,6 +370,13 @@ impl FakeServer {
                 ));
             }
         }
+        self.admit_seal_state(
+            checkpoint
+                .seal
+                .as_ref()
+                .map(|seal| (seal.scheme.as_str(), vec![seal.key_id.as_str()])),
+            self.log_len() as u64,
+        )?;
         let mut checkpoints = self.checkpoints.lock().expect("checkpoint store");
         checkpoints.retain(|stored| stored.server_sequence != checkpoint.server_sequence);
         checkpoints.push(checkpoint.clone());
@@ -465,6 +516,16 @@ impl FakeServer {
                     operation.client_sequence
                 )));
             }
+            let seal = operation.payload.sealed_content().map(|(content, assets)| {
+                (
+                    content.scheme.as_str(),
+                    std::iter::once(content)
+                        .chain(assets.iter())
+                        .map(|sealed| sealed.key_id.as_str())
+                        .collect::<Vec<_>>(),
+                )
+            });
+            self.admit_seal_state(seal, log.len() as u64)?;
             let server_sequence = log.len() as u64 + 1;
             log.push(ReplicatedWorkspaceOperation {
                 operation_id: operation.operation_id.clone(),
@@ -556,6 +617,7 @@ pub struct FakeTransport {
     push_hook: Mutex<Option<PushHook>>,
     push_committed_hook: Mutex<Option<PushCommittedHook>>,
     pull_limits: Mutex<Vec<usize>>,
+    pushed_requests: Mutex<Vec<SyncPushRequest>>,
     push_calls: AtomicUsize,
     pull_calls: AtomicUsize,
     checkpoint_fetch_calls: AtomicUsize,
@@ -576,6 +638,7 @@ impl FakeTransport {
             push_hook: Mutex::new(None),
             push_committed_hook: Mutex::new(None),
             pull_limits: Mutex::new(Vec::new()),
+            pushed_requests: Mutex::new(Vec::new()),
             push_calls: AtomicUsize::new(0),
             pull_calls: AtomicUsize::new(0),
             checkpoint_fetch_calls: AtomicUsize::new(0),
@@ -631,6 +694,16 @@ impl FakeTransport {
     #[must_use]
     pub fn pull_limits(&self) -> Vec<usize> {
         self.pull_limits.lock().expect("pull limits").clone()
+    }
+
+    /// Every push body this device put on the wire, including ones the
+    /// service refused, so a scenario can assert what left the device.
+    #[must_use]
+    pub fn pushed_requests(&self) -> Vec<SyncPushRequest> {
+        self.pushed_requests
+            .lock()
+            .expect("pushed requests")
+            .clone()
     }
 
     #[must_use]
@@ -746,6 +819,18 @@ impl SyncTransport for FakeTransport {
         self.server.publish_checkpoint(workspace_id, checkpoint)
     }
 
+    fn workspace_encryption(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<WorkspaceEncryptionMarker>, TransportError> {
+        self.ensure_live(cancellation)?;
+        if workspace_id != self.server.workspace_id {
+            return Err(TransportError::AuthorizationDenied);
+        }
+        Ok(self.server.encryption_marker())
+    }
+
     fn acknowledge(
         &self,
         workspace_id: &str,
@@ -780,6 +865,10 @@ impl SyncTransport for FakeTransport {
         if cancellation.is_cancelled() {
             return Err(TransportError::Cancelled);
         }
+        self.pushed_requests
+            .lock()
+            .expect("pushed requests")
+            .push(request.clone());
         let fault = self.push_faults.lock().expect("push faults").pop_front();
         let result = match fault {
             Some(PushFault::DropResponse) => {

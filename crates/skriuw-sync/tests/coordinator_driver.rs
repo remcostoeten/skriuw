@@ -127,6 +127,14 @@ impl SyncTransport for ConcurrencyProbeTransport {
             .publish_checkpoint(workspace_id, checkpoint, cancellation)
     }
 
+    fn workspace_encryption(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<skriuw_domain::WorkspaceEncryptionMarker>, TransportError> {
+        self.inner.workspace_encryption(workspace_id, cancellation)
+    }
+
     fn acknowledge(
         &self,
         workspace_id: &str,
@@ -214,6 +222,14 @@ impl SyncTransport for BlockingTransport {
         _cancellation: &SyncCancellation,
     ) -> Result<(), TransportError> {
         Ok(())
+    }
+
+    fn workspace_encryption(
+        &self,
+        _workspace_id: &str,
+        _cancellation: &SyncCancellation,
+    ) -> Result<Option<skriuw_domain::WorkspaceEncryptionMarker>, TransportError> {
+        Ok(None)
     }
 
     fn acknowledge(
@@ -322,6 +338,15 @@ impl SyncTransport for TokenCheckedTransport {
         self.session()?;
         self.inner
             .publish_checkpoint(workspace_id, checkpoint, cancellation)
+    }
+
+    fn workspace_encryption(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<skriuw_domain::WorkspaceEncryptionMarker>, TransportError> {
+        self.session()?;
+        self.inner.workspace_encryption(workspace_id, cancellation)
     }
 
     fn acknowledge(

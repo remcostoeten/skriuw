@@ -104,7 +104,22 @@ export type SyncErrorCode =
   | "sync_rejected"
   | "device_local_operation"
   | "unsupported_operation"
-  | "content_unavailable";
+  | "content_unavailable"
+  | "workspace_encrypted"
+  | "encryption_key_mismatch";
+
+/**
+ * The service's durable record that a workspace is end-to-end encrypted. It
+ * is written once — by the first sealed push, sealed checkpoint, or explicit
+ * enable — and never rewritten, so it arbitrates which key the workspace uses
+ * and lets the service refuse plaintext it would otherwise have to store.
+ */
+export type WorkspaceEncryptionMarker = {
+  scheme: string;
+  keyId: string;
+  encryptedFromServerSequence: number;
+  enabledAt: number;
+};
 
 export type CheckpointSeal = {
   scheme: string;

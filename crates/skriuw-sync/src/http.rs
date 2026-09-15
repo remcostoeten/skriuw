@@ -5,6 +5,10 @@ use crate::transport::TransportError;
 /// Stable `Validation` detail for a 413 response: the workspace's cloud
 /// storage quota or the request size ceiling was exceeded.
 pub const VALIDATION_DETAIL_QUOTA_EXCEEDED: &str = "quota_exceeded";
+/// Stable `Validation` detail for a 423 response: the workspace is end-to-end
+/// encrypted and the service refused content that was not sealed under its
+/// key.
+pub const VALIDATION_DETAIL_WORKSPACE_ENCRYPTED: &str = "workspace_encrypted";
 
 const REQUEST_TIMEOUT_BASE_MS: u64 = 10_000;
 const REQUEST_TIMEOUT_PER_UNIT_MS: u64 = 1_000;
@@ -79,6 +83,11 @@ impl SyncHttpEndpoints {
     }
 
     #[must_use]
+    pub fn encryption(&self, workspace_id: &str) -> String {
+        format!("{}/v1/workspaces/{workspace_id}/encryption", self.base_url)
+    }
+
+    #[must_use]
     pub fn acknowledge(&self, workspace_id: &str) -> String {
         format!("{}/v1/workspaces/{workspace_id}/acknowledge", self.base_url)
     }
@@ -106,6 +115,7 @@ pub fn classify_http_failure(status: u16, retry_after_ms: Option<i64>) -> Transp
         409 => TransportError::Conflict("server_sequence_conflict".into()),
         410 => TransportError::LogTruncated,
         413 => TransportError::Validation(VALIDATION_DETAIL_QUOTA_EXCEEDED.into()),
+        423 => TransportError::Validation(VALIDATION_DETAIL_WORKSPACE_ENCRYPTED.into()),
         429 => TransportError::RateLimited { retry_after_ms },
         400..=499 => TransportError::Validation("request_rejected".into()),
         _ => TransportError::Server { retry_after_ms },
@@ -132,6 +142,10 @@ mod tests {
         assert_eq!(
             endpoints.chunk("w_1", "abc"),
             "https://cloud.example/v1/workspaces/w_1/chunks/abc"
+        );
+        assert_eq!(
+            endpoints.encryption("w_1"),
+            "https://cloud.example/v1/workspaces/w_1/encryption"
         );
         assert_eq!(
             endpoints.events("w_1", "device-1"),
@@ -174,6 +188,10 @@ mod tests {
         assert_eq!(
             classify_http_failure(413, None),
             TransportError::Validation(VALIDATION_DETAIL_QUOTA_EXCEEDED.into())
+        );
+        assert_eq!(
+            classify_http_failure(423, None),
+            TransportError::Validation(VALIDATION_DETAIL_WORKSPACE_ENCRYPTED.into())
         );
         assert_eq!(
             classify_http_failure(503, Some(1_000)),

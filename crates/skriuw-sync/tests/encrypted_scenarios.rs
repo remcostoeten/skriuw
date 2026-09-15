@@ -370,3 +370,39 @@ fn enabling_encryption_seals_everything_pushed_afterwards() {
     assert_eq!(device_a.shape(), device_b.shape());
     assert!(device_b.shape().contains("Groceries"));
 }
+
+#[test]
+fn a_keyless_device_with_pending_ops_never_sends_plaintext_to_an_encrypted_workspace() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let mut device_a = Device::open(&server, "device-a", &clock);
+    device_a.encrypt_with(RECOVERY_CODE);
+    device_a.apply(vec![create_note("note-1", SECRET_TITLE, 1)]);
+    assert_eq!(device_a.settle(), SyncStatus::UpToDate);
+
+    let mut device_b = Device::open(&server, "device-b", &clock);
+    device_b.apply(vec![create_note("note-b", "Offline plaintext draft", 2)]);
+    let status = device_b.settle();
+
+    assert_eq!(
+        blocked_reason(&status),
+        Some(BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED)
+    );
+    assert!(
+        device_b
+            .transport
+            .pushed_requests()
+            .iter()
+            .flat_map(|request| request.operations.iter())
+            .all(|operation| operation.payload.is_sealed()),
+        "a keyless device put plaintext on the wire"
+    );
+    assert!(!server.readable_state().contains("Offline plaintext draft"));
+    assert!(
+        device_b
+            .storage
+            .has_pending_sync_operations()
+            .expect("read outbox")
+    );
+}

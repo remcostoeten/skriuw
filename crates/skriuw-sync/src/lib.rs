@@ -47,7 +47,8 @@ pub use cycle::{
     storage_failure as classify_storage_failure,
 };
 pub use http::{
-    SyncHttpEndpoints, VALIDATION_DETAIL_QUOTA_EXCEEDED, classify_http_failure, request_timeout_ms,
+    SyncHttpEndpoints, VALIDATION_DETAIL_QUOTA_EXCEEDED, VALIDATION_DETAIL_WORKSPACE_ENCRYPTED,
+    classify_http_failure, request_timeout_ms,
 };
 pub use seal::{
     WorkspaceSealer, derive_workspace_seal, new_recovery_code, sealed_ciphertext_base64,

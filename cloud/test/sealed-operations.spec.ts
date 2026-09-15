@@ -51,6 +51,35 @@ function sealedOperation(
   };
 }
 
+const PLAINTEXT_TITLE = "plaintext-folder-title-4711";
+
+function plaintextRequest(deviceId: string, operationId: string, clientSequence: number) {
+  return {
+    syncProtocolVersion: WORKSPACE_SYNC_PROTOCOL_VERSION,
+    deviceId,
+    operations: [
+      {
+        operationId,
+        clientSequence,
+        baseServerSequence: 0,
+        payload: {
+          form: "inline" as const,
+          operation: {
+            protocolVersion: 1,
+            operation: {
+              type: "create_folder",
+              id: `folder-${operationId}`,
+              title: PLAINTEXT_TITLE,
+              placement: { parentId: null, position: { type: "last" } },
+              at: 1,
+            },
+          },
+        },
+      },
+    ],
+  };
+}
+
 function sealedRequest(deviceId: string, operations: ReturnType<typeof sealedOperation>[]) {
   return {
     syncProtocolVersion: WORKSPACE_SYNC_PROTOCOL_VERSION,
@@ -228,5 +257,81 @@ describe("sealed sync payloads", () => {
     expect(latest).not.toBeNull();
     expect(latest).toContain(KEY_ID);
     expect(latest).not.toContain(NOTE_BODY);
+  });
+
+  it("refuses plaintext pushes once the workspace holds sealed content", async () => {
+    const workspace = env.WORKSPACES.getByName("sealed-workspace-5") as Workspace;
+    accepted(
+      await workspace.pushOperations(
+        sealedRequest("device-sealed", [sealedOperation("sealed-first-1", 1, 0)]),
+      ),
+    );
+
+    const refused = await workspace.pushOperations(
+      plaintextRequest("device-legacy", "plaintext-after-seal-1", 1),
+    );
+    expect(refused.ok).toBe(false);
+    if (refused.ok) {
+      throw new Error("a plaintext push reached an encrypted workspace");
+    }
+    expect(refused.error.code).toBe("workspace_encrypted");
+
+    const rows = await storedRows(workspace);
+    expect(rows).not.toContain(PLAINTEXT_TITLE);
+    const { parsed } = pulledPage(await workspace.pullOperations(0, 32));
+    expect(parsed.operations.map((operation) => operation.operationId)).toEqual([
+      "sealed-first-1",
+    ]);
+  });
+
+  it("refuses a plaintext checkpoint once the workspace holds sealed content", async () => {
+    const workspace = env.WORKSPACES.getByName("sealed-workspace-6") as Workspace;
+    accepted(
+      await workspace.pushOperations(
+        sealedRequest("device-sealed", [sealedOperation("sealed-first-2", 1, 0)]),
+      ),
+    );
+    const store = new WorkspaceContentStore(env.SYNC_CONTENT);
+    const archive = new TextEncoder().encode(JSON.stringify({ title: PLAINTEXT_TITLE }));
+    const digest = await contentDigest(archive);
+    const stored = await store.putChunk("sealed-workspace-6", digest, archive);
+    if (!stored.ok) {
+      throw new Error(`checkpoint chunk rejected: ${stored.code}`);
+    }
+
+    const published = await workspace.publishCheckpoint({
+      checkpointVersion: 1,
+      syncProtocolVersion: WORKSPACE_SYNC_PROTOCOL_VERSION,
+      archiveVersion: 3,
+      workspaceId: "sealed-workspace-6",
+      serverSequence: 1,
+      createdAt: 10,
+      content: {
+        manifestVersion: 1,
+        kind: "checkpoint",
+        algorithm: "sha256",
+        encoding: "identity",
+        contentDigest: digest,
+        mimeType: "application/json",
+        totalByteLength: archive.byteLength,
+        chunks: [{ digest, byteLength: archive.byteLength }],
+      },
+    });
+    expect(published).toMatchObject({ ok: false, code: "workspace_encrypted" });
+    expect(await workspace.latestCheckpoint()).toBeNull();
+  });
+
+  it("keeps answering identical retries of operations accepted before encryption", async () => {
+    const workspace = env.WORKSPACES.getByName("sealed-workspace-7") as Workspace;
+    const before = plaintextRequest("device-legacy", "plaintext-before-seal-1", 1);
+    const first = accepted(await workspace.pushOperations(before));
+    accepted(
+      await workspace.pushOperations(
+        sealedRequest("device-sealed", [sealedOperation("sealed-after-plain-1", 1, 1)]),
+      ),
+    );
+
+    const retried = accepted(await workspace.pushOperations(before));
+    expect(retried.accepted).toEqual(first.accepted);
   });
 });

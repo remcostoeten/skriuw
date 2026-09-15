@@ -3,7 +3,10 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-use skriuw_domain::{SyncPullResponse, SyncPushRequest, SyncPushResponse, WorkspaceCheckpoint};
+use skriuw_domain::{
+    SyncPullResponse, SyncPushRequest, SyncPushResponse, WorkspaceCheckpoint,
+    WorkspaceEncryptionMarker,
+};
 use thiserror::Error;
 
 /// Cancellation signal shared between the coordinator and in-flight transport
@@ -166,6 +169,16 @@ pub trait SyncTransport: Send + Sync {
         checkpoint: &WorkspaceCheckpoint,
         cancellation: &SyncCancellation,
     ) -> Result<(), TransportError>;
+
+    /// The service's record of whether this workspace is end-to-end
+    /// encrypted and under which key. Clients read it before anything leaves
+    /// the device, so a device without the key never uploads plaintext into an
+    /// encrypted workspace.
+    fn workspace_encryption(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<WorkspaceEncryptionMarker>, TransportError>;
 
     /// Advances this device's server-side cursor so retention knows which
     /// operations every active device has already received.

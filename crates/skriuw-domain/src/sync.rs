@@ -803,6 +803,40 @@ fn validate_replication_policy(operation: &WorkspaceOperation) -> Result<(), Syn
     }
 }
 
+/// The service's durable record that a workspace is end-to-end encrypted.
+/// It is written by the first sealed push, sealed checkpoint, or explicit
+/// enable, whichever comes first, and never changes afterwards: every
+/// operation above `encrypted_from_server_sequence` must be sealed under
+/// `key_id`, and plaintext pushes and checkpoints are refused.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WorkspaceEncryptionMarker {
+    pub scheme: String,
+    pub key_id: String,
+    pub encrypted_from_server_sequence: u64,
+    pub enabled_at: i64,
+}
+
+impl WorkspaceEncryptionMarker {
+    pub fn validate(&self) -> Result<(), SyncValidationError> {
+        SealedContent {
+            scheme: self.scheme.clone(),
+            key_id: self.key_id.clone(),
+            nonce: "A".repeat(SEAL_NONCE_BASE64_CHARACTERS),
+            transport: SealedTransport::Inline {
+                ciphertext: "AA".into(),
+            },
+        }
+        .validate("encryption marker", ContentManifestKind::OperationEnvelope)?;
+        if self.encrypted_from_server_sequence > MAX_SAFE_SYNC_SEQUENCE {
+            return Err(SyncValidationError::InvalidSequence {
+                field: "encrypted from server sequence",
+            });
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncPullResponse {

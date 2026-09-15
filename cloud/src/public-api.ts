@@ -23,6 +23,7 @@ import {
   type SyncPullResult,
   type SyncPushResult,
   type WorkspaceStorageUsage,
+  type WorkspaceEncryptionMarker,
   type WorkspaceSyncState,
   parseSyncPullResponse,
   parseSyncPushRequest,
@@ -44,6 +45,7 @@ type WorkspaceSyncRpc = {
     { ok: true; serverSequence: number } | { ok: false; code: string; message: string }
   >;
   latestCheckpoint(): Promise<string | null>;
+  workspaceEncryption(): Promise<WorkspaceEncryptionMarker | null>;
   acknowledgeOperations(
     deviceId: string,
     serverSequence: number,
@@ -60,6 +62,7 @@ export type SyncRouteName =
   | "pull"
   | "chunk"
   | "checkpoint"
+  | "encryption"
   | "acknowledge"
   | "events";
 
@@ -176,6 +179,12 @@ export async function handlePublicSyncRequest(
       return jsonResponse({ serverSequence: published.serverSequence, compaction });
     }
 
+    if (route.name === "encryption") {
+      return jsonResponse(
+        await dependencies.resolveWorkspace(route.workspaceId).workspaceEncryption(),
+      );
+    }
+
     if (route.name === "acknowledge") {
       const body = await readBoundedJson(request);
       const { deviceId, serverSequence } = parseAcknowledgement(body);
@@ -280,6 +289,8 @@ function matchSyncRoute(pathname: string, method: string): SyncRoute | null {
         action: method === "POST" ? "push" : "pull",
         workspaceId,
       };
+    case "encryption":
+      return { name: "encryption", action: "pull", workspaceId };
     case "acknowledge":
       return { name: "acknowledge", action: "pull", workspaceId };
     case "events":
@@ -295,6 +306,7 @@ function requireMethod(method: string, route: SyncRoute): void {
     pull: ["GET"],
     chunk: ["PUT", "GET", "HEAD"],
     checkpoint: ["GET", "POST"],
+    encryption: ["GET"],
     acknowledge: ["POST"],
     events: ["GET"],
   };
@@ -428,6 +440,9 @@ function publishError(code: string): PublicApiError {
   if (code === "content_unavailable") {
     return new PublicApiError(409, "content_unavailable");
   }
+  if (code === "workspace_encrypted" || code === "encryption_key_mismatch") {
+    return new PublicApiError(423, code);
+  }
   return new PublicApiError(400, "sync_rejected");
 }
 
@@ -517,7 +532,15 @@ function accessError(code: SyncAccessFailureCode): PublicApiError {
   }
 }
 
+/**
+ * An encrypted workspace refusing unsealed or foreign-key content answers 423
+ * so clients can tell it apart from a malformed request; older clients read
+ * it as an ordinary rejection and park the change instead of retrying it in.
+ */
 function contractError(code: SyncErrorCode): PublicApiError {
+  if (code === "workspace_encrypted" || code === "encryption_key_mismatch") {
+    return new PublicApiError(423, code);
+  }
   return new PublicApiError(400, code);
 }
 

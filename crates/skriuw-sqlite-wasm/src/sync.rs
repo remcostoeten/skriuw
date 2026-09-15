@@ -487,6 +487,14 @@ impl<T: SyncTransport> SyncTransport for ProgressReportingTransport<T> {
             .publish_checkpoint(workspace_id, checkpoint, cancellation)
     }
 
+    fn workspace_encryption(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<skriuw_domain::WorkspaceEncryptionMarker>, TransportError> {
+        self.inner.workspace_encryption(workspace_id, cancellation)
+    }
+
     fn acknowledge(
         &self,
         workspace_id: &str,

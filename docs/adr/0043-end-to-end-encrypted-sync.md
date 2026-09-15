@@ -81,6 +81,8 @@ Visible — the service reads and relies on it:
 - ciphertext size, chunk count, chunk digests (over ciphertext), and total
   stored bytes for quota
 - `keyId`, `scheme`, `nonce`
+- whether the workspace is encrypted, under which key id, and the server
+  sequence encryption began after (see *The service's encryption record*)
 - request timing, and the acknowledged cursor per device
 
 Two consequences of this boundary are explicit, not accidental:
@@ -142,12 +144,42 @@ The derived key is cached in the device-local `sync_encryption` table
 (migration `0025`) so the recovery code is entered once per device. It is
 never replicated: `WorkspaceOperation` has no variant that carries it.
 
+### The service's encryption record
+
+The service keeps one durable, write-once record per workspace — scheme, key
+id, the server sequence encryption began after, and when — in the Durable
+Object's `sync_encryption` table. The first sealed push, the first sealed
+checkpoint, or an explicit enable writes it inside the same transaction that
+admits that content. From then on the service refuses, with HTTP 423:
+
+- any push that carries an operation not in the `sealed` form
+  (`workspace_encrypted`)
+- any checkpoint without a `seal` (`workspace_encrypted`)
+- sealed content, operation or asset, naming a different key id
+  (`encryption_key_mismatch`)
+
+Identical retries of operations the service accepted before the record
+existed are still answered from the log or the operation index, because they
+add nothing new.
+
+Clients read the record (`GET /v1/workspaces/{id}/encryption`) before any
+upload — before the push phase whenever local changes are queued, and before
+exporting a checkpoint — so a device that holds no key, or holds another key,
+parks instead of putting anything on the wire. The 423 is the backstop for a
+record that appears between that read and the push. Released clients that
+predate this ADR read the 423 as an ordinary rejection and park the change
+after three identical answers; they never retry it into the log. They can
+still upload plaintext *chunks* ahead of a refused push, because chunk bytes
+are opaque to the service; those chunks are never referenced and the 24-hour
+unreferenced-chunk sweep removes them.
+
 ### Failure behavior
 
 Recovery-relevant failures stay visible, per the repository rules:
 
-- a device with no key that pulls sealed content parks as
-  `blocked { reason: "encryption_key_required" }`
+- a device with no key that pulls sealed content, or that has queued changes
+  for a workspace the service records as encrypted, parks as
+  `blocked { reason: "encryption_key_required" }` without uploading them
 - a wrong recovery code, a tampered ciphertext, or an unknown scheme parks as
   `blocked { reason: "sealed_content_unreadable" }` with the crypto layer's
   actionable message

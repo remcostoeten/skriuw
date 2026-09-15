@@ -13,6 +13,7 @@ use reqwest::{Method, StatusCode, blocking::Client};
 use serde::Deserialize;
 use skriuw_domain::{
     SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView, WorkspaceCheckpoint,
+    WorkspaceEncryptionMarker,
 };
 use skriuw_images::ImageStore;
 use skriuw_sqlite::SqliteWorkspace;
@@ -859,6 +860,23 @@ impl SyncTransport for HttpSyncTransport {
             cancellation,
         )?;
         Ok(())
+    }
+
+    fn workspace_encryption(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<WorkspaceEncryptionMarker>, TransportError> {
+        let marker: Option<WorkspaceEncryptionMarker> = self.send(
+            OutboundRequest::empty(Method::GET, self.endpoints.encryption(workspace_id)),
+            cancellation,
+        )?;
+        if let Some(marker) = &marker {
+            marker.validate().map_err(|error| {
+                TransportError::Validation(format!("encryption record was unreadable: {error}"))
+            })?;
+        }
+        Ok(marker)
     }
 
     fn acknowledge(

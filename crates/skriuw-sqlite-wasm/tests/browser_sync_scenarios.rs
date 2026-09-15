@@ -102,6 +102,14 @@ impl SyncTransport for SharedTransport {
             .publish_checkpoint(workspace_id, checkpoint, cancellation)
     }
 
+    fn workspace_encryption(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<skriuw_domain::WorkspaceEncryptionMarker>, TransportError> {
+        self.0.workspace_encryption(workspace_id, cancellation)
+    }
+
     fn acknowledge(
         &self,
         workspace_id: &str,

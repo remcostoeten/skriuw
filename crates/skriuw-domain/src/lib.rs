@@ -81,7 +81,7 @@ pub use sync::{
     SUPPORTED_SYNC_PROTOCOL_VERSIONS, SYNC_RECOVERY_VIEW_VERSION, SealedContent, SealedTransport,
     SyncAcceptedOperation, SyncOperationPayload, SyncPullResponse, SyncPushRequest,
     SyncPushResponse, SyncRecoveryView, SyncReplicationClass, SyncValidationError,
-    WORKSPACE_OPERATION_SYNC_POLICY_V1, WORKSPACE_SYNC_PROTOCOL_VERSION,
+    WORKSPACE_OPERATION_SYNC_POLICY_V1, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceEncryptionMarker,
     WorkspaceOperationSyncPolicy, validate_sync_identifier, validate_sync_sequence,
 };
 pub use task::{

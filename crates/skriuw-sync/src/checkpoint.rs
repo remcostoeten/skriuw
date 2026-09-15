@@ -10,8 +10,9 @@ use crate::{
         BLOCKED_REASON_AUTHORIZATION_DENIED, BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED,
         BLOCKED_REASON_LOG_TRUNCATED, BLOCKED_REASON_LOG_TRUNCATED_WITHOUT_CHECKPOINT,
         BLOCKED_REASON_REJECTED_CHECKPOINT, SyncCycleConfig, SyncCycleOutcome, SyncStatus,
-        storage_failure,
+        encryption_mismatch, refused_by_encrypted_workspace, storage_failure,
     },
+    http::VALIDATION_DETAIL_WORKSPACE_ENCRYPTED,
     seal::WorkspaceSealer,
     transport::{SyncCancellation, SyncClock, SyncTransport, TransportError},
 };
@@ -295,6 +296,14 @@ pub fn run_checkpoint_publication(
     if !due {
         return None;
     }
+    match transport.workspace_encryption(&connection.workspace_id, cancellation) {
+        Ok(marker) => {
+            if let Some((reason, detail)) = encryption_mismatch(sealer.as_ref(), marker.as_ref()) {
+                return Some(blocked(clock, cycle_config, reason, &detail));
+            }
+        }
+        Err(error) => return Some(checkpoint_failure(clock, backoff, cycle_config, &error)),
+    }
 
     let archive = match workspace.export_archive(clock.now_ms().max(1)) {
         Ok(archive) => archive,
@@ -406,6 +415,10 @@ fn checkpoint_failure(
             BLOCKED_REASON_AUTHORIZATION_DENIED,
             &error.to_string(),
         ),
+        TransportError::Validation(detail) if detail == VALIDATION_DETAIL_WORKSPACE_ENCRYPTED => {
+            let (reason, detail) = refused_by_encrypted_workspace(false);
+            blocked(clock, config, reason, detail)
+        }
         TransportError::Validation(_)
         | TransportError::Conflict(_)
         | TransportError::UnsupportedProtocol(_)
