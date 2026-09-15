@@ -7,27 +7,36 @@
 //! network, clock, or random-number dependency, so it compiles unchanged for
 //! `wasm32-unknown-unknown` and stays deterministic under test.
 //!
-//! Nonces are derived, never random: a nonce is a domain-separated hash of
-//! the key identity, the caller's context string, and the digest of the
-//! plaintext. Sealing the same bytes in the same slot twice therefore
-//! reproduces the same ciphertext, and two different plaintexts never share a
-//! nonce. The threat model and what that determinism reveals are documented
-//! in `docs/adr/0043-end-to-end-encrypted-sync.md`.
+//! Nonces are derived, never random: a nonce is a keyed BLAKE2b MAC, under a
+//! subkey derived from the content key, over the caller's context string and
+//! the plaintext. Sealing the same bytes in the same slot twice therefore
+//! reproduces the same ciphertext, two different plaintexts never share a
+//! nonce, and nobody without the key can compute a nonce to confirm a guessed
+//! plaintext. The threat model and what that determinism reveals are
+//! documented in `docs/adr/0043-end-to-end-encrypted-sync.md`.
 
 use argon2::{Algorithm, Argon2, Params, Version};
 use base64::{Engine, engine::general_purpose::STANDARD_NO_PAD};
+use blake2::{
+    Blake2bMac,
+    digest::{
+        FixedOutput, Update,
+        consts::{U24, U32},
+    },
+};
 use chacha20poly1305::{
     Key, KeyInit, XChaCha20Poly1305, XNonce,
     aead::{Aead, Payload},
 };
 use sha2::{Digest, Sha256};
 use thiserror::Error;
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 /// Wire identifier of the sealing scheme. It names the KDF, the AEAD, and the
 /// nonce derivation together, so a future scheme is a new identifier rather
-/// than a silent reinterpretation of the same bytes.
-pub const SEAL_SCHEME_V1: &str = "argon2id-xchacha20poly1305-v1";
+/// than a silent reinterpretation of the same bytes. Version 2 replaced the
+/// unkeyed nonce derivation of version 1, which is refused as unsupported.
+pub const SEAL_SCHEME_V2: &str = "argon2id-xchacha20poly1305-v2";
 
 pub const CONTENT_KEY_BYTES: usize = 32;
 pub const RECOVERY_CODE_ENTROPY_BYTES: usize = 20;
@@ -41,7 +50,9 @@ const KDF_ITERATIONS: u32 = 2;
 const KDF_PARALLELISM: u32 = 1;
 const SALT_DOMAIN: &str = "skriuw-sync-e2ee-salt-v1";
 const KEY_ID_DOMAIN: &str = "skriuw-sync-e2ee-key-id-v1";
-const NONCE_DOMAIN: &str = "skriuw-sync-e2ee-nonce-v1";
+const NONCE_SUBKEY_DOMAIN: &str = "skriuw-sync-e2ee-nonce-subkey-v2";
+const NONCE_SUBKEY_PERSONA: &[u8] = b"skriuw-nonce-key";
+const NONCE_PERSONA: &[u8] = b"skriuw-nonce-v2";
 const CROCKFORD_ALPHABET: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const RECOVERY_CODE_GROUP: usize = 4;
 
@@ -238,7 +249,7 @@ impl SealedBytes {
 /// Seals `plaintext` under `key`, binding it to `context` so a sealed
 /// operation cannot be replayed into a different slot of the protocol.
 pub fn seal(key: &ContentKey, context: &str, plaintext: &[u8]) -> Result<SealedBytes, CryptoError> {
-    let nonce = derive_nonce(key, context, plaintext);
+    let nonce = derive_nonce(key, context, plaintext)?;
     let cipher = XChaCha20Poly1305::new(&Key::from(key.material));
     let ciphertext = cipher
         .encrypt(
@@ -266,7 +277,7 @@ pub fn open(
     nonce: &str,
     ciphertext: &[u8],
 ) -> Result<Vec<u8>, CryptoError> {
-    if scheme != SEAL_SCHEME_V1 {
+    if scheme != SEAL_SCHEME_V2 {
         return Err(CryptoError::UnsupportedScheme(scheme.to_string()));
     }
     let held = key.key_id();
@@ -307,17 +318,34 @@ pub fn encode_base64(bytes: &[u8]) -> String {
     STANDARD_NO_PAD.encode(bytes)
 }
 
-fn derive_nonce(key: &ContentKey, context: &str, plaintext: &[u8]) -> [u8; NONCE_BYTES] {
-    let digest = Sha256::new()
-        .chain_update(NONCE_DOMAIN.as_bytes())
-        .chain_update(key.key_id().as_bytes())
-        .chain_update((context.len() as u64).to_be_bytes())
-        .chain_update(context.as_bytes())
-        .chain_update(Sha256::digest(plaintext))
-        .finalize();
+/// Derives the nonce as a PRF of the slot and the plaintext under a subkey of
+/// the content key. The subkey is domain-separated from the AEAD key, so the
+/// content key is never used for two purposes, and the nonce reveals nothing
+/// a party without the key could recompute.
+fn derive_nonce(
+    key: &ContentKey,
+    context: &str,
+    plaintext: &[u8],
+) -> Result<[u8; NONCE_BYTES], CryptoError> {
+    let mut subkey_mac = Blake2bMac::<U32>::new_with_salt_and_personal(
+        Some(&key.material),
+        &[],
+        NONCE_SUBKEY_PERSONA,
+    )
+    .map_err(|_| CryptoError::ContentUnsealable)?;
+    Update::update(&mut subkey_mac, NONCE_SUBKEY_DOMAIN.as_bytes());
+    let mut subkey = Zeroizing::new([0_u8; CONTENT_KEY_BYTES]);
+    subkey.copy_from_slice(&subkey_mac.finalize_fixed());
+
+    let mut nonce_mac =
+        Blake2bMac::<U24>::new_with_salt_and_personal(Some(subkey.as_slice()), &[], NONCE_PERSONA)
+            .map_err(|_| CryptoError::ContentUnsealable)?;
+    Update::update(&mut nonce_mac, &(context.len() as u64).to_be_bytes());
+    Update::update(&mut nonce_mac, context.as_bytes());
+    Update::update(&mut nonce_mac, plaintext);
     let mut nonce = [0_u8; NONCE_BYTES];
-    nonce.copy_from_slice(&digest[..NONCE_BYTES]);
-    nonce
+    nonce.copy_from_slice(&nonce_mac.finalize_fixed());
+    Ok(nonce)
 }
 
 fn crockford_value(character: char) -> Result<u8, CryptoError> {
@@ -337,9 +365,10 @@ fn crockford_value(character: char) -> Result<u8, CryptoError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        ContentKey, CryptoError, RECOVERY_CODE_ENTROPY_BYTES, RecoveryCode, SEAL_SCHEME_V1,
+        ContentKey, CryptoError, RECOVERY_CODE_ENTROPY_BYTES, RecoveryCode, SEAL_SCHEME_V2,
         derive_content_key, open, seal,
     };
+    use sha2::{Digest, Sha256};
 
     fn recovery_code(seed: u8) -> RecoveryCode {
         RecoveryCode::from_entropy(&[seed; RECOVERY_CODE_ENTROPY_BYTES]).expect("entropy")
@@ -406,7 +435,7 @@ mod tests {
         );
         let opened = open(
             &key,
-            SEAL_SCHEME_V1,
+            SEAL_SCHEME_V2,
             &key.key_id(),
             "operation:op-1",
             &sealed.nonce,
@@ -424,7 +453,7 @@ mod tests {
         assert!(matches!(
             open(
                 &other,
-                SEAL_SCHEME_V1,
+                SEAL_SCHEME_V2,
                 &key.key_id(),
                 "operation:op-1",
                 &sealed.nonce,
@@ -438,7 +467,7 @@ mod tests {
         assert_eq!(
             open(
                 &key,
-                SEAL_SCHEME_V1,
+                SEAL_SCHEME_V2,
                 &key.key_id(),
                 "operation:op-1",
                 &sealed.nonce,
@@ -450,7 +479,7 @@ mod tests {
         assert_eq!(
             open(
                 &key,
-                SEAL_SCHEME_V1,
+                SEAL_SCHEME_V2,
                 &key.key_id(),
                 "operation:op-2",
                 &sealed.nonce,
@@ -470,6 +499,20 @@ mod tests {
             ),
             Err(CryptoError::UnsupportedScheme("argon2id-aes-gcm-v9".into()))
         );
+
+        assert_eq!(
+            open(
+                &key,
+                "argon2id-xchacha20poly1305-v1",
+                &key.key_id(),
+                "operation:op-1",
+                &sealed.nonce,
+                &sealed.ciphertext,
+            ),
+            Err(CryptoError::UnsupportedScheme(
+                "argon2id-xchacha20poly1305-v1".into()
+            ))
+        );
     }
 
     #[test]
@@ -481,6 +524,32 @@ mod tests {
         let repeated = seal(&key, "operation:op-1", b"one").expect("seal");
         assert_eq!(first.nonce, repeated.nonce);
         assert_eq!(first.ciphertext, repeated.ciphertext);
+    }
+
+    #[test]
+    fn nonces_cannot_be_recomputed_from_what_the_service_sees() {
+        let key = key(5);
+        let context = "skriuw/sync/operation/workspace-1/op-1";
+        let plaintext = b"a note body the service must not confirm";
+        let sealed = seal(&key, context, plaintext).expect("seal");
+
+        let public_guess = Sha256::new()
+            .chain_update(b"skriuw-sync-e2ee-nonce-v1")
+            .chain_update(key.key_id().as_bytes())
+            .chain_update((context.len() as u64).to_be_bytes())
+            .chain_update(context.as_bytes())
+            .chain_update(Sha256::digest(plaintext))
+            .finalize();
+        assert_ne!(
+            super::decode_base64(&sealed.nonce).expect("nonce"),
+            public_guess[..24].to_vec(),
+            "the nonce is a function of public data and the plaintext alone"
+        );
+
+        let other = key_from_other_code();
+        let under_other_key = seal(&other, context, plaintext).expect("seal");
+        assert_ne!(sealed.nonce, under_other_key.nonce);
+        assert_eq!(seal(&key, context, plaintext).expect("seal"), sealed);
     }
 
     fn key_from_other_code() -> ContentKey {

@@ -54,13 +54,18 @@ opaque bytes.
   `…/asset/<workspace>/<operation id>/<content hash>`,
   `…/checkpoint/<workspace>/<server sequence>`), so ciphertext cannot be
   replayed into a different operation, asset, or workspace.
-- Nonces are **derived, not random**:
-  `nonce = SHA-256("skriuw-sync-e2ee-nonce-v1" ‖ key_id ‖ len(context) ‖ context ‖ SHA-256(plaintext))[..24]`.
-  This keeps `skriuw-crypto` free of any random-number dependency, so it
-  compiles unchanged for `wasm32-unknown-unknown`, and it makes re-sealing an
+- Nonces are **derived, not random**, and keyed:
+  `nonce_key = BLAKE2b-MAC-256(key, persona "skriuw-nonce-key", "skriuw-sync-e2ee-nonce-subkey-v2")`,
+  then `nonce = BLAKE2b-MAC-192(nonce_key, persona "skriuw-nonce-v2", len(context) ‖ context ‖ plaintext)`.
+  Derivation keeps `skriuw-crypto` free of any random-number dependency, so it
+  compiles unchanged for `wasm32-unknown-unknown`, and makes re-sealing an
   operation byte-identical, which the service's idempotent-push rule (same
-  operation id must carry the same content) requires. The cost is accepted and
-  stated below.
+  operation id must carry the same content) requires. Keying it matters:
+  scheme `…-v1` derived the nonce as an unkeyed hash of the key id, the
+  context, and the plaintext digest — all public except the plaintext — so
+  anyone holding a candidate plaintext could recompute the nonce and confirm
+  the guess offline. v1 is refused as an unsupported scheme; it never shipped,
+  so no sealed v1 content needs migrating.
 
 ### Metadata boundary
 
@@ -99,12 +104,13 @@ Two consequences of this boundary are explicit, not accidental:
    opened bytes against the digest the opened operation declares before
    storing them, which is the check that actually matters.
 
-What deterministic sealing reveals: two identical plaintexts in the same slot
-produce identical ciphertext. Because operation identifiers are unique and
-operations are immutable, this reduces in practice to "re-pushing the same
-operation looks the same", which is the behavior the idempotency rule already
-requires. It does not reveal equality of two different notes' bodies, because
-the slot (and therefore the AAD and the nonce) differs.
+What deterministic sealing reveals: sealing the same plaintext in the same
+slot under the same key reproduces the same nonce and ciphertext. The slot
+binds the workspace and the operation id, and operations are immutable, so in
+practice this is "re-pushing the same operation looks the same", which the
+idempotency rule already requires. Across different slots the
+nonce is a keyed PRF output, so equal bodies in two different notes, or a body
+the service guesses, cannot be linked or confirmed without the key.
 
 ### Wire format
 
@@ -113,7 +119,7 @@ new protocol version:
 
 ```json
 { "form": "sealed",
-  "operation": { "scheme": "argon2id-xchacha20poly1305-v1",
+  "operation": { "scheme": "argon2id-xchacha20poly1305-v2",
                  "keyId": "0f1e2d3c4b5a6978",
                  "nonce": "…",
                  "transport": "inline", "ciphertext": "…" },

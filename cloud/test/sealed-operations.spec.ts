@@ -20,7 +20,7 @@ type Workspace = DurableObjectStub<WorkspaceSyncObject>;
 const NOTE_BODY = "gerbrandy-street-lease-2029";
 const KEY_ID = "0f1e2d3c4b5a6978";
 const NONCE = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-const SCHEME = "argon2id-xchacha20poly1305-v1";
+const SCHEME = "argon2id-xchacha20poly1305-v2";
 
 function sealedCiphertext(marker: string): string {
   const bytes = new TextEncoder().encode(marker);

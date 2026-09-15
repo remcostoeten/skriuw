@@ -12,7 +12,7 @@
 //! `docs/adr/0043-end-to-end-encrypted-sync.md`.
 
 use skriuw_crypto::{
-    ContentKey, CryptoError, RecoveryCode, SEAL_SCHEME_V1, decode_base64, derive_content_key,
+    ContentKey, CryptoError, RecoveryCode, SEAL_SCHEME_V2, decode_base64, derive_content_key,
     encode_base64, open, seal,
 };
 use skriuw_domain::{
@@ -51,7 +51,7 @@ pub fn derive_workspace_seal(
     let key = derive_content_key(&code, workspace_id).map_err(|error| error.to_string())?;
     Ok(WorkspaceSeal {
         key_id: key.key_id(),
-        scheme: SEAL_SCHEME_V1.into(),
+        scheme: SEAL_SCHEME_V2.into(),
         key_material: key.material().to_vec(),
         enabled_at: now_ms.max(0),
         sealed_checkpoint_at: None,
@@ -199,7 +199,7 @@ impl WorkspaceSealer {
     /// scheme this build does not implement fails here rather than at the
     /// first ciphertext.
     pub fn from_seal(workspace_id: &str, seal: &WorkspaceSeal) -> Result<Self, TransportError> {
-        if seal.scheme != SEAL_SCHEME_V1 {
+        if seal.scheme != SEAL_SCHEME_V2 {
             return Err(TransportError::Validation(format!(
                 "this workspace is encrypted with the unsupported scheme {}; update Skriuw to open it",
                 seal.scheme
@@ -390,7 +390,7 @@ impl WorkspaceSealer {
         )?;
         Ok((
             CheckpointSeal {
-                scheme: SEAL_SCHEME_V1.into(),
+                scheme: SEAL_SCHEME_V2.into(),
                 key_id: self.key.key_id(),
                 nonce: sealed.nonce,
             },
@@ -437,7 +437,7 @@ impl WorkspaceSealer {
         cancellation: &SyncCancellation,
     ) -> Result<SealedContent, TransportError> {
         let inline = SealedContent {
-            scheme: SEAL_SCHEME_V1.into(),
+            scheme: SEAL_SCHEME_V2.into(),
             key_id: self.key.key_id(),
             nonce: sealed.nonce.clone(),
             transport: SealedTransport::Inline {
@@ -513,7 +513,7 @@ impl WorkspaceSealer {
             cancellation,
         )?;
         Ok(SealedAsset::Sealed(SealedContent {
-            scheme: SEAL_SCHEME_V1.into(),
+            scheme: SEAL_SCHEME_V2.into(),
             key_id: self.key.key_id(),
             nonce: sealed.nonce,
             transport: SealedTransport::Chunked { manifest },

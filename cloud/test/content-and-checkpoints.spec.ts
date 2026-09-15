@@ -662,7 +662,7 @@ describe("acknowledgement cursors and compaction", () => {
             payload: {
               form: "sealed",
               operation: {
-                scheme: "argon2id-xchacha20poly1305-v1",
+                scheme: "argon2id-xchacha20poly1305-v2",
                 keyId: "0f1e2d3c4b5a6978",
                 nonce: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
                 transport: "inline",
