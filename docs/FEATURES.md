@@ -100,6 +100,13 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Auto-updates** — built-in updater on top of a tag-driven, cross-platform release pipeline.
 - **Current install channels** — APT and dnf repositories, Homebrew, Scoop, and the AUR; macOS, Windows, and Linux release assets are available directly. Winget and Snap publication remain pending.
 
+## Phone and tablet
+
+- **Installable browser build** — the web build at `/app/` installs to a home screen with its own icon and the palette you chose, starts from disk when offline, and asks the browser for persistent storage so the workspace is not evicted; a denied request is said out loud while an export is still possible. See [ADR-0040](adr/0040-installable-browser-shell.md).
+- **Compact shell** — below 900px the rail becomes a bottom tab bar and the tree and inspector become edge sheets over the note, opened from the toolbar or a pull from either screen edge, closed by a tap outside, their own close control, Escape, a pull back toward the edge, or simply picking a note. The page behind a sheet is inert, the split view stacks, and everything is sized from the visual viewport so an open keyboard shrinks the shell instead of hiding it. See [ADR-0041](adr/0041-compact-shell-and-touch-gestures.md).
+- **Touch gestures** — hold a note or folder for its menu (rename, pin, move, share, delete), pull it left to move it to trash with an undo, and scroll freely in between; rows, menu items, and tabs grow to 44px, and the platform vibration API ticks at each threshold where one exists.
+- **Formatting on a phone** — the text formatting popover docks at the bottom of the visual viewport as a sideways-scrolling bar above the keyboard, and the note menu offers the system share sheet for the note's Markdown wherever the Web Share API exists.
+
 ## Built to be trusted
 
 - 1,300+ tests across backend, desktop, renderer, store, and UI-architecture layers, plus a keyboard-driven end-to-end suite covering the complete workflow with zero tolerated console errors.

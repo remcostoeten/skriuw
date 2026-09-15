@@ -17,7 +17,8 @@ squeezed into one.
 
 ## Decision
 
-Below 768px the shell switches to compact mode, decided once by a media query
+Below 900px, where the four tracks' minimum widths no longer fit, the shell
+switches to compact mode, decided once by a media query
 at the top of the shell rather than per component. Compact mode:
 
 - Collapses the grid to one content column over a bottom tab bar that carries
