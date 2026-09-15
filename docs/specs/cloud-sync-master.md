@@ -181,7 +181,13 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
   checkpoints, keyed by a per-workspace content key derived from a recovery
   code, with the metadata boundary fixed in
   [ADR-0043](../adr/0043-end-to-end-encrypted-sync.md) and covered by
-  [`encrypted_scenarios.rs`](../../crates/skriuw-sync/tests/encrypted_scenarios.rs).
+  [`encrypted_scenarios.rs`](../../crates/skriuw-sync/tests/encrypted_scenarios.rs)
+  and [`sealed-operations.spec.ts`](../../cloud/test/sealed-operations.spec.ts).
+  The service keeps a write-once encryption record per workspace, refuses
+  plaintext and foreign-key content with 423 once it exists, and arbitrates
+  enable; clients check it before uploading, verify recovery codes against
+  it, and refuse plaintext above their encryption floor. Log freshness and
+  omission are not protected; see the ADR's stated limits.
 - [x] Test two offline devices reconnecting in either order, duplicate
   delivery, three-device ack-before-echo, parked write then remote write then
   retry, expired sessions mid-push and mid-pull, and rehydration after
