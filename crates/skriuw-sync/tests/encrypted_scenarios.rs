@@ -18,8 +18,9 @@ use skriuw_sync::{
     BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED, BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED,
     BLOCKED_REASON_SEALED_CONTENT_UNREADABLE, CheckpointPublication, CheckpointPublicationConfig,
     CheckpointPublicationState, SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig,
-    SyncCycleOutcome, SyncCycleState, SyncStatus, derive_workspace_seal, new_recovery_code,
-    run_checkpoint_publication, run_sync_cycle,
+    SyncCycleOutcome, SyncCycleState, SyncStatus, derive_workspace_seal,
+    enable_workspace_encryption, new_recovery_code, run_checkpoint_publication, run_sync_cycle,
+    unlock_workspace_encryption,
 };
 use support::{
     FakeAssetStore, FakeClock, FakeServer, FakeTransport, attach_image, create_note, save_document,
@@ -88,6 +89,26 @@ impl Device {
         self.storage
             .set_workspace_seal(&seal)
             .expect("store workspace seal");
+    }
+
+    fn unlock(&self, recovery_code: &str) -> Result<(), String> {
+        unlock_workspace_encryption(
+            &self.storage,
+            self.transport.as_ref(),
+            &self.cancellation,
+            recovery_code,
+            self.clock.now_ms(),
+        )
+    }
+
+    fn enable(&self, entropy: &[u8]) -> Result<String, String> {
+        enable_workspace_encryption(
+            &self.storage,
+            self.transport.as_ref(),
+            &self.cancellation,
+            entropy,
+            self.clock.now_ms(),
+        )
     }
 
     fn apply(&self, operations: Vec<skriuw_domain::WorkspaceOperationEnvelope>) {
@@ -263,16 +284,40 @@ fn a_wrong_recovery_code_fails_loudly_and_changes_nothing() {
     device_a.encrypt_with(RECOVERY_CODE);
     device_a.apply(vec![create_note("note-1", SECRET_TITLE, 1)]);
     assert_eq!(device_a.settle(), SyncStatus::UpToDate);
+    let log_before = server.operation_ids();
 
     let mut device_b = Device::open(&server, "device-b", &clock);
-    device_b.encrypt_with(OTHER_RECOVERY_CODE);
+    device_b.apply(vec![create_note(
+        "note-b",
+        "Draft written before unlocking",
+        2,
+    )]);
+    let refusal = device_b
+        .unlock(OTHER_RECOVERY_CODE)
+        .expect_err("a wrong recovery code must be refused");
+    assert!(refusal.contains("recovery code"), "{refusal}");
+    assert_eq!(device_b.storage.workspace_seal().expect("read seal"), None);
+
     let status = device_b.settle();
     assert_eq!(
         blocked_reason(&status),
-        Some(BLOCKED_REASON_SEALED_CONTENT_UNREADABLE)
+        Some(BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED)
     );
-    assert!(blocked_detail(&status).is_some_and(|detail| detail.contains("this device holds key")));
-    assert_eq!(device_b.shape(), "");
+    assert_eq!(server.operation_ids(), log_before);
+    assert!(device_b.transport.pushed_requests().is_empty());
+    assert!(
+        device_b
+            .storage
+            .has_pending_sync_operations()
+            .expect("read outbox")
+    );
+    assert!(!device_a.shape().contains("Draft written before unlocking"));
+
+    device_b
+        .unlock(RECOVERY_CODE)
+        .expect("the right code unlocks");
+    assert_eq!(device_b.settle(), SyncStatus::UpToDate);
+    assert!(device_b.shape().contains(SECRET_TITLE));
 }
 
 #[test]
@@ -480,4 +525,25 @@ fn an_unsealed_checkpoint_is_refused_once_the_device_holds_the_key() {
         Some(BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED)
     );
     assert_eq!(device_c.shape(), "");
+}
+
+#[test]
+fn two_devices_enabling_encryption_at_once_cannot_both_win() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let device_a = Device::open(&server, "device-a", &clock);
+    let device_b = Device::open(&server, "device-b", &clock);
+
+    let code_a = device_a.enable(&[3; 20]).expect("the first enable wins");
+    let refusal = device_b
+        .enable(&[4; 20])
+        .expect_err("a second enable must be refused");
+
+    assert!(refusal.contains("recovery code"), "{refusal}");
+    assert_eq!(device_b.storage.workspace_seal().expect("read seal"), None);
+    let marker = server
+        .encryption_marker()
+        .expect("the service records the winner");
+    let winner = derive_workspace_seal(WORKSPACE, &code_a, 0, 0).expect("derive winner");
+    assert_eq!(marker.key_id, winner.key_id);
 }

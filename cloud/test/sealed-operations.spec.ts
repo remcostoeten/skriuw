@@ -334,4 +334,21 @@ describe("sealed sync payloads", () => {
     const retried = accepted(await workspace.pushOperations(before));
     expect(retried.accepted).toEqual(first.accepted);
   });
+
+  it("lets exactly one device claim a workspace's encryption key", async () => {
+    const workspace = env.WORKSPACES.getByName("sealed-workspace-8") as Workspace;
+    const first = await workspace.claimWorkspaceEncryption({ scheme: SCHEME, keyId: KEY_ID });
+    const second = await workspace.claimWorkspaceEncryption({
+      scheme: SCHEME,
+      keyId: "9999999999999999",
+    });
+    expect(first).toMatchObject({ ok: true, marker: { keyId: KEY_ID } });
+    expect(second).toMatchObject({ ok: true, marker: { keyId: KEY_ID } });
+    expect(await workspace.workspaceEncryption()).toMatchObject({ keyId: KEY_ID });
+
+    const foreign = sealedRequest("device-other", [sealedOperation("foreign-key-1", 1, 0)]);
+    foreign.operations[0]!.payload.operation.keyId = "9999999999999999";
+    const refused = await workspace.pushOperations(foreign);
+    expect(refused).toMatchObject({ ok: false, error: { code: "encryption_key_mismatch" } });
+  });
 });

@@ -21,7 +21,8 @@ use skriuw_storage::{NewSyncConnection, SyncRecovery, WorkspaceSyncQueue};
 use skriuw_sync::{
     SyncAssetStore, SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncHttpEndpoints,
     SyncStatus, SyncTransport, SyncWorkspaceObserver, SystemClock, TransportError,
-    classify_http_failure, derive_workspace_seal, new_recovery_code, request_timeout_ms,
+    classify_http_failure, enable_workspace_encryption, request_timeout_ms,
+    unlock_workspace_encryption,
 };
 use uuid::Uuid;
 
@@ -92,6 +93,7 @@ struct ProvisionedWorkspace {
 pub struct SyncRuntime {
     database_path: PathBuf,
     coordinator: Mutex<Option<Arc<SyncCoordinator>>>,
+    transport: Mutex<Option<Arc<HttpSyncTransport>>>,
     push_listener: Mutex<Option<PushListener>>,
     workspace_observer: Option<SyncWorkspaceObserver>,
     session_expired: Option<SessionExpiredObserver>,
@@ -103,6 +105,7 @@ impl SyncRuntime {
         Self {
             database_path,
             coordinator: Mutex::new(None),
+            transport: Mutex::new(None),
             push_listener: Mutex::new(None),
             workspace_observer: None,
             session_expired: None,
@@ -215,6 +218,9 @@ impl SyncRuntime {
                     session_expired();
                 }
             });
+        if let Ok(mut cloud_transport) = self.transport.lock() {
+            *cloud_transport = Some(Arc::clone(&transport));
+        }
         let workspace = Arc::clone(&queue);
         let coordinator = Arc::new(SyncCoordinator::spawn(
             queue,
@@ -310,60 +316,45 @@ impl SyncRuntime {
     /// unrecoverable by design and the cloud copy dies with it.
     pub fn enable_encryption(&self) -> Result<String, String> {
         let workspace = self.open_workspace()?;
-        let connection = workspace
-            .sync_connection()
-            .map_err(|error| format!("could not read the local sync connection: {error}"))?
-            .ok_or_else(|| {
-                "connect this workspace to Skriuw cloud before encrypting it".to_string()
-            })?;
-        if workspace
-            .workspace_seal()
-            .map_err(|error| format!("could not read the workspace encryption state: {error}"))?
-            .is_some()
-        {
-            return Err("this workspace is already encrypted".into());
-        }
+        let transport = self.cloud_transport()?;
         let mut entropy = [0_u8; 20];
         let first = Uuid::new_v4();
         let second = Uuid::new_v4();
         entropy[..16].copy_from_slice(first.as_bytes());
         entropy[16..].copy_from_slice(&second.as_bytes()[..4]);
-        let recovery_code = new_recovery_code(&entropy)?;
-        let seal = derive_workspace_seal(
-            &connection.workspace_id,
-            &recovery_code,
-            connection.observed_server_sequence,
+        let recovery_code = enable_workspace_encryption(
+            &workspace,
+            transport.as_ref(),
+            &SyncCancellation::new(),
+            &entropy,
             now_millis(),
         )?;
-        workspace
-            .set_workspace_seal(&seal)
-            .map_err(|error| format!("could not store the workspace encryption key: {error}"))?;
         self.request_refresh();
         Ok(recovery_code)
     }
 
     /// Joins an already-encrypted workspace from a second device. The code is
-    /// the only input: the key derives from it and the workspace identity.
+    /// checked against the key the cloud recorded before anything is stored.
     pub fn unlock_encryption(&self, recovery_code: &str) -> Result<(), String> {
         let workspace = self.open_workspace()?;
-        let connection = workspace
-            .sync_connection()
-            .map_err(|error| format!("could not read the local sync connection: {error}"))?
-            .ok_or_else(|| {
-                "connect this workspace to Skriuw cloud before entering its recovery code"
-                    .to_string()
-            })?;
-        let seal = derive_workspace_seal(
-            &connection.workspace_id,
+        let transport = self.cloud_transport()?;
+        unlock_workspace_encryption(
+            &workspace,
+            transport.as_ref(),
+            &SyncCancellation::new(),
             recovery_code,
-            connection.observed_server_sequence,
             now_millis(),
         )?;
-        workspace
-            .set_workspace_seal(&seal)
-            .map_err(|error| format!("could not store the workspace encryption key: {error}"))?;
         self.request_refresh();
         Ok(())
+    }
+
+    fn cloud_transport(&self) -> Result<Arc<HttpSyncTransport>, String> {
+        self.transport
+            .lock()
+            .map_err(|_| "sync runtime lock is unavailable".to_string())?
+            .clone()
+            .ok_or_else(|| "sign in to Skriuw cloud before changing encryption".to_string())
     }
 
     /// Pause network access without discarding the durable connection or outbox.
@@ -886,6 +877,27 @@ impl SyncTransport for HttpSyncTransport {
                 TransportError::Validation(format!("encryption record was unreadable: {error}"))
             })?;
         }
+        Ok(marker)
+    }
+
+    fn claim_workspace_encryption(
+        &self,
+        workspace_id: &str,
+        scheme: &str,
+        key_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<WorkspaceEncryptionMarker, TransportError> {
+        let marker: WorkspaceEncryptionMarker = self.send(
+            OutboundRequest::json(
+                Method::POST,
+                self.endpoints.encryption(workspace_id),
+                &serde_json::json!({ "scheme": scheme, "keyId": key_id }),
+            )?,
+            cancellation,
+        )?;
+        marker.validate().map_err(|error| {
+            TransportError::Validation(format!("encryption record was unreadable: {error}"))
+        })?;
         Ok(marker)
     }
 

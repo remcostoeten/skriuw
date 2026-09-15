@@ -483,6 +483,25 @@ impl SyncTransport for XhrSyncTransport {
         Ok(marker)
     }
 
+    fn claim_workspace_encryption(
+        &self,
+        workspace_id: &str,
+        scheme: &str,
+        key_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<skriuw_domain::WorkspaceEncryptionMarker, TransportError> {
+        let marker: skriuw_domain::WorkspaceEncryptionMarker = self.request_json(
+            "POST",
+            &self.endpoints.encryption(workspace_id),
+            Some(&serde_json::json!({ "scheme": scheme, "keyId": key_id })),
+            cancellation,
+        )?;
+        marker.validate().map_err(|error| {
+            TransportError::Validation(format!("encryption record was unreadable: {error}"))
+        })?;
+        Ok(marker)
+    }
+
     fn acknowledge(
         &self,
         workspace_id: &str,

@@ -140,6 +140,24 @@ not in this threat model: the notes are already readable on the device that
 wrote them, and encrypting them there would trade a real recovery story for no
 attacker the service does not already exclude.
 
+### Enabling and unlocking
+
+Enabling stores the derived key on the device, then asks the service to
+record its key id (`POST /v1/workspaces/{id}/encryption`). The record is
+write-once, so the reply names whichever key reached the service first. When
+that is not this device's key, another device already encrypted the
+workspace: the local key is removed again and the user is told to enter that
+device's recovery code. Storing before claiming means a crash between the two
+never leaves the cloud encrypted under a key no device holds; the service is
+the arbiter, so two devices enabling at once cannot both succeed.
+
+Unlocking reads the record first and derives the key with the workspace's
+floor. A code whose key id does not match the recorded one is refused and
+nothing is stored, so a mistyped code can never seal new work under a key the
+other devices cannot open. A device whose stored key stops matching the
+record parks as `sealed_content_unreadable` and the settings surface keeps
+the recovery code field open until a matching code is entered.
+
 The derived key is cached in the device-local `sync_encryption` table
 (migration `0025`) so the recovery code is entered once per device. It is
 never replicated: `WorkspaceOperation` has no variant that carries it.

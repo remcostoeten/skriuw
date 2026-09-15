@@ -21,7 +21,7 @@ use skriuw_domain::{
     SyncPullResponse, SyncPushRequest, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceCheckpoint,
     WorkspaceOperationEnvelope, content_digest,
 };
-use skriuw_storage::WorkspaceSeal;
+use skriuw_storage::{WorkspaceSeal, WorkspaceSyncQueue};
 
 use crate::content::{
     AssetExternalization, SyncAssetStore, download_content, upload_missing_chunks,
@@ -57,6 +57,121 @@ pub fn derive_workspace_seal(
         sealed_checkpoint_at: None,
         encrypted_from_server_sequence,
     })
+}
+
+/// Turns encryption on and returns the recovery code exactly once.
+///
+/// The key is stored before the service is asked to record it, so a crash
+/// after the claim never leaves the cloud encrypted under a key no device
+/// holds. The service's write-once record then arbitrates: if another device
+/// claimed the workspace first, the local key is removed again and the user is
+/// told to enter that device's recovery code instead.
+pub fn enable_workspace_encryption(
+    queue: &dyn WorkspaceSyncQueue,
+    transport: &dyn SyncTransport,
+    cancellation: &SyncCancellation,
+    entropy: &[u8],
+    now_ms: i64,
+) -> Result<String, String> {
+    let connection = queue
+        .sync_connection()
+        .map_err(|error| format!("could not read the local sync connection: {error}"))?
+        .ok_or_else(|| "connect this workspace to Skriuw cloud before encrypting it".to_string())?;
+    if queue
+        .workspace_seal()
+        .map_err(|error| format!("could not read the workspace encryption state: {error}"))?
+        .is_some()
+    {
+        return Err("this workspace is already encrypted on this device".into());
+    }
+    let recovery_code = new_recovery_code(entropy)?;
+    let seal = derive_workspace_seal(
+        &connection.workspace_id,
+        &recovery_code,
+        connection.observed_server_sequence,
+        now_ms,
+    )?;
+    queue
+        .set_workspace_seal(&seal)
+        .map_err(|error| format!("could not store the workspace encryption key: {error}"))?;
+    let claimed = transport.claim_workspace_encryption(
+        &connection.workspace_id,
+        &seal.scheme,
+        &seal.key_id,
+        cancellation,
+    );
+    let refusal = match claimed {
+        Ok(marker) if marker.key_id == seal.key_id => {
+            return queue
+                .set_workspace_seal(&WorkspaceSeal {
+                    encrypted_from_server_sequence: marker.encrypted_from_server_sequence,
+                    ..seal
+                })
+                .map(|()| recovery_code)
+                .map_err(|error| format!("could not store the workspace encryption key: {error}"));
+        }
+        Ok(_) => "another device already encrypted this workspace; enter its recovery code instead"
+            .to_string(),
+        Err(error) => format!("could not reach Skriuw cloud to encrypt this workspace: {error}"),
+    };
+    queue.clear_workspace_seal().map_err(|error| {
+        format!("{refusal}; the unused key could not be removed from this device: {error}")
+    })?;
+    Err(refusal)
+}
+
+/// Joins an already-encrypted workspace from the recovery code alone. The
+/// derived key must match the key the service recorded for the workspace;
+/// a wrong code stores nothing, so it can never seal work under a key the
+/// other devices cannot open.
+pub fn unlock_workspace_encryption(
+    queue: &dyn WorkspaceSyncQueue,
+    transport: &dyn SyncTransport,
+    cancellation: &SyncCancellation,
+    recovery_code: &str,
+    now_ms: i64,
+) -> Result<(), String> {
+    let connection = queue
+        .sync_connection()
+        .map_err(|error| format!("could not read the local sync connection: {error}"))?
+        .ok_or_else(|| {
+            "connect this workspace to Skriuw cloud before entering its recovery code".to_string()
+        })?;
+    let marker = transport
+        .workspace_encryption(&connection.workspace_id, cancellation)
+        .map_err(|error| {
+            format!("could not reach Skriuw cloud to check the recovery code: {error}")
+        })?
+        .ok_or_else(|| {
+            "this workspace is not encrypted in Skriuw cloud, so there is no recovery code to enter"
+                .to_string()
+        })?;
+    let seal = derive_workspace_seal(
+        &connection.workspace_id,
+        recovery_code,
+        marker.encrypted_from_server_sequence,
+        now_ms,
+    )?;
+    if seal.key_id != marker.key_id {
+        return Err(
+            "that recovery code does not open this workspace; check the code and try again".into(),
+        );
+    }
+    let existing = queue
+        .workspace_seal()
+        .map_err(|error| format!("could not read the workspace encryption state: {error}"))?
+        .filter(|existing| existing.key_id == seal.key_id);
+    let seal = match existing {
+        Some(existing) => WorkspaceSeal {
+            enabled_at: existing.enabled_at,
+            sealed_checkpoint_at: existing.sealed_checkpoint_at,
+            ..seal
+        },
+        None => seal,
+    };
+    queue
+        .set_workspace_seal(&seal)
+        .map_err(|error| format!("could not store the workspace encryption key: {error}"))
 }
 
 /// Why a pulled page could not be opened. The cycle maps each to a different

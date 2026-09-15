@@ -180,6 +180,18 @@ pub trait SyncTransport: Send + Sync {
         cancellation: &SyncCancellation,
     ) -> Result<Option<WorkspaceEncryptionMarker>, TransportError>;
 
+    /// Asks the service to record `key_id` as the workspace key. The record
+    /// is write-once: the returned marker names whichever key reached the
+    /// service first, so the caller compares it with its own to learn whether
+    /// it won.
+    fn claim_workspace_encryption(
+        &self,
+        workspace_id: &str,
+        scheme: &str,
+        key_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<WorkspaceEncryptionMarker, TransportError>;
+
     /// Advances this device's server-side cursor so retention knows which
     /// operations every active device has already received.
     fn acknowledge(

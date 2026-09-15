@@ -46,6 +46,11 @@ type WorkspaceSyncRpc = {
   >;
   latestCheckpoint(): Promise<string | null>;
   workspaceEncryption(): Promise<WorkspaceEncryptionMarker | null>;
+  claimWorkspaceEncryption(
+    input: unknown,
+  ): Promise<
+    { ok: true; marker: WorkspaceEncryptionMarker } | { ok: false; code: string; message: string }
+  >;
   acknowledgeOperations(
     deviceId: string,
     serverSequence: number,
@@ -180,9 +185,15 @@ export async function handlePublicSyncRequest(
     }
 
     if (route.name === "encryption") {
-      return jsonResponse(
-        await dependencies.resolveWorkspace(route.workspaceId).workspaceEncryption(),
-      );
+      const workspace = dependencies.resolveWorkspace(route.workspaceId);
+      if (request.method === "GET") {
+        return jsonResponse(await workspace.workspaceEncryption());
+      }
+      const claimed = await workspace.claimWorkspaceEncryption(await readBoundedJson(request));
+      if (!claimed.ok) {
+        throw new PublicApiError(400, "sync_rejected");
+      }
+      return jsonResponse(claimed.marker);
     }
 
     if (route.name === "acknowledge") {
@@ -290,7 +301,11 @@ function matchSyncRoute(pathname: string, method: string): SyncRoute | null {
         workspaceId,
       };
     case "encryption":
-      return { name: "encryption", action: "pull", workspaceId };
+      return {
+        name: "encryption",
+        action: method === "POST" ? "push" : "pull",
+        workspaceId,
+      };
     case "acknowledge":
       return { name: "acknowledge", action: "pull", workspaceId };
     case "events":
@@ -306,7 +321,7 @@ function requireMethod(method: string, route: SyncRoute): void {
     pull: ["GET"],
     chunk: ["PUT", "GET", "HEAD"],
     checkpoint: ["GET", "POST"],
-    encryption: ["GET"],
+    encryption: ["GET", "POST"],
     acknowledge: ["POST"],
     events: ["GET"],
   };

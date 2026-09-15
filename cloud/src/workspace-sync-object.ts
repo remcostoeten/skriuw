@@ -32,6 +32,7 @@ import {
   parseStoredJson,
   parseSyncOperationPayload,
   parseSyncPushRequest,
+  parseEncryptionClaim,
   parseWorkspaceCheckpoint,
   requireIdentifier,
   requireSafeSequence,
@@ -402,6 +403,33 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
     return this.encryptionMarker();
   }
 
+  /**
+   * Compare-and-set: the first claim writes the record and every later claim
+   * reads it back unchanged. The caller compares the returned key id with
+   * its own, so two devices enabling at once cannot both succeed.
+   */
+  async claimWorkspaceEncryption(input: unknown): Promise<
+    { ok: true; marker: WorkspaceEncryptionMarker } | { ok: false; code: string; message: string }
+  > {
+    let claim: { scheme: string; keyId: string };
+    try {
+      claim = parseEncryptionClaim(input);
+    } catch (error) {
+      if (error instanceof SyncContractError) {
+        return { ok: false, code: error.code, message: error.message };
+      }
+      throw error;
+    }
+    const marker = this.ctx.storage.transactionSync(() => {
+      this.admitSealState({ scheme: claim.scheme, keyIds: [claim.keyId] }, { allowForeignKey: true });
+      return this.encryptionMarker();
+    });
+    if (marker === null) {
+      throw new Error("encryption claim did not leave a record");
+    }
+    return { ok: true, marker };
+  }
+
   private encryptionMarker(): WorkspaceEncryptionMarker | null {
     const row = this.ctx.storage.sql
       .exec<EncryptionMarkerRow>(
@@ -427,6 +455,7 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
    */
   private admitSealState(
     seal: { scheme: string; keyIds: readonly string[] } | null,
+    options: { allowForeignKey: boolean } = { allowForeignKey: false },
   ): void {
     const marker = this.encryptionMarker();
     if (seal === null) {
@@ -439,7 +468,7 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
       return;
     }
     const keyId = marker?.keyId ?? seal.keyIds[0];
-    if (seal.keyIds.some((candidate) => candidate !== keyId)) {
+    if (!options.allowForeignKey && seal.keyIds.some((candidate) => candidate !== keyId)) {
       throw new SyncContractError(
         "sealed content names a key this workspace is not encrypted with",
         "encryption_key_mismatch",

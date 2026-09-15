@@ -110,6 +110,17 @@ impl SyncTransport for SharedTransport {
         self.0.workspace_encryption(workspace_id, cancellation)
     }
 
+    fn claim_workspace_encryption(
+        &self,
+        workspace_id: &str,
+        scheme: &str,
+        key_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<skriuw_domain::WorkspaceEncryptionMarker, TransportError> {
+        self.0
+            .claim_workspace_encryption(workspace_id, scheme, key_id, cancellation)
+    }
+
     fn acknowledge(
         &self,
         workspace_id: &str,

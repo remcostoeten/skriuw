@@ -51,7 +51,8 @@ pub use http::{
     classify_http_failure, request_timeout_ms,
 };
 pub use seal::{
-    WorkspaceSealer, derive_workspace_seal, new_recovery_code, sealed_ciphertext_base64,
+    WorkspaceSealer, derive_workspace_seal, enable_workspace_encryption, new_recovery_code,
+    sealed_ciphertext_base64, unlock_workspace_encryption,
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub use transport::SystemClock;

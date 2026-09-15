@@ -571,6 +571,26 @@ export function parseSealedContent(
   throw new SyncContractError("sealed content transport is not supported");
 }
 
+/**
+ * A device's request to make its key the workspace key. Only the scheme and
+ * key id travel; the key never does.
+ */
+export function parseEncryptionClaim(input: unknown): { scheme: string; keyId: string } {
+  const claim = requireRecord(input, "encryption claim");
+  requireExactKeys(claim, ["scheme", "keyId"], "encryption claim");
+  const sealed = parseSealedContent(
+    {
+      scheme: claim.scheme,
+      keyId: claim.keyId,
+      nonce: "A".repeat(SEAL_NONCE_BASE64_CHARACTERS),
+      transport: "inline",
+      ciphertext: "AA",
+    },
+    "operation_envelope",
+  );
+  return { scheme: sealed.scheme, keyId: sealed.keyId };
+}
+
 function isBase64(value: string): boolean {
   return /^[A-Za-z0-9+/=]+$/.test(value);
 }

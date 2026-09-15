@@ -13,7 +13,11 @@ export type EncryptionStage =
   | "revealed"
   /** Encrypted, and this device holds the key. */
   | "on"
-  /** Encrypted by another device; this one needs the recovery code. */
+  /**
+   * Sync is parked for want of a usable key: another device encrypted the
+   * workspace, or the key this device holds is not the workspace key. Either
+   * way only the recovery code clears it.
+   */
   | "locked";
 
 export function encryptionStage(
@@ -23,8 +27,8 @@ export function encryptionStage(
 ): EncryptionStage {
   if (revealedRecoveryCode !== null) return "revealed";
   if (state === null || !state.linked) return "unlinked";
-  if (state.enabled) return "on";
-  return encryptionKeyRequired(status) ? "locked" : "off";
+  if (encryptionKeyRequired(status)) return "locked";
+  return state.enabled ? "on" : "off";
 }
 
 /** Whether the current sync state is stopped for want of a workspace key. */
@@ -47,7 +51,7 @@ export function encryptionDescription(stage: EncryptionStage): string {
     case "on":
       return "Note titles, bodies, tags, people, and media are sealed before they leave this device.";
     case "locked":
-      return "Another device encrypted this workspace. Enter its recovery code to keep syncing here.";
+      return "This workspace is encrypted with a key this device does not hold. Enter its recovery code to keep syncing here.";
   }
 }
 

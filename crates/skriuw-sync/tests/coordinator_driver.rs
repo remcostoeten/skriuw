@@ -135,6 +135,17 @@ impl SyncTransport for ConcurrencyProbeTransport {
         self.inner.workspace_encryption(workspace_id, cancellation)
     }
 
+    fn claim_workspace_encryption(
+        &self,
+        workspace_id: &str,
+        scheme: &str,
+        key_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<skriuw_domain::WorkspaceEncryptionMarker, TransportError> {
+        self.inner
+            .claim_workspace_encryption(workspace_id, scheme, key_id, cancellation)
+    }
+
     fn acknowledge(
         &self,
         workspace_id: &str,
@@ -230,6 +241,18 @@ impl SyncTransport for BlockingTransport {
         _cancellation: &SyncCancellation,
     ) -> Result<Option<skriuw_domain::WorkspaceEncryptionMarker>, TransportError> {
         Ok(None)
+    }
+
+    fn claim_workspace_encryption(
+        &self,
+        _workspace_id: &str,
+        _scheme: &str,
+        _key_id: &str,
+        _cancellation: &SyncCancellation,
+    ) -> Result<skriuw_domain::WorkspaceEncryptionMarker, TransportError> {
+        Err(TransportError::Transient(
+            "blocking transport never encrypts".into(),
+        ))
     }
 
     fn acknowledge(
@@ -347,6 +370,18 @@ impl SyncTransport for TokenCheckedTransport {
     ) -> Result<Option<skriuw_domain::WorkspaceEncryptionMarker>, TransportError> {
         self.session()?;
         self.inner.workspace_encryption(workspace_id, cancellation)
+    }
+
+    fn claim_workspace_encryption(
+        &self,
+        workspace_id: &str,
+        scheme: &str,
+        key_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<skriuw_domain::WorkspaceEncryptionMarker, TransportError> {
+        self.session()?;
+        self.inner
+            .claim_workspace_encryption(workspace_id, scheme, key_id, cancellation)
     }
 
     fn acknowledge(

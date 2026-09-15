@@ -308,6 +308,19 @@ impl FakeServer {
         self.encryption.lock().expect("encryption marker").clone()
     }
 
+    pub fn claim_encryption(&self, scheme: &str, key_id: &str) -> WorkspaceEncryptionMarker {
+        let latest = self.log_len() as u64;
+        let mut marker = self.encryption.lock().expect("encryption marker");
+        marker
+            .get_or_insert_with(|| WorkspaceEncryptionMarker {
+                scheme: scheme.to_string(),
+                key_id: key_id.to_string(),
+                encrypted_from_server_sequence: latest,
+                enabled_at: 1,
+            })
+            .clone()
+    }
+
     /// Mirrors the service's once-written encryption marker: unsealed content
     /// is refused once it exists, sealed content under another key is refused
     /// always, and the first sealed content writes it.
@@ -869,6 +882,20 @@ impl SyncTransport for FakeTransport {
             return Err(TransportError::AuthorizationDenied);
         }
         Ok(self.server.encryption_marker())
+    }
+
+    fn claim_workspace_encryption(
+        &self,
+        workspace_id: &str,
+        scheme: &str,
+        key_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<WorkspaceEncryptionMarker, TransportError> {
+        self.ensure_live(cancellation)?;
+        if workspace_id != self.server.workspace_id {
+            return Err(TransportError::AuthorizationDenied);
+        }
+        Ok(self.server.claim_encryption(scheme, key_id))
     }
 
     fn acknowledge(
