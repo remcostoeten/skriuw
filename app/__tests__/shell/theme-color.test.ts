@@ -2,15 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { themeColorFrom } from "../../src/shell/theme-color";
 
-function styleWith(background: string) {
-  return { getPropertyValue: () => background };
+function styleWith(tokens: Record<string, string>) {
+  return { getPropertyValue: (property: string) => tokens[property] ?? "" };
 }
 
-test("themeColorFrom wraps the palette background token in a colour function", () => {
-  assert.equal(themeColorFrom(styleWith(" 2 0% 7% ")), "hsl(2 0% 7%)");
-  assert.equal(themeColorFrom(styleWith("40 16% 95%")), "hsl(40 16% 95%)");
+test("themeColorFrom follows the chrome token the toolbars paint with", () => {
+  assert.equal(
+    themeColorFrom(styleWith({ "--sidebar-background": " 2 0% 5% ", "--background": "2 0% 7%" })),
+    "hsl(2 0% 5%)",
+  );
 });
 
-test("themeColorFrom reports nothing when the token is unresolved", () => {
-  assert.equal(themeColorFrom(styleWith("")), null);
+test("themeColorFrom falls back to the page background", () => {
+  assert.equal(themeColorFrom(styleWith({ "--background": "40 16% 95%" })), "hsl(40 16% 95%)");
+});
+
+test("themeColorFrom reports nothing when no token resolves", () => {
+  assert.equal(themeColorFrom(styleWith({})), null);
 });

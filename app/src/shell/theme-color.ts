@@ -7,13 +7,15 @@ type StyleSource = {
 };
 
 /**
- * Resolves the palette's window background into a `theme-color` value. Skriuw
- * ships ten palettes and lets the user switch at runtime, so the installed
- * status bar and task-switcher chrome follow the same token the shell paints
- * with instead of a colour frozen into the manifest.
+ * Resolves the palette's chrome colour into a `theme-color` value. The
+ * toolbars and tab bar paint with the sidebar token, and that is what meets
+ * the status bar and the installed window's title bar, so the platform chrome
+ * follows it. Skriuw ships ten palettes and lets the user switch at runtime,
+ * so nothing here is frozen into the manifest.
  */
 export function themeColorFrom(style: StyleSource): string | null {
-  const background = style.getPropertyValue("--background").trim();
+  const chrome = style.getPropertyValue("--sidebar-background").trim();
+  const background = chrome || style.getPropertyValue("--background").trim();
   return background ? `hsl(${background})` : null;
 }
 

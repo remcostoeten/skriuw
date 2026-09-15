@@ -191,6 +191,33 @@ try {
   const stillOpen = await evaluate(cdp, sessionId, SHEET_OPEN("left"));
   check("Escape in the menu closes the menu, not the sheet", stillOpen, { stillOpen });
 
+  await hold(cdp, sessionId, gamma, 650);
+  await waitFor(cdp, sessionId, `document.querySelectorAll('[role="menuitem"]').length > 0`, "menu for rename");
+  const renameItem = await evaluate(
+    cdp,
+    sessionId,
+    `(() => { const item = Array.from(document.querySelectorAll('[role="menuitem"]')).find((m) => m.textContent.startsWith('Rename')); const rect = item.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()`,
+  );
+  // A real tap, so the click the browser synthesises after the menu unmounts
+  // is part of the scenario: it must not reach the row underneath.
+  await touch(cdp, sessionId, "touchStart", [renameItem]);
+  await touch(cdp, sessionId, "touchEnd", []);
+  await waitFor(cdp, sessionId, `Boolean(document.querySelector('input[aria-label^="Rename"]'))`, "inline rename field");
+  await delay(400);
+  const rename = await evaluate(
+    cdp,
+    sessionId,
+    `(() => { const input = document.querySelector('input[aria-label^="Rename"]'); return { font: parseFloat(getComputedStyle(input).fontSize), focused: document.activeElement === input, sheetOpen: ${SHEET_OPEN("left")} }; })()`,
+  );
+  check(
+    "hold then Rename focuses an inline field the tap underneath cannot disturb",
+    rename.font >= 16 && rename.focused && rename.sheetOpen,
+    rename,
+  );
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
+  await waitFor(cdp, sessionId, `!document.querySelector('input[aria-label^="Rename"]')`, "rename field closing");
+
   const root = await evaluate(cdp, sessionId, rowCenter("Root note"));
   await drag(cdp, sessionId, { x: root.x + 120, y: root.y }, { x: root.x - 10, y: root.y + 2 }, { steps: 14 });
   await waitFor(

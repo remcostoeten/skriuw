@@ -16,6 +16,7 @@ import { openBeside, openNoteInTab } from "@/store/actions/panes";
 import { exportNoteAsMarkdown } from "@/features/transfer/export/markdown-transfer";
 import { canShareNotes, shareNoteAsText } from "@/features/transfer/export/share-note";
 import { haptic } from "@/shared/lib/haptics";
+import { swallowGhostClick } from "@/shared/lib/ghost-click";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import {
   LONG_PRESS_MS,
@@ -252,6 +253,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   const treeRef = useRef<HTMLDivElement>(null);
   const touchGestureRef = useRef<RowGesture>({ kind: "idle" });
   const longPressRef = useRef<number | null>(null);
+  const touchMenuRef = useRef(false);
   const touchRows = useMediaQuery("(pointer: coarse)");
   const effectiveCompact = compactSidebar || metrics.isNarrow;
   const rowHeight = touchRows ? 44 : effectiveCompact ? 28 : 34;
@@ -722,6 +724,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
       }
       touchGestureRef.current = { kind: "cancelled" };
       suppressClickRef.current = true;
+      touchMenuRef.current = true;
       haptic("select");
       rowEl.dispatchEvent(
         new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: x, clientY: y }),
@@ -1427,7 +1430,18 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
           onNoteSelect={onSearchNoteSelect}
         />
       ) : (
-        <ContextMenu onOpenChange={(open) => !open && setContextTarget(null)}>
+        <ContextMenu
+          onOpenChange={(open) => {
+            if (open) {
+              return;
+            }
+            setContextTarget(null);
+            if (touchMenuRef.current) {
+              touchMenuRef.current = false;
+              swallowGhostClick();
+            }
+          }}
+        >
           {moveIds !== null && (
             <div className="mx-1.5 mb-1 flex items-center gap-2 border border-foreground/20 bg-foreground/[0.08] px-2.5 py-1.5 text-[11px] font-medium text-foreground">
               <FolderInputIcon size={14} className="shrink-0 text-muted-foreground" />
@@ -1499,9 +1513,14 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
               className="w-48"
               onKeyDown={(event) => onContextMenuKeyDown(event, contextTarget.id)}
               onCloseAutoFocus={(event) => {
-                if (store.getState().editingNodeId !== null) {
-                  event.preventDefault();
+                if (store.getState().editingNodeId === null) {
+                  return;
                 }
+                // The rename field mounted while the menu's focus scope was
+                // still trapping, which pulled its mount-time focus back into
+                // the menu; now that the menu is gone the field can hold it.
+                event.preventDefault();
+                asideRef.current?.querySelector<HTMLInputElement>('input[aria-label^="Rename"]')?.focus();
               }}
             >
               {renderItemContextItems(contextTarget.id)}
