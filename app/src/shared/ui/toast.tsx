@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { MotionConfig } from "motion/react";
 import { Notifier, notify, type NotifyInstance } from "@remcostoeten/notifier";
+import { detectPlatform } from "@remcostoeten/use-shortcut/constants";
 import { useShortcutBinding } from "@remcostoeten/use-shortcut/react";
+import { KeyCaps } from "@/shared/ui/key-caps";
 
 export type ToastAction = {
   label: string;
@@ -41,6 +43,10 @@ export function toastActionIsAvailable(): boolean {
   return actionableToast !== null;
 }
 
+function undoKeys(): string[] {
+  return detectPlatform() === "mac" ? ["⌘", "⇧", "Z"] : ["Ctrl", "Shift", "Z"];
+}
+
 /** Shows a notification through @remcostoeten/notifier. */
 export function showToast(request: ToastRequest): void {
   let instance: NotifyInstance;
@@ -61,7 +67,16 @@ export function showToast(request: ToastRequest): void {
       : {}),
     onDismiss: (id: string) => clearAction(id),
   };
-  instance = notify(request.message, options);
+  const message =
+    request.action && run ? (
+      <span className="flex items-center gap-2">
+        <span>{request.message}</span>
+        <KeyCaps keys={undoKeys()} />
+      </span>
+    ) : (
+      request.message
+    );
+  instance = notify(message, options);
 
   if (request.action && run) {
     actionableToast = {

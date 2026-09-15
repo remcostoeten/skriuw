@@ -14,12 +14,18 @@ import {
 } from "@/store/actions/workspace";
 import { openBeside, openNoteInTab } from "@/store/actions/panes";
 import { exportNoteAsMarkdown } from "@/features/transfer/export/markdown-transfer";
+import {
+  FOLDER_STRUCTURE_DEPTHS,
+  formatFolderStructure,
+  type FolderStructureFormat,
+} from "@/features/transfer/export/folder-structure";
 import { showToast } from "@/shared/ui/toast";
 import { requestTemplatePicker } from "@/features/templates/template-picker-controller";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import {
   CloseIcon,
   CommandIcon,
+  CopyIcon,
   DownloadIcon,
   FilePlusIcon,
   FileTextIcon,
@@ -674,7 +680,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
     if (dragRef.current !== null) {
       endDrag(false);
     }
-    if (event.button !== 0) {
+    if (event.button !== 0 || event.pointerType === "touch") {
       return;
     }
     const rowEl = (event.target as HTMLElement).closest<HTMLElement>("[data-row-key]");
@@ -772,6 +778,24 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
 
   useEffect(() => () => endDrag(false), []);
 
+  function openRowContextMenu(id: string): void {
+    const rowEl = treeRef.current?.querySelector<HTMLElement>(
+      `[data-row-key="${CSS.escape(id)}"]`,
+    );
+    if (!rowEl) {
+      return;
+    }
+    const rect = rowEl.getBoundingClientRect();
+    rowEl.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: rect.left + 24,
+        clientY: rect.bottom,
+      }),
+    );
+  }
+
   function onTreeKeyDown(event: React.KeyboardEvent): void {
     const state = store.getState();
     const focusedId = state.focusedNodeId;
@@ -817,6 +841,13 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
         return;
       }
     }
+    if (event.key === "ContextMenu" || (event.shiftKey && event.key === "Enter")) {
+      event.preventDefault();
+      if (focusedId) {
+        openRowContextMenu(focusedId);
+      }
+      return;
+    }
     if ((event.ctrlKey || event.metaKey) && (event.key === "a" || event.key === "A")) {
       event.preventDefault();
       store.selectAllTreeNodes();
@@ -836,6 +867,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
     }
     if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
       if (focusedId) {
+        store.selectTreeNode(focusedId, "replace");
         moveWithinSiblings(store, focusedId, event.key === "ArrowUp" ? -1 : 1);
         event.preventDefault();
       }
@@ -895,6 +927,9 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
         return;
       }
       case "Enter": {
+        if (focused) {
+          store.selectTreeNode(focused.id, "replace");
+        }
         if (focused?.kind === "note") {
           activateNote(store, focused.id);
         } else if (focused) {
@@ -910,6 +945,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
           return;
         }
         if (focusedId) {
+          store.selectTreeNode(focusedId, "replace");
           store.setEditingNode(focusedId);
           event.preventDefault();
         }
@@ -953,27 +989,60 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
     element.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
   }
 
-  // While an item's context menu is open: "r" renames, Delete/Backspace/"d" deletes.
-  function onContextMenuKeyDown(event: React.KeyboardEvent, id: string): void {
+  function itemMenuActions(id: string): Record<string, () => void> {
+    const state = store.getState();
+    const node = state.nodes.get(id);
+    const actions: Record<string, () => void> = { d: () => trashSelectedNodes(id) };
+    if (!node || state.selectedNodeIds.size > 1) {
+      return actions;
+    }
+    const isPinned = (state.sourceNodes.get(id)?.pinnedAt ?? null) !== null;
+    Object.assign(actions, {
+      r: () => store.setEditingNode(id),
+      p: () => setNodePinned(store, id, !isPinned),
+      m: () => setMoveIds(selectedRootsFor(id)),
+    });
+    if (node.kind === "folder") {
+      Object.assign(actions, {
+        n: () => createNote(store, id),
+        t: () => requestTemplatePicker(id),
+        f: () => createFolder(store, id),
+      });
+    } else {
+      Object.assign(actions, {
+        o: () => openNoteInTab(store, id),
+        b: () => openBeside(store, id),
+        e: () => void exportNoteAsMarkdown(store, id),
+      });
+    }
+    return actions;
+  }
+
+  function rootMenuActions(): Record<string, () => void> {
+    return {
+      n: () => createNote(store, null),
+      t: () => requestTemplatePicker(null),
+      f: () => createFolder(store, null),
+      e: () => setAllFoldersExpanded(store, true),
+      c: () => setAllFoldersExpanded(store, false),
+    };
+  }
+
+  function onContextMenuKeyDown(
+    event: React.KeyboardEvent,
+    actions: Record<string, () => void>,
+  ): void {
     if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
       return;
     }
-    if (event.key === "r" || event.key === "R") {
-      event.preventDefault();
-      closeContextMenu(event.currentTarget as HTMLElement);
-      store.setEditingNode(id);
+    const key = event.key === "Delete" || event.key === "Backspace" ? "d" : event.key.toLowerCase();
+    const action = actions[key];
+    if (action === undefined) {
       return;
     }
-    if (
-      event.key === "Delete" ||
-      event.key === "Backspace" ||
-      event.key === "d" ||
-      event.key === "D"
-    ) {
-      event.preventDefault();
-      closeContextMenu(event.currentTarget as HTMLElement);
-      trashSelectedNodes(id);
-    }
+    event.preventDefault();
+    closeContextMenu(event.currentTarget as HTMLElement);
+    action();
   }
 
   function selectedRootsFor(id: string): string[] {
@@ -1029,7 +1098,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
         <ContextMenuSubTrigger className="gap-2">
           <FolderInputIcon className="w-4 h-4" />
           Move to
-          <ContextMenuShortcut className="mr-1">M</ContextMenuShortcut>
+          <ContextMenuShortcut keys="M" />
         </ContextMenuSubTrigger>
         <ContextMenuSubContent className="w-48">
           {parentId !== null && (
@@ -1062,25 +1131,84 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
         <ContextMenuItem onClick={() => createNote(store, null)} className="gap-2">
           <FilePlusIcon className="w-4 h-4" />
           New note
+          <ContextMenuShortcut keys="N" />
         </ContextMenuItem>
         <ContextMenuItem onClick={() => requestTemplatePicker(null)} className="gap-2">
           <FileTextIcon className="w-4 h-4" />
           New note from template…
+          <ContextMenuShortcut keys="T" />
         </ContextMenuItem>
         <ContextMenuItem onClick={() => createFolder(store, null)} className="gap-2">
           <FolderPlusIcon className="w-4 h-4" />
           New folder
+          <ContextMenuShortcut keys="F" />
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => setAllFoldersExpanded(store, true)} className="gap-2">
           <UnfoldVerticalIcon size={14} className="h-3.5 w-3.5" />
           Expand all folders
+          <ContextMenuShortcut keys="E" />
         </ContextMenuItem>
         <ContextMenuItem onClick={() => setAllFoldersExpanded(store, false)} className="gap-2">
           <FoldVerticalIcon size={14} className="h-3.5 w-3.5" />
           Collapse all folders
+          <ContextMenuShortcut keys="C" />
         </ContextMenuItem>
       </>
+    );
+  }
+
+  function copyFolderStructure(
+    id: string,
+    format: FolderStructureFormat,
+    maxDepth: number | null,
+  ): void {
+    const text = formatFolderStructure(store.getState(), id, format, maxDepth);
+    if (text === null) {
+      return;
+    }
+    const noun = format === "json" ? "JSON" : "file tree";
+    void navigator.clipboard
+      ?.writeText(text)
+      .then(() => showToast({ message: `Copied folder as ${noun}` }))
+      .catch((error: unknown) =>
+        showToast({
+          message: `Could not copy ${noun}: ${error instanceof Error ? error.message : String(error)}`,
+        }),
+      );
+  }
+
+  function renderCopyStructureSubmenu(id: string) {
+    const formats: { format: FolderStructureFormat; label: string }[] = [
+      { format: "json", label: "As JSON" },
+      { format: "tree", label: "As file tree" },
+    ];
+    return (
+      <ContextMenuSub>
+        <ContextMenuSubTrigger className="gap-2">
+          <CopyIcon className="w-4 h-4" />
+          Copy structure
+        </ContextMenuSubTrigger>
+        <ContextMenuSubContent className="w-44">
+          {formats.map(({ format, label }) => (
+            <ContextMenuSub key={format}>
+              <ContextMenuSubTrigger>{label}</ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-36">
+                {FOLDER_STRUCTURE_DEPTHS.map((depth) => (
+                  <ContextMenuItem
+                    key={depth ?? "all"}
+                    onClick={() => copyFolderStructure(id, format, depth)}
+                  >
+                    {depth === null
+                      ? "All levels"
+                      : `${depth} level${depth === 1 ? "" : "s"} deep`}
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          ))}
+        </ContextMenuSubContent>
+      </ContextMenuSub>
     );
   }
 
@@ -1098,7 +1226,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
             <ContextMenuItem onClick={() => store.setEditingNode(id)} className="gap-2">
               <PencilIcon className="w-4 h-4" />
               Rename
-              <ContextMenuShortcut>R</ContextMenuShortcut>
+              <ContextMenuShortcut keys="R" />
             </ContextMenuItem>
             <ContextMenuItem
               onClick={() => setNodePinned(store, id, !isPinned)}
@@ -1106,21 +1234,26 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
             >
               {isPinned ? <PinOffIcon className="w-4 h-4" /> : <PinIcon className="w-4 h-4" />}
               {isPinned ? "Unpin" : "Pin"}
+              <ContextMenuShortcut keys="P" />
             </ContextMenuItem>
             {node.kind === "folder" && (
               <>
                 <ContextMenuItem onClick={() => createNote(store, id)} className="gap-2">
                   <FilePlusIcon className="w-4 h-4" />
                   New note inside
+                  <ContextMenuShortcut keys="N" />
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => requestTemplatePicker(id)} className="gap-2">
                   <FileTextIcon className="w-4 h-4" />
                   New note from template…
+                  <ContextMenuShortcut keys="T" />
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => createFolder(store, id)} className="gap-2">
                   <FolderPlusIcon className="w-4 h-4" />
                   New folder inside
+                  <ContextMenuShortcut keys="F" />
                 </ContextMenuItem>
+                {renderCopyStructureSubmenu(id)}
               </>
             )}
             {renderMoveToSubmenu(id, node.parentId)}
@@ -1129,10 +1262,12 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
                 <ContextMenuItem onClick={() => openNoteInTab(store, id)} className="gap-2">
                   <FilePlusIcon className="w-4 h-4" />
                   Open in new tab
+                  <ContextMenuShortcut keys="O" />
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => openBeside(store, id)} className="gap-2">
                   <PanelRightToggleIcon className="w-4 h-4" />
                   Open beside
+                  <ContextMenuShortcut keys="B" />
                 </ContextMenuItem>
                 <ContextMenuItem
                   onClick={() => void exportNoteAsMarkdown(store, id)}
@@ -1140,19 +1275,21 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
                 >
                   <DownloadIcon className="w-4 h-4" />
                   Export as Markdown…
+                  <ContextMenuShortcut keys="E" />
                 </ContextMenuItem>
               </>
             )}
+            <ContextMenuSeparator />
           </>
         )}
-        <ContextMenuSeparator />
         <ContextMenuItem
           onClick={() => trashSelectedNodes(id)}
           className="gap-2 text-destructive focus:text-destructive"
         >
           <Trash2Icon className="w-4 h-4" />
           {isBulkSelection ? "Delete selected" : "Delete"}
-          <ContextMenuShortcut>⌫</ContextMenuShortcut>
+          <ContextMenuShortcut keys="D" />
+          <ContextMenuShortcut keys="⌫" className="ml-0 pl-[3px]" />
         </ContextMenuItem>
       </>
     );
@@ -1356,12 +1493,17 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
             </div>
           </ContextMenuTrigger>
           {contextTarget?.kind === "root" && (
-            <ContextMenuContent className="w-48">{renderRootContextItems()}</ContextMenuContent>
+            <ContextMenuContent
+              className="w-48"
+              onKeyDown={(event) => onContextMenuKeyDown(event, rootMenuActions())}
+            >
+              {renderRootContextItems()}
+            </ContextMenuContent>
           )}
           {contextTarget?.kind === "item" && (
             <ContextMenuContent
               className="w-48"
-              onKeyDown={(event) => onContextMenuKeyDown(event, contextTarget.id)}
+              onKeyDown={(event) => onContextMenuKeyDown(event, itemMenuActions(contextTarget.id))}
               onCloseAutoFocus={(event) => {
                 if (store.getState().editingNodeId !== null) {
                   event.preventDefault();

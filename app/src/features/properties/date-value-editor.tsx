@@ -71,6 +71,7 @@ export function DateValueEditor({ property, value, onUpdate }: Props) {
           type="button"
           onClick={toggle}
           aria-label={`${property.name} value`}
+          aria-haspopup="dialog"
           aria-expanded={open}
           className={cn(
             "flex min-h-7 w-full min-w-0 cursor-pointer items-center rounded-md bg-transparent px-1 py-0.5 text-left text-[13px] outline-none transition-colors hover:bg-accent/40 focus-visible:bg-accent/70 focus-visible:ring-1 focus-visible:ring-ring/45",

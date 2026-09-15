@@ -25,27 +25,50 @@
   }
 }
 
+/* One accent per state. The card is read by its left edge before its text, so
+   the edge must never say "success" over a failure. */
 .skriuw-suggestion {
+  --suggestion-accent: hsl(var(--muted-foreground) / 0.5);
   animation: skriuw-suggestion-enter 180ms cubic-bezier(0.23, 1, 0.32, 1);
+  overflow: hidden;
   margin: 10px 0;
   border: 1px solid hsl(var(--border));
-  border-left: 2px solid var(--diff-added);
+  border-left: 2px solid var(--suggestion-accent);
   border-radius: var(--radius);
   background: hsl(var(--card));
-  box-shadow: 0 6px 20px hsl(var(--scrim) / 0.16);
+  box-shadow: 0 2px 10px hsl(var(--scrim) / 0.1);
   cursor: auto;
   user-select: text;
+  transition: border-color 200ms ease;
+}
+
+.skriuw-suggestion[data-tone="live"] {
+  --suggestion-accent: hsl(var(--editor-link));
+}
+
+.skriuw-suggestion[data-tone="result"] {
+  --suggestion-accent: var(--diff-added);
+}
+
+.skriuw-suggestion[data-tone="failed"] {
+  --suggestion-accent: hsl(var(--destructive));
 }
 
 .skriuw-suggestion-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
+  padding: 8px 12px;
   border-bottom: 1px solid hsl(var(--border) / 0.7);
   color: hsl(var(--muted-foreground));
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 11.5px;
+}
+
+/* The steps belong to the header line, not to the body: one band, one border. */
+.skriuw-suggestion-header:has(+ .skriuw-run-steps) {
+  padding-bottom: 4px;
+  border-bottom: 0;
 }
 
 .skriuw-suggestion-label {
@@ -73,11 +96,16 @@
   flex-wrap: wrap;
   gap: 4px 14px;
   margin: 0;
-  padding: 8px 11px;
+  padding: 0 12px 8px;
   border-bottom: 1px solid hsl(var(--border) / 0.7);
   list-style: none;
   font-family: var(--font-sans);
   font-size: 11px;
+}
+
+.skriuw-run-steps:last-child,
+.skriuw-run-steps:has(+ .skriuw-suggestion-error) {
+  border-bottom: 0;
 }
 
 .skriuw-run-step {
@@ -141,8 +169,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px 11px;
-  background: var(--diff-added-surface);
+  padding: 12px;
 }
 
 .skriuw-run-skeleton span {
@@ -174,18 +201,14 @@
 
 .skriuw-run-stall {
   margin: 0;
-  padding: 8px 11px 0;
+  padding: 8px 12px 0;
   color: hsl(var(--muted-foreground));
   font-family: var(--font-sans);
   font-size: 11px;
 }
 
-.skriuw-run-hint {
-  color: hsl(var(--muted-foreground));
-}
-
 .skriuw-run-plan {
-  margin: 9px 11px 0;
+  margin: 9px 12px 0;
   padding: 7px 10px 9px;
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
@@ -219,13 +242,21 @@
 .skriuw-suggestion-text {
   max-height: 42vh;
   overflow-y: auto;
-  padding: 9px 11px;
+  padding: 10px 12px;
   background: var(--diff-added-surface);
   color: hsl(var(--foreground) / 0.9);
   font-size: 13.5px;
   line-height: 1.62;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* An empty result is not an addition, so it does not get the added tint. */
+.skriuw-suggestion-text[data-empty] {
+  background: transparent;
+  font-family: var(--font-sans);
+  font-family: var(--font-sans);
+  font-size: 12px;
 }
 
 .skriuw-suggestion-word {
@@ -281,7 +312,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  padding: 7px 10px;
+  padding: 8px 12px;
   border-top: 1px solid hsl(var(--border) / 0.7);
   font-family: var(--font-sans);
 }
@@ -292,9 +323,22 @@
   font-size: 11px;
 }
 
+/* A failure reads as one block: what went wrong, then the one thing to do
+   about it, never a red sentence with a grey one glued to its end. */
 .skriuw-suggestion-error {
-  padding: 0 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 12px 10px;
+  border-top: 1px solid hsl(var(--destructive) / 0.2);
+  background: hsl(var(--destructive) / 0.05);
   color: hsl(var(--destructive));
   font-family: var(--font-sans);
-  font-size: 11.5px;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.skriuw-run-hint {
+  color: hsl(var(--muted-foreground));
 }

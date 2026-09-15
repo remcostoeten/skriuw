@@ -1156,12 +1156,22 @@ export function createRendererStore(initialState: RendererState): RendererStore 
 
   function setActiveNote(id: string | null): boolean {
     return update((current) => {
-      const next = reduceState(current, { type: "set_active_note", noteId: id });
-      if (next === current || current.activeNoteId === null || id === null || id === current.activeNoteId) {
+      const reduced = reduceState(current, { type: "set_active_note", noteId: id });
+      if (reduced === current) {
+        return reduced;
+      }
+      const next = keepsSelection(reduced.selectedNodeIds, id)
+        ? reduced
+        : { ...reduced, selectedNodeIds: new Set<string>(), selectionAnchorId: null };
+      if (current.activeNoteId === null || id === null || id === current.activeNoteId) {
         return next;
       }
       return { ...next, coVisits: recordCoVisit(next.coVisits, current.activeNoteId, id) };
     });
+  }
+
+  function keepsSelection(selected: ReadonlySet<string>, activeId: string | null): boolean {
+    return selected.size === 0 || (selected.size === 1 && activeId !== null && selected.has(activeId));
   }
 
   function setFocusedNode(id: string | null): boolean {

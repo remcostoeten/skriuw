@@ -59,6 +59,14 @@ export function applyWorkspaceOperations(
   return invoke<OperationAck>("apply_workspace_operations", { operations });
 }
 
+/**
+ * Shows the hidden main window and closes the splash in one ordered step, so
+ * there is never a frame with no window on screen.
+ */
+export function revealMainWindow(): Promise<void> {
+  return invoke<void>("reveal_main_window_command");
+}
+
 export function closeWorkspaceWindow(): Promise<void> {
   return invoke<void>("close_workspace_window");
 }

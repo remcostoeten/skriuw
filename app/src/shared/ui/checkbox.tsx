@@ -6,7 +6,7 @@ const checkboxClass = cn(
   "checked:border-success checked:bg-success",
   "after:absolute after:left-[5px] after:top-[2px] after:h-2 after:w-1 after:rotate-45 after:border-b-[1.5px] after:border-r-[1.5px] after:border-background after:opacity-0 after:content-['']",
   "checked:after:opacity-100",
-  "enabled:hover:border-ring",
+  "enabled:hover:border-foreground",
   "disabled:cursor-default disabled:opacity-50",
   "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground/75",
   "forced-colors:appearance-auto forced-colors:after:hidden",

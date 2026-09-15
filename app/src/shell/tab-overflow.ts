@@ -8,7 +8,7 @@
 
 export const MIN_TAB_WIDTH = 132;
 export const MAX_TAB_WIDTH = 200;
-const OVERFLOW_TRIGGER_WIDTH = 64;
+const OVERFLOW_TRIGGER_WIDTH = 80;
 
 type OverflowInput = {
   id: string;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useState, type KeyboardEvent } from "react";
 import { commitOperations } from "@/store/actions/workspace";
 import type {
   NoteProperty,
@@ -14,6 +14,7 @@ import {
   ArrowUpIcon,
   CheckIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   CloseIcon,
   LayoutDashboardIcon,
   PlusIcon,
@@ -75,6 +76,8 @@ const typeIconButtonClass =
   "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-70 transition-colors hover:bg-accent hover:text-foreground hover:opacity-100 focus-visible:bg-accent focus-visible:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring/50";
 const compactButtonClass =
   "inline-flex min-h-7 cursor-pointer items-center justify-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/55 disabled:pointer-events-none disabled:opacity-40";
+const ghostSelectTriggerClass =
+  "min-h-7 rounded-md border-transparent bg-transparent pl-1 pr-1.5 text-[13px] text-foreground hover:bg-accent/70 focus-visible:border-transparent focus-visible:bg-accent/70 focus-visible:shadow-none focus-visible:ring-1 focus-visible:ring-ring/45 data-[open=true]:border-transparent data-[open=true]:bg-accent/70";
 const iconButtonClass =
   "inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/55 disabled:pointer-events-none disabled:opacity-30";
 
@@ -189,6 +192,7 @@ function PropertyTypePicker({
   onChange: (next: NoteProperty) => void;
 }) {
   const Icon = TYPE_ICON[property.value.type];
+  const headingId = useId();
   return (
     <PropertyPopover
       trigger={({ toggle, open }) => (
@@ -196,6 +200,7 @@ function PropertyTypePicker({
           type="button"
           onClick={toggle}
           aria-label={`Change ${property.name} type`}
+          aria-haspopup="menu"
           aria-expanded={open}
           title={`Type: ${PROPERTY_TYPE_LABELS[property.value.type]}`}
           className={typeIconButtonClass}
@@ -206,8 +211,10 @@ function PropertyTypePicker({
     >
       {({ close }) => (
         <div className="w-44 p-1">
-          <p className={menuHeadingClass}>Type</p>
-          <div className="max-h-64 overflow-y-auto">
+          <p id={headingId} className={menuHeadingClass}>
+            Type
+          </p>
+          <div role="menu" aria-labelledby={headingId}>
             {NOTE_PROPERTY_TYPES.map((type) => {
               const TypeIconComponent = TYPE_ICON[type];
               const selected = type === property.value.type;
@@ -215,6 +222,9 @@ function PropertyTypePicker({
                 <button
                   key={type}
                   type="button"
+                  role="menuitemradio"
+                  aria-checked={selected}
+                  tabIndex={-1}
                   onClick={() => {
                     onChange(changeNotePropertyType(property, type));
                     close();
@@ -240,11 +250,18 @@ function AddPropertyButton({
   onAdd: (type: NotePropertyValue["type"], name: string) => void;
 }) {
   const [name, setName] = useState("");
+  const headingId = useId();
 
   return (
     <PropertyPopover
       trigger={({ toggle, open }) => (
-        <button type="button" onClick={toggle} aria-expanded={open} className={ghostButtonClass}>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          className={ghostButtonClass}
+        >
           <PlusIcon size={14} className="shrink-0" />
           Add property
         </button>
@@ -261,14 +278,18 @@ function AddPropertyButton({
             onChange={(event) => setName(event.target.value)}
             className="mb-1 w-full rounded-md bg-accent/70 px-2 py-1.5 text-xs outline-none placeholder:text-muted-foreground/55 focus-visible:ring-1 focus-visible:ring-ring/45"
           />
-          <p className={menuHeadingClass}>Type</p>
-          <div className="max-h-64 overflow-y-auto">
+          <p id={headingId} className={menuHeadingClass}>
+            Type
+          </p>
+          <div role="menu" aria-labelledby={headingId}>
             {NOTE_PROPERTY_TYPES.map((type) => {
               const TypeIconComponent = TYPE_ICON[type];
               return (
                 <button
                   key={type}
                   type="button"
+                  role="menuitem"
+                  tabIndex={-1}
                   onClick={() => {
                     onAdd(type, name);
                     setName("");
@@ -300,6 +321,7 @@ function TemplatePicker({
   onApply: (template: NotePropertyTemplate) => void;
 }) {
   const [armedTemplate, setArmedTemplate] = useState<NotePropertyTemplate | null>(null);
+  const headingId = useId();
 
   function pick(template: NotePropertyTemplate, close: () => void): void {
     if (replaceCount === 0) {
@@ -315,6 +337,8 @@ function TemplatePicker({
       <button
         key={template.id}
         type="button"
+        role="menuitem"
+        tabIndex={-1}
         onClick={() => pick(template, close)}
         className={cn(
           menuItemClass,
@@ -329,7 +353,13 @@ function TemplatePicker({
   return (
     <PropertyPopover
       trigger={({ toggle, open }) => (
-        <button type="button" onClick={toggle} aria-expanded={open} className={ghostButtonClass}>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          className={ghostButtonClass}
+        >
           <LayoutDashboardIcon size={14} className="shrink-0" />
           Templates
         </button>
@@ -337,8 +367,14 @@ function TemplatePicker({
     >
       {({ close }) => (
         <div className="w-52 p-1">
-          <p className={menuHeadingClass}>Replace properties with</p>
-          <div className="max-h-64 overflow-y-auto">
+          <p id={headingId} className={menuHeadingClass}>
+            Replace properties with
+          </p>
+          <div
+            role="menu"
+            aria-labelledby={headingId}
+            className="max-h-64 overflow-y-auto"
+          >
             {builtInTemplates.map((template) => renderTemplateItem(template, close))}
             {customTemplates.length > 0 && (
               <>
@@ -398,8 +434,13 @@ function PropertyRow({ property, people, onCommit, onReorder, idFactory }: RowPr
           <PropertyTypePicker property={property} onChange={update} />
           <PropertyName property={property} onUpdate={update} />
         </div>
-        <div className="flex min-h-7 min-w-0 flex-1 items-center py-0.5">
-          <ValueEditor property={property} people={people} onUpdate={update} />
+        <div className="flex min-w-0 flex-1 flex-col py-0.5">
+          <div className="flex min-h-7 items-center">
+            <ValueEditor property={property} people={people} onUpdate={update} />
+          </div>
+          {(property.value.type === "select" || property.value.type === "multi-select") && (
+            <OptionEditor property={property} onUpdate={update} idFactory={idFactory} />
+          )}
         </div>
         <InlineConfirm
           size="sm"
@@ -419,9 +460,6 @@ function PropertyRow({ property, people, onCommit, onReorder, idFactory }: RowPr
           )}
         />
       </div>
-      {(property.value.type === "select" || property.value.type === "multi-select") && (
-        <OptionEditor property={property} onUpdate={update} idFactory={idFactory} />
-      )}
     </div>
   );
 }
@@ -533,8 +571,9 @@ function ValueEditor({
     return (
       <Select
         label={`${property.name} value`}
-        className="w-full min-w-0"
-        triggerClassName="w-full"
+        className="min-w-0 max-w-full"
+        triggerClassName={cn(ghostSelectTriggerClass, "max-w-full", value.value === null && "text-muted-foreground/55")}
+        menuClassName="w-max min-w-44 max-w-80"
         value={value.value ?? ""}
         options={[
           { value: "", label: "Empty" },
@@ -704,11 +743,11 @@ function MultiValueEditor({
     .filter((choice) => selectedSet.has(choice.id))
     .map((choice) => choice.label);
   return (
-    <details className="relative w-full min-w-0">
+    <details className="relative min-w-0 max-w-full">
       <summary
         className={cn(
           inputClass,
-          "flex cursor-pointer list-none items-center justify-between gap-1",
+          "flex w-fit max-w-full cursor-pointer list-none items-center gap-1.5",
           selected.length === 0 && "text-muted-foreground/55",
         )}
       >
@@ -719,7 +758,7 @@ function MultiValueEditor({
       </summary>
       <fieldset
         aria-label={`${label} choices`}
-        className="absolute top-[calc(100%+4px)] left-0 z-50 max-h-40 w-full min-w-44 space-y-0.5 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-xl"
+        className="absolute top-[calc(100%+4px)] left-0 z-50 max-h-40 w-max min-w-44 max-w-80 space-y-0.5 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-xl"
       >
         {choices.length === 0 ? (
           <p className="px-1.5 py-1 text-[11px] text-muted-foreground">{emptyLabel}</p>
@@ -768,11 +807,16 @@ function OptionEditor({
   }
 
   return (
-    <details className="mb-1 pl-6">
-      <summary className={cn("cursor-pointer select-none transition-colors", sectionLabelClass)}>
-        Options ({property.options.length})
+    <details className="group/options">
+      <summary className="flex h-6 w-fit cursor-pointer list-none select-none items-center gap-1 rounded-md px-1 text-[11px] text-muted-foreground/60 outline-none transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/45 [&::-webkit-details-marker]:hidden">
+        <ChevronRightIcon
+          size={10}
+          className="shrink-0 transition-transform duration-150 group-open/options:rotate-90 motion-reduce:transition-none"
+        />
+        Options
+        <span className="tabular-nums text-muted-foreground/40">{property.options.length}</span>
       </summary>
-      <div className="mt-1 space-y-1 border-l border-border/60 pl-2">
+      <div className="mb-1 ml-[9px] space-y-0.5 border-l border-border/60 pl-1">
         {property.options.map((option, index) => (
           <OptionRow
             key={option.id}
@@ -794,7 +838,7 @@ function OptionEditor({
           />
         ))}
         <form
-          className="flex gap-1"
+          className="flex items-center gap-1"
           onSubmit={(event) => {
             event.preventDefault();
             addOption();
@@ -808,7 +852,11 @@ function OptionEditor({
             onChange={(event) => setLabel(event.target.value)}
             className={inputClass}
           />
-          <button type="submit" disabled={!label.trim()} className={compactButtonClass}>
+          <button
+            type="submit"
+            disabled={!label.trim()}
+            className={cn(compactButtonClass, "w-24 shrink-0 justify-start px-1")}
+          >
             Add
           </button>
         </form>
@@ -850,18 +898,6 @@ function OptionRow({
         }}
         className={inputClass}
       />
-      <Select
-        label={`${option.label} color`}
-        className="w-24"
-        triggerClassName="w-full"
-        value={option.color}
-        options={NOTE_PROPERTY_COLORS.map((color) => ({
-          value: color,
-          label: PROPERTY_COLOR_LABELS[color],
-        }))}
-        onChange={(color) => onChange({ ...option, color: color as NotePropertyColor })}
-        align="start"
-      />
       <span className="flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/option:opacity-100">
         <button
           type="button"
@@ -890,6 +926,18 @@ function OptionRow({
           <Trash2Icon size={11} />
         </button>
       </span>
+      <Select
+        label={`${option.label} color`}
+        className="w-24"
+        triggerClassName={cn(ghostSelectTriggerClass, "w-full")}
+        value={option.color}
+        options={NOTE_PROPERTY_COLORS.map((color) => ({
+          value: color,
+          label: PROPERTY_COLOR_LABELS[color],
+        }))}
+        onChange={(color) => onChange({ ...option, color: color as NotePropertyColor })}
+        align="end"
+      />
     </div>
   );
 }

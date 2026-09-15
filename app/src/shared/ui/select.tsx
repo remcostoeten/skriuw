@@ -24,6 +24,7 @@ type Props<TValue extends string> = {
   className?: string;
   /** Extra class on the trigger button, e.g. to render as a full-width form field. */
   triggerClassName?: string;
+  menuClassName?: string;
   align?: "start" | "end";
 };
 
@@ -45,6 +46,7 @@ export function Select<TValue extends string>({
   disabled = false,
   className,
   triggerClassName,
+  menuClassName,
   align = "end",
 }: Props<TValue>) {
   const listId = useId();
@@ -249,6 +251,7 @@ export function Select<TValue extends string>({
             "animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]",
             "motion-reduce:animate-none",
             align === "end" ? "right-0" : "left-0",
+            menuClassName,
           )}
         >
           {options.map((option, index) => (

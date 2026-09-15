@@ -1,4 +1,13 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { AuthProvider } from "@remcostoeten/auth-drawer";
 import { updateSettings } from "@/store/actions/settings";
 import { authAdapter } from "@/features/auth/adapter";
@@ -42,6 +51,10 @@ import { WindowControls } from "@/shell/window-controls";
 import { useTitleBarDoubleClickMaximize } from "@/shell/title-bar-maximize";
 import { hasTauriRuntime } from "@/bridge/external-links";
 import {
+  COMPACT_GRID_TEMPLATE,
+  COARSE_POINTER_QUERY,
+  COMPACT_SHELL_QUERY,
+  isCompactViewport,
   panelGridTemplate,
   panelTracksWith,
   routeHasSidebar,
@@ -49,6 +62,9 @@ import {
 } from "@/shell/panel-layout";
 import { toolbarIconButtonClass } from "@/shell/toolbar-styles";
 import { PanelResizeHandle } from "@/shell/panel-resize-handle";
+import { attachDrawerGestures } from "@/shell/drawer-gestures";
+import type { DrawerPanel } from "@/shell/drawer-physics";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import {
   SIDEBAR_RESIZE_BOUNDS,
   readSidebarWidth,
@@ -97,16 +113,17 @@ import {
   aiSettingsCommands,
   selectAiEnabled,
 } from "@/features/ai/opt-in-gate";
-import { aiEditorActionCommands } from "@/features/ai/editor-action-controller";
-import { voiceDictationCommands } from "@/features/ai/voice-dictation-controller";
+import { aiEditorActionCommands } from "@/features/ai/actions/editor-action-controller";
+import { registerAiSettings } from "@/features/ai/ai-settings-controller";
+import { voiceDictationCommands } from "@/features/ai/voice/voice-dictation-controller";
 
 const ModelSwitcherHost = lazy(async () => {
-  const module = await import("@/features/ai/model-switcher");
+  const module = await import("@/features/ai/models/model-switcher");
   return { default: module.ModelSwitcherHost };
 });
 
 function loadPromptPlayground() {
-  return import("@/features/ai/prompt-playground");
+  return import("@/features/ai/prompts/prompt-playground");
 }
 
 const PromptPlaygroundView = lazy(async () => {
@@ -172,8 +189,10 @@ function WorkspaceShell({ store }: Props) {
   const [onboardingSignInError, setOnboardingSignInError] = useState<string | null>(null);
   const signInReturnsToSettingsRef = useRef(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [metadataOpen, setMetadataOpen] = useState(true);
+  const compact = useMediaQuery(COMPACT_SHELL_QUERY);
+  const coarsePointer = useMediaQuery(COARSE_POINTER_QUERY);
+  const [sidebarOpen, setSidebarOpen] = useState(() => !isCompactViewport());
+  const [metadataOpen, setMetadataOpen] = useState(() => !isCompactViewport());
   const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
   const [sidebarResizing, setSidebarResizing] = useState(false);
   const [metadataWidth, setMetadataWidth] = useState(readMetadataWidth);
@@ -265,6 +284,7 @@ function WorkspaceShell({ store }: Props) {
     setSettingsSection(section);
     setSettingsOpen(true);
   }, []);
+  useEffect(() => registerAiSettings(() => openSettingsAt("ai")), [openSettingsAt]);
   const registry = useMemo(
     () =>
       createCommandRegistry(
@@ -323,19 +343,72 @@ function WorkspaceShell({ store }: Props) {
     sidebarWidth,
     metadataWidth,
   };
-  const gridTemplateColumns = panelGridTemplate(
-    route,
-    sidebarOpen,
-    metadataOpen,
-    sidebarWidth,
-    metadataWidth,
-  );
+  const gridTemplateColumns = compact
+    ? COMPACT_GRID_TEMPLATE
+    : panelGridTemplate(route, sidebarOpen, metadataOpen, sidebarWidth, metadataWidth);
   const noteNav = useNoteNavigation(store);
   const tracksRef = useRef<HTMLDivElement>(null);
   const sidebarPaneRef = useRef<HTMLDivElement>(null);
   const metadataPaneRef = useRef<HTMLDivElement>(null);
   const settledRef = useRef(tracks);
   settledRef.current = tracks;
+  const hasSidebar = routeHasSidebar(route);
+  const hasMetadata = route === "notes";
+  const closeDrawers = useCallback(() => {
+    setSidebarOpen(false);
+    setMetadataOpen(false);
+  }, []);
+  // Crossing the breakpoint is an event: drawers start closed on a phone and
+  // the desktop grid comes back with both panels showing.
+  useEffect(() => {
+    setTracksAnimated(false);
+    setSidebarOpen(!compact);
+    setMetadataOpen(!compact);
+  }, [compact]);
+  // Picking a note or a rail destination is the drawer's job done; on a phone
+  // it slides away so the content it revealed is readable. A narrow desktop
+  // window keeps it open: closing makes the drawer inert, which would throw
+  // keyboard focus out of the tree mid-navigation.
+  const activeNoteId = noteNav.noteId;
+  useEffect(() => {
+    if (compact && coarsePointer) {
+      setSidebarOpen(false);
+    }
+  }, [activeNoteId, compact, coarsePointer, route]);
+  useEffect(() => {
+    const container = tracksRef.current;
+    if (!compact || !container || needsOnboarding) {
+      return;
+    }
+    return attachDrawerGestures({
+      container,
+      readState: () => ({
+        sidebarOpen: uiRef.current.sidebarOpen,
+        metadataOpen: uiRef.current.metadataOpen,
+        hasSidebar: true,
+        hasMetadata: uiRef.current.route === "notes",
+      }),
+      measure: (panel: DrawerPanel) => {
+        if (panel === "metadata") {
+          return metadataPaneRef.current?.getBoundingClientRect().width ?? 0;
+        }
+        const rail = container.querySelector<HTMLElement>(".compact-rail");
+        const pane = routeHasSidebar(uiRef.current.route) ? sidebarPaneRef.current : null;
+        return (
+          (rail?.getBoundingClientRect().width ?? 0) +
+          (pane?.getBoundingClientRect().width ?? 0)
+        );
+      },
+      onSettle: (panel, open) => {
+        setTracksAnimated(false);
+        if (panel === "sidebar") {
+          setSidebarOpen(open);
+        } else {
+          setMetadataOpen(open);
+        }
+      },
+    });
+  }, [compact, needsOnboarding]);
 
   /**
    * Drags repaint through direct writes to the grid container and the dragged
@@ -402,15 +475,42 @@ function WorkspaceShell({ store }: Props) {
       <div
         ref={tracksRef}
         className={`relative grid h-full grid-rows-[minmax(0,1fr)]${
-          settling ? " panel-tracks-settling" : ""
-        }`}
-        style={{ gridTemplateColumns }}
+          settling && !compact ? " panel-tracks-settling" : ""
+        }${compact ? " shell-compact" : ""}`}
+        style={
+          {
+            gridTemplateColumns,
+            "--sidebar-width": `${sidebarWidth}px`,
+            "--metadata-width": `${metadataWidth}px`,
+          } as CSSProperties
+        }
+        data-left-drawer={compact && hasSidebar ? "sidebar" : undefined}
+        data-sidebar-open={compact && sidebarOpen ? "" : undefined}
+        data-metadata-open={compact && metadataOpen && hasMetadata ? "" : undefined}
         aria-hidden={needsOnboarding}
         inert={needsOnboarding}
       >
+      {compact ? (
+        <div
+          className="compact-scrim"
+          onClick={closeDrawers}
+          aria-hidden="true"
+        />
+      ) : null}
+      {compact && !hasSidebar ? (
+        <button
+          type="button"
+          className="compact-rail-toggle"
+          onClick={() => setSidebarOpen((current) => !current)}
+          aria-label="Toggle navigation"
+          aria-expanded={sidebarOpen}
+        >
+          <AppIcon name="toggle-sidebar" size={18} />
+        </button>
+      ) : null}
       <nav
         aria-label="Primary"
-        className="flex w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar"
+        className="compact-rail flex w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar"
       >
         <div className="flex w-full flex-col items-center">
           <div className="flex h-11 w-full items-center justify-center border-b border-sidebar-border">
@@ -456,7 +556,7 @@ function WorkspaceShell({ store }: Props) {
           />
         </div>
       </nav>
-      {routeHasSidebar(route) ? (
+      {hasSidebar && !compact ? (
         <PanelResizeHandle
           side="left"
           label="Resize sidebar"
@@ -472,7 +572,7 @@ function WorkspaceShell({ store }: Props) {
           onDragChange={setSidebarResizing}
         />
       ) : null}
-      {route === "notes" ? (
+      {hasMetadata && !compact ? (
         <PanelResizeHandle
           side="right"
           label="Resize metadata panel"
@@ -489,17 +589,17 @@ function WorkspaceShell({ store }: Props) {
         />
       ) : null}
       <div
-        className={`col-[2] min-h-0 min-w-0 overflow-hidden${
+        className={`compact-sidebar-pane col-[2] min-h-0 min-w-0 overflow-hidden${
           sidebarOpen ? "" : " sidebar-pane-collapsed"
         }${settling ? " sidebar-pane-settling" : ""}`}
         aria-hidden={!sidebarOpen}
         inert={!sidebarOpen}
-        hidden={!routeHasSidebar(route)}
+        hidden={!hasSidebar}
       >
         <div
           ref={sidebarPaneRef}
-          className="h-full"
-          style={{ width: sidebarWidth }}
+          className={compact ? "h-full w-full" : "h-full"}
+          style={compact ? undefined : { width: sidebarWidth }}
         >
           <div className="h-full" hidden={route !== "notes"}>
             <Sidebar store={store} onOpenCommandPalette={() => setPaletteOpen(true)} />
@@ -584,17 +684,17 @@ function WorkspaceShell({ store }: Props) {
           </div>
         </main>
         <div
-          className={`col-[4] min-h-0 min-w-0 overflow-hidden${
+          className={`compact-metadata-pane col-[4] min-h-0 min-w-0 overflow-hidden${
             metadataOpen ? "" : " sidebar-pane-collapsed"
           }${settling ? " sidebar-pane-settling" : ""}`}
           aria-hidden={!metadataOpen}
           inert={!metadataOpen}
         >
-          {metadataOpen ? (
+          {metadataOpen || compact ? (
             <div
               ref={metadataPaneRef}
-              className="flex h-full flex-col"
-              style={{ width: metadataWidth }}
+              className={compact ? "flex h-full w-full flex-col" : "flex h-full flex-col"}
+              style={compact ? undefined : { width: metadataWidth }}
             >
               {hasTauriRuntime() && (
                 <div

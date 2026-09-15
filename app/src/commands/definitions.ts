@@ -112,7 +112,7 @@ export type ShortcutActionId =
  * - `typing` — any text field or contenteditable, including the note editor.
  * - `textField` — native text fields only, so editor-scoped keys still fire
  *   while the caret is in the note.
- * - `sidebarTree` — the tree owns its plain keys (F2/r, Delete, m, alt+arrows)
+ * - `sidebarTree` — the tree owns its plain keys (F2/r, Delete, m, shift+enter, alt+arrows)
  *   for the focused row and keeps precedence over same-key global bindings.
  * - `modal` — a dialog or the command palette owns the keyboard.
  */

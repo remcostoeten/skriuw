@@ -143,6 +143,7 @@ export function EditorPanes({ store }: Props) {
   }, [showStrip]);
 
   const { visible: visibleTabs, overflow: overflowTabs } = splitTabsForWidth(tabs, stripWidth);
+  const isOverflowing = overflowTabs.length > 0;
 
   /**
    * Divider drags repaint through a direct write to the split container's track
@@ -215,7 +216,11 @@ export function EditorPanes({ store }: Props) {
                     key={tab.id}
                     data-tab-id={tab.id}
                     draggable={!tab.isPinned}
-                    style={{ minWidth: MIN_TAB_WIDTH, maxWidth: MAX_TAB_WIDTH }}
+                    style={{
+                      minWidth: MIN_TAB_WIDTH,
+                      maxWidth: isOverflowing ? undefined : MAX_TAB_WIDTH,
+                      flexGrow: isOverflowing ? 1 : 0,
+                    }}
                     onDragStart={(event) => {
                       event.dataTransfer.setData(TAB_DRAG_MIME, tab.id);
                       event.dataTransfer.effectAllowed = "move";
@@ -261,6 +266,7 @@ export function EditorPanes({ store }: Props) {
                   </div>
                 ))}
                 <div
+                  hidden={isOverflowing}
                   className={`min-w-8 flex-1 ${
                     drag !== null && drag.before === null
                       ? "shadow-[inset_2px_0_0_0_var(--color-primary)]"
@@ -278,14 +284,14 @@ export function EditorPanes({ store }: Props) {
                   }}
                   onDrop={onTabDrop}
                 />
-                {overflowTabs.length > 0 && (
+                {isOverflowing && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
                         aria-label={`${overflowTabs.length} more open notes`}
                         title={`${overflowTabs.length} more open notes`}
-                        className="flex shrink-0 items-center gap-1 border-l border-sidebar-border px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                        className="flex shrink-0 items-center gap-1 px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                       >
                         {overflowTabs.length} more
                         <ChevronDownIcon size={12} />

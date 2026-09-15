@@ -17,12 +17,12 @@ import {
   pullOllamaModel,
   startOllamaRuntime,
   stopOllamaRuntime,
-} from "@/features/ai/ollama-bridge";
+} from "@/features/ai/models/ollama-bridge";
 import {
   OLLAMA_INSTALL_SOURCE_URL,
   ollamaModelSourceUrl,
   type OllamaRuntimeAction,
-} from "@/features/ai/ollama-model";
+} from "@/features/ai/models/ollama-model";
 import {
   SettingsHeading,
   settingsButton,
@@ -38,12 +38,12 @@ import {
   availableOllamaSelection,
   readSelectedOllamaModel,
   writeSelectedOllamaModel,
-} from "@/features/ai/ollama-selection";
-import { aiModelGroups } from "@/features/ai/model-options";
+} from "@/features/ai/models/ollama-selection";
+import { aiModelGroups } from "@/features/ai/models/model-options";
 import {
   parseAiModelSelection,
   selectRawAiModelSetting,
-} from "@/features/ai/model-selection";
+} from "@/features/ai/models/model-selection";
 import {
   duplicatePromptDraft,
   newPromptDraft,
@@ -54,7 +54,7 @@ import {
   selectWorkspacePrompts,
   type PromptDraft,
   type PromptLibraryEntry,
-} from "@/features/ai/prompt-library";
+} from "@/features/ai/prompts/prompt-library";
 import { deletePrompt, savePrompt } from "@/store/actions/prompts";
 import { setAiModelSelection } from "@/store/actions/settings";
 import { useRendererSelector } from "@/store/use-renderer-selector";

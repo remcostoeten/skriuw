@@ -154,8 +154,8 @@ import { AiOptInGate, selectAiEnabled } from "@/features/ai/opt-in-gate";
 import {
   clearPendingAiAction,
   requestAiAction,
-} from "@/features/ai/editor-action-controller";
-import { clearPendingVoiceDictation } from "@/features/ai/voice-dictation-controller";
+} from "@/features/ai/actions/editor-action-controller";
+import { clearPendingVoiceDictation } from "@/features/ai/voice/voice-dictation-controller";
 import { DrawingOverlay } from "@/features/drawing/drawing-overlay";
 import { closeAnnotateMode } from "@/store/actions/annotate-mode";
 import {
@@ -184,6 +184,7 @@ import { SearchWidget } from "./search-widget";
 import { JumpToLinePanel } from "./jump-to-line-panel";
 import {
   buildDocumentLineIndex,
+  documentLineAt,
   documentLineTarget,
   type DocumentLineIndex,
 } from "./document-lines";
@@ -407,9 +408,10 @@ function selectStarterTitle(view: EditorView, entry: CachedNote): void {
 }
 
 function readSelection(state: EditorState, windowStart: number) {
+  const { $from } = state.selection;
   return {
-    blockIndex: windowStart + state.selection.$from.index(0),
-    offset: state.selection.$from.parentOffset,
+    blockIndex: windowStart + $from.index(0),
+    offset: $from.depth === 0 ? 0 : $from.pos - $from.start(1),
   };
 }
 
@@ -436,12 +438,12 @@ function fullDocumentHtml(document: ProseMirrorNode): string {
 }
 
 const AiEditorActionHost = lazy(async () => {
-  const module = await import("@/features/ai/editor-action-host");
+  const module = await import("@/features/ai/actions/editor-action-host");
   return { default: module.AiEditorActionHost };
 });
 
 const VoiceDictationHost = lazy(async () => {
-  const module = await import("@/features/ai/voice-dictation-host");
+  const module = await import("@/features/ai/voice/voice-dictation-host");
   return { default: module.VoiceDictationHost };
 });
 
@@ -1458,6 +1460,20 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     setJumpOpen(false);
   }, []);
 
+  /**
+   * The Markdown the raw editor shows for this note, when the document still
+   * matches what that Markdown was saved with. Line numbers then agree across
+   * both editors even for notes typed in raw mode, whose stored text may lay
+   * lists out more tightly than the serializer does.
+   */
+  function storedMarkdownFor(entry: CachedNote | null, document: ProseMirrorNode): string | undefined {
+    const noteId = activeIdRef.current;
+    if (!entry || noteId === null) return undefined;
+    const record = store.getState().documents.get(noteId);
+    if (!record || record.documentJson !== entry.seenJson || !document.eq(entry.baseDoc)) return undefined;
+    return record.markdown;
+  }
+
 const closeJumpToLine = useCallback(() => {
     dismissJumpToLine();
     viewRef.current?.focus();
@@ -1480,11 +1496,10 @@ const closeJumpToLine = useCallback(() => {
     search.resetSearch();
     const entry = activeEntry();
     const document = entry?.bounded ? entry.bounded.fullDocument() : view.state.doc;
-    const index = buildDocumentLineIndex(document);
+    const index = buildDocumentLineIndex(document, storedMarkdownFor(entry, document));
     jumpTargetRef.current = { document, index };
     setJumpLineCount(index.lineCount);
-    const caretBlock = readSelection(view.state, entry?.bounded?.windowStart() ?? 0).blockIndex;
-    setJumpCaretLine(index.blockStartLines[caretBlock] ?? 1);
+    setJumpCaretLine(documentLineAt(index, readSelection(view.state, entry?.bounded?.windowStart() ?? 0)));
     setJumpOpen(true);
     requestAnimationFrame(() => {
       jumpInputRef.current?.focus();

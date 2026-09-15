@@ -471,7 +471,7 @@ function bubbleEntries(state: BubbleMenuState, handlers: EntryHandlers): BubbleE
     {
       id: "highlight",
       label: "Highlight",
-      active: state.highlightColor !== null,
+      active: false,
       group: "blocks",
       content: highlightTriggerContent(state.highlightColor),
       command: () => true,
@@ -480,7 +480,7 @@ function bubbleEntries(state: BubbleMenuState, handlers: EntryHandlers): BubbleE
     {
       id: "alignment",
       label: "Alignment",
-      active: state.textAlign !== "left",
+      active: false,
       group: "blocks",
       content: <AlignmentTriggerIcon textAlign={state.textAlign} />,
       command: () => true,
@@ -489,7 +489,7 @@ function bubbleEntries(state: BubbleMenuState, handlers: EntryHandlers): BubbleE
     {
       id: "block-type",
       label: "Block type",
-      active: state.headingLevel !== null || state.blockquote,
+      active: false,
       group: "blocks",
       content: blockTriggerContent(state.headingLevel, state.blockquote),
       command: () => true,
@@ -722,7 +722,8 @@ type SubmenuProps = {
 /**
  * The choices behind one trigger. It keeps its own arrow-key focus and swallows
  * the keys the toolbar handles, so navigating a submenu never moves the
- * toolbar's own position underneath it.
+ * toolbar's own position underneath it. Tab does not walk the items: it closes
+ * the submenu without activating anything and returns focus to its trigger.
  */
 function BubbleSubmenu({ label, actions, onActivate, onClose }: SubmenuProps) {
   const [initialIndex] = useState(() =>
