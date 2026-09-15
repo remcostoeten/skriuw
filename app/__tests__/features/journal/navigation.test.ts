@@ -4,8 +4,12 @@ import { todayKey } from "../../../src/features/journal/dates";
 import {
   currentJournalDay,
   openJournalDay,
+  onJournalGoToDate,
   openJournalDayOffset,
+  openJournalMonthOffset,
   openJournalToday,
+  openJournalYearOffset,
+  requestJournalGoToDate,
 } from "../../../src/features/journal/navigation";
 
 function withHash<T>(hash: string, run: () => T): { result: T; hash: string } {
@@ -43,4 +47,40 @@ test("day navigation writes the neighbouring day into the hash", () => {
     withHash("#/journal/2026-07-27", openJournalToday).hash,
     `#/journal/${todayKey()}`,
   );
+});
+
+test("month and year steps keep the day and clamp to shorter months", () => {
+  assert.equal(
+    withHash("#/journal/2026-01-31", () => openJournalMonthOffset(1)).hash,
+    "#/journal/2026-02-28",
+  );
+  assert.equal(
+    withHash("#/journal/2026-03-15", () => openJournalMonthOffset(-3)).hash,
+    "#/journal/2025-12-15",
+  );
+  assert.equal(
+    withHash("#/journal/2024-02-29", () => openJournalYearOffset(1)).hash,
+    "#/journal/2025-02-28",
+  );
+  assert.equal(
+    withHash("#/journal/2024-02-29", () => openJournalYearOffset(-4)).hash,
+    "#/journal/2020-02-29",
+  );
+});
+
+test("a go-to-date request reaches every registered listener until it unsubscribes", () => {
+  const previous = globalThis.window;
+  globalThis.window = new EventTarget() as unknown as Window & typeof globalThis;
+  try {
+    let opened = 0;
+    const unsubscribe = onJournalGoToDate(() => {
+      opened += 1;
+    });
+    requestJournalGoToDate();
+    unsubscribe();
+    requestJournalGoToDate();
+    assert.equal(opened, 1);
+  } finally {
+    globalThis.window = previous;
+  }
 });

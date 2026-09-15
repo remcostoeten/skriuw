@@ -68,6 +68,13 @@ export type ShortcutActionId =
   | "journalToday"
   | "journalPreviousDay"
   | "journalNextDay"
+  | "journalPreviousWeek"
+  | "journalNextWeek"
+  | "journalPreviousMonth"
+  | "journalNextMonth"
+  | "journalPreviousYear"
+  | "journalNextYear"
+  | "journalGoToDate"
   | "toggleMaximize"
   | "quitApp"
   | "zoomIn"
@@ -174,6 +181,9 @@ export type ShortcutDefinition = {
    */
   sharesComboWith?: ShortcutActionId;
 };
+
+const JOURNAL_BRACKET_DESCRIPTION =
+  "The brackets walk the journal: plain steps a day, shift a week, alt a month, and alt+shift a year. Months and years keep the day of the month, clamped to the end of shorter months. Every key sits on the main block of a 60% keyboard, and none fires while the caret is in the entry.";
 
 const TAB_INDEX_DESCRIPTION =
   "Activate a tab by its position in the focused pane's strip. Alt keeps the digits clear of the mod+digit focus and zoom bindings, and browsers own ctrl+digits for their own tabs — so the combo is reliable on desktop and best-effort on web.";
@@ -618,6 +628,70 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "journalNextDay",
     keys: "bracketright",
     label: "Next day",
+    group: "Journal",
+    guards: ["modal"],
+    scopes: "journal",
+  },
+  {
+    id: "journalPreviousWeek",
+    keys: "shift+bracketleft",
+    label: "Previous week",
+    description: JOURNAL_BRACKET_DESCRIPTION,
+    group: "Journal",
+    guards: ["modal"],
+    scopes: "journal",
+  },
+  {
+    id: "journalNextWeek",
+    keys: "shift+bracketright",
+    label: "Next week",
+    description: JOURNAL_BRACKET_DESCRIPTION,
+    group: "Journal",
+    guards: ["modal"],
+    scopes: "journal",
+  },
+  {
+    id: "journalPreviousMonth",
+    keys: "alt+bracketleft",
+    label: "Previous month",
+    description: JOURNAL_BRACKET_DESCRIPTION,
+    group: "Journal",
+    guards: ["modal"],
+    scopes: "journal",
+  },
+  {
+    id: "journalNextMonth",
+    keys: "alt+bracketright",
+    label: "Next month",
+    description: JOURNAL_BRACKET_DESCRIPTION,
+    group: "Journal",
+    guards: ["modal"],
+    scopes: "journal",
+  },
+  {
+    id: "journalPreviousYear",
+    keys: "alt+shift+bracketleft",
+    label: "Previous year",
+    description: JOURNAL_BRACKET_DESCRIPTION,
+    group: "Journal",
+    guards: ["modal"],
+    scopes: "journal",
+  },
+  {
+    id: "journalNextYear",
+    keys: "alt+shift+bracketright",
+    label: "Next year",
+    description: JOURNAL_BRACKET_DESCRIPTION,
+    group: "Journal",
+    guards: ["modal"],
+    scopes: "journal",
+  },
+  {
+    id: "journalGoToDate",
+    keys: "d",
+    label: "Go to date…",
+    description:
+      "Open a field that jumps to any day, month, or year from a forgiving expression like “next week thursday”, “312”, or “dec 2025”. A plain key, so it only fires while the caret is outside the entry.",
     group: "Journal",
     guards: ["modal"],
     scopes: "journal",

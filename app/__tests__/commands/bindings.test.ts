@@ -906,3 +906,80 @@ test("a combo two same-scope actions claim is still reported as a conflict", () 
   const slash = normalizeRegistryCombo("slash");
   assert.equal(isScopeSeparated(slash, slash), false);
 });
+
+const JOURNAL_STEP_KEYS = [
+  ["journalPreviousDay", "bracketleft"],
+  ["journalNextDay", "bracketright"],
+  ["journalPreviousWeek", "shift+bracketleft"],
+  ["journalNextWeek", "shift+bracketright"],
+  ["journalPreviousMonth", "alt+bracketleft"],
+  ["journalNextMonth", "alt+bracketright"],
+  ["journalPreviousYear", "alt+shift+bracketleft"],
+  ["journalNextYear", "alt+shift+bracketright"],
+] as const;
+
+function journalDefinition(id: string) {
+  const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === id);
+  assert.ok(definition, `${id} has no definition`);
+  return definition;
+}
+
+test("journal steps are bracket chords on the main block, scoped to the journal", () => {
+  for (const [id, keys] of [...JOURNAL_STEP_KEYS, ["journalGoToDate", "d"] as const]) {
+    const definition = journalDefinition(id);
+    assert.equal(effectiveShortcutKeys(definition, {}), keys, id);
+    assert.equal(definition.scopes, "journal", id);
+    assert.equal(definition.group, "Journal", id);
+    assert.deepEqual(shortcutGuards(definition, definition.worksWhileTyping === true), [
+      "typing",
+      "modal",
+    ]);
+    assert.doesNotMatch(keys, /home|end|page/, id);
+  }
+});
+
+test("each bracket keypress fires exactly one journal step, on Linux and macOS layouts", () => {
+  const events = [
+    { expected: "journalPreviousDay", key: "[", code: "BracketLeft", shiftKey: false, altKey: false },
+    { expected: "journalNextDay", key: "]", code: "BracketRight", shiftKey: false, altKey: false },
+    { expected: "journalPreviousWeek", key: "{", code: "BracketLeft", shiftKey: true, altKey: false },
+    { expected: "journalNextWeek", key: "}", code: "BracketRight", shiftKey: true, altKey: false },
+    { expected: "journalPreviousMonth", key: "[", code: "BracketLeft", shiftKey: false, altKey: true },
+    { expected: "journalPreviousMonth", key: "“", code: "BracketLeft", shiftKey: false, altKey: true },
+    { expected: "journalNextMonth", key: "‘", code: "BracketRight", shiftKey: false, altKey: true },
+    { expected: "journalPreviousYear", key: "{", code: "BracketLeft", shiftKey: true, altKey: true },
+    { expected: "journalNextYear", key: "’", code: "BracketRight", shiftKey: true, altKey: true },
+  ];
+  for (const { expected, ...modifiers } of events) {
+    const event = { ...modifiers, ctrlKey: false, metaKey: false };
+    const fired = JOURNAL_STEP_KEYS.filter(
+      ([, keys]) =>
+        matchesShortcut(event as KeyboardEvent, parseShortcut(keys)) ||
+        shortcutMatchesPhysicalKey(event, keys),
+    ).map(([id]) => id);
+    assert.deepEqual(fired, [expected], JSON.stringify(event));
+  }
+});
+
+test("rebinding onto a journal key names the journal action that owns it", () => {
+  assert.equal(
+    findShortcutConflict({}, "journalNextMonth", "bracketright")?.actionId,
+    "journalNextDay",
+  );
+  assert.equal(
+    findShortcutConflict({}, "createNote", "alt+bracketright")?.actionId,
+    "journalNextMonth",
+  );
+  assert.equal(findShortcutConflict({}, "journalGoToDate", "t")?.actionId, "journalToday");
+  assert.equal(findShortcutConflict({}, "journalGoToDate", "mod+g")?.actionId, "jumpToLine");
+  assert.equal(findShortcutConflict({}, "journalGoToDate", "mod+alt+d"), null);
+  assert.equal(
+    findShortcutConflict({ journalNextWeek: "alt+shift+n" }, "createNote", "shift+bracketright"),
+    null,
+  );
+  assert.equal(
+    findShortcutConflict({ journalNextWeek: "alt+shift+n" }, "createNote", "alt+shift+n")
+      ?.actionId,
+    "journalNextWeek",
+  );
+});

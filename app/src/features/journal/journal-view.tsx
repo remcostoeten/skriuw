@@ -34,6 +34,7 @@ import {
   type MonthKey,
 } from "./dates";
 import { JournalCalendar } from "./journal-calendar";
+import { JournalGoToDateHost } from "./go-to-date-dialog";
 import { onJournalSearchFocus, openJournalDay, openJournalToday } from "./navigation";
 import { cn } from "@/shared/lib/utils";
 import { sectionLabelClass } from "@/shared/ui/section-header";
@@ -863,6 +864,7 @@ export function JournalView({ store, sidebarOpen, onToggleSidebar }: JournalView
       <div className="min-h-0 flex-1">
         <JournalEntryPane store={store} selectedKey={selectedKey} />
       </div>
+      <JournalGoToDateHost selectedKey={selectedKey} />
     </main>
   );
 }

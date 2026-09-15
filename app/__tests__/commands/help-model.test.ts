@@ -178,3 +178,29 @@ test("filtering drops emptied groups and keeps matching rows only", () => {
     0,
   );
 });
+
+test("the journal steps and go-to-date appear in the cheat sheet under Journal", () => {
+  const groups = shortcutHelpGroups({ overrides: {}, platform: "linux" });
+  const journal = groups.find((group) => group.group === "Journal");
+  assert.ok(journal);
+  const ids = journal.rows.map((row) => row.id);
+  for (const id of [
+    "journalPreviousWeek",
+    "journalNextWeek",
+    "journalPreviousMonth",
+    "journalNextMonth",
+    "journalPreviousYear",
+    "journalNextYear",
+    "journalGoToDate",
+  ]) {
+    assert.ok(ids.includes(id), `${id} missing from the Journal group`);
+  }
+  const rebound = shortcutHelpGroups({
+    overrides: { journalNextMonth: "alt+shift+m" },
+    platform: "linux",
+    query: "next month",
+  })
+    .flatMap((group) => group.rows)
+    .find((row) => row.id === "journalNextMonth");
+  assert.deepEqual(rebound?.combos.map((combo) => combo.keys), ["alt+shift+m"]);
+});
