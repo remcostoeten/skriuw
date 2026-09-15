@@ -19,6 +19,18 @@ import {
   formatFolderStructure,
   type FolderStructureFormat,
 } from "@/features/transfer/export/folder-structure";
+import { canShareNotes, shareNoteAsText } from "@/features/transfer/export/share-note";
+import { haptic } from "@/shared/lib/haptics";
+import { swallowGhostClick } from "@/shared/lib/ghost-click";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
+import {
+  LONG_PRESS_MS,
+  beginRowGesture,
+  moveRowGesture,
+  releaseIsTap,
+  swipeDeletes,
+  type RowGesture,
+} from "./touch-gestures";
 import { showToast } from "@/shared/ui/toast";
 import { requestTemplatePicker } from "@/features/templates/template-picker-controller";
 import { useRendererSelector } from "@/store/use-renderer-selector";
@@ -39,6 +51,7 @@ import {
   PinIcon,
   PinOffIcon,
   SearchIcon,
+  ShareIcon,
   Trash2Icon,
   UnfoldVerticalIcon,
 } from "@/shared/icons/static";
@@ -244,7 +257,12 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   const searchOverlayRef = useRef<HTMLDivElement>(null);
   const searchResultsRef = useRef<HTMLDivElement>(null);
   const treeRef = useRef<HTMLDivElement>(null);
+  const touchGestureRef = useRef<RowGesture>({ kind: "idle" });
+  const longPressRef = useRef<number | null>(null);
+  const touchMenuRef = useRef(false);
+  const touchRows = useMediaQuery("(pointer: coarse)");
   const effectiveCompact = compactSidebar || metrics.isNarrow;
+  const rowHeight = touchRows ? 44 : effectiveCompact ? 28 : 34;
 
   useEffect(() => {
     const element = asideRef.current;
@@ -277,7 +295,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
       if (!element || index < 0 || focusedId === null) {
         return;
       }
-      const rowPitch = (effectiveCompact ? 28 : 34) + 1;
+      const rowPitch = rowHeight + 1;
       const top = index * rowPitch;
       const bottom = top + rowPitch;
       let nextScrollTop = element.scrollTop;
@@ -293,7 +311,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
     };
     revealFocusedNode();
     return store.subscribe((state) => state.focusedNodeId, revealFocusedNode);
-  }, [effectiveCompact, isSearchOpen, store]);
+  }, [rowHeight, isSearchOpen, store]);
 
   useEffect(() => {
     const element = treeRef.current;
@@ -317,7 +335,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   }, [isSearchOpen]);
 
   const headerActionClass = `${headerActionBaseClass} ${metrics.isNarrow ? "h-6 w-6" : "h-7 w-7"}`;
-  const rowPitch = (effectiveCompact ? 28 : 34) + 1;
+  const rowPitch = rowHeight + 1;
   const treeWindow = useMemo(
     () =>
       virtualTreeWindow(
@@ -676,16 +694,108 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
     }
   }
 
+
+  function rowElementFor(id: string): HTMLElement | null {
+    return treeRef.current?.querySelector<HTMLElement>(`[data-row-key="${id}"]`) ?? null;
+  }
+
+  function clearLongPress(): void {
+    if (longPressRef.current !== null) {
+      window.clearTimeout(longPressRef.current);
+      longPressRef.current = null;
+    }
+  }
+
+  function settleSwipedRow(id: string): void {
+    const rowEl = rowElementFor(id);
+    if (!rowEl) {
+      return;
+    }
+    rowEl.classList.add("sidebar-tree-row-settle");
+    rowEl.style.transform = "";
+    delete rowEl.dataset.swipe;
+    window.setTimeout(() => rowEl.classList.remove("sidebar-tree-row-settle"), 200);
+  }
+
+  // A held finger opens the same menu a right click does. Android already
+  // synthesises `contextmenu` on a long press; iOS never does, so the timer
+  // dispatches the event itself and the native path cancels the timer.
+  function beginTouchGesture(id: string, rowEl: HTMLElement, x: number, y: number): void {
+    clearLongPress();
+    touchGestureRef.current = beginRowGesture(id, x, y);
+    longPressRef.current = window.setTimeout(() => {
+      longPressRef.current = null;
+      if (touchGestureRef.current.kind !== "pending") {
+        return;
+      }
+      touchGestureRef.current = { kind: "cancelled" };
+      suppressClickRef.current = true;
+      touchMenuRef.current = true;
+      haptic("select");
+      rowEl.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: x, clientY: y }),
+      );
+    }, LONG_PRESS_MS);
+  }
+
+  function moveTouchGesture(x: number, y: number): void {
+    const previous = touchGestureRef.current;
+    const next = moveRowGesture(previous, x, y);
+    touchGestureRef.current = next;
+    if (next === previous) {
+      return;
+    }
+    if (next.kind !== "pending") {
+      clearLongPress();
+    }
+    if (next.kind === "swipe") {
+      const rowEl = rowElementFor(next.rowId);
+      if (rowEl) {
+        rowEl.style.transform = `translateX(${next.offset}px)`;
+        const deletes = swipeDeletes(next);
+        if (deletes && rowEl.dataset.swipe !== "delete") {
+          haptic("warn");
+        }
+        rowEl.dataset.swipe = deletes ? "delete" : "true";
+      }
+    }
+  }
+
+  function endTouchGesture(commit: boolean): void {
+    clearLongPress();
+    const gesture = touchGestureRef.current;
+    touchGestureRef.current = { kind: "idle" };
+    if (gesture.kind === "swipe") {
+      suppressClickRef.current = true;
+      settleSwipedRow(gesture.rowId);
+      if (commit && swipeDeletes(gesture)) {
+        haptic("confirm");
+        trashSelectedNodes(gesture.rowId);
+      }
+      return;
+    }
+    if (!releaseIsTap(gesture) && gesture.kind !== "idle") {
+      suppressClickRef.current = gesture.kind === "cancelled" && suppressClickRef.current;
+    }
+  }
+
   function onTreePointerDown(event: React.PointerEvent): void {
     if (dragRef.current !== null) {
       endDrag(false);
     }
-    if (event.button !== 0 || event.pointerType === "touch") {
+    if (event.button !== 0) {
       return;
     }
     const rowEl = (event.target as HTMLElement).closest<HTMLElement>("[data-row-key]");
     const id = rowEl?.getAttribute("data-row-key");
-    if (!id) {
+    if (!id || !rowEl) {
+      return;
+    }
+    // Touch owns different gestures: a hold opens the menu (which carries
+    // Move to) and a pull toward the edge deletes, so reordering by drag is a
+    // pointer-only affordance.
+    if (event.pointerType === "touch") {
+      beginTouchGesture(id, rowEl, event.clientX, event.clientY);
       return;
     }
     dragRef.current = {
@@ -701,6 +811,10 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   }
 
   function onTreePointerMove(event: React.PointerEvent): void {
+    if (event.pointerType === "touch") {
+      moveTouchGesture(event.clientX, event.clientY);
+      return;
+    }
     const session = dragRef.current;
     if (!session || event.pointerId !== session.pointerId) {
       return;
@@ -718,6 +832,10 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   }
 
   function onTreePointerUp(event: React.PointerEvent): void {
+    if (event.pointerType === "touch") {
+      endTouchGesture(true);
+      return;
+    }
     const session = dragRef.current;
     if (!session || event.pointerId !== session.pointerId) {
       return;
@@ -726,6 +844,10 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   }
 
   function onTreePointerCancel(event: React.PointerEvent): void {
+    if (event.pointerType === "touch") {
+      endTouchGesture(false);
+      return;
+    }
     if (dragRef.current?.pointerId === event.pointerId) {
       endDrag(false);
     }
@@ -1078,6 +1200,8 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   }
 
   function onListContextMenu(event: React.MouseEvent): void {
+    clearLongPress();
+    touchGestureRef.current = { kind: "idle" };
     const rowEl = (event.target as HTMLElement).closest<HTMLElement>("[data-row-key]");
     const id = rowEl?.getAttribute("data-row-key") ?? null;
     if (id === null) {
@@ -1277,6 +1401,20 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
                   Export as Markdown…
                   <ContextMenuShortcut keys="E" />
                 </ContextMenuItem>
+                {canShareNotes() && (
+                  <ContextMenuItem
+                    onClick={() => {
+                      void shareNoteAsText(store, id).catch((error) => {
+                        console.error("note share failed", error);
+                        showToast({ message: "Sharing failed. Try exporting instead." });
+                      });
+                    }}
+                    className="gap-2"
+                  >
+                    <ShareIcon className="w-4 h-4" />
+                    Share…
+                  </ContextMenuItem>
+                )}
               </>
             )}
             <ContextMenuSeparator />
@@ -1298,7 +1436,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   return (
     <aside
       ref={asideRef}
-      className={`flex h-full min-w-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground${effectiveCompact ? " sidebar-compact" : ""}${showTreeGuides ? " sidebar-guides" : ""}`}
+      className={`flex h-full min-w-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground${effectiveCompact ? " sidebar-compact" : ""}${touchRows ? " sidebar-touch" : ""}${showTreeGuides ? " sidebar-guides" : ""}`}
     >
       <div className="sticky top-0 z-10 border-b border-sidebar-border bg-sidebar">
         <div
@@ -1429,7 +1567,18 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
           onNoteSelect={onSearchNoteSelect}
         />
       ) : (
-        <ContextMenu onOpenChange={(open) => !open && setContextTarget(null)}>
+        <ContextMenu
+          onOpenChange={(open) => {
+            if (open) {
+              return;
+            }
+            setContextTarget(null);
+            if (touchMenuRef.current) {
+              touchMenuRef.current = false;
+              swallowGhostClick();
+            }
+          }}
+        >
           {moveIds !== null && (
             <div className="mx-1.5 mb-1 flex items-center gap-2 border border-foreground/20 bg-foreground/[0.08] px-2.5 py-1.5 text-[11px] font-medium text-foreground">
               <FolderInputIcon size={14} className="shrink-0 text-muted-foreground" />
@@ -1453,6 +1602,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
               <div
                 ref={treeRef}
                 className="relative min-h-0 flex-1 overflow-y-auto px-1.5"
+                style={touchRows ? { touchAction: "pan-y" } : undefined}
                 role="tree"
                 aria-label="Workspace"
                 tabIndex={-1}
@@ -1505,9 +1655,14 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
               className="w-48"
               onKeyDown={(event) => onContextMenuKeyDown(event, itemMenuActions(contextTarget.id))}
               onCloseAutoFocus={(event) => {
-                if (store.getState().editingNodeId !== null) {
-                  event.preventDefault();
+                if (store.getState().editingNodeId === null) {
+                  return;
                 }
+                // The rename field mounted while the menu's focus scope was
+                // still trapping, which pulled its mount-time focus back into
+                // the menu; now that the menu is gone the field can hold it.
+                event.preventDefault();
+                asideRef.current?.querySelector<HTMLInputElement>('input[aria-label^="Rename"]')?.focus();
               }}
             >
               {renderItemContextItems(contextTarget.id)}

@@ -2,19 +2,7 @@ import type { AppRoute } from "@/app-route";
 import { METADATA_DEFAULT_WIDTH } from "./metadata-resize";
 import { SIDEBAR_DEFAULT_WIDTH } from "@/features/sidebar/sidebar-resize";
 
-/**
- * Below this width the rail, sidebar and metadata panel become edge drawers
- * over a single main column instead of grid tracks (see compact.css).
- */
-export const COMPACT_SHELL_QUERY = "(max-width: 767px)";
-
 export const COARSE_POINTER_QUERY = "(pointer: coarse)";
-
-export const COMPACT_GRID_TEMPLATE = "minmax(0, 1fr)";
-
-export function isCompactViewport(): boolean {
-  return typeof matchMedia === "function" && matchMedia(COMPACT_SHELL_QUERY).matches;
-}
 
 export type PanelTracks = {
   sidebarOpen: boolean;

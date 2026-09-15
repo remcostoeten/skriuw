@@ -9,7 +9,7 @@ Skriuw is a desktop knowledge base built around one promise: every interaction g
 | Layer         | Technology                                                                          |
 | ------------- | ----------------------------------------------------------------------------------- |
 | Backend       | Rust — domain, storage, runtime, and history crates with no I/O in the domain layer |
-| Storage       | SQLite as canonical storage, ordered SQL migrations, full-text search               |
+| Storage       | SQLite as canonical storage, ordered SQL migrations, rebuildable FTS5 search index  |
 | History       | Native Git materializer running fully off the editing path                          |
 | Desktop shell | Tauri 2                                                                             |
 | Renderer      | React 19 + TypeScript, Vite, Tailwind CSS 4                                         |
@@ -51,10 +51,11 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Full keyboard control** — create, rename, reorder siblings, move across folders, multi-select, open a row's context menu (Shift+Enter or the Menu key), expand/collapse-all, switch rail destinations with layout-independent number-row shortcuts, and use a dedicated move mode, all without touching the mouse.
 - **Drag and drop** — pointer-based move and reorder in the sidebar.
 - **Sidebar search** — filters the tree and reveals matches in place.
+- **Full-text content search** — the command palette searches note bodies, not just titles. Matches come back ranked with a snippet whose matched words are highlighted, listed under “Content” below the title matches. Indexed text is the note’s prose: Markdown syntax, link targets, HTML, and drawing payloads are stripped, while link labels and the plain names behind `#tag`, `$person`, and `[[wikilink]]` chips stay searchable. Tokenization folds diacritics in both directions, so `cafe` finds `café` and `geerfde` finds `geërfde`. Queries are debounced and asynchronous, so typing never blocks navigation. See [ADR-0041](adr/0041-full-text-search-index.md).
+- **Self-healing search index** — the index is a rebuildable projection written inside the same transaction as the save it describes. The workspace records the projection version it was built with; when that drifts, or when rows are lost to a partial write, the app rebuilds the index once on an idle callback after startup. Rebuilding is idempotent and survives restart.
 - **Relationship search operators** — the sidebar and the command palette accept `#tag`, `$person`, `tag:name`, and `person:name` beside free text. Names may be quoted (`#"design system"`) and a backslash escapes a sigil, so `\#literal` still searches for the text. Stacked filters intersect; a filter with no free text lists everything it matches, ordered most recently updated first. Filtering runs against the in-memory reference projection, so trashed notes stay excluded and journal entries still open on their day. A name that matches nothing, or that two entities share, is stated in the results rather than silently resolved.
 - **Saved searches** — save a sidebar query and reopen it from the sidebar. Title text and tag/person operators evaluate against current notes, so results stay live. Saved queries and template membership survive restart, backup, and preference reset; these preferences stay device-local for sync.
 - **Durable layout** — folder expansion, panel state, and the active note survive restarts.
-- **Phone layout** — below 768px the rail and sidebar become a left drawer and the metadata panel a right drawer over a full-width note. Swipe anywhere to drag a drawer in or out 1:1 with your finger; pulling past open stretches and springs back, a flick settles in its direction, and tapping the dimmed note closes everything. Picking a note or a rail destination closes the drawer on its own, and routes without a sidebar keep a floating toggle for the rail.
 - **Trash with subtree semantics** — trash, restore, or permanently purge whole branches; nothing is destroyed without a confirmation that shows its scope. The trash view searches and sorts deleted items (recently deleted, deleted first, title) and arms per-row deletion inline instead of behind a dialog.
 
 ## Tasks
@@ -103,6 +104,13 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Storage you can see and move** — settings show every stored image with size and the notes that use it, open the database or blobs folder in the file manager, and can relocate the whole workspace (database, images, history, backups) to a new folder with a verified copy and automatic restart.
 - **Auto-updates** — built-in updater on top of a tag-driven, cross-platform release pipeline.
 - **Current install channels** — APT and dnf repositories, Homebrew, Scoop, and the AUR; macOS, Windows, and Linux release assets are available directly. Winget and Snap publication remain pending.
+
+## Phone and tablet
+
+- **Installable browser build** — the web build at `/app/` installs to a home screen with its own icon and the palette you chose, starts from disk when offline, and asks the browser for persistent storage so the workspace is not evicted; a denied request is said out loud while an export is still possible. See [ADR-0040](adr/0040-installable-browser-shell.md).
+- **Compact shell** — below 900px the rail becomes a bottom tab bar and the tree and inspector become edge sheets over the note, opened from the toolbar or a pull from either screen edge, closed by a tap outside, their own close control, Escape, a pull back toward the edge, or simply picking a note. The page behind a sheet is inert, the split view stacks, and everything is sized from the visual viewport so an open keyboard shrinks the shell instead of hiding it. See [ADR-0041](adr/0041-compact-shell-and-touch-gestures.md).
+- **Touch gestures** — hold a note or folder for its menu (rename, pin, move, share, delete), pull it left to move it to trash with an undo, and scroll freely in between; rows, menu items, and tabs grow to 44px, and the platform vibration API ticks at each threshold where one exists.
+- **Formatting on a phone** — the text formatting popover docks at the bottom of the visual viewport as a sideways-scrolling bar above the keyboard, and the note menu offers the system share sheet for the note's Markdown wherever the Web Share API exists.
 
 ## Built to be trusted
 

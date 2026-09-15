@@ -8,11 +8,12 @@ use std::{
 };
 
 use skriuw_domain::{
-    OperationAck, SearchHit, WorkspaceDelta, WorkspaceOperationEnvelope, WorkspaceSnapshot,
-    validate_operation_group,
+    OperationAck, SearchHit, SearchIndexStatus, WorkspaceDelta, WorkspaceOperationEnvelope,
+    WorkspaceSnapshot, validate_operation_group,
 };
 use skriuw_storage::{
-    Diagnostic, DiagnosticCategory, DiagnosticContext, StorageError, WorkspaceStorage,
+    Diagnostic, DiagnosticCategory, DiagnosticContext, SearchIndexMaintenance, StorageError,
+    WorkspaceStorage,
 };
 use thiserror::Error;
 
@@ -67,7 +68,7 @@ pub struct WorkspaceRuntime {
 
 impl WorkspaceRuntime {
     #[must_use]
-    pub fn spawn(storage: impl WorkspaceStorage + 'static) -> Self {
+    pub fn spawn(storage: impl WorkspaceStorage + SearchIndexMaintenance + 'static) -> Self {
         let (sender, receiver) = mpsc::channel();
         let worker = thread::Builder::new()
             .name("skriuw-storage".into())
@@ -151,6 +152,21 @@ impl WorkspaceRuntime {
             limit,
             sender,
         })?;
+        Ok(Completion { receiver })
+    }
+
+    /// Reads the state of the rebuildable full-text projection. Serialized
+    /// behind the same worker as every durable write, and never awaited on a
+    /// navigation path.
+    pub fn search_index_status(&self) -> Result<Completion<SearchIndexStatus>, RuntimeError> {
+        let (sender, receiver) = mpsc::channel();
+        self.shared.submit(Request::SearchIndexStatus { sender })?;
+        Ok(Completion { receiver })
+    }
+
+    pub fn rebuild_search_index(&self) -> Result<Completion<SearchIndexStatus>, RuntimeError> {
+        let (sender, receiver) = mpsc::channel();
+        self.shared.submit(Request::RebuildSearchIndex { sender })?;
         Ok(Completion { receiver })
     }
 
@@ -259,13 +275,19 @@ enum Request {
         limit: usize,
         sender: Sender<Result<Vec<SearchHit>, StorageError>>,
     },
+    SearchIndexStatus {
+        sender: Sender<Result<SearchIndexStatus, StorageError>>,
+    },
+    RebuildSearchIndex {
+        sender: Sender<Result<SearchIndexStatus, StorageError>>,
+    },
     ReadDelta {
         ids: Vec<String>,
         sender: Sender<Result<WorkspaceDelta, StorageError>>,
     },
 }
 
-fn run(storage: impl WorkspaceStorage, receiver: Receiver<Request>) {
+fn run(storage: impl WorkspaceStorage + SearchIndexMaintenance, receiver: Receiver<Request>) {
     let mut pending = None;
     loop {
         let request = match pending.take() {
@@ -322,6 +344,12 @@ fn run(storage: impl WorkspaceStorage, receiver: Receiver<Request>) {
                 sender,
             } => {
                 let _ = sender.send(storage.search_filtered(&query, limit, note_ids.as_deref()));
+            }
+            Request::SearchIndexStatus { sender } => {
+                let _ = sender.send(storage.search_index_status());
+            }
+            Request::RebuildSearchIndex { sender } => {
+                let _ = sender.send(storage.rebuild_search_index());
             }
             Request::ReadDelta { ids, sender } => {
                 let _ = sender.send(storage.read_workspace_delta(&ids));
@@ -384,7 +412,10 @@ mod tests {
         WorkspaceOperationEnvelope, WorkspaceSnapshot,
     };
     use skriuw_sqlite::SqliteWorkspace;
-    use skriuw_storage::{DiagnosticCategory, DiagnosticContext, StorageError, WorkspaceStorage};
+    use skriuw_storage::{
+        DiagnosticCategory, DiagnosticContext, SearchIndexMaintenance, StorageError,
+        WorkspaceStorage,
+    };
 
     use super::{RuntimeError, WorkspaceRuntime};
 
@@ -777,6 +808,8 @@ mod tests {
         calls: Arc<Mutex<Vec<String>>>,
     }
 
+    impl SearchIndexMaintenance for ProbeStorage {}
+
     impl WorkspaceStorage for ProbeStorage {
         fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
             unreachable!()
@@ -808,6 +841,8 @@ mod tests {
         permits: Mutex<Receiver<()>>,
         calls: Arc<Mutex<Vec<String>>>,
     }
+
+    impl SearchIndexMaintenance for GateStorage {}
 
     impl WorkspaceStorage for GateStorage {
         fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
@@ -847,6 +882,8 @@ mod tests {
         }
     }
 
+    impl SearchIndexMaintenance for DropProbeStorage {}
+
     impl WorkspaceStorage for DropProbeStorage {
         fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
             unreachable!()
@@ -869,6 +906,8 @@ mod tests {
     }
 
     struct PanickingStorage;
+
+    impl SearchIndexMaintenance for PanickingStorage {}
 
     impl WorkspaceStorage for PanickingStorage {
         fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
@@ -897,6 +936,8 @@ mod tests {
         batch_sizes: Arc<Mutex<Vec<usize>>>,
         events: Arc<Mutex<Vec<String>>>,
     }
+
+    impl SearchIndexMaintenance for BatchProbeStorage {}
 
     impl WorkspaceStorage for BatchProbeStorage {
         fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {

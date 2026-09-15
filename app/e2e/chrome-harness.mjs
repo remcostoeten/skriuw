@@ -7,9 +7,11 @@ import { spawn } from "node:child_process";
  */
 
 const CHROME_BINARY = process.env.CHROME_BINARY ?? "google-chrome-stable";
+// Extra launch flags, e.g. `--no-sandbox` for a container that runs as root.
+const CHROME_EXTRA_ARGS = (process.env.CHROME_EXTRA_ARGS ?? "").split(" ").filter(Boolean);
 
-export function startViteServer(appDirectory, port) {
-  return spawn("bun", ["x", "vite", "--host", "127.0.0.1", "--port", String(port)], {
+export function startViteServer(appDirectory, port, extraArguments = []) {
+  return spawn("bun", ["x", "vite", "--host", "127.0.0.1", "--port", String(port), ...extraArguments], {
     cwd: appDirectory,
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -46,6 +48,7 @@ export function launchChrome(profile) {
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-background-networking",
+        ...CHROME_EXTRA_ARGS,
         "about:blank",
       ],
       { stdio: ["ignore", "ignore", "pipe"] },

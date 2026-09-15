@@ -12,7 +12,7 @@ import { HistoryGraphRail } from "./history-graph-rail";
 import { HistoryScrubber } from "./history-scrubber";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
-import { COMPACT_SHELL_QUERY } from "@/shell/panel-layout";
+import { COMPACT_SHELL_QUERY } from "@/shell/shell-layout";
 import type { RendererState, RendererStore } from "@/store/types";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import { VersionDiffView, useMarkdownDiff } from "./version-diff-view";

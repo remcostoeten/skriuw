@@ -24,6 +24,8 @@ import {
 } from "@/shared/icons/static";
 import { LiquidMetalButton } from "./liquid-metal-button";
 import { rangeMenuAnchor } from "./menu-anchor";
+import { COMPACT_SHELL_QUERY } from "@/shell/shell-layout";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import {
   highlightColors,
   productSchema,
@@ -554,6 +556,10 @@ export function BubbleMenu({
   const [focusIndex, setFocusIndex] = useState(0);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const buttonsRef = useRef<(HTMLButtonElement | null)[]>([]);
+  // A phone has no room beside the selection for a 560px popover, and the
+  // native selection handles already sit around it, so the bar docks at the
+  // bottom of the visual viewport, above the keyboard, and scrolls sideways.
+  const docked = useMediaQuery(COMPACT_SHELL_QUERY);
 
   useEffect(() => {
     if (!state.open) {
@@ -613,7 +619,8 @@ export function BubbleMenu({
       aria-label="Text formatting"
       aria-orientation="horizontal"
       data-below={state.below ? "true" : undefined}
-      style={{ left: state.x, top: state.y }}
+      data-docked={docked ? "true" : undefined}
+      style={docked ? undefined : { left: state.x, top: state.y }}
       onBlur={(event) => {
         const next = event.relatedTarget;
         if (

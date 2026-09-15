@@ -1,13 +1,4 @@
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuthProvider } from "@remcostoeten/auth-drawer";
 import { updateSettings } from "@/store/actions/settings";
 import { authAdapter } from "@/features/auth/adapter";
@@ -51,10 +42,6 @@ import { WindowControls } from "@/shell/window-controls";
 import { useTitleBarDoubleClickMaximize } from "@/shell/title-bar-maximize";
 import { hasTauriRuntime } from "@/bridge/external-links";
 import {
-  COMPACT_GRID_TEMPLATE,
-  COARSE_POINTER_QUERY,
-  COMPACT_SHELL_QUERY,
-  isCompactViewport,
   panelGridTemplate,
   panelTracksWith,
   routeHasSidebar,
@@ -62,9 +49,6 @@ import {
 } from "@/shell/panel-layout";
 import { toolbarIconButtonClass } from "@/shell/toolbar-styles";
 import { PanelResizeHandle } from "@/shell/panel-resize-handle";
-import { attachDrawerGestures } from "@/shell/drawer-gestures";
-import type { DrawerPanel } from "@/shell/drawer-physics";
-import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import {
   SIDEBAR_RESIZE_BOUNDS,
   readSidebarWidth,
@@ -88,6 +72,7 @@ import {
 } from "@/commands/rail-items";
 import { appRouteHash, useAppRoute } from "./app-route";
 import { installBackNavigation } from "@/features/references/reference-navigation";
+import { scheduleSearchIndexReconciliation } from "@/features/search/index-maintenance";
 import {
   createCommandRegistry,
   registryShortcutActions,
@@ -96,8 +81,24 @@ import type { CommandUiState } from "@/commands/registry";
 import { createWorkspaceCommands } from "@/commands/workspace-commands";
 import { SkriuwLogo } from "@/shared/icons/static";
 import { AppIcon } from "@/shared/icons/app-icon";
+import { RAIL_ICONS } from "@/shell/rail-icons";
+import { TabBar } from "@/shell/tab-bar";
+import { MobileSheet } from "@/shell/mobile-sheet";
+import {
+  COMPACT_SHELL_QUERY,
+  activationClosesSidebar,
+  compactPanelPolicy,
+  shellMode,
+} from "@/shell/shell-layout";
+import {
+  edgeSwipeOpens,
+  swipeAxis,
+  swipeEdgeAt,
+  type SwipeStart,
+} from "@/shell/edge-swipe";
+import { haptic } from "@/shared/lib/haptics";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import { AnimatedIconsProvider } from "@/shared/icons/animated-icons-context";
-import type { AppIconName } from "@/shared/icons/registry";
 import { ToastHost } from "@/shared/ui/toast";
 import { Tooltip } from "@/shared/ui/tooltip";
 import { useNoteNavigation } from "@/shell/use-note-navigation";
@@ -131,15 +132,6 @@ const PromptPlaygroundView = lazy(async () => {
   return { default: module.PromptPlaygroundView };
 });
 
-const RAIL_ICONS: Record<RailItem["actionId"], AppIconName> = {
-  goToNotes: "notes",
-  goToJournal: "journal",
-  goToTasks: "tasks",
-  goToTags: "tags",
-  goToPeople: "people",
-  goToTrash: "trash",
-};
-
 type RailNavIconProps = {
   item: RailItem;
   position: number;
@@ -170,6 +162,10 @@ function selectNeedsOnboarding(state: RendererState): boolean {
   return shouldShowOnboarding(state.settings);
 }
 
+function selectActiveNoteId(state: RendererState): string | null {
+  return state.activeNoteId;
+}
+
 const TOOLBAR_SHORTCUT_IDS = [
   "openSettings",
   "toggleSidebar",
@@ -189,10 +185,8 @@ function WorkspaceShell({ store }: Props) {
   const [onboardingSignInError, setOnboardingSignInError] = useState<string | null>(null);
   const signInReturnsToSettingsRef = useRef(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
-  const compact = useMediaQuery(COMPACT_SHELL_QUERY);
-  const coarsePointer = useMediaQuery(COARSE_POINTER_QUERY);
-  const [sidebarOpen, setSidebarOpen] = useState(() => !isCompactViewport());
-  const [metadataOpen, setMetadataOpen] = useState(() => !isCompactViewport());
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [metadataOpen, setMetadataOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
   const [sidebarResizing, setSidebarResizing] = useState(false);
   const [metadataWidth, setMetadataWidth] = useState(readMetadataWidth);
@@ -201,6 +195,12 @@ function WorkspaceShell({ store }: Props) {
   const panelResizing = sidebarResizing || metadataResizing;
   const settling = !panelResizing && tracksAnimated;
   const route = useAppRoute();
+  const compact = useMediaQuery(COMPACT_SHELL_QUERY);
+  const mode = shellMode(compact);
+  const activeNoteId = useRendererSelector(store, selectActiveNoteId);
+  const fullPanelsRef = useRef({ sidebarOpen: true, metadataOpen: true });
+  const seenNoteRef = useRef(activeNoteId);
+  const swipeRef = useRef<SwipeStart | null>(null);
   const showToasts = useRendererSelector(store, selectShowToasts);
   const reduceMotion = useRendererSelector(store, selectReduceMotion);
   const animatedIcons = useRendererSelector(store, selectAnimatedIcons);
@@ -212,10 +212,47 @@ function WorkspaceShell({ store }: Props) {
     !skipOnboarding && (needsOnboardingFromSettings || onboardingOverride);
   const shortcutHints = useShortcutHints(store, TOOLBAR_SHORTCUT_IDS);
   useEffect(() => installBackNavigation(store), [store]);
+  useEffect(() => scheduleSearchIndexReconciliation(), []);
   useTitleBarDoubleClickMaximize();
   const ui: CommandUiState = { route, sidebarOpen, metadataOpen, settingsOpen };
   const uiRef = useRef(ui);
   uiRef.current = ui;
+  // Entering compact parks the desktop panel choices and applies the phone
+  // policy; leaving it restores them, so a rotated tablet lands where it was.
+  useEffect(() => {
+    if (mode === "compact") {
+      fullPanelsRef.current = { sidebarOpen: uiRef.current.sidebarOpen, metadataOpen: uiRef.current.metadataOpen };
+      const policy = compactPanelPolicy(store.getState().activeNoteId !== null);
+      setTracksAnimated(false);
+      setSidebarOpen(policy.sidebarOpen);
+      setMetadataOpen(policy.metadataOpen);
+      return;
+    }
+    setTracksAnimated(false);
+    setSidebarOpen(fullPanelsRef.current.sidebarOpen);
+    setMetadataOpen(fullPanelsRef.current.metadataOpen);
+  }, [mode, store]);
+  // The journal calendar navigates by hash, so a day picked from the sheet
+  // closes it the same way a note does.
+  useEffect(() => {
+    if (mode !== "compact" || route !== "journal" || !sidebarOpen) {
+      return;
+    }
+    function onHashChange(): void {
+      setSidebarOpen(false);
+    }
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [mode, route, sidebarOpen]);
+  // Picking a note from the overlaying tree is the end of that errand: the
+  // sheet gets out of the way so the note is readable without a second tap.
+  useEffect(() => {
+    const previous = seenNoteRef.current;
+    seenNoteRef.current = activeNoteId;
+    if (activationClosesSidebar(mode, uiRef.current.sidebarOpen, previous, activeNoteId)) {
+      setSidebarOpen(false);
+    }
+  }, [activeNoteId, mode]);
   const toggleSidebar = useCallback((animated: boolean) => {
     setTracksAnimated(animated);
     setSidebarOpen((current) => !current);
@@ -343,72 +380,19 @@ function WorkspaceShell({ store }: Props) {
     sidebarWidth,
     metadataWidth,
   };
-  const gridTemplateColumns = compact
-    ? COMPACT_GRID_TEMPLATE
-    : panelGridTemplate(route, sidebarOpen, metadataOpen, sidebarWidth, metadataWidth);
+  const gridTemplateColumns = panelGridTemplate(
+    route,
+    sidebarOpen,
+    metadataOpen,
+    sidebarWidth,
+    metadataWidth,
+  );
   const noteNav = useNoteNavigation(store);
   const tracksRef = useRef<HTMLDivElement>(null);
   const sidebarPaneRef = useRef<HTMLDivElement>(null);
   const metadataPaneRef = useRef<HTMLDivElement>(null);
   const settledRef = useRef(tracks);
   settledRef.current = tracks;
-  const hasSidebar = routeHasSidebar(route);
-  const hasMetadata = route === "notes";
-  const closeDrawers = useCallback(() => {
-    setSidebarOpen(false);
-    setMetadataOpen(false);
-  }, []);
-  // Crossing the breakpoint is an event: drawers start closed on a phone and
-  // the desktop grid comes back with both panels showing.
-  useEffect(() => {
-    setTracksAnimated(false);
-    setSidebarOpen(!compact);
-    setMetadataOpen(!compact);
-  }, [compact]);
-  // Picking a note or a rail destination is the drawer's job done; on a phone
-  // it slides away so the content it revealed is readable. A narrow desktop
-  // window keeps it open: closing makes the drawer inert, which would throw
-  // keyboard focus out of the tree mid-navigation.
-  const activeNoteId = noteNav.noteId;
-  useEffect(() => {
-    if (compact && coarsePointer) {
-      setSidebarOpen(false);
-    }
-  }, [activeNoteId, compact, coarsePointer, route]);
-  useEffect(() => {
-    const container = tracksRef.current;
-    if (!compact || !container || needsOnboarding) {
-      return;
-    }
-    return attachDrawerGestures({
-      container,
-      readState: () => ({
-        sidebarOpen: uiRef.current.sidebarOpen,
-        metadataOpen: uiRef.current.metadataOpen,
-        hasSidebar: true,
-        hasMetadata: uiRef.current.route === "notes",
-      }),
-      measure: (panel: DrawerPanel) => {
-        if (panel === "metadata") {
-          return metadataPaneRef.current?.getBoundingClientRect().width ?? 0;
-        }
-        const rail = container.querySelector<HTMLElement>(".compact-rail");
-        const pane = routeHasSidebar(uiRef.current.route) ? sidebarPaneRef.current : null;
-        return (
-          (rail?.getBoundingClientRect().width ?? 0) +
-          (pane?.getBoundingClientRect().width ?? 0)
-        );
-      },
-      onSettle: (panel, open) => {
-        setTracksAnimated(false);
-        if (panel === "sidebar") {
-          setSidebarOpen(open);
-        } else {
-          setMetadataOpen(open);
-        }
-      },
-    });
-  }, [compact, needsOnboarding]);
 
   /**
    * Drags repaint through direct writes to the grid container and the dragged
@@ -470,47 +454,88 @@ function WorkspaceShell({ store }: Props) {
     setTracksAnimated(true);
     setMetadataOpen(true);
   }, []);
+  const sidebarSheetOpen = mode === "compact" && sidebarOpen && routeHasSidebar(route);
+  const metadataSheetOpen = mode === "compact" && metadataOpen && route === "notes";
+  const sheetOpen = sidebarSheetOpen || metadataSheetOpen;
+
+  // The edge strips carry `touch-action: none`, so a touch that starts on one
+  // keeps delivering pointer events instead of being claimed as a pan.
+  function onShellPointerDown(event: React.PointerEvent): void {
+    if (event.pointerType !== "touch") {
+      swipeRef.current = null;
+      return;
+    }
+    const edge = swipeEdgeAt(event.clientX, window.innerWidth);
+    swipeRef.current = edge === null ? null : { x: event.clientX, y: event.clientY, edge };
+    if (edge !== null) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+  }
+
+  function onShellPointerMove(event: React.PointerEvent): void {
+    const start = swipeRef.current;
+    if (!start) {
+      return;
+    }
+    const axis = swipeAxis(start, event.clientX, event.clientY);
+    if (axis === "y") {
+      swipeRef.current = null;
+      return;
+    }
+    const opens = edgeSwipeOpens(start, event.clientX, routeHasSidebar(route), route === "notes");
+    if (opens === null) {
+      return;
+    }
+    swipeRef.current = null;
+    haptic("select");
+    setTracksAnimated(true);
+    if (opens === "sidebar") {
+      setSidebarOpen(true);
+    } else {
+      setMetadataOpen(true);
+    }
+  }
+
+  function onShellPointerEnd(): void {
+    swipeRef.current = null;
+  }
+
+  const sidebarContent = (
+    <>
+      <div className="h-full" hidden={route !== "notes"}>
+        <Sidebar store={store} onOpenCommandPalette={() => setPaletteOpen(true)} />
+      </div>
+      <div className="h-full" hidden={route !== "journal"}>
+        <JournalSidebar store={store} />
+      </div>
+    </>
+  );
+  const accountMenu = (
+    <AccountMenu
+      store={store}
+      settingsOpen={settingsOpen}
+      onOpenSettings={openSettingsAt}
+      onShowShortcutHelp={() => setShortcutHelpOpen(true)}
+      onRunCommand={runCommand}
+      isCommandEnabled={commandEnabled}
+      onRequestSignIn={() => openSignIn(false)}
+    />
+  );
   return (
     <AnimatedIconsProvider enabled={animatedIcons}>
       <div
         ref={tracksRef}
         className={`relative grid h-full grid-rows-[minmax(0,1fr)]${
-          settling && !compact ? " panel-tracks-settling" : ""
-        }${compact ? " shell-compact" : ""}`}
-        style={
-          {
-            gridTemplateColumns,
-            "--sidebar-width": `${sidebarWidth}px`,
-            "--metadata-width": `${metadataWidth}px`,
-          } as CSSProperties
-        }
-        data-left-drawer={compact && hasSidebar ? "sidebar" : undefined}
-        data-sidebar-open={compact && sidebarOpen ? "" : undefined}
-        data-metadata-open={compact && metadataOpen && hasMetadata ? "" : undefined}
+          settling && mode === "full" ? " panel-tracks-settling" : ""
+        }${mode === "compact" ? " shell-compact" : ""}`}
+        style={mode === "compact" ? undefined : { gridTemplateColumns }}
         aria-hidden={needsOnboarding}
-        inert={needsOnboarding}
+        inert={needsOnboarding || sheetOpen}
       >
-      {compact ? (
-        <div
-          className="compact-scrim"
-          onClick={closeDrawers}
-          aria-hidden="true"
-        />
-      ) : null}
-      {compact && !hasSidebar ? (
-        <button
-          type="button"
-          className="compact-rail-toggle"
-          onClick={() => setSidebarOpen((current) => !current)}
-          aria-label="Toggle navigation"
-          aria-expanded={sidebarOpen}
-        >
-          <AppIcon name="toggle-sidebar" size={18} />
-        </button>
-      ) : null}
+      {mode === "full" && (
       <nav
         aria-label="Primary"
-        className="compact-rail flex w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar"
+        className="flex w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar"
       >
         <div className="flex w-full flex-col items-center">
           <div className="flex h-11 w-full items-center justify-center border-b border-sidebar-border">
@@ -545,18 +570,11 @@ function WorkspaceShell({ store }: Props) {
             />
           ))}
           <div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
-          <AccountMenu
-            store={store}
-            settingsOpen={settingsOpen}
-            onOpenSettings={openSettingsAt}
-            onShowShortcutHelp={() => setShortcutHelpOpen(true)}
-            onRunCommand={runCommand}
-            isCommandEnabled={commandEnabled}
-            onRequestSignIn={() => openSignIn(false)}
-          />
+          {accountMenu}
         </div>
       </nav>
-      {hasSidebar && !compact ? (
+      )}
+      {mode === "full" && routeHasSidebar(route) ? (
         <PanelResizeHandle
           side="left"
           label="Resize sidebar"
@@ -572,7 +590,7 @@ function WorkspaceShell({ store }: Props) {
           onDragChange={setSidebarResizing}
         />
       ) : null}
-      {hasMetadata && !compact ? (
+      {mode === "full" && route === "notes" ? (
         <PanelResizeHandle
           side="right"
           label="Resize metadata panel"
@@ -588,32 +606,33 @@ function WorkspaceShell({ store }: Props) {
           onDragChange={setMetadataResizing}
         />
       ) : null}
+      {mode === "full" && (
       <div
-        className={`compact-sidebar-pane col-[2] min-h-0 min-w-0 overflow-hidden${
+        className={`col-[2] min-h-0 min-w-0 overflow-hidden${
           sidebarOpen ? "" : " sidebar-pane-collapsed"
         }${settling ? " sidebar-pane-settling" : ""}`}
         aria-hidden={!sidebarOpen}
         inert={!sidebarOpen}
-        hidden={!hasSidebar}
+        hidden={!routeHasSidebar(route)}
       >
         <div
           ref={sidebarPaneRef}
-          className={compact ? "h-full w-full" : "h-full"}
-          style={compact ? undefined : { width: sidebarWidth }}
+          className="h-full"
+          style={{ width: sidebarWidth }}
         >
-          <div className="h-full" hidden={route !== "notes"}>
-            <Sidebar store={store} onOpenCommandPalette={() => setPaletteOpen(true)} />
-          </div>
-          <div className="h-full" hidden={route !== "journal"}>
-            <JournalSidebar store={store} />
-          </div>
+          {sidebarContent}
         </div>
       </div>
+      )}
       <div className="contents" hidden={route !== "notes"}>
         <main className="col-[3] flex min-h-0 min-w-0 flex-col overflow-hidden">
           <div
             data-tauri-drag-region
-            className="grid h-11 grid-cols-[1fr_minmax(0,auto)_1fr] items-center border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground"
+            className={`grid h-11 items-center border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground ${
+              mode === "compact"
+                ? "grid-cols-[auto_minmax(0,1fr)_auto] px-1"
+                : "grid-cols-[1fr_minmax(0,auto)_1fr]"
+            }`}
           >
             <div data-tauri-drag-region className="flex min-w-0 items-center gap-1">
             <Tooltip label="Toggle sidebar" side="bottom" shortcut={shortcutHints.toggleSidebar}>
@@ -627,6 +646,8 @@ function WorkspaceShell({ store }: Props) {
                 <AppIcon name="toggle-sidebar" size={16} />
               </button>
             </Tooltip>
+            {mode === "full" && (
+            <>
             <Tooltip label="Previous note" side="bottom" shortcut={shortcutHints.previousNote}>
               <button
                 type="button"
@@ -649,9 +670,11 @@ function WorkspaceShell({ store }: Props) {
                 <AppIcon name="next-note" size={16} />
               </button>
             </Tooltip>
+            </>
+            )}
             </div>
             <div data-tauri-drag-region className="flex min-w-0 justify-center px-2">
-              <NoteBreadcrumbs store={store} />
+              <NoteBreadcrumbs store={store} titleOnly={mode === "compact"} />
             </div>
             <div data-tauri-drag-region className="flex min-w-0 items-center justify-end gap-1">
             <Tooltip label="Find in note" side="bottom" shortcut={shortcutHints.findInNote}>
@@ -683,18 +706,19 @@ function WorkspaceShell({ store }: Props) {
             <EditorPanes store={store} />
           </div>
         </main>
+        {mode === "full" && (
         <div
-          className={`compact-metadata-pane col-[4] min-h-0 min-w-0 overflow-hidden${
+          className={`col-[4] min-h-0 min-w-0 overflow-hidden${
             metadataOpen ? "" : " sidebar-pane-collapsed"
           }${settling ? " sidebar-pane-settling" : ""}`}
           aria-hidden={!metadataOpen}
           inert={!metadataOpen}
         >
-          {metadataOpen || compact ? (
+          {metadataOpen ? (
             <div
               ref={metadataPaneRef}
-              className={compact ? "flex h-full w-full flex-col" : "flex h-full flex-col"}
-              style={compact ? undefined : { width: metadataWidth }}
+              className="flex h-full flex-col"
+              style={{ width: metadataWidth }}
             >
               {hasTauriRuntime() && (
                 <div
@@ -710,6 +734,7 @@ function WorkspaceShell({ store }: Props) {
             </div>
           ) : null}
         </div>
+        )}
       </div>
       {route === "history" && <HistoryView store={store} />}
       {route === "journal" && (
@@ -732,7 +757,48 @@ function WorkspaceShell({ store }: Props) {
       )}
       {route === "tags" && <EntityView store={store} kind="tag" />}
       {route === "people" && <EntityView store={store} kind="person" />}
+      {mode === "compact" && <TabBar route={route} account={accountMenu} />}
+      {mode === "compact" && routeHasSidebar(route) && (
+        <div
+          className="shell-edge shell-edge-left"
+          aria-hidden="true"
+          onPointerDown={onShellPointerDown}
+          onPointerMove={onShellPointerMove}
+          onPointerUp={onShellPointerEnd}
+          onPointerCancel={onShellPointerEnd}
+        />
+      )}
+      {mode === "compact" && route === "notes" && (
+        <div
+          className="shell-edge shell-edge-right"
+          aria-hidden="true"
+          onPointerDown={onShellPointerDown}
+          onPointerMove={onShellPointerMove}
+          onPointerUp={onShellPointerEnd}
+          onPointerCancel={onShellPointerEnd}
+        />
+      )}
       </div>
+      {mode === "compact" && (
+        <MobileSheet
+          side="left"
+          open={sidebarSheetOpen}
+          label={route === "journal" ? "Journal calendar" : "Notes"}
+          onClose={() => setSidebarOpen(false)}
+        >
+          {sidebarContent}
+        </MobileSheet>
+      )}
+      {mode === "compact" && (
+        <MobileSheet
+          side="right"
+          open={metadataSheetOpen}
+          label="Note details"
+          onClose={() => setMetadataOpen(false)}
+        >
+          <MetadataPanel store={store} />
+        </MobileSheet>
+      )}
       <CommandPaletteHost
         store={store}
         registry={registry}
