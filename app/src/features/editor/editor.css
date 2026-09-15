@@ -13,6 +13,86 @@
   caret-color: transparent;
 }
 
+/* Vim normal and visual modes paint their own block cursor; the native caret
+   would otherwise sit beside it as a second marker. */
+.prosemirror-host .ProseMirror.vim-normal {
+  caret-color: transparent;
+}
+
+.prosemirror-host .ProseMirror .vim-cursor {
+  background: hsl(var(--foreground));
+  color: hsl(var(--background));
+  border-radius: 1px;
+}
+
+.prosemirror-host .ProseMirror:not(:focus) .vim-cursor {
+  background: transparent;
+  color: inherit;
+  box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.6);
+}
+
+.prosemirror-host .ProseMirror .vim-cursor-node {
+  outline: 2px solid hsl(var(--foreground));
+  outline-offset: 1px;
+  border-radius: 3px;
+}
+
+.prosemirror-host .ProseMirror .vim-cursor-eol {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.05em;
+  margin-bottom: -0.2em;
+  background: hsl(var(--foreground));
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.prosemirror-host .ProseMirror:not(:focus) .vim-cursor-eol {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.6);
+}
+
+.prosemirror-host .ProseMirror.vim-normal[data-vim-mode^="visual"] ::selection {
+  background: hsl(var(--editor-selection) / 0.32);
+}
+
+.vim-status {
+  position: sticky;
+  bottom: 0.5rem;
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  color: hsl(var(--muted-foreground) / 0.8);
+}
+
+.vim-status[hidden] {
+  display: none;
+}
+
+.vim-status-detail {
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  background: hsl(var(--popover) / 0.9);
+  white-space: pre;
+  min-height: 1.125rem;
+}
+
+.vim-status-detail:empty {
+  display: none;
+}
+
+.vim-status[data-prompt="true"] .vim-status-detail {
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border) / 0.6);
+}
+
 /* Tailwind preflight flattens headings/lists to inherit; restore document
    typography inside the editor surface. */
 .prosemirror-host .ProseMirror p {
@@ -286,7 +366,6 @@
   --raw-markdown-gutter: 0px;
   --raw-markdown-inset: 0px;
   --raw-markdown-edge: 0.5rem;
-  --raw-markdown-scrollbar: 0px;
   position: relative;
   font-family: var(--font-mono);
   font-size: var(--raw-markdown-size);
@@ -309,120 +388,122 @@
   min-height: 60vh;
 }
 
-.raw-markdown-editor,
-.raw-markdown-highlight {
-  padding: 0 var(--raw-markdown-edge) 0 var(--raw-markdown-inset);
-  margin: 0;
-  font: inherit;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  border: 0;
-}
-
-.raw-markdown-editor {
-  position: relative;
-  z-index: 1;
-  display: block;
-  width: 100%;
+/* CodeMirror grows with the note and the pane scrolls, matching the rendered
+   editor; its own scroller stays visible so the viewport tracks the pane. */
+.raw-markdown-root .cm-editor {
   min-height: 60vh;
-  overflow-x: hidden;
-  resize: none;
+  background: transparent;
+  color: hsl(var(--foreground));
   outline: none;
-  background: transparent;
-  color: inherit;
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
 }
 
-.raw-markdown-editor:hover {
-  scrollbar-color: hsl(var(--theme-bg-hover)) transparent;
+.raw-markdown-root .cm-editor.cm-focused {
+  outline: none;
 }
 
-.raw-markdown-editor::-webkit-scrollbar-thumb {
-  background: transparent;
+.raw-markdown-root .cm-editor .cm-scroller {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  overflow: visible;
 }
 
-.raw-markdown-editor::-webkit-scrollbar-button {
-  display: none;
-}
-
-.raw-markdown-editor:hover::-webkit-scrollbar-thumb {
-  background: hsl(var(--theme-bg-hover));
-}
-
-.raw-markdown-editor:not(:focus) {
-  caret-color: transparent;
-}
-
-/* The overlay paints the text; the textarea keeps only its caret and
-   selection so the two stay pixel-aligned without a second layout pass. */
-.raw-markdown-root[data-highlighted="true"] .raw-markdown-editor {
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-}
-
-.raw-markdown-root[data-highlighted="true"] .raw-markdown-editor:focus {
+.raw-markdown-root .cm-editor .cm-content {
+  padding: 0;
   caret-color: hsl(var(--foreground));
 }
 
-.raw-markdown-root[data-highlighted="true"] .raw-markdown-editor::selection {
-  background: hsl(var(--editor-selection) / 0.32);
-}
-
-.raw-markdown-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.raw-markdown-scroller {
-  position: relative;
-  height: 100%;
-  will-change: transform;
-}
-
-.raw-markdown-highlight {
-  position: relative;
-  width: 100%;
-  padding-right: calc(var(--raw-markdown-edge) + var(--raw-markdown-scrollbar));
-  color: hsl(var(--foreground));
-}
-
-/* Wrapped lines have no fixed height, so the active-line band is the line box
-   itself rather than a row-indexed strip behind it. */
-.raw-markdown-line {
-  display: block;
-  position: relative;
-  min-height: var(--raw-markdown-row);
+.raw-markdown-root .cm-editor .cm-line {
+  padding: 0 var(--raw-markdown-edge) 0 0;
   border-radius: 4px;
   transition: background-color 120ms ease-out;
 }
 
-.raw-markdown-surface:focus-within .raw-markdown-line[data-active="true"] {
+.raw-markdown-root .cm-editor .cm-activeLine {
   background: hsl(var(--muted) / 0.4);
 }
 
-/* The number hangs out of the line box so it never joins the wrapped text. */
-.raw-markdown-gutter-line {
-  position: absolute;
-  top: 0;
-  left: calc(-1 * var(--raw-markdown-inset));
-  width: var(--raw-markdown-gutter);
-  height: var(--raw-markdown-row);
-  padding-right: 0.75rem;
+.raw-markdown-root .cm-editor:not(.cm-focused) .cm-activeLine {
+  background: transparent;
+}
+
+.raw-markdown-root .cm-editor .cm-selectionBackground,
+.raw-markdown-root .cm-editor.cm-focused .cm-selectionBackground,
+.raw-markdown-root .cm-editor .cm-content ::selection {
+  background: hsl(var(--editor-selection) / 0.32);
+}
+
+.raw-markdown-root .cm-editor .cm-cursor {
+  border-left-color: hsl(var(--foreground));
+}
+
+/* The gutter hangs into the column's side margin (see the root rule above),
+   and its numbers sit on the same row grid as the source lines. */
+.raw-markdown-root .cm-editor .cm-gutters {
+  background: transparent;
+  border: 0;
+  margin-right: 0.75rem;
   color: hsl(var(--muted-foreground) / 0.38);
   font-size: 0.8em;
-  line-height: var(--raw-markdown-row);
   font-variant-numeric: tabular-nums;
-  text-align: right;
   user-select: none;
+}
+
+.raw-markdown-root .cm-editor .cm-lineNumbers .cm-gutterElement {
+  min-width: var(--raw-markdown-gutter);
+  padding: 0 0.75rem 0 0;
+  line-height: var(--raw-markdown-row);
+  text-align: right;
   transition: color 120ms ease-out;
 }
 
-.raw-markdown-line[data-active="true"] .raw-markdown-gutter-line {
+.raw-markdown-root .cm-editor .raw-markdown-row {
+  display: block;
+  height: var(--raw-markdown-row);
+  transition: color 120ms ease-out;
+}
+
+.raw-markdown-root .cm-editor .raw-markdown-row[data-active="true"] {
   color: hsl(var(--foreground) / 0.8);
+}
+
+.raw-markdown-root .cm-editor:not(.cm-focused) .raw-markdown-row[data-active="true"] {
+  color: inherit;
+}
+
+/* Vim's block cursor and command line reuse the theme instead of the
+   extension's pink defaults. */
+.raw-markdown-root .cm-editor .cm-fat-cursor {
+  background: hsl(var(--foreground));
+  color: hsl(var(--background));
+}
+
+.raw-markdown-root .cm-editor:not(.cm-focused) .cm-fat-cursor {
+  background: none;
+  outline: 1px solid hsl(var(--foreground) / 0.6);
+}
+
+.raw-markdown-root .cm-editor .cm-panels {
+  background: transparent;
+  color: inherit;
+}
+
+.raw-markdown-root .cm-editor .cm-panels-bottom {
+  border-top: 0;
+}
+
+.raw-markdown-root .cm-editor .cm-vim-panel {
+  padding: 0.25rem var(--raw-markdown-edge);
+  font: inherit;
+  color: hsl(var(--muted-foreground));
+}
+
+.raw-markdown-root .cm-editor .cm-vim-panel input {
+  font: inherit;
+  color: hsl(var(--foreground));
+  background: transparent;
+  border: 0;
+  outline: none;
 }
 
 .raw-markdown-token-marker {
@@ -498,6 +579,41 @@
 .raw-markdown-token-comment {
   color: hsl(var(--muted-foreground) / 0.45);
   font-style: italic;
+}
+
+.raw-markdown-status-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.vim-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 1.125rem;
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  background: hsl(var(--muted) / 0.6);
+  color: hsl(var(--foreground) / 0.75);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vim-mode-badge[data-mode="insert"] {
+  background: hsl(var(--project-green) / 0.18);
+  color: hsl(var(--project-green));
+}
+
+.vim-mode-badge[data-mode^="visual"] {
+  background: hsl(var(--project-purple) / 0.18);
+  color: hsl(var(--project-purple));
+}
+
+.vim-mode-badge[data-mode="replace"] {
+  background: hsl(var(--project-amber) / 0.18);
+  color: hsl(var(--project-amber));
 }
 
 .raw-markdown-status {
