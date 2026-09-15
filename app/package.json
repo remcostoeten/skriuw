@@ -14,6 +14,7 @@
     "e2e:browser-reset": "node e2e/browser-reset.mjs",
     "e2e:browser-storage:firefox": "node e2e/browser-storage-firefox.mjs",
     "e2e:browser-scale": "node e2e/browser-scale.mjs",
+    "e2e:mobile": "node e2e/mobile-shell.mjs",
     "e2e:native": "node e2e/run-native.mjs",
     "typecheck": "tsc --noEmit",
     "tauri": "../scripts/tauri.sh",

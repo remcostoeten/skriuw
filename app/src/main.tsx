@@ -21,6 +21,12 @@ import {
   saveSidebarExpansion,
 } from "@/bridge/commands";
 import { clearBrowserData, isBrowserRuntime, releaseBrowserStorage } from "@/bridge/runtime";
+import { applyShellUpdate, registerShellWorker } from "@/bridge/service-worker";
+import {
+  claimRiskAnnouncement,
+  describePersistenceRisk,
+  requestWorkspacePersistence,
+} from "@/bridge/storage-persistence";
 import type { HistoryHeader } from "@/contracts/workspace";
 import { listenForHistoryHeaders } from "@/features/history/live-history";
 import {
@@ -52,6 +58,8 @@ import { bindSidebarExpansionPersistence } from "@/store/sidebar-expansion-persi
 import { createInitialState, createRendererStore } from "@/store/store";
 import type { RendererStore } from "@/store/types";
 import { initZoom } from "@/shell/zoom-controller";
+import { bindThemeColor } from "@/shell/theme-color";
+import { bindViewport } from "@/shell/viewport";
 import { showToast } from "@/shared/ui/toast";
 import "@remcostoeten/notifier/styles";
 import "./styles.css";
@@ -60,6 +68,33 @@ const REVEAL_FRAME_TIMEOUT_MS = 100;
 const BLOCKED_RETRY_INTERVAL_MS = 5_000;
 
 let revealed = false;
+
+/**
+ * Reports how durable this browser is willing to make the workspace. OPFS is
+ * the canonical store in the browser, so an evicted origin is lost work rather
+ * than a cold cache; a best-effort grant is worth saying out loud while the
+ * user can still export.
+ */
+async function announcePersistenceRisk(): Promise<void> {
+  const state = await requestWorkspacePersistence();
+  const warning = describePersistenceRisk(state);
+  if (warning && claimRiskAnnouncement(state)) {
+    showToast({ message: warning, durationMs: 12_000 });
+  }
+}
+
+/**
+ * Offers the newly installed build instead of swapping it in. Reloading under
+ * an open editor would discard whatever has not reached the database yet, and
+ * a shell from one build must never drive a database another build migrated.
+ */
+function offerShellUpdate(): void {
+  showToast({
+    message: "A new version of Skriuw is ready.",
+    action: { label: "Reload", run: () => void applyShellUpdate() },
+    durationMs: 60_000,
+  });
+}
 
 /**
  * Reveals the main window once the first application frame has painted. The
@@ -226,6 +261,7 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
       unlistenSessionExpiry?.();
       unbindPropagationTriggers();
       unbindWindowClosePersistence();
+      unbindThemeColor();
       disposeUiPersistence();
     }
     window.addEventListener("pagehide", teardownSession, { once: true });
@@ -240,6 +276,8 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
       console.error("relationship fixture seeding failed", error);
     });
     bindSettingsToRoot(store, document.documentElement);
+    const unbindThemeColor = bindThemeColor(store, document.documentElement);
+    void announcePersistenceRisk();
     root.render(
       <StrictMode>
         <App store={store} />
@@ -265,7 +303,17 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
  */
 function main(): void {
   const unbindZoom = initZoom();
-  window.addEventListener("pagehide", unbindZoom, { once: true });
+  const unbindViewport = bindViewport(window, document.documentElement);
+  const unbindShellWorker = registerShellWorker(offerShellUpdate);
+  window.addEventListener(
+    "pagehide",
+    () => {
+      unbindZoom();
+      unbindViewport();
+      unbindShellWorker();
+    },
+    { once: true },
+  );
   const container = document.getElementById("root");
   if (!container) {
     throw new Error("missing root container");
