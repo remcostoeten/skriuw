@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   activateTab,
   closeAllTabs,
@@ -35,6 +35,8 @@ import { SplitDivider } from "./split-divider";
 import { splitGridTemplate, splitTrackProperty } from "./split-layout";
 import { COMPACT_SHELL_QUERY } from "./shell-layout";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
+import { bindLongPress } from "@/shared/lib/long-press";
+import { swallowGhostClick } from "@/shared/lib/ghost-click";
 
 type Props = {
   store: RendererStore;
@@ -121,6 +123,18 @@ export function EditorPanes({ store }: Props) {
   // Radix ContextMenu per tab.
   const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const touchMenuRef = useRef(false);
+
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) {
+      return;
+    }
+    return bindLongPress(strip, () => {
+      touchMenuRef.current = true;
+    });
+  }, [showStrip]);
 
   /**
    * Divider drags repaint through a direct write to the split container's track
@@ -176,11 +190,17 @@ export function EditorPanes({ store }: Props) {
       {showStrip && (
         <ContextMenu
           onOpenChange={(open) => {
-            if (!open) setContextTarget(null);
+            if (open) return;
+            setContextTarget(null);
+            if (touchMenuRef.current) {
+              touchMenuRef.current = false;
+              swallowGhostClick();
+            }
           }}
         >
           <ContextMenuTrigger asChild>
             <div
+              ref={stripRef}
               className="scrollbar-none flex h-9 shrink-0 items-stretch overflow-x-auto border-b border-sidebar-border bg-sidebar pointer-coarse:h-11"
               role="tablist"
               aria-label="Open notes"

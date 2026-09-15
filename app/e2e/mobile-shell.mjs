@@ -269,6 +269,33 @@ try {
   );
   checks.push({ name: "undo restores the swiped row", passed: true });
 
+  await hold(cdp, sessionId, await evaluate(cdp, sessionId, rowCenter("Gamma note")), 650);
+  await waitFor(cdp, sessionId, `document.querySelectorAll('[role="menuitem"]').length > 0`, "menu for open in tab");
+  const openInTab = await evaluate(
+    cdp,
+    sessionId,
+    `(() => { const item = Array.from(document.querySelectorAll('[role="menuitem"]')).find((m) => m.textContent.startsWith('Open in new tab')); const rect = item.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()`,
+  );
+  await touch(cdp, sessionId, "touchStart", [openInTab]);
+  await touch(cdp, sessionId, "touchEnd", []);
+  await waitFor(cdp, sessionId, NO_SHEET, "sheet closing after opening a tab");
+  await waitFor(cdp, sessionId, `document.querySelectorAll('[role="tab"]').length === 2`, "two note tabs");
+  const tab = await evaluate(
+    cdp,
+    sessionId,
+    `(() => { const rect = document.querySelector('[role="tab"]').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, height: rect.height }; })()`,
+  );
+  await hold(cdp, sessionId, tab, 650);
+  await waitFor(cdp, sessionId, `document.querySelectorAll('[role="menuitem"]').length > 0`, "tab menu from a hold");
+  const tabMenu = await evaluate(
+    cdp,
+    sessionId,
+    `Array.from(document.querySelectorAll('[role="menuitem"]')).map((item) => item.textContent.trim())`,
+  );
+  check("a held note tab opens the tab menu at a touch size", tab.height >= 43.5 && tabMenu.includes("Close all but this"), { tab, tabMenu });
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
+
   const errors = await evaluate(cdp, sessionId, `window.__consoleErrors`);
   consoleErrors.push(...errors.filter((line) => !IGNORED_CONSOLE.test(line)));
   check("the scenario logs no console errors", consoleErrors.length === 0, consoleErrors);
