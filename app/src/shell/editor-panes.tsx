@@ -181,7 +181,7 @@ export function EditorPanes({ store }: Props) {
         >
           <ContextMenuTrigger asChild>
             <div
-              className="scrollbar-none flex h-9 shrink-0 items-stretch overflow-x-auto border-b border-sidebar-border bg-sidebar"
+              className="scrollbar-none flex h-9 shrink-0 items-stretch overflow-x-auto border-b border-sidebar-border bg-sidebar pointer-coarse:h-11"
               role="tablist"
               aria-label="Open notes"
               onContextMenu={onStripContextMenu}

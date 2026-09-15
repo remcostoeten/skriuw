@@ -143,6 +143,30 @@ try {
   check("compact layout replaces the rail with a tab bar", layout.tabs === 7 && !layout.rail && !layout.overflow, layout);
   check("touch emulation reports a coarse pointer", layout.coarse, layout);
   check("compact toolbar drops the prev/next note pair", !layout.toolbar.includes("Previous note"), layout);
+  const edges = await evaluate(
+    cdp,
+    sessionId,
+    `(() => {
+      const hit = (label, dx) => {
+        const button = document.querySelector('button[aria-label="' + label + '"]');
+        const rect = button.getBoundingClientRect();
+        return button.contains(document.elementFromPoint(rect.left + dx, rect.top + rect.height / 2));
+      };
+      const tab = document.querySelector('.shell-tab');
+      const tabRect = tab.getBoundingClientRect();
+      return {
+        toggleLeftEdge: hit('Toggle sidebar', 4),
+        metadataRightEdge: (() => { const b = document.querySelector('button[aria-label="Toggle metadata"]'); const r = b.getBoundingClientRect(); return b.contains(document.elementFromPoint(r.right - 4, r.top + r.height / 2)); })(),
+        firstTabLeftEdge: tab.contains(document.elementFromPoint(tabRect.left + 4, tabRect.top + tabRect.height / 2)),
+        stripAtEditorEdge: Boolean(document.elementFromPoint(6, window.innerHeight / 2)?.closest('.shell-edge-left')),
+      };
+    })()`,
+  );
+  check(
+    "edge swipe strips never cover toolbar or tab bar controls",
+    edges.toggleLeftEdge && edges.metadataRightEdge && edges.firstTabLeftEdge && edges.stripAtEditorEdge,
+    edges,
+  );
 
   await evaluate(cdp, sessionId, pressLabelled("Toggle sidebar"));
   await waitForSheet(cdp, sessionId, "left", "tree sheet from the toolbar");

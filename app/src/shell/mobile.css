@@ -14,10 +14,14 @@
   grid-row: 1;
 }
 
-.shell-compact > .shell-edge {
+.shell-compact > /*
+ * The strips sit between the toolbar row and the tab bar so neither row's
+ * leftmost or rightmost control loses its edge to the swipe recogniser.
+ */
+.shell-edge {
   position: absolute;
-  inset-block: 0;
-  width: 24px;
+  inset-block: 44px 56px;
+  width: 20px;
   z-index: 30;
   touch-action: none;
 }
@@ -34,10 +38,14 @@
   grid-row: 2;
 }
 
+/*
+ * The strips sit between the toolbar row and the tab bar so neither row's
+ * leftmost or rightmost control loses its edge to the swipe recogniser.
+ */
 .shell-edge {
   position: absolute;
-  inset-block: 0;
-  width: 24px;
+  inset-block: 44px 56px;
+  width: 20px;
   z-index: 30;
   touch-action: none;
 }
@@ -329,7 +337,8 @@
     -webkit-touch-callout: none;
   }
 
-  [role="tree"] {
+  [role="tree"],
+  .editor-scroll {
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
