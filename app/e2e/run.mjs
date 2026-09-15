@@ -18,6 +18,7 @@ const chromeBinary = process.env.CHROME_BINARY ?? "google-chrome-stable";
 const personalOnly = process.argv.includes("--personal-only");
 const tasksOnly = process.argv.includes("--tasks-only");
 const providerImportOnly = process.argv.includes("--provider-import-only");
+const journalOnly = process.argv.includes("--journal-only");
 const sleep = (milliseconds) =>
   new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
 
@@ -414,6 +415,61 @@ async function checkTaskKeyboard(cdp, sessionId, checks) {
 
 }
 
+const ALT = 1;
+const SHIFT = 8;
+
+async function journalHash(cdp, sessionId) {
+  return evaluate(cdp, sessionId, "window.location.hash");
+}
+
+async function pressOutsideEntry(cdp, sessionId, key, code, virtualKeyCode, text, modifiers) {
+  await evaluate(cdp, sessionId, "document.activeElement instanceof HTMLElement && document.activeElement.blur()");
+  await dispatchKey(cdp, sessionId, key, code, virtualKeyCode, text, modifiers);
+}
+
+async function checkJournalNavigation(cdp, sessionId, checks) {
+  const openDialog = "document.querySelector('dialog[open] input[aria-label=\"Date to go to\"]')";
+  const preview = "(document.querySelector('dialog[open] [role=status]')?.textContent ?? '')";
+  await evaluate(cdp, sessionId, "window.location.hash = '#/journal/2026-01-31'");
+  await waitFor(cdp, sessionId, "document.querySelector('main[aria-label=\"Journal\"] .ProseMirror[contenteditable=\"true\"]') !== null", "journal entry editor");
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.settle()");
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.focusSelector('main[aria-label=\"Journal\"] .ProseMirror[contenteditable=\"true\"]')");
+  await typeText(cdp, sessionId, "Draft kept across steps");
+  await waitFor(cdp, sessionId, "document.querySelector('main[aria-label=\"Journal\"] .ProseMirror')?.textContent.includes('Draft kept across steps') === true", "draft typed into the entry");
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.settle()");
+
+  await pressOutsideEntry(cdp, sessionId, "]", "BracketRight", 221, "", ALT);
+  await waitFor(cdp, sessionId, "window.location.hash === '#/journal/2026-02-28'", "alt+] steps a month, clamped");
+  assert(checks, "journal-next-month-shortcut", true, await journalHash(cdp, sessionId));
+  await pressOutsideEntry(cdp, sessionId, "{", "BracketLeft", 219, "", SHIFT);
+  await waitFor(cdp, sessionId, "window.location.hash === '#/journal/2026-02-21'", "shift+[ steps back a week");
+  await pressOutsideEntry(cdp, sessionId, "[", "BracketLeft", 219, "", ALT);
+  await waitFor(cdp, sessionId, "window.location.hash === '#/journal/2026-01-21'", "alt+[ steps back a month");
+  await evaluate(cdp, sessionId, "window.location.hash = '#/journal/2026-01-31'");
+  await waitFor(cdp, sessionId, "document.querySelector('main[aria-label=\"Journal\"] .ProseMirror')?.textContent.includes('Draft kept across steps') === true", "entry content after stepping away and back");
+  assert(checks, "journal-entry-content-kept", true, "typed entry text survives month and week steps");
+
+  await pressOutsideEntry(cdp, sessionId, "d", "KeyD", 68, "d", 0);
+  await waitFor(cdp, sessionId, `${openDialog} !== null && document.activeElement === ${openDialog}`, "go to date dialog with focused field");
+  assert(checks, "journal-go-to-suggestions", await evaluate(cdp, sessionId, "document.querySelectorAll('dialog[open] [role=option]').length > 0"), "suggestions listed while empty");
+  await typeText(cdp, sessionId, "1/1/202");
+  await waitFor(cdp, sessionId, `${preview}.includes('two or four digits')`, "inline error for a malformed year");
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  assert(checks, "journal-go-to-invalid-stays", (await journalHash(cdp, sessionId)) === "#/journal/2026-01-31" && (await evaluate(cdp, sessionId, `${openDialog} !== null`)), "Enter on an invalid date keeps the dialog open");
+  await replaceText(cdp, sessionId, "dec 2025");
+  await waitFor(cdp, sessionId, `${preview}.includes('December 2025') && ${preview}.includes('Monday, December 1, 2025')`, "month preview with its opening day");
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await waitFor(cdp, sessionId, "window.location.hash === '#/journal/2025-12-01' && document.querySelector('dialog[open]') === null", "go to dec 2025");
+  assert(checks, "journal-go-to-month", true, await journalHash(cdp, sessionId));
+
+  await pressOutsideEntry(cdp, sessionId, "d", "KeyD", 68, "d", 0);
+  await waitFor(cdp, sessionId, `${openDialog} !== null`, "go to date dialog reopened");
+  await typeText(cdp, sessionId, "tomorrow");
+  await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
+  await waitFor(cdp, sessionId, "document.querySelector('dialog[open]') === null", "escape closes the dialog");
+  assert(checks, "journal-go-to-escape", (await journalHash(cdp, sessionId)) === "#/journal/2025-12-01", "Escape leaves the day unchanged");
+}
+
 async function runWorkflow() {
   const profileDirectory = await mkdtemp(join(tmpdir(), "skriuw-c3-workflow-"));
   let chrome;
@@ -506,6 +562,13 @@ async function runWorkflow() {
       assert(checks, "personal-browser-errors-empty", consoleErrors.length === 0 && pageErrors.length === 0, JSON.stringify({ consoleErrors, pageErrors }));
       cdp.close();
       return { browser: browser.product, steps: ["personal-template", "saved-search"], checks, consoleErrors, pageErrors };
+    }
+
+    if (journalOnly) {
+      await checkJournalNavigation(cdp, sessionId, checks);
+      assert(checks, "journal-browser-errors-empty", consoleErrors.length === 0 && pageErrors.length === 0, JSON.stringify({ consoleErrors, pageErrors }));
+      cdp.close();
+      return { browser: browser.product, steps: ["journal-navigation"], checks, consoleErrors, pageErrors };
     }
 
     if (tasksOnly) {
@@ -1632,7 +1695,7 @@ try {
     schemaVersion: 1,
     verifiedAt: new Date().toISOString(),
     revision: git.stdout.trim(),
-    command: `node app/e2e/run.mjs${personalOnly ? " --personal-only" : providerImportOnly ? " --provider-import-only" : tasksOnly ? " --tasks-only" : ""} --output ${output}`,
+    command: `node app/e2e/run.mjs${personalOnly ? " --personal-only" : journalOnly ? " --journal-only" : providerImportOnly ? " --provider-import-only" : tasksOnly ? " --tasks-only" : ""} --output ${output}`,
     machine: {
       hostname: hostname(),
       platform: platform(),
