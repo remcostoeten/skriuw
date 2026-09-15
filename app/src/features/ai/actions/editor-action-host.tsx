@@ -1,23 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
-import type { AiCompletionRequest } from "@/contracts/ai";
 import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererStore } from "@/store/types";
+import type { RendererState, RendererStore } from "@/store/types";
+import { showToast } from "@/shared/ui/toast";
+import { showsToasts } from "@/features/settings/settings-model";
 import {
   aiActionInputError,
   aiActionInstructionError,
+  aiActionOrigin,
   aiEditorAction,
   buildAiActionRequest,
   type AiEditorAction,
 } from "./editor-actions";
 import { actionInputRange, actionInputText } from "./editor-action-apply";
-import type { AiActionTarget } from "./editor-action-model";
-import { registerAiActionListener } from "./editor-action-controller";
+import { registerAiActionListener, rememberAiAction } from "./editor-action-controller";
 import { aiModelLabel } from "@/features/ai/menu/ai-menu-model";
 import { AiLauncher } from "@/features/ai/menu/ai-launcher";
 import { AiMenu } from "@/features/ai/menu/ai-menu";
 import { AiRunCard } from "@/features/ai/run/ai-run-card";
+import { createRunSession } from "@/features/ai/run/run-session";
+import { endAiRun, registerAiRun } from "@/features/ai/run/run-registry";
+import { useRegisteredAiRun } from "@/features/ai/run/use-ai-run";
 import { requestModelSwitcher } from "@/features/ai/models/model-switcher-controller";
 import { requestAiSettings } from "@/features/ai/ai-settings-controller";
 import { appRouteHash } from "@/app-route";
@@ -37,32 +41,43 @@ type EditorCapture = {
 
 type Stage =
   | { kind: "closed" }
-  | { kind: "menu"; capture: EditorCapture; action: AiEditorAction | null }
-  | {
-      kind: "run";
-      action: AiEditorAction;
-      target: AiActionTarget;
-      request: AiCompletionRequest;
-    };
+  | { kind: "menu"; capture: EditorCapture; action: AiEditorAction | null };
 
 type EditorActionHostProps = {
   store: RendererStore;
   signal: AbortSignal;
+  selectNoteId: (state: RendererState) => string | null;
   getView: () => EditorView | null;
   getNoteId: () => string | null;
 };
+
+function selectToastsOn(state: RendererState): boolean {
+  return showsToasts(state.settings);
+}
 
 /**
  * Owns every transient AI editor surface. It mounts only inside the opt-in
  * gate, so with AI off no launcher, menu, preview buffer, provider module, or
  * model lookup exists at all — and nothing here runs on startup, typing, save,
  * or navigation.
+ *
+ * A run is not component state: it lives in the run registry under the note it
+ * was fired against, so switching notes hides its card and switching back
+ * shows it again, with whatever streamed meanwhile already in it.
  */
-export function AiEditorActionHost({ store, signal, getView, getNoteId }: EditorActionHostProps) {
+export function AiEditorActionHost({
+  store,
+  signal,
+  selectNoteId,
+  getView,
+  getNoteId,
+}: EditorActionHostProps) {
   const [stage, setStage] = useState<Stage>({ kind: "closed" });
   const [blocked, setBlocked] = useState<string | null>(null);
   const [runLive, setRunLive] = useState(false);
 
+  const noteId = useRendererSelector(store, selectNoteId);
+  const registered = useRegisteredAiRun(noteId);
   const storedPrompts = useRendererSelector(store, selectWorkspacePrompts);
   const rawModel = useRendererSelector(store, selectRawAiModelSetting);
   const model = useMemo(() => parseAiModelSelection(rawModel), [rawModel]);
@@ -84,18 +99,38 @@ export function AiEditorActionHost({ store, signal, getView, getNoteId }: Editor
     };
   }, [stage]);
 
-  function openMenu(actionId: string | null): void {
+  function captureEditor(): EditorCapture | null {
     const view = getView();
     const noteId = getNoteId();
-    if (view === null || noteId === null) {
+    return view === null || noteId === null ? null : { noteId, state: view.state };
+  }
+
+  function openMenu(actionId: string | null): void {
+    const capture = captureEditor();
+    if (capture === null) {
       return;
     }
     setBlocked(null);
     setStage({
       kind: "menu",
-      capture: { noteId, state: view.state },
+      capture,
       action: actionId === null ? null : aiEditorAction(actionId),
     });
+  }
+
+  /**
+   * A repeat skips the menu, so its refusal has nowhere to land unless the menu
+   * is opened for it: on the action's own pane when it takes an instruction,
+   * on the list otherwise, where "Select some text first" is already a row.
+   */
+  function repeatAction(action: AiEditorAction, instruction: string): void {
+    const capture = captureEditor();
+    if (capture === null) {
+      return;
+    }
+    if (!startRun(capture, action, instruction)) {
+      setStage({ kind: "menu", capture, action: action.instruction === null ? null : action });
+    }
   }
 
   useEffect(
@@ -103,8 +138,8 @@ export function AiEditorActionHost({ store, signal, getView, getNoteId }: Editor
       registerAiActionListener({
         isFocused: () => getView()?.hasFocus() === true,
         open: openMenu,
+        repeat: repeatAction,
       }),
-    [getNoteId, getView],
   );
 
   /**
@@ -116,7 +151,7 @@ export function AiEditorActionHost({ store, signal, getView, getNoteId }: Editor
     capture: EditorCapture,
     action: AiEditorAction,
     instruction: string,
-  ): void {
+  ): boolean {
     const input = actionInputText(capture.state, action.scope);
     const failure =
       aiActionInputError(action, input) ??
@@ -124,38 +159,55 @@ export function AiEditorActionHost({ store, signal, getView, getNoteId }: Editor
       (model === null ? "Choose an AI model first." : null);
     if (failure !== null || model === null) {
       setBlocked(failure);
-      return;
+      return false;
     }
     const prompt = promptLibraryEntries(storedPrompts).find(
       (entry) => entry.builtInId === action.promptId,
     );
     if (prompt === undefined) {
       setBlocked("That prompt is missing from the library.");
-      return;
+      return false;
     }
     const range = actionInputRange(capture.state, action.scope);
-    setBlocked(null);
-    setStage({
-      kind: "run",
+    const request = buildAiActionRequest({
       action,
-      target: { noteId: capture.noteId, from: range.from, to: range.to, input },
-      request: buildAiActionRequest({
-        action,
-        selection: model,
-        systemPrompt: prompt.systemPrompt,
-        parameters: prompt.parameters,
-        input,
-        instruction,
-        requestId: crypto.randomUUID(),
-      }),
+      selection: model,
+      systemPrompt: prompt.systemPrompt,
+      parameters: prompt.parameters,
+      input,
+      instruction,
+      requestId: crypto.randomUUID(),
     });
+    const session = createRunSession({ origin: aiActionOrigin(action), signal });
+    registerAiRun(
+      {
+        action,
+        target: { noteId: capture.noteId, from: range.from, to: range.to, input },
+        request,
+        modelLabel,
+        session,
+      },
+      {
+        signal,
+        onStopped: (entry) => {
+          if (selectToastsOn(store.getState())) {
+            showToast({ message: `${entry.action.label} stopped because you left the note.` });
+          }
+        },
+      },
+    );
+    setBlocked(null);
+    setStage({ kind: "closed" });
+    rememberAiAction(action.id, instruction);
+    session.fire(request);
+    return true;
   }
 
   return (
     <>
       <AiLauncher
         state={
-          stage.kind === "run"
+          registered !== null
             ? runLive
               ? "working"
               : "settled"
@@ -192,19 +244,18 @@ export function AiEditorActionHost({ store, signal, getView, getNoteId }: Editor
           onClose={() => setStage({ kind: "closed" })}
         />
       )}
-      {stage.kind === "run" && (
+      {registered !== null && (
         <AiRunCard
-          key={stage.request.requestId}
+          key={registered.request.requestId}
           store={store}
-          signal={signal}
-          action={stage.action}
-          target={stage.target}
-          request={stage.request}
-          modelLabel={modelLabel}
+          action={registered.action}
+          target={registered.target}
+          session={registered.session}
+          modelLabel={registered.modelLabel}
           getView={getView}
           getNoteId={getNoteId}
           onLiveChange={setRunLive}
-          onClose={() => setStage({ kind: "closed" })}
+          onClose={() => endAiRun(registered.target.noteId, registered)}
         />
       )}
     </>

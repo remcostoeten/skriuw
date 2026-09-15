@@ -9,6 +9,7 @@ import { shortcutScopesActive } from "../../src/commands/bindings";
 import { activeShortcutScopes } from "../../src/commands/workspace-shortcuts";
 import type { AppRoute } from "../../src/app-route";
 import type { RendererState, RendererStore } from "../../src/store/types";
+import { rememberAiAction } from "../../src/features/ai/actions/editor-action-controller";
 
 const ROUTES: readonly AppRoute[] = [
   "notes",
@@ -24,6 +25,9 @@ const ROUTES: readonly AppRoute[] = [
  * panes, a tab strip with something to move and something to reopen. What is
  * left filtering a command is its route gate alone.
  */
+// The repeat command is only live once something has run this session.
+rememberAiAction("rewrite", "");
+
 const permissiveState = {
   activeNoteId: "note-1",
   focusedPaneId: "pane-1",
@@ -37,7 +41,7 @@ const permissiveState = {
     { paneId: "pane-2", openNoteIds: ["note-1", "note-2"], activeNoteId: "note-2" },
   ],
   closedTabsByPaneId: new Map([["pane-1", [{ noteId: "note-3", index: 0 }]]]),
-  settings: { openNotesInTabs: true },
+  settings: { openNotesInTabs: true, aiEnabled: true },
 } as unknown as RendererState;
 
 const controls: CommandUiControls = {

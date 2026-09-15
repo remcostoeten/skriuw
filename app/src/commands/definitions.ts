@@ -88,6 +88,7 @@ export type ShortcutActionId =
   | "searchWholeWord"
   | "searchRegex"
   | "toggleAnnotateMode"
+  | "repeatAiAction"
   | "drawPen"
   | "drawHighlighter"
   | "drawLine"
@@ -350,6 +351,17 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
       "Draw over the whole note. Escape leaves annotate mode and returns focus to the text.",
     group: "Workspace",
     worksWhileTyping: true,
+    scopes: "notes-route",
+  },
+  {
+    id: "repeatAiAction",
+    keys: "mod+shift+r",
+    label: "AI: Repeat last action",
+    description:
+      "Run the last AI action again with the same instruction: selection actions against the current selection, note actions against the current note. Disabled until an action has run this session, and while AI is off.",
+    group: "Editor",
+    worksWhileTyping: true,
+    guards: ["modal"],
     scopes: "notes-route",
   },
   {

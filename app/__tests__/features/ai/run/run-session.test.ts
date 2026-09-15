@@ -1,0 +1,275 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import type { AiCompletionEvent, AiCompletionRequest } from "../../../../src/contracts/ai";
+import type { AiCompletionHandle } from "../../../../src/features/ai/completion/completion-bridge";
+import {
+  createRunSession,
+  type FlushScheduler,
+  type StartCompletion,
+} from "../../../../src/features/ai/run/run-session";
+
+const TEMPLATE: AiCompletionRequest = {
+  requestId: "template",
+  providerId: "fake",
+  modelId: "echo",
+  systemPrompt: "system",
+  userPrompt: "user",
+  parameters: {
+    maxOutputBytes: 1024,
+    timeoutMs: 1000,
+    retryCount: 0,
+    temperatureMillis: null,
+    topPMillis: null,
+  },
+};
+
+type Started = {
+  request: AiCompletionRequest;
+  origin: string;
+  emit: (event: AiCompletionEvent) => void;
+  resolve: () => void;
+  reject: (reason: unknown) => void;
+  handle: AiCompletionHandle & { cancelled: number; disposed: number };
+};
+
+/**
+ * A seam that hands every start back to the test: the promise resolves or
+ * rejects only when told to, and the handle counts what was asked of it.
+ */
+function fakeSeam() {
+  const starts: Started[] = [];
+  const startCompletion: StartCompletion = (request, origin, onEvent) =>
+    new Promise<AiCompletionHandle>((resolve, reject) => {
+      const handle = {
+        cancelled: 0,
+        disposed: 0,
+        cancel() {
+          handle.cancelled += 1;
+          return Promise.resolve(true);
+        },
+        dispose() {
+          handle.disposed += 1;
+        },
+      };
+      starts.push({
+        request,
+        origin,
+        emit: onEvent,
+        resolve: () => resolve(handle),
+        reject,
+        handle,
+      });
+    });
+  return { starts, startCompletion };
+}
+
+function manualFlush() {
+  let pending: (() => void) | null = null;
+  const scheduleFlush: FlushScheduler = (flush) => {
+    pending = flush;
+    return () => {
+      if (pending === flush) {
+        pending = null;
+      }
+    };
+  };
+  return {
+    scheduleFlush,
+    flush() {
+      const flush = pending;
+      pending = null;
+      flush?.();
+    },
+    isPending: () => pending !== null,
+  };
+}
+
+function ids() {
+  let next = 0;
+  return () => `req-${(next += 1)}`;
+}
+
+async function settle(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function session(seam: ReturnType<typeof fakeSeam>, frames = manualFlush()) {
+  const controller = new AbortController();
+  return createRunSession({
+    origin: "editor:test",
+    signal: controller.signal,
+    startCompletion: seam.startCompletion,
+    scheduleFlush: frames.scheduleFlush,
+    mintRequestId: ids(),
+    now: () => 0,
+  });
+}
+
+test("two fires with the same template go out under distinct ids and a late first handle is dropped", async () => {
+  const seam = fakeSeam();
+  const run = session(seam);
+
+  run.fire(TEMPLATE);
+  run.fire(TEMPLATE);
+
+  assert.equal(seam.starts.length, 2);
+  const [first, second] = seam.starts as [Started, Started];
+  assert.notEqual(first.request.requestId, second.request.requestId);
+  assert.notEqual(first.request.requestId, TEMPLATE.requestId);
+  assert.equal(run.getRun().requestId, second.request.requestId);
+
+  first.resolve();
+  await settle();
+  assert.equal(first.handle.disposed, 1);
+  assert.equal(run.getRun().stage, "sending");
+
+  second.resolve();
+  await settle();
+  assert.equal(second.handle.disposed, 0);
+  assert.equal(run.getRun().stage, "waiting");
+});
+
+test("cancel before the start resolves cancels the handle on resolution and the run reads cancelled", async () => {
+  const seam = fakeSeam();
+  const run = session(seam);
+  run.fire(TEMPLATE);
+  const [start] = seam.starts as [Started];
+
+  run.cancel();
+  assert.equal(run.getRun().phase, "cancelled");
+  assert.equal(start.handle.cancelled, 0);
+
+  start.resolve();
+  await settle();
+  assert.equal(start.handle.cancelled, 1);
+  assert.equal(run.getRun().phase, "cancelled");
+  assert.equal(run.getRun().stage, "settled");
+});
+
+test("retry after a failure re-sends the same template under a new id", async () => {
+  const seam = fakeSeam();
+  const run = session(seam);
+  run.fire(TEMPLATE);
+  const [first] = seam.starts as [Started];
+
+  first.reject(new Error("AI completion worker is unavailable"));
+  await settle();
+  assert.equal(run.getRun().phase, "error");
+  assert.equal(run.getRun().error?.message, "The AI service in this app is not running.");
+  assert.equal(run.getRun().error?.recoveryAction, "check_provider_status");
+
+  run.retry();
+  assert.equal(seam.starts.length, 2);
+  const second = seam.starts[1] as Started;
+  assert.notEqual(second.request.requestId, first.request.requestId);
+  assert.equal(second.request.userPrompt, first.request.userPrompt);
+  assert.equal(second.origin, "editor:test");
+  assert.equal(run.getRun().phase, "streaming");
+  assert.equal(run.getRun().requestId, second.request.requestId);
+});
+
+test("retry does nothing while streaming or before a first run", () => {
+  const seam = fakeSeam();
+  const run = session(seam);
+  run.retry();
+  assert.equal(seam.starts.length, 0);
+
+  run.fire(TEMPLATE);
+  run.retry();
+  assert.equal(seam.starts.length, 1);
+});
+
+test("deltas are batched per frame and none reach state after dispose", async () => {
+  const seam = fakeSeam();
+  const frames = manualFlush();
+  const run = session(seam, frames);
+  const seen: string[] = [];
+  run.subscribe(() => seen.push(run.getRun().preview));
+
+  run.fire(TEMPLATE);
+  const [start] = seam.starts as [Started];
+  start.resolve();
+  await settle();
+
+  start.emit({ type: "delta", requestId: start.request.requestId, sequence: 0, text: "Hel" });
+  start.emit({ type: "delta", requestId: start.request.requestId, sequence: 1, text: "lo" });
+  assert.equal(run.getRun().preview, "");
+  assert.equal(frames.isPending(), true);
+  frames.flush();
+  assert.equal(run.getRun().preview, "Hello");
+
+  start.emit({ type: "delta", requestId: start.request.requestId, sequence: 2, text: " there" });
+  run.dispose();
+  assert.equal(frames.isPending(), false);
+  start.emit({ type: "delta", requestId: start.request.requestId, sequence: 3, text: "!" });
+  start.emit({ type: "done", requestId: start.request.requestId });
+  frames.flush();
+
+  assert.equal(run.getRun().preview, "Hello");
+  assert.equal(run.getRun().phase, "streaming");
+  assert.equal(seen.at(-1), "Hello");
+  assert.equal(start.handle.disposed, 1);
+});
+
+test("a terminal flushes what was buffered before settling the run", async () => {
+  const seam = fakeSeam();
+  const frames = manualFlush();
+  const run = session(seam, frames);
+  run.fire(TEMPLATE);
+  const [start] = seam.starts as [Started];
+  start.resolve();
+  await settle();
+
+  start.emit({ type: "delta", requestId: start.request.requestId, sequence: 0, text: "All" });
+  start.emit({ type: "done", requestId: start.request.requestId });
+
+  assert.equal(run.getRun().preview, "All");
+  assert.equal(run.getRun().phase, "done");
+  assert.equal(frames.isPending(), false);
+});
+
+test("dispose releases the consumer and the handle, and a later start is ignored", async () => {
+  const seam = fakeSeam();
+  const run = session(seam);
+  run.fire(TEMPLATE);
+  const [start] = seam.starts as [Started];
+  let notified = 0;
+  run.subscribe(() => (notified += 1));
+
+  run.dispose();
+  assert.equal(run.isDisposed(), true);
+  start.resolve();
+  await settle();
+  assert.equal(start.handle.disposed, 1);
+  assert.equal(run.getRun().stage, "sending");
+  assert.equal(notified, 0);
+
+  run.fire(TEMPLATE);
+  assert.equal(seam.starts.length, 1);
+});
+
+test("a start rejection after a newer fire is ignored", async () => {
+  const seam = fakeSeam();
+  const run = session(seam);
+  run.fire(TEMPLATE);
+  run.fire(TEMPLATE);
+  const [first, second] = seam.starts as [Started, Started];
+
+  first.reject(new Error("AI request req-1 is already active"));
+  await settle();
+  assert.equal(run.getRun().phase, "streaming");
+  assert.equal(run.getRun().requestId, second.request.requestId);
+});
+
+test("an aborted start reads as a stopped run with a retry hint, never as a request id", async () => {
+  const seam = fakeSeam();
+  const run = session(seam);
+  run.fire(TEMPLATE);
+  const [start] = seam.starts as [Started];
+
+  start.reject(new DOMException("AI completion was cancelled.", "AbortError"));
+  await settle();
+  assert.equal(run.getRun().phase, "error");
+  assert.doesNotMatch(run.getRun().error?.message ?? "", /req-/);
+  assert.equal(run.getRun().error?.recoveryAction, "retry");
+});

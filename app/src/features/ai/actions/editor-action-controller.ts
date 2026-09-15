@@ -1,15 +1,23 @@
 import type { AppCommand } from "@/commands/registry";
-import { AI_EDITOR_ACTIONS, type AiEditorAction } from "./editor-actions";
+import { AI_EDITOR_ACTIONS, aiEditorAction, type AiEditorAction } from "./editor-actions";
 import { guardAiRegistrations } from "@/features/ai/opt-in-gate";
 
 type Props = {
   /** Whether this listener's editor currently holds the caret. */
   isFocused: () => boolean;
   open: (actionId: string | null) => void;
+  /** Starts the action outright, answering any refusal in the menu. */
+  repeat: (action: AiEditorAction, instruction: string) => void;
+};
+
+export type LastAiAction = {
+  actionId: string;
+  instruction: string;
 };
 
 const listeners: Props[] = [];
 let pending: { actionId: string | null } | null = null;
+let lastAction: LastAiAction | null = null;
 
 export function registerAiActionListener(next: Props): () => void {
   listeners.push(next);
@@ -58,6 +66,43 @@ export function requestAiAction(actionId: string | null): void {
 /** Drops a queued request when the gate closes before the host ever mounted. */
 export function clearPendingAiAction(): void {
   pending = null;
+}
+
+/**
+ * What ran last, kept here rather than in the store: it is interaction state
+ * for this session, not workspace state, and it must not survive a restart or
+ * reach another device.
+ */
+export function rememberAiAction(actionId: string, instruction: string): void {
+  lastAction = { actionId, instruction };
+}
+
+export function lastAiAction(): LastAiAction | null {
+  return lastAction;
+}
+
+export function clearLastAiAction(): void {
+  lastAction = null;
+}
+
+/**
+ * Re-runs the last action against whatever is under the caret now. Returns
+ * false when there is nothing to repeat or no editor to repeat it in; a
+ * selection action with no selection is refused by the host, in the menu, with
+ * the same message the menu gives.
+ */
+export function requestAiRepeat(): boolean {
+  const remembered = lastAction;
+  if (remembered === null) {
+    return false;
+  }
+  const action = aiEditorAction(remembered.actionId);
+  const listener = activeListener();
+  if (action === null || listener === null) {
+    return false;
+  }
+  listener.repeat(action, remembered.instruction);
+  return true;
 }
 
 function actionCommand(action: AiEditorAction): AppCommand {

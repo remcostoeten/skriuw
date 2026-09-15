@@ -2453,6 +2453,7 @@ const closeJumpToLine = useCallback(() => {
             <AiEditorActionHost
               store={store}
               signal={signal}
+              selectNoteId={selectNoteId}
               getView={getActiveView}
               getNoteId={getActiveNoteId}
             />
