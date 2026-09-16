@@ -53,7 +53,17 @@ Dialogs are sized from the visual viewport rather than `100vh`, and settings
 fills the phone edge to edge with the safe areas applied to the dialog
 itself, because a top-layer element sits outside the body padding that
 carries them. Under a coarse pointer the styled scrollbar is hidden so the
-platform's overlay indicator shows, and toasts sit above the tab bar.
+platform's overlay indicator shows, and toasts sit above the tab bar and
+swipe away.
+
+Every dialog pulls down to close on a phone, the way a native sheet does.
+The handle is a grabber drawn at the top under a coarse pointer, and the
+header where a dialog has one; only those two regions carry
+`touch-action: none`, so the body keeps scrolling and contains its
+overscroll, and the browser never claims the pull as a pan. The dialog
+follows the finger, closes past 96px through the native close so the caller
+sees the same event as Escape, and settles back otherwise. The threshold
+logic is pure and unit tested (`shared/ui/dialog-pull.ts`).
 
 ## Consequences
 

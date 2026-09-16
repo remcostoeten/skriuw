@@ -135,6 +135,7 @@ export function ToastHost({ visible = true, reduceMotion = false, offset }: Host
           maxVisible={3}
           duration={7_000}
           pauseOnHover
+          swipeToDismiss
           stack
           colorMode="auto"
           radius="rounded"

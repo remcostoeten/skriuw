@@ -488,6 +488,25 @@ try {
   await waitFor(cdp, sessionId, `!document.querySelector('dialog[open]')`, "settings closing from the back gesture");
   checks.push({ name: "the back gesture closes the settings dialog", passed: true });
 
+  // The native close event lands a task after the element closes, so the
+  // trigger reports the settled state before it is pressed again.
+  await waitFor(cdp, sessionId, `document.querySelector('button[aria-label="Settings"]').getAttribute('aria-expanded') === 'false'`, "settings trigger settling");
+  await evaluate(cdp, sessionId, pressLabelled("Settings"));
+  await waitFor(cdp, sessionId, `Boolean(document.querySelector('dialog[open] .dialog-grabber'))`, "settings grabber");
+  const grabber = await evaluate(
+    cdp,
+    sessionId,
+    `(() => { const rect = document.querySelector('dialog[open] .dialog-grabber').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, height: rect.height }; })()`,
+  );
+  check("a phone dialog shows a grabber to pull", grabber.height >= 20, grabber);
+  await drag(cdp, sessionId, { x: grabber.x, y: grabber.y }, { x: grabber.x + 2, y: grabber.y + 40 }, { steps: 8 });
+  await delay(250);
+  const dialogStillOpen = await evaluate(cdp, sessionId, `Boolean(document.querySelector('dialog[open]'))`);
+  check("a short pull settles the dialog back", dialogStillOpen, { dialogStillOpen });
+  await drag(cdp, sessionId, { x: grabber.x, y: grabber.y }, { x: grabber.x + 2, y: grabber.y + 160 }, { steps: 12 });
+  await waitFor(cdp, sessionId, `!document.querySelector('dialog[open]')`, "settings closing from a pull");
+  checks.push({ name: "pulling the grabber down closes the dialog", passed: true });
+
   await evaluate(cdp, sessionId, pressLabelled("Toggle sidebar"));
   await waitForSheet(cdp, sessionId, "left", "tree sheet for gestures");
   const gamma = await evaluate(cdp, sessionId, rowCenter("Gamma note"));
