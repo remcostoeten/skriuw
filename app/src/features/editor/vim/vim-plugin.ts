@@ -52,7 +52,7 @@ import {
   type OperatorRange,
 } from "./vim-operators";
 import { describePendingKeys, parseVimKeys, type VimCommand, type VimMotion, type VimOperator } from "./vim-parser";
-import { stepDisplayRow, type RowRect } from "./vim-rows";
+import { stepDisplayRow, viewRowMeasure } from "./vim-rows";
 import {
   isClipboardRegister,
   readRegister,
@@ -80,7 +80,7 @@ export type VimHost = {
   write(): void;
   /** `:q`. */
   quit(): void;
-  /** `:N`, `NG`, `Ngg`: one-based Markdown line. */
+  /** `:N`, `NG`, `Ngg`: one-based wrapped row of the rendered note; a bounded note counts Markdown lines. */
   jumpToLine(line: number): void;
   /** `gg` / `G` in a bounded note: returns true after moving the window and caret. */
   documentEdge(edge: "start" | "end"): boolean;
@@ -397,15 +397,6 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     session.desiredX = null;
   }
 
-  function measureRow(view: EditorView, pos: number): RowRect | null {
-    try {
-      const coords = view.coordsAtPos(pos);
-      return { left: coords.left, top: coords.top, bottom: coords.bottom };
-    } catch {
-      return null;
-    }
-  }
-
   /** `j`/`k` over the rows the view wrapped; null hands over to logical line stepping. */
   function displayRowTarget(view: EditorView, cursor: number, motion: VimMotion, count: number | null): number | null {
     if (motion.kind !== "simple") return null;
@@ -413,7 +404,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     if (!down && !ROW_UP_KEYS.has(motion.key)) return null;
     if (typeof view.coordsAtPos !== "function") return null;
     const goalX = session.desiredColumn === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : session.desiredX;
-    const stepped = stepDisplayRow(view.state.doc, (pos) => measureRow(view, pos), cursor, down ? 1 : -1, count ?? 1, goalX);
+    const stepped = stepDisplayRow(view.state.doc, viewRowMeasure(view), cursor, down ? 1 : -1, count ?? 1, goalX);
     if (!stepped) return null;
     session.desiredX = stepped.x;
     return stepped.pos;

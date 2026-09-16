@@ -188,6 +188,12 @@ import {
   documentLineTarget,
   type DocumentLineIndex,
 } from "./document-lines";
+import {
+  createDisplayRowLayoutCache,
+  displayRowAt,
+  displayRowPosition,
+  viewDisplayRowLayout,
+} from "./display-rows";
 import { parseJumpToLineInput } from "./raw-markdown-editor-model";
 import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
 import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
@@ -407,6 +413,25 @@ function selectStarterTitle(view: EditorView, entry: CachedNote): void {
   entry.state = next;
 }
 
+type JumpTarget =
+  | { kind: "display-rows" }
+  | { kind: "markdown-lines"; document: ProseMirrorNode; index: DocumentLineIndex };
+
+const DISPLAY_ROWS_TARGET: JumpTarget = { kind: "display-rows" };
+
+type MarkdownLineJumpTarget = Extract<JumpTarget, { kind: "markdown-lines" }>;
+
+function boundedJumpTarget(
+  entry: CachedNote | null,
+  storedMarkdown: (entry: CachedNote | null, document: ProseMirrorNode) => string | undefined,
+): MarkdownLineJumpTarget | null {
+  if (!entry?.bounded) {
+    return null;
+  }
+  const document = entry.bounded.fullDocument();
+  return { kind: "markdown-lines", document, index: buildDocumentLineIndex(document, storedMarkdown(entry, document)) };
+}
+
 function readSelection(state: EditorState, windowStart: number) {
   const { $from } = state.selection;
   return {
@@ -475,7 +500,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     });
   }
   const jumpInputRef = useRef<HTMLInputElement>(null);
-  const jumpTargetRef = useRef<{ document: ProseMirrorNode; index: DocumentLineIndex } | null>(null);
+  const jumpTargetRef = useRef<JumpTarget | null>(null);
+  const displayRowLayoutCache = useRef(createDisplayRowLayoutCache());
   const [jumpOpen, setJumpOpen] = useState(false);
   const [jumpValue, setJumpValue] = useState("");
   const [jumpLineCount, setJumpLineCount] = useState(1);
@@ -613,7 +639,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         const noteId = activeIdRef.current;
         if (noteId && opensNotesInTabs(store.getState().settings)) closeTab(store, noteId);
       },
-      jumpToLine: (line) => jumpToMarkdownLine(line),
+      jumpToLine: (line) => jumpToLineFromVim(line),
       documentEdge: (edge) => {
         const entry = activeEntry();
         if (!entry?.bounded) return false;
@@ -1495,11 +1521,17 @@ const closeJumpToLine = useCallback(() => {
     if (!view) return;
     search.resetSearch();
     const entry = activeEntry();
-    const document = entry?.bounded ? entry.bounded.fullDocument() : view.state.doc;
-    const index = buildDocumentLineIndex(document, storedMarkdownFor(entry, document));
-    jumpTargetRef.current = { document, index };
-    setJumpLineCount(index.lineCount);
-    setJumpCaretLine(documentLineAt(index, readSelection(view.state, entry?.bounded?.windowStart() ?? 0)));
+    const boundedTarget = boundedJumpTarget(entry ?? null, storedMarkdownFor);
+    if (entry?.bounded && boundedTarget) {
+      jumpTargetRef.current = boundedTarget;
+      setJumpLineCount(boundedTarget.index.lineCount);
+      setJumpCaretLine(documentLineAt(boundedTarget.index, readSelection(view.state, entry.bounded.windowStart())));
+    } else {
+      const layout = viewDisplayRowLayout(view, displayRowLayoutCache.current);
+      jumpTargetRef.current = DISPLAY_ROWS_TARGET;
+      setJumpLineCount(layout.total);
+      setJumpCaretLine(displayRowAt(layout, view.state.selection.head));
+    }
     setJumpOpen(true);
     requestAnimationFrame(() => {
       jumpInputRef.current?.focus();
@@ -1511,10 +1543,32 @@ const closeJumpToLine = useCallback(() => {
     const target = jumpTargetRef.current;
     const view = viewRef.current;
     if (!target || !view) return;
-    const line = parseJumpToLineInput(jumpValue, target.index.lineCount);
-    if (line === null) return;
-    const { blockIndex, offset } = documentLineTarget(target.document, target.index, line);
+    if (!jumpToLineTarget(view, target, jumpValue)) return;
     setJumpOpen(false);
+    view.focus();
+  }, [jumpValue]);
+
+  /**
+   * Moves the caret to the row or line `input` names; false when the input
+   * names none. Rows are re-measured against the document the view holds now,
+   * since the panel may have opened over an older one.
+   */
+  function jumpToLineTarget(view: EditorView, target: JumpTarget, input: string): boolean {
+    if (target.kind === "display-rows") {
+      const layout = viewDisplayRowLayout(view, displayRowLayoutCache.current);
+      const row = parseJumpToLineInput(input, layout.total);
+      if (row === null) return false;
+      const position = displayRowPosition(layout, row);
+      view.dispatch(
+        view.state.tr
+          .setSelection(TextSelection.near(view.state.doc.resolve(position)))
+          .scrollIntoView(),
+      );
+      return true;
+    }
+    const line = parseJumpToLineInput(input, target.index.lineCount);
+    if (line === null) return false;
+    const { blockIndex, offset } = documentLineTarget(target.document, target.index, line);
     const entry = activeEntry();
     const bounded = entry?.bounded;
     if (entry && bounded) {
@@ -1523,7 +1577,7 @@ const closeJumpToLine = useCallback(() => {
       installBoundedWindow(entry, true);
       const revealed = viewRef.current;
       if (revealed) revealed.dispatch(revealed.state.tr.scrollIntoView());
-      return;
+      return true;
     }
     const position = topLevelTextPosition(view.state.doc, blockIndex, offset);
     view.dispatch(
@@ -1531,35 +1585,16 @@ const closeJumpToLine = useCallback(() => {
         .setSelection(TextSelection.create(view.state.doc, position))
         .scrollIntoView(),
     );
-    view.focus();
-  }, [jumpValue]);
+    return true;
+  }
 
   /** `:N` and `NG` from Vim mode: the panel's jump without the panel. */
-  function jumpToMarkdownLine(line: number): void {
+  function jumpToLineFromVim(line: number): void {
     const view = viewRef.current;
     const entry = activeEntry();
     if (!view || !entry) return;
-    const document = entry.bounded ? entry.bounded.fullDocument() : view.state.doc;
-    const index = buildDocumentLineIndex(document);
-    const target = parseJumpToLineInput(String(line), index.lineCount);
-    if (target === null) return;
-    const { blockIndex, offset } = documentLineTarget(document, index, target);
-    const bounded = entry.bounded;
-    if (bounded) {
-      bounded.rememberSelection({ blockIndex, offset });
-      bounded.revealBlock(blockIndex);
-      installBoundedWindow(entry, true);
-      const revealed = viewRef.current;
-      if (revealed) revealed.dispatch(revealed.state.tr.scrollIntoView());
-      return;
-    }
-    const position = topLevelTextPosition(view.state.doc, blockIndex, offset);
-    view.dispatch(
-      view.state.tr
-        .setSelection(TextSelection.create(view.state.doc, position))
-        .scrollIntoView(),
-    );
-    view.focus();
+    const target = boundedJumpTarget(entry, storedMarkdownFor) ?? DISPLAY_ROWS_TARGET;
+    if (jumpToLineTarget(view, target, String(line))) view.focus();
   }
 
   function handleJumpKeyDown(event: ReactKeyboardEvent<HTMLInputElement>): void {

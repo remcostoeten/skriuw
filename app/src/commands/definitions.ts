@@ -724,7 +724,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+g",
     label: "Jump to line",
     description:
-      "Toggle the jump-to-line field. The rendered editor counts lines of the note's Markdown; raw Markdown mode counts the screen rows its gutter numbers, so long paragraphs take several. Overrides Firefox's find-again default on web.",
+      "Toggle the jump-to-line field. Both editors count the screen rows the note wraps into, so long paragraphs take several; a very long rendered note that is only partly laid out counts Markdown lines instead. Overrides Firefox's find-again default on web.",
     group: "Editor",
     worksWhileTyping: true,
     boundInEditor: true,

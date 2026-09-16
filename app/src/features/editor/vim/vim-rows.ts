@@ -1,4 +1,5 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
+import type { EditorView } from "prosemirror-view";
 import { lastCursorIndex, lineAbove, lineAt, lineBelow, lineOffset, positionAt, type VimLine } from "./vim-lines";
 
 /** Screen box of the character a cursor index sits on, as the view laid it out. */
@@ -8,6 +9,21 @@ export type RowRect = { left: number; top: number; bottom: number };
 export type RowMeasure = (pos: number) => RowRect | null;
 
 export type RowStep = { pos: number; x: number };
+
+/** Cursor indexes, inclusive, of one row the view wrapped a line into. */
+export type RowSpan = { start: number; end: number };
+
+/** Measures positions through the view's own layout; null where the view has none. */
+export function viewRowMeasure(view: EditorView): RowMeasure {
+  return (pos) => {
+    try {
+      const coords = view.coordsAtPos(pos);
+      return { left: coords.left, top: coords.top, bottom: coords.bottom };
+    } catch {
+      return null;
+    }
+  };
+}
 
 type Row = { line: VimLine; start: number; end: number };
 
@@ -94,6 +110,29 @@ function indexNearX(measure: RowMeasure, row: Row, goalX: number): number | null
   const rect = rectAt(measure, row.line, low);
   if (!rect) return null;
   return rect.left > goalX ? Math.max(row.start, low - 1) : low;
+}
+
+/**
+ * The rows the view wrapped `line` into, in order, read from the boxes of the
+ * characters themselves so inline content taller than the line box does not
+ * count as extra rows. Null when the view has no layout for the line.
+ */
+export function rowSpansOfLine(measure: RowMeasure, line: VimLine): RowSpan[] | null {
+  const last = lastCursorIndex(line);
+  const first = rectAt(measure, line, 0);
+  const end = rectAt(measure, line, last);
+  if (!first || !end) return null;
+  if (overlaps(first, end)) return [{ start: 0, end: last }];
+  const spans: RowSpan[] = [];
+  let start = 0;
+  while (start <= last) {
+    const row = rowStartingAt(measure, line, start);
+    if (!row) return null;
+    spans.push({ start: row.start, end: row.end });
+    if (row.end >= last) break;
+    start = row.end + 1;
+  }
+  return spans;
 }
 
 /**
