@@ -1,6 +1,7 @@
 import type { WorkspaceSettings } from "@/contracts/workspace";
 import {
   DEFAULT_WORKSPACE_SETTINGS,
+  changeHistoryDiffLayout,
   changeSetting,
   changeShortcutOverride,
   resetShortcutOverride,
@@ -10,6 +11,7 @@ import type { EditableSettings } from "@/features/settings/settings-model";
 import { changeAiModelSelection } from "@/features/ai/models/model-selection";
 import type { AiModelSelection } from "@/features/ai/models/model-selection";
 import { SHORTCUT_DEFINITIONS } from "@/commands/definitions";
+import type { DiffLayout } from "@/features/history/split-diff-model";
 import type { ShortcutActionId } from "@/commands/definitions";
 import type { RendererStore } from "@/store/types";
 import { commitOperations } from "./workspace";
@@ -56,6 +58,10 @@ export function setAiModelSelection(
     return;
   }
   updateSettings(store, settings);
+}
+
+export function setHistoryDiffLayout(store: RendererStore, layout: DiffLayout): void {
+  updateSettings(store, changeHistoryDiffLayout(store.getState().settings, layout));
 }
 
 export function setShortcutOverride(

@@ -78,7 +78,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 ## History and safety
 
 - **Automatic Git history** — every save is materialized into Git in the background; editing and navigation never wait on it.
-- **Live history panel** — a note's history updates in-session the moment materialization completes; versions open with a diff view, and any prior version can be restored. A timeline scrubber under the preview steps through revisions by dragging its handle, arrow keys, or the scroll wheel; pinch (or ctrl+scroll) zooms the timeline for precise picks, and on phones it replaces the revision list.
+- **Live history panel** — a note's history updates in-session the moment materialization completes; versions open with a diff view — unified or side by side, remembered per workspace — and any prior version can be restored. A timeline scrubber under the preview steps through revisions by dragging its handle, arrow keys, or the scroll wheel; pinch (or ctrl+scroll) zooms the timeline for precise picks, and on phones it replaces the revision list.
 - **Verified backups** — scheduled every six hours with cadence/retention rotation, each backup verified before it counts.
 - **Recovery without fear** — restoring runs as a verified live database swap: the replacement is validated and bootstrapped before it goes live, and a rollback sibling is retained in case anything fails.
 - **Portable workspace archives** — versioned JSON export/import of your entire workspace, with golden-fixture compatibility tests guaranteeing old archives keep importing.

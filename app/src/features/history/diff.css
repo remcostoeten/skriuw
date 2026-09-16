@@ -132,3 +132,58 @@
 .diff-stat-removed {
   color: var(--diff-removed);
 }
+
+.diff-split-row {
+  display: grid;
+  grid-template-columns: var(--diff-gutter) minmax(0, 1fr) var(--diff-gutter) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.diff-split-cell {
+  display: grid;
+  grid-template-columns: var(--diff-gutter) minmax(0, 1fr);
+  grid-column: span 2;
+  align-items: baseline;
+  min-width: 0;
+  padding-right: 12px;
+}
+
+.diff-split-cell + .diff-split-cell {
+  border-left: 1px solid hsl(var(--border) / 0.7);
+}
+
+.diff-split-cell-empty {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 6px,
+    hsl(var(--muted-foreground) / 0.05) 6px,
+    hsl(var(--muted-foreground) / 0.05) 7px
+  );
+}
+
+.diff-split-cell-added {
+  background: var(--diff-added-surface);
+  box-shadow: inset 2px 0 0 var(--diff-added);
+}
+
+.diff-split-cell-added .diff-word {
+  background: var(--diff-added-emphasis);
+}
+
+.diff-split-cell-removed {
+  background: var(--diff-removed-surface);
+  box-shadow: inset 2px 0 0 var(--diff-removed);
+}
+
+.diff-split-cell-removed .diff-word {
+  background: var(--diff-removed-emphasis);
+}
+
+.diff-split-cell-context .diff-row-text {
+  color: hsl(var(--foreground) / 0.52);
+}
+
+.diff-split .diff-skip {
+  padding-right: 12px;
+}
