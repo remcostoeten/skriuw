@@ -1,5 +1,6 @@
 import type { WorkspaceSettings } from "@/contracts/workspace";
 import type { ShortcutActionId } from "@/commands/definitions";
+import { isDiffLayout, type DiffLayout } from "@/features/history/split-diff-model";
 
 export const THEME_OPTIONS = [
   { value: "midnight", label: "Midnight" },
@@ -119,6 +120,22 @@ export function opensNotesInTabs(settings: WorkspaceSettings): boolean {
  */
 export function usesVimMode(settings: WorkspaceSettings): boolean {
   return settings.vimMode === true;
+}
+
+/**
+ * How the history view lays out a revision diff. Unified unless the workspace
+ * explicitly chose side-by-side, so older workspaces keep the single column.
+ */
+export function historyDiffLayout(settings: WorkspaceSettings): DiffLayout {
+  const value = settings["historyDiffLayout"];
+  return isDiffLayout(value) ? value : "unified";
+}
+
+export function changeHistoryDiffLayout(
+  settings: WorkspaceSettings,
+  layout: DiffLayout,
+): WorkspaceSettings {
+  return { ...settings, historyDiffLayout: layout };
 }
 
 export function showsToasts(settings: WorkspaceSettings): boolean {

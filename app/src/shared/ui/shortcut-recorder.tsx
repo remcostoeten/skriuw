@@ -67,6 +67,7 @@ export function ShortcutRecorder({
   onRecordingChangeRef.current = onRecordingChange;
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       if (recordingRef.current) {

@@ -3,10 +3,18 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { motion, useReducedMotion } from "motion/react";
 import { DOMSerializer } from "prosemirror-model";
 import { restoreNoteVersion } from "@/store/actions/workspace";
+import { setHistoryDiffLayout } from "@/store/actions/settings";
+import { historyDiffLayout } from "@/features/settings/settings-model";
 import type { HistoryVersionContent } from "@/bridge/commands";
 import { readHistoryVersion } from "@/bridge/commands";
 import { productSchema } from "@/features/editor/schema";
-import { CloseIcon, HistoryIcon, RotateCcwIcon } from "@/shared/icons/static";
+import {
+  CloseIcon,
+  HistoryIcon,
+  RotateCcwIcon,
+  SplitViewIcon,
+  SplitViewStackedIcon,
+} from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { HistoryGraphRail } from "./history-graph-rail";
 import { HistoryScrubber } from "./history-scrubber";
@@ -16,6 +24,8 @@ import { COMPACT_SHELL_QUERY } from "@/shell/shell-layout";
 import type { RendererState, RendererStore } from "@/store/types";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import { VersionDiffView, useMarkdownDiff } from "./version-diff-view";
+import type { DiffLayout } from "./split-diff-model";
+import { Tooltip } from "@/shared/ui/tooltip";
 import { VersionStats } from "./version-stats";
 import {
   formatVersionClock,
@@ -43,6 +53,10 @@ type PreviewState =
 const VERSION_ROW_HEIGHT = 52;
 const GROUP_ROW_HEIGHT = 30;
 
+function selectDiffLayout(state: RendererState): DiffLayout {
+  return historyDiffLayout(state.settings);
+}
+
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
     return error.message;
@@ -68,6 +82,8 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
     [noteId],
   );
   const currentMarkdown = useRendererSelector(store, selectCurrentMarkdown);
+  const diffLayout = useRendererSelector(store, selectDiffLayout);
+  const layout: DiffLayout = compact ? "unified" : diffLayout;
   const rows = useMemo(() => groupVersionRows(versions), [versions]);
 
   const virtualizer = useVirtualizer({
@@ -409,6 +425,12 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
                 />
               )}
               <div className="ml-auto flex shrink-0 items-center gap-2">
+                {currentMarkdown !== null && mode === "diff" && !compact && (
+                  <LayoutToggle
+                    layout={layout}
+                    onChange={(next) => setHistoryDiffLayout(store, next)}
+                  />
+                )}
                 {currentMarkdown !== null && <ModeToggle mode={mode} onChange={setMode} />}
                 <InlineConfirm
                   size="sm"
@@ -434,6 +456,7 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
               <VersionDiffView
                 versionMarkdown={preview.content.markdown}
                 currentMarkdown={currentMarkdown}
+                layout={layout}
               />
             ) : (
               <VersionMarkdownPreview markdown={preview.content.markdown} />
@@ -532,6 +555,49 @@ function ModeToggle({ mode, onChange }: ModeToggleProps) {
             )}
             <span className="relative">{option.label}</span>
           </button>
+        );
+      })}
+    </div>
+  );
+}
+
+type LayoutToggleProps = {
+  layout: DiffLayout;
+  onChange: (layout: DiffLayout) => void;
+};
+
+const LAYOUT_OPTIONS: readonly { value: DiffLayout; label: string; Icon: typeof SplitViewIcon }[] = [
+  { value: "unified", label: "Unified", Icon: SplitViewStackedIcon },
+  { value: "split", label: "Side by side", Icon: SplitViewIcon },
+];
+
+function LayoutToggle({ layout, onChange }: LayoutToggleProps) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Diff layout"
+      className="flex shrink-0 items-center gap-0.5 rounded-[var(--radius-md)] bg-theme-hover p-0.5"
+    >
+      {LAYOUT_OPTIONS.map((option) => {
+        const active = layout === option.value;
+        return (
+          <Tooltip key={option.value} label={option.label}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={active}
+              aria-label={option.label}
+              onClick={() => onChange(option.value)}
+              className={cn(
+                "grid size-[22px] cursor-pointer place-items-center rounded-[calc(var(--radius-md)-2px)] border-none bg-transparent transition-colors",
+                active
+                  ? "bg-theme-editor text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <option.Icon size={13} />
+            </button>
+          </Tooltip>
         );
       })}
     </div>
