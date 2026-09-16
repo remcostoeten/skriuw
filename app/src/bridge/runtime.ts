@@ -28,6 +28,9 @@ type BrowserCommand = {
   expected: string;
 };
 
+/** Content key (32) + recovery code (20) + KDF salt (16); mirrors `NOTE_LOCK_CONFIGURE_ENTROPY_BYTES`. */
+const NOTE_LOCK_ENTROPY_BYTES = 68;
+
 let browserStorage: Promise<BrowserStorageWorkerClient> | null = null;
 let storageReleased = false;
 
@@ -369,6 +372,42 @@ function browserCommand(command: string, args: unknown): BrowserCommand {
       return { kind: "rebuild_search_index", expected: "search_index" };
     case "read_workspace_delta":
       return { kind: "read_workspace_delta", payload: args, expected: "workspace_delta" };
+    case "note_lock_state":
+      return { kind: "note_lock_state", payload: { nowMs: Date.now() }, expected: "note_lock_state" };
+    case "configure_note_lock":
+      return {
+        kind: "configure_note_lock",
+        payload: {
+          ...(args as object),
+          entropy: Array.from(crypto.getRandomValues(new Uint8Array(NOTE_LOCK_ENTROPY_BYTES))),
+          nowMs: Date.now(),
+        },
+        expected: "note_lock_recovery_code",
+      };
+    case "unlock_note_lock":
+      return {
+        kind: "unlock_note_lock",
+        payload: { ...(args as object), nowMs: Date.now() },
+        expected: "note_lock_state",
+      };
+    case "recover_note_lock":
+      return {
+        kind: "recover_note_lock",
+        payload: { ...(args as object), nowMs: Date.now() },
+        expected: "note_lock_state",
+      };
+    case "change_note_lock_secret":
+      return {
+        kind: "change_note_lock_secret",
+        payload: { ...(args as object), nowMs: Date.now() },
+        expected: "note_lock_state",
+      };
+    case "relock_note_lock":
+      return { kind: "relock_note_lock", expected: "note_lock_state" };
+    case "read_locked_documents":
+      return { kind: "read_locked_documents", payload: args, expected: "locked_documents" };
+    case "remove_note_lock":
+      return { kind: "remove_note_lock", payload: { nowMs: Date.now() }, expected: "operation" };
     default:
       throw browserFailure(
         "invalid_request",

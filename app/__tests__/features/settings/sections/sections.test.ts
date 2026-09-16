@@ -15,6 +15,7 @@ test("SECTIONS contains all expected settings section definitions", () => {
     "shortcuts",
     "account",
     "media",
+    "lock",
     "data",
     "about",
   ]);

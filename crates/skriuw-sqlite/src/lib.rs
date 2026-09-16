@@ -11,18 +11,21 @@ use rusqlite::{
     params,
 };
 use skriuw_domain::{
-    HistoryHeader, NodeKind, OperationAck, SEARCH_INDEX_VERSION, SearchHit, SearchIndexStatus,
-    WorkspaceArchive, WorkspaceDelta, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    HistoryHeader, NodeKind, NoteLockState, OperationAck, SEARCH_INDEX_VERSION, SearchHit,
+    SearchIndexStatus, WorkspaceArchive, WorkspaceDelta, WorkspaceDocument, WorkspaceOperation,
+    WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 use skriuw_storage::{
-    Diagnostic, HistoryCache, HistoryMaterialization, HistoryProvenance, HistoryQueue,
-    ImportSummary, IntegrityReport, PendingHistoryRevision, SearchIndexMaintenance, StorageError,
-    WorkspaceMaintenance, WorkspaceStorage,
+    ConfigureNoteLockRequest, Diagnostic, HistoryCache, HistoryMaterialization, HistoryProvenance,
+    HistoryQueue, ImportSummary, IntegrityReport, NoteLockAccess, PendingHistoryRevision,
+    ReplaceNoteLockSecretRequest, SearchIndexMaintenance, StorageError, WorkspaceMaintenance,
+    WorkspaceStorage,
 };
 
 mod ai_history;
 mod backup;
 mod error;
+mod lock;
 mod migration;
 mod operations;
 mod queries;
@@ -36,12 +39,13 @@ use crate::backup::{
     normalize_backup, prepare_new_target, strip_device_secrets, temporary_sibling, verify_database,
 };
 use crate::error::{backend, json_backend};
+use crate::lock::LockSession;
 use crate::migration::{
     MIGRATIONS, checksum, read_migrations, upgrade_legacy_ledger, validate_migration_list,
     verify_migration,
 };
 use crate::operations::{
-    apply_operations_in_transaction, enqueue_history, fts_query, insert_fts, replace_references,
+    apply_submitted_operations, enqueue_history, fts_query, insert_fts, replace_references,
     require_changed, require_worker, validate_operations,
 };
 use crate::queries::{
@@ -59,6 +63,7 @@ pub use recovery::{
 pub struct SqliteWorkspace {
     connection: Mutex<Connection>,
     recovery_gate: Mutex<()>,
+    lock_session: LockSession,
 }
 
 impl SqliteWorkspace {
@@ -69,6 +74,7 @@ impl SqliteWorkspace {
         Ok(Self {
             connection: Mutex::new(connection),
             recovery_gate: Mutex::new(()),
+            lock_session: LockSession::default(),
         })
     }
 
@@ -79,6 +85,7 @@ impl SqliteWorkspace {
         Ok(Self {
             connection: Mutex::new(connection),
             recovery_gate: Mutex::new(()),
+            lock_session: LockSession::default(),
         })
     }
 
@@ -174,6 +181,9 @@ impl SqliteWorkspace {
             .map_err(backend)?;
         connection
             .pragma_update(None, "synchronous", "NORMAL")
+            .map_err(backend)?;
+        connection
+            .pragma_update(None, "secure_delete", "ON")
             .map_err(backend)?;
         Ok(())
     }
@@ -279,13 +289,14 @@ impl WorkspaceStorage for SqliteWorkspace {
         operations: &[WorkspaceOperationEnvelope],
     ) -> Result<OperationAck, StorageError> {
         validate_operations(operations)?;
+        let key = self.lock_session.key()?;
         let mut connection = self.lock()?;
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(backend)?;
-        let acknowledgement =
-            apply_operations_in_transaction(&transaction, operations, HistoryProvenance::Local)?;
-        enqueue_sync_operations(&transaction, operations)?;
+        let (acknowledgement, applied) =
+            apply_submitted_operations(&transaction, operations, key.as_ref())?;
+        enqueue_sync_operations(&transaction, &applied)?;
         transaction.commit().map_err(backend)?;
         Ok(acknowledgement)
     }
@@ -294,6 +305,7 @@ impl WorkspaceStorage for SqliteWorkspace {
         &self,
         batches: &[Vec<WorkspaceOperationEnvelope>],
     ) -> Result<Vec<Result<OperationAck, StorageError>>, StorageError> {
+        let key = self.lock_session.key()?;
         let mut connection = self.lock()?;
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -307,13 +319,9 @@ impl WorkspaceStorage for SqliteWorkspace {
             transaction
                 .execute_batch("SAVEPOINT operation_batch")
                 .map_err(backend)?;
-            match apply_operations_in_transaction(
-                &transaction,
-                operations,
-                HistoryProvenance::Local,
-            ) {
-                Ok(acknowledgement) => {
-                    if let Err(error) = enqueue_sync_operations(&transaction, operations) {
+            match apply_submitted_operations(&transaction, operations, key.as_ref()) {
+                Ok((acknowledgement, applied)) => {
+                    if let Err(error) = enqueue_sync_operations(&transaction, &applied) {
                         transaction
                             .execute_batch("ROLLBACK TO operation_batch; RELEASE operation_batch")
                             .map_err(backend)?;
@@ -851,9 +859,13 @@ pub(crate) fn replace_workspace_in_transaction(
              DELETE FROM workspace_tags;\
              DELETE FROM workspace_people;\
              DELETE FROM workspace_nodes;\
-             DELETE FROM app_state;",
+             DELETE FROM app_state;\
+             DELETE FROM note_lock;",
         )
         .map_err(backend)?;
+    if let Some(note_lock) = &archive.note_lock {
+        lock::write_lock_config(transaction, note_lock)?;
+    }
     if !preserve_sync_connection {
         transaction
             .execute_batch(
@@ -869,8 +881,8 @@ pub(crate) fn replace_workspace_in_transaction(
                 "INSERT INTO workspace_nodes \
                  (id, kind, parent_id, rank, title, icon, cover_image_id, cover_full_width, \
                   cover_position_x, cover_position_y, cover_zoom, created_at, updated_at, deleted_at, \
-                 pinned_at, cover_gradient) \
-                 VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+                 pinned_at, cover_gradient, locked_at) \
+                 VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
                 params![
                     node.id,
                     match node.kind {
@@ -889,7 +901,8 @@ pub(crate) fn replace_workspace_in_transaction(
                     node.updated_at,
                     node.deleted_at,
                     node.pinned_at,
-                    node.cover_gradient
+                    node.cover_gradient,
+                    node.locked_at
                 ],
             )
             .map_err(backend)?;
@@ -904,17 +917,30 @@ pub(crate) fn replace_workspace_in_transaction(
     }
 
     for document in &archive.documents {
+        let sealed_body = document
+            .sealed
+            .as_ref()
+            .map(|sealed| skriuw_crypto::decode_base64(&sealed.ciphertext))
+            .transpose()
+            .map_err(|error| StorageError::InvalidOperation(error.to_string()))?;
         transaction
             .execute(
                 "INSERT INTO documents \
-                 (note_id, document_json, markdown, revision, word_count) \
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                 (note_id, document_json, markdown, revision, word_count, \
+                  sealed_body, sealed_nonce, sealed_key_id) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
                     document.note_id,
                     document.document_json.to_string(),
                     document.markdown,
                     document.revision,
-                    document.word_count
+                    document.word_count,
+                    sealed_body,
+                    document.sealed.as_ref().map(|sealed| sealed.nonce.as_str()),
+                    document
+                        .sealed
+                        .as_ref()
+                        .map(|sealed| sealed.key_id.as_str()),
                 ],
             )
             .map_err(backend)?;
@@ -922,6 +948,9 @@ pub(crate) fn replace_workspace_in_transaction(
             .get(document.note_id.as_str())
             .copied()
             .ok_or_else(|| StorageError::NotFound(document.note_id.clone()))?;
+        if document.sealed.is_some() {
+            continue;
+        }
         insert_fts(transaction, &document.note_id, title, &document.markdown)?;
         enqueue_history(
             transaction,
@@ -1107,4 +1136,170 @@ pub(crate) fn replace_workspace_in_transaction(
         documents: archive.documents.len(),
         history_items: archive.documents.len(),
     })
+}
+
+impl NoteLockAccess for SqliteWorkspace {
+    fn note_lock_state(&self, now_ms: i64) -> Result<NoteLockState, StorageError> {
+        let unlocked = self.lock_session.key()?.is_some();
+        let connection = self.lock()?;
+        lock::lock_state(&connection, unlocked, now_ms)
+    }
+
+    fn configure_note_lock(
+        &self,
+        request: ConfigureNoteLockRequest,
+        now_ms: i64,
+    ) -> Result<String, StorageError> {
+        {
+            let connection = self.lock()?;
+            if lock::read_lock(&connection)?.is_some() {
+                return Err(StorageError::AlreadyExists(
+                    "a note lock is already set up for this workspace".into(),
+                ));
+            }
+        }
+        let (config, key, recovery_code) = lock::configure(&request, now_ms)?;
+        self.apply_operations(&[WorkspaceOperationEnvelope::v1(
+            WorkspaceOperation::ConfigureNoteLock {
+                lock: config,
+                at: now_ms,
+            },
+        )])?;
+        self.lock_session.set(Some(key))?;
+        Ok(recovery_code)
+    }
+
+    fn unlock_note_lock(&self, secret: &str, now_ms: i64) -> Result<NoteLockState, StorageError> {
+        let stored = {
+            let connection = self.lock()?;
+            lock::read_lock(&connection)?.ok_or_else(|| {
+                StorageError::InvalidOperation("no note lock is set up for this workspace".into())
+            })?
+        };
+        if let Some(next_attempt_at) = stored.next_attempt_at
+            && next_attempt_at > now_ms
+        {
+            return Err(lock::throttle_error(next_attempt_at, now_ms));
+        }
+        let opened = lock::try_unlock(&stored, secret)?;
+        let connection = self.lock()?;
+        match lock::record_unlock_attempt(&connection, opened, now_ms)? {
+            lock::UnlockOutcome::Opened(key) => {
+                drop(connection);
+                self.lock_session.set(Some(key))?;
+                let connection = self.lock()?;
+                lock::lock_state(&connection, true, now_ms)
+            }
+            lock::UnlockOutcome::Refused { next_attempt_at } => Err(lock::wrong_secret_error(
+                stored.config.kind,
+                next_attempt_at,
+                now_ms,
+            )),
+        }
+    }
+
+    fn recover_note_lock(
+        &self,
+        recovery_code: &str,
+        request: ReplaceNoteLockSecretRequest,
+        now_ms: i64,
+    ) -> Result<NoteLockState, StorageError> {
+        let stored = {
+            let connection = self.lock()?;
+            lock::read_lock(&connection)?.ok_or_else(|| {
+                StorageError::InvalidOperation("no note lock is set up for this workspace".into())
+            })?
+        };
+        let key = lock::recover(&stored, recovery_code)?;
+        let config = lock::replace_secret(&stored, &key, &request, now_ms)?;
+        self.apply_operations(&[WorkspaceOperationEnvelope::v1(
+            WorkspaceOperation::ConfigureNoteLock {
+                lock: config,
+                at: now_ms,
+            },
+        )])?;
+        {
+            let connection = self.lock()?;
+            lock::record_unlock_attempt(&connection, Some(key.clone()), now_ms)?;
+        }
+        self.lock_session.set(Some(key))?;
+        let connection = self.lock()?;
+        lock::lock_state(&connection, true, now_ms)
+    }
+
+    fn change_note_lock_secret(
+        &self,
+        request: ReplaceNoteLockSecretRequest,
+        now_ms: i64,
+    ) -> Result<NoteLockState, StorageError> {
+        let key = self.lock_session.key()?.ok_or_else(|| {
+            StorageError::InvalidOperation("unlock your notes before changing the secret".into())
+        })?;
+        let stored = {
+            let connection = self.lock()?;
+            lock::read_lock(&connection)?.ok_or_else(|| {
+                StorageError::InvalidOperation("no note lock is set up for this workspace".into())
+            })?
+        };
+        let config = lock::replace_secret(&stored, &key, &request, now_ms)?;
+        self.apply_operations(&[WorkspaceOperationEnvelope::v1(
+            WorkspaceOperation::ConfigureNoteLock {
+                lock: config,
+                at: now_ms,
+            },
+        )])?;
+        let connection = self.lock()?;
+        lock::lock_state(&connection, true, now_ms)
+    }
+
+    fn relock_note_lock(&self) -> Result<NoteLockState, StorageError> {
+        self.lock_session.set(None)?;
+        let connection = self.lock()?;
+        lock::lock_state(&connection, false, 0)
+    }
+
+    fn read_locked_documents(
+        &self,
+        note_ids: Option<&[String]>,
+    ) -> Result<Vec<WorkspaceDocument>, StorageError> {
+        let key = self.lock_session.key()?.ok_or_else(|| {
+            StorageError::InvalidOperation("unlock your notes to read locked notes".into())
+        })?;
+        let connection = self.lock()?;
+        lock::open_locked_documents(&connection, &key, note_ids)
+    }
+
+    fn remove_note_lock(&self, now_ms: i64) -> Result<OperationAck, StorageError> {
+        if self.lock_session.key()?.is_none() {
+            return Err(StorageError::InvalidOperation(
+                "unlock your notes before removing the note lock".into(),
+            ));
+        }
+        let locked_ids = {
+            let connection = self.lock()?;
+            let mut statement = connection
+                .prepare("SELECT id FROM workspace_nodes WHERE locked_at IS NOT NULL ORDER BY id")
+                .map_err(backend)?;
+            let rows = statement
+                .query_map([], |row| row.get::<_, String>(0))
+                .map_err(backend)?;
+            rows.collect::<Result<Vec<_>, _>>().map_err(backend)?
+        };
+        let mut operations: Vec<WorkspaceOperationEnvelope> = locked_ids
+            .into_iter()
+            .map(|id| {
+                WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetNodeLocked {
+                    id,
+                    locked: false,
+                    at: now_ms,
+                })
+            })
+            .collect();
+        operations.push(WorkspaceOperationEnvelope::v1(
+            WorkspaceOperation::RemoveNoteLock { at: now_ms },
+        ));
+        let acknowledgement = self.apply_operations(&operations)?;
+        self.lock_session.set(None)?;
+        Ok(acknowledgement)
+    }
 }

@@ -1,7 +1,8 @@
 use serde_json::Value;
 use skriuw_storage::{
-    DiagnosticCategory, DiagnosticContext, SearchIndexMaintenance, StorageError,
-    WorkspaceMaintenance, WorkspaceStorage, WorkspaceSyncQueue,
+    ConfigureNoteLockRequest, DiagnosticCategory, DiagnosticContext, NoteLockAccess,
+    ReplaceNoteLockSecretRequest, SearchIndexMaintenance, StorageError, WorkspaceMaintenance,
+    WorkspaceStorage, WorkspaceSyncQueue,
 };
 
 use crate::protocol::{
@@ -14,6 +15,9 @@ use crate::protocol::{
     RECOVERY_CODE_ENTROPY_BYTES, WORKER_PROTOCOL_VERSION,
 };
 use crate::sync::{BrowserSyncEnvironment, BrowserSyncRuntime};
+use skriuw_domain::{
+    MAX_NOTE_LOCK_HINT_CHARS, MAX_NOTE_LOCK_SECRET_BYTES, NOTE_LOCK_CONFIGURE_ENTROPY_BYTES,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WorkerLifecycle {
@@ -84,7 +88,7 @@ impl<B> BrowserWorkerRuntime<B> {
 
 impl<B> BrowserWorkerRuntime<B>
 where
-    B: WorkspaceStorage + WorkspaceMaintenance + SearchIndexMaintenance,
+    B: WorkspaceStorage + WorkspaceMaintenance + SearchIndexMaintenance + NoteLockAccess,
 {
     pub fn dispatch(&mut self, request: BrowserWorkerRequest) -> BrowserWorkerResponse {
         let request_id = request.request_id;
@@ -198,6 +202,70 @@ where
                 .read_workspace_delta(&ids)
                 .map(|delta| BrowserWorkerValue::WorkspaceDelta(Box::new(delta)))
                 .map_err(map_storage_error),
+            BrowserWorkerCommand::NoteLockState { now_ms } => backend
+                .note_lock_state(now_ms)
+                .map(BrowserWorkerValue::NoteLockState)
+                .map_err(map_storage_error),
+            BrowserWorkerCommand::ConfigureNoteLock {
+                kind,
+                secret,
+                hint,
+                entropy,
+                now_ms,
+            } => backend
+                .configure_note_lock(
+                    ConfigureNoteLockRequest {
+                        kind,
+                        secret,
+                        hint,
+                        entropy,
+                    },
+                    now_ms,
+                )
+                .map(BrowserWorkerValue::NoteLockRecoveryCode)
+                .map_err(map_storage_error),
+            BrowserWorkerCommand::UnlockNoteLock { secret, now_ms } => backend
+                .unlock_note_lock(&secret, now_ms)
+                .map(BrowserWorkerValue::NoteLockState)
+                .map_err(map_storage_error),
+            BrowserWorkerCommand::RecoverNoteLock {
+                recovery_code,
+                kind,
+                secret,
+                hint,
+                now_ms,
+            } => backend
+                .recover_note_lock(
+                    &recovery_code,
+                    ReplaceNoteLockSecretRequest { kind, secret, hint },
+                    now_ms,
+                )
+                .map(BrowserWorkerValue::NoteLockState)
+                .map_err(map_storage_error),
+            BrowserWorkerCommand::ChangeNoteLockSecret {
+                kind,
+                secret,
+                hint,
+                now_ms,
+            } => backend
+                .change_note_lock_secret(
+                    ReplaceNoteLockSecretRequest { kind, secret, hint },
+                    now_ms,
+                )
+                .map(BrowserWorkerValue::NoteLockState)
+                .map_err(map_storage_error),
+            BrowserWorkerCommand::RelockNoteLock => backend
+                .relock_note_lock()
+                .map(BrowserWorkerValue::NoteLockState)
+                .map_err(map_storage_error),
+            BrowserWorkerCommand::ReadLockedDocuments { note_ids } => backend
+                .read_locked_documents(note_ids.as_deref())
+                .map(BrowserWorkerValue::LockedDocuments)
+                .map_err(map_storage_error),
+            BrowserWorkerCommand::RemoveNoteLock { now_ms } => backend
+                .remove_note_lock(now_ms)
+                .map(BrowserWorkerValue::Operation)
+                .map_err(map_storage_error),
             BrowserWorkerCommand::SyncConnection
             | BrowserWorkerCommand::SyncConnect { .. }
             | BrowserWorkerCommand::SyncDisconnect
@@ -248,7 +316,11 @@ where
 
 impl<B> BrowserWorkerRuntime<B>
 where
-    B: WorkspaceStorage + WorkspaceMaintenance + SearchIndexMaintenance + WorkspaceSyncQueue,
+    B: WorkspaceStorage
+        + WorkspaceMaintenance
+        + SearchIndexMaintenance
+        + NoteLockAccess
+        + WorkspaceSyncQueue,
 {
     /// Dispatches sync commands against the worker-owned sync runtime and
     /// routes everything else through [`Self::dispatch`]. Sync stays a
@@ -411,6 +483,50 @@ fn validate_command(command: &BrowserWorkerCommand) -> Result<(), BrowserStorage
             if recovery_code.is_empty() || recovery_code.len() > MAX_RECOVERY_CODE_BYTES {
                 return Err(BrowserStorageError::invalid(
                     "That is not a Skriuw recovery code.",
+                ));
+            }
+            Ok(())
+        }
+        BrowserWorkerCommand::ConfigureNoteLock {
+            secret,
+            hint,
+            entropy,
+            ..
+        } => {
+            if entropy.len() != NOTE_LOCK_CONFIGURE_ENTROPY_BYTES {
+                return Err(BrowserStorageError::invalid(
+                    "A note lock needs exactly 68 bytes of entropy.",
+                ));
+            }
+            validate_lock_secret(secret)?;
+            validate_lock_hint(hint.as_deref())
+        }
+        BrowserWorkerCommand::UnlockNoteLock { secret, .. } => validate_lock_secret(secret),
+        BrowserWorkerCommand::RecoverNoteLock {
+            recovery_code,
+            secret,
+            hint,
+            ..
+        } => {
+            if recovery_code.is_empty() || recovery_code.len() > MAX_RECOVERY_CODE_BYTES {
+                return Err(BrowserStorageError::invalid(
+                    "That is not a Skriuw recovery code.",
+                ));
+            }
+            validate_lock_secret(secret)?;
+            validate_lock_hint(hint.as_deref())
+        }
+        BrowserWorkerCommand::ChangeNoteLockSecret { secret, hint, .. } => {
+            validate_lock_secret(secret)?;
+            validate_lock_hint(hint.as_deref())
+        }
+        BrowserWorkerCommand::ReadLockedDocuments { note_ids } => {
+            if note_ids
+                .as_ref()
+                .is_some_and(|ids| ids.len() > MAX_DELTA_IDS_PER_REQUEST)
+            {
+                return Err(BrowserStorageError::invalid(
+                    "Too many note identifiers in one request.",
                 ));
             }
             Ok(())
@@ -599,6 +715,24 @@ fn lifecycle_error(
     }
 }
 
+fn validate_lock_secret(secret: &str) -> Result<(), BrowserStorageError> {
+    if secret.is_empty() || secret.len() > MAX_NOTE_LOCK_SECRET_BYTES {
+        return Err(BrowserStorageError::invalid(
+            "A lock secret must be between 1 and 256 bytes.",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_lock_hint(hint: Option<&str>) -> Result<(), BrowserStorageError> {
+    if hint.is_some_and(|hint| hint.chars().count() > MAX_NOTE_LOCK_HINT_CHARS) {
+        return Err(BrowserStorageError::invalid(
+            "A lock hint is at most 120 characters.",
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn map_storage_error(error: StorageError) -> BrowserStorageError {
     if let StorageError::Backend(detail) = &error {
         let detail = detail.to_ascii_lowercase();
@@ -667,6 +801,7 @@ mod tests {
     struct Probe;
 
     impl SearchIndexMaintenance for Probe {}
+    impl NoteLockAccess for Probe {}
 
     impl WorkspaceStorage for Probe {
         fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError> {

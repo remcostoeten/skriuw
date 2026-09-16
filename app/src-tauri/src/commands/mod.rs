@@ -1,6 +1,7 @@
 pub mod ai;
 pub mod history;
 pub mod links;
+pub mod lock;
 pub mod maintenance;
 pub mod media;
 pub mod pickers;

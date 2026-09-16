@@ -1,3 +1,4 @@
+import { showToast } from "@/shared/ui/toast";
 import { commitOperations } from "@/store/actions/workspace";
 import {
   exportMarkdownTree,
@@ -61,6 +62,10 @@ export async function exportNoteAsMarkdown(
   const state = store.getState();
   const node = state.nodes.get(noteId);
   if (!node) {
+    return;
+  }
+  if ((state.documents.get(noteId)?.sealed ?? null) !== null) {
+    showToast({ message: "Unlock the note before exporting it." });
     return;
   }
   try {

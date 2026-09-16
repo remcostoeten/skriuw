@@ -33,6 +33,7 @@ import {
 } from "./touch-gestures";
 import { showToast } from "@/shared/ui/toast";
 import { requestTemplatePicker } from "@/features/templates/template-picker-controller";
+import { toggleNodeLock } from "@/features/lock/lock-session";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import {
   CloseIcon,
@@ -49,6 +50,8 @@ import {
   PanelRightToggleIcon,
   PencilIcon,
   PinIcon,
+  LockIcon,
+  LockOpenIcon,
   PinOffIcon,
   SearchIcon,
   ShareIcon,
@@ -1122,6 +1125,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
     Object.assign(actions, {
       r: () => store.setEditingNode(id),
       p: () => setNodePinned(store, id, !isPinned),
+      l: () => toggleNodeLock(store, id),
       m: () => setMoveIds(selectedRootsFor(id)),
     });
     if (node.kind === "folder") {
@@ -1343,6 +1347,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
     }
     const isBulkSelection = store.getState().selectedNodeIds.size > 1;
     const isPinned = (store.getState().sourceNodes.get(id)?.pinnedAt ?? null) !== null;
+    const isLocked = (store.getState().sourceNodes.get(id)?.lockedAt ?? null) !== null;
     return (
       <>
         {!isBulkSelection && (
@@ -1359,6 +1364,17 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
               {isPinned ? <PinOffIcon className="w-4 h-4" /> : <PinIcon className="w-4 h-4" />}
               {isPinned ? "Unpin" : "Pin"}
               <ContextMenuShortcut keys="P" />
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => toggleNodeLock(store, id)} className="gap-2">
+              {isLocked ? <LockOpenIcon className="w-4 h-4" /> : <LockIcon className="w-4 h-4" />}
+              {isLocked
+                ? node.kind === "folder"
+                  ? "Unlock folder"
+                  : "Unlock note"
+                : node.kind === "folder"
+                  ? "Lock folder…"
+                  : "Lock note…"}
+              <ContextMenuShortcut keys="L" />
             </ContextMenuItem>
             {node.kind === "folder" && (
               <>

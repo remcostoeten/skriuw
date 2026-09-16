@@ -97,6 +97,20 @@ export function invoke<T>(command: string, arguments_: InvokeArguments = {}): Pr
   if (command === "bootstrap_workspace") {
     return Promise.resolve(currentSnapshot() as T);
   }
+  if (command === "note_lock_state" || command === "relock_note_lock") {
+    return Promise.resolve({
+      configured: false,
+      unlocked: false,
+      kind: null,
+      hint: null,
+      failedAttempts: 0,
+      nextAttemptAt: null,
+      lockedNoteCount: 0,
+    } as T);
+  }
+  if (command === "read_locked_documents") {
+    return Promise.resolve([] as T);
+  }
   if (command === "search_index_status" || command === "rebuild_search_index") {
     const noteCount = currentSnapshot().nodes.length;
     return Promise.resolve({

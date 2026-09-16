@@ -38,6 +38,17 @@
         "$ref": "#/$defs/WorkspaceNode"
       }
     },
+    "noteLock": {
+      "description": "The workspace's note lock, when one is configured. Carries wrapped key\nmaterial only, so an archive stays safe to hand around.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NoteLockConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "people": {
       "type": "array",
       "default": [],
@@ -143,6 +154,54 @@
       "enum": [
         "note",
         "folder"
+      ]
+    },
+    "NoteLockConfig": {
+      "description": "Everything a device needs to unlock the workspace's locked notes once it\nknows the secret or the recovery code. Both wraps seal the same content\nkey, so either opens every locked note. Safe to replicate: without the\nsecret it is ciphertext.",
+      "type": "object",
+      "properties": {
+        "configuredAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "hint": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "kdfSalt": {
+          "type": "string"
+        },
+        "keyId": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/NoteLockKind"
+        },
+        "recoveryWrap": {
+          "$ref": "#/$defs/SealedPayload"
+        },
+        "secretWrap": {
+          "$ref": "#/$defs/SealedPayload"
+        }
+      },
+      "required": [
+        "kind",
+        "keyId",
+        "kdfSalt",
+        "secretWrap",
+        "recoveryWrap",
+        "configuredAt"
+      ]
+    },
+    "NoteLockKind": {
+      "description": "The kind of secret protecting locked notes. A PIN is digits only, so the\nunlock screen can show a numeric keypad; a passphrase is any text.",
+      "type": "string",
+      "enum": [
+        "pin",
+        "passphrase"
       ]
     },
     "NoteProperty": {
@@ -311,6 +370,30 @@
       },
       "required": [
         "maxOutputBytes"
+      ]
+    },
+    "SealedPayload": {
+      "description": "Ciphertext together with what is needed to open it, and never the key.\n`ciphertext` and `nonce` are unpadded base64.",
+      "type": "object",
+      "properties": {
+        "ciphertext": {
+          "type": "string"
+        },
+        "keyId": {
+          "type": "string"
+        },
+        "nonce": {
+          "type": "string"
+        },
+        "scheme": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scheme",
+        "keyId",
+        "nonce",
+        "ciphertext"
       ]
     },
     "TaskPriority": {
@@ -630,6 +713,17 @@
           "type": "integer",
           "format": "int64"
         },
+        "sealed": {
+          "description": "Present when the note is locked and its body is stored sealed. The\nplaintext fields then hold the empty placeholder, and a device that\nholds the lock key opens the body on request instead.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SealedPayload"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "wordCount": {
           "type": "integer",
           "format": "int64"
@@ -701,6 +795,14 @@
         },
         "kind": {
           "$ref": "#/$defs/NodeKind"
+        },
+        "lockedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64",
+          "default": null
         },
         "parentId": {
           "type": [

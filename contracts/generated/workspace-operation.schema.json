@@ -159,6 +159,54 @@
         }
       ]
     },
+    "NoteLockConfig": {
+      "description": "Everything a device needs to unlock the workspace's locked notes once it\nknows the secret or the recovery code. Both wraps seal the same content\nkey, so either opens every locked note. Safe to replicate: without the\nsecret it is ciphertext.",
+      "type": "object",
+      "properties": {
+        "configuredAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "hint": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "kdfSalt": {
+          "type": "string"
+        },
+        "keyId": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/NoteLockKind"
+        },
+        "recoveryWrap": {
+          "$ref": "#/$defs/SealedPayload"
+        },
+        "secretWrap": {
+          "$ref": "#/$defs/SealedPayload"
+        }
+      },
+      "required": [
+        "kind",
+        "keyId",
+        "kdfSalt",
+        "secretWrap",
+        "recoveryWrap",
+        "configuredAt"
+      ]
+    },
+    "NoteLockKind": {
+      "description": "The kind of secret protecting locked notes. A PIN is digits only, so the\nunlock screen can show a numeric keypad; a passphrase is any text.",
+      "type": "string",
+      "enum": [
+        "pin",
+        "passphrase"
+      ]
+    },
     "NoteProperty": {
       "type": "object",
       "properties": {
@@ -353,6 +401,30 @@
         "sourcePath",
         "noteId",
         "importedAt"
+      ]
+    },
+    "SealedPayload": {
+      "description": "Ciphertext together with what is needed to open it, and never the key.\n`ciphertext` and `nonce` are unpadded base64.",
+      "type": "object",
+      "properties": {
+        "ciphertext": {
+          "type": "string"
+        },
+        "keyId": {
+          "type": "string"
+        },
+        "nonce": {
+          "type": "string"
+        },
+        "scheme": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scheme",
+        "keyId",
+        "nonce",
+        "ciphertext"
       ]
     },
     "TaskPriority": {
@@ -1134,6 +1206,103 @@
             "type",
             "id",
             "pinned",
+            "at"
+          ]
+        },
+        {
+          "description": "Marks a note or folder as locked. The bodies of the notes it covers\nmust already be sealed, or the applying device must hold the lock key\nso it can seal them; a device that can do neither refuses.",
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "id": {
+              "type": "string"
+            },
+            "locked": {
+              "type": "boolean"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_node_locked"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "locked",
+            "at"
+          ]
+        },
+        {
+          "description": "Writes a locked note's body as ciphertext. Devices that hold the lock\nkey open it on demand; every other device stores it as is.",
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "noteId": {
+              "type": "string"
+            },
+            "sealed": {
+              "$ref": "#/$defs/SealedPayload"
+            },
+            "type": {
+              "type": "string",
+              "const": "save_sealed_document"
+            }
+          },
+          "required": [
+            "type",
+            "noteId",
+            "sealed",
+            "expectedRevision",
+            "at"
+          ]
+        },
+        {
+          "description": "Installs or replaces the workspace's note lock: the wrapped content key\nunder both the secret and the recovery code. Carries no key material.",
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "lock": {
+              "$ref": "#/$defs/NoteLockConfig"
+            },
+            "type": {
+              "type": "string",
+              "const": "configure_note_lock"
+            }
+          },
+          "required": [
+            "type",
+            "lock",
+            "at"
+          ]
+        },
+        {
+          "description": "Removes the note lock after every locked note was unlocked.",
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "type": {
+              "type": "string",
+              "const": "remove_note_lock"
+            }
+          },
+          "required": [
+            "type",
             "at"
           ]
         },

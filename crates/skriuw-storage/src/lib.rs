@@ -1,9 +1,10 @@
 use std::{fmt, sync::Arc};
 
 use skriuw_domain::{
-    HistoryHeader, OperationAck, ReplicatedWorkspaceOperation, SearchHit, SearchIndexStatus,
-    SyncAcceptedOperation, SyncConflictReason, SyncPushRequest, WorkspaceArchive, WorkspaceDelta,
-    WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    HistoryHeader, NoteLockKind, NoteLockState, OperationAck, ReplicatedWorkspaceOperation,
+    SearchHit, SearchIndexStatus, SyncAcceptedOperation, SyncConflictReason, SyncPushRequest,
+    WorkspaceArchive, WorkspaceDelta, WorkspaceDocument, WorkspaceOperationEnvelope,
+    WorkspaceSnapshot,
 };
 use thiserror::Error;
 
@@ -1083,4 +1084,116 @@ mod tests {
             );
         }
     }
+}
+
+/// A request to install the workspace's note lock. `entropy` supplies the
+/// content key, the recovery code, and the KDF salt from the caller's
+/// platform randomness, in that order, so the shared crates never link a
+/// random-number source.
+#[derive(Clone)]
+pub struct ConfigureNoteLockRequest {
+    pub kind: NoteLockKind,
+    pub secret: String,
+    pub hint: Option<String>,
+    pub entropy: Vec<u8>,
+}
+
+impl fmt::Debug for ConfigureNoteLockRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ConfigureNoteLockRequest")
+            .field("kind", &self.kind)
+            .field("hint", &self.hint)
+            .field("secret", &"<redacted>")
+            .field("entropy", &"<redacted>")
+            .finish()
+    }
+}
+
+/// A request to set a new secret from the recovery code, or to change the
+/// secret while the current one is known.
+#[derive(Clone)]
+pub struct ReplaceNoteLockSecretRequest {
+    pub kind: NoteLockKind,
+    pub secret: String,
+    pub hint: Option<String>,
+}
+
+impl fmt::Debug for ReplaceNoteLockSecretRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ReplaceNoteLockSecretRequest")
+            .field("kind", &self.kind)
+            .field("hint", &self.hint)
+            .field("secret", &"<redacted>")
+            .finish()
+    }
+}
+
+/// Note locking: a workspace-wide secret whose derived key seals the bodies of
+/// locked notes at rest. The adapter holds the opened key for the session only;
+/// nothing here ever returns key material.
+pub trait NoteLockAccess: Send + Sync {
+    fn note_lock_state(&self, _now_ms: i64) -> Result<NoteLockState, StorageError> {
+        Ok(NoteLockState::unconfigured())
+    }
+
+    /// Installs the lock and returns the recovery code exactly once. The
+    /// session is unlocked afterwards.
+    fn configure_note_lock(
+        &self,
+        _request: ConfigureNoteLockRequest,
+        _now_ms: i64,
+    ) -> Result<String, StorageError> {
+        Err(note_lock_unavailable())
+    }
+
+    /// Opens the session with the secret. A wrong secret counts as a failed
+    /// attempt and, after the free attempts, starts a growing delay.
+    fn unlock_note_lock(&self, _secret: &str, _now_ms: i64) -> Result<NoteLockState, StorageError> {
+        Err(note_lock_unavailable())
+    }
+
+    /// Opens the session with the recovery code and installs a new secret.
+    fn recover_note_lock(
+        &self,
+        _recovery_code: &str,
+        _request: ReplaceNoteLockSecretRequest,
+        _now_ms: i64,
+    ) -> Result<NoteLockState, StorageError> {
+        Err(note_lock_unavailable())
+    }
+
+    /// Replaces the secret. The session must be unlocked.
+    fn change_note_lock_secret(
+        &self,
+        _request: ReplaceNoteLockSecretRequest,
+        _now_ms: i64,
+    ) -> Result<NoteLockState, StorageError> {
+        Err(note_lock_unavailable())
+    }
+
+    /// Drops the session key. Locked notes read as placeholders again.
+    fn relock_note_lock(&self) -> Result<NoteLockState, StorageError> {
+        Err(note_lock_unavailable())
+    }
+
+    /// The opened bodies of locked notes, all of them or only `note_ids`.
+    /// Requires an unlocked session.
+    fn read_locked_documents(
+        &self,
+        _note_ids: Option<&[String]>,
+    ) -> Result<Vec<WorkspaceDocument>, StorageError> {
+        Err(note_lock_unavailable())
+    }
+
+    /// Unlocks every locked note permanently and removes the lock. Requires an
+    /// unlocked session.
+    fn remove_note_lock(&self, _now_ms: i64) -> Result<OperationAck, StorageError> {
+        Err(note_lock_unavailable())
+    }
+}
+
+fn note_lock_unavailable() -> StorageError {
+    StorageError::InvalidOperation("note locking is unavailable in this storage adapter".into())
 }

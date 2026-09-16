@@ -14,6 +14,7 @@ mod annotation;
 mod checkpoint;
 mod chunk;
 mod local_ai;
+mod lock;
 mod prompt;
 mod reconcile;
 mod remote_ai;
@@ -52,6 +53,14 @@ pub use local_ai::{
     LocalAiError, LocalAiErrorCategory, LocalAiModel, LocalAiOperation, LocalAiProgress,
     LocalAiProgressSink, LocalAiRuntime, LocalAiRuntimeState, LocalAiStatus,
     MAX_LOCAL_AI_MODEL_NAME_BYTES, MAX_LOCAL_AI_STATUS_BYTES,
+};
+pub use lock::{
+    LockedDocumentBody, MAX_NOTE_LOCK_HINT_CHARS, MAX_NOTE_LOCK_SECRET_BYTES,
+    MIN_NOTE_LOCK_PASSPHRASE_CHARS, MIN_NOTE_LOCK_PIN_DIGITS, NOTE_LOCK_CONFIGURE_ENTROPY_BYTES,
+    NOTE_LOCK_FREE_ATTEMPTS, NOTE_LOCK_KEY_BYTES, NOTE_LOCK_RECOVERY_ENTROPY_BYTES,
+    NOTE_LOCK_SALT_BYTES, NOTE_LOCK_SCHEME, NoteLockConfig, NoteLockKind, NoteLockState,
+    SealedPayload, locked_document_placeholder, unlock_retry_delay_ms, validate_note_lock_config,
+    validate_note_lock_hint, validate_note_lock_secret, validate_sealed_payload,
 };
 pub use prompt::{
     BUILT_IN_PROMPT_LIBRARY_VERSION, BUILT_IN_PROMPTS, BuiltInPrompt, BuiltInPromptLibrary,
@@ -245,6 +254,8 @@ pub struct WorkspaceNode {
     pub deleted_at: Option<i64>,
     #[serde(default)]
     pub pinned_at: Option<i64>,
+    #[serde(default)]
+    pub locked_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -255,6 +266,11 @@ pub struct WorkspaceDocument {
     pub markdown: String,
     pub revision: i64,
     pub word_count: i64,
+    /// Present when the note is locked and its body is stored sealed. The
+    /// plaintext fields then hold the empty placeholder, and a device that
+    /// holds the lock key opens the body on request instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sealed: Option<lock::SealedPayload>,
 }
 
 /// The subset of canonical state a renderer needs after specific notes
@@ -748,6 +764,10 @@ pub struct WorkspaceArchive {
     pub prompts: Vec<WorkspacePrompt>,
     #[serde(default)]
     pub annotations: Vec<WorkspaceAnnotation>,
+    /// The workspace's note lock, when one is configured. Carries wrapped key
+    /// material only, so an archive stays safe to hand around.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note_lock: Option<lock::NoteLockConfig>,
 }
 
 impl WorkspaceArchive {
@@ -767,6 +787,7 @@ impl WorkspaceArchive {
             property_templates: snapshot.property_templates,
             tasks: snapshot.tasks,
             annotations: snapshot.annotations,
+            note_lock: None,
             prompts: snapshot.prompts,
         }
     }
@@ -1587,6 +1608,32 @@ pub enum WorkspaceOperation {
         pinned: bool,
         at: i64,
     },
+    /// Marks a note or folder as locked. The bodies of the notes it covers
+    /// must already be sealed, or the applying device must hold the lock key
+    /// so it can seal them; a device that can do neither refuses.
+    SetNodeLocked {
+        id: String,
+        locked: bool,
+        at: i64,
+    },
+    /// Writes a locked note's body as ciphertext. Devices that hold the lock
+    /// key open it on demand; every other device stores it as is.
+    SaveSealedDocument {
+        note_id: String,
+        sealed: lock::SealedPayload,
+        expected_revision: i64,
+        at: i64,
+    },
+    /// Installs or replaces the workspace's note lock: the wrapped content key
+    /// under both the secret and the recovery code. Carries no key material.
+    ConfigureNoteLock {
+        lock: lock::NoteLockConfig,
+        at: i64,
+    },
+    /// Removes the note lock after every locked note was unlocked.
+    RemoveNoteLock {
+        at: i64,
+    },
     SaveDocument {
         note_id: String,
         document_json: Value,
@@ -1791,10 +1838,25 @@ impl WorkspaceOperation {
                 validate_cover_transform(*position_x, *position_y, *zoom)?;
                 validate_timestamp(*at)
             }
-            Self::SetNodePinned { id, at, .. } => {
+            Self::SetNodePinned { id, at, .. } | Self::SetNodeLocked { id, at, .. } => {
                 validate_id("id", id)?;
                 validate_timestamp(*at)
             }
+            Self::SaveSealedDocument {
+                note_id,
+                sealed,
+                expected_revision,
+                at,
+            } => {
+                lock::validate_sealed_document(note_id, sealed)?;
+                validate_revision(*expected_revision)?;
+                validate_timestamp(*at)
+            }
+            Self::ConfigureNoteLock { lock, at } => {
+                lock::validate_note_lock_config(lock)?;
+                validate_timestamp(*at)
+            }
+            Self::RemoveNoteLock { at } => validate_timestamp(*at),
             Self::MoveNode {
                 id, placement, at, ..
             }
@@ -2532,6 +2594,7 @@ mod tests {
                     updated_at: 1,
                     deleted_at: None,
                     pinned_at: None,
+                    locked_at: None,
                 },
                 WorkspaceNode {
                     id: "note-1".into(),
@@ -2550,6 +2613,7 @@ mod tests {
                     updated_at: 2,
                     deleted_at: None,
                     pinned_at: None,
+                    locked_at: None,
                 },
             ],
             documents: vec![WorkspaceDocument {
@@ -2558,6 +2622,7 @@ mod tests {
                 markdown: "# Note".into(),
                 revision: 1,
                 word_count: 1,
+                sealed: None,
             }],
             settings: WorkspaceSettings::default(),
             tags: Vec::new(),
@@ -2567,6 +2632,7 @@ mod tests {
             tasks: Vec::new(),
             prompts: Vec::new(),
             annotations: Vec::new(),
+            note_lock: None,
         };
 
         archive.validate().expect("valid archive");
@@ -2597,6 +2663,7 @@ mod tests {
                     updated_at: 1,
                     deleted_at: None,
                     pinned_at: None,
+                    locked_at: None,
                 },
                 WorkspaceNode {
                     id: "folder-2".into(),
@@ -2615,6 +2682,7 @@ mod tests {
                     updated_at: 1,
                     deleted_at: None,
                     pinned_at: None,
+                    locked_at: None,
                 },
             ],
             documents: Vec::new(),
@@ -2626,6 +2694,7 @@ mod tests {
             tasks: Vec::new(),
             prompts: Vec::new(),
             annotations: Vec::new(),
+            note_lock: None,
         };
 
         assert!(matches!(
@@ -2778,6 +2847,7 @@ mod tests {
             tasks: Vec::new(),
             prompts: Vec::new(),
             annotations: Vec::new(),
+            note_lock: None,
         };
         archive.settings.settings_version = 2;
 
@@ -2814,6 +2884,7 @@ mod tests {
                     updated_at: 5,
                     deleted_at: Some(5),
                     pinned_at: None,
+                    locked_at: None,
                 },
                 WorkspaceNode {
                     id: "note-1".into(),
@@ -2832,6 +2903,7 @@ mod tests {
                     updated_at: 2,
                     deleted_at: None,
                     pinned_at: None,
+                    locked_at: None,
                 },
             ],
             documents: vec![WorkspaceDocument {
@@ -2840,6 +2912,7 @@ mod tests {
                 markdown: "# Note".into(),
                 revision: 1,
                 word_count: 1,
+                sealed: None,
             }],
             settings: WorkspaceSettings::default(),
             tags: Vec::new(),
@@ -2849,6 +2922,7 @@ mod tests {
             tasks: Vec::new(),
             prompts: Vec::new(),
             annotations: Vec::new(),
+            note_lock: None,
         };
 
         assert!(matches!(
@@ -2881,6 +2955,7 @@ mod tests {
                 updated_at: 1,
                 deleted_at: None,
                 pinned_at: None,
+                locked_at: None,
             }],
             documents: vec![WorkspaceDocument {
                 note_id: "note-1".into(),
@@ -2888,6 +2963,7 @@ mod tests {
                 markdown: "#Tag".into(),
                 revision: 1,
                 word_count: 1,
+                sealed: None,
             }],
             settings: WorkspaceSettings::default(),
             tags: vec![WorkspaceTag {
@@ -2904,6 +2980,7 @@ mod tests {
             tasks: Vec::new(),
             prompts: Vec::new(),
             annotations: Vec::new(),
+            note_lock: None,
         };
         archive.validate().expect("valid reference");
         archive.tags.clear();

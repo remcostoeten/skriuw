@@ -4293,9 +4293,11 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "skriuw-crypto",
  "skriuw-domain",
  "skriuw-storage",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]

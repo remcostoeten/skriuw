@@ -22,6 +22,7 @@ import { AboutSection } from "@/features/settings/sections/about-section";
 import { AppearanceSection } from "@/features/settings/sections/appearance-section";
 import { DataSection } from "@/features/settings/sections/data-section";
 import { EditorSection } from "@/features/settings/sections/editor-section";
+import { LockSection } from "@/features/settings/sections/lock-section";
 import { MediaSection } from "@/features/settings/sections/media-section";
 import {
   SECTIONS,
@@ -344,6 +345,7 @@ export function SettingsDialog({
             </Suspense>
           )}
           {activeSection === "editor" && <EditorSection store={store} />}
+          {activeSection === "lock" && <LockSection store={store} />}
           {activeSection === "ai" && (
             <AiOptInGate store={store}>
               {(signal) => (

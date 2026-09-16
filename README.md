@@ -135,6 +135,11 @@ never leave your machine. Remote providers (Gemini, Groq) run only with your
 own API key — stored in the OS keychain, never in the database or exports —
 and only after a per-provider consent that shows exactly what text is sent.
 
+Individual notes or folders can be **locked behind a PIN or passphrase**.
+Locked bodies are encrypted on disk and stay out of search, links, and history
+until you unlock them for the session; a one-time recovery code covers a
+forgotten secret ([details](docs/adr/0044-locked-notes.md)).
+
 Sync is encrypted in transit but not yet end-to-end
 ([details](docs/specs/cloud-sync-master.md)), so the server can read what it
 stores for you. If that boundary matters, stay local-only.

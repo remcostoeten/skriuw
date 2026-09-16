@@ -4,6 +4,7 @@ import {
   ImageIcon,
   InfoIcon,
   KeyboardIcon,
+  LockIcon,
   SettingsIcon,
   StarIcon,
   UserIcon,
@@ -58,6 +59,14 @@ export const SECTIONS = [
       "media library images pictures photos png jpeg gif webp blobs attachments unused delete remove usage notes gallery",
     icon: ImageIcon,
     desktopOnly: true,
+  },
+  {
+    id: "lock",
+    label: "Privacy & lock",
+    description: "Lock notes behind a PIN or passphrase",
+    searchText:
+      "lock locked notes pin passcode passphrase password privacy private protect encrypt auto-lock relock hint recovery code forgot",
+    icon: LockIcon,
   },
   {
     id: "data",

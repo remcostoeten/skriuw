@@ -26,6 +26,8 @@ export const EDITOR_LINE_HEIGHT_OPTIONS = [
   { value: "relaxed", label: "Relaxed" },
 ] as const;
 
+export const DEFAULT_AUTO_LOCK_MINUTES = 5;
+
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   settingsVersion: 1,
   theme: "midnight",
@@ -46,6 +48,8 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   showToasts: true,
   openLinksInApp: false,
   aiEnabled: false,
+  autoLockMinutes: DEFAULT_AUTO_LOCK_MINUTES,
+  lockOnBlur: false,
 };
 
 export type SettingsViewModel = {
@@ -65,6 +69,9 @@ export type SettingsViewModel = {
   showToasts: boolean;
   openLinksInApp: boolean;
   aiEnabled: boolean;
+  /** Minutes of inactivity before locked notes close again; zero means never. */
+  autoLockMinutes: number;
+  lockOnBlur: boolean;
 };
 
 export type EditableSettings = SettingsViewModel;
@@ -107,6 +114,8 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     showToasts: showsToasts(settings),
     openLinksInApp: opensLinksInApp(settings),
     aiEnabled: settings.aiEnabled === true,
+    autoLockMinutes: autoLockMinutes(settings),
+    lockOnBlur: locksOnBlur(settings),
   };
 }
 
@@ -136,6 +145,18 @@ export function changeHistoryDiffLayout(
   layout: DiffLayout,
 ): WorkspaceSettings {
   return { ...settings, historyDiffLayout: layout };
+}
+
+export function autoLockMinutes(settings: WorkspaceSettings): number {
+  const value: unknown = settings.autoLockMinutes;
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return DEFAULT_AUTO_LOCK_MINUTES;
+  }
+  return value;
+}
+
+export function locksOnBlur(settings: WorkspaceSettings): boolean {
+  return settings.lockOnBlur === true;
 }
 
 export function showsToasts(settings: WorkspaceSettings): boolean {

@@ -263,6 +263,7 @@ mod tests {
             tasks: Vec::new(),
             prompts: Vec::new(),
             annotations: Vec::new(),
+            note_lock: None,
         }
     }
 

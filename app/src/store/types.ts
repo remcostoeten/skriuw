@@ -14,6 +14,8 @@ import type {
   WorkspaceAnnotation,
   WorkspaceDelta,
   WorkspaceTask,
+  NoteLockState,
+  SealedPayload,
 } from "@/contracts/workspace";
 import type {
   IncomingReferences,
@@ -40,6 +42,8 @@ export type DocumentRecord = {
   revision: number;
   wordCount: number;
   hasLosslessMarkdown: boolean;
+  /** Present while the body is withheld: the note is locked and this session has not opened it. */
+  sealed?: SealedPayload | null;
 };
 
 export type NoteMetadata = {
@@ -96,6 +100,8 @@ export type RendererState = {
   outgoingReferences: OutgoingReferences;
   incomingReferences: IncomingReferences;
   coVisits: CoVisits;
+  /** Whether a note lock exists and whether this session holds its key. Session-only. */
+  noteLock: NoteLockState;
 };
 
 export type Equality<T> = (left: T, right: T) => boolean;
@@ -138,5 +144,6 @@ export type RendererStore = {
    * object identity so unchanged subscribers stay quiet.
    */
   applyRemoteDocuments: (delta: WorkspaceDelta) => boolean;
+  setNoteLock: (noteLock: NoteLockState) => boolean;
   destroy: () => void;
 };

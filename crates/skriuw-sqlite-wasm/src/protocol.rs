@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use skriuw_domain::{
-    OperationAck, SearchHit, SearchIndexStatus, WorkspaceArchive, WorkspaceDelta,
-    WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    NoteLockKind, NoteLockState, OperationAck, SearchHit, SearchIndexStatus, WorkspaceArchive,
+    WorkspaceDelta, WorkspaceDocument, WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 use skriuw_sync::{RemoteChangeSet, SyncStatus};
 
@@ -99,6 +99,47 @@ pub enum BrowserWorkerCommand {
     UnlockSyncEncryption {
         recovery_code: String,
     },
+    NoteLockState {
+        now_ms: i64,
+    },
+    /// Sets up note locking with entropy the page supplied from
+    /// `crypto.getRandomValues`: the content key, the recovery code, and the
+    /// KDF salt.
+    ConfigureNoteLock {
+        kind: NoteLockKind,
+        secret: String,
+        #[serde(default)]
+        hint: Option<String>,
+        entropy: Vec<u8>,
+        now_ms: i64,
+    },
+    UnlockNoteLock {
+        secret: String,
+        now_ms: i64,
+    },
+    RecoverNoteLock {
+        recovery_code: String,
+        kind: NoteLockKind,
+        secret: String,
+        #[serde(default)]
+        hint: Option<String>,
+        now_ms: i64,
+    },
+    ChangeNoteLockSecret {
+        kind: NoteLockKind,
+        secret: String,
+        #[serde(default)]
+        hint: Option<String>,
+        now_ms: i64,
+    },
+    RelockNoteLock,
+    ReadLockedDocuments {
+        #[serde(default)]
+        note_ids: Option<Vec<String>>,
+    },
+    RemoveNoteLock {
+        now_ms: i64,
+    },
     Close,
 }
 
@@ -138,6 +179,9 @@ pub enum BrowserWorkerValue {
     SyncCycle(BrowserSyncCycleReport),
     SyncEncryptionState(BrowserSyncEncryptionState),
     SyncRecoveryCode(String),
+    NoteLockState(NoteLockState),
+    NoteLockRecoveryCode(String),
+    LockedDocuments(Vec<WorkspaceDocument>),
     Unit,
     Closed,
 }

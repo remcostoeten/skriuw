@@ -47,6 +47,8 @@ test("default settings project every editable field", () => {
     showToasts: true,
     openLinksInApp: false,
     aiEnabled: false,
+    autoLockMinutes: 5,
+    lockOnBlur: false,
   });
 });
 

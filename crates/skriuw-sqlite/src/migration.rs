@@ -137,6 +137,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "sync_encryption",
         sql: include_str!("../migrations/0026_sync_encryption.sql"),
     },
+    Migration {
+        version: 27,
+        name: "note_lock",
+        sql: include_str!("../migrations/0027_note_lock.sql"),
+    },
 ];
 
 pub(crate) struct Migration {
@@ -418,6 +423,10 @@ mod tests {
             (
                 26,
                 "a73dea0ff37e198a0b8ac1a8ff855b56ef594ed89b9611f3e2adc40ad744ecb8",
+            ),
+            (
+                27,
+                "fb6ee0596d1172d0003d7b03c41d21f9ce8292bb606367b0481f09358932d557",
             ),
         ];
         assert_eq!(MIGRATIONS.len(), SHIPPED.len(), "append new checksums here");

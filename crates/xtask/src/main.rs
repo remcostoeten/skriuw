@@ -12,10 +12,10 @@ use skriuw_domain::{
     AiCompletionEvent, AiCompletionRequest, AiHistorySettings, AiHistoryView, AiRunFilter,
     AiTranscriptionModel, AiTranscriptionResult, BuiltInPromptLibrary, ContentManifest,
     CredentialVaultDetection, LocalAiError, LocalAiModel, LocalAiProgress, LocalAiStatus,
-    OperationAck, RemoteAiCatalog, RemoteAiModelDirectory, RemoteAiProviderState, SearchHit,
-    SearchIndexStatus, SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView,
-    WORKSPACE_OPERATION_SYNC_POLICY_V1, WorkspaceArchive, WorkspaceCheckpoint, WorkspaceDelta,
-    WorkspaceEncryptionMarker, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    NoteLockState, OperationAck, RemoteAiCatalog, RemoteAiModelDirectory, RemoteAiProviderState,
+    SearchHit, SearchIndexStatus, SyncPullResponse, SyncPushRequest, SyncPushResponse,
+    SyncRecoveryView, WORKSPACE_OPERATION_SYNC_POLICY_V1, WorkspaceArchive, WorkspaceCheckpoint,
+    WorkspaceDelta, WorkspaceEncryptionMarker, WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 
 fn main() -> ExitCode {
@@ -66,6 +66,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     )?;
     write_schema::<WorkspaceOperationEnvelope>(&output, "workspace-operation.schema.json", check)?;
     write_schema::<WorkspaceSnapshot>(&output, "workspace-snapshot.schema.json", check)?;
+    write_schema::<NoteLockState>(&output, "note-lock-state.schema.json", check)?;
     write_schema::<WorkspaceArchive>(&output, "workspace-archive.schema.json", check)?;
     write_schema::<OperationAck>(&output, "operation-ack.schema.json", check)?;
     write_schema::<SearchHit>(&output, "search-hit.schema.json", check)?;

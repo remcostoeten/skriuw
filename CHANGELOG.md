@@ -7,6 +7,259 @@ From 0.26.0 onward, releases come from the v2 desktop application (the
 repository root, tagged `v2-v*`), which continues the version line the v1 desktop ended at
 0.25.0. Entries up to 0.25.0 cover the v1 products.
 
+## [Unreleased]
+
+### Added
+
+- **End-to-end encrypted sync:** note bodies are sealed on the device before
+  they leave it, so the server stores ciphertext it cannot read. Keys derive
+  from a recovery code with Argon2id; migration 0026 and
+  [ADR-0043](docs/adr/0043-end-to-end-encrypted-sync.md) cover the scheme.
+- **Full-text content search:** SQLite FTS5 backs search over note bodies, not
+  just titles.
+- **Modal Vim editing** in both the rich editor and raw Markdown mode
+  ([ADR-0042](docs/adr/0042-modal-vim-editing.md)), including wrapped-row line
+  jumps.
+- **Installable browser build** with a compact touch shell for phones and
+  tablets: phone drawers, tab overflow, and a keyboard-first polish pass.
+- **History scrubber:** a bottom-center revision scrubber driven by drag,
+  pinch, wheel, or keyboard.
+- **Cover gradients and per-asset reveal** in the media library.
+
+### In progress (working tree, not yet released)
+
+- **Locked notes and folders:** lock a note, or a folder and everything under
+  it, behind one workspace PIN or passphrase (context menu, palette, or
+  `mod+shift+l`). Bodies are encrypted at rest with XChaCha20-Poly1305 under a
+  session-scoped key derived from the secret — or from a one-time recovery
+  code — with Argon2id. Locked bodies leave the full-text index, backlinks,
+  tasks, and new history capture until unlocked, and are excluded from
+  archives, checkpoints, and deltas. Notes relock after a configurable idle
+  timeout or on window blur; wrong attempts back off instead of destroying the
+  data. Lock state replicates as `ConfigureNoteLock`, `SetNodeLocked`, and
+  `SaveSealedDocument` operations, expanded adapter-side before they apply.
+  Migration 0027 and [ADR-0044](docs/adr/0044-locked-notes.md).
+
+### Fixed
+
+- Brand icon resolution, a roomier command palette, and an inline empty-trash
+  confirmation.
+
+## [0.44.0] — 2026-09-09
+
+### Added
+
+- **AI runs as visible work:** an anchored, non-modal AI menu steered from the
+  note, with staged run progress in a single card (#358).
+- **Voice dictation** behind a provider-agnostic transcription seam (#339).
+- **Personal note templates and saved searches**, plus hermetic browser test
+  harnesses (#353).
+- **Named media with bulk delete** and a block gutter setting (#356).
+- **Shared Checkbox and Radio controls**; double-clicking the title bar
+  maximizes the window.
+- **Focused marketing routes** on the web site (#338).
+
+### Changed
+
+- The bubble menu's exclusive choices are grouped behind three triggers,
+  cutting 21 toolbar controls to 10 (#359).
+- Transcription and completion now come from the extracted AI SDK (#357).
+- Version history pairs edited lines by similarity and can expand hidden
+  context (#351).
+
+### Fixed
+
+- The browser runtime offers a workspace reset when the database cannot open
+  (#355).
+
+## [0.43.0] — 2026-09-05
+
+### Added
+
+- **Automatic sync convergence:** sessions reconcile without manual
+  intervention, with explicit session lifecycle and bounded cloud writes.
+
+## [0.42.0] — 2026-08-31
+
+### Added
+
+- **Whole-note ink annotation layer:** pen, highlighter, line, rectangle,
+  ellipse, eraser, and select/move tools over the note surface, versioned on
+  the document root (#336).
+- **Sidebar pinned chips**, save-failure recovery, and a sync epoch purge
+  (#352).
+- **Conflict review UI** on top of base-proof sync reconciliation, fetched AI
+  model catalogues, and revision stats (#340).
+- **Canonical Skriuw landing page** with social preview metadata (#337).
+- Annotation threads gained hover previews, Tab-to-reply, and a
+  keyboard-operable popover.
+- The browser runtime allows multiple tabs, and the store reopens the last
+  note across a reload.
+
+### Changed
+
+- Version history pairs edited lines by similarity and expands hidden context
+  (#350).
+- Animated icons resolve through one keyed module.
+
+### Fixed
+
+- Checklist tasks promote in the same transaction as their save.
+- Stacked code blocks get a real gap.
+
+## [0.41.0] — 2026-08-23
+
+### Added
+
+- **Syntax highlighting in raw Markdown mode.**
+- README demo GIF, architecture sketch, and measured performance numbers.
+
+### Fixed
+
+- Dialogs focus their first control when they open.
+
+## [0.40.0] — 2026-08-22
+
+### Added
+
+- **Inline comment threads on text selections:** anchored by a document mark,
+  painted from a decoration plugin, listed and navigable from the inspector,
+  and persisted as a synced entity (#334).
+- **In-app link browser:** links open in Skriuw's own browser window (#335).
+
+### Fixed
+
+- Dialogs and shortcut hosts stay outside the inert workspace.
+- Production auth and favicon restored on the hosted build.
+
+## [0.39.0] — 2026-08-18
+
+### Added
+
+- **AI editor actions with preview streaming** (#322).
+- **Extract-tasks and suggest-tags** built-in prompts (#322).
+- **Run history and token usage** recorded at the AI seam (#321).
+- **Base prompts library** (#320).
+
+### Fixed
+
+- The email provider no longer leaks account existence (#332).
+
+## [0.38.0] — 2026-08-18
+
+### Added
+
+- **Prompt playground** surface for iterating on prompts (#319, #333).
+- **Default model selection and a quick switcher** (#318).
+
+## [0.37.0] — 2026-08-17
+
+### Added
+
+- **Remote provider BYOK** for Gemini and Groq (#317), an **opt-in Ollama
+  local runtime** (#316), and the structural **AI opt-in gate** (#329, #331).
+- An Ollama stop control and a curated model catalogue; remote completions are
+  gated on that catalogue.
+- The stored empty-note prompt is searchable from settings.
+
+### Changed
+
+- Toasts moved onto `@remcostoeten/notifier`.
+
+### Fixed
+
+- Caret and focus behaviour on blur and rename.
+- Key revocation works without a system keyring.
+- The AI surface is hidden in the browser runtime.
+
+## [0.36.0] — 2026-08-17
+
+Superseded by 0.37.0 on the same day; no separate artifacts were published.
+
+## [0.35.0] — 2026-08-16
+
+### Added
+
+- **First-class tasks, a relationship explorer, and a unified editor overlay.**
+- A hardened local relationship graph (#311) with honest selectors and empty
+  sections hidden entirely.
+
+### Fixed
+
+- A second browser tab reports as already-open instead of as a corrupt
+  database (#313).
+
+## [0.34.0] — 2026-08-15
+
+### Added
+
+- **Shell chrome and shortcut polish round.**
+- Signing into an empty account adopts the starter preview workspace.
+
+## [0.33.0] — 2026-08-14
+
+### Added
+
+- **Real-time sync wake channel** over hibernatable Durable Object WebSockets.
+
+## [0.32.2] — 2026-08-13
+
+### Fixed
+
+- winget submissions use the MSI, so komac stops aborting on the NSIS WebView2
+  branch.
+
+## [0.32.1] — 2026-08-12
+
+### Fixed
+
+- Migration 0013's shipped bytes restored and migration checksums pinned.
+- Documentation build survives the root `.vercelignore`, declares its Tailwind
+  dependencies, and follows the repo root after the `v1/` move.
+
+## [0.32.0] — 2026-08-12
+
+### Changed
+
+- **v2 is now the repository root** and the frozen v1 product line moved into
+  `v1/` (#310). The renderer and `src-tauri` are restructured by feature
+  (#308), and the root was tidied after the move (#309).
+
+### Added
+
+- **Version diff view** plus polish across the history and reference surfaces.
+- **Animated app icon system** with a toggle setting.
+- Remote cover images download through the desktop shell.
+
+## [0.31.0] — 2026-08-10
+
+### Added
+
+- A seeded preview workspace, revealed after first paint.
+
+## [0.30.0] — 2026-08-10
+
+### Added
+
+- **Hosted app, account sync, and stored media.**
+- **Local-first onboarding.**
+
+## [0.29.0] — 2026-08-07
+
+### Added
+
+- **Cloud sync:** convergence, content transport, browser runtime, and
+  recovery (#306), including the WASM worker boundary and OPFS capability
+  probing.
+- **Note templates** with a keyboard-first picker (#307).
+- **Accessible embedded diagrams** (#301).
+
+### Changed
+
+- Durability, scalability, and portability gates hardened (#300).
+- v1 CI, legacy desktop release automation, one-off codemods, and stale docs
+  removed; the collaboration worker moved from `party/` to `apps/collab`.
+
 ## [0.28.0] — 2026-08-02
 
 ### Added

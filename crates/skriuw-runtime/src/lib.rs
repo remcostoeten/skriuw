@@ -12,8 +12,8 @@ use skriuw_domain::{
     WorkspaceSnapshot, validate_operation_group,
 };
 use skriuw_storage::{
-    Diagnostic, DiagnosticCategory, DiagnosticContext, SearchIndexMaintenance, StorageError,
-    WorkspaceStorage,
+    Diagnostic, DiagnosticCategory, DiagnosticContext, NoteLockAccess, SearchIndexMaintenance,
+    StorageError, WorkspaceStorage,
 };
 use thiserror::Error;
 
@@ -68,7 +68,9 @@ pub struct WorkspaceRuntime {
 
 impl WorkspaceRuntime {
     #[must_use]
-    pub fn spawn(storage: impl WorkspaceStorage + SearchIndexMaintenance + 'static) -> Self {
+    pub fn spawn(
+        storage: impl WorkspaceStorage + SearchIndexMaintenance + NoteLockAccess + 'static,
+    ) -> Self {
         let (sender, receiver) = mpsc::channel();
         let worker = thread::Builder::new()
             .name("skriuw-storage".into())
@@ -179,6 +181,22 @@ impl WorkspaceRuntime {
         Ok(Completion { receiver })
     }
 
+    /// Runs one note-lock call on the storage thread, so key derivation and
+    /// sealing never block the caller and always see the same connection the
+    /// operations use.
+    pub fn note_lock<T: Send + 'static>(
+        &self,
+        call: impl FnOnce(&dyn NoteLockAccess) -> Result<T, StorageError> + Send + 'static,
+    ) -> Result<Completion<T>, RuntimeError> {
+        let (sender, receiver) = mpsc::channel();
+        self.shared.submit(Request::NoteLock {
+            run: Box::new(move |storage| {
+                let _ = sender.send(call(storage));
+            }),
+        })?;
+        Ok(Completion { receiver })
+    }
+
     pub fn shutdown(&self) -> Result<(), RuntimeError> {
         self.shared.stop_accepting();
         self.shared.join_worker()
@@ -285,9 +303,17 @@ enum Request {
         ids: Vec<String>,
         sender: Sender<Result<WorkspaceDelta, StorageError>>,
     },
+    NoteLock {
+        run: NoteLockCall,
+    },
 }
 
-fn run(storage: impl WorkspaceStorage + SearchIndexMaintenance, receiver: Receiver<Request>) {
+type NoteLockCall = Box<dyn FnOnce(&dyn NoteLockAccess) + Send>;
+
+fn run(
+    storage: impl WorkspaceStorage + SearchIndexMaintenance + NoteLockAccess,
+    receiver: Receiver<Request>,
+) {
     let mut pending = None;
     loop {
         let request = match pending.take() {
@@ -354,6 +380,7 @@ fn run(storage: impl WorkspaceStorage + SearchIndexMaintenance, receiver: Receiv
             Request::ReadDelta { ids, sender } => {
                 let _ = sender.send(storage.read_workspace_delta(&ids));
             }
+            Request::NoteLock { run } => run(&storage),
         }
     }
 }
@@ -413,8 +440,8 @@ mod tests {
     };
     use skriuw_sqlite::SqliteWorkspace;
     use skriuw_storage::{
-        DiagnosticCategory, DiagnosticContext, SearchIndexMaintenance, StorageError,
-        WorkspaceStorage,
+        DiagnosticCategory, DiagnosticContext, NoteLockAccess, SearchIndexMaintenance,
+        StorageError, WorkspaceStorage,
     };
 
     use super::{RuntimeError, WorkspaceRuntime};
@@ -809,6 +836,7 @@ mod tests {
     }
 
     impl SearchIndexMaintenance for ProbeStorage {}
+    impl NoteLockAccess for ProbeStorage {}
 
     impl WorkspaceStorage for ProbeStorage {
         fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
@@ -843,6 +871,7 @@ mod tests {
     }
 
     impl SearchIndexMaintenance for GateStorage {}
+    impl NoteLockAccess for GateStorage {}
 
     impl WorkspaceStorage for GateStorage {
         fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
@@ -883,6 +912,7 @@ mod tests {
     }
 
     impl SearchIndexMaintenance for DropProbeStorage {}
+    impl NoteLockAccess for DropProbeStorage {}
 
     impl WorkspaceStorage for DropProbeStorage {
         fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
@@ -908,6 +938,7 @@ mod tests {
     struct PanickingStorage;
 
     impl SearchIndexMaintenance for PanickingStorage {}
+    impl NoteLockAccess for PanickingStorage {}
 
     impl WorkspaceStorage for PanickingStorage {
         fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {
@@ -938,6 +969,7 @@ mod tests {
     }
 
     impl SearchIndexMaintenance for BatchProbeStorage {}
+    impl NoteLockAccess for BatchProbeStorage {}
 
     impl WorkspaceStorage for BatchProbeStorage {
         fn read_workspace_delta(&self, _ids: &[String]) -> Result<WorkspaceDelta, StorageError> {

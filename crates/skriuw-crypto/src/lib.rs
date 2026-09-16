@@ -44,7 +44,7 @@ pub const RECOVERY_CODE_CHARACTERS: usize = 32;
 pub const KEY_ID_HEX_CHARACTERS: usize = 16;
 
 const NONCE_BYTES: usize = 24;
-const SALT_BYTES: usize = 16;
+pub const SALT_BYTES: usize = 16;
 const KDF_MEMORY_KIB: u32 = 19_456;
 const KDF_ITERATIONS: u32 = 2;
 const KDF_PARALLELISM: u32 = 1;
@@ -218,12 +218,41 @@ pub fn derive_content_key(
         .chain_update(SALT_DOMAIN.as_bytes())
         .chain_update(workspace_id.as_bytes())
         .finalize();
+    derive_key(&recovery_code.entropy, &salt[..SALT_BYTES])
+}
+
+/// Derives a key from a recovery code and a caller-held random salt, for
+/// secrets that are not tied to a workspace identity.
+pub fn derive_key_from_recovery_code(
+    recovery_code: &RecoveryCode,
+    salt: &[u8],
+) -> Result<ContentKey, CryptoError> {
+    derive_key(&recovery_code.entropy, salt)
+}
+
+/// Derives a key from a user-chosen secret such as a PIN or passphrase and a
+/// caller-held random salt. The same Argon2id cost applies as for recovery
+/// codes, so a short PIN still costs an attacker one memory-hard derivation per
+/// guess.
+pub fn derive_key_from_secret(secret: &[u8], salt: &[u8]) -> Result<ContentKey, CryptoError> {
+    if secret.is_empty() {
+        return Err(CryptoError::KeyDerivation("secret is empty".into()));
+    }
+    derive_key(secret, salt)
+}
+
+fn derive_key(input: &[u8], salt: &[u8]) -> Result<ContentKey, CryptoError> {
+    if salt.len() < SALT_BYTES {
+        return Err(CryptoError::KeyDerivation(format!(
+            "salt must be at least {SALT_BYTES} bytes"
+        )));
+    }
     let params = Params::new(KDF_MEMORY_KIB, KDF_ITERATIONS, KDF_PARALLELISM, None)
         .map_err(|error| CryptoError::KeyDerivation(error.to_string()))?;
     let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut material = [0_u8; CONTENT_KEY_BYTES];
     argon
-        .hash_password_into(&recovery_code.entropy, &salt[..SALT_BYTES], &mut material)
+        .hash_password_into(input, salt, &mut material)
         .map_err(|error| CryptoError::KeyDerivation(error.to_string()))?;
     let key = ContentKey { material };
     material.zeroize();
@@ -561,5 +590,77 @@ mod tests {
 
     fn key_from_other_code() -> ContentKey {
         derive_content_key(&recovery_code(9), "workspace-1").expect("derive")
+    }
+}
+
+#[cfg(test)]
+mod secret_key_tests {
+    use super::{
+        CONTENT_KEY_BYTES, CryptoError, RecoveryCode, SALT_BYTES, SEAL_SCHEME_V2,
+        derive_key_from_recovery_code, derive_key_from_secret, open, seal,
+    };
+
+    #[test]
+    fn a_secret_and_salt_derive_a_stable_key_that_wraps_and_unwraps() {
+        let salt = [7_u8; SALT_BYTES];
+        let kek = derive_key_from_secret(b"1234", &salt).expect("derive");
+        let again = derive_key_from_secret(b"1234", &salt).expect("derive again");
+        assert_eq!(kek.material(), again.material());
+        let content = [9_u8; CONTENT_KEY_BYTES];
+        let wrapped = seal(&kek, "skriuw/lock/key", &content).expect("wrap");
+        let opened = open(
+            &kek,
+            SEAL_SCHEME_V2,
+            &kek.key_id(),
+            "skriuw/lock/key",
+            &wrapped.nonce,
+            &wrapped.ciphertext,
+        )
+        .expect("unwrap");
+        assert_eq!(opened, content);
+    }
+
+    #[test]
+    fn a_different_secret_or_salt_cannot_unwrap() {
+        let salt = [7_u8; SALT_BYTES];
+        let kek = derive_key_from_secret(b"1234", &salt).expect("derive");
+        let wrapped = seal(&kek, "skriuw/lock/key", &[1_u8; CONTENT_KEY_BYTES]).expect("wrap");
+        let wrong = derive_key_from_secret(b"1235", &salt).expect("derive wrong");
+        assert_ne!(kek.material(), wrong.material());
+        let error = open(
+            &wrong,
+            SEAL_SCHEME_V2,
+            &wrong.key_id(),
+            "skriuw/lock/key",
+            &wrapped.nonce,
+            &wrapped.ciphertext,
+        )
+        .expect_err("wrong secret");
+        assert_eq!(error, CryptoError::ContentUnopenable);
+        let other_salt = [8_u8; SALT_BYTES];
+        let salted = derive_key_from_secret(b"1234", &other_salt).expect("derive salted");
+        assert_ne!(kek.material(), salted.material());
+    }
+
+    #[test]
+    fn empty_secrets_and_short_salts_are_refused() {
+        assert!(matches!(
+            derive_key_from_secret(b"", &[0_u8; SALT_BYTES]),
+            Err(CryptoError::KeyDerivation(_))
+        ));
+        assert!(matches!(
+            derive_key_from_secret(b"1234", &[0_u8; 4]),
+            Err(CryptoError::KeyDerivation(_))
+        ));
+    }
+
+    #[test]
+    fn recovery_codes_derive_with_a_caller_salt() {
+        let code = RecoveryCode::from_entropy(&[3_u8; 20]).expect("code");
+        let salt = [5_u8; SALT_BYTES];
+        let key = derive_key_from_recovery_code(&code, &salt).expect("derive");
+        let reparsed = RecoveryCode::parse(&code.formatted()).expect("parse");
+        let again = derive_key_from_recovery_code(&reparsed, &salt).expect("derive again");
+        assert_eq!(key.material(), again.material());
     }
 }

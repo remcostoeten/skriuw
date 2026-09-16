@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use skriuw_crypto::ContentKey;
 use skriuw_domain::{
-    AnnotationComment, EntityRevision, NodePlacement, NodePosition, NodeRankChange,
+    AnnotationComment, EntityRevision, NodeKind, NodePlacement, NodePosition, NodeRankChange,
     NotePropertyField, NotePropertyValue, OperationAck, TaskSourceDocument, WorkspaceOperation,
     WorkspaceOperationEnvelope, WorkspacePrompt, WorkspaceTask,
 };
@@ -10,6 +11,10 @@ use skriuw_storage::{HistoryProvenance, StorageError};
 use uuid::Uuid;
 
 use crate::error::{backend, json_backend, validation};
+use crate::lock::{
+    self, discard_pending_history, expand_operation, scrub_note_projections, seal_document,
+    subtree_nodes, write_sealed_body,
+};
 use crate::queries::{read_stored_active_note, read_task, read_tasks_where};
 
 pub(crate) const NODE_RANK_GAP: i64 = 1024;
@@ -145,6 +150,15 @@ pub(crate) fn apply_operations_in_transaction(
     operations: &[WorkspaceOperationEnvelope],
     provenance: HistoryProvenance,
 ) -> Result<OperationAck, StorageError> {
+    apply_operations_with_key(transaction, operations, provenance, None)
+}
+
+pub(crate) fn apply_operations_with_key(
+    transaction: &Transaction<'_>,
+    operations: &[WorkspaceOperationEnvelope],
+    provenance: HistoryProvenance,
+    key: Option<&ContentKey>,
+) -> Result<OperationAck, StorageError> {
     let mut revisions = Vec::new();
     let mut rank_changes = BTreeMap::new();
     for envelope in operations {
@@ -152,6 +166,7 @@ pub(crate) fn apply_operations_in_transaction(
             transaction,
             &envelope.operation,
             provenance,
+            key,
             &mut revisions,
             &mut rank_changes,
         )?;
@@ -163,10 +178,46 @@ pub(crate) fn apply_operations_in_transaction(
     })
 }
 
+/// Applies renderer-submitted operations, expanding each one against the
+/// state the previous ones left so locked bodies stay sealed. Returns the
+/// acknowledgement and the operations that actually applied, which are what
+/// the sync outbox must carry.
+pub(crate) fn apply_submitted_operations(
+    transaction: &Transaction<'_>,
+    operations: &[WorkspaceOperationEnvelope],
+    key: Option<&ContentKey>,
+) -> Result<(OperationAck, Vec<WorkspaceOperationEnvelope>), StorageError> {
+    let mut revisions = Vec::new();
+    let mut rank_changes = BTreeMap::new();
+    let mut applied = Vec::with_capacity(operations.len());
+    for envelope in operations {
+        for expanded in expand_operation(transaction, envelope, key)? {
+            apply_operation(
+                transaction,
+                &expanded.operation,
+                HistoryProvenance::Local,
+                key,
+                &mut revisions,
+                &mut rank_changes,
+            )?;
+            applied.push(expanded);
+        }
+    }
+    Ok((
+        OperationAck {
+            applied: applied.len(),
+            revisions,
+            rank_changes: rank_changes.into_values().collect(),
+        },
+        applied,
+    ))
+}
+
 fn apply_operation(
     transaction: &Transaction<'_>,
     operation: &WorkspaceOperation,
     provenance: HistoryProvenance,
+    key: Option<&ContentKey>,
     revisions: &mut Vec<EntityRevision>,
     rank_changes: &mut BTreeMap<String, NodeRankChange>,
 ) -> Result<(), StorageError> {
@@ -531,6 +582,49 @@ fn apply_operation(
                 .map_err(backend)?;
             require_changed(changed, id)?;
         }
+        WorkspaceOperation::SetNodeLocked { id, locked, at } => {
+            require_available_node(transaction, id)?;
+            set_node_locked(transaction, id, *locked, *at, key, revisions)?;
+        }
+        WorkspaceOperation::SaveSealedDocument {
+            note_id,
+            sealed,
+            expected_revision,
+            at,
+        } => {
+            if provenance == HistoryProvenance::Remote {
+                require_note_any_availability(transaction, note_id)?;
+            } else {
+                require_note(transaction, note_id)?;
+            }
+            save_sealed_document(
+                transaction,
+                note_id,
+                sealed,
+                *expected_revision,
+                *at,
+                revisions,
+            )?;
+        }
+        WorkspaceOperation::ConfigureNoteLock { lock: config, .. } => {
+            if let Some(existing) = lock::read_lock(transaction)?
+                && existing.config.key_id != config.key_id
+                && lock::locked_node_count(transaction)? > 0
+            {
+                return Err(StorageError::InvalidOperation(
+                    "another note lock already protects notes in this workspace".into(),
+                ));
+            }
+            lock::write_lock_config(transaction, config)?;
+        }
+        WorkspaceOperation::RemoveNoteLock { .. } => {
+            if lock::locked_node_count(transaction)? > 0 {
+                return Err(StorageError::InvalidOperation(
+                    "unlock every locked note before removing the note lock".into(),
+                ));
+            }
+            lock::delete_lock(transaction)?;
+        }
         WorkspaceOperation::MoveNode { id, placement, at } => {
             require_available_node(transaction, id)?;
             require_parent_folder(transaction, placement.parent_id.as_deref())?;
@@ -564,6 +658,7 @@ fn apply_operation(
                 *expected_revision,
                 *at,
                 provenance,
+                key,
                 revisions,
             )?;
         }
@@ -1363,6 +1458,7 @@ fn save_task_document(
         document.expected_revision,
         at,
         provenance,
+        None,
         revisions,
     )
 }
@@ -1380,6 +1476,7 @@ fn save_document(
     expected_revision: i64,
     at: i64,
     provenance: HistoryProvenance,
+    key: Option<&ContentKey>,
     revisions: &mut Vec<EntityRevision>,
 ) -> Result<(), StorageError> {
     if provenance == HistoryProvenance::Remote {
@@ -1387,11 +1484,33 @@ fn save_document(
     } else {
         require_note(transaction, note_id)?;
     }
+    if lock::node_locked(transaction, note_id)? {
+        let Some(key) = key else {
+            return Err(StorageError::InvalidOperation(format!(
+                "note {note_id} is locked and this device does not hold the lock key"
+            )));
+        };
+        let body = skriuw_domain::LockedDocumentBody {
+            document_json: document_json.clone(),
+            markdown: markdown.to_owned(),
+            word_count,
+        };
+        let sealed = seal_document(key, note_id, &body)?;
+        return save_sealed_document(
+            transaction,
+            note_id,
+            &sealed,
+            expected_revision,
+            at,
+            revisions,
+        );
+    }
     let next_revision = expected_revision.saturating_add(1);
     let changed = transaction
         .execute(
             "UPDATE documents \
-             SET document_json = ?2, markdown = ?3, revision = ?4, word_count = ?5 \
+             SET document_json = ?2, markdown = ?3, revision = ?4, word_count = ?5, \
+                 sealed_body = NULL, sealed_nonce = NULL, sealed_key_id = NULL \
              WHERE note_id = ?1 AND revision = ?6",
             params![
                 note_id,
@@ -1434,6 +1553,88 @@ fn save_document(
         id: note_id.to_string(),
         revision: next_revision,
     });
+    Ok(())
+}
+
+/// Writes a locked note's body as ciphertext and removes every plaintext
+/// projection of it. Images stay attached: pruning them would need the body.
+fn save_sealed_document(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+    sealed: &skriuw_domain::SealedPayload,
+    expected_revision: i64,
+    at: i64,
+    revisions: &mut Vec<EntityRevision>,
+) -> Result<(), StorageError> {
+    let next_revision = expected_revision.saturating_add(1);
+    let changed = write_sealed_body(
+        transaction,
+        note_id,
+        sealed,
+        next_revision,
+        expected_revision,
+    )?;
+    if changed == 0 {
+        let current = current_revision(transaction, note_id)?;
+        return Err(StorageError::RevisionConflict {
+            id: note_id.to_string(),
+            expected: expected_revision,
+            current,
+        });
+    }
+    transaction
+        .execute(
+            "UPDATE workspace_nodes SET updated_at = ?2 WHERE id = ?1",
+            params![note_id, at],
+        )
+        .map_err(backend)?;
+    scrub_note_projections(transaction, note_id)?;
+    revisions.push(EntityRevision {
+        id: note_id.to_string(),
+        revision: next_revision,
+    });
+    Ok(())
+}
+
+/// Flags a node and, for a folder, everything under it. Locking requires each
+/// covered note to be sealed already, or a key to seal it with now; a device
+/// that has neither refuses rather than flagging plaintext as locked.
+fn set_node_locked(
+    transaction: &Transaction<'_>,
+    id: &str,
+    locked: bool,
+    at: i64,
+    key: Option<&ContentKey>,
+    revisions: &mut Vec<EntityRevision>,
+) -> Result<(), StorageError> {
+    let nodes = subtree_nodes(transaction, id)?;
+    let locked_at = locked.then_some(at);
+    for (node_id, _) in &nodes {
+        transaction
+            .execute(
+                "UPDATE workspace_nodes SET locked_at = ?2, updated_at = ?3 WHERE id = ?1",
+                params![node_id, locked_at, at],
+            )
+            .map_err(backend)?;
+    }
+    if !locked {
+        return Ok(());
+    }
+    for (note_id, kind) in &nodes {
+        if *kind != NodeKind::Note {
+            continue;
+        }
+        if let Some((body, revision)) = lock::plaintext_body(transaction, note_id)? {
+            let Some(key) = key else {
+                return Err(StorageError::InvalidOperation(format!(
+                    "note {note_id} still has a readable body and this device does not hold the lock key"
+                )));
+            };
+            let sealed = seal_document(key, note_id, &body)?;
+            save_sealed_document(transaction, note_id, &sealed, revision, at, revisions)?;
+        }
+        discard_pending_history(transaction, note_id)?;
+    }
     Ok(())
 }
 

@@ -7,6 +7,8 @@ import { useRendererSelector } from "@/store/use-renderer-selector";
 import { WaypointsIcon, iconStrokeWidth } from "@/shared/icons/static";
 import type { RendererState, RendererStore } from "@/store/types";
 import { NoteCover } from "@/features/note-chrome/note-cover";
+import { UnlockPane } from "@/features/lock/unlock-pane";
+import { isNoteSealed } from "@/features/lock/lock-model";
 
 type Props = {
   store: RendererStore;
@@ -37,6 +39,21 @@ export function EditorHost({
     [selectNoteId],
   );
   const noteId = useRendererSelector(store, selectNoteId);
+  const selectSealed = useMemo(
+    () => (state: RendererState) => {
+      const selected = selectNoteId(state);
+      return selected !== null && isNoteSealed(state, selected);
+    },
+    [selectNoteId],
+  );
+  const isSealed = useRendererSelector(store, selectSealed);
+  const selectEditableNoteId = useMemo(
+    () => (state: RendererState) => {
+      const selected = selectNoteId(state);
+      return selected !== null && isNoteSealed(state, selected) ? null : selected;
+    },
+    [selectNoteId],
+  );
   const selectHasCover = useMemo(
     () => (state: RendererState) => {
       const selected = selectNoteId(state);
@@ -51,23 +68,25 @@ export function EditorHost({
   const hasCover = useRendererSelector(store, selectHasCover);
   const isRawMode = useRendererSelector(store, selectRawMode);
   const hasActiveNote = noteId !== null;
+  const showsEditor = hasActiveNote && !isSealed;
   return (
     <div className="editor-scroll h-full min-w-0 overflow-y-auto bg-theme-editor">
-      <div className={hasActiveNote ? "relative w-full" : "hidden"}>
-        {noteId !== null && <NoteCover store={store} selectNoteId={selectNoteId} />}
+      <div className={showsEditor ? "relative w-full" : "hidden"}>
+        {showsEditor && <NoteCover store={store} selectNoteId={selectEditableNoteId} />}
         <div
           className={`mx-auto w-[calc(100%_-_6rem)] max-w-[72ch]${hasCover ? "" : " pt-8"}`}
         >
-          {noteId !== null && (
-            <NotePropertiesShelf key={noteId} store={store} selectNoteId={selectNoteId} />
+          {showsEditor && (
+            <NotePropertiesShelf key={noteId} store={store} selectNoteId={selectEditableNoteId} />
           )}
           {isRawMode ? (
-            <RawMarkdownEditor store={store} selectNoteId={selectNoteId} />
+            <RawMarkdownEditor store={store} selectNoteId={selectEditableNoteId} />
           ) : (
-            <NoteEditor store={store} selectNoteId={selectNoteId} />
+            <NoteEditor store={store} selectNoteId={selectEditableNoteId} />
           )}
         </div>
       </div>
+      {hasActiveNote && isSealed && <UnlockPane store={store} noteId={noteId} />}
       {!hasActiveNote && (
         <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
           <WaypointsIcon size={40} strokeWidth={iconStrokeWidth(40, 1.25)} className="text-muted-foreground" />
