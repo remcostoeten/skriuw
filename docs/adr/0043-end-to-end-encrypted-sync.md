@@ -293,8 +293,26 @@ decision.
 - A device running an older Skriuw build against a workspace that has been
   encrypted will reject the sealed payload as an unsupported form and park.
   That is correct: it has no key and could not apply the operation anyway.
-- Rollout order matters. The Worker must be deployed before any client that
-  reads the encryption record: those clients read it before every push that
-  has queued changes, and an older Worker answers the unknown route with 404,
-  which clients classify as an authorization failure and park on. Older
-  clients keep working against the new Worker.
+- Rollout order matters, and the clients no longer depend on it being right.
+  A Worker that predates the encryption route answers it with the generic
+  `not_found` code, which the transports classify as an absent route rather
+  than as the `workspace_access_denied` denial that shares its status. A
+  device that has never held a key for the workspace then keeps replicating in
+  the clear exactly as it did before the route existed — the encryption record
+  and the operation log live in the same service, so a service without the
+  record cannot be holding an encrypted workspace. A device that does hold a
+  key stops instead, visibly, with the `server_too_old` reason: it cannot
+  establish the workspace's key state, and plaintext from it would be a
+  downgrade. Enabling and unlocking against such a Worker fail with a message
+  naming the server and store nothing. The residual risk is a Worker rolled
+  *back* below the encryption schema while sealed content already exists: a
+  keyless device would then upload plaintext into an encrypted workspace,
+  which the other devices refuse as a downgrade rather than apply, so the
+  failure stays visible instead of corrupting state.
+- The Worker is still deployed before the clients that need it, and that order
+  is now enforced rather than remembered: the browser client deploys from
+  `daddy` through Vercel, so `docs/specs/cloud-sync-delivery.md` makes the
+  order a stop condition, `GET /health` reports the deployment's capabilities,
+  and `.github/workflows/release-v2.yml` will not publish a desktop release
+  the deployed Worker cannot serve. Older clients keep working against the new
+  Worker.

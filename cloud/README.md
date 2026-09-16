@@ -47,7 +47,30 @@ Production deployment:
 bunx wrangler d1 migrations apply skriuw-v2-auth --remote
 bunx wrangler secret put BETTER_AUTH_SECRET
 bunx wrangler deploy
+node ../scripts/verify-cloud-capabilities.mjs
 ```
+
+## Deploy order
+
+**The Worker ships first.** Clients read routes the Worker serves before they
+can do anything with them, and the browser client deploys automatically from
+`daddy` through Vercel, so a client change that needs a new route must not
+reach `daddy` before the Worker that serves it. The order is:
+
+1. deploy the Worker (production), then
+2. merge the client change to `daddy`, then
+3. tag the desktop release.
+
+`.github/workflows/deploy-cloud.yml` automates step 1 for pushes to `daddy`
+that touch `cloud/`, but only once the `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` repository secrets exist; until then it skips with a
+notice and the deployment stays manual. `.github/workflows/release-v2.yml`
+refuses to publish a desktop release whose capabilities the deployed Worker
+does not report.
+
+`GET /health` is the capability report both checks read, and
+`node scripts/verify-cloud-capabilities.mjs [base-url]` checks any deployment
+from a workstation.
 
 The `preview` environment is a verification-only deployment at
 `https://skriuw-v2-cloud-preview.remcostoeten.workers.dev`. It owns its own D1

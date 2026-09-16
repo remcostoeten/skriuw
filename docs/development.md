@@ -110,3 +110,12 @@ D1/R2/Durable Object storage:
 bun --cwd cloud run check
 bunx wrangler deploy --env preview   # in cloud/
 ```
+
+The Worker is deployed before the clients that need it, never after: the
+browser client deploys automatically from `daddy` through Vercel, so a client
+change that depends on a new Worker route must not reach `daddy` first. See
+[the deploy order](../cloud/README.md#deploy-order). `GET /health` reports the
+deployment's supported sync protocol versions, workspace schema version, and
+routes; `node scripts/verify-cloud-capabilities.mjs [base-url]` checks a
+deployment against what current clients require and is the same check the
+release workflow runs before publishing.

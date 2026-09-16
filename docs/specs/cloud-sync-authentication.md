@@ -102,7 +102,30 @@ The guarded route shapes are:
 The production entry point supplies Better Auth verification plus the D1
 membership adapter. Tests inject deterministic adapters through the same
 boundary and prove ordering, validation, authorization, and Durable Object
-integration. `GET /health` reports only `{ "status": "ok", "publicSync": true }`.
+integration.
+
+`GET /health` is unauthenticated and reports what the deployment serves, so a
+client or a release gate can learn its capabilities before depending on them:
+
+```json
+{
+  "status": "ok",
+  "publicSync": true,
+  "syncProtocolVersions": [1, 2],
+  "durableObjectSchemaVersion": 4,
+  "routes": ["push", "pull", "chunk", "checkpoint", "encryption", "acknowledge", "events"]
+}
+```
+
+`status` and `publicSync` keep their original shape for clients that already
+read them. Every other value is derived from the constants the Worker runs on
+— `SUPPORTED_SYNC_PROTOCOL_VERSIONS`,
+`WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION`, and the `SYNC_ROUTE_NAMES` route
+table — so the report cannot claim a capability the code does not have, and a
+test asserts every advertised route is one the router matches. The report
+names no workspace, account, device, or content. `scripts/verify-cloud-capabilities.mjs`
+reads it, and `.github/workflows/release-v2.yml` will not publish a desktop
+release the deployed Worker cannot serve.
 
 ## Stable public errors
 
@@ -114,10 +137,11 @@ Credential failures also return a generic Bearer challenge.
 | 400 | `invalid_request`, `invalid_workspace_identifier`, `sync_rejected`, `device_local_operation`, `unsupported_operation` |
 | 401 | `credential_missing`, `credential_malformed`, `credential_invalid`, `credential_expired`, `credential_revoked` |
 | 403 | `workspace_permission_denied`, `device_not_authorized` |
-| 404 | `workspace_access_denied`, `not_found` |
+| 404 | `workspace_access_denied` — a deliberate decision about a route the service serves; `not_found` — the route itself is unknown to this deployment, which is how a client tells an older service apart from a denial |
 | 405 | `method_not_allowed` |
 | 410 | `log_truncated` — the pull cursor is below the workspace's compaction floor; the client rehydrates from the latest checkpoint |
 | 413 | `request_too_large`, `quota_exceeded` — a chunk upload would take the workspace above its 2 GiB content quota |
+| 423 | `workspace_encrypted`, `encryption_key_mismatch` — the workspace is end-to-end encrypted and the content was not sealed, or was sealed under a key that is not the workspace key |
 | 500 | `internal_error` |
 | 503 | `sync_authentication_not_configured`, `sync_authorization_not_configured`, `sync_security_configuration_invalid`, `sync_authentication_unavailable`, `sync_authorization_unavailable`, `sync_service_unavailable` |
 
