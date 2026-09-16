@@ -14,7 +14,7 @@
   grid-row: 1;
 }
 
-.shell-tab-bar {
+.shell-compact > .shell-tab-bar {
   grid-row: 2;
 }
 
@@ -289,7 +289,40 @@
   }
 }
 
+/*
+ * A native settings screen fills the phone. The dialog sits in the top layer,
+ * outside the body padding that carries the safe areas, so it takes them
+ * itself, and it is sized from the visual viewport so an open keyboard
+ * shrinks it instead of hiding the field being typed into.
+ */
+@media (max-width: 620px) {
+  dialog.dialog-fullscreen {
+    width: 100vw;
+    max-width: none;
+    height: var(--viewport-height);
+    max-height: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    padding-block: var(--safe-top) var(--safe-bottom);
+    padding-inline: var(--safe-left) var(--safe-right);
+  }
+}
+
 @media (pointer: coarse) {
+  /*
+   * Android paints a styled scrollbar as a permanent gutter; the platform's
+   * overlay indicator is what a native list shows.
+   */
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  * {
+    scrollbar-width: none;
+  }
+
   /* iOS zooms the page into any focused field set below 16px. */
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   textarea,

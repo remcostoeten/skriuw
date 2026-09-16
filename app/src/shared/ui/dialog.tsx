@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import { CloseIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
+import { bindOverlayBack } from "@/shell/overlay-history";
 
 type Props = {
   open: boolean;
@@ -181,7 +182,11 @@ function DialogShell({
     if (bodyRef.current) {
       moveFocusOffScrollContainer(bodyRef.current);
     }
+    // On a phone the back gesture closes the dialog on top, through the
+    // native close so the caller sees the same event as Escape.
+    const releaseBack = bindOverlayBack(() => dialog.close());
     return () => {
+      releaseBack();
       dialog.removeEventListener("keydown", handleKeyDown);
       dialog.removeEventListener("cancel", handleCancel);
       dialog.removeEventListener("close", handleClose);

@@ -167,6 +167,9 @@ function selectActiveNoteId(state: RendererState): string | null {
   return state.activeNoteId;
 }
 
+/** Clears the 56px tab bar and the home indicator so a toast never covers a tab. */
+const TOAST_OFFSET_ABOVE_TAB_BAR = "calc(68px + var(--safe-bottom))";
+
 const TOOLBAR_SHORTCUT_IDS = [
   "openSettings",
   "toggleSidebar",
@@ -839,7 +842,11 @@ function WorkspaceShell({ store }: Props) {
         open={shortcutHelpOpen}
         onOpenChange={setShortcutHelpOpen}
       />
-      <ToastHost visible={showToasts} reduceMotion={reduceMotion} />
+      <ToastHost
+        visible={showToasts}
+        reduceMotion={reduceMotion}
+        offset={mode === "compact" ? TOAST_OFFSET_ABOVE_TAB_BAR : undefined}
+      />
       <TemplatePickerHost store={store} />
       <LockDialogHost store={store} />
       <AiOptInGate store={store}>

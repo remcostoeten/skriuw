@@ -91,9 +91,11 @@ export function showToast(request: ToastRequest): void {
 type HostProps = {
   visible?: boolean;
   reduceMotion?: boolean;
+  /** Distance from the bottom edge, so the stack can clear the compact tab bar. */
+  offset?: string;
 };
 
-export function ToastHost({ visible = true, reduceMotion = false }: HostProps) {
+export function ToastHost({ visible = true, reduceMotion = false, offset }: HostProps) {
   const [, rerender] = useState(0);
   function undoLatestAction(): void {
     const current = actionableToast;
@@ -129,6 +131,7 @@ export function ToastHost({ visible = true, reduceMotion = false }: HostProps) {
       <MotionConfig reducedMotion={reduceMotion ? "always" : "never"}>
         <Notifier
           position="bottom-center"
+          offset={offset}
           maxVisible={3}
           duration={7_000}
           pauseOnHover

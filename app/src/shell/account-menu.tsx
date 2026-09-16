@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { useAuth } from "@remcostoeten/auth-drawer";
 import { updateSetting } from "@/store/actions/settings";
 import {
@@ -8,6 +8,7 @@ import {
   CloudIcon,
   CloudOffIcon,
   DatabaseIcon,
+  DownloadIcon,
   InfoIcon,
   KeyboardIcon,
   LogOutIcon,
@@ -31,6 +32,7 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { Tooltip } from "@/shared/ui/tooltip";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
+import { installOffered, promptInstall, subscribeInstallOffer } from "@/bridge/install-prompt";
 import { useShortcutHints } from "@/commands/hints";
 import type { RendererStore } from "@/store/types";
 import {
@@ -187,6 +189,7 @@ export function AccountMenu({
   const theme = useRendererSelector(store, selectTheme);
   const hints = useShortcutHints(store, MENU_SHORTCUT_IDS);
   const compact = useMediaQuery(COMPACT_MENU_QUERY);
+  const installable = useSyncExternalStore(subscribeInstallOffer, installOffered, () => false);
   const [panel, setPanel] = useState<AccountMenuPanel>("root");
   if (!user) {
     return (
@@ -361,6 +364,12 @@ export function AccountMenu({
               <InfoIcon size={15} className="shrink-0" aria-hidden="true" />
               Help and feedback
             </DropdownMenuItem>
+            {installable ? (
+              <DropdownMenuItem onSelect={() => void promptInstall()}>
+                <DownloadIcon size={15} className="shrink-0" aria-hidden="true" />
+                Install Skriuw
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem danger onSelect={sync.signOut}>
               <LogOutIcon size={15} className="shrink-0" aria-hidden="true" />

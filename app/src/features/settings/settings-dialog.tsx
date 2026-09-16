@@ -247,8 +247,8 @@ export function SettingsDialog({
       onOpenChange={onOpenChange}
       title="Settings"
       className={cn(
-        "w-[min(896px,calc(100vw-48px))] h-[min(720px,calc(100vh-64px))] max-h-[calc(100vh-64px)]",
-        "max-[620px]:h-[calc(100vh-24px)] max-[620px]:w-[calc(100vw-24px)] max-[620px]:max-h-[calc(100vh-24px)]",
+        "w-[min(896px,calc(100vw-48px))] h-[min(720px,calc(var(--viewport-height)-64px))] max-h-[calc(var(--viewport-height)-64px)]",
+        "dialog-fullscreen",
       )}
       onKeyDown={handleDialogKeyDown}
       onCancel={handleDialogCancel}

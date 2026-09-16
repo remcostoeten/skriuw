@@ -220,5 +220,7 @@ Rust and Tauri suites rather than simulated browser state.
 - [ADR-0041: cover gradients are named, not styled](adr/0041-cover-gradients-are-named-not-styled.md)
 - [ADR-0042: modal Vim editing](adr/0042-modal-vim-editing.md)
 - [ADR-0043: end-to-end encrypted sync](adr/0043-end-to-end-encrypted-sync.md)
+- [ADR-0044: locked notes](adr/0044-locked-notes.md)
+- [ADR-0047: the compact shell owns the back gesture and the install offer](adr/0047-compact-shell-owns-back-and-install.md)
 
 Personal templates reuse ordinary source notes; saved searches and template membership use bounded workspace preferences. See [ADR-0038](adr/0038-personal-template-and-search-preferences.md). Modal Vim editing is one `vimMode` setting driving CodeMirror's Vim extension in the raw Markdown view and a document-model Vim plugin in the rendered editor; see [ADR-0042](adr/0042-modal-vim-editing.md). Sync refresh retries and candidate-filtered full-text search follow the [refresh and search contract](specs/refresh-and-filtered-search.md).

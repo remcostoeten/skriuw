@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   cancelWorkspaceMaintenance,
   clearAllData,
@@ -18,7 +18,7 @@ import {
   importMarkdownIntoWorkspace,
   importProviderExportIntoWorkspace,
 } from "@/features/transfer/export/markdown-transfer";
-import { FolderOpenIcon, UploadIcon } from "@/shared/icons/static";
+import { DownloadIcon, FolderOpenIcon, UploadIcon } from "@/shared/icons/static";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import {
   IDLE_MAINTENANCE,
@@ -47,6 +47,7 @@ import type {
   RecoveryViewModel,
 } from "@/features/settings/maintenance-model";
 import { isBrowserRuntime } from "@/bridge/runtime";
+import { installOffered, promptInstall, subscribeInstallOffer } from "@/bridge/install-prompt";
 import { noop } from "@/shared/lib/noop";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -82,6 +83,7 @@ const RUNNING_LABELS: Record<MaintenanceKind, string> = {
 
 export function DataSection({ store }: SectionProps) {
   const browser = isBrowserRuntime();
+  const installable = useSyncExternalStore(subscribeInstallOffer, installOffered, () => false);
   const [storagePath, setStoragePath] = useState<string | null>(null);
   const [phase, setPhase] = useState<MaintenancePhase>(IDLE_MAINTENANCE);
   const [importPath, setImportPath] = useState("");
@@ -292,6 +294,27 @@ export function DataSection({ store }: SectionProps) {
                 recent exported archive outside the browser.
               </span>
             </span>
+          </div>
+        )}
+        {browser && installable && (
+          <div className={settingsRow}>
+            <span className={settingsRowLabel}>
+              Install Skriuw
+              <span className={settingsRowDescription}>
+                Adds Skriuw to your home screen or app list with its own window,
+                and tells the browser this storage is worth keeping.
+              </span>
+            </span>
+            <button
+              type="button"
+              className={settingsButton}
+              onClick={() => {
+                void promptInstall();
+              }}
+            >
+              <DownloadIcon size={15} />
+              Install
+            </button>
           </div>
         )}
         {!browser && (
