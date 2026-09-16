@@ -16,7 +16,12 @@ protocol version that admits them.
 | Content manifest | 1 | `CONTENT_MANIFEST_VERSION` |
 | Workspace sync protocol | 2 | `WORKSPACE_SYNC_PROTOCOL_VERSION` |
 | Accepted sync protocols | 1, 2 | `SUPPORTED_SYNC_PROTOCOL_VERSIONS` |
-| Workspace Durable Object schema | 2 | `_sql_schema_migrations` |
+| Workspace Durable Object schema | 4 | `WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION` |
+| End-to-end encryption capability | `encryption` route | `SYNC_ROUTE_NAMES` |
+
+A deployment reports all four on `GET /health`, so a client or a release gate
+can establish what it serves before depending on it; see
+[cloud sync authentication](cloud-sync-authentication.md).
 
 Protocol 1 remains accepted for inline-only batches so already-deployed
 clients keep working. Chunked payloads require protocol 2

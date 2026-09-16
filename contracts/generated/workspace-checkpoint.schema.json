@@ -22,6 +22,17 @@
       "type": "integer",
       "format": "int64"
     },
+    "seal": {
+      "description": "Present when the archive behind `content` is end-to-end encrypted.\nAbsent checkpoints stay readable by older clients and by the server's\nexisting validation.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CheckpointSeal"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "serverSequence": {
       "type": "integer",
       "format": "uint64",
@@ -48,6 +59,27 @@
     "content"
   ],
   "$defs": {
+    "CheckpointSeal": {
+      "description": "How a sealed checkpoint was encrypted. The archive bytes behind\n`content` are ciphertext; the manifest still describes them so the\ntransport, quota, and retention rules are unchanged.",
+      "type": "object",
+      "properties": {
+        "keyId": {
+          "type": "string"
+        },
+        "nonce": {
+          "type": "string"
+        },
+        "scheme": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "scheme",
+        "keyId",
+        "nonce"
+      ]
+    },
     "ContentChunkRef": {
       "type": "object",
       "properties": {

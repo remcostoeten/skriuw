@@ -77,6 +77,14 @@ export function blockedStateText(reason: string): string {
       return "The cloud rejected the workspace checkpoint. Retry sync; blocked changes are listed below.";
     case "storage_failure":
       return "The local sync queue hit a storage failure. Retry sync; if this persists, check the Data section.";
+    case "encryption_key_required":
+      return "This workspace is encrypted and this device has no key. Enter its recovery code in the encryption settings above.";
+    case "encryption_downgrade_refused":
+      return "The cloud returned unencrypted content for this encrypted workspace, and it was refused. Nothing was applied; contact support if this persists.";
+    case "sealed_content_unreadable":
+      return "The encrypted cloud copy could not be opened with this device's recovery code. Check the code, or the cloud copy was altered.";
+    case "server_too_old":
+      return "This Skriuw cloud server is older than this app and cannot confirm this workspace's encryption key. Nothing was uploaded; sync resumes once the server is updated.";
     default:
       return "Sync stopped because the server rejected a local change. Blocked changes are listed below.";
   }

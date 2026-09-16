@@ -23,6 +23,7 @@ import {
   type SyncPullResult,
   type SyncPushResult,
   type WorkspaceStorageUsage,
+  type WorkspaceEncryptionMarker,
   type WorkspaceSyncState,
   parseSyncPullResponse,
   parseSyncPushRequest,
@@ -44,6 +45,12 @@ type WorkspaceSyncRpc = {
     { ok: true; serverSequence: number } | { ok: false; code: string; message: string }
   >;
   latestCheckpoint(): Promise<string | null>;
+  workspaceEncryption(): Promise<WorkspaceEncryptionMarker | null>;
+  claimWorkspaceEncryption(
+    input: unknown,
+  ): Promise<
+    { ok: true; marker: WorkspaceEncryptionMarker } | { ok: false; code: string; message: string }
+  >;
   acknowledgeOperations(
     deviceId: string,
     serverSequence: number,
@@ -60,11 +67,30 @@ export type SyncRouteName =
   | "pull"
   | "chunk"
   | "checkpoint"
+  | "encryption"
   | "acknowledge"
   | "events";
 
 export const SYNC_EVENTS_DEVICE_HEADER = "x-skriuw-device-id";
 export const SYNC_EVENTS_EXPIRY_HEADER = "x-skriuw-session-expires-at";
+
+/**
+ * Every workspace sync route this Worker serves, with the methods each one
+ * accepts. It is the single source for both method admission and the
+ * capability report on `GET /health`, so a route the Worker advertises cannot
+ * drift from the route table the router actually matches against.
+ */
+const SYNC_ROUTE_METHODS: Record<SyncRouteName, readonly string[]> = {
+  push: ["POST"],
+  pull: ["GET"],
+  chunk: ["PUT", "GET", "HEAD"],
+  checkpoint: ["GET", "POST"],
+  encryption: ["GET", "POST"],
+  acknowledge: ["POST"],
+  events: ["GET"],
+};
+
+export const SYNC_ROUTE_NAMES = Object.keys(SYNC_ROUTE_METHODS) as readonly SyncRouteName[];
 
 /**
  * Every field is a stable, server-chosen code. Workspace ids, device ids,
@@ -176,6 +202,18 @@ export async function handlePublicSyncRequest(
       return jsonResponse({ serverSequence: published.serverSequence, compaction });
     }
 
+    if (route.name === "encryption") {
+      const workspace = dependencies.resolveWorkspace(route.workspaceId);
+      if (request.method === "GET") {
+        return jsonResponse(await workspace.workspaceEncryption());
+      }
+      const claimed = await workspace.claimWorkspaceEncryption(await readBoundedJson(request));
+      if (!claimed.ok) {
+        throw new PublicApiError(400, "sync_rejected");
+      }
+      return jsonResponse(claimed.marker);
+    }
+
     if (route.name === "acknowledge") {
       const body = await readBoundedJson(request);
       const { deviceId, serverSequence } = parseAcknowledgement(body);
@@ -280,6 +318,12 @@ function matchSyncRoute(pathname: string, method: string): SyncRoute | null {
         action: method === "POST" ? "push" : "pull",
         workspaceId,
       };
+    case "encryption":
+      return {
+        name: "encryption",
+        action: method === "POST" ? "push" : "pull",
+        workspaceId,
+      };
     case "acknowledge":
       return { name: "acknowledge", action: "pull", workspaceId };
     case "events":
@@ -290,15 +334,7 @@ function matchSyncRoute(pathname: string, method: string): SyncRoute | null {
 }
 
 function requireMethod(method: string, route: SyncRoute): void {
-  const allowed: Record<SyncRouteName, readonly string[]> = {
-    push: ["POST"],
-    pull: ["GET"],
-    chunk: ["PUT", "GET", "HEAD"],
-    checkpoint: ["GET", "POST"],
-    acknowledge: ["POST"],
-    events: ["GET"],
-  };
-  if (!allowed[route.name].includes(method)) {
+  if (!SYNC_ROUTE_METHODS[route.name].includes(method)) {
     throw new PublicApiError(405, "method_not_allowed");
   }
 }
@@ -428,6 +464,9 @@ function publishError(code: string): PublicApiError {
   if (code === "content_unavailable") {
     return new PublicApiError(409, "content_unavailable");
   }
+  if (code === "workspace_encrypted" || code === "encryption_key_mismatch") {
+    return new PublicApiError(423, code);
+  }
   return new PublicApiError(400, "sync_rejected");
 }
 
@@ -517,7 +556,15 @@ function accessError(code: SyncAccessFailureCode): PublicApiError {
   }
 }
 
+/**
+ * An encrypted workspace refusing unsealed or foreign-key content answers 423
+ * so clients can tell it apart from a malformed request; older clients read
+ * it as an ordinary rejection and park the change instead of retrying it in.
+ */
 function contractError(code: SyncErrorCode): PublicApiError {
+  if (code === "workspace_encrypted" || code === "encryption_key_mismatch") {
+    return new PublicApiError(423, code);
+  }
   return new PublicApiError(400, code);
 }
 

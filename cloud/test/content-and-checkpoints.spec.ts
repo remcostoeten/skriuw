@@ -638,4 +638,81 @@ describe("acknowledgement cursors and compaction", () => {
     expect(afterExpiry.expiredDevices).toBe(1);
     expect(afterExpiry.removedOperations).toBe(2);
   });
+
+  it("answers an encrypted workspace's plaintext push with 423 and exposes its encryption record", async () => {
+    const harness = createHarness();
+    const workspaceId = "workspace-encrypted-route";
+    harness.memberships.allow(workspaceId);
+    const plain = await handlePublicSyncRequest(
+      jsonRequest(workspaceId, "encryption", "GET"),
+      harness.dependencies,
+    );
+    expect(plain.status).toBe(200);
+    expect(await plain.json()).toBeNull();
+
+    const sealed = await handlePublicSyncRequest(
+      jsonRequest(workspaceId, "push", "POST", {
+        syncProtocolVersion: 2,
+        deviceId: DEVICE_ID,
+        operations: [
+          {
+            operationId: "sealed-route-1",
+            clientSequence: 1,
+            baseServerSequence: 0,
+            payload: {
+              form: "sealed",
+              operation: {
+                scheme: "argon2id-xchacha20poly1305-v2",
+                keyId: "0f1e2d3c4b5a6978",
+                nonce: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                transport: "inline",
+                ciphertext: "c2VhbGVk",
+              },
+            },
+          },
+        ],
+      }),
+      harness.dependencies,
+    );
+    expect(sealed.status).toBe(200);
+
+    const record = await handlePublicSyncRequest(
+      jsonRequest(workspaceId, "encryption", "GET"),
+      harness.dependencies,
+    );
+    expect(await record.json()).toMatchObject({
+      keyId: "0f1e2d3c4b5a6978",
+      encryptedFromServerSequence: 0,
+    });
+
+    const refused = await handlePublicSyncRequest(
+      jsonRequest(workspaceId, "push", "POST", {
+        syncProtocolVersion: 2,
+        deviceId: DEVICE_ID,
+        operations: [
+          {
+            operationId: "plaintext-route-2",
+            clientSequence: 2,
+            baseServerSequence: 1,
+            payload: {
+              form: "inline",
+              operation: {
+                protocolVersion: 1,
+                operation: {
+                  type: "create_folder",
+                  id: "folder-route-2",
+                  title: "Readable",
+                  placement: { parentId: null, position: { type: "last" } },
+                  at: 1,
+                },
+              },
+            },
+          },
+        ],
+      }),
+      harness.dependencies,
+    );
+    expect(refused.status).toBe(423);
+    expect(await refused.json()).toEqual({ error: "workspace_encrypted" });
+  });
 });

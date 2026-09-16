@@ -14,13 +14,13 @@ use skriuw_storage::{NewSyncConnection, WorkspaceMaintenance, WorkspaceSyncQueue
 use skriuw_sync::{
     CheckpointPublication, CheckpointPublicationConfig, CheckpointPublicationState,
     SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig, SyncCycleOutcome,
-    SyncCycleState, SyncStatus, SyncTransport, TransportError, run_checkpoint_publication,
-    run_sync_cycle,
+    SyncCycleState, SyncStatus, SyncTransport, TransportError, enable_workspace_encryption,
+    run_checkpoint_publication, run_sync_cycle, unlock_workspace_encryption,
 };
 
 use crate::protocol::{
-    BrowserStorageError, BrowserSyncConnection, BrowserSyncCycleReport, BrowserSyncProgress,
-    BrowserSyncProgressPhase,
+    BrowserStorageError, BrowserSyncConnection, BrowserSyncCycleReport, BrowserSyncEncryptionState,
+    BrowserSyncProgress, BrowserSyncProgressPhase,
 };
 use crate::runtime::map_storage_error;
 
@@ -138,6 +138,76 @@ impl BrowserSyncRuntime {
         });
         self.last_status = SyncStatus::Connecting;
         Ok(self.last_status.clone())
+    }
+
+    /// What the settings surface renders about this workspace's encryption.
+    pub fn encryption_state(
+        &self,
+        queue: &dyn WorkspaceSyncQueue,
+    ) -> Result<BrowserSyncEncryptionState, BrowserStorageError> {
+        let seal = queue.workspace_seal().map_err(map_storage_error)?;
+        let linked = queue
+            .sync_connection()
+            .map_err(map_storage_error)?
+            .is_some();
+        Ok(BrowserSyncEncryptionState {
+            enabled: seal.is_some(),
+            linked,
+            key_id: seal.as_ref().map(|seal| seal.key_id.clone()),
+            sealed_checkpoint_at: seal.as_ref().and_then(|seal| seal.sealed_checkpoint_at),
+        })
+    }
+
+    /// Turns encryption on and returns the recovery code exactly once. The
+    /// code itself is never stored, so losing it means losing the cloud copy
+    /// while local canonical state stays untouched.
+    pub fn enable_encryption(
+        &mut self,
+        queue: &dyn WorkspaceSyncQueue,
+        entropy: &[u8],
+        now_ms: i64,
+    ) -> Result<String, BrowserStorageError> {
+        let recovery_code = enable_workspace_encryption(
+            queue,
+            self.session_transport()?,
+            &SyncCancellation::new(),
+            entropy,
+            now_ms,
+        )
+        .map_err(BrowserStorageError::invalid)?;
+        self.refresh(queue, now_ms);
+        Ok(recovery_code)
+    }
+
+    /// Joins an already-encrypted workspace on this device from the recovery
+    /// code alone, once the cloud confirms the code opens it.
+    pub fn unlock_encryption(
+        &mut self,
+        queue: &dyn WorkspaceSyncQueue,
+        recovery_code: &str,
+        now_ms: i64,
+    ) -> Result<BrowserSyncEncryptionState, BrowserStorageError> {
+        unlock_workspace_encryption(
+            queue,
+            self.session_transport()?,
+            &SyncCancellation::new(),
+            recovery_code,
+            now_ms,
+        )
+        .map_err(BrowserStorageError::invalid)?;
+        self.refresh(queue, now_ms);
+        self.encryption_state(queue)
+    }
+
+    fn session_transport(&self) -> Result<&dyn SyncTransport, BrowserStorageError> {
+        self.session
+            .as_ref()
+            .map(|session| session.transport.as_ref())
+            .ok_or_else(|| {
+                BrowserStorageError::invalid(
+                    "Sign in to Skriuw cloud before changing this workspace's encryption.",
+                )
+            })
     }
 
     /// Pauses network work without discarding the durable connection or the
@@ -413,6 +483,25 @@ impl<T: SyncTransport> SyncTransport for ProgressReportingTransport<T> {
     ) -> Result<(), TransportError> {
         self.inner
             .publish_checkpoint(workspace_id, checkpoint, cancellation)
+    }
+
+    fn workspace_encryption(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<skriuw_domain::WorkspaceEncryptionMarker>, TransportError> {
+        self.inner.workspace_encryption(workspace_id, cancellation)
+    }
+
+    fn claim_workspace_encryption(
+        &self,
+        workspace_id: &str,
+        scheme: &str,
+        key_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<skriuw_domain::WorkspaceEncryptionMarker, TransportError> {
+        self.inner
+            .claim_workspace_encryption(workspace_id, scheme, key_id, cancellation)
     }
 
     fn acknowledge(

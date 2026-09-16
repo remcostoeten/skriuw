@@ -617,6 +617,35 @@ describe("events channel lifecycle", () => {
 });
 
 describe("schema migration", () => {
+  it("upgrades an existing version-3 object with an empty encryption record", async () => {
+    const workspaceId = "migration-v3-to-v4";
+    const workspace = env.WORKSPACES.getByName(workspaceId);
+    accepted(
+      await workspace.pushOperations({
+        syncProtocolVersion: 2,
+        deviceId: DEVICE_ID,
+        operations: [folderOperation("operation-1", 1, 0)],
+      }),
+    );
+    await runInDurableObject(workspace, (_instance, state) => {
+      state.storage.sql.exec(`
+        DROP TABLE sync_encryption;
+        DELETE FROM _sql_schema_migrations WHERE id = 4;
+      `);
+    });
+    await evictDurableObject(workspace);
+
+    const reopened = env.WORKSPACES.getByName(workspaceId);
+    expect(await reopened.workspaceEncryption()).toBeNull();
+    expect(await reopened.workspaceState()).toEqual({ latestServerSequence: 1, compactedThrough: 0 });
+    const version = await runInDurableObject(reopened, (_instance, state) =>
+      state.storage.sql
+        .exec<{ version: number }>("SELECT MAX(id) AS version FROM _sql_schema_migrations")
+        .one().version,
+    );
+    expect(version).toBe(4);
+  });
+
   it("upgrades an existing version-2 object and backfills the operation index", async () => {
     const workspaceId = "migration-v2-to-v3";
     const workspace = env.WORKSPACES.getByName(workspaceId);
@@ -634,7 +663,8 @@ describe("schema migration", () => {
         DROP TABLE sync_chunk_deleting;
         DROP TABLE sync_chunk_sizes;
         DROP TABLE sync_storage_usage;
-        DELETE FROM _sql_schema_migrations WHERE id = 3;
+        DROP TABLE sync_encryption;
+        DELETE FROM _sql_schema_migrations WHERE id IN (3, 4);
       `);
     });
     await evictDurableObject(workspace);
@@ -657,7 +687,7 @@ describe("schema migration", () => {
         .exec<{ version: number }>("SELECT MAX(id) AS version FROM _sql_schema_migrations")
         .one().version,
     );
-    expect(version).toBe(3);
+    expect(version).toBe(4);
 
     const retried = accepted(
       await reopened.pushOperations({

@@ -33,6 +33,7 @@ import {
   syncProgressText,
   syncProgressVisible,
 } from "./sync-status";
+import { SyncEncryptionPanel } from "./sync-encryption-panel";
 import { useWorkspaceSync } from "./use-workspace-sync";
 
 type AccountSectionProps = {
@@ -172,6 +173,7 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
           </div>
         ) : null}
       </div>
+      {signedIn ? <SyncEncryptionPanel status={sync.status} /> : null}
       {user && !browser ? (
         <BlockedChanges
           recovery={recovery}

@@ -6,6 +6,7 @@ import goldenPushV2 from "../../contracts/fixtures/sync-push-v2.json";
 import goldenPushV2Content from "../../contracts/fixtures/sync-push-v2-content.json";
 import workspaceOperationSchema from "../../contracts/generated/workspace-operation.schema.json";
 import { WorkspaceContentStore } from "../src/content-store";
+import { SYNC_ROUTE_NAMES } from "../src/public-api";
 import {
   WORKSPACE_OPERATION_SYNC_POLICY_V1,
   WORKSPACE_SYNC_PROTOCOL_VERSION,
@@ -450,10 +451,16 @@ describe("WorkspaceSyncObject", () => {
 });
 
 describe("public Worker boundary", () => {
-  it("reports health without exposing an unauthenticated sync route", async () => {
+  it("reports its capabilities on health without exposing an unauthenticated sync route", async () => {
     const health = await exports.default.fetch("https://example.test/health");
     expect(health.status).toBe(200);
-    expect(await health.json()).toEqual({ status: "ok", publicSync: true });
+    expect(await health.json()).toEqual({
+      status: "ok",
+      publicSync: true,
+      syncProtocolVersions: [1, 2],
+      durableObjectSchemaVersion: 4,
+      routes: ["push", "pull", "chunk", "checkpoint", "encryption", "acknowledge", "events"],
+    });
 
     const sync = await exports.default.fetch(
       "https://example.test/v1/workspaces/workspace-1/push",
@@ -463,5 +470,23 @@ describe("public Worker boundary", () => {
     expect(await sync.json()).toEqual({
       error: "sync_authentication_not_configured",
     });
+  });
+
+  it("advertises only routes the router recognizes", async () => {
+    const paths: Record<string, string> = {
+      push: "push",
+      pull: "pull",
+      chunk: `chunks/${"a".repeat(64)}`,
+      checkpoint: "checkpoint",
+      encryption: "encryption",
+      acknowledge: "acknowledge",
+      events: "events",
+    };
+    for (const route of SYNC_ROUTE_NAMES) {
+      const response = await exports.default.fetch(
+        `https://example.test/v1/workspaces/workspace-1/${paths[route]}`,
+      );
+      expect(response.status, `advertised route ${route}`).not.toBe(404);
+    }
   });
 });

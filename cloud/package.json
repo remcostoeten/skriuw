@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "test": "bash scripts/without-dev-vars.sh vitest run",
     "check": "bun run types:check && bun run typecheck && bun run test",
-    "deploy:dry": "wrangler deploy --dry-run"
+    "deploy:dry": "wrangler deploy --dry-run",
+    "deploy": "wrangler deploy"
   },
   "type": "module",
   "dependencies": {

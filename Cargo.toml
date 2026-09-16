@@ -15,6 +15,7 @@ members = [
     "crates/skriuw-history-git",
     "crates/skriuw-lifecycle",
     "crates/skriuw-cli",
+    "crates/skriuw-crypto",
     "crates/xtask",
 ]
 resolver = "2"

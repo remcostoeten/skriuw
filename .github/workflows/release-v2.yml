@@ -4,8 +4,36 @@ on:
     push:
         tags:
             - "v2-v*"
+    workflow_dispatch:
+        inputs:
+            skip_cloud_gate:
+                description: "Publish without verifying the deployed Worker's sync capabilities"
+                required: false
+                default: false
+                type: boolean
 
 jobs:
+    # clients read the workspace encryption record before every push that has
+    # queued changes, so publishing a release the deployed Worker cannot serve
+    # is what turns a rollout into an outage
+    verify-cloud:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: "24"
+
+            - name: Warn that the cloud capability gate was skipped
+              if: ${{ inputs.skip_cloud_gate }}
+              run: |
+                  echo "::warning title=Cloud capability gate skipped::This release is being published WITHOUT verifying that the production Worker serves the sync capabilities these clients require."
+
+            - name: Verify production Worker capabilities
+              if: ${{ !inputs.skip_cloud_gate }}
+              run: node scripts/verify-cloud-capabilities.mjs https://skriuw-v2-cloud.remcostoeten.workers.dev
+
     # tauri-action's matrix jobs each create a draft when none exists, splitting
     # assets across duplicate releases; creating the draft once up front avoids that
     create-release:
@@ -137,3 +165,18 @@ jobs:
                   releaseId: ${{ needs.create-release.outputs.release_id }}
                   includeUpdaterJson: true
                   args: ${{ matrix.args }}
+
+    # publishing the draft is what starts the Tauri updater and the package
+    # channels, so it happens only once every artifact exists and the deployed
+    # Worker has been verified
+    publish-release:
+        needs: [verify-cloud, build-browser-wasm, publish-tauri]
+        permissions:
+            contents: write
+        runs-on: ubuntu-latest
+        steps:
+            - name: Publish the draft release
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GH_REPO: ${{ github.repository }}
+              run: gh release edit "$GITHUB_REF_NAME" --draft=false

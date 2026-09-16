@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use skriuw_domain::{
     MAX_SYNC_BATCH_OPERATIONS, MAX_SYNC_PULL_OPERATIONS, ReplicatedWorkspaceOperation,
-    SyncPullResponse, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceOperation,
+    SyncPullResponse, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceEncryptionMarker,
+    WorkspaceOperation,
 };
 use skriuw_storage::{
     Diagnostic, DiagnosticCategory, DiagnosticContext, RemoteSyncApplyOutcome, StorageError,
@@ -10,11 +11,15 @@ use skriuw_storage::{
 
 use crate::{
     backoff::{SyncBackoff, SyncBackoffConfig},
-    checkpoint::{hydrate_from_latest_checkpoint, rehydrate_from_latest_checkpoint},
+    checkpoint::{
+        CheckpointHydration, hydrate_from_latest_checkpoint, rehydrate_from_latest_checkpoint,
+    },
     content::{
         SyncAssetStore, externalize_asset_content, externalize_oversized_operations,
         resolve_asset_content, resolve_chunked_operations,
     },
+    http::VALIDATION_DETAIL_WORKSPACE_ENCRYPTED,
+    seal::{OpenFailure, WorkspaceSealer},
     transport::{SyncCancellation, SyncClock, SyncTransport, TransportError},
 };
 
@@ -32,6 +37,23 @@ pub const BLOCKED_REASON_LOG_TRUNCATED_WITHOUT_CHECKPOINT: &str =
 /// Unresolved parked operations keep the device out of `upToDate`; the reason
 /// names the parked rows when they do not all share one durable reason code.
 pub const BLOCKED_REASON_BLOCKED_OPERATIONS: &str = "blocked_operations";
+/// The cloud holds sealed content this device has no key for. Only entering
+/// the workspace recovery code clears it; retrying cannot.
+pub const BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED: &str = "encryption_key_required";
+/// Sealed content arrived that this device's key cannot open: a different
+/// recovery code, or bytes that changed after they were sealed. Neither is
+/// transient, so the cycle parks with the reason instead of retrying.
+pub const BLOCKED_REASON_SEALED_CONTENT_UNREADABLE: &str = "sealed_content_unreadable";
+/// The cloud returned plaintext where this device's encryption floor requires
+/// sealed content: an unsealed operation above the floor, or an unsealed
+/// checkpoint once the device holds the key. Applying it would let the
+/// service write into an encrypted workspace, so nothing applies.
+pub const BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED: &str = "encryption_downgrade_refused";
+/// The cloud is older than this app: it does not serve the workspace
+/// encryption record, so this device cannot establish which key the workspace
+/// replicates under. A device that holds a key stops here rather than upload
+/// content the workspace may refuse or the other devices could not open.
+pub const BLOCKED_REASON_SERVER_TOO_OLD: &str = "server_too_old";
 
 /// Durable per-operation blocked reason recorded in storage when an
 /// operation's declared asset bytes are absent locally at push time. The
@@ -294,6 +316,7 @@ pub fn run_sync_cycle(
         cancellation,
         state,
         config,
+        sealer: None,
         changes: RemoteChangeSet::default(),
     };
     let mut outcome = cycle.run();
@@ -309,6 +332,7 @@ struct Cycle<'a> {
     cancellation: &'a SyncCancellation,
     state: &'a mut SyncCycleState,
     config: &'a SyncCycleConfig,
+    sealer: Option<WorkspaceSealer>,
     changes: RemoteChangeSet,
 }
 
@@ -330,40 +354,48 @@ impl Cycle<'_> {
             Ok(None) => return SyncCycleOutcome::settled(SyncStatus::LocalOnly),
             Err(error) => return self.storage_failure(&error),
         };
+        match self.queue.workspace_seal() {
+            Ok(Some(seal)) => match WorkspaceSealer::from_seal(&connection.workspace_id, &seal) {
+                Ok(sealer) => self.sealer = Some(sealer),
+                Err(error) => return self.encryption_key_required(&error.to_string()),
+            },
+            Ok(None) => self.sealer = None,
+            Err(error) => return self.storage_failure(&error),
+        }
+        let hydration = CheckpointHydration {
+            queue: self.queue,
+            transport: self.transport,
+            clock: self.clock,
+            cancellation: self.cancellation,
+            config: self.config,
+            connection: &connection,
+            sealer: self.sealer.as_ref(),
+        };
         if self.state.rehydration_requested {
             self.state.rehydration_requested = false;
-            if let Err(outcome) = rehydrate_from_latest_checkpoint(
-                self.queue,
-                self.transport,
-                self.clock,
-                self.cancellation,
-                &mut self.state.backoff,
-                self.config,
-                &connection,
-            ) {
+            if let Err(outcome) =
+                rehydrate_from_latest_checkpoint(&hydration, &mut self.state.backoff)
+            {
                 return outcome;
             }
             self.changes.mark_full();
         } else if is_hydration_candidate(&connection) {
             match self.queue.has_pending_sync_operations() {
                 Ok(true) => {}
-                Ok(false) => match hydrate_from_latest_checkpoint(
-                    self.queue,
-                    self.transport,
-                    self.clock,
-                    self.cancellation,
-                    &mut self.state.backoff,
-                    self.config,
-                    &connection,
-                ) {
-                    Ok(true) => self.changes.mark_full(),
-                    Ok(false) => {}
-                    Err(outcome) => return outcome,
-                },
+                Ok(false) => {
+                    match hydrate_from_latest_checkpoint(&hydration, &mut self.state.backoff) {
+                        Ok(true) => self.changes.mark_full(),
+                        Ok(false) => {}
+                        Err(outcome) => return outcome,
+                    }
+                }
                 Err(error) => return self.storage_failure(&error),
             }
         }
 
+        if let Err(outcome) = self.require_matching_seal_state(&connection.workspace_id) {
+            return outcome;
+        }
         let (deferred, more_push_pending) = match self.push_phase() {
             Ok(result) => result,
             Err(outcome) => return outcome,
@@ -395,6 +427,48 @@ impl Cycle<'_> {
             return deferred;
         }
         self.settle()
+    }
+
+    /// Nothing leaves this device until the cloud's encryption record agrees
+    /// with the key the device holds: a keyless device never uploads
+    /// plaintext into an encrypted workspace, and a device holding another
+    /// key never uploads content the other devices could not open.
+    fn require_matching_seal_state(&mut self, workspace_id: &str) -> Result<(), SyncCycleOutcome> {
+        match self.queue.has_pending_sync_operations() {
+            Ok(false) => return Ok(()),
+            Ok(true) => {}
+            Err(error) => return Err(self.storage_failure(&error)),
+        }
+        let marker = match self
+            .transport
+            .workspace_encryption(workspace_id, self.cancellation)
+        {
+            Ok(marker) => marker,
+            Err(TransportError::RouteUnavailable) => return self.without_encryption_record(),
+            Err(error) => return Err(self.pull_failure(&error)),
+        };
+        match encryption_mismatch(self.sealer.as_ref(), marker.as_ref()) {
+            Some((reason, detail)) => Err(self.parked_for_encryption(reason, &detail)),
+            None => Ok(()),
+        }
+    }
+
+    /// A cloud that does not serve the encryption record predates encryption
+    /// entirely, and the record and the operation log live in the same
+    /// service: a device that has never held a key for this workspace
+    /// therefore keeps replicating in the clear exactly as it did before the
+    /// route existed, instead of parking on an outage it cannot act on. A
+    /// device that does hold a key stops instead — it cannot establish that
+    /// the workspace is unencrypted, and plaintext from it would be a
+    /// downgrade.
+    fn without_encryption_record(&self) -> Result<(), SyncCycleOutcome> {
+        if self.sealer.is_none() {
+            return Ok(());
+        }
+        Err(self.parked_for_encryption(
+            BLOCKED_REASON_SERVER_TOO_OLD,
+            "this Skriuw cloud server is older than this app and cannot confirm the workspace encryption key; nothing was uploaded",
+        ))
     }
 
     fn push_phase(&mut self) -> Result<(Option<SyncCycleOutcome>, bool), SyncCycleOutcome> {
@@ -438,6 +512,8 @@ impl Cycle<'_> {
             let mut request = batch.request.clone();
             let prepared = if self.cancellation.is_cancelled() {
                 Err(TransportError::Cancelled)
+            } else if let Some(sealer) = &self.sealer {
+                sealer.seal_push_batch(self.transport, self.assets, &mut request, self.cancellation)
             } else {
                 externalize_oversized_operations(
                     self.transport,
@@ -585,6 +661,12 @@ impl Cycle<'_> {
                     SyncStatus::AuthenticationRequired,
                 ))
             }
+            TransportError::Validation(detail)
+                if detail == VALIDATION_DETAIL_WORKSPACE_ENCRYPTED =>
+            {
+                let (reason, detail) = refused_by_encrypted_workspace(self.sealer.is_some());
+                PushFailure::Return(self.release_blocked(operation_ids, reason, detail))
+            }
             TransportError::Validation(detail) => {
                 let detail = detail.clone();
                 let rejections = self.state.record_rejection(operation_ids, &detail);
@@ -614,11 +696,13 @@ impl Cycle<'_> {
             TransportError::AuthorizationDenied
             | TransportError::Conflict(_)
             | TransportError::UnsupportedProtocol(_)
+            | TransportError::RouteUnavailable
             | TransportError::LogTruncated => {
                 let reason = match error {
                     TransportError::AuthorizationDenied => BLOCKED_REASON_AUTHORIZATION_DENIED,
                     TransportError::Conflict(_) => BLOCKED_REASON_PUSH_CONFLICT,
                     TransportError::UnsupportedProtocol(_) => BLOCKED_REASON_PROTOCOL_MISMATCH,
+                    TransportError::RouteUnavailable => BLOCKED_REASON_SERVER_TOO_OLD,
                     _ => BLOCKED_REASON_LOG_TRUNCATED,
                 };
                 PushFailure::Defer(self.release_blocked(operation_ids, reason, &error.to_string()))
@@ -719,6 +803,40 @@ impl Cycle<'_> {
             Err(TransportError::LogTruncated) => return Err(self.log_truncated()),
             Err(error) => return Err(self.pull_failure(&error)),
         };
+        match &self.sealer {
+            Some(sealer) => {
+                if let Err(error) = sealer.open_pull_response(
+                    self.transport,
+                    self.assets,
+                    &mut response,
+                    self.cancellation,
+                ) {
+                    return Err(match &error {
+                        OpenFailure::Unreadable(detail) => self.sealed_content_unreadable(detail),
+                        OpenFailure::Downgrade(detail) => self.parked_for_encryption(
+                            BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED,
+                            detail,
+                        ),
+                        OpenFailure::Rejected(detail) => self.rejected_pull(detail),
+                        OpenFailure::Storage(detail) => {
+                            self.parked_for_encryption(BLOCKED_REASON_STORAGE_FAILURE, detail)
+                        }
+                        OpenFailure::Transport(error) => self.pull_failure(error),
+                    });
+                }
+            }
+            None => {
+                if response
+                    .operations
+                    .iter()
+                    .any(|operation| operation.payload.is_sealed())
+                {
+                    return Err(self.encryption_key_required(
+                        "another device encrypted this workspace; enter its recovery code to keep syncing",
+                    ));
+                }
+            }
+        }
         if let Err(error) = resolve_chunked_operations(
             self.transport,
             &connection.workspace_id,
@@ -822,11 +940,13 @@ impl Cycle<'_> {
             TransportError::AuthorizationDenied
             | TransportError::Validation(_)
             | TransportError::Conflict(_)
+            | TransportError::RouteUnavailable
             | TransportError::UnsupportedProtocol(_) => {
                 let retry_at = now.saturating_add(self.config.blocked_retry_delay_ms);
                 let reason = match error {
                     TransportError::AuthorizationDenied => BLOCKED_REASON_AUTHORIZATION_DENIED,
                     TransportError::UnsupportedProtocol(_) => BLOCKED_REASON_PROTOCOL_MISMATCH,
+                    TransportError::RouteUnavailable => BLOCKED_REASON_SERVER_TOO_OLD,
                     _ => BLOCKED_REASON_REJECTED_BATCH,
                 };
                 SyncCycleOutcome::retry(SyncStatus::blocked(reason, error.to_string()), retry_at)
@@ -867,6 +987,24 @@ impl Cycle<'_> {
         )
     }
 
+    /// A key problem is never transient: the cycle parks with a reason the
+    /// settings surface can act on instead of retrying into a loop.
+    fn parked_for_encryption(&self, reason: &str, detail: &str) -> SyncCycleOutcome {
+        let retry_at = self
+            .clock
+            .now_ms()
+            .saturating_add(self.config.blocked_retry_delay_ms);
+        SyncCycleOutcome::retry(SyncStatus::blocked(reason, detail), retry_at)
+    }
+
+    fn encryption_key_required(&self, detail: &str) -> SyncCycleOutcome {
+        self.parked_for_encryption(BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED, detail)
+    }
+
+    fn sealed_content_unreadable(&self, detail: &str) -> SyncCycleOutcome {
+        self.parked_for_encryption(BLOCKED_REASON_SEALED_CONTENT_UNREADABLE, detail)
+    }
+
     fn rejected_pull(&self, detail: &str) -> SyncCycleOutcome {
         let retry_at = self
             .clock
@@ -889,6 +1027,7 @@ impl Cycle<'_> {
             | TransportError::Validation(_)
             | TransportError::Conflict(_)
             | TransportError::UnsupportedProtocol(_)
+            | TransportError::RouteUnavailable
             | TransportError::LogTruncated => {
                 let retry_at = now.saturating_add(self.config.blocked_retry_delay_ms);
                 SyncCycleOutcome::retry(
@@ -948,6 +1087,48 @@ impl Cycle<'_> {
 
     fn storage_failure(&mut self, error: &StorageError) -> SyncCycleOutcome {
         storage_failure(self.clock, &mut self.state.backoff, self.config, error)
+    }
+}
+
+/// Compares the key this device holds with the cloud's encryption record,
+/// returning the blocked reason and detail when uploading would put plaintext
+/// into an encrypted workspace or seal under a key the workspace does not use.
+pub(crate) fn encryption_mismatch(
+    sealer: Option<&WorkspaceSealer>,
+    marker: Option<&WorkspaceEncryptionMarker>,
+) -> Option<(&'static str, String)> {
+    let marker = marker?;
+    match sealer {
+        None => Some((
+            BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED,
+            "this workspace is encrypted in the cloud; enter its recovery code so changes on this device upload sealed".into(),
+        )),
+        Some(sealer) if sealer.key_id() != marker.key_id => Some((
+            BLOCKED_REASON_SEALED_CONTENT_UNREADABLE,
+            format!(
+                "this device holds key {} but the workspace is encrypted with key {}; enter the workspace recovery code again",
+                sealer.key_id(),
+                marker.key_id
+            ),
+        )),
+        Some(_) => None,
+    }
+}
+
+/// How a 423 from the service reads on this device: without a key it needs
+/// the recovery code; with one, the service holds the workspace under a
+/// different key.
+pub(crate) fn refused_by_encrypted_workspace(holds_key: bool) -> (&'static str, &'static str) {
+    if holds_key {
+        (
+            BLOCKED_REASON_SEALED_CONTENT_UNREADABLE,
+            "the cloud refused content sealed with this device's key; enter the workspace recovery code again",
+        )
+    } else {
+        (
+            BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED,
+            "the cloud refused an unencrypted upload because this workspace is encrypted; enter its recovery code",
+        )
     }
 }
 

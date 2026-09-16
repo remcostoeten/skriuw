@@ -333,3 +333,9 @@ condition and records the evidence.
 - Do not ship automatic document merging where the merge matrix marks the result
   unsafe.
 - Do not treat raw SQLite copies as browser backup or cloud replication.
+- Do not merge a client change that requires a new Worker route into `daddy`
+  before that Worker is deployed. The browser client deploys automatically from
+  `daddy` through Vercel, so the reverse order ships clients against a service
+  that cannot answer them. `GET /health` reports what a deployment serves, and
+  `scripts/verify-cloud-capabilities.mjs` is the check; the desktop release
+  workflow refuses to publish until it passes.

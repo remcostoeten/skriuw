@@ -3,7 +3,10 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-use skriuw_domain::{SyncPullResponse, SyncPushRequest, SyncPushResponse, WorkspaceCheckpoint};
+use skriuw_domain::{
+    SyncPullResponse, SyncPushRequest, SyncPushResponse, WorkspaceCheckpoint,
+    WorkspaceEncryptionMarker,
+};
 use thiserror::Error;
 
 /// Cancellation signal shared between the coordinator and in-flight transport
@@ -76,6 +79,11 @@ pub enum TransportError {
     /// cycle shrinks its pull page and retries.
     #[error("sync response exceeded the client size limit")]
     ResponseTooLarge,
+    /// The service does not serve this route at all, which means it is older
+    /// than this client. Retrying cannot help: the caller decides whether the
+    /// work can proceed without the route or must stop visibly.
+    #[error("this Skriuw cloud server does not serve the requested sync route")]
+    RouteUnavailable,
 }
 
 impl TransportError {
@@ -166,6 +174,28 @@ pub trait SyncTransport: Send + Sync {
         checkpoint: &WorkspaceCheckpoint,
         cancellation: &SyncCancellation,
     ) -> Result<(), TransportError>;
+
+    /// The service's record of whether this workspace is end-to-end
+    /// encrypted and under which key. Clients read it before anything leaves
+    /// the device, so a device without the key never uploads plaintext into an
+    /// encrypted workspace.
+    fn workspace_encryption(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<WorkspaceEncryptionMarker>, TransportError>;
+
+    /// Asks the service to record `key_id` as the workspace key. The record
+    /// is write-once: the returned marker names whichever key reached the
+    /// service first, so the caller compares it with its own to learn whether
+    /// it won.
+    fn claim_workspace_encryption(
+        &self,
+        workspace_id: &str,
+        scheme: &str,
+        key_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<WorkspaceEncryptionMarker, TransportError>;
 
     /// Advances this device's server-side cursor so retention knows which
     /// operations every active device has already received.

@@ -13,6 +13,7 @@ use reqwest::{Method, StatusCode, blocking::Client};
 use serde::Deserialize;
 use skriuw_domain::{
     SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView, WorkspaceCheckpoint,
+    WorkspaceEncryptionMarker,
 };
 use skriuw_images::ImageStore;
 use skriuw_sqlite::SqliteWorkspace;
@@ -20,9 +21,21 @@ use skriuw_storage::{NewSyncConnection, SyncRecovery, WorkspaceSyncQueue};
 use skriuw_sync::{
     SyncAssetStore, SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncHttpEndpoints,
     SyncStatus, SyncTransport, SyncWorkspaceObserver, SystemClock, TransportError,
-    classify_http_failure, request_timeout_ms,
+    classify_http_failure, classify_optional_route_failure, enable_workspace_encryption,
+    rejected_error_code, request_timeout_ms, unlock_workspace_encryption,
 };
 use uuid::Uuid;
+
+/// The encryption facts the settings surface renders. Key material is
+/// deliberately absent: the renderer never needs it and must never hold it.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceEncryptionState {
+    pub enabled: bool,
+    pub linked: bool,
+    pub key_id: Option<String>,
+    pub sealed_checkpoint_at: Option<i64>,
+}
 
 pub type SessionExpiredObserver = Arc<dyn Fn() + Send + Sync>;
 type SharedToken = Arc<RwLock<String>>;
@@ -80,6 +93,7 @@ struct ProvisionedWorkspace {
 pub struct SyncRuntime {
     database_path: PathBuf,
     coordinator: Mutex<Option<Arc<SyncCoordinator>>>,
+    transport: Mutex<Option<Arc<HttpSyncTransport>>>,
     push_listener: Mutex<Option<PushListener>>,
     workspace_observer: Option<SyncWorkspaceObserver>,
     session_expired: Option<SessionExpiredObserver>,
@@ -91,6 +105,7 @@ impl SyncRuntime {
         Self {
             database_path,
             coordinator: Mutex::new(None),
+            transport: Mutex::new(None),
             push_listener: Mutex::new(None),
             workspace_observer: None,
             session_expired: None,
@@ -142,8 +157,7 @@ impl SyncRuntime {
     /// cloud origin; it is validated here so a compromised renderer message
     /// cannot point the bearer token at an arbitrary host.
     pub fn connect(&self, token: String, base_url: String) -> Result<SyncStatus, String> {
-        if token.trim().is_empty() || token.len() > 4_096 || token.chars().any(char::is_control)
-        {
+        if token.trim().is_empty() || token.len() > 4_096 || token.chars().any(char::is_control) {
             return Err("a valid account session is required to enable sync".into());
         }
         let base_url = trusted_cloud_base_url(&base_url)?;
@@ -203,6 +217,9 @@ impl SyncRuntime {
                     session_expired();
                 }
             });
+        if let Ok(mut cloud_transport) = self.transport.lock() {
+            *cloud_transport = Some(Arc::clone(&transport));
+        }
         let workspace = Arc::clone(&queue);
         let coordinator = Arc::new(SyncCoordinator::spawn(
             queue,
@@ -272,6 +289,70 @@ impl SyncRuntime {
         workspace
             .sync_recovery_view()
             .map_err(|error| format!("could not read the blocked sync queue: {error}"))
+    }
+
+    /// What the settings surface needs to describe this workspace's
+    /// encryption without ever handling key material.
+    pub fn encryption_state(&self) -> Result<WorkspaceEncryptionState, String> {
+        let workspace = self.open_workspace()?;
+        let seal = workspace
+            .workspace_seal()
+            .map_err(|error| format!("could not read the workspace encryption state: {error}"))?;
+        let linked = workspace
+            .sync_connection()
+            .map_err(|error| format!("could not read the local sync connection: {error}"))?
+            .is_some();
+        Ok(WorkspaceEncryptionState {
+            enabled: seal.is_some(),
+            linked,
+            key_id: seal.as_ref().map(|seal| seal.key_id.clone()),
+            sealed_checkpoint_at: seal.as_ref().and_then(|seal| seal.sealed_checkpoint_at),
+        })
+    }
+
+    /// Turns encryption on and returns the recovery code exactly once. The
+    /// code is never stored: only the key it derives is, so a lost code is
+    /// unrecoverable by design and the cloud copy dies with it.
+    pub fn enable_encryption(&self) -> Result<String, String> {
+        let workspace = self.open_workspace()?;
+        let transport = self.cloud_transport()?;
+        let mut entropy = zeroize::Zeroizing::new([0_u8; 20]);
+        getrandom::fill(entropy.as_mut_slice()).map_err(|error| {
+            format!("could not gather randomness for the recovery code: {error}")
+        })?;
+        let recovery_code = enable_workspace_encryption(
+            &workspace,
+            transport.as_ref(),
+            &SyncCancellation::new(),
+            entropy.as_slice(),
+            now_millis(),
+        )?;
+        self.request_refresh();
+        Ok(recovery_code)
+    }
+
+    /// Joins an already-encrypted workspace from a second device. The code is
+    /// checked against the key the cloud recorded before anything is stored.
+    pub fn unlock_encryption(&self, recovery_code: &str) -> Result<(), String> {
+        let workspace = self.open_workspace()?;
+        let transport = self.cloud_transport()?;
+        unlock_workspace_encryption(
+            &workspace,
+            transport.as_ref(),
+            &SyncCancellation::new(),
+            recovery_code,
+            now_millis(),
+        )?;
+        self.request_refresh();
+        Ok(())
+    }
+
+    fn cloud_transport(&self) -> Result<Arc<HttpSyncTransport>, String> {
+        self.transport
+            .lock()
+            .map_err(|_| "sync runtime lock is unavailable".to_string())?
+            .clone()
+            .ok_or_else(|| "sign in to Skriuw cloud before changing encryption".to_string())
     }
 
     /// Pause network access without discarding the durable connection or outbox.
@@ -377,10 +458,7 @@ fn run_push_listener(
         if stop.load(Ordering::Relaxed) || coordinator.strong_count() == 0 {
             return;
         }
-        let current_token = token
-            .read()
-            .map(|token| token.clone())
-            .unwrap_or_default();
+        let current_token = token.read().map(|token| token.clone()).unwrap_or_default();
         match connect_events_socket(endpoints, &current_token, workspace_id, device_id) {
             Ok(mut socket) => {
                 backoff_ms = PUSH_LISTENER_MIN_BACKOFF_MS;
@@ -437,9 +515,9 @@ fn connect_events_socket(
 
     let url = websocket_url(&endpoints.events(workspace_id, device_id))
         .map_err(ListenerConnectError::Failed)?;
-    let mut request = url
-        .into_client_request()
-        .map_err(|error| ListenerConnectError::Failed(format!("events request was invalid: {error}")))?;
+    let mut request = url.into_client_request().map_err(|error| {
+        ListenerConnectError::Failed(format!("events request was invalid: {error}"))
+    })?;
     request.headers_mut().insert(
         "Authorization",
         format!("Bearer {token}").parse().map_err(|_| {
@@ -447,9 +525,7 @@ fn connect_events_socket(
         })?,
     );
     let (mut socket, _response) = tungstenite::connect(request).map_err(|error| match error {
-        tungstenite::Error::Http(response)
-            if matches!(response.status().as_u16(), 401 | 403) =>
-        {
+        tungstenite::Error::Http(response) if matches!(response.status().as_u16(), 401 | 403) => {
             ListenerConnectError::Rejected(response.status().as_u16())
         }
         error => ListenerConnectError::Failed(format!("events connect failed: {error}")),
@@ -547,7 +623,11 @@ struct OutboundRequest {
 }
 
 impl OutboundRequest {
-    fn json(method: Method, url: String, value: &impl serde::Serialize) -> Result<Self, TransportError> {
+    fn json(
+        method: Method,
+        url: String,
+        value: &impl serde::Serialize,
+    ) -> Result<Self, TransportError> {
         let body = serde_json::to_vec(value).map_err(|error| {
             TransportError::Validation(format!("sync request is not serializable: {error}"))
         })?;
@@ -649,6 +729,29 @@ impl HttpSyncTransport {
             return Err(transport_error(
                 status,
                 response.headers().get("Retry-After"),
+            ));
+        }
+        let body = read_bounded(response)?;
+        serde_json::from_slice(&body).map_err(|error| TransportError::Transient(error.to_string()))
+    }
+
+    /// Sends a request on a route older deployments do not serve, so a 404
+    /// that names no specific decision is reported as an absent route rather
+    /// than as a denial the caller cannot act on.
+    fn send_optional_route<T: serde::de::DeserializeOwned>(
+        &self,
+        request: OutboundRequest,
+        cancellation: &SyncCancellation,
+    ) -> Result<T, TransportError> {
+        let response = self.dispatch(request, cancellation)?;
+        let status = response.status();
+        if !status.is_success() {
+            let retry_after_ms = retry_after_ms(response.headers().get("Retry-After"));
+            let body = read_bounded(response).unwrap_or_default();
+            return Err(classify_optional_route_failure(
+                status.as_u16(),
+                rejected_error_code(&body).as_deref(),
+                retry_after_ms,
             ));
         }
         let body = read_bounded(response)?;
@@ -780,6 +883,44 @@ impl SyncTransport for HttpSyncTransport {
         Ok(())
     }
 
+    fn workspace_encryption(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<WorkspaceEncryptionMarker>, TransportError> {
+        let marker: Option<WorkspaceEncryptionMarker> = self.send_optional_route(
+            OutboundRequest::empty(Method::GET, self.endpoints.encryption(workspace_id)),
+            cancellation,
+        )?;
+        if let Some(marker) = &marker {
+            marker.validate().map_err(|error| {
+                TransportError::Validation(format!("encryption record was unreadable: {error}"))
+            })?;
+        }
+        Ok(marker)
+    }
+
+    fn claim_workspace_encryption(
+        &self,
+        workspace_id: &str,
+        scheme: &str,
+        key_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<WorkspaceEncryptionMarker, TransportError> {
+        let marker: WorkspaceEncryptionMarker = self.send_optional_route(
+            OutboundRequest::json(
+                Method::POST,
+                self.endpoints.encryption(workspace_id),
+                &serde_json::json!({ "scheme": scheme, "keyId": key_id }),
+            )?,
+            cancellation,
+        )?;
+        marker.validate().map_err(|error| {
+            TransportError::Validation(format!("encryption record was unreadable: {error}"))
+        })?;
+        Ok(marker)
+    }
+
     fn acknowledge(
         &self,
         workspace_id: &str,
@@ -824,15 +965,18 @@ fn provision_error(status: StatusCode) -> String {
     }
 }
 
+fn retry_after_ms(retry_after: Option<&reqwest::header::HeaderValue>) -> Option<i64> {
+    retry_after
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<i64>().ok())
+        .map(|seconds| seconds.saturating_mul(1_000))
+}
+
 fn transport_error(
     status: StatusCode,
     retry_after: Option<&reqwest::header::HeaderValue>,
 ) -> TransportError {
-    let retry_after_ms = retry_after
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.parse::<i64>().ok())
-        .map(|seconds| seconds.saturating_mul(1_000));
-    classify_http_failure(status.as_u16(), retry_after_ms)
+    classify_http_failure(status.as_u16(), retry_after_ms(retry_after))
 }
 
 /// The origin used to resume a persisted session before the renderer has
@@ -915,7 +1059,9 @@ mod tests {
         assert!(!is_trusted_https_origin("http://sync.skriuw.app"));
         assert!(is_local_development_origin(LOCAL_CLOUD_URL));
         assert!(is_local_development_origin("http://localhost"));
-        assert!(!is_local_development_origin("http://localhost.evil.example"));
+        assert!(!is_local_development_origin(
+            "http://localhost.evil.example"
+        ));
     }
 
     #[test]
@@ -929,7 +1075,11 @@ mod tests {
         runtime.request_refresh();
         runtime.set_online(false);
         runtime.set_visibility(false, false);
-        assert!(runtime.connect("token".into(), "https://evil.example".into()).is_err());
+        assert!(
+            runtime
+                .connect("token".into(), "https://evil.example".into())
+                .is_err()
+        );
         runtime.shutdown();
         assert_eq!(runtime.status(), SyncStatus::LocalOnly);
     }
@@ -937,7 +1087,10 @@ mod tests {
     #[test]
     fn development_uses_production_cloud_unless_local_is_explicit() {
         assert_eq!(development_cloud_base_url(None), PRODUCTION_CLOUD_URL);
-        assert_eq!(development_cloud_base_url(Some("cloud")), PRODUCTION_CLOUD_URL);
+        assert_eq!(
+            development_cloud_base_url(Some("cloud")),
+            PRODUCTION_CLOUD_URL
+        );
         assert_eq!(development_cloud_base_url(Some("local")), LOCAL_CLOUD_URL);
     }
 }

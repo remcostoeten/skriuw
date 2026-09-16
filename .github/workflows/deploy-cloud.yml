@@ -1,0 +1,97 @@
+name: Deploy cloud Worker
+
+# The browser client auto-deploys from `daddy` through Vercel, so the Worker
+# has to ship before or together with the client changes that depend on it.
+# Pushes touching `cloud/` deploy production; a manual run also reaches the
+# verification-only preview environment.
+on:
+    push:
+        branches:
+            - daddy
+        paths:
+            - "cloud/**"
+    workflow_dispatch:
+        inputs:
+            environment:
+                description: "Worker environment to deploy"
+                required: true
+                default: production
+                type: choice
+                options:
+                    - production
+                    - preview
+
+permissions:
+    contents: read
+
+concurrency:
+    group: deploy-cloud-${{ github.event.inputs.environment || 'production' }}
+    cancel-in-progress: false
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            # the deploy credentials are optional repository secrets: without
+            # them the Worker is still deployed by hand (cloud/README.md), and
+            # this workflow must not fail a push it cannot act on
+            - name: Check for Cloudflare deploy credentials
+              id: credentials
+              env:
+                  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+              run: |
+                  if [[ -n "$CLOUDFLARE_API_TOKEN" && -n "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+                      echo "configured=true" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "configured=false" >> "$GITHUB_OUTPUT"
+                      echo "::notice title=Worker deploy skipped::CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are not configured. Deploy the Worker manually before merging client changes that require it (cloud/README.md)."
+                  fi
+
+            - name: Resolve the target deployment
+              id: target
+              if: steps.credentials.outputs.configured == 'true'
+              env:
+                  ENVIRONMENT: ${{ github.event.inputs.environment || 'production' }}
+              run: |
+                  if [[ "$ENVIRONMENT" == "preview" ]]; then
+                      echo "command=deploy --env preview" >> "$GITHUB_OUTPUT"
+                      echo "url=https://skriuw-v2-cloud-preview.remcostoeten.workers.dev" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "command=deploy" >> "$GITHUB_OUTPUT"
+                      echo "url=https://skriuw-v2-cloud.remcostoeten.workers.dev" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Setup Bun
+              if: steps.credentials.outputs.configured == 'true'
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+
+            - name: Install Worker dependencies
+              if: steps.credentials.outputs.configured == 'true'
+              working-directory: cloud
+              run: bun install --frozen-lockfile
+
+            - name: Deploy the Worker
+              if: steps.credentials.outputs.configured == 'true'
+              uses: cloudflare/wrangler-action@v3
+              with:
+                  apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+                  workingDirectory: cloud
+                  packageManager: bun
+                  command: ${{ steps.target.outputs.command }}
+
+            - uses: actions/setup-node@v5
+              if: steps.credentials.outputs.configured == 'true'
+              with:
+                  node-version: "24"
+
+            - name: Verify the deployed capabilities
+              if: steps.credentials.outputs.configured == 'true'
+              run: node scripts/verify-cloud-capabilities.mjs "${{ steps.target.outputs.url }}"

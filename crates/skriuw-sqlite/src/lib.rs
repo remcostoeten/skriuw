@@ -32,7 +32,9 @@ mod sync;
 #[cfg(test)]
 mod tests;
 
-use crate::backup::{normalize_backup, prepare_new_target, temporary_sibling, verify_database};
+use crate::backup::{
+    normalize_backup, prepare_new_target, strip_device_secrets, temporary_sibling, verify_database,
+};
 use crate::error::{backend, json_backend};
 use crate::migration::{
     MIGRATIONS, checksum, read_migrations, upgrade_legacy_ledger, validate_migration_list,
@@ -109,6 +111,7 @@ impl SqliteWorkspace {
                     .run_to_completion(128, Duration::from_millis(2), None)
                     .map_err(backend)?;
             }
+            strip_device_secrets(&destination)?;
             normalize_backup(&destination)?;
             verify_database(&destination)?;
             drop(destination);
@@ -142,6 +145,7 @@ impl SqliteWorkspace {
                     .run_to_completion(128, Duration::from_millis(2), None)
                     .map_err(backend)?;
             }
+            strip_device_secrets(&destination)?;
             normalize_backup(&destination)?;
             verify_database(&destination)?;
             drop(destination);

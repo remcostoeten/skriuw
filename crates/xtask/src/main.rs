@@ -15,7 +15,7 @@ use skriuw_domain::{
     OperationAck, RemoteAiCatalog, RemoteAiModelDirectory, RemoteAiProviderState, SearchHit,
     SearchIndexStatus, SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView,
     WORKSPACE_OPERATION_SYNC_POLICY_V1, WorkspaceArchive, WorkspaceCheckpoint, WorkspaceDelta,
-    WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    WorkspaceEncryptionMarker, WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 
 fn main() -> ExitCode {
@@ -75,6 +75,11 @@ fn run() -> Result<(), Box<dyn Error>> {
     write_schema::<SyncPullResponse>(&output, "sync-pull-response.schema.json", check)?;
     write_schema::<ContentManifest>(&output, "content-manifest.schema.json", check)?;
     write_schema::<WorkspaceCheckpoint>(&output, "workspace-checkpoint.schema.json", check)?;
+    write_schema::<WorkspaceEncryptionMarker>(
+        &output,
+        "workspace-encryption-marker.schema.json",
+        check,
+    )?;
     write_schema::<SyncRecoveryView>(&output, "sync-recovery-view.schema.json", check)?;
     write_schema::<WorkspaceDelta>(&output, "workspace-delta.schema.json", check)?;
     write_schema::<BuiltInPromptLibrary>(&output, "built-in-prompts.schema.json", check)?;

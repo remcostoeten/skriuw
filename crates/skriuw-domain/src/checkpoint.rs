@@ -4,7 +4,8 @@ use thiserror::Error;
 
 use crate::{
     ArchiveValidationError, ContentManifest, ContentManifestKind, ContentValidationError,
-    MAX_SAFE_SYNC_SEQUENCE, SUPPORTED_ARCHIVE_VERSIONS, SUPPORTED_SYNC_PROTOCOL_VERSIONS,
+    MAX_SAFE_SYNC_SEQUENCE, SEALED_CONTENT_MIME_TYPE, SUPPORTED_ARCHIVE_VERSIONS,
+    SUPPORTED_SYNC_PROTOCOL_VERSIONS, SealedContent, SealedTransport, SyncValidationError,
     WORKSPACE_ARCHIVE_VERSION, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceArchive, validate_id,
 };
 
@@ -35,8 +36,38 @@ pub enum CheckpointValidationError {
     Content(#[from] ContentValidationError),
     #[error(transparent)]
     Archive(#[from] ArchiveValidationError),
+    #[error("sealed checkpoint content must be opened before it can be read")]
+    SealedContent,
+    #[error(transparent)]
+    Seal(#[from] SyncValidationError),
     #[error(transparent)]
     Identifier(#[from] crate::OperationValidationError),
+}
+
+/// How a sealed checkpoint was encrypted. The archive bytes behind
+/// `content` are ciphertext; the manifest still describes them so the
+/// transport, quota, and retention rules are unchanged.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CheckpointSeal {
+    pub scheme: String,
+    pub key_id: String,
+    pub nonce: String,
+}
+
+impl CheckpointSeal {
+    fn validate(&self) -> Result<(), CheckpointValidationError> {
+        SealedContent {
+            scheme: self.scheme.clone(),
+            key_id: self.key_id.clone(),
+            nonce: self.nonce.clone(),
+            transport: SealedTransport::Inline {
+                ciphertext: "AA".into(),
+            },
+        }
+        .validate("checkpoint", ContentManifestKind::Checkpoint)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -49,6 +80,11 @@ pub struct WorkspaceCheckpoint {
     pub server_sequence: u64,
     pub created_at: i64,
     pub content: ContentManifest,
+    /// Present when the archive behind `content` is end-to-end encrypted.
+    /// Absent checkpoints stay readable by older clients and by the server's
+    /// existing validation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seal: Option<CheckpointSeal>,
 }
 
 impl WorkspaceCheckpoint {
@@ -74,9 +110,40 @@ impl WorkspaceCheckpoint {
             server_sequence,
             created_at,
             content,
+            seal: None,
         };
         checkpoint.validate()?;
         Ok((checkpoint, bytes))
+    }
+
+    /// Builds a checkpoint over already-sealed archive bytes. The caller
+    /// sealed the archive it exported; this records the manifest of the
+    /// ciphertext and the seal that opens it.
+    pub fn sealed(
+        workspace_id: impl Into<String>,
+        server_sequence: u64,
+        created_at: i64,
+        archive_version: u16,
+        seal: CheckpointSeal,
+        ciphertext: &[u8],
+    ) -> Result<Self, CheckpointValidationError> {
+        let content = ContentManifest::build(
+            ContentManifestKind::Checkpoint,
+            SEALED_CONTENT_MIME_TYPE,
+            ciphertext,
+        )?;
+        let checkpoint = Self {
+            checkpoint_version: WORKSPACE_CHECKPOINT_VERSION,
+            sync_protocol_version: WORKSPACE_SYNC_PROTOCOL_VERSION,
+            archive_version,
+            workspace_id: workspace_id.into(),
+            server_sequence,
+            created_at,
+            content,
+            seal: Some(seal),
+        };
+        checkpoint.validate()?;
+        Ok(checkpoint)
     }
 
     pub fn validate(&self) -> Result<(), CheckpointValidationError> {
@@ -105,9 +172,16 @@ impl WorkspaceCheckpoint {
         if self.content.kind != ContentManifestKind::Checkpoint {
             return Err(CheckpointValidationError::UnexpectedManifestKind);
         }
-        if self.content.mime_type != CHECKPOINT_CONTENT_MIME_TYPE {
+        let expected_mime_type = match &self.seal {
+            Some(seal) => {
+                seal.validate()?;
+                SEALED_CONTENT_MIME_TYPE
+            }
+            None => CHECKPOINT_CONTENT_MIME_TYPE,
+        };
+        if self.content.mime_type != expected_mime_type {
             return Err(CheckpointValidationError::UnexpectedMimeType {
-                expected: CHECKPOINT_CONTENT_MIME_TYPE,
+                expected: expected_mime_type,
             });
         }
         self.content.validate()?;
@@ -120,8 +194,36 @@ impl WorkspaceCheckpoint {
         &self,
         bytes: &[u8],
     ) -> Result<WorkspaceArchive, CheckpointValidationError> {
+        if self.seal.is_some() {
+            return Err(CheckpointValidationError::SealedContent);
+        }
         self.validate()?;
         self.content.verify_assembled(bytes)?;
+        self.read_archive(bytes)
+    }
+
+    /// Verify the downloaded ciphertext of a sealed checkpoint before it is
+    /// handed to the crypto layer, so tampered bytes fail on the digest
+    /// rather than on the authentication tag.
+    pub fn verify_sealed_content(
+        &self,
+        ciphertext: &[u8],
+    ) -> Result<(), CheckpointValidationError> {
+        self.validate()?;
+        if self.seal.is_none() {
+            return Err(CheckpointValidationError::UnexpectedMimeType {
+                expected: SEALED_CONTENT_MIME_TYPE,
+            });
+        }
+        self.content.verify_assembled(ciphertext)?;
+        Ok(())
+    }
+
+    /// Read the archive out of already-opened checkpoint bytes.
+    pub fn read_archive(
+        &self,
+        bytes: &[u8],
+    ) -> Result<WorkspaceArchive, CheckpointValidationError> {
         let archive = serde_json::from_slice::<WorkspaceArchive>(bytes)
             .map_err(|_| CheckpointValidationError::UnreadableArchive)?;
         if archive.archive_version != self.archive_version {

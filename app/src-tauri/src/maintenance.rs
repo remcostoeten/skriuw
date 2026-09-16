@@ -27,6 +27,7 @@ use skriuw_sqlite::{
 };
 use skriuw_storage::{
     Diagnostic, DiagnosticCategory, DiagnosticContext, WorkspaceMaintenance, WorkspaceStorage,
+    WorkspaceSyncQueue,
 };
 
 const HISTORY_DRAIN_WORKER_ID: &str = "desktop-history-drain";
@@ -767,10 +768,19 @@ impl MaintenanceCoordinator {
         finalize: impl FnOnce() -> Result<(), String>,
     ) -> Result<RelocationReport, Diagnostic> {
         let storage = SqliteWorkspace::open(&self.database_path).map_err(recovery_error)?;
+        let seal = storage.workspace_seal().map_err(recovery_error)?;
         storage
             .backup_to(target_database)
             .map_err(|error| error.diagnostic(DiagnosticContext::Backup))?;
         drop(storage);
+        if let Some(seal) = seal {
+            let carried = SqliteWorkspace::open(target_database)
+                .and_then(|moved| moved.set_workspace_seal(&seal));
+            if let Err(error) = carried {
+                let _ = fs::remove_file(target_database);
+                return Err(error.diagnostic(DiagnosticContext::Backup));
+            }
+        }
         let mut copied_files = 1;
         let source_directory = self.database_path.parent().unwrap_or(Path::new("."));
         for sidecar in ["blobs", "history", "recovery"] {
@@ -1177,7 +1187,10 @@ mod tests {
     use skriuw_images::ImageStore;
     use skriuw_lifecycle::DatabaseSwapStage;
     use skriuw_sqlite::SqliteWorkspace;
-    use skriuw_storage::{DiagnosticCategory, WorkspaceMaintenance, WorkspaceStorage};
+    use skriuw_storage::{
+        DiagnosticCategory, WorkspaceMaintenance, WorkspaceSeal, WorkspaceStorage,
+        WorkspaceSyncQueue,
+    };
     use tempfile::{TempDir, tempdir};
 
     use super::MaintenanceCoordinator;
@@ -1692,6 +1705,19 @@ mod tests {
     #[test]
     fn relocate_copies_workspace_sidecars_and_records_new_location() {
         let fixture = fixture();
+        let seal = WorkspaceSeal {
+            workspace_id: "workspace-1".into(),
+            key_id: "0f1e2d3c4b5a6978".into(),
+            scheme: "argon2id-xchacha20poly1305-v2".into(),
+            key_material: vec![7; 32].into(),
+            enabled_at: 1,
+            sealed_checkpoint_at: None,
+            encrypted_from_server_sequence: 0,
+        };
+        SqliteWorkspace::open(fixture.database_path())
+            .expect("open workspace")
+            .set_workspace_seal(&seal)
+            .expect("store seal");
         fs::create_dir_all(fixture.directory.path().join("blobs")).expect("create blobs");
         fs::write(fixture.directory.path().join("blobs/blob.png"), b"blob").expect("write blob");
         fixture
@@ -1721,6 +1747,14 @@ mod tests {
         );
         assert!(target.join("recovery").is_dir());
         assert!(fixture.database_path().exists(), "original must be kept");
+        assert_eq!(
+            SqliteWorkspace::open(target.join("workspace.db"))
+                .expect("open moved workspace")
+                .workspace_seal()
+                .expect("read moved seal"),
+            Some(seal),
+            "a move keeps this device's encryption key"
+        );
     }
 
     #[test]

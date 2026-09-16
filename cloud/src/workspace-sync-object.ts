@@ -23,14 +23,17 @@ import {
   type SyncPushResult,
   type SyncPushResponse,
   UNREFERENCED_CHUNK_GRACE_SECONDS,
+  WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION,
   WORKSPACE_SYNC_PROTOCOL_VERSION,
   type WorkspaceCheckpointRecord,
+  type WorkspaceEncryptionMarker,
   type WorkspaceStorageUsage,
   type WorkspaceSyncState,
   jsonByteLength,
   parseStoredJson,
   parseSyncOperationPayload,
   parseSyncPushRequest,
+  parseEncryptionClaim,
   parseWorkspaceCheckpoint,
   requireIdentifier,
   requireSafeSequence,
@@ -60,6 +63,13 @@ type IndexedOperationRow = {
   server_sequence: number;
   base_server_sequence: number;
   payload_sha256: string;
+};
+
+type EncryptionMarkerRow = {
+  scheme: string;
+  key_id: string;
+  encrypted_from_server_sequence: number;
+  enabled_at: number;
 };
 
 type LogFloorRow = {
@@ -328,10 +338,14 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         "SELECT COALESCE(MAX(id), 0) AS version FROM _sql_schema_migrations",
       )
       .one().version;
-    if (currentVersion > 3) {
+    if (currentVersion > WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION) {
       throw new Error(`workspace sync schema ${currentVersion} is newer than this service`);
     }
+    if (currentVersion === WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION) {
+      return;
+    }
     if (currentVersion === 3) {
+      this.createEncryptionTable();
       return;
     }
     if (currentVersion === 0) {
@@ -361,6 +375,116 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
     }
     this.createContentTables();
     await this.createRetentionTables();
+    this.createEncryptionTable();
+  }
+
+  /**
+   * Migration 4 records whether the workspace is end-to-end encrypted. A
+   * single row, written once and never updated, so the first key to reach
+   * the service is the workspace key for good.
+   */
+  private createEncryptionTable(): void {
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE sync_encryption (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          scheme TEXT NOT NULL,
+          key_id TEXT NOT NULL,
+          encrypted_from_server_sequence INTEGER NOT NULL CHECK (
+            encrypted_from_server_sequence >= 0
+          ),
+          enabled_at INTEGER NOT NULL CHECK (enabled_at >= 0)
+        ) STRICT;
+        INSERT INTO _sql_schema_migrations(id) VALUES (${WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION});
+      `);
+    });
+  }
+
+  async workspaceEncryption(): Promise<WorkspaceEncryptionMarker | null> {
+    return this.encryptionMarker();
+  }
+
+  /**
+   * Compare-and-set: the first claim writes the record and every later claim
+   * reads it back unchanged. The caller compares the returned key id with
+   * its own, so two devices enabling at once cannot both succeed.
+   */
+  async claimWorkspaceEncryption(input: unknown): Promise<
+    { ok: true; marker: WorkspaceEncryptionMarker } | { ok: false; code: string; message: string }
+  > {
+    let claim: { scheme: string; keyId: string };
+    try {
+      claim = parseEncryptionClaim(input);
+    } catch (error) {
+      if (error instanceof SyncContractError) {
+        return { ok: false, code: error.code, message: error.message };
+      }
+      throw error;
+    }
+    const marker = this.ctx.storage.transactionSync(() => {
+      this.admitSealState({ scheme: claim.scheme, keyIds: [claim.keyId] }, { allowForeignKey: true });
+      return this.encryptionMarker();
+    });
+    if (marker === null) {
+      throw new Error("encryption claim did not leave a record");
+    }
+    return { ok: true, marker };
+  }
+
+  private encryptionMarker(): WorkspaceEncryptionMarker | null {
+    const row = this.ctx.storage.sql
+      .exec<EncryptionMarkerRow>(
+        "SELECT scheme, key_id, encrypted_from_server_sequence, enabled_at " +
+          "FROM sync_encryption WHERE id = 1",
+      )
+      .toArray()[0];
+    if (row === undefined) {
+      return null;
+    }
+    return {
+      scheme: row.scheme,
+      keyId: row.key_id,
+      encryptedFromServerSequence: row.encrypted_from_server_sequence,
+      enabledAt: row.enabled_at,
+    };
+  }
+
+  /**
+   * Must run inside the transaction that appends or publishes: the marker is
+   * read and, when absent, written in the same transaction as the content it
+   * admits, so two devices racing to encrypt cannot both win.
+   */
+  private admitSealState(
+    seal: { scheme: string; keyIds: readonly string[] } | null,
+    options: { allowForeignKey: boolean } = { allowForeignKey: false },
+  ): void {
+    const marker = this.encryptionMarker();
+    if (seal === null) {
+      if (marker !== null) {
+        throw new SyncContractError(
+          "this workspace is end-to-end encrypted and refuses content that is not sealed",
+          "workspace_encrypted",
+        );
+      }
+      return;
+    }
+    const keyId = marker?.keyId ?? seal.keyIds[0];
+    if (!options.allowForeignKey && seal.keyIds.some((candidate) => candidate !== keyId)) {
+      throw new SyncContractError(
+        "sealed content names a key this workspace is not encrypted with",
+        "encryption_key_mismatch",
+      );
+    }
+    if (marker === null && keyId !== undefined) {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO sync_encryption(id, scheme, key_id, encrypted_from_server_sequence, enabled_at) " +
+          "VALUES (1, ?, ?, ?, ?)",
+        seal.scheme,
+        keyId,
+        this.latestServerSequence(),
+        Math.floor(Date.now() / 1_000),
+      );
+    }
   }
 
   private upgradeStoredOperationsToPayloads(): void {
@@ -580,6 +704,18 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
           code: "content_unavailable",
           message: `checkpoint content is being removed: ${deleting.join(",")}`,
         };
+      }
+      try {
+        this.admitSealState(
+          checkpoint.seal === undefined
+            ? null
+            : { scheme: checkpoint.seal.scheme, keyIds: [checkpoint.seal.keyId] },
+        );
+      } catch (error) {
+        if (error instanceof SyncContractError) {
+          return { ok: false, code: error.code, message: error.message };
+        }
+        throw error;
       }
       this.ctx.storage.sql.exec(
         "INSERT INTO sync_checkpoints(server_sequence, checkpoint_json, created_at) " +
@@ -964,6 +1100,7 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         continue;
       }
 
+      this.admitSealState(payloadSeal(operation.payload));
       const latestServerSequence = this.latestServerSequence();
       if (operation.baseServerSequence > latestServerSequence) {
         throw new SyncContractError("base server sequence is ahead of the workspace");
@@ -1085,7 +1222,24 @@ function referencedManifests(payload: SyncOperationPayload): ContentManifest[] {
   if (payload.form === "chunked") {
     return [payload.manifest];
   }
+  if (payload.form === "sealed") {
+    return [payload.operation, ...(payload.assets ?? [])].flatMap((sealed) =>
+      sealed.transport === "chunked" ? [sealed.manifest] : [],
+    );
+  }
   return payload.assets ?? [];
+}
+
+function payloadSeal(
+  payload: SyncOperationPayload,
+): { scheme: string; keyIds: string[] } | null {
+  if (payload.form !== "sealed") {
+    return null;
+  }
+  return {
+    scheme: payload.operation.scheme,
+    keyIds: [payload.operation, ...(payload.assets ?? [])].map((sealed) => sealed.keyId),
+  };
 }
 
 function toReplicatedOperation(row: StoredOperationRow): ReplicatedWorkspaceOperation {

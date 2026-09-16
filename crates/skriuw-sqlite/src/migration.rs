@@ -132,6 +132,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "note_cover_gradient",
         sql: include_str!("../migrations/0025_note_cover_gradient.sql"),
     },
+    Migration {
+        version: 26,
+        name: "sync_encryption",
+        sql: include_str!("../migrations/0026_sync_encryption.sql"),
+    },
 ];
 
 pub(crate) struct Migration {
@@ -409,6 +414,10 @@ mod tests {
             (
                 25,
                 "a2bb087f0fd1e0c75337ec420444aa8e3f910b623ee2b9da57ee40f842ae60a2",
+            ),
+            (
+                26,
+                "a73dea0ff37e198a0b8ac1a8ff855b56ef594ed89b9611f3e2adc40ad744ecb8",
             ),
         ];
         assert_eq!(MIGRATIONS.len(), SHIPPED.len(), "append new checksums here");

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkspaceEncryptionMarker",
+  "description": "The service's durable record that a workspace is end-to-end encrypted.\nIt is written by the first sealed push, sealed checkpoint, or explicit\nenable, whichever comes first, and never changes afterwards: every\noperation above `encrypted_from_server_sequence` must be sealed under\n`key_id`, and plaintext pushes and checkpoints are refused.",
+  "type": "object",
+  "properties": {
+    "enabledAt": {
+      "type": "integer",
+      "format": "int64"
+    },
+    "encryptedFromServerSequence": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "keyId": {
+      "type": "string"
+    },
+    "scheme": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "scheme",
+    "keyId",
+    "encryptedFromServerSequence",
+    "enabledAt"
+  ]
+}

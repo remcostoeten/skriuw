@@ -5,6 +5,10 @@ use crate::transport::TransportError;
 /// Stable `Validation` detail for a 413 response: the workspace's cloud
 /// storage quota or the request size ceiling was exceeded.
 pub const VALIDATION_DETAIL_QUOTA_EXCEEDED: &str = "quota_exceeded";
+/// Stable `Validation` detail for a 423 response: the workspace is end-to-end
+/// encrypted and the service refused content that was not sealed under its
+/// key.
+pub const VALIDATION_DETAIL_WORKSPACE_ENCRYPTED: &str = "workspace_encrypted";
 
 const REQUEST_TIMEOUT_BASE_MS: u64 = 10_000;
 const REQUEST_TIMEOUT_PER_UNIT_MS: u64 = 1_000;
@@ -79,6 +83,11 @@ impl SyncHttpEndpoints {
     }
 
     #[must_use]
+    pub fn encryption(&self, workspace_id: &str) -> String {
+        format!("{}/v1/workspaces/{workspace_id}/encryption", self.base_url)
+    }
+
+    #[must_use]
     pub fn acknowledge(&self, workspace_id: &str) -> String {
         format!("{}/v1/workspaces/{workspace_id}/acknowledge", self.base_url)
     }
@@ -106,10 +115,52 @@ pub fn classify_http_failure(status: u16, retry_after_ms: Option<i64>) -> Transp
         409 => TransportError::Conflict("server_sequence_conflict".into()),
         410 => TransportError::LogTruncated,
         413 => TransportError::Validation(VALIDATION_DETAIL_QUOTA_EXCEEDED.into()),
+        423 => TransportError::Validation(VALIDATION_DETAIL_WORKSPACE_ENCRYPTED.into()),
         429 => TransportError::RateLimited { retry_after_ms },
         400..=499 => TransportError::Validation("request_rejected".into()),
         _ => TransportError::Server { retry_after_ms },
     }
+}
+
+/// The stable public error code the service answers an unrecognized route
+/// with. It is the only 404 that does not name a specific decision, which is
+/// what lets a client tell an absent route apart from a denial.
+pub const ERROR_CODE_NOT_FOUND: &str = "not_found";
+
+/// Classifies a rejected response on a route older deployments do not serve.
+///
+/// The service answers 404 for two different facts: `workspace_access_denied`
+/// is a deliberate decision about a route it does serve, while the generic
+/// `not_found` code means the route itself is unknown to it. Only the latter
+/// says the server is older than this client, so only it becomes
+/// [`TransportError::RouteUnavailable`]; a 404 from something other than the
+/// service carries no readable code and is treated the same way, because a
+/// response that cannot be attributed to the service cannot prove a denial
+/// either. Every other status keeps the shared classification.
+#[must_use]
+pub fn classify_optional_route_failure(
+    status: u16,
+    error_code: Option<&str>,
+    retry_after_ms: Option<i64>,
+) -> TransportError {
+    if status == 404 && error_code.is_none_or(|code| code == ERROR_CODE_NOT_FOUND) {
+        return TransportError::RouteUnavailable;
+    }
+    classify_http_failure(status, retry_after_ms)
+}
+
+/// Reads the stable `{ "error": "<code>" }` code out of a rejected response
+/// body, or `None` when the body is not one the service wrote.
+#[must_use]
+pub fn rejected_error_code(body: &[u8]) -> Option<String> {
+    #[derive(serde::Deserialize)]
+    struct RejectedBody {
+        error: String,
+    }
+
+    serde_json::from_slice::<RejectedBody>(body)
+        .ok()
+        .map(|body| body.error)
 }
 
 #[cfg(test)]
@@ -134,9 +185,53 @@ mod tests {
             "https://cloud.example/v1/workspaces/w_1/chunks/abc"
         );
         assert_eq!(
+            endpoints.encryption("w_1"),
+            "https://cloud.example/v1/workspaces/w_1/encryption"
+        );
+        assert_eq!(
             endpoints.events("w_1", "device-1"),
             "https://cloud.example/v1/workspaces/w_1/events?deviceId=device-1"
         );
+    }
+
+    #[test]
+    fn an_unknown_route_is_classified_apart_from_a_denial() {
+        assert_eq!(
+            classify_optional_route_failure(404, Some(ERROR_CODE_NOT_FOUND), None),
+            TransportError::RouteUnavailable
+        );
+        assert_eq!(
+            classify_optional_route_failure(404, None, None),
+            TransportError::RouteUnavailable
+        );
+        assert_eq!(
+            classify_optional_route_failure(404, Some("workspace_access_denied"), None),
+            TransportError::AuthorizationDenied
+        );
+        assert_eq!(
+            classify_optional_route_failure(403, Some("workspace_permission_denied"), None),
+            TransportError::AuthorizationDenied
+        );
+        assert_eq!(
+            classify_optional_route_failure(401, None, None),
+            TransportError::AuthenticationRequired
+        );
+        assert_eq!(
+            classify_optional_route_failure(503, Some("sync_service_unavailable"), Some(1_000)),
+            TransportError::Server {
+                retry_after_ms: Some(1_000)
+            }
+        );
+    }
+
+    #[test]
+    fn a_rejected_body_yields_only_the_stable_error_code() {
+        assert_eq!(
+            rejected_error_code(br#"{"error":"workspace_access_denied"}"#).as_deref(),
+            Some("workspace_access_denied")
+        );
+        assert_eq!(rejected_error_code(b"<html>404</html>"), None);
+        assert_eq!(rejected_error_code(b""), None);
     }
 
     #[test]
@@ -174,6 +269,10 @@ mod tests {
         assert_eq!(
             classify_http_failure(413, None),
             TransportError::Validation(VALIDATION_DETAIL_QUOTA_EXCEEDED.into())
+        );
+        assert_eq!(
+            classify_http_failure(423, None),
+            TransportError::Validation(VALIDATION_DETAIL_WORKSPACE_ENCRYPTED.into())
         );
         assert_eq!(
             classify_http_failure(503, Some(1_000)),
