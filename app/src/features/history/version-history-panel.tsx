@@ -9,7 +9,10 @@ import { productSchema } from "@/features/editor/schema";
 import { CloseIcon, HistoryIcon, RotateCcwIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { HistoryGraphRail } from "./history-graph-rail";
+import { HistoryScrubber } from "./history-scrubber";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
+import { COMPACT_SHELL_QUERY } from "@/shell/shell-layout";
 import type { RendererState, RendererStore } from "@/store/types";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import { VersionDiffView, useMarkdownDiff } from "./version-diff-view";
@@ -51,9 +54,14 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [mode, setMode] = useState<PreviewMode>("diff");
   const [revealing, setRevealing] = useState(false);
+  const [scrubVersionId, setScrubVersionId] = useState<string | null>(null);
+  const compact = useMediaQuery(COMPACT_SHELL_QUERY);
   const parentRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
   const appliedRequestRef = useRef<string | null>(null);
+  const contentCacheRef = useRef(new Map<string, HistoryVersionContent>());
+  const scrubTargetRef = useRef<string | null>(null);
+  const scrubFetchingRef = useRef(false);
 
   const selectCurrentMarkdown = useCallback(
     (state: RendererState) => state.documents.get(noteId)?.markdown ?? null,
@@ -69,9 +77,79 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
     overscan: 8,
   });
 
+  const selectedVersionId = scrubVersionId ?? preview?.versionId ?? null;
+  const selectedIndex = useMemo(() => {
+    const index = versions.findIndex((item) => item.versionId === selectedVersionId);
+    return index === -1 ? null : index;
+  }, [versions, selectedVersionId]);
+
   function closePreview(): void {
     requestIdRef.current += 1;
+    scrubTargetRef.current = null;
+    setScrubVersionId(null);
     setPreview(null);
+  }
+
+  function fetchVersion(versionId: string): Promise<HistoryVersionContent> {
+    const cached = contentCacheRef.current.get(versionId);
+    if (cached) {
+      return Promise.resolve(cached);
+    }
+    return readHistoryVersion(noteId, versionId).then((content) => {
+      contentCacheRef.current.set(versionId, content);
+      return content;
+    });
+  }
+
+  function scrubToIndex(listIndex: number): void {
+    const item = versions[listIndex];
+    if (!item) {
+      return;
+    }
+    if (preview === null) {
+      setRevealing(true);
+    }
+    scrubTargetRef.current = item.versionId;
+    setScrubVersionId(item.versionId);
+    const rowIndex = rows.findIndex(
+      (row) => row.kind === "version" && row.item.versionId === item.versionId,
+    );
+    if (rowIndex !== -1 && !compact) {
+      virtualizer.scrollToIndex(rowIndex, { align: "auto" });
+    }
+    fetchScrubTarget();
+  }
+
+  function fetchScrubTarget(): void {
+    const versionId = scrubTargetRef.current;
+    if (versionId === null || scrubFetchingRef.current) {
+      return;
+    }
+    const cached = contentCacheRef.current.get(versionId);
+    if (cached) {
+      requestIdRef.current += 1;
+      setPreview({ status: "ready", versionId, content: cached, restoring: false });
+      return;
+    }
+    scrubFetchingRef.current = true;
+    fetchVersion(versionId)
+      .then(() => {
+        scrubFetchingRef.current = false;
+        fetchScrubTarget();
+      })
+      .catch((error: unknown) => {
+        scrubFetchingRef.current = false;
+        if (scrubTargetRef.current !== versionId) {
+          fetchScrubTarget();
+          return;
+        }
+        requestIdRef.current += 1;
+        setPreview({
+          status: "error",
+          versionId,
+          message: errorMessage(error, "Could not load this version."),
+        });
+      });
   }
 
   function openVersion(item: VersionListItem): void {
@@ -84,9 +162,16 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
 
   function loadVersion(versionId: string): void {
     const requestId = ++requestIdRef.current;
+    scrubTargetRef.current = null;
+    setScrubVersionId(null);
     setRevealing(preview === null);
+    const cached = contentCacheRef.current.get(versionId);
+    if (cached) {
+      setPreview({ status: "ready", versionId, content: cached, restoring: false });
+      return;
+    }
     setPreview({ status: "loading", versionId });
-    readHistoryVersion(noteId, versionId)
+    fetchVersion(versionId)
       .then((content) => {
         if (requestIdRef.current !== requestId) {
           return;
@@ -157,11 +242,26 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
     virtualizer.scrollToIndex(index, { align: "center" });
   }, [requestedVersionId, rows]);
 
+  useEffect(() => {
+    const newest = versions[0];
+    if (compact && preview === null && !requestedVersionId && newest) {
+      loadVersion(newest.versionId);
+    }
+  }, [compact]);
+
   return (
-    <div className="grid h-full min-h-0 grid-cols-[minmax(232px,286px)_minmax(0,1fr)]">
+    <div
+      className={cn(
+        "grid h-full min-h-0",
+        compact ? "grid-cols-1" : "grid-cols-[minmax(232px,286px)_minmax(0,1fr)]",
+      )}
+    >
       <div
         ref={parentRef}
-        className="relative min-h-0 overflow-y-auto overscroll-contain border-r border-theme-divider px-2 pb-3"
+        className={cn(
+          "relative min-h-0 overflow-y-auto overscroll-contain border-r border-theme-divider px-2 pb-3",
+          compact && "hidden",
+        )}
         role="listbox"
         aria-label="Version history"
       >
@@ -194,7 +294,7 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
             }
 
             const version = row.item;
-            const selected = preview?.versionId === version.versionId;
+            const selected = selectedVersionId === version.versionId;
             const isHead = row.index === 0;
             return (
               <div key={row.key} style={style}>
@@ -266,7 +366,16 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
         </div>
       </div>
 
-      <div className="flex min-h-0 min-w-0 flex-col">
+      <div className="relative flex min-h-0 min-w-0 flex-col">
+        {versions.length > 1 && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center px-4 pb-[max(12px,env(safe-area-inset-bottom,0px))]">
+            <HistoryScrubber
+              versions={versions}
+              selectedIndex={selectedIndex}
+              onScrub={scrubToIndex}
+            />
+          </div>
+        )}
         {!preview && <PreviewPlaceholder />}
         {preview?.status === "loading" && (
           <PreviewPlaceholder message="Loading revision…" muted />
@@ -280,7 +389,8 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
         {preview?.status === "ready" && (
           <div
             className={cn(
-              "flex min-h-0 min-w-0 flex-1 flex-col",
+              "flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-150",
+              scrubVersionId !== null && scrubVersionId !== preview.versionId && "opacity-60",
               revealing &&
                 "animate-in fade-in-0 duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:animate-none",
             )}
@@ -292,7 +402,7 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
               <span className="truncate text-[12px] font-[560] text-foreground">
                 {formatVersionTimestamp(preview.content.createdAt)}
               </span>
-              {currentMarkdown !== null && (
+              {currentMarkdown !== null && !compact && (
                 <DiffStats
                   versionMarkdown={preview.content.markdown}
                   currentMarkdown={currentMarkdown}
@@ -464,7 +574,7 @@ function VersionMarkdownPreview({ markdown }: VersionMarkdownPreviewProps) {
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div
         ref={ref}
-        className="prosemirror-host ProseMirror mx-auto w-full max-w-[70ch] px-8 py-6 text-[13px]"
+        className="prosemirror-host ProseMirror mx-auto w-full max-w-[70ch] px-8 pb-28 pt-6 text-[13px]"
       />
     </div>
   ) : (

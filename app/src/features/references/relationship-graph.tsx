@@ -106,7 +106,7 @@ export function RelationshipGraphView({ store, graph }: Props) {
   const labeled = graph.nodes.length <= LABELED_NODE_LIMIT;
 
   return (
-    <section className="border-b border-border/60 px-4 py-3" aria-labelledby="relationship-local-graph">
+    <section className="px-2 pb-1 pt-2" aria-labelledby="relationship-local-graph">
       <p id="relationship-local-graph" className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
         Local graph
       </p>

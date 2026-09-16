@@ -14,12 +14,19 @@ import {
   toggleSplitOrientation,
 } from "@/store/actions/panes";
 import {
+  ChevronDownIcon,
   CloseIcon,
   PinIcon,
   PinOffIcon,
   SplitViewIcon,
   SplitViewStackedIcon,
 } from "@/shared/icons/static";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -33,6 +40,7 @@ import type { RendererState, RendererStore } from "@/store/types";
 import { EditorHost } from "./editor-host";
 import { SplitDivider } from "./split-divider";
 import { splitGridTemplate, splitTrackProperty } from "./split-layout";
+import { MAX_TAB_WIDTH, MIN_TAB_WIDTH, splitTabsForWidth } from "./tab-overflow";
 import { COMPACT_SHELL_QUERY } from "./shell-layout";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import { bindLongPress } from "@/shared/lib/long-press";
@@ -123,6 +131,27 @@ export function EditorPanes({ store }: Props) {
   // Radix ContextMenu per tab.
   const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
+  const [stripWidth, setStripWidth] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!showStrip || list === null || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    setStripWidth(list.clientWidth);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry !== undefined) {
+        setStripWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [showStrip]);
+
+  const { visible: visibleTabs, overflow: overflowTabs } = splitTabsForWidth(tabs, stripWidth);
+  const isOverflowing = overflowTabs.length > 0;
   const stripRef = useRef<HTMLDivElement>(null);
   const touchMenuRef = useRef(false);
 
@@ -159,7 +188,7 @@ export function EditorPanes({ store }: Props) {
     setContextTarget(id === null ? { kind: "strip" } : { kind: "tab", id });
   }
 
-  function onTabDragOver(event: React.DragEvent, tab: TabModel, index: number) {
+  function onTabDragOver(event: React.DragEvent, tab: TabModel) {
     if (drag === null || tab.isPinned) {
       return;
     }
@@ -167,6 +196,7 @@ export function EditorPanes({ store }: Props) {
     event.dataTransfer.dropEffect = "move";
     const rect = event.currentTarget.getBoundingClientRect();
     const after = event.clientX >= rect.left + rect.width / 2;
+    const index = tabs.findIndex((candidate) => candidate.id === tab.id);
     const before = after ? (tabs[index + 1]?.id ?? null) : tab.id;
     if (before !== drag.before) {
       setDrag({ ...drag, before });
@@ -201,78 +231,112 @@ export function EditorPanes({ store }: Props) {
           <ContextMenuTrigger asChild>
             <div
               ref={stripRef}
-              className="scrollbar-none flex h-9 shrink-0 items-stretch overflow-x-auto border-b border-sidebar-border bg-sidebar pointer-coarse:h-11"
+              className="flex h-9 shrink-0 items-stretch border-b border-sidebar-border bg-sidebar pointer-coarse:h-11"
               role="tablist"
               aria-label="Open notes"
               onContextMenu={onStripContextMenu}
             >
-              {tabs.map((tab, index) => (
-                <div
-                  key={tab.id}
-                  data-tab-id={tab.id}
-                  draggable={!tab.isPinned}
-                  onDragStart={(event) => {
-                    event.dataTransfer.setData(TAB_DRAG_MIME, tab.id);
-                    event.dataTransfer.effectAllowed = "move";
-                    setDrag({ id: tab.id, before: tab.id });
-                  }}
-                  onDragEnd={() => setDrag(null)}
-                  onDragOver={(event) => onTabDragOver(event, tab, index)}
-                  onDrop={onTabDrop}
-                  className={`group flex min-w-0 max-w-[180px] items-center border-r border-sidebar-border ${
-                    drag !== null && drag.before === tab.id ? "shadow-[inset_2px_0_0_0_var(--color-primary)]" : ""
-                  } ${drag?.id === tab.id ? "opacity-50" : ""} ${
-                    tab.isActive
-                      ? "bg-theme-editor text-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  {tab.isPinned && (
-                    <PinIcon size={11} className="ml-2 shrink-0 fill-current" />
-                  )}
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={tab.isActive}
-                    className={`min-w-0 flex-1 truncate px-3 text-left text-xs${tab.isAvailable ? "" : " line-through opacity-60"}`}
-                    title={tab.isAvailable ? tab.title : `${tab.title} (in trash)`}
-                    onClick={() => activateTab(store, tab.id)}
-                    onAuxClick={(event) => {
-                      if (event.button === 1) {
-                        closeTab(store, tab.id, PRIMARY_PANE_ID);
-                      }
+              <div ref={listRef} className="scrollbar-none flex min-w-0 flex-1 items-stretch overflow-x-auto">
+                {visibleTabs.map((tab) => (
+                  <div
+                    key={tab.id}
+                    data-tab-id={tab.id}
+                    draggable={!tab.isPinned}
+                    style={{
+                      minWidth: MIN_TAB_WIDTH,
+                      maxWidth: isOverflowing ? undefined : MAX_TAB_WIDTH,
+                      flexGrow: isOverflowing ? 1 : 0,
                     }}
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData(TAB_DRAG_MIME, tab.id);
+                      event.dataTransfer.effectAllowed = "move";
+                      setDrag({ id: tab.id, before: tab.id });
+                    }}
+                    onDragEnd={() => setDrag(null)}
+                    onDragOver={(event) => onTabDragOver(event, tab)}
+                    onDrop={onTabDrop}
+                    className={`group flex shrink items-center border-r border-sidebar-border ${
+                      drag !== null && drag.before === tab.id ? "shadow-[inset_2px_0_0_0_var(--color-primary)]" : ""
+                    } ${drag?.id === tab.id ? "opacity-50" : ""} ${
+                      tab.isActive
+                        ? "bg-theme-editor text-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
                   >
-                    {tab.title}
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Close ${tab.title}`}
-                    className="mr-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/[0.15] hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:h-8 pointer-coarse:w-8 pointer-coarse:opacity-100"
-                    onClick={() => closeTab(store, tab.id, PRIMARY_PANE_ID)}
-                  >
-                    <CloseIcon size={12} />
-                  </button>
-                </div>
-              ))}
-              <div
-                className={`min-w-8 flex-1 ${
-                  drag !== null && drag.before === null
-                    ? "shadow-[inset_2px_0_0_0_var(--color-primary)]"
-                    : ""
-                }`}
-                onDragOver={(event) => {
-                  if (drag === null) {
-                    return;
-                  }
-                  event.preventDefault();
-                  event.dataTransfer.dropEffect = "move";
-                  if (drag.before !== null) {
-                    setDrag({ ...drag, before: null });
-                  }
-                }}
-                onDrop={onTabDrop}
-              />
+                    {tab.isPinned && (
+                      <PinIcon size={11} className="ml-2 shrink-0 fill-current" />
+                    )}
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={tab.isActive}
+                      className={`min-w-0 flex-1 truncate px-3 text-left text-xs${tab.isAvailable ? "" : " line-through opacity-60"}`}
+                      title={tab.isAvailable ? tab.title : `${tab.title} (in trash)`}
+                      onClick={() => activateTab(store, tab.id)}
+                      onAuxClick={(event) => {
+                        if (event.button === 1) {
+                          closeTab(store, tab.id, PRIMARY_PANE_ID);
+                        }
+                      }}
+                    >
+                      {tab.title}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Close ${tab.title}`}
+                      className="mr-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/[0.15] hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:h-8 pointer-coarse:w-8 pointer-coarse:opacity-100"
+                      onClick={() => closeTab(store, tab.id, PRIMARY_PANE_ID)}
+                    >
+                      <CloseIcon size={12} />
+                    </button>
+                  </div>
+                ))}
+                <div
+                  hidden={isOverflowing}
+                  className={`min-w-8 flex-1 ${
+                    drag !== null && drag.before === null
+                      ? "shadow-[inset_2px_0_0_0_var(--color-primary)]"
+                      : ""
+                  }`}
+                  onDragOver={(event) => {
+                    if (drag === null) {
+                      return;
+                    }
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "move";
+                    if (drag.before !== null) {
+                      setDrag({ ...drag, before: null });
+                    }
+                  }}
+                  onDrop={onTabDrop}
+                />
+                {isOverflowing && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label={`${overflowTabs.length} more open notes`}
+                        title={`${overflowTabs.length} more open notes`}
+                        className="flex shrink-0 items-center gap-1 px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        {overflowTabs.length} more
+                        <ChevronDownIcon size={12} />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="max-h-80 max-w-72 overflow-y-auto">
+                      {overflowTabs.map((tab) => (
+                        <DropdownMenuItem
+                          key={tab.id}
+                          className={tab.isAvailable ? "" : "line-through opacity-60"}
+                          onSelect={() => activateTab(store, tab.id)}
+                        >
+                          <span className="truncate">{tab.title}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
               {hasSplit && (
                 <>
                   <button

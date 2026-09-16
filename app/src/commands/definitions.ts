@@ -88,6 +88,7 @@ export type ShortcutActionId =
   | "searchWholeWord"
   | "searchRegex"
   | "toggleAnnotateMode"
+  | "repeatAiAction"
   | "drawPen"
   | "drawHighlighter"
   | "drawLine"
@@ -112,7 +113,7 @@ export type ShortcutActionId =
  * - `typing` — any text field or contenteditable, including the note editor.
  * - `textField` — native text fields only, so editor-scoped keys still fire
  *   while the caret is in the note.
- * - `sidebarTree` — the tree owns its plain keys (F2/r, Delete, m, alt+arrows)
+ * - `sidebarTree` — the tree owns its plain keys (F2/r, Delete, m, shift+enter, alt+arrows)
  *   for the focused row and keeps precedence over same-key global bindings.
  * - `modal` — a dialog or the command palette owns the keyboard.
  */
@@ -350,6 +351,17 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
       "Draw over the whole note. Escape leaves annotate mode and returns focus to the text.",
     group: "Workspace",
     worksWhileTyping: true,
+    scopes: "notes-route",
+  },
+  {
+    id: "repeatAiAction",
+    keys: "mod+shift+r",
+    label: "AI: Repeat last action",
+    description:
+      "Run the last AI action again with the same instruction: selection actions against the current selection, note actions against the current note. Disabled until an action has run this session, and while AI is off.",
+    group: "Editor",
+    worksWhileTyping: true,
+    guards: ["modal"],
     scopes: "notes-route",
   },
   {

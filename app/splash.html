@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Skriuw</title>
+    <script nonce="__TAURI_SCRIPT_NONCE__">
+      // Same storage slot index.html reads, so the splash and the first
+      // application frame share a palette. Keep the key in step with
+      // src/features/settings/boot-appearance.ts.
+      (function () {
+        var light = ["paper", "catppuccin-latte", "rose-pine-dawn"];
+        var root = document.documentElement;
+        try {
+          var stored = window.localStorage.getItem("skriuw.boot-appearance");
+          var parsed = stored ? JSON.parse(stored) : null;
+          if (parsed && light.indexOf(parsed.theme) !== -1) {
+            root.dataset.tone = "light";
+          }
+          if (parsed && parsed.reduceMotion) {
+            root.dataset.reduceMotion = "true";
+          }
+        } catch (error) {
+          root.removeAttribute("data-tone");
+        }
+      })();
+    </script>
+    <style>
+      :root {
+        --bg: hsl(2 0% 7%);
+        --fg: hsl(0 0% 91%);
+        --muted: hsl(0 0% 40%);
+        --track: hsl(0 0% 15%);
+        --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+        --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+        --enter: 240ms;
+        --stagger: 60ms;
+      }
+      :root[data-tone="light"] {
+        --bg: hsl(40 16% 95%);
+        --fg: hsl(30 10% 14%);
+        --muted: hsl(30 6% 55%);
+        --track: hsl(40 10% 86%);
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--fg);
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        user-select: none;
+        -webkit-user-select: none;
+        cursor: default;
+      }
+      main {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 500;
+        letter-spacing: 0.22em;
+        text-transform: lowercase;
+        animation: enter var(--enter) var(--ease-out) both;
+      }
+      .track {
+        position: relative;
+        width: 120px;
+        height: 2px;
+        border-radius: 1px;
+        background: var(--track);
+        overflow: hidden;
+        animation: enter var(--enter) var(--ease-out) var(--stagger) both;
+      }
+      .track::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        width: 40%;
+        border-radius: inherit;
+        background: var(--muted);
+        animation: sweep 1.1s var(--ease-in-out) var(--stagger) infinite;
+      }
+      @keyframes enter {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @keyframes sweep {
+        from {
+          transform: translateX(-100%);
+        }
+        to {
+          transform: translateX(250%);
+        }
+      }
+      @keyframes enter-still {
+        from {
+          opacity: 0;
+        }
+      }
+      :root[data-reduce-motion="true"] h1,
+      :root[data-reduce-motion="true"] .track,
+      :root[data-reduce-motion="true"] .track::after {
+        animation: enter-still 200ms ease both;
+      }
+      :root[data-reduce-motion="true"] .track::after {
+        width: 100%;
+        opacity: 0.6;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        h1,
+        .track,
+        .track::after {
+          animation: enter-still 200ms ease both;
+        }
+        .track::after {
+          width: 100%;
+          opacity: 0.6;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main aria-busy="true" aria-label="Skriuw is starting">
+      <h1>skriuw</h1>
+      <div class="track" role="presentation"></div>
+    </main>
+  </body>
+</html>

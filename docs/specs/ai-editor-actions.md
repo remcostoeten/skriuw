@@ -13,7 +13,7 @@ through the one provider seam; none of them is a second completion path.
 
 ## Actions are data
 
-`app/src/features/ai/editor-actions.ts` holds the catalogue. An action names a
+`app/src/features/ai/actions/editor-actions.ts` holds the catalogue. An action names a
 built-in prompt id and never carries prompt text, so the shipped wording lives
 in `skriuw_domain::prompt::BUILT_IN_PROMPTS` and reaches the renderer through
 the generated `contracts/generated/built-in-prompts.json`. A user-customised

@@ -8,7 +8,7 @@ import {
   topLevelBlockAtPosition,
   topLevelTextPosition,
 } from "../../../src/features/editor/bounded-document";
-import { productSchema } from "../../../src/features/editor/schema";
+import { parseProductMarkdown, productSchema } from "../../../src/features/editor/schema";
 
 function createDocument(count: number) {
   return productSchema.node(
@@ -112,6 +112,20 @@ test("canonical positions map to top-level blocks and text offsets", () => {
   const document = createDocument(10);
   const position = topLevelTextPosition(document, 7, 3);
   assert.equal(topLevelBlockAtPosition(document, position), 7);
+});
+
+test("block-relative offsets reach nested textblocks and settle on the nearest text", () => {
+  const document = parseProductMarkdown("- one\n- two\n\n---\n\nafter");
+  const list = document.child(0);
+  const secondItemText = list.child(1).firstChild!;
+  const offsetOfTwo = list.child(0).nodeSize + 2;
+  const position = topLevelTextPosition(document, 0, offsetOfTwo);
+  const $position = document.resolve(position);
+  assert.equal($position.parent, secondItemText);
+  assert.equal($position.parentOffset, 0);
+  assert.equal(document.resolve(topLevelTextPosition(document, 0, 1)).parent, list.child(0).firstChild);
+  assert.equal(document.resolve(topLevelTextPosition(document, 0, 9_999)).parent, secondItemText);
+  assert.equal(topLevelTextPosition(document, 1, 0), list.nodeSize + 1);
 });
 
 function createDrawnDocument(count: number, drawing: unknown) {

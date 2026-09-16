@@ -15,20 +15,24 @@ export type MenuAnchor = {
  * close to the top of the window for the popover to fit.
  *
  * `width` is the popover's maximum width, used only to keep it inside the
- * window; `below` tells the caller which transform to apply.
+ * window; `height` is its natural height, used to decide the flip — it only
+ * flips when the space below is larger than the space above. `below` tells
+ * the caller which transform to apply.
  */
 export function rangeMenuAnchor(
   view: EditorView,
   from: number,
   to: number,
   width: number,
+  height: number = MENU_HEIGHT,
 ): MenuAnchor {
   const start = view.coordsAtPos(from);
   const end = view.coordsAtPos(to);
   const half = width / 2;
   const sameLine = start.top === end.top;
   const center = sameLine ? (start.left + end.left) / 2 : start.left + half;
-  const below = start.top - MENU_HEIGHT - EDGE_GAP < 0;
+  const below =
+    start.top - height - EDGE_GAP < 0 && window.innerHeight - end.bottom > start.top;
   return {
     x: Math.max(half + EDGE_GAP, Math.min(center, window.innerWidth - half - EDGE_GAP)),
     y: below ? end.bottom : start.top,

@@ -1,6 +1,7 @@
 const STORAGE_KEY = "skriuw.debug.onboarding";
 const QUERY_KEY = "onboarding";
 const FORCE_VALUE = "force";
+const SKIP_VALUE = "skip";
 
 function storage(): Storage | null {
   try {
@@ -26,6 +27,11 @@ export function readOnboardingOverride(): boolean {
     return true;
   }
   return storage()?.getItem(STORAGE_KEY) === FORCE_VALUE;
+}
+
+/** Returns whether the current URL explicitly suppresses first-run onboarding. */
+export function readOnboardingSkip(search = window.location.search): boolean {
+  return new URLSearchParams(search).get(QUERY_KEY) === SKIP_VALUE;
 }
 
 export function clearOnboardingOverride(): void {

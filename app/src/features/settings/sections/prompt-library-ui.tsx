@@ -4,7 +4,7 @@ import {
   promptDraftError,
   type PromptDraft,
   type PromptLibraryEntry,
-} from "@/features/ai/prompt-library";
+} from "@/features/ai/prompts/prompt-library";
 import { cn } from "@/shared/lib/utils";
 import { Select } from "@/shared/ui/select";
 import {

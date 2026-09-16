@@ -3,6 +3,7 @@ import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
+import { KeyCaps } from "@/shared/ui/key-caps";
 import { overlayContentMotion } from "./overlay-motion";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 
@@ -27,14 +28,14 @@ const ContextMenuSubTrigger = React.forwardRef<
   <ContextMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      "flex cursor-default select-none items-center rounded-md px-2.5 py-1.5 text-sm text-muted-foreground outline-hidden transition-colors data-[state=open]:bg-accent data-[state=open]:text-foreground focus:bg-accent focus:text-foreground",
+      "flex cursor-default select-none items-center rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap text-muted-foreground outline-hidden transition-colors data-[state=open]:bg-accent data-[state=open]:text-foreground focus:bg-accent focus:text-foreground",
       inset && "pl-8",
       className,
     )}
     {...props}
   >
     {children}
-    <ChevronRightIcon className="ml-auto h-4 w-4" />
+    <ChevronRightIcon className="ml-auto h-3.5 w-3.5 shrink-0 text-foreground/40 [[data-slot=context-menu-shortcut]~&]:ml-1.5" />
   </ContextMenuPrimitive.SubTrigger>
 ));
 ContextMenuSubTrigger.displayName = ContextMenuPrimitive.SubTrigger.displayName;
@@ -84,7 +85,7 @@ const ContextMenuItem = React.forwardRef<
   <ContextMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-md px-2.5 py-1.5 text-sm text-muted-foreground outline-hidden transition-colors data-disabled:pointer-events-none data-disabled:opacity-50 focus:bg-accent focus:text-foreground",
+      "relative flex cursor-default select-none items-center rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap text-muted-foreground outline-hidden transition-colors data-disabled:pointer-events-none data-disabled:opacity-50 focus:bg-accent focus:text-foreground",
       inset && "pl-8",
       className,
     )}
@@ -168,12 +169,15 @@ const ContextMenuSeparator = React.forwardRef<
 ));
 ContextMenuSeparator.displayName = ContextMenuPrimitive.Separator.displayName;
 
-function ContextMenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
+/**
+ * Trailing key hint for a menu row. `keys` is an already formatted combo such
+ * as `"Ctrl ,"`; each token renders as its own key cap.
+ */
+function ContextMenuShortcut({ keys, className }: { keys: string; className?: string }) {
   return (
-    <span
-      className={cn("ml-auto text-[10px] tracking-[0.18em] text-foreground/38", className)}
-      {...props}
-    />
+    <span data-slot="context-menu-shortcut" className={cn("ml-auto pl-4", className)}>
+      <KeyCaps keys={keys.split(/\s+/)} />
+    </span>
   );
 }
 ContextMenuShortcut.displayName = "ContextMenuShortcut";

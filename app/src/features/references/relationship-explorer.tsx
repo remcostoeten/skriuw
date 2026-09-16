@@ -4,7 +4,7 @@ import { openJournalDay } from "@/features/journal/navigation";
 import { activateNote } from "@/store/actions/workspace";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";
-import { SectionToggle } from "@/shared/ui/section-header";
+import { SectionChevron, SectionLabel } from "@/shared/ui/section-header";
 import { projectBacklinks, projectOutgoingNotes, type BacklinkEntry } from "./reference-panel-model";
 import {
   projectCoVisitedNotes,
@@ -133,15 +133,18 @@ function RelationshipSection({
     return null;
   }
   return (
-    <section className="group relative border-b border-border/60">
-      <SectionToggle
-        id={`relationships-${title}`}
-        title={`${title} (${entries.length})`}
-        open={open}
-        onToggle={() => setOpen((value) => !value)}
-      />
+    <section>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex h-6 w-full cursor-pointer items-center gap-1.5 rounded px-2 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <SectionChevron open={open} />
+        <SectionLabel title={title} count={entries.length} />
+      </button>
       {open && (
-        <div className="px-4 pb-2.5 pt-2.5">
+        <div className="pb-1.5 pt-0.5">
           <ul className="m-0 list-none space-y-0.5 p-0">
             {Array.from({ length: visible }, (_, index) => (
               <li key={index}>{render(index)}</li>
@@ -152,7 +155,7 @@ function RelationshipSection({
               type="button"
               aria-expanded={all}
               onClick={() => setAll((value) => !value)}
-              className="mt-2 cursor-pointer px-2 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
+              className="mt-1 cursor-pointer px-2 text-[11px] text-muted-foreground/70 transition-colors hover:text-foreground"
             >
               {all ? "Show less" : `Show all ${entries.length - ROWS} more`}
             </button>
@@ -225,7 +228,7 @@ export function RelationshipExplorer({ store, noteId }: { store: RendererStore; 
   );
 
   return (
-    <div>
+    <div className="space-y-1">
       <RelationshipSection
         title="Referenced by"
         entries={backlinks}
