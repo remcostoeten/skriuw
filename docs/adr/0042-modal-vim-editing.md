@@ -41,7 +41,12 @@ A Vim line is one hard-break or newline separated segment of a textblock, so
 Plain `j` and `k` move by the rows the view wrapped a line into, measured
 through `coordsAtPos`, because a paragraph is one line and a logical step would
 skip its whole body; they remember the screen x like `gj`/`gk`. Operator
-motions such as `dj` and views without layout use logical lines. The plugin owns
+motions such as `dj` and views without layout use logical lines. The jump-to-line
+panel counts those same wrapped rows, measured through `coordsAtPos` and each
+textblock's computed line height, so "Line 3 of 41" means the same thing in
+both editors and `:N` and `NG` land on row N; only a bounded (virtualized)
+document, whose blocks outside the window have no layout, still counts
+Markdown lines. The plugin owns
 only modal state and a per-view session (pending keys, prompt, macro
 recording); every edit is an ordinary transaction, so history, remote merges,
 bounded windows, and the save pipeline stay authoritative. Normal mode swallows
@@ -50,8 +55,8 @@ every product behavior untouched, including slash menus and input rules.
 Modifier combinations Vim does not own pass through to application shortcuts.
 
 The host lends the plugin narrow hooks: enablement, note identity, bounded
-undo/redo and window shifts, `:N` line jumps through the existing Markdown
-line index, save, close-tab, the scroll container, and the clipboard. Mode
+undo/redo and window shifts, `:N` row jumps through the jump-to-line target,
+save, close-tab, the scroll container, and the clipboard. Mode
 survives bounded window rebuilds. A mouse selection enters visual mode; the
 bubble menu stays closed while Vim owns the selection.
 

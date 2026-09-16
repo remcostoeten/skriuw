@@ -188,6 +188,14 @@ import {
   documentLineTarget,
   type DocumentLineIndex,
 } from "./document-lines";
+import {
+  displayRowAt,
+  displayRowPosition,
+  viewDisplayRowLayout,
+  viewRowHeight,
+  viewRowMeasure,
+  type DisplayRowLayout,
+} from "./display-rows";
 import { parseJumpToLineInput } from "./raw-markdown-editor-model";
 import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
 import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
@@ -407,6 +415,27 @@ function selectStarterTitle(view: EditorView, entry: CachedNote): void {
   entry.state = next;
 }
 
+type JumpTarget =
+  | { kind: "display-rows"; layout: DisplayRowLayout }
+  | { kind: "markdown-lines"; document: ProseMirrorNode; index: DocumentLineIndex };
+
+function jumpTargetCount(target: JumpTarget): number {
+  return target.kind === "display-rows" ? target.layout.total : target.index.lineCount;
+}
+
+type MarkdownLineJumpTarget = Extract<JumpTarget, { kind: "markdown-lines" }>;
+
+function boundedJumpTarget(
+  entry: CachedNote | null,
+  storedMarkdown: (entry: CachedNote | null, document: ProseMirrorNode) => string | undefined,
+): MarkdownLineJumpTarget | null {
+  if (!entry?.bounded) {
+    return null;
+  }
+  const document = entry.bounded.fullDocument();
+  return { kind: "markdown-lines", document, index: buildDocumentLineIndex(document, storedMarkdown(entry, document)) };
+}
+
 function readSelection(state: EditorState, windowStart: number) {
   const { $from } = state.selection;
   return {
@@ -475,7 +504,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     });
   }
   const jumpInputRef = useRef<HTMLInputElement>(null);
-  const jumpTargetRef = useRef<{ document: ProseMirrorNode; index: DocumentLineIndex } | null>(null);
+  const jumpTargetRef = useRef<JumpTarget | null>(null);
   const [jumpOpen, setJumpOpen] = useState(false);
   const [jumpValue, setJumpValue] = useState("");
   const [jumpLineCount, setJumpLineCount] = useState(1);
@@ -1495,11 +1524,19 @@ const closeJumpToLine = useCallback(() => {
     if (!view) return;
     search.resetSearch();
     const entry = activeEntry();
-    const document = entry?.bounded ? entry.bounded.fullDocument() : view.state.doc;
-    const index = buildDocumentLineIndex(document, storedMarkdownFor(entry, document));
-    jumpTargetRef.current = { document, index };
-    setJumpLineCount(index.lineCount);
-    setJumpCaretLine(documentLineAt(index, readSelection(view.state, entry?.bounded?.windowStart() ?? 0)));
+    const boundedTarget = boundedJumpTarget(entry ?? null, storedMarkdownFor);
+    if (entry?.bounded && boundedTarget) {
+      jumpTargetRef.current = boundedTarget;
+      setJumpLineCount(boundedTarget.index.lineCount);
+      setJumpCaretLine(documentLineAt(boundedTarget.index, readSelection(view.state, entry.bounded.windowStart())));
+    } else {
+      const layout = viewDisplayRowLayout(view);
+      jumpTargetRef.current = { kind: "display-rows", layout };
+      setJumpLineCount(layout.total);
+      setJumpCaretLine(
+        displayRowAt(view.state.doc, layout, viewRowMeasure(view), viewRowHeight(view), view.state.selection.head),
+      );
+    }
     setJumpOpen(true);
     requestAnimationFrame(() => {
       jumpInputRef.current?.focus();
@@ -1511,10 +1548,24 @@ const closeJumpToLine = useCallback(() => {
     const target = jumpTargetRef.current;
     const view = viewRef.current;
     if (!target || !view) return;
-    const line = parseJumpToLineInput(jumpValue, target.index.lineCount);
+    const line = parseJumpToLineInput(jumpValue, jumpTargetCount(target));
     if (line === null) return;
-    const { blockIndex, offset } = documentLineTarget(target.document, target.index, line);
     setJumpOpen(false);
+    jumpToLineTarget(view, target, line);
+    view.focus();
+  }, [jumpValue]);
+
+  function jumpToLineTarget(view: EditorView, target: JumpTarget, line: number): void {
+    if (target.kind === "display-rows") {
+      const position = displayRowPosition(view.state.doc, target.layout, viewRowMeasure(view), line);
+      view.dispatch(
+        view.state.tr
+          .setSelection(TextSelection.near(view.state.doc.resolve(position)))
+          .scrollIntoView(),
+      );
+      return;
+    }
+    const { blockIndex, offset } = documentLineTarget(target.document, target.index, line);
     const entry = activeEntry();
     const bounded = entry?.bounded;
     if (entry && bounded) {
@@ -1531,34 +1582,17 @@ const closeJumpToLine = useCallback(() => {
         .setSelection(TextSelection.create(view.state.doc, position))
         .scrollIntoView(),
     );
-    view.focus();
-  }, [jumpValue]);
+  }
 
   /** `:N` and `NG` from Vim mode: the panel's jump without the panel. */
   function jumpToMarkdownLine(line: number): void {
     const view = viewRef.current;
     const entry = activeEntry();
     if (!view || !entry) return;
-    const document = entry.bounded ? entry.bounded.fullDocument() : view.state.doc;
-    const index = buildDocumentLineIndex(document);
-    const target = parseJumpToLineInput(String(line), index.lineCount);
-    if (target === null) return;
-    const { blockIndex, offset } = documentLineTarget(document, index, target);
-    const bounded = entry.bounded;
-    if (bounded) {
-      bounded.rememberSelection({ blockIndex, offset });
-      bounded.revealBlock(blockIndex);
-      installBoundedWindow(entry, true);
-      const revealed = viewRef.current;
-      if (revealed) revealed.dispatch(revealed.state.tr.scrollIntoView());
-      return;
-    }
-    const position = topLevelTextPosition(view.state.doc, blockIndex, offset);
-    view.dispatch(
-      view.state.tr
-        .setSelection(TextSelection.create(view.state.doc, position))
-        .scrollIntoView(),
-    );
+    const target = boundedJumpTarget(entry, storedMarkdownFor) ?? { kind: "display-rows" as const, layout: viewDisplayRowLayout(view) };
+    const clamped = parseJumpToLineInput(String(line), jumpTargetCount(target));
+    if (clamped === null) return;
+    jumpToLineTarget(view, target, clamped);
     view.focus();
   }
 
