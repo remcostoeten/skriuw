@@ -17,6 +17,9 @@ export async function shareNoteAsText(store: RendererStore, noteId: string): Pro
     return false;
   }
   const record = state.documents.get(noteId);
+  if ((record?.sealed ?? null) !== null) {
+    throw new Error("Unlock the note before sharing it.");
+  }
   const text = referenceSafeMarkdown(record?.documentJson, record?.markdown ?? "", state.nodes);
   try {
     await navigator.share({ title: node.title, text });

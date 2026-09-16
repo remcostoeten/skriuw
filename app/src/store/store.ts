@@ -12,6 +12,7 @@ import type {
   WorkspaceDelta,
   WorkspaceDocument,
   WorkspaceTask,
+  NoteLockState,
 } from "@/contracts/workspace";
 import { extractReferences } from "@/features/references/extract";
 import {
@@ -152,6 +153,7 @@ function nodePlacementEqual(left: WorkspaceNode, right: WorkspaceNode): boolean 
     left.title === right.title &&
     left.deletedAt === right.deletedAt &&
     left.pinnedAt === right.pinnedAt &&
+    (left.lockedAt ?? null) === (right.lockedAt ?? null) &&
     (left.coverImageId ?? null) === (right.coverImageId ?? null) &&
     (left.coverGradient ?? null) === (right.coverGradient ?? null) &&
     (left.coverFullWidth ?? false) === (right.coverFullWidth ?? false) &&
@@ -301,6 +303,16 @@ function referenceState(current: RendererState): ReferenceProjection {
   };
 }
 
+export const UNCONFIGURED_NOTE_LOCK: NoteLockState = {
+  configured: false,
+  unlocked: false,
+  kind: null,
+  hint: null,
+  failedAttempts: 0,
+  nextAttemptAt: null,
+  lockedNoteCount: 0,
+};
+
 export function createInitialState(
   snapshot: WorkspaceSnapshot,
   expandedFolderIds?: readonly string[],
@@ -398,6 +410,7 @@ export function createInitialState(
     importReceipts: snapshot.importReceipts ?? [],
     ...buildReferenceProjection(references.references),
     coVisits: new Map(),
+    noteLock: UNCONFIGURED_NOTE_LOCK,
   });
   if (derived.activeNoteId === null) {
     const firstNote = derived.noteIds[0];
@@ -906,6 +919,7 @@ function reduceImportBatch(
         updatedAt: operation.at,
         deletedAt: null,
         pinnedAt: null,
+        lockedAt: null,
       });
       focusedNodeId = operation.id;
       if (operation.type === "create_folder") {
@@ -1404,6 +1418,7 @@ export function createRendererStore(initialState: RendererState): RendererStore 
         outgoingReferences: fresh.outgoingReferences,
         incomingReferences: fresh.incomingReferences,
         coVisits: current.coVisits,
+        noteLock: current.noteLock,
       };
       if (!nodeListPlacementEqual(current.sourceNodes, fresh.sourceNodes)) {
         return derive({ ...carried, sourceNodes });
@@ -1423,6 +1438,24 @@ export function createRendererStore(initialState: RendererState): RendererStore 
         visibleIds: flattenVisible(current.nodes, current.childrenByParent, expandedIds),
         metadata,
       };
+    });
+  }
+
+  function setNoteLock(noteLock: NoteLockState): boolean {
+    return update((current) => {
+      const previous = current.noteLock;
+      if (
+        previous.configured === noteLock.configured &&
+        previous.unlocked === noteLock.unlocked &&
+        previous.kind === noteLock.kind &&
+        previous.hint === noteLock.hint &&
+        previous.failedAttempts === noteLock.failedAttempts &&
+        previous.nextAttemptAt === noteLock.nextAttemptAt &&
+        previous.lockedNoteCount === noteLock.lockedNoteCount
+      ) {
+        return current;
+      }
+      return { ...current, noteLock };
     });
   }
 
@@ -1507,6 +1540,7 @@ export function createRendererStore(initialState: RendererState): RendererStore 
     publishHistoryHeader,
     replaceFromSnapshot,
     applyRemoteDocuments,
+    setNoteLock,
     destroy: () => {
       destroyed = true;
       for (const subscriber of subscribers) {

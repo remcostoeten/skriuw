@@ -60,6 +60,7 @@ import {
   writeMetadataWidth,
 } from "@/shell/metadata-resize";
 import { TemplatePickerHost } from "@/features/templates/template-picker";
+import { LockDialogHost } from "@/features/lock/lock-dialogs";
 import { TransferReportHost } from "@/features/transfer/export/transfer-report-host";
 import { ImportPreviewHost } from "@/features/transfer/import/import-preview-host";
 import { ImportProgressHost } from "@/features/transfer/import/import-progress-host";
@@ -826,6 +827,7 @@ function WorkspaceShell({ store }: Props) {
       />
       <ToastHost visible={showToasts} reduceMotion={reduceMotion} />
       <TemplatePickerHost store={store} />
+      <LockDialogHost store={store} />
       <AiOptInGate store={store}>
         {() => (
           <Suspense fallback={null}>

@@ -604,7 +604,7 @@ pub(crate) fn write_pane_layout(
 
 const NODE_COLUMNS: &str = "id, kind, parent_id, rank, title, icon, cover_image_id, cover_full_width, \
      cover_position_x, cover_position_y, cover_zoom, created_at, updated_at, deleted_at, \
-     pinned_at, cover_gradient";
+     pinned_at, cover_gradient, locked_at";
 
 fn read_node_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspaceNode> {
     let kind = match row.get::<_, String>(1)?.as_str() {
@@ -635,6 +635,7 @@ fn read_node_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspaceNode> {
         updated_at: row.get(12)?,
         deleted_at: row.get(13)?,
         pinned_at: row.get(14)?,
+        locked_at: row.get(16)?,
     })
 }
 
@@ -669,12 +670,24 @@ fn read_document_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspaceDocum
     let document_json = serde_json::from_str(&raw).map_err(|error| {
         rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Text, Box::new(error))
     })?;
+    let sealed = row
+        .get::<_, Option<Vec<u8>>>(5)?
+        .map(|ciphertext| {
+            Ok::<_, rusqlite::Error>(skriuw_domain::SealedPayload {
+                scheme: skriuw_domain::NOTE_LOCK_SCHEME.into(),
+                key_id: row.get::<_, Option<String>>(7)?.unwrap_or_default(),
+                nonce: row.get::<_, Option<String>>(6)?.unwrap_or_default(),
+                ciphertext: skriuw_crypto::encode_base64(&ciphertext),
+            })
+        })
+        .transpose()?;
     Ok(WorkspaceDocument {
         note_id: row.get(0)?,
         document_json,
         markdown: row.get(2)?,
         revision: row.get(3)?,
         word_count: row.get(4)?,
+        sealed,
     })
 }
 
@@ -683,7 +696,8 @@ pub(crate) fn read_documents(
 ) -> Result<Vec<WorkspaceDocument>, StorageError> {
     let mut statement = connection
         .prepare_cached(
-            "SELECT note_id, document_json, markdown, revision, word_count \
+            "SELECT note_id, document_json, markdown, revision, word_count, \
+                    sealed_body, sealed_nonce, sealed_key_id \
              FROM documents ORDER BY note_id",
         )
         .map_err(backend)?;
@@ -699,7 +713,8 @@ pub(crate) fn read_documents_by_id(
 ) -> Result<Vec<WorkspaceDocument>, StorageError> {
     let mut statement = connection
         .prepare_cached(
-            "SELECT note_id, document_json, markdown, revision, word_count \
+            "SELECT note_id, document_json, markdown, revision, word_count, \
+                    sealed_body, sealed_nonce, sealed_key_id \
              FROM documents WHERE note_id IN (SELECT value FROM json_each(?1)) \
              ORDER BY note_id",
         )
@@ -817,6 +832,7 @@ pub(crate) fn read_archive(
         tasks: read_tasks(connection)?,
         prompts: read_prompts(connection)?,
         annotations: read_annotations(connection)?,
+        note_lock: crate::lock::read_lock(connection)?.map(|stored| stored.config),
     })
 }
 

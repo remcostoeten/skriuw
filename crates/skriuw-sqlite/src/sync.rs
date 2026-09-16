@@ -326,6 +326,23 @@ fn canonical_document_write(
     let Some((stored_json, stored_markdown, revision, word_count)) = canonical else {
         return Ok(envelope.clone());
     };
+    if let Some(sealed) = crate::lock::sealed_row(transaction, note_id)? {
+        let same = matches!(
+            &envelope.operation,
+            WorkspaceOperation::SaveSealedDocument { sealed: parked, .. } if *parked == sealed.sealed
+        );
+        if same {
+            return Ok(envelope.clone());
+        }
+        let mut fresh = envelope.clone();
+        fresh.operation = WorkspaceOperation::SaveSealedDocument {
+            note_id: note_id.to_owned(),
+            sealed: sealed.sealed,
+            expected_revision: revision,
+            at: at.max(0),
+        };
+        return Ok(fresh);
+    }
     let (parked_json, parked_markdown) = match &envelope.operation {
         WorkspaceOperation::SaveDocument {
             document_json,
@@ -2404,7 +2421,8 @@ fn documents_equivalent(
 /// operations that leave document bodies alone.
 fn document_write_target(operation: &WorkspaceOperation) -> Option<&str> {
     match operation {
-        WorkspaceOperation::SaveDocument { note_id, .. } => Some(note_id),
+        WorkspaceOperation::SaveDocument { note_id, .. }
+        | WorkspaceOperation::SaveSealedDocument { note_id, .. } => Some(note_id),
         WorkspaceOperation::CreateNote { id, .. } => Some(id),
         _ => None,
     }
@@ -2479,9 +2497,13 @@ fn rebase_remote_document(
 ) -> Result<WorkspaceOperationEnvelope, StorageError> {
     let mut rebased = envelope.clone();
     match &envelope.operation {
-        WorkspaceOperation::SaveDocument { note_id, .. } => {
+        WorkspaceOperation::SaveDocument { note_id, .. }
+        | WorkspaceOperation::SaveSealedDocument { note_id, .. } => {
             if let Some(current) = current_document_revision(transaction, note_id)?
                 && let WorkspaceOperation::SaveDocument {
+                    expected_revision, ..
+                }
+                | WorkspaceOperation::SaveSealedDocument {
                     expected_revision, ..
                 } = &mut rebased.operation
             {
@@ -2776,8 +2798,29 @@ fn remote_target_state(
             fill_node_target(transaction, &mut state, id)?;
             state.dependency_tombstoned = placement_tombstoned(transaction, placement)?;
         }
-        WorkspaceOperation::SetNodePinned { id, .. } => {
+        WorkspaceOperation::SetNodePinned { id, .. }
+        | WorkspaceOperation::SetNodeLocked { id, .. } => {
             fill_node_target(transaction, &mut state, id)?;
+        }
+        WorkspaceOperation::SaveSealedDocument {
+            note_id, sealed, ..
+        } => {
+            fill_node_target(transaction, &mut state, note_id)?;
+            if current_document_revision(transaction, note_id)?.is_some() {
+                state.state_equivalent = crate::lock::sealed_row(transaction, note_id)?
+                    .is_some_and(|row| row.sealed == *sealed);
+                fill_document_ordering(transaction, &mut state, note_id, server_sequence)?;
+            } else {
+                state.target_exists = false;
+            }
+        }
+        WorkspaceOperation::ConfigureNoteLock { lock, .. } => {
+            let existing = crate::lock::read_lock(transaction)?;
+            state.target_exists = existing.is_some();
+            state.state_equivalent = existing.is_some_and(|stored| stored.config == *lock);
+        }
+        WorkspaceOperation::RemoveNoteLock { .. } => {
+            state.target_exists = crate::lock::read_lock(transaction)?.is_some();
         }
         WorkspaceOperation::SaveDocument {
             note_id,

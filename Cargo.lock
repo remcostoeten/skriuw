@@ -1820,10 +1820,12 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "skriuw-crypto",
  "skriuw-domain",
  "skriuw-storage",
  "tempfile",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]

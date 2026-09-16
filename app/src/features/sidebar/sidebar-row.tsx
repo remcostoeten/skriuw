@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { activateNote, renameNode } from "@/store/actions/workspace";
 import { useRendererSelector } from "@/store/use-renderer-selector";
-import { FolderIcon, FolderOpenIcon } from "@/shared/icons/static";
+import { FolderIcon, FolderOpenIcon, LockIcon } from "@/shared/icons/static";
 import { visualTreeIndent } from "@/store/tree";
 import type { RendererState, RendererStore } from "@/store/types";
 import { restoreRenameReturnFocus } from "./rename-focus";
@@ -78,8 +78,13 @@ export const SidebarRow = memo(function SidebarRow({
       (Number(state.focusedNodeId === null) << 5),
     [id],
   );
+  const selectLocked = useMemo(
+    () => (state: RendererState) => (state.sourceNodes.get(id)?.lockedAt ?? null) !== null,
+    [id],
+  );
   const node = useRendererSelector(store, selectNode);
   const status = useRendererSelector(store, selectStatus);
+  const isLocked = useRendererSelector(store, selectLocked);
   if (!node) {
     return null;
   }
@@ -151,6 +156,13 @@ export const SidebarRow = memo(function SidebarRow({
           <RowLabel isFolder={isFolder} isExpanded={isExpanded} isNarrow={metrics.isNarrow}>
             <span className="select-none truncate text-left">{node.title}</span>
           </RowLabel>
+          {isLocked && (
+            <LockIcon
+              size={12}
+              aria-label="Locked"
+              className="ml-1.5 shrink-0 text-muted-foreground/60"
+            />
+          )}
           {isFolder && !metrics.isVeryNarrow && (
             <span className="ml-1.5 w-4 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground/50">
               {node.descendantCount}

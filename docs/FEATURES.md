@@ -46,6 +46,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 ## Organizing
 
 - **Nested workspace tree** — arbitrary depth, clamped indentation so deep trees stay readable, virtualized to stay smooth at 5,000+ nodes.
+- **Locked notes and folders** — lock any note, or a folder and everything in it, behind one PIN or passphrase (context menu, palette, or `mod+shift+l`). Locked bodies are encrypted on disk with a key only your secret or a one-time recovery code can open, and they leave search, backlinks, tasks, and new history until unlocked. Unlock once per session; notes relock after a configurable idle time or when the window loses focus. Wrong attempts slow down instead of locking you out for good. See [ADR-0044](adr/0044-locked-notes.md).
 - **Pinned notes and folders** — pin any node to a fixed shelf at the top of the sidebar (context menu, palette, or `mod+p`). Pins are workspace content: they travel with archives, survive trash round trips, and order most-recently-pinned-first.
 - **Tabs and split view** — open notes in tabs (`ctrl+tab` to cycle, `mod+w` to close) or a second pane side by side (`mod+\`). Closing prioritizes the split before the active tab, regardless of which pane has focus. Only visible panes hold live editors, so background tabs cost nothing; open tabs survive restarts. See [ADR-0021](adr/0021-tabs-and-split-view.md).
 - **Full keyboard control** — create, rename, reorder siblings, move across folders, multi-select, open a row's context menu (Shift+Enter or the Menu key), expand/collapse-all, switch rail destinations with layout-independent number-row shortcuts, and use a dedicated move mode, all without touching the mouse.
@@ -116,5 +117,5 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 ## Built to be trusted
 
 - 1,300+ tests across backend, desktop, renderer, store, and UI-architecture layers, plus a keyboard-driven end-to-end suite covering the complete workflow with zero tolerated console errors.
-- Forty-one architecture decision records in [docs/adr](adr) document why the system is shaped the way it is.
+- Forty-two architecture decision records in [docs/adr](adr) document why the system is shaped the way it is.
 - Benchmark evidence for every performance claim lives in [docs/benchmarks](benchmarks).

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NoteLockState",
+  "description": "What the renderer may know about the lock: whether one exists, whether\nthis session holds the key, and how the unlock screen should behave.",
+  "type": "object",
+  "properties": {
+    "configured": {
+      "type": "boolean"
+    },
+    "failedAttempts": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "hint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NoteLockKind"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "lockedNoteCount": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "nextAttemptAt": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int64"
+    },
+    "unlocked": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "configured",
+    "unlocked",
+    "failedAttempts",
+    "lockedNoteCount"
+  ],
+  "$defs": {
+    "NoteLockKind": {
+      "description": "The kind of secret protecting locked notes. A PIN is digits only, so the\nunlock screen can show a numeric keypad; a passphrase is any text.",
+      "type": "string",
+      "enum": [
+        "pin",
+        "passphrase"
+      ]
+    }
+  }
+}

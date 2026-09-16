@@ -30,6 +30,8 @@ export type ShortcutActionId =
   | "createTag"
   | "createPerson"
   | "togglePinNote"
+  | "toggleLockNote"
+  | "lockNotesNow"
   | "toggleEditorMode"
   | "toggleVimMode"
   | "renameCurrentNote"
@@ -309,6 +311,23 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Pin or unpin current note",
     description:
       "Pin or unpin the current note. While the sidebar tree has focus it targets the focused row instead of the note the editor shows.",
+    group: "Workspace",
+    worksWhileTyping: true,
+  },
+  {
+    id: "toggleLockNote",
+    keys: "mod+shift+l",
+    label: "Lock or unlock current note",
+    description:
+      "Lock the current note behind your PIN, or unlock it for good. While the sidebar tree has focus it targets the focused row instead of the note the editor shows.",
+    group: "Workspace",
+    worksWhileTyping: true,
+  },
+  {
+    id: "lockNotesNow",
+    keys: "mod+alt+l",
+    label: "Lock notes now",
+    description: "Drop the lock key for this session so every locked note closes at once.",
     group: "Workspace",
     worksWhileTyping: true,
   },

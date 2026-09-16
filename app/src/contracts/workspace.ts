@@ -19,6 +19,15 @@ export type WorkspaceNode = {
   updatedAt: number;
   deletedAt: number | null;
   pinnedAt: number | null;
+  lockedAt?: number | null;
+};
+
+/** Ciphertext plus what is needed to open it; mirrors `SealedPayload`. */
+export type SealedPayload = {
+  scheme: string;
+  keyId: string;
+  nonce: string;
+  ciphertext: string;
 };
 
 export type WorkspaceDocument = {
@@ -27,6 +36,21 @@ export type WorkspaceDocument = {
   markdown: string;
   revision: number;
   wordCount: number;
+  /** Present while the note is locked: the plaintext fields hold a placeholder. */
+  sealed?: SealedPayload | null;
+};
+
+export type NoteLockKind = "pin" | "passphrase";
+
+/** Mirrors `contracts/generated/note-lock-state.schema.json`. */
+export type NoteLockState = {
+  configured: boolean;
+  unlocked: boolean;
+  kind: NoteLockKind | null;
+  hint: string | null;
+  failedAttempts: number;
+  nextAttemptAt: number | null;
+  lockedNoteCount: number;
 };
 
 /**
@@ -345,6 +369,7 @@ export type WorkspaceOperation =
     }
   | { type: "move_node"; id: string; placement: NodePlacement; at: number }
   | { type: "set_node_pinned"; id: string; pinned: boolean; at: number }
+  | { type: "set_node_locked"; id: string; locked: boolean; at: number }
   | {
       type: "save_document";
       noteId: string;

@@ -29,6 +29,30 @@
         "folder"
       ]
     },
+    "SealedPayload": {
+      "description": "Ciphertext together with what is needed to open it, and never the key.\n`ciphertext` and `nonce` are unpadded base64.",
+      "type": "object",
+      "properties": {
+        "ciphertext": {
+          "type": "string"
+        },
+        "keyId": {
+          "type": "string"
+        },
+        "nonce": {
+          "type": "string"
+        },
+        "scheme": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scheme",
+        "keyId",
+        "nonce",
+        "ciphertext"
+      ]
+    },
     "WorkspaceDocument": {
       "type": "object",
       "properties": {
@@ -42,6 +66,17 @@
         "revision": {
           "type": "integer",
           "format": "int64"
+        },
+        "sealed": {
+          "description": "Present when the note is locked and its body is stored sealed. The\nplaintext fields then hold the empty placeholder, and a device that\nholds the lock key opens the body on request instead.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SealedPayload"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "wordCount": {
           "type": "integer",
@@ -114,6 +149,14 @@
         },
         "kind": {
           "$ref": "#/$defs/NodeKind"
+        },
+        "lockedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64",
+          "default": null
         },
         "parentId": {
           "type": [

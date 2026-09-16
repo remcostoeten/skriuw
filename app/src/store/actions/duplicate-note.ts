@@ -192,7 +192,8 @@ export function planNoteDuplicate(
     source === undefined ||
     source.kind !== "note" ||
     source.deletedAt !== null ||
-    document === undefined
+    document === undefined ||
+    (document.sealed ?? null) !== null
   ) {
     return null;
   }

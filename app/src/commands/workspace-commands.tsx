@@ -57,6 +57,7 @@ import {
 } from "@/features/journal/navigation";
 import { requestEntityCreate } from "@/features/references/entity-create-controller";
 import { requestTemplatePicker } from "@/features/templates/template-picker-controller";
+import { relockNotes, requestSessionUnlock, toggleNodeLock } from "@/features/lock/lock-session";
 import { routeHasSidebar } from "@/shell/panel-layout";
 import { captureRenameReturnFocus } from "@/features/sidebar/rename-focus";
 import { showToast } from "@/shared/ui/toast";
@@ -87,6 +88,8 @@ import {
   PanelRightToggleIcon,
   PencilIcon,
   PinIcon,
+  LockIcon,
+  LockOpenIcon,
   ReplaceIcon,
   RotateCcwIcon,
   SearchIcon,
@@ -376,6 +379,45 @@ export function createWorkspaceCommands(
         const pinned = (state.sourceNodes.get(noteId)?.pinnedAt ?? null) !== null;
         setNodePinned(store, noteId, !pinned);
       },
+    },
+    {
+      id: "toggle-lock-note",
+      label: "Lock or unlock current note",
+      group: "Actions",
+      keywords: ["lock", "unlock", "pin code", "passcode", "private", "protect", "encrypt"],
+      icon: <LockIcon size={15} />,
+      shortcut: "toggleLockNote",
+      enabled: (state) => targetNoteId(state) !== null,
+      run: () => {
+        const noteId = targetNoteId(store.getState());
+        if (noteId) {
+          toggleNodeLock(store, noteId);
+        }
+      },
+    },
+    {
+      id: "lock-notes-now",
+      label: "Lock notes now",
+      group: "Actions",
+      keywords: ["lock", "relock", "close locked notes", "privacy"],
+      icon: <LockIcon size={15} />,
+      shortcut: "lockNotesNow",
+      visible: (state) => state.noteLock?.configured === true,
+      enabled: (state) => state.noteLock?.unlocked === true,
+      run: () => {
+        void relockNotes(store)
+          .then(() => showToast({ message: "Notes locked" }))
+          .catch((error: unknown) => showToast({ message: `Locking failed. ${String(error)}` }));
+      },
+    },
+    {
+      id: "unlock-notes",
+      label: "Unlock notes…",
+      group: "Actions",
+      keywords: ["unlock", "pin", "passphrase", "locked notes"],
+      icon: <LockOpenIcon size={15} />,
+      visible: (state) => state.noteLock?.configured === true && !state.noteLock.unlocked,
+      run: () => requestSessionUnlock(),
     },
     {
       id: "rename-current-note",

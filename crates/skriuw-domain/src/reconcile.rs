@@ -146,12 +146,17 @@ pub fn reconcile_remote_operation(
         }
         WorkspaceOperation::RenameNode { .. }
         | WorkspaceOperation::SetNodePinned { .. }
+        | WorkspaceOperation::SetNodeLocked { .. }
         | WorkspaceOperation::SetNoteCover { .. }
         | WorkspaceOperation::SetNoteCoverGradient { .. }
         | WorkspaceOperation::SetNoteCoverFullWidth { .. }
         | WorkspaceOperation::SetNoteCoverTransform { .. }
         | WorkspaceOperation::MoveNode { .. } => reconcile_node_update(state),
-        WorkspaceOperation::SaveDocument { .. } => reconcile_save_document(state),
+        WorkspaceOperation::SaveDocument { .. } | WorkspaceOperation::SaveSealedDocument { .. } => {
+            reconcile_save_document(state)
+        }
+        WorkspaceOperation::ConfigureNoteLock { .. } => reconcile_field_upsert(state),
+        WorkspaceOperation::RemoveNoteLock { .. } => reconcile_delete(state),
         WorkspaceOperation::TrashSubtree { .. } => reconcile_trash(state),
         WorkspaceOperation::RestoreSubtree { .. } => reconcile_restore(state),
         WorkspaceOperation::PurgeSubtree { .. } => reconcile_purge(state),
@@ -395,7 +400,11 @@ pub fn classify_apply_failure(operation: &WorkspaceOperation) -> SyncConflictRea
         | WorkspaceOperation::SetNoteCoverFullWidth { .. }
         | WorkspaceOperation::SetNoteCoverTransform { .. }
         | WorkspaceOperation::SetNodePinned { .. }
+        | WorkspaceOperation::SetNodeLocked { .. }
         | WorkspaceOperation::SaveDocument { .. }
+        | WorkspaceOperation::SaveSealedDocument { .. }
+        | WorkspaceOperation::ConfigureNoteLock { .. }
+        | WorkspaceOperation::RemoveNoteLock { .. }
         | WorkspaceOperation::RemoveNoteProperty { .. }
         | WorkspaceOperation::DeleteNotePropertyTemplate { .. }
         | WorkspaceOperation::DeletePrompt { .. }

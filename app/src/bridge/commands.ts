@@ -1,9 +1,12 @@
 import { invoke } from "./runtime";
 import type {
+  NoteLockKind,
+  NoteLockState,
   OperationAck,
   SearchHit,
   SearchIndexStatus,
   WorkspaceDelta,
+  WorkspaceDocument,
   WorkspaceOperationEnvelope,
   WorkspaceSnapshot,
 } from "@/contracts/workspace";
@@ -453,4 +456,50 @@ export function importMarkdownImage(
   relativePath: string,
 ): Promise<StoredImagePayload> {
   return invoke<StoredImagePayload>("import_markdown_image", { sourceDir, relativePath });
+}
+
+export type NoteLockSecretInput = {
+  kind: NoteLockKind;
+  secret: string;
+  hint: string | null;
+};
+
+export function noteLockState(): Promise<NoteLockState> {
+  return invoke<NoteLockState>("note_lock_state");
+}
+
+/** Installs the note lock and returns the recovery code, shown exactly once. */
+export function configureNoteLock(input: NoteLockSecretInput): Promise<string> {
+  return invoke<string>("configure_note_lock", input);
+}
+
+export function unlockNoteLock(secret: string): Promise<NoteLockState> {
+  return invoke<NoteLockState>("unlock_note_lock", { secret });
+}
+
+export function recoverNoteLock(
+  recoveryCode: string,
+  input: NoteLockSecretInput,
+): Promise<NoteLockState> {
+  return invoke<NoteLockState>("recover_note_lock", { recoveryCode, ...input });
+}
+
+export function changeNoteLockSecret(input: NoteLockSecretInput): Promise<NoteLockState> {
+  return invoke<NoteLockState>("change_note_lock_secret", input);
+}
+
+export function relockNoteLock(): Promise<NoteLockState> {
+  return invoke<NoteLockState>("relock_note_lock");
+}
+
+export function readLockedDocuments(
+  noteIds: readonly string[] | null = null,
+): Promise<WorkspaceDocument[]> {
+  return invoke<WorkspaceDocument[]>("read_locked_documents", {
+    noteIds: noteIds ? [...noteIds] : null,
+  });
+}
+
+export function removeNoteLock(): Promise<OperationAck> {
+  return invoke<OperationAck>("remove_note_lock");
 }

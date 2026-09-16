@@ -64,6 +64,29 @@ export function provisionalRank(
   return (anchor.rank + neighbor.rank) / 2;
 }
 
+/** The node itself plus every descendant, mirroring the backend's folder cascade. */
+function subtreeIds(nodes: ReadonlyMap<string, WorkspaceNode>, rootId: string): string[] {
+  const children = new Map<string, string[]>();
+  for (const node of nodes.values()) {
+    if (node.parentId !== null) {
+      const siblings = children.get(node.parentId) ?? [];
+      siblings.push(node.id);
+      children.set(node.parentId, siblings);
+    }
+  }
+  const result: string[] = [];
+  const pending = [rootId];
+  while (pending.length > 0) {
+    const id = pending.pop();
+    if (id === undefined) {
+      continue;
+    }
+    result.push(id);
+    pending.push(...(children.get(id) ?? []));
+  }
+  return result;
+}
+
 /**
  * Applies an operation's local effect to the canonical node map, mirroring
  * backend semantics closely enough that the acknowledgement only has to
@@ -119,6 +142,7 @@ export function reduceOperation(
         updatedAt: operation.at,
         deletedAt: null,
         pinnedAt: null,
+        lockedAt: null,
       });
       return next;
     }
@@ -227,6 +251,24 @@ export function reduceOperation(
       const next = new Map(nodes);
       next.set(operation.id, { ...existing, pinnedAt, updatedAt: operation.at });
       return next;
+    }
+    case "set_node_locked": {
+      const root = nodes.get(operation.id);
+      if (!root || root.deletedAt !== null) {
+        return nodes;
+      }
+      const lockedAt = operation.locked ? operation.at : null;
+      const next = new Map(nodes);
+      let changed = false;
+      for (const id of subtreeIds(nodes, operation.id)) {
+        const existing = nodes.get(id);
+        if (!existing || ((existing.lockedAt ?? null) !== null) === operation.locked) {
+          continue;
+        }
+        next.set(id, { ...existing, lockedAt, updatedAt: operation.at });
+        changed = true;
+      }
+      return changed ? next : nodes;
     }
     case "trash_subtree": {
       const existing = nodes.get(operation.rootId);

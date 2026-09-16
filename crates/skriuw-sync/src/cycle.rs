@@ -139,7 +139,8 @@ impl RemoteChangeSet {
 
     pub fn record(&mut self, operation: &WorkspaceOperation) {
         match operation {
-            WorkspaceOperation::SaveDocument { note_id, .. } => self.record_note(note_id),
+            WorkspaceOperation::SaveDocument { note_id, .. }
+            | WorkspaceOperation::SaveSealedDocument { note_id, .. } => self.record_note(note_id),
             WorkspaceOperation::CreateNote { id, .. } => {
                 self.record_note(id);
                 self.structure_changed = true;

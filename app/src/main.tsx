@@ -51,6 +51,7 @@ import {
   watchWorkspaceRelease,
 } from "@/shell/workspace-tab-lock";
 import { bindSettingsToRoot } from "@/features/settings/apply-settings";
+import { bindLockSession } from "@/features/lock/lock-session";
 import { commitGate } from "@/store/commit-gate";
 import { bindPaneLayoutPersistence } from "@/store/pane-layout-persistence";
 import { parsePaneLayout } from "@/store/panes";
@@ -259,6 +260,7 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
       unlistenSessionExpiry?.();
       unbindPropagationTriggers();
       unbindWindowClosePersistence();
+      unbindLockSession();
       unbindThemeColor();
       disposeUiPersistence();
     }
@@ -274,6 +276,7 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
       console.error("relationship fixture seeding failed", error);
     });
     bindSettingsToRoot(store, document.documentElement);
+    const unbindLockSession = bindLockSession(store);
     const unbindThemeColor = bindThemeColor(store, document.documentElement);
     void announcePersistenceRisk();
     root.render(

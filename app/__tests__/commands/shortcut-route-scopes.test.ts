@@ -30,6 +30,15 @@ rememberAiAction("rewrite", "");
 
 const permissiveState = {
   activeNoteId: "note-1",
+  noteLock: {
+    configured: true,
+    unlocked: true,
+    kind: "pin",
+    hint: null,
+    failedAttempts: 0,
+    nextAttemptAt: null,
+    lockedNoteCount: 1,
+  },
   focusedPaneId: "pane-1",
   noteIds: ["note-1", "note-2"],
   nodes: new Map([

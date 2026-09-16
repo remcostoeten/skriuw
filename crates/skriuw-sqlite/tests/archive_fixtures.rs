@@ -199,6 +199,7 @@ fn invalid_archives_fail_before_mutation_and_preserve_workspace() {
         markdown: String::new(),
         revision: 1,
         word_count: 0,
+        sealed: None,
     });
     assert!(matches!(
         storage.replace_from_archive(&broken),

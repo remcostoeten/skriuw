@@ -104,6 +104,10 @@ define_workspace_operation_sync_policy! {
     SetNoteCoverTransform => ("set_note_cover_transform", ReplicatedWorkspaceContent),
     MoveNode => ("move_node", ReplicatedWorkspaceContent),
     SetNodePinned => ("set_node_pinned", ReplicatedWorkspaceContent),
+    SetNodeLocked => ("set_node_locked", ReplicatedWorkspaceContent),
+    SaveSealedDocument => ("save_sealed_document", ReplicatedWorkspaceContent),
+    ConfigureNoteLock => ("configure_note_lock", ReplicatedWorkspaceContent),
+    RemoveNoteLock => ("remove_note_lock", ReplicatedWorkspaceContent),
     SaveDocument => ("save_document", ReplicatedWorkspaceContent),
     TrashSubtree => ("trash_subtree", ReplicatedWorkspaceContent),
     RestoreSubtree => ("restore_subtree", ReplicatedWorkspaceContent),
@@ -358,12 +362,14 @@ impl WorkspaceOperation {
             | Self::CreateNote { id, .. }
             | Self::RenameNode { id, .. }
             | Self::MoveNode { id, .. }
-            | Self::SetNodePinned { id, .. } => Some(id),
+            | Self::SetNodePinned { id, .. }
+            | Self::SetNodeLocked { id, .. } => Some(id),
             Self::SetNoteCover { note_id, .. }
             | Self::SetNoteCoverGradient { note_id, .. }
             | Self::SetNoteCoverFullWidth { note_id, .. }
             | Self::SetNoteCoverTransform { note_id, .. }
             | Self::SaveDocument { note_id, .. }
+            | Self::SaveSealedDocument { note_id, .. }
             | Self::RemoveNoteProperty { note_id, .. }
             | Self::ReorderNoteProperties { note_id, .. } => Some(note_id),
             Self::TrashSubtree { root_id, .. }
@@ -387,6 +393,8 @@ impl WorkspaceOperation {
             Self::DeleteTask { id, .. } | Self::DetachTask { id, .. } => Some(id),
             Self::UpdateSettings { .. }
             | Self::ReorderNotePropertyTemplates { .. }
+            | Self::ConfigureNoteLock { .. }
+            | Self::RemoveNoteLock { .. }
             | Self::RecordProviderImport { .. }
             | Self::SetMediaMetadata { .. }
             | Self::SetPrompt { .. }
@@ -991,7 +999,7 @@ mod tests {
             operation_types.len(),
             WORKSPACE_OPERATION_SYNC_POLICY_V1.len()
         );
-        assert_eq!(WORKSPACE_OPERATION_SYNC_POLICY_V1.len(), 46);
+        assert_eq!(WORKSPACE_OPERATION_SYNC_POLICY_V1.len(), 50);
         assert_eq!(
             operation_types,
             serde_json::from_str::<serde_json::Value>(include_str!(
