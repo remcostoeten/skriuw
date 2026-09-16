@@ -17,6 +17,7 @@ import {
   loadPaneLayout,
   loadSidebarExpansion,
   readWorkspaceDelta,
+  revealMainWindow,
   savePaneLayout,
   saveSidebarExpansion,
 } from "@/bridge/commands";
@@ -98,8 +99,9 @@ function offerShellUpdate(): void {
 
 /**
  * Reveals the main window once the first application frame has painted. The
- * window ships hidden so the cold-start webview never shows an empty shell;
- * a Rust-side failsafe reveals it anyway if the renderer never gets here.
+ * window ships hidden behind a native splash so the cold-start webview never
+ * shows an empty shell; a Rust-side failsafe reveals it anyway if the renderer
+ * never gets here.
  */
 function revealWindow(): void {
   if (isBrowserRuntime() || revealed) {
@@ -110,11 +112,7 @@ function revealWindow(): void {
       return;
     }
     revealed = true;
-    const appWindow = getCurrentWindow();
-    void appWindow
-      .show()
-      .then(() => appWindow.setFocus())
-      .catch((error) => console.error("window reveal failed", error));
+    void revealMainWindow().catch((error) => console.error("window reveal failed", error));
   }
   // WebKitGTK does not reliably schedule animation frames for an unmapped
   // window, so the paint-aligned path is raced against a timer. Losing the

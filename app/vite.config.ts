@@ -25,5 +25,11 @@ export default defineConfig({
   },
   build: {
     target: "es2023",
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL("./index.html", import.meta.url)),
+        splash: fileURLToPath(new URL("./splash.html", import.meta.url)),
+      },
+    },
   },
 });

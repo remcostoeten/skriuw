@@ -11,6 +11,7 @@ mod remote_media;
 mod smoke_tests;
 mod state;
 mod sync;
+mod window;
 
 use std::{sync::Arc, time::Duration};
 
@@ -23,16 +24,12 @@ use state::{AppState, database_path, history_repository_path, image_blob_path, n
 use tauri::{Emitter, Manager, RunEvent};
 
 const ROTATION_RETRY_DELAY: Duration = Duration::from_secs(60);
-/// The main window ships hidden and is revealed by the renderer after its
-/// first paint. A renderer that never boots would otherwise leave an
-/// invisible process, so the window is revealed unconditionally after this
-/// delay. Worst case the user sees the empty shell the reveal exists to hide.
-const WINDOW_REVEAL_FAILSAFE: Duration = Duration::from_secs(2);
 const HISTORY_HEADER_PUBLISHED_EVENT: &str = "history-header-published";
 const SYNC_WORKSPACE_CHANGED_EVENT: &str = "sync-workspace-changed";
 const SYNC_SESSION_EXPIRED_EVENT: &str = "sync-session-expired";
 /// Excludes StateFlags::VISIBLE: the main window ships hidden and is revealed
-/// by the renderer/failsafe above, so the plugin must never show it early.
+/// by the renderer or the failsafe in `window.rs`, so the plugin must never
+/// show it early.
 const WINDOW_STATE_FLAGS: tauri_plugin_window_state::StateFlags =
     tauri_plugin_window_state::StateFlags::SIZE
         .union(tauri_plugin_window_state::StateFlags::POSITION)
@@ -40,13 +37,25 @@ const WINDOW_STATE_FLAGS: tauri_plugin_window_state::StateFlags =
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // Two processes on one workspace would race the serialized SQLite writer,
+    // backup rotation, and sync outbox. A SKRIUW_DB override points at its own
+    // database (e2e harnesses), so it may run beside the real app.
+    let builder = if std::env::var_os("SKRIUW_DB").is_none() {
+        builder.plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            focus_main_window(app);
+        }))
+    } else {
+        builder
+    };
+    builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_window_state::Builder::new()
                 .with_state_flags(WINDOW_STATE_FLAGS)
+                .with_denylist(&[window::SPLASH_LABEL])
                 .build(),
         )
         .setup(|app| {
@@ -132,22 +141,12 @@ pub fn run() {
                     eprintln!("microphone permission handler unavailable: {error}");
                 }
             }
-            let reveal_handle = app.handle().clone();
-            let _ = std::thread::Builder::new()
-                .name("skriuw-window-reveal-failsafe".into())
-                .spawn(move || {
-                    std::thread::sleep(WINDOW_REVEAL_FAILSAFE);
-                    let Some(window) = reveal_handle.get_webview_window("main") else {
-                        return;
-                    };
-                    if window.is_visible().unwrap_or(false) {
-                        return;
-                    }
-                    eprintln!("renderer did not reveal the main window; revealing it directly");
-                    if let Err(error) = window.show() {
-                        eprintln!("window reveal failsafe failed: {error}");
-                    }
-                });
+            // Harnesses point SKRIUW_DB at their own database and drive the one
+            // main window over WebDriver; a second window would confuse them.
+            if std::env::var_os("SKRIUW_DB").is_none() {
+                window::open_splash_window(app.handle());
+            }
+            window::spawn_reveal_failsafe(app.handle());
             let sync = Arc::new(sync::SyncRuntime::with_observers(
                 path.clone(),
                 {
@@ -244,6 +243,7 @@ pub fn run() {
             commands::workspace::save_pane_layout,
             commands::workspace::apply_workspace_operations,
             commands::workspace::close_workspace_window,
+            window::reveal_main_window_command,
             commands::workspace::search_workspace,
             commands::workspace::search_index_status,
             commands::workspace::rebuild_search_index,
@@ -312,4 +312,15 @@ pub fn run() {
                 state.maintenance.shutdown();
             }
         });
+}
+
+fn focus_main_window(app: &tauri::AppHandle) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+    for result in [window.unminimize(), window.show(), window.set_focus()] {
+        if let Err(error) = result {
+            eprintln!("focusing the running instance failed: {error}");
+        }
+    }
 }

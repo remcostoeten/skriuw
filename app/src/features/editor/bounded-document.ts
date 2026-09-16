@@ -404,17 +404,34 @@ export function topLevelBlockAtPosition(document: ProseMirrorNode, position: num
 export function topLevelTextPosition(
   document: ProseMirrorNode,
   blockIndex: number,
-  textOffset: number,
+  offset: number,
 ): number {
   const index = clamp(blockIndex, 0, Math.max(0, document.childCount - 1));
-  let position = 0;
+  let blockPosition = 0;
   for (let current = 0; current < index; current += 1) {
-    position += document.child(current).nodeSize;
+    blockPosition += document.child(current).nodeSize;
   }
-  let node = document.child(index);
-  while (!node.isTextblock && node.childCount > 0) {
-    position += 1;
-    node = node.child(0);
+  const block = document.child(index);
+  const contentStart = blockPosition + 1;
+  const requested = contentStart + clamp(Math.max(0, offset), 0, block.content.size);
+  if (block.isTextblock) {
+    return requested;
   }
-  return position + 1 + Math.min(Math.max(0, textOffset), node.content.size);
+  let before: number | null = null;
+  let after: number | null = null;
+  let inside: number | null = null;
+  block.descendants((node, position) => {
+    if (inside !== null || !node.isTextblock) return inside === null;
+    const start = contentStart + position + 1;
+    const end = start + node.content.size;
+    if (requested >= start && requested <= end) {
+      inside = requested;
+    } else if (end < requested) {
+      before = end;
+    } else if (after === null) {
+      after = start;
+    }
+    return false;
+  });
+  return inside ?? after ?? before ?? contentStart;
 }

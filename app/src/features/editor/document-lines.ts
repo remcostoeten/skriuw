@@ -1,7 +1,12 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { productSchema, serializeProductMarkdown } from "./schema";
 
-/** Where a Markdown line lands in the block document. */
+/**
+ * Where a Markdown line lands in the block document. `offset` counts positions
+ * from the start of the top-level block's content, so a line inside a nested
+ * list item or table cell resolves to that textblock rather than the block's
+ * first one.
+ */
 export type DocumentLineTarget = {
   blockIndex: number;
   offset: number;
@@ -11,123 +16,210 @@ export type DocumentLineIndex = {
   lineCount: number;
   /** One-based Markdown line each top-level block starts on. */
   blockStartLines: readonly number[];
-  blockMarkdown: readonly string[];
+  /**
+   * Block-relative caret offset of the text each one-based line carries, or
+   * null for lines with no text of their own: blank separators, fences,
+   * rules, table separators.
+   */
+  lineOffsets: readonly (number | null)[];
 };
+
+type TextSegment = {
+  offset: number;
+  pieces: readonly string[];
+};
+
+type SourceLines = {
+  raw: readonly string[];
+  unescaped: readonly string[];
+  starts: readonly number[];
+};
+
+const MARKDOWN_ESCAPE = /\\([\\`*_{}[\]()#+\-.!|>~<])/g;
 
 function countLines(text: string): number {
   return text.split("\n").length;
 }
 
-function countNewlines(text: string, from: number, to: number): number {
-  let total = 0;
-  for (let index = from; index < to; index += 1) {
-    if (text[index] === "\n") {
-      total += 1;
-    }
+function splitSource(markdown: string): SourceLines {
+  const raw = markdown.split("\n");
+  const starts: number[] = [];
+  let at = 0;
+  for (const line of raw) {
+    starts.push(at);
+    at += line.length + 1;
   }
-  return total;
+  return { raw, unescaped: raw.map((line) => line.replace(MARKDOWN_ESCAPE, "$1")), starts };
+}
+
+function isHardBreak(node: ProseMirrorNode): boolean {
+  return node.type === productSchema.nodes.hard_break;
 }
 
 /**
- * Line numbers in block mode mean lines of the note's Markdown, so the same
- * number selects the same content in either editor. Each top-level block is
- * serialized on its own and located in the whole-document serialization, which
- * measures the real line layout instead of estimating it from block heights.
- *
- * A block whose standalone serialization does not appear verbatim in the whole
- * document falls back to the running line cursor; the next block that does
- * match re-anchors the index, so one odd block cannot skew everything below it.
+ * The text runs of one textblock split at hard breaks and code newlines, each
+ * tagged with the block-relative offset of its first character. Inline leaves
+ * such as mentions and images end a piece without ending the segment, so a
+ * line is matched by the text around them rather than by their serialization.
  */
-export function buildDocumentLineIndex(document: ProseMirrorNode): DocumentLineIndex {
-  const markdown = serializeProductMarkdown(document);
-  const blockStartLines: number[] = [];
-  const blockMarkdown: string[] = [];
-  let searchFrom = 0;
-  let searchFromLine = 1;
-
-  document.forEach((block) => {
-    const text = serializeProductMarkdown(productSchema.node("doc", null, [block]));
-    blockMarkdown.push(text);
-    const at = text.length === 0 ? -1 : markdown.indexOf(text, searchFrom);
-    if (at === -1) {
-      blockStartLines.push(searchFromLine);
-      searchFromLine += countLines(text) + 1;
-      return;
-    }
-    const line = searchFromLine + countNewlines(markdown, searchFrom, at);
-    blockStartLines.push(line);
-    searchFrom = at + text.length;
-    searchFromLine = line + countLines(text) - 1;
-  });
-
-  return { lineCount: countLines(markdown), blockStartLines, blockMarkdown };
-}
-
-function descendToTextblock(block: ProseMirrorNode): ProseMirrorNode {
-  let node = block;
-  while (!node.isTextblock && node.childCount > 0) {
-    node = node.child(0);
-  }
-  return node;
-}
-
-type TextblockLayout = {
-  text: string;
-  contentOffsets: readonly number[];
-};
-
-/**
- * The textblock's text with hard breaks rendered as newlines, plus each
- * character's content offset. Inline leaves such as hard breaks occupy a
- * ProseMirror position without contributing to `textContent`, so a character
- * index into the plain text cannot be used as a caret offset directly.
- */
-function textblockLayout(textblock: ProseMirrorNode): TextblockLayout {
-  let text = "";
-  const contentOffsets: number[] = [];
-  let position = 0;
+function segmentsOfTextblock(textblock: ProseMirrorNode, contentOffset: number): TextSegment[] {
+  const segments: TextSegment[] = [];
+  let pieces: string[] = [];
+  let piece = "";
+  let segmentStart = contentOffset;
+  let position = contentOffset;
+  const endPiece = () => {
+    if (piece.length > 0) pieces.push(piece);
+    piece = "";
+  };
+  const endSegment = (nextStart: number) => {
+    endPiece();
+    segments.push({ offset: segmentStart, pieces });
+    pieces = [];
+    segmentStart = nextStart;
+  };
   textblock.forEach((child) => {
     if (child.isText) {
       const value = child.text ?? "";
       for (let at = 0; at < value.length; at += 1) {
-        text += value[at];
-        contentOffsets.push(position + at);
+        if (value[at] === "\n") {
+          endSegment(position + at + 1);
+        } else {
+          piece += value[at];
+        }
       }
-    } else if (child.type === productSchema.nodes.hard_break) {
-      text += "\n";
-      contentOffsets.push(position);
+      endPiece();
+    } else if (isHardBreak(child)) {
+      endSegment(position + child.nodeSize);
+    } else {
+      endPiece();
     }
     position += child.nodeSize;
   });
-  return { text, contentOffsets };
+  endSegment(position);
+  return segments;
+}
+
+type BlockSegments = {
+  segments: TextSegment[];
+  /** Index into `segments` where each table row starts, so its cells share a line. */
+  rowStarts: Set<number>;
+};
+
+function collectSegments(block: ProseMirrorNode): BlockSegments {
+  const segments: TextSegment[] = [];
+  const rowStarts = new Set<number>();
+  const walk = (node: ProseMirrorNode, contentOffset: number) => {
+    if (node.isTextblock) {
+      segments.push(...segmentsOfTextblock(node, contentOffset));
+      return;
+    }
+    let childOffset = contentOffset;
+    node.forEach((child) => {
+      if (child.type === productSchema.nodes.table_row) rowStarts.add(segments.length);
+      walk(child, childOffset + 1);
+      childOffset += child.nodeSize;
+    });
+  };
+  walk(block, 0);
+  return { segments, rowStarts };
+}
+
+function lineCarries(source: SourceLines, line: number, pieces: readonly string[]): boolean {
+  const meaningful = pieces.map((piece) => piece.trim()).filter((piece) => piece.length > 0);
+  if (meaningful.length === 0) return false;
+  const raw = source.raw[line] ?? "";
+  const unescaped = source.unescaped[line] ?? "";
+  const carriesAll = meaningful.every((piece) => raw.includes(piece) || unescaped.includes(piece));
+  if (carriesAll) return true;
+  const longest = meaningful.reduce((best, piece) => (piece.length > best.length ? piece : best), "");
+  return raw.includes(longest) || unescaped.includes(longest);
+}
+
+function findLineCarrying(source: SourceLines, from: number, pieces: readonly string[]): number {
+  for (let line = from; line < source.raw.length; line += 1) {
+    if (lineCarries(source, line, pieces)) return line;
+  }
+  return -1;
+}
+
+/** First zero-based line at or after `from` where `text` starts a line and ends one. */
+function findBlockLines(source: SourceLines, markdown: string, from: number, text: string): number {
+  if (text.length === 0) return -1;
+  for (let line = from; line < source.raw.length; line += 1) {
+    const start = source.starts[line] ?? markdown.length;
+    if (!markdown.startsWith(text, start)) continue;
+    const end = start + text.length;
+    if (end === markdown.length || markdown[end] === "\n") return line;
+  }
+  return -1;
 }
 
 /**
- * Caret offset inside a block for a line that falls within it, so a jump into a
- * fenced code block lands on the requested code line rather than the fence, and
- * a jump into a hard-break paragraph lands on the requested visual line.
+ * Line numbers in block mode mean lines of the note's Markdown, so the same
+ * number selects the same content in either editor. Pass the Markdown the raw
+ * editor shows when it still describes `document`; otherwise the document is
+ * serialized, which is what the next save will store anyway.
+ *
+ * Each top-level block is first matched by its own serialization, which pins
+ * blocks without text such as rules and fences. Every textblock inside it is
+ * then matched by its text, walking the source lines forward, so a line in
+ * the middle of a list, quote, or table resolves to the textblock that owns
+ * it. Anything that cannot be matched inherits the running line cursor and
+ * the next match re-anchors, so one odd block cannot skew everything below.
  */
-function blockLineOffset(
-  document: ProseMirrorNode,
-  index: DocumentLineIndex,
-  blockIndex: number,
-  line: number,
-): number {
-  const relative = line - (index.blockStartLines[blockIndex] ?? 1);
-  if (relative <= 0) {
-    return 0;
+export function buildDocumentLineIndex(document: ProseMirrorNode, markdown?: string): DocumentLineIndex {
+  const sourceText = markdown ?? serializeProductMarkdown(document);
+  const source = splitSource(sourceText);
+  const lineCount = source.raw.length;
+  const blockStartLines: number[] = [];
+  const lineOffsets: (number | null)[] = Array.from({ length: lineCount }, () => null);
+  let cursor = 0;
+
+  document.forEach((block) => {
+    const text = serializeProductMarkdown(productSchema.node("doc", null, [block]));
+    const matched = findBlockLines(source, sourceText, cursor, text);
+    const { segments, rowStarts } = collectSegments(block);
+    let blockStart = matched;
+    let blockEnd = matched === -1 ? -1 : matched + countLines(text) - 1;
+    const searchFrom = matched === -1 ? cursor : matched;
+    let lastLine = -1;
+    const limit = matched === -1 ? lineCount - 1 : blockEnd;
+    segments.forEach((segment, at) => {
+      const sameRow = lastLine !== -1 && !rowStarts.has(at) && rowStarts.size > 0;
+      const from = lastLine === -1 ? searchFrom : sameRow ? lastLine : lastLine + 1;
+      const line = findLineCarrying(source, from, segment.pieces);
+      if (line === -1 || line > limit) return;
+      if (lineOffsets[line] === null) lineOffsets[line] = segment.offset;
+      lastLine = line;
+      if (blockStart === -1) blockStart = line;
+    });
+    if (blockStart === -1) {
+      blockStart = Math.min(cursor + (blockStartLines.length === 0 ? 0 : 1), Math.max(lineCount - 1, 0));
+      blockEnd = blockStart + countLines(text) - 1;
+    } else if (matched === -1) {
+      blockEnd = Math.max(lastLine, blockStart);
+    }
+    blockStartLines.push(blockStart + 1);
+    cursor = Math.max(cursor, blockEnd + 1);
+  });
+
+  return { lineCount, blockStartLines, lineOffsets };
+}
+
+function blockOwningLine(index: DocumentLineIndex, line: number): number {
+  let blockIndex = 0;
+  for (let current = 0; current < index.blockStartLines.length; current += 1) {
+    if ((index.blockStartLines[current] ?? 1) > line) break;
+    blockIndex = current;
   }
-  const lineText = (index.blockMarkdown[blockIndex] ?? "").split("\n")[relative];
-  if (!lineText) {
-    return 0;
-  }
-  const textblock = descendToTextblock(document.child(blockIndex));
-  if (!textblock.isTextblock) {
-    return 0;
-  }
-  const { text, contentOffsets } = textblockLayout(textblock);
-  const at = text.indexOf(lineText);
-  return at === -1 ? 0 : (contentOffsets[at] ?? 0);
+  return blockIndex;
+}
+
+function blockLineRange(index: DocumentLineIndex, blockIndex: number): { first: number; last: number } {
+  const first = index.blockStartLines[blockIndex] ?? 1;
+  const next = index.blockStartLines[blockIndex + 1];
+  return { first, last: next === undefined ? index.lineCount : next - 1 };
 }
 
 export function documentLineTarget(
@@ -139,13 +231,25 @@ export function documentLineTarget(
     return { blockIndex: 0, offset: 0 };
   }
   const target = Math.min(Math.max(Math.floor(line), 1), Math.max(index.lineCount, 1));
-  let blockIndex = 0;
-  for (let current = 0; current < index.blockStartLines.length; current += 1) {
-    if ((index.blockStartLines[current] ?? 1) > target) {
-      break;
-    }
-    blockIndex = current;
+  const blockIndex = Math.min(blockOwningLine(index, target), document.childCount - 1);
+  const { first } = blockLineRange(index, blockIndex);
+  for (let current = target; current >= first; current -= 1) {
+    const offset = index.lineOffsets[current - 1];
+    if (offset !== null && offset !== undefined) return { blockIndex, offset };
   }
-  blockIndex = Math.min(blockIndex, document.childCount - 1);
-  return { blockIndex, offset: blockLineOffset(document, index, blockIndex, target) };
+  return { blockIndex, offset: 0 };
+}
+
+/** The one-based Markdown line a caret sits on, for a block-relative caret offset. */
+export function documentLineAt(index: DocumentLineIndex, target: DocumentLineTarget): number {
+  const blockIndex = Math.min(Math.max(target.blockIndex, 0), Math.max(index.blockStartLines.length - 1, 0));
+  const { first, last } = blockLineRange(index, blockIndex);
+  let line = first;
+  for (let current = first; current <= last; current += 1) {
+    const offset = index.lineOffsets[current - 1];
+    if (offset === null || offset === undefined) continue;
+    if (offset > target.offset) break;
+    line = current;
+  }
+  return line;
 }

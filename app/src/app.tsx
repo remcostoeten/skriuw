@@ -5,6 +5,7 @@ import { authAdapter } from "@/features/auth/adapter";
 import {
   clearOnboardingOverride,
   readOnboardingOverride,
+  readOnboardingSkip,
 } from "@/features/onboarding/debug-override";
 import { completeOnboarding, shouldShowOnboarding } from "@/features/onboarding/model";
 import { Onboarding } from "@/features/onboarding/onboarding";
@@ -113,16 +114,17 @@ import {
   aiSettingsCommands,
   selectAiEnabled,
 } from "@/features/ai/opt-in-gate";
-import { aiEditorActionCommands } from "@/features/ai/editor-action-controller";
-import { voiceDictationCommands } from "@/features/ai/voice-dictation-controller";
+import { aiEditorActionCommands } from "@/features/ai/actions/editor-action-controller";
+import { registerAiSettings } from "@/features/ai/ai-settings-controller";
+import { voiceDictationCommands } from "@/features/ai/voice/voice-dictation-controller";
 
 const ModelSwitcherHost = lazy(async () => {
-  const module = await import("@/features/ai/model-switcher");
+  const module = await import("@/features/ai/models/model-switcher");
   return { default: module.ModelSwitcherHost };
 });
 
 function loadPromptPlayground() {
-  return import("@/features/ai/prompt-playground");
+  return import("@/features/ai/prompts/prompt-playground");
 }
 
 const PromptPlaygroundView = lazy(async () => {
@@ -204,8 +206,10 @@ function WorkspaceShell({ store }: Props) {
   const animatedIcons = useRendererSelector(store, selectAnimatedIcons);
   const aiEnabled = useRendererSelector(store, selectAiEnabled);
   const [onboardingOverride, setOnboardingOverride] = useState(readOnboardingOverride);
+  const [skipOnboarding] = useState(readOnboardingSkip);
+  const needsOnboardingFromSettings = useRendererSelector(store, selectNeedsOnboarding);
   const needsOnboarding =
-    useRendererSelector(store, selectNeedsOnboarding) || onboardingOverride;
+    !skipOnboarding && (needsOnboardingFromSettings || onboardingOverride);
   const shortcutHints = useShortcutHints(store, TOOLBAR_SHORTCUT_IDS);
   useEffect(() => installBackNavigation(store), [store]);
   useEffect(() => scheduleSearchIndexReconciliation(), []);
@@ -317,6 +321,7 @@ function WorkspaceShell({ store }: Props) {
     setSettingsSection(section);
     setSettingsOpen(true);
   }, []);
+  useEffect(() => registerAiSettings(() => openSettingsAt("ai")), [openSettingsAt]);
   const registry = useMemo(
     () =>
       createCommandRegistry(

@@ -12,13 +12,13 @@ import {
   revokeRemoteAiProvider,
   saveRemoteAiKey,
   verifyRemoteAiKey,
-} from "@/features/ai/remote-ai-bridge";
+} from "@/features/ai/models/remote-ai-bridge";
 import {
   availableRemoteModel,
   remoteAiErrorMessage,
   remoteAiModelsFor,
   vaultAcceptsNewKeys,
-} from "@/features/ai/remote-ai-model";
+} from "@/features/ai/models/remote-ai-model";
 import { emptyDraft, type RemoteProviderDraft } from "./remote-ai-draft";
 
 export type RemoteAiProviders = {

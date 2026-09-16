@@ -1,13 +1,14 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
   type ComponentType,
   type ReactNode,
 } from "react";
-import { motion, useReducedMotion, type Variants } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
 import { useShortcutBinding } from "@remcostoeten/use-shortcut/react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { activateNote, commitOperations, commitReferenceOperations } from "@/store/actions/workspace";
@@ -38,6 +39,7 @@ import { buildMergeSaveDocuments } from "./entity-merge";
 import { registerEntityCreate } from "./entity-create-controller";
 import { ColorSwatchRow } from "./color-swatch-row";
 import {
+  CheckIcon,
   ChevronLeftIcon,
   FileTextIcon,
   HashIcon,
@@ -51,11 +53,15 @@ import {
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { effectiveShortcutKeys, shortcutDefinition } from "@/commands/bindings";
 import { sameOverrides, selectShortcutOverrides } from "@/features/settings/sections/selectors";
-import { Button } from "@/shared/ui/button";
-import { Dialog } from "@/shared/ui/dialog";
+import { Button, buttonVariants } from "@/shared/ui/button";
+import { HoldToConfirm } from "@/shared/ui/hold-to-confirm";
+import { InlineConfirm } from "@/shared/ui/inline-confirm";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
+import { COARSE_POINTER_QUERY } from "@/shell/panel-layout";
 import { InlineEdit } from "@/shared/ui/inline-edit";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 import { Select, type SelectOption } from "@/shared/ui/select";
+import { useListboxNavigation } from "@/shared/ui/use-listbox-navigation";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -91,10 +97,6 @@ type Props = {
   store: RendererStore;
   kind: EntityKind;
 };
-
-type Pending =
-  | { mode: "delete"; row: EntityRow }
-  | { mode: "merge"; row: EntityRow };
 
 type SortMode = "name" | "recent" | "used";
 
@@ -185,10 +187,11 @@ export function EntityView({ store, kind }: Props) {
   );
   const rows = useRendererSelector(store, selector, entityRowsEqual);
   const focusId = useRouteFocus();
-  const [pending, setPending] = useState<Pending | null>(null);
   const [creating, setCreating] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [deleteArmed, setDeleteArmed] = useState(false);
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<SortMode>("used");
 
@@ -228,7 +231,17 @@ export function EntityView({ store, kind }: Props) {
   function select(id: string): void {
     setSelectedId(id);
     setRenaming(false);
+    setMerging(false);
+    setDeleteArmed(false);
     setCreating(false);
+  }
+
+  function deleteEntity(row: EntityRow): void {
+    commit([buildDelete(kind, row.id)]);
+    if (selectedId === row.id) {
+      setSelectedId(null);
+    }
+    setDeleteArmed(false);
   }
 
   function submitRename(id: string, value: string): void {
@@ -439,8 +452,14 @@ export function EntityView({ store, kind }: Props) {
                 select(row.id);
                 setRenaming(true);
               }}
-              onDelete={(row) => setPending({ mode: "delete", row })}
-              onMerge={(row) => setPending({ mode: "merge", row })}
+              onDelete={(row) => {
+                select(row.id);
+                setDeleteArmed(true);
+              }}
+              onMerge={(row) => {
+                select(row.id);
+                setMerging(true);
+              }}
             />
           )}
         </section>
@@ -475,14 +494,23 @@ export function EntityView({ store, kind }: Props) {
               kind={kind}
               row={selected}
               renaming={renaming}
-              canMerge={rows.length > 1}
+              merging={merging && rows.length > 1}
+              mergeTargets={rows}
               onBack={() => setSelectedId(null)}
               onStartRename={() => setRenaming(true)}
               onSubmitRename={(value) => submitRename(selected.id, value)}
               onCancelRename={() => setRenaming(false)}
               onRecolor={(color) => commit([buildRecolor(kind, selected.id, color)])}
-              onDelete={() => setPending({ mode: "delete", row: selected })}
-              onMerge={() => setPending({ mode: "merge", row: selected })}
+              deleteArmed={deleteArmed}
+              onDeleteArmedChange={setDeleteArmed}
+              onDelete={() => deleteEntity(selected)}
+              onToggleMerge={() => setMerging((open) => !open)}
+              onCancelMerge={() => setMerging(false)}
+              onMerge={(targetId) => {
+                mergeInto(selected, targetId);
+                setSelectedId(targetId);
+                setMerging(false);
+              }}
               onOpenNote={openNote}
               onOpenRelated={openRelated}
             />
@@ -508,95 +536,6 @@ export function EntityView({ store, kind }: Props) {
           )}
         </section>
       </div>
-
-      <Dialog
-        open={pending?.mode === "delete"}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPending(null);
-          }
-        }}
-        title={`Delete ${entityNoun(kind)}?`}
-      >
-        {pending?.mode === "delete" && (
-          <div className="grid gap-3.5">
-            <p className="text-[13px] leading-normal text-foreground/86">
-              “{pending.row.name}” will be removed from{" "}
-              {pending.row.noteCount === 1 ? "1 note" : `${pending.row.noteCount} notes`}. Its label
-              stays in those notes but resolves as unresolved.
-            </p>
-            <div className="mt-1 flex justify-end gap-2">
-              <Button onClick={() => setPending(null)}>Cancel</Button>
-              <Button
-                variant="dangerFilled"
-                onClick={() => {
-                  commit([buildDelete(kind, pending.row.id)]);
-                  if (selectedId === pending.row.id) {
-                    setSelectedId(null);
-                  }
-                  setPending(null);
-                }}
-              >
-                Delete {entityNoun(kind)}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Dialog>
-
-      <Dialog
-        open={pending?.mode === "merge"}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPending(null);
-          }
-        }}
-        title={`Merge ${entityNoun(kind)}`}
-      >
-        {pending?.mode === "merge" && (
-          <div className="grid gap-3.5">
-            <p className="text-[13px] leading-normal text-foreground/86">
-              Move every reference to “{pending.row.name}” onto another {entityNoun(kind)}, then
-              delete “{pending.row.name}”.
-            </p>
-            <ul className="my-1 flex max-h-[280px] flex-col gap-0.5 overflow-y-auto">
-              {rows
-                .filter((row) => row.id !== pending.row.id)
-                .map((target) => (
-                  <li key={target.id}>
-                    <button
-                      type="button"
-                      className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-transparent px-2.5 py-2 text-left text-foreground hover:border-border hover:bg-theme-active/60 focus-visible:border-border focus-visible:bg-theme-active/60"
-                      onClick={() => {
-                        mergeInto(pending.row, target.id);
-                        if (selectedId === pending.row.id) {
-                          setSelectedId(target.id);
-                        }
-                        setPending(null);
-                      }}
-                    >
-                      <span
-                        className={rowSwatchClass}
-                        style={{ background: target.color ?? "transparent" }}
-                        data-empty={target.color === null ? "" : undefined}
-                        aria-hidden="true"
-                      >
-                        {swatchInitials(kind, target)}
-                      </span>
-                      <span className="flex-1 truncate text-[13px] font-[560]">{target.name}</span>
-                      <span className="shrink-0 font-mono text-[10px] text-theme-dim">
-                        {target.noteCount} {target.noteCount === 1 ? "note" : "notes"}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-            </ul>
-            <div className="mt-1 flex justify-end gap-2">
-              <Button onClick={() => setPending(null)}>Cancel</Button>
-            </div>
-          </div>
-        )}
-      </Dialog>
     </main>
   );
 }
@@ -794,6 +733,29 @@ function EntityListRow({
 }: EntityListRowProps) {
   const share = busiest > 0 ? row.noteCount / busiest : 0;
 
+  const actedRef = useRef(false);
+
+  function act(handler: (target: EntityRow) => void): (target: EntityRow) => void {
+    return (target) => {
+      actedRef.current = true;
+      handler(target);
+    };
+  }
+
+  /**
+   * Every row action moves focus somewhere on purpose (rename field, merge
+   * search, delete confirm); Radix returning it to the trigger would undo that.
+   * The rename field mounts while the menu's focus trap is still active, so its
+   * autoFocus is swallowed and has to be re-applied once the menu has closed.
+   */
+  function keepActionFocus(event: Event): void {
+    if (actedRef.current) {
+      actedRef.current = false;
+      event.preventDefault();
+      document.querySelector<HTMLInputElement>("[data-entity-rename-field] input")?.focus();
+    }
+  }
+
   return (
     <li className="px-1.5">
       <ContextMenu>
@@ -873,27 +835,27 @@ function EntityListRow({
                   <MoreHorizontalIcon size={15} />
                 </DropdownMenuTrigger>
               </Tooltip>
-              <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuContent align="end" className="w-44" onCloseAutoFocus={keepActionFocus}>
                 <EntityMenuItems
                   surface={dropdownMenuSurface}
                   row={row}
                   canMerge={canMerge}
-                  onRename={onRename}
-                  onMerge={onMerge}
-                  onDelete={onDelete}
+                  onRename={act(onRename)}
+                  onMerge={act(onMerge)}
+                  onDelete={act(onDelete)}
                 />
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-44">
+        <ContextMenuContent className="w-44" onCloseAutoFocus={keepActionFocus}>
           <EntityMenuItems
             surface={contextMenuSurface}
             row={row}
             canMerge={canMerge}
-            onRename={onRename}
-            onMerge={onMerge}
-            onDelete={onDelete}
+            onRename={act(onRename)}
+            onMerge={act(onMerge)}
+            onDelete={act(onDelete)}
           />
         </ContextMenuContent>
       </ContextMenu>
@@ -1003,14 +965,19 @@ type EntityDetailPaneProps = {
   kind: EntityKind;
   row: EntityRow;
   renaming: boolean;
-  canMerge: boolean;
+  merging: boolean;
+  mergeTargets: readonly EntityRow[];
+  deleteArmed: boolean;
+  onDeleteArmedChange: (armed: boolean) => void;
   onBack: () => void;
   onStartRename: () => void;
   onSubmitRename: (value: string) => void;
   onCancelRename: () => void;
   onRecolor: (color: string | null) => void;
   onDelete: () => void;
-  onMerge: () => void;
+  onToggleMerge: () => void;
+  onCancelMerge: () => void;
+  onMerge: (targetId: string) => void;
   onOpenNote: (noteId: string) => void;
   onOpenRelated: (entry: RelatedEntity) => void;
 };
@@ -1020,17 +987,26 @@ function EntityDetailPane({
   kind,
   row,
   renaming,
-  canMerge,
+  merging,
+  mergeTargets,
+  deleteArmed,
+  onDeleteArmedChange,
   onBack,
   onStartRename,
   onSubmitRename,
   onCancelRename,
   onRecolor,
   onDelete,
+  onToggleMerge,
+  onCancelMerge,
   onMerge,
   onOpenNote,
   onOpenRelated,
 }: EntityDetailPaneProps) {
+  const mergeButtonRef = useRef<HTMLButtonElement>(null);
+  const canMerge = mergeTargets.length > 1;
+  const coarsePointer = useMediaQuery(COARSE_POINTER_QUERY);
+  const deleteLabel = `Delete ${entityNoun(kind)} ${row.name}`;
   const selector = useCallback(
     (state: Parameters<typeof projectEntityDetail>[0]) => projectEntityDetail(state, kind, row.id),
     [kind, row.id],
@@ -1050,7 +1026,7 @@ function EntityDetailPane({
         >
           {swatchInitials(kind, row)}
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1" data-entity-rename-field={renaming ? "" : undefined}>
           {renaming ? (
             <InlineEdit
               className="-ml-1.5 px-0"
@@ -1105,21 +1081,70 @@ function EntityDetailPane({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          {canMerge && (
-            <Button className={cn(inlinePressClass, "h-[26px] min-h-0")} onClick={onMerge}>
+          {canMerge && !deleteArmed && (
+            <Button
+              ref={mergeButtonRef}
+              className={cn(
+                inlinePressClass,
+                "h-[26px] min-h-0",
+                merging && "border-foreground/20 bg-theme-active text-foreground",
+              )}
+              onClick={onToggleMerge}
+              aria-expanded={merging}
+            >
+              <WaypointsIcon size={13} />
               Merge
             </Button>
           )}
-          <Button
-            variant="danger"
-            className={cn(inlinePressClass, "h-[26px] min-h-0 px-2")}
-            onClick={onDelete}
-            aria-label={`Delete ${entityNoun(kind)} ${row.name}`}
-          >
-            <Trash2Icon size={14} />
-          </Button>
+          <InlineConfirm
+            armed={deleteArmed}
+            onArmedChange={onDeleteArmedChange}
+            confirmLabel={`Delete ${entityNoun(kind)}`}
+            message={
+              row.noteCount === 0
+                ? undefined
+                : `Used in ${row.noteCount === 1 ? "1 note" : `${row.noteCount} notes`}`
+            }
+            onConfirm={onDelete}
+            renderIdle={(arm) =>
+              coarsePointer ? (
+                <HoldToConfirm
+                  ariaLabel={deleteLabel}
+                  className={cn(buttonVariants({ variant: "danger" }), "h-9 min-h-0 px-3")}
+                  onConfirm={onDelete}
+                  onKeyboardActivate={arm}
+                >
+                  <Trash2Icon size={15} />
+                </HoldToConfirm>
+              ) : (
+                <Button
+                  variant="danger"
+                  className={cn(inlinePressClass, "h-[26px] min-h-0 px-2")}
+                  onClick={arm}
+                  aria-label={deleteLabel}
+                >
+                  <Trash2Icon size={14} />
+                </Button>
+              )
+            }
+          />
         </div>
       </div>
+
+      <AnimatePresence initial={false}>
+        {merging && (
+          <MergePanel
+            kind={kind}
+            source={row}
+            targets={mergeTargets}
+            onMerge={onMerge}
+            onCancel={() => {
+              onCancelMerge();
+              mergeButtonRef.current?.focus();
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {kind === "person" && row.note !== null && (
         <p className="mt-4 border-l-2 border-theme-divider pl-3 text-[13px] leading-[1.6] text-foreground/80">
@@ -1213,6 +1238,177 @@ function EntityDetailPane({
         )}
       </DetailSection>
     </div>
+  );
+}
+
+type MergePanelProps = {
+  kind: EntityKind;
+  source: EntityRow;
+  targets: readonly EntityRow[];
+  onMerge: (targetId: string) => void;
+  onCancel: () => void;
+};
+
+/**
+ * Picks the entity that absorbs `source`, in the page flow rather than a modal.
+ * Choosing a row only stages it; the explicit Merge button commits, because
+ * the source is deleted afterwards.
+ */
+function MergePanel({ kind, source, targets, onMerge, onCancel }: MergePanelProps) {
+  const reduceMotion = useReducedMotion();
+  const listId = useId();
+  const [query, setQuery] = useState("");
+  const [chosenId, setChosenId] = useState<string | null>(null);
+  const candidates = useMemo(
+    () => sortRows(filterRows(targets.filter((row) => row.id !== source.id), query), "used"),
+    [targets, source.id, query],
+  );
+  const chosen = targets.find((row) => row.id === chosenId) ?? null;
+  const navigation = useListboxNavigation({
+    count: candidates.length,
+    onSelect: (index) => setChosenId(candidates[index]?.id ?? null),
+  });
+  const noun = entityNoun(kind);
+
+  function label(row: EntityRow): string {
+    return kind === "tag" ? `#${row.name}` : row.name;
+  }
+
+  return (
+    <motion.section
+      aria-label={`Merge ${label(source)} into another ${noun}`}
+      className="overflow-hidden"
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.16, 1, 0.3, 1] }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          onCancel();
+        }
+      }}
+    >
+      <div className="mt-4 rounded-xl border border-border bg-foreground/[0.02] p-2">
+        <div className="flex items-baseline justify-between gap-3 px-1.5 pb-2 pt-1">
+          <h3 className={sectionLabelClass}>Merge into</h3>
+          <span className="truncate text-[11px] text-theme-dim">
+            {label(source)} is removed afterwards
+          </span>
+        </div>
+
+        <div
+          className={cn(
+            "flex h-[28px] items-center gap-1.5 rounded-lg border border-border bg-background px-2 text-theme-dim",
+            "focus-within:border-ring focus-within:shadow-[0_0_0_3px_hsl(var(--ring)/0.18)]",
+          )}
+        >
+          <SearchIcon size={13} aria-hidden="true" />
+          <input
+            type="search"
+            autoFocus
+            role="combobox"
+            aria-expanded="true"
+            aria-controls={listId}
+            aria-activedescendant={
+              candidates.length > 0 ? `${listId}-${navigation.activeIndex}` : undefined
+            }
+            className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none [&::-webkit-search-cancel-button]:hidden"
+            placeholder={`Find a ${noun}`}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Tab") {
+                navigation.onKeyDown(event);
+              }
+            }}
+            aria-label={`Find a ${noun} to merge into`}
+          />
+        </div>
+
+        <div
+          ref={navigation.listRef}
+          id={listId}
+          role="listbox"
+          aria-label={`${entityNounPlural(kind)} to merge into`}
+          className="mt-1.5 flex max-h-[216px] flex-col gap-px overflow-y-auto"
+        >
+          {candidates.length === 0 ? (
+            <p className="px-2 py-3 text-[12px] text-theme-dim">
+              No {entityNounPlural(kind)} match “{query}”.
+            </p>
+          ) : (
+            candidates.map((target, index) => {
+              const isChosen = target.id === chosenId;
+              return (
+                <div
+                  key={target.id}
+                  id={`${listId}-${index}`}
+                  role="option"
+                  aria-selected={isChosen}
+                  data-index={index}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-[6px] text-foreground transition-colors",
+                    isChosen
+                      ? "bg-theme-active"
+                      : index === navigation.activeIndex && "bg-foreground/[0.035]",
+                  )}
+                  onMouseMove={() => navigation.setActiveIndex(index)}
+                  onClick={() => setChosenId(target.id)}
+                >
+                  <span
+                    className={rowSwatchClass}
+                    style={{ background: target.color ?? "transparent" }}
+                    data-empty={target.color === null ? "" : undefined}
+                    aria-hidden="true"
+                  >
+                    {swatchInitials(kind, target)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-[560] leading-[1.35]">
+                    {kind === "tag" && (
+                      <span className="text-theme-dim" aria-hidden="true">
+                        #
+                      </span>
+                    )}
+                    {target.name}
+                  </span>
+                  <span className="shrink-0 font-mono text-[10px] tabular-nums text-theme-dim">
+                    {target.noteCount}
+                  </span>
+                  <CheckIcon
+                    size={13}
+                    className={cn("shrink-0 text-foreground", !isChosen && "invisible")}
+                    aria-hidden="true"
+                  />
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-theme-divider px-1.5 pt-2">
+          <p className="min-w-0 text-[12px] leading-[1.4] text-theme-secondary" aria-live="polite">
+            {chosen === null
+              ? `Pick where references to ${label(source)} should go.`
+              : `${source.noteCount === 1 ? "1 note" : `${source.noteCount} notes`} will reference ${label(chosen)}.`}
+          </p>
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button className={cn(inlinePressClass, "h-[26px] min-h-0")} onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              className={cn(inlinePressClass, "h-[26px] min-h-0")}
+              disabled={chosen === null}
+              onClick={() => chosen && onMerge(chosen.id)}
+            >
+              Merge
+            </Button>
+          </div>
+        </div>
+      </div>
+    </motion.section>
   );
 }
 

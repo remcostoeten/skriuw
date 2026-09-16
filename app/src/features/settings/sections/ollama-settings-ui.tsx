@@ -1,4 +1,4 @@
-import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
+import type { FocusEvent, FormEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
 import type { LocalAiModel, LocalAiProgress, LocalAiStatus } from "@/contracts/ai";
@@ -12,13 +12,13 @@ import {
   ollamaProgressTiming,
   ollamaStatusLabel,
   type OllamaRuntimeAction,
-} from "@/features/ai/ollama-model";
+} from "@/features/ai/models/ollama-model";
 import {
   OLLAMA_MODEL_CATALOG,
   ollamaUseCaseLabel,
   type OllamaCatalogModel,
   type OllamaSuggestedModelId,
-} from "@/features/ai/ollama-model-catalog";
+} from "@/features/ai/models/ollama-model-catalog";
 import { formatByteSize } from "@/shared/lib/format-bytes";
 import { formatDuration } from "@/shared/lib/format-duration";
 import { cn } from "@/shared/lib/utils";
@@ -437,6 +437,8 @@ export function OllamaModelsPanel({
   );
 }
 
+const SUGGESTION_TYPEAHEAD_RESET_MS = 700;
+
 function SuggestedModelsMenu({
   disabled,
   installed,
@@ -449,8 +451,11 @@ function SuggestedModelsMenu({
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const typeahead = useRef({ query: "", at: 0 });
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const lastIndex = OLLAMA_MODEL_CATALOG.length - 1;
 
   useEffect(() => {
     if (!open) return;
@@ -463,6 +468,18 @@ function SuggestedModelsMenu({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    listRef.current
+      ?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [open, activeIndex]);
+
+  function openAt(index: number): void {
+    setActiveIndex(index);
+    setOpen(true);
+  }
+
   function commit(index: number): void {
     const option = OLLAMA_MODEL_CATALOG[index];
     if (option) {
@@ -472,7 +489,31 @@ function SuggestedModelsMenu({
     triggerRef.current?.focus();
   }
 
+  function runTypeahead(key: string): boolean {
+    if (key.length !== 1 || key === " ") {
+      return false;
+    }
+    const now = Date.now();
+    const query =
+      now - typeahead.current.at > SUGGESTION_TYPEAHEAD_RESET_MS
+        ? key.toLowerCase()
+        : typeahead.current.query + key.toLowerCase();
+    typeahead.current = { query, at: now };
+    const from = open ? activeIndex : lastIndex;
+    for (let step = 1; step <= OLLAMA_MODEL_CATALOG.length; step += 1) {
+      const index = (from + step) % OLLAMA_MODEL_CATALOG.length;
+      if (OLLAMA_MODEL_CATALOG[index]?.label.toLowerCase().startsWith(query)) {
+        openAt(index);
+        return true;
+      }
+    }
+    return false;
+  }
+
   function onKeyDown(event: ReactKeyboardEvent): void {
+    if (disabled) {
+      return;
+    }
     if (event.key === "Escape") {
       if (open) {
         event.stopPropagation();
@@ -481,12 +522,40 @@ function SuggestedModelsMenu({
       }
       return;
     }
+    if (event.key === "Tab") {
+      setOpen(false);
+      return;
+    }
     if (!open) {
-      if (event.key === "ArrowDown" || event.key === "Enter") {
+      if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        setActiveIndex(0);
-        setOpen(true);
+        openAt(0);
+        return;
       }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        openAt(lastIndex);
+        return;
+      }
+      if (runTypeahead(event.key)) {
+        event.preventDefault();
+      }
+      return;
+    }
+    const toFirst =
+      event.key === "Home" || event.key === "PageUp" || (event.key === "ArrowUp" && event.shiftKey);
+    const toLast =
+      event.key === "End" ||
+      event.key === "PageDown" ||
+      (event.key === "ArrowDown" && event.shiftKey);
+    if (toFirst) {
+      event.preventDefault();
+      setActiveIndex(0);
+      return;
+    }
+    if (toLast) {
+      event.preventDefault();
+      setActiveIndex(lastIndex);
       return;
     }
     if (event.key === "ArrowDown") {
@@ -504,11 +573,22 @@ function SuggestedModelsMenu({
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       commit(activeIndex);
+      return;
+    }
+    if (runTypeahead(event.key)) {
+      event.preventDefault();
+    }
+  }
+
+  function onBlur(event: FocusEvent<HTMLDivElement>): void {
+    const next = event.relatedTarget as Node | null;
+    if (open && next && !rootRef.current?.contains(next)) {
+      setOpen(false);
     }
   }
 
   return (
-    <div ref={rootRef} className="relative shrink-0" onKeyDown={onKeyDown}>
+    <div ref={rootRef} className="relative shrink-0" onKeyDown={onKeyDown} onBlur={onBlur}>
       <button
         ref={triggerRef}
         type="button"
@@ -516,16 +596,10 @@ function SuggestedModelsMenu({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
+        aria-activedescendant={open ? `${listId}-${activeIndex}` : undefined}
         disabled={disabled}
         className={cn(settingsButton, "gap-1")}
-        onClick={() => {
-          if (open) {
-            setOpen(false);
-            return;
-          }
-          setActiveIndex(0);
-          setOpen(true);
-        }}
+        onClick={() => (open ? setOpen(false) : openAt(0))}
       >
         Suggestions
         <ChevronDownIcon
@@ -536,6 +610,7 @@ function SuggestedModelsMenu({
       </button>
       {open ? (
         <ul
+          ref={listRef}
           id={listId}
           role="listbox"
           aria-label="Suggested models"
@@ -545,6 +620,8 @@ function SuggestedModelsMenu({
           {OLLAMA_MODEL_CATALOG.map((option, index) => (
             <SuggestedModelOption
               key={option.id}
+              id={`${listId}-${index}`}
+              index={index}
               option={option}
               active={index === activeIndex}
               installedName={installed.has(option.id) ? option.id : null}
@@ -559,12 +636,16 @@ function SuggestedModelsMenu({
 }
 
 function SuggestedModelOption({
+  id,
+  index,
   option,
   active,
   installedName,
   onPointerEnter,
   onClick,
 }: {
+  id: string;
+  index: number;
   option: OllamaCatalogModel;
   active: boolean;
   installedName: string | null;
@@ -573,8 +654,10 @@ function SuggestedModelOption({
 }) {
   return (
     <li
+      id={id}
       role="option"
       aria-selected={installedName !== null}
+      data-index={index}
       data-active={active}
       className={cn(
         "flex cursor-pointer select-none flex-col gap-0.5 rounded-md px-2 py-1.5 text-left transition-colors",

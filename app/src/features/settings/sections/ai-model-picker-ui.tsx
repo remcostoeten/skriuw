@@ -1,6 +1,6 @@
-import type { AiProviderGroup } from "@/features/ai/model-options";
-import { aiModelOptionFor } from "@/features/ai/model-options";
-import type { AiModelSelection } from "@/features/ai/model-selection";
+import type { AiProviderGroup } from "@/features/ai/models/model-options";
+import { aiModelOptionFor } from "@/features/ai/models/model-options";
+import type { AiModelSelection } from "@/features/ai/models/model-selection";
 import { cn } from "@/shared/lib/utils";
 import { Select, type SelectOption } from "@/shared/ui/select";
 import {

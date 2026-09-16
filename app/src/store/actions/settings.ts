@@ -7,8 +7,8 @@ import {
   resetShortcutOverrides,
 } from "@/features/settings/settings-model";
 import type { EditableSettings } from "@/features/settings/settings-model";
-import { changeAiModelSelection } from "@/features/ai/model-selection";
-import type { AiModelSelection } from "@/features/ai/model-selection";
+import { changeAiModelSelection } from "@/features/ai/models/model-selection";
+import type { AiModelSelection } from "@/features/ai/models/model-selection";
 import { SHORTCUT_DEFINITIONS } from "@/commands/definitions";
 import type { ShortcutActionId } from "@/commands/definitions";
 import type { RendererStore } from "@/store/types";

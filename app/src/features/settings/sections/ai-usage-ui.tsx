@@ -11,8 +11,8 @@ import {
   clearAiRunHistory,
   loadAiHistory,
   saveAiHistorySettings,
-} from "@/features/ai/history-bridge";
-import { stagePlaygroundPrefill } from "@/features/ai/playground-prefill";
+} from "@/features/ai/history/history-bridge";
+import { stagePlaygroundPrefill } from "@/features/ai/prompts/playground-prefill";
 import {
   USAGE_PERIODS,
   decodeModelFilter,
@@ -28,7 +28,7 @@ import {
   usagePeriodStart,
   usageTotals,
   type UsagePeriod,
-} from "@/features/ai/usage-model";
+} from "@/features/ai/history/usage-model";
 import { cn } from "@/shared/lib/utils";
 import { Select } from "@/shared/ui/select";
 import {

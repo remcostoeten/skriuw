@@ -15,7 +15,7 @@ function viewWith(start: Rect, end: Rect): EditorView {
 
 function withWindowWidth(width: number, run: () => void): void {
   const original = globalThis.window;
-  globalThis.window = { innerWidth: width } as Window & typeof globalThis;
+  globalThis.window = { innerWidth: width, innerHeight: 900 } as Window & typeof globalThis;
   try {
     run();
   } finally {
@@ -60,5 +60,21 @@ test("anchors stay a gap away from both window edges", () => {
       { left: 1196, top: 400, bottom: 420 },
     );
     assert.equal(rangeMenuAnchor(nearRight, 1, 2, WIDTH).x, 1038);
+  });
+});
+
+test("a tall menu near the top flips below when there is more room there", () => {
+  const view = viewWith({ left: 200, top: 300, bottom: 320 }, { left: 300, top: 300, bottom: 320 });
+  withWindowWidth(1200, () => {
+    const anchor = rangeMenuAnchor(view, 1, 2, WIDTH, 500);
+    assert.equal(anchor.below, true);
+    assert.equal(anchor.y, 320);
+  });
+});
+
+test("a tall menu stays above when the space below is smaller", () => {
+  const view = viewWith({ left: 200, top: 480, bottom: 500 }, { left: 300, top: 480, bottom: 500 });
+  withWindowWidth(1200, () => {
+    assert.equal(rangeMenuAnchor(view, 1, 2, WIDTH, 600).below, false);
   });
 });

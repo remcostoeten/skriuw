@@ -16,7 +16,7 @@ import {
   remoteAiModelsFor,
   vaultAcceptsNewKeys,
   vaultMessage,
-} from "@/features/ai/remote-ai-model";
+} from "@/features/ai/models/remote-ai-model";
 import { cn } from "@/shared/lib/utils";
 import { Radio } from "@/shared/ui/radio";
 import { Select } from "@/shared/ui/select";

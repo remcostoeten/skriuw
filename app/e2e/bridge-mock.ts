@@ -97,6 +97,16 @@ export function invoke<T>(command: string, arguments_: InvokeArguments = {}): Pr
   if (command === "bootstrap_workspace") {
     return Promise.resolve(currentSnapshot() as T);
   }
+  if (command === "search_index_status" || command === "rebuild_search_index") {
+    const noteCount = currentSnapshot().nodes.length;
+    return Promise.resolve({
+      indexVersion: 1,
+      currentVersion: 1,
+      indexedNotes: noteCount,
+      noteCount,
+      needsRebuild: false,
+    } as T);
+  }
   if (command === "search_workspace") {
     return Promise.resolve([
       {

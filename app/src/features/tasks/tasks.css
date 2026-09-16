@@ -32,6 +32,8 @@
   border-radius: 7px;
   background: hsl(var(--theme-bg-editor));
   cursor: pointer;
+  outline: none;
+  transition: border-color 120ms ease, background-color 120ms ease;
 }
 
 .task-checkbox:checked {
@@ -51,7 +53,16 @@
   transform: rotate(45deg);
 }
 
-.task-checkbox:focus-visible,
+.task-checkbox:focus-visible {
+  border-color: hsl(var(--success));
+  background: hsl(var(--success) / 0.14);
+}
+
+.task-checkbox:checked:focus-visible {
+  background: hsl(var(--success));
+  filter: brightness(1.12);
+}
+
 .task-source:focus-visible {
   outline: 2px solid hsl(var(--foreground) / 0.75);
   outline-offset: 4px;
@@ -104,7 +115,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .task-row:hover { background: hsl(var(--foreground) / 0.03); }
-  .task-row-label:hover .task-checkbox { border-color: hsl(var(--primary)); }
+  .task-row-label:hover .task-checkbox:not(:checked) { border-color: hsl(var(--success) / 0.7); }
   .task-source:hover { color: hsl(var(--foreground)); background: hsl(var(--muted)); }
   .task-checkbox:active:not(:focus-visible) { transform: scale(0.94); }
 }
@@ -115,5 +126,6 @@
 
 @media (forced-colors: active) {
   .task-checkbox { appearance: auto; }
+  .task-checkbox:focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
   .task-checkbox:checked::after { display: none; }
 }

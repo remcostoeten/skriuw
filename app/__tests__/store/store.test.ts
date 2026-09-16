@@ -349,6 +349,18 @@ test("clearTreeSelection empties the selection without touching focus", () => {
   assert.equal(store.clearTreeSelection(), false);
 });
 
+test("activating a note clears a multi-selection but keeps a matching single selection", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.selectTreeNode("folder", "replace");
+  store.selectTreeNode("note-root", "range");
+  store.setActiveNote("note-root");
+  assert.deepEqual([...store.getState().selectedNodeIds], []);
+  assert.equal(store.getState().selectionAnchorId, null);
+  store.selectTreeNode("note-child", "replace");
+  store.setActiveNote("note-child");
+  assert.deepEqual([...store.getState().selectedNodeIds], ["note-child"]);
+});
+
 test("collapsing a folder hides descendants and refocuses the folder", () => {
   const store = createRendererStore(createInitialState(snapshot()));
   store.setActiveNote("note-child");

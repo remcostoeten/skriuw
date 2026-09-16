@@ -3,6 +3,7 @@ import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 
 import { CheckIcon, ChevronRightIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
+import { KeyCaps } from "@/shared/ui/key-caps";
 import { overlayContentMotion } from "./overlay-motion";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 
@@ -17,10 +18,10 @@ const DropdownMenuPortal = DropdownMenuPrimitive.Portal;
 const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 
 const surfaceClass =
-  "z-50 min-w-32 overflow-hidden rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-xl";
+  "z-50 min-w-32 overflow-hidden rounded-md border border-border bg-popover p-1.5 text-popover-foreground shadow-xl";
 
 const rowClass =
-  "relative flex w-full cursor-default select-none items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] text-muted-foreground outline-hidden transition-colors data-disabled:pointer-events-none data-disabled:opacity-50 focus:bg-accent focus:text-foreground pointer-coarse:min-h-11 pointer-coarse:px-3 pointer-coarse:text-sm";
+  "relative flex w-full cursor-default select-none items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] text-muted-foreground outline-hidden transition-colors data-disabled:pointer-events-none data-disabled:opacity-50 focus:bg-accent focus:text-foreground pointer-coarse:min-h-11 pointer-coarse:px-3 pointer-coarse:text-sm";
 
 const DropdownMenuSubTrigger = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.SubTrigger>,
@@ -150,18 +151,7 @@ DropdownMenuSeparator.displayName = DropdownMenuPrimitive.Separator.displayName;
  * as `"Ctrl ,"`; each token renders as its own key cap.
  */
 function DropdownMenuShortcut({ keys, className }: { keys: string; className?: string }) {
-  return (
-    <span className={cn("ml-auto flex shrink-0 items-center gap-[3px]", className)}>
-      {keys.split(/\s+/).map((token, index) => (
-        <kbd
-          key={`${token}-${index}`}
-          className="flex h-4 min-w-4 items-center justify-center rounded border border-border bg-muted px-1 font-mono text-[10px] leading-none text-muted-foreground"
-        >
-          {token}
-        </kbd>
-      ))}
-    </span>
-  );
+  return <KeyCaps keys={keys.split(/\s+/)} className={cn("ml-auto", className)} />;
 }
 DropdownMenuShortcut.displayName = "DropdownMenuShortcut";
 

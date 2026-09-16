@@ -12,14 +12,29 @@ type Props = {
 
 type Ripple = { x: number; y: number; id: number };
 
+type Particle = { left: number; edge: "top" | "bottom"; delay: number; duration: number; size: number };
+
+const PARTICLE_COUNT = 6;
+
 const REST_SPEED = 0.6;
 const HOVER_SPEED = 1;
 const PRESS_SPEED = 2.4;
+
+function scatterParticles(): Particle[] {
+  return Array.from({ length: PARTICLE_COUNT }, (_, index) => ({
+    left: 8 + Math.random() * 84,
+    edge: index % 2 === 0 ? "top" : "bottom",
+    delay: Math.random() * 4,
+    duration: 2.6 + Math.random() * 1.6,
+    size: Math.random() < 0.35 ? 3 : 2,
+  }));
+}
 
 export function LiquidMetalButton({ label, children, tabIndex, onRef, onPress, onFocus }: Props) {
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
   const [ripples, setRipples] = useState<Ripple[]>([]);
+  const [particles] = useState(scatterParticles);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const shaderHostRef = useRef<HTMLDivElement>(null);
   const shaderRef = useRef<ShaderMount | null>(null);
@@ -36,13 +51,13 @@ export function LiquidMetalButton({ label, children, tabIndex, onRef, onPress, o
         host,
         liquidMetalFragmentShader,
         {
-          u_colorBack: [0, 0, 0, 1],
-          u_colorTint: [1, 1, 1, 1],
+          u_colorBack: [0.08, 0.02, 0.18, 1],
+          u_colorTint: [0.78, 0.62, 1, 1],
           u_isImage: false,
           u_repetition: 4,
           u_softness: 0.5,
-          u_shiftRed: 0.3,
-          u_shiftBlue: 0.3,
+          u_shiftRed: 0.15,
+          u_shiftBlue: 0.5,
           u_distortion: 0,
           u_contour: 0,
           u_angle: 45,
@@ -88,6 +103,23 @@ export function LiquidMetalButton({ label, children, tabIndex, onRef, onPress, o
 
   return (
     <span className="liquid-metal" data-pressed={pressed ? "true" : undefined}>
+      <span className="liquid-metal-glow" aria-hidden="true" />
+      <span className="liquid-metal-particles" aria-hidden="true">
+        {particles.map((particle, index) => (
+          <span
+            key={index}
+            className="liquid-metal-particle"
+            data-edge={particle.edge}
+            style={{
+              left: `${particle.left}%`,
+              width: particle.size,
+              height: particle.size,
+              animationDelay: `${particle.delay}s`,
+              animationDuration: `${particle.duration}s`,
+            }}
+          />
+        ))}
+      </span>
       <span className="liquid-metal-shell" aria-hidden="true">
         <span ref={shaderHostRef} className="liquid-metal-shader" />
         <span className="liquid-metal-core" />
