@@ -75,6 +75,24 @@ export const SYNC_EVENTS_DEVICE_HEADER = "x-skriuw-device-id";
 export const SYNC_EVENTS_EXPIRY_HEADER = "x-skriuw-session-expires-at";
 
 /**
+ * Every workspace sync route this Worker serves, with the methods each one
+ * accepts. It is the single source for both method admission and the
+ * capability report on `GET /health`, so a route the Worker advertises cannot
+ * drift from the route table the router actually matches against.
+ */
+const SYNC_ROUTE_METHODS: Record<SyncRouteName, readonly string[]> = {
+  push: ["POST"],
+  pull: ["GET"],
+  chunk: ["PUT", "GET", "HEAD"],
+  checkpoint: ["GET", "POST"],
+  encryption: ["GET", "POST"],
+  acknowledge: ["POST"],
+  events: ["GET"],
+};
+
+export const SYNC_ROUTE_NAMES = Object.keys(SYNC_ROUTE_METHODS) as readonly SyncRouteName[];
+
+/**
  * Every field is a stable, server-chosen code. Workspace ids, device ids,
  * operation ids, digests, and message text never enter the log.
  */
@@ -316,16 +334,7 @@ function matchSyncRoute(pathname: string, method: string): SyncRoute | null {
 }
 
 function requireMethod(method: string, route: SyncRoute): void {
-  const allowed: Record<SyncRouteName, readonly string[]> = {
-    push: ["POST"],
-    pull: ["GET"],
-    chunk: ["PUT", "GET", "HEAD"],
-    checkpoint: ["GET", "POST"],
-    encryption: ["GET", "POST"],
-    acknowledge: ["POST"],
-    events: ["GET"],
-  };
-  if (!allowed[route.name].includes(method)) {
+  if (!SYNC_ROUTE_METHODS[route.name].includes(method)) {
     throw new PublicApiError(405, "method_not_allowed");
   }
 }

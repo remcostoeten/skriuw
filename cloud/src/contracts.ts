@@ -5,6 +5,8 @@ import workspaceOperationSchema from "../../contracts/generated/workspace-operat
 
 export const WORKSPACE_SYNC_PROTOCOL_VERSION = 2;
 export const SUPPORTED_SYNC_PROTOCOL_VERSIONS: readonly number[] = [1, 2];
+/** The Durable Object SQL schema this Worker migrates every workspace to. */
+export const WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION = 4;
 export const MIN_CHUNKED_CONTENT_PROTOCOL_VERSION = 2;
 export const MIN_SEALED_CONTENT_PROTOCOL_VERSION = 2;
 export const SEALED_CONTENT_MIME_TYPE = "application/octet-stream";

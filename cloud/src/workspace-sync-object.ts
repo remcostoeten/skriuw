@@ -23,6 +23,7 @@ import {
   type SyncPushResult,
   type SyncPushResponse,
   UNREFERENCED_CHUNK_GRACE_SECONDS,
+  WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION,
   WORKSPACE_SYNC_PROTOCOL_VERSION,
   type WorkspaceCheckpointRecord,
   type WorkspaceEncryptionMarker,
@@ -337,10 +338,10 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         "SELECT COALESCE(MAX(id), 0) AS version FROM _sql_schema_migrations",
       )
       .one().version;
-    if (currentVersion > 4) {
+    if (currentVersion > WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION) {
       throw new Error(`workspace sync schema ${currentVersion} is newer than this service`);
     }
-    if (currentVersion === 4) {
+    if (currentVersion === WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION) {
       return;
     }
     if (currentVersion === 3) {
@@ -394,7 +395,7 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
           ),
           enabled_at INTEGER NOT NULL CHECK (enabled_at >= 0)
         ) STRICT;
-        INSERT INTO _sql_schema_migrations(id) VALUES (4);
+        INSERT INTO _sql_schema_migrations(id) VALUES (${WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION});
       `);
     });
   }
