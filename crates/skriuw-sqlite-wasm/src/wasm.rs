@@ -4,7 +4,8 @@ use std::sync::Arc;
 use skriuw_sqlite::SqliteWorkspace;
 use skriuw_sync::{
     SyncCancellation, SyncClock, SyncHttpEndpoints, SyncTransport, TransportError,
-    classify_http_failure, request_timeout_ms,
+    classify_http_failure, classify_optional_route_failure, rejected_error_code,
+    request_timeout_ms,
 };
 use sqlite_wasm_vfs::sahpool::{
     OpfsSAHError, OpfsSAHPoolCfgBuilder, install as install_opfs_sahpool,
@@ -284,13 +285,13 @@ impl XhrSyncTransport {
         })
     }
 
-    fn request_json<T: serde::de::DeserializeOwned>(
+    fn request_json_response(
         &self,
         method: &str,
         url: &str,
         payload: Option<&impl serde::Serialize>,
         cancellation: &SyncCancellation,
-    ) -> Result<T, TransportError> {
+    ) -> Result<HttpResponse, TransportError> {
         let body = payload
             .map(|payload| {
                 serde_json::to_vec(payload).map_err(|error| {
@@ -298,23 +299,57 @@ impl XhrSyncTransport {
                 })
             })
             .transpose()?;
-        let response = self.request(
+        self.request(
             method,
             url,
             body.as_ref().map(|_| "application/json"),
             body.as_deref(),
             cancellation,
-        )?;
+        )
+    }
+
+    fn request_json<T: serde::de::DeserializeOwned>(
+        &self,
+        method: &str,
+        url: &str,
+        payload: Option<&impl serde::Serialize>,
+        cancellation: &SyncCancellation,
+    ) -> Result<T, TransportError> {
+        let response = self.request_json_response(method, url, payload, cancellation)?;
         if !(200..300).contains(&response.status) {
             return Err(classify_http_failure(
                 response.status,
                 response.retry_after_ms,
             ));
         }
-        serde_json::from_slice(&response.body).map_err(|error| {
-            TransportError::Transient(format!("cloud response was invalid: {error}"))
-        })
+        decode_json(&response.body)
     }
+
+    /// Sends a request on a route older deployments do not serve, so a 404
+    /// that names no specific decision is reported as an absent route rather
+    /// than as a denial the caller cannot act on.
+    fn request_optional_route_json<T: serde::de::DeserializeOwned>(
+        &self,
+        method: &str,
+        url: &str,
+        payload: Option<&impl serde::Serialize>,
+        cancellation: &SyncCancellation,
+    ) -> Result<T, TransportError> {
+        let response = self.request_json_response(method, url, payload, cancellation)?;
+        if !(200..300).contains(&response.status) {
+            return Err(classify_optional_route_failure(
+                response.status,
+                rejected_error_code(&response.body).as_deref(),
+                response.retry_after_ms,
+            ));
+        }
+        decode_json(&response.body)
+    }
+}
+
+fn decode_json<T: serde::de::DeserializeOwned>(body: &[u8]) -> Result<T, TransportError> {
+    serde_json::from_slice(body)
+        .map_err(|error| TransportError::Transient(format!("cloud response was invalid: {error}")))
 }
 
 fn object_number(value: &JsValue, key: &str) -> Option<f64> {
@@ -469,12 +504,13 @@ impl SyncTransport for XhrSyncTransport {
         workspace_id: &str,
         cancellation: &SyncCancellation,
     ) -> Result<Option<skriuw_domain::WorkspaceEncryptionMarker>, TransportError> {
-        let marker: Option<skriuw_domain::WorkspaceEncryptionMarker> = self.request_json(
-            "GET",
-            &self.endpoints.encryption(workspace_id),
-            None::<&()>,
-            cancellation,
-        )?;
+        let marker: Option<skriuw_domain::WorkspaceEncryptionMarker> = self
+            .request_optional_route_json(
+                "GET",
+                &self.endpoints.encryption(workspace_id),
+                None::<&()>,
+                cancellation,
+            )?;
         if let Some(marker) = &marker {
             marker.validate().map_err(|error| {
                 TransportError::Validation(format!("encryption record was unreadable: {error}"))
@@ -490,7 +526,7 @@ impl SyncTransport for XhrSyncTransport {
         key_id: &str,
         cancellation: &SyncCancellation,
     ) -> Result<skriuw_domain::WorkspaceEncryptionMarker, TransportError> {
-        let marker: skriuw_domain::WorkspaceEncryptionMarker = self.request_json(
+        let marker: skriuw_domain::WorkspaceEncryptionMarker = self.request_optional_route_json(
             "POST",
             &self.endpoints.encryption(workspace_id),
             Some(&serde_json::json!({ "scheme": scheme, "keyId": key_id })),

@@ -97,6 +97,7 @@ function browserBlockedText(reason: string): string {
     case "push_conflict":
     case "protocol_mismatch":
     case "storage_failure":
+    case "server_too_old":
       return blockedStateText(reason);
     default:
       return "Sync stopped because the cloud rejected a local change. Retry sync; reviewing individual blocked changes needs the desktop app for now.";

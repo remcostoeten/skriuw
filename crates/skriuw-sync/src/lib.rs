@@ -41,14 +41,16 @@ pub use cycle::{
     BLOCKED_REASON_PROTOCOL_MISMATCH, BLOCKED_REASON_PUSH_CONFLICT,
     BLOCKED_REASON_REJECTED_ACKNOWLEDGEMENT, BLOCKED_REASON_REJECTED_BATCH,
     BLOCKED_REASON_REJECTED_CHECKPOINT, BLOCKED_REASON_REJECTED_PULL,
-    BLOCKED_REASON_SEALED_CONTENT_UNREADABLE, BLOCKED_REASON_STORAGE_FAILURE,
-    CONSECUTIVE_REJECTIONS_BEFORE_PARKING, FULL_CHANGE_NOTE_THRESHOLD, MAX_BLOCKED_DETAIL_CHARS,
-    PULL_APPLY_SUB_BATCH_OPERATIONS, RemoteChangeSet, SyncCycleConfig, SyncCycleOutcome,
-    SyncCycleState, SyncStatus, run_sync_cycle, storage_failure as classify_storage_failure,
+    BLOCKED_REASON_SEALED_CONTENT_UNREADABLE, BLOCKED_REASON_SERVER_TOO_OLD,
+    BLOCKED_REASON_STORAGE_FAILURE, CONSECUTIVE_REJECTIONS_BEFORE_PARKING,
+    FULL_CHANGE_NOTE_THRESHOLD, MAX_BLOCKED_DETAIL_CHARS, PULL_APPLY_SUB_BATCH_OPERATIONS,
+    RemoteChangeSet, SyncCycleConfig, SyncCycleOutcome, SyncCycleState, SyncStatus, run_sync_cycle,
+    storage_failure as classify_storage_failure,
 };
 pub use http::{
-    SyncHttpEndpoints, VALIDATION_DETAIL_QUOTA_EXCEEDED, VALIDATION_DETAIL_WORKSPACE_ENCRYPTED,
-    classify_http_failure, request_timeout_ms,
+    ERROR_CODE_NOT_FOUND, SyncHttpEndpoints, VALIDATION_DETAIL_QUOTA_EXCEEDED,
+    VALIDATION_DETAIL_WORKSPACE_ENCRYPTED, classify_http_failure, classify_optional_route_failure,
+    rejected_error_code, request_timeout_ms,
 };
 pub use seal::{
     WorkspaceSealer, derive_workspace_seal, enable_workspace_encryption, new_recovery_code,

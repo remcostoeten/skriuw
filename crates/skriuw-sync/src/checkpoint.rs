@@ -10,8 +10,8 @@ use crate::{
         BLOCKED_REASON_AUTHORIZATION_DENIED, BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED,
         BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED, BLOCKED_REASON_LOG_TRUNCATED,
         BLOCKED_REASON_LOG_TRUNCATED_WITHOUT_CHECKPOINT, BLOCKED_REASON_REJECTED_CHECKPOINT,
-        SyncCycleConfig, SyncCycleOutcome, SyncStatus, encryption_mismatch,
-        refused_by_encrypted_workspace, storage_failure,
+        BLOCKED_REASON_SERVER_TOO_OLD, SyncCycleConfig, SyncCycleOutcome, SyncStatus,
+        encryption_mismatch, refused_by_encrypted_workspace, storage_failure,
     },
     http::VALIDATION_DETAIL_WORKSPACE_ENCRYPTED,
     seal::WorkspaceSealer,
@@ -314,6 +314,11 @@ pub fn run_checkpoint_publication(
                 return Some(blocked(clock, cycle_config, reason, &detail));
             }
         }
+        // A cloud without the encryption record predates encryption, so a
+        // device that holds no key publishes the plaintext checkpoint it
+        // always did; one that holds a key stops rather than publish a
+        // checkpoint the workspace's key state cannot be checked against.
+        Err(TransportError::RouteUnavailable) if sealer.is_none() => {}
         Err(error) => return Some(checkpoint_failure(clock, backoff, cycle_config, &error)),
     }
 
@@ -426,6 +431,12 @@ fn checkpoint_failure(
             config,
             BLOCKED_REASON_AUTHORIZATION_DENIED,
             &error.to_string(),
+        ),
+        TransportError::RouteUnavailable => blocked(
+            clock,
+            config,
+            BLOCKED_REASON_SERVER_TOO_OLD,
+            "this Skriuw cloud server is older than this app and cannot confirm the workspace encryption key; nothing was published",
         ),
         TransportError::Validation(detail) if detail == VALIDATION_DETAIL_WORKSPACE_ENCRYPTED => {
             let (reason, detail) = refused_by_encrypted_workspace(false);

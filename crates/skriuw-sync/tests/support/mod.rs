@@ -696,6 +696,7 @@ pub struct FakeTransport {
     checkpoint_fetch_calls: AtomicUsize,
     checkpoint_publish_calls: AtomicUsize,
     acknowledge_calls: AtomicUsize,
+    encryption_route_absent: std::sync::atomic::AtomicBool,
 }
 
 impl FakeTransport {
@@ -717,7 +718,15 @@ impl FakeTransport {
             checkpoint_fetch_calls: AtomicUsize::new(0),
             checkpoint_publish_calls: AtomicUsize::new(0),
             acknowledge_calls: AtomicUsize::new(0),
+            encryption_route_absent: std::sync::atomic::AtomicBool::new(false),
         })
+    }
+
+    /// Stands in for a Skriuw cloud deployment that predates the workspace
+    /// encryption route: every call to it reports the route as absent, the
+    /// way an older Worker answers a path it does not recognize.
+    pub fn serve_without_encryption_route(&self) {
+        self.encryption_route_absent.store(true, Ordering::SeqCst);
     }
 
     pub fn script_push_fault(&self, fault: PushFault) {
@@ -898,6 +907,9 @@ impl SyncTransport for FakeTransport {
         cancellation: &SyncCancellation,
     ) -> Result<Option<WorkspaceEncryptionMarker>, TransportError> {
         self.ensure_live(cancellation)?;
+        if self.encryption_route_absent.load(Ordering::SeqCst) {
+            return Err(TransportError::RouteUnavailable);
+        }
         if workspace_id != self.server.workspace_id {
             return Err(TransportError::AuthorizationDenied);
         }
@@ -912,6 +924,9 @@ impl SyncTransport for FakeTransport {
         cancellation: &SyncCancellation,
     ) -> Result<WorkspaceEncryptionMarker, TransportError> {
         self.ensure_live(cancellation)?;
+        if self.encryption_route_absent.load(Ordering::SeqCst) {
+            return Err(TransportError::RouteUnavailable);
+        }
         if workspace_id != self.server.workspace_id {
             return Err(TransportError::AuthorizationDenied);
         }

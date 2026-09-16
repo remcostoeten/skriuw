@@ -16,11 +16,12 @@ use skriuw_storage::{
 };
 use skriuw_sync::{
     BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED, BLOCKED_REASON_ENCRYPTION_KEY_REQUIRED,
-    BLOCKED_REASON_SEALED_CONTENT_UNREADABLE, BLOCKED_REASON_STORAGE_FAILURE,
-    CheckpointPublication, CheckpointPublicationConfig, CheckpointPublicationState,
-    SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig, SyncCycleOutcome,
-    SyncCycleState, SyncStatus, derive_workspace_seal, enable_workspace_encryption,
-    new_recovery_code, run_checkpoint_publication, run_sync_cycle, unlock_workspace_encryption,
+    BLOCKED_REASON_SEALED_CONTENT_UNREADABLE, BLOCKED_REASON_SERVER_TOO_OLD,
+    BLOCKED_REASON_STORAGE_FAILURE, CheckpointPublication, CheckpointPublicationConfig,
+    CheckpointPublicationState, SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig,
+    SyncCycleOutcome, SyncCycleState, SyncStatus, derive_workspace_seal,
+    enable_workspace_encryption, new_recovery_code, run_checkpoint_publication, run_sync_cycle,
+    unlock_workspace_encryption,
 };
 use support::{
     FakeAssetStore, FakeClock, FakeServer, FakeTransport, attach_image, create_note, save_document,
@@ -623,4 +624,73 @@ fn a_local_storage_failure_while_opening_is_not_reported_as_unreadable_content()
         Some(BLOCKED_REASON_STORAGE_FAILURE)
     );
     assert!(blocked_detail(&status).is_some_and(|detail| detail.contains("not writable")));
+}
+
+#[test]
+fn an_old_cloud_without_the_encryption_route_keeps_an_unencrypted_workspace_syncing() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let mut device = Device::open(&server, "device-a", &clock);
+    device.transport.serve_without_encryption_route();
+    device.apply(vec![create_note("note-1", "Grocery list", 1)]);
+
+    assert_eq!(device.settle(), SyncStatus::UpToDate);
+    assert_eq!(server.operation_ids().len(), 1);
+    assert!(server.readable_state().contains("Grocery list"));
+}
+
+#[test]
+fn an_old_cloud_parks_a_device_that_holds_the_workspace_key() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let mut device = Device::open(&server, "device-a", &clock);
+    device.encrypt_with(RECOVERY_CODE);
+    device.transport.serve_without_encryption_route();
+    device.apply(vec![create_note("note-1", SECRET_TITLE, 1)]);
+
+    let status = device.settle();
+    assert_eq!(blocked_reason(&status), Some(BLOCKED_REASON_SERVER_TOO_OLD));
+    assert!(blocked_detail(&status).is_some_and(|detail| detail.contains("older than this app")));
+    assert!(device.transport.pushed_requests().is_empty());
+    assert!(server.operation_ids().is_empty());
+    assert!(!server.readable_state().contains(SECRET_TITLE));
+}
+
+#[test]
+fn enabling_encryption_against_an_old_cloud_fails_and_stores_no_key() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let device = Device::open(&server, "device-a", &clock);
+    device.transport.serve_without_encryption_route();
+
+    let refusal = device
+        .enable(&[5; 20])
+        .expect_err("an old cloud cannot record the workspace key");
+    assert!(
+        refusal.contains("does not support encrypted workspaces"),
+        "{refusal}"
+    );
+    assert_eq!(device.storage.workspace_seal().expect("read seal"), None);
+    assert_eq!(server.encryption_marker(), None);
+}
+
+#[test]
+fn unlocking_against_an_old_cloud_fails_and_stores_no_key() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let device = Device::open(&server, "device-a", &clock);
+    device.transport.serve_without_encryption_route();
+
+    let refusal = device
+        .unlock(RECOVERY_CODE)
+        .expect_err("an old cloud cannot answer for the recovery code");
+    assert!(
+        refusal.contains("does not support encrypted workspaces"),
+        "{refusal}"
+    );
+    assert_eq!(device.storage.workspace_seal().expect("read seal"), None);
 }

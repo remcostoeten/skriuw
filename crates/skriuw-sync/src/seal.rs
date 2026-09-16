@@ -28,6 +28,11 @@ use crate::content::{
 };
 use crate::transport::{SyncCancellation, SyncTransport, TransportError};
 
+/// Shown when the cloud predates end-to-end encryption. Nothing is stored on
+/// the device in that case, so the user can retry once the service is
+/// updated without anything to undo first.
+const SERVER_TOO_OLD_MESSAGE: &str = "this Skriuw cloud server does not support encrypted workspaces yet — update the server, then try again";
+
 /// Formats fresh cryptographic entropy as the recovery code shown once at
 /// enable time. The caller owns the randomness: the desktop runtime uses the
 /// platform generator and the browser worker uses `crypto.getRandomValues`,
@@ -113,6 +118,7 @@ pub fn enable_workspace_encryption(
         }
         Ok(_) => "another device already encrypted this workspace; enter its recovery code instead"
             .to_string(),
+        Err(TransportError::RouteUnavailable) => SERVER_TOO_OLD_MESSAGE.to_string(),
         Err(error) => format!("could not reach Skriuw cloud to encrypt this workspace: {error}"),
     };
     queue.clear_workspace_seal().map_err(|error| {
@@ -140,8 +146,9 @@ pub fn unlock_workspace_encryption(
         })?;
     let marker = transport
         .workspace_encryption(&connection.workspace_id, cancellation)
-        .map_err(|error| {
-            format!("could not reach Skriuw cloud to check the recovery code: {error}")
+        .map_err(|error| match error {
+            TransportError::RouteUnavailable => SERVER_TOO_OLD_MESSAGE.to_string(),
+            error => format!("could not reach Skriuw cloud to check the recovery code: {error}"),
         })?
         .ok_or_else(|| {
             "this workspace is not encrypted in Skriuw cloud, so there is no recovery code to enter"

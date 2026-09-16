@@ -79,6 +79,11 @@ pub enum TransportError {
     /// cycle shrinks its pull page and retries.
     #[error("sync response exceeded the client size limit")]
     ResponseTooLarge,
+    /// The service does not serve this route at all, which means it is older
+    /// than this client. Retrying cannot help: the caller decides whether the
+    /// work can proceed without the route or must stop visibly.
+    #[error("this Skriuw cloud server does not serve the requested sync route")]
+    RouteUnavailable,
 }
 
 impl TransportError {

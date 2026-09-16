@@ -49,6 +49,11 @@ pub const BLOCKED_REASON_SEALED_CONTENT_UNREADABLE: &str = "sealed_content_unrea
 /// checkpoint once the device holds the key. Applying it would let the
 /// service write into an encrypted workspace, so nothing applies.
 pub const BLOCKED_REASON_ENCRYPTION_DOWNGRADE_REFUSED: &str = "encryption_downgrade_refused";
+/// The cloud is older than this app: it does not serve the workspace
+/// encryption record, so this device cannot establish which key the workspace
+/// replicates under. A device that holds a key stops here rather than upload
+/// content the workspace may refuse or the other devices could not open.
+pub const BLOCKED_REASON_SERVER_TOO_OLD: &str = "server_too_old";
 
 /// Durable per-operation blocked reason recorded in storage when an
 /// operation's declared asset bytes are absent locally at push time. The
@@ -439,12 +444,31 @@ impl Cycle<'_> {
             .workspace_encryption(workspace_id, self.cancellation)
         {
             Ok(marker) => marker,
+            Err(TransportError::RouteUnavailable) => return self.without_encryption_record(),
             Err(error) => return Err(self.pull_failure(&error)),
         };
         match encryption_mismatch(self.sealer.as_ref(), marker.as_ref()) {
             Some((reason, detail)) => Err(self.parked_for_encryption(reason, &detail)),
             None => Ok(()),
         }
+    }
+
+    /// A cloud that does not serve the encryption record predates encryption
+    /// entirely, and the record and the operation log live in the same
+    /// service: a device that has never held a key for this workspace
+    /// therefore keeps replicating in the clear exactly as it did before the
+    /// route existed, instead of parking on an outage it cannot act on. A
+    /// device that does hold a key stops instead — it cannot establish that
+    /// the workspace is unencrypted, and plaintext from it would be a
+    /// downgrade.
+    fn without_encryption_record(&self) -> Result<(), SyncCycleOutcome> {
+        if self.sealer.is_none() {
+            return Ok(());
+        }
+        Err(self.parked_for_encryption(
+            BLOCKED_REASON_SERVER_TOO_OLD,
+            "this Skriuw cloud server is older than this app and cannot confirm the workspace encryption key; nothing was uploaded",
+        ))
     }
 
     fn push_phase(&mut self) -> Result<(Option<SyncCycleOutcome>, bool), SyncCycleOutcome> {
@@ -672,11 +696,13 @@ impl Cycle<'_> {
             TransportError::AuthorizationDenied
             | TransportError::Conflict(_)
             | TransportError::UnsupportedProtocol(_)
+            | TransportError::RouteUnavailable
             | TransportError::LogTruncated => {
                 let reason = match error {
                     TransportError::AuthorizationDenied => BLOCKED_REASON_AUTHORIZATION_DENIED,
                     TransportError::Conflict(_) => BLOCKED_REASON_PUSH_CONFLICT,
                     TransportError::UnsupportedProtocol(_) => BLOCKED_REASON_PROTOCOL_MISMATCH,
+                    TransportError::RouteUnavailable => BLOCKED_REASON_SERVER_TOO_OLD,
                     _ => BLOCKED_REASON_LOG_TRUNCATED,
                 };
                 PushFailure::Defer(self.release_blocked(operation_ids, reason, &error.to_string()))
@@ -914,11 +940,13 @@ impl Cycle<'_> {
             TransportError::AuthorizationDenied
             | TransportError::Validation(_)
             | TransportError::Conflict(_)
+            | TransportError::RouteUnavailable
             | TransportError::UnsupportedProtocol(_) => {
                 let retry_at = now.saturating_add(self.config.blocked_retry_delay_ms);
                 let reason = match error {
                     TransportError::AuthorizationDenied => BLOCKED_REASON_AUTHORIZATION_DENIED,
                     TransportError::UnsupportedProtocol(_) => BLOCKED_REASON_PROTOCOL_MISMATCH,
+                    TransportError::RouteUnavailable => BLOCKED_REASON_SERVER_TOO_OLD,
                     _ => BLOCKED_REASON_REJECTED_BATCH,
                 };
                 SyncCycleOutcome::retry(SyncStatus::blocked(reason, error.to_string()), retry_at)
@@ -999,6 +1027,7 @@ impl Cycle<'_> {
             | TransportError::Validation(_)
             | TransportError::Conflict(_)
             | TransportError::UnsupportedProtocol(_)
+            | TransportError::RouteUnavailable
             | TransportError::LogTruncated => {
                 let retry_at = now.saturating_add(self.config.blocked_retry_delay_ms);
                 SyncCycleOutcome::retry(
