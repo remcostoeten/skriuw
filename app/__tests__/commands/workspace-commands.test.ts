@@ -235,3 +235,39 @@ test("pin stays enabled from the sidebar with no note open", async () => {
     false,
   );
 });
+
+test("journal navigation commands run only on the journal route and move the viewed day", () => {
+  const registry = createCommandRegistry(createWorkspaceCommands(fakeStore, controls));
+  const state = {} as RendererState;
+  const steps = [
+    ["journal-previous-week", "#/journal/2026-09-08"],
+    ["journal-next-week", "#/journal/2026-09-22"],
+    ["journal-previous-month", "#/journal/2026-08-15"],
+    ["journal-next-month", "#/journal/2026-10-15"],
+    ["journal-previous-year", "#/journal/2025-09-15"],
+    ["journal-next-year", "#/journal/2027-09-15"],
+  ] as const;
+  const previous = globalThis.window;
+  try {
+    for (const [id] of [...steps, ["journal-go-to-date", ""] as const]) {
+      assert.equal(registry.isEnabled(id, state, fakeUi()), false, `${id} on notes`);
+      assert.equal(registry.isEnabled(id, state, fakeUi({ route: "journal" })), true, id);
+    }
+    for (const [id, expected] of steps) {
+      const location = { hash: "#/journal/2026-09-15" };
+      globalThis.window = { location } as unknown as Window & typeof globalThis;
+      registry.run(id, state, fakeUi({ route: "journal" }));
+      assert.equal(location.hash, expected, id);
+    }
+    const target = new EventTarget();
+    let requested = 0;
+    target.addEventListener("skriuw:journal-go-to-date", () => {
+      requested += 1;
+    });
+    globalThis.window = target as unknown as Window & typeof globalThis;
+    registry.run("journal-go-to-date", state, fakeUi({ route: "journal" }));
+    assert.equal(requested, 1);
+  } finally {
+    globalThis.window = previous;
+  }
+});

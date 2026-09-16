@@ -9,7 +9,7 @@ full keyboard workflow; `--provider-import-only` runs just the import slice.
 names, and focus retention from the keyboard.
 
 ```bash
-node app/e2e/run.mjs [--provider-import-only | --tasks-only | --personal-only]
+node app/e2e/run.mjs [--provider-import-only | --tasks-only | --personal-only | --journal-only]
 ```
 
 The harness is hermetic: `main.tsx` installs a fake `__TAURI_INTERNALS__` so the
@@ -65,6 +65,18 @@ Not wired into CI. The script passed 3 consecutive local runs (Arch,
 2026-07-26), but it needs a full debug desktop build, a WebKitWebDriver
 matched to the runner's WebKitGTK, and a display server; that CI setup has
 not been built or verified, so this stays a manually-invoked release check.
+
+## Journal navigation
+
+```bash
+node app/e2e/run.mjs --journal-only --output /tmp/skriuw-journal-e2e.json
+```
+
+Steps the journal with the month and week bracket chords (including the
+January 31 → February 28 clamp), confirms typed entry text survives stepping
+away and back, then drives Go to date…: suggestions while empty, an inline error
+that keeps the dialog open, `dec 2025` + Enter landing on 2025-12-01, and Escape
+closing without navigating. Requires zero browser errors.
 
 ## Personal templates and saved searches
 
