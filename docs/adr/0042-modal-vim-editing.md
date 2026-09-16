@@ -42,11 +42,16 @@ Plain `j` and `k` move by the rows the view wrapped a line into, measured
 through `coordsAtPos`, because a paragraph is one line and a logical step would
 skip its whole body; they remember the screen x like `gj`/`gk`. Operator
 motions such as `dj` and views without layout use logical lines. The jump-to-line
-panel counts those same wrapped rows, measured through `coordsAtPos` and each
-textblock's computed line height, so "Line 3 of 41" means the same thing in
-both editors and `:N` and `NG` land on row N; only a bounded (virtualized)
-document, whose blocks outside the window have no layout, still counts
-Markdown lines. The plugin owns
+panel counts those same wrapped rows, read from the character boxes
+`coordsAtPos` reports rather than from a line height, so inline media taller
+than the text adds no rows, and `:N` and `NG` land at the start of row N. A
+paragraph therefore numbers the same in both editors; the views still differ
+where the raw view shows a source line the rendered document has no textblock
+for (blank lines, rules, media), and counting rows means `999G` reaches the
+last row of a wrapped final paragraph where `G` reaches its first. The layout
+is measured once per document and editor width and reused until either
+changes. Only a bounded (virtualized) document, whose blocks outside the
+window have no layout, counts Markdown lines. The plugin owns
 only modal state and a per-view session (pending keys, prompt, macro
 recording); every edit is an ordinary transaction, so history, remote merges,
 bounded windows, and the save pipeline stay authoritative. Normal mode swallows

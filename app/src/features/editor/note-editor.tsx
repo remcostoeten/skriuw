@@ -189,12 +189,10 @@ import {
   type DocumentLineIndex,
 } from "./document-lines";
 import {
+  createDisplayRowLayoutCache,
   displayRowAt,
   displayRowPosition,
   viewDisplayRowLayout,
-  viewRowHeight,
-  viewRowMeasure,
-  type DisplayRowLayout,
 } from "./display-rows";
 import { parseJumpToLineInput } from "./raw-markdown-editor-model";
 import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
@@ -416,12 +414,10 @@ function selectStarterTitle(view: EditorView, entry: CachedNote): void {
 }
 
 type JumpTarget =
-  | { kind: "display-rows"; layout: DisplayRowLayout }
+  | { kind: "display-rows" }
   | { kind: "markdown-lines"; document: ProseMirrorNode; index: DocumentLineIndex };
 
-function jumpTargetCount(target: JumpTarget): number {
-  return target.kind === "display-rows" ? target.layout.total : target.index.lineCount;
-}
+const DISPLAY_ROWS_TARGET: JumpTarget = { kind: "display-rows" };
 
 type MarkdownLineJumpTarget = Extract<JumpTarget, { kind: "markdown-lines" }>;
 
@@ -505,6 +501,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   }
   const jumpInputRef = useRef<HTMLInputElement>(null);
   const jumpTargetRef = useRef<JumpTarget | null>(null);
+  const displayRowLayoutCache = useRef(createDisplayRowLayoutCache());
   const [jumpOpen, setJumpOpen] = useState(false);
   const [jumpValue, setJumpValue] = useState("");
   const [jumpLineCount, setJumpLineCount] = useState(1);
@@ -642,7 +639,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         const noteId = activeIdRef.current;
         if (noteId && opensNotesInTabs(store.getState().settings)) closeTab(store, noteId);
       },
-      jumpToLine: (line) => jumpToMarkdownLine(line),
+      jumpToLine: (line) => jumpToLineFromVim(line),
       documentEdge: (edge) => {
         const entry = activeEntry();
         if (!entry?.bounded) return false;
@@ -1530,12 +1527,10 @@ const closeJumpToLine = useCallback(() => {
       setJumpLineCount(boundedTarget.index.lineCount);
       setJumpCaretLine(documentLineAt(boundedTarget.index, readSelection(view.state, entry.bounded.windowStart())));
     } else {
-      const layout = viewDisplayRowLayout(view);
-      jumpTargetRef.current = { kind: "display-rows", layout };
+      const layout = viewDisplayRowLayout(view, displayRowLayoutCache.current);
+      jumpTargetRef.current = DISPLAY_ROWS_TARGET;
       setJumpLineCount(layout.total);
-      setJumpCaretLine(
-        displayRowAt(view.state.doc, layout, viewRowMeasure(view), viewRowHeight(view), view.state.selection.head),
-      );
+      setJumpCaretLine(displayRowAt(layout, view.state.selection.head));
     }
     setJumpOpen(true);
     requestAnimationFrame(() => {
@@ -1548,23 +1543,31 @@ const closeJumpToLine = useCallback(() => {
     const target = jumpTargetRef.current;
     const view = viewRef.current;
     if (!target || !view) return;
-    const line = parseJumpToLineInput(jumpValue, jumpTargetCount(target));
-    if (line === null) return;
+    if (!jumpToLineTarget(view, target, jumpValue)) return;
     setJumpOpen(false);
-    jumpToLineTarget(view, target, line);
     view.focus();
   }, [jumpValue]);
 
-  function jumpToLineTarget(view: EditorView, target: JumpTarget, line: number): void {
+  /**
+   * Moves the caret to the row or line `input` names; false when the input
+   * names none. Rows are re-measured against the document the view holds now,
+   * since the panel may have opened over an older one.
+   */
+  function jumpToLineTarget(view: EditorView, target: JumpTarget, input: string): boolean {
     if (target.kind === "display-rows") {
-      const position = displayRowPosition(view.state.doc, target.layout, viewRowMeasure(view), line);
+      const layout = viewDisplayRowLayout(view, displayRowLayoutCache.current);
+      const row = parseJumpToLineInput(input, layout.total);
+      if (row === null) return false;
+      const position = displayRowPosition(layout, row);
       view.dispatch(
         view.state.tr
           .setSelection(TextSelection.near(view.state.doc.resolve(position)))
           .scrollIntoView(),
       );
-      return;
+      return true;
     }
+    const line = parseJumpToLineInput(input, target.index.lineCount);
+    if (line === null) return false;
     const { blockIndex, offset } = documentLineTarget(target.document, target.index, line);
     const entry = activeEntry();
     const bounded = entry?.bounded;
@@ -1574,7 +1577,7 @@ const closeJumpToLine = useCallback(() => {
       installBoundedWindow(entry, true);
       const revealed = viewRef.current;
       if (revealed) revealed.dispatch(revealed.state.tr.scrollIntoView());
-      return;
+      return true;
     }
     const position = topLevelTextPosition(view.state.doc, blockIndex, offset);
     view.dispatch(
@@ -1582,18 +1585,16 @@ const closeJumpToLine = useCallback(() => {
         .setSelection(TextSelection.create(view.state.doc, position))
         .scrollIntoView(),
     );
+    return true;
   }
 
   /** `:N` and `NG` from Vim mode: the panel's jump without the panel. */
-  function jumpToMarkdownLine(line: number): void {
+  function jumpToLineFromVim(line: number): void {
     const view = viewRef.current;
     const entry = activeEntry();
     if (!view || !entry) return;
-    const target = boundedJumpTarget(entry, storedMarkdownFor) ?? { kind: "display-rows" as const, layout: viewDisplayRowLayout(view) };
-    const clamped = parseJumpToLineInput(String(line), jumpTargetCount(target));
-    if (clamped === null) return;
-    jumpToLineTarget(view, target, clamped);
-    view.focus();
+    const target = boundedJumpTarget(entry, storedMarkdownFor) ?? DISPLAY_ROWS_TARGET;
+    if (jumpToLineTarget(view, target, String(line))) view.focus();
   }
 
   function handleJumpKeyDown(event: ReactKeyboardEvent<HTMLInputElement>): void {
