@@ -107,6 +107,68 @@ export function aiErrorHint(error: AiProviderError | null): string | null {
   return error === null ? null : RECOVERY_HINTS[error.recoveryAction];
 }
 
+export type AiStartFailure = {
+  message: string;
+  recoveryAction: AiRecoveryAction;
+};
+
+function reasonText(reason: unknown): string {
+  if (typeof reason === "object" && reason !== null && "message" in reason) {
+    return String((reason as { message: unknown }).message);
+  }
+  return String(reason);
+}
+
+function isAbortError(reason: unknown): boolean {
+  return (
+    typeof reason === "object" &&
+    reason !== null &&
+    "name" in reason &&
+    (reason as { name: unknown }).name === "AbortError"
+  );
+}
+
+/**
+ * Translates a failure to open the stream into words for the writer. The seam
+ * reports these in its own vocabulary — request ids, worker state, a runtime
+ * check — none of which names anything the writer can do. Reasons the seam
+ * has not taught us pass through unchanged rather than being guessed at.
+ */
+export function startErrorMessage(reason: unknown): AiStartFailure {
+  if (isAbortError(reason)) {
+    return {
+      message: "The run was stopped before the request went out.",
+      recoveryAction: "retry",
+    };
+  }
+  const text = reasonText(reason);
+  if (text.includes("is already active")) {
+    return {
+      message: "The previous run is still closing. Give it a moment.",
+      recoveryAction: "retry",
+    };
+  }
+  if (text.includes("request is invalid")) {
+    return {
+      message: "The provider would not accept this request as built.",
+      recoveryAction: "reduce_request",
+    };
+  }
+  if (text.includes("worker is unavailable")) {
+    return {
+      message: "The AI service in this app is not running.",
+      recoveryAction: "check_provider_status",
+    };
+  }
+  if (text.includes("needs the desktop app")) {
+    return {
+      message: "AI actions run in the desktop app only.",
+      recoveryAction: "none",
+    };
+  }
+  return { message: text, recoveryAction: "retry" };
+}
+
 /**
  * Elapsed run time, in whole tenths under ten seconds and whole seconds after.
  * A run that has not started has no duration to report.

@@ -17,6 +17,7 @@ import {
   aiRunStallNote,
   aiRunSteps,
   aiRunTone,
+  startErrorMessage,
   type AiRunStepState,
 } from "../../../../src/features/ai/run/run-progress";
 
@@ -127,4 +128,42 @@ test("the card's tone follows the outcome, and an empty result is not a success"
   );
   assert.equal(aiRunTone(failedRun(sending, "r1", "boom")), "failed");
   assert.equal(aiRunTone(stoppedRun(sending)), "stopped");
+});
+
+test("start failures are translated for the writer and carry a next move", () => {
+  const active = startErrorMessage(new Error("AI request d2e6f0a1-0000 is already active"));
+  assert.doesNotMatch(active.message, /d2e6|request id|AiStartError/);
+  assert.equal(active.recoveryAction, "retry");
+  assert.ok(aiErrorHint({ providerId: "editor", category: "internal_failure", ...active }));
+
+  const invalid = startErrorMessage(new Error("AI completion request is invalid"));
+  assert.doesNotMatch(invalid.message, /invalid/);
+  assert.equal(invalid.recoveryAction, "reduce_request");
+
+  const worker = startErrorMessage("AI completion worker is unavailable");
+  assert.doesNotMatch(worker.message, /worker/);
+  assert.equal(worker.recoveryAction, "check_provider_status");
+
+  const browser = startErrorMessage(new Error("AI completion needs the desktop app."));
+  assert.equal(browser.recoveryAction, "none");
+  assert.equal(aiErrorHint({ providerId: "editor", category: "internal_failure", ...browser }), null);
+});
+
+test("an aborted start is named as stopped, not as an exception", () => {
+  const aborted = startErrorMessage(new DOMException("AI completion was cancelled.", "AbortError"));
+  assert.doesNotMatch(aborted.message, /AbortError|DOMException/);
+  assert.equal(aborted.recoveryAction, "retry");
+});
+
+test("unknown start reasons pass through unchanged", () => {
+  assert.equal(startErrorMessage(new Error("disk on fire")).message, "disk on fire");
+  assert.equal(startErrorMessage("plain string").message, "plain string");
+  assert.equal(startErrorMessage(new Error("x")).recoveryAction, "retry");
+});
+
+test("a start failure carries its own recovery action into the run", () => {
+  const run = failedRun(startedRun("r1", 0), "r1", "The AI service in this app is not running.", "check_provider_status");
+  assert.equal(run.phase, "error");
+  assert.equal(run.error?.recoveryAction, "check_provider_status");
+  assert.equal(failedRun(startedRun("r1", 0), "r1", "x").error?.recoveryAction, "retry");
 });

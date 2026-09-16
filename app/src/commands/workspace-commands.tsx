@@ -16,6 +16,8 @@ import {
 } from "@/store/actions/panes";
 import { toggleEditorMode } from "@/store/actions/editor-mode";
 import { toggleAnnotateMode } from "@/store/actions/annotate-mode";
+import { lastAiAction, requestAiRepeat } from "@/features/ai/actions/editor-action-controller";
+import { selectAiEnabled } from "@/features/ai/opt-in-gate";
 import {
   activateNote,
   createFolder,
@@ -466,6 +468,21 @@ export function createWorkspaceCommands(
       shortcut: "toggleAnnotateMode",
       enabled: (state) => state.activeNoteId !== null,
       run: () => toggleAnnotateMode(store),
+    },
+    {
+      id: "ai-repeat-last",
+      label: "AI: Repeat last action",
+      group: "AI",
+      keywords: ["ai", "repeat", "again", "redo", "last"],
+      shortcut: "repeatAiAction",
+      enabled: (state, ui) =>
+        ui.route === "notes" &&
+        selectAiEnabled(state) &&
+        state.activeNoteId !== null &&
+        lastAiAction() !== null,
+      run: () => {
+        requestAiRepeat();
+      },
     },
     {
       id: "close-tab",

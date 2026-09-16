@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { EditorView } from "prosemirror-view";
-import type { AiCompletionRequest } from "@/contracts/ai";
 import { noop } from "@/shared/lib/noop";
 import { diffWords, type DiffSegment } from "@/shared/lib/word-diff";
 import { Button } from "@/shared/ui/button";
@@ -11,7 +10,7 @@ import { commitReferenceOperations, renameNode } from "@/store/actions/workspace
 import type { RendererStore } from "@/store/types";
 import type { ReferenceOperation } from "@/features/references/types";
 import { keptPlanItems, parseActionPlan, planApplyError, type AiPlanItem } from "@/features/ai/actions/action-plan";
-import { aiActionOrigin, type AiEditorAction } from "@/features/ai/actions/editor-actions";
+import type { AiEditorAction } from "@/features/ai/actions/editor-actions";
 import {
   appendTagPlanTransaction,
   appendTaskPlanTransaction,
@@ -35,14 +34,15 @@ import {
   aiRunSteps,
   aiRunTone,
 } from "./run-progress";
-import { useAiRun } from "./use-ai-run";
+import type { RunSession } from "./run-session";
+import { useRunSession } from "./use-ai-run";
 
 type Props = {
   store: RendererStore;
-  signal: AbortSignal;
   action: AiEditorAction;
   target: AiActionTarget;
-  request: AiCompletionRequest;
+  /** Owned by the run registry, which outlives this card; it is never disposed here. */
+  session: RunSession;
   modelLabel: string | null;
   getView: () => EditorView | null;
   getNoteId: () => string | null;
@@ -91,27 +91,36 @@ function useRunClock(active: boolean): number {
  */
 export function AiRunCard({
   store,
-  signal,
   action,
   target,
-  request,
+  session,
   modelLabel,
   getView,
   getNoteId,
   onLiveChange,
   onClose,
 }: Props) {
-  const [applyError, setApplyError] = useState<string | null>(null);
+  const run = useRunSession(session);
+  const { retry, cancel } = session;
+  // A card can mount onto a run that started before the writer left the note.
+  // What the run would apply to is checked on the way back in, so a range that
+  // moved meanwhile is refused where the writer can read it, not on accept.
+  const [applyError, setApplyError] = useState<string | null>(() => {
+    const view = getView();
+    if (view === null || getNoteId() !== target.noteId) {
+      return null;
+    }
+    return liveEditorRefusal(view.state, target, action.scope, getNoteId());
+  });
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(() => new Set());
   const [copied, setCopied] = useState(false);
-  const { run, fire, retry, cancel } = useAiRun(signal, {
-    origin: aiActionOrigin(action),
-    onStart: () => {
-      setApplyError(null);
-      setExcluded(new Set());
-      setCopied(false);
-    },
-  });
+  const [seenRequestId, setSeenRequestId] = useState(run.requestId);
+  if (seenRequestId !== run.requestId) {
+    setSeenRequestId(run.requestId);
+    setApplyError(null);
+    setExcluded(new Set());
+    setCopied(false);
+  }
 
   const hostRef = useRef<HTMLDivElement | null>(null);
   hostRef.current ??= createHost();
@@ -142,14 +151,11 @@ export function AiRunCard({
     host.dataset.tone = tone;
   }, [host, tone]);
 
-  useEffect(() => {
-    fire(request);
-  }, [fire, request]);
-
   const onLiveChangeRef = useRef(onLiveChange);
   onLiveChangeRef.current = onLiveChange;
   useEffect(() => {
     onLiveChangeRef.current(streaming);
+    return () => onLiveChangeRef.current(false);
   }, [streaming]);
 
   useEffect(
@@ -183,30 +189,45 @@ export function AiRunCard({
   // own teardown also drops it, and under a double-invoked effect that teardown
   // runs between two mounts — closing the card in the same tick it opened.
   // The guard tells the two apart.
+  //
+  // When the note comes back, this card mounts in the same commit that swaps
+  // the note into the editor, and its effect runs before the editor's does. A
+  // first attempt that finds the editor still showing the previous note waits
+  // one microtask, by which point the swap has landed.
   const tearingDownRef = useRef(false);
   useEffect(() => {
-    const view = getView();
-    if (view === null) {
-      return;
-    }
     tearingDownRef.current = false;
     const strikes = isReplacement && action.scope === "selection";
-    setSuggestionPreview(view, {
-      key: sessionKey,
-      from: strikes ? target.from : target.to,
-      to: target.to,
-      host,
-      settled,
-      onDismiss: () => {
+    function attach(): boolean {
+      const view = getView();
+      if (view === null || getNoteId() !== target.noteId) {
+        return false;
+      }
+      setSuggestionPreview(view, {
+        key: sessionKey,
+        from: strikes ? target.from : target.to,
+        to: target.to,
+        host,
+        settled,
+        onDismiss: () => {
+          if (!tearingDownRef.current) {
+            close();
+          }
+        },
+      });
+      return true;
+    }
+    if (!attach()) {
+      queueMicrotask(() => {
         if (!tearingDownRef.current) {
-          close();
+          attach();
         }
-      },
-    });
+      });
+    }
     return () => {
       tearingDownRef.current = true;
     };
-  }, [action.scope, getView, host, isReplacement, sessionKey, settled, target.from, target.to]);
+  }, [action.scope, getNoteId, getView, host, isReplacement, sessionKey, settled, target.from, target.noteId, target.to]);
 
   useEffect(
     () => () => {

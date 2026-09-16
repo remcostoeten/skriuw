@@ -1,4 +1,4 @@
-import type { AiCompletionEvent, AiProviderError } from "@/contracts/ai";
+import type { AiCompletionEvent, AiProviderError, AiRecoveryAction } from "@/contracts/ai";
 import type { AiEditorAction } from "./editor-actions";
 
 /**
@@ -129,10 +129,16 @@ export function runWithTerminal(
   return { ...settled, phase: "error", error: event.error };
 }
 
+/**
+ * A failure raised on this side of the seam — the request never reached a
+ * provider — so it carries the writer's next move itself instead of leaving
+ * the card to guess one from a provider category it does not have.
+ */
 export function failedRun(
   run: AiActionRun,
   requestId: string,
   message: string,
+  recoveryAction: AiRecoveryAction = "retry",
 ): AiActionRun {
   if (run.requestId !== requestId) {
     return run;
@@ -145,7 +151,7 @@ export function failedRun(
       providerId: "editor",
       category: "internal_failure",
       message,
-      recoveryAction: "retry",
+      recoveryAction,
     },
   };
 }
