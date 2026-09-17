@@ -30,6 +30,7 @@ copy of a built-in shadows it through `promptLibraryEntries`, so editing
 | Simplify | `simplify` | selection | text |
 | Change tone | `change-tone` | selection | text |
 | Translate | `translate` | selection | text |
+| Diagram | `diagram` | selection | diagram |
 | Custom instruction | `custom` | selection | text |
 | Continue writing | `continue` | caret | text |
 | Summarize note | `summarize` | note | text |
@@ -113,6 +114,35 @@ Accepting is one editor transaction, so one undo restores the note:
 A result may also be copied, retried, or discarded. Retrying always fires a new
 request id; ADR-0033 forbids retrying a stream that already produced output, and
 that rule lives at the seam.
+
+## Diagram results
+
+`diagram` asks for exactly one fenced `mermaid` block drawn from the selection;
+the optional instruction names a family or a focus. The result joins the text it
+was drawn from: the range is not struck through, the only apply is **Insert
+diagram** (`insertBelowTransaction`), and what is inserted is the fence alone
+even when the model wrapped it in a sentence. The fence then routes like any
+typed one ([embedded diagrams](embedded-diagrams.md#rendered-mermaid-fences)),
+so a plain flowchart becomes the editable diagram block and the other families
+become a code block with a rendered preview.
+
+A finished reply is checked before it is offered: it must contain a closed
+`mermaid` fence, and that fence must render through `renderMermaidSvg`. A reply
+that fails is held back and followed by one repair request carrying the failed
+reply and the renderer's message (`diagram-repair.ts`, through the session's
+`repair` option). The repair is a new request under a new id, fired after a
+`done` terminal, with the first reply discarded — the same footing as the
+writer pressing Retry, not the seam-level retry ADR-0033 forbids, and
+`retryCount` stays zero. It is spent once per run the writer started; a second
+failure is offered as it came, because a block whose preview names its parse
+error is more useful than no block. Stop during the check ends the run.
+
+Once a run settles, the card draws every renderable `mermaid` fence in the
+result (`diagramResultParts`, `ai-run-result-body.tsx`) with the same renderer
+and theme palette as the editor, for any action, so the writer judges the
+drawing rather than its source. A result holding a fence is shown whole instead
+of as a word diff. A fence that fails to render shows its source and the
+renderer's message; streaming text is never drawn, only the settled reply.
 
 Markdown in a result becomes real blocks through the same
 `markdownPasteSlice` the editor uses for pasted Markdown; anything that is not

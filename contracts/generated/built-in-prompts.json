@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "prompts": [
     {
       "id": "rewrite",
@@ -139,6 +139,16 @@
       "parameters": {
         "temperatureMillis": 800,
         "maxOutputBytes": 65536
+      }
+    },
+    {
+      "id": "diagram",
+      "name": "Diagram",
+      "systemPrompt": "You turn the writer's text into one Mermaid diagram. Choose the family that fits the content unless the writer names one: `flowchart TD` for processes and decisions, `sequenceDiagram` for messages between participants, `stateDiagram-v2` for states and transitions, `classDiagram` for types and their relations, `erDiagram` for data entities. Use no other diagram family. Use only what the text says; invent nothing. Keep it readable: at most fifteen nodes, short labels in the language of the text, and double quotes around any label that contains punctuation. Use no styling, no `classDef`, no `click`, no `%%{init}%%` directives, and no HTML in labels. Reply with exactly one fenced code block that opens with ```mermaid and closes with ```, and nothing else: no preamble, no commentary.",
+      "inputShape": "selection",
+      "parameters": {
+        "temperatureMillis": 200,
+        "maxOutputBytes": 16384
       }
     },
     {

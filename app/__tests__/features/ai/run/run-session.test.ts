@@ -5,6 +5,7 @@ import type { AiCompletionHandle } from "../../../../src/features/ai/completion/
 import {
   createRunSession,
   type FlushScheduler,
+  type RunRepair,
   type StartCompletion,
 } from "../../../../src/features/ai/run/run-session";
 
@@ -93,11 +94,16 @@ async function settle(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function session(seam: ReturnType<typeof fakeSeam>, frames = manualFlush()) {
+function session(
+  seam: ReturnType<typeof fakeSeam>,
+  frames = manualFlush(),
+  repair: RunRepair | undefined = undefined,
+) {
   const controller = new AbortController();
   return createRunSession({
     origin: "editor:test",
     signal: controller.signal,
+    repair,
     startCompletion: seam.startCompletion,
     scheduleFlush: frames.scheduleFlush,
     mintRequestId: ids(),
@@ -272,4 +278,106 @@ test("an aborted start reads as a stopped run with a retry hint, never as a requ
   assert.equal(run.getRun().phase, "error");
   assert.doesNotMatch(run.getRun().error?.message ?? "", /req-/);
   assert.equal(run.getRun().error?.recoveryAction, "retry");
+});
+
+async function finish(start: Started, text: string): Promise<void> {
+  start.resolve();
+  await settle();
+  start.emit({ type: "delta", requestId: start.request.requestId, sequence: 0, text });
+  start.emit({ type: "done", requestId: start.request.requestId });
+}
+
+test("a reply the repair rejects is held back and re-sent once, and the second reply stands", async () => {
+  const seam = fakeSeam();
+  const seen: string[] = [];
+  const run = session(seam, manualFlush(), (preview, request) => {
+    seen.push(preview);
+    return Promise.resolve({ ...request, userPrompt: `${request.userPrompt} fix` });
+  });
+  run.fire(TEMPLATE);
+
+  await finish(seam.starts[0] as Started, "broken");
+  assert.equal(run.getRun().phase, "streaming");
+  await settle();
+
+  assert.equal(seam.starts.length, 2);
+  const second = seam.starts[1] as Started;
+  assert.equal(second.request.userPrompt, "user fix");
+  assert.equal(run.getRun().preview, "");
+
+  await finish(second, "still broken");
+  await settle();
+  assert.deepEqual(seen, ["broken"]);
+  assert.equal(seam.starts.length, 2);
+  assert.equal(run.getRun().phase, "done");
+  assert.equal(run.getRun().preview, "still broken");
+});
+
+test("a reply the repair accepts settles without a second request", async () => {
+  const seam = fakeSeam();
+  const run = session(seam, manualFlush(), () => Promise.resolve(null));
+  run.fire(TEMPLATE);
+
+  await finish(seam.starts[0] as Started, "fine");
+  await settle();
+
+  assert.equal(seam.starts.length, 1);
+  assert.equal(run.getRun().phase, "done");
+  assert.equal(run.getRun().preview, "fine");
+});
+
+test("a repair that throws leaves the reply standing", async () => {
+  const seam = fakeSeam();
+  const run = session(seam, manualFlush(), () => Promise.reject(new Error("renderer crashed")));
+  run.fire(TEMPLATE);
+
+  await finish(seam.starts[0] as Started, "kept");
+  await settle();
+
+  assert.equal(seam.starts.length, 1);
+  assert.equal(run.getRun().phase, "done");
+});
+
+test("stopping while the repair is looking drops its answer", async () => {
+  const seam = fakeSeam();
+  let release: () => void = () => undefined;
+  const run = session(
+    seam,
+    manualFlush(),
+    (_preview, request) =>
+      new Promise((resolve) => {
+        release = () => resolve(request);
+      }),
+  );
+  run.fire(TEMPLATE);
+
+  await finish(seam.starts[0] as Started, "broken");
+  run.cancel();
+  release();
+  await settle();
+
+  assert.equal(seam.starts.length, 1);
+  assert.equal(run.getRun().phase, "cancelled");
+});
+
+test("a manual retry re-sends the original request and may be repaired again", async () => {
+  const seam = fakeSeam();
+  let calls = 0;
+  const run = session(seam, manualFlush(), (_preview, request) => {
+    calls += 1;
+    return Promise.resolve({ ...request, userPrompt: "repair" });
+  });
+  run.fire(TEMPLATE);
+  await finish(seam.starts[0] as Started, "broken");
+  await settle();
+  await finish(seam.starts[1] as Started, "broken again");
+  await settle();
+
+  run.retry();
+  assert.equal((seam.starts[2] as Started).request.userPrompt, "user");
+  await finish(seam.starts[2] as Started, "broken thrice");
+  await settle();
+
+  assert.equal(calls, 2);
+  assert.equal((seam.starts[3] as Started).request.userPrompt, "repair");
 });

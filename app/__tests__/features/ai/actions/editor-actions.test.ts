@@ -55,6 +55,7 @@ test("the catalogue covers the v1-parity selection and note actions", () => {
     "fix-grammar",
     "change-tone",
     "simplify",
+    "diagram",
     "custom",
   ]) {
     assert.ok(selection.includes(expected), `missing selection action ${expected}`);

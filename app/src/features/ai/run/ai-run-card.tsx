@@ -1,15 +1,18 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { EditorView } from "prosemirror-view";
+import { detectPlatform } from "@remcostoeten/use-shortcut/constants";
 import { noop } from "@/shared/lib/noop";
 import { diffWords, type DiffSegment } from "@/shared/lib/word-diff";
 import { Button } from "@/shared/ui/button";
 import { Checkbox } from "@/shared/ui/checkbox";
+import { KeyCaps } from "@/shared/ui/key-caps";
 import { setSuggestionPreview } from "@/features/editor/suggestion-decorations";
 import { commitReferenceOperations, renameNode } from "@/store/actions/workspace";
 import type { RendererStore } from "@/store/types";
 import type { ReferenceOperation } from "@/features/references/types";
 import { keptPlanItems, parseActionPlan, planApplyError, type AiPlanItem } from "@/features/ai/actions/action-plan";
+import { diagramResultParts, diagramResultText } from "@/features/ai/actions/diagram-repair";
 import type { AiEditorAction } from "@/features/ai/actions/editor-actions";
 import {
   appendTagPlanTransaction,
@@ -36,6 +39,7 @@ import {
 } from "./run-progress";
 import type { RunSession } from "./run-session";
 import { useRunSession } from "./use-ai-run";
+import { AiRunResultBody } from "./ai-run-result-body";
 
 type Props = {
   store: RendererStore;
@@ -54,6 +58,13 @@ type Props = {
 function wordCount(text: string): number {
   const trimmed = text.trim();
   return trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
+}
+
+const PRIMARY_ACTION = "skriuw-suggestion-primary";
+const QUIET_ACTION = "skriuw-suggestion-quiet";
+
+function applyKeys(): string[] {
+  return detectPlatform() === "mac" ? ["⌘", "↵"] : ["Ctrl", "↵"];
 }
 
 function createHost(): HTMLDivElement {
@@ -293,6 +304,15 @@ export function AiRunCard({
     });
   }
 
+  function insertDiagram(): void {
+    withLiveEditor((view) => {
+      view.dispatch(
+        insertBelowTransaction(view.state, target.to, diagramResultText(run.preview)),
+      );
+      return null;
+    });
+  }
+
   function renameFromResult(): void {
     const title = run.preview.trim().split("\n")[0]?.trim() ?? "";
     if (title.length === 0) {
@@ -399,6 +419,13 @@ export function AiRunCard({
     return diffWords(target.input, run.preview.trim()).after;
   }, [isReplacement, run.preview, showResult, target.input]);
 
+  const hasDiagram =
+    showResult && diagramResultParts(run.preview).some((part) => part.kind === "diagram");
+
+  const isRewrite =
+    hasDiagram ||
+    segments.every((segment) => segment.changed || segment.text.trim().length === 0);
+
   const addedWords = useMemo(() => {
     if (!showResult || !isReplacement) {
       return 0;
@@ -417,6 +444,8 @@ export function AiRunCard({
         event.preventDefault();
         if (isReplacement) {
           accept();
+        } else if (action.outcome === "diagram") {
+          insertDiagram();
         } else if (action.outcome === "title") {
           renameFromResult();
         } else if (action.outcome === "tasks") {
@@ -435,6 +464,7 @@ export function AiRunCard({
   return createPortal(
     <>
       <div className="skriuw-suggestion-header">
+        <span className="skriuw-suggestion-tone" aria-hidden="true" />
         <span className="skriuw-suggestion-label">{action.label}</span>
         {modelLabel !== null && (
           <span className="skriuw-suggestion-model">{modelLabel}</span>
@@ -477,7 +507,7 @@ export function AiRunCard({
           className="skriuw-suggestion-text"
           data-empty={!streaming && run.preview.length === 0 ? "" : undefined}
         >
-          {showResult && isReplacement ? (
+          {showResult && isReplacement && !isRewrite ? (
             segments.map((segment, index) => (
               <span
                 key={`${index}-${segment.changed}`}
@@ -488,7 +518,7 @@ export function AiRunCard({
             ))
           ) : (
             <>
-              {run.preview}
+              {streaming ? run.preview : <AiRunResultBody text={run.preview.trim()} />}
               {streaming && <span className="skriuw-suggestion-caret" aria-hidden="true" />}
               {!streaming && run.preview.length === 0 && (
                 <span className="text-theme-dim">Nothing was produced.</span>
@@ -537,56 +567,59 @@ export function AiRunCard({
       )}
 
       <div className="skriuw-suggestion-actions">
-        {aiRunIsAbortable(run) && (
-          <Button onClick={cancel}>
-            Stop
-          </Button>
-        )}
         {showResult && isReplacement && (
           <>
-            <Button variant="primary" onClick={accept}>
+            <Button className={PRIMARY_ACTION} onClick={accept}>
               {action.scope === "selection" ? "Replace selection" : "Replace note"}
+              <KeyCaps keys={applyKeys()} />
             </Button>
-            <Button onClick={insertBelow}>
+            <Button className={QUIET_ACTION} onClick={insertBelow}>
               Insert below
             </Button>
           </>
         )}
+        {showResult && action.outcome === "diagram" && (
+          <Button className={PRIMARY_ACTION} onClick={insertDiagram}>
+            Insert diagram
+            <KeyCaps keys={applyKeys()} />
+          </Button>
+        )}
         {showResult && action.outcome === "title" && (
-          <Button variant="primary" onClick={renameFromResult}>
+          <Button className={PRIMARY_ACTION} onClick={renameFromResult}>
             Rename note
+            <KeyCaps keys={applyKeys()} />
           </Button>
         )}
         {showResult && isPlan && plan !== null && plan.ok && (
           <Button
-            variant="primary"
+            className={PRIMARY_ACTION}
             onClick={action.outcome === "tasks" ? applyTaskPlan : applyTagPlan}
           >
             {action.outcome === "tasks"
               ? `Add ${chosen.length} task${chosen.length === 1 ? "" : "s"}`
               : `Add ${chosen.length} tag${chosen.length === 1 ? "" : "s"}`}
+            <KeyCaps keys={applyKeys()} />
+          </Button>
+        )}
+        {aiRunIsAbortable(run) && (
+          <Button className={QUIET_ACTION} onClick={cancel}>
+            Stop
           </Button>
         )}
         {!streaming && run.preview.length > 0 && (
-          <Button onClick={copyResult}>
+          <Button className={QUIET_ACTION} onClick={copyResult}>
             {copied ? "Copied" : "Copy"}
           </Button>
         )}
         {canRetryRun(run) && (
-          <Button onClick={retry}>
+          <Button className={QUIET_ACTION} onClick={retry}>
             Retry
           </Button>
         )}
-        <Button onClick={discard}>
+        <Button className={`${QUIET_ACTION} skriuw-suggestion-discard`} onClick={discard}>
           Discard
+          <KeyCaps keys={["esc"]} />
         </Button>
-        <span className="skriuw-suggestion-hint">
-          {showResult
-            ? "⌘↵ apply · esc discard"
-            : aiRunIsAbortable(run)
-              ? "esc stop and discard"
-              : "esc discard"}
-        </span>
       </div>
     </>,
     host,

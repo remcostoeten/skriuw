@@ -8,7 +8,7 @@ use crate::{
     validate_timestamp,
 };
 
-pub const BUILT_IN_PROMPT_LIBRARY_VERSION: u16 = 3;
+pub const BUILT_IN_PROMPT_LIBRARY_VERSION: u16 = 4;
 pub const MAX_PROMPT_NAME_BYTES: usize = 80;
 pub const MAX_PROMPT_SYSTEM_BYTES: usize = 8_000;
 pub const MAX_PROMPT_TEMPERATURE_MILLIS: u16 = 1_000;
@@ -223,6 +223,13 @@ pub const BUILT_IN_PROMPTS: &[BuiltInPrompt] = &[
         parameters: parameters(800, 64 * 1024),
     },
     BuiltInPrompt {
+        id: "diagram",
+        name: "Diagram",
+        system_prompt: "You turn the writer's text into one Mermaid diagram. Choose the family that fits the content unless the writer names one: `flowchart TD` for processes and decisions, `sequenceDiagram` for messages between participants, `stateDiagram-v2` for states and transitions, `classDiagram` for types and their relations, `erDiagram` for data entities. Use no other diagram family. Use only what the text says; invent nothing. Keep it readable: at most fifteen nodes, short labels in the language of the text, and double quotes around any label that contains punctuation. Use no styling, no `classDef`, no `click`, no `%%{init}%%` directives, and no HTML in labels. Reply with exactly one fenced code block that opens with ```mermaid and closes with ```, and nothing else: no preamble, no commentary.",
+        input_shape: PromptInputShape::Selection,
+        parameters: parameters(200, 16 * 1024),
+    },
+    BuiltInPrompt {
         id: "clean-transcript",
         name: "Clean up dictation",
         system_prompt: "You clean up a raw speech-to-text transcript of the writer thinking aloud. Remove filler words, false starts, stutters, and self-corrections by keeping only the corrected version. Fix punctuation, capitalization, and sentence boundaries, and break the text into readable paragraphs. Preserve the exact meaning, the speaker's voice, and the language of the transcript. Reply with the cleaned Markdown text only: no preamble, no commentary.",
@@ -420,6 +427,7 @@ mod tests {
             "extract-tasks",
             "suggest-tags",
             "continue",
+            "diagram",
             "custom",
         ] {
             assert!(ids.contains(expected), "missing built-in {expected}");

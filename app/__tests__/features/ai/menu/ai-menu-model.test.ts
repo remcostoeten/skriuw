@@ -61,7 +61,7 @@ test("only an action that asks the writer something opens a second step", () => 
     .filter((row) => aiMenuRowNeedsInstruction(row))
     .map((row) => row.action.id);
 
-  assert.deepEqual(needs, ["change-tone", "translate", "custom"]);
+  assert.deepEqual(needs, ["change-tone", "translate", "diagram", "custom"]);
 });
 
 test("a model is named only when both halves are known", () => {

@@ -64,6 +64,7 @@ test("the classic writing actions all ship", () => {
     "title",
     "outline",
     "continue",
+    "diagram",
     "custom",
   ]) {
     assert.ok(ids.has(expected), `missing built-in ${expected}`);
