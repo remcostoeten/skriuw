@@ -1,4 +1,4 @@
-import type { AiCompletionRequest } from "@/contracts/ai";
+import type { AiCompletionEvent, AiCompletionRequest } from "@/contracts/ai";
 import { noop } from "@/shared/lib/noop";
 import {
   startAiCompletion,
@@ -18,6 +18,16 @@ import {
 import { startErrorMessage } from "./run-progress";
 
 export type StartCompletion = typeof startAiCompletion;
+
+/**
+ * Inspects a finished reply and answers with the request that would fix it, or
+ * null when the reply stands. Asked at most once per run the writer started, so
+ * a model that keeps failing costs one extra request, not a loop.
+ */
+export type RunRepair = (
+  preview: string,
+  request: AiCompletionRequest,
+) => Promise<AiCompletionRequest | null>;
 
 /** Schedules one flush and returns a way to withdraw it before it runs. */
 export type FlushScheduler = (flush: () => void) => () => void;
@@ -40,6 +50,7 @@ type Options = {
   origin: string;
   signal: AbortSignal;
   onStart?: () => void;
+  repair?: RunRepair;
   startCompletion?: StartCompletion;
   scheduleFlush?: FlushScheduler;
   mintRequestId?: () => string;
@@ -73,6 +84,7 @@ export function createRunSession(options: Options): RunSession {
   let activeRequestId: string | null = null;
   let cancelRequested = false;
   let lastRequest: AiCompletionRequest | null = null;
+  let repairSpent = false;
   let buffer = "";
   let withdrawFlush: (() => void) | null = null;
   let disposed = false;
@@ -115,13 +127,55 @@ export function createRunSession(options: Options): RunSession {
     buffer = "";
   }
 
+  /**
+   * A reply that finished is held back from `done` while the repair looks at
+   * it, so the writer never sees a result flash up and get withdrawn. The run
+   * is still `streaming` for that moment, which keeps Stop meaningful: a cancel
+   * settles the run and the repair's answer is then dropped.
+   */
+  function settleDone(
+    request: AiCompletionRequest,
+    event: Extract<AiCompletionEvent, { type: "done" }>,
+  ): void {
+    const repair = options.repair;
+    if (repair === undefined || repairSpent) {
+      setRun(runWithTerminal(run, event));
+      return;
+    }
+    repairSpent = true;
+    function stillCurrent(): boolean {
+      return !disposed && activeRequestId === request.requestId && run.phase === "streaming";
+    }
+    void repair(run.preview, request)
+      .then((next) => {
+        if (!stillCurrent()) {
+          return;
+        }
+        if (next === null) {
+          setRun(runWithTerminal(run, event));
+          return;
+        }
+        send(next);
+      })
+      .catch(() => {
+        if (stillCurrent()) {
+          setRun(runWithTerminal(run, event));
+        }
+      });
+  }
+
   function fire(template: AiCompletionRequest): void {
     if (disposed) {
       return;
     }
+    repairSpent = false;
+    lastRequest = template;
+    send(template);
+  }
+
+  function send(template: AiCompletionRequest): void {
     const request = { ...template, requestId: mintRequestId() };
     releaseCurrent();
-    lastRequest = request;
     activeRequestId = request.requestId;
     cancelRequested = false;
     options.onStart?.();
@@ -135,6 +189,10 @@ export function createRunSession(options: Options): RunSession {
       onTerminal: (event) => {
         flushDeltas();
         handle = null;
+        if (event.type === "done") {
+          settleDone(request, event);
+          return;
+        }
         setRun(runWithTerminal(run, event));
       },
     });

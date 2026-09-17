@@ -94,8 +94,11 @@ whose fence stays the canonical source. Routing, in order:
 Insertion paths for the rendered families: `/sequence`, `/state`, `/class`,
 and `/er` insert a `mermaid` fence with a minimal template, open it in source
 mode, and put the caret on the first token the template expects to be
-replaced. Fences also arrive by typing, pasting, raw Markdown, sync, and import,
-and are rendered the same way.
+replaced. Fences also arrive by typing, pasting, raw Markdown, sync, import, and
+the AI **Diagram** action ([AI editor actions](ai-editor-actions.md#diagram-results)),
+and are rendered the same way. The action therefore yields either block type
+depending on the family the model chose; that is the routing above, not a
+second rule.
 
 Preview and source contract:
 

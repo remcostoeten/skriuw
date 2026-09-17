@@ -13,9 +13,10 @@ export type AiActionScope = "selection" | "note" | "caret";
  * What the run produces. `text` lands in the preview buffer and is applied as
  * one editor transaction; `tasks` and `tags` land in a reviewable plan and are
  * applied through the ordinary task and reference operations after
- * confirmation.
+ * confirmation. `diagram` is a Mermaid fence that joins the text it was drawn
+ * from instead of replacing it.
  */
-type AiActionOutcome = "text" | "title" | "tasks" | "tags";
+type AiActionOutcome = "text" | "title" | "tasks" | "tags" | "diagram";
 
 type AiActionInstruction = {
   label: string;
@@ -119,6 +120,19 @@ export const AI_EDITOR_ACTIONS: readonly AiEditorAction[] = [
       required: false,
     },
     keywords: ["language", "localise", "localize"],
+  },
+  {
+    id: "diagram",
+    promptId: "diagram",
+    label: "Diagram",
+    scope: "selection",
+    outcome: "diagram",
+    instruction: {
+      label: "Diagram",
+      placeholder: "sequence diagram of the login flow…",
+      required: false,
+    },
+    keywords: ["mermaid", "flowchart", "sequence", "chart", "visualize", "visualise"],
   },
   {
     id: "custom",

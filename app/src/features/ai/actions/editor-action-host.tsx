@@ -20,6 +20,7 @@ import { AiLauncher } from "@/features/ai/menu/ai-launcher";
 import { AiMenu } from "@/features/ai/menu/ai-menu";
 import { AiRunCard } from "@/features/ai/run/ai-run-card";
 import { createRunSession } from "@/features/ai/run/run-session";
+import { createDiagramRepair } from "./diagram-repair";
 import { endAiRun, registerAiRun } from "@/features/ai/run/run-registry";
 import { useRegisteredAiRun } from "@/features/ai/run/use-ai-run";
 import { requestModelSwitcher } from "@/features/ai/models/model-switcher-controller";
@@ -178,7 +179,11 @@ export function AiEditorActionHost({
       instruction,
       requestId: crypto.randomUUID(),
     });
-    const session = createRunSession({ origin: aiActionOrigin(action), signal });
+    const session = createRunSession({
+      origin: aiActionOrigin(action),
+      signal,
+      repair: action.outcome === "diagram" ? createDiagramRepair() : undefined,
+    });
     registerAiRun(
       {
         action,
