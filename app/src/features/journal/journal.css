@@ -1,0 +1,35 @@
+/*
+ * The notes pane gives the editor 60vh so a click anywhere below the text
+ * lands in it. A day with recalled entries stacks "On this day" under the
+ * editor, so there it keeps a writing-sized target instead and the section
+ * stays within reach of the first screen.
+ */
+.journal-entry-body:has(+ section) .prosemirror-host .ProseMirror,
+.journal-entry-body:has(+ section) .raw-markdown-surface,
+.journal-entry-body:has(+ section) .raw-markdown-root .cm-editor {
+  min-height: 18rem;
+}
+
+@media (max-width: 899px) {
+  .journal-entry-body:has(+ section) .prosemirror-host .ProseMirror,
+  .journal-entry-body:has(+ section) .raw-markdown-surface,
+  .journal-entry-body:has(+ section) .raw-markdown-root .cm-editor {
+    min-height: 11rem;
+  }
+}
+
+/*
+ * Laid over the empty editor, one line below the caret, so the first typed
+ * word removes it without moving the text.
+ */
+.journal-entry-starter {
+  position: absolute;
+  inset-inline: 0;
+  top: 4.75rem;
+}
+
+@media (max-width: 899px) {
+  .journal-entry-starter {
+    top: 4.25rem;
+  }
+}

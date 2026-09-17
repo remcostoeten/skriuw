@@ -1,5 +1,6 @@
+import "./journal.css";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, TouchEvent } from "react";
 import { useRouteFocus } from "@/app-route";
 import { editorModeForNote } from "@/store/actions/editor-mode";
 import { NoteEditor } from "@/features/editor/note-editor";
@@ -7,6 +8,8 @@ import { RawMarkdownEditor } from "@/features/editor/raw-markdown-editor";
 import {
   BarChartIcon,
   CalendarDaysIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   ClockIcon,
   HashIcon,
   PanelLeftToggleIcon,
@@ -20,6 +23,7 @@ import { WindowControls } from "@/shell/window-controls";
 import { useShortcutHints } from "@/commands/hints";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";
+import type { SwipeStart } from "@/shell/edge-swipe";
 import { deleteJournalEntry, ensureJournalEntry, setJournalMood } from "./actions";
 import {
   dateKeyOf,
@@ -33,9 +37,17 @@ import {
   type DateKey,
   type MonthKey,
 } from "./dates";
+import { daySwipeStep } from "./day-swipe";
+import { EntryStarter } from "./entry-starter";
 import { JournalCalendar } from "./journal-calendar";
 import { JournalGoToDateHost } from "./go-to-date-dialog";
-import { onJournalSearchFocus, openJournalDay, openJournalToday } from "./navigation";
+import {
+  onJournalSearchFocus,
+  openJournalDay,
+  openJournalDayOffset,
+  openJournalToday,
+} from "./navigation";
+import { OnThisDaySection } from "./on-this-day-section";
 import { cn } from "@/shared/lib/utils";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 import {
@@ -605,7 +617,7 @@ function MoodSelector({
   }
 
   return (
-    <div className="mt-6 grid gap-2 sm:grid-cols-[4.5rem_1fr] sm:items-center">
+    <div className="mt-6 grid gap-2 max-[899px]:mt-4 sm:grid-cols-[4.5rem_1fr] sm:items-center">
       <span
         id="journal-mood-label"
         className={sectionLabelClass}
@@ -613,7 +625,7 @@ function MoodSelector({
         Mood
       </span>
       <div
-        className="flex flex-wrap items-center gap-1.5"
+        className="flex flex-wrap items-center gap-1.5 max-[899px]:grid max-[899px]:grid-cols-5 max-[899px]:gap-1"
         role="radiogroup"
         aria-labelledby="journal-mood-label"
         onKeyDown={handleKeyDown}
@@ -636,7 +648,7 @@ function MoodSelector({
                 buttons.current.set(level, node);
               }}
               onClick={() => onSelect(level)}
-              className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-11 pointer-coarse:px-3 pointer-coarse:text-[13px] max-[899px]:h-12 max-[899px]:flex-col max-[899px]:justify-center max-[899px]:gap-0.5 max-[899px]:px-0 max-[899px]:text-[11px] ${
                 active
                   ? "border-border bg-muted font-medium text-foreground"
                   : "border-transparent text-muted-foreground/54 hover:border-border hover:bg-muted/70 hover:text-muted-foreground"
@@ -657,6 +669,13 @@ function MoodSelector({
     </div>
   );
 }
+
+const DAY_STEP_SHORTCUT_IDS = ["journalPreviousDay", "journalNextDay"] as const;
+
+const dayStepButtonClass = cn(
+  toolbarIconButtonClass,
+  "rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-11 pointer-coarse:w-11",
+);
 
 function JournalEntryPane({
   store,
@@ -703,9 +722,11 @@ function JournalEntryPane({
   const isRawMode = useRendererSelector(store, selectRawMode);
   const mood = useRendererSelector(store, selectMood);
   const wordCount = useRendererSelector(store, selectWordCount);
+  const dayHints = useShortcutHints(store, DAY_STEP_SHORTCUT_IDS);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const deleteTriggerRef = useRef<HTMLButtonElement>(null);
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const swipeRef = useRef<SwipeStart | null>(null);
   useEffect(() => setConfirmingDelete(false), [selectedKey]);
   const returningFocus = useRef(false);
   useEffect(() => {
@@ -741,32 +762,90 @@ function JournalEntryPane({
 
   const hasSubstance = wordCount > 0 || mood !== null;
 
+  function handleHeaderTouchStart(event: TouchEvent<HTMLDivElement>): void {
+    const touch = event.touches[0];
+    swipeRef.current =
+      touch === undefined || event.touches.length > 1
+        ? null
+        : { x: touch.clientX, y: touch.clientY, edge: null };
+  }
+
+  function handleHeaderTouchEnd(event: TouchEvent<HTMLDivElement>): void {
+    const start = swipeRef.current;
+    const touch = event.changedTouches[0];
+    swipeRef.current = null;
+    if (start === null || touch === undefined) {
+      return;
+    }
+    const step = daySwipeStep(start, touch.clientX, touch.clientY);
+    if (step !== 0) {
+      openJournalDayOffset(step);
+    }
+  }
+
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col bg-theme-editor">
-      <div className="shrink-0 px-12 pt-8">
-        <header className="mx-auto w-full max-w-[72ch] border-b border-border/55 pb-5">
-          <div aria-live="polite">
-            <h1 className="text-[34px] font-semibold leading-none tracking-tight text-foreground">
-              {formatDayHeading(selectedKey)}
-            </h1>
-            <p className="mt-2 text-[14px] text-muted-foreground/62">
-              {formatLongDate(selectedKey)}
-            </p>
+      <div
+        className="shrink-0 px-12 pt-8 max-[899px]:px-5 max-[899px]:pt-4"
+        onTouchStart={handleHeaderTouchStart}
+        onTouchEnd={handleHeaderTouchEnd}
+        onTouchCancel={() => {
+          swipeRef.current = null;
+        }}
+      >
+        <header className="mx-auto w-full max-w-[72ch] border-b border-border/55 pb-5 max-[899px]:pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <div aria-live="polite" className="min-w-0">
+              <h1 className="text-[34px] font-semibold leading-none tracking-tight text-foreground max-[899px]:text-[26px]">
+                {formatDayHeading(selectedKey)}
+              </h1>
+              <p className="mt-2 text-[14px] text-muted-foreground/62 max-[899px]:mt-1.5 max-[899px]:text-[13px]">
+                {formatLongDate(selectedKey)}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-0.5">
+              <Tooltip label="Previous day" side="bottom" shortcut={dayHints.journalPreviousDay}>
+                <button
+                  type="button"
+                  onClick={() => openJournalDayOffset(-1)}
+                  aria-label="Previous day"
+                  className={dayStepButtonClass}
+                >
+                  <ChevronLeftIcon size={16} />
+                </button>
+              </Tooltip>
+              <Tooltip label="Next day" side="bottom" shortcut={dayHints.journalNextDay}>
+                <button
+                  type="button"
+                  onClick={() => openJournalDayOffset(1)}
+                  aria-label="Next day"
+                  className={dayStepButtonClass}
+                >
+                  <ChevronRightIcon size={16} />
+                </button>
+              </Tooltip>
+            </div>
           </div>
           <MoodSelector mood={mood} onSelect={toggleMood} />
         </header>
       </div>
-      <div className="editor-scroll min-h-0 flex-1 overflow-y-auto px-12">
-        <div className="mx-auto min-h-[320px] w-full max-w-[72ch] py-6">
-          {noteId !== null &&
-            (isRawMode ? (
-              <RawMarkdownEditor store={store} selectNoteId={selectNoteId} />
-            ) : (
-              <NoteEditor store={store} selectNoteId={selectNoteId} />
-            ))}
+      <div className="editor-scroll min-h-0 flex-1 overflow-y-auto px-12 max-[899px]:px-5">
+        <div className="mx-auto w-full max-w-[72ch]">
+          <div className="journal-entry-body relative min-h-[320px] py-6 max-[899px]:min-h-[180px] max-[899px]:py-4">
+            {noteId !== null &&
+              (isRawMode ? (
+                <RawMarkdownEditor store={store} selectNoteId={selectNoteId} />
+              ) : (
+                <NoteEditor store={store} selectNoteId={selectNoteId} />
+              ))}
+            {noteId !== null && wordCount === 0 && (
+              <EntryStarter store={store} noteId={noteId} dateKey={selectedKey} />
+            )}
+          </div>
+          <OnThisDaySection store={store} dateKey={selectedKey} />
         </div>
       </div>
-      <div className="shrink-0 px-12 pb-8">
+      <div className="shrink-0 px-12 pb-8 max-[899px]:px-5 max-[899px]:pb-3">
         <div className="mx-auto flex w-full max-w-[72ch] flex-wrap items-center justify-between gap-3 border-t border-border/55 pt-4">
           <div role="status" className="flex items-center gap-3">
             <span className="text-[11px] text-muted-foreground/40">

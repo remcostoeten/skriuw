@@ -204,6 +204,101 @@ async function checkMermaidPreview(cdp, sessionId) {
   checks.push({ name: "the expanded diagram closes from Escape and from its close control", passed: true });
 }
 
+function centerOf(expression) {
+  return `(() => { const node = ${expression}; if (!node) return null; const rect = node.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, width: rect.width, height: rect.height }; })()`;
+}
+
+const BUTTON_WITH_TEXT = (text) =>
+  `Array.from(document.querySelectorAll('main[aria-label="Journal"] button')).find((button) => button.textContent.trim() === ${JSON.stringify(text)})`;
+const BUTTON_LABELLED = (label) =>
+  `document.querySelector('main[aria-label="Journal"] button[aria-label=${JSON.stringify(label)}]')`;
+
+async function tap(cdp, sessionId, expression, label) {
+  await waitFor(cdp, sessionId, `Boolean(${expression})`, label);
+  let point = await evaluate(cdp, sessionId, centerOf(expression));
+  // The editor mounting above a control moves it; aim only once it rests.
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await delay(60);
+    const next = await evaluate(cdp, sessionId, centerOf(expression));
+    const settled = next.x === point.x && next.y === point.y;
+    point = next;
+    if (settled) break;
+  }
+  await touch(cdp, sessionId, "touchStart", [{ x: point.x, y: point.y }]);
+  await delay(40);
+  await touch(cdp, sessionId, "touchEnd", []);
+  return point;
+}
+
+/**
+ * The journal on a phone: a day fills from a template in two taps, the choice
+ * is remembered for the next empty day, an entry a week back is recalled under
+ * "On this day", and days step by button and by a swipe across the heading.
+ */
+async function checkJournalDay(cdp, sessionId, screenshotDirectory) {
+  // The tab menu before this closed from Escape and swallows ghost clicks for 350ms.
+  await delay(400);
+  await evaluate(cdp, sessionId, `window.location.hash = '#/journal/2026-03-09'; true`);
+  await waitFor(cdp, sessionId, `Boolean(document.querySelector('[data-journal-starter]'))`, "template starter on an empty day");
+  const layout = await evaluate(
+    cdp,
+    sessionId,
+    `({
+      overflow: document.documentElement.scrollWidth > window.innerWidth,
+      steps: ['Previous day', 'Next day'].map((label) => document.querySelector('main[aria-label="Journal"] button[aria-label="' + label + '"]').getBoundingClientRect().height),
+      moods: Array.from(document.querySelectorAll('[role="radio"]')).map((radio) => radio.getBoundingClientRect().height),
+      starter: Array.from(document.querySelectorAll('[data-journal-starter] button')).map((button) => button.getBoundingClientRect().height),
+    })`,
+  );
+  check(
+    "the journal day fits the phone with touch-sized day, mood, and template controls",
+    !layout.overflow && [...layout.steps, ...layout.moods, ...layout.starter].every((height) => height >= 43.5),
+    layout,
+  );
+
+  await tap(cdp, sessionId, BUTTON_WITH_TEXT("Start from a template"), "template disclosure");
+  await tap(cdp, sessionId, BUTTON_WITH_TEXT("Daily note"), "daily note template");
+  await waitFor(
+    cdp,
+    sessionId,
+    `!document.querySelector('[data-journal-starter]') && document.querySelector('main[aria-label="Journal"] .ProseMirror')?.textContent.includes('Monday, March 9, 2026')`,
+    "template filling the entry with its own day",
+  );
+  checks.push({ name: "a template fills the empty entry, stamped with the entry's day", passed: true });
+
+  await tap(cdp, sessionId, BUTTON_LABELLED("Next day"), "next day button");
+  await waitFor(cdp, sessionId, `window.location.hash === '#/journal/2026-03-10'`, "next day from the button");
+  await waitFor(cdp, sessionId, `Boolean(${BUTTON_WITH_TEXT("Start from Daily note")})`, "remembered template on the next empty day");
+  checks.push({ name: "the next empty day offers the remembered template in one tap", passed: true });
+
+  await evaluate(cdp, sessionId, `window.location.hash = '#/journal/2026-03-16'; true`);
+  await waitFor(
+    cdp,
+    sessionId,
+    `document.querySelector('section[aria-labelledby="journal-on-this-day"]')?.textContent.includes('A week ago')`,
+    "the entry a week back under On this day",
+  );
+  if (screenshotDirectory) {
+    const { data } = await cdp.send("Page.captureScreenshot", { format: "png" }, sessionId);
+    await mkdir(screenshotDirectory, { recursive: true });
+    await writeFile(join(screenshotDirectory, "journal-day.png"), Buffer.from(data, "base64"));
+  }
+  await tap(cdp, sessionId, `document.querySelector('section[aria-labelledby="journal-on-this-day"] button')`, "recalled entry");
+  await waitFor(cdp, sessionId, `window.location.hash === '#/journal/2026-03-09'`, "opening the recalled day");
+  checks.push({ name: "On this day recalls the entry a week back and opens it", passed: true });
+
+  const heading = await evaluate(cdp, sessionId, centerOf(`document.querySelector('main[aria-label="Journal"] h1')`));
+  await drag(cdp, sessionId, { x: 80, y: heading.y }, { x: 260, y: heading.y + 6 });
+  await waitFor(cdp, sessionId, `window.location.hash === '#/journal/2026-03-08'`, "swiping the heading right to the previous day");
+  await drag(cdp, sessionId, { x: 300, y: heading.y }, { x: 300, y: heading.y + 120 });
+  await delay(150);
+  check(
+    "a swipe across the heading steps a day; a vertical drag does not",
+    (await evaluate(cdp, sessionId, `window.location.hash`)) === "#/journal/2026-03-08",
+    null,
+  );
+}
+
 const checks = [];
 function check(name, passed, detail) {
   checks.push({ name, passed, detail });
@@ -405,6 +500,8 @@ try {
   check("a held note tab opens the tab menu at a touch size", tab.height >= 43.5 && tabMenu.includes("Close all but this"), { tab, tabMenu });
   await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
   await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
+
+  await checkJournalDay(cdp, sessionId, process.env.SKRIUW_E2E_SCREENSHOTS ?? null);
 
   const errors = await evaluate(cdp, sessionId, `window.__consoleErrors`);
   consoleErrors.push(...errors.filter((line) => !IGNORED_CONSOLE.test(line)));

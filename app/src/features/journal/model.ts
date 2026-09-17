@@ -96,12 +96,37 @@ function hasSubstance(entry: JournalEntry): boolean {
   return entry.wordCount > 0 || entry.mood !== null;
 }
 
+const PROJECTION_INPUTS = [
+  "childrenByParent",
+  "nodes",
+  "propertiesByNoteId",
+  "metadata",
+  "outgoingReferences",
+  "tags",
+] as const satisfies readonly (keyof RendererState)[];
+
+let projected: { state: RendererState; entries: JournalEntry[] } | null = null;
+
 /**
- * Every available journal entry, newest day first. Days opened but never
+ * Every available journal entry, newest day first. The last projection is
+ * reused while the maps it reads keep their identity, so several subscribers
+ * share one pass and unrelated store updates cost a handful of comparisons. Days opened but never
  * written to (no words, no mood) stay out, so browsing the calendar never
  * fabricates visible entries.
  */
 export function selectJournalEntries(state: RendererState): JournalEntry[] {
+  if (
+    projected !== null &&
+    PROJECTION_INPUTS.every((input) => projected!.state[input] === state[input])
+  ) {
+    return projected.entries;
+  }
+  const entries = projectJournalEntries(state);
+  projected = { state, entries };
+  return entries;
+}
+
+function projectJournalEntries(state: RendererState): JournalEntry[] {
   const childIds = state.childrenByParent.get(JOURNAL_ROOT_ID);
   if (!childIds || childIds.length === 0) {
     return [];

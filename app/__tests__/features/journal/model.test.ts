@@ -154,3 +154,14 @@ test("setJournalMood writes, replaces, and clears the mood property", () => {
   setJournalMood(store, "entry-a", null);
   assert.equal(journalEntryMood(store.getState(), "entry-a"), null);
 });
+
+test("selectJournalEntries reuses its projection until a map it reads changes", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  const first = selectJournalEntries(store.getState());
+  store.setActiveNote(null);
+  assert.equal(selectJournalEntries(store.getState()), first);
+  setJournalMood(store, "entry-a", "great");
+  const next = selectJournalEntries(store.getState());
+  assert.notEqual(next, first);
+  assert.equal(next.find((entry) => entry.noteId === "entry-a")?.mood, "great");
+});
