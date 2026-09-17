@@ -62,6 +62,11 @@ import {
   readDiagramModel,
   serializeMermaidFlowchart,
 } from "./diagram-model";
+import {
+  createMermaidPreviewSelectionPlugin,
+  enterMermaidSource,
+  exitMermaidSource,
+} from "./code-block-nodeview";
 import { taskCheckItemAttrs } from "./task-promotion";
 
 export type SlashTrigger = "/" | ":";
@@ -1284,6 +1289,7 @@ export function createProductPlugins(): Plugin[] {
     createAnnotationDecorationPlugin(),
     createSuggestionPlugin(),
     createCodeHighlightPlugin(),
+    createMermaidPreviewSelectionPlugin(),
     createCheckboxTogglePlugin(),
     createToggleListPlugin(),
     inputRules({
@@ -1333,7 +1339,9 @@ export function createProductPlugins(): Plugin[] {
       ArrowDown: exitTerminalCodeBlockOnArrowDown,
       "Alt-Enter": toggleItemAtSelection,
       "Alt-Shift-Enter": toggleCheckItemAtSelection,
+      Escape: exitMermaidSource,
       Enter: chainCommands(
+        enterMermaidSource,
         splitTaskItem(checkItem),
         splitListItem(toggleItem, { open: true }),
         splitListItem(listItem),

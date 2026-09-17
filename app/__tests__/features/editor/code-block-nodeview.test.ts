@@ -1,13 +1,21 @@
 import assert from "node:assert/strict";
 import test, { afterEach } from "node:test";
-import { EditorState, type Transaction } from "prosemirror-state";
+import { EditorState, NodeSelection, TextSelection, type Transaction } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import {
+  MERMAID_MODE_EVENT,
   codeBlockClipboardText,
   createCodeBlockNodeView,
+  createMermaidPreviewSelectionPlugin,
+  enterMermaidSource,
+  exitMermaidSource,
+  mermaidBlockAtSelection,
   setCodeBlockLanguage,
+  toggleMermaidSource,
   writeCodeBlockClipboard,
+  type CodeBlockNodeViewDeps,
 } from "../../../src/features/editor/code-block-nodeview";
+import type { MermaidRenderResult } from "../../../src/features/editor/mermaid-render";
 import { CODE_LANGUAGES, resolveHighlightLanguage } from "../../../src/features/editor/code-highlight";
 import { productSchema, serializeProductMarkdown } from "../../../src/features/editor/schema";
 
@@ -109,6 +117,8 @@ class FakeElement {
   id = "";
   className = "";
   textContent = "";
+  innerHTML = "";
+  hidden = false;
   type = "";
   tabIndex = 0;
   contentEditable = "inherit";
@@ -173,11 +183,18 @@ class FakeElement {
     fakeDocument.activeElement = this;
     previous?.dispatchEvent(new FakeEvent("focusout", { relatedTarget: this }));
   }
+
+  remove(): void {
+    if (!this.parentElement) return;
+    this.parentElement.children = this.parentElement.children.filter((child) => child !== this);
+    this.parentElement = null;
+  }
 }
 
 class FakeEvent {
   type: string;
   key: string;
+  detail: unknown = null;
   ctrlKey = false;
   metaKey = false;
   altKey = false;
@@ -201,9 +218,25 @@ class FakeEvent {
   }
 }
 
+class FakeMutationObserver {
+  static instances: FakeMutationObserver[] = [];
+  disconnected = false;
+  target: unknown = null;
+  constructor(readonly callback: () => void) {
+    FakeMutationObserver.instances.push(this);
+  }
+  observe(target: unknown): void {
+    this.target = target;
+  }
+  disconnect(): void {
+    this.disconnected = true;
+  }
+}
+
 const fakeDocument = {
   activeElement: null as FakeElement | null,
   body: new FakeElement("body"),
+  documentElement: new FakeElement("html"),
   createElement: (tagName: string) => new FakeElement(tagName),
   createTextNode: (text: string) => ({ textContent: text }),
   querySelector: () => null,
@@ -211,7 +244,7 @@ const fakeDocument = {
   removeEventListener: () => {},
 };
 
-const GLOBAL_DOM_KEYS = ["document", "Node", "window"] as const;
+const GLOBAL_DOM_KEYS = ["document", "Node", "window", "MutationObserver"] as const;
 const hostGlobals = new Map<string, unknown>();
 
 afterEach(() => {
@@ -233,6 +266,8 @@ function installFakeDom(): void {
   }
   (globalThis as any).document = fakeDocument;
   (globalThis as any).Node = FakeElement;
+  (globalThis as any).MutationObserver = FakeMutationObserver;
+  FakeMutationObserver.instances = [];
   (globalThis as any).window = {
     setTimeout: (callback: () => void, ms: number) => setTimeout(callback, ms),
     clearTimeout: (handle: unknown) => clearTimeout(handle as ReturnType<typeof setTimeout>),
@@ -388,4 +423,267 @@ test("focus leaving the toolbar closes the menu", () => {
   const outside = new FakeElement("div");
   outside.focus();
   assert.equal(toolbar.dataset.open, "false");
+});
+
+const SEQUENCE = "sequenceDiagram\n  Alice->>Bob: Hello";
+const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="80"></svg>';
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
+}
+
+function mountMermaid(
+  params: string,
+  source: string,
+  result: MermaidRenderResult = { ok: true, svg: SVG, width: 200, height: 80 },
+  caretInside = false,
+) {
+  installFakeDom();
+  const calls: { source: string; animate: boolean }[] = [];
+  let nextResult = result;
+  const deps: CodeBlockNodeViewDeps = {
+    render: async (text, _palette, options) => {
+      calls.push({ source: text, animate: options.animate });
+      return nextResult;
+    },
+    rerenderDebounceMs: 10,
+  };
+  let state = stateWithCodeBlock(params, source);
+  state = state.apply(
+    state.tr.setSelection(
+      caretInside
+        ? TextSelection.create(state.doc, 1)
+        : NodeSelection.create(state.doc, 0),
+    ),
+  );
+  const view = {
+    editable: true,
+    get state() {
+      return state;
+    },
+    dispatch: (transaction: Transaction) => {
+      state = state.apply(transaction);
+    },
+    focus: () => {
+      fakeDocument.activeElement = null;
+    },
+  } as unknown as EditorView;
+  const nodeView = createCodeBlockNodeView(state.doc.firstChild!, view, () => 0, deps);
+  const dom = nodeView.dom as unknown as FakeElement;
+  const [toolbar, preview, code, error, note] = dom.children;
+  const [, , , modeToggle, expand] = toolbar.children;
+  function replaceSource(text: string): void {
+    state = stateWithCodeBlock(params, text);
+    nodeView.update!(state.doc.firstChild!, [], null as never);
+  }
+  return {
+    nodeView,
+    dom,
+    preview,
+    code,
+    error,
+    note,
+    modeToggle,
+    expand,
+    calls,
+    replaceSource,
+    setResult: (value: MermaidRenderResult) => {
+      nextResult = value;
+    },
+    selection: () => state.selection,
+  };
+}
+
+test("a sequence fence renders a preview and hides its source", async () => {
+  const { dom, preview, code, modeToggle, expand, calls } = mountMermaid("mermaid", SEQUENCE);
+  assert.equal(dom.dataset.mermaid, "preview");
+  assert.equal(preview.getAttribute("aria-label"), "Sequence diagram preview");
+  assert.equal(preview.getAttribute("role"), "img");
+  assert.equal(code.dataset.collapsed, "true");
+  assert.equal(modeToggle.hidden, false);
+  assert.equal(modeToggle.textContent, "Source");
+  assert.equal(expand.hidden, true);
+  await sleep(5);
+  assert.deepEqual(calls, [{ source: SEQUENCE, animate: true }]);
+  assert.equal(preview.innerHTML, SVG);
+  assert.equal(expand.hidden, false);
+});
+
+test("a block mounted with the caret inside it opens in source mode", async () => {
+  const { dom, code, calls } = mountMermaid("mermaid", SEQUENCE, undefined, true);
+  assert.equal(dom.dataset.mermaid, "source");
+  assert.equal(code.dataset.collapsed, undefined);
+  await sleep(5);
+  assert.equal(calls.length, 1);
+});
+
+test("an unsupported family keeps plain source with a quiet note and no toggle", async () => {
+  const { dom, preview, code, note, modeToggle, calls } = mountMermaid("mermaid", "gantt\n  title Plan");
+  assert.equal(dom.dataset.mermaid, undefined);
+  assert.equal(preview.hidden, true);
+  assert.equal(code.dataset.collapsed, undefined);
+  assert.equal(note.hidden, false);
+  assert.ok(note.textContent.includes("flowchart, sequence, state, class, and ER"));
+  assert.equal(modeToggle.hidden, true);
+  await sleep(5);
+  assert.equal(calls.length, 0);
+});
+
+test("a non-mermaid fence shows neither preview nor note", () => {
+  const { dom, note, modeToggle } = mountMermaid("ts", SEQUENCE);
+  assert.equal(dom.dataset.mermaid, undefined);
+  assert.equal(note.hidden, true);
+  assert.equal(modeToggle.hidden, true);
+});
+
+test("the toggle flips between preview and source and moves the selection", async () => {
+  const { dom, code, modeToggle, selection } = mountMermaid("mermaid", SEQUENCE);
+  await sleep(5);
+  modeToggle.dispatchEvent(new FakeEvent("click"));
+  assert.equal(dom.dataset.mermaid, "source");
+  assert.equal(code.dataset.collapsed, undefined);
+  assert.equal(modeToggle.textContent, "Preview");
+  assert.equal(selection().constructor.name, "TextSelection");
+  assert.equal(selection().from, SEQUENCE.length + 1);
+  modeToggle.dispatchEvent(new FakeEvent("click"));
+  assert.equal(dom.dataset.mermaid, "preview");
+  assert.equal(code.dataset.collapsed, "true");
+  assert.equal(selection().constructor.name, "NodeSelection");
+});
+
+test("a mode event from an editor command switches the view", async () => {
+  const { dom } = mountMermaid("mermaid", SEQUENCE);
+  const toggle = new FakeEvent(MERMAID_MODE_EVENT);
+  toggle.detail = "toggle";
+  dom.dispatchEvent(toggle);
+  assert.equal(dom.dataset.mermaid, "source");
+  const preview = new FakeEvent(MERMAID_MODE_EVENT);
+  preview.detail = "preview";
+  dom.dispatchEvent(preview);
+  assert.equal(dom.dataset.mermaid, "preview");
+});
+
+test("editing the source re-renders once after the debounce, without animation", async () => {
+  const { calls, replaceSource } = mountMermaid("mermaid", SEQUENCE);
+  await sleep(5);
+  replaceSource(`${SEQUENCE}\n  Bob-->>Alice: Hi`);
+  replaceSource(`${SEQUENCE}\n  Bob-->>Alice: Hi there`);
+  await sleep(40);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[1], { source: `${SEQUENCE}\n  Bob-->>Alice: Hi there`, animate: false });
+});
+
+test("a failed render shows the message and keeps the last good preview", async () => {
+  const { preview, error, setResult, replaceSource } = mountMermaid("mermaid", SEQUENCE);
+  await sleep(5);
+  assert.equal(error.hidden, true);
+  setResult({ ok: false, message: "Parse error on line 2" });
+  replaceSource(`${SEQUENCE}\n  Bob-->>`);
+  await sleep(40);
+  assert.equal(error.hidden, false);
+  assert.equal(error.textContent, "Parse error on line 2");
+  assert.equal(error.getAttribute("role"), "status");
+  assert.equal(preview.innerHTML, SVG);
+});
+
+test("a theme change re-renders and destroy disconnects the observer", async () => {
+  const { nodeView, calls } = mountMermaid("mermaid", SEQUENCE);
+  await sleep(5);
+  const observer = FakeMutationObserver.instances[0];
+  assert.ok(observer);
+  assert.equal(observer.target, fakeDocument.documentElement);
+  observer.callback();
+  await sleep(5);
+  assert.equal(calls.length, 2);
+  nodeView.destroy!();
+  assert.equal(observer.disconnected, true);
+  observer.callback();
+  await sleep(5);
+  assert.equal(calls.length, 2);
+});
+
+test("a fence that becomes mermaid later starts observing and rendering", async () => {
+  const { calls, nodeView } = mountMermaid("ts", SEQUENCE);
+  await sleep(5);
+  assert.equal(calls.length, 0);
+  assert.equal(FakeMutationObserver.instances.length, 0);
+  nodeView.update!(stateWithCodeBlock("mermaid", SEQUENCE).doc.firstChild!, [], null as never);
+  await sleep(5);
+  assert.equal(calls.length, 1);
+  assert.equal(FakeMutationObserver.instances.length, 1);
+});
+
+function mermaidState(source: string, params = "mermaid"): EditorState {
+  return EditorState.create({
+    doc: productSchema.node("doc", null, [
+      productSchema.node("paragraph", null, [productSchema.text("before")]),
+      productSchema.node("code_block", { params }, [productSchema.text(source)]),
+    ]),
+  });
+}
+
+function runCommand(
+  state: EditorState,
+  command: typeof enterMermaidSource,
+): { handled: boolean; state: EditorState } {
+  let next = state;
+  const handled = command(state, (transaction) => {
+    next = state.apply(transaction);
+  });
+  return { handled, state: next };
+}
+
+test("Enter on a selected diagram opens the source with the caret at the end", () => {
+  const base = mermaidState(SEQUENCE);
+  const selected = base.apply(base.tr.setSelection(NodeSelection.create(base.doc, 8)));
+  assert.deepEqual(mermaidBlockAtSelection(selected)?.selected, true);
+  const { handled, state } = runCommand(selected, enterMermaidSource);
+  assert.equal(handled, true);
+  assert.equal(state.selection.constructor.name, "TextSelection");
+  assert.equal(state.selection.from, 9 + SEQUENCE.length);
+  assert.equal(enterMermaidSource(selected, undefined), true);
+  const plainSelected = base.apply(base.tr.setSelection(TextSelection.create(base.doc, 1)));
+  assert.equal(enterMermaidSource(plainSelected, undefined), false);
+});
+
+test("Escape inside diagram source reselects the block", () => {
+  const base = mermaidState(SEQUENCE);
+  const inside = base.apply(base.tr.setSelection(TextSelection.create(base.doc, 12)));
+  assert.deepEqual(mermaidBlockAtSelection(inside), { pos: 8, node: inside.doc.child(1), selected: false });
+  const { handled, state } = runCommand(inside, exitMermaidSource);
+  assert.equal(handled, true);
+  assert.equal(state.selection.constructor.name, "NodeSelection");
+  assert.equal(state.selection.from, 8);
+  const outside = base.apply(base.tr.setSelection(TextSelection.create(base.doc, 2)));
+  assert.equal(exitMermaidSource(outside, undefined), false);
+});
+
+test("the commands ignore code blocks that are not renderable mermaid", () => {
+  const gantt = mermaidState("gantt\n  title x");
+  const inside = gantt.apply(gantt.tr.setSelection(TextSelection.create(gantt.doc, 12)));
+  assert.equal(mermaidBlockAtSelection(inside), null);
+  assert.equal(exitMermaidSource(inside, undefined), false);
+  assert.equal(toggleMermaidSource(inside, undefined), false);
+  const typescript = mermaidState(SEQUENCE, "ts");
+  const insideTs = typescript.apply(typescript.tr.setSelection(TextSelection.create(typescript.doc, 12)));
+  assert.equal(toggleMermaidSource(insideTs, undefined), false);
+  const renderable = mermaidState(SEQUENCE);
+  const insideRenderable = renderable.apply(renderable.tr.setSelection(TextSelection.create(renderable.doc, 12)));
+  assert.equal(toggleMermaidSource(insideRenderable, undefined), true);
+});
+
+test("a browser selection inside a previewed block resolves to the block itself", () => {
+  const plugin = createMermaidPreviewSelectionPlugin();
+  const between = plugin.props.createSelectionBetween!;
+  const state = mermaidState(SEQUENCE);
+  const viewFor = (mode: string | null) =>
+    ({ state, nodeDOM: () => (mode === null ? null : { dataset: { mermaid: mode } }) }) as unknown as EditorView;
+  const inside = between(viewFor("preview"), state.doc.resolve(12), state.doc.resolve(20));
+  assert.ok(inside instanceof NodeSelection);
+  assert.equal(inside?.from, 8);
+  assert.equal(between(viewFor("source"), state.doc.resolve(12), state.doc.resolve(20)), null);
+  assert.equal(between(viewFor(null), state.doc.resolve(12), state.doc.resolve(20)), null);
+  assert.equal(between(viewFor("preview"), state.doc.resolve(2), state.doc.resolve(12)), null);
+  const gantt = mermaidState("gantt\n  title x");
+  assert.equal(between(viewFor("preview"), gantt.doc.resolve(12), gantt.doc.resolve(14)), null);
 });

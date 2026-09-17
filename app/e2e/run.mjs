@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const app = join(root, "app");
-const baseUrl = "http://127.0.0.1:4192";
+const port = Number(process.env.SKRIUW_E2E_PORT ?? 4192);
+const baseUrl = `http://127.0.0.1:${port}`;
 const outputIndex = process.argv.indexOf("--output");
 const output = resolve(
   root,
@@ -19,6 +20,7 @@ const personalOnly = process.argv.includes("--personal-only");
 const tasksOnly = process.argv.includes("--tasks-only");
 const providerImportOnly = process.argv.includes("--provider-import-only");
 const journalOnly = process.argv.includes("--journal-only");
+const mermaidOnly = process.argv.includes("--mermaid-only");
 const sleep = (milliseconds) =>
   new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
 
@@ -46,6 +48,17 @@ function run(command, arguments_, options = {}) {
       }
     });
   });
+}
+
+async function assertPortFree() {
+  try {
+    await fetch(`${baseUrl}/e2e/index.html`);
+  } catch {
+    return;
+  }
+  throw new Error(
+    `something already serves ${baseUrl}; another e2e run or worktree owns the port, set SKRIUW_E2E_PORT to run alongside it`,
+  );
 }
 
 async function waitForServer() {
@@ -196,6 +209,7 @@ async function waitFor(cdp, sessionId, expression, description) {
       activeElement: document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.textContent?.trim().slice(0, 40) ?? null,
       openDialogs: [...document.querySelectorAll('dialog[open]')].map((dialog) => dialog.querySelector('h2')?.textContent ?? '(untitled)'),
       status: [...document.querySelectorAll('[role="status"]')].map((node) => node.textContent.trim()).filter(Boolean).slice(0, 4),
+      mermaid: [...document.querySelectorAll('pre.code-block[data-language="mermaid"]')].map((block) => ({ mode: block.dataset.mermaid ?? null, error: block.querySelector('.mermaid-error')?.textContent ?? null, svg: block.querySelector('.mermaid-preview')?.innerHTML.length ?? null, source: block.querySelector('code')?.textContent.slice(0, 60) })),
     })`,
   );
   throw new Error(`timed out waiting for ${description}: ${diagnostic}`);
@@ -470,6 +484,107 @@ async function checkJournalNavigation(cdp, sessionId, checks) {
   assert(checks, "journal-go-to-escape", (await journalHash(cdp, sessionId)) === "#/journal/2025-12-01", "Escape leaves the day unchanged");
 }
 
+const MERMAID_BLOCK = "document.querySelector('pre.code-block[data-language=\"mermaid\"]')";
+const MERMAID_SVG = `${MERMAID_BLOCK}?.querySelector('.mermaid-preview svg')`;
+
+async function checkMermaidRender(cdp, sessionId, checks) {
+  await evaluate(cdp, sessionId, "window.location.hash = '#/notes'");
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.settle()");
+  await evaluate(cdp, sessionId, 'window.__SKRIUW_WORKFLOW_E2E__.focusNamed("New note")');
+  await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.settle()");
+  await waitFor(cdp, sessionId, "document.querySelector('.ProseMirror[contenteditable=\"true\"]') !== null", "editable note for mermaid checks");
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.focusEditor()");
+  await replaceText(cdp, sessionId, "Diagram note");
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.settle()");
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.focusEditor()");
+  await typeText(cdp, sessionId, "Intro");
+  await waitFor(cdp, sessionId, "document.querySelector('.ProseMirror[contenteditable=\"true\"]').textContent.includes('Intro')", "body text before the fence");
+  const blocksBefore = await evaluate(cdp, sessionId, "document.querySelector('.ProseMirror[contenteditable=\"true\"]').childElementCount");
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await waitFor(cdp, sessionId, `document.querySelector('.ProseMirror[contenteditable=\"true\"]').childElementCount > ${blocksBefore}`, "fresh block for the mermaid fence");
+  await typeText(cdp, sessionId, "/sequence");
+  await waitFor(cdp, sessionId, "document.querySelector('.slash-menu[role=\"listbox\"]') !== null", "sequence slash command");
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.dataset.mermaid === 'source'`, "mermaid fence inserted in source mode");
+  const caret = await evaluate(cdp, sessionId, `(() => {
+    const block = ${MERMAID_BLOCK};
+    const selection = window.getSelection();
+    return {
+      insideSource: block.querySelector('code').contains(selection.anchorNode),
+      textAfterCaret: selection.anchorNode?.textContent?.slice(selection.anchorOffset, selection.anchorOffset + 5) ?? null,
+      toolbarVisible: getComputedStyle(block.querySelector('.code-block-toolbar')).opacity,
+      toggle: block.querySelector('.code-block-mode')?.textContent,
+    };
+  })()`);
+  assert(checks, "mermaid-template-caret-on-first-token", caret.insideSource && caret.textAfterCaret === "Alice" && caret.toggle === "Preview", JSON.stringify(caret));
+
+  await typeText(cdp, sessionId, "Dr");
+  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.textContent.includes('DrAlice->>Bob')`, "edited mermaid source");
+  await evaluate(cdp, sessionId, `${MERMAID_BLOCK}.querySelector('.code-block-mode').click()`);
+  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.dataset.mermaid === 'preview' && ${MERMAID_SVG} !== null && ${MERMAID_SVG}.textContent.includes('DrAlice')`, "rendered sequence preview with the edit");
+  const preview = await evaluate(cdp, sessionId, `(() => {
+    const block = ${MERMAID_BLOCK};
+    const svg = ${MERMAID_SVG};
+    const code = block.querySelector('code');
+    const rect = svg.getBoundingClientRect();
+    return {
+      selectedNode: block.classList.contains('ProseMirror-selectednode'),
+      svgVisible: rect.width > 50 && rect.height > 30,
+      sourceCollapsed: code.dataset.collapsed === 'true' && code.getBoundingClientRect().width <= 1,
+      role: block.querySelector('.mermaid-preview').getAttribute('role'),
+      label: block.querySelector('.mermaid-preview').getAttribute('aria-label'),
+      fontImport: svg.innerHTML.includes('fonts.googleapis'),
+      pageOverflow: document.querySelector('.editor-scroll')?.scrollWidth > document.querySelector('.editor-scroll')?.clientWidth,
+    };
+  })()`);
+  assert(checks, "mermaid-preview-visible-and-labelled", preview.selectedNode && preview.svgVisible && preview.sourceCollapsed && preview.role === "img" && preview.label === "Sequence diagram preview" && !preview.fontImport && !preview.pageOverflow, JSON.stringify(preview));
+
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.dataset.mermaid === 'source' && ${MERMAID_BLOCK}.querySelector('code').contains(window.getSelection().anchorNode)`, "Enter opens the source with the caret inside");
+  assert(checks, "mermaid-enter-opens-source", true, "Enter on the selected preview reveals the source");
+  await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
+  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.dataset.mermaid === 'preview' && ${MERMAID_BLOCK}.classList.contains('ProseMirror-selectednode')`, "Escape returns to the selected preview");
+  assert(checks, "mermaid-escape-returns-to-preview", true, "Escape in the source reselects the preview");
+
+  const before = await evaluate(cdp, sessionId, `${MERMAID_SVG}.getAttribute('style')`);
+  await evaluate(cdp, sessionId, "document.documentElement.dataset.theme = 'paper'");
+  await waitFor(cdp, sessionId, `${MERMAID_SVG}?.getAttribute('style') !== ${JSON.stringify(before)} && ${MERMAID_SVG}?.getAttribute('style').includes('40 16% 95%')`, "preview re-rendered with the paper palette");
+  await evaluate(cdp, sessionId, "document.documentElement.dataset.theme = 'midnight'");
+  await waitFor(cdp, sessionId, `${MERMAID_SVG}?.getAttribute('style') === ${JSON.stringify(before)}`, "preview restored to the midnight palette");
+  assert(checks, "mermaid-theme-switch-rerenders", true, "a theme change re-renders the preview in place");
+
+  await evaluate(cdp, sessionId, `${MERMAID_BLOCK}.querySelector('.code-block-expand').click()`);
+  await waitFor(cdp, sessionId, "document.querySelector('dialog.mermaid-expand[open] svg') !== null", "expanded diagram dialog");
+  assert(checks, "mermaid-expand-opens-dialog", await evaluate(cdp, sessionId, "document.activeElement === document.querySelector('dialog.mermaid-expand .mermaid-expand-close')"), "expand focuses its close control");
+  await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
+  await waitFor(cdp, sessionId, "document.querySelector('dialog.mermaid-expand') === null", "expanded diagram closed by Escape");
+  assert(checks, "mermaid-expand-escape-closes", true, "Escape closes the expanded diagram");
+
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.focusEditor()");
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await typeText(cdp, sessionId, "/er");
+  await waitFor(cdp, sessionId, "document.querySelector('.slash-menu[role=\"listbox\"]') !== null", "er slash command");
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await waitFor(cdp, sessionId, "document.querySelectorAll('pre.code-block[data-language=\"mermaid\"]').length === 2", "second mermaid fence");
+  await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
+  await waitFor(cdp, sessionId, "document.querySelectorAll('pre.code-block[data-mermaid=\"preview\"]').length === 2", "ER fence back in preview");
+  await dispatchKey(cdp, sessionId, "ArrowDown", "ArrowDown", 40);
+  await typeText(cdp, sessionId, "/code");
+  await waitFor(cdp, sessionId, "document.querySelector('.slash-menu[role=\"listbox\"]') !== null", "code slash command");
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await typeText(cdp, sessionId, "plain code");
+  const plain = await evaluate(cdp, sessionId, `(() => {
+    const blocks = [...document.querySelectorAll('pre.code-block')];
+    const last = blocks[blocks.length - 1];
+    return { language: last.dataset.language, mermaid: last.dataset.mermaid ?? null, toggleHidden: last.querySelector('.code-block-mode').hidden, note: last.querySelector('.mermaid-note').hidden };
+  })()`);
+  assert(checks, "mermaid-plain-code-block-untouched", plain.language === "" && plain.mermaid === null && plain.toggleHidden && plain.note, JSON.stringify(plain));
+}
+
 async function runWorkflow() {
   const profileDirectory = await mkdtemp(join(tmpdir(), "skriuw-c3-workflow-"));
   let chrome;
@@ -562,6 +677,13 @@ async function runWorkflow() {
       assert(checks, "personal-browser-errors-empty", consoleErrors.length === 0 && pageErrors.length === 0, JSON.stringify({ consoleErrors, pageErrors }));
       cdp.close();
       return { browser: browser.product, steps: ["personal-template", "saved-search"], checks, consoleErrors, pageErrors };
+    }
+
+    if (mermaidOnly) {
+      await checkMermaidRender(cdp, sessionId, checks);
+      assert(checks, "mermaid-browser-errors-empty", consoleErrors.length === 0 && pageErrors.length === 0, JSON.stringify({ consoleErrors, pageErrors }));
+      cdp.close();
+      return { browser: browser.product, steps: ["mermaid-render"], checks, consoleErrors, pageErrors };
     }
 
     if (journalOnly) {
@@ -1682,9 +1804,10 @@ await run("pnpm", [
   "--mode",
   "production",
 ]);
+await assertPortFree();
 const preview = spawn(
   join(app, "node_modules/.bin/vite"),
-  ["preview", "--config", join(app, "e2e/vite.config.ts")],
+  ["preview", "--config", join(app, "e2e/vite.config.ts"), "--port", String(port)],
   { cwd: root, stdio: "ignore", env: process.env },
 );
 try {
@@ -1695,7 +1818,7 @@ try {
     schemaVersion: 1,
     verifiedAt: new Date().toISOString(),
     revision: git.stdout.trim(),
-    command: `node app/e2e/run.mjs${personalOnly ? " --personal-only" : journalOnly ? " --journal-only" : providerImportOnly ? " --provider-import-only" : tasksOnly ? " --tasks-only" : ""} --output ${output}`,
+    command: `node app/e2e/run.mjs${personalOnly ? " --personal-only" : journalOnly ? " --journal-only" : providerImportOnly ? " --provider-import-only" : tasksOnly ? " --tasks-only" : mermaidOnly ? " --mermaid-only" : ""} --output ${output}`,
     machine: {
       hostname: hostname(),
       platform: platform(),

@@ -20,6 +20,7 @@ export const NOTE_EDITOR_SHORTCUT_IDS = [
   "previousAnnotation",
   "toggleChecklistItem",
   "jumpToLine",
+  "toggleDiagramSource",
 ] as const satisfies readonly ShortcutActionId[];
 
 export const RAW_MARKDOWN_EDGE_SHORTCUT_IDS = [

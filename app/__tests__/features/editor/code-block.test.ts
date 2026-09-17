@@ -7,6 +7,7 @@ import {
   productSchema,
   serializeProductMarkdown,
 } from "../../../src/features/editor/schema";
+import { isRenderableMermaidFence } from "../../../src/features/editor/mermaid-render";
 
 function codeBlockDocument(params: string, code: string) {
   return productSchema.node("doc", null, [
@@ -111,4 +112,43 @@ test("ArrowDown does not add a paragraph when one already follows the code block
 
   assert.equal(state.doc.childCount, 2);
   assert.equal(state.doc.lastChild?.textContent, "after");
+});
+
+test("a parseable mermaid flowchart still becomes an editable diagram node", () => {
+  const doc = parseProductMarkdown("```mermaid\ngraph TD\n  A[Start] --> B[End]\n```\n");
+  assert.equal(doc.firstChild?.type.name, "diagram");
+});
+
+test("a flowchart the editable parser rejects stays a renderable mermaid code block", () => {
+  const source = "graph TD\n  subgraph Group\n    A --> B\n  end";
+  const markdown = `\`\`\`mermaid\n${source}\n\`\`\``;
+  const doc = parseProductMarkdown(`${markdown}\n`);
+  assert.equal(doc.firstChild?.type.name, "code_block");
+  assert.equal(doc.firstChild?.attrs.params, "mermaid");
+  assert.equal(isRenderableMermaidFence("mermaid", doc.firstChild?.textContent ?? ""), true);
+  assert.equal(serializeProductMarkdown(doc).trimEnd(), markdown);
+});
+
+test("sequence, state, class, and ER fences round-trip byte for byte as code blocks", () => {
+  const sources = [
+    "sequenceDiagram\n  Alice->>Bob: Hello\n  Bob-->>Alice: Hi",
+    "stateDiagram-v2\n  [*] --> Idle\n  Idle --> [*]",
+    "classDiagram\n  class Note {\n    +string title\n  }",
+    "erDiagram\n  NOTE ||--o{ TAG : has",
+  ];
+  for (const source of sources) {
+    const markdown = `\`\`\`mermaid\n${source}\n\`\`\``;
+    const doc = parseProductMarkdown(`${markdown}\n`);
+    assert.equal(doc.firstChild?.type.name, "code_block", source);
+    assert.equal(isRenderableMermaidFence("mermaid", doc.firstChild?.textContent ?? ""), true, source);
+    assert.equal(serializeProductMarkdown(doc).trimEnd(), markdown);
+  }
+});
+
+test("an unsupported mermaid family stays an ordinary fence that is not renderable", () => {
+  const markdown = "```mermaid\ngantt\n  title Plan\n```";
+  const doc = parseProductMarkdown(`${markdown}\n`);
+  assert.equal(doc.firstChild?.type.name, "code_block");
+  assert.equal(isRenderableMermaidFence("mermaid", doc.firstChild?.textContent ?? ""), false);
+  assert.equal(serializeProductMarkdown(doc).trimEnd(), markdown);
 });

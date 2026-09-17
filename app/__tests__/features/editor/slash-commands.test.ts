@@ -10,6 +10,7 @@ import {
   slashCommands,
 } from "../../../src/features/editor/slash-commands";
 import { productSchema } from "../../../src/features/editor/schema";
+import { mermaidTemplates } from "../../../src/features/editor/mermaid-render";
 
 test("slashCommands defines expected set of editor command blocks", () => {
   const ids = slashCommands.map((item) => item.id);
@@ -27,6 +28,9 @@ test("slashCommands defines expected set of editor command blocks", () => {
   assert.ok(ids.includes("quote"));
   assert.ok(ids.includes("code"));
   assert.ok(ids.includes("diagram"));
+  for (const id of ["sequence-diagram", "state-diagram", "class-diagram", "er-diagram"]) {
+    assert.ok(ids.includes(id), id);
+  }
   assert.ok(ids.includes("emoji"));
   assert.ok(ids.includes("image"));
   assert.ok(ids.includes("video"));
@@ -417,4 +421,45 @@ test("the video command clears its trigger and defers to the asset picker", () =
   assert.equal(action, "pick-video");
   assert.equal(state.doc.firstChild?.type.name, "paragraph");
   assert.equal(state.doc.firstChild?.textContent, "");
+});
+
+test("the mermaid family commands insert a source-mode mermaid fence with the caret on the first token", () => {
+  for (const template of mermaidTemplates) {
+    const doc = productSchema.node("doc", null, [
+      productSchema.node("paragraph", null, productSchema.text("/seq")),
+    ]);
+    let state = EditorState.create({ doc, schema: productSchema });
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, state.doc.content.size - 1)),
+    );
+    const mockView = {
+      get state() {
+        return state;
+      },
+      dispatch: (tr: any) => {
+        state = state.apply(tr);
+      },
+      focus: () => undefined,
+    } as unknown as EditorView;
+    const command = slashCommands.find((c) => c.id === template.id);
+    assert.ok(command, template.id);
+    assert.equal(applySlashCommand(mockView, command), null);
+    const block = state.doc.firstChild;
+    assert.equal(block?.type.name, "code_block", template.id);
+    assert.equal(block?.attrs.params, "mermaid");
+    assert.equal(block?.textContent, template.source);
+    assert.equal(state.doc.lastChild?.type.name, "paragraph");
+    assert.equal(state.selection.from, 1 + template.caret);
+    assert.equal(
+      state.doc.textBetween(state.selection.from, state.selection.from + 4),
+      template.source.slice(template.caret, template.caret + 4),
+    );
+  }
+});
+
+test("family aliases resolve to the mermaid fence commands", () => {
+  assert.equal(filterSlashCommands("sequence")[0]?.id, "sequence-diagram");
+  assert.equal(filterSlashCommands("state")[0]?.id, "state-diagram");
+  assert.equal(filterSlashCommands("class")[0]?.id, "class-diagram");
+  assert.equal(filterSlashCommands("er")[0]?.id, "er-diagram");
 });

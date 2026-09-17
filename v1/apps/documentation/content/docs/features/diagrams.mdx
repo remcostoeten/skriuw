@@ -21,6 +21,53 @@ Type ` ```mermaid ` (or ` ```diagram `) in the editor to insert a diagram block.
 - **Git graphs** - branch and commit histories
 - **Pie charts, timelines, and more**
 
+## Sequence, state, class, and ER diagrams
+
+In the desktop app, `mermaid` fences that are not flowcharts render as a
+read-only preview inside the code block. Type `/sequence`, `/state`, `/class`,
+or `/er` to insert a starter, or paste any Mermaid source into a `mermaid` code
+block.
+
+```mermaid
+sequenceDiagram
+  Alice->>Bob: Hello
+  Bob-->>Alice: Hi
+```
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Running: start
+  Running --> [*]
+```
+
+```mermaid
+classDiagram
+  class Note {
+    +string title
+    +open()
+  }
+  Note --> Tag
+```
+
+```mermaid
+erDiagram
+  NOTE ||--o{ TAG : has
+```
+
+- **Source** and **Preview** in the block toolbar switch between the code and
+  the rendered diagram. Press Enter on a selected preview to edit, Escape to go
+  back, or `Ctrl/Cmd+Alt+P` from anywhere in the block.
+- **Expand** opens the diagram full-screen; pinch or scroll to zoom and pan.
+- Wide diagrams scroll sideways inside the block instead of shrinking.
+- A syntax error shows its message under the preview and keeps the last good
+  rendering.
+- Diagrams follow your theme.
+
+Supported for rendering: flowcharts, sequence, state, class, and ER diagrams.
+Other Mermaid families such as Gantt charts, pie charts, mind maps, and Git
+graphs stay as plain source with a short note.
+
 ## Editing diagrams
 
 - Click the rendered diagram to edit its source code
