@@ -836,6 +836,181 @@
   color: hsl(var(--accent-foreground));
 }
 
+.prosemirror-host .ProseMirror .code-block-mode,
+.prosemirror-host .ProseMirror .code-block-expand {
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) - 2px);
+  background: none;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.prosemirror-host .ProseMirror .code-block-mode:hover,
+.prosemirror-host .ProseMirror .code-block-mode:focus-visible,
+.prosemirror-host .ProseMirror .code-block-expand:hover,
+.prosemirror-host .ProseMirror .code-block-expand:focus-visible {
+  border-color: hsl(var(--border));
+  background: hsl(var(--muted) / 0.6);
+  color: hsl(var(--foreground));
+}
+
+.prosemirror-host .ProseMirror pre.code-block[data-mermaid="preview"] .code-block-toolbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.prosemirror-host .ProseMirror pre.code-block[data-mermaid="preview"] .code-block-language {
+  display: none;
+}
+
+.prosemirror-host .ProseMirror .mermaid-preview {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y pinch-zoom;
+  padding-top: 24px;
+  color: hsl(var(--foreground));
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+.prosemirror-host .ProseMirror .mermaid-preview svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
+
+.prosemirror-host .ProseMirror .mermaid-preview[data-wide="true"] svg {
+  width: auto;
+  min-width: 100%;
+  max-width: none;
+}
+
+.prosemirror-host .ProseMirror pre.code-block[data-mermaid="source"] .mermaid-preview {
+  display: none;
+}
+
+.prosemirror-host .ProseMirror .mermaid-error,
+.prosemirror-host .ProseMirror .mermaid-note {
+  margin-top: 6px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: normal;
+  user-select: none;
+}
+
+.prosemirror-host .ProseMirror .mermaid-note {
+  color: hsl(var(--muted-foreground));
+}
+
+.prosemirror-host .ProseMirror .mermaid-error {
+  color: hsl(var(--destructive));
+}
+
+.prosemirror-host .ProseMirror pre.code-block[data-mermaid] .mermaid-error[hidden],
+.prosemirror-host .ProseMirror pre.code-block .mermaid-note[hidden],
+.prosemirror-host .ProseMirror pre.code-block .mermaid-preview[hidden],
+.prosemirror-host .ProseMirror .code-block-toolbar button[hidden] {
+  display: none;
+}
+
+/*
+ * The source stays in layout while the preview shows so a caret arriving by
+ * keyboard still lands in it (the node view then reveals the source); a
+ * display:none source would leave the browser nowhere to put the selection.
+ */
+.prosemirror-host .ProseMirror pre.code-block code[data-collapsed="true"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.prosemirror-host .ProseMirror .ProseMirror-selectednode.code-block[data-mermaid="preview"] {
+  outline: none;
+  box-shadow: 0 0 0 1px hsl(var(--editor-selection) / 0.35);
+  border-radius: calc(var(--radius) + 1px);
+}
+
+@media (pointer: coarse) {
+  .prosemirror-host .ProseMirror pre.code-block[data-mermaid] .code-block-toolbar {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .prosemirror-host .ProseMirror pre.code-block[data-mermaid] .code-block-toolbar button {
+    min-height: 44px;
+    min-width: 44px;
+    padding-inline: 12px;
+  }
+
+  .prosemirror-host .ProseMirror pre.code-block[data-mermaid] .mermaid-preview {
+    padding-top: 48px;
+  }
+}
+
+dialog.mermaid-expand {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+dialog.mermaid-expand::backdrop {
+  background: hsl(var(--scrim) / 0.5);
+}
+
+dialog.mermaid-expand .mermaid-expand-close {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  right: calc(env(safe-area-inset-right, 0px) + 8px);
+  z-index: 1;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 14px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card) / 0.92);
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+dialog.mermaid-expand .mermaid-expand-canvas {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  padding: 64px 24px 24px;
+  touch-action: pan-x pan-y pinch-zoom;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+}
+
+dialog.mermaid-expand .mermaid-expand-canvas svg {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: none;
+  min-width: 100%;
+  margin: 0 auto;
+}
+
 .prosemirror-host .ProseMirror pre .hljs-comment,
 .prosemirror-host .ProseMirror pre .hljs-quote {
   color: hsl(var(--muted-foreground));

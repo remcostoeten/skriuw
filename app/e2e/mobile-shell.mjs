@@ -22,7 +22,7 @@ import {
  */
 
 const appDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const port = 4195;
+const port = Number(process.env.SKRIUW_E2E_MOBILE_PORT ?? 4195);
 const baseUrl = `http://127.0.0.1:${port}`;
 const outputIndex = process.argv.indexOf("--output");
 const output = resolve(
@@ -94,6 +94,114 @@ async function hold(cdp, sessionId, point, milliseconds) {
   await touch(cdp, sessionId, "touchStart", [point]);
   await delay(milliseconds);
   await touch(cdp, sessionId, "touchEnd", []);
+}
+
+async function pressKey(cdp, sessionId, key, code, virtualKeyCode, text = "") {
+  const common = { key, code, windowsVirtualKeyCode: virtualKeyCode, nativeVirtualKeyCode: virtualKeyCode, ...(text ? { text, unmodifiedText: text } : {}) };
+  await cdp.send("Input.dispatchKeyEvent", { ...common, type: "keyDown" }, sessionId);
+  await cdp.send("Input.dispatchKeyEvent", { ...common, type: "keyUp" }, sessionId);
+}
+
+const MERMAID_BLOCK = `document.querySelector('pre.code-block[data-language="mermaid"]')`;
+
+/**
+ * A wide sequence diagram at phone width: the preview scrolls sideways inside
+ * its block instead of widening the note, its controls are touch-sized and
+ * visible without hover, and the expand sheet opens full-screen and closes
+ * from its control and from Escape.
+ */
+async function checkMermaidPreview(cdp, sessionId) {
+  await evaluate(
+    cdp,
+    sessionId,
+    `(() => { const editor = document.querySelector('.ProseMirror[contenteditable="true"]'); editor.focus(); const selection = window.getSelection(); selection.selectAllChildren(editor); selection.collapseToEnd(); return true; })()`,
+  );
+  await pressKey(cdp, sessionId, "Enter", "Enter", 13);
+  await pressKey(cdp, sessionId, "Enter", "Enter", 13);
+  await cdp.send("Input.insertText", { text: "/sequence" }, sessionId);
+  await waitFor(cdp, sessionId, `Boolean(document.querySelector('.slash-menu[role="listbox"]'))`, "sequence slash command on the compact shell");
+  await pressKey(cdp, sessionId, "Enter", "Enter", 13);
+  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.dataset.mermaid === 'source'`, "mermaid fence in source mode");
+  const participants = Array.from({ length: 12 }, (_, index) => `participant P${index}`).join("\n  ");
+  await cdp.send("Input.insertText", { text: `${participants}\n  ` }, sessionId);
+  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.textContent.includes('participant P11')`, "twelve participants typed into the source");
+  await evaluate(cdp, sessionId, `${MERMAID_BLOCK}.querySelector('.code-block-mode').click()`);
+  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.dataset.mermaid === 'preview' && Number(${MERMAID_BLOCK}.querySelector('.mermaid-preview svg')?.getAttribute('width')) > ${VIEWPORT.width}`, "rendered wide sequence preview");
+  const layout = await evaluate(
+    cdp,
+    sessionId,
+    `(() => {
+      const block = ${MERMAID_BLOCK};
+      const preview = block.querySelector('.mermaid-preview');
+      const svg = preview.querySelector('svg');
+      const toolbar = block.querySelector('.code-block-toolbar');
+      const buttons = Array.from(toolbar.querySelectorAll('button')).filter((button) => button.getBoundingClientRect().height > 0);
+      return {
+        pageOverflow: document.documentElement.scrollWidth > window.innerWidth,
+        noteOverflow: block.getBoundingClientRect().right > window.innerWidth,
+        previewScrolls: preview.scrollWidth > preview.clientWidth + 8,
+        wide: preview.dataset.wide,
+        svgWidth: svg.getBoundingClientRect().width,
+        touchAction: getComputedStyle(preview).touchAction,
+        toolbarOpacity: getComputedStyle(toolbar).opacity,
+        buttonHeights: buttons.map((button) => Math.round(button.getBoundingClientRect().height)),
+        buttonLabels: buttons.map((button) => button.getAttribute('aria-label') ?? button.textContent),
+      };
+    })()`,
+  );
+  check(
+    "a wide diagram scrolls inside its block without widening the page",
+    !layout.pageOverflow && !layout.noteOverflow && layout.previewScrolls && layout.wide === "true" && layout.svgWidth > VIEWPORT.width,
+    layout,
+  );
+  check(
+    "the preview keeps pinch zoom and pans inside the block",
+    /pinch-zoom|manipulation/.test(layout.touchAction),
+    layout,
+  );
+  check(
+    "diagram controls are visible without hover and sized for touch",
+    layout.toolbarOpacity === "1" && layout.buttonHeights.every((height) => height >= 44) && layout.buttonLabels.includes("Expand diagram"),
+    layout,
+  );
+
+  const expand = await evaluate(cdp, sessionId, `(() => { const rect = ${MERMAID_BLOCK}.querySelector('.code-block-expand').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()`);
+  await touch(cdp, sessionId, "touchStart", [expand]);
+  await touch(cdp, sessionId, "touchEnd", []);
+  await waitFor(cdp, sessionId, `Boolean(document.querySelector('dialog.mermaid-expand[open] svg'))`, "expanded diagram sheet");
+  const sheet = await evaluate(
+    cdp,
+    sessionId,
+    `(() => {
+      const dialog = document.querySelector('dialog.mermaid-expand[open]');
+      const canvas = dialog.querySelector('.mermaid-expand-canvas');
+      const close = dialog.querySelector('.mermaid-expand-close');
+      const rect = dialog.getBoundingClientRect();
+      return {
+        fullWidth: Math.round(rect.width) >= window.innerWidth - 1,
+        fullHeight: Math.round(rect.height) >= window.innerHeight - 1,
+        canvasScrolls: canvas.scrollWidth > canvas.clientWidth,
+        closeHeight: Math.round(close.getBoundingClientRect().height),
+        focused: document.activeElement === close,
+        touchAction: getComputedStyle(canvas).touchAction,
+      };
+    })()`,
+  );
+  check(
+    "expand opens the diagram full-screen with a pannable, pinchable canvas",
+    sheet.fullWidth && sheet.fullHeight && sheet.canvasScrolls && sheet.closeHeight >= 44 && sheet.focused && /pinch-zoom|manipulation/.test(sheet.touchAction),
+    sheet,
+  );
+  await pressKey(cdp, sessionId, "Escape", "Escape", 27);
+  await waitFor(cdp, sessionId, `!document.querySelector('dialog.mermaid-expand')`, "expanded diagram closing from Escape");
+  await touch(cdp, sessionId, "touchStart", [expand]);
+  await touch(cdp, sessionId, "touchEnd", []);
+  await waitFor(cdp, sessionId, `Boolean(document.querySelector('dialog.mermaid-expand[open]'))`, "expanded diagram reopened");
+  const closeButton = await evaluate(cdp, sessionId, `(() => { const rect = document.querySelector('dialog.mermaid-expand .mermaid-expand-close').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()`);
+  await touch(cdp, sessionId, "touchStart", [closeButton]);
+  await touch(cdp, sessionId, "touchEnd", []);
+  await waitFor(cdp, sessionId, `!document.querySelector('dialog.mermaid-expand')`, "expanded diagram closing from its control");
+  checks.push({ name: "the expanded diagram closes from Escape and from its close control", passed: true });
 }
 
 const checks = [];
@@ -181,6 +289,8 @@ try {
   await waitFor(cdp, sessionId, NO_SHEET, "sheet closing after a note tap");
   const crumbs = await evaluate(cdp, sessionId, `document.querySelector('main').textContent`);
   check("tapping a note activates it and dismisses the sheet", crumbs.includes("Beta note"), { crumbs: crumbs.slice(0, 80) });
+
+  await checkMermaidPreview(cdp, sessionId);
 
   await drag(cdp, sessionId, { x: 4, y: 300 }, { x: 140, y: 304 });
   await waitForSheet(cdp, sessionId, "left", "tree sheet from an edge swipe");

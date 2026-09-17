@@ -23,7 +23,7 @@ import {
   type Transaction,
 } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
-import { createCodeBlockNodeView } from "./code-block-nodeview";
+import { createCodeBlockNodeView, toggleMermaidSource } from "./code-block-nodeview";
 import { createDiagramNodeView } from "./diagram-nodeview";
 import { createImageNodeViews } from "./image-nodeview";
 import {
@@ -1759,6 +1759,10 @@ const closeJumpToLine = useCallback(() => {
         if (view) toggleCheckItemAtSelection(view.state, view.dispatch);
       },
       jumpToLine: toggleJumpToLine,
+      toggleDiagramSource: () => {
+        const view = viewRef.current;
+        if (view) toggleMermaidSource(view.state, view.dispatch, view);
+      },
     }),
     [jumpToDocumentEdge, toggleJumpToLine, stepThroughAnnotations],
   );
@@ -1799,7 +1803,7 @@ const closeJumpToLine = useCallback(() => {
       nodeViews: {
         ...referenceViews.nodeViews,
         ...imageViews.nodeViews,
-        code_block: createCodeBlockNodeView,
+        code_block: (node, view, getPos) => createCodeBlockNodeView(node, view, getPos),
         diagram: createDiagramNodeView,
         media: (node, currentView, getPos) =>
           createMediaNodeView(

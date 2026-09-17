@@ -89,6 +89,7 @@ export type ShortcutActionId =
   | "previousAnnotation"
   | "toggleChecklistItem"
   | "jumpToLine"
+  | "toggleDiagramSource"
   | "goToDocumentStart"
   | "goToDocumentEnd"
   | "findInNote"
@@ -818,6 +819,16 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Jump to line",
     description:
       "Toggle the jump-to-line field. Both editors count the screen rows the note wraps into, so long paragraphs take several; a very long rendered note that is only partly laid out counts Markdown lines instead. Overrides Firefox's find-again default on web.",
+    group: "Editor",
+    worksWhileTyping: true,
+    boundInEditor: true,
+  },
+  {
+    id: "toggleDiagramSource",
+    keys: "mod+alt+p",
+    label: "Toggle diagram source",
+    description:
+      "Flip the Mermaid code block under the caret between its rendered preview and its source. Enter on a selected preview opens the source; Escape in the source returns to the preview.",
     group: "Editor",
     worksWhileTyping: true,
     boundInEditor: true,

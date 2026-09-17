@@ -8,9 +8,17 @@ full keyboard workflow; `--provider-import-only` runs just the import slice.
 `--tasks-only` checks task creation, completion, source navigation, accessible
 names, and focus retention from the keyboard.
 
+`--mermaid-only` inserts, edits, toggles, expands, and theme-switches a
+rendered Mermaid fence.
+
 ```bash
-node app/e2e/run.mjs [--provider-import-only | --tasks-only | --personal-only | --journal-only]
+node app/e2e/run.mjs [--provider-import-only | --tasks-only | --personal-only | --journal-only | --mermaid-only]
 ```
+
+The runner previews on port 4192 and refuses to start when something already
+answers there, so a run never asserts against another worktree's build. Set
+`SKRIUW_E2E_PORT` (and `SKRIUW_E2E_MOBILE_PORT` for `mobile-shell.mjs`, default
+4195) to run two checkouts side by side.
 
 The harness is hermetic: `main.tsx` installs a fake `__TAURI_INTERNALS__` so the
 renderer takes the desktop bridge path instead of spawning the browser storage

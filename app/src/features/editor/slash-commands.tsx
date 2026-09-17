@@ -29,6 +29,7 @@ import {
   WaypointsIcon,
 } from "@/shared/icons/static";
 import { createDefaultDiagram, diagramTemplates, type DiagramModel } from "./diagram-model";
+import { mermaidTemplates, type MermaidTemplate } from "./mermaid-render";
 import { emojiEntries } from "./emoji";
 import { productSchema, type MediaKind, type SlashTrigger } from "./schema";
 import { insertTask } from "./task-promotion";
@@ -233,6 +234,15 @@ export const slashCommands: SlashCommand[] = [
     icon: <WaypointsIcon size={16} />,
     command: insertDiagram(template.create),
   })),
+  ...mermaidTemplates.map((template) => ({
+    id: template.id,
+    label: template.label,
+    subtext: template.subtext,
+    group: "Blocks",
+    aliases: ["diagram", ...template.aliases],
+    icon: <WaypointsIcon size={16} />,
+    command: insertMermaidFence(template),
+  })),
   {
     id: "table",
     label: "Table",
@@ -380,6 +390,33 @@ function insertDiagram(createModel: () => DiagramModel): Command {
           transaction.insert(afterDiagram, paragraph.create());
         }
         transaction.setSelection(NodeSelection.create(transaction.doc, insertedAt));
+      }
+      dispatch(transaction.scrollIntoView());
+    }
+    return true;
+  };
+}
+
+/**
+ * Inserts a `mermaid` code block from a family template and opens it in source
+ * mode, with the caret on the first token the template expects to be replaced.
+ */
+function insertMermaidFence(template: MermaidTemplate): Command {
+  return function insertMermaidFenceCommand(state, dispatch) {
+    const codeBlock = requiredNode("code_block");
+    const paragraph = requiredNode("paragraph");
+    if (dispatch) {
+      const node = codeBlock.create({ params: "mermaid" }, productSchema.text(template.source));
+      const transaction = state.tr.replaceSelectionWith(node);
+      const insertedAt = findNodePosition(transaction.doc, node);
+      if (insertedAt !== null) {
+        const afterBlock = insertedAt + node.nodeSize;
+        if (!transaction.doc.resolve(afterBlock).nodeAfter) {
+          transaction.insert(afterBlock, paragraph.create());
+        }
+        transaction.setSelection(
+          TextSelection.create(transaction.doc, insertedAt + 1 + template.caret),
+        );
       }
       dispatch(transaction.scrollIntoView());
     }

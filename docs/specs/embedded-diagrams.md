@@ -1,6 +1,7 @@
 # Embedded diagrams
 
-Status: implemented for editable flowcharts.
+Status: implemented for editable flowcharts; rendered previews for the other
+Mermaid families ([ADR-0045](../adr/0045-rendered-mermaid-fences.md)).
 
 ## Product contract
 
@@ -78,6 +79,54 @@ Because documents and their Markdown projections already travel through workspac
 archives, SQLite backups, and Git history, diagrams require no schema migration or
 separate media lifecycle.
 
+## Rendered Mermaid fences
+
+Every `mermaid` fence the editable block does not claim is still a `code_block`
+whose fence stays the canonical source. Routing, in order:
+
+| Fence | Result |
+| --- | --- |
+| flowchart the editable parser accepts | editable `diagram` node |
+| flowchart the editable parser rejects (subgraphs, exotic shapes) | `code_block` with a rendered preview |
+| `sequenceDiagram`, `stateDiagram(-v2)`, `classDiagram`, `erDiagram` | `code_block` with a rendered preview |
+| any other family | `code_block`, source only, with the note "Rendering supports flowchart, sequence, state, class, and ER diagrams." |
+
+Insertion paths for the rendered families: `/sequence`, `/state`, `/class`,
+and `/er` insert a `mermaid` fence with a minimal template, open it in source
+mode, and put the caret on the first token the template expects to be
+replaced. Fences also arrive by typing, pasting, raw Markdown, sync, and import,
+and are rendered the same way.
+
+Preview and source contract:
+
+- A renderable block carries `data-mermaid="preview"` or `"source"`. Preview is
+  the default; a block whose source is empty, or whose text holds the caret
+  when it mounts, opens in source mode.
+- In preview mode the source stays in the DOM, visually collapsed, so a caret
+  entering by keyboard still lands in it; the block then reveals the source.
+- The toolbar is pinned in preview mode and offers Source/Preview, Copy, and
+  Expand. Expand opens the SVG in a full-viewport native dialog with native pan
+  and pinch zoom, closed by its control or Escape.
+- Enter on a selected preview opens the source with the caret at its end.
+  Escape in the source returns to the preview and reselects the block.
+  `toggleDiagramSource` (`mod+alt+p` by default, rebindable, listed in the
+  cheat sheet) flips the mode from anywhere in the block.
+- Edits re-render 250 ms after the last keystroke in an idle callback. Only a
+  block's first render animates; reduced motion and `saveData` disable
+  animation, and the SVG carries the `prefers-reduced-motion` guard.
+- A render error shows its message in a `role="status"` line under the preview
+  and keeps the last good SVG. The block is never blank and never silently
+  falls back to source.
+- Colors come from the active theme tokens; a `data-theme` change on the root
+  re-renders every visible preview in place.
+- Output SVG is sanitized before insertion: Google Fonts imports, scripts,
+  inline handlers, and `javascript:` links are removed.
+
+Compact shell: the preview scales to the column, wide diagrams scroll
+horizontally inside the block without widening the page, controls are 44 px at
+`pointer: coarse` and visible without hover, and Expand gives a full-screen,
+pinch-zoomable canvas.
+
 ## Verification
 
 - Parser and serializer cover supported shapes, directions, labels, colors,
@@ -88,3 +137,10 @@ separate media lifecycle.
   source application, block reordering, restart persistence, and raw-mode import.
 - Representative 10-, 50-, and 150-node diagrams must retain the existing note
   switching and typing budgets before the size ceiling increases.
+- Rendered fences: family detection, palette conversion, sanitizing, memo
+  bounds, and error mapping are unit-tested; the node view is tested with a
+  stubbed renderer for preview/source switching, debounced re-render, error
+  surfacing, theme observation, and teardown; Markdown round-trips of every
+  rendered family are byte-identical; the desktop and compact-shell e2e runs
+  insert, edit, toggle, expand, and theme-switch a rendered fence. Render
+  timings live in [the render benchmark](../benchmarks/2026-09-17-mermaid-render.md).
