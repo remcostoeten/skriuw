@@ -70,7 +70,7 @@ const maintenanceTimeFormatter = new Intl.DateTimeFormat(undefined, {
 });
 
 const dangerZoneClass =
-  "rounded-lg border border-destructive/25 px-3 pb-1 pt-2.5";
+  "rounded-lg border border-destructive/25 px-4 pb-1 pt-3";
 
 const RUNNING_LABELS: Record<MaintenanceKind, string> = {
   export: "Exporting archive…",
@@ -590,9 +590,9 @@ export function DataSection({ store }: SectionProps) {
   );
 }
 
-const backupListClass = "mt-1 list-none rounded-lg border border-border p-0";
+const backupListClass = "mt-3 list-none rounded-lg border border-border p-0";
 const backupItemClass =
-  "flex items-center justify-between gap-3 px-2.5 py-2 text-[13px] [&+&]:border-t [&+&]:border-border";
+  "flex items-center justify-between gap-3 px-3 py-2.5 text-[13px] [&+&]:border-t [&+&]:border-border";
 const backupToggleClass =
   "w-full border-t border-border px-2.5 py-1.5 text-center text-[12px] text-muted-foreground transition-colors hover:text-foreground";
 
@@ -732,7 +732,7 @@ function BackupInventory({
 }
 
 const maintenanceStatusClass =
-  "mt-2 flex items-center justify-between gap-3 rounded-lg border border-border px-2.5 py-2 text-xs text-muted-foreground";
+  "mt-3 flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5 text-xs text-muted-foreground";
 
 type MaintenanceStatusProps = {
   phase: MaintenancePhase;
