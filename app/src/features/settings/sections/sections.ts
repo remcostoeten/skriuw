@@ -45,13 +45,6 @@ export const SECTIONS = [
     icon: KeyboardIcon,
   },
   {
-    id: "account",
-    label: "Account & sync",
-    description: "Cloud sign-in and workspace sync",
-    searchText: "account cloud sign in sign up register email password session sync blocked changes recovery",
-    icon: UserIcon,
-  },
-  {
     id: "media",
     label: "Media",
     description: "Images stored in this workspace",
@@ -61,7 +54,16 @@ export const SECTIONS = [
     desktopOnly: true,
   },
   {
+    id: "account",
+    placement: "bottom",
+    label: "Account & sync",
+    description: "Cloud sign-in and workspace sync",
+    searchText: "account cloud sign in sign up register email password session sync blocked changes recovery",
+    icon: UserIcon,
+  },
+  {
     id: "lock",
+    placement: "bottom",
     label: "Privacy & lock",
     description: "Lock notes behind a PIN or passphrase",
     searchText:
@@ -70,6 +72,7 @@ export const SECTIONS = [
   },
   {
     id: "data",
+    placement: "bottom",
     label: "Data & recovery",
     description: "Storage, imports, backups, and recovery",
     searchText:
@@ -78,6 +81,7 @@ export const SECTIONS = [
   },
   {
     id: "about",
+    placement: "bottom",
     label: "About",
     description: "Version, updates, and links",
     searchText:
@@ -95,7 +99,27 @@ export type SettingsSection = {
   searchText: string;
   icon: (typeof SECTIONS)[number]["icon"];
   desktopOnly?: boolean;
+  placement?: SectionPlacement;
 };
+
+export type SectionPlacement = "top" | "bottom";
+
+export type SectionGroups = {
+  top: SettingsSection[];
+  bottom: SettingsSection[];
+};
+
+/**
+ * Splits the visible sections into the two sidebar groups. Preferences that
+ * shape everyday writing sit at the top; account, safety, storage, and app
+ * information sit at the bottom so the sidebar reads as two short lists.
+ */
+export function groupSettingsSections(sections: readonly SettingsSection[]): SectionGroups {
+  return {
+    top: sections.filter((section) => section.placement !== "bottom"),
+    bottom: sections.filter((section) => section.placement === "bottom"),
+  };
+}
 
 /**
  * A section whose surface has no browser implementation. The flag lives on the

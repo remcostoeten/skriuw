@@ -27,8 +27,13 @@ import { MediaSection } from "@/features/settings/sections/media-section";
 import {
   SECTIONS,
   availableSettingsSections,
+  groupSettingsSections,
 } from "@/features/settings/sections/sections";
-import type { SectionId } from "@/features/settings/sections/sections";
+import type {
+  SectionGroups,
+  SectionId,
+  SettingsSection,
+} from "@/features/settings/sections/sections";
 import { selectEditorPlaceholder } from "@/features/settings/sections/selectors";
 import { ShortcutsSection } from "@/features/settings/sections/shortcuts-section";
 import { AiOptInGate, selectAiEnabled } from "@/features/ai/opt-in-gate";
@@ -45,6 +50,14 @@ const AiSection = lazy(async () => {
 });
 
 const BROWSER_RUNTIME = isBrowserRuntime();
+
+const sectionGroupClass =
+  "flex flex-col gap-0.5 max-[620px]:contents";
+
+const sectionTabClass = cn(
+  "flex min-h-[38px] items-center gap-2 rounded-lg border-0 bg-transparent px-[9px] py-1.5 text-left text-[13px] text-muted-foreground cursor-pointer hover:bg-muted hover:text-foreground max-[620px]:min-h-[34px] max-[620px]:flex-none",
+  "focus-visible:bg-sidebar-accent focus-visible:text-sidebar-accent-foreground focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.2)]",
+);
 
 type Props = {
   store: RendererStore;
@@ -79,6 +92,13 @@ export function SettingsDialog({
     () => filterSettingsSections(availableSections, query),
     [availableSections, query],
   );
+  const sectionGroups = useMemo<SectionGroups>(
+    () =>
+      query
+        ? { top: filteredSections, bottom: [] }
+        : groupSettingsSections(filteredSections),
+    [filteredSections, query],
+  );
   const availableIds = availableSections.map((entry) => entry.id);
   const filteredIds = filteredSections.map((entry) => entry.id);
   const rovingSection = rovingSettingsSection(filteredIds, section);
@@ -109,6 +129,34 @@ export function SettingsDialog({
         )
         ?.focus();
     });
+  }
+
+  function renderSectionTab(entry: SettingsSection) {
+    const active = activeSection === entry.id;
+    return (
+      <button
+        key={entry.id}
+        id={`settings-tab-${entry.id}`}
+        type="button"
+        role="tab"
+        data-section-id={entry.id}
+        tabIndex={rovingSection === entry.id ? 0 : -1}
+        className={cn(sectionTabClass, active && "bg-accent text-accent-foreground")}
+        aria-selected={active}
+        aria-controls="settings-tabpanel"
+        onClick={() => setSection(entry.id)}
+      >
+        <entry.icon size={15} aria-hidden="true" />
+        <span className="flex min-w-0 flex-1 flex-col gap-[3px] leading-[1.05]">
+          <span className="truncate">{entry.label}</span>
+          {query && (
+            <span className="truncate text-[10px] text-muted-foreground">
+              {entry.description}
+            </span>
+          )}
+        </span>
+      </button>
+    );
   }
 
   function handleDialogCancel(event: Event): void {
@@ -269,34 +317,20 @@ export function SettingsDialog({
             aria-label="Settings sections"
             className="flex min-h-0 flex-1 flex-col gap-0.5 max-[620px]:flex-row max-[620px]:overflow-x-auto"
           >
-            {filteredSections.map((entry) => (
-              <button
-                key={entry.id}
-                id={`settings-tab-${entry.id}`}
-                type="button"
-                role="tab"
-                data-section-id={entry.id}
-                tabIndex={rovingSection === entry.id ? 0 : -1}
+            <div role="presentation" className={sectionGroupClass}>
+              {sectionGroups.top.map(renderSectionTab)}
+            </div>
+            {sectionGroups.bottom.length > 0 && (
+              <div
+                role="presentation"
                 className={cn(
-                  "flex min-h-[38px] items-center gap-2 rounded-lg border-0 bg-transparent px-[9px] py-1.5 text-left text-[13px] text-muted-foreground cursor-pointer hover:bg-muted hover:text-foreground max-[620px]:min-h-[34px] max-[620px]:flex-none",
-                  "focus-visible:bg-sidebar-accent focus-visible:text-sidebar-accent-foreground focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.2)]",
-                  activeSection === entry.id && "bg-accent text-accent-foreground",
+                  sectionGroupClass,
+                  "mt-auto border-t border-sidebar-border pt-2 max-[620px]:border-t-0 max-[620px]:pt-0",
                 )}
-                aria-selected={activeSection === entry.id}
-                aria-controls="settings-tabpanel"
-                onClick={() => setSection(entry.id)}
               >
-                <entry.icon size={15} aria-hidden="true" />
-                <span className="flex min-w-0 flex-1 flex-col gap-[3px] leading-[1.05]">
-                  <span className="truncate">{entry.label}</span>
-                  {query && (
-                    <span className="truncate text-[10px] text-muted-foreground">
-                      {entry.description}
-                    </span>
-                  )}
-                </span>
-              </button>
-            ))}
+                {sectionGroups.bottom.map(renderSectionTab)}
+              </div>
+            )}
           </div>
           {filteredSections.length === 0 && (
             <p className="mx-1.5 my-0.5 text-xs leading-[1.45] text-muted-foreground">

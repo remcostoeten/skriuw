@@ -15,6 +15,7 @@ import {
   failOperation,
   formatSizeBytes,
   isMaintenanceBusy,
+  maintenanceKind,
   projectRecoveryInventory,
   requestCancel,
   requestConfirmation,
@@ -246,4 +247,23 @@ test("byte sizes format into readable units", () => {
   assert.equal(formatSizeBytes(512), "512 B");
   assert.equal(formatSizeBytes(2048), "2.0 KB");
   assert.equal(formatSizeBytes(5 * 1024 * 1024), "5.0 MB");
+});
+
+test("maintenanceKind names the operation every reporting phase belongs to", () => {
+  assert.equal(maintenanceKind(IDLE_MAINTENANCE), null);
+  assert.equal(
+    maintenanceKind(
+      requestConfirmation(IDLE_MAINTENANCE, { kind: "import", archivePath: "/a.json" })!,
+    ),
+    null,
+  );
+  const running = beginOperation(IDLE_MAINTENANCE, "export")!;
+  assert.equal(maintenanceKind(running), "export");
+  assert.equal(maintenanceKind(completeOperation(running, "done")), "export");
+  assert.equal(maintenanceKind(failOperation(running, "boom")), "export");
+  assert.equal(maintenanceKind(failOperation(requestCancel(running), "boom")), "export");
+  assert.equal(
+    maintenanceKind(backupNotDue(beginOperation(IDLE_MAINTENANCE, "backup")!, 1)),
+    "backup",
+  );
 });
