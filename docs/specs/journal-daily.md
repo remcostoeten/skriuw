@@ -61,6 +61,25 @@ the section share one pass and navigation does no I/O. When the section is
 present the editor keeps a writing-sized minimum height instead of the notes
 pane's 60vh, so the section stays near the first screen.
 
+## Mood trend
+
+The sidebar's Stats tab shows the last 30 days as one bar per day, oldest on
+the left. A rated day's bar rises with its mood in five steps from rough to
+great and takes the mood's colour; a day with an entry but no mood is a short
+grey bar; a day without an entry is a hairline, so gaps stay visible. Today is
+outlined. Every bar is a button named by its date and mood that opens that day.
+
+Below the strip, one line summarises the window: "Mostly good" names the level
+nearest the mean score (great 2, good 1, neutral 0, low -1, rough -2), followed
+by "lifting lately", "dipping lately", or "holding steady" when the second half
+of the window differs from the first by at least half a step, or by less than
+that, respectively. The comparison needs two rated days in each half; before
+then the line carries only the lead. With no rated day it reads "No moods
+logged yet". Counts per mood follow, listing only the moods that occur.
+
+The trend is a pure function over the projected entry list, so opening the
+tab does no I/O.
+
 ## Stepping days by touch
 
 The entry header carries **Previous day** and **Next day** buttons, labelled

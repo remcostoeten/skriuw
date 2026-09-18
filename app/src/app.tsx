@@ -174,6 +174,7 @@ const TOOLBAR_SHORTCUT_IDS = [
   "previousNote",
   "nextNote",
   "findInNote",
+  "toggleCommandPalette",
 ] as const;
 
 function WorkspaceShell({ store }: Props) {
@@ -647,6 +648,18 @@ function WorkspaceShell({ store }: Props) {
                 <AppIcon name="toggle-sidebar" size={16} />
               </button>
             </Tooltip>
+            {mode === "compact" && (
+            <Tooltip label="Search" side="bottom" shortcut={shortcutHints.toggleCommandPalette}>
+              <button
+                type="button"
+                onClick={() => setPaletteOpen(true)}
+                className={toolbarIconButtonClass}
+                aria-label="Search"
+              >
+                <AppIcon name="search" size={16} />
+              </button>
+            </Tooltip>
+            )}
             {mode === "full" && (
             <>
             <Tooltip label="Previous note" side="bottom" shortcut={shortcutHints.previousNote}>
@@ -743,6 +756,7 @@ function WorkspaceShell({ store }: Props) {
           store={store}
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => toggleSidebar(true)}
+          onOpenCommandPalette={mode === "compact" ? () => setPaletteOpen(true) : undefined}
         />
       )}
       {route === "tasks" && <TasksView store={store} />}

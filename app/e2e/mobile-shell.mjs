@@ -371,6 +371,25 @@ try {
     edges,
   );
 
+  const toolbarTargets = await evaluate(
+    cdp,
+    sessionId,
+    `Array.from(document.querySelectorAll('main button[aria-label]')).map((b) => [b.getAttribute('aria-label'), b.getBoundingClientRect().height])`,
+  );
+  check("compact toolbar buttons grow to a 44px touch target", toolbarTargets.every(([, height]) => height >= 44), { toolbarTargets });
+
+  await tap(cdp, sessionId, `document.querySelector('main button[aria-label="Search"]')`, "search button");
+  await waitFor(cdp, sessionId, `document.querySelector('dialog.command-palette')?.open === true`, "palette from the toolbar");
+  const palette = await evaluate(
+    cdp,
+    sessionId,
+    `(() => { const rect = document.querySelector('dialog.command-palette').getBoundingClientRect(); return { top: rect.top, bottom: rect.bottom, viewport: window.innerHeight }; })()`,
+  );
+  check("the search button opens the palette inside the viewport", palette.top >= 0 && palette.bottom <= palette.viewport, palette);
+  await pressKey(cdp, sessionId, "Escape", "Escape", 27);
+  await waitFor(cdp, sessionId, `!document.querySelector('dialog.command-palette')?.open`, "palette closing");
+  await delay(400);
+
   await evaluate(cdp, sessionId, pressLabelled("Toggle sidebar"));
   await waitForSheet(cdp, sessionId, "left", "tree sheet from the toolbar");
   const rowHeight = await evaluate(cdp, sessionId, `document.querySelector('[role="treeitem"]').getBoundingClientRect().height`);
@@ -461,6 +480,17 @@ try {
     `Array.from(document.querySelectorAll('[role="status"], [role="alert"]')).map((node) => node.textContent).join(' | ')`,
   );
   check("a pull past the threshold trashes the row and offers undo", /Moved .*Root note.* to trash/.test(toast) && /Undo/.test(toast), { toast });
+  const toastPlacement = await evaluate(
+    cdp,
+    sessionId,
+    `(() => {
+      const undo = Array.from(document.querySelectorAll('button')).find((b) => b.textContent.trim() === 'Undo');
+      const rect = undo.getBoundingClientRect();
+      const tabBar = document.querySelector('.shell-tab-bar').getBoundingClientRect();
+      return { undoBottom: rect.bottom, tabBarTop: tabBar.top, undoHeight: rect.height };
+    })()`,
+  );
+  check("the undo toast sits above the tab bar", toastPlacement.undoBottom <= toastPlacement.tabBarTop, toastPlacement);
   await evaluate(
     cdp,
     sessionId,

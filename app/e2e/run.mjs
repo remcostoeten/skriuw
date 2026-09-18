@@ -1425,8 +1425,24 @@ async function runWorkflow() {
     current = await state();
     assert(
       checks,
+      "keyboard-shortcut-rebinding-conflict",
+      !JSON.stringify(current.settings).includes("ctrl+alt+p") &&
+        (await evaluate(
+          cdp,
+          sessionId,
+          "[...document.querySelectorAll('dialog[open] [role=\"status\"]')].some((node) => node.textContent.includes('Already used by'))",
+        )),
+      JSON.stringify(current.settings),
+    );
+    await control('focusNamed("Change shortcut for Open command palette")');
+    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+    await dispatchKey(cdp, sessionId, "u", "KeyU", 85, "", 3);
+    await settle();
+    current = await state();
+    assert(
+      checks,
       "keyboard-shortcut-rebinding",
-      JSON.stringify(current.settings).includes("ctrl+alt+p"),
+      JSON.stringify(current.settings).includes("ctrl+alt+u"),
       JSON.stringify(current.settings),
     );
     steps.push("settings-shortcut-rebind");
@@ -1656,8 +1672,8 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('dialog[open] h2')?.textContent === 'Delete tag?'",
-      "delete tag dialog",
+      "document.querySelector('[role=\"group\"][aria-label=\"Delete tag\"] button') !== null",
+      "delete tag confirm group",
     );
     await control('focusNamed("Delete tag")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
@@ -1720,8 +1736,8 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('dialog[open] h2')?.textContent === 'Delete person?'",
-      "delete person dialog",
+      "document.querySelector('[role=\"group\"][aria-label=\"Delete person\"] button') !== null",
+      "delete person confirm group",
     );
     await control('focusNamed("Delete person")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");

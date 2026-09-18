@@ -140,9 +140,10 @@ Locked bodies are encrypted on disk and stay out of search, links, and history
 until you unlock them for the session; a one-time recovery code covers a
 forgotten secret ([details](docs/adr/0044-locked-notes.md)).
 
-Sync is encrypted in transit but not yet end-to-end
-([details](docs/specs/cloud-sync-master.md)), so the server can read what it
-stores for you. If that boundary matters, stay local-only.
+Sync is **end-to-end encrypted**: notes, media, and archives are sealed on
+your devices with a key derived from a recovery code the server never sees, so
+the service only orders and stores opaque bytes
+([details](docs/adr/0043-end-to-end-encrypted-sync.md)).
 
 ## Development
 

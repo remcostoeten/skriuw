@@ -11,6 +11,11 @@ import { bindStarterReclaim } from "@/features/onboarding/reclaim";
 import { seedRelationshipFixture } from "@/features/onboarding/debug-seed";
 import { seedStarterWorkspace } from "@/features/onboarding/seed";
 import {
+  applyLaunchCapture,
+  parseLaunchCapture,
+  stripLaunchCapture,
+} from "@/features/capture/launch-capture";
+import {
   applyWorkspaceOperations,
   bootstrapWorkspace,
   closeWorkspaceWindow,
@@ -279,6 +284,17 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
     const unbindLockSession = bindLockSession(store);
     const unbindThemeColor = bindThemeColor(store, document.documentElement);
     void announcePersistenceRisk();
+    const launchCapture = parseLaunchCapture(window.location.search);
+    if (launchCapture) {
+      window.history.replaceState(null, "", stripLaunchCapture(window.location.href));
+      applyLaunchCapture(store, launchCapture).catch((error) => {
+        console.error("launch capture failed", error);
+        showToast({
+          message: "Skriuw could not capture what was shared. Try pasting it into a note.",
+          durationMs: 8_000,
+        });
+      });
+    }
     root.render(
       <StrictMode>
         <App store={store} />

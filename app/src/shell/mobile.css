@@ -14,26 +14,6 @@
   grid-row: 1;
 }
 
-.shell-compact > /*
- * The strips sit between the toolbar row and the tab bar so neither row's
- * leftmost or rightmost control loses its edge to the swipe recogniser.
- */
-.shell-edge {
-  position: absolute;
-  inset-block: 44px 56px;
-  width: 20px;
-  z-index: 30;
-  touch-action: none;
-}
-
-.shell-edge-left {
-  left: 0;
-}
-
-.shell-edge-right {
-  right: 0;
-}
-
 .shell-tab-bar {
   grid-row: 2;
 }
@@ -349,5 +329,43 @@
   .mobile-sheet-scrim,
   .sidebar-tree-row-settle {
     transition: none;
+  }
+}
+
+/*
+ * Toasts and dialogs are fixed to the layout viewport, which neither the tab
+ * bar nor a software keyboard shrinks. The inset lifts toasts over whichever
+ * of the two currently owns the bottom edge, and dialogs size themselves to
+ * the visual viewport so a keyboard-driven dialog is never clipped.
+ */
+:root {
+  --toast-inset: 0px;
+}
+
+@media (max-width: 899px) {
+  :root {
+    --toast-inset: calc(56px + var(--safe-bottom));
+  }
+
+  :root[data-keyboard="open"] {
+    --toast-inset: var(--keyboard-inset);
+  }
+
+  .toast-host > .fixed {
+    margin-bottom: var(--toast-inset);
+  }
+
+  dialog.dialog {
+    max-height: calc(var(--viewport-height) - 24px);
+  }
+
+  dialog.command-palette {
+    margin-top: 12px;
+    max-height: calc(var(--viewport-height) - 24px);
+  }
+
+  :root[data-keyboard="open"] dialog.dialog {
+    margin-top: 12px;
+    margin-bottom: auto;
   }
 }

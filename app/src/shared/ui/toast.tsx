@@ -120,7 +120,7 @@ export function ToastHost({ visible = true, reduceMotion = false }: HostProps) {
 
   return (
     <div
-      className="[&_:is([role=status],[role=alert],[role=alertdialog])>div>div:first-child]:pr-2.5!"
+      className="toast-host [&_:is([role=status],[role=alert],[role=alertdialog])>div>div:first-child]:pr-2.5!"
       style={{ display: visible ? undefined : "none" }}
     >
       {/* The in-app reduce-motion setting is authoritative over the OS
