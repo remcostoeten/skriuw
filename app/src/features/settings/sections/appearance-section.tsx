@@ -12,6 +12,9 @@ import {
   settingsGroup,
   settingsGroupHint,
   settingsGroupTitle,
+  settingsRow,
+  settingsRowDescription,
+  settingsRowLabel,
   settingsSection,
   useEditableSettings,
 } from "./settings-shared";
@@ -110,10 +113,10 @@ export function AppearanceSection({ store }: SectionProps) {
       )}
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Preferences</div>
-        <div className="flex min-h-[42px] items-center justify-between gap-3 py-[7px] text-[13px]">
-          <span className="flex min-w-0 flex-col gap-[3px]">
+        <div className={settingsRow}>
+          <span className={settingsRowLabel}>
             Reset preferences
-            <span className="text-[11px] leading-[1.35] text-muted-foreground">
+            <span className={settingsRowDescription}>
               Restores appearance, editor, and keyboard shortcuts to their defaults.
               Notes and workspace data are not affected.
             </span>

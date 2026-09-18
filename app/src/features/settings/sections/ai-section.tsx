@@ -490,7 +490,7 @@ function AiSettingsDisclosure({
         />
         <span className="min-w-0">
           <span className="block text-[13px] font-medium text-foreground">{title}</span>
-          <span className="mt-0.5 block text-[11px] text-muted-foreground">
+          <span className="mt-1 block text-xs leading-[1.5] text-muted-foreground">
             {description}
           </span>
         </span>
