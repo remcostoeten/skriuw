@@ -35,6 +35,7 @@ import {
   failOperation,
   formatSizeBytes,
   isMaintenanceBusy,
+  maintenanceKind,
   projectRecoveryInventory,
   requestCancel,
   requestConfirmation,
@@ -69,7 +70,7 @@ const maintenanceTimeFormatter = new Intl.DateTimeFormat(undefined, {
 });
 
 const dangerZoneClass =
-  "rounded-lg border border-destructive/25 px-3 pb-1 pt-2.5";
+  "rounded-lg border border-destructive/25 px-4 pb-1 pt-3";
 
 const RUNNING_LABELS: Record<MaintenanceKind, string> = {
   export: "Exporting archive…",
@@ -269,6 +270,9 @@ export function DataSection({ store }: SectionProps) {
 
   const confirmation = phase.phase === "confirming" ? phase.confirmation : null;
   const copy = confirmation ? confirmationCopy(confirmation) : null;
+  const running = phase.phase === "running" ? phase.kind : null;
+  const exporting = running === "export";
+  const backingUp = running === "backup";
 
   return (
     <section aria-label="Data and recovery" className={settingsSection}>
@@ -344,6 +348,12 @@ export function DataSection({ store }: SectionProps) {
           />
         </div>
         )}
+        <MaintenanceStatus
+          phase={phase}
+          kinds={["relocate"]}
+          onCancel={cancelRunning}
+          onForceBackup={() => runBackup(true)}
+        />
       </div>
       {!browser && (
       <div className={settingsGroup}>
@@ -405,11 +415,18 @@ export function DataSection({ store }: SectionProps) {
             type="button"
             className={settingsButton}
             disabled={busy}
+            aria-busy={exporting}
             onClick={runExport}
           >
-            Export archive
+            {exporting ? "Exporting…" : "Export archive"}
           </button>
         </div>
+        <MaintenanceStatus
+          phase={phase}
+          kinds={["export"]}
+          onCancel={cancelRunning}
+          onForceBackup={() => runBackup(true)}
+        />
       </div>
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Backups & recovery</div>
@@ -432,12 +449,19 @@ export function DataSection({ store }: SectionProps) {
             type="button"
             className={settingsButton}
             disabled={busy}
+            aria-busy={backingUp}
             onClick={() => runBackup(false)}
           >
-            Back up now
+            {backingUp ? "Backing up…" : "Back up now"}
           </button>
         </div>
         )}
+        <MaintenanceStatus
+          phase={phase}
+          kinds={["backup", "restore"]}
+          onCancel={cancelRunning}
+          onForceBackup={() => runBackup(true)}
+        />
         {!browser && (
         <BackupInventory
           inventory={inventory}
@@ -521,6 +545,12 @@ export function DataSection({ store }: SectionProps) {
             />
           </div>
         </div>
+        <MaintenanceStatus
+          phase={phase}
+          kinds={["import"]}
+          onCancel={cancelRunning}
+          onForceBackup={() => runBackup(true)}
+        />
         <div className={cn(settingsRow, settingsInputRow)}>
           <span className={settingsRowLabel}>
             Clear all data
@@ -556,18 +586,13 @@ export function DataSection({ store }: SectionProps) {
           />
         </div>
       </div>
-      <MaintenanceStatus
-        phase={phase}
-        onCancel={cancelRunning}
-        onForceBackup={() => runBackup(true)}
-      />
     </section>
   );
 }
 
-const backupListClass = "mt-1 list-none rounded-lg border border-border p-0";
+const backupListClass = "mt-3 list-none rounded-lg border border-border p-0";
 const backupItemClass =
-  "flex items-center justify-between gap-3 px-2.5 py-2 text-[13px] [&+&]:border-t [&+&]:border-border";
+  "flex items-center justify-between gap-3 px-3 py-2.5 text-[13px] [&+&]:border-t [&+&]:border-border";
 const backupToggleClass =
   "w-full border-t border-border px-2.5 py-1.5 text-center text-[12px] text-muted-foreground transition-colors hover:text-foreground";
 
@@ -707,15 +732,20 @@ function BackupInventory({
 }
 
 const maintenanceStatusClass =
-  "mb-3.5 flex items-center justify-between gap-3 rounded-lg border border-border px-2.5 py-2 text-xs text-muted-foreground";
+  "mt-3 flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5 text-xs text-muted-foreground";
 
 type MaintenanceStatusProps = {
   phase: MaintenancePhase;
+  kinds: readonly MaintenanceKind[];
   onCancel: () => void;
   onForceBackup: () => void;
 };
 
-function MaintenanceStatus({ phase, onCancel, onForceBackup }: MaintenanceStatusProps) {
+function MaintenanceStatus({ phase, kinds, onCancel, onForceBackup }: MaintenanceStatusProps) {
+  const kind = maintenanceKind(phase);
+  if (kind === null || !kinds.includes(kind)) {
+    return null;
+  }
   if (phase.phase === "running") {
     return (
       <div className={maintenanceStatusClass} role="status">

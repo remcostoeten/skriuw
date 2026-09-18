@@ -28,6 +28,24 @@ export function isMaintenanceBusy(state: MaintenancePhase): boolean {
   return state.phase === "running" || state.phase === "confirming";
 }
 
+/**
+ * The operation a phase reports on, so feedback can render next to the row
+ * that started it instead of in one shared slot at the end of the section.
+ */
+export function maintenanceKind(state: MaintenancePhase): MaintenanceKind | null {
+  switch (state.phase) {
+    case "running":
+    case "success":
+    case "cancelled":
+    case "error":
+      return state.kind;
+    case "notDue":
+      return "backup";
+    default:
+      return null;
+  }
+}
+
 export function beginOperation(
   state: MaintenancePhase,
   kind: MaintenanceKind,

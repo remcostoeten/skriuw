@@ -32,16 +32,16 @@ export function useEditableSettings(store: RendererStore): EditableSettingsBindi
 }
 
 export const settingsSection = "mx-auto w-full max-w-[680px]";
-export const settingsSectionHeading = "mb-8";
-export const settingsGroup = "mb-6";
-export const settingsGroupTitle = cn("mb-1.5", sectionLabelClass);
+export const settingsSectionHeading = "mb-10";
+export const settingsGroup = "mb-9";
+export const settingsGroupTitle = cn("mb-2.5", sectionLabelClass);
 export const settingsGroupHint = "mb-3 text-xs text-muted-foreground/80";
 
 export const settingsRow =
-  "flex min-h-[42px] items-center justify-between gap-3 border-b border-[hsl(var(--border)/0.58)] py-[7px] text-[13px] last:border-b-0";
+  "flex min-h-[52px] items-center justify-between gap-6 border-b border-[hsl(var(--border)/0.58)] py-3 text-[13px] last:border-b-0";
 export const settingsInputRow = "max-[620px]:flex-col max-[620px]:items-start";
-export const settingsRowLabel = "flex min-w-0 flex-col gap-[3px]";
-export const settingsRowDescription = "text-[11px] leading-[1.35] text-muted-foreground";
+export const settingsRowLabel = "flex min-w-0 max-w-[460px] flex-col gap-1";
+export const settingsRowDescription = "text-xs leading-[1.5] text-muted-foreground";
 export const settingsRowDetail =
   "font-mono text-[11px] text-muted-foreground [overflow-wrap:anywhere]";
 

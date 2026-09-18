@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   SECTIONS,
   availableSettingsSections,
+  groupSettingsSections,
 } from "../../../../src/features/settings/sections/sections";
 import { filterSettingsSections } from "../../../../src/features/settings/settings-navigation";
 
@@ -13,12 +14,33 @@ test("SECTIONS contains all expected settings section definitions", () => {
     "editor",
     "ai",
     "shortcuts",
-    "account",
     "media",
+    "account",
     "lock",
     "data",
     "about",
   ]);
+});
+
+test("the sidebar splits into everyday preferences and account, safety, and data", () => {
+  const groups = groupSettingsSections(availableSettingsSections(true, false, ""));
+  assert.deepEqual(
+    groups.top.map((section) => section.id),
+    ["appearance", "editor", "ai", "shortcuts", "media"],
+  );
+  assert.deepEqual(
+    groups.bottom.map((section) => section.id),
+    ["account", "lock", "data", "about"],
+  );
+});
+
+test("grouping preserves the flat order used by keyboard navigation", () => {
+  const sections = availableSettingsSections(true, false, "");
+  const groups = groupSettingsSections(sections);
+  assert.deepEqual(
+    [...groups.top, ...groups.bottom].map((section) => section.id),
+    sections.map((section) => section.id),
+  );
 });
 
 test("AI and desktop-only sections are structurally gated", () => {
