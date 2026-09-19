@@ -348,7 +348,7 @@ require_command rustc
 
 print_header
 
-run_step "Generated contracts" "generated-contracts" cargo run --quiet -p xtask -- generate --check
+run_step "Generated contracts and theme tokens" "generated-contracts" "$repo_dir/scripts/generate.sh" --check
 run_step "Build entrypoint contract" "build-entrypoints" "$repo_dir/scripts/test-build.sh"
 run_step "Browser SQLite WASM module" "browser-wasm" "$repo_dir/scripts/build-browser-wasm.sh"
 run_step "Rust formatting" "rust-format" cargo fmt --all --check
