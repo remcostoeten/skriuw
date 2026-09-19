@@ -1,6 +1,11 @@
 {
   "name": "skriuw",
   "private": true,
+  "workspaces": [
+    "app",
+    "mobile",
+    "shared/*"
+  ],
   "scripts": {
     "menu": "dev-menu",
     "dev": "dev-menu",
@@ -11,9 +16,14 @@
     "test": "scripts/run-in.sh app test",
     "typecheck": "scripts/run-in.sh app typecheck",
     "check": "scripts/check.sh",
+    "mobile": "scripts/run-in.sh mobile start",
+    "check:mobile": "scripts/check-mobile.sh",
     "bootstrap": "scripts/bootstrap.sh"
   },
   "devDependencies": {
     "@remcostoeten/dev-menu": "^0.2.2"
+  },
+  "overrides": {
+    "@remcostoeten/use-shortcut": "2.4.1"
   }
 }
