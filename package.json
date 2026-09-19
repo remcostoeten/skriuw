@@ -1,6 +1,11 @@
 {
   "name": "skriuw",
   "private": true,
+  "workspaces": [
+    "app",
+    "mobile",
+    "shared/*"
+  ],
   "scripts": {
     "menu": "dev-menu",
     "dev": "dev-menu",
@@ -11,6 +16,8 @@
     "test": "scripts/run-in.sh app test",
     "typecheck": "scripts/run-in.sh app typecheck",
     "check": "scripts/check.sh",
+    "mobile": "scripts/run-in.sh mobile start",
+    "check:mobile": "scripts/check-mobile.sh",
     "bootstrap": "scripts/bootstrap.sh"
   },
   "devDependencies": {
