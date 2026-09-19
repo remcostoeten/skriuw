@@ -355,11 +355,13 @@ jobs:
                       echo "Signed device builds and the iOS simulator smoke run did not happen:"
                       for reason in "${missing[@]}"; do
                           echo "- $reason"
-                          echo "::warning title=EAS builds skipped::$reason"
                       done
                       echo
                       echo "The unsigned Android APK and iOS simulator app from this run are still attached as artifacts."
                   } | tee -a "$GITHUB_STEP_SUMMARY"
+                  for reason in "${missing[@]}"; do
+                      echo "::warning title=EAS builds skipped::$reason"
+                  done
 
     eas-preview:
         name: EAS preview builds (signed)
