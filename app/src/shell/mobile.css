@@ -420,7 +420,7 @@
     margin-bottom: var(--toast-inset);
   }
 
-  dialog.dialog {
+  dialog.dialog:not(.dialog-fullscreen) {
     max-height: calc(var(--viewport-height) - 24px);
   }
 
@@ -429,7 +429,7 @@
     max-height: calc(var(--viewport-height) - 24px);
   }
 
-  :root[data-keyboard="open"] dialog.dialog {
+  :root[data-keyboard="open"] dialog.dialog:not(.dialog-fullscreen) {
     margin-top: 12px;
     margin-bottom: auto;
   }
