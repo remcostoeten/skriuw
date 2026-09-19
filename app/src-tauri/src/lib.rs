@@ -12,6 +12,7 @@ mod smoke_tests;
 mod state;
 mod sync;
 mod window;
+mod workspace_slots;
 
 use std::{sync::Arc, time::Duration};
 
@@ -298,7 +299,9 @@ pub fn run() {
             commands::sync::enable_workspace_encryption,
             commands::sync::unlock_workspace_encryption,
             commands::sync::set_workspace_sync_online,
-            commands::sync::set_workspace_sync_visibility
+            commands::sync::set_workspace_sync_visibility,
+            commands::sync::adopt_workspace_slot,
+            commands::sync::active_workspace_slot
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Focused(true) = event

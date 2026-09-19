@@ -52,7 +52,7 @@ export function invoke<T>(command: string, arguments_: InvokeArguments = {}): Pr
     nextFailures.delete(command);
     return Promise.reject(new Error(failure));
   }
-  if (command === "load_auth_token") {
+  if (command === "load_auth_token" || command === "active_workspace_slot") {
     return Promise.resolve(null as T);
   }
   if (command === "plugin:event|listen" || command === "plugin:event|unlisten") {

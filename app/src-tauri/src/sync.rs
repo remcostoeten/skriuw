@@ -260,6 +260,17 @@ impl SyncRuntime {
             .map_err(|error| format!("could not open the local sync queue: {error}"))
     }
 
+    /// Cloud workspace this local store has already been linked to, if any.
+    /// Read before routing an account so a store that predates the workspace
+    /// registry is recognised as belonging to the account that linked it.
+    pub fn linked_workspace_id(&self) -> Result<Option<String>, String> {
+        Ok(self
+            .open_workspace()?
+            .sync_connection()
+            .map_err(|error| format!("could not read the local sync connection: {error}"))?
+            .map(|connection| connection.workspace_id))
+    }
+
     /// Lists the blocked sync queue for the settings surface. This opens its
     /// own short-lived database connection on the caller's blocking thread,
     /// never on editing or navigation paths.

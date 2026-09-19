@@ -418,11 +418,14 @@ export function createBrowserSyncDriver(
         "sync_connection",
       )) as BrowserSyncConnection | null;
       if (!existing) return status();
-      return await connect(token);
+      const resumed = await connect(token);
+      publishResumeFailure(null);
+      return resumed;
     } catch (error) {
       if (sessionLost) reconnectFailures += 1;
       if (!(error instanceof SyncSessionRejectedError)) {
         console.error("cloud sync resume failed", error);
+        publishResumeFailure(error instanceof Error ? error.message : String(error));
       }
       return status();
     }
@@ -590,6 +593,31 @@ export function subscribeBrowserSessionExpired(listener: () => void): () => void
   return () => {
     sessionExpiredListeners.delete(listener);
   };
+}
+
+const resumeFailureListeners = new Set<() => void>();
+let lastResumeFailure: string | null = null;
+
+/**
+ * Why the automatic reopen of a persisted session failed. Nothing is waiting on
+ * that attempt, so without this its reason reached the console only and the
+ * workspace described itself as an expired session whatever had gone wrong.
+ */
+export function latestBrowserResumeFailure(): string | null {
+  return lastResumeFailure;
+}
+
+export function subscribeBrowserResumeFailure(listener: () => void): () => void {
+  resumeFailureListeners.add(listener);
+  return () => {
+    resumeFailureListeners.delete(listener);
+  };
+}
+
+function publishResumeFailure(reason: string | null): void {
+  if (lastResumeFailure === reason) return;
+  lastResumeFailure = reason;
+  for (const listener of resumeFailureListeners) listener();
 }
 
 function normalizeChange(changes: Partial<BrowserSyncChange> | null | undefined): BrowserSyncChange {

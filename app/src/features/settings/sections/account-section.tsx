@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@remcostoeten/auth-drawer";
 import { authConfiguration } from "@/features/auth/config";
 import {
+  activeWorkspaceSlot,
   type BlockedSyncOperation,
   discardBlockedSyncOperation,
   listBlockedSyncOperations,
@@ -35,6 +36,7 @@ import {
 } from "./sync-status";
 import { SyncEncryptionPanel } from "./sync-encryption-panel";
 import { useWorkspaceSync } from "./use-workspace-sync";
+import { shortWorkspaceId, workspaceOwnershipText } from "./workspace-ownership";
 
 type AccountSectionProps = {
   /** Closes settings and opens the shell-level sign-in drawer; the drawer cannot render inside this modal dialog. */
@@ -47,9 +49,26 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
   const [recovery, setRecovery] = useState<SyncRecoveryView | null>(null);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [recoveryBusyId, setRecoveryBusyId] = useState<string | null>(null);
+  const [workspaceSlot, setWorkspaceSlot] = useState<string | null>(null);
   const unavailableReason = authConfiguration.available ? null : authConfiguration.reason;
   const browser = sync.browser;
+  /** Encryption is a property of a linked workspace, so it waits for sync. */
   const signedIn = user !== null && !sync.signInRequired;
+
+  useEffect(() => {
+    let mounted = true;
+    activeWorkspaceSlot().then(
+      (slot) => {
+        if (mounted) setWorkspaceSlot(slot);
+      },
+      (error: unknown) => {
+        console.error("could not read the active workspace", error);
+      },
+    );
+    return () => {
+      mounted = false;
+    };
+  }, [user, sync.status.state]);
 
   useEffect(() => {
     if (!user || browser) return;
@@ -107,7 +126,7 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
                 : unavailableReason ?? "Use email and password to sign in or create an account."}
             </span>
           </span>
-          {signedIn ? (
+          {user ? (
             <button type="button" className={settingsButton} onClick={sync.signOut}>
               Sign out
             </button>
@@ -121,6 +140,19 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
               {isPending ? "Checking…" : "Sign in"}
             </button>
           )}
+        </div>
+        <div className={settingsRow}>
+          <span className={settingsRowLabel}>
+            Notes on this device
+            <span className={settingsRowDescription}>
+              {workspaceOwnershipText(workspaceSlot, user !== null)}
+            </span>
+            {workspaceSlot !== null ? (
+              <span className={settingsRowDescription}>
+                Workspace {shortWorkspaceId(workspaceSlot)}
+              </span>
+            ) : null}
+          </span>
         </div>
         {user ? (
           <div className={settingsRow}>

@@ -101,9 +101,12 @@ pub async fn initialize(request_json: String) -> String {
         ));
     }
 
+    // Every account that signs in on this profile keeps its own workspace and
+    // asset database in this one pool, so the starting capacity covers a few
+    // accounts rather than only the first.
     let config = OpfsSAHPoolCfgBuilder::new()
         .directory(OPFS_DIRECTORY)
-        .initial_capacity(6)
+        .initial_capacity(12)
         .clear_on_init(false)
         .build();
     if let Err(error) = install_opfs_sahpool::<sqlite_wasm_rs::WasmOsCallback>(&config, true).await

@@ -14,3 +14,4 @@ cargo build \
 ./scripts/build-browser-wasm.sh
 bun --cwd=app run e2e:browser-storage
 bun --cwd=app run e2e:browser-reset
+bun --cwd=app run e2e:browser-account-switch

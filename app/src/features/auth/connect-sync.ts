@@ -1,4 +1,4 @@
-import { connectWorkspaceSync } from "@/bridge/commands";
+import { adoptWorkspaceSlot, connectWorkspaceSync } from "@/bridge/commands";
 import {
   adoptBoundStarterPreview,
   reclaimBoundStarterPreview,
@@ -6,13 +6,17 @@ import {
 import { authConfiguration } from "./config";
 import { currentSessionToken } from "./session-token";
 
-type CloudWorkspaceState = "has-content" | "empty" | "unknown";
+type CloudWorkspaceState = {
+  content: "has-content" | "empty" | "unknown";
+  /** Null only on a cloud that predates the route and cannot name a workspace. */
+  workspaceId: string | null;
+};
 
 /**
- * Asks the cloud whether this account's workspace already holds replicated
- * history, without registering a device. A 404 means an older cloud deployment
- * that predates the route; every other failure propagates, because a cloud
- * that cannot answer this cannot run sync either.
+ * Asks the cloud which workspace this account owns and whether it already
+ * holds replicated history, without registering a device. A 404 means an older
+ * cloud deployment that predates the route; every other failure propagates,
+ * because a cloud that cannot answer this cannot run sync either.
  */
 async function cloudWorkspaceState(token: string): Promise<CloudWorkspaceState> {
   if (!authConfiguration.available) {
@@ -22,16 +26,22 @@ async function cloudWorkspaceState(token: string): Promise<CloudWorkspaceState> 
     headers: { Authorization: `Bearer ${token}` },
   });
   if (response.status === 404) {
-    return "unknown";
+    return { content: "unknown", workspaceId: null };
   }
   if (!response.ok) {
     throw new Error(`the cloud workspace state request failed: ${response.status}`);
   }
-  const body = (await response.json()) as { latestServerSequence?: unknown };
+  const body = (await response.json()) as {
+    latestServerSequence?: unknown;
+    workspaceId?: unknown;
+  };
   if (typeof body.latestServerSequence !== "number") {
     throw new Error("the cloud workspace state response was invalid");
   }
-  return body.latestServerSequence > 0 ? "has-content" : "empty";
+  return {
+    content: body.latestServerSequence > 0 ? "has-content" : "empty",
+    workspaceId: typeof body.workspaceId === "string" ? body.workspaceId : null,
+  };
 }
 
 /**
@@ -45,6 +55,10 @@ async function cloudWorkspaceState(token: string): Promise<CloudWorkspaceState> 
  * its first content. When the cloud predates the state route the legacy
  * reclaim runs, and when the cloud is unreachable neither decision is made —
  * the thrown error also keeps sync from connecting and pushing prematurely.
+ *
+ * Routing to the account's own local workspace happens first, so an account
+ * that does not own the running one never reaches the preview decision or the
+ * sync guard; the runtime reopens on its storage and signs in again there.
  */
 export async function connectSyncForCurrentSession(): Promise<void> {
   const token = await currentSessionToken();
@@ -53,7 +67,11 @@ export async function connectSyncForCurrentSession(): Promise<void> {
     throw new Error(authConfiguration.reason);
   }
   const state = await cloudWorkspaceState(token);
-  if (state === "empty") {
+  if (state.workspaceId !== null) {
+    const adoption = await adoptWorkspaceSlot(state.workspaceId);
+    if (adoption === "switched") return;
+  }
+  if (state.content === "empty") {
     await adoptBoundStarterPreview();
   } else {
     await reclaimBoundStarterPreview();
