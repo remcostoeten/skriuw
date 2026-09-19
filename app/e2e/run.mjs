@@ -1800,23 +1800,11 @@ async function runWorkflow() {
   }
 }
 
-await run("pnpm", [
-  "--dir",
-  app,
-  "exec",
-  "tsc",
-  "--noEmit",
-  "-p",
-  "e2e/tsconfig.json",
-]);
-await run("pnpm", [
-  "--dir",
-  app,
-  "exec",
-  "vite",
+await run(join(app, "node_modules/.bin/tsc"), ["--noEmit", "-p", join(app, "e2e/tsconfig.json")]);
+await run(join(app, "node_modules/.bin/vite"), [
   "build",
   "--config",
-  "e2e/vite.config.ts",
+  join(app, "e2e/vite.config.ts"),
   "--mode",
   "production",
 ]);
