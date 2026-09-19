@@ -220,3 +220,32 @@ test("a command issued during close reopens after the shutdown settles", async (
   assert.deepEqual(core.calls.slice(-4), ["shutdown", "protocolVersion", "open", "bootstrap"]);
   assert.deepEqual((await bridge.bootstrapWorkspace()).nodes, []);
 });
+
+test("close waits for an open in flight so nothing stays open behind it", async () => {
+  const core = createFakeSkriuwCore();
+  const bridge = createNativeBridge(core);
+
+  const starting = bridge.bootstrapWorkspace();
+  await bridge.close();
+  await starting.catch(() => undefined);
+
+  assert.ok(core.calls.indexOf("open") !== -1);
+  assert.ok(core.calls.lastIndexOf("shutdown") > core.calls.lastIndexOf("open"));
+});
+
+test("a throwing reporter neither skips the rollback nor masks the rejection", async () => {
+  const core = createFakeSkriuwCore();
+  const bridge = createNativeBridge(core);
+  const store = await openWorkspace(bridge);
+  const session = {
+    store,
+    bridge,
+    reportFailure: () => {
+      throw new Error("reporter broke");
+    },
+  };
+
+  core.failNextSubmit("busy", "the workspace is busy");
+  await assert.rejects(commitOperations(session, [createNote("note-1", "Lost")]), hasKind("busy"));
+  assert.equal(store.getState().nodes.has("note-1"), false);
+});

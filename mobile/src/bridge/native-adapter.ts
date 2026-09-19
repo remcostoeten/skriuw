@@ -16,9 +16,10 @@ export type NativeBridgeOptions = {
 
 export type NativeBridge = BridgePort & {
   /**
-   * Drains the native owner thread; the next command reopens the slot, and one
-   * issued while the drain is in flight waits for it instead of re-attaching
-   * to the workspace being closed.
+   * Drains the native owner thread once any open already in flight has
+   * settled, so nothing is left open behind a resolved close. The next command
+   * reopens the slot, and one issued while the drain is in flight waits for it
+   * instead of re-attaching to the workspace being closed.
    */
   close: () => Promise<void>;
 };
@@ -32,6 +33,10 @@ const UNCONFIGURED_NOTE_LOCK: NoteLockState = {
   nextAttemptAt: null,
   lockedNoteCount: 0,
 };
+
+function ignoreOutcome(): void {
+  return undefined;
+}
 
 function parsePayload<T>(json: string, command: string): T {
   try {
@@ -161,15 +166,24 @@ export function createNativeBridge(core: SkriuwCore, options: NativeBridgeOption
     activeWorkspaceSlot: async () => (slot === DEFAULT_SLOT ? null : slot),
 
     close: () => {
+      const pendingOpen = opening;
+      const previousClose = closing;
       opening = null;
-      const shutdown = core.shutdown();
-      function settle(): void {
-        if (closing === settled) {
+      async function drain(): Promise<void> {
+        await previousClose;
+        if (pendingOpen !== null) {
+          await pendingOpen.then(ignoreOutcome, ignoreOutcome);
+        }
+        await core.shutdown();
+      }
+      function release(): void {
+        if (closing === released) {
           closing = null;
         }
       }
-      const settled = shutdown.then(settle, settle);
-      closing = settled;
+      const shutdown = drain();
+      const released = shutdown.then(release, release);
+      closing = released;
       return shutdown;
     },
   };
