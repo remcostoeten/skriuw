@@ -1,0 +1,445 @@
+name: Mobile CI
+
+# The path filter is the whole cost contract: a PR that touches none of these
+# starts no mobile job, so desktop CI time does not grow. Tag pushes ignore
+# `paths`, which is what lets a `mobile-v*` tag produce the preview builds.
+on:
+    push:
+        branches:
+            - daddy
+        tags:
+            - "mobile-v*"
+        paths: &mobile-paths
+            - "mobile/**"
+            - "shared/**"
+            - "crates/skriuw-mobile/**"
+            - "scripts/check-mobile.sh"
+            - ".github/workflows/mobile-*.yml"
+            - "!**/*.md"
+    pull_request:
+        paths: *mobile-paths
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: mobile-ci-${{ github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Naming the shell is what turns on `pipefail`; the implicit default is
+# `bash -e`, under which a failed command piped into `tee` passes the step.
+defaults:
+    run:
+        shell: bash
+
+env:
+    MODULE_DIR: mobile/modules/skriuw-core
+
+jobs:
+    gate:
+        name: Product gate
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            - name: Install declared Rust toolchain
+              run: rustup show active-toolchain
+
+            - name: Cache Cargo
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: . -> target
+                  shared-key: mobile-host
+
+            - name: Install bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+
+            - name: Install Node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: "24"
+
+            - name: Install workspace deps
+              run: bun install --frozen-lockfile
+
+            - name: Mobile product gate
+              run: ./scripts/check-mobile.sh
+
+            - name: Native module surface
+              working-directory: mobile
+              run: |
+                  bunx tsx --test modules/skriuw-core/__tests__/*.test.ts
+                  bunx tsc --noEmit --project modules/skriuw-core
+                  bunx tsc --noEmit --project modules/skriuw-core/__tests__
+
+            - name: Facade host tests
+              run: cargo test -p skriuw-mobile --locked
+
+    android-e2e:
+        name: Android emulator e2e
+        runs-on: ubuntu-latest
+        timeout-minutes: 75
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            # Hosted runners expose KVM to root only; the emulator is unusably
+            # slow without it.
+            - name: Enable KVM
+              run: |
+                  echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+                  sudo udevadm control --reload-rules
+                  sudo udevadm trigger --name-match=kvm
+
+            - name: Install Java
+              uses: actions/setup-java@v5
+              with:
+                  distribution: temurin
+                  java-version: "17"
+
+            - name: Install Android Rust targets
+              run: |
+                  rustup show active-toolchain
+                  rustup target add aarch64-linux-android x86_64-linux-android
+
+            - name: Cache Cargo
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: |
+                      . -> target
+                      crates/skriuw-mobile/bindgen -> target
+                  shared-key: mobile-android
+
+            - name: Install cargo-ndk
+              uses: taiki-e/install-action@v2
+              with:
+                  tool: cargo-ndk
+
+            - name: Install bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+
+            - name: Install Node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: "24"
+
+            - name: Install workspace deps
+              run: bun install --frozen-lockfile
+
+            - name: Cache Gradle
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.gradle/caches
+                      ~/.gradle/wrapper
+                  key: mobile-gradle-${{ hashFiles('bun.lock') }}
+                  restore-keys: mobile-gradle-
+
+            - name: Build the Rust core for Android
+              run: ${{ env.MODULE_DIR }}/scripts/build-android.sh
+
+            - name: Open, write, kill, relaunch, read back
+              uses: reactivecircus/android-emulator-runner@v2
+              with:
+                  api-level: 34
+                  arch: x86_64
+                  target: default
+                  disk-size: 6000M
+                  force-avd-creation: true
+                  disable-animations: true
+                  emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+                  script: ${{ env.MODULE_DIR }}/scripts/e2e-android.sh
+
+    xcframework:
+        name: iOS xcframework
+        runs-on: macos-latest
+        timeout-minutes: 45
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            - name: Install iOS Rust targets
+              run: |
+                  rustup show active-toolchain
+                  rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+
+            - name: Cache Cargo
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: |
+                      . -> target
+                      crates/skriuw-mobile/bindgen -> target
+                  shared-key: mobile-ios
+
+            - name: Build SkriuwMobile.xcframework and the Swift bindings
+              run: ${{ env.MODULE_DIR }}/scripts/build-ios.sh
+
+            # One artifact holding both directories, unpacked over
+            # mobile/modules/skriuw-core/ios before `pod install`.
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: skriuw-core-ios
+                  path: |
+                      ${{ env.MODULE_DIR }}/ios/Frameworks
+                      ${{ env.MODULE_DIR }}/ios/Generated
+                  if-no-files-found: error
+                  retention-days: 30
+
+    android-preview:
+        name: Android preview build
+        if: startsWith(github.ref, 'refs/tags/mobile-v') || github.event_name == 'workflow_dispatch'
+        needs: [gate, android-e2e]
+        runs-on: ubuntu-latest
+        timeout-minutes: 75
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            - name: Install Java
+              uses: actions/setup-java@v5
+              with:
+                  distribution: temurin
+                  java-version: "17"
+
+            - name: Install Android Rust targets
+              run: |
+                  rustup show active-toolchain
+                  rustup target add aarch64-linux-android x86_64-linux-android
+
+            - name: Cache Cargo
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: |
+                      . -> target
+                      crates/skriuw-mobile/bindgen -> target
+                  shared-key: mobile-android
+
+            - name: Install cargo-ndk
+              uses: taiki-e/install-action@v2
+              with:
+                  tool: cargo-ndk
+
+            - name: Install bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+
+            - name: Install Node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: "24"
+
+            - name: Install workspace deps
+              run: bun install --frozen-lockfile
+
+            - name: Build the Rust core for Android
+              run: ${{ env.MODULE_DIR }}/scripts/build-android.sh
+
+            # The Expo template signs release variants with the debug keystore,
+            # so this APK installs on any device but is not a store build.
+            - name: Assemble the preview APK
+              working-directory: mobile
+              run: |
+                  bunx expo prebuild --platform android --no-install
+                  cd android
+                  ./gradlew app:assembleRelease -x lint -x test -PreactNativeArchitectures=arm64-v8a,x86_64
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: skriuw-android-preview
+                  path: mobile/android/app/build/outputs/apk/release/app-release.apk
+                  if-no-files-found: error
+                  retention-days: 30
+
+    ios-preview:
+        name: iOS preview build (simulator)
+        if: startsWith(github.ref, 'refs/tags/mobile-v') || github.event_name == 'workflow_dispatch'
+        needs: [gate, xcframework]
+        runs-on: macos-latest
+        timeout-minutes: 75
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            - uses: actions/download-artifact@v5
+              with:
+                  name: skriuw-core-ios
+                  path: ${{ env.MODULE_DIR }}/ios
+
+            - name: Install bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+
+            - name: Install Node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: "24"
+
+            - name: Install workspace deps
+              run: bun install --frozen-lockfile
+
+            # Unsigned, so it runs in a simulator only. A device build needs
+            # Apple credentials and goes through the `eas-preview` job.
+            - name: Build the simulator app
+              working-directory: mobile
+              run: |
+                  bunx expo prebuild --platform ios
+                  workspace="$(find ios -maxdepth 1 -name '*.xcworkspace' | head -n 1)"
+                  [[ -n "$workspace" ]] || { echo "::error::expo prebuild produced no Xcode workspace"; exit 1; }
+                  scheme="$(basename "$workspace" .xcworkspace)"
+                  xcodebuild \
+                      -workspace "$workspace" \
+                      -scheme "$scheme" \
+                      -configuration Release \
+                      -sdk iphonesimulator \
+                      -destination 'generic/platform=iOS Simulator' \
+                      -derivedDataPath build \
+                      CODE_SIGNING_ALLOWED=NO
+                  app="$(find build/Build/Products/Release-iphonesimulator -maxdepth 1 -name '*.app' | head -n 1)"
+                  [[ -n "$app" ]] || { echo "::error::xcodebuild produced no .app"; exit 1; }
+                  ditto -c -k --keepParent "$app" "$RUNNER_TEMP/skriuw-ios-simulator.zip"
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: skriuw-ios-preview-simulator
+                  path: ${{ runner.temp }}/skriuw-ios-simulator.zip
+                  if-no-files-found: error
+                  retention-days: 30
+
+    # Secrets are not readable in a job-level `if`, so this job turns the
+    # preconditions into outputs. When one is missing the EAS job shows up as
+    # skipped next to a warning annotation naming the reason, never as green.
+    eas-preflight:
+        name: EAS preconditions
+        if: startsWith(github.ref, 'refs/tags/mobile-v') || github.event_name == 'workflow_dispatch'
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        outputs:
+            ready: ${{ steps.check.outputs.ready }}
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            - id: check
+              env:
+                  EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+              run: |
+                  missing=()
+                  [[ -n "$EXPO_TOKEN" ]] || missing+=("the EXPO_TOKEN repository secret is not configured")
+                  jq -e '.expo.extra.eas.projectId' mobile/app.json >/dev/null \
+                      || missing+=("mobile/app.json has no expo.extra.eas.projectId (run eas init)")
+                  jq -e '.scripts["eas-build-post-install"]' mobile/package.json >/dev/null \
+                      || missing+=("mobile/package.json has no eas-build-post-install hook that builds the gitignored Rust core on the EAS worker")
+                  if ((${#missing[@]} == 0)); then
+                      echo "ready=true" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  echo "ready=false" >> "$GITHUB_OUTPUT"
+                  {
+                      echo "### EAS builds skipped"
+                      echo
+                      echo "Signed device builds and the iOS simulator smoke run did not happen:"
+                      for reason in "${missing[@]}"; do
+                          echo "- $reason"
+                      done
+                      echo
+                      echo "The unsigned Android APK and iOS simulator app from this run are still attached as artifacts."
+                  } | tee -a "$GITHUB_STEP_SUMMARY"
+                  for reason in "${missing[@]}"; do
+                      echo "::warning title=EAS builds skipped::$reason"
+                  done
+
+    eas-preview:
+        name: EAS preview builds (signed)
+        needs: [gate, android-e2e, xcframework, eas-preflight]
+        if: needs.eas-preflight.outputs.ready == 'true'
+        runs-on: ubuntu-latest
+        timeout-minutes: 90
+        env:
+            EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            - name: Install bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+
+            - name: Install Node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: "24"
+
+            - name: Install workspace deps
+              run: bun install --frozen-lockfile
+
+            - name: Build preview for both platforms
+              working-directory: mobile
+              run: npx -y eas-cli@latest build --profile preview --platform all --non-interactive --wait --json | tee "$RUNNER_TEMP/eas-builds.json"
+
+            - name: Link the builds
+              run: |
+                  {
+                      echo "### EAS preview builds"
+                      jq -r '.[] | "- \(.platform): \(.artifacts.buildUrl // .artifacts.applicationArchiveUrl)"' "$RUNNER_TEMP/eas-builds.json"
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+    # EAS Simulator is limited-access and the probe needs a linked EAS project,
+    # so availability could not be established when this workflow was written.
+    # This job records the answer on every tagged run; an iOS smoke job follows
+    # once it reports access.
+    ios-simulator-probe:
+        name: EAS Simulator availability
+        needs: [eas-preflight]
+        if: needs.eas-preflight.outputs.ready == 'true'
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        env:
+            EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            - name: Install bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+
+            - name: Install Node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: "24"
+
+            - name: Install workspace deps
+              run: bun install --frozen-lockfile
+
+            - name: Probe EAS Simulator availability
+              working-directory: mobile
+              run: |
+                  if ! npx -y eas-cli@latest simulator:availability --json | tee "$RUNNER_TEMP/simulator.json"; then
+                      echo "::warning title=EAS Simulator unavailable::eas simulator:availability failed, so no iOS smoke run exists; iOS stays unverified."
+                      exit 0
+                  fi
+                  {
+                      echo "### EAS Simulator availability"
+                      echo '```json'
+                      cat "$RUNNER_TEMP/simulator.json"
+                      echo '```'
+                  } >> "$GITHUB_STEP_SUMMARY"
