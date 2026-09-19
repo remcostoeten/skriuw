@@ -13,7 +13,7 @@ import {
   TypeIcon,
   UserIcon,
 } from "@/shared/icons/static";
-import type { NotePropertyType } from "./types";
+import type { NotePropertyType } from "@skriuw/renderer-core/properties/types";
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>;
 

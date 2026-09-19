@@ -1,6 +1,6 @@
-import type { SearchHit } from "@/contracts/workspace";
-import { referenceKey } from "@/features/references/types";
-import type { RendererState } from "@/store/types";
+import type { SearchHit } from "@skriuw/renderer-core/contracts/workspace";
+import { referenceKey } from "@skriuw/renderer-core/references/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { resolveSearchFilters, type SearchFilterResolution } from "./filter-resolution";
 import { parseSearchQuery, type ParsedSearchQuery } from "./query-parser";
 

@@ -1,4 +1,4 @@
-import type { RendererState } from "@/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 type StructureSource = Pick<RendererState, "nodes" | "childrenByParent" | "documents">;
 

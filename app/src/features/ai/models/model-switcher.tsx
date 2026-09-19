@@ -2,9 +2,9 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { SearchIcon, CheckIcon } from "@/shared/icons/static";
 import { Dialog, useDialogClose } from "@/shared/ui/dialog";
 import { useListboxNavigation } from "@/shared/ui/use-listbox-navigation";
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { setAiModelSelection } from "@/store/actions/settings";
-import { useRendererSelector } from "@/store/use-renderer-selector";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { loadOllamaSnapshot } from "./ollama-bridge";
 import { loadRemoteAiSnapshot } from "./remote-ai-bridge";
 import {

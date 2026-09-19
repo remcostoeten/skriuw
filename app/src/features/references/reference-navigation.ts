@@ -1,6 +1,6 @@
-import { appRouteHash, entityFocusHash } from "@/app-route";
-import type { RendererStore } from "@/store/types";
-import type { ReferenceKind } from "./types";
+import { appRouteHash, entityFocusHash } from "@skriuw/renderer-core/route/app-route";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import type { ReferenceKind } from "@skriuw/renderer-core/references/types";
 
 type NavLocation = {
   hash: string;

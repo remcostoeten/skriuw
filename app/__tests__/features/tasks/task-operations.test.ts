@@ -6,8 +6,8 @@ import {
   productSchema,
   serializeProductMarkdown,
 } from "../../../src/features/editor/schema";
-import type { WorkspaceTask } from "../../../src/contracts/workspace";
-import type { DocumentRecord, RendererState } from "../../../src/store/types";
+import type { WorkspaceTask } from "@skriuw/renderer-core/contracts/workspace";
+import type { DocumentRecord, RendererState } from "@skriuw/renderer-core/store/types";
 
 const AT = 4242;
 

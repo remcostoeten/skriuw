@@ -4,11 +4,11 @@ import type {
   WorkspaceDocument,
   WorkspaceNode,
   WorkspaceSnapshot,
-} from "../../../src/contracts/workspace";
+} from "@skriuw/renderer-core/contracts/workspace";
 import { bindLockSession } from "../../../src/features/lock/lock-session";
 import { isNoteSealed, lockedNodeIds, sealedNoteIds } from "../../../src/features/lock/lock-model";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
-import type { RendererStore } from "../../../src/store/types";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 function node(id: string, lockedAt: number | null = null, parentId: string | null = null): WorkspaceNode {
   return {

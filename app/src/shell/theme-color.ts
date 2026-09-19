@@ -1,4 +1,4 @@
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 const META_NAME = "theme-color";
 

@@ -1,6 +1,6 @@
-import type { NodePlacement } from "@/contracts/workspace";
-import { ancestorIds } from "@/store/tree";
-import type { NodeRecord } from "@/store/types";
+import type { NodePlacement } from "@skriuw/renderer-core/contracts/workspace";
+import { ancestorIds } from "@skriuw/renderer-core/store/tree";
+import type { NodeRecord } from "@skriuw/renderer-core/store/types";
 
 export type DropZone = "before" | "after" | "inside";
 

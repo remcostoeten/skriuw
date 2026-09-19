@@ -4,7 +4,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { App } from "../src/app";
 import { bindSettingsToRoot } from "../src/features/settings/apply-settings";
-import { createInitialState, createRendererStore } from "../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { createPerformanceSnapshot } from "./fixture";
 import type { TreeProjection } from "./fixture";
 import { createPerformanceController } from "./harness";

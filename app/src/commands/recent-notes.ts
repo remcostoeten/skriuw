@@ -1,4 +1,4 @@
-import type { NoteMetadata } from "@/store/types";
+import type { NoteMetadata } from "@skriuw/renderer-core/store/types";
 
 export type RecentNote = {
   id: string;

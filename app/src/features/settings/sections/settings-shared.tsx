@@ -4,8 +4,8 @@ import { CheckIcon } from "@/shared/icons/static";
 import { projectSettings } from "@/features/settings/settings-model";
 import type { EditableSettings, SettingsViewModel } from "@/features/settings/settings-model";
 import { cn } from "@/shared/lib/utils";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { selectSettings } from "./selectors";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 

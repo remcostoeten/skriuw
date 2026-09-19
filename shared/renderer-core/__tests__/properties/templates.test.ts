@@ -6,9 +6,9 @@ import {
   instantiatePropertyTemplate,
   reorderPropertyTemplates,
   upsertPropertyTemplate,
-} from "../../../src/features/properties/templates";
-import type { PropertyIdFactory } from "../../../src/features/properties/types";
-import { normalizeNotePropertyFields } from "../../../src/features/properties/value";
+} from "../../src/properties/templates";
+import type { PropertyIdFactory } from "../../src/properties/types";
+import { normalizeNotePropertyFields } from "../../src/properties/value";
 
 function idFactory(prefix: string): PropertyIdFactory {
   let next = 0;

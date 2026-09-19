@@ -2,7 +2,7 @@ import type {
   NoteProperty,
   ProviderImportReceipt,
   WorkspaceOperation,
-} from "@/contracts/workspace";
+} from "@skriuw/renderer-core/contracts/workspace";
 import { hasLosslessMarkdownDocument } from "@/features/editor/schema";
 import type {
   MarkdownImportPlan,

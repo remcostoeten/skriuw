@@ -5,7 +5,7 @@ import {
   queryMentionSuggestions,
   queryTagSuggestions,
 } from "../../../src/features/references/suggestion-index";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { largeReferenceFixture, referenceFixture, tag } from "./fixtures";
 
 function fixtureState() {

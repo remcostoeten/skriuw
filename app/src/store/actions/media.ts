@@ -1,10 +1,10 @@
-import type { MediaMetadata } from "@/contracts/workspace";
+import type { MediaMetadata } from "@skriuw/renderer-core/contracts/workspace";
 import {
   clampMediaText,
   MEDIA_ALT_MAX_BYTES,
   MEDIA_NAME_MAX_BYTES,
 } from "@/features/settings/media-library-model";
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { commitOperations } from "./workspace";
 
 /**

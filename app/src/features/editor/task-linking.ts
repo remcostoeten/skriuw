@@ -1,5 +1,5 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
-import type { WorkspaceOperation, WorkspaceTask } from "@/contracts/workspace";
+import type { WorkspaceOperation, WorkspaceTask } from "@skriuw/renderer-core/contracts/workspace";
 import { promotedChecklistTaskLinks } from "./task-promotion";
 
 type TaskSourceDocumentInput = {

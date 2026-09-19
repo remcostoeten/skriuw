@@ -1,7 +1,7 @@
 import { JOURNAL_ROOT_ID, journalEntryDateKey } from "@/features/journal/model";
-import type { RendererState } from "@/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { projectBacklinks, projectOutgoingNotes } from "./reference-panel-model";
-import { referenceKey, type ReferenceKind } from "./types";
+import { referenceKey, type ReferenceKind } from "@skriuw/renderer-core/references/types";
 
 export type RelationshipNote = {
   noteId: string;

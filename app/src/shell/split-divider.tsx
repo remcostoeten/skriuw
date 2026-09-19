@@ -4,7 +4,7 @@ import {
   MIN_SPLIT_RATIO,
   clampSplitRatio,
   type SplitOrientation,
-} from "@/store/panes";
+} from "@skriuw/renderer-core/store/panes";
 import { SPLIT_COARSE_STEP, SPLIT_NUDGE_STEP, ratioAtPointer } from "./split-layout";
 
 type Props = {

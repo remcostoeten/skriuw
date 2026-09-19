@@ -21,7 +21,7 @@ import {
   shortcutSearchSuggestions,
   shortcutSettingsCount,
 } from "@/commands/settings-search";
-import { useRendererSelector } from "@/store/use-renderer-selector";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { sameOverrides, selectShortcutOverrides } from "./selectors";
 import {
   SettingsHeading,

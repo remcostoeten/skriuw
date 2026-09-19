@@ -1,4 +1,4 @@
-import type { WorkspaceSettings } from "@/contracts/workspace";
+import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 
 export const OLLAMA_PROVIDER_ID = "ollama";
 export const OLLAMA_PROVIDER_LABEL = "Ollama";

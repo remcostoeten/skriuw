@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useRendererSelector } from "@/store/use-renderer-selector";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { cn } from "@/shared/lib/utils";
 import {
   ChevronDownIcon,
@@ -29,13 +29,13 @@ import {
   type VersionRow,
 } from "@/features/history/version-model";
 import { VersionStats } from "@/features/history/version-stats";
-import { noteHistoryHash } from "@/app-route";
+import { noteHistoryHash } from "@skriuw/renderer-core/route/app-route";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { NoteOutline } from "./note-outline";
 import { AnnotationList } from "./annotation-list";
 import { RelationshipExplorer } from "@/features/references/relationship-explorer";
 import { projectHasRelationships } from "@/features/references/relationship-model";
-import type { RendererState, RendererStore } from "@/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 
 type Props = {
   store: RendererStore;

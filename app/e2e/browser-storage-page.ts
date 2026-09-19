@@ -9,7 +9,7 @@ import {
   searchIndexStatus,
   searchWorkspace,
 } from "../src/bridge/commands";
-import type { WorkspaceOperationEnvelope } from "../src/contracts/workspace";
+import type { WorkspaceOperationEnvelope } from "@skriuw/renderer-core/contracts/workspace";
 
 declare global {
   interface Window {

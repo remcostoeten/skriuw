@@ -8,13 +8,13 @@ import {
   pickImportFile,
   pickImportFiles,
   prepareImportSources,
-  type StoredImagePayload,
 } from "@/bridge/commands";
+import type { StoredImagePayload } from "@skriuw/renderer-core/bridge/port";
 import { productSchema, serializeProductMarkdown } from "@/features/editor/schema";
 import { flushPendingWork } from "@/shell/pending-work";
 import { noop } from "@/shared/lib/noop";
-import type { RendererStore } from "@/store/types";
-import type { WorkspaceOperation } from "@/contracts/workspace";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import type { WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import {
   buildImageExportEntries,
   buildNoteExportEntry,

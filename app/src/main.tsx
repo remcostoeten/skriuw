@@ -34,7 +34,7 @@ import {
   describePersistenceRisk,
   requestWorkspacePersistence,
 } from "@/bridge/storage-persistence";
-import type { HistoryHeader } from "@/contracts/workspace";
+import type { HistoryHeader } from "@skriuw/renderer-core/contracts/workspace";
 import { listenForHistoryHeaders } from "@/features/history/live-history";
 import {
   listenForSyncedWorkspaceChanges,
@@ -58,13 +58,13 @@ import {
 } from "@/shell/workspace-tab-lock";
 import { bindSettingsToRoot } from "@/features/settings/apply-settings";
 import { bindLockSession } from "@/features/lock/lock-session";
-import { commitGate } from "@/store/commit-gate";
-import { bindPaneLayoutPersistence } from "@/store/pane-layout-persistence";
-import { parsePaneLayout } from "@/store/panes";
-import { restoreSession } from "@/store/session-restore";
-import { bindSidebarExpansionPersistence } from "@/store/sidebar-expansion-persistence";
-import { createInitialState, createRendererStore } from "@/store/store";
-import type { RendererStore } from "@/store/types";
+import { commitGate } from "@skriuw/renderer-core/store/commit-gate";
+import { bindPaneLayoutPersistence } from "@skriuw/renderer-core/store/pane-layout-persistence";
+import { parsePaneLayout } from "@skriuw/renderer-core/store/panes";
+import { restoreSession } from "@skriuw/renderer-core/store/session-restore";
+import { bindSidebarExpansionPersistence } from "@skriuw/renderer-core/store/sidebar-expansion-persistence";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { initZoom } from "@/shell/zoom-controller";
 import { bindThemeColor } from "@/shell/theme-color";
 import { bindViewport } from "@/shell/viewport";

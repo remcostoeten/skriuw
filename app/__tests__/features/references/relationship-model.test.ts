@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { projectCoVisitedNotes, projectRelationshipGraph, projectSharedEntities } from "../../../src/features/references/relationship-model";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { referenceFixture } from "./fixtures";
 
 function store() {

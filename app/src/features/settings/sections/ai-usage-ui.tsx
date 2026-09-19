@@ -6,7 +6,7 @@ import type {
   AiRunRecord,
   AiRunState,
 } from "@/contracts/ai";
-import { appRouteHash } from "@/app-route";
+import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import {
   clearAiRunHistory,
   loadAiHistory,

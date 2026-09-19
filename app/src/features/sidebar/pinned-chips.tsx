@@ -1,7 +1,7 @@
 import { memo, useMemo } from "react";
-import { useRendererSelector } from "@/store/use-renderer-selector";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { FolderIcon, PinIcon } from "@/shared/icons/static";
-import type { RendererState, RendererStore } from "@/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 
 type PinnedChipsProps = {
   store: RendererStore;

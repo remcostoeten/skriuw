@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceSyncStatus } from "../../../../src/bridge/commands";
+import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 import {
   syncDescription,
   syncDetail,

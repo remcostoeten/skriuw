@@ -5,7 +5,7 @@ import {
   referenceText,
   resolveReference,
 } from "../../../src/features/references/reference-resolver";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { referenceFixture } from "./fixtures";
 
 function fixtureStore() {

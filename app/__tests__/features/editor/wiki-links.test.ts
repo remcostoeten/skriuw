@@ -5,7 +5,7 @@ import {
   productSchema,
   serializeProductMarkdown,
 } from "../../../src/features/editor/schema";
-import { extractReferences } from "../../../src/features/references/extract";
+import { extractReferences } from "@skriuw/renderer-core/references/extract";
 
 test("serializeProductMarkdown exports note mentions as [[title]] and person mentions as $name", () => {
   const mentionRef = productSchema.nodes.mention_ref;

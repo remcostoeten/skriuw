@@ -24,8 +24,8 @@ import {
   settingsGroupTitle,
   settingsRow,
 } from "@/features/settings/sections/settings-shared";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 type Props = {
   store: RendererStore;

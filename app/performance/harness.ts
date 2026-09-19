@@ -2,7 +2,7 @@ import { flushSync } from "react-dom";
 import { EditorView } from "prosemirror-view";
 import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "../src/features/editor/editor-working-set";
 import type { ProfilerOnRenderCallback } from "react";
-import type { RendererStore } from "../src/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { estimateFrameDuration, nextFrame, summarize } from "./metrics";
 import { readBridgeCalls, resetBridgeCalls } from "./bridge-mock";
 import { queryMentionSuggestions, queryTagSuggestions } from "../src/features/references/suggestion-index";

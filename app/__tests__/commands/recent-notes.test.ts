@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { compactAge, recentNotes } from "../../src/commands/recent-notes";
-import type { NoteMetadata } from "../../src/store/types";
+import type { NoteMetadata } from "@skriuw/renderer-core/store/types";
 
 function meta(title: string, updatedAt: number): NoteMetadata {
   return { title, wordCount: 0, updatedAt };

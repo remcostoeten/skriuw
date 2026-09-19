@@ -34,7 +34,7 @@ import {
 import { showToast } from "@/shared/ui/toast";
 import { requestTemplatePicker } from "@/features/templates/template-picker-controller";
 import { toggleNodeLock } from "@/features/lock/lock-session";
-import { useRendererSelector } from "@/store/use-renderer-selector";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import {
   CloseIcon,
   CommandIcon,
@@ -78,8 +78,8 @@ import {
   selectedTreeRoots,
   virtualTreeWindow,
   visualTreeIndent,
-} from "@/store/tree";
-import type { RendererState, RendererStore } from "@/store/types";
+} from "@skriuw/renderer-core/store/tree";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   AUTO_SCROLL_EDGE_PX,
   AUTO_SCROLL_MAX_STEP_PX,

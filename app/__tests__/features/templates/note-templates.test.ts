@@ -7,7 +7,7 @@ import {
   planTemplateNote,
   templatePropertyTemplate,
 } from "../../../src/features/templates/note-templates";
-import { BUILT_IN_PROPERTY_TEMPLATES } from "../../../src/features/properties/templates";
+import { BUILT_IN_PROPERTY_TEMPLATES } from "@skriuw/renderer-core/properties/templates";
 
 const FIXED_AT = Date.UTC(2026, 6, 31, 12, 0, 0);
 

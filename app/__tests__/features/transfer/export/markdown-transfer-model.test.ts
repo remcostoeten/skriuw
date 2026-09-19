@@ -3,7 +3,7 @@ import test from "node:test";
 import type {
   WorkspaceNode,
   WorkspaceSnapshot,
-} from "../../../../src/contracts/workspace";
+} from "@skriuw/renderer-core/contracts/workspace";
 import {
   buildNoteExportEntry,
   buildWorkspaceExportEntries,
@@ -13,8 +13,8 @@ import {
   sanitizeFileName,
 } from "../../../../src/features/transfer/export/markdown-transfer-model";
 import type { MarkdownTree } from "../../../../src/features/transfer/export/markdown-transfer-model";
-import { createInitialState, createRendererStore } from "../../../../src/store/store";
-import type { RendererState } from "../../../../src/store/types";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 import {
   productSchema,
   serializeProductMarkdown,

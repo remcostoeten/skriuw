@@ -1,9 +1,9 @@
 import { useMemo } from "react";
-import { useRendererSelector } from "@/store/use-renderer-selector";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { FileTextIcon, FolderIcon } from "@/shared/icons/static";
 import { describeSearchFilterProblem } from "@/features/search/filter-resolution";
 import { planWorkspaceSearch } from "@/features/search/search-plan";
-import type { RendererState, RendererStore } from "@/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { searchSidebarNodes } from "./sidebar-search";
 import { cn } from "@/shared/lib/utils";
 import { sectionLabelClass } from "@/shared/ui/section-header";

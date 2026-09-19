@@ -3,14 +3,14 @@ import type {
   WorkspaceNode,
   WorkspaceSettings,
   WorkspaceSnapshot,
-} from "../src/contracts/workspace";
+} from "@skriuw/renderer-core/contracts/workspace";
 import type {
   NoteReferences,
   PersonRecord,
   ReferenceBootstrap,
   StructuredReference,
   TagRecord,
-} from "../src/features/references/types";
+} from "@skriuw/renderer-core/references/types";
 import type { FixtureIdentity } from "./types";
 
 type ProjectionMetadata = {

@@ -1,6 +1,6 @@
 import { commitOperations } from "@/store/actions/workspace";
-import type { WorkspaceOperation } from "@/contracts/workspace";
-import type { RendererStore } from "@/store/types";
+import type { WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { forgetSeededNotes, reclaimableNoteIds, seededNoteIds } from "./starter-model";
 
 let boundStore: RendererStore | null = null;

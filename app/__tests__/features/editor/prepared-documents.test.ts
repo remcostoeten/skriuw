@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceSnapshot } from "../../../src/contracts/workspace";
+import type { WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
 import { PreparedEditorDocuments } from "../../../src/features/editor/prepared-documents";
 import { productSchema } from "../../../src/features/editor/schema";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 
 const snapshot: WorkspaceSnapshot = {
   protocolVersion: 1,

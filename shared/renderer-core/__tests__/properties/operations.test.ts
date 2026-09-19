@@ -11,8 +11,8 @@ import {
   replacePropertyValue,
   upsertNoteProperty,
   upsertPropertyOption,
-} from "../../../src/features/properties/operations";
-import type { NoteProperty, PropertyIdFactory } from "../../../src/features/properties/types";
+} from "../../src/properties/operations";
+import type { NoteProperty, PropertyIdFactory } from "../../src/properties/types";
 
 function idFactory(): PropertyIdFactory {
   let next = 0;

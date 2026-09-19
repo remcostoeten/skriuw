@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceNode, WorkspaceSnapshot } from "../../src/contracts/workspace";
+import type { WorkspaceNode, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
 import { registerPendingWork } from "../../src/shell/pending-work";
 import { bindWindowClosePersistence } from "../../src/shell/window-close";
-import { createInitialState, createRendererStore } from "../../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 
 type CloseEvent = {
   prevented: boolean;

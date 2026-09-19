@@ -35,9 +35,9 @@ import {
 import type { MediaLibraryEntry } from "@/features/settings/media-library-model";
 import type { MediaUsage } from "@/features/settings/media-library-model";
 import { formatSizeBytes } from "@/features/settings/maintenance-model";
-import type { RendererState } from "@/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { setMediaMetadata } from "@/store/actions/media";
-import { useRendererSelector } from "@/store/use-renderer-selector";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import {
   SettingsHeading,
   settingsButton,

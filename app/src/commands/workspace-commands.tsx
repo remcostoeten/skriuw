@@ -34,7 +34,7 @@ import {
   setNodePinned,
   trashCurrentNote,
 } from "@/store/actions/workspace";
-import type { AppRoute } from "@/app-route";
+import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
 import { authConfiguration } from "@/features/auth/config";
 import {
   openEditorSearch,
@@ -106,11 +106,12 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
 } from "@/shared/icons/static";
-import { opensNotesInTabs, usesVimMode } from "@/features/settings/settings-model";
+import { usesVimMode } from "@/features/settings/settings-model";
+import { opensNotesInTabs } from "@skriuw/renderer-core/settings/open-notes-in-tabs";
 import { THEME_ENTRIES } from "@/features/settings/themes";
 import type { SectionId } from "@/features/settings/sections/sections";
 import { updateSetting } from "@/store/actions/settings";
-import type { RendererState, RendererStore } from "@/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { resetZoom, zoomIn, zoomOut } from "@/shell/zoom-controller";
 import {
   focusEditorPane,

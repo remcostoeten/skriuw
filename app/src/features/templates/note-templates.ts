@@ -1,13 +1,13 @@
 import type { Node } from "prosemirror-model";
-import type { WorkspaceOperation } from "@/contracts/workspace";
+import type { WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import { documentTitleText, type IdFactory } from "@/store/actions/duplicate-note";
 import { boundTitle } from "@/features/editor/note-title";
 import { parseProductMarkdown, serializeProductMarkdown } from "@/features/editor/schema";
 import {
   BUILT_IN_PROPERTY_TEMPLATES,
   instantiatePropertyTemplate,
-} from "@/features/properties/templates";
-import type { NotePropertyTemplate, PropertyIdFactory } from "@/features/properties/types";
+} from "@skriuw/renderer-core/properties/templates";
+import type { NotePropertyTemplate, PropertyIdFactory } from "@skriuw/renderer-core/properties/types";
 
 export type NoteTemplate = {
   id: string;

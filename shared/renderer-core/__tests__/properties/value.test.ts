@@ -5,7 +5,7 @@ import {
   normalizeNotePropertyField,
   normalizeNotePropertyFields,
   normalizeNotePropertyValue,
-} from "../../../src/features/properties/value";
+} from "../../src/properties/value";
 
 const options = [
   { id: "open", label: "Open", color: "blue" as const },

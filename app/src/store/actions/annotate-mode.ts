@@ -1,4 +1,4 @@
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 /**
  * Annotate mode is session-only interaction state, not a document edit: it

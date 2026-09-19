@@ -1,5 +1,5 @@
 import generated from "../../../../../contracts/generated/built-in-prompts.json";
-import type { PromptInputShape, PromptParameters } from "@/contracts/workspace";
+import type { PromptInputShape, PromptParameters } from "@skriuw/renderer-core/contracts/workspace";
 
 export type BuiltInPrompt = {
   id: string;

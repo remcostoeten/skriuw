@@ -1,0 +1,23 @@
+{
+  "name": "@skriuw/renderer-core",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"__tests__/**/*.test.ts\""
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "@types/react": "19.2.14",
+    "react": "19.2.7",
+    "tsx": "4.20.6",
+    "typescript": "7.0.2"
+  }
+}

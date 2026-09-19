@@ -57,8 +57,8 @@ import {
 } from "@/features/ai/prompts/prompt-library";
 import { deletePrompt, savePrompt } from "@/store/actions/prompts";
 import { setAiModelSelection } from "@/store/actions/settings";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { DefaultModelPicker } from "./ai-model-picker-ui";
 import { PromptLibraryPanel } from "./prompt-library-ui";
 import { AiUsagePanel } from "./ai-usage-ui";

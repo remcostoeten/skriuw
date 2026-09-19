@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commitOperations } from "@/store/actions/workspace";
 import { downloadRemoteMedia, listMediaBlobs, storeNoteImage } from "@/bridge/commands";
-import type { MediaBlobPayload, StoredImagePayload } from "@/bridge/commands";
+import type { MediaBlobPayload } from "@/bridge/commands";
+import type { StoredImagePayload } from "@skriuw/renderer-core/bridge/port";
 import { isBrowserRuntime } from "@/bridge/runtime";
 import { pickImageFiles } from "@/features/editor/image-input";
 import { registerPendingWork } from "@/shell/pending-work";
@@ -34,8 +35,8 @@ import {
   type CoverMediaPickerFilter,
   type CoverMediaPickerSort,
 } from "@/features/settings/cover-media-picker-model";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   applyCoverFocalPreset,
   COVER_FOCAL_PRESETS,

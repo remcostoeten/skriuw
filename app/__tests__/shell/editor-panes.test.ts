@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { WorkspaceSnapshot } from "../../src/contracts/workspace";
+import type { WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
 import { EditorPanes } from "../../src/shell/editor-panes";
 import { openBeside, openNoteInTab } from "../../src/store/actions/panes";
-import { SECONDARY_PANE_ID } from "../../src/store/panes";
-import { createInitialState, createRendererStore } from "../../src/store/store";
+import { SECONDARY_PANE_ID } from "@skriuw/renderer-core/store/panes";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 
 function snapshot(): WorkspaceSnapshot {
   return {

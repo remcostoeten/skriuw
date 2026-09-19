@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { SearchHit, WorkspaceSnapshot } from "../../../src/contracts/workspace";
-import { JOURNAL_ROOT_ID } from "../../../src/features/journal/constants";
-import type { NoteReferences, ReferenceBootstrap } from "../../../src/features/references/types";
+import type { SearchHit, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
+import { JOURNAL_ROOT_ID } from "@skriuw/renderer-core/journal/constants";
+import type { NoteReferences, ReferenceBootstrap } from "@skriuw/renderer-core/references/types";
 import { applySearchPlan, planWorkspaceSearch } from "../../../src/features/search/search-plan";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
-import type { RendererStore } from "../../../src/store/types";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   fixtureNode,
   fixtureSettings,

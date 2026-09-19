@@ -1,6 +1,6 @@
-import type { WorkspaceOperationEnvelope } from "@/contracts/workspace";
-import { envelope } from "@/contracts/workspace";
-import type { RendererStore } from "@/store/types";
+import type { WorkspaceOperationEnvelope } from "@skriuw/renderer-core/contracts/workspace";
+import { envelope } from "@skriuw/renderer-core/contracts/workspace";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { flushBestEffortPendingWork, flushCriticalPendingWork } from "./pending-work";
 
 type CloseRequestedEvent = {

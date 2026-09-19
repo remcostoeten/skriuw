@@ -1,4 +1,4 @@
-import type { BlockedSyncOperation } from "@/bridge/commands";
+import type { BlockedSyncOperation } from "@skriuw/renderer-core/bridge/port";
 
 const OPERATION_LABELS: Record<string, string> = {
   create_tag: "Create tag",

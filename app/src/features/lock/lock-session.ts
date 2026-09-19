@@ -9,12 +9,12 @@ import {
   removeNoteLock,
   unlockNoteLock,
 } from "@/bridge/commands";
-import type { NoteLockSecretInput } from "@/bridge/commands";
-import type { NoteLockState } from "@/contracts/workspace";
+import type { NoteLockSecretInput } from "@skriuw/renderer-core/bridge/port";
+import type { NoteLockState } from "@skriuw/renderer-core/contracts/workspace";
 import { commitOperations } from "@/store/actions/workspace";
 import { flushPendingWork } from "@/shell/pending-work";
 import { showToast } from "@/shared/ui/toast";
-import type { RendererState, RendererStore } from "@/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { requestLockDialog } from "./lock-dialog-controller";
 import {
   autoLockMinutes,

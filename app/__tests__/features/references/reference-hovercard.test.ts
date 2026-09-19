@@ -5,7 +5,7 @@ import {
   destroyHovercard,
   scheduleHovercard,
 } from "../../../src/features/references/reference-hovercard";
-import type { RendererStore } from "../../../src/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 import { setupDOMStub } from "../../shared/dom-stub";
 

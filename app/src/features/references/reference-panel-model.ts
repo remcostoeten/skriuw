@@ -1,5 +1,5 @@
-import type { RendererState } from "@/store/types";
-import { referenceKey, type ReferenceKind, type ReferenceOperation } from "./types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
+import { referenceKey, type ReferenceKind, type ReferenceOperation } from "@skriuw/renderer-core/references/types";
 
 export function buildRenameReferenceOperation(
   entry: ReferenceDetailEntry,

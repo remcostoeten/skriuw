@@ -1,6 +1,5 @@
 import { invoke } from "./runtime";
 import type {
-  NoteLockKind,
   NoteLockState,
   OperationAck,
   SearchHit,
@@ -9,7 +8,14 @@ import type {
   WorkspaceDocument,
   WorkspaceOperationEnvelope,
   WorkspaceSnapshot,
-} from "@/contracts/workspace";
+} from "@skriuw/renderer-core/contracts/workspace";
+import type {
+  NoteLockSecretInput,
+  SlotAdoption,
+  StoredImagePayload,
+  SyncRecoveryView,
+  WorkspaceSyncStatus,
+} from "@skriuw/renderer-core/bridge/port";
 
 export type HistoryVersionContent = {
   noteId: string;
@@ -87,23 +93,9 @@ export function clearAuthToken(): Promise<void> {
   return invoke<void>("clear_auth_token");
 }
 
-export type WorkspaceSyncStatus =
-  | { state: "localOnly" }
-  | { state: "connecting" }
-  | { state: "upToDate" }
-  | { state: "pending" }
-  | { state: "offline" }
-  | { state: "authenticationRequired" }
-  | { state: "rehydrating" }
-  | { state: "retrying"; nextAttemptAt: number }
-  | { state: "blocked"; reason: string; detail: string | null };
-
 export function workspaceSyncStatus(): Promise<WorkspaceSyncStatus> {
   return invoke<WorkspaceSyncStatus>("workspace_sync_status");
 }
-
-/** Mirrors `SlotAdoption` in `app/src-tauri/src/workspace_slots.rs`. */
-export type SlotAdoption = "claimed" | "active" | "switched";
 
 /**
  * Points this installation at the signed-in account's own local workspace
@@ -149,33 +141,6 @@ export function setWorkspaceSyncOnline(online: boolean): Promise<void> {
 export function setWorkspaceSyncVisibility(visible: boolean, focused: boolean): Promise<void> {
   return invoke<void>("set_workspace_sync_visibility", { visible, focused });
 }
-
-export type BlockedSyncOperation = {
-  blockedId: string;
-  operationType: string;
-  reasonCode: string;
-  targetId: string | null;
-  targetTitle: string | null;
-  assetContentHash: string | null;
-  assetMimeType: string | null;
-  firstBlockedAt: number;
-};
-
-export type DiscardedSyncOperation = {
-  blockedId: string;
-  operationType: string;
-  reasonCode: string;
-  targetId: string | null;
-  targetTitle: string | null;
-  firstBlockedAt: number;
-  discardedAt: number;
-};
-
-export type SyncRecoveryView = {
-  viewVersion: number;
-  blocked: BlockedSyncOperation[];
-  discarded: DiscardedSyncOperation[];
-};
 
 /**
  * What the settings surface renders about a workspace's end-to-end
@@ -407,12 +372,6 @@ export function cleanupImportSource(rootPath: string): Promise<void> {
   return invoke<void>("cleanup_import_source", { rootPath });
 }
 
-export type StoredImagePayload = {
-  contentHash: string;
-  mimeType: string;
-  byteSize: number;
-};
-
 export function storeNoteImage(bytes: Uint8Array): Promise<StoredImagePayload> {
   return invoke<StoredImagePayload>("store_note_image", bytes);
 }
@@ -477,12 +436,6 @@ export function importMarkdownImage(
 ): Promise<StoredImagePayload> {
   return invoke<StoredImagePayload>("import_markdown_image", { sourceDir, relativePath });
 }
-
-export type NoteLockSecretInput = {
-  kind: NoteLockKind;
-  secret: string;
-  hint: string | null;
-};
 
 export function noteLockState(): Promise<NoteLockState> {
   return invoke<NoteLockState>("note_lock_state");

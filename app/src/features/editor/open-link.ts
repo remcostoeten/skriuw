@@ -1,5 +1,5 @@
 import { openExternalUrl, openLinkInApp } from "@/bridge/external-links";
-import type { WorkspaceSettings } from "@/contracts/workspace";
+import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import { opensLinksInApp } from "@/features/settings/settings-model";
 
 export type LinkTarget = "app" | "system";

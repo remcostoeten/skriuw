@@ -1,4 +1,4 @@
-import type { PromptInputShape } from "@/contracts/workspace";
+import type { PromptInputShape } from "@skriuw/renderer-core/contracts/workspace";
 import {
   MAX_PROMPT_SYSTEM_BYTES,
   promptDraftError,

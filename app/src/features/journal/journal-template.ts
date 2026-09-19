@@ -1,4 +1,4 @@
-import type { WorkspaceOperation, WorkspaceSettings } from "@/contracts/workspace";
+import type { WorkspaceOperation, WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import { boundTitle } from "@/features/editor/note-title";
 import {
   countWords,
@@ -11,7 +11,7 @@ import { documentTitleText, type IdFactory } from "@/store/actions/duplicate-not
 import { commitOperations, isRevisionConflict } from "@/store/actions/workspace";
 import { noop } from "@/shared/lib/noop";
 import { flushPendingWork } from "@/shell/pending-work";
-import type { RendererState, RendererStore } from "@/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { parseDateKey, type DateKey } from "./dates";
 
 export const JOURNAL_TEMPLATE_SETTING = "journalTemplateId";

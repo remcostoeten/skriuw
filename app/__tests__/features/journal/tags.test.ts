@@ -4,11 +4,11 @@ import type {
   NoteProperty,
   WorkspaceNode,
   WorkspaceSnapshot,
-} from "../../../src/contracts/workspace";
+} from "@skriuw/renderer-core/contracts/workspace";
 import {
   JOURNAL_DATE_PROPERTY_ID,
   JOURNAL_ROOT_ID,
-} from "../../../src/features/journal/constants";
+} from "@skriuw/renderer-core/journal/constants";
 import { sameJournalEntries, selectJournalEntries } from "../../../src/features/journal/model";
 import {
   entriesWithTag,
@@ -16,8 +16,8 @@ import {
   projectJournalTags,
   tagIdsMatchingQuery,
 } from "../../../src/features/journal/tags";
-import type { ReferenceBootstrap, TagRecord } from "../../../src/features/references/types";
-import { createInitialState } from "../../../src/store/store";
+import type { ReferenceBootstrap, TagRecord } from "@skriuw/renderer-core/references/types";
+import { createInitialState } from "@skriuw/renderer-core/store/store";
 import { setupTauriInvokeStub } from "../../shared/tauri-stub";
 
 setupTauriInvokeStub();

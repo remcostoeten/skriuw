@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { MediaBlobPayload } from "../../../src/bridge/commands";
-import type { WorkspaceImage } from "../../../src/contracts/workspace";
+import type { WorkspaceImage } from "@skriuw/renderer-core/contracts/workspace";
 import {
   projectCoverMediaPicker,
   type CoverMediaPickerSort,

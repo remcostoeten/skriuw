@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceAnnotation } from "../../../src/contracts/workspace";
+import type { WorkspaceAnnotation } from "@skriuw/renderer-core/contracts/workspace";
 import {
   anchoredThreadIds,
   threadsForNote,

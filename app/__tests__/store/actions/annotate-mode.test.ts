@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceNode, WorkspaceSnapshot } from "../../../src/contracts/workspace";
+import type { WorkspaceNode, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
 import {
   closeAnnotateMode,
   openAnnotateMode,
   toggleAnnotateMode,
 } from "../../../src/store/actions/annotate-mode";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 
 function note(id: string, rank: number): WorkspaceNode {
   return {

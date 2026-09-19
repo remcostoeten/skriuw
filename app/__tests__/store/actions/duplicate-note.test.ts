@@ -9,7 +9,7 @@ import {
   suffixMarkdownTitle,
   withFreshBlockIds,
 } from "../../../src/store/actions/duplicate-note";
-import type { RendererState } from "../../../src/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 function sequentialIds(prefix = "new") {
   let next = 0;

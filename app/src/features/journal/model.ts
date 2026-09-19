@@ -1,5 +1,5 @@
-import type { NoteProperty, NotePropertyOption } from "@/contracts/workspace";
-import type { RendererState } from "@/store/types";
+import type { NoteProperty, NotePropertyOption } from "@skriuw/renderer-core/contracts/workspace";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { isDateKey, type DateKey } from "./dates";
 import { journalEntryTagIds } from "./tags";
 
@@ -8,7 +8,7 @@ import {
   JOURNAL_MOOD_PROPERTY_ID,
   JOURNAL_ROOT_ID,
   JOURNAL_ROOT_TITLE,
-} from "./constants";
+} from "@skriuw/renderer-core/journal/constants";
 
 export {
   JOURNAL_DATE_PROPERTY_ID,

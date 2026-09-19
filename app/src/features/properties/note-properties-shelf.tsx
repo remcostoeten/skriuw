@@ -1,8 +1,8 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { cn } from "@/shared/lib/utils";
 import { SectionChevron, SectionLabel } from "@/shared/ui/section-header";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { NotePropertiesPanel } from "./note-properties-panel";
 
 type Props = {

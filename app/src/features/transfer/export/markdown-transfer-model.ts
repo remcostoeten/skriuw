@@ -1,4 +1,4 @@
-import type { WorkspaceImage, WorkspaceOperation } from "@/contracts/workspace";
+import type { WorkspaceImage, WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import {
   countWords,
   hasLosslessMarkdownDocument,
@@ -7,7 +7,7 @@ import {
   serializeProductMarkdown,
 } from "@/features/editor/schema";
 import { noop } from "@/shared/lib/noop";
-import type { RendererState } from "@/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 export type MarkdownExportEntry = {
   relativePath: string;

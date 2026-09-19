@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { activateNote } from "@/store/actions/workspace";
-import { appRouteHash, journalDayHash } from "@/app-route";
-import { JOURNAL_ROOT_ID } from "@/features/journal/constants";
+import { appRouteHash, journalDayHash } from "@skriuw/renderer-core/route/app-route";
+import { JOURNAL_ROOT_ID } from "@skriuw/renderer-core/journal/constants";
 import { journalEntryDateKey } from "@/features/journal/model";
 import { searchWorkspace } from "@/bridge/commands";
 import type { CommandRegistry, CommandUiState } from "./registry";
-import type { SearchHit } from "@/contracts/workspace";
+import type { SearchHit } from "@skriuw/renderer-core/contracts/workspace";
 import {
   projectEntities,
   type EntityKind,
@@ -23,7 +23,7 @@ import { effectiveShortcutKeys, shortcutOverridesFromSettings } from "./bindings
 import { useShortcutHints } from "./hints";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type { ShortcutActionId, ShortcutDefinition } from "./definitions";
-import type { RendererState, RendererStore } from "@/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 
 const PALETTE_SHORTCUT_IDS = ["toggleCommandPalette"] as const;
 

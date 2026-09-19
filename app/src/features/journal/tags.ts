@@ -1,5 +1,5 @@
-import type { TagRecord } from "@/features/references/types";
-import type { RendererState } from "@/store/types";
+import type { TagRecord } from "@skriuw/renderer-core/references/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 import type { JournalEntry } from "./model";
 
 export type JournalTag = {

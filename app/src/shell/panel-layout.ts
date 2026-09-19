@@ -1,4 +1,4 @@
-import type { AppRoute } from "@/app-route";
+import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
 import { METADATA_DEFAULT_WIDTH } from "./metadata-resize";
 import { SIDEBAR_DEFAULT_WIDTH } from "@/features/sidebar/sidebar-resize";
 

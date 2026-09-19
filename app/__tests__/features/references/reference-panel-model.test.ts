@@ -10,7 +10,7 @@ import {
   projectReferencingNotes,
   referenceDetailsEqual,
 } from "../../../src/features/references/reference-panel-model";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { referenceFixture } from "./fixtures";
 
 function fixtureStore() {

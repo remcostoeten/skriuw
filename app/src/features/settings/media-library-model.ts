@@ -1,6 +1,6 @@
 import type { MediaBlobPayload } from "@/bridge/commands";
-import type { MediaMetadata, WorkspaceImage } from "@/contracts/workspace";
-import { JOURNAL_ROOT_ID } from "@/features/journal/constants";
+import type { MediaMetadata, WorkspaceImage } from "@skriuw/renderer-core/contracts/workspace";
+import { JOURNAL_ROOT_ID } from "@skriuw/renderer-core/journal/constants";
 
 /** Mirrors `MAX_MEDIA_NAME_BYTES` in `skriuw-domain`. */
 export const MEDIA_NAME_MAX_BYTES = 200;

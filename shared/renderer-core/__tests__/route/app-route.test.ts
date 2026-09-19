@@ -8,7 +8,7 @@ import {
   resolveAppRoute,
   resolveHistoryVersion,
   resolveRouteFocus,
-} from "../src/app-route";
+} from "../../src/route/app-route";
 
 test("trash has a dedicated hash route and unknown routes return to notes", () => {
   assert.equal(resolveAppRoute("#/trash"), "trash");

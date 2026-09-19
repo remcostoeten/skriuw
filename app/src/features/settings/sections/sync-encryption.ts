@@ -1,4 +1,5 @@
-import type { WorkspaceEncryptionState, WorkspaceSyncStatus } from "@/bridge/commands";
+import type { WorkspaceEncryptionState } from "@/bridge/commands";
+import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 
 /** Blocked sync reasons that only a recovery code can clear. */
 export const ENCRYPTION_KEY_REQUIRED_REASON = "encryption_key_required";

@@ -71,7 +71,8 @@ import {
   railModShiftKeys,
   type RailItem,
 } from "@/commands/rail-items";
-import { appRouteHash, useAppRoute } from "./app-route";
+import { useAppRoute } from "./app-route";
+import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import { installBackNavigation } from "@/features/references/reference-navigation";
 import { scheduleSearchIndexReconciliation } from "@/features/search/index-maintenance";
 import {
@@ -109,8 +110,8 @@ import {
   selectReduceMotion,
   selectShowToasts,
 } from "@/features/settings/sections/selectors";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   AiOptInGate,
   aiSettingsCommands,

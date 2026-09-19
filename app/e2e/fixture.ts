@@ -3,7 +3,7 @@ import type {
   WorkspaceNode,
   WorkspaceSettings,
   WorkspaceSnapshot,
-} from "../src/contracts/workspace";
+} from "@skriuw/renderer-core/contracts/workspace";
 
 const now = 1_753_000_000_000;
 

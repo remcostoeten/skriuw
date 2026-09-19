@@ -1,7 +1,7 @@
 import { formatRelativeTime } from "@/shared/lib/relative-time";
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { projectReferencingNotes } from "./reference-panel-model";
-import type { ReferenceKind } from "./types";
+import type { ReferenceKind } from "@skriuw/renderer-core/references/types";
 
 type HovercardContent = {
   title: string;

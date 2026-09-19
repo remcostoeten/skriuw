@@ -1,4 +1,5 @@
-import type { MediaBlobPayload, StoredImagePayload } from "./commands";
+import type { MediaBlobPayload } from "./commands";
+import type { StoredImagePayload } from "@skriuw/renderer-core/bridge/port";
 import { activeBlobsDirectory } from "./workspace-slot";
 
 /**

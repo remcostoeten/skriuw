@@ -1,13 +1,13 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import type { NoteLockKind } from "@/contracts/workspace";
+import type { NoteLockKind } from "@skriuw/renderer-core/contracts/workspace";
 import { Button } from "@/shared/ui/button";
 import { Dialog, useDialogClose } from "@/shared/ui/dialog";
 import { Radio } from "@/shared/ui/radio";
 import { LockIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   normalizeRecoveryCodeInput,
   recoveryCodeLooksComplete,

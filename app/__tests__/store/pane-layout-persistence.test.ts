@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceSnapshot } from "../../src/contracts/workspace";
-import { bindPaneLayoutPersistence, paneLayout } from "../../src/store/pane-layout-persistence";
-import { PRIMARY_PANE_ID, parsePaneLayout, serializePaneLayout } from "../../src/store/panes";
+import type { WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
+import { bindPaneLayoutPersistence, paneLayout } from "@skriuw/renderer-core/store/pane-layout-persistence";
+import { PRIMARY_PANE_ID, parsePaneLayout, serializePaneLayout } from "@skriuw/renderer-core/store/panes";
 import {
   openNoteInTab,
   setSplitRatio,
   toggleSplitOrientation,
 } from "../../src/store/actions/panes";
-import { createInitialState, createRendererStore } from "../../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 
 const snapshot: WorkspaceSnapshot = {
   protocolVersion: 1,

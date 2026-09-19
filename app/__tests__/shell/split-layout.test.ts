@@ -9,7 +9,7 @@ import {
   DEFAULT_SPLIT_RATIO,
   MAX_SPLIT_RATIO,
   MIN_SPLIT_RATIO,
-} from "../../src/store/panes";
+} from "@skriuw/renderer-core/store/panes";
 
 test("split tracks give the ratio to the panes and a fixed track to the divider", () => {
   assert.equal(splitGridTemplate(0.5), "minmax(0, 0.5fr) 1px minmax(0, 0.5fr)");

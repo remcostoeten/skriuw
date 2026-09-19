@@ -3,12 +3,11 @@ import { useAuth } from "@remcostoeten/auth-drawer";
 import { authConfiguration } from "@/features/auth/config";
 import {
   activeWorkspaceSlot,
-  type BlockedSyncOperation,
   discardBlockedSyncOperation,
   listBlockedSyncOperations,
   retryBlockedSyncOperation,
-  type SyncRecoveryView,
 } from "@/bridge/commands";
+import type { BlockedSyncOperation, SyncRecoveryView } from "@skriuw/renderer-core/bridge/port";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import {

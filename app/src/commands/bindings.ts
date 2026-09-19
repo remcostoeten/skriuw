@@ -1,6 +1,6 @@
 import { matchesShortcut, parseShortcut } from "@remcostoeten/use-shortcut/parser";
 import { SIDEBAR_TREE_SELECTOR } from "./focus-regions";
-import type { WorkspaceSettings } from "@/contracts/workspace";
+import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type {
   ShortcutActionId,

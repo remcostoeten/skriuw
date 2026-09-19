@@ -1,6 +1,6 @@
-import type { WorkspaceSettings } from "@/contracts/workspace";
+import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import { commitOperations } from "@/store/actions/workspace";
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 /** Reads bounded, portable sidebar query preferences. */
 export function savedSearches(settings: WorkspaceSettings): readonly string[] {

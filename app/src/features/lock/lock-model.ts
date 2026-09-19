@@ -1,5 +1,5 @@
-import type { NoteLockKind, NoteLockState } from "@/contracts/workspace";
-import type { RendererState } from "@/store/types";
+import type { NoteLockKind, NoteLockState } from "@skriuw/renderer-core/contracts/workspace";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 export { autoLockMinutes, locksOnBlur } from "@/features/settings/settings-model";
 

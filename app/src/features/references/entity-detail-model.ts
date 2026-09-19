@@ -1,5 +1,5 @@
-import type { RendererState } from "@/store/types";
-import { referenceKey } from "./types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
+import { referenceKey } from "@skriuw/renderer-core/references/types";
 import type { EntityKind } from "./entity-manager-model";
 
 export type EntityNoteReference = {

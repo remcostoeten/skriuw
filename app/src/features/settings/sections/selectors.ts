@@ -5,7 +5,7 @@ import {
 } from "@/features/settings/settings-model";
 import { shortcutOverridesFromSettings } from "@/commands/bindings";
 import type { ShortcutOverrides } from "@/commands/bindings";
-import type { RendererState } from "@/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 export function selectShortcutOverrides(state: RendererState): ShortcutOverrides {
   return shortcutOverridesFromSettings(state.settings);

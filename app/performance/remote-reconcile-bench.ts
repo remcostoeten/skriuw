@@ -1,6 +1,6 @@
 import { performance } from "node:perf_hooks";
-import type { WorkspaceNode, WorkspaceSnapshot } from "../src/contracts/workspace";
-import { createInitialState, createRendererStore } from "../src/store/store";
+import type { WorkspaceNode, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 
 const NOTE_COUNT = Number(process.argv[2] ?? 5_000);
 const ROUNDS = Number(process.argv[3] ?? 50);

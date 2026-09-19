@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { NoteProperty, NotePropertyValue } from "@/contracts/workspace";
+import type { NoteProperty, NotePropertyValue } from "@skriuw/renderer-core/contracts/workspace";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { replaceStringValue } from "./property-editor-model";

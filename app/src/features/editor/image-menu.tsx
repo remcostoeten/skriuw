@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import type { WorkspaceImage } from "@/contracts/workspace";
+import type { WorkspaceImage } from "@skriuw/renderer-core/contracts/workspace";
 import { imageFormatLabel } from "@/features/settings/media-library-model";
 import { formatByteSize } from "@/shared/lib/format-bytes";
 import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";

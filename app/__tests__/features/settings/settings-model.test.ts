@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceSettings } from "../../../src/contracts/workspace";
+import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import {
   DEFAULT_WORKSPACE_SETTINGS,
   changeHistoryDiffLayout,

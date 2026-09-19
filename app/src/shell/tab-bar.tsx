@@ -1,5 +1,6 @@
 import type { MouseEvent, ReactNode } from "react";
-import { replaceRouteHash, type AppRoute } from "@/app-route";
+import { replaceRouteHash } from "@/app-route";
+import { type AppRoute } from "@skriuw/renderer-core/route/app-route";
 import { RAIL_ITEMS } from "@/commands/rail-items";
 import { AppIcon } from "@/shared/icons/app-icon";
 import { RAIL_ICONS } from "./rail-icons";

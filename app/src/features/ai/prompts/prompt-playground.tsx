@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { AiCompletionRequest } from "@/contracts/ai";
-import { appRouteHash } from "@/app-route";
+import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import { ChevronLeftIcon, StarIcon } from "@/shared/icons/static";
 import { Button } from "@/shared/ui/button";
 import { Select } from "@/shared/ui/select";
 import { WindowControls } from "@/shell/window-controls";
 import { cn } from "@/shared/lib/utils";
 import { noop } from "@/shared/lib/noop";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   PLAYGROUND_ORIGIN,
   startAiCompletion,

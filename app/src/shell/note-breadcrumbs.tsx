@@ -1,6 +1,6 @@
 import { ChevronRightIcon } from "@/shared/icons/static";
-import type { RendererState, RendererStore } from "@/store/types";
-import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 
 type Props = {
   store: RendererStore;

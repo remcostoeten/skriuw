@@ -18,10 +18,10 @@ import {
   sortTrashRows,
   trashRows,
   trashWindowRange,
-} from "@/store/trash";
-import type { TrashRow, TrashSortKey } from "@/store/trash";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+} from "@skriuw/renderer-core/store/trash";
+import type { TrashRow, TrashSortKey } from "@skriuw/renderer-core/store/trash";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {

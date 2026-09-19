@@ -16,12 +16,12 @@ import type {
   WorkspaceTask,
   NoteLockState,
   SealedPayload,
-} from "@/contracts/workspace";
+} from "../contracts/workspace";
 import type {
   IncomingReferences,
   OutgoingReferences,
-} from "@/features/references/projection";
-import type { PersonRecord, ReferenceOperation, TagRecord } from "@/features/references/types";
+} from "../references/projection";
+import type { PersonRecord, ReferenceOperation, TagRecord } from "../references/types";
 import type { ClosedTab, PaneState, SplitOrientation } from "./panes";
 
 export type NodeRecord = {

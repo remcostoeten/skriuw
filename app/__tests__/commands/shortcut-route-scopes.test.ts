@@ -7,8 +7,8 @@ import type { CommandUiControls } from "../../src/commands/workspace-commands";
 import { SHORTCUT_DEFINITIONS } from "../../src/commands/definitions";
 import { shortcutScopesActive } from "../../src/commands/bindings";
 import { activeShortcutScopes } from "../../src/commands/workspace-shortcuts";
-import type { AppRoute } from "../../src/app-route";
-import type { RendererState, RendererStore } from "../../src/store/types";
+import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { rememberAiAction } from "../../src/features/ai/actions/editor-action-controller";
 
 const ROUTES: readonly AppRoute[] = [

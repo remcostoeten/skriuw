@@ -1,5 +1,5 @@
 import type { BrowserSyncProgress } from "@/bridge/browser-sync";
-import type { WorkspaceSyncStatus } from "@/bridge/commands";
+import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 import { formatByteSize } from "@/shared/lib/format-bytes";
 import { blockedStateText } from "./sync-recovery";
 

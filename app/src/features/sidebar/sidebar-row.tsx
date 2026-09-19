@@ -1,10 +1,10 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { activateNote, renameNode } from "@/store/actions/workspace";
-import { useRendererSelector } from "@/store/use-renderer-selector";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { FolderIcon, FolderOpenIcon, LockIcon } from "@/shared/icons/static";
-import { visualTreeIndent } from "@/store/tree";
-import type { RendererState, RendererStore } from "@/store/types";
+import { visualTreeIndent } from "@skriuw/renderer-core/store/tree";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { restoreRenameReturnFocus } from "./rename-focus";
 import type { TreeMetrics } from "./sidebar";
 

@@ -1,4 +1,4 @@
-import type { RendererState } from "@/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { normalizeEntityName, type SearchFilter, type SearchFilterKind } from "./query-parser";
 
 export type SearchFilterCandidate = {

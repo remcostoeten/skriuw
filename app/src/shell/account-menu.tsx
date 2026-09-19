@@ -34,7 +34,7 @@ import { Tooltip } from "@/shared/ui/tooltip";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import { installOffered, promptInstall, subscribeInstallOffer } from "@/bridge/install-prompt";
 import { useShortcutHints } from "@/commands/hints";
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   accountDisplayName,
   accountInitials,
@@ -49,7 +49,7 @@ import { selectTheme } from "@/features/settings/sections/selectors";
 import type { SectionId } from "@/features/settings/sections/sections";
 import { syncSummary, syncTone } from "@/features/settings/sections/sync-status";
 import { SYNC_POLL_AMBIENT_MS, useWorkspaceSync } from "@/features/settings/sections/use-workspace-sync";
-import { useRendererSelector } from "@/store/use-renderer-selector";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 
 const TRANSFER_COMMANDS = [
   { id: "import-markdown-file", label: "Import markdown file…" },

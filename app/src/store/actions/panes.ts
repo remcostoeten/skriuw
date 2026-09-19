@@ -1,5 +1,5 @@
-import { opensNotesInTabs } from "@/features/settings/settings-model";
-import type { RendererState, RendererStore } from "@/store/types";
+import { opensNotesInTabs } from "@skriuw/renderer-core/settings/open-notes-in-tabs";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   DEFAULT_SPLIT_RATIO,
   PRIMARY_PANE_ID,
@@ -27,7 +27,7 @@ import {
   tabIdAtIndex,
   togglePinTab as togglePinTabInPanes,
   withClosedTabs,
-} from "@/store/panes";
+} from "@skriuw/renderer-core/store/panes";
 import { activateNote } from "./workspace";
 
 /**

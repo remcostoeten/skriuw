@@ -1,6 +1,6 @@
 import { commitOperations } from "@/store/actions/workspace";
-import type { NoteProperty, WorkspaceOperation } from "@/contracts/workspace";
-import type { RendererStore } from "@/store/types";
+import type { NoteProperty, WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { shiftDay, todayKey, type DateKey } from "@/features/journal/dates";
 import {
   JOURNAL_DATE_PROPERTY_ID,
