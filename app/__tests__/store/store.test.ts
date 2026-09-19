@@ -447,6 +447,34 @@ test("purging a trashed subtree drops its documents", () => {
   assert.equal(state.expandedIds.has("folder"), false);
 });
 
+test("purging a subtree detaches tasks sourced from its notes", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.applyOperations([
+    {
+      type: "create_task",
+      task: {
+        id: "task-1",
+        title: "Ship it",
+        status: "todo",
+        priority: "medium",
+        dueDate: null,
+        description: "",
+        tagIds: [],
+        assigneeIds: [],
+        source: { noteId: "note-child", blockId: "block-1" },
+        detachedAt: null,
+        createdAt: 10,
+        updatedAt: 10,
+      },
+    },
+    { type: "trash_subtree", rootId: "folder", at: 20 },
+    { type: "purge_subtree", rootId: "folder", trashedBefore: 100 },
+  ]);
+  const task = store.getState().tasks.get("task-1");
+  assert.equal(task?.source, null);
+  assert.equal(task?.detachedAt, 100);
+});
+
 test("save_document updates content, word count, and metadata timestamp", () => {
   const store = createRendererStore(createInitialState(snapshot()));
   store.applyOperations([
