@@ -45,8 +45,9 @@ string for the same reason: shortcut URLs are resolved before the renderer
 can read a hash. This decision leaves that mechanism as it is.
 
 The renderer claims the install offer and puts it where the user already is:
-the account menu, the Data settings section, and the storage warning itself,
-which gains an Install action when an offer is held. Safari never fires the
+a one-line strip above the tab bar that closes for good on this profile once
+dismissed, the account menu, the Data settings section, and the storage
+warning itself, which gains an Install action when an offer is held. Safari never fires the
 event, so nothing may depend on the offer existing.
 
 Dialogs are sized from the visual viewport rather than `100vh`, and settings

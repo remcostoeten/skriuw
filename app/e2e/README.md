@@ -102,7 +102,9 @@ checks the compact shell: tab bar in place of the rail, no horizontal
 overflow, both side panels opening as sheets and closing from their header,
 the scrim edge pull, and a note pick; then the tree's touch gestures, a held
 row opening the item menu with 44px rows, Escape closing only that menu, and a
-leftward pull trashing a row with a working undo. Requires zero console errors.
+leftward pull trashing a row with a working undo; then a synthetic
+`beforeinstallprompt` raising the install strip above the tab bar, its
+dismissal, and the dismissal surviving a reload. Requires zero console errors.
 
 ```bash
 node app/e2e/mobile-shell.mjs [--output <path>]

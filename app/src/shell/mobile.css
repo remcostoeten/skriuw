@@ -5,7 +5,7 @@
  */
 .shell-compact {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto auto;
 }
 
 .shell-compact > *,
@@ -14,8 +14,12 @@
   grid-row: 1;
 }
 
-.shell-compact > .shell-tab-bar {
+.shell-compact > .shell-install-banner {
   grid-row: 2;
+}
+
+.shell-compact > .shell-tab-bar {
+  grid-row: 3;
 }
 
 /*
@@ -65,8 +69,53 @@
   color: hsl(var(--sidebar-foreground));
 }
 
-:root[data-keyboard="open"] .shell-tab-bar {
+:root[data-keyboard="open"] .shell-tab-bar,
+:root[data-keyboard="open"] .shell-install-banner {
   display: none;
+}
+
+/* Sits on the tab bar's colours so the two read as one piece of chrome. */
+.shell-install-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding-inline: 14px 6px;
+  border-top: 1px solid hsl(var(--sidebar-border));
+  background: hsl(var(--sidebar-background));
+  color: hsl(var(--sidebar-foreground));
+  font-size: 13px;
+}
+
+.shell-install-banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-install-banner-install {
+  min-height: 32px;
+  padding-inline: 12px;
+  border: 1px solid hsl(var(--sidebar-border));
+  border-radius: 8px;
+  background: hsl(var(--background));
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+}
+
+.shell-install-banner-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
 }
 
 .shell-tab {
