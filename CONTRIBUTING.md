@@ -39,6 +39,27 @@ Build individual targets with:
 
 See [README.md](README.md) for the complete command reference.
 
+### v2 mobile
+
+`app/`, `mobile/` and `shared/*` are bun workspaces resolved from one root
+lockfile, so `bun install` at the repository root installs all three. `cloud/`,
+the harnesses under `app/harnesses/` and `v1/` stay outside the workspace and
+keep their own installs.
+
+```bash
+bun install                 # from the repository root
+bun run mobile              # expo start
+./scripts/check-mobile.sh   # the mobile product gate
+```
+
+`./scripts/check-mobile.sh` is deliberately separate from `./scripts/check.sh`.
+Run it for changes under `mobile/`, `shared/` or `crates/skriuw-mobile`.
+
+Android is the local verification target; iOS artifacts come from EAS builds.
+The client is described by
+[ADR-0048](docs/adr/0048-native-mobile-shell-over-shared-core.md) and
+[docs/specs/mobile-app.md](docs/specs/mobile-app.md).
+
 ### v1
 
 Install Bun 1.3 and Node.js 24, then:
