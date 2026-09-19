@@ -1,5 +1,5 @@
 import { NoteEditor } from "@/features/editor/note-editor";
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 type Props = {
   store: RendererStore;
