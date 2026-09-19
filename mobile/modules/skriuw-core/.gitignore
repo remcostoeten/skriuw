@@ -1,0 +1,8 @@
+# Produced by scripts/build-android.sh and scripts/build-ios.sh from
+# crates/skriuw-mobile. The UniFFI bindings carry checksums of the library they
+# were generated from, so they are build output, exactly like the library.
+/android/src/main/jniLibs/
+/android/src/main/java/uniffi/
+/android/build/
+/ios/Frameworks/
+/ios/Generated/
