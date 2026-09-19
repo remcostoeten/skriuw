@@ -1,6 +1,6 @@
 # ADR-0048: A native mobile shell over the shared Rust core
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-09-19
 
 ## Context

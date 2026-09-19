@@ -1,6 +1,7 @@
 # Mobile app
 
-Status: proposed. Nothing in this spec is implemented. Architecture decision:
+Status: accepted. Only the workspace and the Expo scaffold (Mobile 01) exist;
+everything else in this spec is unimplemented. Architecture decision:
 [ADR-0048](../adr/0048-native-mobile-shell-over-shared-core.md). Work is tracked
 in the **Mobile app** GitHub milestone as issues `Mobile 01` to `Mobile 16`;
 each issue carries its own outcome, contract and acceptance and refers back to
