@@ -15,7 +15,11 @@ export type NativeBridgeOptions = {
 };
 
 export type NativeBridge = BridgePort & {
-  /** Drains the native owner thread; the next command reopens the slot. */
+  /**
+   * Drains the native owner thread; the next command reopens the slot, and one
+   * issued while the drain is in flight waits for it instead of re-attaching
+   * to the workspace being closed.
+   */
   close: () => Promise<void>;
 };
 
@@ -54,9 +58,13 @@ function parsePayload<T>(json: string, command: string): T {
 export function createNativeBridge(core: SkriuwCore, options: NativeBridgeOptions = {}): NativeBridge {
   const slot = options.slot ?? DEFAULT_SLOT;
   let opening: Promise<OpenedWorkspace> | null = null;
+  let closing: Promise<void> | null = null;
   let expandedFolderIds: string[] | null = null;
 
   async function openSlot(): Promise<OpenedWorkspace> {
+    if (closing !== null) {
+      await closing;
+    }
     const version = await core.protocolVersion();
     if (version !== WORKSPACE_PROTOCOL_VERSION) {
       throw new SkriuwCoreError({
@@ -152,9 +160,17 @@ export function createNativeBridge(core: SkriuwCore, options: NativeBridgeOption
     adoptWorkspaceSlot: async () => refuseMissingNativeCommand("Per-account workspaces"),
     activeWorkspaceSlot: async () => (slot === DEFAULT_SLOT ? null : slot),
 
-    close: async () => {
+    close: () => {
       opening = null;
-      await core.shutdown();
+      const shutdown = core.shutdown();
+      function settle(): void {
+        if (closing === settled) {
+          closing = null;
+        }
+      }
+      const settled = shutdown.then(settle, settle);
+      closing = settled;
+      return shutdown;
     },
   };
 }

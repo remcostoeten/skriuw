@@ -17,7 +17,8 @@ export type WorkspaceSession = {
  * The mobile twin of `commitOperations` in `app/src/store/actions/workspace.ts`:
  * the store changes synchronously, the batch is submitted to native SQLite,
  * and the acknowledgement reconciles ranks and revisions. A rejection rolls
- * the store back to the durable snapshot, reports, and rethrows.
+ * reports, rolls the store back to the durable snapshot, and rethrows the
+ * original error; a rollback that fails too is reported as its own failure.
  */
 export async function commitOperations(
   session: WorkspaceSession,
@@ -32,8 +33,12 @@ export async function commitOperations(
     );
     store.applyAck(ack);
   } catch (error) {
-    store.replaceFromSnapshot(await bridge.bootstrapWorkspace());
     session.reportFailure(error);
+    try {
+      store.replaceFromSnapshot(await bridge.bootstrapWorkspace());
+    } catch (rollbackError) {
+      session.reportFailure(rollbackError);
+    }
     throw error;
   }
 }

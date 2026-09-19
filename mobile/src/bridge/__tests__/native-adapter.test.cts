@@ -184,3 +184,39 @@ test("commands outside the native surface refuse with an actionable message", as
   assert.equal((await bridge.noteLockState()).configured, false);
   assert.equal(await bridge.activeWorkspaceSlot(), null);
 });
+
+test("a failed rollback still reports the rejection and rethrows it", async () => {
+  const core = createFakeSkriuwCore();
+  const native = createNativeBridge(core);
+  const store = await openWorkspace(native);
+  const failures: unknown[] = [];
+  const bridge: BridgePort = {
+    ...native,
+    bootstrapWorkspace: () =>
+      Promise.reject(new SkriuwCoreError({ kind: "closed", message: "no workspace is open" })),
+  };
+  const session = { store, bridge, reportFailure: (error: unknown) => failures.push(error) };
+
+  core.failNextSubmit("workspace", "the database went away");
+  await assert.rejects(
+    commitOperations(session, [createNote("note-1", "Lost")]),
+    hasKind("workspace"),
+  );
+  assert.equal(failures.length, 2);
+  assert.ok(hasKind("workspace")(failures[0]));
+  assert.ok(hasKind("closed")(failures[1]));
+});
+
+test("a command issued during close reopens after the shutdown settles", async () => {
+  const core = createFakeSkriuwCore();
+  const bridge = createNativeBridge(core);
+  await bridge.bootstrapWorkspace();
+
+  const closed = bridge.close();
+  const reopened = bridge.bootstrapWorkspace();
+  await closed;
+
+  assert.deepEqual((await reopened).nodes, []);
+  assert.deepEqual(core.calls.slice(-4), ["shutdown", "protocolVersion", "open", "bootstrap"]);
+  assert.deepEqual((await bridge.bootstrapWorkspace()).nodes, []);
+});
