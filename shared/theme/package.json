@@ -1,0 +1,14 @@
+{
+  "name": "@skriuw/theme",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./tokens.ts"
+  },
+  "scripts": {
+    "generate": "bun generate.ts",
+    "check": "bun generate.ts --check",
+    "test": "bun test"
+  }
+}
