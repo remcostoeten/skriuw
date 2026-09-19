@@ -1869,15 +1869,19 @@ dependencies = [
 name = "skriuw-mobile"
 version = "0.1.0"
 dependencies = [
+ "getrandom 0.4.3",
  "serde",
  "serde_json",
  "skriuw-domain",
  "skriuw-runtime",
  "skriuw-sqlite",
  "skriuw-storage",
+ "skriuw-sync",
  "tempfile",
  "thiserror",
  "uniffi",
+ "uuid",
+ "zeroize",
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 //! R-A3 is a boundary, not a convention: the mobile facade may reach domain,
 //! runtime, storage, sqlite, sync and crypto and nothing else, and nothing it
-//! links may drag in libgit2, Tauri, Ollama or an HTTP client.
+//! links may drag in libgit2, Tauri, Ollama, an HTTP client or a TLS stack.
 //!
 //! The check walks `Cargo.lock`, not the manifests, because the manifests do
 //! not show the whole graph: `skriuw-domain` takes `ai-core` from a git tag,
@@ -26,15 +26,30 @@ const ALLOWED_WORKSPACE_CRATES: [&str; 6] = [
 
 /// Named individually rather than by prefix so that adding one is a deliberate
 /// edit here, with the reason in the commit that adds it.
-const FORBIDDEN_CRATES: [&str; 8] = [
+///
+/// The TLS entries are the reason the sync work reaches the network through a
+/// foreign port. `rustls` refuses to pick between two compiled-in providers
+/// and `ClientConfig::builder()` panics rather than failing, which is the
+/// `CryptoProvider` panic the desktop build reports on its sync-push thread.
+/// On a phone that thread belongs to the foreign runtime, so the panic would
+/// cross the FFI boundary. Keeping every provider out of this graph is what
+/// rules the failure out instead of managing it.
+const FORBIDDEN_CRATES: [&str; 15] = [
+    "aws-lc-rs",
+    "aws-lc-sys",
     "git2",
     "libgit2-sys",
+    "native-tls",
     "reqwest",
+    "ring",
+    "rustls",
     "skriuw-ai-ollama",
     "skriuw-ai-remote",
     "skriuw-history-git",
     "tauri",
     "tauri-build",
+    "tungstenite",
+    "webpki-roots",
 ];
 
 fn repository_root() -> PathBuf {
@@ -121,7 +136,7 @@ fn the_facade_reaches_no_other_workspace_crate() {
 }
 
 #[test]
-fn the_facade_reaches_no_git_tauri_ollama_or_http_stack() {
+fn the_facade_reaches_no_git_tauri_ollama_tls_or_http_stack() {
     let reached = reachable_from_the_facade();
     let forbidden: Vec<_> = FORBIDDEN_CRATES
         .iter()

@@ -48,6 +48,23 @@ pub enum MobileError {
     /// The workspace handle was closed, or its owner thread is gone.
     #[error("workspace is closed")]
     Closed,
+    /// Replication could not be set up or carried on. The detail is for the
+    /// account and recovery surfaces; nothing local was lost.
+    #[error("sync could not continue: {detail}")]
+    Sync { detail: String },
+    /// The cloud refused the credential. The shell clears the stored session
+    /// and offers sign-in; it must not retry with the same token.
+    #[error("your Skriuw session expired; sign in again")]
+    SessionExpired,
+    /// The shell named a cloud origin this build will not send a bearer token
+    /// to. Distinct from a network failure: retrying cannot help.
+    #[error("the cloud sync URL is not trusted")]
+    UntrustedCloud,
+    /// This local store belongs to a different cloud workspace than the
+    /// account that just signed in. Routing (ADR-0046) should have prevented
+    /// it; reaching this means the shell connected without adopting a slot.
+    #[error("this local workspace belongs to {linked}, not to {account}")]
+    WorkspaceMismatch { linked: String, account: String },
     /// A bug in the core, including a panic caught at the boundary.
     #[error("internal failure: {detail}")]
     Internal { detail: String },
@@ -74,6 +91,12 @@ impl MobileError {
 
     pub(crate) fn internal(detail: impl AsRef<str>) -> Self {
         Self::Internal {
+            detail: bounded(detail),
+        }
+    }
+
+    pub(crate) fn sync(detail: impl AsRef<str>) -> Self {
+        Self::Sync {
             detail: bounded(detail),
         }
     }
@@ -119,6 +142,16 @@ impl From<RuntimeError> for MobileError {
             RuntimeError::WorkerFailure => Self::internal("storage worker terminated abnormally"),
             RuntimeError::Storage(error) => Self::from(error),
         }
+    }
+}
+
+/// A foreign implementation of one of this crate's callback traits threw
+/// something the interface does not declare. It becomes an internal failure
+/// rather than an unwind, and the caller sees the same bounded detail every
+/// other boundary failure produces.
+impl From<uniffi::UnexpectedUniFFICallbackError> for MobileError {
+    fn from(error: uniffi::UnexpectedUniFFICallbackError) -> Self {
+        Self::internal(error.reason)
     }
 }
 
