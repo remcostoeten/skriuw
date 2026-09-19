@@ -71,3 +71,13 @@ test("a non-color value is rejected", () => {
   const css = `:root[data-theme="one"] { --background: red; }`;
   assert.throws(() => parseThemes(css), /not an HSL triple/);
 });
+
+test("commented-out declarations and braces are ignored", () => {
+  const css = `:root[data-theme="one"] {
+    --background: 0 0% 7%;
+    /* --background: 0 0% 95%; } */
+    --foreground: 0 0% 91%;
+  }`;
+  const [theme] = parseThemes(css);
+  assert.deepEqual(theme.tokens, { background: "hsl(0, 0%, 7%)", foreground: "hsl(0, 0%, 91%)" });
+});

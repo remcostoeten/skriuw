@@ -18,6 +18,7 @@ const BLOCK_PATTERN = /((?::root[^{},]*,\s*)*:root\[data-theme="[^"]+"\])\s*\{([
 const THEME_NAME_PATTERN = /data-theme="([^"]+)"/g;
 const DECLARATION_PATTERN = /--([a-z0-9-]+)\s*:\s*([^;]+);/g;
 const REFERENCE_PATTERN = /^var\(--([a-z0-9-]+)\)$/;
+const COMMENT_PATTERN = /\/\*[\s\S]*?\*\//g;
 const TRIPLE_PATTERN = /^(-?[\d.]+)\s+([\d.]+)%\s+([\d.]+)%$/;
 
 function parseDeclarations(body: string): Map<string, string> {
@@ -69,7 +70,7 @@ function buildTheme(name: string, declarations: Map<string, string>): GeneratedT
 /** Parses every `:root[data-theme]` block into resolved `hsl()` tokens. */
 export function parseThemes(css: string): GeneratedTheme[] {
   const themes: GeneratedTheme[] = [];
-  for (const [, selector, body] of css.matchAll(BLOCK_PATTERN)) {
+  for (const [, selector, body] of css.replace(COMMENT_PATTERN, "").matchAll(BLOCK_PATTERN)) {
     const declarations = parseDeclarations(body);
     for (const [, name] of selector.matchAll(THEME_NAME_PATTERN)) {
       if (themes.some((theme) => theme.name === name)) {
