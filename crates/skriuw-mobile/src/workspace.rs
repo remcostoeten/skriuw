@@ -1,5 +1,5 @@
 use std::{
-    fs,
+    fs, mem,
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
 };
@@ -30,13 +30,24 @@ pub struct SaveDocumentRequest {
     pub at: i64,
 }
 
+/// What the handle can still do. Shutting down deliberately and losing the
+/// owner thread are different outcomes and the shell reacts to them
+/// differently, so they are different states rather than one `None`.
+enum Lifecycle {
+    Open(WorkspaceRuntime),
+    Closed,
+    /// Shutdown reported a failure. Every later call repeats it rather than
+    /// pretending the workspace closed cleanly.
+    ShutdownFailed(String),
+}
+
 /// An open workspace. Durable writes are serialized on one owner thread inside
 /// `skriuw-runtime`; this facade holds no lock while a call is in flight, so a
 /// foreign caller only ever waits behind another call's transaction for as
 /// long as that transaction takes.
 #[derive(uniffi::Object)]
 pub struct MobileWorkspace {
-    runtime: RwLock<Option<WorkspaceRuntime>>,
+    lifecycle: RwLock<Lifecycle>,
     database_path: PathBuf,
 }
 
@@ -55,7 +66,7 @@ impl MobileWorkspace {
             let workspace = SqliteWorkspace::open(&database_path)
                 .map_err(|error| MobileError::recovery(error.to_string()))?;
             Ok(Arc::new(Self {
-                runtime: RwLock::new(Some(WorkspaceRuntime::spawn(workspace))),
+                lifecycle: RwLock::new(Lifecycle::Open(WorkspaceRuntime::spawn(workspace))),
                 database_path,
             }))
         })
@@ -127,21 +138,37 @@ impl MobileWorkspace {
     }
 
     /// Stops accepting work and waits for the owner thread to drain. Calls
-    /// afterwards report `MobileError::Closed`. Shutting down twice is not an
-    /// error.
+    /// afterwards report `MobileError::Closed`; a second shutdown after a
+    /// successful one is not an error, and a second shutdown after a failed
+    /// one repeats the failure.
+    ///
+    /// This is the one call that holds the handle's lock while it works: two
+    /// callers racing to tear the workspace down must not both be told the
+    /// worker drained when only one of them waited.
     ///
     /// Not named `close`: UniFFI already gives every object an `AutoCloseable`
     /// `close` in Kotlin, and a second one collides with it.
     pub fn shutdown(&self) -> Result<(), MobileError> {
         guarded(|| {
-            let runtime = self
-                .runtime
+            let mut lifecycle = self
+                .lifecycle
                 .write()
-                .map_err(|_| MobileError::internal("workspace handle is poisoned"))?
-                .take();
-            match runtime {
-                None => Ok(()),
-                Some(runtime) => runtime.shutdown().map_err(MobileError::from),
+                .map_err(|_| MobileError::internal("workspace handle is poisoned"))?;
+            match mem::replace(&mut *lifecycle, Lifecycle::Closed) {
+                Lifecycle::Closed => Ok(()),
+                Lifecycle::ShutdownFailed(detail) => {
+                    let repeated = MobileError::internal(&detail);
+                    *lifecycle = Lifecycle::ShutdownFailed(detail);
+                    Err(repeated)
+                }
+                Lifecycle::Open(runtime) => match runtime.shutdown() {
+                    Ok(()) => Ok(()),
+                    Err(error) => {
+                        let error = MobileError::from(error);
+                        *lifecycle = Lifecycle::ShutdownFailed(error.to_string());
+                        Err(error)
+                    }
+                },
             }
         })
     }
@@ -149,17 +176,19 @@ impl MobileWorkspace {
 
 impl MobileWorkspace {
     fn runtime(&self) -> Result<WorkspaceRuntime, MobileError> {
-        self.runtime
+        let lifecycle = self
+            .lifecycle
             .read()
-            .map_err(|_| MobileError::internal("workspace handle is poisoned"))?
-            .clone()
-            .ok_or(MobileError::Closed)
+            .map_err(|_| MobileError::internal("workspace handle is poisoned"))?;
+        match &*lifecycle {
+            Lifecycle::Open(runtime) => Ok(runtime.clone()),
+            Lifecycle::Closed => Err(MobileError::Closed),
+            Lifecycle::ShutdownFailed(detail) => Err(MobileError::internal(detail)),
+        }
     }
 
     fn apply(&self, operations: Vec<WorkspaceOperationEnvelope>) -> Result<String, MobileError> {
-        validate_operation_group(&operations).map_err(|error| MobileError::Rejected {
-            detail: error.to_string(),
-        })?;
+        validate_operation_group(&operations)?;
         let acknowledgement = self.runtime()?.apply_operations(operations)?.wait()?;
         encode(&acknowledgement)
     }
@@ -175,18 +204,20 @@ pub fn workspace_protocol_version() -> u16 {
 }
 
 fn prepare_directory(directory: &str) -> Result<PathBuf, MobileError> {
-    let trimmed = directory.trim();
-    if trimmed.is_empty() {
+    // Trimmed only to decide whether the caller passed anything at all. A
+    // directory name may legitimately end in a space, and silently opening the
+    // trimmed neighbour would create an empty second workspace.
+    if directory.trim().is_empty() {
         return Err(MobileError::workspace("directory path is empty"));
     }
-    let path = Path::new(trimmed);
+    let path = Path::new(directory);
     if path.exists() && !path.is_dir() {
         return Err(MobileError::workspace(format!(
-            "{trimmed} exists and is not a directory"
+            "{directory} exists and is not a directory"
         )));
     }
     fs::create_dir_all(path)
-        .map_err(|error| MobileError::workspace(format!("{trimmed}: {error}")))?;
+        .map_err(|error| MobileError::workspace(format!("{directory}: {error}")))?;
     Ok(path.to_path_buf())
 }
 

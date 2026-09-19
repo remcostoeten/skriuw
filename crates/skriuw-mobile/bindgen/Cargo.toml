@@ -1,0 +1,16 @@
+[package]
+name = "skriuw-mobile-bindgen"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+description = "Generates the Kotlin and Swift bindings for the skriuw-mobile facade"
+
+# Its own workspace on purpose. The generator's command-line stack — clap,
+# askama, goblin, cargo_metadata — is build-time tooling that no shipped
+# artifact links, and the repository gate runs clippy with `--all-features`, so
+# a feature flag inside `skriuw-mobile` would not have kept it out of the gate.
+[workspace]
+
+[dependencies]
+uniffi = { version = "0.32", features = ["cli"] }

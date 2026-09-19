@@ -7,8 +7,9 @@ use crate::error::{MobileError, panic_detail};
 ///
 /// This is the second line of defence; the facade itself is written not to
 /// panic. It only holds where the library is built with `panic = "unwind"`,
-/// which is why `crates/skriuw-mobile/README.md` makes that a build
-/// requirement for the mobile profiles.
+/// and the workspace release profile sets `panic = "abort"` — so
+/// `scripts/build-android.sh` overrides it back, and any other build of this
+/// crate for a device must do the same.
 pub(crate) fn guarded<T>(call: impl FnOnce() -> Result<T, MobileError>) -> Result<T, MobileError> {
     match catch_unwind(AssertUnwindSafe(call)) {
         Ok(result) => result,

@@ -1,5 +1,6 @@
 use std::any::Any;
 
+use skriuw_domain::OperationValidationError;
 use skriuw_runtime::RuntimeError;
 use skriuw_storage::StorageError;
 use thiserror::Error;
@@ -111,9 +112,28 @@ impl From<StorageError> for MobileError {
 impl From<RuntimeError> for MobileError {
     fn from(error: RuntimeError) -> Self {
         match error {
-            RuntimeError::Unavailable => Self::Closed,
+            // Deliberately not `Closed`. A handle the caller still holds open
+            // whose runtime stopped answering is a crashed owner thread, and
+            // the shell must be able to tell that from its own teardown.
+            RuntimeError::Unavailable => Self::internal("storage runtime stopped accepting work"),
             RuntimeError::WorkerFailure => Self::internal("storage worker terminated abnormally"),
             RuntimeError::Storage(error) => Self::from(error),
+        }
+    }
+}
+
+impl From<OperationValidationError> for MobileError {
+    fn from(error: OperationValidationError) -> Self {
+        match error {
+            // The one validation failure the foreign side acts on differently:
+            // a native module older than the core it loaded cannot be fixed by
+            // retrying or editing the note, only by updating the application.
+            OperationValidationError::UnsupportedProtocol(version) => {
+                Self::UnsupportedProtocol { version }
+            }
+            error => Self::Rejected {
+                detail: bounded(error.to_string()),
+            },
         }
     }
 }

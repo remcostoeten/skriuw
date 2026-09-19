@@ -11,12 +11,6 @@ description = "UniFFI facade over the shared Skriuw core for the native mobile s
 # JNI, and `staticlib` is what the iOS xcframework archives.
 crate-type = ["lib", "cdylib", "staticlib"]
 
-[features]
-# The binding generator is a build-time tool, not part of the shipped library.
-# It stays optional so the workspace gate does not compile the generator and
-# its command-line stack on every run.
-cli = ["uniffi/cli", "uniffi/cargo-metadata"]
-
 [dependencies]
 # ADR-0048 / R-A3: domain, runtime, storage, sqlite, sync and crypto only. No
 # git2, no Tauri, no Ollama, and `skriuw-domain` gains no dependency from here.
@@ -31,8 +25,3 @@ uniffi = { version = "0.32", default-features = false }
 
 [dev-dependencies]
 tempfile.workspace = true
-
-[[bin]]
-name = "uniffi-bindgen"
-path = "src/bin/uniffi-bindgen.rs"
-required-features = ["cli"]

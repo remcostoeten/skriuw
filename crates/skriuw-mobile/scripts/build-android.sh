@@ -16,12 +16,19 @@ repo_dir="$(cd "$crate_dir/../.." && pwd)"
 profile="${1:-release}"
 targets=(aarch64-linux-android x86_64-linux-android)
 
-for requirement in cargo-ndk; do
-  command -v "$requirement" >/dev/null 2>&1 || {
-    printf 'Missing %s. See the header of this script.\n' "$requirement" >&2
+case "$profile" in
+  release) artifact_dir="release" ;;
+  dev|debug) profile="dev"; artifact_dir="debug" ;;
+  *)
+    printf 'Unknown profile: %s. Use release or dev.\n' "$profile" >&2
     exit 2
-  }
-done
+    ;;
+esac
+
+command -v cargo-ndk >/dev/null 2>&1 || {
+  printf 'Missing cargo-ndk. See the header of this script.\n' >&2
+  exit 2
+}
 
 if [[ -z "${ANDROID_NDK_HOME:-}" ]]; then
   printf 'ANDROID_NDK_HOME is not set. See the header of this script.\n' >&2
@@ -30,18 +37,19 @@ fi
 
 cd "$repo_dir"
 
-profile_flag=()
-if [[ "$profile" == "release" ]]; then
-  profile_flag=(--release)
-fi
+# The workspace release profile aborts on panic, which would turn the boundary
+# guard in src/boundary.rs into dead code and abort the whole application
+# instead of returning a typed error. Mobile artifacts unwind.
+panic_override=(--config 'profile.release.panic="unwind"')
 
 for target in "${targets[@]}"; do
-  cargo ndk --target "$target" --platform 24 -- build -p skriuw-mobile "${profile_flag[@]}" --locked
+  cargo ndk --target "$target" --platform 24 -- \
+    build "${panic_override[@]}" -p skriuw-mobile --profile "$profile" --locked
 done
 
 printf '\nlibskriuw_mobile.so\n'
 for target in "${targets[@]}"; do
-  library="$repo_dir/target/$target/$profile/libskriuw_mobile.so"
+  library="$repo_dir/target/$target/$artifact_dir/libskriuw_mobile.so"
   if [[ -f "$library" ]]; then
     printf '  %-24s %s\n' "$target" "$(du -h "$library" | awk '{print $1}')"
   else

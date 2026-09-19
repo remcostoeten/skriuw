@@ -167,8 +167,19 @@ fn an_operation_from_another_protocol_version_is_refused() {
         "\"protocolVersion\":9999",
     );
 
+    match workspace.submit_operations(future) {
+        Err(MobileError::UnsupportedProtocol { version }) => assert_eq!(version, 9999),
+        other => panic!("expected an unsupported-protocol error, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_malformed_operation_is_rejected_rather_than_blamed_on_the_protocol() {
+    let directory = tempdir().expect("temporary directory");
+    let workspace = open(directory.path());
+
     assert!(matches!(
-        workspace.submit_operations(future),
+        workspace.submit_operations(create_note("not a valid id", "Groceries")),
         Err(MobileError::Rejected { .. })
     ));
 }
@@ -187,6 +198,26 @@ fn an_unusable_directory_is_reported_before_any_database_work() {
         MobileWorkspace::open("   ".into()),
         Err(MobileError::Workspace { .. })
     ));
+}
+
+#[test]
+fn a_directory_name_ending_in_a_space_is_taken_literally() {
+    let directory = tempdir().expect("temporary directory");
+    let padded = directory.path().join("workspace ");
+    let neighbour = directory.path().join("workspace");
+
+    let workspace =
+        MobileWorkspace::open(padded.to_string_lossy().into_owned()).expect("workspace must open");
+    workspace
+        .submit_operations(create_note("note-1", "Groceries"))
+        .expect("note must be created");
+    workspace.shutdown().expect("workspace must shut down");
+
+    assert!(padded.join("skriuw.db").is_file());
+    assert!(
+        !neighbour.exists(),
+        "trimming the path would have opened a different workspace"
+    );
 }
 
 #[test]

@@ -1,9 +1,10 @@
 # skriuw-mobile
 
 The UniFFI facade the native mobile shell calls the shared Skriuw core
-through. Architecture decision: [ADR-0048](../../docs/adr/0048-native-mobile-shell-over-shared-core.md).
-Implementation contract: [docs/specs/mobile-app.md](../../docs/specs/mobile-app.md),
-requirements R-A1 and R-A3.
+through. Architecture decision: ADR-0048, implementation contract
+`docs/specs/mobile-app.md`, requirements R-A1 and R-A3. Both documents land on
+`daddy` with the epic's documentation branch; until then they are only on
+`docs/v2-mobile-epic`, which is why neither is linked here.
 
 ## Surface
 
@@ -32,9 +33,12 @@ client cannot drift from desktop.
 ## Properties this crate holds
 
 - **Dependencies are a boundary, not a convention.** `tests/dependencies.rs`
-  fails if the facade reaches past domain, runtime, storage, sqlite, sync and
-  crypto, if any of those grows a `git2`, Tauri, Ollama or `reqwest`
-  dependency, or if `skriuw-domain` gains a dependency at all.
+  walks the committed `Cargo.lock` from this crate and fails if the reachable
+  graph contains a workspace crate outside domain, runtime, storage, sqlite,
+  sync and crypto, or any of `git2`, `libgit2-sys`, `reqwest`, Tauri or the
+  Ollama and remote AI adapters. It walks the lockfile rather than the
+  manifests because `skriuw-domain` takes `ai-core` from a git tag, so a
+  transitive HTTP client would never show up in a manifest scan.
 - **One owner thread.** Durable writes are serialized inside
   `skriuw-runtime`. The facade holds its own lock only long enough to clone the
   runtime handle, so a foreign caller waits behind another call's transaction
@@ -46,17 +50,20 @@ client cannot drift from desktop.
 - **Panics do not cross.** Every exported call runs inside `catch_unwind` and a
   caught panic becomes `MobileError::Internal`. This only holds where the
   library is built with `panic = "unwind"`; the workspace release profile sets
-  `panic = "abort"`, so the Android and iOS profiles Mobile 06 introduces must
-  override it back to `unwind`.
+  `panic = "abort"`, so `scripts/build-android.sh` passes
+  `--config 'profile.release.panic="unwind"'` and every other device build must
+  do the same.
 
 ## Generating bindings
 
-The generator is behind the `cli` feature so the workspace gate does not build
-its command-line stack on every run:
+`bindgen/` is the generator, and it declares its own `[workspace]` so the
+repository gate never builds it. That is not a style choice: `scripts/build.sh`
+runs clippy with `--all-features`, so a feature flag inside this crate would
+still have pulled clap, askama and `cargo_metadata` into every `check.sh`.
 
 ```bash
 cargo build -p skriuw-mobile
-cargo run -p skriuw-mobile --features cli --bin uniffi-bindgen -- \
+cargo run --manifest-path crates/skriuw-mobile/bindgen/Cargo.toml -- \
   generate --library target/debug/libskriuw_mobile.so \
   --language kotlin --language swift --out-dir .build/mobile-bindings
 ```
