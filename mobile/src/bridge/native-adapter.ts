@@ -16,8 +16,9 @@ export type NativeBridgeOptions = {
 
 export type NativeBridge = BridgePort & {
   /**
-   * Drains the native owner thread once any open already in flight has
-   * settled, so nothing is left open behind a resolved close. The next command
+   * Drains the native owner thread once any open and any command already in
+   * flight has settled, so nothing is left open behind a resolved close and no
+   * command is answered `closed` halfway through. The next command
    * reopens the slot, and one issued while the drain is in flight waits for it
    * instead of re-attaching to the workspace being closed.
    */
@@ -59,12 +60,15 @@ function parsePayload<T>(json: string, command: string): T {
  * `skriuw-core` exposes bootstrap, operations and documents. Search, the note
  * lock, media, sync and workspace slots refuse until the native module carries
  * them; nothing here keeps a second copy of durable state in TypeScript.
+ * Sidebar expansion has no native home either, so it lasts for the process
+ * only: a relaunch reads `null` and the tree falls back to its defaults.
  */
 export function createNativeBridge(core: SkriuwCore, options: NativeBridgeOptions = {}): NativeBridge {
   const slot = options.slot ?? DEFAULT_SLOT;
   let opening: Promise<OpenedWorkspace> | null = null;
   let closing: Promise<void> | null = null;
   let expandedFolderIds: string[] | null = null;
+  const inFlight = new Set<Promise<unknown>>();
 
   async function openSlot(): Promise<OpenedWorkspace> {
     if (closing !== null) {
@@ -94,6 +98,17 @@ export function createNativeBridge(core: SkriuwCore, options: NativeBridgeOption
     return opening;
   }
 
+  async function whenOpen<T>(command: () => Promise<T>): Promise<T> {
+    await ensureOpen();
+    const running = command();
+    inFlight.add(running);
+    try {
+      return await running;
+    } finally {
+      inFlight.delete(running);
+    }
+  }
+
   async function loadDocument(noteId: string): Promise<WorkspaceDocument | null> {
     try {
       return parsePayload<WorkspaceDocument>(await core.loadDocument(noteId), "loadDocument");
@@ -106,24 +121,22 @@ export function createNativeBridge(core: SkriuwCore, options: NativeBridgeOption
   }
 
   return {
-    bootstrapWorkspace: async () => {
-      await ensureOpen();
-      return parsePayload<WorkspaceSnapshot>(await core.bootstrap(), "bootstrap");
-    },
+    bootstrapWorkspace: () =>
+      whenOpen(async () => parsePayload<WorkspaceSnapshot>(await core.bootstrap(), "bootstrap")),
 
-    readWorkspaceDelta: async (ids) => {
-      await ensureOpen();
-      const loaded = await Promise.all(ids.map((id) => loadDocument(id)));
-      return { documents: loaded.filter((document) => document !== null), nodes: [] };
-    },
+    readWorkspaceDelta: (ids) =>
+      whenOpen(async () => {
+        const loaded = await Promise.all(ids.map((id) => loadDocument(id)));
+        return { documents: loaded.filter((document) => document !== null), nodes: [] };
+      }),
 
-    applyWorkspaceOperations: async (operations) => {
-      await ensureOpen();
-      return parsePayload<OperationAck>(
-        await core.submitOperations(JSON.stringify(operations)),
-        "submitOperations",
-      );
-    },
+    applyWorkspaceOperations: (operations) =>
+      whenOpen(async () =>
+        parsePayload<OperationAck>(
+          await core.submitOperations(JSON.stringify(operations)),
+          "submitOperations",
+        ),
+      ),
 
     loadSidebarExpansion: async () => (expandedFolderIds === null ? null : [...expandedFolderIds]),
 
@@ -174,6 +187,7 @@ export function createNativeBridge(core: SkriuwCore, options: NativeBridgeOption
         if (pendingOpen !== null) {
           await pendingOpen.then(ignoreOutcome, ignoreOutcome);
         }
+        await Promise.allSettled([...inFlight]);
         await core.shutdown();
       }
       function release(): void {

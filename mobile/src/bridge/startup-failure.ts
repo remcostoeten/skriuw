@@ -99,6 +99,7 @@ export function isResettableFailure(failure: StartupFailure): boolean {
  */
 export function createStartupFailureFlow(port: StartupFailureFlowPort): StartupFailureFlow {
   let resetting = false;
+  let shown = 0;
 
   function renderFailure(failure: StartupFailure): void {
     const actions: StartupScreenAction[] = [
@@ -142,12 +143,16 @@ export function createStartupFailureFlow(port: StartupFailureFlowPort): StartupF
       return;
     }
     resetting = true;
+    const startedFor = shown;
     renderConfirmation(failure, reset);
     try {
       await reset();
     } catch (error) {
-      resetting = false;
       port.reportError?.(error);
+      if (startedFor !== shown) {
+        return;
+      }
+      resetting = false;
       renderFailure({
         code: failure.code,
         message: "Skriuw could not delete the workspace on this device.",
@@ -158,6 +163,7 @@ export function createStartupFailureFlow(port: StartupFailureFlowPort): StartupF
 
   return {
     show(failure: StartupFailure): void {
+      shown += 1;
       resetting = false;
       renderFailure(failure);
     },

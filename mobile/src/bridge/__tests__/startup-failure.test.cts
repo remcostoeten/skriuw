@@ -97,3 +97,25 @@ test("without a reset capability only retry is offered", () => {
   select(views.at(-1), "Retry");
   assert.equal(retries, 1);
 });
+
+test("a late reset rejection does not replace a newer failure", async () => {
+  const views: StartupFailureView[] = [];
+  let rejectReset: (error: Error) => void = () => undefined;
+  const flow = createStartupFailureFlow({
+    resetWorkspace: () =>
+      new Promise<void>((_resolve, reject) => {
+        rejectReset = reject;
+      }),
+    retry: () => undefined,
+    render: (view) => views.push(view),
+  });
+
+  flow.show({ code: "recovery", message: "corrupt", recovery: null });
+  select(views.at(-1), "Reset workspace…");
+  select(views.at(-1), "Delete and restart");
+  flow.show({ code: "unsupported-protocol", message: "update required", recovery: null });
+  rejectReset(new Error("unlink failed"));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(views.at(-1)?.detail, "update required");
+});

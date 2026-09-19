@@ -249,3 +249,22 @@ test("a throwing reporter neither skips the rollback nor masks the rejection", a
   await assert.rejects(commitOperations(session, [createNote("note-1", "Lost")]), hasKind("busy"));
   assert.equal(store.getState().nodes.has("note-1"), false);
 });
+
+test("close waits for commands already past the open", async () => {
+  const fake = createFakeSkriuwCore();
+  const slow = {
+    ...fake,
+    async loadDocument(noteId: string) {
+      await new Promise((resolve) => setImmediate(resolve));
+      return fake.loadDocument(noteId);
+    },
+  };
+  const bridge = createNativeBridge(slow);
+  await bridge.applyWorkspaceOperations([envelope(createNote("note-1", "Draft"))]);
+
+  const reading = bridge.readWorkspaceDelta(["note-1"]);
+  await bridge.close();
+
+  assert.equal((await reading).documents[0]?.noteId, "note-1");
+  assert.ok(fake.calls.lastIndexOf("shutdown") > fake.calls.lastIndexOf("loadDocument"));
+});
