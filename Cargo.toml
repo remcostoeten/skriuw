@@ -14,6 +14,7 @@ members = [
     "crates/skriuw-history",
     "crates/skriuw-history-git",
     "crates/skriuw-lifecycle",
+    "crates/skriuw-mobile",
     "crates/skriuw-cli",
     "crates/skriuw-crypto",
     "crates/xtask",
