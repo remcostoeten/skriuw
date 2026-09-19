@@ -305,6 +305,50 @@ async function checkJournalDay(cdp, sessionId, screenshotDirectory) {
   );
 }
 
+const INSTALL_BANNER = `document.querySelector('[aria-label="Install Skriuw"]')`;
+
+/**
+ * The install strip is driven by a synthetic beforeinstallprompt, the same
+ * event Chromium fires once per load when the app is installable; nothing in
+ * the harness can be installed for real, so the run stops at the offer.
+ */
+async function checkInstallBanner(cdp, sessionId) {
+  check("no install strip before the browser offers", (await evaluate(cdp, sessionId, `${INSTALL_BANNER} === null`)) === true, null);
+  await evaluate(
+    cdp,
+    sessionId,
+    `(() => { const event = new Event("beforeinstallprompt", { cancelable: true }); event.prompt = () => Promise.resolve(); event.userChoice = Promise.resolve({ outcome: "dismissed" }); window.dispatchEvent(event); return event.defaultPrevented; })()`,
+  );
+  await waitFor(cdp, sessionId, `${INSTALL_BANNER} !== null`, "install strip");
+  const screenshotDirectory = process.env.SKRIUW_E2E_SCREENSHOTS ?? null;
+  if (screenshotDirectory) {
+    const { data } = await cdp.send("Page.captureScreenshot", { format: "png" }, sessionId);
+    await mkdir(screenshotDirectory, { recursive: true });
+    await writeFile(join(screenshotDirectory, "install-strip.png"), Buffer.from(data, "base64"));
+  }
+  const geometry = await evaluate(
+    cdp,
+    sessionId,
+    `(() => { const strip = ${INSTALL_BANNER}.getBoundingClientRect(); const tabs = document.querySelector('.shell-tab-bar').getBoundingClientRect(); const close = document.querySelector('[aria-label="Install Skriuw"] [aria-label="Not now"]').getBoundingClientRect(); return { stripBottom: strip.bottom, tabsTop: tabs.top, stripHeight: strip.height, closeHeight: close.height, overflow: document.documentElement.scrollWidth > window.innerWidth }; })()`,
+  );
+  check(
+    "the install strip sits directly above the tab bar at a touch size",
+    Math.abs(geometry.stripBottom - geometry.tabsTop) <= 1 && geometry.stripHeight >= 44 && geometry.closeHeight >= 40 && !geometry.overflow,
+    geometry,
+  );
+  await evaluate(cdp, sessionId, `document.querySelector('[aria-label="Install Skriuw"] [aria-label="Not now"]').click(); true`);
+  await waitFor(cdp, sessionId, `${INSTALL_BANNER} === null`, "install strip dismissed");
+  await cdp.send("Page.reload", {}, sessionId);
+  await waitFor(cdp, sessionId, `Boolean(document.querySelector('.shell-tab-bar'))`, "compact shell after reload", 600);
+  await evaluate(
+    cdp,
+    sessionId,
+    `window.__consoleErrors = []; const original = console.error; console.error = (...args) => { window.__consoleErrors.push(args.map(String).join(' ')); original(...args); }; (() => { const event = new Event("beforeinstallprompt", { cancelable: true }); event.prompt = () => Promise.resolve(); event.userChoice = Promise.resolve({ outcome: "dismissed" }); window.dispatchEvent(event); })(); true`,
+  );
+  await delay(150);
+  check("a dismissed install strip stays away after a reload", (await evaluate(cdp, sessionId, `${INSTALL_BANNER} === null`)) === true, null);
+}
+
 const checks = [];
 function check(name, passed, detail) {
   checks.push({ name, passed, detail });
@@ -621,6 +665,7 @@ try {
   await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
 
   await checkJournalDay(cdp, sessionId, process.env.SKRIUW_E2E_SCREENSHOTS ?? null);
+  await checkInstallBanner(cdp, sessionId);
 
   const errors = await evaluate(cdp, sessionId, `window.__consoleErrors`);
   consoleErrors.push(...errors.filter((line) => !IGNORED_CONSOLE.test(line)));

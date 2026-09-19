@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "../src/app";
+import { bindInstallPrompt } from "../src/bridge/install-prompt";
 import { bindSettingsToRoot } from "../src/features/settings/apply-settings";
 import { createInitialState, createRendererStore } from "../src/store/store";
 import { configureBridge, invoke } from "./bridge-mock";
@@ -32,6 +33,9 @@ const store = createRendererStore(
   }),
 );
 bindSettingsToRoot(store, document.documentElement);
+// The real entry binds this only in the browser runtime; here the mobile e2e
+// fires a synthetic beforeinstallprompt to drive the install strip.
+bindInstallPrompt(window);
 const container = document.getElementById("root");
 if (!container) {
   throw new Error("missing root container");

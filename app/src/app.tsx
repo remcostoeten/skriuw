@@ -84,6 +84,7 @@ import { SkriuwLogo } from "@/shared/icons/static";
 import { AppIcon } from "@/shared/icons/app-icon";
 import { RAIL_ICONS } from "@/shell/rail-icons";
 import { TabBar } from "@/shell/tab-bar";
+import { InstallBanner } from "@/shell/install-banner";
 import { MobileSheet } from "@/shell/mobile-sheet";
 import {
   COMPACT_SHELL_QUERY,
@@ -772,6 +773,7 @@ function WorkspaceShell({ store }: Props) {
       )}
       {route === "tags" && <EntityView store={store} kind="tag" />}
       {route === "people" && <EntityView store={store} kind="person" />}
+      <InstallBanner compact={mode === "compact"} />
       {mode === "compact" && <TabBar route={route} account={accountMenu} />}
       {mode === "compact" && routeHasSidebar(route) && (
         <div
