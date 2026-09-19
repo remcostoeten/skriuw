@@ -1,0 +1,27 @@
+[package]
+name = "skriuw-mobile"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "UniFFI facade over the shared Skriuw core for the native mobile shell"
+
+[lib]
+# `lib` keeps the facade host-testable, `cdylib` is what Android loads through
+# JNI, and `staticlib` is what the iOS xcframework archives.
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[dependencies]
+# ADR-0048 / R-A3: domain, runtime, storage, sqlite, sync and crypto only. No
+# git2, no Tauri, no Ollama, and `skriuw-domain` gains no dependency from here.
+serde.workspace = true
+serde_json.workspace = true
+skriuw-domain = { path = "../skriuw-domain" }
+skriuw-runtime = { path = "../skriuw-runtime" }
+skriuw-sqlite = { path = "../skriuw-sqlite" }
+skriuw-storage = { path = "../skriuw-storage" }
+thiserror.workspace = true
+uniffi = { version = "0.32", default-features = false }
+
+[dev-dependencies]
+tempfile.workspace = true
