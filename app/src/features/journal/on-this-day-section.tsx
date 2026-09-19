@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { cn } from "@/shared/lib/utils";
 import { sectionLabelClass } from "@/shared/ui/section-header";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { formatLongDate, type DateKey } from "./dates";
 import { MOOD_OPTIONS, selectJournalEntries, type MoodLevel } from "./model";
 import { openJournalDay } from "./navigation";

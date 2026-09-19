@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { WorkspaceEncryptionState, WorkspaceSyncStatus } from "../../../../src/bridge/commands";
+import type { WorkspaceEncryptionState } from "../../../../src/bridge/commands";
+import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 import {
   canEnableEncryption,
   encryptionDescription,

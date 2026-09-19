@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceNode, WorkspaceSnapshot } from "../../../src/contracts/workspace";
+import type { WorkspaceNode, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
 import {
   activateTab,
   activateTabAtIndex,
@@ -25,13 +25,13 @@ import {
   toggleSplitOrientation,
   togglePinTab,
 } from "../../../src/store/actions/panes";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import {
   DEFAULT_SPLIT_RATIO,
   MAX_SPLIT_RATIO,
   PRIMARY_PANE_ID,
   SECONDARY_PANE_ID,
-} from "../../../src/store/panes";
+} from "@skriuw/renderer-core/store/panes";
 
 function node(partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">): WorkspaceNode {
   return {

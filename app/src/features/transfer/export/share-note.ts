@@ -1,4 +1,4 @@
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { referenceSafeMarkdown } from "./markdown-transfer-model";
 
 /** True where the platform offers a native share sheet, which today means phones. */

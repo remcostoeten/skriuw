@@ -7,8 +7,8 @@ import {
   reorderPropertyOperations,
   replaceStringValue,
 } from "../../../src/features/properties/property-editor-model";
-import { BUILT_IN_PROPERTY_TEMPLATES } from "../../../src/features/properties/templates";
-import type { NoteProperty, PropertyIdFactory } from "../../../src/features/properties/types";
+import { BUILT_IN_PROPERTY_TEMPLATES } from "@skriuw/renderer-core/properties/templates";
+import type { NoteProperty, PropertyIdFactory } from "@skriuw/renderer-core/properties/types";
 
 function idFactory(): PropertyIdFactory {
   let id = 0;

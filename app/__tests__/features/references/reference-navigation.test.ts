@@ -6,7 +6,7 @@ import {
   installBackNavigation,
   navigateBack,
 } from "../../../src/features/references/reference-navigation";
-import type { RendererStore } from "../../../src/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 type EventListenerMap = Record<string, (e: KeyboardEvent) => void>;
 

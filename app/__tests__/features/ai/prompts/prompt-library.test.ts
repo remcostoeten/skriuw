@@ -10,7 +10,7 @@ import {
   promptFromDraft,
   promptLibraryEntries,
 } from "../../../../src/features/ai/prompts/prompt-library";
-import type { WorkspacePrompt } from "../../../../src/contracts/workspace";
+import type { WorkspacePrompt } from "@skriuw/renderer-core/contracts/workspace";
 
 function prompt(overrides: Partial<WorkspacePrompt> = {}): WorkspacePrompt {
   return {

@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import type { AppRoute } from "@/app-route";
+import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
 import type { CommandPaletteItem } from "./command-palette-model";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type { ShortcutActionId } from "./definitions";
-import type { RendererState } from "@/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 export type CommandUiState = {
   route: AppRoute;

@@ -1,5 +1,5 @@
-import type { WorkspaceTask } from "@/contracts/workspace";
-import type { RendererState } from "@/store/types";
+import type { WorkspaceTask } from "@skriuw/renderer-core/contracts/workspace";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 export const UNSOURCED_GROUP_LABEL = "No source";
 

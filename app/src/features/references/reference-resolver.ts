@@ -1,5 +1,5 @@
-import type { RendererState } from "@/store/types";
-import type { ReferenceKind } from "./types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
+import type { ReferenceKind } from "@skriuw/renderer-core/references/types";
 
 export type ResolvedReference = {
   label: string;

@@ -5,8 +5,8 @@ import {
   resolveSearchFilters,
 } from "../../../src/features/search/filter-resolution";
 import { parseSearchQuery } from "../../../src/features/search/query-parser";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
-import type { RendererStore } from "../../../src/store/types";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { referenceFixture, tag } from "../references/fixtures";
 
 function createFixtureStore(): RendererStore {

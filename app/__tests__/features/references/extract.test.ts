@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { extractReferences, referencesEqual } from "../../../src/features/references/extract";
+import { extractReferences, referencesEqual } from "@skriuw/renderer-core/references/extract";
 import { referenceDocumentJson } from "./fixtures";
 
 test("extract walks nested content and preserves document order", () => {

@@ -1,4 +1,4 @@
-import type { WorkspaceSettings } from "@/contracts/workspace";
+import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import type { ShortcutActionId } from "@/commands/definitions";
 import { isDiffLayout, type DiffLayout } from "@/features/history/split-diff-model";
 
@@ -117,10 +117,6 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     autoLockMinutes: autoLockMinutes(settings),
     lockOnBlur: locksOnBlur(settings),
   };
-}
-
-export function opensNotesInTabs(settings: WorkspaceSettings): boolean {
-  return settings.openNotesInTabs === true;
 }
 
 /**

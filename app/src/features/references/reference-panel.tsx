@@ -5,8 +5,8 @@ import { cn } from "@/shared/lib/utils";
 import { ColorSwatchRow } from "./color-swatch-row";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { InlineEdit } from "@/shared/ui/inline-edit";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   backlinksEqual,
   buildDeleteReferenceOperation,
@@ -20,7 +20,7 @@ import {
   type BacklinkEntry,
   type ReferenceDetailEntry,
 } from "./reference-panel-model";
-import type { ReferenceOperation } from "./types";
+import type { ReferenceOperation } from "@skriuw/renderer-core/references/types";
 
 const noEntries: BacklinkEntry[] = [];
 const noDetails: ReferenceDetailEntry[] = [];

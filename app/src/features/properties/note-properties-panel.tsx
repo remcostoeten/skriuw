@@ -7,8 +7,8 @@ import type {
   NotePropertyTemplate,
   NotePropertyValue,
   WorkspaceOperation,
-} from "@/contracts/workspace";
-import type { PersonRecord } from "@/features/references/types";
+} from "@skriuw/renderer-core/contracts/workspace";
+import type { PersonRecord } from "@skriuw/renderer-core/references/types";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -25,8 +25,8 @@ import { sectionLabelClass } from "@/shared/ui/section-header";
 import { Checkbox } from "@/shared/ui/checkbox";
 import { Select } from "@/shared/ui/select";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { DateValueEditor } from "./date-value-editor";
 import {
   changeNotePropertyType,
@@ -34,7 +34,7 @@ import {
   removePropertyOption,
   reorderPropertyOptions,
   upsertPropertyOption,
-} from "./operations";
+} from "@skriuw/renderer-core/properties/operations";
 import {
   addPropertyOperations,
   applyTemplateOperations,
@@ -49,9 +49,9 @@ import {
   updatePropertyOperations,
 } from "./property-editor-model";
 import { PropertyPopover } from "./property-popover";
-import { BUILT_IN_PROPERTY_TEMPLATES } from "./templates";
+import { BUILT_IN_PROPERTY_TEMPLATES } from "@skriuw/renderer-core/properties/templates";
 import { TYPE_ICON } from "./type-icons";
-import { NOTE_PROPERTY_COLORS, NOTE_PROPERTY_TYPES } from "./types";
+import { NOTE_PROPERTY_COLORS, NOTE_PROPERTY_TYPES } from "@skriuw/renderer-core/properties/types";
 
 type Props = {
   store: RendererStore;

@@ -1,5 +1,5 @@
 import type { AiCompletionRequest, AiTranscriptionModel } from "@/contracts/ai";
-import type { WorkspaceSettings } from "@/contracts/workspace";
+import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import type { BuiltInPrompt } from "@/features/ai/prompts/built-in-prompts";
 import { parseAiModelSelection, type AiModelSelection } from "@/features/ai/models/model-selection";
 

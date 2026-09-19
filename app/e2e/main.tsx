@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "../src/app";
 import { bindInstallPrompt } from "../src/bridge/install-prompt";
 import { bindSettingsToRoot } from "../src/features/settings/apply-settings";
-import { createInitialState, createRendererStore } from "../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { configureBridge, invoke } from "./bridge-mock";
 import { createWorkflowSnapshot } from "./fixture";
 import { createWorkflowController } from "./harness";

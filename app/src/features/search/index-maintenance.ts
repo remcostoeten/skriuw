@@ -1,5 +1,5 @@
 import { rebuildSearchIndex, searchIndexStatus } from "@/bridge/commands";
-import type { SearchIndexStatus } from "@/contracts/workspace";
+import type { SearchIndexStatus } from "@skriuw/renderer-core/contracts/workspace";
 
 /**
  * How long the reconciliation waits for an idle frame before running anyway.

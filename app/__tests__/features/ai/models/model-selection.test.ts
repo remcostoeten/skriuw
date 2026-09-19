@@ -8,7 +8,7 @@ import {
   sameAiModel,
 } from "../../../../src/features/ai/models/model-selection";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../../../../src/features/settings/settings-model";
-import type { WorkspaceSettings } from "../../../../src/contracts/workspace";
+import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 
 function settingsWith(aiModel: unknown): WorkspaceSettings {
   return { ...DEFAULT_WORKSPACE_SETTINGS, aiModel };

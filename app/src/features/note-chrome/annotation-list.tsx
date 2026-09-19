@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import type { WorkspaceAnnotation } from "@/contracts/workspace";
+import type { WorkspaceAnnotation } from "@skriuw/renderer-core/contracts/workspace";
 import { requestThreadReveal } from "@/features/editor/reveal-controller";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { cn } from "@/shared/lib/utils";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 
 type Filter = "open" | "resolved" | "all";
 

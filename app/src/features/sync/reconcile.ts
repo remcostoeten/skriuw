@@ -1,6 +1,6 @@
-import type { WorkspaceDelta, WorkspaceSnapshot } from "@/contracts/workspace";
-import type { CommitGate } from "@/store/commit-gate";
-import type { RendererStore } from "@/store/types";
+import type { WorkspaceDelta, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
+import type { CommitGate } from "@skriuw/renderer-core/store/commit-gate";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { mergeWorkspaceChanges, type WorkspaceChange } from "./live-workspace";
 
 type Dependencies = {

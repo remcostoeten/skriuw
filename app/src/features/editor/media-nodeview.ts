@@ -2,7 +2,7 @@ import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { EditorView, NodeView } from "prosemirror-view";
 import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
 import { resolveMediaPlaybackUrl } from "@/shared/lib/media-playback-url";
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { isMediaKind, mediaTitleFromSource, type MediaKind } from "./schema";
 
 export type MediaOpenHandler = (src: string) => void;

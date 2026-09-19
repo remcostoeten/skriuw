@@ -2,9 +2,9 @@ import type {
   NoteProperty,
   NotePropertyValue,
   WorkspaceOperation,
-} from "@/contracts/workspace";
+} from "@skriuw/renderer-core/contracts/workspace";
 import { boundTitle } from "@/features/editor/note-title";
-import type { RendererState } from "@/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 export const DUPLICATE_TITLE_SUFFIX = " (copy)";
 

@@ -1,4 +1,4 @@
-import type { WorkspaceSettings } from "@/contracts/workspace";
+import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import {
   DEFAULT_WORKSPACE_SETTINGS,
   changeHistoryDiffLayout,
@@ -13,7 +13,7 @@ import type { AiModelSelection } from "@/features/ai/models/model-selection";
 import { SHORTCUT_DEFINITIONS } from "@/commands/definitions";
 import type { DiffLayout } from "@/features/history/split-diff-model";
 import type { ShortcutActionId } from "@/commands/definitions";
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { commitOperations } from "./workspace";
 
 const LIFECYCLE_SETTING_KEYS = [

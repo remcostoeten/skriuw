@@ -1,4 +1,4 @@
-import { opensNotesInTabs } from "@/features/settings/settings-model";
+import { opensNotesInTabs } from "../settings/open-notes-in-tabs";
 import { type PaneLayout, primaryPane, restorePanes } from "./panes";
 import type { RendererState } from "./types";
 

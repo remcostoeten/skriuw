@@ -5,7 +5,7 @@ import type { EditorView } from "prosemirror-view";
 import { createMentionMenu } from "../../../src/features/references/mention-menu";
 import { productSchema } from "../../../src/features/editor/schema";
 import type { MentionContext } from "../../../src/features/references/mention-plugin";
-import type { RendererState } from "../../../src/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 function setupDOMStub() {
   if (typeof globalThis.document !== "undefined") return;

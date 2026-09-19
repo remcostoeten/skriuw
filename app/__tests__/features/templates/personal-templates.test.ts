@@ -5,7 +5,7 @@ import {
   personalTemplates,
 } from "../../../src/features/templates/personal-templates";
 import { planTemplateNote } from "../../../src/features/templates/note-templates";
-import { createInitialState } from "../../../src/store/store";
+import { createInitialState } from "@skriuw/renderer-core/store/store";
 import { fixtureNode, fixtureSettings } from "../references/fixtures";
 import { parseProductMarkdown } from "../../../src/features/editor/schema";
 

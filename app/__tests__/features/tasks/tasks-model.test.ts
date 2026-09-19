@@ -5,8 +5,8 @@ import {
   projectTasks,
   taskGroupsEqual,
 } from "../../../src/features/tasks/tasks-model";
-import type { TaskSource, WorkspaceTask } from "../../../src/contracts/workspace";
-import type { NodeRecord, RendererState } from "../../../src/store/types";
+import type { TaskSource, WorkspaceTask } from "@skriuw/renderer-core/contracts/workspace";
+import type { NodeRecord, RendererState } from "@skriuw/renderer-core/store/types";
 
 function task(
   id: string,

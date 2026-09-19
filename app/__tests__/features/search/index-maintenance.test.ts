@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { SearchIndexStatus } from "../../../src/contracts/workspace";
+import type { SearchIndexStatus } from "@skriuw/renderer-core/contracts/workspace";
 import {
   reconcileSearchIndex,
   type SearchIndexPorts,

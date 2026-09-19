@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { NoteLockState } from "../../../src/contracts/workspace";
+import type { NoteLockState } from "@skriuw/renderer-core/contracts/workspace";
 import {
   formatWait,
   hintRevealsSecret,

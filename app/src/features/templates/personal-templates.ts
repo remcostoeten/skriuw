@@ -1,7 +1,7 @@
-import type { WorkspaceSettings } from "@/contracts/workspace";
+import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import { withFreshBlockIds } from "@/store/actions/duplicate-note";
 import { commitOperations } from "@/store/actions/workspace";
-import type { RendererState, RendererStore } from "@/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { flushPendingWork } from "@/shell/pending-work";
 import { productSchema } from "@/features/editor/schema";
 import type { NoteTemplate } from "./note-templates";

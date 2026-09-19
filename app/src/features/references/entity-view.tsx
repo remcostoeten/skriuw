@@ -12,7 +12,8 @@ import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion
 import { useShortcutBinding } from "@remcostoeten/use-shortcut/react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { activateNote, commitOperations, commitReferenceOperations } from "@/store/actions/workspace";
-import { appRouteHash, entityFocusHash, useRouteFocus } from "@/app-route";
+import { useRouteFocus } from "@/app-route";
+import { appRouteHash, entityFocusHash } from "@skriuw/renderer-core/route/app-route";
 import { WindowControls } from "@/shell/window-controls";
 import {
   buildCreatePerson,
@@ -77,10 +78,10 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import { Tooltip } from "@/shared/ui/tooltip";
-import { useRendererSelector } from "@/store/use-renderer-selector";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { cn } from "@/shared/lib/utils";
-import type { RendererStore } from "@/store/types";
-import type { ReferenceOperation } from "./types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import type { ReferenceOperation } from "@skriuw/renderer-core/references/types";
 
 const swatchBaseClass =
   "inline-flex shrink-0 items-center justify-center rounded-full font-bold tracking-[0.02em] text-background transition-[background-color,border-color] duration-[240ms] ease-[cubic-bezier(0.16,1,0.3,1)] data-empty:border data-empty:border-dashed data-empty:border-border data-empty:bg-transparent data-empty:text-theme-dim";

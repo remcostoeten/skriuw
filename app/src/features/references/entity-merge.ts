@@ -1,6 +1,6 @@
-import type { WorkspaceOperation } from "@/contracts/workspace";
+import type { WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import { countWords, productSchema, serializeProductMarkdown } from "@/features/editor/schema";
-import type { RendererState } from "@/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 import type { EntityKind } from "./entity-manager-model";
 import { projectReferencingNotes } from "./reference-panel-model";
 

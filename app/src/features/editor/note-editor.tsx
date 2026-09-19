@@ -68,7 +68,7 @@ import { createMentionPlugin, type MentionContext } from "@/features/references/
 import { createReferenceNodeViews } from "@/features/references/reference-nodeview";
 import { activateReference } from "@/features/references/reference-navigation";
 import { resolveReference } from "@/features/references/reference-resolver";
-import type { ReferenceKind } from "@/features/references/types";
+import type { ReferenceKind } from "@skriuw/renderer-core/references/types";
 import {
   commitOperations,
   commitReferenceOperations,
@@ -76,11 +76,12 @@ import {
   isRevisionConflict,
 } from "@/store/actions/workspace";
 import { cssStringLiteral } from "@/features/settings/apply-settings";
-import { opensNotesInTabs, projectSettings, usesVimMode } from "@/features/settings/settings-model";
+import { projectSettings, usesVimMode } from "@/features/settings/settings-model";
+import { opensNotesInTabs } from "@skriuw/renderer-core/settings/open-notes-in-tabs";
 import { closeTab } from "@/store/actions/panes";
 import { noop } from "@/shared/lib/noop";
 import { toastActionIsAvailable } from "@/shared/ui/toast";
-import { useRendererSelector } from "@/store/use-renderer-selector";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import {
   addAnnotationComment,
   createAnnotation,
@@ -89,8 +90,8 @@ import {
   setAnnotationResolved,
   updateAnnotationComment,
 } from "@/store/actions/annotations";
-import type { DocumentRecord, RendererState, RendererStore } from "@/store/types";
-import type { WorkspaceImage, WorkspaceOperation } from "@/contracts/workspace";
+import type { DocumentRecord, RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
+import type { WorkspaceImage, WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import {
   BOUNDED_BLOCK_LIMIT,
   createBoundedDocument,

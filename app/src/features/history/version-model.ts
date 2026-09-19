@@ -1,5 +1,5 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
-import type { HistoryHeader, WorkspaceOperation } from "@/contracts/workspace";
+import type { HistoryHeader, WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import {
   countWords,
   parseProductMarkdown,

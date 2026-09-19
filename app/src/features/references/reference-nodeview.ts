@@ -1,6 +1,6 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { NodeView } from "prosemirror-view";
-import type { RendererState, RendererStore } from "@/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   cancelHovercard,
   destroyHovercard,
@@ -12,7 +12,7 @@ import {
   referenceText,
   resolveReference,
 } from "./reference-resolver";
-import type { ReferenceKind } from "./types";
+import type { ReferenceKind } from "@skriuw/renderer-core/references/types";
 
 export type ReferenceNodeViews = {
   nodeViews: Record<string, (node: ProseMirrorNode) => NodeView>;

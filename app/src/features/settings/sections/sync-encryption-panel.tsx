@@ -4,8 +4,8 @@ import {
   unlockWorkspaceEncryption,
   workspaceEncryptionState,
   type WorkspaceEncryptionState,
-  type WorkspaceSyncStatus,
 } from "@/bridge/commands";
+import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import {
   settingsButton,

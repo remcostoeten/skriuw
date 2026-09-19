@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { FileTextIcon } from "@/shared/icons/static";
 import type { NoteTemplate } from "@/features/templates/note-templates";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import type { DateKey } from "./dates";
 import {
   applyJournalTemplate,

@@ -1,18 +1,18 @@
 import { applyWorkspaceOperations, bootstrapWorkspace } from "@/bridge/commands";
-import { envelope } from "@/contracts/workspace";
-import type { NodePlacement, WorkspaceOperation } from "@/contracts/workspace";
+import { envelope } from "@skriuw/renderer-core/contracts/workspace";
+import type { NodePlacement, WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import { buildRestoreOperation } from "@/features/history/version-model";
 import { flushPendingWork } from "@/shell/pending-work";
-import { opensNotesInTabs } from "@/features/settings/settings-model";
+import { opensNotesInTabs } from "@skriuw/renderer-core/settings/open-notes-in-tabs";
 import {
   SECONDARY_PANE_ID,
   openBeside as openBesidePanes,
   secondaryPane,
-} from "@/store/panes";
-import { commitGate } from "@/store/commit-gate";
-import { ancestorIds, flattenVisible } from "@/store/tree";
-import type { RendererState, RendererStore } from "@/store/types";
-import type { ReferenceOperation } from "@/features/references/types";
+} from "@skriuw/renderer-core/store/panes";
+import { commitGate } from "@skriuw/renderer-core/store/commit-gate";
+import { ancestorIds, flattenVisible } from "@skriuw/renderer-core/store/tree";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
+import type { ReferenceOperation } from "@skriuw/renderer-core/references/types";
 import { planTemplateNote, type NoteTemplate } from "@/features/templates/note-templates";
 import { planNoteDuplicate } from "./duplicate-note";
 

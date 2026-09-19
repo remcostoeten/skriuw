@@ -1,11 +1,11 @@
-import { appRouteHash, journalDayHash } from "@/app-route";
+import { appRouteHash, journalDayHash } from "@skriuw/renderer-core/route/app-route";
 import { todayKey } from "@/features/journal/dates";
 import {
   planMarkdownImport,
   sanitizeFileName,
 } from "@/features/transfer/export/markdown-transfer-model";
 import { commitOperations, createNote } from "@/store/actions/workspace";
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 const CAPTURE_KEY = "capture";
 const SHARE_KEYS = ["title", "text", "url"] as const;

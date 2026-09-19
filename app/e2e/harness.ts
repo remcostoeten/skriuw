@@ -1,4 +1,4 @@
-import type { RendererStore } from "../src/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { failNextBridgeCall, readBridgeCalls } from "./bridge-mock";
 
 type WorkflowState = {

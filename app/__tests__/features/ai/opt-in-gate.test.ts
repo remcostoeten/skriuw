@@ -8,7 +8,7 @@ import {
 import { createCommandRegistry } from "../../../src/commands/registry";
 import { noop } from "../../../src/shared/lib/noop";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../../../src/features/settings/settings-model";
-import type { RendererState } from "../../../src/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 function state(aiEnabled?: boolean): RendererState {
   return {

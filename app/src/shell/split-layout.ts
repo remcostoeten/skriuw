@@ -1,4 +1,4 @@
-import { clampSplitRatio, type SplitOrientation } from "@/store/panes";
+import { clampSplitRatio, type SplitOrientation } from "@skriuw/renderer-core/store/panes";
 
 /** Ratio a single arrow-key press moves the divider. */
 export const SPLIT_NUDGE_STEP = 0.02;

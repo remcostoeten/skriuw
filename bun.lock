@@ -28,6 +28,8 @@
         "@remcostoeten/notifier": "1.1.0",
         "@remcostoeten/use-shortcut": "^2.4.1",
         "@replit/codemirror-vim": "6.4.0",
+        "@skriuw/renderer-core": "workspace:*",
+        "@skriuw/renderer-core": "workspace:*",
         "@tanstack/react-virtual": "^3.14.8",
         "@tauri-apps/api": "2.11.1",
         "@tauri-apps/plugin-opener": "^2.5.4",
@@ -101,6 +103,20 @@
         "@types/react": "~19.2.2",
         "tsx": "4.20.6",
         "typescript": "~6.0.3",
+      },
+    },
+    "shared/renderer-core": {
+      "name": "@skriuw/renderer-core",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@types/node": "26.1.1",
+        "@types/react": "19.2.14",
+        "react": "19.2.7",
+        "tsx": "4.20.6",
+        "typescript": "7.0.2",
+      },
+      "peerDependencies": {
+        "react": "^19.0.0",
       },
     },
   },
@@ -610,6 +626,8 @@
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.1", "", {}, "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw=="],
 
     "@sinclair/typebox": ["@sinclair/typebox@0.27.12", "", {}, "sha512-hhyNJ+nbR6ZR7pToHvllEFun9TL0sbL+tk/ON75lo+Xas054uez98qRbsuNt7MBCyZKK4+8Yli/OAGZhmfBZ/g=="],
+
+    "@skriuw/renderer-core": ["@skriuw/renderer-core@workspace:shared/renderer-core"],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { matchesShortcut, parseShortcut } from "@remcostoeten/use-shortcut/parser";
-import type { WorkspaceSettings } from "../../src/contracts/workspace";
+import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import {
   effectiveShortcutKeys,
   findShortcutConflict,
@@ -25,7 +25,7 @@ import {
 import type { ShortcutGuard } from "../../src/commands/definitions";
 import { RAIL_ITEMS } from "../../src/commands/rail-items";
 import { activeShortcutScopes } from "../../src/commands/workspace-shortcuts";
-import type { AppRoute } from "../../src/app-route";
+import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
 
 const APP_ROUTES: readonly AppRoute[] = [
   "notes",

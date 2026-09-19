@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceDelta, WorkspaceSnapshot } from "../../../src/contracts/workspace";
+import type { WorkspaceDelta, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
 import { createSyncReconciler } from "../../../src/features/sync/reconcile";
-import { createCommitGate } from "../../../src/store/commit-gate";
-import type { RendererStore } from "../../../src/store/types";
+import { createCommitGate } from "@skriuw/renderer-core/store/commit-gate";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 function deferred<T>() {
   let resolve: (value: T) => void = () => undefined;

@@ -11,8 +11,8 @@ import {
   queryTagSuggestions,
 } from "../../../src/features/references/suggestion-index";
 import { projectBacklinks } from "../../../src/features/references/reference-panel-model";
-import { referenceKey, type StructuredReference } from "../../../src/features/references/types";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
+import { referenceKey, type StructuredReference } from "@skriuw/renderer-core/references/types";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { largeReferenceFixture, referenceDocumentJson } from "./fixtures";
 
 const SUGGESTION_P95_BUDGET_MS = 8;

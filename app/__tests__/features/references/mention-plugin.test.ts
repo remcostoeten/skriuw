@@ -8,7 +8,7 @@ import {
   productSchema,
   serializeProductMarkdown,
 } from "../../../src/features/editor/schema";
-import { extractReferences } from "../../../src/features/references/extract";
+import { extractReferences } from "@skriuw/renderer-core/references/extract";
 import {
   acceptMentionItem,
   createMentionPlugin,
@@ -20,8 +20,8 @@ import {
   normalizedMentionIndex,
   type MentionContext,
 } from "../../../src/features/references/mention-plugin";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
-import type { RendererStore } from "../../../src/store/types";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { referenceFixture } from "./fixtures";
 
 function fixtureStore(): RendererStore {

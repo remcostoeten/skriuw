@@ -8,7 +8,7 @@ import {
 } from "../../../../src/features/ai/actions/editor-action-controller";
 import { AI_EDITOR_ACTIONS } from "../../../../src/features/ai/actions/editor-actions";
 import type { CommandUiState } from "../../../../src/commands/registry";
-import type { RendererState } from "../../../../src/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 const NOTES_UI = {
   route: "notes",

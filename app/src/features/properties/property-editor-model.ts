@@ -4,10 +4,10 @@ import type {
   NotePropertyTemplate,
   NotePropertyValue,
   WorkspaceOperation,
-} from "@/contracts/workspace";
-import { createNoteProperty } from "./operations";
-import { instantiatePropertyTemplate } from "./templates";
-import type { PropertyIdFactory } from "./types";
+} from "@skriuw/renderer-core/contracts/workspace";
+import { createNoteProperty } from "@skriuw/renderer-core/properties/operations";
+import { instantiatePropertyTemplate } from "@skriuw/renderer-core/properties/templates";
+import type { PropertyIdFactory } from "@skriuw/renderer-core/properties/types";
 
 type NotePropertyType = NotePropertyValue["type"];
 

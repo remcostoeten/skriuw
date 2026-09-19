@@ -3,7 +3,7 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { activateNote } from "@/store/actions/workspace";
-import { appRouteHash } from "@/app-route";
+import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import { isBrowserRuntime } from "@/bridge/runtime";
 import { journalEntryDateKey } from "@/features/journal/model";
 import { openJournalDay } from "@/features/journal/navigation";
@@ -17,7 +17,7 @@ import {
   rovingSettingsSection,
   settingsSearchEscape,
 } from "./settings-navigation";
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { AboutSection } from "@/features/settings/sections/about-section";
 import { AppearanceSection } from "@/features/settings/sections/appearance-section";
 import { DataSection } from "@/features/settings/sections/data-section";
@@ -37,7 +37,7 @@ import type {
 import { selectEditorPlaceholder } from "@/features/settings/sections/selectors";
 import { ShortcutsSection } from "@/features/settings/sections/shortcuts-section";
 import { AiOptInGate, selectAiEnabled } from "@/features/ai/opt-in-gate";
-import { useRendererSelector } from "@/store/use-renderer-selector";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 
 const AccountSection = lazy(async () => {
   const module = await import("@/features/settings/sections/account-section");

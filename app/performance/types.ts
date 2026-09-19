@@ -1,5 +1,5 @@
 import type { ProfilerOnRenderCallback } from "react";
-import type { RendererStore } from "../src/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 export type TimingSummary = {
   p50Ms: number;

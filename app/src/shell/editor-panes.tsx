@@ -34,9 +34,9 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/shared/ui/context-menu";
-import { PRIMARY_PANE_ID, SECONDARY_PANE_ID } from "@/store/panes";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { PRIMARY_PANE_ID, SECONDARY_PANE_ID } from "@skriuw/renderer-core/store/panes";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { EditorHost } from "./editor-host";
 import { SplitDivider } from "./split-divider";
 import { splitGridTemplate, splitTrackProperty } from "./split-layout";

@@ -1,5 +1,5 @@
 import { projectSettings } from "@/features/settings/settings-model";
-import type { RendererState, RendererStore } from "@/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 
 export type EditorMode = "rendered" | "raw";
 

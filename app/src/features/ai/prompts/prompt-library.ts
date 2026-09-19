@@ -2,8 +2,8 @@ import type {
   PromptInputShape,
   PromptParameters,
   WorkspacePrompt,
-} from "@/contracts/workspace";
-import type { RendererState } from "@/store/types";
+} from "@skriuw/renderer-core/contracts/workspace";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { BUILT_IN_PROMPTS, builtInPrompt, type BuiltInPrompt } from "./built-in-prompts";
 
 export const MAX_PROMPT_NAME_BYTES = 80;

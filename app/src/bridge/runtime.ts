@@ -3,7 +3,7 @@ import {
   BrowserStorageWorkerClient,
   type BrowserStorageFailure,
 } from "../../../crates/skriuw-sqlite-wasm/web/worker-client.ts";
-import type { WorkspaceArchive, WorkspaceSnapshot } from "@/contracts/workspace";
+import type { WorkspaceArchive, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
 import type { ArchiveExportReport, ArchiveImportReport } from "./commands";
 import {
   deleteBrowserMediaBlob,

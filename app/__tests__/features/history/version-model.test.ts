@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { HistoryHeader } from "../../../src/contracts/workspace";
+import type { HistoryHeader } from "@skriuw/renderer-core/contracts/workspace";
 import {
   buildRestoreDocument,
   buildRestoreOperation,

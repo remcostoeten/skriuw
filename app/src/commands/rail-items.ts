@@ -1,4 +1,4 @@
-import type { AppRoute } from "@/app-route";
+import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
 
 export type RailItemActionId =
   | "goToNotes"

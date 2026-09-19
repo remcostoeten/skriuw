@@ -14,7 +14,7 @@ import {
   rowIndexAt,
   sameDropTarget,
 } from "../../../src/features/sidebar/sidebar-dnd";
-import { buildNodeIndex } from "../../../src/store/tree";
+import { buildNodeIndex } from "@skriuw/renderer-core/store/tree";
 
 const { nodes } = buildNodeIndex([
   { id: "folder-a", parentId: null, kind: "folder", title: "A" },

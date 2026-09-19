@@ -5,7 +5,7 @@ import { createCommandRegistry, type CommandUiState } from "../../src/commands/r
 import { createWorkspaceCommands } from "../../src/commands/workspace-commands";
 import type { CommandUiControls } from "../../src/commands/workspace-commands";
 import { SHORTCUT_DEFINITIONS } from "../../src/commands/definitions";
-import type { RendererState, RendererStore } from "../../src/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { setupTauriInvokeStub } from "../shared/tauri-stub";
 
 setupTauriInvokeStub();
@@ -141,7 +141,7 @@ function node(id: string, rank: number, kind: "note" | "folder" = "note") {
 }
 
 async function pinFixture(snapshot: Record<string, unknown>) {
-  const { createInitialState, createRendererStore } = await import("../../src/store/store");
+  const { createInitialState, createRendererStore } = await import("@skriuw/renderer-core/store/store");
   return createRendererStore(
     createInitialState({
       protocolVersion: 1,

@@ -24,7 +24,7 @@ test("workspace action exports exist and are functions", () => {
 });
 
 test("navigateNote walks sidebar order and wraps at both ends", async () => {
-  const { createInitialState, createRendererStore } = await import("../../../src/store/store");
+  const { createInitialState, createRendererStore } = await import("@skriuw/renderer-core/store/store");
   const { navigateNote } = await import("../../../src/store/actions/workspace");
   const base = {
     protocolVersion: 1,
@@ -50,7 +50,7 @@ test("navigateNote walks sidebar order and wraps at both ends", async () => {
 });
 
 test("navigateNote follows the focused pane's tab order when notes open in tabs", async () => {
-  const { createInitialState, createRendererStore } = await import("../../../src/store/store");
+  const { createInitialState, createRendererStore } = await import("@skriuw/renderer-core/store/store");
   const { navigateNote } = await import("../../../src/store/actions/workspace");
   const { openNoteInTab } = await import("../../../src/store/actions/panes");
   const base = {
@@ -75,7 +75,7 @@ test("navigateNote follows the focused pane's tab order when notes open in tabs"
 });
 
 test("navigateNote is a no-op without an active note", async () => {
-  const { createInitialState, createRendererStore } = await import("../../../src/store/store");
+  const { createInitialState, createRendererStore } = await import("@skriuw/renderer-core/store/store");
   const { navigateNote } = await import("../../../src/store/actions/workspace");
   const base = {
     protocolVersion: 1,
@@ -123,7 +123,7 @@ function folderNode(id: string, rank: number, parentId: string | null = null) {
 }
 
 async function storeWith(snapshot: Record<string, unknown>) {
-  const { createInitialState, createRendererStore } = await import("../../../src/store/store");
+  const { createInitialState, createRendererStore } = await import("@skriuw/renderer-core/store/store");
   return createRendererStore(
     createInitialState({
       protocolVersion: 1,
@@ -150,7 +150,7 @@ test("focusedPaneNoteId falls back to the active note and rejects folders", asyn
 test("focusedPaneNoteId follows the focused pane in a split", async () => {
   const { focusedPaneNoteId } = await import("../../../src/store/actions/workspace");
   const { focusPane, openBeside } = await import("../../../src/store/actions/panes");
-  const { SECONDARY_PANE_ID } = await import("../../../src/store/panes");
+  const { SECONDARY_PANE_ID } = await import("@skriuw/renderer-core/store/panes");
   const store = await storeWith({
     activeNoteId: "a",
     nodes: [noteNode("a", 1), noteNode("b", 2)],
@@ -601,7 +601,7 @@ test("duplicateCurrentNote is a silent no-op without an open note", async () => 
 test("duplicateCurrentNote opens the copy in the focused split pane", async () => {
   const { duplicateCurrentNote } = await import("../../../src/store/actions/workspace");
   const { focusPane, openBeside } = await import("../../../src/store/actions/panes");
-  const { SECONDARY_PANE_ID, secondaryPane } = await import("../../../src/store/panes");
+  const { SECONDARY_PANE_ID, secondaryPane } = await import("@skriuw/renderer-core/store/panes");
   const document = (noteId: string, text: string) => ({
     noteId,
     documentJson: {

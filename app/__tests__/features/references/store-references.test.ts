@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
-import { referenceKey } from "../../../src/features/references/types";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
+import { referenceKey } from "@skriuw/renderer-core/references/types";
 import { referenceDocumentJson, referenceFixture } from "./fixtures";
 
 function createFixtureStore() {

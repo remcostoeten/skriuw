@@ -1,14 +1,14 @@
 import { Plugin, PluginKey, type EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import { productSchema } from "@/features/editor/schema";
-import type { RendererState } from "@/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { createMentionMenu } from "./mention-menu";
 import {
   queryMentionSuggestions,
   queryTagSuggestions,
   type Suggestion,
 } from "./suggestion-index";
-import type { ReferenceOperation } from "./types";
+import type { ReferenceOperation } from "@skriuw/renderer-core/references/types";
 
 export type MentionTrigger = "#" | "$" | "@";
 

@@ -4,20 +4,20 @@ import type {
   NoteProperty,
   WorkspaceNode,
   WorkspaceSnapshot,
-} from "../../../src/contracts/workspace";
+} from "@skriuw/renderer-core/contracts/workspace";
 import { ensureJournalEntry, setJournalMood } from "../../../src/features/journal/actions";
 import {
   JOURNAL_DATE_PROPERTY_ID,
   JOURNAL_MOOD_PROPERTY_ID,
   JOURNAL_ROOT_ID,
-} from "../../../src/features/journal/constants";
+} from "@skriuw/renderer-core/journal/constants";
 import {
   journalEntryMood,
   journalNoteIdForDate,
   selectEntryDateKeys,
   selectJournalEntries,
 } from "../../../src/features/journal/model";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { setupTauriInvokeStub } from "../../shared/tauri-stub";
 
 setupTauriInvokeStub();

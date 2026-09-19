@@ -23,8 +23,8 @@ import {
 } from "@/features/editor/use-editor-bound-shortcuts";
 import { useShortcutHints } from "@/commands/hints";
 import { projectSettings } from "@/features/settings/settings-model";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   DEFAULT_BRUSH,
   accentFromTriplet,

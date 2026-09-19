@@ -58,7 +58,12 @@ function runTests(): Promise<{ counts: TestCounts; coverage: CoveragePct }> {
     const tsxBin = resolve(ROOT, "node_modules", ".bin", "tsx");
     const child = spawn(
       tsxBin,
-      ["--test", "--experimental-test-coverage", "__tests__/**/*.test.ts"],
+      [
+        "--test",
+        "--experimental-test-coverage",
+        "__tests__/**/*.test.ts",
+        "../shared/renderer-core/__tests__/**/*.test.ts",
+      ],
       { cwd: ROOT, stdio: ["inherit", "pipe", "pipe"], shell: false },
     );
 

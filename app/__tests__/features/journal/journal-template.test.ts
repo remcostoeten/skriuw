@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceNode, WorkspaceSnapshot } from "../../../src/contracts/workspace";
-import { JOURNAL_DATE_PROPERTY_ID, JOURNAL_ROOT_ID } from "../../../src/features/journal/constants";
+import type { WorkspaceNode, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
+import { JOURNAL_DATE_PROPERTY_ID, JOURNAL_ROOT_ID } from "@skriuw/renderer-core/journal/constants";
 import {
   applyJournalTemplate,
   journalTemplateId,
@@ -11,7 +11,7 @@ import {
 } from "../../../src/features/journal/journal-template";
 import { selectJournalEntries } from "../../../src/features/journal/model";
 import { noteTemplate } from "../../../src/features/templates/note-templates";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { setupTauriInvokeStub } from "../../shared/tauri-stub";
 
 setupTauriInvokeStub();

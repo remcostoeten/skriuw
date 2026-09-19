@@ -8,7 +8,7 @@ import {
   type CommandUiState,
 } from "../../src/commands/registry";
 import { SHORTCUT_DEFINITIONS } from "../../src/commands/definitions";
-import type { RendererState } from "../../src/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 function fakeState(overrides: Partial<RendererState> = {}): RendererState {
   return { activeNoteId: null, ...overrides } as RendererState;

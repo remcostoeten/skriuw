@@ -1,6 +1,6 @@
-import type { WorkspacePrompt } from "@/contracts/workspace";
+import type { WorkspacePrompt } from "@skriuw/renderer-core/contracts/workspace";
 import { showToast } from "@/shared/ui/toast";
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { commitOperations } from "./workspace";
 
 function reportRejection(action: string) {

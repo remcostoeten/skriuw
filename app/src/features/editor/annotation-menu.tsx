@@ -3,7 +3,7 @@ import type { RefObject } from "react";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
-import type { AnnotationComment, WorkspaceAnnotation } from "@/contracts/workspace";
+import type { AnnotationComment, WorkspaceAnnotation } from "@skriuw/renderer-core/contracts/workspace";
 import { CheckIcon, PencilIcon, Trash2Icon } from "@/shared/icons/static";
 import { Tooltip } from "@/shared/ui/tooltip";
 import { rangeMenuAnchor, type MenuAnchor } from "./menu-anchor";

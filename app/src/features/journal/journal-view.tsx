@@ -21,8 +21,8 @@ import { Tooltip } from "@/shared/ui/tooltip";
 import { toolbarIconButtonClass } from "@/shell/toolbar-styles";
 import { WindowControls } from "@/shell/window-controls";
 import { useShortcutHints } from "@/commands/hints";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import type { SwipeStart } from "@/shell/edge-swipe";
 import { deleteJournalEntry, ensureJournalEntry, setJournalMood } from "./actions";
 import {

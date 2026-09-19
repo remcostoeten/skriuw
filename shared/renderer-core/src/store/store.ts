@@ -13,15 +13,15 @@ import type {
   WorkspaceDocument,
   WorkspaceTask,
   NoteLockState,
-} from "@/contracts/workspace";
-import { extractReferences } from "@/features/references/extract";
+} from "../contracts/workspace";
+import { extractReferences } from "../references/extract";
 import {
   buildReferenceProjection,
   removeSourceNotes,
   removeTarget,
   updateNoteReferences,
   type ReferenceProjection,
-} from "@/features/references/projection";
+} from "../references/projection";
 import {
   emptyReferenceBootstrap,
   referenceKey,
@@ -30,20 +30,20 @@ import {
   type ReferenceBootstrap,
   type ReferenceOperation,
   type TagRecord,
-} from "@/features/references/types";
+} from "../references/types";
 import {
   removeNoteProperty,
   reorderNoteProperties,
   upsertNoteProperty,
-} from "@/features/properties/operations";
+} from "../properties/operations";
 import {
   deletePropertyTemplate,
   reorderPropertyTemplates,
   upsertPropertyTemplate,
-} from "@/features/properties/templates";
-import { isPropertyValidationError } from "@/features/properties/value";
-import { JOURNAL_ROOT_ID } from "@/features/journal/constants";
-import { opensNotesInTabs } from "@/features/settings/settings-model";
+} from "../properties/templates";
+import { isPropertyValidationError } from "../properties/value";
+import { JOURNAL_ROOT_ID } from "../journal/constants";
+import { opensNotesInTabs } from "../settings/open-notes-in-tabs";
 import { reduceOperation } from "./operations";
 import {
   DEFAULT_SPLIT_ORIENTATION,

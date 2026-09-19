@@ -7,7 +7,7 @@ import {
   selectSettings,
 } from "../../../../src/features/settings/sections/selectors";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../../../../src/features/settings/settings-model";
-import type { RendererState } from "../../../../src/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 const mockState = {
   settings: {

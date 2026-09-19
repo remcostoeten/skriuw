@@ -5,8 +5,8 @@ import {
   formatFolderStructure,
   renderFolderTree,
 } from "../../../../src/features/transfer/export/folder-structure";
-import { buildNodeIndex } from "../../../../src/store/tree";
-import type { DocumentRecord } from "../../../../src/store/types";
+import { buildNodeIndex } from "@skriuw/renderer-core/store/tree";
+import type { DocumentRecord } from "@skriuw/renderer-core/store/types";
 
 function fixture() {
   const index = buildNodeIndex([

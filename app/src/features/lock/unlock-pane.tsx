@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { Button } from "@/shared/ui/button";
 import { LockIcon, iconStrokeWidth } from "@/shared/icons/static";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { secretNoun } from "./lock-model";
 import { requestSessionUnlock } from "./lock-session";
 

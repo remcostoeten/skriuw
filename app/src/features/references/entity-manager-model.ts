@@ -1,6 +1,6 @@
-import type { RendererState } from "@/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { projectReferencingNotes } from "./reference-panel-model";
-import type { PersonRecord, ReferenceOperation, TagRecord } from "./types";
+import type { PersonRecord, ReferenceOperation, TagRecord } from "@skriuw/renderer-core/references/types";
 
 export type EntityKind = "tag" | "person";
 

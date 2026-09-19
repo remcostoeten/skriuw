@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createInitialState } from "../../../src/store/store";
+import { createInitialState } from "@skriuw/renderer-core/store/store";
 import { buildMergeSaveDocuments } from "../../../src/features/references/entity-merge";
-import { extractReferences } from "../../../src/features/references/extract";
+import { extractReferences } from "@skriuw/renderer-core/references/extract";
 import { referenceFixture } from "./fixtures";
 
 function fixtureState() {

@@ -4,7 +4,7 @@ import type { MediaBlobPayload } from "@/bridge/commands";
 import { storeNoteImage } from "@/bridge/commands";
 import { registerPendingWork } from "@/shell/pending-work";
 import { noop } from "@/shared/lib/noop";
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { productSchema } from "./schema";
 
 type ImageDimensions = {

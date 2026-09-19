@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { showToast } from "@/shared/ui/toast";
 import { showsToasts } from "@/features/settings/settings-model";
 import {
@@ -25,7 +25,7 @@ import { endAiRun, registerAiRun } from "@/features/ai/run/run-registry";
 import { useRegisteredAiRun } from "@/features/ai/run/use-ai-run";
 import { requestModelSwitcher } from "@/features/ai/models/model-switcher-controller";
 import { requestAiSettings } from "@/features/ai/ai-settings-controller";
-import { appRouteHash } from "@/app-route";
+import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import { promptLibraryEntries, selectWorkspacePrompts } from "@/features/ai/prompts/prompt-library";
 import {
   OLLAMA_PROVIDER_ID,

@@ -9,7 +9,7 @@ import { createNoteFromTemplate } from "@/store/actions/workspace";
 import { SearchIcon } from "@/shared/icons/static";
 import { Dialog, useDialogClose } from "@/shared/ui/dialog";
 import { useListboxNavigation } from "@/shared/ui/use-listbox-navigation";
-import type { RendererStore } from "@/store/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   NOTE_TEMPLATES,
   filterNoteTemplates,

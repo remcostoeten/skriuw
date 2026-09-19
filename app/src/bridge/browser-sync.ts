@@ -4,7 +4,7 @@ import {
   loadBrowserSessionToken,
 } from "@/features/auth/session-store";
 import { noop } from "@/shared/lib/noop";
-import type { WorkspaceSyncStatus } from "./commands";
+import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 
 /**
  * Scheduling driver for the worker-owned browser sync runtime. The storage

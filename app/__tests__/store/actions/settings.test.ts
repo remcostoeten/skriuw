@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as settingsActions from "../../../src/store/actions/settings";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../../../src/features/settings/settings-model";
 import { selectAiEnabled } from "../../../src/features/ai/opt-in-gate";
 import { setupTauriInvokeStub } from "../../shared/tauri-stub";
-import type { WorkspaceOperation, WorkspaceSettings } from "../../../src/contracts/workspace";
-import type { RendererStore } from "../../../src/store/types";
+import type { WorkspaceOperation, WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 setupTauriInvokeStub();
 

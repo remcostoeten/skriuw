@@ -1,4 +1,4 @@
-import type { WorkspaceOperationEnvelope } from "../src/contracts/workspace";
+import type { WorkspaceOperationEnvelope } from "@skriuw/renderer-core/contracts/workspace";
 import {
   applyWorkspaceOperations,
   bootstrapWorkspace,

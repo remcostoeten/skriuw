@@ -10,8 +10,8 @@ import {
   shortcutOverridesFromSettings,
 } from "@/commands/bindings";
 import type { ShortcutActionId, ShortcutPlatform } from "@/commands/definitions";
-import { useRendererSelector } from "@/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 
 // Module-level so every render reuses one store binding. An inline selector
 // makes useRendererSelector build a fresh binding per render, whose snapshot

@@ -1,5 +1,5 @@
 import type { AiCompletionRequest } from "@/contracts/ai";
-import type { PromptParameters } from "@/contracts/workspace";
+import type { PromptParameters } from "@skriuw/renderer-core/contracts/workspace";
 import type { AiModelSelection } from "@/features/ai/models/model-selection";
 
 /**

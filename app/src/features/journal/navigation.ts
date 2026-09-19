@@ -1,4 +1,4 @@
-import { journalDayHash, resolveRouteFocus } from "@/app-route";
+import { journalDayHash, resolveRouteFocus } from "@skriuw/renderer-core/route/app-route";
 import {
   isDateKey,
   shiftDay,
