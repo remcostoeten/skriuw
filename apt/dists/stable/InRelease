@@ -4,31 +4,31 @@ Hash: SHA512
 Architectures: amd64
 Codename: stable
 Components: main
-Date: Fri, 18 Sep 2026 07:11:19 +0000
+Date: Sat, 19 Sep 2026 12:52:38 +0000
 Description: Skriuw desktop apt repository
 Label: Skriuw
 Origin: Skriuw
 Suite: stable
 MD5Sum:
- a54de1af6a10b6d64d29d9a7e6f0d671              179 Release
- dd98fc2c9830a088589576d73b286de1            10745 main/binary-amd64/Packages
- a61d708ae7de7ba6b927971aa6202f4a             2979 main/binary-amd64/Packages.gz
+ d721b7972f5cc76135564f3aaa534e99              179 Release
+ 6fc1db11eb1b9d723c6c064262899bb2            11147 main/binary-amd64/Packages
+ 564d952a415c0d3773faee5af75ac4f3             3083 main/binary-amd64/Packages.gz
 SHA1:
- 1bb7f9e72aec4c2051100cc745e95da9d054b036              179 Release
- 9824c1c62d3b6fe683a6b37ebfcc96f7c4b1eb26            10745 main/binary-amd64/Packages
- 3bac260bc14be258efe32cffed13e15226ae4e44             2979 main/binary-amd64/Packages.gz
+ bf6f6d10d54b0150a1ca24cb382604efc693a007              179 Release
+ 2ec5133036c426ab42a13e51af2a6d4b768cf41b            11147 main/binary-amd64/Packages
+ 495608b06271a0bb8654f0ad56eb88c622f8a54a             3083 main/binary-amd64/Packages.gz
 SHA256:
- 1831a0793e421cf5e5dd1d8906de2b1ca3ad785573d21ea16a396f3225c53c06              179 Release
- 4321ddcc607e7b99405385198e6a46aef5b1a1d64723d195d5011b4e398b286b            10745 main/binary-amd64/Packages
- 0ce5757c421fc9d7c52eca6d380ae98595a7e3cdf8af4a92e74e06297f80b43e             2979 main/binary-amd64/Packages.gz
+ 2c57d4accc497047136751784b91e93e0424593ec4ecd6d13dbe77510b41863d              179 Release
+ 9e1714f2eafcd77bbead775e6642d1b065d06b51b21fb9c97c3122755b4a81f7            11147 main/binary-amd64/Packages
+ 0868eefc29edd50b2634e34ab381035b03f254c52734905fbe857881bcf9c1ac             3083 main/binary-amd64/Packages.gz
 SHA512:
- d800b2165502bd894b8a8559dd0119e750281b450064c5a8cf7cdf939f9ab0fefdd39f7a93fc73d36a51343771a30965823fb356621150caf04bf425f5d35798              179 Release
- 7f16f01d4da6b6e5106c79c9337a2c37616da4cd4b1c9ba10fa5d3efd3ae268e519933b46502a9a4ebe2815b5070a2083f8eaf4b7040788c1b727a04f0e56563            10745 main/binary-amd64/Packages
- 7a0ab137bc3e3a21fb1ae4cd0650219c31cb455668501308d8b6d83c7c508b8f62c71a11bac880808dd71f7a62be1ca61a8ae97a380e44c7acbe8cd333dc7d8e             2979 main/binary-amd64/Packages.gz
+ a45ca59bd83d2b34d04cbfd9dbf064c99926d74d0f6d5d474c4bf5128138798197b1c3ddbca1a02d5a142428ced7e333d150720b940e76ac69a917a72f99b167              179 Release
+ f3aa586900a85f0bac27e14b049881f71180e014dac836a1f93e6d9a139fbe00319bb3d2ed98fec4ac27db44f3aecb842d67f228935527fda86965b37c64a731            11147 main/binary-amd64/Packages
+ 37b0b865cf8710e4da1a3c792590e49b16b7d98e2c8cf9c8ff9e09665535fb65b095710963214fbce3f18ca4a179ce8477a4397b0e5e30447133f992cc2bccb5             3083 main/binary-amd64/Packages.gz
 -----BEGIN PGP SIGNATURE-----
 
-iHUEARYKAB0WIQS8w49Xi8S80iFpxNh3Qss+1Pg3AgUCaqzkFwAKCRB3Qss+1Pg3
-AhckAP430H/1nnGv13goRMQV09Loi2vrYAk4XMajt3PJ9QH3xAD/b93Dkxh70Va5
-pfoix3KCzO+/OSUW5HYukXTiPw+Glgk=
-=V5/G
+iHUEARYKAB0WIQS8w49Xi8S80iFpxNh3Qss+1Pg3AgUCaq6FlgAKCRB3Qss+1Pg3
+AtbWAQCgp5pNc2ipZN8s4pDLg6KJIZsmCE1Ys75XKFc28BQF/QEArEDhtf4oI0/8
+hZnenM5eR2+WmyhKtLCV8Bhc5ud0pA4=
+=JwSP
 -----END PGP SIGNATURE-----
