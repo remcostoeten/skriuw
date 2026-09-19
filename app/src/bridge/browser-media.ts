@@ -1,11 +1,12 @@
 import type { MediaBlobPayload, StoredImagePayload } from "./commands";
+import { activeBlobsDirectory } from "./workspace-slot";
 
 /**
  * Browser-runtime media blob store. Mirrors the desktop `skriuw-images`
  * crate: content-addressed `<sha256-hex>.<ext>` files, format-validated by
- * magic bytes, kept in one flat OPFS directory. Blobs never touch SQLite.
+ * magic bytes, kept in one flat OPFS directory per workspace. Blobs never
+ * touch SQLite.
  */
-const BLOBS_DIRECTORY = "skriuw-media-blobs";
 const SWEEP_MINIMUM_BLOB_AGE_MS = 60_000;
 
 const EXTENSION_BY_MIME: Record<string, string> = {
@@ -66,7 +67,7 @@ async function blobsDirectory(): Promise<FileSystemDirectoryHandle> {
     throw new Error("This browser does not support private file storage (OPFS).");
   }
   const root = await navigator.storage.getDirectory();
-  return root.getDirectoryHandle(BLOBS_DIRECTORY, { create: true });
+  return root.getDirectoryHandle(activeBlobsDirectory(), { create: true });
 }
 
 function blobFileName(contentHash: string, mimeType: string): string {

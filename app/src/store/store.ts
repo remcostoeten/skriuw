@@ -487,6 +487,30 @@ function withSavedDocument(
   return { ...current, sourceNodes, documents, metadata, ...projection };
 }
 
+/**
+ * Mirrors the backend's purge, which clears the source link of every task whose
+ * note is gone instead of deleting the task. Without this the renderer keeps a
+ * link the backend has already nulled, and the next toggle of that task is
+ * rejected as an illegal source change.
+ */
+function detachTasksForNotes(
+  tasks: ReadonlyMap<string, WorkspaceTask>,
+  sourceNodes: ReadonlyMap<string, WorkspaceNode>,
+  at: number,
+): ReadonlyMap<string, WorkspaceTask> {
+  const orphaned = [...tasks.values()].filter(
+    (task) => task.source !== null && !sourceNodes.has(task.source.noteId),
+  );
+  if (orphaned.length === 0) {
+    return tasks;
+  }
+  const next = new Map(tasks);
+  for (const task of orphaned) {
+    next.set(task.id, { ...task, source: null, detachedAt: at, updatedAt: at });
+  }
+  return next;
+}
+
 function reduceState(
   current: RendererState,
   operation: WorkspaceOperation,
@@ -821,6 +845,7 @@ function reduceState(
       activeNoteId,
       images,
       propertiesByNoteId,
+      tasks: detachTasksForNotes(current.tasks, sourceNodes, operation.trashedBefore),
       ...projection,
     });
   }

@@ -12,6 +12,7 @@
     "e2e": "node e2e/run.mjs",
     "e2e:browser-storage": "node e2e/browser-storage.mjs",
     "e2e:browser-reset": "node e2e/browser-reset.mjs",
+    "e2e:browser-account-switch": "node e2e/browser-account-switch.mjs",
     "e2e:browser-storage:firefox": "node e2e/browser-storage-firefox.mjs",
     "e2e:browser-scale": "node e2e/browser-scale.mjs",
     "e2e:mobile": "node e2e/mobile-shell.mjs",

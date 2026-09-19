@@ -10,7 +10,7 @@ export function readBridgeCalls(): string[] {
 
 export function invoke<T>(command: string): Promise<T> {
   calls.push(command);
-  if (command === "load_auth_token") {
+  if (command === "load_auth_token" || command === "active_workspace_slot") {
     return Promise.resolve(null as T);
   }
   if (command === "plugin:event|listen" || command === "plugin:event|unlisten") {

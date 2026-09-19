@@ -16,6 +16,12 @@ import { pickTextFile, readPickedFile, saveTextFile } from "./browser-files";
 import { browserSyncDriver, publishBrowserSyncEvent, type SyncWorkerPort } from "./browser-sync";
 import { noop } from "@/shared/lib/noop";
 import { clearSkriuwLocalState } from "./local-state";
+import {
+  activeDatabaseName,
+  activeWorkspaceSlot,
+  adoptWorkspaceSlot,
+  isBlobsDirectory,
+} from "./workspace-slot";
 
 type BrowserWorkerValue = {
   kind: string;
@@ -87,7 +93,7 @@ function getBrowserStorage(): Promise<BrowserStorageWorkerClient> {
   });
   const client = new BrowserStorageWorkerClient(worker);
   client.setEventListener(publishBrowserSyncEvent);
-  browserStorage = client.initialize().then(() => client).catch((error) => {
+  browserStorage = client.initialize(activeDatabaseName()).then(() => client).catch((error) => {
     client.terminate();
     browserStorage = null;
     throw error;
@@ -128,6 +134,23 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
   if (command === "clear_all_data") {
     await clearBrowserData();
     return undefined as T;
+  }
+  if (command === "adopt_workspace_slot") {
+    const { workspaceId } = args as { workspaceId: string };
+    const linked = (await requestExpecting(
+      "sync_connection",
+      undefined,
+      "sync_connection",
+    )) as { workspaceId?: unknown } | null;
+    const adoption = adoptWorkspaceSlot(
+      workspaceId,
+      typeof linked?.workspaceId === "string" ? linked.workspaceId : null,
+    );
+    if (adoption === "switched") await reopenForActiveSlot();
+    return adoption as T;
+  }
+  if (command === "active_workspace_slot") {
+    return activeWorkspaceSlot() as T;
   }
   if (command === "workspace_sync_status") {
     return browserSyncDriver(syncWorkerPort).status() as Promise<T>;
@@ -211,6 +234,22 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
 }
 
 /**
+ * Reopens the tab on the workspace the registry now points at. The worker
+ * holds exclusive OPFS handles on the previous database and every module that
+ * read from it is already mounted, so a reload is the only honest way to swap
+ * accounts; the rest of sign-in does not continue past this call.
+ */
+async function reopenForActiveSlot(): Promise<void> {
+  browserSyncDriver(syncWorkerPort).stop();
+  const pending = browserStorage;
+  browserStorage = null;
+  if (pending) {
+    await pending.then((client) => client.close()).catch(noop);
+  }
+  globalThis.location.reload();
+}
+
+/**
  * Deletes the durable browser workspace and reloads. Exported so the startup
  * failure screen can offer it too: a database that cannot open leaves the
  * settings surface unreachable, and without it the terminal states dead-end.
@@ -228,7 +267,13 @@ export async function clearBrowserData(): Promise<void> {
   }
   if (typeof navigator.storage?.getDirectory === "function") {
     const root = await navigator.storage.getDirectory();
-    for (const name of [".skriuw-v2", "skriuw-media-blobs"]) {
+    // Every account that has signed in on this profile left its own blob
+    // directory behind; clearing one of them is not clearing the data.
+    const names = [".skriuw-v2"];
+    for await (const name of root.keys()) {
+      if (isBlobsDirectory(name)) names.push(name);
+    }
+    for (const name of names) {
       try {
         await root.removeEntry(name, { recursive: true });
       } catch (error) {

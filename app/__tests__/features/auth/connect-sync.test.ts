@@ -4,12 +4,16 @@ import test from "node:test";
 type TauriGlobal = typeof globalThis & { window?: Record<string, unknown> };
 
 const connectCalls: string[] = [];
+const adoptCalls: string[] = [];
 const stateRequests: Array<{ url: string; authorization: string | null }> = [];
 let stateResponse: () => Response = () => cloudStateResponse(0);
+let adoption: "claimed" | "active" | "switched" = "active";
+
+const WORKSPACE_ID = `w_${"a1".repeat(32)}`;
 
 function cloudStateResponse(latestServerSequence: number): Response {
   return new Response(
-    JSON.stringify({ workspaceId: "w_1", latestServerSequence }),
+    JSON.stringify({ workspaceId: WORKSPACE_ID, latestServerSequence }),
     { status: 200, headers: { "Content-Type": "application/json" } },
   );
 }
@@ -20,8 +24,11 @@ function installTokenStore(): void {
   globals.window = {
     ...(globals.window ?? {}),
     __TAURI_INTERNALS__: {
-      invoke: (command: string, args?: { token?: string }) => {
+      invoke: (command: string, args?: { token?: string; workspaceId?: string }) => {
         switch (command) {
+          case "adopt_workspace_slot":
+            adoptCalls.push(args?.workspaceId ?? "");
+            return Promise.resolve(adoption);
           case "load_auth_token":
             return Promise.resolve(token);
           case "store_auth_token":
@@ -58,8 +65,10 @@ const { connectSyncForCurrentSession } = await import("../../../src/features/aut
 
 function reset(): void {
   connectCalls.length = 0;
+  adoptCalls.length = 0;
   stateRequests.length = 0;
   stateResponse = () => cloudStateResponse(0);
+  adoption = "active";
 }
 
 test("a device with a session credential links to its cloud workspace", async () => {
@@ -69,9 +78,23 @@ test("a device with a session credential links to its cloud workspace", async ()
   await connectSyncForCurrentSession();
 
   assert.deepEqual(connectCalls, ["token-from-sign-in"]);
+  assert.deepEqual(adoptCalls, [WORKSPACE_ID]);
   assert.equal(stateRequests.length, 1);
   assert.ok(stateRequests[0]?.url.endsWith("/v1/sync/state"));
   assert.equal(stateRequests[0]?.authorization, "Bearer token-from-sign-in");
+});
+
+test("an account that owns another local workspace reopens on its own instead of linking", async () => {
+  reset();
+  adoption = "switched";
+  await sessionToken.rememberSessionToken("token-from-sign-in");
+
+  await connectSyncForCurrentSession();
+
+  assert.deepEqual(adoptCalls, [WORKSPACE_ID]);
+  // The runtime is restarting onto that workspace; linking the one still open
+  // would push this account's notes into the account that owns it.
+  assert.deepEqual(connectCalls, []);
 });
 
 test("an account that already holds content still links after the reclaim", async () => {
@@ -92,6 +115,9 @@ test("a cloud deployment without the state route still links", async () => {
   await connectSyncForCurrentSession();
 
   assert.deepEqual(connectCalls, ["token-from-sign-in"]);
+  // A cloud that cannot name a workspace cannot be routed by one either, so the
+  // single local workspace stays in use.
+  assert.deepEqual(adoptCalls, []);
 });
 
 test("an unreachable cloud never links, so nothing is pushed or reclaimed", async () => {

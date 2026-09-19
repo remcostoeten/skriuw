@@ -11,7 +11,9 @@ import {
 } from "@/features/auth/connect-state";
 import {
   type BrowserSyncProgress,
+  latestBrowserResumeFailure,
   latestBrowserSyncProgress,
+  subscribeBrowserResumeFailure,
   subscribeBrowserSyncProgress,
 } from "@/bridge/browser-sync";
 import {
@@ -42,6 +44,10 @@ function subscribeNever(): () => void {
 }
 
 function readNoProgress(): BrowserSyncProgress | null {
+  return null;
+}
+
+function readNoResumeFailure(): string | null {
   return null;
 }
 
@@ -78,6 +84,10 @@ export function useWorkspaceSync(pollIntervalMs = SYNC_POLL_ACTIVE_MS): Workspac
     browser ? latestBrowserSyncProgress : readNoProgress,
   );
   const connectFailure = useSyncExternalStore(subscribeConnectFailure, latestConnectFailure);
+  const resumeFailure = useSyncExternalStore(
+    browser ? subscribeBrowserResumeFailure : subscribeNever,
+    browser ? latestBrowserResumeFailure : readNoResumeFailure,
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -145,11 +155,15 @@ export function useWorkspaceSync(pollIntervalMs = SYNC_POLL_ACTIVE_MS): Workspac
     setStatus({ state: "localOnly" });
   }
 
+  // A failed connect leaves sync paused either way: `localOnly` when the
+  // workspace was never linked, `authenticationRequired` when it was. Reporting
+  // only the first hid every real reason behind the generic "session ended"
+  // description on a workspace that had synced before.
+  const stopped = status.state === "localOnly" || status.state === "authenticationRequired";
+  const stoppedReason = connectFailure ?? resumeFailure;
   const error =
     actionError ??
-    (connectFailure !== null && status.state === "localOnly"
-      ? connectFailureDescription(connectFailure)
-      : null);
+    (stoppedReason !== null && stopped ? connectFailureDescription(stoppedReason) : null);
 
   return {
     status,

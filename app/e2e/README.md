@@ -111,3 +111,20 @@ node app/e2e/mobile-shell.mjs [--output <path>]
 
 `CHROME_BINARY` picks the browser and `CHROME_EXTRA_ARGS` appends launch
 flags, for example `--no-sandbox` in a container that runs as root.
+
+## Per-account local workspaces (`browser-account-switch.mjs`)
+
+Drives ADR-0046 against the real browser runtime and its OPFS storage: a note
+written before any sign-in is claimed in place by the first account, a second
+account reopens the tab on an empty workspace of its own, switching back and
+forth restores each account's notes, and the Account settings row names the
+owning workspace. Adoption is invoked through the runtime bridge directly, so
+no cloud is involved; the reload it triggers is what the run waits on.
+
+```bash
+node app/e2e/browser-account-switch.mjs
+# or, from app/: bun run e2e:browser-account-switch
+```
+
+Previews on port 4196 (`SKRIUW_E2E_ACCOUNT_PORT` overrides it) and runs as
+part of `scripts/check-wasm.sh`.

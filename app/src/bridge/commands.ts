@@ -102,6 +102,26 @@ export function workspaceSyncStatus(): Promise<WorkspaceSyncStatus> {
   return invoke<WorkspaceSyncStatus>("workspace_sync_status");
 }
 
+/** Mirrors `SlotAdoption` in `app/src-tauri/src/workspace_slots.rs`. */
+export type SlotAdoption = "claimed" | "active" | "switched";
+
+/**
+ * Points this installation at the signed-in account's own local workspace
+ * before sync connects, so a second account is routed to its own storage
+ * instead of colliding with the workspace another account already owns.
+ *
+ * `switched` means the runtime is restarting or reloading onto that storage:
+ * the call does not return on the desktop and nothing after it should run.
+ */
+export function adoptWorkspaceSlot(workspaceId: string): Promise<SlotAdoption> {
+  return invoke<SlotAdoption>("adopt_workspace_slot", { workspaceId });
+}
+
+/** Cloud workspace that owns the local store, or null while it is unclaimed. */
+export function activeWorkspaceSlot(): Promise<string | null> {
+  return invoke<string | null>("active_workspace_slot");
+}
+
 export function connectWorkspaceSync(
   token: string,
   baseUrl: string,

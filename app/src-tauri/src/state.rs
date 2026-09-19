@@ -6,6 +6,7 @@ use std::{
 };
 
 use crate::sync::SyncRuntime;
+use crate::workspace_slots;
 use crate::{
     ai::{LazyAiCompletion, LazyAiTranscription},
     ai_credentials::AiCredentialStore,
@@ -67,6 +68,16 @@ pub(crate) fn read_storage_pointer(data_dir: &Path) -> Option<PathBuf> {
     }
 }
 
+/// Root the workspace directories live under: the user's chosen storage
+/// location when one is set, otherwise the app data directory.
+pub(crate) fn storage_base(data_dir: &Path) -> Result<PathBuf, String> {
+    let Some(directory) = read_storage_pointer(data_dir) else {
+        return Ok(data_dir.to_path_buf());
+    };
+    fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    Ok(directory)
+}
+
 pub(crate) fn database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     if let Some(path) = env::var_os("SKRIUW_DB") {
         return Ok(PathBuf::from(path));
@@ -76,11 +87,10 @@ pub(crate) fn database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .app_data_dir()
         .map_err(|error| error.to_string())?;
     fs::create_dir_all(&data_dir).map_err(|error| error.to_string())?;
-    if let Some(directory) = read_storage_pointer(&data_dir) {
-        fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
-        return Ok(directory.join("skriuw.db"));
-    }
-    Ok(data_dir.join("skriuw.db"))
+    let base = storage_base(&data_dir)?;
+    let directory = workspace_slots::active_directory(&data_dir, &base);
+    fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    Ok(directory.join("skriuw.db"))
 }
 
 pub(crate) fn workspace_runtime(state: &State<'_, AppState>) -> Result<WorkspaceRuntime, String> {
