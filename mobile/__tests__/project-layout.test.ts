@@ -37,6 +37,16 @@ test("expo-router owns navigation", () => {
   assert.ok(pluginNames.includes("expo-router"));
 });
 
+test("every asset the configuration names is present", () => {
+  const raw = readFileSync(resolve(projectRoot, "app.json"), "utf8");
+  const referenced = [...raw.matchAll(/"\.\/(assets\/[^"]+)"/g)].map((match) => match[1]!);
+
+  assert.ok(referenced.length > 0);
+  for (const asset of referenced) {
+    assert.ok(existsSync(resolve(projectRoot, asset)), `missing ${asset}`);
+  }
+});
+
 test("app/ holds routes only and src/ holds everything else", () => {
   assert.ok(existsSync(resolve(projectRoot, "app")));
   assert.ok(existsSync(resolve(projectRoot, "src")));

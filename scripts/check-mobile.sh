@@ -25,7 +25,7 @@ else
   blue=""
 fi
 
-total_steps=2
+total_steps=3
 step_index=0
 
 fail() {
@@ -60,6 +60,7 @@ run_step() {
 command -v bun >/dev/null 2>&1 || fail "Missing required command: bun"
 [[ -d "$mobile_dir/node_modules" ]] || fail "Mobile dependencies are missing. Run bun install at the repository root."
 
+run_step "Root lockfile freshness" bun install --frozen-lockfile --dry-run
 run_step "Mobile type safety" bun --cwd="$mobile_dir" run typecheck
 run_step "Mobile unit tests" bun --cwd="$mobile_dir" run test
 

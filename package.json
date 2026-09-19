@@ -22,8 +22,5 @@
   },
   "devDependencies": {
     "@remcostoeten/dev-menu": "^0.2.2"
-  },
-  "overrides": {
-    "@remcostoeten/use-shortcut": "2.4.1"
   }
 }

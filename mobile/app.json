@@ -16,7 +16,7 @@
       "package": "dev.skriuw.app",
       "adaptiveIcon": {
         "backgroundColor": "#0B0B0D",
-        "foregroundImage": "./assets/icon.png"
+        "foregroundImage": "./assets/adaptive-icon.png"
       }
     },
     "web": {
@@ -29,7 +29,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#0B0B0D",
-          "image": "./assets/icon.png",
+          "image": "./assets/splash-icon.png",
           "imageWidth": 96
         }
       ]

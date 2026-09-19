@@ -2,7 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "types": ["node"],
+    "types": [],
     "paths": {
       "@/*": ["./src/*"]
     },
@@ -16,7 +16,6 @@
     "app/**/*.tsx",
     "src/**/*.ts",
     "src/**/*.tsx",
-    "__tests__/**/*.ts",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
   ]
