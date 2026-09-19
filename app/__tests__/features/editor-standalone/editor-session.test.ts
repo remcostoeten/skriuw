@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { WORKSPACE_PROTOCOL_VERSION, envelope } from "../../../src/contracts/workspace";
-import type { OperationAck, WorkspaceOperation, WorkspaceSnapshot } from "../../../src/contracts/workspace";
+import { WORKSPACE_PROTOCOL_VERSION, envelope } from "@skriuw/renderer-core/contracts/workspace";
+import type { OperationAck, WorkspaceOperation, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
 import { createEditorSession } from "../../../src/features/editor-standalone/editor-session";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../../../src/features/settings/settings-model";
-import { createInitialState, createRendererStore } from "../../../src/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import {
   EDITOR_FAILURE_DETAIL_LIMIT,
   EDITOR_PROTOCOL_VERSION,

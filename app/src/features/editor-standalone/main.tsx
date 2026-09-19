@@ -1,9 +1,9 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { WORKSPACE_PROTOCOL_VERSION } from "@/contracts/workspace";
+import { WORKSPACE_PROTOCOL_VERSION } from "@skriuw/renderer-core/contracts/workspace";
 import { bindSettingsToRoot } from "@/features/settings/apply-settings";
 import { DEFAULT_WORKSPACE_SETTINGS } from "@/features/settings/settings-model";
-import { createInitialState, createRendererStore } from "@/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { installEditorSession } from "./active-session";
 import { createEditorSession } from "./editor-session";
 import { StandaloneEditor } from "./standalone-editor";

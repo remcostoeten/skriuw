@@ -15,9 +15,9 @@ import {
   type WorkspaceNode,
   type WorkspaceOperationEnvelope,
   type WorkspaceSnapshot,
-} from "@/contracts/workspace";
-import type { PersonRecord, TagRecord } from "@/features/references/types";
-import type { RendererStore } from "@/store/types";
+} from "@skriuw/renderer-core/contracts/workspace";
+import type { PersonRecord, TagRecord } from "@skriuw/renderer-core/references/types";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
 
