@@ -16,15 +16,21 @@ const OUTPUT_PATH = join(THEME_DIR, "tokens.ts");
 const NON_COLOR_TOKENS = new Set(["radius"]);
 const BLOCK_PATTERN = /((?::root[^{},]*,\s*)*:root\[data-theme="[^"]+"\])\s*\{([^}]*)\}/g;
 const THEME_NAME_PATTERN = /data-theme="([^"]+)"/g;
-const DECLARATION_PATTERN = /--([a-z0-9-]+)\s*:\s*([^;]+);/g;
-const REFERENCE_PATTERN = /^var\(--([a-z0-9-]+)\)$/;
+const DECLARATION_PATTERN = /^--([\w-]+)\s*:\s*(.+)$/s;
+const REFERENCE_PATTERN = /^var\(--([\w-]+)\)$/;
 const COMMENT_PATTERN = /\/\*[\s\S]*?\*\//g;
 const TRIPLE_PATTERN = /^(-?[\d.]+)\s+([\d.]+)%\s+([\d.]+)%$/;
 
-function parseDeclarations(body: string): Map<string, string> {
+function parseDeclarations(selector: string, body: string): Map<string, string> {
   const declarations = new Map<string, string>();
-  for (const [, name, value] of body.matchAll(DECLARATION_PATTERN)) {
-    declarations.set(name, value.trim());
+  for (const statement of body.split(";")) {
+    const trimmed = statement.trim();
+    if (trimmed === "") continue;
+    const declaration = DECLARATION_PATTERN.exec(trimmed);
+    if (!declaration) {
+      throw new Error(`${selector}: cannot parse "${trimmed}" as a custom property`);
+    }
+    declarations.set(declaration[1], declaration[2].trim());
   }
   return declarations;
 }
@@ -71,7 +77,7 @@ function buildTheme(name: string, declarations: Map<string, string>): GeneratedT
 export function parseThemes(css: string): GeneratedTheme[] {
   const themes: GeneratedTheme[] = [];
   for (const [, selector, body] of css.replace(COMMENT_PATTERN, "").matchAll(BLOCK_PATTERN)) {
-    const declarations = parseDeclarations(body);
+    const declarations = parseDeclarations(selector.trim(), body);
     for (const [, name] of selector.matchAll(THEME_NAME_PATTERN)) {
       if (themes.some((theme) => theme.name === name)) {
         throw new Error(`${name}: declared in more than one block`);

@@ -81,3 +81,14 @@ test("commented-out declarations and braces are ignored", () => {
   const [theme] = parseThemes(css);
   assert.deepEqual(theme.tokens, { background: "hsl(0, 0%, 7%)", foreground: "hsl(0, 0%, 91%)" });
 });
+
+test("a final declaration without a semicolon is kept", () => {
+  const css = `:root[data-theme="one"] { --background: 0 0% 7%; --Accent_2: 10 20% 30% }`;
+  const [theme] = parseThemes(css);
+  assert.equal(theme.tokens.Accent_2, "hsl(10, 20%, 30%)");
+});
+
+test("an unparseable statement is rejected instead of skipped", () => {
+  const css = `:root[data-theme="one"] { --background: 0 0% 7%; color-scheme: dark; }`;
+  assert.throws(() => parseThemes(css), /cannot parse "color-scheme: dark"/);
+});
