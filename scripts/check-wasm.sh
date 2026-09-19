@@ -15,3 +15,4 @@ cargo build \
 bun --cwd=app run e2e:browser-storage
 bun --cwd=app run e2e:browser-reset
 bun --cwd=app run e2e:browser-account-switch
+bun --cwd=app run e2e

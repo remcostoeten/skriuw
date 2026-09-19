@@ -48,6 +48,7 @@ import {
   openJournalToday,
 } from "./navigation";
 import { OnThisDaySection } from "./on-this-day-section";
+import { MOOD_TREND_SPAN, moodBarLevel, moodTrend, moodTrendSummary } from "./mood-trend";
 import { cn } from "@/shared/lib/utils";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 import {
@@ -179,21 +180,18 @@ export function currentStreak(
 }
 
 function JournalStats({ entries }: { entries: readonly JournalEntry[] }) {
+  const today = todayKey();
   const totalWords = entries.reduce((sum, entry) => sum + entry.wordCount, 0);
   const entryDates = new Set(entries.map((entry) => entry.dateKey));
   const streak = currentStreak(entryDates);
-  const moodCounts = new Map<MoodLevel, number>();
-  for (const entry of entries) {
-    if (entry.mood) {
-      moodCounts.set(entry.mood, (moodCounts.get(entry.mood) ?? 0) + 1);
-    }
-  }
+  const trend = moodTrend(entries, today);
   const tiles: { label: string; value: string }[] = [
     { label: "Entries", value: `${entries.length}` },
     { label: "Words", value: `${totalWords}` },
     { label: "Streak", value: streak === 1 ? "1 day" : `${streak} days` },
-    { label: "This month", value: `${entries.filter((entry) => entry.dateKey.startsWith(todayKey().slice(0, 7))).length}` },
+    { label: "This month", value: `${entries.filter((entry) => entry.dateKey.startsWith(today.slice(0, 7))).length}` },
   ];
+  const stripLabel = `Mood, last ${MOOD_TREND_SPAN} days`;
   return (
     <div className="space-y-4 p-3">
       <div className="grid grid-cols-2 gap-2">
@@ -207,22 +205,41 @@ function JournalStats({ entries }: { entries: readonly JournalEntry[] }) {
         ))}
       </div>
       <div>
-        <p className={cn("mb-1.5", sectionLabelClass)}>
-          Moods
-        </p>
-        <div className="space-y-1">
-          {MOOD_LEVELS.map((level) => {
-            const mood = MOOD_OPTIONS[level];
-            const count = moodCounts.get(level) ?? 0;
+        <p className={cn("mb-1.5", sectionLabelClass)}>{stripLabel}</p>
+        <ol className="journal-mood-strip" aria-label={stripLabel}>
+          {trend.days.map((day) => {
+            const mood = day.mood === null ? null : MOOD_OPTIONS[day.mood];
+            const state = mood ? mood.label : day.hasEntry ? "No mood" : "No entry";
+            const height = day.mood === null ? undefined : `${Math.round(moodBarLevel(day.mood) * 100)}%`;
             return (
-              <div key={level} className="flex items-center gap-2 px-1 text-[11px]">
-                <span className={`w-5 ${mood.colorClass}`}>{mood.icon}</span>
-                <span className="flex-1 text-foreground/70">{mood.label}</span>
-                <span className="text-muted-foreground">{count}</span>
-              </div>
+              <li key={day.dateKey} className={cn("journal-mood-day", mood?.colorClass)}>
+                <button
+                  type="button"
+                  className={cn(
+                    "journal-mood-bar",
+                    mood === null && (day.hasEntry ? "journal-mood-bar-unrated" : "journal-mood-bar-empty"),
+                    day.dateKey === today && "journal-mood-bar-today",
+                  )}
+                  style={height === undefined ? undefined : { height }}
+                  aria-label={`${formatListDate(day.dateKey)}: ${state}`}
+                  onClick={() => openJournalDay(day.dateKey)}
+                />
+              </li>
             );
           })}
-        </div>
+        </ol>
+        <p className="mt-1.5 text-[11px] text-foreground/70">{moodTrendSummary(trend)}</p>
+        {trend.ratedDays > 0 && (
+          <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground" aria-label="Mood counts">
+            {MOOD_LEVELS.filter((level) => trend.counts[level] > 0).map((level) => (
+              <li key={level} className="flex items-center gap-1">
+                <span className={MOOD_OPTIONS[level].colorClass}>{MOOD_OPTIONS[level].icon}</span>
+                <span>{MOOD_OPTIONS[level].label}</span>
+                <span>{trend.counts[level]}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -674,7 +691,7 @@ const DAY_STEP_SHORTCUT_IDS = ["journalPreviousDay", "journalNextDay"] as const;
 
 const dayStepButtonClass = cn(
   toolbarIconButtonClass,
-  "rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-11 pointer-coarse:w-11",
+  "rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 );
 
 function JournalEntryPane({
@@ -908,11 +925,13 @@ function JournalEntryPane({
 type JournalViewProps = Props & {
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
+  /** Present only when the shell has no other one-tap route to the palette. */
+  onOpenCommandPalette?: () => void;
 };
 
-const JOURNAL_SHORTCUT_IDS = ["toggleSidebar"] as const;
+const JOURNAL_SHORTCUT_IDS = ["toggleSidebar", "toggleCommandPalette"] as const;
 
-export function JournalView({ store, sidebarOpen, onToggleSidebar }: JournalViewProps) {
+export function JournalView({ store, sidebarOpen, onToggleSidebar, onOpenCommandPalette }: JournalViewProps) {
   const selectedKey = useSelectedJournalKey();
   const shortcutHints = useShortcutHints(store, JOURNAL_SHORTCUT_IDS);
   return (
@@ -932,6 +951,18 @@ export function JournalView({ store, sidebarOpen, onToggleSidebar }: JournalView
             <PanelLeftToggleIcon size={16} />
           </button>
         </Tooltip>
+        {onOpenCommandPalette && (
+          <Tooltip label="Search" side="bottom" shortcut={shortcutHints.toggleCommandPalette}>
+            <button
+              type="button"
+              onClick={onOpenCommandPalette}
+              className={toolbarIconButtonClass}
+              aria-label="Search"
+            >
+              <SearchIcon size={16} />
+            </button>
+          </Tooltip>
+        )}
         <div className="pointer-events-none flex flex-1 items-center justify-center gap-3 text-sm">
           <span className="text-sidebar-foreground/58">Journal</span>
           <span className="max-w-[28rem] truncate font-medium text-sidebar-foreground/80">

@@ -12,6 +12,28 @@
   "launch_handler": { "client_mode": "navigate-existing" },
   "orientation": "any",
   "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "New journal entry",
+      "short_name": "Journal",
+      "description": "Open today's journal entry",
+      "url": "./?capture=journal",
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "New note",
+      "short_name": "Note",
+      "description": "Start a blank note",
+      "url": "./?capture=note",
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "share_target": {
+    "action": "./",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  },
   "background_color": "#121212",
   "theme_color": "#121212",
   "icons": [

@@ -206,7 +206,7 @@ function DialogShell({
       <dialog
         ref={ref}
         className={cn(
-          "dialog inset-0 m-auto flex h-fit max-h-[72vh] w-[min(680px,calc(100vw-24px))] flex-col rounded-[calc(var(--radius)+4px)] border border-border bg-popover p-0 text-popover-foreground shadow-[0_16px_48px_hsl(var(--scrim)/0.4)] backdrop:bg-scrim/55",
+          "dialog inset-0 m-auto flex h-fit max-h-[calc(var(--viewport-height)*0.72)] w-[min(680px,calc(100vw-24px))] flex-col rounded-[calc(var(--radius)+4px)] border border-border bg-popover p-0 text-popover-foreground shadow-[0_16px_48px_hsl(var(--scrim)/0.4)] backdrop:bg-scrim/55",
           className,
         )}
         aria-labelledby={titleId}

@@ -119,6 +119,9 @@ export const APP_ICONS = {
   "find-in-note": {
     static: SearchIcon,
   },
+  search: {
+    static: SearchIcon,
+  },
   "toggle-metadata": {
     static: PanelRightToggleIcon,
     animated: animated("toggle-metadata"),

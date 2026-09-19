@@ -53,7 +53,7 @@ function Kbd({ children, ...rest }: ComponentProps<"kbd">) {
 }
 
 export const PALETTE_DIALOG_CLASS =
-  "command-palette mx-auto mb-auto mt-[12vh] max-h-[64vh] w-[calc(100vw-1.5rem)] max-w-[46rem] overflow-hidden";
+  "command-palette mx-auto mb-auto mt-[12vh] max-h-[calc(var(--viewport-height)*0.64)] w-[calc(100vw-1.5rem)] max-w-[46rem] overflow-hidden";
 
 export function CommandPalette({
   open,
@@ -235,7 +235,7 @@ function PaletteBody({ items, onQueryChange, notice, paletteShortcut }: BodyProp
         )}
       </div>
 
-      <div className="flex flex-none flex-wrap items-center gap-x-5 gap-y-2.5 border-t border-border px-4 py-3 text-[11px] leading-none text-muted-foreground">
+      <div className="flex flex-none flex-wrap items-center gap-x-5 gap-y-2.5 border-t border-border px-4 py-3 text-[11px] leading-none text-muted-foreground pointer-coarse:hidden">
         <span className="inline-flex items-center gap-1.5 whitespace-nowrap">↑↓ navigate</span>
         <span className="inline-flex items-center gap-1.5 whitespace-nowrap">↵ select</span>
         <span className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5">

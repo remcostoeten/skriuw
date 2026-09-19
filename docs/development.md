@@ -15,7 +15,7 @@ Node.js 24, Bash, and the platform dependencies required by Tauri.
 ./scripts/check.sh       # full check gate: contracts, lint, all tests
 ./scripts/build.sh       # build (also: web | desktop | ci)
 ./scripts/generate.sh    # regenerate Rust→TypeScript JSON Schema contracts
-./scripts/check-wasm.sh  # browser portability, OPFS durability, and per-account workspaces
+./scripts/check-wasm.sh  # browser portability, OPFS durability, per-account workspaces, and the keyboard workflow e2e
 ./scripts/dev-db.sh      # local dev database
 ```
 
