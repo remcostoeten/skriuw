@@ -80,6 +80,19 @@ export function useRouteHistoryVersion(): string | null {
   return useSyncExternalStore(subscribe, readHistoryVersion, () => null);
 }
 
+/**
+ * Moves to a route without adding a history entry, the way a native tab bar
+ * switches destinations: back then leaves the app rather than replaying every
+ * tab visited. `replaceState` fires no `hashchange`, so one is dispatched.
+ */
+export function replaceRouteHash(hash: string): void {
+  if (window.location.hash === hash) {
+    return;
+  }
+  window.history.replaceState(null, "", hash);
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
+}
+
 export function appRouteHash(route: AppRoute): string {
   if (route === "trash") {
     return "#/trash";

@@ -1,8 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
-import type { ReactNode } from "react";
+import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { CloseIcon } from "@/shared/icons/static";
+import { haptic } from "@/shared/lib/haptics";
 import { cn } from "@/shared/lib/utils";
+import { bindOverlayBack } from "@/shell/overlay-history";
+import { pullCloses, pullOffset } from "./dialog-pull";
+
+type PullState = {
+  pointerId: number;
+  y: number;
+};
+
+const SETTLE_MS = 200;
 
 type Props = {
   open: boolean;
@@ -181,7 +191,11 @@ function DialogShell({
     if (bodyRef.current) {
       moveFocusOffScrollContainer(bodyRef.current);
     }
+    // On a phone the back gesture closes the dialog on top, through the
+    // native close so the caller sees the same event as Escape.
+    const releaseBack = bindOverlayBack(() => dialog.close());
     return () => {
+      releaseBack();
       dialog.removeEventListener("keydown", handleKeyDown);
       dialog.removeEventListener("cancel", handleCancel);
       dialog.removeEventListener("close", handleClose);
@@ -201,6 +215,54 @@ function DialogShell({
 
   const close = useCallback(() => ref.current?.close(), []);
 
+  // A touch on the grabber or the header pulls the dialog down with the
+  // finger and closes it past the threshold, the way a native sheet does.
+  // Only those two regions carry `touch-action: none`, so the body keeps
+  // scrolling and the browser never claims the pull as a pan.
+  const pullRef = useRef<PullState | null>(null);
+  function onPullStart(event: ReactPointerEvent<HTMLElement>): void {
+    if (event.pointerType !== "touch") {
+      return;
+    }
+    pullRef.current = { pointerId: event.pointerId, y: event.clientY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+  function onPullMove(event: ReactPointerEvent<HTMLElement>): void {
+    const pull = pullRef.current;
+    const dialog = ref.current;
+    if (!pull || !dialog || event.pointerId !== pull.pointerId) {
+      return;
+    }
+    dialog.classList.remove("dialog-settle");
+    dialog.style.transform = `translateY(${pullOffset(event.clientY - pull.y)}px)`;
+  }
+  function onPullEnd(event: ReactPointerEvent<HTMLElement>, commit: boolean): void {
+    const pull = pullRef.current;
+    const dialog = ref.current;
+    pullRef.current = null;
+    if (!pull || !dialog || event.pointerId !== pull.pointerId) {
+      return;
+    }
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (commit && pullCloses(event.clientY - pull.y)) {
+      dialog.style.transform = "";
+      haptic("select");
+      dialog.close();
+      return;
+    }
+    dialog.classList.add("dialog-settle");
+    dialog.style.transform = "";
+    window.setTimeout(() => dialog.classList.remove("dialog-settle"), SETTLE_MS);
+  }
+  const pullHandlers = {
+    onPointerDown: onPullStart,
+    onPointerMove: onPullMove,
+    onPointerUp: (event: ReactPointerEvent<HTMLElement>) => onPullEnd(event, true),
+    onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => onPullEnd(event, false),
+  };
+
   return createPortal(
     <DialogCloseContext.Provider value={close}>
       <dialog
@@ -211,8 +273,12 @@ function DialogShell({
         )}
         aria-labelledby={titleId}
       >
+        <div className="dialog-grabber" aria-hidden="true" {...pullHandlers} />
         {showHeader ? (
-          <header className="dialog-header flex items-center justify-between border-b border-border px-3.5 py-3">
+          <header
+            className="dialog-header flex items-center justify-between border-b border-border px-3.5 py-3"
+            {...pullHandlers}
+          >
             <h2 id={titleId} className="dialog-title m-0 text-sm font-semibold">
               {title}
             </h2>

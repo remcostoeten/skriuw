@@ -53,6 +53,12 @@ async function waitForSheet(cdp, sessionId, side, label) {
 }
 const IGNORED_CONSOLE = /navigator\.vibrate/;
 
+/** Where the tab sits in its own history, which `history.length` cannot say once forward entries exist. */
+async function historyPosition(cdp, sessionId) {
+  const { currentIndex, entries } = await cdp.send("Page.getNavigationHistory", {}, sessionId);
+  return { index: currentIndex, url: entries[currentIndex].url };
+}
+
 function pressLabelled(label) {
   return `(() => {
     const button = Array.from(document.querySelectorAll('button[aria-label]'))
@@ -417,6 +423,89 @@ try {
   await evaluate(cdp, sessionId, pressLabelled("Close Note details"));
   await waitFor(cdp, sessionId, NO_SHEET, "inspector sheet closing from its header");
   checks.push({ name: "the inspector opens as a right sheet with a close control", passed: true });
+
+  // The platform back gesture is history.back(): it must close the overlay
+  // on top and leave the route alone, and closing any other way must not
+  // leave an entry behind for the next back press to land on.
+  const positionBefore = await historyPosition(cdp, sessionId);
+  await evaluate(cdp, sessionId, pressLabelled("Toggle sidebar"));
+  await waitForSheet(cdp, sessionId, "left", "tree sheet for the back gesture");
+  const positionOpen = await historyPosition(cdp, sessionId);
+  await evaluate(cdp, sessionId, `history.back(); true`);
+  await waitFor(cdp, sessionId, NO_SHEET, "sheet closing from the back gesture");
+  const positionAfterBack = await historyPosition(cdp, sessionId);
+  check(
+    "the back gesture closes an open sheet and keeps the route",
+    positionOpen.index === positionBefore.index + 1 &&
+      positionAfterBack.index === positionBefore.index &&
+      positionAfterBack.url.endsWith("#/notes"),
+    { positionBefore, positionOpen, positionAfterBack },
+  );
+  await evaluate(cdp, sessionId, pressLabelled("Toggle sidebar"));
+  await waitForSheet(cdp, sessionId, "left", "tree sheet for a close control");
+  await evaluate(cdp, sessionId, pressLabelled("Close Notes"));
+  await waitFor(cdp, sessionId, NO_SHEET, "sheet closing from its header");
+  await waitFor(cdp, sessionId, `history.state === null`, "overlay entry popping after a manual close");
+  const positionAfterClose = await historyPosition(cdp, sessionId);
+  check(
+    "closing a sheet by hand pops its history entry",
+    positionAfterClose.index === positionBefore.index && positionAfterClose.url.endsWith("#/notes"),
+    { positionBefore, positionAfterClose },
+  );
+
+  const journalTab = await evaluate(
+    cdp,
+    sessionId,
+    `(() => { const rect = document.querySelector('.shell-tab[aria-label="Journal"]').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()`,
+  );
+  const positionBeforeTab = await historyPosition(cdp, sessionId);
+  await touch(cdp, sessionId, "touchStart", [journalTab]);
+  await touch(cdp, sessionId, "touchEnd", []);
+  await waitFor(cdp, sessionId, `location.hash === "#/journal" && document.querySelector('.shell-tab[aria-label="Journal"][aria-current="page"]') !== null`, "journal tab");
+  const positionAfterTab = await historyPosition(cdp, sessionId);
+  check(
+    "a tab bar tap replaces the history entry instead of pushing one",
+    positionAfterTab.index === positionBeforeTab.index && positionAfterTab.url.endsWith("#/journal"),
+    { positionBeforeTab, positionAfterTab },
+  );
+  await evaluate(cdp, sessionId, `location.hash = "#/notes"; true`);
+  await waitFor(cdp, sessionId, `location.hash === "#/notes"`, "notes route");
+  await waitFor(cdp, sessionId, NO_SHEET, "no sheet after returning to notes");
+
+  await evaluate(cdp, sessionId, pressLabelled("Settings"));
+  await waitFor(cdp, sessionId, `Boolean(document.querySelector('dialog[open]'))`, "settings dialog");
+  const settings = await evaluate(
+    cdp,
+    sessionId,
+    `(() => { const rect = document.querySelector('dialog[open]').getBoundingClientRect(); return { width: rect.width, height: rect.height, top: rect.top, viewport: window.innerHeight }; })()`,
+  );
+  check(
+    "settings fills the phone edge to edge",
+    settings.width === VIEWPORT.width && settings.top === 0 && Math.abs(settings.height - settings.viewport) <= 1,
+    settings,
+  );
+  await evaluate(cdp, sessionId, `history.back(); true`);
+  await waitFor(cdp, sessionId, `!document.querySelector('dialog[open]')`, "settings closing from the back gesture");
+  checks.push({ name: "the back gesture closes the settings dialog", passed: true });
+
+  // The native close event lands a task after the element closes, so the
+  // trigger reports the settled state before it is pressed again.
+  await waitFor(cdp, sessionId, `document.querySelector('button[aria-label="Settings"]').getAttribute('aria-expanded') === 'false'`, "settings trigger settling");
+  await evaluate(cdp, sessionId, pressLabelled("Settings"));
+  await waitFor(cdp, sessionId, `Boolean(document.querySelector('dialog[open] .dialog-grabber'))`, "settings grabber");
+  const grabber = await evaluate(
+    cdp,
+    sessionId,
+    `(() => { const rect = document.querySelector('dialog[open] .dialog-grabber').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, height: rect.height }; })()`,
+  );
+  check("a phone dialog shows a grabber to pull", grabber.height >= 20, grabber);
+  await drag(cdp, sessionId, { x: grabber.x, y: grabber.y }, { x: grabber.x + 2, y: grabber.y + 40 }, { steps: 8 });
+  await delay(250);
+  const dialogStillOpen = await evaluate(cdp, sessionId, `Boolean(document.querySelector('dialog[open]'))`);
+  check("a short pull settles the dialog back", dialogStillOpen, { dialogStillOpen });
+  await drag(cdp, sessionId, { x: grabber.x, y: grabber.y }, { x: grabber.x + 2, y: grabber.y + 160 }, { steps: 12 });
+  await waitFor(cdp, sessionId, `!document.querySelector('dialog[open]')`, "settings closing from a pull");
+  checks.push({ name: "pulling the grabber down closes the dialog", passed: true });
 
   await evaluate(cdp, sessionId, pressLabelled("Toggle sidebar"));
   await waitForSheet(cdp, sessionId, "left", "tree sheet for gestures");

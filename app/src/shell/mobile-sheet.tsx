@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { sheetDragCloses, sheetDragOffset, swipeAxis, type SwipeEdge } from "./edge-swipe";
+import { bindOverlayBack } from "./overlay-history";
 import { haptic } from "@/shared/lib/haptics";
 import { CloseIcon } from "@/shared/icons/static";
 
@@ -22,10 +23,10 @@ const EXIT_MS = 220;
 
 /**
  * A side panel for the compact shell. It overlays the editor from one edge,
- * closes on scrim tap, Escape, or a pull back toward its edge, and stays
- * mounted through its exit transition so the dismissal reads as motion rather
- * than a cut. The caller marks the page behind it inert; the sheet itself only
- * owns focus while open.
+ * closes on scrim tap, Escape, the platform back gesture, or a pull back
+ * toward its edge, and stays mounted through its exit transition so the
+ * dismissal reads as motion rather than a cut. The caller marks the page
+ * behind it inert; the sheet itself only owns focus while open.
  */
 export function MobileSheet({ side, open, label, onClose, children }: Props) {
   const [mounted, setMounted] = useState(open);
@@ -54,6 +55,7 @@ export function MobileSheet({ side, open, label, onClose, children }: Props) {
     if (panel && !panel.contains(document.activeElement)) {
       panel.focus({ preventScroll: true });
     }
+    const releaseBack = bindOverlayBack(() => onCloseRef.current());
     // Escape only reaches the sheet from inside it or from the page: a menu
     // or dialog layered above owns its own Escape and must not take the sheet
     // down with it.
@@ -70,6 +72,7 @@ export function MobileSheet({ side, open, label, onClose, children }: Props) {
     }
     document.addEventListener("keydown", onKeyDown);
     return () => {
+      releaseBack();
       document.removeEventListener("keydown", onKeyDown);
       const previous = returnFocusRef.current;
       const active = document.activeElement;

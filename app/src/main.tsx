@@ -27,6 +27,7 @@ import {
   saveSidebarExpansion,
 } from "@/bridge/commands";
 import { clearBrowserData, isBrowserRuntime, releaseBrowserStorage } from "@/bridge/runtime";
+import { bindInstallPrompt, installOffered, promptInstall } from "@/bridge/install-prompt";
 import { applyShellUpdate, registerShellWorker } from "@/bridge/service-worker";
 import {
   claimRiskAnnouncement,
@@ -86,7 +87,13 @@ async function announcePersistenceRisk(): Promise<void> {
   const state = await requestWorkspacePersistence();
   const warning = describePersistenceRisk(state);
   if (warning && claimRiskAnnouncement(state)) {
-    showToast({ message: warning, durationMs: 12_000 });
+    showToast({
+      message: warning,
+      durationMs: 12_000,
+      ...(state.kind === "best-effort" && installOffered()
+        ? { action: { label: "Install", run: () => void promptInstall() } }
+        : {}),
+    });
   }
 }
 
@@ -322,12 +329,14 @@ function main(): void {
   const unbindZoom = initZoom();
   const unbindViewport = bindViewport(window, document.documentElement);
   const unbindShellWorker = registerShellWorker(offerShellUpdate);
+  const unbindInstallPrompt = isBrowserRuntime() ? bindInstallPrompt(window) : () => {};
   window.addEventListener(
     "pagehide",
     () => {
       unbindZoom();
       unbindViewport();
       unbindShellWorker();
+      unbindInstallPrompt();
     },
     { once: true },
   );
