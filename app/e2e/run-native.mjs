@@ -97,10 +97,30 @@ function makeSession(sessionId) {
     }
     throw new Error(`timed out waiting for ${description}`);
   }
+  /**
+   * The scenario asserts against the desktop tree, which the compact shell
+   * (below 900px) keeps inside a sheet. A tiling window manager can hand the
+   * app a narrow tile, so the window is sized explicitly and the shell mode
+   * is checked rather than assumed.
+   */
+  async function ensureWideShell() {
+    await driverRequest("POST", `/session/${sessionId}/window/rect`, {
+      width: 1280,
+      height: 900,
+    });
+    if (await script("return window.innerWidth >= 900")) {
+      return;
+    }
+    // A tiling manager ignores the requested rect; a maximised tile is the
+    // whole monitor, which is wide enough on any desktop.
+    await driverRequest("POST", `/session/${sessionId}/window/maximize`, {});
+    await waitFor("return window.innerWidth >= 900", "a wide window", 50);
+  }
   return {
     script,
     keys,
     waitFor,
+    ensureWideShell,
     close: () => driverRequest("DELETE", `/session/${sessionId}`),
   };
 }
@@ -356,6 +376,7 @@ const driver = launchDriver(workspaceDirectory);
 let session = null;
 try {
   session = await createSession();
+  await session.ensureWideShell();
   const scenario = await runScenario(session);
   await session.close();
   session = null;

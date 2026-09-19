@@ -57,6 +57,12 @@ Without `--skip-build` the script first runs `tauri build --debug --no-bundle`
 - A display (X11 or Wayland). The app window opens headed; use `xvfb-run`
   when no display is available.
 - Free port 4444 (`tauri-driver`) and 4445 (native driver).
+- A window at least 900px wide. The harness requests 1280×900 and falls
+  back to maximising the window, because a tiling manager (Hyprland) hands
+  the app a narrow tile and the compact shell keeps the tree inside a sheet.
+- No desktop cloud session in the keyring: `secret-tool clear service
+  dev.skriuw.app username cloud-session` (back it up first), or the starter
+  preview is not seeded and `starts-with-seeded-preview` fails.
 
 ### Test seams
 
