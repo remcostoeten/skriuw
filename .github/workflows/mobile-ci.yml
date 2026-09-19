@@ -27,6 +27,12 @@ concurrency:
     group: mobile-ci-${{ github.ref }}
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Naming the shell is what turns on `pipefail`; the implicit default is
+# `bash -e`, under which a failed command piped into `tee` passes the step.
+defaults:
+    run:
+        shell: bash
+
 env:
     MODULE_DIR: mobile/modules/skriuw-core
 
