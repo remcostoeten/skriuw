@@ -14,14 +14,23 @@ crate-type = ["lib", "cdylib", "staticlib"]
 [dependencies]
 # ADR-0048 / R-A3: domain, runtime, storage, sqlite, sync and crypto only. No
 # git2, no Tauri, no Ollama, and `skriuw-domain` gains no dependency from here.
+#
+# Sync adds `skriuw-sync` and nothing else that links. Networking and blob
+# storage are foreign ports (`crate::sync::network`), so no HTTP client, no
+# TLS stack and no certificate roots ship inside the core — see
+# `tests/dependencies.rs`, which holds that boundary.
+getrandom = "0.4"
 serde.workspace = true
 serde_json.workspace = true
 skriuw-domain = { path = "../skriuw-domain" }
 skriuw-runtime = { path = "../skriuw-runtime" }
 skriuw-sqlite = { path = "../skriuw-sqlite" }
 skriuw-storage = { path = "../skriuw-storage" }
+skriuw-sync = { path = "../skriuw-sync" }
 thiserror.workspace = true
 uniffi = { version = "0.32", default-features = false }
+uuid.workspace = true
+zeroize = "1"
 
 [dev-dependencies]
 tempfile.workspace = true

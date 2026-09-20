@@ -154,6 +154,15 @@ class SkriuwCoreModule : Module() {
       )
       is MobileException.Busy -> mapOf("kind" to "busy", "message" to message)
       is MobileException.Closed -> mapOf("kind" to "closed", "message" to message)
+      is MobileException.Sync -> mapOf("kind" to "sync", "message" to message)
+      is MobileException.SessionExpired -> mapOf("kind" to "session-expired", "message" to message)
+      is MobileException.UntrustedCloud -> mapOf("kind" to "untrusted-cloud", "message" to message)
+      is MobileException.WorkspaceMismatch -> mapOf(
+        "kind" to "workspace-mismatch",
+        "message" to message,
+        "linked" to failure.linked,
+        "account" to failure.account
+      )
       is MobileException.Internal -> mapOf("kind" to "internal", "message" to message)
     }
   }
