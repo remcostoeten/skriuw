@@ -4,6 +4,10 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 pub const MAIN_LABEL: &str = "main";
 pub const SPLASH_LABEL: &str = "splash";
+pub fn splash_preview_enabled() -> bool {
+    cfg!(debug_assertions)
+        && std::env::var_os("SKRIUW_SPLASH_PREVIEW").is_some_and(|value| value == "1")
+}
 /// The main window ships hidden and is revealed by the renderer after its
 /// first paint. A renderer that never boots would otherwise leave an
 /// invisible process, so the window is revealed unconditionally after this
@@ -13,7 +17,12 @@ const WINDOW_REVEAL_FAILSAFE: Duration = Duration::from_secs(2);
 /// Opens the frameless splash shown while the main webview boots. It is a
 /// static page with no IPC, so it paints well before the application bundle.
 pub fn open_splash_window(app: &AppHandle) {
-    let built = WebviewWindowBuilder::new(app, SPLASH_LABEL, WebviewUrl::App("splash.html".into()))
+    let page = if splash_preview_enabled() {
+        "splash.html?preview=1"
+    } else {
+        "splash.html"
+    };
+    let built = WebviewWindowBuilder::new(app, SPLASH_LABEL, WebviewUrl::App(page.into()))
         .title("Skriuw")
         .inner_size(320.0, 200.0)
         .resizable(false)
@@ -43,6 +52,9 @@ pub fn reveal_main_window(app: &AppHandle) -> Result<(), String> {
 }
 
 pub fn spawn_reveal_failsafe(app: &AppHandle) {
+    if splash_preview_enabled() {
+        return;
+    }
     let handle = app.clone();
     let _ = std::thread::Builder::new()
         .name("skriuw-window-reveal-failsafe".into())
@@ -63,5 +75,8 @@ pub fn spawn_reveal_failsafe(app: &AppHandle) {
 
 #[tauri::command]
 pub fn reveal_main_window_command(app: AppHandle) -> Result<(), String> {
+    if splash_preview_enabled() {
+        return Ok(());
+    }
     reveal_main_window(&app)
 }
