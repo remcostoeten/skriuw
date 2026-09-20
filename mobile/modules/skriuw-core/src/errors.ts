@@ -9,6 +9,10 @@ export type SkriuwCoreErrorKind =
   | "already-exists"
   | "busy"
   | "closed"
+  | "sync"
+  | "session-expired"
+  | "untrusted-cloud"
+  | "workspace-mismatch"
   | "invalid-slot"
   | "slot-in-use"
   | "internal";
@@ -20,6 +24,10 @@ export type SkriuwCoreFailure = {
   expected?: number;
   current?: number;
   version?: number;
+  /** `workspace-mismatch` only: the workspace this local store belongs to. */
+  linked?: string;
+  /** `workspace-mismatch` only: the workspace the signed-in account owns. */
+  account?: string;
 };
 
 const KINDS: ReadonlySet<string> = new Set<SkriuwCoreErrorKind>([
@@ -33,6 +41,10 @@ const KINDS: ReadonlySet<string> = new Set<SkriuwCoreErrorKind>([
   "already-exists",
   "busy",
   "closed",
+  "sync",
+  "session-expired",
+  "untrusted-cloud",
+  "workspace-mismatch",
   "invalid-slot",
   "slot-in-use",
   "internal",
@@ -48,6 +60,8 @@ export class SkriuwCoreError extends Error {
   readonly expected: number | undefined;
   readonly current: number | undefined;
   readonly version: number | undefined;
+  readonly linked: string | undefined;
+  readonly account: string | undefined;
 
   constructor(failure: SkriuwCoreFailure, options?: { cause?: unknown }) {
     super(failure.message, options);
@@ -57,6 +71,8 @@ export class SkriuwCoreError extends Error {
     this.expected = failure.expected;
     this.current = failure.current;
     this.version = failure.version;
+    this.linked = failure.linked;
+    this.account = failure.account;
   }
 
   /** The startup failure surface: the database exists but cannot be used. */
@@ -104,5 +120,7 @@ export function toSkriuwCoreError(raw: unknown): SkriuwCoreError {
     expected: optionalNumber(failure.expected),
     current: optionalNumber(failure.current),
     version: optionalNumber(failure.version),
+    linked: typeof failure.linked === "string" ? failure.linked : undefined,
+    account: typeof failure.account === "string" ? failure.account : undefined,
   });
 }

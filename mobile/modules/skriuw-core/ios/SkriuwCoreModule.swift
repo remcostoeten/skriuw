@@ -167,6 +167,19 @@ public final class SkriuwCoreModule: Module {
       return ["kind": "busy", "message": message]
     case .Closed:
       return ["kind": "closed", "message": message]
+    case .Sync:
+      return ["kind": "sync", "message": message]
+    case .SessionExpired:
+      return ["kind": "session-expired", "message": message]
+    case .UntrustedCloud:
+      return ["kind": "untrusted-cloud", "message": message]
+    case let .WorkspaceMismatch(linked, account):
+      return [
+        "kind": "workspace-mismatch",
+        "message": message,
+        "linked": linked,
+        "account": account,
+      ]
     case .Internal:
       return ["kind": "internal", "message": message]
     }
