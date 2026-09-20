@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorkspace, useWorkspaceSelector } from "../../shell/workspace-provider";
 import {
   reconcileSearchIndex,
@@ -19,6 +19,8 @@ export type WorkspaceSearch = {
   outcome: SearchOutcome | null;
   /** True while the backend is answering a query the field has already typed. */
   running: boolean;
+  /** Why the current query has no answer; its predecessor's hits are not shown in its place. */
+  failure: string | null;
   index: SearchIndexView | null;
   saved: SavedSearchView;
   isQuerySaved: boolean;
@@ -35,12 +37,12 @@ export function useWorkspaceSearch(): WorkspaceSearch {
   const [query, setQuery] = useState("");
   const [outcome, setOutcome] = useState<SearchOutcome | null>(null);
   const [running, setRunning] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const [index, setIndex] = useState<SearchIndexView | null>(null);
   const saved = useWorkspaceSelector(
     (state) => savedSearchView(state.settings),
     savedSearchViewsEqual,
   );
-  const mounted = useRef(true);
 
   const runner = useMemo(
     () =>
@@ -52,29 +54,30 @@ export function useWorkspaceSearch(): WorkspaceSearch {
   );
 
   useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
+    let cancelled = false;
     setRunning(true);
     runner
       .run(query)
       .then((next) => {
-        if (next === null || !mounted.current) {
+        if (cancelled || next === null) {
           return;
         }
         setOutcome(next);
+        setFailure(null);
         setRunning(false);
       })
       .catch((error: unknown) => {
         session.reportFailure(error);
-        if (mounted.current) {
-          setRunning(false);
+        if (cancelled) {
+          return;
         }
+        setOutcome(null);
+        setFailure(error instanceof Error ? error.message : String(error));
+        setRunning(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [query, runner, session]);
 
   useEffect(() => {
@@ -100,5 +103,5 @@ export function useWorkspaceSearch(): WorkspaceSearch {
     setSearchSaved(session, query, !isQuerySaved).catch(session.reportFailure);
   }, [isQuerySaved, query, session]);
 
-  return { query, setQuery, outcome, running, index, saved, isQuerySaved, toggleSaved };
+  return { query, setQuery, outcome, running, failure, index, saved, isQuerySaved, toggleSaved };
 }

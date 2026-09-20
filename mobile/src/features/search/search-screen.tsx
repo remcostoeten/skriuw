@@ -103,6 +103,7 @@ export function SearchScreen({ onOpenNote }: Props) {
         <Notice tone="destructive" text={search.saved.error} />
       )}
       {indexLine === null ? null : <Notice tone="muted" text={indexLine} />}
+      {search.failure === null ? null : <Notice tone="destructive" text={search.failure} />}
       {outcome?.problems.map((problem) => (
         <Notice key={problem} tone="destructive" text={problem} />
       ))}
@@ -113,6 +114,7 @@ export function SearchScreen({ onOpenNote }: Props) {
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           <EmptyState
+            failed={search.failure !== null}
             query={search.query}
             running={search.running}
             status={outcome?.status ?? "idle"}
@@ -147,15 +149,16 @@ function Notice({ tone, text }: NoticeProps) {
 }
 
 type EmptyStateProps = {
+  failed: boolean;
   query: string;
   running: boolean;
   status: SearchPlanStatus;
 };
 
-function EmptyState({ query, running, status }: EmptyStateProps) {
+function EmptyState({ failed, query, running, status }: EmptyStateProps) {
   const theme = useTheme();
 
-  if (status === "blocked") {
+  if (failed || status === "blocked") {
     return null;
   }
   const message =

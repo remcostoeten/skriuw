@@ -10,8 +10,6 @@ type Props = {
   onRemove: (query: string) => void;
 };
 
-const REMOVE_HIT_SLOP = { top: 12, bottom: 12, left: 8, right: 12 };
-
 /** The workspace's saved queries, in the order they were saved. */
 export function SavedSearchBar({ queries, activeQuery, onApply, onRemove }: Props) {
   const theme = useTheme();
@@ -57,8 +55,8 @@ export function SavedSearchBar({ queries, activeQuery, onApply, onRemove }: Prop
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Remove saved search ${query}`}
-              hitSlop={REMOVE_HIT_SLOP}
               onPress={() => onRemove(query)}
+              style={styles.remove}
             >
               <ShellIcon name="close" size={12} color={theme.color("sidebar-foreground", 0.6)} />
             </Pressable>
@@ -80,17 +78,23 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    height: 32,
-    maxWidth: 220,
-    paddingHorizontal: 12,
-    borderRadius: 16,
+    height: MINIMUM_TOUCH_TARGET,
+    maxWidth: 240,
+    paddingLeft: 14,
+    borderRadius: MINIMUM_TOUCH_TARGET / 2,
     borderWidth: StyleSheet.hairlineWidth,
   },
   chipLabel: {
     flexShrink: 1,
     justifyContent: "center",
-    minHeight: MINIMUM_TOUCH_TARGET - 12,
+    minWidth: MINIMUM_TOUCH_TARGET - 14,
+    height: MINIMUM_TOUCH_TARGET,
+  },
+  remove: {
+    width: MINIMUM_TOUCH_TARGET,
+    height: MINIMUM_TOUCH_TARGET,
+    alignItems: "center",
+    justifyContent: "center",
   },
   chipText: {
     fontSize: 13,
