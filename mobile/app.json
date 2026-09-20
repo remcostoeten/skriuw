@@ -25,6 +25,7 @@
     },
     "plugins": [
       "expo-router",
+      "./src/features/capture/share-extension/plugin",
       [
         "expo-splash-screen",
         {
