@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Product gate for the mobile client (docs/specs/mobile-app.md, R-Q3).
-# Deliberately separate from scripts/check.sh: it is extended by later Mobile
-# issues with facade tests, token and contract drift, and the Android emulator
-# end-to-end suite.
+# Deliberately separate from scripts/check.sh, which owns the desktop tree and
+# shared/renderer-core. This gate owns mobile/, the skriuw-core module, and
+# shared/theme's token generator, whose output only the mobile client consumes.
+# The Android emulator suite and the facade's Rust tests run in CI, not here.
 set -Eeuo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -25,7 +26,7 @@ else
   blue=""
 fi
 
-total_steps=3
+total_steps=4
 step_index=0
 
 fail() {
@@ -60,7 +61,27 @@ run_step() {
 command -v bun >/dev/null 2>&1 || fail "Missing required command: bun"
 [[ -d "$mobile_dir/node_modules" ]] || fail "Mobile dependencies are missing. Run bun install at the repository root."
 
+# The test script globs `**/__tests__/*.test.?ts`, so a suite written anywhere
+# else is collected by nothing and fails silently by never running. Sixteen of
+# these accumulated during the mobile epic before anyone noticed.
+check_test_discovery() {
+  local stray
+  stray="$(
+    find "$mobile_dir" \
+      \( -path '*/node_modules' -o -path '*/.expo' -o -path '*/android/build' \) -prune -o \
+      -type f \( -name '*.test.ts' -o -name '*.test.tsx' -o -name '*.test.cts' -o -name '*.test.mts' \) -print |
+      grep -v '/__tests__/' |
+      sed "s|^$repo_dir/||" |
+      sort
+  )"
+  if [[ -n "$stray" ]]; then
+    printf 'These suites are outside a __tests__ directory, so the gate never runs them:\n%s\n' "$stray" >&2
+    return 1
+  fi
+}
+
 run_step "Root lockfile freshness" bun install --frozen-lockfile --dry-run
+run_step "Test discovery" check_test_discovery
 run_step "Mobile type safety" bun --cwd="$mobile_dir" run typecheck
 run_step "Mobile unit tests" bun --cwd="$mobile_dir" run test
 

@@ -8,8 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit && tsc --noEmit --project __tests__",
-    "test": "tsx --test __tests__/*.test.ts"
+    "typecheck": "find . -name tsconfig.json -not -path './node_modules/*' -not -path './.expo/*' | sort | xargs -n1 tsc --noEmit --project",
+    "test": "tsx --test '**/__tests__/*.test.cts' '**/__tests__/*.test.ts' '../shared/theme/*.test.ts'"
   },
   "dependencies": {
     "expo": "~57.0.24",

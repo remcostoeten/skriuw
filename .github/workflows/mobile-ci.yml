@@ -71,13 +71,6 @@ jobs:
             - name: Mobile product gate
               run: ./scripts/check-mobile.sh
 
-            - name: Native module surface
-              working-directory: mobile
-              run: |
-                  bunx tsx --test modules/skriuw-core/__tests__/*.test.ts
-                  bunx tsc --noEmit --project modules/skriuw-core
-                  bunx tsc --noEmit --project modules/skriuw-core/__tests__
-
             - name: Facade host tests
               run: cargo test -p skriuw-mobile --locked
 
