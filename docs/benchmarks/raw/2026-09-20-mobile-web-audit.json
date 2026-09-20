@@ -1,0 +1,1409 @@
+{
+  "environment": {
+    "date": "2026-09-20T01:53:57.540Z",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "deviceScaleFactor": 3,
+    "exportDirectory": "/tmp/skriuw-mobile-web",
+    "platform": "linux",
+    "node": "v24.21.0"
+  },
+  "coldStartToInteractiveTreeMs": {
+    "runs": 10,
+    "p50": 81.4,
+    "p95": 207,
+    "max": 207,
+    "min": 74,
+    "raw": [
+      207,
+      85.5,
+      79.6,
+      79.2,
+      74,
+      95.5,
+      81.4,
+      77.7,
+      78.4,
+      89.9
+    ]
+  },
+  "minimumTouchTarget": 44,
+  "surfaces": {
+    "/": {
+      "controls": 9,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Native shell"
+        },
+        {
+          "level": 1,
+          "text": "Native shell"
+        }
+      ],
+      "consoleErrors": 0,
+      "unnamed": [],
+      "undersized": [],
+      "named": [
+        {
+          "name": "Account and settings",
+          "role": "button",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Journal",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "New note",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "Notes",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Open notes tree",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "People",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Tags",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Tasks",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Trash",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        }
+      ]
+    },
+    "/journal": {
+      "controls": 85,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Journal"
+        },
+        {
+          "level": 1,
+          "text": "Today"
+        },
+        {
+          "level": 1,
+          "text": "September 2026"
+        }
+      ],
+      "consoleErrors": 2,
+      "unnamed": [],
+      "undersized": [
+        {
+          "name": "Saturday, August 22, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Sunday, August 23, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Monday, August 24, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Tuesday, August 25, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Wednesday, August 26, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Thursday, August 27, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Friday, August 28, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Saturday, August 29, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Sunday, August 30, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Monday, August 31, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Tuesday, September 1, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Wednesday, September 2, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Thursday, September 3, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Friday, September 4, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Saturday, September 5, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Sunday, September 6, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Monday, September 7, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Tuesday, September 8, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Wednesday, September 9, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Thursday, September 10, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Friday, September 11, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Saturday, September 12, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Sunday, September 13, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Monday, September 14, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Tuesday, September 15, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Wednesday, September 16, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Thursday, September 17, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Friday, September 18, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Saturday, September 19, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Sunday, September 20, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        }
+      ],
+      "named": [
+        {
+          "name": "Account and settings",
+          "role": "button",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Capture to today",
+          "role": "button",
+          "width": 56,
+          "height": 56
+        },
+        {
+          "name": "Friday, August 28, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Friday, October 2, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Friday, September 11, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Friday, September 11, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Friday, September 18, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Friday, September 18, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Friday, September 25, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Friday, September 4, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Friday, September 4, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Good",
+          "role": "radio",
+          "width": 66.81,
+          "height": 44
+        },
+        {
+          "name": "Great",
+          "role": "radio",
+          "width": 66.8,
+          "height": 44
+        },
+        {
+          "name": "Journal",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Low",
+          "role": "radio",
+          "width": 66.8,
+          "height": 44
+        },
+        {
+          "name": "Monday, August 24, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Monday, August 31, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Monday, August 31, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Monday, September 14, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Monday, September 14, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Monday, September 21, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Monday, September 28, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Monday, September 7, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Monday, September 7, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Neutral",
+          "role": "radio",
+          "width": 66.8,
+          "height": 44
+        },
+        {
+          "name": "New note",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "Next day",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "Next month",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "Notes",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Open notes tree",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "People",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Previous day",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "Previous month",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "Rough",
+          "role": "radio",
+          "width": 66.8,
+          "height": 44
+        },
+        {
+          "name": "Saturday, August 22, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Saturday, August 29, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Saturday, October 3, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Saturday, September 12, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Saturday, September 12, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Saturday, September 19, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Saturday, September 19, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Saturday, September 26, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Saturday, September 5, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Saturday, September 5, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Sunday, August 23, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Sunday, August 30, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Sunday, October 4, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Sunday, September 13, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Sunday, September 13, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Sunday, September 20, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Sunday, September 20, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Sunday, September 20, 2026. Go to another date",
+          "role": "button",
+          "width": 270,
+          "height": 44
+        },
+        {
+          "name": "Sunday, September 27, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Sunday, September 6, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Sunday, September 6, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Tags",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Tasks",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Thursday, August 27, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Thursday, October 1, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Thursday, September 10, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Thursday, September 10, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Thursday, September 17, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Thursday, September 17, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Thursday, September 24, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Thursday, September 3, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Thursday, September 3, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Trash",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Tuesday, August 25, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Tuesday, September 1, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Tuesday, September 1, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Tuesday, September 15, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Tuesday, September 15, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Tuesday, September 22, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Tuesday, September 29, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Tuesday, September 8, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Tuesday, September 8, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Wednesday, August 26, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Wednesday, September 16, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Wednesday, September 16, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Wednesday, September 2, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Wednesday, September 2, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        },
+        {
+          "name": "Wednesday, September 23, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Wednesday, September 30, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Wednesday, September 9, 2026",
+          "role": "button",
+          "width": 51.14,
+          "height": 44
+        },
+        {
+          "name": "Wednesday, September 9, 2026, no mood",
+          "role": "button",
+          "width": 10,
+          "height": 56
+        }
+      ]
+    },
+    "/tasks": {
+      "controls": 9,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Tasks"
+        },
+        {
+          "level": 1,
+          "text": "Tasks"
+        }
+      ],
+      "consoleErrors": 0,
+      "unnamed": [],
+      "undersized": [],
+      "named": [
+        {
+          "name": "Account and settings",
+          "role": "button",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Journal",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "New note",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "Notes",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Open notes tree",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "People",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Tags",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Tasks",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Trash",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        }
+      ]
+    },
+    "/tags": {
+      "controls": 9,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Tags"
+        },
+        {
+          "level": 1,
+          "text": "Tags"
+        }
+      ],
+      "consoleErrors": 0,
+      "unnamed": [],
+      "undersized": [],
+      "named": [
+        {
+          "name": "Account and settings",
+          "role": "button",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Journal",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "New note",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "Notes",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Open notes tree",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "People",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Tags",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Tasks",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Trash",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        }
+      ]
+    },
+    "/people": {
+      "controls": 9,
+      "headings": [
+        {
+          "level": 1,
+          "text": "People"
+        },
+        {
+          "level": 1,
+          "text": "People"
+        }
+      ],
+      "consoleErrors": 0,
+      "unnamed": [],
+      "undersized": [],
+      "named": [
+        {
+          "name": "Account and settings",
+          "role": "button",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Journal",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "New note",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "Notes",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Open notes tree",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "People",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Tags",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Tasks",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Trash",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        }
+      ]
+    },
+    "/trash": {
+      "controls": 9,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Trash"
+        },
+        {
+          "level": 1,
+          "text": "Trash"
+        }
+      ],
+      "consoleErrors": 0,
+      "unnamed": [],
+      "undersized": [],
+      "named": [
+        {
+          "name": "Account and settings",
+          "role": "button",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Journal",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "New note",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "Notes",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Open notes tree",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "People",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Tags",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Tasks",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Trash",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        }
+      ]
+    },
+    "notes tree sheet": {
+      "controls": 22,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Native shell"
+        },
+        {
+          "level": 1,
+          "text": "Native shell"
+        }
+      ],
+      "consoleErrors": 0,
+      "unnamed": [],
+      "undersized": [
+        {
+          "name": "Open Native shell",
+          "role": "button",
+          "width": 101.03,
+          "height": 28
+        }
+      ],
+      "named": [
+        {
+          "name": "Account and settings",
+          "role": "button",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Close notes",
+          "role": "button",
+          "width": 390,
+          "height": 844
+        },
+        {
+          "name": "Close notes",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "Drafts, folder, 1 item, level 1, 2 of 3",
+          "role": "button",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "Edge swipe, note, level 2, 3 of 3",
+          "role": "link",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "Field notes, folder, 3 items, level 1, 1 of 3",
+          "role": "button",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "Inbox, note, level 1, 3 of 3",
+          "role": "link",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "Journal",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Native shell, note, pinned, level 2, 2 of 3",
+          "role": "link",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "New folder",
+          "role": "button",
+          "width": 167.2,
+          "height": 44
+        },
+        {
+          "name": "New note",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "New note",
+          "role": "button",
+          "width": 167.19,
+          "height": 44
+        },
+        {
+          "name": "Notes",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Open Native shell",
+          "role": "button",
+          "width": 101.03,
+          "height": 28
+        },
+        {
+          "name": "Open notes tree",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "People",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Reading, folder, 1 item, level 2, 1 of 3",
+          "role": "button",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "Release checklist, note, level 2, 1 of 1",
+          "role": "link",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "Tags",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Tasks",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Trash",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "UniFFI facade, note, level 3, 1 of 1",
+          "role": "link",
+          "width": 334.39,
+          "height": 44
+        }
+      ]
+    },
+    "account panel": {
+      "controls": 21,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Native shell"
+        },
+        {
+          "level": 1,
+          "text": "Native shell"
+        }
+      ],
+      "consoleErrors": 0,
+      "unnamed": [],
+      "undersized": [],
+      "named": [
+        {
+          "name": "Account and settings",
+          "role": "button",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Catppuccin Latte",
+          "role": "radio",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "Close account",
+          "role": "button",
+          "width": 390,
+          "height": 844
+        },
+        {
+          "name": "Close account",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "Embers",
+          "role": "radio",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "Gruvbox",
+          "role": "radio",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "Journal",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Midnight",
+          "role": "radio",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "Mocha",
+          "role": "radio",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "New note",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "Notes",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Open notes tree",
+          "role": "button",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "Paper",
+          "role": "radio",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "People",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Rose Pine",
+          "role": "radio",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "Rose Pine Dawn",
+          "role": "radio",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "System",
+          "role": "radio",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "Tags",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        },
+        {
+          "name": "Tasks",
+          "role": "tab",
+          "width": 55.7,
+          "height": 56
+        },
+        {
+          "name": "Tokyo Night",
+          "role": "radio",
+          "width": 334.39,
+          "height": 44
+        },
+        {
+          "name": "Trash",
+          "role": "tab",
+          "width": 55.72,
+          "height": 56
+        }
+      ]
+    }
+  }
+}

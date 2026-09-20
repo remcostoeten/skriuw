@@ -118,6 +118,19 @@ AUR publication is currently paused upstream, so that package can lag behind
 the latest release. Winget and Snap are wired into release automation but
 have no current publication; use a release asset or one of the channels above.
 
+### iPhone and Android
+
+**Not published yet.** A native client exists in [`mobile/`](mobile) — the same
+Rust core, the same editor, the same workspace — with notes, journal, tasks,
+locked notes and end-to-end encrypted sync, but it has never been submitted to
+either store and iOS has never been launched on a device. What is built, what
+is measured, and what is still blocking a first TestFlight and Play
+internal-track build are in
+[`packaging/mobile`](packaging/mobile/README.md).
+
+Until then, [skriuw.com/app](https://skriuw.com/app) installs to a home screen
+from the browser and works offline.
+
 ## Privacy
 
 **Nothing syncs unless you sign in.** Sync is off until you create an account
