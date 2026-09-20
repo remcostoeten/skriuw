@@ -1,50 +1,20 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { createMemoryBridge } from "../../../../../shared/renderer-core/src/bridge/memory-adapter";
-import type { BridgePort } from "../../../../../shared/renderer-core/src/bridge/port";
-import { createInitialState, createRendererStore } from "../../../../../shared/renderer-core/src/store/store";
-import type { RendererStore } from "../../../../../shared/renderer-core/src/store/types";
-import { WorkspaceProvider } from "../../../shell/workspace-provider";
-import { BENCHMARK_QUERIES, measureQueryLatency } from "../benchmark";
-import { FIXTURE_NOTE_COUNT, thousandNoteSnapshot } from "../fixture";
-import { SearchScreen } from "../search-screen";
+import { BENCHMARK_QUERIES, measureQueryLatency } from "@/features/search/benchmark";
+import { FIXTURE_NOTE_COUNT } from "@/features/search/fixture";
+import { fixtureHarness } from "@/features/search/fixture-harness";
+import { SearchScreen } from "@/features/search/search-screen";
+import { WorkspaceProvider } from "@/shell/workspace-provider";
 
 const MARKER = "SKRIUW_SEARCH_PROBE";
 const ROUNDS = 5;
 
-type Harness = {
-  bridge: BridgePort;
-  store: RendererStore;
-};
-
-let harness: Harness | null = null;
-
-/**
- * Built once, outside render: a thousand-note snapshot is the thing being
- * measured, so hydrating it must not land in a timed frame.
- */
-function fixtureHarness(): Harness {
-  if (harness === null) {
-    const snapshot = thousandNoteSnapshot();
-    harness = {
-      bridge: createMemoryBridge({ snapshot }),
-      store: createRendererStore(
-        createInitialState(snapshot, undefined, {
-          tags: snapshot.tags,
-          people: snapshot.people,
-          references: snapshot.references,
-        }),
-      ),
-    };
-  }
-  return harness;
-}
-
 /**
  * The search surface over the 1,000-note fixture, timed on a device.
  * `e2e/run-android.sh` copies this into `mobile/app` for the length of a run
- * and reads the marker line back out of logcat.
+ * and reads the marker line back out of logcat, so every import here goes
+ * through the `@/` alias and resolves from either directory.
  *
  * It measures the plan, the command round trip and the filter intersection
  * against the in-memory adapter: the native core still refuses
@@ -53,10 +23,8 @@ function fixtureHarness(): Harness {
  * ranking.
  */
 export default function SearchProbe() {
-  const { bridge } = fixtureHarness();
-
   return (
-    <WorkspaceProvider bridge={bridge}>
+    <WorkspaceProvider bridge={fixtureHarness().bridge}>
       <ProbeBody />
     </WorkspaceProvider>
   );
