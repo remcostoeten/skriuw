@@ -1,10 +1,5 @@
-import { RoutePlaceholder } from "@/shell/route-views";
+import { JournalView } from "@/features/journal/journal-view";
 
 export default function JournalRoute() {
-  return (
-    <RoutePlaceholder
-      route="journal"
-      detail="Daily entries, mood and quick capture arrive with the journal surface."
-    />
-  );
+  return <JournalView />;
 }
