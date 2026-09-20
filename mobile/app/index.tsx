@@ -1,5 +1,5 @@
-import { PlaceholderScreen } from "@/shell/placeholder-screen";
+import { NotesColumn } from "@/shell/route-views";
 
-export default function IndexRoute() {
-  return <PlaceholderScreen />;
+export default function NotesRoute() {
+  return <NotesColumn />;
 }
