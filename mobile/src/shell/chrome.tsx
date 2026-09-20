@@ -13,7 +13,7 @@ import { BackHandler, Platform } from "react-native";
 import { createOverlayStack } from "./overlay-stack";
 import { createToastHub, type ShellToast, type ToastRequest } from "./toast-hub";
 
-export type SheetName = "tree" | "account";
+export type SheetName = "tree" | "account" | "search";
 
 export type ShellChrome = {
   sheet: SheetName | null;

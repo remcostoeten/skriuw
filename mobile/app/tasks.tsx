@@ -1,10 +1,5 @@
-import { RoutePlaceholder } from "@/shell/route-views";
+import { TasksView } from "@/features/tasks/tasks-view";
 
 export default function TasksRoute() {
-  return (
-    <RoutePlaceholder
-      route="tasks"
-      detail="The tasks view with explicit promotion arrives with the tasks surface."
-    />
-  );
+  return <TasksView />;
 }
