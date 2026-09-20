@@ -3,12 +3,10 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
   type ReactNode,
 } from "react";
 import type { BridgePort } from "../../../shared/renderer-core/src/bridge/port";
-import { createMemoryBridge } from "../../../shared/renderer-core/src/bridge/memory-adapter";
 import type { Equality, Selector } from "../../../shared/renderer-core/src/store/types";
 import { useRendererSelector } from "../../../shared/renderer-core/src/store/use-renderer-selector";
 import {
@@ -16,7 +14,7 @@ import {
   describeStartupFailure,
   type StartupFailureView,
 } from "../bridge/startup-failure";
-import { demoSnapshot } from "./demo-workspace";
+import { loadWorkspaceBridge } from "../bridge/workspace-bridge";
 import { StartupScreen } from "./startup-screen";
 import { openWorkspaceSession, type ShellSession } from "./workspace-session";
 
@@ -25,9 +23,9 @@ const WorkspaceContext = createContext<ShellSession | null>(null);
 type Props = {
   children: ReactNode;
   /**
-   * The command surface the shell runs against. Defaults to the in-memory
-   * adapter; the native bridge is handed in once the module ships a binary
-   * (`docs/specs/mobile-app.md`, work breakdown).
+   * The command surface the shell runs against. Defaults to the platform's own
+   * bridge — the native core on a device, the in-memory preview on web. Tests
+   * and the search probe route hand in their own.
    */
   bridge?: BridgePort;
 };
@@ -36,7 +34,6 @@ export function WorkspaceProvider({ bridge, children }: Props) {
   const [attempt, setAttempt] = useState(0);
   const [session, setSession] = useState<ShellSession | null>(null);
   const [failure, setFailure] = useState<StartupFailureView | null>(null);
-  const port = useMemo(() => bridge ?? createMemoryBridge({ snapshot: demoSnapshot() }), [bridge]);
   const retry = useCallback(() => {
     setFailure(null);
     setAttempt((current) => current + 1);
@@ -45,7 +42,13 @@ export function WorkspaceProvider({ bridge, children }: Props) {
   useEffect(() => {
     let cancelled = false;
     let opened: ShellSession | null = null;
-    openWorkspaceSession(port, reportWorkspaceFailure)
+
+    async function open(): Promise<ShellSession> {
+      const port = bridge ?? (await loadWorkspaceBridge());
+      return openWorkspaceSession(port, reportWorkspaceFailure);
+    }
+
+    open()
       .then((next) => {
         opened = next;
         if (cancelled) {
@@ -69,7 +72,7 @@ export function WorkspaceProvider({ bridge, children }: Props) {
       cancelled = true;
       void opened?.close();
     };
-  }, [attempt, port, retry]);
+  }, [attempt, bridge, retry]);
 
   if (failure !== null) {
     return <StartupScreen view={failure} />;
