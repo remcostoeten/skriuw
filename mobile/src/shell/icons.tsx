@@ -80,6 +80,11 @@ function glyph(name: ShellIconName, size: number, color: string): Part[] {
         { left: 7.5 * unit, top: 5.5 * unit, width: 5 * unit, height: 5 * unit, borderRadius: 3 * unit, backgroundColor: color },
         { left: 4.5 * unit, top: 13 * unit, width: 11 * unit, height: 6 * unit, borderRadius: 5.5 * unit, backgroundColor: color },
       ];
+    case "search":
+      return [
+        { ...outline, left: 2.5 * unit, top: 2.5 * unit, width: 11 * unit, height: 11 * unit, borderRadius: 5.5 * unit },
+        { left: 11.5 * unit, top: 13.5 * unit, width: 6 * unit, height: stroke, backgroundColor: color, transform: [{ rotate: "45deg" }] },
+      ];
     case "menu":
       return [
         { left: 3 * unit, top: 5 * unit, width: 14 * unit, height: stroke, backgroundColor: color },

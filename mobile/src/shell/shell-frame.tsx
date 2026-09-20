@@ -1,7 +1,8 @@
-import { usePathname } from "expo-router";
+import { router, usePathname, type Href } from "expo-router";
 import { useCallback, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SearchScreen } from "../features/search/search-screen";
 import { AccountPanel } from "./account-panel";
 import { useChrome } from "./chrome";
 import { destinationForRoute, routeForPath } from "./destinations";
@@ -44,6 +45,17 @@ export function ShellFrame({ children }: Props) {
   const noteTitle = useWorkspaceSelector(activeNoteTitle);
   const destination = destinationForRoute(route);
   const openTree = useCallback(() => chrome.openSheet("tree"), [chrome]);
+  const openSearch = useCallback(() => chrome.openSheet("search"), [chrome]);
+
+  /**
+   * Activating a note from a sheet only changes which note is active, so a
+   * reader who opens one from Tasks or Journal would stay on a destination
+   * that does not render it. The notes column is where the note is.
+   */
+  const openNote = useCallback(() => {
+    chrome.closeSheet();
+    router.replace(destinationForRoute("notes").path as Href);
+  }, [chrome]);
 
   return (
     <View style={[styles.root, { backgroundColor: theme.color("sidebar-background") }]}>
@@ -51,6 +63,7 @@ export function ShellFrame({ children }: Props) {
       <Toolbar
         title={route === "notes" ? (noteTitle ?? destination.label) : destination.label}
         onOpenTree={openTree}
+        onOpenSearch={openSearch}
         onCreateNote={() => {
           createNote(session, null).catch(session.reportFailure);
         }}
@@ -79,7 +92,15 @@ export function ShellFrame({ children }: Props) {
         title="Notes"
         onClose={chrome.closeSheet}
       >
-        <TreeView onOpenNote={chrome.closeSheet} />
+        <TreeView onOpenNote={openNote} />
+      </SideSheet>
+      <SideSheet
+        side="right"
+        open={chrome.sheet === "search"}
+        title="Search"
+        onClose={chrome.closeSheet}
+      >
+        <SearchScreen onOpenNote={openNote} />
       </SideSheet>
       <SideSheet
         side="right"

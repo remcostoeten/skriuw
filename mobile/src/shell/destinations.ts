@@ -8,6 +8,7 @@ export type ShellIconName =
   | "people"
   | "trash"
   | "account"
+  | "search"
   | "menu"
   | "close"
   | "plus"

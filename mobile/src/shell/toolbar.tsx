@@ -6,11 +6,17 @@ import { useTheme } from "./theme";
 type Props = {
   title: string;
   onOpenTree: () => void;
+  onOpenSearch: () => void;
   onCreateNote: () => void;
 };
 
-/** The 44 pt chrome above the content column: the tree on the left, create on the right. */
-export function Toolbar({ title, onOpenTree, onCreateNote }: Props) {
+/**
+ * The 44 pt chrome above the content column: the tree on the left, search and
+ * create on the right. Search is chrome rather than a destination because it
+ * is not an `AppRoute` — the desktop reaches it the same way, from wherever
+ * the reader already is.
+ */
+export function Toolbar({ title, onOpenTree, onOpenSearch, onCreateNote }: Props) {
   const theme = useTheme();
 
   return (
@@ -38,6 +44,14 @@ export function Toolbar({ title, onOpenTree, onCreateNote }: Props) {
       >
         {title}
       </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Search notes"
+        onPress={onOpenSearch}
+        style={styles.control}
+      >
+        <ShellIcon name="search" color={theme.color("sidebar-foreground", 0.75)} />
+      </Pressable>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="New note"
