@@ -129,5 +129,4 @@ export function stateOf(options: Options): RendererState {
   return storeOf(snapshotOf(options)).getState();
 }
 
-/** Tags and people are addressed by their generated id, so tests can name them. */
 export { entityId };

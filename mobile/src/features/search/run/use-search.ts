@@ -1,25 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useWorkspace, useWorkspaceSelector } from "../../shell/workspace-provider";
+import { useWorkspace, useWorkspaceSelector } from "../../../shell/workspace-provider";
 import {
   reconcileSearchIndex,
   type SearchIndexView,
-} from "./index-status";
+} from "../index-status";
 import {
   savedSearchView,
   savedSearchViewsEqual,
   setSearchSaved,
   type SavedSearchView,
-} from "./saved-searches";
+} from "../saved/saved-searches";
 import { createSearchRunner, type SearchOutcome } from "./search-runner";
 
 export type WorkspaceSearch = {
   query: string;
   setQuery: (query: string) => void;
-  /** The answer to the query last resolved; `null` until the first one lands. */
   outcome: SearchOutcome | null;
-  /** True while the backend is answering a query the field has already typed. */
   running: boolean;
-  /** Why the current query has no answer; its predecessor's hits are not shown in its place. */
   failure: string | null;
   index: SearchIndexView | null;
   saved: SavedSearchView;
@@ -27,11 +24,6 @@ export type WorkspaceSearch = {
   toggleSaved: () => void;
 };
 
-/**
- * Drives the search surface: operators resolve against the hydrated store,
- * the free text is ranked by the backend command, and a response for a query
- * the field has moved past is dropped rather than shown.
- */
 export function useWorkspaceSearch(): WorkspaceSearch {
   const session = useWorkspace();
   const [query, setQuery] = useState("");

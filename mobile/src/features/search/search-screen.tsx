@@ -6,14 +6,13 @@ import { useTheme } from "../../shell/theme";
 import { activateNote } from "../../shell/tree-actions";
 import { useWorkspace } from "../../shell/workspace-provider";
 import { describeSearchIndex } from "./index-status";
-import { SavedSearchBar } from "./saved-search-bar";
-import { SearchResultRow } from "./search-result-row";
-import type { SearchPlanStatus } from "./search-plan";
-import { setSearchSaved } from "./saved-searches";
-import { useWorkspaceSearch } from "./use-search";
+import { SavedSearchBar } from "./saved/saved-search-bar";
+import { SearchResultRow } from "./results/search-result-row";
+import type { SearchPlanStatus } from "./query/search-plan";
+import { setSearchSaved } from "./saved/saved-searches";
+import { useWorkspaceSearch } from "./run/use-search";
 
 type Props = {
-  /** Called after a hit is opened, so the surface that hosts search can step aside. */
   onOpenNote?: () => void;
 };
 
@@ -21,12 +20,6 @@ function hitKey(hit: SearchHit): string {
   return hit.noteId;
 }
 
-/**
- * The search destination: one field, the workspace's saved queries, the state
- * of the full-text index, and the backend's ranked hits. Opening a hit is a
- * store update in the press handler, so the note is active in the same frame
- * (`docs/performance-contract.md`, R-P1).
- */
 export function SearchScreen({ onOpenNote }: Props) {
   const theme = useTheme();
   const session = useWorkspace();

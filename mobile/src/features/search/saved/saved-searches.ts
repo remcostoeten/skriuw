@@ -1,17 +1,10 @@
-import type { WorkspaceSettings } from "../../../../shared/renderer-core/src/contracts/workspace";
-import { commitOperations, type WorkspaceSession } from "../../bridge/commit";
+import type { WorkspaceSettings } from "../../../../../shared/renderer-core/src/contracts/workspace";
+import { commitOperations, type WorkspaceSession } from "../../../bridge/commit";
 
-/** Saved queries a workspace may hold before the list stops being navigable. */
 export const SAVED_SEARCH_LIMIT = 100;
 
-/** Longest query that can be saved, matching the desktop bound. */
 export const SAVED_SEARCH_MAX_LENGTH = 512;
 
-/**
- * Reads the bounded, portable saved-query preference. The same
- * `settings.savedSearches` key the desktop sidebar writes, validated the same
- * way, so a workspace synced from either interface reads back on the other.
- */
 export function savedSearches(settings: WorkspaceSettings): readonly string[] {
   const value = settings.savedSearches;
   if (value === undefined) {
@@ -34,15 +27,9 @@ export function savedSearches(settings: WorkspaceSettings): readonly string[] {
 
 export type SavedSearchView = {
   queries: readonly string[];
-  /** Why the stored list could not be read, for the surface to show in place of it. */
   error: string | null;
 };
 
-/**
- * The saved list as a surface can render it. An unreadable preference is
- * reported rather than thrown, so one corrupt settings row costs the search
- * screen its chips instead of costing the application its next frame.
- */
 export function savedSearchView(settings: WorkspaceSettings): SavedSearchView {
   try {
     return { queries: savedSearches(settings), error: null };
@@ -59,7 +46,6 @@ export function savedSearchViewsEqual(left: SavedSearchView, right: SavedSearchV
   );
 }
 
-/** Adds or removes a query while preserving the other workspace preferences. */
 export async function setSearchSaved(
   session: WorkspaceSession,
   query: string,

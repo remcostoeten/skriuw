@@ -1,12 +1,6 @@
-/**
- * Copy of `app/src/features/search/filter-resolution.ts`. The desktop search
- * grammar was never extracted to `shared/renderer-core`, and Mobile 11 owns
- * `mobile/src/features/search` only, so mobile carries its own copy until the
- * extraction lands. `__tests__/desktop-parity.test.cts` fails the moment the
- * two resolve a name differently.
- */
+/* Copy of app/src/features/search/filter-resolution.ts, held identical by __tests__/desktop-parity.test.cts. */
 
-import type { RendererState } from "../../../../shared/renderer-core/src/store/types";
+import type { RendererState } from "../../../../../shared/renderer-core/src/store/types";
 import { normalizeEntityName, type SearchFilter, type SearchFilterKind } from "./query-parser";
 
 export type SearchFilterCandidate = {
@@ -16,10 +10,8 @@ export type SearchFilterCandidate = {
 
 export type ResolvedSearchFilter = {
   kind: SearchFilterKind;
-  /** Name as typed. */
   name: string;
   targetId: string;
-  /** Stored name of the resolved entity, which may differ in case. */
   label: string;
 };
 
@@ -27,7 +19,6 @@ export type SearchFilterProblem = {
   kind: SearchFilterKind;
   name: string;
   reason: "unknown" | "ambiguous";
-  /** Populated for `ambiguous`; every entity sharing the folded name. */
   candidates: readonly SearchFilterCandidate[];
 };
 
@@ -38,10 +29,7 @@ export type SearchFilterResolution = {
 
 type NameIndex = ReadonlyMap<string, readonly SearchFilterCandidate[]>;
 
-/**
- * Keyed on the identity of `state.tags` / `state.people`. Every rename, merge,
- * create and delete rebuilds those maps, so a stale index is unreachable.
- */
+/* Keyed on the identity of state.tags / state.people: every mutation rebuilds those maps, so a stale index is unreachable. */
 const indexCache = new WeakMap<object, NameIndex>();
 
 function nameIndex(source: ReadonlyMap<string, { name: string }>): NameIndex {
@@ -66,10 +54,6 @@ function nameIndex(source: ReadonlyMap<string, { name: string }>): NameIndex {
   return index;
 }
 
-/**
- * One-line explanation of why a filter could not be applied. Shared by every
- * search surface so an unknown or ambiguous name reads the same everywhere.
- */
 export function describeSearchFilterProblem(problem: SearchFilterProblem): string {
   const noun = problem.kind === "tag" ? "tag" : "person";
   if (problem.reason === "unknown") {
@@ -79,12 +63,6 @@ export function describeSearchFilterProblem(problem: SearchFilterProblem): strin
   return `“${problem.name}” matches ${problem.candidates.length} ${noun}s (${labels}). Rename one to search by name.`;
 }
 
-/**
- * Maps parsed filter names onto hydrated entity ids. A name matched by more
- * than one entity is reported as ambiguous with every candidate attached; the
- * resolver never picks one, because either choice would silently change what
- * the query means.
- */
 export function resolveSearchFilters(
   state: RendererState,
   filters: readonly SearchFilter[],

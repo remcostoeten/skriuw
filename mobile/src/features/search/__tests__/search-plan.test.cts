@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { describeSearchFilterProblem } from "../filter-resolution";
-import { parseSearchQuery } from "../query-parser";
-import { applySearchPlan, MIN_FULL_TEXT_LENGTH, planWorkspaceSearch } from "../search-plan";
+import { describeSearchFilterProblem } from "../query/filter-resolution";
+import { parseSearchQuery } from "../query/query-parser";
+import { applySearchPlan, MIN_FULL_TEXT_LENGTH, planWorkspaceSearch } from "../query/search-plan";
 import { stateOf, type NoteSeed } from "./workspace.cjs";
 
 const NOTES: readonly NoteSeed[] = [

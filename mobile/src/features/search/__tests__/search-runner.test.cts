@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SearchHit } from "../../../../../shared/renderer-core/src/contracts/workspace";
 import { activateNote } from "../../../shell/tree-actions";
-import { createSearchRunner, percentile, SEARCH_RESULT_LIMIT } from "../search-runner";
+import { createSearchRunner, percentile, SEARCH_RESULT_LIMIT } from "../run/search-runner";
 import { snapshotOf, stateOf, storeOf, type NoteSeed } from "./workspace.cjs";
 
 const NOTES: readonly NoteSeed[] = [

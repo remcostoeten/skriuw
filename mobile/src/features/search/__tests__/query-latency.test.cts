@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createMemoryBridge } from "../../../../../shared/renderer-core/src/bridge/memory-adapter";
 import { createInitialState, createRendererStore } from "../../../../../shared/renderer-core/src/store/store";
-import { FIXTURE_NOTE_COUNT, thousandNoteSnapshot } from "../fixture";
-import { BENCHMARK_QUERIES, QUERY_LATENCY_CEILING_MS, measureQueryLatency } from "../benchmark";
+import { FIXTURE_NOTE_COUNT, thousandNoteSnapshot } from "../benchmark/fixture";
+import { BENCHMARK_QUERIES, QUERY_LATENCY_CEILING_MS, measureQueryLatency } from "../benchmark/benchmark";
 
 test("the fixture is the workspace the benchmark claims to measure", () => {
   const snapshot = thousandNoteSnapshot();

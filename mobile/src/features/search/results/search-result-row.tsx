@@ -1,8 +1,8 @@
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import type { SearchHit } from "../../../../shared/renderer-core/src/contracts/workspace";
-import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
-import { useTheme } from "../../shell/theme";
+import type { SearchHit } from "../../../../../shared/renderer-core/src/contracts/workspace";
+import { MINIMUM_TOUCH_TARGET } from "../../../shell/metrics";
+import { useTheme } from "../../../shell/theme";
 import { snippetPlainText, snippetSegments } from "./snippet";
 
 type Props = {
@@ -10,11 +10,6 @@ type Props = {
   onOpen: (noteId: string) => void;
 };
 
-/**
- * One ranked hit. The snippet keeps the runs storage marked as matching, so
- * what stands out is what the query actually hit rather than a second guess
- * at it on the client.
- */
 function SearchResultRowView({ hit, onOpen }: Props) {
   const theme = useTheme();
   const segments = snippetSegments(hit.snippet);

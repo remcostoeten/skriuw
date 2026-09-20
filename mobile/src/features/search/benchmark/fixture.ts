@@ -4,14 +4,13 @@ import {
   type WorkspaceNode,
   type WorkspaceSettings,
   type WorkspaceSnapshot,
-} from "../../../../shared/renderer-core/src/contracts/workspace";
+} from "../../../../../shared/renderer-core/src/contracts/workspace";
 import type {
   PersonRecord,
   StructuredReference,
   TagRecord,
-} from "../../../../shared/renderer-core/src/references/types";
+} from "../../../../../shared/renderer-core/src/references/types";
 
-/** Notes the benchmark and the emulator end-to-end run measure against. */
 export const FIXTURE_NOTE_COUNT = 1_000;
 
 const FIXTURE_FOLDER_COUNT = 50;
@@ -88,7 +87,6 @@ const OBJECTS: readonly string[] = [
   "what the emulator reports under load",
 ];
 
-/** Deterministic so two runs of the benchmark measure the same workspace. */
 function nextSeed(seed: number): number {
   return (seed * 1_664_525 + 1_013_904_223) >>> 0;
 }
@@ -166,12 +164,6 @@ function document(index: number, title: string, text: string): WorkspaceDocument
   };
 }
 
-/**
- * A workspace of {@link FIXTURE_NOTE_COUNT} notes across folders, tags and
- * people, with the reference projection populated so an operator query has a
- * real candidate set to narrow. Every value derives from the note's index, so
- * the same query costs the same work on every run and on every machine.
- */
 export function thousandNoteSnapshot(): WorkspaceSnapshot {
   const nodes: WorkspaceNode[] = [];
   const documents: WorkspaceDocument[] = [];

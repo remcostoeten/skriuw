@@ -1,41 +1,19 @@
-/**
- * Search query grammar shared by every workspace search surface.
- *
- * Copy of `app/src/features/search/query-parser.ts`, byte for byte below this
- * note. See `filter-resolution.ts` for why mobile carries a copy;
- * `__tests__/desktop-parity.test.cts` compares both parsers over a corpus so
- * an operator cannot start meaning something else on one interface.
- *
- * A query is a whitespace-separated list of tokens. A token is an entity
- * filter when it starts with a sigil (`#` for tags, `$` for people) or a
- * keyword prefix (`tag:`, `person:`, case-insensitive); every other token is
- * free text. Names may be quoted (`#"design system"`) and any character can be
- * escaped with a backslash, so `\#literal` searches for the text `#literal`.
- *
- * The parser is pure and total: it never throws and every input maps to one
- * deterministic result. Tokens that name nothing yet (a lone `#`, a dangling
- * `tag:`, an unterminated quote) are reported as `incomplete` rather than
- * guessed at, so a surface can keep typing fluid without inventing a filter.
- */
+/* Copy of app/src/features/search/query-parser.ts, held identical by __tests__/desktop-parity.test.cts. */
 
 export type SearchFilterKind = "tag" | "person";
 
 export type SearchFilter = {
   kind: SearchFilterKind;
-  /** Name as typed, with quotes and escapes removed and whitespace collapsed. */
   name: string;
-  /** Case- and Unicode-folded form used for resolution and de-duplication. */
   key: string;
 };
 
 export type IncompleteSearchFilter = {
   kind: SearchFilterKind;
-  /** The raw token, so a surface can echo exactly what the user typed. */
   raw: string;
 };
 
 export type ParsedSearchQuery = {
-  /** Free-text terms joined by a single space; empty for a filter-only query. */
   text: string;
   terms: readonly string[];
   filters: readonly SearchFilter[];
@@ -54,11 +32,6 @@ const KEYWORD_PREFIXES: readonly { prefix: string; kind: SearchFilterKind }[] = 
 
 const WHITESPACE = /\s/;
 
-/**
- * Folds a tag or person name to the key used for lookup and de-duplication.
- * NFC keeps decomposed and precomposed accents equal; `toLowerCase` (not the
- * locale-aware variant) keeps the fold identical on every machine.
- */
 export function normalizeEntityName(value: string): string {
   return value.normalize("NFC").trim().replace(/\s+/g, " ").toLowerCase();
 }

@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { ShellIcon } from "../../shell/icons";
-import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
-import { useTheme } from "../../shell/theme";
+import { ShellIcon } from "../../../shell/icons";
+import { MINIMUM_TOUCH_TARGET } from "../../../shell/metrics";
+import { useTheme } from "../../../shell/theme";
 
 type Props = {
   queries: readonly string[];
@@ -10,7 +10,6 @@ type Props = {
   onRemove: (query: string) => void;
 };
 
-/** The workspace's saved queries, in the order they were saved. */
 export function SavedSearchBar({ queries, activeQuery, onApply, onRemove }: Props) {
   const theme = useTheme();
 

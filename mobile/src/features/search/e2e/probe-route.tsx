@@ -1,27 +1,15 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { BENCHMARK_QUERIES, measureQueryLatency } from "@/features/search/benchmark";
-import { FIXTURE_NOTE_COUNT } from "@/features/search/fixture";
-import { fixtureHarness } from "@/features/search/fixture-harness";
+import { BENCHMARK_QUERIES, measureQueryLatency } from "@/features/search/benchmark/benchmark";
+import { FIXTURE_NOTE_COUNT } from "@/features/search/benchmark/fixture";
+import { fixtureHarness } from "@/features/search/benchmark/fixture-harness";
 import { SearchScreen } from "@/features/search/search-screen";
 import { WorkspaceProvider } from "@/shell/workspace-provider";
 
 const MARKER = "SKRIUW_SEARCH_PROBE";
 const ROUNDS = 5;
 
-/**
- * The search surface over the 1,000-note fixture, timed on a device.
- * `e2e/run-android.sh` copies this into `mobile/app` for the length of a run
- * and reads the marker line back out of logcat, so every import here goes
- * through the `@/` alias and resolves from either directory.
- *
- * It measures the plan, the command round trip and the filter intersection
- * against the in-memory adapter: the native core still refuses
- * `searchWorkspace` (`mobile/src/bridge/native-adapter.ts`), so this is the
- * floor for query-to-results on the device, not the cost of SQLite's own
- * ranking.
- */
 export default function SearchProbe() {
   return (
     <WorkspaceProvider bridge={fixtureHarness().bridge}>

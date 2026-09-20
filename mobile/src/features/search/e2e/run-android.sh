@@ -1,20 +1,7 @@
 #!/usr/bin/env bash
-# Proves the search surface on a running Android emulator or device: mount it
-# over the 1,000-note fixture, run the benchmark queries, and read the
-# query-to-results percentiles back out of logcat.
-#
-# The probe screen is copied into mobile/app only for the duration of the run,
-# because a route has to live there to be reachable; it is removed on exit.
-# This mirrors mobile/modules/skriuw-core/scripts/e2e-android.sh, which owns
-# the same contract for the native module.
-#
-# What it measures: plan, command round trip and filter intersection against
-# the in-memory adapter. The native core still refuses searchWorkspace, so the
-# number is the floor for query-to-results on the device, not the cost of
-# SQLite's own ranking.
-#
-# Requirements: a booted emulator or device visible to adb, plus everything
-# mobile/modules/skriuw-core/scripts/build-android.sh needs.
+# Runs the search probe over the 1,000-note fixture on a booted emulator or
+# device and gates query-to-results p95 from logcat. Measures the in-memory
+# adapter, so the number is a floor until the native core carries search.
 set -Eeuo pipefail
 
 feature_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

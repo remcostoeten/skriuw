@@ -1,10 +1,10 @@
-import { createMemoryBridge } from "../../../../shared/renderer-core/src/bridge/memory-adapter";
-import type { BridgePort } from "../../../../shared/renderer-core/src/bridge/port";
+import { createMemoryBridge } from "../../../../../shared/renderer-core/src/bridge/memory-adapter";
+import type { BridgePort } from "../../../../../shared/renderer-core/src/bridge/port";
 import {
   createInitialState,
   createRendererStore,
-} from "../../../../shared/renderer-core/src/store/store";
-import type { RendererStore } from "../../../../shared/renderer-core/src/store/types";
+} from "../../../../../shared/renderer-core/src/store/store";
+import type { RendererStore } from "../../../../../shared/renderer-core/src/store/types";
 import { thousandNoteSnapshot } from "./fixture";
 
 export type FixtureHarness = {
@@ -14,11 +14,6 @@ export type FixtureHarness = {
 
 let harness: FixtureHarness | null = null;
 
-/**
- * The 1,000-note fixture behind a command surface and a hydrated store, built
- * once per process. Hydrating the snapshot is the thing being measured, so it
- * must not land inside a timed frame.
- */
 export function fixtureHarness(): FixtureHarness {
   if (harness === null) {
     const snapshot = thousandNoteSnapshot();

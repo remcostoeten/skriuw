@@ -1,21 +1,11 @@
-/**
- * Copy of `app/src/features/search/search-plan.ts`. See the note on
- * `filter-resolution.ts`: the plan decides which note ids storage is asked to
- * rank, never the ranking itself, so mobile and desktop send the same query to
- * the same backend command.
- */
+/* Copy of app/src/features/search/search-plan.ts, held identical by __tests__/desktop-parity.test.cts. */
 
-import type { SearchHit } from "../../../../shared/renderer-core/src/contracts/workspace";
-import { referenceKey } from "../../../../shared/renderer-core/src/references/types";
-import type { RendererState } from "../../../../shared/renderer-core/src/store/types";
+import type { SearchHit } from "../../../../../shared/renderer-core/src/contracts/workspace";
+import { referenceKey } from "../../../../../shared/renderer-core/src/references/types";
+import type { RendererState } from "../../../../../shared/renderer-core/src/store/types";
 import { resolveSearchFilters, type SearchFilterResolution } from "./filter-resolution";
 import { parseSearchQuery, type ParsedSearchQuery } from "./query-parser";
 
-/**
- * Shortest free-text query handed to full-text search when nothing narrows it.
- * A filtered query bypasses this: its candidate set is already bounded by the
- * reference projection, so a single character is cheap enough to run.
- */
 export const MIN_FULL_TEXT_LENGTH = 2;
 
 const SNIPPET_LENGTH = 96;
@@ -25,15 +15,8 @@ export type SearchPlanStatus = "idle" | "blocked" | "ready";
 export type WorkspaceSearchPlan = {
   parsed: ParsedSearchQuery;
   resolution: SearchFilterResolution;
-  /** Free text handed to full-text search, with every operator removed. */
   text: string;
-  /**
-   * Note ids the resolved filters allow through, or null when no filter
-   * narrows the query. Already excludes trashed and otherwise unavailable
-   * notes, matching the backend's own exclusion.
-   */
   allowedNoteIds: ReadonlySet<string> | null;
-  /** Maximum results after applying relationship filters in storage. */
   fullTextLimit: number;
   requiresFullText: boolean;
   status: SearchPlanStatus;
@@ -99,11 +82,6 @@ function snippetFor(state: RendererState, noteId: string): string {
   return `${flattened.slice(0, SNIPPET_LENGTH).trimEnd()}…`;
 }
 
-/**
- * Results for a filter-only query (`#design $ada`), which has no free text for
- * full-text search to rank. Ordered most recently updated first so the list
- * reads like the workspace, with title and id as deterministic tie-breaks.
- */
 function projectFilteredNotes(
   state: RendererState,
   allowedNoteIds: ReadonlySet<string>,
@@ -129,12 +107,6 @@ function projectFilteredNotes(
   return hits.slice(0, limit);
 }
 
-/**
- * Final result list for a plan. Full-text hits are intersected with the
- * reference projection; a filter-only plan is projected straight from hydrated
- * state. A blocked plan yields nothing, because acting on an unknown or
- * ambiguous name would answer a question the user did not ask.
- */
 export function applySearchPlan(
   state: RendererState,
   plan: WorkspaceSearchPlan,

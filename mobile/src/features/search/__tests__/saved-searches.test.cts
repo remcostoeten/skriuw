@@ -9,7 +9,7 @@ import {
   savedSearchViewsEqual,
   savedSearches,
   setSearchSaved,
-} from "../saved-searches";
+} from "../saved/saved-searches";
 import { snapshotOf, storeOf, TEST_SETTINGS } from "./workspace.cjs";
 
 function sessionOf(saved?: unknown): WorkspaceSession {
