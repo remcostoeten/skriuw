@@ -14,6 +14,10 @@ a v1 release cannot replace the current v2 channels.
 | **Scoop bucket**     | Windows         | `bucket/skriuw.json` in this repo           |
 | **AppImage**         | any Linux       | release asset (portable, no repo)           |
 
+The iOS and Android client is a separate channel on its own version line and
+is **not published**; its store metadata, privacy and export-compliance
+answers, and submission checklist live in [`mobile/`](mobile/README.md).
+
 Winget and Snap are prepared by the workflow, but are **not current v2 install
 channels**: Winget's public manifest is older and the Snap Store upload needs
 store credentials. Do not advertise either until its current v2 package is

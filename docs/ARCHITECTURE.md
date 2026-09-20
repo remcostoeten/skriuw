@@ -18,9 +18,15 @@ Application shell
     │   └── native SQLite and background Git
     ├── browser adapter
     │   └── worker-owned SQLite WASM and OPFS
+    ├── mobile adapter
+    │   └── UniFFI facade over native SQLite, behind an Expo module
     └── memory adapter
         └── tests and fixtures
 ```
+
+The store, operation queue, tree model and route model live once, in
+`shared/renderer-core`, and are consumed by the desktop/browser renderer in
+`app/` and by the mobile client in `mobile/`.
 
 The backend foundation, React product shell, and direct ProseMirror editor exist today. The isolated UI architecture harness remains measurement evidence rather than a runtime adapter.
 
@@ -141,6 +147,32 @@ authenticated session and per-workspace authorization. See
 [the cloud sync master tracker](specs/cloud-sync-master.md) and
 [ADR-0026](adr/0026-optional-cloud-operation-replication.md).
 
+### Mobile runtime
+
+The iOS and Android client is the third implementation of the same bridge
+seam, not a second protocol. `crates/skriuw-mobile` is a UniFFI facade
+exposing narrow use cases over `skriuw-runtime`; it depends on domain,
+runtime, storage, sqlite, sync and crypto only, and `skriuw-domain` gained no
+dependency for it. An Expo native module (`mobile/modules/skriuw-core`) wraps
+the generated bindings — `jniLibs` on Android, an xcframework built on a macOS
+runner for iOS — and `mobile/src/bridge` adapts that module to the
+`BridgePort` the shared store already speaks. SQLite stays canonical and
+native; durable writes stay serialized and transactional inside Rust. Git
+history, local AI, import adapters, scheduled backups, tabs and split view are
+excluded from the mobile build and refused with the same actionable error as
+`requireDesktopRuntime`.
+
+Chrome is native and the editor is not. Navigation, toolbar, tab bar, sheets,
+lists and settings are React Native views over `shared/renderer-core`; theme
+tokens are generated from `themes.css` and drift-checked. The editor is the
+desktop ProseMirror surface, unforked, mounted once in a persistent Expo DOM
+component that swaps documents by versioned message and is never remounted on
+navigation. The performance contract applies unchanged: the snapshot is
+hydrated into the store at startup and navigation waits on neither the native
+module nor the webview. See
+[ADR-0048](adr/0048-native-mobile-shell-over-shared-core.md) and the
+[mobile app contract](specs/mobile-app.md).
+
 ### Recovery and portability
 
 `WorkspaceArchive` is the versioned interchange contract for export, import, and cross-runtime migration. It contains canonical workspace state only. Each adapter rebuilds search, history caches, and operational queues locally. Immutable golden JSON fixtures catalogue every supported archive version and must keep passing domain validation plus two complete SQLite import/export round trips. Native raw-database backup is a separate SQLite capability and never becomes the web interchange format.
@@ -174,6 +206,12 @@ navigation bridge or resource work, no editor remount, zero typing React
 commits, and all timing budgets. Raw workflow and performance samples are
 committed with the release evidence; native durability remains enforced by the
 Rust and Tauri suites rather than simulated browser state.
+
+The mobile client has no equivalent gate yet. Its shared layer is measured at
+both fixture sizes — navigation makes no bridge call and a keystroke wakes no
+shell subscriber — but the reference-device run the contract asks for has not
+happened, so R-P4 is unverified rather than met. See
+[the mobile readiness evidence](benchmarks/2026-09-20-mobile-release-readiness.md).
 
 ## Decisions
 
@@ -224,5 +262,6 @@ Rust and Tauri suites rather than simulated browser state.
 - [ADR-0045: rendered Mermaid fences](adr/0045-rendered-mermaid-fences.md)
 - [ADR-0046: per-account local workspaces](adr/0046-per-account-local-workspaces.md)
 - [ADR-0047: the compact shell owns the back gesture and the install offer](adr/0047-compact-shell-owns-back-and-install.md)
+- [ADR-0048: a native mobile shell over the shared Rust core](adr/0048-native-mobile-shell-over-shared-core.md)
 
 Personal templates reuse ordinary source notes; saved searches and template membership use bounded workspace preferences. See [ADR-0038](adr/0038-personal-template-and-search-preferences.md). Modal Vim editing is one `vimMode` setting driving CodeMirror's Vim extension in the raw Markdown view and a document-model Vim plugin in the rendered editor; see [ADR-0042](adr/0042-modal-vim-editing.md). Sync refresh retries and candidate-filtered full-text search follow the [refresh and search contract](specs/refresh-and-filtered-search.md).

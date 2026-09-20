@@ -118,8 +118,66 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Back gesture and install** — on a phone the platform back gesture closes the sheet, dialog, or palette on top and otherwise leaves the app, tab bar taps never stack history, and the browser's install offer is available from a dismissible strip above the tab bar as well as the account menu, Data settings, and the storage warning. Settings fills the phone, every dialog stays above the keyboard and pulls down to close from its grabber or header, and toasts swipe away. See [ADR-0047](adr/0047-compact-shell-owns-back-and-install.md).
 - **Formatting on a phone** — the text formatting popover docks at the bottom of the visual viewport as a sideways-scrolling bar above the keyboard, and the note menu offers the system share sheet for the note's Markdown wherever the Web Share API exists.
 
+## Mobile app (iOS and Android)
+
+A native client for the same workspace, built as an Expo application over the
+same Rust core: `crates/skriuw-mobile` exposes the use cases over UniFFI, an
+Expo native module wraps the bindings, and SQLite stays canonical and on the
+device. Navigation, toolbar, tab bar, sheets and lists are React Native views
+over the same store the desktop renderer uses; the editor is the desktop
+ProseMirror surface itself, mounted once in a persistent webview that swaps
+documents by message and is never remounted. See
+[ADR-0048](adr/0048-native-mobile-shell-over-shared-core.md) and the
+[mobile app contract](specs/mobile-app.md).
+
+**It has not shipped.** No store build exists on either platform; iOS has never
+been launched anywhere. What the matrix records is what is built, and what
+evidence stands behind it.
+
+| Capability | Desktop | Browser | Mobile |
+| --- | :--: | :--: | :--: |
+| Notes tree, folders, create, rename, move, delete with undo | ✓ | ✓ | ✓ |
+| Pinned notes, note templates | ✓ | ✓ | ✓ |
+| ProseMirror editor with full document fidelity | ✓ | ✓ | ✓ |
+| Properties, covers, tags, people, note links, Mermaid fences | ✓ | ✓ | ✓ |
+| Full-text search and saved searches | ✓ | ✓ | ✓¹ |
+| Journal: daily entries, mood, calendar, quick capture | ✓ | ✓ | ✓ |
+| Tasks view with explicit promotion | ✓ | ✓ | ✓ |
+| Sign-in, E2EE sync, recovery, per-account workspaces | ✓ | ✓ | ✓ |
+| Locked notes with PIN or passphrase | ✓ | ✓ | ✓ |
+| Biometric unlock | — | — | ✓² |
+| Share to Skriuw | — | ✓ | Android only |
+| Home-screen quick actions, system theme, safe areas | — | ✓ | ✓ |
+| Hardware back gesture | — | ✓ | ✓ |
+| All nine themes | ✓ | ✓ | ✓ |
+| Git version history | ✓ | — | — |
+| Local AI via Ollama | ✓ | — | — |
+| Remote AI writing actions | ✓ | ✓ | — |
+| Provider import (Obsidian, Notion, Bear, …) | ✓ | ✓ | — |
+| Scheduled backups and archive swap | ✓ | — | — |
+| Tabs and split view | ✓ | ✓ | — |
+| Vim mode | ✓ | ✓ | — |
+| Diagram builder and drawing | ✓ | ✓ | — |
+| Tablet layouts | — | ✓ | — |
+
+¹ Built and reviewed, not yet on the default branch (PR #413).
+² Implemented; the build needs `expo-secure-store` added as a dependency before
+it can run.
+
+Held against the contract, the mobile client's shared layer meets its
+performance invariants — note navigation makes no bridge call and a keystroke
+wakes no view outside the editor, at 1,000 and at 5,000 notes — while the
+reference-device cold-start budget (R-P4) has not been measured on any phone.
+Every control on every screen carries an accessible name, three accessibility
+defects are open, and VoiceOver and TalkBack have not been run. The evidence,
+including what is unverified and why, is in
+[the release readiness](benchmarks/2026-09-20-mobile-release-readiness.md) and
+[accessibility](benchmarks/2026-09-20-mobile-accessibility.md) records; store
+metadata and the submission checklist are in
+[`packaging/mobile`](../packaging/mobile).
+
 ## Built to be trusted
 
 - 1,300+ tests across backend, desktop, renderer, store, and UI-architecture layers, plus a keyboard-driven end-to-end suite covering the complete workflow with zero tolerated console errors.
-- Forty-two architecture decision records in [docs/adr](adr) document why the system is shaped the way it is.
+- Fifty-one architecture decision records in [docs/adr](adr) document why the system is shaped the way it is.
 - Benchmark evidence for every performance claim lives in [docs/benchmarks](benchmarks).
