@@ -68,9 +68,9 @@ log_dir="$repo_dir/.build/logs/$build_id"
 mkdir -p "$log_dir"
 
 case "$mode" in
-  check) total_steps=12 ;;
-  ci) total_steps=14 ;;
-  *) total_steps=13 ;;
+  check) total_steps=14 ;;
+  ci) total_steps=16 ;;
+  *) total_steps=15 ;;
 esac
 
 step_index=0
