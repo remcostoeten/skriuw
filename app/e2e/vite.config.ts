@@ -11,6 +11,7 @@ export default defineConfig({
     "import.meta.env.VITE_SKRIUW_CLOUD_URL": JSON.stringify("http://e2e.invalid"),
   },
   resolve: {
+    dedupe: ["react", "react-dom"],
     alias: [
       { find: "@", replacement: resolve(import.meta.dirname, "../src") },
       { find: "@tauri-apps/api/core", replacement: resolve(import.meta.dirname, "bridge-mock.ts") },

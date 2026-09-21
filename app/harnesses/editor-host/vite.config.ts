@@ -37,6 +37,7 @@ export default defineConfig({
   base: "./",
   plugins: [standaloneEditorBridge(), react(), tailwindcss()],
   resolve: {
+    dedupe: ["react", "react-dom"],
     alias: { "@": sourceDirectory },
   },
   server: {

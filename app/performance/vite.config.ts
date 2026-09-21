@@ -12,6 +12,7 @@ export default defineConfig({
     "import.meta.env.VITE_SKRIUW_CLOUD_URL": JSON.stringify("http://performance.invalid"),
   },
   resolve: {
+    dedupe: ["react", "react-dom"],
     alias: [
       { find: "@", replacement: resolve(import.meta.dirname, "../src") },
       { find: "react-dom/client", replacement: "react-dom/profiling" },
