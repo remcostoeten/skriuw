@@ -10,7 +10,7 @@ the blockers below are all outside `mobile/` or outside this repository.
 
 | Channel | Track | Identifier | Status |
 | --- | --- | --- | --- |
-| App Store | TestFlight internal | `dev.skriuw.app` | **Not submitted** — no Apple Developer team, no EAS project |
+| App Store | TestFlight internal | `dev.skriuw.app` | **Not submitted** — no Apple Developer team |
 | Play Store | Internal testing | `dev.skriuw.app` | **Not submitted** — no Play Console app, no service account |
 
 Desktop channels are separate and unaffected; see [`../README.md`](../README.md).
@@ -56,13 +56,19 @@ cadence and a shared version number would force one to wait for the other.
 Each of these is outside the paths Mobile 16 (#397) owns; they are recorded
 here and on #397 rather than changed on this branch.
 
-1. **No EAS project.** `mobile/app.json` has no `expo.extra.eas.projectId`, so
-   `eas build`, `eas submit` and even `eas simulator:availability` cannot run.
-   Recorded against #391.
-2. **No `EXPO_TOKEN` secret**, so the `eas-preflight` CI job skips.
+1. **EAS project linked, not yet buildable.** `mobile/app.json` points at
+   `@remcostoeten/skriuw` (`expo.extra.eas.projectId`), so `eas build`,
+   `eas submit` and `eas simulator:availability` run from `mobile/`. EAS
+   Simulator answers `"available": false` for the account; it is waitlisted
+   at <https://expo.dev/services/simulators>, so iOS evidence has to come from
+   a real EAS build.
+2. **No `EXPO_TOKEN` secret**, so the `eas-preflight` CI job skips and names
+   it. A human has to create the token on expo.dev and add the secret.
 3. **The Rust libraries EAS needs are gitignored** and never reach EAS
-   workers; this needs an `eas-build-post-install` hook or an `.easignore`.
-   Recorded against #391.
+   workers. eas-cli reads `.easignore` only from the Git root, so a file in
+   `mobile/` has no effect; the fix is an `eas-build-post-install` script in
+   `mobile/package.json` that builds them on the worker. Recorded against
+   #421.
 4. **No public privacy policy URL.** Both stores require one before a listing
    can be reviewed. `site/` has no privacy page; the text to publish is in
    [`privacy.md`](privacy.md).

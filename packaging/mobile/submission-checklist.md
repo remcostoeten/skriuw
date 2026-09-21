@@ -1,8 +1,8 @@
 # First submission checklist
 
 The ordered steps from this repository to a TestFlight build and a Play
-internal-track build. Nothing below has been done; each step names what is
-missing so the next person does not rediscover it.
+internal-track build. Each open step names what is missing so the next
+person does not rediscover it.
 
 `[ ]` is outstanding. `[x]` is done and where the evidence is.
 
@@ -21,15 +21,19 @@ missing so the next person does not rediscover it.
 
 ## 1. Unblock EAS
 
-- [ ] Create the EAS project and add `expo.extra.eas.projectId` to
-      `mobile/app.json`. Until this exists, `eas build`, `eas submit` and
-      `eas simulator:availability` all refuse. Recorded against #391.
+- [x] Create the EAS project and add `expo.extra.eas.projectId` to
+      `mobile/app.json` — `@remcostoeten/skriuw`, #421.
+      `eas simulator:availability --json` runs and answers
+      `"available": false`: the account is on the EAS Simulator waitlist.
 - [ ] Add the `EXPO_TOKEN` repository secret so the `eas-preflight` job in
       `.github/workflows/mobile-ci.yml` stops skipping.
-- [ ] Make the Rust libraries reach EAS workers — they are gitignored, so an
-      `eas-build-post-install` hook that runs
-      `mobile/modules/skriuw-core/scripts/build-android.sh`, or an `.easignore`
-      that un-ignores the built artifacts. Recorded against #391.
+- [ ] Make the Rust libraries reach EAS workers — they are gitignored, so add
+      an `eas-build-post-install` script to `mobile/package.json` that
+      installs rustup targets and cargo-ndk and runs
+      `mobile/modules/skriuw-core/scripts/build-android.sh` (and
+      `build-ios.sh` on macOS workers). A `mobile/.easignore` cannot do it:
+      eas-cli only reads `.easignore` at the Git root, where it would replace
+      every `.gitignore` in the monorepo. Recorded against #421.
 - [ ] Fill the `submit.production` profile in `mobile/eas.json` with the Apple
       team and ASC app identifiers, and the Play service-account key path.
 - [ ] Run eas-cli **from `mobile/`**, never from the repository root: it drops
