@@ -445,3 +445,99 @@ test("a theme change reaches the page without a reload", async () => {
 
   await harness.close();
 });
+
+/** Counts every bridge call, so "no bridge call" is asserted rather than assumed. */
+function countingBridge(inner: BridgePort): { bridge: BridgePort; calls: () => number } {
+  let calls = 0;
+  const bridge = new Proxy(inner, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (typeof value !== "function") return value;
+      return (...args: unknown[]) => {
+        calls += 1;
+        return (value as (...inner: unknown[]) => unknown).apply(target, args);
+      };
+    },
+  });
+  return { bridge, calls: () => calls };
+}
+
+test("100 note switches and 60 editor changes reproduce the Mobile 16 invariants", async () => {
+  const counted = countingBridge(createMemoryBridge({ snapshot: demoSnapshot() }));
+  const harness = await openHost(counted.bridge);
+  harness.says({ type: "ready" });
+  await drain();
+  const store = harness.workspace.store;
+  const noteIds = [...store.getState().documents.keys()];
+  assert.ok(noteIds.length > 1);
+
+  const beforeSwitches = counted.calls();
+  for (let index = 0; index < 100; index += 1) {
+    store.setActiveNote(noteIds[(index * 37 + 1) % noteIds.length]!);
+  }
+  assert.equal(counted.calls() - beforeSwitches, 0);
+
+  store.setActiveNote(OPEN_NOTE);
+  harness.sent.length = 0;
+  const base = store.getState().documents.get(OPEN_NOTE)!;
+  const beforeTyping = counted.calls();
+  let markdown = base.markdown;
+  for (let index = 0; index < 60; index += 1) {
+    markdown = `${markdown} word${index}`;
+    const expectedRevision = base.revision + index;
+    harness.says({
+      type: "change",
+      changeId: index + 1,
+      noteId: OPEN_NOTE,
+      document: null,
+      revision: expectedRevision,
+      operations: [envelope(save(OPEN_NOTE, markdown, expectedRevision))],
+    });
+  }
+  assert.equal(counted.calls() - beforeTyping, 0);
+
+  for (let pass = 0; pass < 20; pass += 1) await drain();
+
+  const acks = only(harness.sent, "ack");
+  assert.equal(acks.length, 60);
+  assert.ok(acks.every((ack) => ack.ok));
+  assert.deepEqual(only(harness.sent, "remote-change"), []);
+  assert.deepEqual(harness.reported, []);
+  assert.equal(store.getState().documents.get(OPEN_NOTE)?.revision, base.revision + 60);
+  assert.equal(store.getState().documents.get(OPEN_NOTE)?.markdown, markdown);
+
+  await harness.close();
+});
+
+test("typed text survives leaving the note and restarting the app", async () => {
+  const memory = createMemoryBridge({ snapshot: demoSnapshot() });
+  const first = await openHost(memory);
+  first.says({ type: "ready" });
+  first.says({
+    type: "change",
+    changeId: 1,
+    noteId: OPEN_NOTE,
+    document: null,
+    revision: 1,
+    operations: [envelope(save(OPEN_NOTE, "typed before leaving", 1))],
+  });
+  await drain();
+
+  first.workspace.store.setActiveNote(OTHER_NOTE);
+  first.sent.length = 0;
+  first.workspace.store.setActiveNote(OPEN_NOTE);
+  const returned = only(first.sent, "load")[0];
+  assert.equal(returned?.markdown, "typed before leaving");
+  assert.equal(returned?.revision, 2);
+  await first.close();
+
+  const restarted = await openHost(memory);
+  restarted.workspace.store.setActiveNote(OPEN_NOTE);
+  restarted.says({ type: "ready" });
+  const reopened = only(restarted.sent, "load")[0];
+  assert.equal(reopened?.noteId, OPEN_NOTE);
+  assert.equal(reopened?.markdown, "typed before leaving");
+  assert.equal(reopened?.revision, 2);
+  assert.deepEqual(restarted.reported, []);
+  await restarted.close();
+});

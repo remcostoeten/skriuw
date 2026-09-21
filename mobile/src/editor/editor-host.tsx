@@ -8,7 +8,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MINIMUM_TOUCH_TARGET } from "../shell/metrics";
 import { useTheme } from "../shell/theme";
 import { useWorkspace } from "../shell/workspace-provider";
@@ -17,6 +16,7 @@ import EditorSurface, { type EditorSurfaceHandle } from "./editor-surface";
 import { describeEditorFailure, isReloadable, type EditorFailureView } from "./failure-view";
 import { createEditorHostSession, type EditorHostSession } from "./host-session";
 import type { EditorTheme } from "./protocol";
+import { ReadOnlyDocument } from "./read-only-document";
 
 type Props = {
   /**
@@ -55,7 +55,6 @@ const WEBVIEW_PROPS = {
 export function EditorHost({ visible = true }: Props) {
   const workspace = useWorkspace();
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const surface = useRef<EditorSurfaceHandle | null>(null);
   const host = useRef<EditorHostSession | null>(null);
   const editorTheme = useRef<EditorTheme>(theme.definition);
@@ -98,19 +97,23 @@ export function EditorHost({ visible = true }: Props) {
     setGeneration((current) => current + 1);
   }, []);
 
-  const view = bundle.ok ? failure : describeEditorFailure("bundle-missing", bundle.detail);
+  if (!bundle.ok) {
+    return (
+      <View
+        style={[styles.root, visible ? null : styles.hidden]}
+        pointerEvents={visible ? "auto" : "none"}
+      >
+        <ReadOnlyDocument notice={describeEditorFailure("bundle-missing", bundle.detail)} />
+      </View>
+    );
+  }
 
   return (
     <View
       style={[
         styles.root,
         visible ? null : styles.hidden,
-        {
-          backgroundColor: theme.color("theme-bg-editor"),
-          paddingLeft: insets.left,
-          paddingRight: insets.right,
-          paddingBottom: insets.bottom,
-        },
+        { backgroundColor: theme.color("theme-bg-editor") },
       ]}
       pointerEvents={visible ? "auto" : "none"}
     >
@@ -118,24 +121,22 @@ export function EditorHost({ visible = true }: Props) {
         style={styles.fill}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {bundle.ok ? (
-          <EditorSurface
-            key={generation}
-            ref={surface}
-            source={bundle.uri}
-            background={theme.color("theme-bg-editor")}
-            onEditorMessage={receive}
-            dom={{
-              ...WEBVIEW_PROPS,
-              style: styles.fill,
-              onRenderProcessGone: () =>
-                host.current?.reportWebviewGone("the Android webview process was reclaimed"),
-              onContentProcessDidTerminate: () =>
-                host.current?.reportWebviewGone("the iOS web content process was reclaimed"),
-            }}
-          />
-        ) : null}
-        {view === null ? null : <EditorFailureSurface view={view} onReload={reload} />}
+        <EditorSurface
+          key={generation}
+          ref={surface}
+          source={bundle.uri}
+          background={theme.color("theme-bg-editor")}
+          onEditorMessage={receive}
+          dom={{
+            ...WEBVIEW_PROPS,
+            style: styles.fill,
+            onRenderProcessGone: () =>
+              host.current?.reportWebviewGone("the Android webview process was reclaimed"),
+            onContentProcessDidTerminate: () =>
+              host.current?.reportWebviewGone("the iOS web content process was reclaimed"),
+          }}
+        />
+        {failure === null ? null : <EditorFailureSurface view={failure} onReload={reload} />}
       </KeyboardAvoidingView>
     </View>
   );
