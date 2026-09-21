@@ -11,6 +11,7 @@ v1/apps/*
 
 # Build artifacts / caches
 .next
+web/out
 node_modules
 **/node_modules
 **/target

@@ -3,49 +3,49 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
+const exportRoot = new URL("../web/out/", import.meta.url);
+
 const marketingRoutes = [
   {
     path: "/download/",
-    file: "../site/download/index.html",
+    file: "download/index.html",
     heading: "Install it.",
   },
   {
     path: "/local-first-notes/",
-    file: "../site/local-first-notes/index.html",
+    file: "local-first-notes/index.html",
     heading: "A notes app that starts on your machine.",
   },
   {
     path: "/markdown-notes/",
-    file: "../site/markdown-notes/index.html",
+    file: "markdown-notes/index.html",
     heading: "Markdown when you want it.",
   },
   {
     path: "/import/",
-    file: "../site/import/index.html",
+    file: "import/index.html",
     heading: "Bring the archive.",
   },
 ];
 
 const [siteHtml, appHtml, robots, sitemap, vercelConfigSource, ...routeHtml] =
   await Promise.all([
-    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readExport("index.html"),
     readFile(new URL("../app/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../site/robots.txt", import.meta.url), "utf8"),
-    readFile(new URL("../site/sitemap.xml", import.meta.url), "utf8"),
+    readExport("robots.txt"),
+    readExport("sitemap.xml"),
     readFile(new URL("../vercel.json", import.meta.url), "utf8"),
-    ...marketingRoutes.map((route) => readFile(new URL(route.file, import.meta.url), "utf8")),
+    ...marketingRoutes.map((route) => readExport(route.file)),
   ]);
-const socialImage = await readFile(new URL("../site/og-image.png", import.meta.url));
+const socialImage = await readFile(new URL("og-image.png", exportRoot));
 const vercelConfig = JSON.parse(vercelConfigSource);
-const schemaMatch = structuredData(siteHtml);
 
-assert.match(siteHtml, /<title>Skriuw — Fast, Private, Local-First Notes App<\/title>/u);
+assert.match(siteHtml, /<title>Skriuw: Fast, Private, Local-First Notes<\/title>/u);
 assert.match(siteHtml, /<meta\s+name="description"/u);
 assert.equal(canonicalUrl(siteHtml), "https://skriuw.com/");
-assert.match(siteHtml, /<h1[^>]*>Your words<br \/>stay close\.<\/h1>/u);
-assert.ok(schemaMatch, "homepage must include JSON-LD structured data");
+assert.match(siteHtml, /<h1[^>]*>Notes that never[\s\S]*?make you wait/u);
 
-const schema = JSON.parse(schemaMatch);
+const schema = JSON.parse(structuredData(siteHtml));
 const website = schema["@graph"].find((entry) => entry["@type"] === "WebSite");
 const organization = schema["@graph"].find((entry) => entry["@type"] === "Organization");
 const application = schema["@graph"].find(
@@ -57,9 +57,7 @@ assert.equal(organization.logo.url, "https://skriuw.com/app-icon.png");
 assert.equal(application.name, "Skriuw");
 assert.equal(application.url, "https://skriuw.com/");
 
-assert.match(siteHtml, /<meta property="og:image" content="https:\/\/skriuw\.com\/og-image\.png" \/>/u);
-assert.match(siteHtml, /<meta property="og:image:width" content="1200" \/>/u);
-assert.match(siteHtml, /<meta property="og:image:height" content="630" \/>/u);
+assertOpenGraphImage(siteHtml);
 assert.match(siteHtml, /<meta\s+name="twitter:image:alt"/u);
 assert.equal(socialImage.subarray(1, 4).toString("ascii"), "PNG");
 assert.equal(socialImage.readUInt32BE(16), 1200);
@@ -71,10 +69,9 @@ for (const [index, route] of marketingRoutes.entries()) {
   const html = routeHtml[index];
   assert.equal(canonicalUrl(html), `https://skriuw.com${route.path}`);
   assert.match(html, new RegExp(`<h1[^>]*>[\\s\\S]*?${escapePattern(route.heading)}`, "u"));
-  assert.match(html, /<meta property="og:image" content="https:\/\/skriuw\.com\/og-image\.png" \/>/u);
-  assert.match(html, /<meta name="twitter:card" content="summary_large_image" \/>/u);
+  assertOpenGraphImage(html);
+  assert.match(html, /<meta\s+name="twitter:card"\s+content="summary_large_image"\s*\/>/u);
   const routeSchema = JSON.parse(structuredData(html));
-  assert.equal(routeSchema["@type"], "WebPage");
   assert.equal(routeSchema.url, `https://skriuw.com${route.path}`);
   pageTitles.add(pageTitle(html));
   pageDescriptions.add(pageDescription(html));
@@ -90,7 +87,7 @@ assert.equal(
 
 assert.equal(canonicalUrl(appHtml), "https://skriuw.com/app/");
 assert.match(appHtml, /<meta name="robots" content="noindex, follow" \/>/u);
-assert.match(robots, /^User-agent: \*$/mu);
+assert.match(robots, /^User-agent: \*$/imu);
 assert.match(robots, /^Sitemap: https:\/\/skriuw\.com\/sitemap\.xml$/mu);
 assert.match(sitemap, /<loc>https:\/\/skriuw\.com\/<\/loc>/u);
 assert.doesNotMatch(sitemap, /vercel\.app/u);
@@ -114,14 +111,38 @@ assert.ok(
 
 process.stdout.write("web SEO configuration passed\n");
 
+async function readExport(file) {
+  try {
+    return await readFile(new URL(file, exportRoot), "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      throw new Error(
+        `web/out/${file} is missing. Run "bun --cwd web run build" before the SEO checks.`,
+      );
+    }
+    throw error;
+  }
+}
+
 function structuredData(html) {
-  return html.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/u)?.[1];
+  const match = html.match(
+    /<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/u,
+  )?.[1];
+  assert.ok(match, "each marketing page must include JSON-LD structured data");
+  return match;
+}
+
+function assertOpenGraphImage(html) {
+  assert.match(
+    html,
+    /<meta\s+property="og:image"\s+content="https:\/\/skriuw\.com\/og-image\.png"\s*\/>/u,
+  );
+  assert.match(html, /<meta\s+property="og:image:width"\s+content="1200"\s*\/>/u);
+  assert.match(html, /<meta\s+property="og:image:height"\s+content="630"\s*\/>/u);
 }
 
 function canonicalUrl(html) {
-  const matches = [
-    ...html.matchAll(/<link\s+rel="canonical"\s+href="([^"]+)"\s*\/>/gu),
-  ];
+  const matches = [...html.matchAll(/<link\s+rel="canonical"\s+href="([^"]+)"\s*\/>/gu)];
   assert.equal(matches.length, 1, "each page must declare exactly one canonical URL");
   return matches[0][1];
 }
