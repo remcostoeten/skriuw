@@ -127,10 +127,7 @@ function parseCsv(content: string): CsvParseResult {
     row.push(cell.replace(/\r$/, ""));
     rows.push(row);
   }
-  while (
-    rows.length > 0 &&
-    rows[rows.length - 1]?.every((value) => value.length === 0)
-  ) {
+  while (rows.length > 0 && rows[rows.length - 1]?.every((value) => value.length === 0)) {
     rows.pop();
   }
   return { rows, valid: !quoted };

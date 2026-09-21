@@ -50,7 +50,10 @@ export function Platforms() {
   return (
     <section className="bg-surface pb-24">
       <Container>
-        <div ref={headingRef} className="reveal-wipe flex flex-wrap items-start justify-between gap-6 pb-10">
+        <div
+          ref={headingRef}
+          className="reveal-wipe flex flex-wrap items-start justify-between gap-6 pb-10"
+        >
           <Rail>
             <SectionHeading
               lead="Desktop and browser."
@@ -87,8 +90,8 @@ export function Platforms() {
                 <div className="flex flex-col p-10">
                   <p className="text-[17.6px] font-bold opacity-90">{story.kicker}</p>
                   <h3 className="mt-6 max-w-[520px] font-serif text-[24px] leading-[30px] font-normal tracking-[-0.3px]">
-                    {story.lead}{" "}
-                    <strong className="font-semibold">{story.brand}</strong> {story.tail}
+                    {story.lead} <strong className="font-semibold">{story.brand}</strong>{" "}
+                    {story.tail}
                   </h3>
 
                   <div className="mt-8 flex gap-12">
@@ -117,7 +120,9 @@ export function Platforms() {
                   className={`relative hidden place-items-center overflow-hidden p-10 md:grid ${tone.art}`}
                 >
                   <span className="pattern-field texture-dither" />
-                  <div className="relative grid w-full place-items-center">{artMap[story.kicker]}</div>
+                  <div className="relative grid w-full place-items-center">
+                    {artMap[story.kicker]}
+                  </div>
                 </div>
               </article>
             );

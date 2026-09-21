@@ -288,9 +288,7 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
       const chosen = layer.elements
         .filter((element) => selected.includes(element.id))
         .map((element) =>
-          offset && movingIds.has(element.id)
-            ? moveElement(element, offset.x, offset.y)
-            : element,
+          offset && movingIds.has(element.id) ? moveElement(element, offset.x, offset.y) : element,
         );
       const bounds = selectionBounds(chosen);
       if (bounds) paintSelectionOutline(context, bounds, viewport, accentRef.current);
@@ -326,7 +324,9 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
     scrollHostRef.current = scrollHost;
     applySurfaceTokens();
     schedulePaint();
-    const onScroll = () => schedulePaint();
+    function onScroll() {
+      schedulePaint();
+    }
     scrollHost?.addEventListener("scroll", onScroll, { passive: true });
     const observer = new ResizeObserver(() => schedulePaint());
     observer.observe(host);
@@ -417,16 +417,13 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
   }, []);
 
   /** Replaces the whole element list in one transaction. */
-  const commitElements = useCallback(
-    (elements: readonly DrawingElement[]): void => {
-      const view = getViewRef.current();
-      if (!view || layerCacheRef.current.foreign) return;
-      const next = elements.length > 0 ? { version: 1, elements: [...elements] } : null;
-      view.dispatch(view.state.tr.setDocAttribute("drawing", next));
-      setCommittedAt(Date.now());
-    },
-    [],
-  );
+  const commitElements = useCallback((elements: readonly DrawingElement[]): void => {
+    const view = getViewRef.current();
+    if (!view || layerCacheRef.current.foreign) return;
+    const next = elements.length > 0 ? { version: 1, elements: [...elements] } : null;
+    view.dispatch(view.state.tr.setDocAttribute("drawing", next));
+    setCommittedAt(Date.now());
+  }, []);
   const commitElementsRef = useRef(commitElements);
   commitElementsRef.current = commitElements;
 
@@ -465,10 +462,7 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
     const canvas = canvasRef.current;
     if (!canvas) return [0, 0];
     const rect = canvas.getBoundingClientRect();
-    return [
-      clientX - rect.left,
-      clientY - rect.top + (scrollHostRef.current?.scrollTop ?? 0),
-    ];
+    return [clientX - rect.left, clientY - rect.top + (scrollHostRef.current?.scrollTop ?? 0)];
   }, []);
 
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
@@ -758,10 +752,12 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
   }, [host, active, finish, schedulePaint, centreOfViewport]);
 
   const handlers = useMemo<EditorBoundHandlersFor<DrawingShortcutId>>(() => {
-    const selectTool = (tool: DrawingToolId) => () =>
-      setBrush((current) => ({ ...current, tool }));
-    const selectInk = (colorId: string) => () =>
-      setBrush((current) => ({ ...current, colorId }));
+    function selectTool(tool: DrawingToolId) {
+      return () => setBrush((current) => ({ ...current, tool }));
+    }
+    function selectInk(colorId: string) {
+      return () => setBrush((current) => ({ ...current, colorId }));
+    }
     return {
       drawPen: selectTool("pen"),
       drawHighlighter: selectTool("highlighter"),

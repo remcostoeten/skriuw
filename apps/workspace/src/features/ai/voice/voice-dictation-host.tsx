@@ -9,13 +9,22 @@ import { noop } from "@/shared/lib/noop";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { updateSettings } from "@/store/actions/settings";
-import { insertBelowTransaction, replaceRangeTransaction } from "@/features/ai/actions/editor-action-apply";
+import {
+  insertBelowTransaction,
+  replaceRangeTransaction,
+} from "@/features/ai/actions/editor-action-apply";
 import { registerVoiceDictationListener } from "./voice-dictation-controller";
 import { aiTranscriptionCatalogue, transcribeAudio } from "./transcription-bridge";
-import { startAiCompletion, type AiCompletionHandle } from "@/features/ai/completion/completion-bridge";
+import {
+  startAiCompletion,
+  type AiCompletionHandle,
+} from "@/features/ai/completion/completion-bridge";
 import { createAiCompletionConsumer } from "@/features/ai/completion/completion-consumer";
 import { promptLibraryEntries, selectWorkspacePrompts } from "@/features/ai/prompts/prompt-library";
-import { parseAiModelSelection, selectRawAiModelSetting } from "@/features/ai/models/model-selection";
+import {
+  parseAiModelSelection,
+  selectRawAiModelSetting,
+} from "@/features/ai/models/model-selection";
 import { useVoiceRecorder, type VoiceRecording } from "./use-voice-recorder";
 import {
   MAX_RECORDING_SECONDS,
@@ -132,10 +141,7 @@ function VoiceDictationBody({ store, signal, getView, getNoteId, noteId }: BodyP
     if (catalogue === null) {
       return null;
     }
-    return resolveVoiceModel(
-      parseAiModelSelection(rawVoiceModel),
-      catalogue,
-    );
+    return resolveVoiceModel(parseAiModelSelection(rawVoiceModel), catalogue);
   }, [catalogue, rawVoiceModel]);
 
   const recorder = useVoiceRecorder((recording) => {
@@ -289,9 +295,14 @@ function VoiceDictationBody({ store, signal, getView, getNoteId, noteId }: BodyP
     });
     consumerRef.current = consumer;
 
-    void startAiCompletion(request, voiceDictationOrigin(target), (event) => {
-      consumer.accept(event);
-    }, signal)
+    void startAiCompletion(
+      request,
+      voiceDictationOrigin(target),
+      (event) => {
+        consumer.accept(event);
+      },
+      signal,
+    )
       .then((handle) => {
         if (activeRequestIdRef.current !== request.requestId) {
           handle.dispose();
@@ -379,7 +390,7 @@ function VoiceDictationBody({ store, signal, getView, getNoteId, noteId }: BodyP
     run.phase === "recording"
       ? recorder.state.recording
         ? `Recording — ${formatRecordingClock(recorder.state.seconds)} of ${formatRecordingClock(MAX_RECORDING_SECONDS)}`
-        : recorder.state.error ?? "Starting the microphone…"
+        : (recorder.state.error ?? "Starting the microphone…")
       : run.phase === "transcribing"
         ? `Transcribing with ${voiceModel?.label ?? "the selected model"}…`
         : run.phase === "formatting"
@@ -522,9 +533,7 @@ function VoiceDictationBody({ store, signal, getView, getNoteId, noteId }: BodyP
               Insert at cursor
             </Button>
             <Button onClick={() => insertBelow(run.preview)}>Insert below</Button>
-            <Button onClick={() => copyResult(run.preview)}>
-              {copied ? "Copied" : "Copy"}
-            </Button>
+            <Button onClick={() => copyResult(run.preview)}>{copied ? "Copied" : "Copy"}</Button>
             {run.formatted && (
               <Button
                 onClick={() =>

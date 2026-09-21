@@ -67,9 +67,7 @@ test("estimated figures are always flagged in words", () => {
   assert.match(String(tokenSourceNote(true)), /Estimated/);
   assert.equal(runTokenSummary(run()), "12 in / 4 out");
   assert.equal(
-    runTokenSummary(
-      run({ tokens: { inputTokens: 12, outputTokens: 4, source: "estimated" } }),
-    ),
+    runTokenSummary(run({ tokens: { inputTokens: 12, outputTokens: 4, source: "estimated" } })),
     "~12 in / 4 out",
   );
 });

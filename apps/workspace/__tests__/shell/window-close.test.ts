@@ -77,9 +77,7 @@ function fakeWindow(failedCloseAttempts = 0) {
   let unlistenCalls = 0;
   return {
     port: {
-      onCloseRequested: async (
-        next: (event: CloseEvent) => void | Promise<void>,
-      ) => {
+      onCloseRequested: async (next: (event: CloseEvent) => void | Promise<void>) => {
         handler = next;
         return () => {
           unlistenCalls += 1;
@@ -208,12 +206,10 @@ test("hung active-note persistence closes after a bounded wait", async () => {
   const store = createRendererStore(createInitialState(snapshot()));
   const window = fakeWindow();
   const failures: unknown[] = [];
-  await bindWindowClosePersistence(
-    store,
-    () => new Promise<void>(() => {}),
-    window.port,
-    { timeoutMs: 1, onError: (error) => failures.push(error) },
-  );
+  await bindWindowClosePersistence(store, () => new Promise<void>(() => {}), window.port, {
+    timeoutMs: 1,
+    onError: (error) => failures.push(error),
+  });
 
   await window.request();
   assert.deepEqual(failures, []);
@@ -230,12 +226,9 @@ test("best-effort pending work failure never blocks close", async () => {
     },
     { bestEffort: true },
   );
-  await bindWindowClosePersistence(
-    store,
-    async () => {},
-    window.port,
-    { onError: (error) => failures.push(error) },
-  );
+  await bindWindowClosePersistence(store, async () => {}, window.port, {
+    onError: (error) => failures.push(error),
+  });
 
   await window.request();
   unregister();
@@ -250,12 +243,10 @@ test("hung best-effort pending work closes after a bounded wait", async () => {
   const unregister = registerPendingWork(() => new Promise<void>(() => {}), {
     bestEffort: true,
   });
-  await bindWindowClosePersistence(
-    store,
-    async () => {},
-    window.port,
-    { timeoutMs: 1, onError: (error) => failures.push(error) },
-  );
+  await bindWindowClosePersistence(store, async () => {}, window.port, {
+    timeoutMs: 1,
+    onError: (error) => failures.push(error),
+  });
 
   await window.request();
   unregister();
@@ -272,12 +263,9 @@ test("critical pending work rejection keeps the window open for retry", async ()
     attempts += 1;
     if (attempts === 1) throw new Error("content write failed");
   });
-  await bindWindowClosePersistence(
-    store,
-    async () => {},
-    window.port,
-    { onError: (error) => failures.push(error) },
-  );
+  await bindWindowClosePersistence(store, async () => {}, window.port, {
+    onError: (error) => failures.push(error),
+  });
 
   await window.request();
   assert.equal(failures.length, 1);
@@ -321,10 +309,14 @@ test("a timed-out attempt cannot submit stale active-note state after its flush 
 
   unregister();
   await window.request();
-  assert.deepEqual(operations, [[{
-    protocolVersion: 1,
-    operation: { type: "set_active_note", noteId: "note-2" },
-  }]]);
+  assert.deepEqual(operations, [
+    [
+      {
+        protocolVersion: 1,
+        operation: { type: "set_active_note", noteId: "note-2" },
+      },
+    ],
+  ]);
 });
 
 test("listener registration failure degrades without failing initialization", async () => {
@@ -377,15 +369,10 @@ test("failed close completion reports through onCloseError when provided", async
   const window = fakeWindow(1);
   const persistenceFailures: unknown[] = [];
   const closeFailures: unknown[] = [];
-  await bindWindowClosePersistence(
-    store,
-    async () => {},
-    window.port,
-    {
-      onError: (error) => persistenceFailures.push(error),
-      onCloseError: (error) => closeFailures.push(error),
-    },
-  );
+  await bindWindowClosePersistence(store, async () => {}, window.port, {
+    onError: (error) => persistenceFailures.push(error),
+    onCloseError: (error) => closeFailures.push(error),
+  });
 
   await window.request();
   assert.deepEqual(persistenceFailures, []);
@@ -462,7 +449,9 @@ test("disposing an in-flight close attempt never closes its replacement session"
   const store = createRendererStore(createInitialState(snapshot()));
   const window = fakeWindow();
   let acknowledge: () => void = () => undefined;
-  const save = new Promise<void>((resolve) => { acknowledge = resolve; });
+  const save = new Promise<void>((resolve) => {
+    acknowledge = resolve;
+  });
   const unregister = registerPendingWork(() => save);
   const cleanup = await bindWindowClosePersistence(store, async () => undefined, window.port);
   try {

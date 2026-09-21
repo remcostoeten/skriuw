@@ -21,7 +21,9 @@ function bundle(notes: ImportBundle["notes"]): ImportBundle {
   };
 }
 
-type DocumentShape = { content: { type: string; content?: { type: string; attrs?: { id: string; label: string } }[] }[] };
+type DocumentShape = {
+  content: { type: string; content?: { type: string; attrs?: { id: string; label: string } }[] }[];
+};
 
 test("adapter tags create workspace tags and append a chip paragraph", () => {
   const plan = planImportBundle(
@@ -78,19 +80,13 @@ test("existing workspace tags are reused case-insensitively", () => {
     [{ id: "tag-existing", name: "work" }],
   );
   assert.equal(plan.createdTags, 0);
-  assert.equal(
-    plan.operations.filter((operation) => operation.type === "create_tag").length,
-    0,
-  );
-  const document = plan.contentOperations.find(
-    (operation) => operation.type === "save_document",
-  );
+  assert.equal(plan.operations.filter((operation) => operation.type === "create_tag").length, 0);
+  const document = plan.contentOperations.find((operation) => operation.type === "save_document");
   assert.ok(document?.type === "save_document");
   const shape = document.documentJson as DocumentShape;
   const chips =
-    shape.content[shape.content.length - 1]?.content?.filter(
-      (node) => node.type === "tag_ref",
-    ) ?? [];
+    shape.content[shape.content.length - 1]?.content?.filter((node) => node.type === "tag_ref") ??
+    [];
   assert.equal(chips[0]?.attrs?.id, "tag-existing");
 });
 
@@ -110,22 +106,18 @@ test("raw-preserved notes keep exact source, property, and workspace backlinks",
   assert.equal(plan.tagSkippedNotes, 0);
   assert.equal(plan.tagPropertyNotes, 1);
   assert.equal(plan.createdTags, 1);
-  const document = plan.contentOperations.find(
-    (operation) => operation.type === "save_document",
-  );
+  const document = plan.contentOperations.find((operation) => operation.type === "save_document");
   assert.ok(document?.type === "save_document");
   assert.equal(document.markdown, "---\nkey: value\n---\nbody");
   const shape = document.documentJson as DocumentShape;
-  const references = shape.content.flatMap((node) =>
-    node.content?.filter((child) => child.type === "tag_ref") ?? [],
+  const references = shape.content.flatMap(
+    (node) => node.content?.filter((child) => child.type === "tag_ref") ?? [],
   );
   assert.equal(references.length, 1);
   const tag = plan.operations.find((operation) => operation.type === "create_tag");
   assert.ok(tag?.type === "create_tag");
   assert.equal(references[0]?.attrs?.id, tag.tag.id);
-  const property = plan.operations.find(
-    (operation) => operation.type === "set_note_property",
-  );
+  const property = plan.operations.find((operation) => operation.type === "set_note_property");
   assert.ok(property?.type === "set_note_property");
   assert.equal(property.property.name, "Tags");
   assert.equal(property.property.value.type, "multi-select");
@@ -179,9 +171,7 @@ test("skip mode drops directories whose notes were all skipped", () => {
       },
     ],
   });
-  const folders = plan.operations.filter(
-    (operation) => operation.type === "create_folder",
-  );
+  const folders = plan.operations.filter((operation) => operation.type === "create_folder");
   assert.equal(plan.skippedDuplicates, 1);
   assert.deepEqual(
     folders.map((operation) => operation.type === "create_folder" && operation.title),
@@ -219,10 +209,7 @@ test("durable receipts drive skip and update re-import modes", () => {
     sourceKey: "source-key",
     receipts: [receipt],
     existingDocuments: new Map([
-      [
-        "existing-note",
-        { id: "existing-note", title: "A", revision: 7 },
-      ],
+      ["existing-note", { id: "existing-note", title: "A", revision: 7 }],
     ]),
     existingPropertiesByNoteId: new Map([
       [
@@ -253,8 +240,7 @@ test("durable receipts drive skip and update re-import modes", () => {
   assert.ok(
     updated.operations.some(
       (operation) =>
-        operation.type === "remove_note_property" &&
-        operation.propertyId === "old-status",
+        operation.type === "remove_note_property" && operation.propertyId === "old-status",
     ),
   );
   const save = updated.contentOperations[0];
@@ -264,16 +250,13 @@ test("durable receipts drive skip and update re-import modes", () => {
   assert.ok(
     updated.operations.some(
       (operation) =>
-        operation.type === "record_provider_import" &&
-        operation.receipt.noteId === "existing-note",
+        operation.type === "record_provider_import" && operation.receipt.noteId === "existing-note",
     ),
   );
 });
 
 test("receipts for deleted notes stop skipping the source", () => {
-  const source = bundle([
-    { relativePath: "Folder/A.md", title: "A", markdown: "body" },
-  ]);
+  const source = bundle([{ relativePath: "Folder/A.md", title: "A", markdown: "body" }]);
   const receipt = {
     provider: "markdown",
     sourceKey: "source-key",
@@ -314,8 +297,7 @@ test("destination folder owns imported root nodes", () => {
   );
   const roots = plan.operations.filter(
     (operation) =>
-      (operation.type === "create_folder" ||
-        operation.type === "create_note") &&
+      (operation.type === "create_folder" || operation.type === "create_note") &&
       operation.placement.parentId === "destination",
   );
   assert.equal(roots.length, 2);

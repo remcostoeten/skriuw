@@ -50,7 +50,10 @@ function table(rows: string[][]): ProseMirrorNode {
   );
 }
 
-function doc(blocks: ProseMirrorNode[], attrs: Record<string, unknown> | null = null): ProseMirrorNode {
+function doc(
+  blocks: ProseMirrorNode[],
+  attrs: Record<string, unknown> | null = null,
+): ProseMirrorNode {
   return productSchema.node("doc", attrs, blocks);
 }
 
@@ -87,9 +90,9 @@ test("a repeated-character change applies as one validated ReplaceStep", () => {
 test("an attrs-only change goes through attribute steps and leaves the content alone", () => {
   const before = doc([p("text")]);
   const state = stateFor(before, 3);
-  const { application, next } = expectTransaction(state, doc([p("text")], { drawing: "{\"v\":1}" }));
+  const { application, next } = expectTransaction(state, doc([p("text")], { drawing: '{"v":1}' }));
   assert.equal(application.strategy, "attrs");
-  assert.equal(next.doc.attrs.drawing, "{\"v\":1}");
+  assert.equal(next.doc.attrs.drawing, '{"v":1}');
   assert.equal(next.selection.head, 3);
   assert.equal(application.tr.steps.length, 1);
 });
@@ -100,9 +103,52 @@ test("unchanged documents produce no transaction", () => {
 
 test("table, list and code-block boundary changes apply and reproduce the incoming document", () => {
   const cases: [ProseMirrorNode, ProseMirrorNode][] = [
-    [doc([p("intro"), table([["a", "b"], ["1", "2"]])]), doc([p("intro"), p("between"), table([["a", "b"], ["1", "2"]])])],
-    [doc([table([["a", "b"], ["1", "2"]])]), doc([table([["a", "b"], ["1", "2"], ["3", "4"]])])],
-    [doc([table([["a", "b"], ["1", "2"]])]), doc([table([["a", "b", "c"], ["1", "2", "3"]])])],
+    [
+      doc([
+        p("intro"),
+        table([
+          ["a", "b"],
+          ["1", "2"],
+        ]),
+      ]),
+      doc([
+        p("intro"),
+        p("between"),
+        table([
+          ["a", "b"],
+          ["1", "2"],
+        ]),
+      ]),
+    ],
+    [
+      doc([
+        table([
+          ["a", "b"],
+          ["1", "2"],
+        ]),
+      ]),
+      doc([
+        table([
+          ["a", "b"],
+          ["1", "2"],
+          ["3", "4"],
+        ]),
+      ]),
+    ],
+    [
+      doc([
+        table([
+          ["a", "b"],
+          ["1", "2"],
+        ]),
+      ]),
+      doc([
+        table([
+          ["a", "b", "c"],
+          ["1", "2", "3"],
+        ]),
+      ]),
+    ],
     [doc([table([["a"], ["1"]]), p("after")]), doc([p("after")])],
     [doc([list("one", "two")]), doc([list("one", "one and a half", "two")])],
     [doc([list("one", "two"), p("tail")]), doc([list("one"), p("tail")])],
@@ -161,11 +207,21 @@ test("blockChanges aligns inserted, removed and edited blocks by equality", () =
   const regions = blockChanges(base, next);
   assert.equal(regions.length, 2);
   assert.deepEqual(
-    regions.map((region) => [region.start, region.end, region.replacement.map((node) => node.textContent)]),
-    [[1, 2, ["x"]], [4, 4, ["e"]]],
+    regions.map((region) => [
+      region.start,
+      region.end,
+      region.replacement.map((node) => node.textContent),
+    ]),
+    [
+      [1, 2, ["x"]],
+      [4, 4, ["e"]],
+    ],
   );
   assert.deepEqual(
-    blockChanges([p("a"), p("b"), p("c")], [p("a"), p("c")]).map((region) => [region.start, region.end]),
+    blockChanges([p("a"), p("b"), p("c")], [p("a"), p("c")]).map((region) => [
+      region.start,
+      region.end,
+    ]),
     [[1, 2]],
   );
   assert.deepEqual(blockChanges(blocksOf(doc([p("a")])), blocksOf(doc([p("a")]))), []);
@@ -176,7 +232,10 @@ test("dirty merge keeps a local edit and a remote edit to different blocks", () 
   const local = doc([p("one local"), p("two"), p("three")]);
   const incoming = doc([p("one"), p("two"), p("three remote")]);
   const merged = mergeDocuments(base, local, incoming);
-  assert.deepEqual(blocksOf(merged).map((block) => block.textContent), ["one local", "two", "three remote"]);
+  assert.deepEqual(
+    blocksOf(merged).map((block) => block.textContent),
+    ["one local", "two", "three remote"],
+  );
 });
 
 test("dirty merge keeps the local version of a block both sides changed", () => {
@@ -184,7 +243,10 @@ test("dirty merge keeps the local version of a block both sides changed", () => 
   const local = doc([p("one"), p("two local"), p("three")]);
   const incoming = doc([p("one"), p("two remote"), p("three")]);
   const merged = mergeDocuments(base, local, incoming);
-  assert.deepEqual(blocksOf(merged).map((block) => block.textContent), ["one", "two local", "three"]);
+  assert.deepEqual(
+    blocksOf(merged).map((block) => block.textContent),
+    ["one", "two local", "three"],
+  );
 });
 
 test("dirty merge with several local regions still admits non-overlapping remote regions", () => {
@@ -192,23 +254,26 @@ test("dirty merge with several local regions still admits non-overlapping remote
   const local = doc([p("a local"), p("b"), p("c"), p("d"), p("e local"), p("f local")]);
   const incoming = doc([p("a"), p("b"), p("b2 remote"), p("c"), p("d remote"), p("e remote")]);
   const merged = mergeDocuments(base, local, incoming);
-  assert.deepEqual(blocksOf(merged).map((block) => block.textContent), [
-    "a local",
-    "b",
-    "b2 remote",
-    "c",
-    "d",
-    "e local",
-    "f local",
-  ]);
+  assert.deepEqual(
+    blocksOf(merged).map((block) => block.textContent),
+    ["a local", "b", "b2 remote", "c", "d", "e local", "f local"],
+  );
 });
 
 test("dirty merge takes root attributes from whichever side changed them, local first", () => {
   const base = doc([p("x")], { drawing: null });
-  const merged = mergeDocuments(base, doc([p("x local")], { drawing: null }), doc([p("x")], { drawing: "remote" }));
+  const merged = mergeDocuments(
+    base,
+    doc([p("x local")], { drawing: null }),
+    doc([p("x")], { drawing: "remote" }),
+  );
   assert.equal(merged.attrs.drawing, "remote");
   assert.equal(merged.firstChild?.textContent, "x local");
-  const both = mergeDocuments(base, doc([p("x")], { drawing: "local" }), doc([p("x")], { drawing: "remote" }));
+  const both = mergeDocuments(
+    base,
+    doc([p("x")], { drawing: "local" }),
+    doc([p("x")], { drawing: "remote" }),
+  );
   assert.equal(both.attrs.drawing, "local");
 });
 

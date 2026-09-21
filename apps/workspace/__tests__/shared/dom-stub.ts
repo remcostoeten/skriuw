@@ -35,7 +35,8 @@ export function setupDOMStub(): void {
         remove: (c: string) => classListSet.delete(c),
         toggle: (c: string, flag?: boolean) => {
           if (flag === undefined) {
-            classListSet.has(c) ? classListSet.delete(c) : classListSet.add(c);
+            if (classListSet.has(c)) classListSet.delete(c);
+            else classListSet.add(c);
           } else if (flag) {
             classListSet.add(c);
           } else {
@@ -70,7 +71,14 @@ export function setupDOMStub(): void {
       },
       addEventListener: () => {},
       removeEventListener: () => {},
-      getBoundingClientRect: () => ({ left: 10, top: 10, right: 50, bottom: 30, width: 40, height: 20 }),
+      getBoundingClientRect: () => ({
+        left: 10,
+        top: 10,
+        right: 50,
+        bottom: 30,
+        width: 40,
+        height: 20,
+      }),
     };
     element.ownerDocument = (globalThis as any).document;
     return element;

@@ -14,11 +14,7 @@ type Props = {
  * call site has to thread it through.
  */
 export function AnimatedIconsProvider({ enabled, children }: Props) {
-  return (
-    <AnimatedIconsContext.Provider value={enabled}>
-      {children}
-    </AnimatedIconsContext.Provider>
-  );
+  return <AnimatedIconsContext.Provider value={enabled}>{children}</AnimatedIconsContext.Provider>;
 }
 
 export function useAnimatedIcons(): boolean {

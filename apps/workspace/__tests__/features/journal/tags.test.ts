@@ -5,10 +5,7 @@ import type {
   WorkspaceNode,
   WorkspaceSnapshot,
 } from "@skriuw/renderer-core/contracts/workspace";
-import {
-  JOURNAL_DATE_PROPERTY_ID,
-  JOURNAL_ROOT_ID,
-} from "@skriuw/renderer-core/journal/constants";
+import { JOURNAL_DATE_PROPERTY_ID, JOURNAL_ROOT_ID } from "@skriuw/renderer-core/journal/constants";
 import { sameJournalEntries, selectJournalEntries } from "../../../src/features/journal/model";
 import {
   entriesWithTag,
@@ -94,9 +91,27 @@ function snapshot(): WorkspaceSnapshot {
     ],
     documents: [
       { noteId: "regular", documentJson: { type: "doc" }, markdown: "", revision: 1, wordCount: 3 },
-      { noteId: "entry-a", documentJson: { type: "doc" }, markdown: "a", revision: 1, wordCount: 5 },
-      { noteId: "entry-b", documentJson: { type: "doc" }, markdown: "b", revision: 1, wordCount: 4 },
-      { noteId: "entry-c", documentJson: { type: "doc" }, markdown: "c", revision: 1, wordCount: 2 },
+      {
+        noteId: "entry-a",
+        documentJson: { type: "doc" },
+        markdown: "a",
+        revision: 1,
+        wordCount: 5,
+      },
+      {
+        noteId: "entry-b",
+        documentJson: { type: "doc" },
+        markdown: "b",
+        revision: 1,
+        wordCount: 4,
+      },
+      {
+        noteId: "entry-c",
+        documentJson: { type: "doc" },
+        markdown: "c",
+        revision: 1,
+        wordCount: 2,
+      },
     ],
     historyHeaders: [],
     settings: {

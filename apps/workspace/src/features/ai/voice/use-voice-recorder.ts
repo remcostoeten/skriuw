@@ -26,9 +26,7 @@ function supportedRecorderMimeType(): string | null {
     return null;
   }
   return (
-    RECORDER_MIME_CANDIDATES.find((candidate) =>
-      MediaRecorder.isTypeSupported(candidate),
-    ) ?? null
+    RECORDER_MIME_CANDIDATES.find((candidate) => MediaRecorder.isTypeSupported(candidate)) ?? null
   );
 }
 

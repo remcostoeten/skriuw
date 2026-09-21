@@ -9,12 +9,17 @@ import type {
   TreeProjection,
 } from "./types";
 
-const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+function nextFrame() {
+  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+}
 
 function summarize(samplesMs: readonly number[]): TimingSummary {
   const sorted = [...samplesMs].sort((left, right) => left - right);
-  const at = (fraction: number) =>
-    sorted[Math.max(0, Math.min(sorted.length - 1, Math.ceil(sorted.length * fraction) - 1))] ?? 0;
+  function at(fraction: number) {
+    return (
+      sorted[Math.max(0, Math.min(sorted.length - 1, Math.ceil(sorted.length * fraction) - 1))] ?? 0
+    );
+  }
   return { p50Ms: at(0.5), p95Ms: at(0.95), p99Ms: at(0.99), maxMs: sorted.at(-1) ?? 0 };
 }
 
@@ -41,8 +46,8 @@ async function measureScenario(
   const samplesMs: number[] = [];
   const frameGapsMs: number[] = [];
   const expectedTreeRowRenders: Record<string, number> = {};
-  const rowSignatures = () =>
-    new Map(
+  function rowSignatures() {
+    return new Map(
       [...document.querySelectorAll<HTMLElement>("[data-node-id]")].map((row) => [
         row.dataset["nodeId"] ?? "",
         [
@@ -54,11 +59,12 @@ async function measureScenario(
         ].join("|"),
       ]),
     );
+  }
   for (const action of actions) {
     const rowsBefore = rowSignatures();
     const started = performance.now();
     flushSync(action);
-    document.documentElement.offsetHeight;
+    void document.documentElement.offsetHeight;
     const settled = performance.now();
     for (const [id, signature] of rowSignatures()) {
       if (rowsBefore.get(id) !== signature) {
@@ -88,7 +94,10 @@ async function measureScenario(
 function noteIds(store: RendererStore): string[] {
   return store
     .getState()
-    .nodeOrder.filter((id) => store.getState().nodes.get(id)?.kind === "note" && !store.getState().disabledIds.has(id));
+    .nodeOrder.filter(
+      (id) =>
+        store.getState().nodes.get(id)?.kind === "note" && !store.getState().disabledIds.has(id),
+    );
 }
 
 function selectCycle(ids: readonly string[], count: number): (() => void)[] {
@@ -168,7 +177,9 @@ async function runCorrectness(store: RendererStore): Promise<CorrectnessCheck[]>
     store.setActiveNote(second);
     await nextFrame();
     const selectionLedger = readLedger();
-    const renderedRows = Object.keys(selectionLedger.renders).filter((name) => name.startsWith("TreeRow:"));
+    const renderedRows = Object.keys(selectionLedger.renders).filter((name) =>
+      name.startsWith("TreeRow:"),
+    );
     checks.push({
       name: "selection-isolates-shell-and-host",
       pass:
@@ -188,11 +199,16 @@ async function runCorrectness(store: RendererStore): Promise<CorrectnessCheck[]>
   await nextFrame();
   checks.push({
     name: "equivalent-state-is-silent",
-    pass: store.getState() === state && store.diagnostics().notifications === 0 && readLedger().commits === 0,
+    pass:
+      store.getState() === state &&
+      store.diagnostics().notifications === 0 &&
+      readLedger().commits === 0,
     detail: JSON.stringify({ diagnostics: store.diagnostics(), ledger: readLedger() }),
   });
 
-  const folder = store.getState().nodeOrder.find((id) => store.getState().nodes.get(id)?.kind === "folder");
+  const folder = store
+    .getState()
+    .nodeOrder.find((id) => store.getState().nodes.get(id)?.kind === "folder");
   const active = store.getState().activeNoteId;
   if (folder && active) {
     resetLedger();
@@ -218,16 +234,22 @@ async function runCorrectness(store: RendererStore): Promise<CorrectnessCheck[]>
     store.resetDiagnostics();
     resetLedger();
     editor.value += "x";
-    editor.dispatchEvent(new InputEvent("input", { bubbles: true, data: "x", inputType: "insertText" }));
+    editor.dispatchEvent(
+      new InputEvent("input", { bubbles: true, data: "x", inputType: "insertText" }),
+    );
     await nextFrame();
     checks.push({
       name: "editor-typing-is-owned",
-      pass: Object.keys(readLedger().renders).length === 0 && store.diagnostics().notifications === 0,
+      pass:
+        Object.keys(readLedger().renders).length === 0 && store.diagnostics().notifications === 0,
       detail: JSON.stringify(readLedger()),
     });
   }
   const renderedRows = document.querySelectorAll("[data-node-id]").length;
-  const rowCeiling = Math.ceil(treeLayout.viewportHeightPx / treeLayout.rowHeightPx) + 1 + treeLayout.overscanRows * 2;
+  const rowCeiling =
+    Math.ceil(treeLayout.viewportHeightPx / treeLayout.rowHeightPx) +
+    1 +
+    treeLayout.overscanRows * 2;
   checks.push({
     name: "row-pool-bounded",
     pass: renderedRows <= rowCeiling,
@@ -269,7 +291,7 @@ export function installBenchmark(store: RendererStore, projection: TreeProjectio
   let trustedLongFrames: { durationMs: number; blockingMs: number }[] = [];
   let trustedObservers: PerformanceObserver[] = [];
   let running = false;
-  const onTrustedKeyDown = (event: KeyboardEvent) => {
+  function onTrustedKeyDown(event: KeyboardEvent) {
     if (trustedStart === 0 || !event.isTrusted || event.key !== "ArrowDown") {
       return;
     }
@@ -278,7 +300,7 @@ export function installBenchmark(store: RendererStore, projection: TreeProjectio
     requestAnimationFrame(() => {
       trustedHandlerMs.push(performance.now() - started);
     });
-  };
+  }
   window.addEventListener("keydown", onTrustedKeyDown, { capture: true });
 
   benchmarkWindow.__SKRIUW_RENDERER_STORE__ = {
@@ -309,7 +331,10 @@ export function installBenchmark(store: RendererStore, projection: TreeProjectio
         const longFrameObserver = new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
             const frame = entry as PerformanceEntry & { blockingDuration?: number };
-            longFrames.push({ durationMs: frame.duration, blockingMs: frame.blockingDuration ?? 0 });
+            longFrames.push({
+              durationMs: frame.duration,
+              blockingMs: frame.blockingDuration ?? 0,
+            });
           }
         });
         longFrameObserver.observe({ type: "long-animation-frame" });
@@ -319,95 +344,110 @@ export function installBenchmark(store: RendererStore, projection: TreeProjectio
       }
       try {
         const scenarios: ScenarioResult[] = [];
-        scenarios.push(await measureScenario(store, "selection-diagnostic-100", selectCycle(ids, 100)));
-      scenarios.push(
-        await measureScenario(store, "direct-active-note-100", selectCycle([...ids].reverse(), 100)),
-      );
-      scenarios.push(
-        await measureScenario(
-          store,
-          "expand-collapse-40",
-          Array.from({ length: 40 }, (_, position) => () => {
-            const id = folders[position % Math.max(1, folders.length)];
-            if (id) {
-              store.toggleExpanded(id);
-            }
-          }),
-        ),
-      );
-      scenarios.push(
-        await measureScenario(
-          store,
-          "editor-owned-typing-30",
-          Array.from({ length: 30 }, () => () => {
-            if (editor) {
-              editor.value += "x";
-              editor.dispatchEvent(new InputEvent("input", { bubbles: true, data: "x", inputType: "insertText" }));
-            }
-          }),
-        ),
-      );
-      flushSync(() => store.setActiveNote(active));
-      await nextFrame();
-      scenarios.push(
-        await measureScenario(
-          store,
-          "metadata-title-30",
-          Array.from({ length: 30 }, (_, position) => () =>
-            store.setMetadataTitle(active, `Measured title ${position % 2}`),
+        scenarios.push(
+          await measureScenario(store, "selection-diagnostic-100", selectCycle(ids, 100)),
+        );
+        scenarios.push(
+          await measureScenario(
+            store,
+            "direct-active-note-100",
+            selectCycle([...ids].reverse(), 100),
           ),
-        ),
-      );
-      scenarios.push(
-        await measureScenario(
-          store,
-          "equivalent-update-100",
-          Array.from({ length: 100 }, () => () => store.update((current) => current)),
-        ),
-      );
-      const baselineListeners = store.diagnostics().listenerCount;
-      const teardowns: (() => void)[] = [];
-      scenarios.push(
-        await measureScenario(
-          store,
-          "subscription-setup-100",
-          Array.from({ length: 100 }, () => () => {
-            teardowns.push(
-              store.subscribe((state) => state.settingsSelection, () => undefined),
-            );
-          }),
-        ),
-      );
-      scenarios.push(
-        await measureScenario(
-          store,
-          "subscription-teardown-100",
-          teardowns.map((teardown) => () => teardown()),
-        ),
-      );
-      const correctness = await runCorrectness(store);
-      return {
-        fixture: projection.metadata.name,
-        operationsDigest: projection.operationsDigest,
-        profileBuild: __PROFILE_BUILD__,
-        scenarios,
-        correctness,
-        diagnostics: {
-          ...store.diagnostics(),
-          baselineListeners,
-          listenerLeak: store.diagnostics().listenerCount - baselineListeners,
-        },
-        ledger: readLedger(),
-        browserObservers: {
-          longTasks,
-          longFrames,
-        },
-        dom: {
-          editorHost: document.querySelector("[data-editor-host]")?.getAttribute("data-editor-host"),
-          renderedRows: document.querySelectorAll("[data-node-id]").length,
-          totalElements: document.querySelectorAll("*").length,
-        },
-      };
+        );
+        scenarios.push(
+          await measureScenario(
+            store,
+            "expand-collapse-40",
+            Array.from({ length: 40 }, (_, position) => () => {
+              const id = folders[position % Math.max(1, folders.length)];
+              if (id) {
+                store.toggleExpanded(id);
+              }
+            }),
+          ),
+        );
+        scenarios.push(
+          await measureScenario(
+            store,
+            "editor-owned-typing-30",
+            Array.from({ length: 30 }, () => () => {
+              if (editor) {
+                editor.value += "x";
+                editor.dispatchEvent(
+                  new InputEvent("input", { bubbles: true, data: "x", inputType: "insertText" }),
+                );
+              }
+            }),
+          ),
+        );
+        flushSync(() => store.setActiveNote(active));
+        await nextFrame();
+        scenarios.push(
+          await measureScenario(
+            store,
+            "metadata-title-30",
+            Array.from(
+              { length: 30 },
+              (_, position) => () =>
+                store.setMetadataTitle(active, `Measured title ${position % 2}`),
+            ),
+          ),
+        );
+        scenarios.push(
+          await measureScenario(
+            store,
+            "equivalent-update-100",
+            Array.from({ length: 100 }, () => () => store.update((current) => current)),
+          ),
+        );
+        const baselineListeners = store.diagnostics().listenerCount;
+        const teardowns: (() => void)[] = [];
+        scenarios.push(
+          await measureScenario(
+            store,
+            "subscription-setup-100",
+            Array.from({ length: 100 }, () => () => {
+              teardowns.push(
+                store.subscribe(
+                  (state) => state.settingsSelection,
+                  () => undefined,
+                ),
+              );
+            }),
+          ),
+        );
+        scenarios.push(
+          await measureScenario(
+            store,
+            "subscription-teardown-100",
+            teardowns.map((teardown) => () => teardown()),
+          ),
+        );
+        const correctness = await runCorrectness(store);
+        return {
+          fixture: projection.metadata.name,
+          operationsDigest: projection.operationsDigest,
+          profileBuild: __PROFILE_BUILD__,
+          scenarios,
+          correctness,
+          diagnostics: {
+            ...store.diagnostics(),
+            baselineListeners,
+            listenerLeak: store.diagnostics().listenerCount - baselineListeners,
+          },
+          ledger: readLedger(),
+          browserObservers: {
+            longTasks,
+            longFrames,
+          },
+          dom: {
+            editorHost: document
+              .querySelector("[data-editor-host]")
+              ?.getAttribute("data-editor-host"),
+            renderedRows: document.querySelectorAll("[data-node-id]").length,
+            totalElements: document.querySelectorAll("*").length,
+          },
+        };
       } finally {
         for (const observer of observers) {
           for (const entry of observer.takeRecords()) {
@@ -415,7 +455,10 @@ export function installBenchmark(store: RendererStore, projection: TreeProjectio
               longTasks.push(entry.duration);
             } else if (entry.entryType === "long-animation-frame") {
               const frame = entry as PerformanceEntry & { blockingDuration?: number };
-              longFrames.push({ durationMs: frame.duration, blockingMs: frame.blockingDuration ?? 0 });
+              longFrames.push({
+                durationMs: frame.duration,
+                blockingMs: frame.blockingDuration ?? 0,
+              });
             }
           }
           observer.disconnect();
@@ -481,7 +524,10 @@ export function installBenchmark(store: RendererStore, projection: TreeProjectio
       store.resetDiagnostics();
       resetLedger();
       document.querySelector<HTMLElement>("[role='tree']")?.focus();
-      return { visibleRows: store.getState().visibleIds.length, anchors: createTrustedAnchors(store) };
+      return {
+        visibleRows: store.getState().visibleIds.length,
+        anchors: createTrustedAnchors(store),
+      };
     },
     positionTrusted(id) {
       if (trustedStart === 0) {
@@ -548,11 +594,17 @@ export function installBenchmark(store: RendererStore, projection: TreeProjectio
     },
     galleryChecks() {
       return [
-        { name: "meaningful-content", pass: document.body.innerText.includes("Skriuw selector laboratory") },
+        {
+          name: "meaningful-content",
+          pass: document.body.innerText.includes("Skriuw selector laboratory"),
+        },
         { name: "no-overlay", pass: !document.querySelector("vite-error-overlay") },
         { name: "selected-state", pass: store.getState().activeNoteId !== null },
         { name: "disabled-state", pass: store.getState().disabledIds.size > 0 },
-        { name: "reduced-motion", pass: matchMedia("(prefers-reduced-motion: reduce)").media.length > 0 },
+        {
+          name: "reduced-motion",
+          pass: matchMedia("(prefers-reduced-motion: reduce)").media.length > 0,
+        },
       ];
     },
     destroy() {

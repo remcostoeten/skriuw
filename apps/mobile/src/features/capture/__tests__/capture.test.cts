@@ -18,7 +18,9 @@ const TODAY = "2026-09-20";
  * than against a convenient object.
  */
 function sharedLine(id: string, text: string, title: string | null, dateKey = TODAY): string {
-  const quoted = (value: string) => JSON.stringify(value);
+  function quoted(value: string) {
+    return JSON.stringify(value);
+  }
   return `{"id":"${id}","text":${quoted(text)},"title":${
     title === null ? "null" : quoted(title)
   },"dateKey":"${dateKey}","source":"share","capturedAt":1789000000000}\n`;
@@ -166,9 +168,7 @@ test("an unfinished line is skipped without taking the queue down with it", () =
 
 test("settling drops the acknowledged records and keeps the rest", () => {
   const inbox = createCaptureInbox(
-    createMemoryInboxFile(
-      sharedLine("share-1", "One", null) + sharedLine("share-2", "Two", null),
-    ),
+    createMemoryInboxFile(sharedLine("share-1", "One", null) + sharedLine("share-2", "Two", null)),
   );
 
   inbox.settle(["share-1"]);

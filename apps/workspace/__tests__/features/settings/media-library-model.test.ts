@@ -101,12 +101,7 @@ test("merges disk blobs with per-note usage counts", () => {
 
 test("keeps referenced images whose blob file is gone and flags them", () => {
   const images = new Map([["image-1", image({})]]);
-  const entries = projectMediaLibrary(
-    [],
-    images,
-    NOTES,
-    documents({ "note-1": ["image-1"] }),
-  );
+  const entries = projectMediaLibrary([], images, NOTES, documents({ "note-1": ["image-1"] }));
   assert.equal(entries.length, 1);
   assert.ok(entries[0].missingBlob);
   assert.deepEqual(entries[0].usages, [
@@ -172,14 +167,8 @@ test("classifies note covers and journal references", () => {
   const cover = image({ id: "cover", noteId: "note-1", width: 1600, height: 900 });
   const journal = image({ id: "journal-image", noteId: "journal-1" });
   const nodes = new Map([
-    [
-      "note-1",
-      { title: "Roadmap", parentId: null, coverImageId: "cover" },
-    ],
-    [
-      "journal-1",
-      { title: "2026-07-29", parentId: "journal-root", coverImageId: null },
-    ],
+    ["note-1", { title: "Roadmap", parentId: null, coverImageId: "cover" }],
+    ["journal-1", { title: "2026-07-29", parentId: "journal-root", coverImageId: null }],
   ]);
   const entries = projectMediaLibrary(
     [blob({})],
@@ -288,10 +277,7 @@ test("carries the stored name and description onto library entries", () => {
 
 test("names a referenced file whose blob is gone", () => {
   const metadata = new Map([
-    [
-      "a".repeat(64),
-      { contentHash: "a".repeat(64), name: "Missing hero", alt: "", updatedAt: 1 },
-    ],
+    ["a".repeat(64), { contentHash: "a".repeat(64), name: "Missing hero", alt: "", updatedAt: 1 }],
   ]);
   const entries = projectMediaLibrary(
     [],

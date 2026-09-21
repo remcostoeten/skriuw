@@ -8,24 +8,28 @@ import { createInitialState, createRendererStore } from "@skriuw/renderer-core/s
 const snapshot: WorkspaceSnapshot = {
   protocolVersion: 1,
   activeNoteId: "note-1",
-  nodes: [{
-    id: "note-1",
-    kind: "note",
-    parentId: null,
-    rank: 1,
-    title: "One",
-    icon: null,
-    createdAt: 1,
-    updatedAt: 1,
-    deletedAt: null,
-  }],
-  documents: [{
-    noteId: "note-1",
-    documentJson: { type: "doc", content: [{ type: "paragraph" }] },
-    markdown: "",
-    revision: 1,
-    wordCount: 0,
-  }],
+  nodes: [
+    {
+      id: "note-1",
+      kind: "note",
+      parentId: null,
+      rank: 1,
+      title: "One",
+      icon: null,
+      createdAt: 1,
+      updatedAt: 1,
+      deletedAt: null,
+    },
+  ],
+  documents: [
+    {
+      noteId: "note-1",
+      documentJson: { type: "doc", content: [{ type: "paragraph" }] },
+      markdown: "",
+      revision: 1,
+      wordCount: 0,
+    },
+  ],
   settings: {
     settingsVersion: 1,
     theme: "midnight",
@@ -63,15 +67,17 @@ test("an optimistic save adopts the staged editor node without reparsing", () =>
   });
   const json = document.toJSON();
   prepared.stage("note-1", json, document);
-  store.applyOperations([{
-    type: "save_document",
-    noteId: "note-1",
-    documentJson: json,
-    markdown: "latest",
-    wordCount: 1,
-    expectedRevision: 1,
-    at: 2,
-  }]);
+  store.applyOperations([
+    {
+      type: "save_document",
+      noteId: "note-1",
+      documentJson: json,
+      markdown: "latest",
+      wordCount: 1,
+      expectedRevision: 1,
+      at: 2,
+    },
+  ]);
 
   const record = store.getState().documents.get("note-1");
   assert.ok(record);
@@ -82,10 +88,12 @@ test("an optimistic save adopts the staged editor node without reparsing", () =>
 test("malformed stored documents are diagnosed and use the empty fallback", () => {
   const malformed: WorkspaceSnapshot = {
     ...snapshot,
-    documents: [{
-      ...snapshot.documents[0]!,
-      documentJson: { type: "unknown-node" },
-    }],
+    documents: [
+      {
+        ...snapshot.documents[0]!,
+        documentJson: { type: "unknown-node" },
+      },
+    ],
   };
   const errors: unknown[][] = [];
   const originalError = console.error;

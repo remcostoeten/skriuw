@@ -90,7 +90,11 @@ import {
   setAnnotationResolved,
   updateAnnotationComment,
 } from "@/store/actions/annotations";
-import type { DocumentRecord, RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
+import type {
+  DocumentRecord,
+  RendererState,
+  RendererStore,
+} from "@skriuw/renderer-core/store/types";
 import type { WorkspaceImage, WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import {
   BOUNDED_BLOCK_LIMIT,
@@ -140,11 +144,7 @@ import {
   tableCommands,
   type TableCommand,
 } from "./table-commands";
-import {
-  createDragHandle,
-  type BlockMenuTarget,
-  type DragHandleController,
-} from "./drag-handle";
+import { createDragHandle, type BlockMenuTarget, type DragHandleController } from "./drag-handle";
 import {
   BubbleMenu,
   bubbleMenuStateEqual,
@@ -354,10 +354,7 @@ function selectedReference(view: EditorView): { kind: ReferenceKind; targetId: s
   return null;
 }
 
-function createEditorState(
-  document: ProseMirrorNode,
-  plugins: readonly Plugin[],
-): EditorState {
+function createEditorState(document: ProseMirrorNode, plugins: readonly Plugin[]): EditorState {
   return EditorState.create({
     doc: document,
     plugins,
@@ -430,7 +427,11 @@ function boundedJumpTarget(
     return null;
   }
   const document = entry.bounded.fullDocument();
-  return { kind: "markdown-lines", document, index: buildDocumentLineIndex(document, storedMarkdown(entry, document)) };
+  return {
+    kind: "markdown-lines",
+    document,
+    index: buildDocumentLineIndex(document, storedMarkdown(entry, document)),
+  };
 }
 
 function readSelection(state: EditorState, windowStart: number) {
@@ -652,9 +653,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         const bounded = entry?.bounded;
         if (!entry || !bounded) return false;
         const canShift =
-          direction === 1
-            ? bounded.windowEnd() < bounded.blockCount()
-            : bounded.windowStart() > 0;
+          direction === 1 ? bounded.windowEnd() < bounded.blockCount() : bounded.windowStart() > 0;
         if (!canShift) return false;
         moveBoundedWindow(entry, bounded.windowStart() + direction * WINDOW_SHIFT);
         return true;
@@ -671,7 +670,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const vimHost = vimHostRef.current;
   const editorPluginsRef = useRef<Plugin[] | null>(null);
   if (editorPluginsRef.current === null) {
-    editorPluginsRef.current = [createVimPlugin(vimHost), ...mentionPlugins, ...createProductPlugins()];
+    editorPluginsRef.current = [
+      createVimPlugin(vimHost),
+      ...mentionPlugins,
+      ...createProductPlugins(),
+    ];
   }
   const editorPlugins = editorPluginsRef.current;
   const preparedDocumentsRef = useRef<ReturnType<typeof preparedEditorDocuments> | null>(null);
@@ -730,11 +733,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   function rebuildBoundedSearchState(entry: CachedNote): void {
     const bounded = entry.bounded;
     if (!bounded) return;
-    const previous = entry.searchState ? getSearchState({
-      state: entry.searchState,
-      dispatch: () => undefined,
-      focus: () => undefined,
-    }) : undefined;
+    const previous = entry.searchState
+      ? getSearchState({
+          state: entry.searchState,
+          dispatch: () => undefined,
+          focus: () => undefined,
+        })
+      : undefined;
     let state = createSearchState(bounded.fullDocument());
     if (previous?.term) {
       state = state.apply(
@@ -748,11 +753,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     entry.searchState = state;
   }
 
-  function installBoundedWindow(
-    entry: CachedNote,
-    focus: boolean,
-    rebuild = true,
-  ): void {
+  function installBoundedWindow(entry: CachedNote, focus: boolean, rebuild = true): void {
     const bounded = entry.bounded;
     const view = viewRef.current;
     if (!bounded || !view) return;
@@ -778,11 +779,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       }
     }
     view.updateState(entry.state);
-    const searchState = entry.searchState ? getSearchState({
-      state: entry.searchState,
-      dispatch: () => undefined,
-      focus: () => undefined,
-    }) : undefined;
+    const searchState = entry.searchState
+      ? getSearchState({
+          state: entry.searchState,
+          dispatch: () => undefined,
+          focus: () => undefined,
+        })
+      : undefined;
     if (searchState?.term) {
       setSearch(view, searchState.term, searchState.options);
       entry.state = view.state;
@@ -1197,7 +1200,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     return range && range.href ? range.href : null;
   }
 
-  function openLink(href: string, target: LinkTarget = defaultLinkTarget(store.getState().settings)): void {
+  function openLink(
+    href: string,
+    target: LinkTarget = defaultLinkTarget(store.getState().settings),
+  ): void {
     openLinkAt(target, href).catch((error) => {
       console.error("open link rejected", error);
     });
@@ -1395,9 +1401,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const threadId = crypto.randomUUID();
     const at = Date.now();
     const anchorText = view.state.doc.textBetween(range.from, range.to);
-    view.dispatch(
-      view.state.tr.addMark(range.from, range.to, annotationMark.create({ threadId })),
-    );
+    view.dispatch(view.state.tr.addMark(range.from, range.to, annotationMark.create({ threadId })));
     createAnnotation(store, {
       id: threadId,
       noteId,
@@ -1493,15 +1497,19 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
    * both editors even for notes typed in raw mode, whose stored text may lay
    * lists out more tightly than the serializer does.
    */
-  function storedMarkdownFor(entry: CachedNote | null, document: ProseMirrorNode): string | undefined {
+  function storedMarkdownFor(
+    entry: CachedNote | null,
+    document: ProseMirrorNode,
+  ): string | undefined {
     const noteId = activeIdRef.current;
     if (!entry || noteId === null) return undefined;
     const record = store.getState().documents.get(noteId);
-    if (!record || record.documentJson !== entry.seenJson || !document.eq(entry.baseDoc)) return undefined;
+    if (!record || record.documentJson !== entry.seenJson || !document.eq(entry.baseDoc))
+      return undefined;
     return record.markdown;
   }
 
-const closeJumpToLine = useCallback(() => {
+  const closeJumpToLine = useCallback(() => {
     dismissJumpToLine();
     viewRef.current?.focus();
   }, [dismissJumpToLine]);
@@ -1526,7 +1534,9 @@ const closeJumpToLine = useCallback(() => {
     if (entry?.bounded && boundedTarget) {
       jumpTargetRef.current = boundedTarget;
       setJumpLineCount(boundedTarget.index.lineCount);
-      setJumpCaretLine(documentLineAt(boundedTarget.index, readSelection(view.state, entry.bounded.windowStart())));
+      setJumpCaretLine(
+        documentLineAt(boundedTarget.index, readSelection(view.state, entry.bounded.windowStart())),
+      );
     } else {
       const layout = viewDisplayRowLayout(view, displayRowLayoutCache.current);
       jumpTargetRef.current = DISPLAY_ROWS_TARGET;
@@ -1582,9 +1592,7 @@ const closeJumpToLine = useCallback(() => {
     }
     const position = topLevelTextPosition(view.state.doc, blockIndex, offset);
     view.dispatch(
-      view.state.tr
-        .setSelection(TextSelection.create(view.state.doc, position))
-        .scrollIntoView(),
+      view.state.tr.setSelection(TextSelection.create(view.state.doc, position)).scrollIntoView(),
     );
     return true;
   }
@@ -1886,12 +1894,7 @@ const closeJumpToLine = useCallback(() => {
           const coords = currentView.coordsAtPos(position);
           return openTableMenu(currentView, position, coords.left, coords.bottom);
         }
-        if (
-          toastActionIsAvailable() &&
-          mod &&
-          event.shiftKey &&
-          event.key.toLowerCase() === "z"
-        ) {
+        if (toastActionIsAvailable() && mod && event.shiftKey && event.key.toLowerCase() === "z") {
           return true;
         }
         if (entry && bounded && mod && event.key.toLowerCase() === "a") {
@@ -2029,11 +2032,9 @@ const closeJumpToLine = useCallback(() => {
     viewRef.current = view;
     const scrollHost = host.closest<HTMLElement>(".editor-scroll");
     scrollHostRef.current = scrollHost;
-    const handleScroll = () => {
+    function handleScroll() {
       setBubbleMenu((previous) => (previous.open ? closedBubbleMenu : previous));
-      setLinkMenu((previous) =>
-        previous.open && !previous.editing ? closedLinkMenu : previous,
-      );
+      setLinkMenu((previous) => (previous.open && !previous.editing ? closedLinkMenu : previous));
       dragHandleRef.current?.hide();
       const entry = activeEntry();
       if (!entry?.bounded || !scrollHost) return;
@@ -2043,11 +2044,11 @@ const closeJumpToLine = useCallback(() => {
       if (Math.abs(target - entry.bounded.windowStart()) >= WINDOW_SHIFT) {
         moveBoundedWindow(entry, target);
       }
-    };
-    const handleCompositionStart = () => {
+    }
+    function handleCompositionStart() {
       composingRef.current = true;
-    };
-    const handleCompositionEnd = () => {
+    }
+    function handleCompositionEnd() {
       composingRef.current = false;
       const pending = pendingWindowRef.current;
       pendingWindowRef.current = null;
@@ -2057,8 +2058,8 @@ const closeJumpToLine = useCallback(() => {
       pendingRemoteRef.current = null;
       const record = pendingRemote ? store.getState().documents.get(pendingRemote) : undefined;
       if (pendingRemote && record) adoptRecord(pendingRemote, record);
-    };
-    const handleAnnotationMouseOver = (event: MouseEvent) => {
+    }
+    function handleAnnotationMouseOver(event: MouseEvent) {
       if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
       const target = event.target;
       if (!(target instanceof Element)) return;
@@ -2072,8 +2073,8 @@ const closeJumpToLine = useCallback(() => {
       if (!range) return;
       cancelAnnotationHoverClose();
       showAnnotationThread(range, "hover", false);
-    };
-    const handleAnnotationMouseOut = (event: MouseEvent) => {
+    }
+    function handleAnnotationMouseOut(event: MouseEvent) {
       const target = event.target;
       if (!(target instanceof Element)) return;
       const anchor = target.closest<HTMLElement>("mark[data-skriuw-annotation]");
@@ -2082,8 +2083,8 @@ const closeJumpToLine = useCallback(() => {
       if (next instanceof Node && anchor.contains(next)) return;
       if (next instanceof Node && annotationMenuHostRef.current?.contains(next)) return;
       scheduleAnnotationHoverClose();
-    };
-    const handleLinkMouseOver = (event: MouseEvent) => {
+    }
+    function handleLinkMouseOver(event: MouseEvent) {
       if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
       const target = event.target;
       if (!(target instanceof Element)) return;
@@ -2096,8 +2097,8 @@ const closeJumpToLine = useCallback(() => {
       const menu = linkMenuRef.current;
       if (menu.open && menu.from === range.from && menu.to === range.to) return;
       showLinkMenu(view, range, "hover");
-    };
-    const handleLinkMouseOut = (event: MouseEvent) => {
+    }
+    function handleLinkMouseOut(event: MouseEvent) {
       const target = event.target;
       if (!(target instanceof Element)) return;
       const anchor = target.closest<HTMLElement>("a[href]");
@@ -2106,8 +2107,8 @@ const closeJumpToLine = useCallback(() => {
       if (next instanceof Node && anchor.contains(next)) return;
       if (next instanceof Node && linkMenuHostRef.current?.contains(next)) return;
       scheduleLinkHoverClose();
-    };
-    const handleBlur = (event: FocusEvent) => {
+    }
+    function handleBlur(event: FocusEvent) {
       const focused = event.relatedTarget;
       const intoBubbleMenu =
         focused instanceof HTMLElement && focused.closest(".bubble-menu") !== null;
@@ -2123,8 +2124,8 @@ const closeJumpToLine = useCallback(() => {
       if (!intoAnnotationMenu && annotationMenuRef.current.source !== "hover") {
         setAnnotationMenu(closedAnnotationMenu);
       }
-    };
-    const handleCopy = (event: ClipboardEvent) => {
+    }
+    function handleCopy(event: ClipboardEvent) {
       const entry = activeEntry();
       const bounded = entry?.bounded;
       if (!entry?.wholeSelected || !bounded || !event.clipboardData) return;
@@ -2132,8 +2133,8 @@ const closeJumpToLine = useCallback(() => {
       event.preventDefault();
       event.clipboardData.setData("text/plain", fullDocumentText(document));
       event.clipboardData.setData("text/html", fullDocumentHtml(document));
-    };
-    const handleContextMenu = (event: MouseEvent) => {
+    }
+    function handleContextMenu(event: MouseEvent) {
       const target = event.target;
       if (!(target instanceof HTMLElement) || !target.closest("table")) return;
       const found = view.posAtCoords({ left: event.clientX, top: event.clientY });
@@ -2143,7 +2144,7 @@ const closeJumpToLine = useCallback(() => {
         view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(found.pos))),
       );
       openTableMenu(view, found.pos, event.clientX, event.clientY);
-    };
+    }
     scrollHost?.addEventListener("scroll", handleScroll, { passive: true });
     view.dom.addEventListener("compositionstart", handleCompositionStart);
     view.dom.addEventListener("compositionend", handleCompositionEnd);
@@ -2214,9 +2215,7 @@ const closeJumpToLine = useCallback(() => {
     void flushPendingSave().catch(reportBackgroundSaveFailure);
     const previous = activeEntry();
     if (previous?.bounded && view.hasFocus()) {
-      previous.bounded.rememberSelection(
-        readSelection(view.state, previous.bounded.windowStart()),
-      );
+      previous.bounded.rememberSelection(readSelection(view.state, previous.bounded.windowStart()));
     }
     if (previous && scrollHostRef.current) previous.scrollTop = scrollHostRef.current.scrollTop;
     activeIdRef.current = activeNoteId;
@@ -2325,9 +2324,7 @@ const closeJumpToLine = useCallback(() => {
     if (!isTableCommandAvailable(view.state)) {
       const cellPosition = firstTableCellTextPosition(view.state, blockMenuPos);
       if (cellPosition === null) return;
-      view.dispatch(
-        view.state.tr.setSelection(TextSelection.create(view.state.doc, cellPosition)),
-      );
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, cellPosition)));
     }
     entry.command(view.state, view.dispatch);
     view.focus();
@@ -2354,8 +2351,7 @@ const closeJumpToLine = useCallback(() => {
   }
 
   const blockMenuIsTable =
-    blockMenuPos !== null &&
-    viewRef.current?.state.doc.nodeAt(blockMenuPos)?.type.name === "table";
+    blockMenuPos !== null && viewRef.current?.state.doc.nodeAt(blockMenuPos)?.type.name === "table";
 
   return (
     <div className="editor-host">
@@ -2367,8 +2363,9 @@ const closeJumpToLine = useCallback(() => {
               : `Changes in ${failedSaveNoteIds.size} notes couldn’t be saved. Your drafts are still here.`
           }
           onRetry={() => {
-            void Promise.all([...failedSaveNoteIds].map((noteId) => saveNow(noteId)))
-              .catch(reportBackgroundSaveFailure);
+            void Promise.all([...failedSaveNoteIds].map((noteId) => saveNow(noteId))).catch(
+              reportBackgroundSaveFailure,
+            );
           }}
           getSurface={() => viewRef.current?.dom ?? null}
         />
@@ -2396,9 +2393,7 @@ const closeJumpToLine = useCallback(() => {
                 height: "auto",
               }}
               transition={
-                reduceUtilityMotion
-                  ? REDUCED_UTILITY_MORPH_TRANSITION
-                  : UTILITY_MORPH_TRANSITION
+                reduceUtilityMotion ? REDUCED_UTILITY_MORPH_TRANSITION : UTILITY_MORPH_TRANSITION
               }
               data-editor-utility-overlay
               data-mode={utilityMode}
@@ -2410,9 +2405,7 @@ const closeJumpToLine = useCallback(() => {
                   initial={
                     reduceUtilityMotion ? REDUCED_UTILITY_SWAP_INITIAL : UTILITY_SWAP_INITIAL
                   }
-                  animate={
-                    reduceUtilityMotion ? REDUCED_UTILITY_SWAP_ENTER : UTILITY_SWAP_ENTER
-                  }
+                  animate={reduceUtilityMotion ? REDUCED_UTILITY_SWAP_ENTER : UTILITY_SWAP_ENTER}
                   exit={reduceUtilityMotion ? REDUCED_UTILITY_SWAP_EXIT : UTILITY_SWAP_EXIT}
                   className="w-full"
                 >
@@ -2622,7 +2615,11 @@ const closeJumpToLine = useCallback(() => {
       )}
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <span ref={blockMenuTriggerRef} aria-hidden="true" className="fixed left-0 top-0 h-0 w-0" />
+          <span
+            ref={blockMenuTriggerRef}
+            aria-hidden="true"
+            className="fixed left-0 top-0 h-0 w-0"
+          />
         </ContextMenuTrigger>
         <ContextMenuContent
           className="w-48"
@@ -2638,9 +2635,7 @@ const closeJumpToLine = useCallback(() => {
                 <ContextMenuSubContent className="w-48">
                   {tableCommands.map((entry, index) => (
                     <Fragment key={entry.id}>
-                      {(index === 3 || index === 6 || index === 7) ? (
-                        <ContextMenuSeparator />
-                      ) : null}
+                      {index === 3 || index === 6 || index === 7 ? <ContextMenuSeparator /> : null}
                       <ContextMenuItem onSelect={() => runTableCommand(entry)}>
                         {entry.label}
                       </ContextMenuItem>
@@ -2677,7 +2672,11 @@ const closeJumpToLine = useCallback(() => {
       </ContextMenu>
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <span ref={imageMenuTriggerRef} aria-hidden="true" className="fixed left-0 top-0 h-0 w-0" />
+          <span
+            ref={imageMenuTriggerRef}
+            aria-hidden="true"
+            className="fixed left-0 top-0 h-0 w-0"
+          />
         </ContextMenuTrigger>
         <ContextMenuContent className="w-44">
           <ContextMenuItem

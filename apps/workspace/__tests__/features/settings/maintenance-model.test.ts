@@ -20,14 +20,10 @@ import {
   requestCancel,
   requestConfirmation,
 } from "../../../src/features/settings/maintenance-model";
-import type {
-  MaintenancePhase,
-} from "../../../src/features/settings/maintenance-model";
+import type { MaintenancePhase } from "../../../src/features/settings/maintenance-model";
 import type { RecoveryInventory, WorkspaceSnapshot } from "../../../src/bridge/commands";
 
-function running(
-  kind: "export" | "import" | "backup" | "restore" | "relocate",
-): MaintenancePhase {
+function running(kind: "export" | "import" | "backup" | "restore" | "relocate"): MaintenancePhase {
   const state = beginOperation(IDLE_MAINTENANCE, kind);
   assert.ok(state);
   return state;
@@ -42,10 +38,7 @@ test("idle state accepts a new operation and marks it running", () => {
 test("running and confirming states reject duplicate submission", () => {
   const busy = running("backup");
   assert.equal(beginOperation(busy, "export"), null);
-  assert.equal(
-    requestConfirmation(busy, { kind: "import", archivePath: "/tmp/a.json" }),
-    null,
-  );
+  assert.equal(requestConfirmation(busy, { kind: "import", archivePath: "/tmp/a.json" }), null);
 
   const confirming = requestConfirmation(IDLE_MAINTENANCE, {
     kind: "import",
@@ -119,7 +112,8 @@ test("backup reports split into created and not-due outcomes", () => {
     }),
     {
       created: true,
-      detail: "Backup skriuw-backup-5.sqlite was written and verified. 2 old backup(s) were pruned.",
+      detail:
+        "Backup skriuw-backup-5.sqlite was written and verified. 2 old backup(s) were pruned.",
     },
   );
   assert.deepEqual(

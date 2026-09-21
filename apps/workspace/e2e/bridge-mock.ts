@@ -1,5 +1,8 @@
 export { Channel } from "../node_modules/@tauri-apps/api/core.js";
-import type { WorkspaceOperationEnvelope, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
+import type {
+  WorkspaceOperationEnvelope,
+  WorkspaceSnapshot,
+} from "@skriuw/renderer-core/contracts/workspace";
 
 type InvokeArguments = {
   operations?: WorkspaceOperationEnvelope[];

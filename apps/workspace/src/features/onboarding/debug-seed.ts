@@ -188,10 +188,7 @@ const NOTES: SeedNote[] = [
         tag("roadmap"),
         ".",
       ),
-      code(
-        "json",
-        '{ "protocolVersion": 4, "chunked": true, "ceiling": 65536 }',
-      ),
+      code("json", '{ "protocolVersion": 4, "chunked": true, "ceiling": 65536 }'),
     ],
   },
   {
@@ -220,7 +217,13 @@ const NOTES: SeedNote[] = [
     parentId: PROJECTS_ID,
     title: "Weekly sync",
     body: [
-      paragraph("Agenda item: ", note(HUB, "Editor rewrite"), ". Notes by ", person("Barbara"), "."),
+      paragraph(
+        "Agenda item: ",
+        note(HUB, "Editor rewrite"),
+        ". Notes by ",
+        person("Barbara"),
+        ".",
+      ),
       checks(
         { checked: true, text: "Review last week's blockers" },
         { checked: false, text: "Agree the cut line for the release" },
@@ -233,7 +236,11 @@ const NOTES: SeedNote[] = [
     parentId: PROJECTS_ID,
     title: "Release checklist",
     body: [
-      paragraph("Gate for the next tag. Depends on ", note("dev-seed-note-sync", "Sync protocol"), "."),
+      paragraph(
+        "Gate for the next tag. Depends on ",
+        note("dev-seed-note-sync", "Sync protocol"),
+        ".",
+      ),
       checks(
         { checked: true, text: "Contracts regenerated and committed" },
         { checked: true, text: "Migrations forward-safe" },
@@ -265,7 +272,11 @@ const NOTES: SeedNote[] = [
     parentId: RESEARCH_ID,
     title: "Prior art",
     body: [
-      paragraph("Survey of editors that survived a schema migration. Tagged ", tag("research"), "."),
+      paragraph(
+        "Survey of editors that survived a schema migration. Tagged ",
+        tag("research"),
+        ".",
+      ),
       bullets(
         ["Block-addressed documents keep history cheap"],
         ["Marker comments beat sidecar files for round-trips"],
@@ -285,11 +296,7 @@ const NOTES: SeedNote[] = [
         note("dev-seed-note-sync", "Sync protocol"),
         " agree on terms.",
       ),
-      bullets(
-        ["Operation, not mutation"],
-        ["Projection, not cache"],
-        ["Candidate, not neighbour"],
-      ),
+      bullets(["Operation, not mutation"], ["Projection, not cache"], ["Candidate, not neighbour"]),
       paragraph("Tagged ", tag("writing"), " with ", person("Grace"), "."),
     ],
   },
@@ -299,9 +306,7 @@ const NOTES: SeedNote[] = [
     title: "Glossary",
     body: [
       paragraph("Terms that keep drifting. Tagged ", tag("writing"), " and ", tag("research"), "."),
-      bullets([
-        "Detached task: a record whose source link disappeared, per ADR 0031",
-      ]),
+      bullets(["Detached task: a record whose source link disappeared, per ADR 0031"]),
     ],
   },
   ...archiveNotes(),
@@ -326,10 +331,7 @@ function journalSeeds(): JournalSeed[] {
           person("Ada"),
           ".",
         ),
-        bullets([
-          "The chip parser is the last blocker before the cut, tagged ",
-          tag("roadmap"),
-        ]),
+        bullets(["The chip parser is the last blocker before the cut, tagged ", tag("roadmap")]),
       ],
     },
     {
@@ -351,7 +353,13 @@ function journalSeeds(): JournalSeed[] {
       id: "dev-seed-journal-2",
       dateKey: shiftDay(todayKey(), -3),
       body: [
-        paragraph("Quiet day. Sketched the rail with ", person("Grace"), " under ", tag("design"), "."),
+        paragraph(
+          "Quiet day. Sketched the rail with ",
+          person("Grace"),
+          " under ",
+          tag("design"),
+          ".",
+        ),
       ],
     },
   ];
@@ -467,7 +475,12 @@ function trashed(store: RendererStore, id: string): boolean {
   return false;
 }
 
-function folder(id: string, title: string, parentId: string | null, at: number): WorkspaceOperation {
+function folder(
+  id: string,
+  title: string,
+  parentId: string | null,
+  at: number,
+): WorkspaceOperation {
   return {
     type: "create_folder",
     id,

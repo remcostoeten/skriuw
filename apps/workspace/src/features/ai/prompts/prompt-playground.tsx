@@ -371,8 +371,7 @@ export function PromptPlaygroundView({ store, signal }: Props) {
                 { value: "", label: "Blank" },
                 ...promptEntries.map((entry) => ({
                   value: entry.key,
-                  label:
-                    entry.origin === "customised" ? `${entry.name} (modified)` : entry.name,
+                  label: entry.origin === "customised" ? `${entry.name} (modified)` : entry.name,
                 })),
               ]}
               disabled={streaming}
@@ -473,7 +472,10 @@ export function PromptPlaygroundView({ store, signal }: Props) {
             <Button onClick={copyOutput} disabled={output.length === 0}>
               {copied ? "Copied" : "Copy"}
             </Button>
-            <Button onClick={clearRun} disabled={streaming ? false : output.length === 0 && run.phase === "idle"}>
+            <Button
+              onClick={clearRun}
+              disabled={streaming ? false : output.length === 0 && run.phase === "idle"}
+            >
               Clear
             </Button>
             <span className="text-[10.5px] text-theme-secondary">
@@ -481,7 +483,11 @@ export function PromptPlaygroundView({ store, signal }: Props) {
             </span>
           </div>
 
-          <p role="status" aria-live="polite" className="mb-1 min-h-4 text-[11.5px] text-theme-secondary">
+          <p
+            role="status"
+            aria-live="polite"
+            className="mb-1 min-h-4 text-[11.5px] text-theme-secondary"
+          >
             {statusLine}
           </p>
           {byteError !== null && (

@@ -18,23 +18,13 @@ import {
   shortcutMatchesPhysicalKey,
   shortcutOverridesFromSettings,
 } from "../../src/commands/bindings";
-import {
-  SHORTCUT_DEFINITIONS,
-  TAB_INDEX_ACTION_IDS,
-} from "../../src/commands/definitions";
+import { SHORTCUT_DEFINITIONS, TAB_INDEX_ACTION_IDS } from "../../src/commands/definitions";
 import type { ShortcutGuard } from "../../src/commands/definitions";
 import { RAIL_ITEMS } from "../../src/commands/rail-items";
 import { activeShortcutScopes } from "../../src/commands/workspace-shortcuts";
 import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
 
-const APP_ROUTES: readonly AppRoute[] = [
-  "notes",
-  "trash",
-  "tags",
-  "people",
-  "history",
-  "journal",
-];
+const APP_ROUTES: readonly AppRoute[] = ["notes", "trash", "tags", "people", "history", "journal"];
 
 const platformModifier = parseShortcut("mod+k").modifiers.meta ? "meta" : "ctrl";
 const otherModifier = platformModifier === "meta" ? "ctrl" : "meta";
@@ -83,18 +73,13 @@ test("effective keys prefer the override and fall back to the definition", () =>
 });
 
 test("focus sidebar keeps its default binding", () => {
-  const focusSidebar = SHORTCUT_DEFINITIONS.find(
-    (definition) => definition.id === "focusSidebar",
-  );
+  const focusSidebar = SHORTCUT_DEFINITIONS.find((definition) => definition.id === "focusSidebar");
   assert.ok(focusSidebar);
   assert.equal(effectiveShortcutKeys(focusSidebar, {}), "mod+e");
 });
 
 test("conflicts are detected against effective bindings, not just defaults", () => {
-  assert.equal(
-    findShortcutConflict({}, "createNote", "mod+shift+n")?.actionId,
-    "createFolder",
-  );
+  assert.equal(findShortcutConflict({}, "createNote", "mod+shift+n")?.actionId, "createFolder");
   assert.equal(findShortcutConflict({}, "createNote", "MOD + Shift + N")?.actionId, "createFolder");
   assert.equal(
     findShortcutConflict({}, "createNote", `${platformModifier}+shift+n`)?.actionId,
@@ -126,9 +111,7 @@ test("default binding detection treats an equal override as default", () => {
 
 test("guards default to blocking typing unless the definition opts out", () => {
   const findInNote = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "findInNote");
-  const searchMatchCase = SHORTCUT_DEFINITIONS.find(
-    (entry) => entry.id === "searchMatchCase",
-  );
+  const searchMatchCase = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "searchMatchCase");
   assert.ok(findInNote);
   assert.ok(searchMatchCase);
   assert.deepEqual(shortcutGuards(findInNote, true), []);
@@ -138,16 +121,10 @@ test("guards default to blocking typing unless the definition opts out", () => {
 });
 
 test("rename current note defers to text fields, the sidebar tree, and modals", () => {
-  const renameCurrentNote = SHORTCUT_DEFINITIONS.find(
-    (entry) => entry.id === "renameCurrentNote",
-  );
+  const renameCurrentNote = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "renameCurrentNote");
   assert.ok(renameCurrentNote);
   assert.equal(effectiveShortcutKeys(renameCurrentNote, {}), "f2");
-  assert.deepEqual(shortcutGuards(renameCurrentNote, true), [
-    "textField",
-    "sidebarTree",
-    "modal",
-  ]);
+  assert.deepEqual(shortcutGuards(renameCurrentNote, true), ["textField", "sidebarTree", "modal"]);
   assert.equal(findShortcutConflict({}, "renameCurrentNote", "f2"), null);
 });
 
@@ -174,26 +151,17 @@ test("a plain F2 keypress matches the rename binding", () => {
     shiftKey: false,
   } as KeyboardEvent;
   assert.equal(matchesShortcut(pressed, parsed), true);
-  assert.equal(
-    matchesShortcut({ ...pressed, shiftKey: true } as KeyboardEvent, parsed),
-    false,
-  );
+  assert.equal(matchesShortcut({ ...pressed, shiftKey: true } as KeyboardEvent, parsed), false);
 });
 
 test("trash current note binds both delete keys and stays silent while typing", () => {
-  const trashCurrentNote = SHORTCUT_DEFINITIONS.find(
-    (entry) => entry.id === "trashCurrentNote",
-  );
+  const trashCurrentNote = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "trashCurrentNote");
   assert.ok(trashCurrentNote);
   assert.equal(effectiveShortcutKeys(trashCurrentNote, {}), "mod+backspace");
   assert.equal(trashCurrentNote.secondaryKeys, "mod+delete");
   assert.equal(trashCurrentNote.worksWhileTyping, undefined);
   assert.equal(trashCurrentNote.secondaryWorksWhileTyping, undefined);
-  assert.deepEqual(shortcutGuards(trashCurrentNote, false), [
-    "typing",
-    "sidebarTree",
-    "modal",
-  ]);
+  assert.deepEqual(shortcutGuards(trashCurrentNote, false), ["typing", "sidebarTree", "modal"]);
   assert.equal(findShortcutConflict({}, "trashCurrentNote", "mod+backspace"), null);
   assert.ok((trashCurrentNote.description ?? "").includes("delete-word"));
 });
@@ -201,8 +169,9 @@ test("trash current note binds both delete keys and stays silent while typing", 
 test("mod+backspace and mod+delete both match the trash binding", () => {
   const base = { key: "Backspace", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
   const modifier = parseShortcut("mod+k").modifiers.meta ? "metaKey" : "ctrlKey";
-  const withMod = (key: string) =>
-    ({ ...base, key, [modifier]: true }) as unknown as KeyboardEvent;
+  function withMod(key: string) {
+    return { ...base, key, [modifier]: true } as unknown as KeyboardEvent;
+  }
   assert.equal(matchesShortcut(withMod("Backspace"), parseShortcut("mod+backspace")), true);
   assert.equal(matchesShortcut(withMod("Delete"), parseShortcut("mod+delete")), true);
   assert.equal(
@@ -258,9 +227,7 @@ test("document edge jumps are editor-bound, rebindable, and conflict-free", () =
 });
 
 test("the ctrl+arrow document edge defaults stay off macOS but a rebind binds everywhere", () => {
-  const definition = SHORTCUT_DEFINITIONS.find(
-    (entry) => entry.id === "goToDocumentStart",
-  );
+  const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "goToDocumentStart");
   assert.ok(definition);
   assert.equal(shortcutBindsOnPlatform(definition, {}, "linux"), true);
   assert.equal(shortcutBindsOnPlatform(definition, {}, "windows"), true);
@@ -281,8 +248,9 @@ test("a binding without a platform list registers on every platform", () => {
 
 test("ctrl+arrowup and ctrl+arrowdown match only with ctrl held", () => {
   const base = { key: "ArrowUp", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
-  const pressed = (key: string) =>
-    ({ ...base, key, ctrlKey: true }) as unknown as KeyboardEvent;
+  function pressed(key: string) {
+    return { ...base, key, ctrlKey: true } as unknown as KeyboardEvent;
+  }
   assert.equal(matchesShortcut(pressed("ArrowUp"), parseShortcut("ctrl+arrowup")), true);
   assert.equal(matchesShortcut(pressed("ArrowDown"), parseShortcut("ctrl+arrowdown")), true);
   assert.equal(
@@ -299,9 +267,7 @@ test("ctrl+arrowup and ctrl+arrowdown match only with ctrl held", () => {
 });
 
 test("find and replace shares the find scope and adds a macOS-safe alternate", () => {
-  const findAndReplace = SHORTCUT_DEFINITIONS.find(
-    (entry) => entry.id === "findAndReplaceInNote",
-  );
+  const findAndReplace = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "findAndReplaceInNote");
   const findInNote = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "findInNote");
   assert.ok(findAndReplace);
   assert.ok(findInNote);
@@ -311,10 +277,7 @@ test("find and replace shares the find scope and adds a macOS-safe alternate", (
   assert.equal(findAndReplace.scopes, findInNote.scopes);
   assert.deepEqual(shortcutGuards(findAndReplace, true), []);
   assert.equal(findShortcutConflict({}, "findAndReplaceInNote", "mod+h"), null);
-  assert.equal(
-    findShortcutConflict({}, "findAndReplaceInNote", "mod+f")?.actionId,
-    "findInNote",
-  );
+  assert.equal(findShortcutConflict({}, "findAndReplaceInNote", "mod+f")?.actionId, "findInNote");
 });
 
 test("mod+h matches find and replace while a plain h keeps typing", () => {
@@ -475,9 +438,7 @@ test("no two bindings that can be active together share a combo", () => {
     for (const noteFocused of [false, true]) {
       for (const tabsEnabled of [false, true]) {
         for (const splitActive of [false, true]) {
-          scopeSets.push(
-            activeShortcutScopes(route, noteFocused, tabsEnabled, splitActive),
-          );
+          scopeSets.push(activeShortcutScopes(route, noteFocused, tabsEnabled, splitActive));
         }
       }
     }
@@ -496,8 +457,7 @@ test("no two bindings that can be active together share a combo", () => {
         }
         for (const [where, target] of Object.entries(targets)) {
           const bothFire =
-            !shortcutGuarded(a.guards, { target }) &&
-            !shortcutGuarded(b.guards, { target });
+            !shortcutGuarded(a.guards, { target }) && !shortcutGuarded(b.guards, { target });
           assert.equal(
             bothFire,
             false,
@@ -550,10 +510,7 @@ test("alt+4 matches the fourth tab binding and a bare 4 keeps typing", () => {
   );
   assert.equal(matchesShortcut(base as unknown as KeyboardEvent, parsed), false);
   assert.equal(
-    matchesShortcut(
-      { ...base, altKey: true, shiftKey: true } as unknown as KeyboardEvent,
-      parsed,
-    ),
+    matchesShortcut({ ...base, altKey: true, shiftKey: true } as unknown as KeyboardEvent, parsed),
     false,
   );
 });
@@ -578,10 +535,7 @@ test("reopen closed tab stays off ctrl+shift+t because New tag owns it", () => {
   const createTag = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "createTag");
   assert.ok(createTag);
   assert.equal(effectiveShortcutKeys(createTag, {}), "mod+shift+t");
-  assert.equal(
-    findShortcutConflict({}, "reopenClosedTab", "mod+shift+t")?.actionId,
-    "createTag",
-  );
+  assert.equal(findShortcutConflict({}, "reopenClosedTab", "mod+shift+t")?.actionId, "createTag");
   const closeTab = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "closeTab");
   assert.ok(closeTab);
   assert.equal(sameCombo(effectiveShortcutKeys(closeTab, {}), "mod+shift+w"), false);
@@ -669,10 +623,7 @@ test("physical digit and punctuation codes recover layout-shifted shortcuts", ()
     true,
   );
   assert.equal(
-    shortcutMatchesPhysicalKey(
-      { ...event, code: "Backslash", key: "|" },
-      "mod+shift+backslash",
-    ),
+    shortcutMatchesPhysicalKey({ ...event, code: "Backslash", key: "|" }, "mod+shift+backslash"),
     true,
   );
   assert.equal(
@@ -690,14 +641,8 @@ test("physical digit and punctuation codes recover layout-shifted shortcuts", ()
     true,
   );
   assert.equal(shortcutMatchesPhysicalKey({ ...event, key: "1" }, "mod+shift+1"), false);
-  assert.equal(
-    shortcutMatchesPhysicalKey({ ...event, code: "Numpad1" }, "mod+shift+1"),
-    false,
-  );
-  assert.equal(
-    shortcutMatchesPhysicalKey({ ...event, shiftKey: false }, "mod+shift+1"),
-    false,
-  );
+  assert.equal(shortcutMatchesPhysicalKey({ ...event, code: "Numpad1" }, "mod+shift+1"), false);
+  assert.equal(shortcutMatchesPhysicalKey({ ...event, shiftKey: false }, "mod+shift+1"), false);
   assert.equal(shortcutMatchesPhysicalKey(event, "g then t then 1"), false);
 });
 
@@ -747,10 +692,7 @@ test("ctrl+shift+o matches the import binding regardless of the platform mod key
   const parsed = parseShortcut("ctrl+shift+o");
   const base = { key: "o", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
   assert.equal(
-    matchesShortcut(
-      { ...base, ctrlKey: true, shiftKey: true } as unknown as KeyboardEvent,
-      parsed,
-    ),
+    matchesShortcut({ ...base, ctrlKey: true, shiftKey: true } as unknown as KeyboardEvent, parsed),
     true,
   );
   assert.equal(
@@ -891,9 +833,7 @@ test("scope-separated bindings are not reported as conflicts", () => {
 });
 
 test("a combo two same-scope actions claim is still reported as a conflict", () => {
-  const notesAction = SHORTCUT_DEFINITIONS.find(
-    (definition) => definition.id === "focusEditor",
-  );
+  const notesAction = SHORTCUT_DEFINITIONS.find((definition) => definition.id === "focusEditor");
   assert.ok(notesAction);
   const collidingId = SHORTCUT_DEFINITIONS.find(
     (definition) =>
@@ -940,14 +880,44 @@ test("journal steps are bracket chords on the main block, scoped to the journal"
 
 test("each bracket keypress fires exactly one journal step, on Linux and macOS layouts", () => {
   const events = [
-    { expected: "journalPreviousDay", key: "[", code: "BracketLeft", shiftKey: false, altKey: false },
+    {
+      expected: "journalPreviousDay",
+      key: "[",
+      code: "BracketLeft",
+      shiftKey: false,
+      altKey: false,
+    },
     { expected: "journalNextDay", key: "]", code: "BracketRight", shiftKey: false, altKey: false },
-    { expected: "journalPreviousWeek", key: "{", code: "BracketLeft", shiftKey: true, altKey: false },
+    {
+      expected: "journalPreviousWeek",
+      key: "{",
+      code: "BracketLeft",
+      shiftKey: true,
+      altKey: false,
+    },
     { expected: "journalNextWeek", key: "}", code: "BracketRight", shiftKey: true, altKey: false },
-    { expected: "journalPreviousMonth", key: "[", code: "BracketLeft", shiftKey: false, altKey: true },
-    { expected: "journalPreviousMonth", key: "“", code: "BracketLeft", shiftKey: false, altKey: true },
+    {
+      expected: "journalPreviousMonth",
+      key: "[",
+      code: "BracketLeft",
+      shiftKey: false,
+      altKey: true,
+    },
+    {
+      expected: "journalPreviousMonth",
+      key: "“",
+      code: "BracketLeft",
+      shiftKey: false,
+      altKey: true,
+    },
     { expected: "journalNextMonth", key: "‘", code: "BracketRight", shiftKey: false, altKey: true },
-    { expected: "journalPreviousYear", key: "{", code: "BracketLeft", shiftKey: true, altKey: true },
+    {
+      expected: "journalPreviousYear",
+      key: "{",
+      code: "BracketLeft",
+      shiftKey: true,
+      altKey: true,
+    },
     { expected: "journalNextYear", key: "’", code: "BracketRight", shiftKey: true, altKey: true },
   ];
   for (const { expected, ...modifiers } of events) {
@@ -978,8 +948,7 @@ test("rebinding onto a journal key names the journal action that owns it", () =>
     null,
   );
   assert.equal(
-    findShortcutConflict({ journalNextWeek: "alt+shift+n" }, "createNote", "alt+shift+n")
-      ?.actionId,
+    findShortcutConflict({ journalNextWeek: "alt+shift+n" }, "createNote", "alt+shift+n")?.actionId,
     "journalNextWeek",
   );
 });

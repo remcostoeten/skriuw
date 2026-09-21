@@ -7,7 +7,10 @@ import {
   BUILT_IN_PROPERTY_TEMPLATES,
   instantiatePropertyTemplate,
 } from "@skriuw/renderer-core/properties/templates";
-import type { NotePropertyTemplate, PropertyIdFactory } from "@skriuw/renderer-core/properties/types";
+import type {
+  NotePropertyTemplate,
+  PropertyIdFactory,
+} from "@skriuw/renderer-core/properties/types";
 
 export type NoteTemplate = {
   id: string;
@@ -189,17 +192,13 @@ export function noteTemplate(id: string): NoteTemplate | null {
   return NOTE_TEMPLATES.find((template) => template.id === id) ?? null;
 }
 
-export function templatePropertyTemplate(
-  template: NoteTemplate,
-): NotePropertyTemplate | null {
+export function templatePropertyTemplate(template: NoteTemplate): NotePropertyTemplate | null {
   if (template.propertyTemplate) return template.propertyTemplate;
   if (template.propertyTemplateId === null) {
     return null;
   }
   return (
-    BUILT_IN_PROPERTY_TEMPLATES.find(
-      (entry) => entry.id === template.propertyTemplateId,
-    ) ?? null
+    BUILT_IN_PROPERTY_TEMPLATES.find((entry) => entry.id === template.propertyTemplateId) ?? null
   );
 }
 
@@ -236,7 +235,8 @@ export function planTemplateNote(
   at: number,
   createId: IdFactory,
 ): NoteTemplatePlan {
-  const document = template.buildDocument?.(at, createId) ?? parseProductMarkdown(template.buildMarkdown(at));
+  const document =
+    template.buildDocument?.(at, createId) ?? parseProductMarkdown(template.buildMarkdown(at));
   const documentJson = document.toJSON();
   const markdown = serializeProductMarkdown(document);
   const noteId = createId();

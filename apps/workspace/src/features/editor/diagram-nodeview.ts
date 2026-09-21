@@ -1,10 +1,7 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { NodeSelection } from "prosemirror-state";
 import type { EditorView, NodeView } from "prosemirror-view";
-import {
-  DIAGRAM_NODE_HEIGHT,
-  DIAGRAM_NODE_WIDTH,
-} from "./diagram-geometry";
+import { DIAGRAM_NODE_HEIGHT, DIAGRAM_NODE_WIDTH } from "./diagram-geometry";
 import {
   addDiagramStep,
   diagramShapes,
@@ -54,7 +51,10 @@ export function incidentDiagramEdges(model: DiagramModel, nodeId: string): Diagr
   return model.edges.filter(({ from, to }) => from === nodeId || to === nodeId);
 }
 
-function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: string): HTMLElementTagNameMap[K] {
+function element<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className: string,
+): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   node.className = className;
   return node;
@@ -87,7 +87,9 @@ function closestNode(
   if (!current) return model.nodes[0]?.id ?? null;
   const crossAxis = axis === "x" ? "y" : "x";
   const candidates = model.nodes
-    .filter((node) => node.id !== currentId && (node.position[axis] - current.position[axis]) * sign > 0)
+    .filter(
+      (node) => node.id !== currentId && (node.position[axis] - current.position[axis]) * sign > 0,
+    )
     .map((node) => ({
       id: node.id,
       distance:
@@ -544,7 +546,11 @@ export function createDiagramNodeView(
     return true;
   }
 
-  function handleNodeKey(event: KeyboardEvent, target: HTMLElement, diagramNode: DiagramNode): void {
+  function handleNodeKey(
+    event: KeyboardEvent,
+    target: HTMLElement,
+    diagramNode: DiagramNode,
+  ): void {
     if (event.key === "Escape") {
       event.preventDefault();
       const position = getPos();
@@ -613,7 +619,7 @@ export function createDiagramNodeView(
       const origin = { ...diagramNode.position };
       const start = { x: event.clientX, y: event.clientY };
       let moved = false;
-      const move = (moveEvent: PointerEvent) => {
+      function move(moveEvent: PointerEvent) {
         const position = {
           x: Math.round(origin.x + moveEvent.clientX - start.x),
           y: Math.round(origin.y + moveEvent.clientY - start.y),
@@ -630,8 +636,8 @@ export function createDiagramNodeView(
           target.style.transform = `translate3d(${active.position.x}px, ${active.position.y}px, 0)`;
           updateIncidentEdges(active.id);
         });
-      };
-      const finish = () => {
+      }
+      function finish() {
         target.removeEventListener("pointermove", move);
         target.removeEventListener("pointerup", finish);
         target.removeEventListener("pointercancel", finish);
@@ -646,7 +652,7 @@ export function createDiagramNodeView(
           commit(next);
           announce(`Moved ${diagramNode.label}`);
         }
-      };
+      }
       target.addEventListener("pointermove", move);
       target.addEventListener("pointerup", finish);
       target.addEventListener("pointercancel", finish);
@@ -679,7 +685,7 @@ export function createDiagramNodeView(
       connectorSvg.append(preview);
       target.dataset.connecting = "true";
       let dropId: string | null = null;
-      const move = (moveEvent: PointerEvent) => {
+      function move(moveEvent: PointerEvent) {
         const rect = canvas.getBoundingClientRect();
         preview.setAttribute(
           "d",
@@ -692,14 +698,14 @@ export function createDiagramNodeView(
         const nodeElement = hovered?.closest<HTMLElement>(".diagram-node") ?? null;
         const nextDrop =
           nodeElement && nodeElement.dataset.nodeId !== diagramNode.id
-            ? nodeElement.dataset.nodeId ?? null
+            ? (nodeElement.dataset.nodeId ?? null)
             : null;
         if (nextDrop !== dropId) {
           dropId = nextDrop;
           setDropTarget(dropId);
         }
-      };
-      const stop = (connect: boolean) => {
+      }
+      function stop(connect: boolean) {
         port.removeEventListener("pointermove", move);
         port.removeEventListener("pointerup", finish);
         port.removeEventListener("pointercancel", cancel);
@@ -708,9 +714,13 @@ export function createDiagramNodeView(
         delete target.dataset.connecting;
         if (connect && dropId) createEdge(diagramNode.id, dropId);
         else if (connect) announce("Drop on another step to connect");
-      };
-      const finish = () => stop(true);
-      const cancel = () => stop(false);
+      }
+      function finish() {
+        stop(true);
+      }
+      function cancel() {
+        stop(false);
+      }
       port.addEventListener("pointermove", move);
       port.addEventListener("pointerup", finish);
       port.addEventListener("pointercancel", cancel);
@@ -729,7 +739,10 @@ export function createDiagramNodeView(
     nodesLayer.replaceChildren(...model.nodes.map(createNodeElement));
     renderEdges();
     const count = `${model.nodes.length} ${model.nodes.length === 1 ? "step" : "steps"}, ${model.edges.length} ${model.edges.length === 1 ? "connection" : "connections"}`;
-    dom.setAttribute("aria-label", `Diagram, ${count}. Enter renames a step, Shift plus arrow keys move it, E reaches its connections.`);
+    dom.setAttribute(
+      "aria-label",
+      `Diagram, ${count}. Enter renames a step, Shift plus arrow keys move it, E reaches its connections.`,
+    );
     dom.dataset.selected = selectedAsBlock ? "true" : "false";
     sourcePanel.hidden = !sourceOpen;
     viewport.hidden = sourceOpen;
@@ -771,10 +784,13 @@ export function createDiagramNodeView(
 
   connectControl.addEventListener("click", () => {
     const current = currentSelected();
-    connectingFrom = connectingFrom ? null : current?.id ?? null;
+    connectingFrom = connectingFrom ? null : (current?.id ?? null);
     syncControls();
-    announce(connectingFrom ? `Choose a step to connect from ${current?.label}` : "Connection cancelled");
-    if (connectingFrom) nodesLayer.querySelector<HTMLElement>(`[data-node-id="${connectingFrom}"]`)?.focus();
+    announce(
+      connectingFrom ? `Choose a step to connect from ${current?.label}` : "Connection cancelled",
+    );
+    if (connectingFrom)
+      nodesLayer.querySelector<HTMLElement>(`[data-node-id="${connectingFrom}"]`)?.focus();
   });
 
   layoutControl.addEventListener("click", () => {

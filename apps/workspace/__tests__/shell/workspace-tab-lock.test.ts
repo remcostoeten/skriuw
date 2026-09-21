@@ -23,7 +23,7 @@ function createHub(): { connect: () => TabLockChannel } {
             if (endpoint === own) {
               continue;
             }
-            for (const listener of [...endpoint]) {
+            for (const listener of Array.from(endpoint)) {
               listener(message);
             }
           }

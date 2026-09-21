@@ -107,9 +107,6 @@ export function positionsPerPixel(view: ScrubberWindow, trackWidth: number): num
   return trackWidth > 0 ? view.size / trackWidth : 0;
 }
 
-export function pointerDistance(
-  a: { x: number; y: number },
-  b: { x: number; y: number },
-): number {
+export function pointerDistance(a: { x: number; y: number }, b: { x: number; y: number }): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }

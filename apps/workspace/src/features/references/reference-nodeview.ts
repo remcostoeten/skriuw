@@ -1,17 +1,9 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { NodeView } from "prosemirror-view";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import {
-  cancelHovercard,
-  destroyHovercard,
-  scheduleHovercard,
-} from "./reference-hovercard";
+import { cancelHovercard, destroyHovercard, scheduleHovercard } from "./reference-hovercard";
 import { activateReference } from "./reference-navigation";
-import {
-  referenceAriaLabel,
-  referenceText,
-  resolveReference,
-} from "./reference-resolver";
+import { referenceAriaLabel, referenceText, resolveReference } from "./reference-resolver";
 import type { ReferenceKind } from "@skriuw/renderer-core/references/types";
 
 export type ReferenceNodeViews = {
@@ -26,7 +18,11 @@ type TokenBinding = {
   fallbackLabel: string;
 };
 
-function referenceColor(state: RendererState, kind: ReferenceKind, targetId: string): string | null {
+function referenceColor(
+  state: RendererState,
+  kind: ReferenceKind,
+  targetId: string,
+): string | null {
   if (kind === "tag") {
     return state.tags.get(targetId)?.color ?? null;
   }
@@ -42,7 +38,10 @@ function paintToken(store: RendererStore, binding: TokenBinding): void {
   binding.dom.textContent = referenceText(binding.kind, resolved);
   binding.dom.setAttribute("aria-label", referenceAriaLabel(binding.kind, resolved));
   binding.dom.dataset.refAvailability = resolved.availability;
-  const color = resolved.availability === "resolved" ? referenceColor(state, binding.kind, binding.targetId) : null;
+  const color =
+    resolved.availability === "resolved"
+      ? referenceColor(state, binding.kind, binding.targetId)
+      : null;
   if (color) {
     binding.dom.style.setProperty("--reference-token-color", color);
     binding.dom.dataset.refColored = "true";
@@ -69,25 +68,25 @@ export function createReferenceNodeViews(store: RendererStore): ReferenceNodeVie
     };
     paintToken(store, binding);
     bindings.add(binding);
-    const handleMouseDown = (event: MouseEvent) => {
+    function handleMouseDown(event: MouseEvent) {
       if (event.button !== 0 || dom.dataset.refAvailability !== "resolved") {
         return;
       }
       event.preventDefault();
-    };
-    const handleClick = (event: MouseEvent) => {
+    }
+    function handleClick(event: MouseEvent) {
       if (event.button !== 0 || dom.dataset.refAvailability !== "resolved") {
         return;
       }
       event.preventDefault();
       activateReference(store, binding.kind, binding.targetId);
-    };
-    const handleMouseEnter = () => {
+    }
+    function handleMouseEnter() {
       if (dom.dataset.refAvailability !== "resolved") {
         return;
       }
       scheduleHovercard(store, dom, binding.kind, binding.targetId);
-    };
+    }
     dom.addEventListener("mousedown", handleMouseDown);
     dom.addEventListener("click", handleClick);
     dom.addEventListener("mouseenter", handleMouseEnter);
@@ -121,8 +120,7 @@ export function createReferenceNodeViews(store: RendererStore): ReferenceNodeVie
   return {
     nodeViews: {
       tag_ref: (node) => createToken("tag", node),
-      mention_ref: (node) =>
-        createToken(node.attrs.kind === "note" ? "note" : "person", node),
+      mention_ref: (node) => createToken(node.attrs.kind === "note" ? "note" : "person", node),
     },
     destroy: () => {
       unsubscribe();

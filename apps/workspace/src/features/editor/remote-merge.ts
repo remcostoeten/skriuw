@@ -19,7 +19,10 @@ export type ContentDiff = {
  * end back to the start on the shorter side, the way ProseMirror's own DOM
  * change reader does, so the range never inverts.
  */
-export function contentDiff(current: ProseMirrorNode, incoming: ProseMirrorNode): ContentDiff | null {
+export function contentDiff(
+  current: ProseMirrorNode,
+  incoming: ProseMirrorNode,
+): ContentDiff | null {
   const start = current.content.findDiffStart(incoming.content);
   if (start === null) return null;
   const end = current.content.findDiffEnd(incoming.content);
@@ -168,7 +171,10 @@ export function blocksOf(document: ProseMirrorNode): ProseMirrorNode[] {
 
 const LCS_CELL_BUDGET = 4_000_000;
 
-function lcsTable(before: readonly ProseMirrorNode[], after: readonly ProseMirrorNode[]): Uint32Array {
+function lcsTable(
+  before: readonly ProseMirrorNode[],
+  after: readonly ProseMirrorNode[],
+): Uint32Array {
   const width = after.length + 1;
   const table = new Uint32Array((before.length + 1) * width);
   for (let i = before.length - 1; i >= 0; i -= 1) {
@@ -250,7 +256,11 @@ type SourcedRegion = BlockRegion & { source: "local" | "remote" };
 
 function mergeAttributes(base: Attrs, local: Attrs, incoming: Attrs): Attrs {
   const merged: Record<string, unknown> = {};
-  for (const key of new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(incoming)])) {
+  for (const key of new Set([
+    ...Object.keys(base),
+    ...Object.keys(local),
+    ...Object.keys(incoming),
+  ])) {
     if (local[key] !== base[key]) merged[key] = local[key];
     else if (incoming[key] !== base[key]) merged[key] = incoming[key];
     else merged[key] = base[key];
@@ -272,9 +282,10 @@ export function mergeDocuments(
   incoming: ProseMirrorNode,
 ): ProseMirrorNode {
   const baseBlocks = blocksOf(base);
-  const localRegions: SourcedRegion[] = blockChanges(baseBlocks, blocksOf(local)).map(
-    (region) => ({ ...region, source: "local" }),
-  );
+  const localRegions: SourcedRegion[] = blockChanges(baseBlocks, blocksOf(local)).map((region) => ({
+    ...region,
+    source: "local",
+  }));
   const remoteRegions: SourcedRegion[] = blockChanges(baseBlocks, blocksOf(incoming))
     .filter((region) => !localRegions.some((local) => regionsIntersect(local, region)))
     .map((region) => ({ ...region, source: "remote" }));

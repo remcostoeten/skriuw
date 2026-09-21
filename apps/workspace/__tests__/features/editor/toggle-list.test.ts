@@ -47,9 +47,11 @@ function typeText(state: EditorState, text: string): EditorState {
   };
   const { from, to } = current.selection;
   const handled = current.plugins.some((plugin) => {
-    const handleTextInput = (plugin.props as {
-      handleTextInput?: (view: unknown, from: number, to: number, text: string) => boolean;
-    }).handleTextInput;
+    const handleTextInput = (
+      plugin.props as {
+        handleTextInput?: (view: unknown, from: number, to: number, text: string) => boolean;
+      }
+    ).handleTextInput;
     return handleTextInput?.call(plugin, view, from, to, text) ?? false;
   });
   if (!handled) current = current.apply(current.tr.insertText(text, from, to));
@@ -111,9 +113,7 @@ test("collapsing from disclosed content moves the selection into the summary", (
   });
   let state = EditorState.create({ doc: document });
   state = state.apply(state.tr.setNodeMarkup(1, undefined, { open: true }));
-  state = state.apply(
-    state.tr.setSelection(TextSelection.create(state.doc, detailPosition)),
-  );
+  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, detailPosition)));
   let next = state;
   assert.equal(
     toggleItemAtSelection(state, (transaction) => {
@@ -135,13 +135,9 @@ test("disclosure DOM handlers remap hidden selections and respect read-only stat
   });
   let state = EditorState.create({ doc: document });
   state = state.apply(state.tr.setNodeMarkup(1, undefined, { open: true }));
-  state = state.apply(
-    state.tr.setSelection(TextSelection.create(state.doc, detailPosition)),
-  );
+  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, detailPosition)));
   const plugin = createProductPlugins().find(
-    (candidate) =>
-      candidate.props.handleDOMEvents?.click &&
-      candidate.props.handleKeyDown,
+    (candidate) => candidate.props.handleDOMEvents?.click && candidate.props.handleKeyDown,
   );
   assert.ok(plugin?.props.handleDOMEvents?.click);
   const target = {
@@ -161,13 +157,7 @@ test("disclosure DOM handlers remap hidden selections and respect read-only stat
       state = state.apply(transaction);
     },
   };
-  assert.equal(
-    plugin.props.handleDOMEvents.click(
-      view as never,
-      clickEvent,
-    ),
-    true,
-  );
+  assert.equal(plugin.props.handleDOMEvents.click(view as never, clickEvent), true);
   assert.equal(state.selection.$from.parent.textContent, "Closed item");
 
   let dispatched = false;

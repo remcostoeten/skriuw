@@ -45,9 +45,7 @@ function replaceInlineOperation(
   operation.payload.operation.operation = workspaceOperation;
 }
 
-const chunkedContentBytes = new TextEncoder().encode(
-  JSON.stringify(goldenPushV2Content),
-);
+const chunkedContentBytes = new TextEncoder().encode(JSON.stringify(goldenPushV2Content));
 
 async function storeChunkedContent(workspaceId: string): Promise<void> {
   const store = new WorkspaceContentStore(env.SYNC_CONTENT);
@@ -62,9 +60,7 @@ const attachImageAssetBytes = new TextEncoder().encode("attach-image-asset-bytes
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 async function attachImageRequest(options: { includeAssets: boolean }) {
@@ -123,9 +119,9 @@ describe("WorkspaceSyncObject", () => {
     const schemaOperationTypes = workspaceOperationSchema.$defs.WorkspaceOperation.oneOf
       .map((variant) => variant.properties.type.const)
       .sort();
-    const policyOperationTypes = WORKSPACE_OPERATION_SYNC_POLICY_V1
-      .map((policy) => policy.operationType)
-      .sort();
+    const policyOperationTypes = WORKSPACE_OPERATION_SYNC_POLICY_V1.map(
+      (policy) => policy.operationType,
+    ).sort();
 
     expect(policyOperationTypes).toEqual(schemaOperationTypes);
     expect(new Set(policyOperationTypes).size).toBe(policyOperationTypes.length);
@@ -141,17 +137,13 @@ describe("WorkspaceSyncObject", () => {
     ]);
     expect(pushed.latestServerSequence).toBe(1);
 
-    const pulled = parseSyncPullResponse(
-      pulledPage(await workspace.pullOperations(0, 16)),
-    );
+    const pulled = parseSyncPullResponse(pulledPage(await workspace.pullOperations(0, 16)));
     expect(pulled.latestServerSequence).toBe(1);
     expect(pulled.operations).toHaveLength(1);
     expect(pulled.operations[0]?.operationId).toBe("operation-1");
     expect(inlineOperation(pulled.operations[0]!).type).toBe("create_folder");
 
-    const exhausted = parseSyncPullResponse(
-      pulledPage(await workspace.pullOperations(1, 16)),
-    );
+    const exhausted = parseSyncPullResponse(pulledPage(await workspace.pullOperations(1, 16)));
     expect(exhausted.operations).toEqual([]);
   });
 
@@ -174,9 +166,7 @@ describe("WorkspaceSyncObject", () => {
     expect(currentResult.accepted).toHaveLength(2);
     expect(currentResult.latestServerSequence).toBe(3);
 
-    const pulled = parseSyncPullResponse(
-      pulledPage(await workspace.pullOperations(0, 16)),
-    );
+    const pulled = parseSyncPullResponse(pulledPage(await workspace.pullOperations(0, 16)));
     expect(pulled.syncProtocolVersion).toBe(WORKSPACE_SYNC_PROTOCOL_VERSION);
     expect(pulled.operations.map((operation) => operation.payload.form)).toEqual([
       "inline",
@@ -241,9 +231,7 @@ describe("WorkspaceSyncObject", () => {
     const first = requirePushSuccess(await workspace.pushOperations(request));
     const retry = requirePushSuccess(await workspace.pushOperations(request));
     expect(retry).toEqual(first);
-    const pulled = parseSyncPullResponse(
-      pulledPage(await workspace.pullOperations(0)),
-    );
+    const pulled = parseSyncPullResponse(pulledPage(await workspace.pullOperations(0)));
     expect(pulled.operations).toHaveLength(1);
   });
 
@@ -278,8 +266,7 @@ describe("WorkspaceSyncObject", () => {
       ok: false,
       error: {
         code: "device_local_operation",
-        message:
-          "workspace operation set_active_note is device-local and cannot be replicated",
+        message: "workspace operation set_active_note is device-local and cannot be replicated",
       },
     });
   });
@@ -338,9 +325,7 @@ describe("WorkspaceSyncObject", () => {
       { operationId: "operation-image-1", clientSequence: 1, serverSequence: 1 },
     ]);
 
-    const pulled = parseSyncPullResponse(
-      pulledPage(await workspace.pullOperations(0, 16)),
-    );
+    const pulled = parseSyncPullResponse(pulledPage(await workspace.pullOperations(0, 16)));
     expect(pulled.operations).toHaveLength(1);
     const payload = pulled.operations[0]!.payload;
     if (payload.form !== "inline") {
@@ -402,9 +387,7 @@ describe("WorkspaceSyncObject", () => {
         message: "expected client sequence 1, received 2",
       },
     });
-    const pulled = parseSyncPullResponse(
-      pulledPage(await workspace.pullOperations(0)),
-    );
+    const pulled = parseSyncPullResponse(pulledPage(await workspace.pullOperations(0)));
     expect(pulled.operations).toEqual([]);
   });
 
@@ -426,25 +409,17 @@ describe("WorkspaceSyncObject", () => {
         message: "base server sequence is ahead of the workspace",
       },
     });
-    const pulled = parseSyncPullResponse(
-      pulledPage(await workspace.pullOperations(0)),
-    );
+    const pulled = parseSyncPullResponse(pulledPage(await workspace.pullOperations(0)));
     expect(pulled.operations).toEqual([]);
   });
 
   it("isolates workspace logs", async () => {
     const first = env.WORKSPACES.getByName("workspace-a");
     const second = env.WORKSPACES.getByName("workspace-b");
-    requirePushSuccess(
-      await first.pushOperations(parseSyncPushRequest(goldenPush)),
-    );
+    requirePushSuccess(await first.pushOperations(parseSyncPushRequest(goldenPush)));
 
-    const firstPull = parseSyncPullResponse(
-      pulledPage(await first.pullOperations(0)),
-    );
-    const secondPull = parseSyncPullResponse(
-      pulledPage(await second.pullOperations(0)),
-    );
+    const firstPull = parseSyncPullResponse(pulledPage(await first.pullOperations(0)));
+    const secondPull = parseSyncPullResponse(pulledPage(await second.pullOperations(0)));
     expect(firstPull.operations).toHaveLength(1);
     expect(secondPull.operations).toEqual([]);
   });

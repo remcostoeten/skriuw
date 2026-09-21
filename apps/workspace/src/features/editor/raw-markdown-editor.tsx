@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
@@ -21,14 +13,14 @@ import {
 import { commitOperations } from "@/store/actions/workspace";
 import { setEditorMode } from "@/store/actions/editor-mode";
 import { registerPendingWork } from "@/shell/pending-work";
-import {
-  usesVimMode,
-  vimCursorBlinks,
-  vimCursorStyle,
-} from "@/features/settings/settings-model";
+import { usesVimMode, vimCursorBlinks, vimCursorStyle } from "@/features/settings/settings-model";
 import type { VimCursorStyle } from "@/features/settings/settings-model";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import type { DocumentRecord, RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
+import type {
+  DocumentRecord,
+  RendererState,
+  RendererStore,
+} from "@skriuw/renderer-core/store/types";
 import type { DocumentEdge } from "./document-edges";
 import { JumpToLinePanel } from "./jump-to-line-panel";
 import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
@@ -167,7 +159,9 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   const jumpOpenRef = useRef(jumpOpen);
   jumpOpenRef.current = jumpOpen;
   const jumpFieldId = useId();
-  const [cursorStatus, setCursorStatus] = useState(() => rawMarkdownCursorStatus(source.text, 0, 0));
+  const [cursorStatus, setCursorStatus] = useState(() =>
+    rawMarkdownCursorStatus(source.text, 0, 0),
+  );
   const [vimMode, setVimMode] = useState<RawMarkdownVimMode | null>(null);
   const [vimFeedback, setVimFeedback] = useState<string | null>(null);
   const [rowStatus, setRowStatus] = useState<RawMarkdownRowStatus | null>(null);
@@ -196,22 +190,24 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
         expectedRevision: current.revision,
         at: Date.now(),
       },
-    ]).then(() => {
-      const latest = sourceRef.current;
-      if (latest.noteId === noteId && latest.text === markdown && latest.dirty) {
-        const clean = { ...latest, dirty: false };
-        sourceRef.current = clean;
-        setSource(clean);
-      }
-    }).finally(() => {
-      savingNoteIdsRef.current.delete(noteId);
-    });
+    ])
+      .then(() => {
+        const latest = sourceRef.current;
+        if (latest.noteId === noteId && latest.text === markdown && latest.dirty) {
+          const clean = { ...latest, dirty: false };
+          sourceRef.current = clean;
+          setSource(clean);
+        }
+      })
+      .finally(() => {
+        savingNoteIdsRef.current.delete(noteId);
+      });
   }
 
   function saveNow(noteId: string, markdown: string): Promise<void> {
     draftsByNoteIdRef.current.set(noteId, markdown);
-    return saveSequencerRef.current!
-      .enqueue(noteId, () => persistMarkdown(noteId, markdown))
+    return saveSequencerRef
+      .current!.enqueue(noteId, () => persistMarkdown(noteId, markdown))
       .then(() => {
         if (draftsByNoteIdRef.current.get(noteId) === markdown) {
           draftsByNoteIdRef.current.delete(noteId);
@@ -400,7 +396,10 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
       void flushPendingSave(previous.noteId).catch(reportBackgroundSaveFailure);
     }
     const next =
-      !noteChanged && previous.dirty && previous.noteId !== null && savingNoteIdsRef.current.has(previous.noteId)
+      !noteChanged &&
+      previous.dirty &&
+      previous.noteId !== null &&
+      savingNoteIdsRef.current.has(previous.noteId)
         ? previous
         : reconcileRawMarkdown(previous, activeNoteId, record?.markdown ?? "");
     if (next !== previous) {
@@ -484,9 +483,10 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     }
   }
 
-  const selectionSummary = cursorStatus.selectedCharacters > 0
-    ? `${cursorStatus.selectedWords} words · ${cursorStatus.selectedCharacters} chars selected`
-    : `Ln ${cursorRow}, Col ${cursorStatus.column}`;
+  const selectionSummary =
+    cursorStatus.selectedCharacters > 0
+      ? `${cursorStatus.selectedWords} words · ${cursorStatus.selectedCharacters} chars selected`
+      : `Ln ${cursorRow}, Col ${cursorStatus.column}`;
   const editorPane = surfaceHost?.closest<HTMLElement>(".editor-pane") ?? null;
 
   return (
@@ -538,8 +538,16 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
         <div className="raw-markdown-status" aria-label={`${wordCount} words, ${selectionSummary}`}>
           <span>{wordCount} words</span>
           <span className="raw-markdown-status-end">
-            {vimFeedback ? <span role="status" aria-live="polite">{vimFeedback}</span> : null}
-            {vimMode ? <span className="vim-mode-badge" data-mode={vimMode}>{vimMode}</span> : null}
+            {vimFeedback ? (
+              <span role="status" aria-live="polite">
+                {vimFeedback}
+              </span>
+            ) : null}
+            {vimMode ? (
+              <span className="vim-mode-badge" data-mode={vimMode}>
+                {vimMode}
+              </span>
+            ) : null}
             <span>{selectionSummary}</span>
           </span>
         </div>

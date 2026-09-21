@@ -22,10 +22,7 @@ test("selected Ollama model is device-local and survives the settings surface", 
 });
 
 test("selection falls back when the installed model disappears", () => {
-  assert.equal(
-    availableOllamaSelection("removed:latest", [model("gemma3:4b")]),
-    "gemma3:4b",
-  );
+  assert.equal(availableOllamaSelection("removed:latest", [model("gemma3:4b")]), "gemma3:4b");
   assert.equal(availableOllamaSelection("removed:latest", []), null);
 });
 

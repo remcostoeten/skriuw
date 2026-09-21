@@ -1,9 +1,5 @@
 import type { WorkspaceSession } from "../../bridge/commit";
-import {
-  appendToJournalEntry,
-  createJournalEntry,
-  JournalAppendError,
-} from "../journal/actions";
+import { appendToJournalEntry, createJournalEntry, JournalAppendError } from "../journal/actions";
 import { isDateKey, todayKey, type DateKey } from "../journal/dates";
 import { journalNoteIdForDate } from "../journal/model";
 import { newNodeId } from "../../shell/identity";

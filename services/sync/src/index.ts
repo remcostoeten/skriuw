@@ -3,19 +3,12 @@ export { WorkspaceSyncObject } from "./workspace-sync-object";
 import { productionSyncAccessConfiguration } from "./access";
 import { WorkspaceContentStore } from "./content-store";
 import { corsHeaders, handleAuthRequest, withHeaders } from "./auth";
-import {
-  SYNC_ROUTE_NAMES,
-  handlePublicSyncRequest,
-  logSyncSecurityEvent,
-} from "./public-api";
+import { SYNC_ROUTE_NAMES, handlePublicSyncRequest, logSyncSecurityEvent } from "./public-api";
 import {
   SUPPORTED_SYNC_PROTOCOL_VERSIONS,
   WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION,
 } from "./contracts";
-import {
-  handleSyncProvisionRequest,
-  handleSyncWorkspaceStateRequest,
-} from "./provision";
+import { handleSyncProvisionRequest, handleSyncWorkspaceStateRequest } from "./provision";
 
 function jsonError(status: number, code: string): Response {
   return Response.json({ error: code }, { status });
@@ -52,27 +45,32 @@ export default {
       if (!headers) return jsonError(403, "origin_not_allowed");
       if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
       const accessConfiguration = productionSyncAccessConfiguration(env);
-      const nowEpochSeconds = () => Math.floor(Date.now() / 1_000);
-      const resolveWorkspace = (workspaceId: string) => env.WORKSPACES.getByName(workspaceId);
-      const response = url.pathname === "/v1/sync/provision"
-        ? await handleSyncProvisionRequest(request, {
-            accessConfiguration,
-            database: env.AUTH_DB,
-            nowEpochSeconds,
-          })
-        : url.pathname === "/v1/sync/state"
-          ? await handleSyncWorkspaceStateRequest(request, {
+      function nowEpochSeconds() {
+        return Math.floor(Date.now() / 1_000);
+      }
+      function resolveWorkspace(workspaceId: string) {
+        return env.WORKSPACES.getByName(workspaceId);
+      }
+      const response =
+        url.pathname === "/v1/sync/provision"
+          ? await handleSyncProvisionRequest(request, {
               accessConfiguration,
-              resolveWorkspace,
+              database: env.AUTH_DB,
               nowEpochSeconds,
             })
-          : await handlePublicSyncRequest(request, {
-              accessConfiguration,
-              resolveWorkspace,
-              contentStore: new WorkspaceContentStore(env.SYNC_CONTENT),
-              log: logSyncSecurityEvent,
-              nowEpochSeconds,
-            });
+          : url.pathname === "/v1/sync/state"
+            ? await handleSyncWorkspaceStateRequest(request, {
+                accessConfiguration,
+                resolveWorkspace,
+                nowEpochSeconds,
+              })
+            : await handlePublicSyncRequest(request, {
+                accessConfiguration,
+                resolveWorkspace,
+                contentStore: new WorkspaceContentStore(env.SYNC_CONTENT),
+                log: logSyncSecurityEvent,
+                nowEpochSeconds,
+              });
       if (response.status === 101) {
         return response;
       }

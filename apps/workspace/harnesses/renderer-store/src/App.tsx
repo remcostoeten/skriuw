@@ -16,12 +16,12 @@ const fixtureNames = ["nested-1000", "nested-5000", "wide-5000", "mixed-5000"];
 export function App({ projection, store }: Props) {
   recordRender("ApplicationShell");
   const resultRef = useRef<HTMLPreElement>(null);
-  const onFixtureChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  function onFixtureChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const url = new URL(window.location.href);
     url.searchParams.set("fixture", event.target.value);
     window.location.assign(url);
-  };
-  const onRun = async () => {
+  }
+  async function onRun() {
     if (!resultRef.current) {
       return;
     }
@@ -31,7 +31,7 @@ export function App({ projection, store }: Props) {
     };
     const result = await benchmarkWindow.__SKRIUW_RENDERER_STORE__.run();
     resultRef.current.textContent = JSON.stringify(result, null, 2);
-  };
+  }
   return (
     <Profiler id="renderer-store" onRender={recordProfilerCommit}>
       <main className="application-shell">
@@ -40,7 +40,9 @@ export function App({ projection, store }: Props) {
             <span className="brand-mark">SK</span>
             <div>
               <strong>Skriuw selector laboratory</strong>
-              <span>React renderer isolation / {__PROFILE_BUILD__ ? "profiling" : "production"}</span>
+              <span>
+                React renderer isolation / {__PROFILE_BUILD__ ? "profiling" : "production"}
+              </span>
             </div>
           </div>
           <div className="fixture-controls">
@@ -95,7 +97,10 @@ export function App({ projection, store }: Props) {
               <span className="ledger-key">P95 &lt; 8 ms / max &lt; 16.67 ms</span>
             </div>
           </header>
-          <pre ref={resultRef}>Run the benchmark to inspect raw timings, notifications, commits, and render invocations.</pre>
+          <pre ref={resultRef}>
+            Run the benchmark to inspect raw timings, notifications, commits, and render
+            invocations.
+          </pre>
         </section>
       </main>
     </Profiler>

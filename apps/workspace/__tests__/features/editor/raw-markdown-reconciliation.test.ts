@@ -12,10 +12,11 @@ function clean(text = "current"): RawMarkdownState {
 }
 
 test("same-note external updates replace clean raw source", () => {
-  assert.deepEqual(
-    reconcileRawMarkdown(clean(), "note-1", "external"),
-    { noteId: "note-1", text: "external", dirty: false },
-  );
+  assert.deepEqual(reconcileRawMarkdown(clean(), "note-1", "external"), {
+    noteId: "note-1",
+    text: "external",
+    dirty: false,
+  });
 });
 
 test("history restore reconciles a clean raw editor for the same note", () => {
@@ -30,35 +31,35 @@ test("history restore reconciles a clean raw editor for the same note", () => {
     return;
   }
 
-  assert.deepEqual(
-    reconcileRawMarkdown(clean(), restored.noteId, restored.markdown),
-    { noteId: "note-1", text: "# Restored\n", dirty: false },
-  );
+  assert.deepEqual(reconcileRawMarkdown(clean(), restored.noteId, restored.markdown), {
+    noteId: "note-1",
+    text: "# Restored\n",
+    dirty: false,
+  });
 });
 
 test("same-note external updates do not clobber dirty local source", () => {
   const dirty = updateRawMarkdown(clean(), "local draft");
 
-  assert.equal(
-    reconcileRawMarkdown(dirty, "note-1", "external"),
-    dirty,
-  );
+  assert.equal(reconcileRawMarkdown(dirty, "note-1", "external"), dirty);
 });
 
 test("matching optimistic saves mark local raw source clean", () => {
   const dirty = updateRawMarkdown(clean(), "saved draft");
 
-  assert.deepEqual(
-    reconcileRawMarkdown(dirty, "note-1", "saved draft"),
-    { noteId: "note-1", text: "saved draft", dirty: false },
-  );
+  assert.deepEqual(reconcileRawMarkdown(dirty, "note-1", "saved draft"), {
+    noteId: "note-1",
+    text: "saved draft",
+    dirty: false,
+  });
 });
 
 test("note changes always reconcile after the prior note is flushed", () => {
   const dirty = updateRawMarkdown(clean(), "local draft");
 
-  assert.deepEqual(
-    reconcileRawMarkdown(dirty, "note-2", "next note"),
-    { noteId: "note-2", text: "next note", dirty: false },
-  );
+  assert.deepEqual(reconcileRawMarkdown(dirty, "note-2", "next note"), {
+    noteId: "note-2",
+    text: "next note",
+    dirty: false,
+  });
 });

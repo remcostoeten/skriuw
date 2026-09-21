@@ -16,11 +16,7 @@ import {
   subscribeBrowserResumeFailure,
   subscribeBrowserSyncProgress,
 } from "@/bridge/browser-sync";
-import {
-  pauseWorkspaceSync,
-  retryWorkspaceSync,
-  workspaceSyncStatus,
-} from "@/bridge/commands";
+import { pauseWorkspaceSync, retryWorkspaceSync, workspaceSyncStatus } from "@/bridge/commands";
 import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 import { isBrowserRuntime } from "@/bridge/runtime";
 import { showToast } from "@/shared/ui/toast";
@@ -93,15 +89,15 @@ export function useWorkspaceSync(pollIntervalMs = SYNC_POLL_ACTIVE_MS): Workspac
     if (!user) return;
     let mounted = true;
     let inFlight = false;
-    const poll = () => {
+    function poll() {
       if (inFlight) return;
       inFlight = true;
       void workspaceSyncStatus()
         .then(
-          (next) => {
+          (latest) => {
             if (!mounted) return;
-            setStatus(next);
-            if (next.state !== "localOnly") clearConnectFailure();
+            setStatus(latest);
+            if (latest.state !== "localOnly") clearConnectFailure();
           },
           (reason: unknown) => {
             if (mounted) setActionError(connectFailureText(reason));
@@ -110,7 +106,7 @@ export function useWorkspaceSync(pollIntervalMs = SYNC_POLL_ACTIVE_MS): Workspac
         .finally(() => {
           inFlight = false;
         });
-    };
+    }
     poll();
     const interval = window.setInterval(poll, pollIntervalMs);
     return () => {

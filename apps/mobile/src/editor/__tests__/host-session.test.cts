@@ -3,10 +3,7 @@ import test from "node:test";
 import { resolveTheme, type ThemeName } from "@skriuw/theme";
 import type { BridgePort } from "@skriuw/renderer-core/bridge/port";
 import { createMemoryBridge } from "@skriuw/renderer-core/bridge/memory-adapter";
-import {
-  envelope,
-  type WorkspaceOperation,
-} from "@skriuw/renderer-core/contracts/workspace";
+import { envelope, type WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import { demoSnapshot } from "../../shell/demo-workspace";
 import { openWorkspaceSession, type ShellSession } from "../../shell/workspace-session";
 import { decodeBase64, encodeBase64 } from "../bytes";
@@ -93,7 +90,10 @@ function save(noteId: string, markdown: string, expectedRevision: number): Works
   return {
     type: "save_document",
     noteId,
-    documentJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: markdown }] }] },
+    documentJson: {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: markdown }] }],
+    },
     markdown,
     wordCount: markdown.split(/\s+/).filter((word) => word.length > 0).length,
     expectedRevision,
@@ -159,10 +159,9 @@ test("a change is made durable through the shared save path and acknowledged", a
   assert.equal(acks.length, 1);
   assert.equal(acks[0]?.changeId, 7);
   assert.equal(acks[0]?.ok, true);
-  assert.deepEqual(
-    acks[0]?.ok === true ? acks[0].ack.revisions : null,
-    [{ id: OPEN_NOTE, revision: 2 }],
-  );
+  assert.deepEqual(acks[0]?.ok === true ? acks[0].ack.revisions : null, [
+    { id: OPEN_NOTE, revision: 2 },
+  ]);
 
   const record = harness.workspace.store.getState().documents.get(OPEN_NOTE);
   assert.equal(record?.markdown, "typed on a phone");
@@ -439,9 +438,7 @@ test("a theme change reaches the page without a reload", async () => {
   const paper = editorTheme("paper");
   harness.host.setTheme(paper);
 
-  assert.deepEqual(harness.sent, [
-    { v: EDITOR_PROTOCOL_VERSION, type: "theme", theme: paper },
-  ]);
+  assert.deepEqual(harness.sent, [{ v: EDITOR_PROTOCOL_VERSION, type: "theme", theme: paper }]);
 
   await harness.close();
 });
@@ -451,6 +448,7 @@ function countingBridge(inner: BridgePort): { bridge: BridgePort; calls: () => n
   let calls = 0;
   const bridge = new Proxy(inner, {
     get(target, property, receiver) {
+      // oxlint-disable-next-line anti-slop/no-reflect-get -- a Proxy get trap must forward the receiver.
       const value = Reflect.get(target, property, receiver);
       if (typeof value !== "function") return value;
       return (...args: unknown[]) => {

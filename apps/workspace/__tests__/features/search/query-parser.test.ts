@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  normalizeEntityName,
-  parseSearchQuery,
-} from "../../../src/features/search/query-parser";
+import { normalizeEntityName, parseSearchQuery } from "../../../src/features/search/query-parser";
 
 test("sigils and keyword prefixes both produce entity filters", () => {
   const parsed = parseSearchQuery("#design $ada tag:launch person:Bob");

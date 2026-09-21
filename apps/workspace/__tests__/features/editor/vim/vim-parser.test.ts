@@ -10,11 +10,23 @@ function parse(keys: string, mode: "normal" | "visual" = "normal", recording = f
 test("counts, registers, and operators combine into one command", () => {
   assert.deepEqual(parse("3dw"), {
     status: "complete",
-    command: { type: "operator", operator: "d", motion: { kind: "simple", key: "w" }, count: 3, register: null },
+    command: {
+      type: "operator",
+      operator: "d",
+      motion: { kind: "simple", key: "w" },
+      count: 3,
+      register: null,
+    },
   });
   assert.deepEqual(parse("2d3w"), {
     status: "complete",
-    command: { type: "operator", operator: "d", motion: { kind: "simple", key: "w" }, count: 6, register: null },
+    command: {
+      type: "operator",
+      operator: "d",
+      motion: { kind: "simple", key: "w" },
+      count: 6,
+      register: null,
+    },
   });
   assert.deepEqual(parse('"ayy'), {
     status: "complete",
@@ -77,11 +89,23 @@ test("actions carry their character or register argument", () => {
   });
   assert.deepEqual(parse("qa"), {
     status: "complete",
-    command: { type: "action", action: "startRecording", count: null, register: null, character: "a" },
+    command: {
+      type: "action",
+      action: "startRecording",
+      count: null,
+      register: null,
+      character: "a",
+    },
   });
   assert.deepEqual(parse("q", "normal", true), {
     status: "complete",
-    command: { type: "action", action: "stopRecording", count: null, register: null, character: null },
+    command: {
+      type: "action",
+      action: "stopRecording",
+      count: null,
+      register: null,
+      character: null,
+    },
   });
   assert.deepEqual(parse("3@@"), {
     status: "complete",
@@ -101,7 +125,11 @@ test("visual mode treats operators as actions and allows text objects", () => {
   });
   assert.deepEqual(parse("iw", "visual"), {
     status: "complete",
-    command: { type: "motion", motion: { kind: "textobject", around: false, object: "w" }, count: null },
+    command: {
+      type: "motion",
+      motion: { kind: "textobject", around: false, object: "w" },
+      count: null,
+    },
   });
   assert.deepEqual(parse("iw"), { status: "invalid" });
   assert.deepEqual(parse("U", "visual").status, "complete");

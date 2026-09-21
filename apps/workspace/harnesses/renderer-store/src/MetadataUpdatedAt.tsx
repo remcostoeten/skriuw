@@ -6,8 +6,9 @@ type Props = {
   store: RendererStore;
 };
 
-const selectUpdatedAt = (state: ReturnType<RendererStore["getState"]>) =>
-  state.activeNoteId ? state.metadata.get(state.activeNoteId)?.updatedAt ?? "—" : "—";
+function selectUpdatedAt(state: ReturnType<RendererStore["getState"]>) {
+  return state.activeNoteId ? (state.metadata.get(state.activeNoteId)?.updatedAt ?? "—") : "—";
+}
 
 export function MetadataUpdatedAt({ store }: Props) {
   recordRender("MetadataUpdatedAt");

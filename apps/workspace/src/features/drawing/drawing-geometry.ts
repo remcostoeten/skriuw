@@ -66,11 +66,7 @@ export function stampedGesture(at: GesturePoint): { from: GesturePoint; to: Gest
 export const PLACEMENT_STEP = 8;
 export const PLACEMENT_STEP_LARGE = 40;
 
-export function movePlacement(
-  at: GesturePoint,
-  key: string,
-  large: boolean,
-): GesturePoint | null {
+export function movePlacement(at: GesturePoint, key: string, large: boolean): GesturePoint | null {
   const step = large ? PLACEMENT_STEP_LARGE : PLACEMENT_STEP;
   if (key === "ArrowLeft") return { x: at.x - step, y: at.y };
   if (key === "ArrowRight") return { x: at.x + step, y: at.y };

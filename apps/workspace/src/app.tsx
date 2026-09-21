@@ -10,11 +10,7 @@ import {
 import { completeOnboarding, shouldShowOnboarding } from "@/features/onboarding/model";
 import { Onboarding } from "@/features/onboarding/onboarding";
 import { AccountMenu } from "@/shell/account-menu";
-import {
-  railActiveClass,
-  railIconButtonClass,
-  railInactiveClass,
-} from "@/shell/rail-styles";
+import { railActiveClass, railIconButtonClass, railInactiveClass } from "@/shell/rail-styles";
 import type { SectionId } from "@/features/settings/sections/sections";
 import { Sidebar } from "@/features/sidebar/sidebar";
 import { CommandPaletteHost } from "@/commands/command-palette-host";
@@ -66,19 +62,12 @@ import { ImportPreviewHost } from "@/features/transfer/import/import-preview-hos
 import { ImportProgressHost } from "@/features/transfer/import/import-progress-host";
 import { WorkspaceShortcuts } from "@/commands/workspace-shortcuts";
 import { useShortcutHints } from "@/commands/hints";
-import {
-  RAIL_ITEMS,
-  railModShiftKeys,
-  type RailItem,
-} from "@/commands/rail-items";
+import { RAIL_ITEMS, railModShiftKeys, type RailItem } from "@/commands/rail-items";
 import { useAppRoute } from "./app-route";
 import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import { installBackNavigation } from "@/features/references/reference-navigation";
 import { scheduleSearchIndexReconciliation } from "@/features/search/index-maintenance";
-import {
-  createCommandRegistry,
-  registryShortcutActions,
-} from "@/commands/registry";
+import { createCommandRegistry, registryShortcutActions } from "@/commands/registry";
 import type { CommandUiState } from "@/commands/registry";
 import { createWorkspaceCommands } from "@/commands/workspace-commands";
 import { SkriuwLogo } from "@/shared/icons/static";
@@ -93,12 +82,7 @@ import {
   compactPanelPolicy,
   shellMode,
 } from "@/shell/shell-layout";
-import {
-  edgeSwipeOpens,
-  swipeAxis,
-  swipeEdgeAt,
-  type SwipeStart,
-} from "@/shell/edge-swipe";
+import { edgeSwipeOpens, swipeAxis, swipeEdgeAt, type SwipeStart } from "@/shell/edge-swipe";
 import { haptic } from "@/shared/lib/haptics";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import { AnimatedIconsProvider } from "@/shared/icons/animated-icons-context";
@@ -112,11 +96,7 @@ import {
 } from "@/features/settings/sections/selectors";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import {
-  AiOptInGate,
-  aiSettingsCommands,
-  selectAiEnabled,
-} from "@/features/ai/opt-in-gate";
+import { AiOptInGate, aiSettingsCommands, selectAiEnabled } from "@/features/ai/opt-in-gate";
 import { aiEditorActionCommands } from "@/features/ai/actions/editor-action-controller";
 import { registerAiSettings } from "@/features/ai/ai-settings-controller";
 import { voiceDictationCommands } from "@/features/ai/voice/voice-dictation-controller";
@@ -212,8 +192,7 @@ function WorkspaceShell({ store }: Props) {
   const [onboardingOverride, setOnboardingOverride] = useState(readOnboardingOverride);
   const [skipOnboarding] = useState(readOnboardingSkip);
   const needsOnboardingFromSettings = useRendererSelector(store, selectNeedsOnboarding);
-  const needsOnboarding =
-    !skipOnboarding && (needsOnboardingFromSettings || onboardingOverride);
+  const needsOnboarding = !skipOnboarding && (needsOnboardingFromSettings || onboardingOverride);
   const shortcutHints = useShortcutHints(store, TOOLBAR_SHORTCUT_IDS);
   useEffect(() => installBackNavigation(store), [store]);
   useEffect(() => scheduleSearchIndexReconciliation(), []);
@@ -225,7 +204,10 @@ function WorkspaceShell({ store }: Props) {
   // policy; leaving it restores them, so a rotated tablet lands where it was.
   useEffect(() => {
     if (mode === "compact") {
-      fullPanelsRef.current = { sidebarOpen: uiRef.current.sidebarOpen, metadataOpen: uiRef.current.metadataOpen };
+      fullPanelsRef.current = {
+        sidebarOpen: uiRef.current.sidebarOpen,
+        metadataOpen: uiRef.current.metadataOpen,
+      };
       const policy = compactPanelPolicy(store.getState().activeNoteId !== null);
       setTracksAnimated(false);
       setSidebarOpen(policy.sidebarOpen);
@@ -328,35 +310,33 @@ function WorkspaceShell({ store }: Props) {
   useEffect(() => registerAiSettings(() => openSettingsAt("ai")), [openSettingsAt]);
   const registry = useMemo(
     () =>
-      createCommandRegistry(
-        [
-          ...createWorkspaceCommands(store, {
-            togglePalette: () => setPaletteOpen((current) => !current),
-            openSettings: () => setSettingsOpen((current) => !current),
-            openSettingsAt,
-            openSignIn: () => openSignIn(false),
-            showShortcutHelp: () => setShortcutHelpOpen((current) => !current),
-            toggleSidebar: () => toggleSidebar(false),
-            openSidebar: () => {
-              setTracksAnimated(false);
-              setSidebarOpen(true);
-            },
-            toggleMetadata: () => toggleMetadata(false),
-            navigate: (target) => {
-              window.location.hash = appRouteHash(target);
-            },
-          }),
-          ...aiSettingsCommands(
-            aiEnabled,
-            () => openSettingsAt("ai"),
-            () => {
-              window.location.hash = appRouteHash("prompt-playground");
-            },
-          ),
-          ...aiEditorActionCommands(aiEnabled),
-          ...voiceDictationCommands(aiEnabled),
-        ],
-      ),
+      createCommandRegistry([
+        ...createWorkspaceCommands(store, {
+          togglePalette: () => setPaletteOpen((current) => !current),
+          openSettings: () => setSettingsOpen((current) => !current),
+          openSettingsAt,
+          openSignIn: () => openSignIn(false),
+          showShortcutHelp: () => setShortcutHelpOpen((current) => !current),
+          toggleSidebar: () => toggleSidebar(false),
+          openSidebar: () => {
+            setTracksAnimated(false);
+            setSidebarOpen(true);
+          },
+          toggleMetadata: () => toggleMetadata(false),
+          navigate: (target) => {
+            window.location.hash = appRouteHash(target);
+          },
+        }),
+        ...aiSettingsCommands(
+          aiEnabled,
+          () => openSettingsAt("ai"),
+          () => {
+            window.location.hash = appRouteHash("prompt-playground");
+          },
+        ),
+        ...aiEditorActionCommands(aiEnabled),
+        ...voiceDictationCommands(aiEnabled),
+      ]),
     [aiEnabled, openSettingsAt, openSignIn, store, toggleMetadata, toggleSidebar],
   );
   const shortcutActions = useMemo(
@@ -416,8 +396,7 @@ function WorkspaceShell({ store }: Props) {
           next.metadataWidth,
         );
       }
-      const pane =
-        panel === "sidebar" ? sidebarPaneRef.current : metadataPaneRef.current;
+      const pane = panel === "sidebar" ? sidebarPaneRef.current : metadataPaneRef.current;
       if (pane) {
         pane.style.width = `${width}px`;
       }
@@ -425,13 +404,11 @@ function WorkspaceShell({ store }: Props) {
     [route],
   );
   const previewSidebar = useCallback(
-    (width: number, collapsed: boolean) =>
-      previewPanel("sidebar", width, collapsed),
+    (width: number, collapsed: boolean) => previewPanel("sidebar", width, collapsed),
     [previewPanel],
   );
   const previewMetadata = useCallback(
-    (width: number, collapsed: boolean) =>
-      previewPanel("metadata", width, collapsed),
+    (width: number, collapsed: boolean) => previewPanel("metadata", width, collapsed),
     [previewPanel],
   );
   const resizeSidebar = useCallback((width: number) => {
@@ -536,266 +513,278 @@ function WorkspaceShell({ store }: Props) {
         aria-hidden={needsOnboarding}
         inert={needsOnboarding || sheetOpen}
       >
-      {mode === "full" && (
-      <nav
-        aria-label="Primary"
-        className="flex w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar"
-      >
-        <div className="flex w-full flex-col items-center">
-          <div className="flex h-11 w-full items-center justify-center border-b border-sidebar-border">
-            <Tooltip label="Skriuw" side="right">
-              <a
-                href="#/notes"
-                className="rounded-2xl border border-transparent p-1.5 text-sidebar-foreground/92 transition-colors hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-                aria-label="Go to home"
-              >
-                <SkriuwLogo size={26} />
-              </a>
-            </Tooltip>
-          </div>
-          <div className="mt-4 flex w-full flex-col items-center gap-4">
-            {RAIL_ITEMS.filter((item) => item.section === "primary").map((item) => (
-              <RailNavIcon
-                key={item.actionId}
-                item={item}
-                position={RAIL_ITEMS.indexOf(item) + 1}
-                active={route === item.route}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="flex w-full flex-col items-center gap-3 pb-4">
-          {RAIL_ITEMS.filter((item) => item.section === "utility").map((item) => (
-            <RailNavIcon
-              key={item.actionId}
-              item={item}
-              position={RAIL_ITEMS.indexOf(item) + 1}
-              active={route === item.route}
-            />
-          ))}
-          <div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
-          {accountMenu}
-        </div>
-      </nav>
-      )}
-      {mode === "full" && routeHasSidebar(route) ? (
-        <PanelResizeHandle
-          side="left"
-          label="Resize sidebar"
-          bounds={SIDEBAR_RESIZE_BOUNDS}
-          width={sidebarWidth}
-          collapsed={!sidebarOpen}
-          offsetBase={56}
-          settling={settling}
-          onPreview={previewSidebar}
-          onResize={resizeSidebar}
-          onCollapse={collapseSidebar}
-          onExpand={expandSidebar}
-          onDragChange={setSidebarResizing}
-        />
-      ) : null}
-      {mode === "full" && route === "notes" ? (
-        <PanelResizeHandle
-          side="right"
-          label="Resize metadata panel"
-          bounds={METADATA_RESIZE_BOUNDS}
-          width={metadataWidth}
-          collapsed={!metadataOpen}
-          offsetBase={0}
-          settling={settling}
-          onPreview={previewMetadata}
-          onResize={resizeMetadata}
-          onCollapse={collapseMetadata}
-          onExpand={expandMetadata}
-          onDragChange={setMetadataResizing}
-        />
-      ) : null}
-      {mode === "full" && (
-      <div
-        className={`col-[2] min-h-0 min-w-0 overflow-hidden${
-          sidebarOpen ? "" : " sidebar-pane-collapsed"
-        }${settling ? " sidebar-pane-settling" : ""}`}
-        aria-hidden={!sidebarOpen}
-        inert={!sidebarOpen}
-        hidden={!routeHasSidebar(route)}
-      >
-        <div
-          ref={sidebarPaneRef}
-          className="h-full"
-          style={{ width: sidebarWidth }}
-        >
-          {sidebarContent}
-        </div>
-      </div>
-      )}
-      <div className="contents" hidden={route !== "notes"}>
-        <main className="col-[3] flex min-h-0 min-w-0 flex-col overflow-hidden">
-          <div
-            data-tauri-drag-region
-            className={`grid h-11 items-center border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground ${
-              mode === "compact"
-                ? "grid-cols-[auto_minmax(0,1fr)_auto] px-1"
-                : "grid-cols-[1fr_minmax(0,auto)_1fr]"
-            }`}
-          >
-            <div data-tauri-drag-region className="flex min-w-0 items-center gap-1">
-            <Tooltip label="Toggle sidebar" side="bottom" shortcut={shortcutHints.toggleSidebar}>
-              <button
-                type="button"
-                onClick={() => toggleSidebar(true)}
-                className={toolbarIconButtonClass}
-                aria-label="Toggle sidebar"
-                aria-expanded={sidebarOpen}
-              >
-                <AppIcon name="toggle-sidebar" size={16} />
-              </button>
-            </Tooltip>
-            {mode === "compact" && (
-            <Tooltip label="Search" side="bottom" shortcut={shortcutHints.toggleCommandPalette}>
-              <button
-                type="button"
-                onClick={() => setPaletteOpen(true)}
-                className={toolbarIconButtonClass}
-                aria-label="Search"
-              >
-                <AppIcon name="search" size={16} />
-              </button>
-            </Tooltip>
-            )}
-            {mode === "full" && (
-            <>
-            <Tooltip label="Previous note" side="bottom" shortcut={shortcutHints.previousNote}>
-              <button
-                type="button"
-                onClick={noteNav.navigatePrev}
-                disabled={!noteNav.canNavigatePrev}
-                className={toolbarIconButtonClass}
-                aria-label="Previous note"
-              >
-                <AppIcon name="previous-note" size={16} />
-              </button>
-            </Tooltip>
-            <Tooltip label="Next note" side="bottom" shortcut={shortcutHints.nextNote}>
-              <button
-                type="button"
-                onClick={noteNav.navigateNext}
-                disabled={!noteNav.canNavigateNext}
-                className={toolbarIconButtonClass}
-                aria-label="Next note"
-              >
-                <AppIcon name="next-note" size={16} />
-              </button>
-            </Tooltip>
-            </>
-            )}
-            </div>
-            <div data-tauri-drag-region className="flex min-w-0 justify-center px-2">
-              <NoteBreadcrumbs store={store} titleOnly={mode === "compact"} />
-            </div>
-            <div data-tauri-drag-region className="flex min-w-0 items-center justify-end gap-1">
-            <Tooltip label="Find in note" side="bottom" shortcut={shortcutHints.findInNote}>
-              <button
-                type="button"
-                onClick={openEditorSearch}
-                disabled={!noteNav.noteId}
-                className={toolbarIconButtonClass}
-                aria-label="Find in note"
-              >
-                <AppIcon name="find-in-note" size={16} />
-              </button>
-            </Tooltip>
-            <Tooltip label="Toggle metadata" side="bottom" shortcut={shortcutHints.toggleMetadata}>
-              <button
-                type="button"
-                onClick={() => toggleMetadata(true)}
-                className={toolbarIconButtonClass}
-                aria-label="Toggle metadata"
-                aria-expanded={metadataOpen}
-              >
-                <AppIcon name="toggle-metadata" size={16} />
-              </button>
-            </Tooltip>
-            {!metadataOpen && <WindowControls className="-mr-3" />}
-            </div>
-          </div>
-          <div className="min-h-0 flex-1">
-            <EditorPanes store={store} />
-          </div>
-        </main>
         {mode === "full" && (
-        <div
-          className={`col-[4] min-h-0 min-w-0 overflow-hidden${
-            metadataOpen ? "" : " sidebar-pane-collapsed"
-          }${settling ? " sidebar-pane-settling" : ""}`}
-          aria-hidden={!metadataOpen}
-          inert={!metadataOpen}
-        >
-          {metadataOpen ? (
-            <div
-              ref={metadataPaneRef}
-              className="flex h-full flex-col"
-              style={{ width: metadataWidth }}
-            >
-              {hasTauriRuntime() && (
-                <div
-                  data-tauri-drag-region
-                  className="flex h-11 shrink-0 items-center justify-end border-b border-l border-sidebar-border bg-sidebar"
-                >
-                  <WindowControls />
-                </div>
-              )}
-              <div className="min-h-0 flex-1">
-                <MetadataPanel store={store} />
+          <nav
+            aria-label="Primary"
+            className="flex w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar"
+          >
+            <div className="flex w-full flex-col items-center">
+              <div className="flex h-11 w-full items-center justify-center border-b border-sidebar-border">
+                <Tooltip label="Skriuw" side="right">
+                  <a
+                    href="#/notes"
+                    className="rounded-2xl border border-transparent p-1.5 text-sidebar-foreground/92 transition-colors hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+                    aria-label="Go to home"
+                  >
+                    <SkriuwLogo size={26} />
+                  </a>
+                </Tooltip>
+              </div>
+              <div className="mt-4 flex w-full flex-col items-center gap-4">
+                {RAIL_ITEMS.filter((item) => item.section === "primary").map((item) => (
+                  <RailNavIcon
+                    key={item.actionId}
+                    item={item}
+                    position={RAIL_ITEMS.indexOf(item) + 1}
+                    active={route === item.route}
+                  />
+                ))}
               </div>
             </div>
-          ) : null}
-        </div>
+            <div className="flex w-full flex-col items-center gap-3 pb-4">
+              {RAIL_ITEMS.filter((item) => item.section === "utility").map((item) => (
+                <RailNavIcon
+                  key={item.actionId}
+                  item={item}
+                  position={RAIL_ITEMS.indexOf(item) + 1}
+                  active={route === item.route}
+                />
+              ))}
+              <div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
+              {accountMenu}
+            </div>
+          </nav>
         )}
-      </div>
-      {route === "history" && <HistoryView store={store} />}
-      {route === "journal" && (
-        <JournalView
-          store={store}
-          sidebarOpen={sidebarOpen}
-          onToggleSidebar={() => toggleSidebar(true)}
-          onOpenCommandPalette={mode === "compact" ? () => setPaletteOpen(true) : undefined}
-        />
-      )}
-      {route === "tasks" && <TasksView store={store} />}
-      {route === "trash" && <TrashView store={store} />}
-      {route === "prompt-playground" && (
-        <AiOptInGate store={store}>
-          {(signal) => (
-            <Suspense fallback={null}>
-              <PromptPlaygroundView store={store} signal={signal} />
-            </Suspense>
+        {mode === "full" && routeHasSidebar(route) ? (
+          <PanelResizeHandle
+            side="left"
+            label="Resize sidebar"
+            bounds={SIDEBAR_RESIZE_BOUNDS}
+            width={sidebarWidth}
+            collapsed={!sidebarOpen}
+            offsetBase={56}
+            settling={settling}
+            onPreview={previewSidebar}
+            onResize={resizeSidebar}
+            onCollapse={collapseSidebar}
+            onExpand={expandSidebar}
+            onDragChange={setSidebarResizing}
+          />
+        ) : null}
+        {mode === "full" && route === "notes" ? (
+          <PanelResizeHandle
+            side="right"
+            label="Resize metadata panel"
+            bounds={METADATA_RESIZE_BOUNDS}
+            width={metadataWidth}
+            collapsed={!metadataOpen}
+            offsetBase={0}
+            settling={settling}
+            onPreview={previewMetadata}
+            onResize={resizeMetadata}
+            onCollapse={collapseMetadata}
+            onExpand={expandMetadata}
+            onDragChange={setMetadataResizing}
+          />
+        ) : null}
+        {mode === "full" && (
+          <div
+            className={`col-[2] min-h-0 min-w-0 overflow-hidden${
+              sidebarOpen ? "" : " sidebar-pane-collapsed"
+            }${settling ? " sidebar-pane-settling" : ""}`}
+            aria-hidden={!sidebarOpen}
+            inert={!sidebarOpen}
+            hidden={!routeHasSidebar(route)}
+          >
+            <div ref={sidebarPaneRef} className="h-full" style={{ width: sidebarWidth }}>
+              {sidebarContent}
+            </div>
+          </div>
+        )}
+        <div className="contents" hidden={route !== "notes"}>
+          <main className="col-[3] flex min-h-0 min-w-0 flex-col overflow-hidden">
+            <div
+              data-tauri-drag-region
+              className={`grid h-11 items-center border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground ${
+                mode === "compact"
+                  ? "grid-cols-[auto_minmax(0,1fr)_auto] px-1"
+                  : "grid-cols-[1fr_minmax(0,auto)_1fr]"
+              }`}
+            >
+              <div data-tauri-drag-region className="flex min-w-0 items-center gap-1">
+                <Tooltip
+                  label="Toggle sidebar"
+                  side="bottom"
+                  shortcut={shortcutHints.toggleSidebar}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleSidebar(true)}
+                    className={toolbarIconButtonClass}
+                    aria-label="Toggle sidebar"
+                    aria-expanded={sidebarOpen}
+                  >
+                    <AppIcon name="toggle-sidebar" size={16} />
+                  </button>
+                </Tooltip>
+                {mode === "compact" && (
+                  <Tooltip
+                    label="Search"
+                    side="bottom"
+                    shortcut={shortcutHints.toggleCommandPalette}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setPaletteOpen(true)}
+                      className={toolbarIconButtonClass}
+                      aria-label="Search"
+                    >
+                      <AppIcon name="search" size={16} />
+                    </button>
+                  </Tooltip>
+                )}
+                {mode === "full" && (
+                  <>
+                    <Tooltip
+                      label="Previous note"
+                      side="bottom"
+                      shortcut={shortcutHints.previousNote}
+                    >
+                      <button
+                        type="button"
+                        onClick={noteNav.navigatePrev}
+                        disabled={!noteNav.canNavigatePrev}
+                        className={toolbarIconButtonClass}
+                        aria-label="Previous note"
+                      >
+                        <AppIcon name="previous-note" size={16} />
+                      </button>
+                    </Tooltip>
+                    <Tooltip label="Next note" side="bottom" shortcut={shortcutHints.nextNote}>
+                      <button
+                        type="button"
+                        onClick={noteNav.navigateNext}
+                        disabled={!noteNav.canNavigateNext}
+                        className={toolbarIconButtonClass}
+                        aria-label="Next note"
+                      >
+                        <AppIcon name="next-note" size={16} />
+                      </button>
+                    </Tooltip>
+                  </>
+                )}
+              </div>
+              <div data-tauri-drag-region className="flex min-w-0 justify-center px-2">
+                <NoteBreadcrumbs store={store} titleOnly={mode === "compact"} />
+              </div>
+              <div data-tauri-drag-region className="flex min-w-0 items-center justify-end gap-1">
+                <Tooltip label="Find in note" side="bottom" shortcut={shortcutHints.findInNote}>
+                  <button
+                    type="button"
+                    onClick={openEditorSearch}
+                    disabled={!noteNav.noteId}
+                    className={toolbarIconButtonClass}
+                    aria-label="Find in note"
+                  >
+                    <AppIcon name="find-in-note" size={16} />
+                  </button>
+                </Tooltip>
+                <Tooltip
+                  label="Toggle metadata"
+                  side="bottom"
+                  shortcut={shortcutHints.toggleMetadata}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleMetadata(true)}
+                    className={toolbarIconButtonClass}
+                    aria-label="Toggle metadata"
+                    aria-expanded={metadataOpen}
+                  >
+                    <AppIcon name="toggle-metadata" size={16} />
+                  </button>
+                </Tooltip>
+                {!metadataOpen && <WindowControls className="-mr-3" />}
+              </div>
+            </div>
+            <div className="min-h-0 flex-1">
+              <EditorPanes store={store} />
+            </div>
+          </main>
+          {mode === "full" && (
+            <div
+              className={`col-[4] min-h-0 min-w-0 overflow-hidden${
+                metadataOpen ? "" : " sidebar-pane-collapsed"
+              }${settling ? " sidebar-pane-settling" : ""}`}
+              aria-hidden={!metadataOpen}
+              inert={!metadataOpen}
+            >
+              {metadataOpen ? (
+                <div
+                  ref={metadataPaneRef}
+                  className="flex h-full flex-col"
+                  style={{ width: metadataWidth }}
+                >
+                  {hasTauriRuntime() && (
+                    <div
+                      data-tauri-drag-region
+                      className="flex h-11 shrink-0 items-center justify-end border-b border-l border-sidebar-border bg-sidebar"
+                    >
+                      <WindowControls />
+                    </div>
+                  )}
+                  <div className="min-h-0 flex-1">
+                    <MetadataPanel store={store} />
+                  </div>
+                </div>
+              ) : null}
+            </div>
           )}
-        </AiOptInGate>
-      )}
-      {route === "tags" && <EntityView store={store} kind="tag" />}
-      {route === "people" && <EntityView store={store} kind="person" />}
-      <InstallBanner compact={mode === "compact"} />
-      {mode === "compact" && <TabBar route={route} account={accountMenu} />}
-      {mode === "compact" && routeHasSidebar(route) && (
-        <div
-          className="shell-edge shell-edge-left"
-          aria-hidden="true"
-          onPointerDown={onShellPointerDown}
-          onPointerMove={onShellPointerMove}
-          onPointerUp={onShellPointerEnd}
-          onPointerCancel={onShellPointerEnd}
-        />
-      )}
-      {mode === "compact" && route === "notes" && (
-        <div
-          className="shell-edge shell-edge-right"
-          aria-hidden="true"
-          onPointerDown={onShellPointerDown}
-          onPointerMove={onShellPointerMove}
-          onPointerUp={onShellPointerEnd}
-          onPointerCancel={onShellPointerEnd}
-        />
-      )}
+        </div>
+        {route === "history" && <HistoryView store={store} />}
+        {route === "journal" && (
+          <JournalView
+            store={store}
+            sidebarOpen={sidebarOpen}
+            onToggleSidebar={() => toggleSidebar(true)}
+            onOpenCommandPalette={mode === "compact" ? () => setPaletteOpen(true) : undefined}
+          />
+        )}
+        {route === "tasks" && <TasksView store={store} />}
+        {route === "trash" && <TrashView store={store} />}
+        {route === "prompt-playground" && (
+          <AiOptInGate store={store}>
+            {(signal) => (
+              <Suspense fallback={null}>
+                <PromptPlaygroundView store={store} signal={signal} />
+              </Suspense>
+            )}
+          </AiOptInGate>
+        )}
+        {route === "tags" && <EntityView store={store} kind="tag" />}
+        {route === "people" && <EntityView store={store} kind="person" />}
+        <InstallBanner compact={mode === "compact"} />
+        {mode === "compact" && <TabBar route={route} account={accountMenu} />}
+        {mode === "compact" && routeHasSidebar(route) && (
+          <div
+            className="shell-edge shell-edge-left"
+            aria-hidden="true"
+            onPointerDown={onShellPointerDown}
+            onPointerMove={onShellPointerMove}
+            onPointerUp={onShellPointerEnd}
+            onPointerCancel={onShellPointerEnd}
+          />
+        )}
+        {mode === "compact" && route === "notes" && (
+          <div
+            className="shell-edge shell-edge-right"
+            aria-hidden="true"
+            onPointerDown={onShellPointerDown}
+            onPointerMove={onShellPointerMove}
+            onPointerUp={onShellPointerEnd}
+            onPointerCancel={onShellPointerEnd}
+          />
+        )}
       </div>
       {mode === "compact" && (
         <MobileSheet
@@ -848,10 +837,7 @@ function WorkspaceShell({ store }: Props) {
       <AiOptInGate store={store}>
         {() => (
           <Suspense fallback={null}>
-            <ModelSwitcherHost
-              store={store}
-              openAiSettings={() => openSettingsAt("ai")}
-            />
+            <ModelSwitcherHost store={store} openAiSettings={() => openSettingsAt("ai")} />
           </Suspense>
         )}
       </AiOptInGate>
@@ -865,9 +851,7 @@ function WorkspaceShell({ store }: Props) {
         activeWhileSuspended={settingsOpen ? "openSettings" : undefined}
         actions={shortcutActions}
       />
-      {needsOnboarding ? (
-        <WindowControls className="fixed right-0 top-0 z-50" />
-      ) : null}
+      {needsOnboarding ? <WindowControls className="fixed right-0 top-0 z-50" /> : null}
       {needsOnboarding ? (
         <Onboarding
           openingSignIn={openingOnboardingSignIn}

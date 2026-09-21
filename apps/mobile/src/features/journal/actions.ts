@@ -1,7 +1,4 @@
-import type {
-  NoteProperty,
-  WorkspaceOperation,
-} from "@skriuw/renderer-core/contracts/workspace";
+import type { NoteProperty, WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import type { DocumentRecord } from "@skriuw/renderer-core/store/types";
 import { commitOperations, type WorkspaceSession } from "../../bridge/commit";
 import { newNodeId } from "../../shell/identity";
@@ -183,10 +180,7 @@ export class JournalAppendError extends Error {
  * The entry's current body, read from the hydrated store and fetched from the
  * bridge only when a note the snapshot did not carry is being appended to.
  */
-async function entryDocument(
-  session: WorkspaceSession,
-  noteId: string,
-): Promise<DocumentRecord> {
+async function entryDocument(session: WorkspaceSession, noteId: string): Promise<DocumentRecord> {
   const held = session.store.getState().documents.get(noteId);
   if (held !== undefined) {
     return held;

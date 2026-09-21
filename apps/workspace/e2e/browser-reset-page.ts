@@ -1,10 +1,8 @@
 declare global {
-  interface Window {
-    browserResetE2e: {
-      corruptDatabase(): Promise<{ file: string; size: number }>;
-      workspaceFileCount(): Promise<number>;
-    };
-  }
+  var browserResetE2e: {
+    corruptDatabase(): Promise<{ file: string; size: number }>;
+    workspaceFileCount(): Promise<number>;
+  };
 }
 
 const WORKSPACE_DIRECTORY = ".skriuw-v2";
@@ -20,9 +18,11 @@ async function poolEntries(): Promise<PoolEntry[]> {
   const workspace = await root.getDirectoryHandle(WORKSPACE_DIRECTORY);
   const pool = await workspace.getDirectoryHandle(POOL_DIRECTORY);
   const entries: PoolEntry[] = [];
-  const listing = (pool as unknown as {
-    entries(): AsyncIterable<[string, FileSystemHandle]>;
-  }).entries();
+  const listing = (
+    pool as unknown as {
+      entries(): AsyncIterable<[string, FileSystemHandle]>;
+    }
+  ).entries();
   for await (const [name, handle] of listing) {
     if (handle.kind !== "file") {
       continue;

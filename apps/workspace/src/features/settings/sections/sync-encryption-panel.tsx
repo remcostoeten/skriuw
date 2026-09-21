@@ -86,9 +86,7 @@ export function SyncEncryptionPanel({ status }: Props) {
         <span className={settingsRowLabel}>
           {stage === "on" || stage === "revealed" ? "Encrypted" : "Not encrypted"}
           <span className={settingsRowDescription}>{encryptionDescription(stage)}</span>
-          {state?.keyId ? (
-            <span className={settingsRowDescription}>Key {state.keyId}</span>
-          ) : null}
+          {state?.keyId ? <span className={settingsRowDescription}>Key {state.keyId}</span> : null}
         </span>
         {stage === "off" ? (
           <InlineConfirm

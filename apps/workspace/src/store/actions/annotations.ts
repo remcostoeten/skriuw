@@ -9,10 +9,7 @@ function reportRejection(action: string) {
   };
 }
 
-export function createAnnotation(
-  store: RendererStore,
-  annotation: WorkspaceAnnotation,
-): void {
+export function createAnnotation(store: RendererStore, annotation: WorkspaceAnnotation): void {
   void commitOperations(store, [{ type: "create_annotation", annotation }]).catch(
     reportRejection("create annotation"),
   );
@@ -85,10 +82,7 @@ export function setAnnotationResolved(
  * sidebar deletes do. Recreating it replays the comments that came with it,
  * so an undo restores the conversation rather than an empty anchor.
  */
-export function deleteAnnotation(
-  store: RendererStore,
-  annotation: WorkspaceAnnotation,
-): void {
+export function deleteAnnotation(store: RendererStore, annotation: WorkspaceAnnotation): void {
   void commitOperations(store, [{ type: "delete_annotation", id: annotation.id }]).catch(
     reportRejection("delete annotation"),
   );
@@ -105,12 +99,7 @@ export function deleteAnnotation(
           resolvedAt: null,
         });
         if (annotation.status === "resolved") {
-          setAnnotationResolved(
-            store,
-            annotation.id,
-            true,
-            annotation.resolvedAt ?? Date.now(),
-          );
+          setAnnotationResolved(store, annotation.id, true, annotation.resolvedAt ?? Date.now());
         }
       },
     },

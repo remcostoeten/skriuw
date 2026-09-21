@@ -14,7 +14,10 @@ export function Faq() {
   return (
     <section className="bg-surface py-24">
       <Container>
-        <div ref={headingRef} className="reveal-wipe flex flex-wrap items-start justify-between gap-6">
+        <div
+          ref={headingRef}
+          className="reveal-wipe flex flex-wrap items-start justify-between gap-6"
+        >
           <Rail>
             <h2 className="font-serif text-[30px] leading-[36px] font-normal tracking-[-0.6px]">
               <span className="block text-ink-900">Questions.</span>

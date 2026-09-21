@@ -56,7 +56,9 @@ function describe(
       title: `$${person.name}`,
       color: person.color,
       meta: `${noteCount} ${noteCount === 1 ? "note" : "notes"}`,
-      detail: person.note ?? (person.createdAt > 0 ? `created ${formatRelativeTime(person.createdAt)}` : null),
+      detail:
+        person.note ??
+        (person.createdAt > 0 ? `created ${formatRelativeTime(person.createdAt)}` : null),
     };
   }
   const note = state.nodes.get(targetId);

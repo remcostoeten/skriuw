@@ -84,9 +84,7 @@ export function OnThisDaySection({ store, dateKey }: OnThisDayProps) {
                   )}
                 </span>
                 {memory.excerpt.length > 0 && (
-                  <span
-                    className="mt-1 line-clamp-2 block text-[13px] leading-relaxed text-muted-foreground"
-                  >
+                  <span className="mt-1 line-clamp-2 block text-[13px] leading-relaxed text-muted-foreground">
                     {memory.excerpt}
                   </span>
                 )}

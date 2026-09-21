@@ -16,7 +16,10 @@ const standaloneDirectory = resolve(sourceDirectory, "features/editor-standalone
  */
 function standaloneEditorBridge(): Plugin {
   const swaps = new Map([
-    [resolve(sourceDirectory, "bridge/runtime.ts"), resolve(standaloneDirectory, "port-runtime.ts")],
+    [
+      resolve(sourceDirectory, "bridge/runtime.ts"),
+      resolve(standaloneDirectory, "port-runtime.ts"),
+    ],
     [
       resolve(sourceDirectory, "bridge/external-links.ts"),
       resolve(standaloneDirectory, "port-external-links.ts"),

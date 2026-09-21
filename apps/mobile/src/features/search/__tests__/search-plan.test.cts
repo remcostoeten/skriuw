@@ -48,7 +48,7 @@ test("free text below the minimum length asks storage for nothing", () => {
 });
 
 test("free text is handed to the backend with every operator removed", () => {
-  const { plan } = planFor("#\"design system\" token map");
+  const { plan } = planFor('#"design system" token map');
   assert.equal(plan.text, "token map");
   assert.equal(plan.requiresFullText, true);
   assert.deepEqual([...(plan.allowedNoteIds ?? [])].sort(), ["note-sheet", "note-tokens"]);
@@ -62,13 +62,13 @@ test("a tag operator narrows the candidate set to the notes that carry it", () =
 });
 
 test("the keyword form of an operator means the same as its sigil", () => {
-  const sigil = planFor("$\"Ada Lovelace\"").plan;
-  const keyword = planFor("person:\"ada lovelace\"").plan;
+  const sigil = planFor('$"Ada Lovelace"').plan;
+  const keyword = planFor('person:"ada lovelace"').plan;
   assert.deepEqual([...(sigil.allowedNoteIds ?? [])], [...(keyword.allowedNoteIds ?? [])]);
 });
 
 test("two operators intersect rather than widen", () => {
-  const { plan } = planFor("#\"design system\" $\"Ada Lovelace\"");
+  const { plan } = planFor('#"design system" $"Ada Lovelace"');
   assert.deepEqual([...(plan.allowedNoteIds ?? [])], ["note-tokens"]);
 });
 
@@ -95,7 +95,7 @@ test("a name nothing carries blocks the query instead of answering a different o
 });
 
 test("a filter-only query is ordered by recency, not by a score invented here", () => {
-  const { state, plan } = planFor("#\"design system\"");
+  const { state, plan } = planFor('#"design system"');
   const hits = applySearchPlan(state, plan, [], 20);
   assert.deepEqual(
     hits.map((hit) => hit.noteId),
@@ -105,7 +105,7 @@ test("a filter-only query is ordered by recency, not by a score invented here", 
 });
 
 test("backend order survives the filter intersection", () => {
-  const { state, plan } = planFor("#\"design system\" the");
+  const { state, plan } = planFor('#"design system" the');
   const ranked = [
     { noteId: "note-index", title: "Index rebuild", snippet: "the", score: 9 },
     { noteId: "note-sheet", title: "Sheet gesture", snippet: "the", score: 5 },
@@ -118,6 +118,6 @@ test("backend order survives the filter intersection", () => {
 });
 
 test("the limit bounds what a surface is handed", () => {
-  const { state, plan } = planFor("#\"design system\"", 1);
+  const { state, plan } = planFor('#"design system"', 1);
   assert.equal(applySearchPlan(state, plan, [], 1).length, 1);
 });

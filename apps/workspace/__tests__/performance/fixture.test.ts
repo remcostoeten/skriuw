@@ -37,15 +37,9 @@ test("performance snapshot is deterministic and preserves fixture identity", () 
 
 test("performance snapshot rejects projections without a complete switch pool", () => {
   const incomplete = projection(7);
-  assert.throws(
-    () => createPerformanceSnapshot(incomplete, 50),
-    /requires eight notes/,
-  );
+  assert.throws(() => createPerformanceSnapshot(incomplete, 50), /requires eight notes/);
 });
 
 test("performance snapshot rejects projections without one hundred working-set notes", () => {
-  assert.throws(
-    () => createPerformanceSnapshot(projection(99), 50),
-    /requires one hundred notes/,
-  );
+  assert.throws(() => createPerformanceSnapshot(projection(99), 50), /requires one hundred notes/);
 });

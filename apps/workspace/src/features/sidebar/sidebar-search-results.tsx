@@ -26,7 +26,7 @@ function selectIncomingReferences(state: RendererState) {
   return state.incomingReferences;
 }
 
-type SearchResultsProps = {
+type Props = {
   ref: React.Ref<HTMLDivElement>;
   store: RendererStore;
   query: string;
@@ -44,7 +44,7 @@ export function SidebarSearchResults({
   onBlur,
   onFolderSelect,
   onNoteSelect,
-}: SearchResultsProps) {
+}: Props) {
   const nodes = useRendererSelector(store, selectNodes);
   const nodeOrder = useRendererSelector(store, selectNodeOrder);
   const activeNoteId = useRendererSelector(store, selectActiveNoteId);
@@ -81,9 +81,7 @@ export function SidebarSearchResults({
         <div className="flex flex-col gap-3">
           {results.folders.length > 0 && (
             <div className="flex flex-col gap-0.5">
-              <p className={cn("px-2 pb-1", sectionLabelClass)}>
-                Folders
-              </p>
+              <p className={cn("px-2 pb-1", sectionLabelClass)}>Folders</p>
               {results.folders.map((folder) => (
                 <button
                   key={folder.id}
@@ -92,10 +90,7 @@ export function SidebarSearchResults({
                   onClick={() => onFolderSelect(folder.id)}
                   className="flex h-[34px] w-full items-center gap-1.5 rounded-lg border border-transparent px-2 text-left text-xs font-medium text-foreground/70 transition-colors hover:bg-muted hover:text-foreground/88"
                 >
-                  <FolderIcon
-                    size={14}
-                    className="shrink-0 text-muted-foreground/70"
-                  />
+                  <FolderIcon size={14} className="shrink-0 text-muted-foreground/70" />
                   <span className="truncate">{folder.title}</span>
                 </button>
               ))}
@@ -108,9 +103,7 @@ export function SidebarSearchResults({
           )}
           {results.notes.length > 0 && (
             <div className="flex flex-col gap-0.5">
-              <p className={cn("px-2 pb-1", sectionLabelClass)}>
-                Notes
-              </p>
+              <p className={cn("px-2 pb-1", sectionLabelClass)}>Notes</p>
               {results.notes.map((note) => (
                 <button
                   key={note.id}
@@ -124,10 +117,7 @@ export function SidebarSearchResults({
                       : "text-foreground/70 hover:bg-muted hover:text-foreground/88"
                   }`}
                 >
-                  <FileTextIcon
-                    size={14}
-                    className="shrink-0 text-muted-foreground/70"
-                  />
+                  <FileTextIcon size={14} className="shrink-0 text-muted-foreground/70" />
                   <span className="truncate">{note.title}</span>
                 </button>
               ))}
@@ -141,9 +131,7 @@ export function SidebarSearchResults({
         </div>
       ) : (
         <div className="px-2 py-6 text-center" role="status">
-          <p className="text-xs font-medium text-foreground/70">
-            {notice || "No matching titles"}
-          </p>
+          <p className="text-xs font-medium text-foreground/70">{notice || "No matching titles"}</p>
           <p className="mt-1 text-[11px] text-muted-foreground">
             {notice
               ? "Filters accept #tag, $person, tag:name, and person:name."

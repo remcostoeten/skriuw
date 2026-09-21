@@ -20,11 +20,14 @@ test("Mermaid flowcharts parse into a positioned editable graph", () => {
   assert.equal(parsed.ok, true);
   if (!parsed.ok) return;
   assert.equal(parsed.model.direction, "LR");
-  assert.deepEqual(parsed.model.nodes.map(({ id, shape }) => ({ id, shape })), [
-    { id: "start", shape: "terminal" },
-    { id: "choice", shape: "decision" },
-    { id: "done", shape: "circle" },
-  ]);
+  assert.deepEqual(
+    parsed.model.nodes.map(({ id, shape }) => ({ id, shape })),
+    [
+      { id: "start", shape: "terminal" },
+      { id: "choice", shape: "decision" },
+      { id: "done", shape: "circle" },
+    ],
+  );
   assert.equal(parsed.model.edges[0]?.label, "review");
   assert.equal(parsed.model.edges[1]?.dashed, true);
   assert.equal(parsed.model.nodes[1]?.fill, "#fff3bf");
@@ -61,15 +64,21 @@ test("source edits preserve positions and appearance for stable node ids", () =>
     position: { x: 777, y: 222 },
     fill: "#dbeafe",
   };
-  const parsed = parseMermaidFlowchart(`flowchart TD
-    idea["Renamed"] --> finish["Finish"]`, previous);
+  const parsed = parseMermaidFlowchart(
+    `flowchart TD
+    idea["Renamed"] --> finish["Finish"]`,
+    previous,
+  );
 
   assert.equal(parsed.ok, true);
   if (!parsed.ok) return;
   const idea = parsed.model.nodes.find(({ id }) => id === "idea");
   assert.deepEqual(idea?.position, { x: 777, y: 222 });
   assert.equal(idea?.fill, "#dbeafe");
-  assert.notDeepEqual(parsed.model.nodes.find(({ id }) => id === "finish")?.position, { x: 0, y: 0 });
+  assert.notDeepEqual(parsed.model.nodes.find(({ id }) => id === "finish")?.position, {
+    x: 0,
+    y: 0,
+  });
 });
 
 test("invalid and unsupported syntax returns an actionable error", () => {
@@ -89,10 +98,14 @@ test("adding a step from a node connects it and follows the flow direction", () 
   assert.equal(fromSelected.id, "step4");
   assert.ok((created?.position.x ?? 0) > (share?.position.x ?? 0));
   assert.equal(created?.position.y, share?.position.y);
-  assert.deepEqual(
-    fromSelected.model.edges.at(-1),
-    { id: "share-step4-3", from: "share", to: "step4", label: "", dashed: false, stroke: null },
-  );
+  assert.deepEqual(fromSelected.model.edges.at(-1), {
+    id: "share-step4-3",
+    from: "share",
+    to: "step4",
+    label: "",
+    dashed: false,
+    stroke: null,
+  });
 
   const vertical = createDefaultDiagram();
   vertical.direction = "TD";
@@ -118,7 +131,14 @@ test("adding a step avoids stacking on occupied positions and honors explicit po
 
 test("edge ids stay unique even after removals reshuffle the sequence", () => {
   const model = createDefaultDiagram();
-  model.edges.push({ id: "start-share-3", from: "start", to: "share", label: "", dashed: false, stroke: null });
+  model.edges.push({
+    id: "start-share-3",
+    from: "start",
+    to: "share",
+    label: "",
+    dashed: false,
+    stroke: null,
+  });
   assert.equal(nextDiagramEdgeId(model, "start", "share"), "start-share-4");
   assert.equal(nextDiagramEdgeId(model, "idea", "start"), "idea-start-4");
 });

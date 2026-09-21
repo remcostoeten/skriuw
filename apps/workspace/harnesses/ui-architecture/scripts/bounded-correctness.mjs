@@ -5,7 +5,9 @@ import { join } from "node:path";
 import { preview } from "vite";
 
 const CHROME_BINARY = process.env.CHROME_BINARY ?? "google-chrome-stable";
-const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+function sleep(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
 
 function launchChrome(profileDirectory) {
   return new Promise((resolve, reject) => {
@@ -25,14 +27,14 @@ function launchChrome(profileDirectory) {
     );
     let buffered = "";
     let settled = false;
-    const fail = (error) => {
+    function fail(error) {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
       if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
       reject(error);
-    };
-    const onData = (chunk) => {
+    }
+    function onData(chunk) {
       buffered += String(chunk);
       const match = buffered.match(/DevTools listening on (ws:\/\/\S+)/);
       if (!match) return;
@@ -40,7 +42,7 @@ function launchChrome(profileDirectory) {
       clearTimeout(timeout);
       child.stderr.off("data", onData);
       resolve({ child, websocketUrl: match[1] });
-    };
+    }
     const timeout = setTimeout(() => fail(new Error("Chrome did not expose DevTools")), 15_000);
     child.stderr.on("data", onData);
     child.on("error", fail);
@@ -148,12 +150,16 @@ try {
   await client.send("Page.enable", {}, sessionId);
   client.on("Runtime.consoleAPICalled", (params, eventSession) => {
     if (eventSession === sessionId && params.type === "error") {
-      consoleErrors.push(params.args.map((argument) => argument.description ?? argument.value).join(" "));
+      consoleErrors.push(
+        params.args.map((argument) => argument.description ?? argument.value).join(" "),
+      );
     }
   });
   client.on("Runtime.exceptionThrown", (params, eventSession) => {
     if (eventSession === sessionId) {
-      pageErrors.push(params.exceptionDetails.exception?.description ?? params.exceptionDetails.text);
+      pageErrors.push(
+        params.exceptionDetails.exception?.description ?? params.exceptionDetails.text,
+      );
     }
   });
   await client.send("Page.navigate", { url: `http://127.0.0.1:${address.port}` }, sessionId);
@@ -225,8 +231,16 @@ try {
   requireEqual(result.benchmark.renderedBlocks, 192, "rendered blocks");
   requireEqual(result.benchmark.canonicalBlocks, 2_000, "canonical blocks");
   if (result.benchmark.activeDomNodes > 512) throw new Error("bounded DOM limit exceeded");
-  requireEqual(result.scenario.selection.blockIndex, result.scenario.domSelection.blockIndex, "selection block");
-  requireEqual(result.scenario.selection.offset, result.scenario.domSelection.offset, "selection offset");
+  requireEqual(
+    result.scenario.selection.blockIndex,
+    result.scenario.domSelection.blockIndex,
+    "selection block",
+  );
+  requireEqual(
+    result.scenario.selection.offset,
+    result.scenario.domSelection.offset,
+    "selection offset",
+  );
   requireEqual(result.scenario.focused, true, "projection focus");
   requireEqual(result.scenario.domFocused, true, "DOM focus");
   if (Math.abs(result.scenario.anchoredSelectionTop - result.scenario.movedSelectionTop) > 1) {

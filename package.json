@@ -20,6 +20,10 @@
     "tauri:build": "bin/build desktop",
     "test": "scripts/run-in.sh apps/workspace test",
     "typecheck": "scripts/run-in.sh apps/workspace typecheck",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt --disable-nested-config",
+    "format:check": "oxfmt --disable-nested-config --check",
     "check": "bin/check",
     "mobile": "bin/dev mobile",
     "check:browser": "bin/check browser",
@@ -28,6 +32,9 @@
     "generate": "bin/generate"
   },
   "devDependencies": {
-    "@remcostoeten/dev-menu": "^0.2.2"
+    "@oxlint/plugins": "1.85.0",
+    "@remcostoeten/dev-menu": "^0.2.2",
+    "oxfmt": "0.70.0",
+    "oxlint": "1.85.0"
   }
 }

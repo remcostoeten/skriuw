@@ -53,9 +53,7 @@ function parseTagToken(raw: string): TagToken | null {
 }
 
 function attributeValue(attributes: string, name: string): string | null {
-  const match = new RegExp(`${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, "i").exec(
-    attributes,
-  );
+  const match = new RegExp(`${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, "i").exec(attributes);
   return match ? (match[2] ?? match[3] ?? "") : null;
 }
 
@@ -166,14 +164,14 @@ export function enmlToMarkdown(enml: string): EnmlConversion {
   function emitTable(): void {
     flushLine();
     const width = Math.max(...tableRows.map((row) => row.length), 1);
-    const pad = (row: string[]): string[] => [
-      ...row,
-      ...Array(width - row.length).fill(""),
-    ];
-    const render = (row: string[]): string =>
-      `| ${pad(row)
+    function pad(row: string[]): string[] {
+      return [...row, ...Array(width - row.length).fill("")];
+    }
+    function render(row: string[]): string {
+      return `| ${pad(row)
         .map((cell) => cell.replace(/\|/g, "\\|").replace(/\s+/g, " ").trim())
         .join(" | ")} |`;
+    }
     const [header = [], ...rest] = tableRows;
     lines.push(render(header));
     lines.push(`| ${Array(width).fill("---").join(" | ")} |`);
@@ -345,8 +343,7 @@ export function enmlToMarkdown(enml: string): EnmlConversion {
           if (linkHref !== null) {
             const target = inCell ? tableCell : line;
             const text = target.slice(linkStart).trim();
-            const replacement =
-              text.length > 0 ? `[${text}](${linkHref})` : `<${linkHref}>`;
+            const replacement = text.length > 0 ? `[${text}](${linkHref})` : `<${linkHref}>`;
             if (inCell) {
               tableCell = tableCell.slice(0, linkStart) + replacement;
             } else {
@@ -377,8 +374,7 @@ export function enmlToMarkdown(enml: string): EnmlConversion {
             const core = inner.trim();
             const leading = /^\s*/.exec(inner)?.[0] ?? "";
             const trailing = core.length > 0 ? (/\s*$/.exec(inner)?.[0] ?? "") : "";
-            const filler =
-              inner.length > 0 && !/\s$/.test(before) && before.length > 0 ? " " : "";
+            const filler = inner.length > 0 && !/\s$/.test(before) && before.length > 0 ? " " : "";
             const rebuilt =
               core.length > 0
                 ? `${before}${leading}${marker}${core}${marker}${trailing}`

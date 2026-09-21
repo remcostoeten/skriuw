@@ -11,14 +11,7 @@ import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { rememberAiAction } from "../../src/features/ai/actions/editor-action-controller";
 
-const ROUTES: readonly AppRoute[] = [
-  "notes",
-  "trash",
-  "tags",
-  "people",
-  "history",
-  "journal",
-];
+const ROUTES: readonly AppRoute[] = ["notes", "trash", "tags", "people", "history", "journal"];
 
 /**
  * State permissive enough that every non-route gate passes: a focused note, two

@@ -29,7 +29,7 @@ function segmentsOf(block: ProseMirrorNode, blockPos: number): VimLine[] {
   let offsets: number[] = [];
   let start = blockPos + 1;
   let position = blockPos + 1;
-  const flush = (end: number, nextStart: number) => {
+  function flush(end: number, nextStart: number) {
     offsets.push(end);
     lines.push({
       blockPos,
@@ -44,7 +44,7 @@ function segmentsOf(block: ProseMirrorNode, blockPos: number): VimLine[] {
     text = "";
     offsets = [];
     start = nextStart;
-  };
+  }
   block.forEach((child) => {
     if (child.isText) {
       const value = child.text ?? "";

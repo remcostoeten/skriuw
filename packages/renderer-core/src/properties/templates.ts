@@ -220,7 +220,7 @@ function remapOptionValue(
   optionIds: ReadonlyMap<string, string>,
 ): NotePropertyValue {
   if (value.type === "select") {
-    return { ...value, value: value.value === null ? null : optionIds.get(value.value) ?? null };
+    return { ...value, value: value.value === null ? null : (optionIds.get(value.value) ?? null) };
   }
   if (value.type === "multi-select") {
     return {

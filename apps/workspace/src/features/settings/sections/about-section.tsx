@@ -55,10 +55,7 @@ export function AboutSection() {
 
   return (
     <section aria-label="About" className={settingsSection}>
-      <SettingsHeading
-        title="About"
-        detail="Version details, updates, and where to go for help."
-      />
+      <SettingsHeading title="About" detail="Version details, updates, and where to go for help." />
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Version</div>
         <div className={settingsRow}>

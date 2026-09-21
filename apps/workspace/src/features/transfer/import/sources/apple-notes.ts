@@ -22,9 +22,7 @@ export const appleNotesSource: ImportSourceAdapter = {
   id: "apple-notes",
   label: "Apple Notes Markdown",
   detect(tree) {
-    return tree.files.some((file) => /\.(md|markdown)$/i.test(file.relativePath))
-      ? 0.09
-      : 0;
+    return tree.files.some((file) => /\.(md|markdown)$/i.test(file.relativePath)) ? 0.09 : 0;
   },
   parse,
 };

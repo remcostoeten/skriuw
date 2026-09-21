@@ -28,15 +28,14 @@ const marketingRoutes = [
   },
 ];
 
-const [siteHtml, appHtml, robots, sitemap, vercelConfigSource, ...routeHtml] =
-  await Promise.all([
-    readExport("index.html"),
-    readFile(new URL("../apps/workspace/index.html", import.meta.url), "utf8"),
-    readExport("robots.txt"),
-    readExport("sitemap.xml"),
-    readFile(new URL("../vercel.json", import.meta.url), "utf8"),
-    ...marketingRoutes.map((route) => readExport(route.file)),
-  ]);
+const [siteHtml, appHtml, robots, sitemap, vercelConfigSource, ...routeHtml] = await Promise.all([
+  readExport("index.html"),
+  readFile(new URL("../apps/workspace/index.html", import.meta.url), "utf8"),
+  readExport("robots.txt"),
+  readExport("sitemap.xml"),
+  readFile(new URL("../vercel.json", import.meta.url), "utf8"),
+  ...marketingRoutes.map((route) => readExport(route.file)),
+]);
 const socialImage = await readFile(new URL("og-image.png", exportRoot));
 const vercelConfig = JSON.parse(vercelConfigSource);
 
@@ -48,9 +47,7 @@ assert.match(siteHtml, /<h1[^>]*>Notes that never[\s\S]*?make you wait/u);
 const schema = JSON.parse(structuredData(siteHtml));
 const website = schema["@graph"].find((entry) => entry["@type"] === "WebSite");
 const organization = schema["@graph"].find((entry) => entry["@type"] === "Organization");
-const application = schema["@graph"].find(
-  (entry) => entry["@type"] === "SoftwareApplication",
-);
+const application = schema["@graph"].find((entry) => entry["@type"] === "SoftwareApplication");
 assert.equal(website.name, "Skriuw");
 assert.equal(website.url, "https://skriuw.com/");
 assert.equal(organization.logo.url, "https://skriuw.com/app-icon.png");
@@ -76,7 +73,10 @@ for (const [index, route] of marketingRoutes.entries()) {
   pageTitles.add(pageTitle(html));
   pageDescriptions.add(pageDescription(html));
   assert.match(siteHtml, new RegExp(`href="${escapePattern(route.path)}"`, "u"));
-  assert.match(sitemap, new RegExp(`<loc>https://skriuw\\.com${escapePattern(route.path)}</loc>`, "u"));
+  assert.match(
+    sitemap,
+    new RegExp(`<loc>https://skriuw\\.com${escapePattern(route.path)}</loc>`, "u"),
+  );
 }
 assert.equal(pageTitles.size, marketingRoutes.length + 1, "marketing page titles must be unique");
 assert.equal(
@@ -125,9 +125,7 @@ async function readExport(file) {
 }
 
 function structuredData(html) {
-  const match = html.match(
-    /<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/u,
-  )?.[1];
+  const match = html.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/u)?.[1];
   assert.ok(match, "each marketing page must include JSON-LD structured data");
   return match;
 }
@@ -165,9 +163,7 @@ function escapePattern(value) {
 
 function assertHostRedirect(config, hostname) {
   const redirect = config.redirects.find((entry) =>
-    entry.has?.some(
-      (condition) => condition.type === "host" && condition.value === hostname,
-    ),
+    entry.has?.some((condition) => condition.type === "host" && condition.value === hostname),
   );
   assert.ok(redirect, `${hostname} must redirect to the canonical host`);
   assert.equal(redirect.permanent, true, `${hostname} redirect must be permanent`);

@@ -27,17 +27,13 @@ type MeasureReport = {
 };
 
 declare global {
-  interface Window {
-    browserScaleE2e: {
-      seed(total: number): Promise<SeedReport>;
-      measure(): Promise<MeasureReport>;
-    };
-  }
+  var browserScaleE2e: {
+    seed(total: number): Promise<SeedReport>;
+    measure(): Promise<MeasureReport>;
+  };
 }
 
-function envelope(
-  operation: WorkspaceOperationEnvelope["operation"],
-): WorkspaceOperationEnvelope {
+function envelope(operation: WorkspaceOperationEnvelope["operation"]): WorkspaceOperationEnvelope {
   return { protocolVersion: 1, operation };
 }
 

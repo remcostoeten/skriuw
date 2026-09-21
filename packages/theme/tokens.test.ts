@@ -12,7 +12,7 @@ const TOKENS_TS = new URL("./tokens.ts", import.meta.url);
 function hslToRgb(color: string): readonly [number, number, number] {
   const match = /^hsl\((-?[\d.]+), ([\d.]+)%, ([\d.]+)%\)$/.exec(color);
   assert.ok(match);
-  const hue = ((Number(match[1]) % 360) + 360) % 360 / 360;
+  const hue = (((Number(match[1]) % 360) + 360) % 360) / 360;
   const saturation = Number(match[2]) / 100;
   const lightness = Number(match[3]) / 100;
   const amplitude = saturation * Math.min(lightness, 1 - lightness);
@@ -37,20 +37,17 @@ function contrast(left: string, right: string): number {
 }
 
 test("all nine themes ship", () => {
-  assert.deepEqual(
-    [...THEME_NAMES].sort(),
-    [
-      "catppuccin-latte",
-      "embers",
-      "gruvbox",
-      "midnight",
-      "mocha",
-      "paper",
-      "rose-pine",
-      "rose-pine-dawn",
-      "tokyo-night",
-    ],
-  );
+  assert.deepEqual([...THEME_NAMES].sort(), [
+    "catppuccin-latte",
+    "embers",
+    "gruvbox",
+    "midnight",
+    "mocha",
+    "paper",
+    "rose-pine",
+    "rose-pine-dawn",
+    "tokyo-night",
+  ]);
 });
 
 test("every theme defines every token as an hsl() string", () => {

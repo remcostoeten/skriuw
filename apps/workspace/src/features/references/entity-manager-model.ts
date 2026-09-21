@@ -1,6 +1,10 @@
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { projectReferencingNotes } from "./reference-panel-model";
-import type { PersonRecord, ReferenceOperation, TagRecord } from "@skriuw/renderer-core/references/types";
+import type {
+  PersonRecord,
+  ReferenceOperation,
+  TagRecord,
+} from "@skriuw/renderer-core/references/types";
 
 export type EntityKind = "tag" | "person";
 
@@ -34,9 +38,7 @@ export const ENTITY_COLOR_OPTIONS: readonly EntityColorOption[] = [
   { name: "Pink", value: "#c66c98" },
 ];
 
-export const ENTITY_COLORS: readonly string[] = ENTITY_COLOR_OPTIONS.map(
-  (option) => option.value,
-);
+export const ENTITY_COLORS: readonly string[] = ENTITY_COLOR_OPTIONS.map((option) => option.value);
 
 export function entityNoun(kind: EntityKind): string {
   return kind === "tag" ? "tag" : "person";
@@ -121,10 +123,7 @@ export function summarizeEntities(rows: readonly EntityRow[]): EntitySummary {
   return { total: rows.length, referenced, unused: rows.length - referenced, references, busiest };
 }
 
-export function entityRowsEqual(
-  left: readonly EntityRow[],
-  right: readonly EntityRow[],
-): boolean {
+export function entityRowsEqual(left: readonly EntityRow[], right: readonly EntityRow[]): boolean {
   if (left.length !== right.length) {
     return false;
   }
@@ -212,11 +211,7 @@ export function buildCreatePerson(
   };
 }
 
-export function buildRename(
-  kind: EntityKind,
-  id: string,
-  name: string,
-): ReferenceOperation | null {
+export function buildRename(kind: EntityKind, id: string, name: string): ReferenceOperation | null {
   const trimmed = normalize(name);
   if (trimmed.length === 0) {
     return null;

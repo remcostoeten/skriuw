@@ -119,9 +119,7 @@ export function createPerformanceSnapshot(
     throw new Error("performance fixture requires eight notes");
   }
   const measured = new Set(measuredNoteIds);
-  const noteIds = projection.nodes
-    .filter((node) => node.kind === "note")
-    .map((node) => node.id);
+  const noteIds = projection.nodes.filter((node) => node.kind === "note").map((node) => node.id);
   const workingSetNoteIds = noteIds.slice(0, WORKING_SET_NOTE_COUNT);
   if (workingSetNoteIds.length !== WORKING_SET_NOTE_COUNT) {
     throw new Error("performance fixture requires one hundred notes for the working set");
@@ -145,13 +143,15 @@ export function createPerformanceSnapshot(
     if (isMeasured) {
       measuredIndex += 1;
     }
-    return [{
-      noteId: node.id,
-      documentJson: isMeasured ? documentJson(blockCount, currentMeasuredIndex) : emptyDocument(),
-      markdown: "",
-      revision: 1,
-      wordCount: isMeasured ? blockCount * 10 : 0,
-    }];
+    return [
+      {
+        noteId: node.id,
+        documentJson: isMeasured ? documentJson(blockCount, currentMeasuredIndex) : emptyDocument(),
+        markdown: "",
+        revision: 1,
+        wordCount: isMeasured ? blockCount * 10 : 0,
+      },
+    ];
   });
   const referenceData = referenceBootstrap(noteIds);
   return {

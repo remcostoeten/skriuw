@@ -14,7 +14,7 @@ type ImageDimensions = {
 
 const inFlightPersists = new Set<Promise<void>>();
 
-registerPendingWork(() => Promise.all([...inFlightPersists]).then(() => undefined));
+registerPendingWork(() => Promise.all(inFlightPersists).then(() => undefined));
 
 function collectFiles(transfer: DataTransfer | null, mimePrefix: string): File[] {
   if (!transfer) {
@@ -173,9 +173,8 @@ export function insertLibraryMedia(
   const existing = [...state.images.values()].find(
     (image) => image.noteId === noteId && image.contentHash === blob.contentHash,
   );
-  const known = existing ?? [...state.images.values()].find(
-    (image) => image.contentHash === blob.contentHash,
-  );
+  const known =
+    existing ?? [...state.images.values()].find((image) => image.contentHash === blob.contentHash);
   const id = existing?.id ?? crypto.randomUUID();
   const node =
     kind === "image"

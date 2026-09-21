@@ -31,9 +31,7 @@ test("deep links resolve through a declared scheme", () => {
 
 test("expo-router owns navigation", () => {
   const config = readAppConfig();
-  const pluginNames = config.plugins.map((plugin) =>
-    Array.isArray(plugin) ? plugin[0] : plugin,
-  );
+  const pluginNames = config.plugins.map((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin));
   assert.ok(pluginNames.includes("expo-router"));
 });
 

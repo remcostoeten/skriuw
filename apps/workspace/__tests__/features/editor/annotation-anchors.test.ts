@@ -134,9 +134,7 @@ test("a non-empty selection never resolves to a thread at the cursor", () => {
     ]),
   ]);
   const state = stateWith(doc);
-  const selected = state.apply(
-    state.tr.setSelection(TextSelection.create(state.doc, 2, 5)),
-  );
+  const selected = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 2, 5)));
 
   assert.equal(annotationAtCursor(selected), null);
 });

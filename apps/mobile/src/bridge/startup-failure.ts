@@ -46,7 +46,10 @@ const MAX_CAUSE_DEPTH = 4;
  * a reset would destroy writes this build cannot read. `busy` and
  * `slot-in-use` clear on their own.
  */
-const RESETTABLE_STARTUP_KINDS: ReadonlySet<SkriuwCoreErrorKind> = new Set(["recovery", "workspace"]);
+const RESETTABLE_STARTUP_KINDS: ReadonlySet<SkriuwCoreErrorKind> = new Set([
+  "recovery",
+  "workspace",
+]);
 
 const RECOVERY_BY_KIND: Partial<Record<SkriuwCoreErrorKind, string>> = {
   "unsupported-protocol": "Update Skriuw to open this workspace.",

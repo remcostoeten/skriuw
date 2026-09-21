@@ -240,10 +240,7 @@ function byteLength(value: string): number {
  * The input is never trimmed to fit: silently shipping half a selection would
  * produce output that looks complete and is not.
  */
-export function aiActionInputError(
-  action: AiEditorAction,
-  input: string,
-): string | null {
+export function aiActionInputError(action: AiEditorAction, input: string): string | null {
   if (input.trim().length === 0) {
     if (action.scope === "selection") {
       return "Select some text first.";

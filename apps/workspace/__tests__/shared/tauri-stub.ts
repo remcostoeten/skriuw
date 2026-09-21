@@ -8,7 +8,7 @@ type TauriGlobal = { window?: Record<string, unknown> };
 export function setupTauriInvokeStub(): void {
   const globals = globalThis as TauriGlobal;
   globals.window = {
-    ...(globals.window ?? {}),
+    ...globals.window,
     __TAURI_INTERNALS__: {
       invoke: () => Promise.resolve({ applied: 0, revisions: [], rankChanges: [] }),
       transformCallback: (callback: unknown) => callback,

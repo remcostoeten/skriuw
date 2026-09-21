@@ -89,7 +89,8 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: (index) => (rows[index]?.kind === "group" ? GROUP_ROW_HEIGHT : VERSION_ROW_HEIGHT),
+    estimateSize: (index) =>
+      rows[index]?.kind === "group" ? GROUP_ROW_HEIGHT : VERSION_ROW_HEIGHT,
     overscan: 8,
   });
 
@@ -299,9 +300,7 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
             if (row.kind === "group") {
               return (
                 <div key={row.key} style={style} className="flex items-end pb-1.5 pl-[15px] pr-2">
-                  <span className={sectionLabelClass}>
-                    {row.label}
-                  </span>
+                  <span className={sectionLabelClass}>{row.label}</span>
                   <span className="ml-auto font-mono text-[10px] tabular-nums text-muted-foreground/50">
                     {row.count}
                   </span>
@@ -393,9 +392,7 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
           </div>
         )}
         {!preview && <PreviewPlaceholder />}
-        {preview?.status === "loading" && (
-          <PreviewPlaceholder message="Loading revision…" muted />
-        )}
+        {preview?.status === "loading" && <PreviewPlaceholder message="Loading revision…" muted />}
         {preview?.status === "error" && (
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-theme-divider px-4 py-2.5">
             <p className="m-0 text-[12px] text-destructive">{preview.message}</p>
@@ -496,9 +493,7 @@ type DiffStatsProps = {
 function DiffStats({ versionMarkdown, currentMarkdown }: DiffStatsProps) {
   const diff = useMarkdownDiff(versionMarkdown, currentMarkdown);
   if (diff.stats.added === 0 && diff.stats.removed === 0) {
-    return (
-      <span className="shrink-0 text-[11px] text-muted-foreground/70">Identical to now</span>
-    );
+    return <span className="shrink-0 text-[11px] text-muted-foreground/70">Identical to now</span>;
   }
   return (
     <span
@@ -566,10 +561,11 @@ type LayoutToggleProps = {
   onChange: (layout: DiffLayout) => void;
 };
 
-const LAYOUT_OPTIONS: readonly { value: DiffLayout; label: string; Icon: typeof SplitViewIcon }[] = [
-  { value: "unified", label: "Unified", Icon: SplitViewStackedIcon },
-  { value: "split", label: "Side by side", Icon: SplitViewIcon },
-];
+const LAYOUT_OPTIONS: readonly { value: DiffLayout; label: string; Icon: typeof SplitViewIcon }[] =
+  [
+    { value: "unified", label: "Unified", Icon: SplitViewStackedIcon },
+    { value: "split", label: "Side by side", Icon: SplitViewIcon },
+  ];
 
 function LayoutToggle({ layout, onChange }: LayoutToggleProps) {
   return (

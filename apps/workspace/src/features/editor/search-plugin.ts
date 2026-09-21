@@ -53,10 +53,7 @@ export function buildRegex(term: string, options: SearchOptions): RegExp | null 
   }
 }
 
-export function findSearchMatches(
-  doc: ProseMirrorNode,
-  regex: RegExp | null,
-): SearchMatch[] {
+export function findSearchMatches(doc: ProseMirrorNode, regex: RegExp | null): SearchMatch[] {
   const matches: SearchMatch[] = [];
   if (!regex) return matches;
 

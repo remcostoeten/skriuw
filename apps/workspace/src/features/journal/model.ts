@@ -10,12 +10,7 @@ import {
   JOURNAL_ROOT_TITLE,
 } from "@skriuw/renderer-core/journal/constants";
 
-export {
-  JOURNAL_DATE_PROPERTY_ID,
-  JOURNAL_MOOD_PROPERTY_ID,
-  JOURNAL_ROOT_ID,
-  JOURNAL_ROOT_TITLE,
-};
+export { JOURNAL_DATE_PROPERTY_ID, JOURNAL_MOOD_PROPERTY_ID, JOURNAL_ROOT_ID, JOURNAL_ROOT_TITLE };
 
 export type MoodLevel = "great" | "good" | "neutral" | "low" | "rough";
 
@@ -26,13 +21,7 @@ export type Mood = {
   colorClass: string;
 };
 
-export const MOOD_LEVELS: readonly MoodLevel[] = [
-  "great",
-  "good",
-  "neutral",
-  "low",
-  "rough",
-];
+export const MOOD_LEVELS: readonly MoodLevel[] = ["great", "good", "neutral", "low", "rough"];
 
 export const MOOD_OPTIONS: Record<MoodLevel, Mood> = {
   great: { level: "great", label: "Great", icon: "++", colorClass: "text-emerald-500" },
@@ -69,9 +58,7 @@ function propertyOf(
   noteId: string,
   propertyId: string,
 ): NoteProperty | undefined {
-  return state.propertiesByNoteId
-    .get(noteId)
-    ?.find((property) => property.id === propertyId);
+  return state.propertiesByNoteId.get(noteId)?.find((property) => property.id === propertyId);
 }
 
 export function journalEntryDateKey(state: RendererState, noteId: string): DateKey | null {
@@ -200,10 +187,7 @@ export function selectEntryDateKeys(state: RendererState): ReadonlySet<DateKey> 
   return new Set(selectJournalEntries(state).map((entry) => entry.dateKey));
 }
 
-export function sameDateKeySet(
-  left: ReadonlySet<DateKey>,
-  right: ReadonlySet<DateKey>,
-): boolean {
+export function sameDateKeySet(left: ReadonlySet<DateKey>, right: ReadonlySet<DateKey>): boolean {
   if (left.size !== right.size) {
     return false;
   }

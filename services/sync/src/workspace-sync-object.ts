@@ -1,10 +1,8 @@
 import { DurableObject } from "cloudflare:workers";
 
 import { WorkspaceContentStore } from "./content-store";
-import {
-  SYNC_EVENTS_DEVICE_HEADER,
-  SYNC_EVENTS_EXPIRY_HEADER,
-} from "./public-api";
+import { noop } from "./shared/lib/noop";
+import { SYNC_EVENTS_DEVICE_HEADER, SYNC_EVENTS_EXPIRY_HEADER } from "./public-api";
 import {
   type AcknowledgementResult,
   type CompactionResult,
@@ -119,9 +117,7 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
       return Response.json({ error: "upgrade_required" }, { status: 426 });
     }
     const deviceId = request.headers.get(SYNC_EVENTS_DEVICE_HEADER);
-    const expiresAtEpochSeconds = Number(
-      request.headers.get(SYNC_EVENTS_EXPIRY_HEADER),
-    );
+    const expiresAtEpochSeconds = Number(request.headers.get(SYNC_EVENTS_EXPIRY_HEADER));
     if (!deviceId || !Number.isSafeInteger(expiresAtEpochSeconds) || expiresAtEpochSeconds <= 0) {
       return Response.json({ error: "invalid_request" }, { status: 400 });
     }
@@ -409,7 +405,9 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
    * reads it back unchanged. The caller compares the returned key id with
    * its own, so two devices enabling at once cannot both succeed.
    */
-  async claimWorkspaceEncryption(input: unknown): Promise<
+  async claimWorkspaceEncryption(
+    input: unknown,
+  ): Promise<
     { ok: true; marker: WorkspaceEncryptionMarker } | { ok: false; code: string; message: string }
   > {
     let claim: { scheme: string; keyId: string };
@@ -422,7 +420,10 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
       throw error;
     }
     const marker = this.ctx.storage.transactionSync(() => {
-      this.admitSealState({ scheme: claim.scheme, keyIds: [claim.keyId] }, { allowForeignKey: true });
+      this.admitSealState(
+        { scheme: claim.scheme, keyIds: [claim.keyId] },
+        { allowForeignKey: true },
+      );
       return this.encryptionMarker();
     });
     if (marker === null) {
@@ -660,9 +661,9 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
    * same transaction that records the references, confirmed not marked for
    * deletion, so an incomplete checkpoint is never discoverable as current.
    */
-  async publishCheckpoint(input: unknown): Promise<
-    { ok: true; serverSequence: number } | { ok: false; code: string; message: string }
-  > {
+  async publishCheckpoint(
+    input: unknown,
+  ): Promise<{ ok: true; serverSequence: number } | { ok: false; code: string; message: string }> {
     let checkpoint: WorkspaceCheckpointRecord;
     try {
       checkpoint = parseWorkspaceCheckpoint(input);
@@ -782,10 +783,7 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
    * concurrent push or checkpoint publication that references it fail closed,
    * and the mark is cleared only after the object store confirmed the delete.
    */
-  async compact(
-    nowEpochSeconds: number,
-    maxDeviceIdleSeconds: number,
-  ): Promise<CompactionResult> {
+  async compact(nowEpochSeconds: number, maxDeviceIdleSeconds: number): Promise<CompactionResult> {
     const now = requireSafeSequence(nowEpochSeconds, "nowEpochSeconds", true);
     const idle = requireSafeSequence(maxDeviceIdleSeconds, "maxDeviceIdleSeconds", true);
 
@@ -1193,11 +1191,12 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         "SELECT COALESCE(MAX(server_sequence), 0) AS sequence FROM sync_operations",
       )
       .one().sequence;
-    const assigned = this.ctx.storage.sql
-      .exec<{ sequence: number }>(
-        "SELECT COALESCE(MAX(seq), 0) AS sequence FROM sqlite_sequence WHERE name = 'sync_operations'",
-      )
-      .toArray()[0]?.sequence ?? 0;
+    const assigned =
+      this.ctx.storage.sql
+        .exec<{ sequence: number }>(
+          "SELECT COALESCE(MAX(seq), 0) AS sequence FROM sqlite_sequence WHERE name = 'sync_operations'",
+        )
+        .toArray()[0]?.sequence ?? 0;
     return Math.max(logged, assigned);
   }
 }
@@ -1214,7 +1213,7 @@ function closeQuietly(socket: WebSocket): void {
   try {
     socket.close(1011, "sync events channel closed");
   } catch {
-    // Already closed or errored; hibernation cleans the socket up regardless.
+    noop();
   }
 }
 
@@ -1230,9 +1229,7 @@ function referencedManifests(payload: SyncOperationPayload): ContentManifest[] {
   return payload.assets ?? [];
 }
 
-function payloadSeal(
-  payload: SyncOperationPayload,
-): { scheme: string; keyIds: string[] } | null {
+function payloadSeal(payload: SyncOperationPayload): { scheme: string; keyIds: string[] } | null {
   if (payload.form !== "sealed") {
     return null;
   }
@@ -1255,7 +1252,5 @@ function toReplicatedOperation(row: StoredOperationRow): ReplicatedWorkspaceOper
 
 async function sha256Hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }

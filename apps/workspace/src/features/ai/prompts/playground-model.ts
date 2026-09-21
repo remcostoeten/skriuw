@@ -4,7 +4,11 @@ import type {
   AiProviderError,
   AiUsage,
 } from "@/contracts/ai";
-import type { AiModelInventory, AiModelOption, AiProviderGroup } from "@/features/ai/models/model-options";
+import type {
+  AiModelInventory,
+  AiModelOption,
+  AiProviderGroup,
+} from "@/features/ai/models/model-options";
 import { aiModelGroups } from "@/features/ai/models/model-options";
 import type { AiModelSelection } from "@/features/ai/models/model-selection";
 
@@ -155,9 +159,7 @@ export type PlaygroundTiming = {
   finishedAt: number | null;
 };
 
-export function terminalRun(
-  event: Exclude<AiCompletionEvent, { type: "delta" }>,
-): PlaygroundRun {
+export function terminalRun(event: Exclude<AiCompletionEvent, { type: "delta" }>): PlaygroundRun {
   if (event.type === "done") {
     return { phase: "done", requestId: event.requestId, usage: event.usage ?? null };
   }

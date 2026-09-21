@@ -28,9 +28,7 @@ function checkDocument(
 
 function selectedState(document = checkDocument(false, "Ship release")) {
   const state = EditorState.create({ doc: document });
-  return state.apply(
-    state.tr.setSelection(TextSelection.create(state.doc, 3)),
-  );
+  return state.apply(state.tr.setSelection(TextSelection.create(state.doc, 3)));
 }
 
 test("explicit promotion links one selected checklist item", () => {
@@ -105,13 +103,9 @@ test("synchronization projects only explicitly promoted checklist items", () => 
       productSchema.node("check_item", { checked: false, taskId: null, blockId: null }, [
         productSchema.node("paragraph", null, [productSchema.text("Local checkbox")]),
       ]),
-      productSchema.node(
-        "check_item",
-        { checked: true, taskId: "task-2", blockId: "block-2" },
-        [
-          productSchema.node("paragraph", null, [productSchema.text("Promoted checkbox")]),
-        ],
-      ),
+      productSchema.node("check_item", { checked: true, taskId: "task-2", blockId: "block-2" }, [
+        productSchema.node("paragraph", null, [productSchema.text("Promoted checkbox")]),
+      ]),
     ]),
   ]);
   assert.deepEqual(promotedChecklistTaskLinks(document, "note-1", 99), [
@@ -129,18 +123,14 @@ test("synchronization projects only explicitly promoted checklist items", () => 
 test("promotion and projection use only the checklist summary as the task title", () => {
   const document = productSchema.node("doc", null, [
     productSchema.node("check_list", null, [
-      productSchema.node(
-        "check_item",
-        { checked: false, taskId: null, blockId: null },
-        [
-          productSchema.node("paragraph", null, [productSchema.text("Summary")]),
-          productSchema.node("bullet_list", null, [
-            productSchema.node("list_item", null, [
-              productSchema.node("paragraph", null, [productSchema.text("Nested detail")]),
-            ]),
+      productSchema.node("check_item", { checked: false, taskId: null, blockId: null }, [
+        productSchema.node("paragraph", null, [productSchema.text("Summary")]),
+        productSchema.node("bullet_list", null, [
+          productSchema.node("list_item", null, [
+            productSchema.node("paragraph", null, [productSchema.text("Nested detail")]),
           ]),
-        ],
-      ),
+        ]),
+      ]),
     ]),
   ]);
   const promotion = promoteSelectedChecklistItem(selectedState(document), {
@@ -152,10 +142,7 @@ test("promotion and projection use only the checklist summary as the task title"
   assert.equal(promotion?.link.title, "Summary");
   assert.ok(promotion);
   const promoted = selectedState(document).apply(promotion.transaction);
-  assert.equal(
-    promotedChecklistTaskLinks(promoted.doc, "note-1", 1)[0]?.title,
-    "Summary",
-  );
+  assert.equal(promotedChecklistTaskLinks(promoted.doc, "note-1", 1)[0]?.title, "Summary");
 });
 
 test("promoted checklist linkage survives JSON, DOM and Markdown round trips", () => {

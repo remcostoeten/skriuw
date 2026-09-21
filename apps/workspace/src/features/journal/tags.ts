@@ -52,16 +52,12 @@ export function projectJournalTags(
     }
   }
   projected.sort(
-    (left, right) =>
-      right.entryCount - left.entryCount || left.name.localeCompare(right.name),
+    (left, right) => right.entryCount - left.entryCount || left.name.localeCompare(right.name),
   );
   return projected;
 }
 
-export function entriesWithTag(
-  entries: readonly JournalEntry[],
-  tagId: string,
-): JournalEntry[] {
+export function entriesWithTag(entries: readonly JournalEntry[], tagId: string): JournalEntry[] {
   return entries.filter((entry) => entry.tagIds.includes(tagId));
 }
 

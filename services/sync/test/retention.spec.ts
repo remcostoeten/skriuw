@@ -25,9 +25,7 @@ const NOW = 1_900_000_000;
 const DEVICE_ID = "device-1";
 const OTHER_DEVICE_ID = "device-2";
 
-const chunkedContentBytes = new TextEncoder().encode(
-  JSON.stringify(goldenPushV2Content),
-);
+const chunkedContentBytes = new TextEncoder().encode(JSON.stringify(goldenPushV2Content));
 const chunkedDigest = goldenPushV2.operations[1]!.payload.manifest!.chunks[0]!.digest;
 
 type Workspace = DurableObjectStub<WorkspaceSyncObject>;
@@ -107,11 +105,7 @@ function documentOperation(
   };
 }
 
-function chunkedOperation(
-  operationId: string,
-  clientSequence: number,
-  baseServerSequence: number,
-) {
+function chunkedOperation(operationId: string, clientSequence: number, baseServerSequence: number) {
   return {
     operationId,
     clientSequence,
@@ -188,7 +182,11 @@ async function compactedWorkspace(workspaceId: string): Promise<{
 async function readFloor(workspace: Workspace) {
   return runInDurableObject(workspace, (_instance, state) =>
     state.storage.sql
-      .exec<{ compacted_through: number; checkpoint_server_sequence: number; compacted_at: number }>(
+      .exec<{
+        compacted_through: number;
+        checkpoint_server_sequence: number;
+        compacted_at: number;
+      }>(
         "SELECT compacted_through, checkpoint_server_sequence, compacted_at FROM sync_log_floor WHERE id = 1",
       )
       .one(),
@@ -270,10 +268,7 @@ describe("compaction floor", () => {
       await workspace.pushOperations({
         syncProtocolVersion: 2,
         deviceId: DEVICE_ID,
-        operations: [
-          folderOperation("operation-3", 3, 2),
-          folderOperation("operation-4", 4, 2),
-        ],
+        operations: [folderOperation("operation-3", 3, 2), folderOperation("operation-4", 4, 2)],
       }),
     );
     await workspace.acknowledgeOperations(DEVICE_ID, 4, NOW);
@@ -390,7 +385,7 @@ describe("chunk deletion versus concurrent references", () => {
 
     const gate = { started: false, released: false };
     await runInDurableObject(workspace, (instance) => {
-      const content = (instance as unknown as { content: WorkspaceContentStore }).content;
+      const content = instance["content"];
       const original = content.deleteChunks.bind(content);
       content.deleteChunks = async (id, digests) => {
         gate.started = true;
@@ -637,11 +632,16 @@ describe("schema migration", () => {
 
     const reopened = env.WORKSPACES.getByName(workspaceId);
     expect(await reopened.workspaceEncryption()).toBeNull();
-    expect(await reopened.workspaceState()).toEqual({ latestServerSequence: 1, compactedThrough: 0 });
-    const version = await runInDurableObject(reopened, (_instance, state) =>
-      state.storage.sql
-        .exec<{ version: number }>("SELECT MAX(id) AS version FROM _sql_schema_migrations")
-        .one().version,
+    expect(await reopened.workspaceState()).toEqual({
+      latestServerSequence: 1,
+      compactedThrough: 0,
+    });
+    const version = await runInDurableObject(
+      reopened,
+      (_instance, state) =>
+        state.storage.sql
+          .exec<{ version: number }>("SELECT MAX(id) AS version FROM _sql_schema_migrations")
+          .one().version,
     );
     expect(version).toBe(4);
   });
@@ -670,7 +670,10 @@ describe("schema migration", () => {
     await evictDurableObject(workspace);
 
     const reopened = env.WORKSPACES.getByName(workspaceId);
-    expect(await reopened.workspaceState()).toEqual({ latestServerSequence: 2, compactedThrough: 0 });
+    expect(await reopened.workspaceState()).toEqual({
+      latestServerSequence: 2,
+      compactedThrough: 0,
+    });
     const indexed = await runInDurableObject(reopened, (_instance, state) =>
       state.storage.sql
         .exec<{ operation_id: string; server_sequence: number }>(
@@ -682,10 +685,12 @@ describe("schema migration", () => {
       { operation_id: "operation-1", server_sequence: 1 },
       { operation_id: "operation-2", server_sequence: 2 },
     ]);
-    const version = await runInDurableObject(reopened, (_instance, state) =>
-      state.storage.sql
-        .exec<{ version: number }>("SELECT MAX(id) AS version FROM _sql_schema_migrations")
-        .one().version,
+    const version = await runInDurableObject(
+      reopened,
+      (_instance, state) =>
+        state.storage.sql
+          .exec<{ version: number }>("SELECT MAX(id) AS version FROM _sql_schema_migrations")
+          .one().version,
     );
     expect(version).toBe(4);
 

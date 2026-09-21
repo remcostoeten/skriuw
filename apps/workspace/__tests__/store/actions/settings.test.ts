@@ -5,7 +5,10 @@ import { createInitialState, createRendererStore } from "@skriuw/renderer-core/s
 import { DEFAULT_WORKSPACE_SETTINGS } from "../../../src/features/settings/settings-model";
 import { selectAiEnabled } from "../../../src/features/ai/opt-in-gate";
 import { setupTauriInvokeStub } from "../../shared/tauri-stub";
-import type { WorkspaceOperation, WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
+import type {
+  WorkspaceOperation,
+  WorkspaceSettings,
+} from "@skriuw/renderer-core/contracts/workspace";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 setupTauriInvokeStub();
@@ -42,10 +45,10 @@ test("choosing a default AI model commits a settings operation carrying the sele
   assert.equal(committed.length, 1);
   const operation = committed[0];
   assert.equal(operation.type, "update_settings");
-  assert.deepEqual(
-    operation.type === "update_settings" ? operation.settings.aiModel : undefined,
-    { providerId: "ollama", modelId: "gemma3:4b" },
-  );
+  assert.deepEqual(operation.type === "update_settings" ? operation.settings.aiModel : undefined, {
+    providerId: "ollama",
+    modelId: "gemma3:4b",
+  });
 });
 
 test("clearing a stored AI model drops the key, and clearing an absent one commits nothing", () => {
@@ -56,10 +59,7 @@ test("clearing a stored AI model drops the key, and clearing an absent one commi
   settingsActions.setAiModelSelection(stored.store, null);
   assert.equal(stored.committed.length, 1);
   const operation = stored.committed[0];
-  assert.equal(
-    operation.type === "update_settings" && "aiModel" in operation.settings,
-    false,
-  );
+  assert.equal(operation.type === "update_settings" && "aiModel" in operation.settings, false);
 
   const absent = fakeStore(DEFAULT_WORKSPACE_SETTINGS);
   settingsActions.setAiModelSelection(absent.store, null);

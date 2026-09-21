@@ -73,23 +73,28 @@ export function projectSharedEntities(
       overlaps.set(candidateId, shared);
     }
   }
-  return [...overlaps].map(([candidateId, shared]) => {
-    const metadata = state.metadata.get(candidateId)!;
-    return {
-      noteId: candidateId,
-      title: metadata.title,
-      updatedAt: metadata.updatedAt,
-      sharedEntityIds: [...shared],
-    };
-  }).sort(
-    (a, b) =>
-      b.sharedEntityIds.length - a.sharedEntityIds.length ||
-      b.updatedAt - a.updatedAt ||
-      a.title.localeCompare(b.title),
-  );
+  return [...overlaps]
+    .map(([candidateId, shared]) => {
+      const metadata = state.metadata.get(candidateId)!;
+      return {
+        noteId: candidateId,
+        title: metadata.title,
+        updatedAt: metadata.updatedAt,
+        sharedEntityIds: [...shared],
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.sharedEntityIds.length - a.sharedEntityIds.length ||
+        b.updatedAt - a.updatedAt ||
+        a.title.localeCompare(b.title),
+    );
 }
 
-export function projectRelatedJournalEntries(state: RendererState, noteId: string): RelatedJournalEntry[] {
+export function projectRelatedJournalEntries(
+  state: RendererState,
+  noteId: string,
+): RelatedJournalEntry[] {
   const personIds = new Set(idsFor(state, noteId, "person"));
   const tagIds = new Set(idsFor(state, noteId, "tag"));
   const incoming = new Set(state.incomingReferences.get(referenceKey("note", noteId)) ?? []);
@@ -127,16 +132,22 @@ export function projectRelatedJournalEntries(state: RendererState, noteId: strin
       sharedEntityIds: [...sharedPersonIds, ...sharedTagIds],
     });
   }
-  return result.sort((a, b) => b.score - a.score || b.dateKey.localeCompare(a.dateKey) || a.title.localeCompare(b.title));
+  return result.sort(
+    (a, b) =>
+      b.score - a.score || b.dateKey.localeCompare(a.dateKey) || a.title.localeCompare(b.title),
+  );
 }
 
 export function projectCoVisitedNotes(state: RendererState, noteId: string): RelationshipNote[] {
   return [...(state.coVisits.get(noteId) ?? [])]
     .filter(([candidateId]) => candidateId !== noteId && availableNote(state, candidateId))
     .sort((a, b) => {
-      const score = (entry: readonly [string, { count: number; lastVisitedAt: number }]) =>
-        entry[1].count * 10 +
-        Math.max(0, 9 - Math.floor((Date.now() - entry[1].lastVisitedAt) / 86_400_000));
+      function score(entry: readonly [string, { count: number; lastVisitedAt: number }]) {
+        return (
+          entry[1].count * 10 +
+          Math.max(0, 9 - Math.floor((Date.now() - entry[1].lastVisitedAt) / 86_400_000))
+        );
+      }
       return score(b) - score(a) || b[1].lastVisitedAt - a[1].lastVisitedAt;
     })
     .map(([candidateId]) => {
@@ -165,11 +176,11 @@ type GraphCandidate = GraphNode & { from: string; to: string };
 function relationshipCandidates(state: RendererState, noteId: string): GraphCandidate[] {
   const candidates: GraphCandidate[] = [];
   const seen = new Set<string>([noteId]);
-  const add = (candidate: GraphCandidate) => {
+  function add(candidate: GraphCandidate) {
     if (seen.has(candidate.id)) return;
     seen.add(candidate.id);
     candidates.push(candidate);
-  };
+  }
   for (const entry of state.incomingReferences.get(referenceKey("note", noteId)) ?? []) {
     if (availableNote(state, entry)) {
       add({

@@ -116,16 +116,11 @@ export async function relockNotes(session: LockSession): Promise<void> {
 }
 
 /** Unlocks every locked note permanently, then deletes the configuration. */
-export async function removeLock(
-  session: LockSession,
-  biometrics: BiometricRearm,
-): Promise<void> {
+export async function removeLock(session: LockSession, biometrics: BiometricRearm): Promise<void> {
   await commitGate.holdForReconcile(async () => {
     await session.bridge.removeNoteLock();
     await refreshNoteLock(session);
-    const delta = await session.bridge.readWorkspaceDelta(
-      lockedNodeIds(session.store.getState()),
-    );
+    const delta = await session.bridge.readWorkspaceDelta(lockedNodeIds(session.store.getState()));
     session.store.applyRemoteDocuments(delta);
   });
   // The keystore would otherwise keep a secret for a lock that no longer

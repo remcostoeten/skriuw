@@ -12,9 +12,7 @@ import {
   trashedSubtreeNodes,
 } from "../../src/store/trash";
 
-function node(
-  partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">,
-): WorkspaceNode {
+function node(partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">): WorkspaceNode {
   return {
     parentId: null,
     rank: 0,

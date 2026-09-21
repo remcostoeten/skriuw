@@ -21,12 +21,9 @@ export type CredentialVerification =
   | { ok: true; identity: TrustedIdentity }
   | { ok: false; code: CredentialFailureCode };
 
-export interface CredentialVerifier {
-  verifyBearerToken(
-    token: string,
-    nowEpochSeconds: number,
-  ): Promise<CredentialVerification>;
-}
+export type CredentialVerifier = {
+  verifyBearerToken(token: string, nowEpochSeconds: number): Promise<CredentialVerification>;
+};
 
 export type WorkspaceMembership = {
   role: WorkspaceRole;
@@ -37,12 +34,9 @@ export type WorkspaceMembershipLookup =
   | { state: "active"; membership: WorkspaceMembership }
   | { state: "denied" };
 
-export interface WorkspaceMembershipSource {
-  lookupMembership(
-    trustedSubject: string,
-    workspaceId: string,
-  ): Promise<WorkspaceMembershipLookup>;
-}
+export type WorkspaceMembershipSource = {
+  lookupMembership(trustedSubject: string, workspaceId: string): Promise<WorkspaceMembershipLookup>;
+};
 
 export type ReadySyncAccessConfiguration = {
   state: "ready";
@@ -190,10 +184,7 @@ export async function authenticateSyncRequest(
   request: Request,
   configuration: SyncAccessConfiguration,
   nowEpochSeconds: number,
-): Promise<
-  | { ok: true; identity: TrustedIdentity }
-  | { ok: false; code: SyncAccessFailureCode }
-> {
+): Promise<{ ok: true; identity: TrustedIdentity } | { ok: false; code: SyncAccessFailureCode }> {
   if (configuration.state === "unavailable") {
     return { ok: false, code: configuration.code };
   }
@@ -228,11 +219,7 @@ export async function authorizeWorkspaceRequest(
   if (configuration.state === "unavailable") {
     return { ok: false, code: configuration.code };
   }
-  const authentication = await authenticateSyncRequest(
-    request,
-    configuration,
-    nowEpochSeconds,
-  );
+  const authentication = await authenticateSyncRequest(request, configuration, nowEpochSeconds);
   if (!authentication.ok) return authentication;
   if (!isBoundDeviceId(workspaceId)) {
     return { ok: false, code: "invalid_workspace_identifier" };
@@ -269,10 +256,7 @@ export async function authorizeWorkspaceRequest(
   };
 }
 
-export function membershipAllowsDevice(
-  membership: WorkspaceMembership,
-  deviceId: string,
-): boolean {
+export function membershipAllowsDevice(membership: WorkspaceMembership, deviceId: string): boolean {
   return membership.deviceIds.includes(deviceId);
 }
 
@@ -302,7 +286,17 @@ function isTrustedIdentity(identity: TrustedIdentity): boolean {
 }
 
 function isBoundedOpaqueValue(value: string): boolean {
-  return value.length > 0 && value.length <= 256 && !/[\u0000-\u001f\u007f]/.test(value);
+  return value.length > 0 && value.length <= 256 && !containsControlCharacter(value);
+}
+
+function containsControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code <= 0x1f || code === 0x7f) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function isBoundDeviceId(value: string): boolean {

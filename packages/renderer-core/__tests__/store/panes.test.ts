@@ -248,9 +248,7 @@ test("pane layout survives a serialize/parse round trip with its geometry", () =
 
 test("a version 2 layout migrates forward without losing tabs", () => {
   const panes = openBeside([primary(["a", "b"], "a", ["a"])], "b");
-  const migrated = parsePaneLayout(
-    JSON.stringify({ version: PANE_LAYOUT_VERSION - 1, panes }),
-  );
+  const migrated = parsePaneLayout(JSON.stringify({ version: PANE_LAYOUT_VERSION - 1, panes }));
   assert.deepEqual(migrated?.panes, panes);
   assert.equal(migrated?.orientation, DEFAULT_SPLIT_ORIENTATION);
   assert.equal(migrated?.ratio, DEFAULT_SPLIT_RATIO);
@@ -266,10 +264,7 @@ test("parse rejects malformed, versionless, and foreign payloads", () => {
     parsePaneLayout(JSON.stringify({ version: PANE_LAYOUT_VERSION, panes: [{ paneId: 7 }] })),
     null,
   );
-  assert.equal(
-    parsePaneLayout(serializePaneLayout(layoutOf(defaultPanes(null))))?.panes.length,
-    1,
-  );
+  assert.equal(parsePaneLayout(serializePaneLayout(layoutOf(defaultPanes(null))))?.panes.length, 1);
 });
 
 test("parse falls back to default geometry rather than discarding a usable layout", () => {
@@ -454,7 +449,12 @@ test("reopenClosedTab is a no-op for an empty stack, an unknown pane, or an open
   assert.equal(unknown.reopenedNoteId, null);
   assert.equal(unknown.closedTabs.length, 1);
 
-  const alreadyOpen = reopenClosedTab(panes, [{ noteId: "a", index: 0 }], PRIMARY_PANE_ID, () => true);
+  const alreadyOpen = reopenClosedTab(
+    panes,
+    [{ noteId: "a", index: 0 }],
+    PRIMARY_PANE_ID,
+    () => true,
+  );
   assert.equal(alreadyOpen.reopenedNoteId, null);
   assert.deepEqual(alreadyOpen.closedTabs, []);
 });

@@ -127,9 +127,7 @@ test("attachments resolve against assets and weblink annotations append", () => 
     { name: "Archived", value: { type: "checkbox", value: true } },
     { name: "Color", value: { type: "text", value: "BLUE" } },
   ]);
-  assert.ok(
-    bundle.warnings.some((warning) => warning.message.includes("attachment")),
-  );
+  assert.ok(bundle.warnings.some((warning) => warning.message.includes("attachment")));
 });
 
 test("untitled text notes take their title from content", () => {

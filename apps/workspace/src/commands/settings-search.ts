@@ -12,10 +12,7 @@ function normalize(text: string): string {
   return text.toLowerCase().replaceAll("+", " ").replace(/\s+/g, " ").trim();
 }
 
-function definitionHaystack(
-  definition: ShortcutDefinition,
-  overrides: ShortcutOverrides,
-): string {
+function definitionHaystack(definition: ShortcutDefinition, overrides: ShortcutOverrides): string {
   const keys = effectiveShortcutKeys(definition, overrides);
   const parts = [
     definition.group,
@@ -47,8 +44,7 @@ export function shortcutSettingsMatches(
   }
   const haystack = definitionHaystack(definition, overrides);
   return (
-    haystack.includes(needle) ||
-    haystack.replaceAll(" ", "").includes(needle.replaceAll(" ", ""))
+    haystack.includes(needle) || haystack.replaceAll(" ", "").includes(needle.replaceAll(" ", ""))
   );
 }
 
@@ -80,9 +76,7 @@ export function filterShortcutSettings(
   return groups;
 }
 
-export function shortcutSettingsCount(
-  groups: readonly ShortcutSettingsGroup[],
-): number {
+export function shortcutSettingsCount(groups: readonly ShortcutSettingsGroup[]): number {
   return groups.reduce((total, group) => total + group.definitions.length, 0);
 }
 

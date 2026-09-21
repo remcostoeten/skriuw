@@ -22,10 +22,7 @@ type EditableSettingsBinding = {
 export function useEditableSettings(store: RendererStore): EditableSettingsBinding {
   const document = useRendererSelector(store, selectSettings);
   const settings = projectSettings(document);
-  function change<K extends keyof EditableSettings>(
-    field: K,
-    value: EditableSettings[K],
-  ): void {
+  function change<K extends keyof EditableSettings>(field: K, value: EditableSettings[K]): void {
     updateSetting(store, field, value);
   }
   return { settings, change };
@@ -140,9 +137,7 @@ export function SettingCardPicker<TValue extends string>({
       return;
     }
     onChange(next.value);
-    event.currentTarget
-      .querySelector<HTMLElement>(`[data-option-value="${next.value}"]`)
-      ?.focus();
+    event.currentTarget.querySelector<HTMLElement>(`[data-option-value="${next.value}"]`)?.focus();
   }
 
   return (

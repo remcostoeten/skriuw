@@ -31,9 +31,7 @@ export type SyncReconciler = {
  * read and apply, and a local optimistic apply during the read triggers one
  * more pass so it is never overwritten by stale canonical state.
  */
-export function createSyncReconciler(
-  dependencies: Dependencies,
-): SyncReconciler {
+export function createSyncReconciler(dependencies: Dependencies): SyncReconciler {
   const { store, gate, bootstrap, readDelta, onError } = dependencies;
   let pending: WorkspaceChange | null = null;
   let running: Promise<void> | null = null;

@@ -70,18 +70,20 @@ export function syncPanes(
   sourceNodes: ReadonlyMap<string, WorkspaceNode>,
   openInTabs = false,
 ): readonly PaneState[] {
-  const isNote = (id: string) => sourceNodes.get(id)?.kind === "note";
+  function isNote(id: string) {
+    return sourceNodes.get(id)?.kind === "note";
+  }
   let changed = false;
   const next = panes.map((pane) => {
     const openNoteIds = pane.openNoteIds.filter(isNote);
-    let paneActive = pane.activeNoteId !== null && isNote(pane.activeNoteId)
-      ? pane.activeNoteId
-      : null;
+    let paneActive =
+      pane.activeNoteId !== null && isNote(pane.activeNoteId) ? pane.activeNoteId : null;
     if (pane.paneId === PRIMARY_PANE_ID) {
       const previousActive = paneActive;
       paneActive = activeNoteId;
       if (paneActive !== null && !openNoteIds.includes(paneActive)) {
-        const slot = openInTabs || previousActive === null ? -1 : openNoteIds.indexOf(previousActive);
+        const slot =
+          openInTabs || previousActive === null ? -1 : openNoteIds.indexOf(previousActive);
         if (slot >= 0) {
           openNoteIds[slot] = paneActive;
         } else {
@@ -117,30 +119,34 @@ export function restorePanes(
   openInTabs = false,
 ): readonly PaneState[] {
   const unavailable = unavailableNodeIds([...sourceNodes.values()]);
-  const isAvailableNote = (id: string) =>
-    sourceNodes.get(id)?.kind === "note" && !unavailable.has(id);
+  function isAvailableNote(id: string) {
+    return sourceNodes.get(id)?.kind === "note" && !unavailable.has(id);
+  }
   const restored = panes.flatMap((pane, index) => {
     const openNoteIds = pane.openNoteIds.filter(isAvailableNote);
     if (index > 0 && openNoteIds.length === 0) {
       return [];
     }
     const activeNoteId =
-      pane.activeNoteId !== null &&
-      openNoteIds.includes(pane.activeNoteId)
+      pane.activeNoteId !== null && openNoteIds.includes(pane.activeNoteId)
         ? pane.activeNoteId
         : (openNoteIds[0] ?? null);
-    return [{
-      ...pane,
-      openNoteIds,
-      pinnedNoteIds: pane.pinnedNoteIds.filter((id) => openNoteIds.includes(id)),
-      activeNoteId,
-    }];
+    return [
+      {
+        ...pane,
+        openNoteIds,
+        pinnedNoteIds: pane.pinnedNoteIds.filter((id) => openNoteIds.includes(id)),
+        activeNoteId,
+      },
+    ];
   });
   return syncPanes(restored, activeNoteId, sourceNodes, openInTabs);
 }
 
 export function primaryPane(panes: readonly PaneState[]): PaneState {
-  return panes[0] ?? { paneId: PRIMARY_PANE_ID, openNoteIds: [], pinnedNoteIds: [], activeNoteId: null };
+  return (
+    panes[0] ?? { paneId: PRIMARY_PANE_ID, openNoteIds: [], pinnedNoteIds: [], activeNoteId: null }
+  );
 }
 
 export function secondaryPane(panes: readonly PaneState[]): PaneState | null {
@@ -420,10 +426,7 @@ export function withClosedTabs(
 }
 
 /** Forgets a pane's stack, e.g. when the split that owned it closes. */
-export function discardClosedTabs(
-  stacks: ClosedTabStacks,
-  paneId: string,
-): ClosedTabStacks {
+export function discardClosedTabs(stacks: ClosedTabStacks, paneId: string): ClosedTabStacks {
   if (!stacks.has(paneId)) {
     return stacks;
   }
@@ -472,17 +475,13 @@ export function reopenClosedTab(
     ];
     return {
       panes: panes.map((entry) =>
-        entry.paneId === paneId
-          ? { ...entry, openNoteIds, activeNoteId: closed.noteId }
-          : entry,
+        entry.paneId === paneId ? { ...entry, openNoteIds, activeNoteId: closed.noteId } : entry,
       ),
       closedTabs: remaining,
       reopenedNoteId: closed.noteId,
     };
   }
-  return closedTabs.length === 0
-    ? unchanged
-    : { panes, closedTabs: [], reopenedNoteId: null };
+  return closedTabs.length === 0 ? unchanged : { panes, closedTabs: [], reopenedNoteId: null };
 }
 
 /**
@@ -509,10 +508,7 @@ export function moveTabInPane(
   return panes.map((entry) => (entry.paneId === paneId ? { ...entry, openNoteIds } : entry));
 }
 
-export function openBeside(
-  panes: readonly PaneState[],
-  noteId: string,
-): readonly PaneState[] {
+export function openBeside(panes: readonly PaneState[], noteId: string): readonly PaneState[] {
   return [
     primaryPane(panes),
     { paneId: SECONDARY_PANE_ID, openNoteIds: [noteId], pinnedNoteIds: [], activeNoteId: noteId },

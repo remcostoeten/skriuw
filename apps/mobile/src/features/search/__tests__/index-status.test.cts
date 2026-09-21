@@ -1,11 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { SearchIndexStatus } from "@skriuw/renderer-core/contracts/workspace";
-import {
-  describeSearchIndex,
-  reconcileSearchIndex,
-  type SearchIndexView,
-} from "../index-status";
+import { describeSearchIndex, reconcileSearchIndex, type SearchIndexView } from "../index-status";
 
 function status(overrides: Partial<SearchIndexStatus> = {}): SearchIndexStatus {
   return {
@@ -35,7 +31,10 @@ test("a current index costs one status read and says nothing", async () => {
 
   assert.equal(rebuilds, 0);
   assert.equal(outcome.rebuilt, false);
-  assert.deepEqual(views.map((view) => view.state), ["current"]);
+  assert.deepEqual(
+    views.map((view) => view.state),
+    ["current"],
+  );
   assert.equal(describeSearchIndex(outcome.view), null);
 });
 
@@ -51,11 +50,11 @@ test("a drifted index is surfaced as rebuilding before it is rebuilt", async () 
   );
 
   assert.equal(outcome.rebuilt, true);
-  assert.deepEqual(views.map((view) => view.state), ["rebuilding", "current"]);
-  assert.equal(
-    describeSearchIndex(views[0]!),
-    "Rebuilding search index — 240 of 1000 notes.",
+  assert.deepEqual(
+    views.map((view) => view.state),
+    ["rebuilding", "current"],
   );
+  assert.equal(describeSearchIndex(views[0]!), "Rebuilding search index — 240 of 1000 notes.");
   assert.equal(describeSearchIndex(outcome.view), null);
 });
 
@@ -72,8 +71,14 @@ test("a runtime that refuses the status read says so instead of reading as empty
     (view) => views.push(view),
   );
 
-  assert.deepEqual(views.map((view) => view.state), ["unavailable"]);
-  assert.equal(describeSearchIndex(outcome.view), "Search is not available in this build of Skriuw.");
+  assert.deepEqual(
+    views.map((view) => view.state),
+    ["unavailable"],
+  );
+  assert.equal(
+    describeSearchIndex(outcome.view),
+    "Search is not available in this build of Skriuw.",
+  );
 });
 
 test("a rebuild that fails leaves the failure visible", async () => {

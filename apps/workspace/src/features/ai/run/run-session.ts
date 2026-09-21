@@ -147,15 +147,15 @@ export function createRunSession(options: Options): RunSession {
       return !disposed && activeRequestId === request.requestId && run.phase === "streaming";
     }
     void repair(run.preview, request)
-      .then((next) => {
+      .then((repaired) => {
         if (!stillCurrent()) {
           return;
         }
-        if (next === null) {
+        if (repaired === null) {
           setRun(runWithTerminal(run, event));
           return;
         }
-        send(next);
+        send(repaired);
       })
       .catch(() => {
         if (stillCurrent()) {
@@ -198,7 +198,12 @@ export function createRunSession(options: Options): RunSession {
     });
     consumer = ownConsumer;
 
-    void startCompletion(request, options.origin, (event) => ownConsumer.accept(event), options.signal)
+    void startCompletion(
+      request,
+      options.origin,
+      (event) => ownConsumer.accept(event),
+      options.signal,
+    )
       .then((ownHandle) => {
         if (activeRequestId !== request.requestId || disposed) {
           ownHandle.dispose();

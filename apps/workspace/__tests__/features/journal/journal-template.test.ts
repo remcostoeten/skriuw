@@ -41,14 +41,30 @@ function snapshot(settings: Record<string, unknown> = {}): WorkspaceSnapshot {
       node({ id: "source", kind: "note", rank: 300, title: "Evening review" }),
     ],
     documents: [
-      { noteId: "entry", documentJson: { type: "doc", content: [{ type: "paragraph" }] }, markdown: "", revision: 4, wordCount: 0 },
-      { noteId: "written", documentJson: { type: "doc" }, markdown: "kept", revision: 2, wordCount: 1 },
+      {
+        noteId: "entry",
+        documentJson: { type: "doc", content: [{ type: "paragraph" }] },
+        markdown: "",
+        revision: 4,
+        wordCount: 0,
+      },
+      {
+        noteId: "written",
+        documentJson: { type: "doc" },
+        markdown: "kept",
+        revision: 2,
+        wordCount: 1,
+      },
       {
         noteId: "source",
         documentJson: {
           type: "doc",
           content: [
-            { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "Review {{date}}" }] },
+            {
+              type: "heading",
+              attrs: { level: 1 },
+              content: [{ type: "text", text: "Review {{date}}" }],
+            },
           ],
         },
         markdown: "# Review {{date}}\n",

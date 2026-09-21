@@ -286,13 +286,25 @@ function RuntimeAction({
     );
   }
   if (status?.state === "not_installed") {
-    return <button type="button" className={settingsButton} disabled={busy} onClick={onInstall}>Install</button>;
+    return (
+      <button type="button" className={settingsButton} disabled={busy} onClick={onInstall}>
+        Install
+      </button>
+    );
   }
   if (status?.state === "installed_stopped" || status?.state === "failed") {
-    return <button type="button" className={settingsButton} disabled={busy} onClick={onStart}>{status.state === "failed" ? "Restart" : "Start"}</button>;
+    return (
+      <button type="button" className={settingsButton} disabled={busy} onClick={onStart}>
+        {status.state === "failed" ? "Restart" : "Start"}
+      </button>
+    );
   }
   if (status?.state === "unsupported") {
-    return <button type="button" className={settingsButton} onClick={onOpenInstaller}>Open installer</button>;
+    return (
+      <button type="button" className={settingsButton} onClick={onOpenInstaller}>
+        Open installer
+      </button>
+    );
   }
   if (status?.state === "running") {
     return (
@@ -459,11 +471,11 @@ function SuggestedModelsMenu({
 
   useEffect(() => {
     if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
+    function onPointerDown(event: PointerEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false);
       }
-    };
+    }
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);

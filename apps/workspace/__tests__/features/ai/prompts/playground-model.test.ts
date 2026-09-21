@@ -180,8 +180,5 @@ test("status line degrades cleanly without usage and covers every terminal state
   assert.equal(playgroundStatusLine({ phase: "streaming", requestId: "r" }, timing), "Streaming…");
   assert.equal(playgroundStatusLine({ phase: "cancelled", requestId: "r" }, timing), "Cancelled");
   assert.equal(playgroundStatusLine({ phase: "timeout", requestId: "r" }, timing), "Timed out");
-  assert.equal(
-    playgroundStatusLine(startFailureRun("r", "boom"), timing),
-    "Failed: boom",
-  );
+  assert.equal(playgroundStatusLine(startFailureRun("r", "boom"), timing), "Failed: boom");
 });

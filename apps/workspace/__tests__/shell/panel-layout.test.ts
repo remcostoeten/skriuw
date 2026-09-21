@@ -1,46 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  panelGridTemplate,
-  panelTracksWith,
-  routeHasSidebar,
-} from "../../src/shell/panel-layout";
+import { panelGridTemplate, panelTracksWith, routeHasSidebar } from "../../src/shell/panel-layout";
 
 test("notes panels use bounded responsive tracks and collapse independently", () => {
-  assert.equal(
-    panelGridTemplate("notes", true, true),
-    "56px 260px minmax(300px, 1fr) 240px",
-  );
-  assert.equal(
-    panelGridTemplate("notes", false, true),
-    "56px 0px minmax(300px, 1fr) 240px",
-  );
-  assert.equal(
-    panelGridTemplate("notes", true, false),
-    "56px 260px minmax(300px, 1fr) 0px",
-  );
+  assert.equal(panelGridTemplate("notes", true, true), "56px 260px minmax(300px, 1fr) 240px");
+  assert.equal(panelGridTemplate("notes", false, true), "56px 0px minmax(300px, 1fr) 240px");
+  assert.equal(panelGridTemplate("notes", true, false), "56px 260px minmax(300px, 1fr) 0px");
   assert.equal(panelGridTemplate("trash", true, true), "56px 1fr");
 });
 
 test("journal shares the sidebar track and drops the metadata track", () => {
-  assert.equal(
-    panelGridTemplate("journal", true, true, 320),
-    "56px 320px minmax(300px, 1fr)",
-  );
-  assert.equal(
-    panelGridTemplate("journal", false, true, 320),
-    "56px 0px minmax(300px, 1fr)",
-  );
+  assert.equal(panelGridTemplate("journal", true, true, 320), "56px 320px minmax(300px, 1fr)");
+  assert.equal(panelGridTemplate("journal", false, true, 320), "56px 0px minmax(300px, 1fr)");
   assert.ok(routeHasSidebar("notes"));
   assert.ok(routeHasSidebar("journal"));
   assert.ok(!routeHasSidebar("trash"));
 });
 
 test("notes panel tracks follow the resized widths", () => {
-  assert.equal(
-    panelGridTemplate("notes", true, true, 320),
-    "56px 320px minmax(300px, 1fr) 240px",
-  );
+  assert.equal(panelGridTemplate("notes", true, true, 320), "56px 320px minmax(300px, 1fr) 240px");
   assert.equal(
     panelGridTemplate("notes", true, true, 320, 300),
     "56px 320px minmax(300px, 1fr) 300px",

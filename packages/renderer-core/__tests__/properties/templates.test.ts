@@ -40,8 +40,14 @@ test("instantiation generates fresh property and option IDs", () => {
 
   assert.equal(first.length, 6);
   assert.ok(first.every(({ noteId }) => noteId === "note_1"));
-  assert.deepEqual(first.map(({ position }) => position), [0, 1, 2, 3, 4, 5]);
-  assert.notDeepEqual(first.map(({ id }) => id), second.map(({ id }) => id));
+  assert.deepEqual(
+    first.map(({ position }) => position),
+    [0, 1, 2, 3, 4, 5],
+  );
+  assert.notDeepEqual(
+    first.map(({ id }) => id),
+    second.map(({ id }) => id),
+  );
   assert.notDeepEqual(
     first.flatMap(({ options }) => options.map(({ id }) => id)),
     second.flatMap(({ options }) => options.map(({ id }) => id)),
@@ -76,11 +82,7 @@ test("instantiation remaps selected option references and rejects duplicate gene
       },
     ],
   };
-  const instantiated = instantiatePropertyTemplate(
-    selectedTemplate,
-    "note_1",
-    idFactory("fresh"),
-  );
+  const instantiated = instantiatePropertyTemplate(selectedTemplate, "note_1", idFactory("fresh"));
 
   assert.equal(instantiated[0]?.value.value, instantiated[0]?.options[0]?.id);
   const project = BUILT_IN_PROPERTY_TEMPLATES.find(({ id }) => id === "project")!;
@@ -101,10 +103,14 @@ test("template operations append, replace, delete, and reorder immutably", () =>
 
   assert.equal(source.length, 1);
   assert.equal(replaced[1]?.name, "Standup");
-  assert.deepEqual(reordered.map(({ position }) => position), [0, 1]);
-  assert.deepEqual(deleted.map(({ id, position }) => ({ id, position })), [
-    { id: "meeting", position: 0 },
-  ]);
+  assert.deepEqual(
+    reordered.map(({ position }) => position),
+    [0, 1],
+  );
+  assert.deepEqual(
+    deleted.map(({ id, position }) => ({ id, position })),
+    [{ id: "meeting", position: 0 }],
+  );
 });
 
 test("template reorders reject missing, duplicate, and foreign IDs", () => {

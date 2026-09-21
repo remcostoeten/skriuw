@@ -3,10 +3,7 @@ import type { BlockCount, CanonicalBlock } from "./types";
 export const BLOCK_COUNTS: readonly BlockCount[] = [50, 500, 2_000];
 export const BOUNDED_BLOCK_LIMIT = 192;
 
-export function createCorpus(
-  blockCount: BlockCount,
-  noteIndex: number,
-): CanonicalBlock[] {
+export function createCorpus(blockCount: BlockCount, noteIndex: number): CanonicalBlock[] {
   return Array.from({ length: blockCount }, (_, blockIndex) => {
     const ordinal = blockIndex + 1;
     const text = `Note ${noteIndex + 1}, block ${ordinal}. Deterministic Skriuw editor fixture with representative prose.`;

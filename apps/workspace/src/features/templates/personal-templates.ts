@@ -7,30 +7,21 @@ import { productSchema } from "@/features/editor/schema";
 import type { NoteTemplate } from "./note-templates";
 
 /** Source notes remain canonical; this preference only records picker membership. */
-export function personalTemplateIds(
-  settings: WorkspaceSettings,
-): readonly string[] {
+export function personalTemplateIds(settings: WorkspaceSettings): readonly string[] {
   const value = settings.noteTemplateIds;
   if (value === undefined) return [];
   if (
     !Array.isArray(value) ||
     value.length > 200 ||
-    value.some(
-      (id) => typeof id !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(id),
-    )
+    value.some((id) => typeof id !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(id))
   ) {
-    throw new Error(
-      "Saved note templates are invalid. Restore a verified workspace backup.",
-    );
+    throw new Error("Saved note templates are invalid. Restore a verified workspace backup.");
   }
   return value as string[];
 }
 
 /** Registers the current durable note as a reusable template. */
-export async function savePersonalTemplate(
-  store: RendererStore,
-  noteId: string,
-): Promise<void> {
+export async function savePersonalTemplate(store: RendererStore, noteId: string): Promise<void> {
   await flushPendingWork();
   const state = store.getState();
   if (state.nodes.get(noteId)?.kind !== "note")
@@ -38,9 +29,7 @@ export async function savePersonalTemplate(
   const ids = personalTemplateIds(state.settings);
   if (ids.includes(noteId)) return;
   if (ids.length >= 200)
-    throw new Error(
-      "Remove a saved template before adding another (limit: 200).",
-    );
+    throw new Error("Remove a saved template before adding another (limit: 200).");
   await commitOperations(store, [
     {
       type: "update_settings",
@@ -50,19 +39,14 @@ export async function savePersonalTemplate(
 }
 
 /** Removes picker membership without deleting the source note. */
-export async function removePersonalTemplate(
-  store: RendererStore,
-  noteId: string,
-): Promise<void> {
+export async function removePersonalTemplate(store: RendererStore, noteId: string): Promise<void> {
   const settings = store.getState().settings;
   await commitOperations(store, [
     {
       type: "update_settings",
       settings: {
         ...settings,
-        noteTemplateIds: personalTemplateIds(settings).filter(
-          (id) => id !== noteId,
-        ),
+        noteTemplateIds: personalTemplateIds(settings).filter((id) => id !== noteId),
       },
     },
   ]);

@@ -73,11 +73,7 @@ export function EntryStarter({ store, noteId, dateKey }: EntryStarterProps) {
     <div className="journal-entry-starter" data-journal-starter>
       <div className="flex flex-wrap items-center gap-1.5">
         {remembered !== null && (
-          <button
-            type="button"
-            onClick={() => apply(remembered.id)}
-            className={starterButtonClass}
-          >
+          <button type="button" onClick={() => apply(remembered.id)} className={starterButtonClass}>
             <FileTextIcon size={13} aria-hidden="true" />
             Start from {remembered.name}
           </button>
@@ -94,11 +90,7 @@ export function EntryStarter({ store, noteId, dateKey }: EntryStarterProps) {
         </button>
       </div>
       {choosing && (
-        <ul
-          id={PICKER_ID}
-          aria-label="Journal templates"
-          className="mt-2 flex flex-wrap gap-1.5"
-        >
+        <ul id={PICKER_ID} aria-label="Journal templates" className="mt-2 flex flex-wrap gap-1.5">
           {choices.map((choice) => (
             <li key={choice.id}>
               <button

@@ -33,7 +33,12 @@ type ToolEntry = {
 
 const TOOLS: readonly ToolEntry[] = [
   { tool: "pen", label: "Pen", shortcutId: "drawPen", icon: PencilIcon },
-  { tool: "highlighter", label: "Highlighter", shortcutId: "drawHighlighter", icon: HighlighterIcon },
+  {
+    tool: "highlighter",
+    label: "Highlighter",
+    shortcutId: "drawHighlighter",
+    icon: HighlighterIcon,
+  },
   { tool: "line", label: "Line", shortcutId: "drawLine", icon: DiagonalLineIcon },
   { tool: "rect", label: "Rectangle", shortcutId: "drawRectangle", icon: SquareIcon },
   { tool: "ellipse", label: "Ellipse", shortcutId: "drawEllipse", icon: CircleIcon },
@@ -118,7 +123,12 @@ export function DrawingToolbar({
       onPointerDown={(event) => event.stopPropagation()}
     >
       {TOOLS.map((entry) => (
-        <Tooltip key={entry.tool} label={entry.label} shortcut={hints[entry.shortcutId]} side="bottom">
+        <Tooltip
+          key={entry.tool}
+          label={entry.label}
+          shortcut={hints[entry.shortcutId]}
+          side="bottom"
+        >
           <button
             type="button"
             aria-label={entry.label}
@@ -189,7 +199,9 @@ export function DrawingToolbar({
           >
             <span
               className="drawing-swatch drawing-swatch-custom"
-              data-selected={DRAWING_INKS.every((ink) => ink.id !== brush.colorId) ? "true" : undefined}
+              data-selected={
+                DRAWING_INKS.every((ink) => ink.id !== brush.colorId) ? "true" : undefined
+              }
               style={{ backgroundColor: resolveInk(brush.colorId, dark) }}
             />
           </button>

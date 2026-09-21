@@ -1,8 +1,4 @@
-import {
-  CANONICAL_CHUNK_BYTES,
-  CONTENT_DIGEST_HEX_BYTES,
-  type ContentManifest,
-} from "./contracts";
+import { CANONICAL_CHUNK_BYTES, CONTENT_DIGEST_HEX_BYTES, type ContentManifest } from "./contracts";
 
 export type ContentStoreFailure =
   | "chunk_digest_mismatch"
@@ -38,16 +34,12 @@ export type StoredChunkListing = {
 };
 
 export function isContentDigest(value: string): boolean {
-  return (
-    value.length === CONTENT_DIGEST_HEX_BYTES && /^[0-9a-f]+$/.test(value)
-  );
+  return value.length === CONTENT_DIGEST_HEX_BYTES && /^[0-9a-f]+$/.test(value);
 }
 
 export async function contentDigest(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 export class WorkspaceContentStore {
@@ -101,10 +93,7 @@ export class WorkspaceContentStore {
    * Reports the manifest chunks that are not yet stored, so an interrupted
    * upload resumes by sending only what is missing.
    */
-  async missingChunks(
-    workspaceId: string,
-    manifest: ContentManifest,
-  ): Promise<string[]> {
+  async missingChunks(workspaceId: string, manifest: ContentManifest): Promise<string[]> {
     const digests = [...new Set(manifest.chunks.map((chunk) => chunk.digest))];
     const present = await Promise.all(
       digests.map(async (digest) => ({

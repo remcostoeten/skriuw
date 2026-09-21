@@ -25,7 +25,10 @@ export function Themes() {
   return (
     <section id="themes" className="overflow-x-clip bg-surface py-24">
       <Container>
-        <div ref={headingRef} className="reveal-wipe flex flex-wrap items-start justify-between gap-6">
+        <div
+          ref={headingRef}
+          className="reveal-wipe flex flex-wrap items-start justify-between gap-6"
+        >
           <Rail>
             <SectionHeading
               lead="Nine themes, and type that suits you."
@@ -60,10 +63,22 @@ export function Themes() {
                 style={{ backgroundColor: theme.bg, color: theme.ink }}
               >
                 <div className="space-y-2">
-                  <span style={stagger(0)} className="vg-draw block h-2 w-20 rounded-full bg-current opacity-90" />
-                  <span style={stagger(1)} className="vg-draw block h-1.5 w-full rounded-full bg-current opacity-35" />
-                  <span style={stagger(2)} className="vg-draw block h-1.5 w-4/5 rounded-full bg-current opacity-35" />
-                  <span style={stagger(3)} className="vg-draw block h-1.5 w-2/3 rounded-full bg-current opacity-20" />
+                  <span
+                    style={stagger(0)}
+                    className="vg-draw block h-2 w-20 rounded-full bg-current opacity-90"
+                  />
+                  <span
+                    style={stagger(1)}
+                    className="vg-draw block h-1.5 w-full rounded-full bg-current opacity-35"
+                  />
+                  <span
+                    style={stagger(2)}
+                    className="vg-draw block h-1.5 w-4/5 rounded-full bg-current opacity-35"
+                  />
+                  <span
+                    style={stagger(3)}
+                    className="vg-draw block h-1.5 w-2/3 rounded-full bg-current opacity-20"
+                  />
                 </div>
                 <span className="font-serif text-[28px] tracking-[-0.02em] opacity-70 transition-opacity duration-200 ease group-hover:opacity-100">
                   Aa

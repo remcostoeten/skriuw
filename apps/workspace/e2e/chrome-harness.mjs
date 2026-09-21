@@ -11,10 +11,14 @@ const CHROME_BINARY = process.env.CHROME_BINARY ?? "google-chrome-stable";
 const CHROME_EXTRA_ARGS = (process.env.CHROME_EXTRA_ARGS ?? "").split(" ").filter(Boolean);
 
 export function startViteServer(appDirectory, port, extraArguments = []) {
-  return spawn("bun", ["x", "vite", "--host", "127.0.0.1", "--port", String(port), ...extraArguments], {
-    cwd: appDirectory,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  return spawn(
+    "bun",
+    ["x", "vite", "--host", "127.0.0.1", "--port", String(port), ...extraArguments],
+    {
+      cwd: appDirectory,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
 }
 
 export async function waitForServer(child, baseUrl) {
@@ -22,6 +26,7 @@ export async function waitForServer(child, baseUrl) {
   child.stderr.on("data", (chunk) => {
     stderr += String(chunk);
   });
+  let lastFetchError;
   for (let attempt = 0; attempt < 150; attempt += 1) {
     if (child.exitCode !== null) {
       throw new Error(`Vite exited before readiness (${child.exitCode})\n${stderr}`);
@@ -29,12 +34,12 @@ export async function waitForServer(child, baseUrl) {
     try {
       const response = await fetch(baseUrl);
       if (response.ok) return;
-    } catch {
-      // The server is still starting.
+    } catch (error) {
+      lastFetchError = error;
     }
     await delay(100);
   }
-  throw new Error(`Vite did not become ready\n${stderr}`);
+  throw new Error(`Vite did not become ready\n${stderr}`, { cause: lastFetchError });
 }
 
 export function launchChrome(profile) {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { MotionConfig } from "motion/react";
-import { Notifier, notify, type NotifyInstance } from "@remcostoeten/notifier";
+import { Notifier, notify } from "@remcostoeten/notifier";
 import { detectPlatform } from "@remcostoeten/use-shortcut/constants";
 import { useShortcutBinding } from "@remcostoeten/use-shortcut/react";
 import { KeyCaps } from "@/shared/ui/key-caps";
@@ -50,7 +50,6 @@ function undoKeys(): string[] {
 
 /** Shows a notification through @remcostoeten/notifier. */
 export function showToast(request: ToastRequest): void {
-  let instance: NotifyInstance;
   const run = request.action?.run;
   const options = {
     duration: request.durationMs ?? 7_000,
@@ -83,7 +82,7 @@ export function showToast(request: ToastRequest): void {
     ) : (
       request.message
     );
-  instance = notify(message, options);
+  const instance = notify(message, options);
 
   if (request.action && run) {
     actionableToast = {
@@ -111,14 +110,21 @@ export function ToastHost({ visible = true, reduceMotion = false }: HostProps) {
     current.dismiss();
   }
 
-  useShortcutBinding("mod+shift+z", undoLatestAction, {
-    description: "Undo latest notification action",
-    disabled: actionableToast === null,
-    preventDefault: true,
-  }, { ignoreInputs: false });
+  useShortcutBinding(
+    "mod+shift+z",
+    undoLatestAction,
+    {
+      description: "Undo latest notification action",
+      disabled: actionableToast === null,
+      preventDefault: true,
+    },
+    { ignoreInputs: false },
+  );
 
   useEffect(() => {
-    const listener = () => rerender((value) => value + 1);
+    function listener() {
+      rerender((value) => value + 1);
+    }
     actionListeners.add(listener);
     return () => {
       actionListeners.delete(listener);

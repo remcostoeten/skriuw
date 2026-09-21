@@ -43,10 +43,7 @@ test("day navigation writes the neighbouring day into the hash", () => {
     withHash("#/journal/2026-07-27", () => openJournalDay("2026-01-05")).hash,
     "#/journal/2026-01-05",
   );
-  assert.equal(
-    withHash("#/journal/2026-07-27", openJournalToday).hash,
-    `#/journal/${todayKey()}`,
-  );
+  assert.equal(withHash("#/journal/2026-07-27", openJournalToday).hash, `#/journal/${todayKey()}`);
 });
 
 test("month and year steps keep the day and clamp to shorter months", () => {

@@ -13,9 +13,21 @@ export const navLinks = [
 ];
 
 export const statusSuggestions = [
-  { label: "Open the app", href: appUrl, hint: "Write in the browser, no account, nothing to install." },
-  { label: "Local-first", href: "/local-first-notes/", hint: "Where your notes live and what leaves the machine." },
-  { label: "Import", href: "/import/", hint: "Bring a vault from Obsidian, Notion, Bear, or Apple Notes." },
+  {
+    label: "Open the app",
+    href: appUrl,
+    hint: "Write in the browser, no account, nothing to install.",
+  },
+  {
+    label: "Local-first",
+    href: "/local-first-notes/",
+    hint: "Where your notes live and what leaves the machine.",
+  },
+  {
+    label: "Import",
+    href: "/import/",
+    hint: "Bring a vault from Obsidian, Notion, Bear, or Apple Notes.",
+  },
   { label: "Download", href: "/download/", hint: "Builds for macOS, Windows, and Linux." },
 ];
 
@@ -109,7 +121,10 @@ export const platformStories = [
     tail: "so you can try the real app at skriuw.com/app without installing anything.",
     stats: [
       { value: "0", label: "Bytes leave the tab until you sign in" },
-      { value: "Offline", label: "Installs to your home screen and keeps working with no connection" },
+      {
+        value: "Offline",
+        label: "Installs to your home screen and keeps working with no connection",
+      },
     ],
     tone: "sage" as const,
   },
@@ -133,17 +148,45 @@ export const engineeringStats = [
     label:
       "from key press to letter on screen, 95 times out of 100. A screen refreshes every 16 ms, so you never see the wait.",
   },
-  { icon: "activity" as const, value: "1,300+", label: "automated tests that run before anything ships" },
-  { icon: "gauge" as const, value: "51", label: "design decisions written down, each with the trade-off it cost" },
+  {
+    icon: "activity" as const,
+    value: "1,300+",
+    label: "automated tests that run before anything ships",
+  },
+  {
+    icon: "gauge" as const,
+    value: "51",
+    label: "design decisions written down, each with the trade-off it cost",
+  },
 ];
 
 export const themes = [
   { name: "Skriuw", bg: "#1d1b1b", ink: "#e8e4df", note: "the default, warm ink on near-black." },
-  { name: "Paper", bg: "#efe9df", ink: "#3a352e", note: "for daylight and long drafting sessions." },
-  { name: "Embers", bg: "#2a1a16", ink: "#e9a178", note: "low and warm, for writing after midnight." },
-  { name: "Catppuccin", bg: "#1e1e2e", ink: "#cba6f7", note: "Mocha, matching the rest of your setup." },
+  {
+    name: "Paper",
+    bg: "#efe9df",
+    ink: "#3a352e",
+    note: "for daylight and long drafting sessions.",
+  },
+  {
+    name: "Embers",
+    bg: "#2a1a16",
+    ink: "#e9a178",
+    note: "low and warm, for writing after midnight.",
+  },
+  {
+    name: "Catppuccin",
+    bg: "#1e1e2e",
+    ink: "#cba6f7",
+    note: "Mocha, matching the rest of your setup.",
+  },
   { name: "Rosé Pine", bg: "#191724", ink: "#ebbcba", note: "muted and soft on the eyes." },
-  { name: "Gruvbox", bg: "#282828", ink: "#fabd2f", note: "retro contrast, straight from your editor." },
+  {
+    name: "Gruvbox",
+    bg: "#282828",
+    ink: "#fabd2f",
+    note: "retro contrast, straight from your editor.",
+  },
   { name: "Tokyo Night", bg: "#1a1b26", ink: "#7aa2f7", note: "cool blues, the terminal classic." },
 ];
 

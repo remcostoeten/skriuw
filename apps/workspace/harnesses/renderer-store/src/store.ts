@@ -17,7 +17,9 @@ type Subscriber<T = unknown> = {
   listener: Listener;
 };
 
-const strictEqual = <T,>(left: T, right: T) => Object.is(left, right);
+function strictEqual<T>(left: T, right: T) {
+  return Object.is(left, right);
+}
 
 export function createInitialState(projection: TreeProjection): RendererState {
   const index = buildNodeIndex(projection.nodes);
@@ -25,10 +27,7 @@ export function createInitialState(projection: TreeProjection): RendererState {
     projection.nodes.filter((node) => node.kind === "folder").map((node) => node.id),
   );
   const documents = new Map<string, { id: string; preparedIdentity: string }>();
-  const metadata = new Map<
-    string,
-    { title: string; wordCount: number; updatedAt: string }
-  >();
+  const metadata = new Map<string, { title: string; wordCount: number; updatedAt: string }>();
   for (const node of projection.nodes) {
     if (node.kind === "note") {
       documents.set(node.id, { id: node.id, preparedIdentity: `prepared:${node.id}` });
@@ -131,7 +130,7 @@ export function createRendererStore(initialState: RendererState): RendererStore 
       state = next;
       changed = true;
       counters.effectiveUpdates += 1;
-      for (const subscriber of [...subscribers]) {
+      for (const subscriber of Array.from(subscribers)) {
         if (!subscriber.active) {
           continue;
         }

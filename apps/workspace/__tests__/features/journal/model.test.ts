@@ -60,9 +60,27 @@ function snapshot(): WorkspaceSnapshot {
     ],
     documents: [
       { noteId: "regular", documentJson: { type: "doc" }, markdown: "", revision: 1, wordCount: 3 },
-      { noteId: "entry-a", documentJson: { type: "doc" }, markdown: "a", revision: 1, wordCount: 5 },
-      { noteId: "entry-b", documentJson: { type: "doc" }, markdown: "b", revision: 1, wordCount: 0 },
-      { noteId: "entry-empty", documentJson: { type: "doc" }, markdown: "", revision: 1, wordCount: 0 },
+      {
+        noteId: "entry-a",
+        documentJson: { type: "doc" },
+        markdown: "a",
+        revision: 1,
+        wordCount: 5,
+      },
+      {
+        noteId: "entry-b",
+        documentJson: { type: "doc" },
+        markdown: "b",
+        revision: 1,
+        wordCount: 0,
+      },
+      {
+        noteId: "entry-empty",
+        documentJson: { type: "doc" },
+        markdown: "",
+        revision: 1,
+        wordCount: 0,
+      },
     ],
     historyHeaders: [],
     settings: {

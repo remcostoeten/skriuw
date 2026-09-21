@@ -83,7 +83,11 @@ export function LockGate({ biometrics, children, phase, screenGuard }: Props) {
           accessibilityElementsHidden
           accessibilityViewIsModal
           importantForAccessibility="no-hide-descendants"
-          style={[styles.overlay, styles.centred, { backgroundColor: theme.color("theme-bg-deep") }]}
+          style={[
+            styles.overlay,
+            styles.centred,
+            { backgroundColor: theme.color("theme-bg-deep") },
+          ]}
         >
           <Text style={[styles.mark, { color: theme.color("muted-foreground") }]}>Skriuw</Text>
         </View>

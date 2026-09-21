@@ -172,7 +172,9 @@ function hasValidBody(message: Record<string, unknown>): boolean {
   switch (message.type) {
     case "load":
       return (
-        isEditorDocument(message) && typeof message.title === "string" && isEditorTheme(message.theme)
+        isEditorDocument(message) &&
+        typeof message.title === "string" &&
+        isEditorTheme(message.theme)
       );
     case "theme":
       return isEditorTheme(message.theme);
@@ -183,7 +185,9 @@ function hasValidBody(message: Record<string, unknown>): boolean {
         message.changeSet.documents.every(isEditorDocument)
       );
     case "references":
-      return Array.isArray(message.notes) && Array.isArray(message.tags) && Array.isArray(message.people);
+      return (
+        Array.isArray(message.notes) && Array.isArray(message.tags) && Array.isArray(message.people)
+      );
     case "ack":
       return (
         typeof message.changeId === "number" &&

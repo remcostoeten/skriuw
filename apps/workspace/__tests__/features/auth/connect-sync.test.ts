@@ -12,17 +12,17 @@ let adoption: "claimed" | "active" | "switched" = "active";
 const WORKSPACE_ID = `w_${"a1".repeat(32)}`;
 
 function cloudStateResponse(latestServerSequence: number): Response {
-  return new Response(
-    JSON.stringify({ workspaceId: WORKSPACE_ID, latestServerSequence }),
-    { status: 200, headers: { "Content-Type": "application/json" } },
-  );
+  return new Response(JSON.stringify({ workspaceId: WORKSPACE_ID, latestServerSequence }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 function installTokenStore(): void {
   let token: string | null = null;
   const globals = globalThis as TauriGlobal;
   globals.window = {
-    ...(globals.window ?? {}),
+    ...globals.window,
     __TAURI_INTERNALS__: {
       invoke: (command: string, args?: { token?: string; workspaceId?: string }) => {
         switch (command) {
@@ -133,8 +133,7 @@ test("an unreachable cloud never links, so nothing is pushed or reclaimed", asyn
 
 test("an invalid state response never links", async () => {
   reset();
-  stateResponse = () =>
-    new Response(JSON.stringify({ unexpected: true }), { status: 200 });
+  stateResponse = () => new Response(JSON.stringify({ unexpected: true }), { status: 200 });
   await sessionToken.rememberSessionToken("token-from-sign-in");
 
   await assert.rejects(connectSyncForCurrentSession());

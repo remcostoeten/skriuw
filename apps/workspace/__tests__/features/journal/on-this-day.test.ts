@@ -5,7 +5,14 @@ import type { JournalEntry } from "../../../src/features/journal/model";
 import { entryExcerpt, onThisDay } from "../../../src/features/journal/on-this-day";
 
 function entry(dateKey: string): JournalEntry {
-  return { noteId: `note-${dateKey}`, dateKey, title: "Untitled", mood: null, wordCount: 4, tagIds: [] };
+  return {
+    noteId: `note-${dateKey}`,
+    dateKey,
+    title: "Untitled",
+    mood: null,
+    wordCount: 4,
+    tagIds: [],
+  };
 }
 
 test("onThisDay lists a week, a month, and whole years back, nearest first", () => {
@@ -45,14 +52,19 @@ test("February 29 only recalls earlier leap days", () => {
 
 test("entryExcerpt flattens Markdown structure into one bounded paragraph", () => {
   assert.equal(
-    entryExcerpt("# Tuesday\n\n## Focus\n\n- [x] ship the **journal**\n- read [the spec](docs/spec.md)\n\n```\ncode\n```\n> quiet `day`"),
+    entryExcerpt(
+      "# Tuesday\n\n## Focus\n\n- [x] ship the **journal**\n- read [the spec](docs/spec.md)\n\n```\ncode\n```\n> quiet `day`",
+    ),
     "Focus ship the journal read the spec code quiet day",
   );
   const long = entryExcerpt(`${"word ".repeat(80)}`);
   assert.ok(long.length <= 161);
   assert.ok(long.endsWith("…"));
   assert.equal(entryExcerpt(""), "");
-  assert.equal(entryExcerpt("# Monday\n\n## Focus\n\n- ...\n\n## Tasks\n\n- [ ] ...\n"), "Focus Tasks");
+  assert.equal(
+    entryExcerpt("# Monday\n\n## Focus\n\n- ...\n\n## Tasks\n\n- [ ] ...\n"),
+    "Focus Tasks",
+  );
 });
 
 test("daySwipeStep steps a day only for a decisive horizontal drag", () => {

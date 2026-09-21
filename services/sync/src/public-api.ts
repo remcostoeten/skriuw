@@ -9,7 +9,6 @@ import {
   requestWithSubprotocolCredential,
 } from "./access";
 import { readBoundedBytes } from "./bounded-body";
-import { requireIdentifier } from "./contracts";
 import { type WorkspaceContentStore, isContentDigest } from "./content-store";
 import {
   type AcknowledgementResult,
@@ -27,6 +26,7 @@ import {
   type WorkspaceSyncState,
   parseSyncPullResponse,
   parseSyncPushRequest,
+  requireIdentifier,
   requireSafeSequence,
 } from "./contracts";
 
@@ -41,9 +41,7 @@ type WorkspaceSyncRpc = {
   recordChunkUpload(digest: string, byteLength: number): Promise<WorkspaceStorageUsage>;
   publishCheckpoint(
     input: unknown,
-  ): Promise<
-    { ok: true; serverSequence: number } | { ok: false; code: string; message: string }
-  >;
+  ): Promise<{ ok: true; serverSequence: number } | { ok: false; code: string; message: string }>;
   latestCheckpoint(): Promise<string | null>;
   workspaceEncryption(): Promise<WorkspaceEncryptionMarker | null>;
   claimWorkspaceEncryption(
@@ -56,10 +54,7 @@ type WorkspaceSyncRpc = {
     serverSequence: number,
     nowEpochSeconds: number,
   ): Promise<AcknowledgementResult>;
-  compact(
-    nowEpochSeconds: number,
-    maxDeviceIdleSeconds: number,
-  ): Promise<CompactionResult>;
+  compact(nowEpochSeconds: number, maxDeviceIdleSeconds: number): Promise<CompactionResult>;
 };
 
 export type SyncRouteName =
@@ -181,9 +176,7 @@ export async function handlePublicSyncRequest(
 
     if (route.name === "checkpoint") {
       if (request.method === "GET") {
-        const stored = await dependencies
-          .resolveWorkspace(route.workspaceId)
-          .latestCheckpoint();
+        const stored = await dependencies.resolveWorkspace(route.workspaceId).latestCheckpoint();
         if (stored === null) {
           throw new PublicApiError(404, "checkpoint_not_found");
         }
@@ -259,10 +252,7 @@ export async function handlePublicSyncRequest(
   } catch (error) {
     const publicError = normalizePublicError(error);
     dependencies.log({
-      event:
-        publicError.status >= 500
-          ? "sync_request_failed"
-          : "sync_request_rejected",
+      event: publicError.status >= 500 ? "sync_request_failed" : "sync_request_rejected",
       code: publicError.code,
       status: publicError.status,
       route: route.name,
@@ -360,10 +350,7 @@ async function handleEventsRequest(
   }
   const headers = new Headers({ Upgrade: "websocket" });
   headers.set(SYNC_EVENTS_DEVICE_HEADER, deviceId);
-  headers.set(
-    SYNC_EVENTS_EXPIRY_HEADER,
-    String(access.identity.expiresAtEpochSeconds),
-  );
+  headers.set(SYNC_EVENTS_EXPIRY_HEADER, String(access.identity.expiresAtEpochSeconds));
   if (offersSyncEventsSubprotocol(request.headers)) {
     headers.set("Sec-WebSocket-Protocol", SYNC_EVENTS_SUBPROTOCOL);
   }
@@ -419,11 +406,7 @@ async function handleChunkRequest(
   if (usage.byteLength + bytes.byteLength > usage.quotaBytes) {
     throw new PublicApiError(413, "quota_exceeded");
   }
-  const stored = await dependencies.contentStore.putChunk(
-    route.workspaceId,
-    digest,
-    bytes,
-  );
+  const stored = await dependencies.contentStore.putChunk(route.workspaceId, digest, bytes);
   if (!stored.ok) {
     throw new PublicApiError(stored.code === "chunk_too_large" ? 413 : 400, stored.code);
   }
@@ -477,20 +460,14 @@ async function readBoundedJson(request: Request): Promise<unknown> {
   }
   const body = await readBody(request, MAX_SYNC_BATCH_BYTES);
   try {
-    return JSON.parse(
-      new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(body),
-    );
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(body));
   } catch {
     throw new PublicApiError(400, "invalid_request");
   }
 }
 
 function parsePullQuery(url: URL): { cursor: number; limit: number } {
-  const allowedKeys = new Set([
-    "syncProtocolVersion",
-    "afterServerSequence",
-    "limit",
-  ]);
+  const allowedKeys = new Set(["syncProtocolVersion", "afterServerSequence", "limit"]);
   if ([...url.searchParams.keys()].some((key) => !allowedKeys.has(key))) {
     throw new PublicApiError(400, "invalid_request");
   }
@@ -508,20 +485,14 @@ function parsePullQuery(url: URL): { cursor: number; limit: number } {
   );
   const limitValues = url.searchParams.getAll("limit");
   const limit =
-    limitValues.length === 0
-      ? 128
-      : parseSequenceParameter(limitValues, "limit", false);
+    limitValues.length === 0 ? 128 : parseSequenceParameter(limitValues, "limit", false);
   if (limit > MAX_SYNC_PULL_OPERATIONS) {
     throw new PublicApiError(400, "sync_rejected");
   }
   return { cursor, limit };
 }
 
-function parseSequenceParameter(
-  values: string[],
-  field: string,
-  allowZero: boolean,
-): number {
+function parseSequenceParameter(values: string[], field: string, allowZero: boolean): number {
   if (values.length !== 1 || !/^(0|[1-9]\d*)$/.test(values[0] ?? "")) {
     throw new PublicApiError(400, "invalid_request");
   }
@@ -600,11 +571,7 @@ function jsonResponse(value: unknown): Response {
   });
 }
 
-function jsonError(
-  status: number,
-  code: string,
-  headers?: HeadersInit,
-): Response {
+function jsonError(status: number, code: string, headers?: HeadersInit): Response {
   const responseHeaders = new Headers(headers);
   responseHeaders.set("Cache-Control", "no-store");
   return Response.json({ error: code }, { status, headers: responseHeaders });

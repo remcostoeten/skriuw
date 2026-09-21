@@ -6,7 +6,9 @@ type Props = {
   store: RendererStore;
 };
 
-const selectSettings = (state: ReturnType<RendererStore["getState"]>) => state.settingsSelection;
+function selectSettings(state: ReturnType<RendererStore["getState"]>) {
+  return state.settingsSelection;
+}
 
 export function SettingsConsumer({ store }: Props) {
   recordRender("SettingsConsumer");

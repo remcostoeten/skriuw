@@ -39,7 +39,9 @@ export function LockDialogHost({ store }: HostProps) {
   if (request === null) {
     return null;
   }
-  const close = () => setRequest(null);
+  function close() {
+    setRequest(null);
+  }
   return (
     <Dialog
       open
@@ -47,12 +49,8 @@ export function LockDialogHost({ store }: HostProps) {
       title={dialogTitle(request)}
       className="mx-auto mb-auto mt-[14vh] w-[calc(100vw-1.5rem)] max-w-sm"
     >
-      {request.kind === "setup" && (
-        <SetupLockBody store={store} onDone={request.then} />
-      )}
-      {request.kind === "unlock" && (
-        <UnlockBody store={store} onDone={request.then} />
-      )}
+      {request.kind === "setup" && <SetupLockBody store={store} onDone={request.onReady} />}
+      {request.kind === "unlock" && <UnlockBody store={store} onDone={request.onReady} />}
       {request.kind === "change" && <ChangeSecretBody store={store} />}
     </Dialog>
   );
@@ -222,8 +220,8 @@ function SetupLockBody({ store, onDone }: SetupProps) {
           {recoveryCode}
         </code>
         <p className="m-0 text-xs text-muted-foreground">
-          Without the {secretNoun(value.kind)} or this code, locked notes cannot be read again,
-          not by you and not by anyone else.
+          Without the {secretNoun(value.kind)} or this code, locked notes cannot be read again, not
+          by you and not by anyone else.
         </p>
         <div className="flex justify-end">
           <Button

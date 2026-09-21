@@ -38,7 +38,9 @@ function harness(overrides: Partial<StartupFailureFlowPort> = {}) {
     retries: () => retries,
     latest: () => views[views.length - 1]!,
     press: (label: string) => {
-      const action = views[views.length - 1]!.actions.find((candidate) => candidate.label === label);
+      const action = views[views.length - 1]!.actions.find(
+        (candidate) => candidate.label === label,
+      );
       assert.ok(action, `no ${label} action on screen`);
       assert.equal(action.disabled ?? false, false, `${label} is disabled`);
       action.onSelect();

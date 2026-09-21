@@ -73,7 +73,10 @@ export function displayRowPosition(layout: DisplayRowLayout, row: number): numbe
  * The layout of the view's current document, rebuilt only when the document
  * or the editor width changed since the cached one was measured.
  */
-export function viewDisplayRowLayout(view: EditorView, cache?: DisplayRowLayoutCache): DisplayRowLayout {
+export function viewDisplayRowLayout(
+  view: EditorView,
+  cache?: DisplayRowLayoutCache,
+): DisplayRowLayout {
   const width = view.dom.clientWidth;
   const cached = cache?.current;
   if (cache && cached && cached.doc === view.state.doc && cache.width === width) {

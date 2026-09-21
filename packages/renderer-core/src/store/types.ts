@@ -17,10 +17,7 @@ import type {
   NoteLockState,
   SealedPayload,
 } from "../contracts/workspace";
-import type {
-  IncomingReferences,
-  OutgoingReferences,
-} from "../references/projection";
+import type { IncomingReferences, OutgoingReferences } from "../references/projection";
 import type { PersonRecord, ReferenceOperation, TagRecord } from "../references/types";
 import type { ClosedTab, PaneState, SplitOrientation } from "./panes";
 
@@ -118,11 +115,7 @@ export type SelectorBinding<T> = {
 export type RendererStore = {
   getState: () => RendererState;
   select: <T>(selector: Selector<T>) => T;
-  subscribe: <T>(
-    selector: Selector<T>,
-    listener: Listener,
-    equality?: Equality<T>,
-  ) => () => void;
+  subscribe: <T>(selector: Selector<T>, listener: Listener, equality?: Equality<T>) => () => void;
   createBinding: <T>(selector: Selector<T>, equality?: Equality<T>) => SelectorBinding<T>;
   update: (updater: (state: RendererState) => RendererState) => boolean;
   setActiveNote: (id: string | null) => boolean;

@@ -92,17 +92,15 @@ test("typed recovery codes are regrouped and bounded", () => {
 
 test("only a complete code enables the unlock action", () => {
   assert.equal(recoveryCodeLooksComplete("0123-4567"), false);
-  assert.equal(
-    recoveryCodeLooksComplete("0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ"),
-    true,
-  );
+  assert.equal(recoveryCodeLooksComplete("0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ"), true);
 });
 
 test("a device holding a key the cloud cannot use keeps the recovery code field", () => {
   const unreadable: WorkspaceSyncStatus = {
     state: "blocked",
     reason: "sealed_content_unreadable",
-    detail: "this device holds key 1111111111111111 but the workspace is encrypted with key 0f1e2d3c4b5a6978",
+    detail:
+      "this device holds key 1111111111111111 but the workspace is encrypted with key 0f1e2d3c4b5a6978",
   };
   const enabled = state({ enabled: true, keyId: "1111111111111111" });
   assert.equal(encryptionStage(enabled, unreadable, null), "locked");

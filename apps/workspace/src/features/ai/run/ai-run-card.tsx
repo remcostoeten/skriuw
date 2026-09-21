@@ -11,7 +11,12 @@ import { setSuggestionPreview } from "@/features/editor/suggestion-decorations";
 import { commitReferenceOperations, renameNode } from "@/store/actions/workspace";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import type { ReferenceOperation } from "@skriuw/renderer-core/references/types";
-import { keptPlanItems, parseActionPlan, planApplyError, type AiPlanItem } from "@/features/ai/actions/action-plan";
+import {
+  keptPlanItems,
+  parseActionPlan,
+  planApplyError,
+  type AiPlanItem,
+} from "@/features/ai/actions/action-plan";
 import { diagramResultParts, diagramResultText } from "@/features/ai/actions/diagram-repair";
 import type { AiEditorAction } from "@/features/ai/actions/editor-actions";
 import {
@@ -238,7 +243,18 @@ export function AiRunCard({
     return () => {
       tearingDownRef.current = true;
     };
-  }, [action.scope, getNoteId, getView, host, isReplacement, sessionKey, settled, target.from, target.noteId, target.to]);
+  }, [
+    action.scope,
+    getNoteId,
+    getView,
+    host,
+    isReplacement,
+    sessionKey,
+    settled,
+    target.from,
+    target.noteId,
+    target.to,
+  ]);
 
   useEffect(
     () => () => {
@@ -306,9 +322,7 @@ export function AiRunCard({
 
   function insertDiagram(): void {
     withLiveEditor((view) => {
-      view.dispatch(
-        insertBelowTransaction(view.state, target.to, diagramResultText(run.preview)),
-      );
+      view.dispatch(insertBelowTransaction(view.state, target.to, diagramResultText(run.preview)));
       return null;
     });
   }
@@ -423,8 +437,7 @@ export function AiRunCard({
     showResult && diagramResultParts(run.preview).some((part) => part.kind === "diagram");
 
   const isRewrite =
-    hasDiagram ||
-    segments.every((segment) => segment.changed || segment.text.trim().length === 0);
+    hasDiagram || segments.every((segment) => segment.changed || segment.text.trim().length === 0);
 
   const addedWords = useMemo(() => {
     if (!showResult || !isReplacement) {
@@ -434,7 +447,7 @@ export function AiRunCard({
   }, [isReplacement, run.preview, showResult, target.input]);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
         discard();
@@ -454,7 +467,7 @@ export function AiRunCard({
           applyTagPlan();
         }
       }
-    };
+    }
     host.addEventListener("keydown", handleKeyDown);
     return () => host.removeEventListener("keydown", handleKeyDown);
   });
@@ -466,9 +479,7 @@ export function AiRunCard({
       <div className="skriuw-suggestion-header">
         <span className="skriuw-suggestion-tone" aria-hidden="true" />
         <span className="skriuw-suggestion-label">{action.label}</span>
-        {modelLabel !== null && (
-          <span className="skriuw-suggestion-model">{modelLabel}</span>
-        )}
+        {modelLabel !== null && <span className="skriuw-suggestion-model">{modelLabel}</span>}
         <span role="status" aria-live="polite" className="sr-only">
           {aiActionStatusLine(run, action)}
         </span>

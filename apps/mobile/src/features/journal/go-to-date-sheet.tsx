@@ -148,9 +148,7 @@ export function GoToDateSheet({ open, context, today, onClose, onGo }: Props) {
                 style={[
                   styles.preview,
                   {
-                    color: resolution.ok
-                      ? theme.color("foreground")
-                      : theme.color("destructive"),
+                    color: resolution.ok ? theme.color("foreground") : theme.color("destructive"),
                   },
                 ]}
               >

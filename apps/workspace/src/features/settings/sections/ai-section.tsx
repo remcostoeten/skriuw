@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { openExternalUrl } from "@/bridge/external-links";
 import type { LocalAiModel, LocalAiProgress, LocalAiStatus } from "@/contracts/ai";
 import {
@@ -91,10 +84,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
   const prompts = useRendererSelector(store, selectWorkspacePrompts);
   const promptEntries = useMemo(() => promptLibraryEntries(prompts), [prompts]);
   const rawDefaultModel = useRendererSelector(store, selectRawAiModelSetting);
-  const defaultModel = useMemo(
-    () => parseAiModelSelection(rawDefaultModel),
-    [rawDefaultModel],
-  );
+  const defaultModel = useMemo(() => parseAiModelSelection(rawDefaultModel), [rawDefaultModel]);
   const modelGroups = useMemo(
     () =>
       aiModelGroups({
@@ -133,9 +123,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
           if (!active || signal.aborted) return;
           setStatus(snapshot.status);
           setModels(snapshot.models);
-          setSelectedModel((current) =>
-            availableOllamaSelection(current, snapshot.models),
-          );
+          setSelectedModel((current) => availableOllamaSelection(current, snapshot.models));
           setError(null);
         })
         .catch((reason) => {
@@ -143,7 +131,9 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
         });
     }
     refresh();
-    const abort = () => operationRef.current?.abort();
+    function abort() {
+      operationRef.current?.abort();
+    }
     signal.addEventListener("abort", abort, { once: true });
     const poll = window.setInterval(() => {
       if (!signal.aborted && operationRef.current === null) {
@@ -448,9 +438,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
             editingKey={editingKey}
             onEdit={editPrompt}
             onDraftChange={(change) =>
-              setDraft((current) =>
-                current === null ? current : { ...current, ...change },
-              )
+              setDraft((current) => (current === null ? current : { ...current, ...change }))
             }
             onSave={savePromptDraft}
             onCancel={closeEditor}

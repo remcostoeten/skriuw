@@ -55,10 +55,7 @@ function reportFailure(title: string, error: unknown): void {
   });
 }
 
-export async function exportNoteAsMarkdown(
-  store: RendererStore,
-  noteId: string,
-): Promise<void> {
+export async function exportNoteAsMarkdown(store: RendererStore, noteId: string): Promise<void> {
   const state = store.getState();
   const node = state.nodes.get(noteId);
   if (!node) {
@@ -169,12 +166,8 @@ async function preflightPlannedImages(
   return cache;
 }
 
-function readablePlannedImageCount(
-  plan: MarkdownImportPlan,
-  cache: ImportedImageCache,
-): number {
-  return plannedImagePaths(plan).filter((path) => cache.get(path) !== null)
-    .length;
+function readablePlannedImageCount(plan: MarkdownImportPlan, cache: ImportedImageCache): number {
+  return plannedImagePaths(plan).filter((path) => cache.get(path) !== null).length;
 }
 
 async function importPlannedImages(
@@ -311,22 +304,20 @@ async function importNotesFromPath(
       [...state.documents.values()].flatMap((document) => {
         const node = state.nodes.get(document.noteId);
         return node
-          ? [[
-              document.noteId,
-              {
-                id: document.noteId,
-                title: node.title,
-                revision: document.revision,
-              },
-            ] as const]
+          ? [
+              [
+                document.noteId,
+                {
+                  id: document.noteId,
+                  title: node.title,
+                  revision: document.revision,
+                },
+              ] as const,
+            ]
           : [];
       }),
     );
-    const duplicateModes: readonly ImportDuplicateMode[] = [
-      "skip",
-      "update",
-      "copy",
-    ];
+    const duplicateModes: readonly ImportDuplicateMode[] = ["skip", "update", "copy"];
     const scoredSources = importSources
       .map((source) => ({ source, score: source.detect(tree) }))
       .filter(({ score }) => score > 0)
@@ -424,14 +415,8 @@ async function importNotesFromPath(
         sourceId: candidate.source.id,
         sourceLabel: candidate.source.label,
         variants: Object.fromEntries(
-          duplicateModes.map((mode) => [
-            mode,
-            candidate.variants[mode].preview,
-          ]),
-        ) as Record<
-          ImportDuplicateMode,
-          ReturnType<typeof buildImportPreviewCandidate>
-        >,
+          duplicateModes.map((mode) => [mode, candidate.variants[mode].preview]),
+        ) as Record<ImportDuplicateMode, ReturnType<typeof buildImportPreviewCandidate>>,
       })),
       detectedSourceId: detectedSource.id,
       destinations: [
@@ -448,9 +433,7 @@ async function importNotesFromPath(
     if (!selection) {
       return;
     }
-    const selected = candidates.find(
-      (candidate) => candidate.source.id === selection.sourceId,
-    );
+    const selected = candidates.find((candidate) => candidate.source.id === selection.sourceId);
     if (!selected) {
       return;
     }
@@ -460,9 +443,7 @@ async function importNotesFromPath(
       plan.operations,
       {
         destinationFolderId: selection.destinationFolderId,
-        sourceFolderLabel: selection.groupIntoSourceFolder
-          ? bundle.sourceLabel
-          : null,
+        sourceFolderLabel: selection.groupIntoSourceFolder ? bundle.sourceLabel : null,
         groupByYear: selection.groupByYear,
         existingNodes: [...store.getState().nodes.values()].map((node) => ({
           id: node.id,
@@ -523,42 +504,36 @@ async function importNotesFromPath(
       lines: [
         `Imported ${count(plan.createdNotes, "new note")}, updated ${plan.updatedNotes}, skipped ${plan.skippedDuplicates}, and created ${count(plan.folderCount + groupingOperations.length, "folder")} from ${sourcePath}`,
         ...(images.imported > 0 ? [`Imported ${count(images.imported, "image")}`] : []),
-        ...(images.skipped > 0
-          ? [`Skipped ${count(images.skipped, "unreadable image")}`]
-          : []),
+        ...(images.skipped > 0 ? [`Skipped ${count(images.skipped, "unreadable image")}`] : []),
         ...(plan.remoteImages > 0
           ? [`Blocked ${count(plan.remoteImages, "remote image")} from loading`]
           : []),
         ...(plan.unresolvedReferences > 0
-          ? [`Kept ${count(plan.unresolvedReferences, "ambiguous or unresolved wiki-link")} as source text`]
+          ? [
+              `Kept ${count(plan.unresolvedReferences, "ambiguous or unresolved wiki-link")} as source text`,
+            ]
           : []),
         ...(plan.preservedSources > 0
-          ? [`Preserved ${count(plan.preservedSources, "note with unsupported Markdown")} in raw mode`]
+          ? [
+              `Preserved ${count(plan.preservedSources, "note with unsupported Markdown")} in raw mode`,
+            ]
           : []),
         ...(plan.createdTags > 0 ? [`Created ${count(plan.createdTags, "tag")}`] : []),
         ...(plan.pinnedNotes > 0 ? [`Pinned ${count(plan.pinnedNotes, "note")}`] : []),
         ...(selection.recordSource && plan.sourcePropertyNotes > 0
-          ? [
-              `Recorded the import source on ${count(plan.sourcePropertyNotes, "new note")}`,
-            ]
+          ? [`Recorded the import source on ${count(plan.sourcePropertyNotes, "new note")}`]
           : []),
         ...(plan.tagSkippedNotes > 0
-          ? [
-              `Skipped tags on ${count(plan.tagSkippedNotes, "raw-preserved note")}`,
-            ]
+          ? [`Skipped tags on ${count(plan.tagSkippedNotes, "raw-preserved note")}`]
           : []),
         ...(plan.tagPropertyNotes > 0
-          ? [
-              `Stored tags as a property on ${count(plan.tagPropertyNotes, "raw-preserved note")}`,
-            ]
+          ? [`Stored tags as a property on ${count(plan.tagPropertyNotes, "raw-preserved note")}`]
           : []),
         ...(plan.skippedTags > 0
           ? [`Skipped ${count(plan.skippedTags, "invalid or oversized tag")}`]
           : []),
         ...(tree.skipped > 0 ? [`Skipped ${count(tree.skipped, "unreadable file")}`] : []),
-        ...(tree.unsupported ?? []).map(
-          (path) => `Skipped unsupported attachment ${path}`,
-        ),
+        ...(tree.unsupported ?? []).map((path) => `Skipped unsupported attachment ${path}`),
         ...bundle.warnings.map((warning) => warning.message),
       ],
     });
@@ -608,10 +583,7 @@ export async function importMarkdownFileIntoWorkspace(
   markdownFileImportInFlight = true;
   try {
     await flushPendingWork();
-    const filePath = await pickImportFile(
-      "Import markdown file",
-      MARKDOWN_FILE_EXTENSIONS,
-    );
+    const filePath = await pickImportFile("Import markdown file", MARKDOWN_FILE_EXTENSIONS);
     if (!filePath) {
       return null;
     }
@@ -635,9 +607,7 @@ export async function importMarkdownFileIntoWorkspace(
   }
 }
 
-export async function importProviderExportIntoWorkspace(
-  store: RendererStore,
-): Promise<void> {
+export async function importProviderExportIntoWorkspace(store: RendererStore): Promise<void> {
   try {
     const sourceFiles = await pickImportFiles("Import notes from files or archive");
     if (sourceFiles.length > 0) {

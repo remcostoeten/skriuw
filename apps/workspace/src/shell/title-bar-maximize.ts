@@ -12,12 +12,12 @@ import { noop } from "@/shared/lib/noop";
 export function useTitleBarDoubleClickMaximize() {
   useEffect(() => {
     if (!hasTauriRuntime()) return;
-    const onDoubleClick = (event: MouseEvent) => {
+    function onDoubleClick(event: MouseEvent) {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
       if (!target.hasAttribute("data-tauri-drag-region")) return;
       void getCurrentWindow().toggleMaximize().catch(noop);
-    };
+    }
     document.addEventListener("dblclick", onDoubleClick);
     return () => document.removeEventListener("dblclick", onDoubleClick);
   }, []);

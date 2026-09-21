@@ -20,7 +20,10 @@ export function EngineeringStats() {
   return (
     <section id="speed" className="bg-surface py-24">
       <Container>
-        <div ref={headingRef} className="reveal-wipe flex flex-wrap items-start justify-between gap-6">
+        <div
+          ref={headingRef}
+          className="reveal-wipe flex flex-wrap items-start justify-between gap-6"
+        >
           <Rail>
             <SectionHeading
               lead="It's fast. Here's the proof."
@@ -32,7 +35,10 @@ export function EngineeringStats() {
           </Action>
         </div>
 
-        <div ref={gridRef} className="reveal-group mt-10 grid border-t border-l border-border sm:grid-cols-3">
+        <div
+          ref={gridRef}
+          className="reveal-group mt-10 grid border-t border-l border-border sm:grid-cols-3"
+        >
           {engineeringStats.map((stat, index) => (
             <div
               key={stat.value}

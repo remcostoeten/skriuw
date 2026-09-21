@@ -23,6 +23,7 @@ export function setEditorMode(store: RendererStore, noteId: string, mode: Editor
 }
 
 export function toggleEditorMode(store: RendererStore, noteId: string): void {
-  const next: EditorMode = editorModeForNote(store.getState(), noteId) === "raw" ? "rendered" : "raw";
+  const next: EditorMode =
+    editorModeForNote(store.getState(), noteId) === "raw" ? "rendered" : "raw";
   setEditorMode(store, noteId, next);
 }

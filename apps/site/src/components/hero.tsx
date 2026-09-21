@@ -90,9 +90,11 @@ export function Hero() {
 
           <p className="mt-5 text-[16px] leading-[24px] text-ink-500">
             Skriuw is a local-first writing workspace. Your notes live in{" "}
-            <strong className="font-medium text-ink-900">a SQLite database on your own device</strong>
-            {" "}&mdash; on disk on desktop, inside the browser on the web. No spinners, no
-            round-trips, no account.
+            <strong className="font-medium text-ink-900">
+              a SQLite database on your own device
+            </strong>{" "}
+            &mdash; on disk on desktop, inside the browser on the web. No spinners, no round-trips,
+            no account.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">

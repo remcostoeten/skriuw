@@ -254,7 +254,9 @@ export function createEditorHostSession({
     }
   }
 
-  async function commitChange(message: Extract<EditorToHostMessage, { type: "change" }>): Promise<void> {
+  async function commitChange(
+    message: Extract<EditorToHostMessage, { type: "change" }>,
+  ): Promise<void> {
     let operations: WorkspaceOperation[];
     try {
       operations = unwrapOperations(message.operations);
@@ -294,7 +296,12 @@ export function createEditorHostSession({
       emit({ type: "response", requestId: message.requestId, ok: true, value });
     } catch (error) {
       session.reportFailure(error);
-      emit({ type: "response", requestId: message.requestId, ok: false, error: errorMessage(error) });
+      emit({
+        type: "response",
+        requestId: message.requestId,
+        ok: false,
+        error: errorMessage(error),
+      });
     }
   }
 

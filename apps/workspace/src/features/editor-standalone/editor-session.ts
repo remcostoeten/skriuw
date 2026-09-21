@@ -19,11 +19,7 @@ import {
 } from "@skriuw/renderer-core/contracts/workspace";
 import type { PersonRecord, TagRecord } from "@skriuw/renderer-core/references/types";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
-import {
-  InMemoryCustomThemeRegistry,
-  type ThemeDefinition,
-  type ThemeTokens,
-} from "@skriuw/theme";
+import { InMemoryCustomThemeRegistry, type ThemeDefinition, type ThemeTokens } from "@skriuw/theme";
 
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
 
@@ -64,7 +60,11 @@ function encodeBytes(bytes: Uint8Array): EditorBytes {
 }
 
 function decodeBytes(value: unknown): unknown {
-  if (typeof value !== "object" || value === null || typeof (value as EditorBytes).$bytes !== "string") {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    typeof (value as EditorBytes).$bytes !== "string"
+  ) {
     return value;
   }
   const binary = atob((value as EditorBytes).$bytes);
@@ -98,7 +98,9 @@ function workspaceDocument(document: EditorDocument): WorkspaceDocument {
   };
 }
 
-function savedDocument(operations: readonly WorkspaceOperationEnvelope[]): WorkspaceDocument | null {
+function savedDocument(
+  operations: readonly WorkspaceOperationEnvelope[],
+): WorkspaceDocument | null {
   for (const { operation } of operations) {
     if (operation.type === "save_document") {
       return {
@@ -143,7 +145,8 @@ export function createEditorSession({
 
   function rememberDurable(document: WorkspaceDocument): void {
     const known = durableDocuments.get(document.noteId);
-    if (!known || known.revision <= document.revision) durableDocuments.set(document.noteId, document);
+    if (!known || known.revision <= document.revision)
+      durableDocuments.set(document.noteId, document);
   }
 
   function ensureNotes(notes: readonly { id: string; title: string }[]): void {
@@ -191,7 +194,13 @@ export function createEditorSession({
     const current = store.getState();
     const tags = new Map<string, TagRecord>();
     for (const tag of message.tags) {
-      tags.set(tag.id, { createdAt: at, updatedAt: at, createdIn: null, ...current.tags.get(tag.id), ...tag });
+      tags.set(tag.id, {
+        createdAt: at,
+        updatedAt: at,
+        createdIn: null,
+        ...current.tags.get(tag.id),
+        ...tag,
+      });
     }
     const people = new Map<string, PersonRecord>();
     for (const person of message.people) {

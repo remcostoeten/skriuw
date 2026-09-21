@@ -63,7 +63,7 @@ type DragOrigin = CoverTransform & {
 
 const inFlightCoverWrites = new Set<Promise<void>>();
 
-registerPendingWork(() => Promise.all([...inFlightCoverWrites]).then(() => undefined));
+registerPendingWork(() => Promise.all(inFlightCoverWrites).then(() => undefined));
 
 function selectMediaMetadata(state: RendererState) {
   return state.mediaMetadata;
@@ -187,8 +187,7 @@ export function NoteCover({ store, selectNoteId }: Props) {
   const positionY = useRendererSelector(store, selectPositionY);
   const zoom = useRendererSelector(store, selectZoom);
   const selectCoverImage = useMemo(
-    () => (state: RendererState) =>
-      coverImageId ? state.images.get(coverImageId) : undefined,
+    () => (state: RendererState) => (coverImageId ? state.images.get(coverImageId) : undefined),
     [coverImageId],
   );
   const image = useRendererSelector(store, selectCoverImage);
@@ -385,10 +384,9 @@ export function NoteCover({ store, selectNoteId }: Props) {
       (candidate) =>
         candidate.noteId === targetNoteId && candidate.contentHash === blob.contentHash,
     );
-    const known = sameNote
-      ?? [...state.images.values()].find(
-        (candidate) => candidate.contentHash === blob.contentHash,
-      );
+    const known =
+      sameNote ??
+      [...state.images.values()].find((candidate) => candidate.contentHash === blob.contentHash);
     const imageId = sameNote?.id ?? crypto.randomUUID();
     const at = Date.now();
     return sameNote
@@ -528,8 +526,16 @@ export function NoteCover({ store, selectNoteId }: Props) {
     if (!editing || origin?.pointerId !== event.pointerId) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     const next = {
-      positionX: clamp(origin.positionX - ((event.clientX - origin.clientX) / bounds.width) * 100, 0, 100),
-      positionY: clamp(origin.positionY - ((event.clientY - origin.clientY) / bounds.height) * 100, 0, 100),
+      positionX: clamp(
+        origin.positionX - ((event.clientX - origin.clientX) / bounds.width) * 100,
+        0,
+        100,
+      ),
+      positionY: clamp(
+        origin.positionY - ((event.clientY - origin.clientY) / bounds.height) * 100,
+        0,
+        100,
+      ),
       zoom: origin.zoom,
     };
     draftRef.current = next;
@@ -666,210 +672,207 @@ export function NoteCover({ store, selectNoteId }: Props) {
   return (
     <>
       <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div
-          ref={coverRef}
-          tabIndex={editing ? 0 : -1}
-          aria-label={editing ? "Adjust cover image" : undefined}
-          className={cn(
-            "group relative mb-5 h-52 overflow-hidden border border-border/40 bg-muted",
-            editing && "cursor-grab select-none touch-none active:cursor-grabbing",
-            fullWidth
-              ? "w-full rounded-none border-x-0"
-              : "mx-auto mt-8 w-[calc(100%_-_6rem)] max-w-[72ch] rounded-md",
-          )}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={() => {
-            dragRef.current = null;
-          }}
-          onWheel={handleWheel}
-          onKeyDown={handleKeyDown}
-        >
-          {url ? (
-            <img
-              ref={imageRef}
-              src={url}
-              alt=""
-              className={cn(
-                "pointer-events-none h-full w-full object-cover",
-                editing && "will-change-transform",
-              )}
-              style={{
-                objectPosition: `${positionX}% ${positionY}%`,
-                transform: `scale(${zoom})`,
-              }}
-              draggable={false}
-              onLoad={(event) => {
-                const element = event.currentTarget;
-                setCanZoom(
-                  element.naturalWidth > element.clientWidth ||
-                    element.naturalHeight > element.clientHeight,
-                );
-                if (editing) paintTransform(draftRef.current);
-              }}
-            />
-          ) : (
-            <div
-              className="h-full w-full animate-pulse bg-muted"
-              aria-label="Loading cover image"
-            />
-          )}
-          {editing ? (
-            <>
-              <div className="pointer-events-none absolute inset-x-0 top-3 text-center">
-                <span className="rounded bg-background/90 px-2 py-1 text-[11px] text-muted-foreground shadow-sm">
-                  Drag or arrows to position · scroll or +/− to zoom
-                </span>
-              </div>
+        <ContextMenuTrigger asChild>
+          <div
+            ref={coverRef}
+            tabIndex={editing ? 0 : -1}
+            aria-label={editing ? "Adjust cover image" : undefined}
+            className={cn(
+              "group relative mb-5 h-52 overflow-hidden border border-border/40 bg-muted",
+              editing && "cursor-grab select-none touch-none active:cursor-grabbing",
+              fullWidth
+                ? "w-full rounded-none border-x-0"
+                : "mx-auto mt-8 w-[calc(100%_-_6rem)] max-w-[72ch] rounded-md",
+            )}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={() => {
+              dragRef.current = null;
+            }}
+            onWheel={handleWheel}
+            onKeyDown={handleKeyDown}
+          >
+            {url ? (
+              <img
+                ref={imageRef}
+                src={url}
+                alt=""
+                className={cn(
+                  "pointer-events-none h-full w-full object-cover",
+                  editing && "will-change-transform",
+                )}
+                style={{
+                  objectPosition: `${positionX}% ${positionY}%`,
+                  transform: `scale(${zoom})`,
+                }}
+                draggable={false}
+                onLoad={(event) => {
+                  const element = event.currentTarget;
+                  setCanZoom(
+                    element.naturalWidth > element.clientWidth ||
+                      element.naturalHeight > element.clientHeight,
+                  );
+                  if (editing) paintTransform(draftRef.current);
+                }}
+              />
+            ) : (
               <div
-                className="absolute bottom-2.5 left-1/2 flex -translate-x-1/2 items-center rounded-md border border-border/50 bg-background/95 p-0.5 shadow-sm"
+                className="h-full w-full animate-pulse bg-muted"
+                aria-label="Loading cover image"
+              />
+            )}
+            {editing ? (
+              <>
+                <div className="pointer-events-none absolute inset-x-0 top-3 text-center">
+                  <span className="rounded bg-background/90 px-2 py-1 text-[11px] text-muted-foreground shadow-sm">
+                    Drag or arrows to position · scroll or +/− to zoom
+                  </span>
+                </div>
+                <div
+                  className="absolute bottom-2.5 left-1/2 flex -translate-x-1/2 items-center rounded-md border border-border/50 bg-background/95 p-0.5 shadow-sm"
+                  onPointerDown={(event) => event.stopPropagation()}
+                >
+                  <span className="grid grid-cols-3 gap-0.5 px-1" aria-label="Focal point presets">
+                    {COVER_FOCAL_PRESETS.map((preset) => (
+                      <Tooltip key={preset.id} label={preset.label}>
+                        <button
+                          type="button"
+                          aria-label={preset.label}
+                          className="h-2.5 w-2.5 rounded-[2px] border border-foreground/25 bg-muted hover:border-foreground hover:bg-foreground/25"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setFocalPoint(preset.id, false);
+                          }}
+                        />
+                      </Tooltip>
+                    ))}
+                  </span>
+                  <span className="mx-0.5 h-3.5 w-px bg-border" aria-hidden="true" />
+                  <button
+                    type="button"
+                    aria-label="Zoom out"
+                    className="h-7 w-7 rounded text-sm text-foreground hover:bg-muted disabled:opacity-40"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      changeZoom(-0.1, false);
+                    }}
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Zoom in"
+                    className="h-7 w-7 rounded text-sm text-foreground hover:bg-muted disabled:opacity-40"
+                    disabled={!canZoom}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      changeZoom(0.1, false);
+                    }}
+                  >
+                    +
+                  </button>
+                  <span className="mx-0.5 h-3.5 w-px bg-border" aria-hidden="true" />
+                  <button
+                    type="button"
+                    className="rounded px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      resetTransform();
+                    }}
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded bg-foreground px-2.5 py-1.5 text-[11px] font-medium text-background"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      finishEditing();
+                    }}
+                  >
+                    Done
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div
+                className="absolute bottom-2.5 right-2.5 flex items-center rounded-md border border-border/50 bg-background/90 p-0.5 opacity-0 shadow-sm transition-opacity duration-150 ease-out group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none"
                 onPointerDown={(event) => event.stopPropagation()}
               >
-                <span
-                  className="grid grid-cols-3 gap-0.5 px-1"
-                  aria-label="Focal point presets"
-                >
-                  {COVER_FOCAL_PRESETS.map((preset) => (
-                    <Tooltip key={preset.id} label={preset.label}>
-                      <button
-                        type="button"
-                        aria-label={preset.label}
-                        className="h-2.5 w-2.5 rounded-[2px] border border-foreground/25 bg-muted hover:border-foreground hover:bg-foreground/25"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setFocalPoint(preset.id, false);
-                        }}
-                      />
-                    </Tooltip>
-                  ))}
-                </span>
-                <span className="mx-0.5 h-3.5 w-px bg-border" aria-hidden="true" />
                 <button
                   type="button"
-                  aria-label="Zoom out"
-                  className="h-7 w-7 rounded text-sm text-foreground hover:bg-muted disabled:opacity-40"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    changeZoom(-0.1, false);
-                  }}
-                >
-                  −
-                </button>
-                <button
-                  type="button"
-                  aria-label="Zoom in"
-                  className="h-7 w-7 rounded text-sm text-foreground hover:bg-muted disabled:opacity-40"
-                  disabled={!canZoom}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    changeZoom(0.1, false);
-                  }}
-                >
-                  +
-                </button>
-                <span className="mx-0.5 h-3.5 w-px bg-border" aria-hidden="true" />
-                <button
-                  type="button"
-                  className="rounded px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    resetTransform();
-                  }}
-                >
-                  Reset
-                </button>
-                <button
-                  type="button"
-                  className="rounded bg-foreground px-2.5 py-1.5 text-[11px] font-medium text-background"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    finishEditing();
-                  }}
-                >
-                  Done
-                </button>
-              </div>
-            </>
-          ) : (
-            <div
-              className="absolute bottom-2.5 right-2.5 flex items-center rounded-md border border-border/50 bg-background/90 p-0.5 opacity-0 shadow-sm transition-opacity duration-150 ease-out group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none"
-              onPointerDown={(event) => event.stopPropagation()}
-            >
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted disabled:opacity-50"
-                disabled={busy}
-                onClick={openMediaPicker}
-              >
-                <ImageIcon size={12} />
-                {busy ? "Saving…" : "Change"}
-              </button>
-              <span className="mx-0.5 h-3.5 w-px bg-border" aria-hidden="true" />
-              <button
-                type="button"
-                aria-pressed={fullWidth}
-                className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted disabled:opacity-50"
-                disabled={busy}
-                onClick={toggleFullWidth}
-              >
-                {fullWidth ? <RestoreIcon size={12} /> : <MaximizeIcon size={12} />}
-                {fullWidth ? "Content width" : "Full width"}
-              </button>
-              <span className="mx-0.5 h-3.5 w-px bg-border" aria-hidden="true" />
-              <Tooltip label="Remove cover">
-                <button
-                  type="button"
-                  aria-label="Remove cover"
-                  className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted disabled:opacity-50"
                   disabled={busy}
-                  onClick={removeCover}
+                  onClick={openMediaPicker}
                 >
-                  <CloseIcon size={12} />
+                  <ImageIcon size={12} />
+                  {busy ? "Saving…" : "Change"}
                 </button>
-              </Tooltip>
-            </div>
-          )}
-          {error && (
-            <div className="absolute bottom-3 left-3 rounded bg-background/90 px-2 py-1 text-xs text-destructive">
-              {error}
-            </div>
-          )}
-        </div>
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-52">
-        <ContextMenuItem onClick={beginEditing}>Adjust cover</ContextMenuItem>
-        <ContextMenuItem disabled={!canZoom || zoom >= 3} onClick={() => changeZoom(0.1, true)}>
-          Zoom in
-        </ContextMenuItem>
-        <ContextMenuItem disabled={zoom <= 1} onClick={() => changeZoom(-0.1, true)}>
-          Zoom out
-        </ContextMenuItem>
-        <ContextMenuSub>
-          <ContextMenuSubTrigger>Focal point</ContextMenuSubTrigger>
-          <ContextMenuSubContent className="w-40">
-            {COVER_FOCAL_PRESETS.map((preset) => (
-              <ContextMenuItem
-                key={preset.id}
-                onClick={() => setFocalPoint(preset.id, true)}
-              >
-                {preset.label}
-              </ContextMenuItem>
-            ))}
-          </ContextMenuSubContent>
-        </ContextMenuSub>
-        <ContextMenuItem onClick={resetTransform}>Reset position</ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={toggleFullWidth}>
-          {fullWidth ? "Use content width" : "Use full width"}
-        </ContextMenuItem>
-        <ContextMenuItem onClick={openMediaPicker}>Choose from media…</ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem className="text-destructive focus:text-destructive" onClick={removeCover}>
-          Remove cover
-        </ContextMenuItem>
-      </ContextMenuContent>
+                <span className="mx-0.5 h-3.5 w-px bg-border" aria-hidden="true" />
+                <button
+                  type="button"
+                  aria-pressed={fullWidth}
+                  className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                  disabled={busy}
+                  onClick={toggleFullWidth}
+                >
+                  {fullWidth ? <RestoreIcon size={12} /> : <MaximizeIcon size={12} />}
+                  {fullWidth ? "Content width" : "Full width"}
+                </button>
+                <span className="mx-0.5 h-3.5 w-px bg-border" aria-hidden="true" />
+                <Tooltip label="Remove cover">
+                  <button
+                    type="button"
+                    aria-label="Remove cover"
+                    className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                    disabled={busy}
+                    onClick={removeCover}
+                  >
+                    <CloseIcon size={12} />
+                  </button>
+                </Tooltip>
+              </div>
+            )}
+            {error && (
+              <div className="absolute bottom-3 left-3 rounded bg-background/90 px-2 py-1 text-xs text-destructive">
+                {error}
+              </div>
+            )}
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-52">
+          <ContextMenuItem onClick={beginEditing}>Adjust cover</ContextMenuItem>
+          <ContextMenuItem disabled={!canZoom || zoom >= 3} onClick={() => changeZoom(0.1, true)}>
+            Zoom in
+          </ContextMenuItem>
+          <ContextMenuItem disabled={zoom <= 1} onClick={() => changeZoom(-0.1, true)}>
+            Zoom out
+          </ContextMenuItem>
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>Focal point</ContextMenuSubTrigger>
+            <ContextMenuSubContent className="w-40">
+              {COVER_FOCAL_PRESETS.map((preset) => (
+                <ContextMenuItem key={preset.id} onClick={() => setFocalPoint(preset.id, true)}>
+                  {preset.label}
+                </ContextMenuItem>
+              ))}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+          <ContextMenuItem onClick={resetTransform}>Reset position</ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={toggleFullWidth}>
+            {fullWidth ? "Use content width" : "Use full width"}
+          </ContextMenuItem>
+          <ContextMenuItem onClick={openMediaPicker}>Choose from media…</ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={removeCover}
+          >
+            Remove cover
+          </ContextMenuItem>
+        </ContextMenuContent>
       </ContextMenu>
       {mediaPicker}
     </>
@@ -943,9 +946,7 @@ function CoverMediaPicker({
       onOpenChange={onOpenChange}
     >
       <div className="flex items-center justify-between gap-3 border-b border-border px-3.5 py-2.5">
-        <p className="text-xs text-muted-foreground">
-          Pick any image stored in this workspace.
-        </p>
+        <p className="text-xs text-muted-foreground">Pick any image stored in this workspace.</p>
         <button
           type="button"
           className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
@@ -956,13 +957,8 @@ function CoverMediaPicker({
         </button>
       </div>
       <div className="border-b border-border px-3.5 py-2.5">
-        <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">
-          Gradients
-        </p>
-        <ul
-          className="flex list-none flex-wrap gap-1.5 p-0"
-          aria-label="Cover gradients"
-        >
+        <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">Gradients</p>
+        <ul className="flex list-none flex-wrap gap-1.5 p-0" aria-label="Cover gradients">
           {COVER_GRADIENTS.map((gradient) => (
             <li key={gradient.id}>
               <button
@@ -1110,7 +1106,9 @@ function CoverMediaPicker({
                     </span>
                   )}
                   <span className="flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
-                    <span className="truncate">{item.mimeType.replace("image/", "").toUpperCase()}</span>
+                    <span className="truncate">
+                      {item.mimeType.replace("image/", "").toUpperCase()}
+                    </span>
                     <span className="shrink-0">{Math.ceil(item.byteSize / 1024)} KB</span>
                   </span>
                 </span>

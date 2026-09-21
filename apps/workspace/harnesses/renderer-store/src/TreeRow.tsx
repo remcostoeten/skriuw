@@ -16,38 +16,43 @@ type Props = {
   store: RendererStore;
 };
 
-const equalRowSelection = (left: RowSelection, right: RowSelection) =>
-  left.active === right.active &&
-  left.disabled === right.disabled &&
-  left.expanded === right.expanded &&
-  left.focused === right.focused;
+function equalRowSelection(left: RowSelection, right: RowSelection) {
+  return (
+    left.active === right.active &&
+    left.disabled === right.disabled &&
+    left.expanded === right.expanded &&
+    left.focused === right.focused
+  );
+}
 
 function TreeRowContent({ id, position, store }: Props) {
   recordRender(`TreeRow:${id}`);
   const node = store.getState().nodes.get(id);
   const selector = useMemo(
-    () => (state: ReturnType<RendererStore["getState"]>): RowSelection => ({
-      active: state.activeNoteId === id,
-      disabled: state.disabledIds.has(id),
-      expanded: state.expandedIds.has(id),
-      focused: state.focusedNodeId === id,
-    }),
+    () =>
+      (state: ReturnType<RendererStore["getState"]>): RowSelection => ({
+        active: state.activeNoteId === id,
+        disabled: state.disabledIds.has(id),
+        expanded: state.expandedIds.has(id),
+        focused: state.focusedNodeId === id,
+      }),
     [id],
   );
   const selection = useRendererSelector(store, selector, equalRowSelection);
   if (!node) {
     return null;
   }
-  const onActivate = () => {
+  const isFolder = node.kind === "folder";
+  function onActivate() {
     if (selection.disabled) {
       return;
     }
-    if (node.kind === "folder") {
+    if (isFolder) {
       store.toggleExpanded(id);
     } else {
       store.setActiveNote(id);
     }
-  };
+  }
   return (
     <button
       className="tree-row"

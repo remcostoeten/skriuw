@@ -1,6 +1,6 @@
 import type { ReactNode, SVGProps } from "react";
 
-type IconProps = SVGProps<SVGSVGElement> & {
+type Props = SVGProps<SVGSVGElement> & {
   size?: number;
 };
 
@@ -16,7 +16,12 @@ export function iconStrokeWidth(size: number, weightPx = ICON_STROKE_PX): number
   return (ICON_VIEWBOX / size) * weightPx;
 }
 
-function LucideIcon({ size = 16, strokeWidth, children, ...props }: IconProps & { children: ReactNode }) {
+function LucideIcon({
+  size = 16,
+  strokeWidth,
+  children,
+  ...props
+}: Props & { children: ReactNode }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -35,7 +40,7 @@ function LucideIcon({ size = 16, strokeWidth, children, ...props }: IconProps & 
   );
 }
 
-export function ZoomInIcon(props: IconProps) {
+export function ZoomInIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <circle cx="11" cy="11" r="8" />
@@ -46,7 +51,7 @@ export function ZoomInIcon(props: IconProps) {
   );
 }
 
-export function PinIcon(props: IconProps) {
+export function PinIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M12 17v5" />
@@ -55,7 +60,7 @@ export function PinIcon(props: IconProps) {
   );
 }
 
-export function PinOffIcon(props: IconProps) {
+export function PinOffIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M12 17v5" />
@@ -66,7 +71,7 @@ export function PinOffIcon(props: IconProps) {
   );
 }
 
-export function ZoomOutIcon(props: IconProps) {
+export function ZoomOutIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <circle cx="11" cy="11" r="8" />
@@ -76,7 +81,7 @@ export function ZoomOutIcon(props: IconProps) {
   );
 }
 
-export function CloseIcon(props: IconProps) {
+export function CloseIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M18 6 6 18" />
@@ -85,7 +90,7 @@ export function CloseIcon(props: IconProps) {
   );
 }
 
-export function MinimizeIcon(props: IconProps) {
+export function MinimizeIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M5 12h14" />
@@ -93,7 +98,7 @@ export function MinimizeIcon(props: IconProps) {
   );
 }
 
-export function MaximizeIcon(props: IconProps) {
+export function MaximizeIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -101,7 +106,7 @@ export function MaximizeIcon(props: IconProps) {
   );
 }
 
-export function RestoreIcon(props: IconProps) {
+export function RestoreIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
@@ -110,7 +115,7 @@ export function RestoreIcon(props: IconProps) {
   );
 }
 
-export function RotateCcwIcon(props: IconProps) {
+export function RotateCcwIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -119,7 +124,7 @@ export function RotateCcwIcon(props: IconProps) {
   );
 }
 
-export function Undo2Icon(props: IconProps) {
+export function Undo2Icon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M9 14 4 9l5-5" />
@@ -128,7 +133,7 @@ export function Undo2Icon(props: IconProps) {
   );
 }
 
-export function LockIcon(props: IconProps) {
+export function LockIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
@@ -137,7 +142,7 @@ export function LockIcon(props: IconProps) {
   );
 }
 
-export function LockOpenIcon(props: IconProps) {
+export function LockOpenIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
@@ -146,7 +151,7 @@ export function LockOpenIcon(props: IconProps) {
   );
 }
 
-export function CommandIcon(props: IconProps) {
+export function CommandIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
@@ -154,7 +159,7 @@ export function CommandIcon(props: IconProps) {
   );
 }
 
-export function KeyboardIcon(props: IconProps) {
+export function KeyboardIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="20" height="16" x="2" y="4" rx="2" />
@@ -170,7 +175,7 @@ export function KeyboardIcon(props: IconProps) {
   );
 }
 
-export function DatabaseIcon(props: IconProps) {
+export function DatabaseIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <ellipse cx="12" cy="5" rx="9" ry="3" />
@@ -180,7 +185,7 @@ export function DatabaseIcon(props: IconProps) {
   );
 }
 
-export function FolderIcon(props: IconProps) {
+export function FolderIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
@@ -188,7 +193,7 @@ export function FolderIcon(props: IconProps) {
   );
 }
 
-export function FolderOpenIcon(props: IconProps) {
+export function FolderOpenIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />
@@ -196,7 +201,7 @@ export function FolderOpenIcon(props: IconProps) {
   );
 }
 
-export function BookOpenIcon(props: IconProps) {
+export function BookOpenIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M12 7v14" />
@@ -205,7 +210,7 @@ export function BookOpenIcon(props: IconProps) {
   );
 }
 
-export function ListTodoIcon(props: IconProps) {
+export function ListTodoIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect x="3" y="5" width="6" height="6" rx="1" />
@@ -217,7 +222,7 @@ export function ListTodoIcon(props: IconProps) {
   );
 }
 
-export function CompassIcon(props: IconProps) {
+export function CompassIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z" />
@@ -226,7 +231,7 @@ export function CompassIcon(props: IconProps) {
   );
 }
 
-export function Trash2Icon(props: IconProps) {
+export function Trash2Icon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M3 6h18" />
@@ -238,7 +243,7 @@ export function Trash2Icon(props: IconProps) {
   );
 }
 
-export function CopyIcon(props: IconProps) {
+export function CopyIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
@@ -247,7 +252,7 @@ export function CopyIcon(props: IconProps) {
   );
 }
 
-export function SettingsIcon(props: IconProps) {
+export function SettingsIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
@@ -256,7 +261,7 @@ export function SettingsIcon(props: IconProps) {
   );
 }
 
-export function FileTextIcon(props: IconProps) {
+export function FileTextIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
@@ -268,7 +273,7 @@ export function FileTextIcon(props: IconProps) {
   );
 }
 
-export function SearchIcon(props: IconProps) {
+export function SearchIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <circle cx="11" cy="11" r="8" />
@@ -277,7 +282,7 @@ export function SearchIcon(props: IconProps) {
   );
 }
 
-export function UnfoldVerticalIcon(props: IconProps) {
+export function UnfoldVerticalIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M12 22v-6" />
@@ -292,7 +297,7 @@ export function UnfoldVerticalIcon(props: IconProps) {
   );
 }
 
-export function FoldVerticalIcon(props: IconProps) {
+export function FoldVerticalIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M12 22v-6" />
@@ -307,7 +312,7 @@ export function FoldVerticalIcon(props: IconProps) {
   );
 }
 
-export function ChevronDownIcon(props: IconProps) {
+export function ChevronDownIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m6 9 6 6 6-6" />
@@ -315,7 +320,7 @@ export function ChevronDownIcon(props: IconProps) {
   );
 }
 
-export function HistoryIcon(props: IconProps) {
+export function HistoryIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -325,7 +330,7 @@ export function HistoryIcon(props: IconProps) {
   );
 }
 
-export function ImageIcon(props: IconProps) {
+export function ImageIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
@@ -335,7 +340,7 @@ export function ImageIcon(props: IconProps) {
   );
 }
 
-export function InfoIcon(props: IconProps) {
+export function InfoIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <circle cx="12" cy="12" r="10" />
@@ -345,7 +350,7 @@ export function InfoIcon(props: IconProps) {
   );
 }
 
-export function ListIcon(props: IconProps) {
+export function ListIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M4 6h16M4 12h10M4 18h13" />
@@ -353,7 +358,7 @@ export function ListIcon(props: IconProps) {
   );
 }
 
-export function PencilIcon(props: IconProps) {
+export function PencilIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
@@ -362,7 +367,7 @@ export function PencilIcon(props: IconProps) {
   );
 }
 
-export function FilePlusIcon(props: IconProps) {
+export function FilePlusIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
@@ -373,7 +378,7 @@ export function FilePlusIcon(props: IconProps) {
   );
 }
 
-export function FolderPlusIcon(props: IconProps) {
+export function FolderPlusIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M12 10v6" />
@@ -383,7 +388,7 @@ export function FolderPlusIcon(props: IconProps) {
   );
 }
 
-export function ChevronRightIcon(props: IconProps) {
+export function ChevronRightIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m9 18 6-6-6-6" />
@@ -391,7 +396,7 @@ export function ChevronRightIcon(props: IconProps) {
   );
 }
 
-export function ChevronLeftIcon(props: IconProps) {
+export function ChevronLeftIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m15 18-6-6 6-6" />
@@ -399,7 +404,7 @@ export function ChevronLeftIcon(props: IconProps) {
   );
 }
 
-export function CheckIcon(props: IconProps) {
+export function CheckIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M20 6 9 17l-5-5" />
@@ -407,7 +412,7 @@ export function CheckIcon(props: IconProps) {
   );
 }
 
-export function CircleIcon(props: IconProps) {
+export function CircleIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <circle cx="12" cy="12" r="10" />
@@ -415,7 +420,7 @@ export function CircleIcon(props: IconProps) {
   );
 }
 
-export function MoreHorizontalIcon(props: IconProps) {
+export function MoreHorizontalIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <circle cx="12" cy="12" r="1" />
@@ -425,7 +430,7 @@ export function MoreHorizontalIcon(props: IconProps) {
   );
 }
 
-export function PaletteIcon(props: IconProps) {
+export function PaletteIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" />
@@ -437,7 +442,7 @@ export function PaletteIcon(props: IconProps) {
   );
 }
 
-export function FolderInputIcon(props: IconProps) {
+export function FolderInputIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M2 9V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1" />
@@ -447,7 +452,7 @@ export function FolderInputIcon(props: IconProps) {
   );
 }
 
-export function SkriuwLogo({ size = 26, ...props }: IconProps) {
+export function SkriuwLogo({ size = 26, ...props }: Props) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -465,7 +470,7 @@ export function SkriuwLogo({ size = 26, ...props }: IconProps) {
   );
 }
 
-export function NewNoteIcon({ size = 18, ...props }: IconProps) {
+export function NewNoteIcon({ size = 18, ...props }: Props) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="currentColor" {...props}>
       <path
@@ -482,7 +487,7 @@ export function NewNoteIcon({ size = 18, ...props }: IconProps) {
   );
 }
 
-export function NewFolderIcon({ size = 18, ...props }: IconProps) {
+export function NewFolderIcon({ size = 18, ...props }: Props) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="currentColor" {...props}>
       <path
@@ -499,7 +504,7 @@ export function NewFolderIcon({ size = 18, ...props }: IconProps) {
   );
 }
 
-export function PanelLeftToggleIcon(props: IconProps) {
+export function PanelLeftToggleIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" />
@@ -508,7 +513,7 @@ export function PanelLeftToggleIcon(props: IconProps) {
   );
 }
 
-export function PanelRightToggleIcon(props: IconProps) {
+export function PanelRightToggleIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" />
@@ -517,7 +522,7 @@ export function PanelRightToggleIcon(props: IconProps) {
   );
 }
 
-export function ArrowUpIcon(props: IconProps) {
+export function ArrowUpIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m5 12 7-7 7 7" />
@@ -526,7 +531,7 @@ export function ArrowUpIcon(props: IconProps) {
   );
 }
 
-export function ArrowDownIcon(props: IconProps) {
+export function ArrowDownIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M12 5v14" />
@@ -535,7 +540,7 @@ export function ArrowDownIcon(props: IconProps) {
   );
 }
 
-export function ArrowLeftIcon(props: IconProps) {
+export function ArrowLeftIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m12 19-7-7 7-7" />
@@ -544,7 +549,7 @@ export function ArrowLeftIcon(props: IconProps) {
   );
 }
 
-export function ArrowRightIcon(props: IconProps) {
+export function ArrowRightIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M5 12h14" />
@@ -553,7 +558,7 @@ export function ArrowRightIcon(props: IconProps) {
   );
 }
 
-export function PanelLeftIcon(props: IconProps) {
+export function PanelLeftIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -564,7 +569,7 @@ export function PanelLeftIcon(props: IconProps) {
   );
 }
 
-export function PanelRightIcon(props: IconProps) {
+export function PanelRightIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -575,7 +580,7 @@ export function PanelRightIcon(props: IconProps) {
   );
 }
 
-export function SplitViewIcon(props: IconProps) {
+export function SplitViewIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -584,7 +589,7 @@ export function SplitViewIcon(props: IconProps) {
   );
 }
 
-export function SplitViewStackedIcon(props: IconProps) {
+export function SplitViewStackedIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -593,7 +598,7 @@ export function SplitViewStackedIcon(props: IconProps) {
   );
 }
 
-export function SplitViewCloseIcon(props: IconProps) {
+export function SplitViewCloseIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -604,7 +609,7 @@ export function SplitViewCloseIcon(props: IconProps) {
   );
 }
 
-export function CaseSensitiveIcon(props: IconProps) {
+export function CaseSensitiveIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m3 15 4-8 4 8" />
@@ -615,7 +620,7 @@ export function CaseSensitiveIcon(props: IconProps) {
   );
 }
 
-export function WholeWordIcon(props: IconProps) {
+export function WholeWordIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <circle cx="7" cy="12" r="3" />
@@ -627,7 +632,7 @@ export function WholeWordIcon(props: IconProps) {
   );
 }
 
-export function RegexIcon(props: IconProps) {
+export function RegexIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M17 3v10" />
@@ -638,7 +643,7 @@ export function RegexIcon(props: IconProps) {
   );
 }
 
-export function ReplaceIcon(props: IconProps) {
+export function ReplaceIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M14 4a2 2 0 0 1 2-2" />
@@ -652,7 +657,7 @@ export function ReplaceIcon(props: IconProps) {
   );
 }
 
-export function ReplaceAllIcon(props: IconProps) {
+export function ReplaceAllIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M14 4a2 2 0 0 1 2-2" />
@@ -670,7 +675,7 @@ export function ReplaceAllIcon(props: IconProps) {
   );
 }
 
-export function DownloadIcon(props: IconProps) {
+export function DownloadIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -680,7 +685,7 @@ export function DownloadIcon(props: IconProps) {
   );
 }
 
-export function UploadIcon(props: IconProps) {
+export function UploadIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -690,7 +695,7 @@ export function UploadIcon(props: IconProps) {
   );
 }
 
-export function WaypointsIcon(props: IconProps) {
+export function WaypointsIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <circle cx="12" cy="4.5" r="2.5" />
@@ -704,7 +709,7 @@ export function WaypointsIcon(props: IconProps) {
   );
 }
 
-export function BoldIcon(props: IconProps) {
+export function BoldIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8" />
@@ -712,7 +717,7 @@ export function BoldIcon(props: IconProps) {
   );
 }
 
-export function ItalicIcon(props: IconProps) {
+export function ItalicIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <line x1="19" x2="10" y1="4" y2="4" />
@@ -722,7 +727,7 @@ export function ItalicIcon(props: IconProps) {
   );
 }
 
-export function StrikethroughIcon(props: IconProps) {
+export function StrikethroughIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M16 4H9a3 3 0 0 0-2.83 4" />
@@ -732,7 +737,7 @@ export function StrikethroughIcon(props: IconProps) {
   );
 }
 
-export function CodeIcon(props: IconProps) {
+export function CodeIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <polyline points="16 18 22 12 16 6" />
@@ -741,7 +746,7 @@ export function CodeIcon(props: IconProps) {
   );
 }
 
-export function TextQuoteIcon(props: IconProps) {
+export function TextQuoteIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M17 6H3" />
@@ -752,7 +757,7 @@ export function TextQuoteIcon(props: IconProps) {
   );
 }
 
-export function PilcrowIcon(props: IconProps) {
+export function PilcrowIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M13 4v16" />
@@ -762,7 +767,7 @@ export function PilcrowIcon(props: IconProps) {
   );
 }
 
-export function AlignLeftIcon(props: IconProps) {
+export function AlignLeftIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M21 6H3" />
@@ -772,7 +777,7 @@ export function AlignLeftIcon(props: IconProps) {
   );
 }
 
-export function AlignCenterIcon(props: IconProps) {
+export function AlignCenterIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M21 6H3" />
@@ -782,7 +787,7 @@ export function AlignCenterIcon(props: IconProps) {
   );
 }
 
-export function AlignRightIcon(props: IconProps) {
+export function AlignRightIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M21 6H3" />
@@ -792,7 +797,7 @@ export function AlignRightIcon(props: IconProps) {
   );
 }
 
-export function TypeIcon(props: IconProps) {
+export function TypeIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <polyline points="4 7 4 4 20 4 20 7" />
@@ -802,7 +807,7 @@ export function TypeIcon(props: IconProps) {
   );
 }
 
-export function Heading1Icon(props: IconProps) {
+export function Heading1Icon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M4 12h8" />
@@ -813,7 +818,7 @@ export function Heading1Icon(props: IconProps) {
   );
 }
 
-export function Heading2Icon(props: IconProps) {
+export function Heading2Icon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M4 12h8" />
@@ -824,7 +829,7 @@ export function Heading2Icon(props: IconProps) {
   );
 }
 
-export function Heading3Icon(props: IconProps) {
+export function Heading3Icon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M4 12h8" />
@@ -836,7 +841,7 @@ export function Heading3Icon(props: IconProps) {
   );
 }
 
-export function Heading4Icon(props: IconProps) {
+export function Heading4Icon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M4 12h8" />
@@ -848,7 +853,7 @@ export function Heading4Icon(props: IconProps) {
   );
 }
 
-export function Heading5Icon(props: IconProps) {
+export function Heading5Icon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M4 12h8" />
@@ -860,7 +865,7 @@ export function Heading5Icon(props: IconProps) {
   );
 }
 
-export function Heading6Icon(props: IconProps) {
+export function Heading6Icon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M4 12h8" />
@@ -872,7 +877,7 @@ export function Heading6Icon(props: IconProps) {
   );
 }
 
-export function SmileIcon(props: IconProps) {
+export function SmileIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <circle cx="12" cy="12" r="10" />
@@ -883,7 +888,7 @@ export function SmileIcon(props: IconProps) {
   );
 }
 
-export function VideoIcon(props: IconProps) {
+export function VideoIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" />
@@ -892,7 +897,7 @@ export function VideoIcon(props: IconProps) {
   );
 }
 
-export function MusicIcon(props: IconProps) {
+export function MusicIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M9 18V5l12-2v13" />
@@ -902,7 +907,7 @@ export function MusicIcon(props: IconProps) {
   );
 }
 
-export function PaperclipIcon(props: IconProps) {
+export function PaperclipIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M13.234 20.252 21 12.3" />
@@ -911,7 +916,7 @@ export function PaperclipIcon(props: IconProps) {
   );
 }
 
-export function ListOrderedIcon(props: IconProps) {
+export function ListOrderedIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M10 12h11" />
@@ -924,7 +929,7 @@ export function ListOrderedIcon(props: IconProps) {
   );
 }
 
-export function MinusIcon(props: IconProps) {
+export function MinusIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M5 12h14" />
@@ -932,7 +937,7 @@ export function MinusIcon(props: IconProps) {
   );
 }
 
-export function SquareCodeIcon(props: IconProps) {
+export function SquareCodeIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -942,7 +947,7 @@ export function SquareCodeIcon(props: IconProps) {
   );
 }
 
-export function TableIcon(props: IconProps) {
+export function TableIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -953,7 +958,7 @@ export function TableIcon(props: IconProps) {
   );
 }
 
-export function LinkIcon(props: IconProps) {
+export function LinkIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -962,7 +967,7 @@ export function LinkIcon(props: IconProps) {
   );
 }
 
-export function MessageSquareIcon(props: IconProps) {
+export function MessageSquareIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -970,7 +975,7 @@ export function MessageSquareIcon(props: IconProps) {
   );
 }
 
-export function UnlinkIcon(props: IconProps) {
+export function UnlinkIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07 5.006 5.006 0 0 0-6.95 0l-1.72 1.71" />
@@ -983,7 +988,7 @@ export function UnlinkIcon(props: IconProps) {
   );
 }
 
-export function ExternalLinkIcon(props: IconProps) {
+export function ExternalLinkIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M15 3h6v6" />
@@ -993,7 +998,7 @@ export function ExternalLinkIcon(props: IconProps) {
   );
 }
 
-export function AppWindowIcon(props: IconProps) {
+export function AppWindowIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect x="2" y="4" width="20" height="16" rx="2" />
@@ -1004,7 +1009,7 @@ export function AppWindowIcon(props: IconProps) {
   );
 }
 
-export function PlusIcon(props: IconProps) {
+export function PlusIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M5 12h14" />
@@ -1013,7 +1018,7 @@ export function PlusIcon(props: IconProps) {
   );
 }
 
-export function HashIcon(props: IconProps) {
+export function HashIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <line x1="4" x2="20" y1="9" y2="9" />
@@ -1024,7 +1029,7 @@ export function HashIcon(props: IconProps) {
   );
 }
 
-export function CalendarIcon(props: IconProps) {
+export function CalendarIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M8 2v4" />
@@ -1035,7 +1040,7 @@ export function CalendarIcon(props: IconProps) {
   );
 }
 
-export function UserIcon(props: IconProps) {
+export function UserIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
@@ -1044,7 +1049,7 @@ export function UserIcon(props: IconProps) {
   );
 }
 
-export function ArrowUpDownIcon(props: IconProps) {
+export function ArrowUpDownIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m21 16-4 4-4-4" />
@@ -1055,7 +1060,7 @@ export function ArrowUpDownIcon(props: IconProps) {
   );
 }
 
-export function LogOutIcon(props: IconProps) {
+export function LogOutIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m16 17 5-5-5-5" />
@@ -1065,7 +1070,7 @@ export function LogOutIcon(props: IconProps) {
   );
 }
 
-export function CloudIcon(props: IconProps) {
+export function CloudIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9" />
@@ -1073,7 +1078,7 @@ export function CloudIcon(props: IconProps) {
   );
 }
 
-export function CloudOffIcon(props: IconProps) {
+export function CloudOffIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m2 2 20 20" />
@@ -1083,7 +1088,7 @@ export function CloudOffIcon(props: IconProps) {
   );
 }
 
-export function RefreshIcon(props: IconProps) {
+export function RefreshIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -1094,7 +1099,7 @@ export function RefreshIcon(props: IconProps) {
   );
 }
 
-export function SquareCheckIcon(props: IconProps) {
+export function SquareCheckIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -1103,7 +1108,7 @@ export function SquareCheckIcon(props: IconProps) {
   );
 }
 
-export function StarIcon(props: IconProps) {
+export function StarIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
@@ -1111,7 +1116,7 @@ export function StarIcon(props: IconProps) {
   );
 }
 
-export function SparklesIcon(props: IconProps) {
+export function SparklesIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
@@ -1123,7 +1128,7 @@ export function SparklesIcon(props: IconProps) {
   );
 }
 
-export function MapPinIcon(props: IconProps) {
+export function MapPinIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
@@ -1132,7 +1137,7 @@ export function MapPinIcon(props: IconProps) {
   );
 }
 
-export function MailIcon(props: IconProps) {
+export function MailIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="20" height="16" x="2" y="4" rx="2" />
@@ -1141,7 +1146,7 @@ export function MailIcon(props: IconProps) {
   );
 }
 
-export function PhoneIcon(props: IconProps) {
+export function PhoneIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -1149,7 +1154,7 @@ export function PhoneIcon(props: IconProps) {
   );
 }
 
-export function LayoutDashboardIcon(props: IconProps) {
+export function LayoutDashboardIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="7" height="9" x="3" y="3" rx="1" />
@@ -1160,7 +1165,7 @@ export function LayoutDashboardIcon(props: IconProps) {
   );
 }
 
-export function CalendarDaysIcon(props: IconProps) {
+export function CalendarDaysIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M8 2v4" />
@@ -1177,7 +1182,7 @@ export function CalendarDaysIcon(props: IconProps) {
   );
 }
 
-export function BarChartIcon(props: IconProps) {
+export function BarChartIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M3 3v16a2 2 0 0 0 2 2h16" />
@@ -1188,7 +1193,7 @@ export function BarChartIcon(props: IconProps) {
   );
 }
 
-export function ClockIcon(props: IconProps) {
+export function ClockIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <circle cx="12" cy="12" r="10" />
@@ -1197,7 +1202,7 @@ export function ClockIcon(props: IconProps) {
   );
 }
 
-export function TagsIcon(props: IconProps) {
+export function TagsIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193" />
@@ -1207,7 +1212,7 @@ export function TagsIcon(props: IconProps) {
   );
 }
 
-export function UsersIcon(props: IconProps) {
+export function UsersIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -1218,7 +1223,7 @@ export function UsersIcon(props: IconProps) {
   );
 }
 
-export function HighlighterIcon(props: IconProps) {
+export function HighlighterIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m9 11-6 6v3h9l3-3" />
@@ -1227,7 +1232,7 @@ export function HighlighterIcon(props: IconProps) {
   );
 }
 
-export function EraserIcon(props: IconProps) {
+export function EraserIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21" />
@@ -1236,7 +1241,7 @@ export function EraserIcon(props: IconProps) {
   );
 }
 
-export function PointerIcon(props: IconProps) {
+export function PointerIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M12.586 12.586 19 19" />
@@ -1245,7 +1250,7 @@ export function PointerIcon(props: IconProps) {
   );
 }
 
-export function DiagonalLineIcon(props: IconProps) {
+export function DiagonalLineIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M5 19 19 5" />
@@ -1253,7 +1258,7 @@ export function DiagonalLineIcon(props: IconProps) {
   );
 }
 
-export function PaintBucketIcon(props: IconProps) {
+export function PaintBucketIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2a2 2 0 0 0 2.8 0z" />
@@ -1264,7 +1269,7 @@ export function PaintBucketIcon(props: IconProps) {
   );
 }
 
-export function SquareIcon(props: IconProps) {
+export function SquareIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -1272,7 +1277,7 @@ export function SquareIcon(props: IconProps) {
   );
 }
 
-export function ShareIcon(props: IconProps) {
+export function ShareIcon(props: Props) {
   return (
     <LucideIcon {...props}>
       <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />

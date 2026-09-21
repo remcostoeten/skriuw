@@ -52,7 +52,11 @@ export function noteTitleFromPath(relativePath: string): string {
 }
 
 export function noteTitleFromContent(content: string, fallback: string): string {
-  const firstLine = content.split("\n", 1)[0]?.replace(/^#+\s*/, "").trim() ?? "";
+  const firstLine =
+    content
+      .split("\n", 1)[0]
+      ?.replace(/^#+\s*/, "")
+      .trim() ?? "";
   return firstLine.length > 0 ? firstLine.slice(0, 120) : fallback;
 }
 
@@ -96,11 +100,6 @@ export function detectImportSource(
 
 export async function importSourceKey(sourcePath: string): Promise<string> {
   const canonical = sourcePath.replaceAll("\\", "/").replace(/\/+$/, "");
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(canonical),
-  );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }

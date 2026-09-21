@@ -109,10 +109,7 @@ function browserBlockedText(reason: string): string {
  * running; a settled state hides it so completion and failure both read
  * through the normal status line.
  */
-export function syncProgressVisible(
-  status: WorkspaceSyncStatus,
-  connectPending: boolean,
-): boolean {
+export function syncProgressVisible(status: WorkspaceSyncStatus, connectPending: boolean): boolean {
   return (
     connectPending ||
     status.state === "connecting" ||

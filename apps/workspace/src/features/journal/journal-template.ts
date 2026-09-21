@@ -1,4 +1,7 @@
-import type { WorkspaceOperation, WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
+import type {
+  WorkspaceOperation,
+  WorkspaceSettings,
+} from "@skriuw/renderer-core/contracts/workspace";
 import { boundTitle } from "@/features/editor/note-title";
 import {
   countWords,

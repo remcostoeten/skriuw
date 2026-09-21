@@ -12,10 +12,7 @@ export type BlockLocation = {
  * null only for positions with no block to act on, which in practice means an
  * empty document.
  */
-export function topLevelBlockAt(
-  doc: ProseMirrorNode,
-  position: number,
-): BlockLocation | null {
+export function topLevelBlockAt(doc: ProseMirrorNode, position: number): BlockLocation | null {
   if (position < 0 || position > doc.content.size) return null;
   const $position = doc.resolve(position);
   if ($position.depth === 0) {
@@ -63,7 +60,10 @@ export function deleteBlock(position: number): Command {
       } else {
         transaction.delete(block.pos, end);
         transaction.setSelection(
-          TextSelection.near(transaction.doc.resolve(Math.min(block.pos, transaction.doc.content.size)), -1),
+          TextSelection.near(
+            transaction.doc.resolve(Math.min(block.pos, transaction.doc.content.size)),
+            -1,
+          ),
         );
       }
       dispatch(transaction.scrollIntoView());
@@ -97,7 +97,10 @@ export function moveBlock(position: number, direction: -1 | 1): Command {
     if (target < 0 || target >= state.doc.childCount) return false;
     if (dispatch) {
       const neighbour = state.doc.child(target);
-      const offset = Math.max(0, Math.min(state.selection.from - block.pos, block.node.nodeSize - 1));
+      const offset = Math.max(
+        0,
+        Math.min(state.selection.from - block.pos, block.node.nodeSize - 1),
+      );
       const insertAt =
         direction === 1 ? block.pos + neighbour.nodeSize : block.pos - neighbour.nodeSize;
       const transaction = state.tr.delete(block.pos, block.pos + block.node.nodeSize);

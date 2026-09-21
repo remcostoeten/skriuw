@@ -28,9 +28,7 @@ const TOKEN = "valid-token";
 const SUBJECT = "user-1";
 const DEVICE_ID = "device-1";
 
-const chunkedContentBytes = new TextEncoder().encode(
-  JSON.stringify(goldenPushV2Content),
-);
+const chunkedContentBytes = new TextEncoder().encode(JSON.stringify(goldenPushV2Content));
 const chunkedDigest = goldenPushV2.operations[1]!.payload.manifest!.chunks[0]!.digest;
 
 class StaticVerifier implements CredentialVerifier {
@@ -107,10 +105,11 @@ function chunkRequest(
   if (token !== null) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  return new Request(
-    `https://example.test/v1/workspaces/${workspaceId}/chunks/${digest}`,
-    { method, headers, body },
-  );
+  const init: RequestInit = { method, headers };
+  if (body !== undefined) {
+    init.body = body;
+  }
+  return new Request(`https://example.test/v1/workspaces/${workspaceId}/chunks/${digest}`, init);
 }
 
 function jsonRequest(
@@ -124,11 +123,11 @@ function jsonRequest(
   if (token !== null) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  return new Request(`https://example.test/v1/workspaces/${workspaceId}/${path}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  const init: RequestInit = { method, headers };
+  if (body !== undefined) {
+    init.body = JSON.stringify(body);
+  }
+  return new Request(`https://example.test/v1/workspaces/${workspaceId}/${path}`, init);
 }
 
 async function buildCheckpoint(
@@ -237,12 +236,7 @@ describe("authorized chunk transfer", () => {
     const oversized = new Uint8Array(CANONICAL_CHUNK_BYTES + 1);
 
     const response = await handlePublicSyncRequest(
-      chunkRequest(
-        "workspace-oversized",
-        await contentDigest(oversized),
-        "PUT",
-        oversized,
-      ),
+      chunkRequest("workspace-oversized", await contentDigest(oversized), "PUT", oversized),
       harness.dependencies,
     );
 
@@ -359,14 +353,12 @@ describe("checkpoint publication and hydration", () => {
       jsonRequest("workspace-checkpoint", "push", "POST", {
         syncProtocolVersion: 1,
         deviceId: DEVICE_ID,
-        operations: goldenPushV2.operations
-          .slice(0, 1)
-          .map((operation) => ({
-            operationId: operation.operationId,
-            clientSequence: operation.clientSequence,
-            baseServerSequence: operation.baseServerSequence,
-            operation: operation.payload.operation,
-          })),
+        operations: goldenPushV2.operations.slice(0, 1).map((operation) => ({
+          operationId: operation.operationId,
+          clientSequence: operation.clientSequence,
+          baseServerSequence: operation.baseServerSequence,
+          operation: operation.payload.operation,
+        })),
       }),
       harness.dependencies,
     );
@@ -494,9 +486,10 @@ describe("acknowledgement cursors and compaction", () => {
     const withoutCheckpoint = await workspace.compact(NOW, 60);
     expect(withoutCheckpoint.removedOperations).toBe(0);
 
-    expect(
-      await workspace.acknowledgeOperations(DEVICE_ID, 2, NOW),
-    ).toMatchObject({ ok: true, acknowledgedServerSequence: 2 });
+    expect(await workspace.acknowledgeOperations(DEVICE_ID, 2, NOW)).toMatchObject({
+      ok: true,
+      acknowledgedServerSequence: 2,
+    });
     const checkpoint = await buildCheckpoint(workspaceId, 2, store);
     expect(await workspace.publishCheckpoint(checkpoint)).toMatchObject({ ok: true });
 
@@ -581,9 +574,10 @@ describe("acknowledgement cursors and compaction", () => {
     const compacted = await workspace.compact(NOW, 60);
     expect(compacted.removedOperations).toBe(2);
 
-    expect(
-      await workspace.acknowledgeOperations(DEVICE_ID, 2, NOW),
-    ).toMatchObject({ ok: true, acknowledgedServerSequence: 2 });
+    expect(await workspace.acknowledgeOperations(DEVICE_ID, 2, NOW)).toMatchObject({
+      ok: true,
+      acknowledgedServerSequence: 2,
+    });
 
     const followUp = await workspace.pushOperations({
       syncProtocolVersion: 2,

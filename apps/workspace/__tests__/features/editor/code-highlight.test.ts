@@ -84,9 +84,7 @@ test("editing one code block leaves the other block's tokens untouched", () => {
   const untouched = codeBlock("ts", "const kept = 1;");
   const doc = document(untouched, codeBlock("ts", "const edited = 2;"));
   const before = codeBlockTokens(doc.child(0));
-  const changed = doc.copy(
-    doc.content.replaceChild(1, codeBlock("ts", "const edited = 3;")),
-  );
+  const changed = doc.copy(doc.content.replaceChild(1, codeBlock("ts", "const edited = 3;")));
   assert.equal(changed.child(0), untouched);
   assert.equal(codeBlockTokens(changed.child(0)), before);
 });

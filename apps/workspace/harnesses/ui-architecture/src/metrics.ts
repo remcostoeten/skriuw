@@ -65,13 +65,16 @@ export async function measureScenario(
   action: (sampleIndex: number, state: PreparedState) => void,
 ): Promise<ScenarioResult> {
   const longTasks: LongTaskEntry[] = [];
-  const observer = typeof PerformanceObserver === "undefined"
-    ? null
-    : new PerformanceObserver((list) => {
-        longTasks.push(...(list.getEntries() as LongTaskEntry[]));
-      });
-  if (typeof PerformanceObserver !== "undefined"
-    && PerformanceObserver.supportedEntryTypes.includes("longtask")) {
+  const observer =
+    typeof PerformanceObserver === "undefined"
+      ? null
+      : new PerformanceObserver((list) => {
+          longTasks.push(...(list.getEntries() as LongTaskEntry[]));
+        });
+  if (
+    typeof PerformanceObserver !== "undefined" &&
+    PerformanceObserver.supportedEntryTypes.includes("longtask")
+  ) {
     observer?.observe({ type: "longtask", buffered: false });
   }
 

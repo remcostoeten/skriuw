@@ -416,7 +416,7 @@ function phaseSource(initial: AppPhase): Observable<AppPhase> & { set: (value: A
     },
     set: (next) => {
       value = next;
-      for (const listener of [...listeners]) listener(next);
+      for (const listener of Array.from(listeners)) listener(next);
     },
   };
 }
@@ -675,7 +675,9 @@ test("the idle timer drops the key without the application going anywhere", asyn
       timers: {
         setTimeout: ((run: () => void) => {
           fire = run;
-          return 1 as unknown as ReturnType<typeof setTimeout>;
+          const handle = setTimeout(() => undefined, 0);
+          clearTimeout(handle);
+          return handle;
         }) as typeof setTimeout,
         clearTimeout: (() => undefined) as typeof clearTimeout,
       },
@@ -758,9 +760,7 @@ test("turning biometrics off in the device settings falls back to the PIN", asyn
   const biometrics = createBiometricUnlock({
     biometrics: fakeBiometrics({
       availability: async () =>
-        enrolled
-          ? { available: true, kind: "face" }
-          : { available: false, reason: "notEnrolled" },
+        enrolled ? { available: true, kind: "face" } : { available: false, reason: "notEnrolled" },
     }),
     keystore: createBiometricKeystore(secureStore),
   });
@@ -817,7 +817,9 @@ test("a build without the keystore refuses to arm biometrics instead of storing 
 });
 
 /** Standing in for the real one, so the re-wrap can be observed exactly. */
-function recordingBiometrics(initial: string | null): BiometricUnlock & { held: () => string | null } {
+function recordingBiometrics(
+  initial: string | null,
+): BiometricUnlock & { held: () => string | null } {
   let held = initial;
   return {
     held: () => held,

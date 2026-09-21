@@ -34,7 +34,7 @@ export function bindDebouncedPersistence<Slice, Snapshot>(
   let failed: { value: Snapshot; error: unknown } | null = null;
   let disposed = false;
 
-  const drain = async (): Promise<void> => {
+  async function drain(): Promise<void> {
     if (inFlight !== null) {
       await inFlight;
       return;
@@ -59,7 +59,7 @@ export function bindDebouncedPersistence<Slice, Snapshot>(
         }
       });
     await inFlight;
-  };
+  }
 
   const unsubscribe = store.subscribe(
     select,

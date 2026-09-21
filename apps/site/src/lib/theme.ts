@@ -28,8 +28,7 @@ function prefersDark() {
 
 /** Resolves `system` against the OS setting and stamps the result on `<html>`. */
 export function applyTheme(choice: ThemeChoice): ResolvedTheme {
-  const resolved: ResolvedTheme =
-    choice === "system" ? (prefersDark() ? "dark" : "light") : choice;
+  const resolved: ResolvedTheme = choice === "system" ? (prefersDark() ? "dark" : "light") : choice;
 
   document.documentElement.dataset.theme = resolved;
 
@@ -63,7 +62,9 @@ export function useTheme() {
     }
 
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => setResolved(applyTheme("system"));
+    function onChange() {
+      setResolved(applyTheme("system"));
+    }
 
     media.addEventListener("change", onChange);
 

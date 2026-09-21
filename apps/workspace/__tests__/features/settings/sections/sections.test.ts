@@ -59,9 +59,7 @@ test("AI and desktop-only sections are structurally gated", () => {
 });
 
 test("desktop-only sections stay hidden in the browser runtime", () => {
-  const browserSections = availableSettingsSections(true, true, "").map(
-    (section) => section.id,
-  );
+  const browserSections = availableSettingsSections(true, true, "").map((section) => section.id);
   assert.equal(
     browserSections.includes("ai"),
     false,
@@ -88,10 +86,7 @@ test("the stored empty-note prompt is searchable alongside the static terms", ()
     ["editor"],
   );
   assert.deepEqual(
-    filterSettingsSections(
-      availableSettingsSections(false, false, "Start writing..."),
-      "vandaag",
-    ),
+    filterSettingsSections(availableSettingsSections(false, false, "Start writing..."), "vandaag"),
     [],
   );
 });

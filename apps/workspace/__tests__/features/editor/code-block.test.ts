@@ -140,7 +140,11 @@ test("sequence, state, class, and ER fences round-trip byte for byte as code blo
     const markdown = `\`\`\`mermaid\n${source}\n\`\`\``;
     const doc = parseProductMarkdown(`${markdown}\n`);
     assert.equal(doc.firstChild?.type.name, "code_block", source);
-    assert.equal(isRenderableMermaidFence("mermaid", doc.firstChild?.textContent ?? ""), true, source);
+    assert.equal(
+      isRenderableMermaidFence("mermaid", doc.firstChild?.textContent ?? ""),
+      true,
+      source,
+    );
     assert.equal(serializeProductMarkdown(doc).trimEnd(), markdown);
   }
 });

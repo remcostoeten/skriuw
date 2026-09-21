@@ -29,9 +29,7 @@ try {
     `cloud capabilities verified: ${baseUrl.origin} serves sync protocol ${report.syncProtocolVersions.join(", ")}, workspace schema ${report.durableObjectSchemaVersion}, routes ${report.routes.join(", ")}\n`,
   );
 } catch (failure) {
-  process.stderr.write(
-    `cloud capability check FAILED for ${baseUrl.origin}: ${failure.message}\n`,
-  );
+  process.stderr.write(`cloud capability check FAILED for ${baseUrl.origin}: ${failure.message}\n`);
   process.exitCode = 1;
 }
 
@@ -50,9 +48,7 @@ async function readCapabilityReport(url) {
 function verifyCapabilities(report) {
   const missing = [];
 
-  const versions = Array.isArray(report.syncProtocolVersions)
-    ? report.syncProtocolVersions
-    : null;
+  const versions = Array.isArray(report.syncProtocolVersions) ? report.syncProtocolVersions : null;
   if (versions === null) {
     missing.push("syncProtocolVersions is absent: this deployment predates the capability report");
   } else if (!versions.includes(REQUIRED_SYNC_PROTOCOL_VERSION)) {

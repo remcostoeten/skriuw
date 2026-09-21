@@ -78,10 +78,7 @@ export function TrashView({ store }: Props) {
       <WindowControls className="absolute right-0 top-0" />
       <div className={cn(columnClass, "border-b border-theme-divider pb-4 pt-[26px]")}>
         <div className="flex items-center gap-2">
-          <h1
-            id="trash-title"
-            className="text-base font-[650] tracking-[-0.015em] text-foreground"
-          >
+          <h1 id="trash-title" className="text-base font-[650] tracking-[-0.015em] text-foreground">
             Trash
           </h1>
           {rows.length > 0 && (
@@ -173,13 +170,14 @@ function TrashList({ rows, onRestore, onPurge }: TrashListProps) {
   );
 
   useLayoutEffect(() => {
-    const element = ref.current;
-    if (!element) {
+    const mounted = ref.current;
+    if (!mounted) {
       return;
     }
-    const updateHeight = () => {
+    const element: HTMLElement = mounted;
+    function updateHeight() {
       setViewport((current) => ({ ...current, height: element.clientHeight }));
-    };
+    }
     updateHeight();
     const observer = new ResizeObserver(updateHeight);
     observer.observe(element);

@@ -49,11 +49,7 @@ function withoutSource(
   }
 }
 
-function withSource(
-  incoming: Map<string, readonly string[]>,
-  key: string,
-  noteId: string,
-): void {
+function withSource(incoming: Map<string, readonly string[]>, key: string, noteId: string): void {
   const sources = incoming.get(key);
   if (!sources) {
     incoming.set(key, [noteId]);
@@ -97,9 +93,7 @@ export function removeSourceNotes(
   projection: ReferenceProjection,
   removedNoteIds: readonly string[],
 ): ReferenceProjection | null {
-  const affected = removedNoteIds.filter((noteId) =>
-    projection.outgoingReferences.has(noteId),
-  );
+  const affected = removedNoteIds.filter((noteId) => projection.outgoingReferences.has(noteId));
   if (affected.length === 0) {
     return null;
   }
@@ -115,10 +109,7 @@ export function removeSourceNotes(
   return { outgoingReferences: outgoing, incomingReferences: incoming };
 }
 
-export function removeTarget(
-  incoming: IncomingReferences,
-  key: string,
-): IncomingReferences {
+export function removeTarget(incoming: IncomingReferences, key: string): IncomingReferences {
   if (!incoming.has(key)) {
     return incoming;
   }

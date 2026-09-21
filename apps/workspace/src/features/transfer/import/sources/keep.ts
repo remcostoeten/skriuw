@@ -1,4 +1,7 @@
-import type { MarkdownTree, MarkdownTreeFile } from "@/features/transfer/export/markdown-transfer-model";
+import type {
+  MarkdownTree,
+  MarkdownTreeFile,
+} from "@/features/transfer/export/markdown-transfer-model";
 import { sanitizeFileName } from "@/features/transfer/export/markdown-transfer-model";
 import type {
   ImportBundle,
@@ -47,19 +50,12 @@ type KeepNote = {
 function parseKeepNote(content: string): KeepNote | null {
   try {
     const parsed: unknown = JSON.parse(content);
-    if (
-      typeof parsed !== "object" ||
-      parsed === null ||
-      Array.isArray(parsed)
-    ) {
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       return null;
     }
     const note = parsed as KeepNote;
-    const hasBody =
-      typeof note.textContent === "string" || Array.isArray(note.listContent);
-    return hasBody && typeof note.userEditedTimestampUsec === "number"
-      ? note
-      : null;
+    const hasBody = typeof note.textContent === "string" || Array.isArray(note.listContent);
+    return hasBody && typeof note.userEditedTimestampUsec === "number" ? note : null;
   } catch {
     return null;
   }
@@ -165,8 +161,7 @@ function parse(tree: MarkdownTree): ImportBundle {
     const markdownProbe = noteMarkdown(note, file.relativePath, assetPaths, {
       count: 0,
     });
-    const title =
-      (note.title ?? "").trim() || noteTitleFromContent(markdownProbe, "Untitled note");
+    const title = (note.title ?? "").trim() || noteTitleFromContent(markdownProbe, "Untitled note");
     const baseName = sanitizeFileName(title);
     let relativePath = `${prefix}${baseName}.md`;
     let counter = 2;

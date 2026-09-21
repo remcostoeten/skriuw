@@ -1,15 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  createInitialState,
-  createRendererStore,
-} from "@skriuw/renderer-core/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
-import {
-  journalNoteIdForDate,
-  selectEntryDateKeys,
-  selectJournalEntries,
-} from "../model";
+import { journalNoteIdForDate, selectEntryDateKeys, selectJournalEntries } from "../model";
 import { dominantMood, moodTrend, moodTrendSummary } from "../mood-trend";
 import { entryExcerpt, onThisDay } from "../on-this-day";
 import {
@@ -30,9 +23,7 @@ test("entries project newest day first and skip days that were only opened", () 
   assert.equal(entries.length, FIXTURE_ENTRIES.length);
   assert.deepEqual(
     entries.map((entry) => entry.dateKey),
-    [...FIXTURE_ENTRIES.map((entry) => entry.dateKey)].sort((left, right) =>
-      right.localeCompare(left),
-    ),
+    FIXTURE_ENTRIES.map((entry) => entry.dateKey).sort((left, right) => right.localeCompare(left)),
   );
   assert.equal(
     entries.some((entry) => entry.dateKey === FIXTURE_EMPTY_DAY),
@@ -68,10 +59,7 @@ test("an opened but unwritten day still resolves to the note it created", () => 
 test("the projection keeps its identity while the maps it reads are unchanged", () => {
   const store = createRendererStore(createInitialState(journalSnapshot()));
 
-  assert.equal(
-    selectJournalEntries(store.getState()),
-    selectJournalEntries(store.getState()),
-  );
+  assert.equal(selectJournalEntries(store.getState()), selectJournalEntries(store.getState()));
 });
 
 test("the thirty-day mood trend counts, averages and reads the same as the desktop strip", () => {

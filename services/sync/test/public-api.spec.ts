@@ -95,9 +95,7 @@ type TestContext = {
   dependencies: PublicSyncDependencies;
 };
 
-function createContext(
-  configuration?: SyncAccessConfiguration,
-): TestContext {
+function createContext(configuration?: SyncAccessConfiguration): TestContext {
   const credentials = new DeterministicCredentialVerifier();
   const memberships = new DeterministicMembershipSource();
   const logs: SyncSecurityLogEvent[] = [];
@@ -191,9 +189,7 @@ describe("public sync authentication", () => {
     const response = await handlePublicSyncRequest(request, context.dependencies);
 
     expect(response.status).toBe(401);
-    expect(response.headers.get("WWW-Authenticate")).toBe(
-      'Bearer realm="skriuw-sync"',
-    );
+    expect(response.headers.get("WWW-Authenticate")).toBe('Bearer realm="skriuw-sync"');
     expect(await responseBody(response)).toEqual({ error: code });
     expect(context.memberships.calls).toEqual([]);
     expect(context.resolvedWorkspaces).toEqual([]);
@@ -294,10 +290,7 @@ describe("public sync workspace authorization", () => {
     const context = createContext();
     context.memberships.deny(workspaceId);
 
-    const response = await handlePublicSyncRequest(
-      pullRequest(workspaceId),
-      context.dependencies,
-    );
+    const response = await handlePublicSyncRequest(pullRequest(workspaceId), context.dependencies);
 
     expect(response.status).toBe(404);
     expect(await responseBody(response)).toEqual({
@@ -408,10 +401,7 @@ describe("public sync validation and ordered-log integration", () => {
       headers: malformed.headers,
       body: "{",
     });
-    let response = await handlePublicSyncRequest(
-      malformedRequest,
-      context.dependencies,
-    );
+    let response = await handlePublicSyncRequest(malformedRequest, context.dependencies);
     expect(response.status).toBe(400);
     expect(await responseBody(response)).toEqual({ error: "invalid_request" });
 
@@ -486,9 +476,7 @@ describe("public sync validation and ordered-log integration", () => {
       context.dependencies,
     );
     const pulled = await pull.json<{ operations: Array<{ serverSequence: number }> }>();
-    expect(pulled.operations.map((operation) => operation.serverSequence)).toEqual([
-      1, 2,
-    ]);
+    expect(pulled.operations.map((operation) => operation.serverSequence)).toEqual([1, 2]);
 
     const isolated = await handlePublicSyncRequest(
       pullRequest("workspace-public-empty"),

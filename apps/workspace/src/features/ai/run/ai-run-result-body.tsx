@@ -39,8 +39,8 @@ function AiRunDiagram({ source }: { source: string }) {
 
   useEffect(() => {
     let current = true;
-    renderForDocument(source).then((next) => {
-      if (current) setResult(next);
+    renderForDocument(source).then((rendered) => {
+      if (current) setResult(rendered);
     });
     return () => {
       current = false;

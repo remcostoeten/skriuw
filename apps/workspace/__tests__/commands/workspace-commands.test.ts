@@ -86,10 +86,7 @@ test("focus commands require their region to be reachable", () => {
   const state = { activeNoteId: null } as RendererState;
   assert.equal(registry.isEnabled("focus-editor", state, fakeUi()), false);
   assert.equal(registry.isEnabled("focus-sidebar", state, fakeUi({ sidebarOpen: false })), false);
-  assert.equal(
-    registry.isEnabled("focus-metadata", state, fakeUi({ metadataOpen: false })),
-    false,
-  );
+  assert.equal(registry.isEnabled("focus-metadata", state, fakeUi({ metadataOpen: false })), false);
 });
 
 test("route commands hide their current route and navigate to the other", () => {
@@ -141,7 +138,8 @@ function node(id: string, rank: number, kind: "note" | "folder" = "note") {
 }
 
 async function pinFixture(snapshot: Record<string, unknown>) {
-  const { createInitialState, createRendererStore } = await import("@skriuw/renderer-core/store/store");
+  const { createInitialState, createRendererStore } =
+    await import("@skriuw/renderer-core/store/store");
   return createRendererStore(
     createInitialState({
       protocolVersion: 1,
@@ -236,9 +234,7 @@ test("pin stays enabled from the sidebar with no note open", async () => {
   const registry = createCommandRegistry(createWorkspaceCommands(store, controls));
 
   assert.equal(
-    withSidebarFocus(true, () =>
-      registry.isEnabled("toggle-pin-note", store.getState(), fakeUi()),
-    ),
+    withSidebarFocus(true, () => registry.isEnabled("toggle-pin-note", store.getState(), fakeUi())),
     true,
   );
   assert.equal(

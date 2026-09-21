@@ -1,9 +1,5 @@
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
-import {
-  effectiveShortcutKeys,
-  isKeySequence,
-  shortcutBindsOnPlatform,
-} from "./bindings";
+import { effectiveShortcutKeys, isKeySequence, shortcutBindsOnPlatform } from "./bindings";
 import type { ShortcutOverrides } from "./bindings";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type {
@@ -218,11 +214,7 @@ function collapseSeparators(value: string): string {
  * the "when" copy, the group, and both the raw and formatted combo, with `+`,
  * `-` and spaces optional so "modk" finds `mod+k` and "page up" finds `pageup`.
  */
-export function shortcutHelpMatches(
-  group: string,
-  row: ShortcutHelpRow,
-  query: string,
-): boolean {
+export function shortcutHelpMatches(group: string, row: ShortcutHelpRow, query: string): boolean {
   const trimmed = query.trim().toLowerCase();
   if (trimmed.length === 0) {
     return true;
@@ -232,9 +224,7 @@ export function shortcutHelpMatches(
     return true;
   }
   const collapsed = collapseSeparators(trimmed);
-  return (
-    collapsed.length > 0 && parts.some((part) => collapseSeparators(part).includes(collapsed))
-  );
+  return collapsed.length > 0 && parts.some((part) => collapseSeparators(part).includes(collapsed));
 }
 
 /**

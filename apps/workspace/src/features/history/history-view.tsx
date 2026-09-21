@@ -71,7 +71,9 @@ export function HistoryView({ store }: Props) {
         )}
         <div className="ml-auto flex shrink-0 items-center">
           <p className="hidden pl-4 text-[11px] text-theme-secondary sm:block">
-            {latest ? `Latest revision ${formatRelativeTime(latest.createdAt)}` : "No revisions yet"}
+            {latest
+              ? `Latest revision ${formatRelativeTime(latest.createdAt)}`
+              : "No revisions yet"}
           </p>
           <WindowControls />
         </div>

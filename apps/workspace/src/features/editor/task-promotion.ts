@@ -47,7 +47,12 @@ export const insertTask: Command = (state, dispatch) => {
   const checkItem = productSchema.nodes.check_item;
   if (!checkList || !checkItem) return false;
   const result: { transaction: Transaction | null } = { transaction: null };
-  if (!wrapInList(checkList)(state, (transaction) => { result.transaction = transaction; })) return false;
+  if (
+    !wrapInList(checkList)(state, (transaction) => {
+      result.transaction = transaction;
+    })
+  )
+    return false;
   const wrapped = result.transaction;
   if (!wrapped) return false;
   const $from = wrapped.selection.$from;
@@ -62,9 +67,7 @@ export const insertTask: Command = (state, dispatch) => {
 };
 
 function checklistTaskTitle(node: ProseMirrorNode): string {
-  return node.firstChild?.type.name === "paragraph"
-    ? node.firstChild.textContent.trim()
-    : "";
+  return node.firstChild?.type.name === "paragraph" ? node.firstChild.textContent.trim() : "";
 }
 
 export function promoteSelectedChecklistItem(

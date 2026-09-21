@@ -58,7 +58,8 @@ export const SECTIONS = [
     placement: "bottom",
     label: "Account & sync",
     description: "Cloud sign-in and workspace sync",
-    searchText: "account cloud sign in sign up register email password session sync blocked changes recovery",
+    searchText:
+      "account cloud sign in sign up register email password session sync blocked changes recovery",
     icon: UserIcon,
   },
   {
@@ -141,9 +142,7 @@ export function availableSettingsSections(
   editorPlaceholder: string,
 ): SettingsSection[] {
   return SECTIONS.filter(
-    (section) =>
-      (section.id !== "ai" || aiEnabled) &&
-      !(browserRuntime && isDesktopOnly(section)),
+    (section) => (section.id !== "ai" || aiEnabled) && !(browserRuntime && isDesktopOnly(section)),
   ).map((section) =>
     section.id === "editor"
       ? { ...section, searchText: `${section.searchText} ${editorPlaceholder}` }

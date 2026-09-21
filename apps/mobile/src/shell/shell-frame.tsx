@@ -83,9 +83,7 @@ export function ShellFrame({ children }: Props) {
       {keyboardVisible ? null : (
         <TabBar route={route} onOpenAccount={() => chrome.openSheet("account")} />
       )}
-      <EdgeSwipeZones
-        onOpen={(side) => chrome.openSheet(side === "left" ? "tree" : "account")}
-      />
+      <EdgeSwipeZones onOpen={(side) => chrome.openSheet(side === "left" ? "tree" : "account")} />
       <SideSheet
         side="left"
         open={chrome.sheet === "tree"}

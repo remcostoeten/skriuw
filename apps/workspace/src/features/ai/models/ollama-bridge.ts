@@ -45,12 +45,7 @@ export function installOllamaRuntime(
   onProgress: ProgressCallback,
   signal: AbortSignal,
 ): Promise<LocalAiStatus> {
-  return runProgressOperation(
-    "install_ollama_runtime",
-    {},
-    onProgress,
-    signal,
-  );
+  return runProgressOperation("install_ollama_runtime", {}, onProgress, signal);
 }
 
 export function pullOllamaModel(
@@ -58,12 +53,7 @@ export function pullOllamaModel(
   onProgress: ProgressCallback,
   signal: AbortSignal,
 ): Promise<void> {
-  return runProgressOperation(
-    "pull_ollama_model",
-    { model },
-    onProgress,
-    signal,
-  );
+  return runProgressOperation("pull_ollama_model", { model }, onProgress, signal);
 }
 
 async function runProgressOperation<T>(
@@ -82,10 +72,10 @@ async function runProgressOperation<T>(
       onProgress(progress);
     }
   };
-  const abort = () => {
+  function abort() {
     active = false;
     void invoke<boolean>("cancel_ollama_operation", { operationId }).catch(noop);
-  };
+  }
   signal.addEventListener("abort", abort, { once: true });
   try {
     return await invoke<T>(command, { ...args, operationId, onEvent: channel });

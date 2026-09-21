@@ -48,12 +48,7 @@ try {
   if (!result.ok) throw new Error(`firefox write failed: ${JSON.stringify(result.error)}`);
 
   await session.send("browsingContext.reload", { context, wait: "complete" });
-  await waitFor(
-    session,
-    context,
-    "window.browserStorageE2e !== undefined",
-    "reloaded test module",
-  );
+  await waitFor(session, context, "window.browserStorageE2e !== undefined", "reloaded test module");
   const reopened = await evaluateJson(
     session,
     context,
@@ -79,6 +74,7 @@ async function waitForServer(child) {
   child.stderr.on("data", (chunk) => {
     stderr += String(chunk);
   });
+  let lastFetchError;
   for (let attempt = 0; attempt < 150; attempt += 1) {
     if (child.exitCode !== null) {
       throw new Error(`Vite exited before readiness (${child.exitCode})\n${stderr}`);
@@ -86,26 +82,19 @@ async function waitForServer(child) {
     try {
       const response = await fetch(baseUrl);
       if (response.ok) return;
-    } catch {
-      // The server is still starting.
+    } catch (error) {
+      lastFetchError = error;
     }
     await delay(100);
   }
-  throw new Error(`Vite did not become ready\n${stderr}`);
+  throw new Error(`Vite did not become ready\n${stderr}`, { cause: lastFetchError });
 }
 
 function launchFirefox(profile) {
   return new Promise((resolve, reject) => {
     const child = spawn(
       firefoxBinary,
-      [
-        "-headless",
-        "-no-remote",
-        "-profile",
-        profile,
-        "--remote-debugging-port=0",
-        "about:blank",
-      ],
+      ["-headless", "-no-remote", "-profile", profile, "--remote-debugging-port=0", "about:blank"],
       { stdio: ["ignore", "pipe", "pipe"] },
     );
     let output = "";

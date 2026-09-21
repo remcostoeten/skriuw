@@ -86,7 +86,11 @@ function graphGlyph(node: RelationshipGraph["nodes"][number]): string {
   return node.label.slice(0, 1).toUpperCase();
 }
 
-function nodeAction(store: RendererStore, id: string, kind: RelationshipGraph["nodes"][number]["kind"]): void {
+function nodeAction(
+  store: RendererStore,
+  id: string,
+  kind: RelationshipGraph["nodes"][number]["kind"],
+): void {
   if (kind === "note") {
     activateReference(store, "note", id);
     return;
@@ -102,15 +106,21 @@ export function RelationshipGraphView({ store, graph }: Props) {
     return null;
   }
   const positions = graph.nodes.map((_node, index) => graphPosition(index, graph.nodes.length));
-  const byId = new Map(graph.nodes.map((node, index) => [node.id, positions[index]! ]));
+  const byId = new Map(graph.nodes.map((node, index) => [node.id, positions[index]!]));
   const labeled = graph.nodes.length <= LABELED_NODE_LIMIT;
 
   return (
     <section className="px-2 pb-1 pt-2" aria-labelledby="relationship-local-graph">
-      <p id="relationship-local-graph" className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+      <p
+        id="relationship-local-graph"
+        className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70"
+      >
         Local graph
       </p>
-      <div className="relative mx-auto aspect-square w-full max-w-[248px]" aria-label="Direct relationships around the current note">
+      <div
+        className="relative mx-auto aspect-square w-full max-w-[248px]"
+        aria-label="Direct relationships around the current note"
+      >
         <svg className="absolute inset-0 size-full" viewBox="0 0 100 100" aria-hidden="true">
           <circle
             cx={CENTER}
@@ -171,7 +181,10 @@ export function RelationshipGraphView({ store, graph }: Props) {
                 </Tooltip>
               )}
               {!current && labeled && (
-                <span aria-hidden="true" className="absolute left-1/2 top-full mt-1 w-16 -translate-x-1/2 truncate text-center text-[9px] leading-tight text-muted-foreground">
+                <span
+                  aria-hidden="true"
+                  className="absolute left-1/2 top-full mt-1 w-16 -translate-x-1/2 truncate text-center text-[9px] leading-tight text-muted-foreground"
+                >
                   {node.label}
                 </span>
               )}

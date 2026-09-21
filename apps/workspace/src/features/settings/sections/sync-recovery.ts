@@ -36,8 +36,7 @@ const OPERATION_LABELS: Record<string, string> = {
 export function blockedItemLabel(
   item: Pick<BlockedSyncOperation, "operationType" | "targetTitle" | "targetId">,
 ): string {
-  const operation =
-    OPERATION_LABELS[item.operationType] ?? item.operationType.replaceAll("_", " ");
+  const operation = OPERATION_LABELS[item.operationType] ?? item.operationType.replaceAll("_", " ");
   if (item.targetTitle) return `${operation} · ${item.targetTitle}`;
   if (item.targetId) return `${operation} · ${item.targetId}`;
   return operation;

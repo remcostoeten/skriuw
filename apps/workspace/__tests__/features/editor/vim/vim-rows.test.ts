@@ -74,5 +74,8 @@ test("a view without layout yields null so logical lines take over", () => {
   const doc = parseProductMarkdown("abc\n\ndef");
   const flat: RowMeasure = () => ({ left: 0, top: 0, bottom: 0 });
   assert.equal(stepDisplayRow(doc, flat, 1, 1, 1, null), null);
-  assert.equal(stepDisplayRow(doc, () => null, 1, 1, 1, null), null);
+  assert.equal(
+    stepDisplayRow(doc, () => null, 1, 1, 1, null),
+    null,
+  );
 });

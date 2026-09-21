@@ -1,11 +1,5 @@
-import type {
-  NodePlacement,
-  WorkspaceOperation,
-} from "@skriuw/renderer-core/contracts/workspace";
-import type {
-  RendererState,
-  RendererStore,
-} from "@skriuw/renderer-core/store/types";
+import type { NodePlacement, WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { commitOperations, type WorkspaceSession } from "../bridge/commit";
 import { newNodeId } from "./identity";
 
@@ -117,10 +111,7 @@ export function currentPlacement(state: RendererState, id: string): NodePlacemen
  * Trashes a subtree and reports what undo needs. The note that was open is
  * handed to the note beside it, so the editor never holds a trashed document.
  */
-export async function trashNode(
-  session: WorkspaceSession,
-  id: string,
-): Promise<TrashedNode> {
+export async function trashNode(session: WorkspaceSession, id: string): Promise<TrashedNode> {
   const state = session.store.getState();
   const trashed: TrashedNode = {
     id,
@@ -136,10 +127,7 @@ export async function trashNode(
   return trashed;
 }
 
-export async function restoreNode(
-  session: WorkspaceSession,
-  trashed: TrashedNode,
-): Promise<void> {
+export async function restoreNode(session: WorkspaceSession, trashed: TrashedNode): Promise<void> {
   const operations: WorkspaceOperation[] = [
     {
       type: "restore_subtree",
@@ -217,6 +205,8 @@ function nextActiveNote(state: RendererState, id: string): string | null {
   if (after !== undefined) {
     return after;
   }
-  const before = state.noteIds.slice(0, Math.max(0, position)).filter((noteId) => !removed.has(noteId));
+  const before = state.noteIds
+    .slice(0, Math.max(0, position))
+    .filter((noteId) => !removed.has(noteId));
   return before[before.length - 1] ?? null;
 }

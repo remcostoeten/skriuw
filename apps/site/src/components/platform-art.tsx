@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Apple, Check, Globe, Linux, Lock, Windows } from "@/components/ui/icons";
 
-type FrameProps = {
+type Props = {
   title: ReactNode;
   children: ReactNode;
 };
@@ -10,7 +10,7 @@ function index(value: number) {
   return { "--i": value } as CSSProperties;
 }
 
-function Frame({ title, children }: FrameProps) {
+function Frame({ title, children }: Props) {
   return (
     <div className="w-full max-w-[340px] overflow-hidden rounded-[10px] border border-current/15 bg-black/10 text-[12px] backdrop-blur-[2px]">
       <div className="flex items-center gap-2 border-b border-current/10 px-3 py-2">
@@ -29,10 +29,34 @@ function Frame({ title, children }: FrameProps) {
 }
 
 const hubTargets = [
-  { label: "macOS", icon: <Apple className="size-4" />, left: "11.76%", top: "18.18%", path: "M138 110 C100 110 110 40 60 40" },
-  { label: "Windows", icon: <Windows className="size-4" />, left: "88.24%", top: "18.18%", path: "M202 110 C240 110 230 40 280 40" },
-  { label: "Linux", icon: <Linux className="size-4" />, left: "11.76%", top: "81.82%", path: "M138 110 C100 110 110 180 60 180" },
-  { label: "Browser", icon: <Globe className="size-4" />, left: "88.24%", top: "81.82%", path: "M202 110 C240 110 230 180 280 180" },
+  {
+    label: "macOS",
+    icon: <Apple className="size-4" />,
+    left: "11.76%",
+    top: "18.18%",
+    path: "M138 110 C100 110 110 40 60 40",
+  },
+  {
+    label: "Windows",
+    icon: <Windows className="size-4" />,
+    left: "88.24%",
+    top: "18.18%",
+    path: "M202 110 C240 110 230 40 280 40",
+  },
+  {
+    label: "Linux",
+    icon: <Linux className="size-4" />,
+    left: "11.76%",
+    top: "81.82%",
+    path: "M138 110 C100 110 110 180 60 180",
+  },
+  {
+    label: "Browser",
+    icon: <Globe className="size-4" />,
+    left: "88.24%",
+    top: "81.82%",
+    path: "M202 110 C240 110 230 180 280 180",
+  },
 ];
 
 export function DesktopArt() {
@@ -42,7 +66,13 @@ export function DesktopArt() {
         {hubTargets.map((target, position) => (
           <g key={target.label} stroke="currentColor" strokeLinecap="round">
             <path d={target.path} strokeOpacity={0.2} />
-            <path d={target.path} pathLength={1} strokeWidth={1.5} style={index(position)} className="pa-flow" />
+            <path
+              d={target.path}
+              pathLength={1}
+              strokeWidth={1.5}
+              style={index(position)}
+              className="pa-flow"
+            />
           </g>
         ))}
       </svg>
@@ -105,10 +135,7 @@ export function DataArt() {
     <Frame title="backups/">
       <ul>
         {backups.map((time, position) => (
-          <li
-            key={time}
-            className="flex items-center gap-2 border-b border-current/10 px-3 py-2.5"
-          >
+          <li key={time} className="flex items-center gap-2 border-b border-current/10 px-3 py-2.5">
             <span className="font-mono">{time}</span>
             <span className="opacity-60">archive</span>
             <span

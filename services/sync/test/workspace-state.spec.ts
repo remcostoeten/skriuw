@@ -8,10 +8,7 @@ import type {
   WorkspaceMembershipSource,
 } from "../src/access";
 import type { WorkspaceSyncState } from "../src/contracts";
-import {
-  handleSyncWorkspaceStateRequest,
-  provisionInternals,
-} from "../src/provision";
+import { handleSyncWorkspaceStateRequest, provisionInternals } from "../src/provision";
 
 const NOW = 1_900_000_000;
 const VALID_TOKEN = "valid-token";

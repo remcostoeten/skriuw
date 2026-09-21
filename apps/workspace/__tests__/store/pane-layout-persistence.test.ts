@@ -1,13 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
-import { bindPaneLayoutPersistence, paneLayout } from "@skriuw/renderer-core/store/pane-layout-persistence";
-import { PRIMARY_PANE_ID, parsePaneLayout, serializePaneLayout } from "@skriuw/renderer-core/store/panes";
+import {
+  bindPaneLayoutPersistence,
+  paneLayout,
+} from "@skriuw/renderer-core/store/pane-layout-persistence";
+import {
+  PRIMARY_PANE_ID,
+  parsePaneLayout,
+  serializePaneLayout,
+} from "@skriuw/renderer-core/store/panes";
 import {
   openNoteInTab,
   setSplitRatio,
   toggleSplitOrientation,
 } from "../../src/store/actions/panes";
+import { noop } from "../../src/shared/lib/noop";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 
 const snapshot: WorkspaceSnapshot = {
@@ -53,7 +61,9 @@ const snapshot: WorkspaceSnapshot = {
   },
 };
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
+function settle() {
+  return new Promise((resolve) => setTimeout(resolve, 10));
+}
 
 test("pane layout persistence coalesces synchronous updates into the latest write", async () => {
   const store = createRendererStore(createInitialState(snapshot, []));
@@ -105,7 +115,12 @@ test("failed pane layout persistence never rolls renderer state back", async () 
     async () => {
       throw new Error("unavailable");
     },
-    { delayMs: 1, onError: () => { failures += 1; } },
+    {
+      delayMs: 1,
+      onError: () => {
+        failures += 1;
+      },
+    },
   );
 
   openNoteInTab(store, "note-b");
@@ -154,15 +169,11 @@ test("teardown flushes the latest pane layout before the coalescing delay", asyn
 
 test("flush remains pending until the durable pane write settles", async () => {
   const store = createRendererStore(createInitialState(snapshot, []));
-  let release = () => {};
+  let release: () => void = noop;
   const durable = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const binding = bindPaneLayoutPersistence(
-    store,
-    async () => durable,
-    { delayMs: 1_000 },
-  );
+  const binding = bindPaneLayoutPersistence(store, async () => durable, { delayMs: 1_000 });
   openNoteInTab(store, "note-b");
 
   let flushed = false;

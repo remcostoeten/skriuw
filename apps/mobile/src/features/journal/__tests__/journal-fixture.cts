@@ -77,7 +77,13 @@ export function fixtureNoteId(dateKey: string): string {
   return `journal-${dateKey}`;
 }
 
-function node(id: string, kind: WorkspaceNode["kind"], parentId: string | null, title: string, rank: number): WorkspaceNode {
+function node(
+  id: string,
+  kind: WorkspaceNode["kind"],
+  parentId: string | null,
+  title: string,
+  rank: number,
+): WorkspaceNode {
   return {
     id,
     kind,
@@ -97,9 +103,10 @@ function document(noteId: string, body: string): WorkspaceDocument {
     noteId,
     documentJson: {
       type: "doc",
-      content: body.length === 0 ? [{ type: "paragraph" }] : [
-        { type: "paragraph", content: [{ type: "text", text: body }] },
-      ],
+      content:
+        body.length === 0
+          ? [{ type: "paragraph" }]
+          : [{ type: "paragraph", content: [{ type: "text", text: body }] }],
     },
     markdown: body.length === 0 ? "" : `${body}\n`,
     revision: 1,

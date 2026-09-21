@@ -1,9 +1,6 @@
 // `scripts/build-browser-wasm.sh` produces this ignored build artifact before
 // typechecking or bundling the application.
-import initWasm, {
-  dispatch,
-  initialize,
-} from "../../../.build/browser-wasm/skriuw_sqlite_wasm.js";
+import initWasm, { dispatch, initialize } from "../../../.build/browser-wasm/skriuw_sqlite_wasm.js";
 
 type WorkerRequest = {
   protocolVersion: number;
@@ -64,9 +61,7 @@ worker.skriuwSyncHttp = (requestJson, body) => {
   const retryAfterSeconds = retryAfterHeader === null ? Number.NaN : Number(retryAfterHeader);
   return {
     status: xhr.status,
-    ...(Number.isFinite(retryAfterSeconds)
-      ? { retryAfterMs: retryAfterSeconds * 1_000 }
-      : {}),
+    ...(Number.isFinite(retryAfterSeconds) ? { retryAfterMs: retryAfterSeconds * 1_000 } : {}),
     body: new Uint8Array((xhr.response as ArrayBuffer | null) ?? new ArrayBuffer(0)),
   };
 };

@@ -41,9 +41,7 @@ export function MoodRow({ mood, onChange }: Props) {
               style={[
                 styles.label,
                 {
-                  color: selected
-                    ? theme.color(option.token)
-                    : theme.color("muted-foreground"),
+                  color: selected ? theme.color(option.token) : theme.color("muted-foreground"),
                 },
               ]}
             >

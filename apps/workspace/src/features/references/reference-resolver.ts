@@ -35,18 +35,12 @@ export function resolveReference(
   return { label: fallbackLabel, availability: "unresolved" };
 }
 
-export function referenceText(
-  kind: ReferenceKind,
-  resolved: ResolvedReference,
-): string {
+export function referenceText(kind: ReferenceKind, resolved: ResolvedReference): string {
   const prefix = kind === "tag" ? "#" : kind === "person" ? "$" : "@";
   return `${prefix}${resolved.label}`;
 }
 
-export function referenceAriaLabel(
-  kind: ReferenceKind,
-  resolved: ResolvedReference,
-): string {
+export function referenceAriaLabel(kind: ReferenceKind, resolved: ResolvedReference): string {
   const noun = kind === "tag" ? "Tag" : kind === "person" ? "Person" : "Note";
   if (resolved.availability === "unavailable") {
     return `${noun} ${resolved.label}, unavailable`;

@@ -100,7 +100,10 @@ function readValue(input: string, start: number): ReadValue {
   return { value, next: index, unterminated: false };
 }
 
-function filterStart(input: string, index: number): { kind: SearchFilterKind; valueStart: number } | null {
+function filterStart(
+  input: string,
+  index: number,
+): { kind: SearchFilterKind; valueStart: number } | null {
   const sigil = SIGILS.get(input[index] ?? "");
   if (sigil) {
     return { kind: sigil, valueStart: index + 1 };

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { SaveSequencer } from "../../../src/features/editor/save-sequencer";
+import { noop } from "../../../src/shared/lib/noop";
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
-  let resolve = () => {};
+  let resolve: () => void = noop;
   const promise = new Promise<void>((done) => {
     resolve = done;
   });
@@ -60,7 +61,10 @@ test("failure remains visible and flush rejects while a save is undurable", asyn
     /disk full/,
   );
 
-  assert.deepEqual(sequencer.currentFailures().map(({ noteId }) => noteId), ["note-1"]);
+  assert.deepEqual(
+    sequencer.currentFailures().map(({ noteId }) => noteId),
+    ["note-1"],
+  );
   await assert.rejects(sequencer.flush(), /1 note.*not durable/);
   assert.deepEqual(observed, [["note-1"]]);
 });
@@ -94,7 +98,10 @@ test("failure and recovery are independent between notes", async () => {
 
   await assert.rejects(failed);
   await saved;
-  assert.deepEqual(sequencer.currentFailures().map(({ noteId }) => noteId), ["note-1"]);
+  assert.deepEqual(
+    sequencer.currentFailures().map(({ noteId }) => noteId),
+    ["note-1"],
+  );
   await sequencer.enqueue("note-1", async () => {});
   await sequencer.flush();
 });

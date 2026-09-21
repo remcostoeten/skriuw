@@ -37,13 +37,8 @@ export function splitTabsForWidth<T extends OverflowInput>(
     return { visible: [...tabs], overflow: [] };
   }
 
-  const slots = Math.max(
-    1,
-    Math.floor((availableWidth - OVERFLOW_TRIGGER_WIDTH) / MIN_TAB_WIDTH),
-  );
-  const kept = new Set(
-    tabs.filter((tab) => tab.isPinned || tab.isActive).map((tab) => tab.id),
-  );
+  const slots = Math.max(1, Math.floor((availableWidth - OVERFLOW_TRIGGER_WIDTH) / MIN_TAB_WIDTH));
+  const kept = new Set(tabs.filter((tab) => tab.isPinned || tab.isActive).map((tab) => tab.id));
   for (const tab of tabs) {
     if (kept.size >= slots) {
       break;

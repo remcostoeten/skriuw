@@ -116,9 +116,7 @@ test("delete builder returns kind-specific removal operations", () => {
 test("recolor operations flow through the store into projected detail rows", () => {
   const store = fixtureStore();
   store.applyReferenceOperations([{ type: "recolor_tag", id: "tag-alpha", color: "#22c55e" }]);
-  store.applyReferenceOperations([
-    { type: "recolor_person", id: "person-ada", color: "#8b5cf6" },
-  ]);
+  store.applyReferenceOperations([{ type: "recolor_person", id: "person-ada", color: "#8b5cf6" }]);
   assert.deepEqual(
     projectNoteReferenceDetails(store.getState(), "note-b").map((entry) => ({
       id: entry.id,

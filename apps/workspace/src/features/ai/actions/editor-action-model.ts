@@ -14,13 +14,7 @@ export type AiActionTarget = {
   input: string;
 };
 
-type AiActionPhase =
-  | "composing"
-  | "streaming"
-  | "done"
-  | "cancelled"
-  | "timeout"
-  | "error";
+type AiActionPhase = "composing" | "streaming" | "done" | "cancelled" | "timeout" | "error";
 
 /**
  * How far a live run has actually got. `phase` says whether a run is in flight;
@@ -98,11 +92,7 @@ export function stoppedRun(run: AiActionRun): AiActionRun {
  * or slow provider can deliver a queued chunk after the writer already started
  * a second run.
  */
-export function runWithDelta(
-  run: AiActionRun,
-  requestId: string,
-  text: string,
-): AiActionRun {
+export function runWithDelta(run: AiActionRun, requestId: string, text: string): AiActionRun {
   if (run.phase !== "streaming" || run.requestId !== requestId) {
     return run;
   }

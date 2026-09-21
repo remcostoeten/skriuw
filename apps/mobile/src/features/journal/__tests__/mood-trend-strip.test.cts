@@ -1,14 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
-import { flattenStyle, interactiveHosts, renderHosts } from "../../../shell/__tests__/native-host.cjs";
+import {
+  flattenStyle,
+  interactiveHosts,
+  renderHosts,
+} from "../../../shell/__tests__/native-host.cjs";
 import { MINIMUM_TOUCH_TARGET } from "../../../shell/metrics";
 import { formatLongDate, shiftDay, type DateKey } from "../dates";
 import { moodTrend } from "../mood-trend";
 import { MoodTrendStrip } from "../mood-trend-strip";
 
 const today: DateKey = "2026-09-21";
-const trend = moodTrend([{ noteId: "n", dateKey: today, title: "", mood: "good", wordCount: 1 }], today);
+const trend = moodTrend(
+  [{ noteId: "n", dateKey: today, title: "", mood: "good", wordCount: 1 }],
+  today,
+);
 
 function renderStrip(onSelectDay: (key: DateKey) => void = () => undefined) {
   return renderHosts(createElement(MoodTrendStrip, { trend, today, onSelectDay }));
@@ -47,7 +54,9 @@ test("a screen reader meets one adjustable control announcing today", () => {
   assert.equal(target.props.accessibilityRole, "adjustable");
   assert.equal(target.props.accessibilityLabel, "Mood, last 30 days");
   assert.deepEqual(target.props.accessibilityValue, { text: `${formatLongDate(today)}, good` });
-  const actions = (target.props.accessibilityActions as { name: string }[]).map((action) => action.name);
+  const actions = (target.props.accessibilityActions as { name: string }[]).map(
+    (action) => action.name,
+  );
   assert.deepEqual(actions.sort(), ["activate", "decrement", "increment"]);
 });
 

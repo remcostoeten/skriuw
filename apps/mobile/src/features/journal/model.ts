@@ -1,7 +1,4 @@
-import type {
-  NoteProperty,
-  NotePropertyOption,
-} from "@skriuw/renderer-core/contracts/workspace";
+import type { NoteProperty, NotePropertyOption } from "@skriuw/renderer-core/contracts/workspace";
 import {
   JOURNAL_DATE_PROPERTY_ID,
   JOURNAL_MOOD_PROPERTY_ID,
@@ -12,12 +9,7 @@ import type { RendererState } from "@skriuw/renderer-core/store/types";
 import type { TokenName } from "@skriuw/theme/tokens";
 import { isDateKey, type DateKey } from "./dates";
 
-export {
-  JOURNAL_DATE_PROPERTY_ID,
-  JOURNAL_MOOD_PROPERTY_ID,
-  JOURNAL_ROOT_ID,
-  JOURNAL_ROOT_TITLE,
-};
+export { JOURNAL_DATE_PROPERTY_ID, JOURNAL_MOOD_PROPERTY_ID, JOURNAL_ROOT_ID, JOURNAL_ROOT_TITLE };
 
 export type MoodLevel = "great" | "good" | "neutral" | "low" | "rough";
 
@@ -181,7 +173,10 @@ export function sameJournalEntries(
 export function journalNoteIdForDate(state: RendererState, dateKey: DateKey): string | null {
   const childIds = state.childrenByParent.get(JOURNAL_ROOT_ID) ?? [];
   for (const noteId of childIds) {
-    if (state.nodes.get(noteId)?.kind === "note" && journalEntryDateKey(state, noteId) === dateKey) {
+    if (
+      state.nodes.get(noteId)?.kind === "note" &&
+      journalEntryDateKey(state, noteId) === dateKey
+    ) {
       return noteId;
     }
   }
@@ -192,10 +187,7 @@ export function selectEntryDateKeys(state: RendererState): ReadonlySet<DateKey> 
   return new Set(selectJournalEntries(state).map((entry) => entry.dateKey));
 }
 
-export function sameDateKeySet(
-  left: ReadonlySet<DateKey>,
-  right: ReadonlySet<DateKey>,
-): boolean {
+export function sameDateKeySet(left: ReadonlySet<DateKey>, right: ReadonlySet<DateKey>): boolean {
   if (left.size !== right.size) {
     return false;
   }

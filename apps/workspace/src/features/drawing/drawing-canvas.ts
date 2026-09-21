@@ -111,8 +111,12 @@ function traceStroke(context: DrawingContext, stroke: DrawingStroke, scrollTop: 
   const { points } = stroke;
   context.beginPath();
   const count = points.length / 2;
-  const x = (index: number) => points[index * 2] as number;
-  const y = (index: number) => (points[index * 2 + 1] as number) - scrollTop;
+  function x(index: number) {
+    return points[index * 2] as number;
+  }
+  function y(index: number) {
+    return (points[index * 2 + 1] as number) - scrollTop;
+  }
   if (count === 1) {
     // A tap still leaves a mark: a zero-length line with a round cap is a dot.
     context.moveTo(x(0), y(0));

@@ -29,7 +29,10 @@ export function Bento() {
   return (
     <section id="features" className="bg-surface py-24">
       <Container>
-        <div ref={headingRef} className="reveal-wipe flex flex-wrap items-start justify-between gap-6">
+        <div
+          ref={headingRef}
+          className="reveal-wipe flex flex-wrap items-start justify-between gap-6"
+        >
           <Rail>
             <SectionHeading
               lead="Notes, journal, and tasks."
@@ -69,10 +72,7 @@ export function Bento() {
                 </p>
               </div>
 
-              <div
-                aria-hidden
-                className="flex flex-1 pt-8 pl-8"
-              >
+              <div aria-hidden className="flex flex-1 pt-8 pl-8">
                 {vignetteMap[card.vignette]}
               </div>
             </article>

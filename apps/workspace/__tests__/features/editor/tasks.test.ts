@@ -13,7 +13,9 @@ function stateWithText(text = ""): EditorState {
     productSchema.node("paragraph", null, text ? [productSchema.text(text)] : []),
   ]);
   const state = EditorState.create({ doc, plugins: createProductPlugins() });
-  return state.apply(state.tr.setSelection(TextSelection.create(state.doc, state.doc.content.size - 1)));
+  return state.apply(
+    state.tr.setSelection(TextSelection.create(state.doc, state.doc.content.size - 1)),
+  );
 }
 
 function type(state: EditorState, text: string): EditorState {
@@ -21,12 +23,20 @@ function type(state: EditorState, text: string): EditorState {
   for (const character of text) {
     const view = {
       composing: false,
-      get state() { return current; },
-      dispatch(transaction: Transaction) { current = current.apply(transaction); },
+      get state() {
+        return current;
+      },
+      dispatch(transaction: Transaction) {
+        current = current.apply(transaction);
+      },
     };
     const { from, to } = current.selection;
     const handled = current.plugins.some((plugin) => {
-      const input = (plugin.props as { handleTextInput?: (view: unknown, from: number, to: number, text: string) => boolean }).handleTextInput;
+      const input = (
+        plugin.props as {
+          handleTextInput?: (view: unknown, from: number, to: number, text: string) => boolean;
+        }
+      ).handleTextInput;
       return input?.call(plugin, view, from, to, character) ?? false;
     });
     if (!handled) current = current.apply(current.tr.insertText(character, from, to));
@@ -72,16 +82,34 @@ test("promotion operations skip empty and already-recorded task links", () => {
       ]),
     ]),
   ]);
-  const operations = documentSaveOperations(document, "note-1", {
-    documentJson: document.toJSON(), markdown: "- [ ] Ship", wordCount: 1, expectedRevision: 4,
-  }, new Map(), 10);
+  const operations = documentSaveOperations(
+    document,
+    "note-1",
+    {
+      documentJson: document.toJSON(),
+      markdown: "- [ ] Ship",
+      wordCount: 1,
+      expectedRevision: 4,
+    },
+    new Map(),
+    10,
+  );
   assert.equal(operations.length, 1);
   const first = operations[0];
   assert.ok(first && first.type === "promote_checklist_task");
   const known = new Map([["task-1", first.task]]);
-  const recorded = documentSaveOperations(document, "note-1", {
-    documentJson: document.toJSON(), markdown: "- [ ] Ship", wordCount: 1, expectedRevision: 4,
-  }, known, 10);
+  const recorded = documentSaveOperations(
+    document,
+    "note-1",
+    {
+      documentJson: document.toJSON(),
+      markdown: "- [ ] Ship",
+      wordCount: 1,
+      expectedRevision: 4,
+    },
+    known,
+    10,
+  );
   assert.equal(recorded.length, 1);
   assert.equal(recorded[0]?.type, "save_document");
 });
@@ -100,20 +128,33 @@ test("only the first promotion in a batch carries the document", () => {
       ]),
     ]),
   ]);
-  const operations = documentSaveOperations(document, "note-1", {
-    documentJson: document.toJSON(),
-    markdown: "- [ ] First\n- [x] Second\n- [ ] Third",
-    wordCount: 3,
-    expectedRevision: 4,
-  }, new Map(), 10);
+  const operations = documentSaveOperations(
+    document,
+    "note-1",
+    {
+      documentJson: document.toJSON(),
+      markdown: "- [ ] First\n- [x] Second\n- [ ] Third",
+      wordCount: 3,
+      expectedRevision: 4,
+    },
+    new Map(),
+    10,
+  );
 
   assert.equal(operations.length, 3);
-  assert.equal(operations.filter((operation) => operation.type === "promote_checklist_task").length, 1);
+  assert.equal(
+    operations.filter((operation) => operation.type === "promote_checklist_task").length,
+    1,
+  );
   assert.equal(operations[0]?.type, "promote_checklist_task");
   assert.equal(operations[1]?.type, "create_task");
   assert.equal(operations[2]?.type, "create_task");
   assert.deepEqual(
-    operations.map((operation) => (operation.type === "promote_checklist_task" || operation.type === "create_task" ? operation.task.id : null)),
+    operations.map((operation) =>
+      operation.type === "promote_checklist_task" || operation.type === "create_task"
+        ? operation.task.id
+        : null,
+    ),
     ["task-1", "task-2", "task-3"],
   );
   const second = operations[1];
@@ -147,13 +188,15 @@ test("a save that promotes carries the document once, in the promotion batch", (
     0,
     "a promoting save must not write the document a second time",
   );
-  const carrying = operations.filter(
-    (operation) => operation.type === "promote_checklist_task",
-  );
+  const carrying = operations.filter((operation) => operation.type === "promote_checklist_task");
   assert.equal(carrying.length, 1);
   const first = carrying[0];
   assert.ok(first && first.type === "promote_checklist_task");
-  assert.equal(first.document.expectedRevision, 4, "the promotion writes from the unsaved revision");
+  assert.equal(
+    first.document.expectedRevision,
+    4,
+    "the promotion writes from the unsaved revision",
+  );
   assert.equal(first.document.noteId, "note-1");
 });
 
@@ -177,4 +220,3 @@ test("a save that promotes nothing falls back to a plain document write", () => 
   assert.equal(only.markdown, "Just prose");
   assert.equal(only.at, 10);
 });
-

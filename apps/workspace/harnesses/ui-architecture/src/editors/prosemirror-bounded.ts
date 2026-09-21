@@ -1,9 +1,5 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
-import {
-  EditorState,
-  TextSelection,
-  type Transaction,
-} from "prosemirror-state";
+import { EditorState, TextSelection, type Transaction } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import "prosemirror-view/style/prosemirror.css";
 
@@ -43,8 +39,7 @@ function createView(
   state: EditorState,
   dispatch: (view: EditorView, transaction: Transaction) => void,
 ): EditorView {
-  let mountedView: EditorView;
-  mountedView = new EditorView(
+  const mountedView: EditorView = new EditorView(
     { mount: host },
     {
       state,
@@ -183,16 +178,10 @@ function selectionPosition(
     Math.max(0, doc.childCount - 1),
   );
   const block = doc.child(blockIndex);
-  return (
-    textStartAt(doc, blockIndex) +
-    Math.min(selection.offset, block.textContent.length)
-  );
+  return textStartAt(doc, blockIndex) + Math.min(selection.offset, block.textContent.length);
 }
 
-function readSelection(
-  state: EditorState,
-  windowStart: number,
-): BoundedSelection {
+function readSelection(state: EditorState, windowStart: number): BoundedSelection {
   return {
     blockIndex: windowStart + state.selection.$from.index(0),
     offset: state.selection.$from.parentOffset,
@@ -247,10 +236,7 @@ export function createProseMirrorBoundedCandidate(): EditorCandidate {
     restoreSelection(document);
   }
 
-  function syncTransaction(
-    nextView: EditorView,
-    transaction: Transaction,
-  ): void {
+  function syncTransaction(nextView: EditorView, transaction: Transaction): void {
     const document = activeDocument();
     const nextState = nextView.state.apply(transaction);
     document.state = nextState;
@@ -289,15 +275,9 @@ export function createProseMirrorBoundedCandidate(): EditorCandidate {
       canonicalNodes: document.projection.getCanonicalBlocks().map((block) => block.node ?? null),
       composing,
       undoDepth: document.history.length,
-      undoRetainedBlocks: document.history.reduce(
-        (total, entry) => total + entry.before.length,
-        0,
-      ),
+      undoRetainedBlocks: document.history.reduce((total, entry) => total + entry.before.length, 0),
       redoDepth: document.redo.length,
-      redoRetainedBlocks: document.redo.reduce(
-        (total, entry) => total + entry.after.length,
-        0,
-      ),
+      redoRetainedBlocks: document.redo.reduce((total, entry) => total + entry.after.length, 0),
       slashMenuOpen: slashMenu.open,
       slashMenuQuery: slashMenu.query,
     };
@@ -318,9 +298,7 @@ export function createProseMirrorBoundedCandidate(): EditorCandidate {
       throw new Error("cannot move the bounded window during IME composition");
     }
     const document = activeDocument();
-    const anchorTop = view?.hasFocus()
-      ? view.coordsAtPos(view.state.selection.from).top
-      : null;
+    const anchorTop = view?.hasFocus() ? view.coordsAtPos(view.state.selection.from).top : null;
     if (view && mountedHost) {
       const window = document.projection.getWindow();
       document.projection.setScrollTop(mountedHost.scrollTop);
@@ -344,11 +322,9 @@ export function createProseMirrorBoundedCandidate(): EditorCandidate {
     const document = activeDocument();
     const block = document.projection.getCanonicalBlocks()[edit.blockIndex];
     if (!block) throw new Error("unknown canonical block");
-    document.projection.replaceCanonicalRange(
-      edit.blockIndex,
-      1,
-      [replaceBlockText(block, edit.text)],
-    );
+    document.projection.replaceCanonicalRange(edit.blockIndex, 1, [
+      replaceBlockText(block, edit.text),
+    ]);
     const window = document.projection.getWindow();
     if (edit.blockIndex < window.start || edit.blockIndex >= window.end) return;
     document.state = createDocumentState(document.projection.getRenderedBlocks());
@@ -411,10 +387,7 @@ export function createProseMirrorBoundedCandidate(): EditorCandidate {
         const corpus = createBoundedCorpus(blockCount, noteIndex);
         const canonical = createProductCanonicalBlocks(corpus.canonical);
         const id = `prosemirror-bounded-${blockCount}-${noteIndex}`;
-        const projection = createBoundedEditorProjection(
-          canonical,
-          BOUNDED_BLOCK_LIMIT,
-        );
+        const projection = createBoundedEditorProjection(canonical, BOUNDED_BLOCK_LIMIT);
         projection.moveWindow(corpus.start);
         const state = createDocumentState(projection.getRenderedBlocks());
         documents.set(id, { projection, state, history: [], redo: [] });
@@ -428,11 +401,7 @@ export function createProseMirrorBoundedCandidate(): EditorCandidate {
         };
       });
     },
-    mount(
-      host: HTMLElement,
-      _states: readonly PreparedState[],
-      initial: PreparedState,
-    ) {
+    mount(host: HTMLElement, _states: readonly PreparedState[], initial: PreparedState) {
       mounts += 1;
       mountedHost = host;
       activeId = initial.id;

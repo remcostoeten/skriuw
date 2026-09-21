@@ -7,7 +7,7 @@ export const BENCHMARK_QUERIES: readonly string[] = [
   "durable write path",
   "#mobile fixture note",
   "#search",
-  "#architecture $\"Ada Lovelace\"",
+  '#architecture $"Ada Lovelace"',
   "fixture note",
 ];
 

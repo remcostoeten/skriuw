@@ -85,7 +85,8 @@ export function normalizeNotePropertyValue(
       }
       break;
     case "select":
-      if (value !== null && !isValidId(value)) issues.push("select value must be an option ID or null");
+      if (value !== null && !isValidId(value))
+        issues.push("select value must be an option ID or null");
       else if (typeof value === "string" && !optionIds.has(value)) {
         issues.push(`select value references unknown option ${value}`);
       }
@@ -124,7 +125,8 @@ export function normalizeNotePropertyValue(
       break;
   }
   if (issues.length > 0) throw propertyValidationError(issues);
-  if (Array.isArray(value)) return { valueVersion: 1, type, value: [...value] } as NotePropertyValue;
+  if (Array.isArray(value))
+    return { valueVersion: 1, type, value: [...value] } as NotePropertyValue;
   return { valueVersion: 1, type, value } as NotePropertyValue;
 }
 
@@ -153,8 +155,14 @@ export function normalizeNotePropertyFields(
   if (!Array.isArray(input)) throw propertyValidationError(["properties must be an array"]);
   if (input.length > 64) throw propertyValidationError(["properties exceed 64 entries"]);
   const fields = input.map((field) => normalizeNotePropertyField(field, context));
-  assertUnique(fields.map((field) => field.id), "property IDs");
-  assertUnique(fields.map((field) => field.position), "property positions");
+  assertUnique(
+    fields.map((field) => field.id),
+    "property IDs",
+  );
+  assertUnique(
+    fields.map((field) => field.position),
+    "property positions",
+  );
   const positions = fields.map((field) => field.position).sort((left, right) => left - right);
   if (positions.some((position, index) => position !== index)) {
     throw propertyValidationError(["property positions must be contiguous from zero"]);
@@ -181,7 +189,11 @@ function normalizeOptions(input: unknown, issues: string[]): NotePropertyOption[
     }
     return [{ id, label, color: entry.color as NotePropertyOption["color"] }];
   });
-  assertUnique(options.map((option) => option.id), "property option IDs", issues);
+  assertUnique(
+    options.map((option) => option.id),
+    "property option IDs",
+    issues,
+  );
   return options;
 }
 

@@ -55,7 +55,8 @@ test("the host refuses editor messages it cannot trust", () => {
   assert.equal(parseEditorMessage({ type: "ready" }).ok, false);
   assert.equal(parseEditorMessage({ v: EDITOR_PROTOCOL_VERSION, type: "sudo" }).ok, false);
   assert.equal(
-    parseEditorMessage({ v: EDITOR_PROTOCOL_VERSION, type: "failure", code: "nope", detail: "" }).ok,
+    parseEditorMessage({ v: EDITOR_PROTOCOL_VERSION, type: "failure", code: "nope", detail: "" })
+      .ok,
     false,
   );
   assert.equal(

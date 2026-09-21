@@ -11,12 +11,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  sheetDragCloses,
-  sheetDragOffset,
-  swipeAxis,
-  type SheetSide,
-} from "./edge-swipe";
+import { sheetDragCloses, sheetDragOffset, swipeAxis, type SheetSide } from "./edge-swipe";
 import { ShellIcon } from "./icons";
 import {
   MINIMUM_TOUCH_TARGET,
@@ -85,28 +80,28 @@ export function SideSheet({ side, open, title, onClose, children }: Props) {
 
   const responder = useMemo(
     () =>
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_event, gesture) =>
-        swipeAxis({ x: 0, y: 0, edge: side }, gesture.dx, gesture.dy) === "x" &&
-        sheetDragOffset(side, gesture.dx) !== 0,
-      onPanResponderMove: (_event, gesture) => {
-        const offset = sheetDragOffset(side, gesture.dx);
-        progress.setValue(Math.max(0, Math.min(1, 1 - Math.abs(offset) / width)));
-      },
-      onPanResponderRelease: (_event, gesture) => {
-        if (sheetDragCloses(side, gesture.dx)) {
-          closeRef.current();
-          return;
-        }
-        Animated.timing(progress, {
-          toValue: 1,
-          duration: SHEET_DURATION_MS,
-          easing: SHEET_CURVE,
-          useNativeDriver: true,
-        }).start();
-      },
-      onPanResponderTerminationRequest: () => false,
-    }),
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          swipeAxis({ x: 0, y: 0, edge: side }, gesture.dx, gesture.dy) === "x" &&
+          sheetDragOffset(side, gesture.dx) !== 0,
+        onPanResponderMove: (_event, gesture) => {
+          const offset = sheetDragOffset(side, gesture.dx);
+          progress.setValue(Math.max(0, Math.min(1, 1 - Math.abs(offset) / width)));
+        },
+        onPanResponderRelease: (_event, gesture) => {
+          if (sheetDragCloses(side, gesture.dx)) {
+            closeRef.current();
+            return;
+          }
+          Animated.timing(progress, {
+            toValue: 1,
+            duration: SHEET_DURATION_MS,
+            easing: SHEET_CURVE,
+            useNativeDriver: true,
+          }).start();
+        },
+        onPanResponderTerminationRequest: () => false,
+      }),
     [progress, side, width],
   );
 

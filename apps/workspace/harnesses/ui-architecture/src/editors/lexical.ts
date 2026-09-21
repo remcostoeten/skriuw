@@ -1,9 +1,4 @@
-import {
-  $createHeadingNode,
-  $createQuoteNode,
-  HeadingNode,
-  QuoteNode,
-} from "@lexical/rich-text";
+import { $createHeadingNode, $createQuoteNode, HeadingNode, QuoteNode } from "@lexical/rich-text";
 import {
   $createParagraphNode,
   $createTextNode,
@@ -76,28 +71,30 @@ export function createLexicalCandidate(strategy: RenderingStrategy): EditorCandi
   let preparations = 0;
   let mounts = 0;
 
-  const prepareWithEditor = (
+  function prepareWithEditor(
     editor: LexicalEditor,
     blockCount: BlockCount,
     noteCount: number,
-  ): PreparedState[] => Array.from({ length: noteCount }, (_, noteIndex) => {
-    editor.update(
-      () => {
-        const root = $getRoot();
-        root.clear();
-        for (const block of createCorpus(blockCount, noteIndex)) {
-          appendBlock(block);
-        }
-      },
-      { discrete: true, tag: `prepare-${blockCount}-${noteIndex}` },
-    );
-    return {
-      id: `lexical-${blockCount}-${noteIndex}`,
-      value: editor.getEditorState().clone(null),
-    };
-  });
+  ): PreparedState[] {
+    return Array.from({ length: noteCount }, (_, noteIndex) => {
+      editor.update(
+        () => {
+          const root = $getRoot();
+          root.clear();
+          for (const block of createCorpus(blockCount, noteIndex)) {
+            appendBlock(block);
+          }
+        },
+        { discrete: true, tag: `prepare-${blockCount}-${noteIndex}` },
+      );
+      return {
+        id: `lexical-${blockCount}-${noteIndex}`,
+        value: editor.getEditorState().clone(null),
+      };
+    });
+  }
 
-  const activateRetained = (state: PreparedState): void => {
+  function activateRetained(state: PreparedState): void {
     const entry = retainedEntries.get(state.id);
     if (!entry) {
       throw new Error(`missing retained Lexical editor: ${state.id}`);
@@ -110,7 +107,7 @@ export function createLexicalCandidate(strategy: RenderingStrategy): EditorCandi
       activeRoot = entry.root;
     }
     activeEditor = entry.editor;
-  };
+  }
 
   return {
     id: "lexical",
@@ -139,9 +136,7 @@ export function createLexicalCandidate(strategy: RenderingStrategy): EditorCandi
         const root = document.createElement("div");
         root.className = "editor-surface";
         setRootActive(root, false);
-        const editor = index === 0 && preparationEditor
-          ? preparationEditor
-          : createLexicalEditor();
+        const editor = index === 0 && preparationEditor ? preparationEditor : createLexicalEditor();
         host.append(root);
         editor.setRootElement(root);
         editor.setEditorState(asState(state), { tag: "initial-state" });

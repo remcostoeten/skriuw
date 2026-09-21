@@ -5,10 +5,7 @@ type EntityCreateListener = () => void;
 const listeners = new Map<EntityKind, EntityCreateListener>();
 const pending = new Set<EntityKind>();
 
-export function registerEntityCreate(
-  kind: EntityKind,
-  listener: EntityCreateListener,
-): () => void {
+export function registerEntityCreate(kind: EntityKind, listener: EntityCreateListener): () => void {
   listeners.set(kind, listener);
   if (pending.has(kind)) {
     pending.delete(kind);

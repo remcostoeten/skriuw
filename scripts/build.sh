@@ -68,9 +68,9 @@ log_dir="$repo_dir/.build/logs/$build_id"
 mkdir -p "$log_dir"
 
 case "$mode" in
-  check) total_steps=12 ;;
-  ci) total_steps=14 ;;
-  *) total_steps=13 ;;
+  check) total_steps=14 ;;
+  ci) total_steps=16 ;;
+  *) total_steps=15 ;;
 esac
 
 step_index=0
@@ -341,6 +341,7 @@ require_command cargo
 require_command git
 require_command node
 require_command rustc
+[[ -x "$repo_dir/node_modules/.bin/oxlint" ]] || fail "Workspace dependencies are missing. Run ./bin/setup."
 [[ -d "$app_dir/node_modules" ]] || fail "Frontend dependencies are missing. Run ./bin/setup."
 [[ -d "$cloud_dir/node_modules" ]] || fail "Cloud dependencies are missing. Run ./bin/setup."
 [[ -d "$repo_dir/apps/workspace/harnesses/ui-architecture/node_modules" ]] || fail "UI architecture dependencies are missing. Run ./bin/setup."
@@ -353,6 +354,8 @@ run_step "Build entrypoint contract" "build-entrypoints" "$repo_dir/scripts/test
 run_step "Browser SQLite WASM module" "browser-wasm" "$repo_dir/scripts/build-browser-wasm.sh"
 run_step "Rust formatting" "rust-format" cargo fmt --all --check
 run_step "Rust lint" "rust-clippy" cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+run_step "TypeScript formatting" "ts-format" bun --cwd="$repo_dir" run format:check
+run_step "TypeScript lint" "ts-lint" bun --cwd="$repo_dir" run lint
 run_step "Backend test suite" "backend-tests" cargo test --workspace --locked --no-fail-fast
 print_metric "$(rust_test_summary "$last_log")"
 run_step "Desktop bridge test suite" "desktop-tests" cargo test --manifest-path apps/workspace/src-tauri/Cargo.toml --locked --no-fail-fast

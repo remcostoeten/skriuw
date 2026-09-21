@@ -21,7 +21,9 @@ const contexts = [
   { fixture: "wide-5000", blocks: 2000 },
 ];
 
-const sleep = (milliseconds) => new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
+function sleep(milliseconds) {
+  return new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
+}
 
 function run(command, arguments_, options = {}) {
   return new Promise((resolveRun, reject) => {
@@ -82,7 +84,7 @@ function launchChrome(profileDirectory) {
     let buffered = "";
     let settled = false;
     const timeout = setTimeout(() => fail(new Error("Chrome did not expose DevTools")), 15_000);
-    const fail = (error) => {
+    function fail(error) {
       if (settled) {
         return;
       }
@@ -92,7 +94,7 @@ function launchChrome(profileDirectory) {
         child.kill("SIGKILL");
       }
       reject(error);
-    };
+    }
     child.stderr.on("data", (chunk) => {
       buffered += String(chunk);
       const match = buffered.match(/DevTools listening on (ws:\/\/\S+)/);
@@ -118,8 +120,12 @@ function connectCdp(webSocketUrl) {
         send(method, parameters = {}, sessionId) {
           const id = nextId;
           nextId += 1;
-          socket.send(JSON.stringify({ id, method, params: parameters, ...(sessionId ? { sessionId } : {}) }));
-          return new Promise((resolveCall, rejectCall) => pending.set(id, { resolveCall, rejectCall }));
+          socket.send(
+            JSON.stringify({ id, method, params: parameters, ...(sessionId ? { sessionId } : {}) }),
+          );
+          return new Promise((resolveCall, rejectCall) =>
+            pending.set(id, { resolveCall, rejectCall }),
+          );
         },
         on(method, handler) {
           listeners.push({ method, handler });
@@ -153,7 +159,11 @@ function connectCdp(webSocketUrl) {
 
 async function evaluate(cdp, sessionId, expression, timeoutMilliseconds = 180_000) {
   const result = await Promise.race([
-    cdp.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, sessionId),
+    cdp.send(
+      "Runtime.evaluate",
+      { expression, awaitPromise: true, returnByValue: true },
+      sessionId,
+    ),
     sleep(timeoutMilliseconds).then(() => {
       throw new Error(`evaluation timed out: ${expression.slice(0, 80)}`);
     }),
@@ -191,11 +201,7 @@ async function dispatchKey(cdp, sessionId, key, code, virtualKeyCode, text) {
     windowsVirtualKeyCode: virtualKeyCode,
     nativeVirtualKeyCode: virtualKeyCode,
   };
-  await cdp.send(
-    "Input.dispatchKeyEvent",
-    { ...common, type: "rawKeyDown" },
-    sessionId,
-  );
+  await cdp.send("Input.dispatchKeyEvent", { ...common, type: "rawKeyDown" }, sessionId);
   if (text) {
     await cdp.send(
       "Input.dispatchKeyEvent",
@@ -216,7 +222,9 @@ function traceSummary(events, eventType) {
     )
     .map((event) => event.dur / 1_000);
   const sorted = [...samples].sort((left, right) => left - right);
-  const at = (fraction) => sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)] ?? 0;
+  function at(fraction) {
+    return sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)] ?? 0;
+  }
   return {
     count: samples.length,
     samplesMs: samples,
@@ -238,23 +246,34 @@ async function runContext(context) {
     const cdp = await connectCdp(launched.wsUrl);
     const browser = await cdp.send("Browser.getVersion");
     const target = await cdp.send("Target.createTarget", { url: "about:blank" });
-    const attached = await cdp.send("Target.attachToTarget", { targetId: target.targetId, flatten: true });
+    const attached = await cdp.send("Target.attachToTarget", {
+      targetId: target.targetId,
+      flatten: true,
+    });
     const sessionId = attached.sessionId;
     await cdp.send("Runtime.enable", {}, sessionId);
     await cdp.send("Page.enable", {}, sessionId);
     cdp.on("Runtime.consoleAPICalled", (parameters, eventSession) => {
       if (eventSession === sessionId && parameters.type === "error") {
-        consoleErrors.push(parameters.args.map((argument) => argument.description ?? argument.value).join(" "));
+        consoleErrors.push(
+          parameters.args.map((argument) => argument.description ?? argument.value).join(" "),
+        );
       }
     });
     cdp.on("Runtime.exceptionThrown", (parameters, eventSession) => {
       if (eventSession === sessionId) {
-        pageErrors.push(parameters.exceptionDetails.exception?.description ?? parameters.exceptionDetails.text);
+        pageErrors.push(
+          parameters.exceptionDetails.exception?.description ?? parameters.exceptionDetails.text,
+        );
       }
     });
-    await cdp.send("Page.navigate", {
-      url: `${baseUrl}/performance/index.html?fixture=${context.fixture}&blocks=${context.blocks}`,
-    }, sessionId);
+    await cdp.send(
+      "Page.navigate",
+      {
+        url: `${baseUrl}/performance/index.html?fixture=${context.fixture}&blocks=${context.blocks}`,
+      },
+      sessionId,
+    );
     await waitForHarness(cdp, sessionId, pageErrors);
     const selection = await evaluate(
       cdp,
@@ -375,22 +394,28 @@ async function runContext(context) {
       chrome.kill("SIGKILL");
       await exited;
     }
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      try {
-        await rm(profileDirectory, { recursive: true, force: true });
-        break;
-      } catch (error) {
-        if (error?.code !== "ENOTEMPTY" || attempt === 19) {
-          throw error;
-        }
-        await sleep(100);
+    await removeDirectoryWithRetry(profileDirectory);
+  }
+}
+
+async function removeDirectoryWithRetry(directory) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      await rm(directory, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      if (error?.code !== "ENOTEMPTY" || attempt === 19) {
+        throw error;
       }
+      await sleep(100);
     }
   }
 }
 
 function budgetStatus(record) {
-  const below = (summary, p95, maximum) => summary.p95Ms < p95 && summary.maxMs < maximum;
+  function below(summary, p95, maximum) {
+    return summary.p95Ms < p95 && summary.maxMs < maximum;
+  }
   return {
     cachedEditorSwap: below(record.selection.summary.editorInstallation, 8, 16.67),
     boundedEditorWorkingSet:

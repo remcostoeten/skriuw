@@ -114,12 +114,7 @@ export type NormalisedBox = {
   bottom: number;
 };
 
-export function normalisedBox(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-): NormalisedBox {
+export function normalisedBox(x1: number, y1: number, x2: number, y2: number): NormalisedBox {
   return {
     left: Math.min(x1, x2),
     top: Math.min(y1, y2),
@@ -129,9 +124,7 @@ export function normalisedBox(
 }
 
 /** The union of several elements' bounds, for painting one selection outline. */
-export function selectionBounds(
-  elements: readonly DrawingElement[],
-): DrawingBounds | null {
+export function selectionBounds(elements: readonly DrawingElement[]): DrawingBounds | null {
   if (elements.length === 0) return null;
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
@@ -171,11 +164,7 @@ function strokeDistance(points: readonly number[], point: GesturePoint): number 
   return closest;
 }
 
-function segmentDistance(
-  point: GesturePoint,
-  start: GesturePoint,
-  end: GesturePoint,
-): number {
+function segmentDistance(point: GesturePoint, start: GesturePoint, end: GesturePoint): number {
   const deltaX = end.x - start.x;
   const deltaY = end.y - start.y;
   const lengthSquared = deltaX * deltaX + deltaY * deltaY;
@@ -191,20 +180,21 @@ function segmentDistance(
 }
 
 function insideRect(box: NormalisedBox, point: GesturePoint): boolean {
-  return (
-    point.x >= box.left && point.x <= box.right && point.y >= box.top && point.y <= box.bottom
-  );
+  return point.x >= box.left && point.x <= box.right && point.y >= box.top && point.y <= box.bottom;
 }
 
-function nearRectBorder(
-  box: NormalisedBox,
-  point: GesturePoint,
-  reach: number,
-): boolean {
-  if (!insideRect(
-    { left: box.left - reach, top: box.top - reach, right: box.right + reach, bottom: box.bottom + reach },
-    point,
-  )) {
+function nearRectBorder(box: NormalisedBox, point: GesturePoint, reach: number): boolean {
+  if (
+    !insideRect(
+      {
+        left: box.left - reach,
+        top: box.top - reach,
+        right: box.right + reach,
+        bottom: box.bottom + reach,
+      },
+      point,
+    )
+  ) {
     return false;
   }
   const inset = {
@@ -230,11 +220,7 @@ function insideEllipse(box: NormalisedBox, point: GesturePoint): boolean {
   return ellipseRadius(box, point) <= 1;
 }
 
-function nearEllipseBorder(
-  box: NormalisedBox,
-  point: GesturePoint,
-  reach: number,
-): boolean {
+function nearEllipseBorder(box: NormalisedBox, point: GesturePoint, reach: number): boolean {
   const radiusX = (box.right - box.left) / 2;
   const radiusY = (box.bottom - box.top) / 2;
   const smallest = Math.min(radiusX, radiusY);

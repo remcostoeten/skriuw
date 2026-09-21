@@ -30,12 +30,16 @@ function unexpected(error: unknown): never {
 
 test("a build with the keystore keeps the credential across a restart", async () => {
   const secureStore = installedSecureStore();
-  const load = async () => secureStore;
+  async function load() {
+    return secureStore;
+  }
 
   const first = createSessionStore(createPlatformKeystore(resolveSecureStore(load, unexpected)));
   assert.deepEqual(await first.remember("bearer-1"), { persisted: true });
 
-  const restarted = createSessionStore(createPlatformKeystore(resolveSecureStore(load, unexpected)));
+  const restarted = createSessionStore(
+    createPlatformKeystore(resolveSecureStore(load, unexpected)),
+  );
   assert.equal(await restarted.current(), "bearer-1");
 });
 
@@ -72,7 +76,10 @@ test("a build without the native module refuses visibly instead of losing the cr
 test("a module without a native side, as on web, is the refusing keystore too", async () => {
   const reported: unknown[] = [];
   const keystore = createPlatformKeystore(
-    resolveSecureStore(async () => null, (error) => reported.push(error)),
+    resolveSecureStore(
+      async () => null,
+      (error) => reported.push(error),
+    ),
   );
 
   await assert.rejects(keystore.read("skriuw.cloud-session"), {

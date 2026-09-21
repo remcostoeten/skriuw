@@ -7,7 +7,7 @@ function installSlowTokenStore(loadDelayMs: number): { stored: string[] } {
   const stored: string[] = [];
   const globals = globalThis as TauriGlobal;
   globals.window = {
-    ...(globals.window ?? {}),
+    ...globals.window,
     __TAURI_INTERNALS__: {
       invoke: (command: string, args?: { token?: string }) => {
         if (command === "load_auth_token") {
@@ -56,7 +56,7 @@ test("a sign-out during a pending credential load stays signed out", async () =>
 test("a vault that refuses the credential keeps the in-memory session and reports it", async () => {
   const globals = globalThis as TauriGlobal;
   globals.window = {
-    ...(globals.window ?? {}),
+    ...globals.window,
     __TAURI_INTERNALS__: {
       invoke: (command: string) => {
         if (command === "load_auth_token") return Promise.resolve(null);

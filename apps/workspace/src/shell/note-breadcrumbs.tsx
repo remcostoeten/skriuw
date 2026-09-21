@@ -71,7 +71,9 @@ export function NoteBreadcrumbs({ store, titleOnly = false }: Props) {
   const ancestors = titleOnly ? [] : crumbs.slice(0, -1);
   const note = crumbs[crumbs.length - 1] as Crumb;
   const visibleAncestors =
-    ancestors.length > MAX_ANCESTORS ? ancestors.slice(ancestors.length - MAX_ANCESTORS) : ancestors;
+    ancestors.length > MAX_ANCESTORS
+      ? ancestors.slice(ancestors.length - MAX_ANCESTORS)
+      : ancestors;
   const hiddenCount = ancestors.length - visibleAncestors.length;
 
   return (

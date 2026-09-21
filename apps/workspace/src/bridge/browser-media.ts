@@ -86,9 +86,7 @@ async function contentHashOf(bytes: Uint8Array): Promise<string> {
     "SHA-256",
     bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
   );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 export async function storeBrowserMediaBlob(bytes: Uint8Array): Promise<StoredImagePayload> {
@@ -116,10 +114,7 @@ export async function storeBrowserMediaBlob(bytes: Uint8Array): Promise<StoredIm
  * Returns the stored blob as a `File` handle. Object URLs made from it
  * stream from disk on demand, so playback never copies the file into memory.
  */
-export async function browserMediaFile(
-  contentHash: string,
-  mimeType: string,
-): Promise<File> {
+export async function browserMediaFile(contentHash: string, mimeType: string): Promise<File> {
   validateContentHash(contentHash);
   const directory = await blobsDirectory();
   const handle = await directory.getFileHandle(blobFileName(contentHash, mimeType));
@@ -154,15 +149,11 @@ export async function listBrowserMediaBlobs(): Promise<MediaBlobPayload[]> {
   }
   return entries.sort(
     (left, right) =>
-      right.modifiedAtMs - left.modifiedAtMs ||
-      left.contentHash.localeCompare(right.contentHash),
+      right.modifiedAtMs - left.modifiedAtMs || left.contentHash.localeCompare(right.contentHash),
   );
 }
 
-export async function deleteBrowserMediaBlob(
-  contentHash: string,
-  mimeType: string,
-): Promise<void> {
+export async function deleteBrowserMediaBlob(contentHash: string, mimeType: string): Promise<void> {
   validateContentHash(contentHash);
   const directory = await blobsDirectory();
   await directory.removeEntry(blobFileName(contentHash, mimeType));

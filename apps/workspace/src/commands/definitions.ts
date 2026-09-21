@@ -225,25 +225,23 @@ const TAB_INDEX_DEFINITIONS: readonly ShortcutDefinition[] = [
  * use sequence shortcuts. Every binding stays silent behind a modal so the
  * command palette and settings keep ownership of the keyboard.
  */
-const RAIL_NAVIGATION_DEFINITIONS: readonly ShortcutDefinition[] = RAIL_ITEMS.map(
-  (item, index) => {
-    const position = index + 1;
-    const destination = item.label.toLowerCase();
-    return {
-      id: item.actionId,
-      keys: railModShiftKeys(position),
-      secondaryKeys: item.section === "utility" ? railSequenceKeys(position) : undefined,
-      label: `Go to ${destination}`,
-      description:
-        item.section === "utility"
-          ? `Go to ${destination}. Also fires as g then t then ${position}.`
-          : `Go to ${destination}.`,
-      group: "Navigation",
-      worksWhileTyping: true,
-      guards: ["modal"],
-    };
-  },
-);
+const RAIL_NAVIGATION_DEFINITIONS: readonly ShortcutDefinition[] = RAIL_ITEMS.map((item, index) => {
+  const position = index + 1;
+  const destination = item.label.toLowerCase();
+  return {
+    id: item.actionId,
+    keys: railModShiftKeys(position),
+    secondaryKeys: item.section === "utility" ? railSequenceKeys(position) : undefined,
+    label: `Go to ${destination}`,
+    description:
+      item.section === "utility"
+        ? `Go to ${destination}. Also fires as g then t then ${position}.`
+        : `Go to ${destination}.`,
+    group: "Navigation",
+    worksWhileTyping: true,
+    guards: ["modal"],
+  };
+});
 
 export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
   {
@@ -859,8 +857,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "findInNote",
     keys: "mod+f",
     label: "Find in note",
-    description:
-      "Toggle the find panel — a second press closes it and returns focus to the note.",
+    description: "Toggle the find panel — a second press closes it and returns focus to the note.",
     group: "Editor search",
     worksWhileTyping: true,
     allScopes: ["notes-route", "note-focus"],

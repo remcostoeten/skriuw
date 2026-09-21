@@ -51,7 +51,10 @@ test("mention suggestions group people and notes and exclude the active note", (
     grouped.people.map((suggestion) => suggestion.label),
     ["Ada", "Bob"],
   );
-  assert.equal(grouped.notes.some((suggestion) => suggestion.id === state.activeNoteId), false);
+  assert.equal(
+    grouped.notes.some((suggestion) => suggestion.id === state.activeNoteId),
+    false,
+  );
   assert.equal(
     grouped.notes.every((suggestion) => suggestion.kind === "note"),
     true,
@@ -68,7 +71,10 @@ test("excluding the active note does not consume a suggestion slot", () => {
   const state = createInitialState(snapshot, undefined, references);
   const grouped = queryMentionSuggestions(state, "");
   assert.equal(grouped.notes.length, SUGGESTION_LIMIT);
-  assert.equal(grouped.notes.some((suggestion) => suggestion.id === state.activeNoteId), false);
+  assert.equal(
+    grouped.notes.some((suggestion) => suggestion.id === state.activeNoteId),
+    false,
+  );
 });
 
 test("trashed notes are never offered as mention targets", () => {

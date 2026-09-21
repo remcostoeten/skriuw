@@ -72,9 +72,7 @@ export function isDrawingColor(value: unknown): value is string {
 
 function isFiniteCoordinate(value: unknown): value is number {
   return (
-    typeof value === "number" &&
-    Number.isFinite(value) &&
-    Math.abs(value) <= MAX_DRAWING_COORDINATE
+    typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= MAX_DRAWING_COORDINATE
   );
 }
 
@@ -324,7 +322,13 @@ export function extractDrawingFence(markdown: string): {
     if (layer === null) continue;
     let start = open;
     while (start > 0 && lines[start - 1]?.trim() === "") start -= 1;
-    return { markdown: lines.slice(0, start).concat(lines.slice(close + 1)).join("\n"), layer };
+    return {
+      markdown: lines
+        .slice(0, start)
+        .concat(lines.slice(close + 1))
+        .join("\n"),
+      layer,
+    };
   }
   return { markdown, layer: null };
 }

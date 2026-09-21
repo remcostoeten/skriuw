@@ -107,7 +107,12 @@ export class BrowserStorageWorkerClient {
     } finally {
       this.#worker.terminate();
       this.#rejectAll(
-        failure("shutdown", "Browser storage has closed.", "Create a new worker to reopen it.", true),
+        failure(
+          "shutdown",
+          "Browser storage has closed.",
+          "Create a new worker to reopen it.",
+          true,
+        ),
       );
       this.#lifecycle = "closed";
     }
@@ -235,9 +240,7 @@ export class BrowserStorageWorkerClient {
 
 function isStartedEvent(value: unknown): boolean {
   return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as { kind?: unknown }).kind === "started"
+    typeof value === "object" && value !== null && (value as { kind?: unknown }).kind === "started"
   );
 }
 

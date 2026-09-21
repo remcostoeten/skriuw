@@ -6,11 +6,7 @@ import {
   threadsForNote,
 } from "../../../src/features/note-chrome/annotation-list";
 
-function thread(
-  id: string,
-  noteId: string,
-  createdAt: number,
-): WorkspaceAnnotation {
+function thread(id: string, noteId: string, createdAt: number): WorkspaceAnnotation {
   return {
     id,
     noteId,
@@ -24,7 +20,7 @@ function thread(
 
 test("anchored ids come from the saved markdown, not the rendered window", () => {
   const markdown = [
-    "The claim <mark data-skriuw-annotation=\"thread-a\">needs a source</mark> here.",
+    'The claim <mark data-skriuw-annotation="thread-a">needs a source</mark> here.',
     "Later <mark data-skriuw-annotation='thread-b'>another anchor</mark> appears.",
   ].join("\n\n");
 

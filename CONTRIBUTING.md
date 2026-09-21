@@ -31,6 +31,16 @@ Build individual targets with:
 ./bin/build desktop
 ```
 
+TypeScript is formatted by oxfmt and linted by oxlint; both run inside `./bin/check`. Run them directly from the repository root:
+
+```bash
+bun run format        # rewrite files in place
+bun run lint          # report findings
+bun run lint:fix      # apply safe automatic fixes
+```
+
+The rule set and the reasoning behind it are recorded in [ADR-0050](docs/adr/0050-typescript-format-and-lint.md). Fix findings rather than suppressing them; a suppression needs `-- <reason>` on the same line.
+
 See [docs/development.md](docs/development.md#commands) for the command reference.
 
 ### v2 mobile

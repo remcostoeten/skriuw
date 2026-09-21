@@ -10,11 +10,19 @@ export type RawMarkdownVimHandlers = {
   quit(): void;
 };
 
-export type RawMarkdownVimMode = "normal" | "insert" | "visual" | "visual line" | "visual block" | "replace";
+export type RawMarkdownVimMode =
+  | "normal"
+  | "insert"
+  | "visual"
+  | "visual line"
+  | "visual block"
+  | "replace";
 
 type VimModeChange = { mode: string; subMode?: string };
 
 type ExTarget = { cm6: EditorView };
+
+type VimAdapter = NonNullable<ReturnType<typeof getCM>>;
 
 type RawMarkdownVimFeedbackInput = {
   keys: readonly string[];
@@ -43,18 +51,18 @@ function defineExCommands(): void {
   exCommandsDefined = true;
   mapRowMotions();
   Vim.defineEx("write", "w", (cm) => {
-    handlersOf(cm as unknown as ExTarget)?.write();
+    handlersOf(cm)?.write();
   });
   Vim.defineEx("quit", "q", (cm) => {
-    handlersOf(cm as unknown as ExTarget)?.quit();
+    handlersOf(cm)?.quit();
   });
   Vim.defineEx("wq", undefined, (cm) => {
-    const handlers = handlersOf(cm as unknown as ExTarget);
+    const handlers = handlersOf(cm);
     handlers?.write();
     handlers?.quit();
   });
   Vim.defineEx("xit", "x", (cm) => {
-    const handlers = handlersOf(cm as unknown as ExTarget);
+    const handlers = handlersOf(cm);
     handlers?.write();
     handlers?.quit();
   });
@@ -83,7 +91,8 @@ function pluralized(count: number, singular: string): string {
 
 function changedText(before: string, after: string): { removed: string; inserted: string } {
   let start = 0;
-  while (start < before.length && start < after.length && before[start] === after[start]) start += 1;
+  while (start < before.length && start < after.length && before[start] === after[start])
+    start += 1;
   let beforeEnd = before.length;
   let afterEnd = after.length;
   while (beforeEnd > start && afterEnd > start && before[beforeEnd - 1] === after[afterEnd - 1]) {
@@ -113,7 +122,9 @@ export function describeRawMarkdownVimFeedback(input: RawMarkdownVimFeedbackInpu
   const { command, count } = keyCommand(input.keys);
   const selected = input.before.slice(input.selectionFrom, input.selectionTo);
   const change = changedText(input.before, input.after);
-  const visualCount = input.visualLine ? lineCount(selected) : Math.max(1, Array.from(selected).length);
+  const visualCount = input.visualLine
+    ? lineCount(selected)
+    : Math.max(1, Array.from(selected).length);
   const visualUnit = input.visualLine ? "line" : "character";
   if (/^(?:y|Y)$/u.test(command) && input.selectionFrom !== input.selectionTo) {
     return `${pluralized(visualCount, visualUnit)} yanked`;
@@ -127,7 +138,8 @@ export function describeRawMarkdownVimFeedback(input: RawMarkdownVimFeedbackInpu
   if (/^(?:yy|Y)$/u.test(command)) return `${pluralized(count, "line")} yanked`;
   if (/^dd$/u.test(command)) return `${pluralized(count, "line")} deleted`;
   if (/^(?:cc|S)$/u.test(command)) return `${pluralized(count, "line")} changed`;
-  if (/^(?:>>|<<)$/u.test(command)) return `${pluralized(count, "line")} ${command === ">>" ? "indented" : "outdented"}`;
+  if (/^(?:>>|<<)$/u.test(command))
+    return `${pluralized(count, "line")} ${command === ">>" ? "indented" : "outdented"}`;
   if (/^(?:x|X)$/u.test(command) && change.removed.length > 0) {
     return `${pluralized(Array.from(change.removed).length, "character")} deleted`;
   }
@@ -186,12 +198,19 @@ export function observeRawMarkdownVimMode(
     onChange(null);
     return () => undefined;
   }
-  const listener = (change: VimModeChange) => {
+  function listener(change: VimModeChange) {
     onChange(describeRawMarkdownVimMode(change));
-  };
+  }
   cm.on("vim-mode-change", listener);
   const current = cm.state.vim;
-  onChange(current ? describeRawMarkdownVimMode({ mode: current.insertMode ? "insert" : current.visualMode ? "visual" : "normal", subMode: current.visualLine ? "linewise" : current.visualBlock ? "blockwise" : undefined }) : "normal");
+  onChange(
+    current
+      ? describeRawMarkdownVimMode({
+          mode: current.insertMode ? "insert" : current.visualMode ? "visual" : "normal",
+          subMode: current.visualLine ? "linewise" : current.visualBlock ? "blockwise" : undefined,
+        })
+      : "normal",
+  );
   return () => {
     cm.off("vim-mode-change", listener);
   };
@@ -203,12 +222,20 @@ export function observeRawMarkdownVimFeedback(
 ): () => void {
   const cm = getCM(view);
   if (!cm) return () => undefined;
+  return observeVimAdapterFeedback(view, cm, onChange);
+}
+
+function observeVimAdapterFeedback(
+  view: EditorView,
+  cm: VimAdapter,
+  onChange: (message: string | null) => void,
+): () => void {
   let keys: string[] = [];
   let before = view.state.doc.toString();
   let selectionFrom = view.state.selection.main.from;
   let selectionTo = view.state.selection.main.to;
   let visualLine = cm.state.vim?.visualLine === true;
-  const inputListener = (event: { type?: string; key?: string }) => {
+  function inputListener(event: { type?: string; key?: string }) {
     if (event.type !== "handleKey" || !event.key) return;
     if (keys.length === 0) {
       before = view.state.doc.toString();
@@ -218,8 +245,8 @@ export function observeRawMarkdownVimFeedback(
       onChange(null);
     }
     keys.push(event.key);
-  };
-  const commandListener = () => {
+  }
+  function commandListener() {
     const vim = cm.state.vim;
     const input = vim?.inputState;
     const pending = Boolean(
@@ -241,7 +268,7 @@ export function observeRawMarkdownVimFeedback(
     });
     keys = [];
     if (message) onChange(message);
-  };
+  }
   cm.on("inputEvent", inputListener);
   cm.on("vim-keypress", commandListener);
   return () => {

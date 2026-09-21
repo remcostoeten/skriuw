@@ -55,9 +55,7 @@ export function nextFolderExpansion(
   nodes: ReadonlyMap<string, NodeRecord>,
   expandedIds: ReadonlySet<string>,
 ): ReadonlySet<string> {
-  const anyExpandedFolder = [...expandedIds].some(
-    (id) => nodes.get(id)?.kind === "folder",
-  );
+  const anyExpandedFolder = [...expandedIds].some((id) => nodes.get(id)?.kind === "folder");
   if (anyExpandedFolder) {
     return new Set();
   }

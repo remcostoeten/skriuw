@@ -1,10 +1,7 @@
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
-import type {
-  MentionContext,
-  MentionMenuItem,
-} from "./mention-plugin";
+import type { MentionContext, MentionMenuItem } from "./mention-plugin";
 import {
   acceptMentionItem,
   mentionMenuItems,

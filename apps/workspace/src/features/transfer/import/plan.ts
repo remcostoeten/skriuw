@@ -10,11 +10,7 @@ import type {
   MarkdownReferenceTarget,
 } from "@/features/transfer/export/markdown-transfer-model";
 import { planMarkdownImport } from "@/features/transfer/export/markdown-transfer-model";
-import type {
-  ImportBundle,
-  ImportedNote,
-  ImportedNoteProperty,
-} from "./model";
+import type { ImportBundle, ImportedNote, ImportedNoteProperty } from "./model";
 
 export type ImportTagTarget = {
   id: string;
@@ -54,9 +50,7 @@ function normalizeTreePath(path: string): string {
 }
 
 function importedTime(value: number | undefined, fallback: number): number {
-  return value !== undefined && Number.isFinite(value) && value >= 0
-    ? Math.trunc(value)
-    : fallback;
+  return value !== undefined && Number.isFinite(value) && value >= 0 ? Math.trunc(value) : fallback;
 }
 
 function toNoteProperty(
@@ -103,12 +97,7 @@ function buildPropertyOperations(
 ): WorkspaceOperation[] {
   return properties.map((imported, position) => ({
     type: "set_note_property",
-    property: toNoteProperty(
-      imported,
-      noteId,
-      startPosition + position,
-      makeId,
-    ),
+    property: toNoteProperty(imported, noteId, startPosition + position, makeId),
     at,
   }));
 }
@@ -158,8 +147,7 @@ const MAX_IMPORTED_TAGS_PER_PROPERTY = 64;
 
 function validImportedTag(raw: string): string | null {
   const name = raw.trim();
-  return name.length > 0 &&
-    new TextEncoder().encode(name).length <= MAX_IMPORTED_TAG_BYTES
+  return name.length > 0 && new TextEncoder().encode(name).length <= MAX_IMPORTED_TAG_BYTES
     ? name
     : null;
 }
@@ -326,8 +314,9 @@ export function planImportBundle(
     notes: includedNotes,
     directories: bundle.directories.filter((directory) => {
       const prefix = `${normalizeTreePath(directory)}/`;
-      const holdsNote = (note: ImportedNote) =>
-        normalizeTreePath(note.relativePath).startsWith(prefix);
+      function holdsNote(note: ImportedNote) {
+        return normalizeTreePath(note.relativePath).startsWith(prefix);
+      }
       return includedNotes.some(holdsNote) || !bundle.notes.some(holdsNote);
     }),
   };
@@ -349,10 +338,7 @@ export function planImportBundle(
     },
   );
   const noteByPath = new Map(
-    plannedBundle.notes.map((note) => [
-      normalizeTreePath(note.relativePath),
-      note,
-    ]),
+    plannedBundle.notes.map((note) => [normalizeTreePath(note.relativePath), note]),
   );
   const idToPath = new Map(plan.notes.map((note) => [note.id, note.relativePath]));
   const propertyOperations: WorkspaceOperation[] = [];
@@ -379,17 +365,13 @@ export function planImportBundle(
         );
         propertyOperations.push(
           ...(options.existingPropertiesByNoteId?.get(operation.id) ?? [])
-            .filter((property) =>
-              importedNames.has(property.name.trim().toLowerCase()),
-            )
-            .map(
-              (property): WorkspaceOperation => ({
-                type: "remove_note_property",
-                noteId: operation.id,
-                propertyId: property.id,
-                at,
-              }),
-            ),
+            .filter((property) => importedNames.has(property.name.trim().toLowerCase()))
+            .map((property): WorkspaceOperation => ({
+              type: "remove_note_property",
+              noteId: operation.id,
+              propertyId: property.id,
+              at,
+            })),
         );
       }
       propertyOperations.push(
@@ -409,12 +391,7 @@ export function planImportBundle(
       }
     }
   }
-  const tags = resolveImportedTags(
-    plannedBundle,
-    existingTags,
-    at,
-    makeId,
-  );
+  const tags = resolveImportedTags(plannedBundle, existingTags, at, makeId);
   plan.operations.push(...tags.operations);
   let tagSkippedNotes = 0;
   let tagPropertyNotes = 0;
@@ -426,38 +403,24 @@ export function planImportBundle(
     const path = idToPath.get(operation.noteId);
     const note = path === undefined ? undefined : noteByPath.get(path);
     if (note) {
-      operation.at = importedTime(
-        note.modifiedAt,
-        importedTime(note.createdAt, at),
-      );
+      operation.at = importedTime(note.modifiedAt, importedTime(note.createdAt, at));
     }
     if (!note?.tags || note.tags.length === 0) {
       continue;
     }
     if (hasLosslessMarkdownDocument(operation.documentJson)) {
       const valid = note.tags.map(validImportedTag);
-      const unique = [
-        ...new Set(valid.filter((tag) => tag !== null)),
-      ];
+      const unique = [...new Set(valid.filter((tag) => tag !== null))];
       skippedTags += valid.filter((tag) => tag === null).length;
-      skippedTags += Math.max(
-        0,
-        unique.length - MAX_IMPORTED_TAGS_PER_PROPERTY,
-      );
+      skippedTags += Math.max(0, unique.length - MAX_IMPORTED_TAGS_PER_PROPERTY);
       const values = unique.slice(0, MAX_IMPORTED_TAGS_PER_PROPERTY);
       if (values.length > 0) {
-        const references = appendRawTagReferences(
-          operation.documentJson,
-          values,
-          tags.idByName,
-        );
+        const references = appendRawTagReferences(operation.documentJson, values, tags.idByName);
         if (references) {
           operation.documentJson = references;
         }
         const tagsPosition =
-          nextPositionByNoteId.get(operation.noteId) ??
-          note.properties?.length ??
-          0;
+          nextPositionByNoteId.get(operation.noteId) ?? note.properties?.length ?? 0;
         propertyOperations.push(
           ...buildPropertyOperations(
             [{ name: "Tags", value: { type: "list", values } }],
@@ -503,18 +466,16 @@ export function planImportBundle(
   plan.operations.push(...propertyOperations, ...pinnedOperations);
   if (options.sourceKey) {
     plan.operations.push(
-      ...plan.notes.map(
-        (note): WorkspaceOperation => ({
-          type: "record_provider_import",
-          receipt: {
-            provider: bundle.sourceId,
-            sourceKey: options.sourceKey ?? "",
-            sourcePath: note.relativePath,
-            noteId: note.id,
-            importedAt: at,
-          },
-        }),
-      ),
+      ...plan.notes.map((note): WorkspaceOperation => ({
+        type: "record_provider_import",
+        receipt: {
+          provider: bundle.sourceId,
+          sourceKey: options.sourceKey ?? "",
+          sourcePath: note.relativePath,
+          noteId: note.id,
+          importedAt: at,
+        },
+      })),
     );
   }
   return {
@@ -581,10 +542,7 @@ export function applyImportGrouping(
   const rootOperations = operations.filter(
     (
       operation,
-    ): operation is Extract<
-      WorkspaceOperation,
-      { type: "create_folder" | "create_note" }
-    > =>
+    ): operation is Extract<WorkspaceOperation, { type: "create_folder" | "create_note" }> =>
       (operation.type === "create_folder" || operation.type === "create_note") &&
       operation.placement.parentId === null,
   );
@@ -621,9 +579,7 @@ export function applyImportGrouping(
     const years = [
       ...new Set(
         rootOperations.flatMap((operation) =>
-          operation.type === "create_note"
-            ? [new Date(operation.at).getFullYear()]
-            : [],
+          operation.type === "create_note" ? [new Date(operation.at).getFullYear()] : [],
         ),
       ),
     ].sort((left, right) => left - right);

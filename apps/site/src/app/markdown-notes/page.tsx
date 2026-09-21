@@ -132,13 +132,15 @@ export default function MarkdownNotesPage() {
                 <li className="flex gap-3">
                   <span aria-hidden className="mt-2.5 size-1 shrink-0 rounded-full bg-ink-300" />
                   <span>
-                    Link to <span className="text-ink-900 underline decoration-ink-300">Reading list</span>
+                    Link to{" "}
+                    <span className="text-ink-900 underline decoration-ink-300">Reading list</span>
                   </span>
                 </li>
                 <li className="flex gap-3">
                   <span aria-hidden className="mt-2.5 size-1 shrink-0 rounded-full bg-ink-300" />
                   <span>
-                    Tag the idea with <span className="font-mono text-[13px] text-clay-500">#reference</span>
+                    Tag the idea with{" "}
+                    <span className="font-mono text-[13px] text-clay-500">#reference</span>
                   </span>
                 </li>
                 <li className="flex gap-3">

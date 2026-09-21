@@ -114,7 +114,11 @@ export function createFakeSkriuwCore(options: FakeCoreOptions = {}): FakeSkriuwC
       requireOpen();
       const document = (await durable.readWorkspaceDelta([noteId])).documents[0];
       if (!document) {
-        throw new SkriuwCoreError({ kind: "not-found", message: `no document ${noteId}`, id: noteId });
+        throw new SkriuwCoreError({
+          kind: "not-found",
+          message: `no document ${noteId}`,
+          id: noteId,
+        });
       }
       return JSON.stringify(document);
     },

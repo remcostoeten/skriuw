@@ -59,17 +59,11 @@ export function addPropertyOperations(
   return [{ type: "set_note_property", property, at }];
 }
 
-export function updatePropertyOperations(
-  property: NoteProperty,
-  at: number,
-): WorkspaceOperation[] {
+export function updatePropertyOperations(property: NoteProperty, at: number): WorkspaceOperation[] {
   return [{ type: "set_note_property", property, at }];
 }
 
-export function deletePropertyOperations(
-  property: NoteProperty,
-  at: number,
-): WorkspaceOperation[] {
+export function deletePropertyOperations(property: NoteProperty, at: number): WorkspaceOperation[] {
   return [
     {
       type: "remove_note_property",
@@ -114,24 +108,21 @@ export function applyTemplateOperations(
 ): WorkspaceOperation[] {
   const instantiated = instantiatePropertyTemplate(template, noteId, createId);
   return [
-    ...properties.map(
-      (property): WorkspaceOperation => ({
-        type: "remove_note_property",
-        noteId,
-        propertyId: property.id,
-        at,
-      }),
-    ),
-    ...instantiated.map(
-      (property): WorkspaceOperation => ({ type: "set_note_property", property, at }),
-    ),
+    ...properties.map((property): WorkspaceOperation => ({
+      type: "remove_note_property",
+      noteId,
+      propertyId: property.id,
+      at,
+    })),
+    ...instantiated.map((property): WorkspaceOperation => ({
+      type: "set_note_property",
+      property,
+      at,
+    })),
   ];
 }
 
-export function replaceStringValue(
-  value: NotePropertyValue,
-  nextValue: string,
-): NotePropertyValue {
+export function replaceStringValue(value: NotePropertyValue, nextValue: string): NotePropertyValue {
   if (
     value.type !== "text" &&
     value.type !== "date" &&

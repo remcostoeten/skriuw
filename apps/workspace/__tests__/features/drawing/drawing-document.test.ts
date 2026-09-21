@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { history, redo, undo } from "prosemirror-history";
 import { EditorState, type Transaction } from "prosemirror-state";
-import {
-  type DrawingLayer,
-  parseDrawingLayer,
-} from "../../../src/features/editor/drawing-layer";
+import { type DrawingLayer, parseDrawingLayer } from "../../../src/features/editor/drawing-layer";
 import {
   parseProductMarkdown,
   productSchema,

@@ -42,11 +42,7 @@ function parseItem(relativePath: string, content: string): JoplinItem | null {
     return null;
   }
   const title = (lines[0] ?? "").trim();
-  const body = lines
-    .slice(1, metadataStart)
-    .join("\n")
-    .replace(/^\n+/, "")
-    .replace(/\n+$/, "");
+  const body = lines.slice(1, metadataStart).join("\n").replace(/^\n+/, "").replace(/\n+$/, "");
   return { relativePath, title, body, metadata };
 }
 

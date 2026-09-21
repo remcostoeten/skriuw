@@ -133,7 +133,9 @@ export function TreeRow({ id, onPress, onLongPress, onDelete }: Props) {
         accessibilityLabel={treeRowAccessibilityLabel(row)}
         accessibilityHint={treeRowAccessibilityHint(row)}
         accessibilityState={
-          row.kind === "folder" ? { expanded: row.expanded, selected: row.active } : { selected: row.active }
+          row.kind === "folder"
+            ? { expanded: row.expanded, selected: row.active }
+            : { selected: row.active }
         }
         {...responder.panHandlers}
         style={[
@@ -162,9 +164,7 @@ export function TreeRow({ id, onPress, onLongPress, onDelete }: Props) {
         <Text numberOfLines={1} style={[styles.title, { color: foreground }]}>
           {row.title}
         </Text>
-        {row.pinned ? (
-          <ShellIcon name="pin" size={14} color={theme.color("favorite")} />
-        ) : null}
+        {row.pinned ? <ShellIcon name="pin" size={14} color={theme.color("favorite")} /> : null}
         {row.kind === "folder" ? (
           <Text style={[styles.count, { color: theme.color("sidebar-foreground", 0.45) }]}>
             {row.childCount}

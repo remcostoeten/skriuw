@@ -138,9 +138,7 @@ export function encodeModelFilter(providerId: string, modelId: string): string {
   return `${providerId}${FILTER_SEPARATOR}${modelId}`;
 }
 
-export function decodeModelFilter(
-  value: string,
-): { providerId: string; modelId: string } | null {
+export function decodeModelFilter(value: string): { providerId: string; modelId: string } | null {
   const index = value.indexOf(FILTER_SEPARATOR);
   if (index <= 0) {
     return null;
@@ -161,9 +159,7 @@ export function runFilterOptions(aggregates: readonly AiUsageAggregate[]): {
     models.set(value, { value, label: `${bucket.providerId} · ${bucket.modelId}` });
   }
   return {
-    providers: [...providers.values()].sort((left, right) =>
-      left.label.localeCompare(right.label),
-    ),
+    providers: [...providers.values()].sort((left, right) => left.label.localeCompare(right.label)),
     models: [...models.values()].sort((left, right) => left.label.localeCompare(right.label)),
   };
 }

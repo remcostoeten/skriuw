@@ -168,9 +168,7 @@ function PaletteBody({ items, onQueryChange, notice, paletteShortcut }: BodyProp
         ) : (
           groups.map((group) => (
             <div key={group.group}>
-              <div className={cn("px-2.5 pb-1 pt-2", sectionLabelClass)}>
-                {group.group}
-              </div>
+              <div className={cn("px-2.5 pb-1 pt-2", sectionLabelClass)}>{group.group}</div>
               {group.items.map((item) => {
                 runningIndex += 1;
                 const index = runningIndex;

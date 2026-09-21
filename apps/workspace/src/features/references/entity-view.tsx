@@ -11,7 +11,11 @@ import {
 import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
 import { useShortcutBinding } from "@remcostoeten/use-shortcut/react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
-import { activateNote, commitOperations, commitReferenceOperations } from "@/store/actions/workspace";
+import {
+  activateNote,
+  commitOperations,
+  commitReferenceOperations,
+} from "@/store/actions/workspace";
 import { useRouteFocus } from "@/app-route";
 import { appRouteHash, entityFocusHash } from "@skriuw/renderer-core/route/app-route";
 import { WindowControls } from "@/shell/window-controls";
@@ -116,9 +120,13 @@ const SORT_GROUP_LABEL: Record<SortMode, string> = {
 function sortRows(rows: readonly EntityRow[], sort: SortMode): EntityRow[] {
   const sorted = [...rows];
   if (sort === "recent") {
-    sorted.sort((left, right) => right.createdAt - left.createdAt || left.name.localeCompare(right.name));
+    sorted.sort(
+      (left, right) => right.createdAt - left.createdAt || left.name.localeCompare(right.name),
+    );
   } else if (sort === "used") {
-    sorted.sort((left, right) => right.noteCount - left.noteCount || left.name.localeCompare(right.name));
+    sorted.sort(
+      (left, right) => right.noteCount - left.noteCount || left.name.localeCompare(right.name),
+    );
   } else {
     sorted.sort((left, right) => left.name.localeCompare(right.name));
   }
@@ -174,7 +182,10 @@ function entityGlyph(kind: EntityKind, size: number) {
  * initials typed for them falls back to initials read off the name rather
  * than to an empty circle.
  */
-function swatchInitials(kind: EntityKind, row: Pick<EntityRow, "name" | "initials">): string | null {
+function swatchInitials(
+  kind: EntityKind,
+  row: Pick<EntityRow, "name" | "initials">,
+): string | null {
   if (kind === "tag") {
     return null;
   }
@@ -211,7 +222,9 @@ export function EntityView({ store, kind }: Props) {
 
   function mergeInto(source: EntityRow, targetId: string): void {
     const saves = buildMergeSaveDocuments(store.getState(), kind, source.id, targetId);
-    const finalizeDelete = () => commit([buildDelete(kind, source.id)]);
+    function finalizeDelete() {
+      commit([buildDelete(kind, source.id)]);
+    }
     if (saves.length === 0) {
       finalizeDelete();
       return;
@@ -1261,7 +1274,14 @@ function MergePanel({ kind, source, targets, onMerge, onCancel }: MergePanelProp
   const [query, setQuery] = useState("");
   const [chosenId, setChosenId] = useState<string | null>(null);
   const candidates = useMemo(
-    () => sortRows(filterRows(targets.filter((row) => row.id !== source.id), query), "used"),
+    () =>
+      sortRows(
+        filterRows(
+          targets.filter((row) => row.id !== source.id),
+          query,
+        ),
+        "used",
+      ),
     [targets, source.id, query],
   );
   const chosen = targets.find((row) => row.id === chosenId) ?? null;

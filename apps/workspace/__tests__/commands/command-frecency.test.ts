@@ -45,8 +45,8 @@ test("calculates decayed frecency score based on age", () => {
     const DAY_MS = 24 * 60 * 60 * 1000;
     const store = {
       recent: { count: 10, lastUsed: now - 0.5 * DAY_MS }, // weight 1 => 10
-      weekOld: { count: 10, lastUsed: now - 3 * DAY_MS },  // weight 0.7 => 7
-      monthOld: { count: 10, lastUsed: now - 15 * DAY_MS },// weight 0.4 => 4
+      weekOld: { count: 10, lastUsed: now - 3 * DAY_MS }, // weight 0.7 => 7
+      monthOld: { count: 10, lastUsed: now - 15 * DAY_MS }, // weight 0.4 => 4
       veryOld: { count: 10, lastUsed: now - 40 * DAY_MS }, // weight 0.2 => 2
     };
     mock.store.set("skriuw:command-frecency:v1", JSON.stringify(store));
@@ -67,7 +67,10 @@ test("handles corrupt or invalid localStorage gracefully", () => {
     mock.store.set("skriuw:command-frecency:v1", "invalid json{");
     assert.deepEqual(getCommandFrecency(), {});
 
-    mock.store.set("skriuw:command-frecency:v1", JSON.stringify({ badEntry: { count: "not-a-number" } }));
+    mock.store.set(
+      "skriuw:command-frecency:v1",
+      JSON.stringify({ badEntry: { count: "not-a-number" } }),
+    );
     assert.deepEqual(getCommandFrecency(), {});
   } finally {
     mock.cleanup();

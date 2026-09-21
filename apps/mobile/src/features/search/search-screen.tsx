@@ -75,10 +75,7 @@ export function SearchScreen({ onOpenNote }: Props) {
           style={styles.saveControl}
         >
           <Text
-            style={[
-              styles.saveLabel,
-              { color: theme.color("foreground", canSave ? 0.9 : 0.35) },
-            ]}
+            style={[styles.saveLabel, { color: theme.color("foreground", canSave ? 0.9 : 0.35) }]}
           >
             {search.isQuerySaved ? "Saved" : "Save"}
           </Text>
@@ -92,9 +89,7 @@ export function SearchScreen({ onOpenNote }: Props) {
         onRemove={removeSaved}
       />
 
-      {search.saved.error === null ? null : (
-        <Notice tone="destructive" text={search.saved.error} />
-      )}
+      {search.saved.error === null ? null : <Notice tone="destructive" text={search.saved.error} />}
       {indexLine === null ? null : <Notice tone="muted" text={indexLine} />}
       {search.failure === null ? null : <Notice tone="destructive" text={search.failure} />}
       {outcome?.problems.map((problem) => (

@@ -84,10 +84,7 @@ export function projectMediaLibrary(
     const node = nodes.get(image.noteId);
     const surface = node?.parentId === JOURNAL_ROOT_ID ? "journal" : "note";
     const perHash = usageByHash.get(image.contentHash) ?? new Map<string, MediaUsage>();
-    const inlineCount = countImageReferences(
-      documents.get(image.noteId)?.documentJson,
-      image.id,
-    );
+    const inlineCount = countImageReferences(documents.get(image.noteId)?.documentJson, image.id);
     if (inlineCount > 0) {
       addUsage(perHash, {
         noteId: image.noteId,
@@ -124,8 +121,7 @@ export function projectMediaLibrary(
     }
     return [...perHash.values()].sort(
       (left, right) =>
-        left.title.localeCompare(right.title) ||
-        left.placement.localeCompare(right.placement),
+        left.title.localeCompare(right.title) || left.placement.localeCompare(right.placement),
     );
   }
 

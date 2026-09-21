@@ -25,48 +25,48 @@ function inScope(url) {
   return url.origin === self.location.origin && url.pathname.startsWith(SHELL_URL);
 }
 
-self.addEventListener("install", function (event) {
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(function (cache) {
+    caches.open(CACHE_NAME).then((cache) => {
       return cache.add(new Request(SHELL_URL, { cache: "reload" }));
     }),
   );
 });
 
-self.addEventListener("activate", function (event) {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then(function (keys) {
+      .then((keys) => {
         return Promise.all(
           keys
-            .filter(function (key) {
+            .filter((key) => {
               return key !== CACHE_NAME;
             })
-            .map(function (key) {
+            .map((key) => {
               return caches.delete(key);
             }),
         );
       })
-      .then(function () {
+      .then(() => {
         return self.clients.claim();
       }),
   );
 });
 
-self.addEventListener("message", function (event) {
+self.addEventListener("message", (event) => {
   if (event.data === "skriuw:activate-update") {
     void self.skipWaiting();
   }
 });
 
 function cacheFirst(request) {
-  return caches.open(CACHE_NAME).then(function (cache) {
-    return cache.match(request).then(function (cached) {
+  return caches.open(CACHE_NAME).then((cache) => {
+    return cache.match(request).then((cached) => {
       if (cached) {
         return cached;
       }
-      return fetch(request).then(function (response) {
+      return fetch(request).then((response) => {
         if (response.ok && response.type === "basic") {
           void cache.put(request, response.clone());
         }
@@ -78,16 +78,16 @@ function cacheFirst(request) {
 
 function shellResponse() {
   const request = new Request(SHELL_URL);
-  return caches.open(CACHE_NAME).then(function (cache) {
-    return cache.match(request).then(function (cached) {
+  return caches.open(CACHE_NAME).then((cache) => {
+    return cache.match(request).then((cached) => {
       const network = fetch(request)
-        .then(function (response) {
+        .then((response) => {
           if (response.ok && response.type === "basic") {
             void cache.put(request, response.clone());
           }
           return response;
         })
-        .catch(function (error) {
+        .catch((error) => {
           if (cached) {
             return cached;
           }
@@ -98,7 +98,7 @@ function shellResponse() {
   });
 }
 
-self.addEventListener("fetch", function (event) {
+self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET" || request.headers.has("range")) {
     return;

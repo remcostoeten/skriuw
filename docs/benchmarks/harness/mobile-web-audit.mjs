@@ -77,7 +77,7 @@ async function resolveFile(pathname) {
       const info = await stat(candidate);
       if (info.isFile()) return candidate;
     } catch {
-      // Try the next shape.
+      continue;
     }
   }
   return null;
@@ -290,8 +290,12 @@ try {
   }
 
   const sorted = [...coldStart].sort((left, right) => left - right);
-  const at = (quantile) => sorted[Math.min(sorted.length - 1, Math.floor(quantile * sorted.length))];
-  const round = (value) => Math.round(value * 100) / 100;
+  function at(quantile) {
+    return sorted[Math.min(sorted.length - 1, Math.floor(quantile * sorted.length))];
+  }
+  function round(value) {
+    return Math.round(value * 100) / 100;
+  }
   const report = {
     environment: {
       date: new Date().toISOString(),

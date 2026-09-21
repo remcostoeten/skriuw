@@ -70,10 +70,7 @@ export function PanelResizeHandle({
       if (!origin) {
         return;
       }
-      const travel =
-        side === "left"
-          ? pointerX - origin.pointerX
-          : origin.pointerX - pointerX;
+      const travel = side === "left" ? pointerX - origin.pointerX : origin.pointerX - pointerX;
       const raw = origin.width + travel;
       if (bounds.shouldCollapse(raw)) {
         draftRef.current = { width: draftRef.current.width, collapsed: true };
@@ -119,17 +116,7 @@ export function PanelResizeHandle({
       onExpand();
       onResize(draft.width);
     };
-  }, [
-    bounds,
-    dragging,
-    offsetBase,
-    onCollapse,
-    onDragChange,
-    onExpand,
-    onPreview,
-    onResize,
-    side,
-  ]);
+  }, [bounds, dragging, offsetBase, onCollapse, onDragChange, onExpand, onPreview, onResize, side]);
 
   function nudge(delta: number) {
     const next = bounds.clamp((collapsed ? 0 : width) + delta);

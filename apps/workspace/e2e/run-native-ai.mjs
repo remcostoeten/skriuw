@@ -21,8 +21,9 @@ const output = resolve(
 // the scenario uses the smallest model Ollama publishes and deletes it again.
 const PULL_MODEL = "all-minilm";
 const KEY = { control: "", enter: "", escape: "" };
-const sleep = (milliseconds) =>
-  new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
+function sleep(milliseconds) {
+  return new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
+}
 
 function noop() {}
 
@@ -56,7 +57,7 @@ async function driverRequest(method, path, body) {
   const response = await fetch(`${driverBaseUrl}${path}`, {
     method,
     headers: { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     signal: AbortSignal.timeout(60_000),
   });
   const payload = await response.json();
@@ -222,7 +223,12 @@ async function runScenario(session) {
        && document.querySelector('main[aria-labelledby="prompt-playground-title"]') === null`,
     "playground route to bounce before opt-in",
   );
-  assert(checks, "playground-route-is-unreachable-before-opt-in", true, "#/prompt-playground bounced to #/notes");
+  assert(
+    checks,
+    "playground-route-is-unreachable-before-opt-in",
+    true,
+    "#/prompt-playground bounced to #/notes",
+  );
 
   // The opt-in gate is structural: with AI off, the section must not exist at
   // all, and no Ollama work may have run just because settings opened.
@@ -262,7 +268,12 @@ async function runScenario(session) {
     "AI tab after opt-in",
   );
   const enabledTabs = await sectionTabs(session);
-  assert(checks, "opt-in-reveals-ai-section", enabledTabs.includes("AI"), JSON.stringify(enabledTabs));
+  assert(
+    checks,
+    "opt-in-reveals-ai-section",
+    enabledTabs.includes("AI"),
+    JSON.stringify(enabledTabs),
+  );
 
   await session.script(`
     [...document.querySelectorAll('[role="tab"]')]
@@ -392,7 +403,8 @@ async function runScenario(session) {
   await runPlaygroundScenario(session, checks);
 
   // Deletion is armed inline before the destructive request is ever sent.
-  const armed = await session.script(`
+  const armed = await session.script(
+    `
     const section = document.querySelector('section[aria-label="AI settings"]');
     const row = [...section.querySelectorAll('[role="radiogroup"][aria-label="Local AI model"] [role="radio"]')]
       .find((radio) => radio.textContent.includes(arguments[0]))
@@ -402,14 +414,17 @@ async function runScenario(session) {
     );
     remove.click();
     return [...row.querySelectorAll('button')].map((button) => button.textContent.trim());
-  `, [PULL_MODEL]);
+  `,
+    [PULL_MODEL],
+  );
   assert(
     checks,
     "delete-arms-before-it-destroys",
     armed.includes("Confirm delete"),
     JSON.stringify(armed),
   );
-  await session.script(`
+  await session.script(
+    `
     const section = document.querySelector('section[aria-label="AI settings"]');
     const row = [...section.querySelectorAll('[role="radiogroup"][aria-label="Local AI model"] [role="radio"]')]
       .find((radio) => radio.textContent.includes(arguments[0]))
@@ -417,7 +432,9 @@ async function runScenario(session) {
     [...row.querySelectorAll('button')]
       .find((button) => button.textContent.trim() === 'Confirm delete')
       .click();
-  `, [PULL_MODEL]);
+  `,
+    [PULL_MODEL],
+  );
   await session.waitFor(
     `return [...document.querySelectorAll('section[aria-label="AI settings"] [role="radiogroup"][aria-label="Local AI model"] [role="radio"]')]
        .some((radio) => radio.textContent.includes(${JSON.stringify(PULL_MODEL)})) === false`,
@@ -482,8 +499,7 @@ async function runPlaygroundScenario(session, checks) {
   );
 
   const generation = opened.models.find(
-    (model) =>
-      !model.label.includes("Fake") && !/minilm|embed|bge/i.test(model.label),
+    (model) => !model.label.includes("Fake") && !/minilm|embed|bge/i.test(model.label),
   );
   const target = generation ?? opened.models.find((model) => model.label.includes("Fake"));
   await session.script(

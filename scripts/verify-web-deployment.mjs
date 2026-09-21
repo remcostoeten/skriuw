@@ -7,15 +7,12 @@ import { join } from "node:path";
 
 const appUrl = new URL(process.argv[2] ?? "https://skriuw.com/app/");
 const siteUrl = new URL("/", appUrl);
-const marketingRoutes = [
-  "/download/",
-  "/local-first-notes/",
-  "/markdown-notes/",
-  "/import/",
-];
+const marketingRoutes = ["/download/", "/local-first-notes/", "/markdown-notes/", "/import/"];
 const chromeBinary = process.env.CHROME_BINARY ?? "google-chrome-stable";
 const profileDirectory = await mkdtemp(join(tmpdir(), "skriuw-live-smoke-"));
-const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
 let browser;
 let socket;
 
@@ -36,11 +33,15 @@ try {
   const consoleErrors = [];
   cdp.on("Runtime.exceptionThrown", (parameters, eventSession) => {
     if (eventSession !== sessionId) return;
-    pageErrors.push(parameters.exceptionDetails.exception?.description ?? parameters.exceptionDetails.text);
+    pageErrors.push(
+      parameters.exceptionDetails.exception?.description ?? parameters.exceptionDetails.text,
+    );
   });
   cdp.on("Runtime.consoleAPICalled", (parameters, eventSession) => {
     if (eventSession !== sessionId || parameters.type !== "error") return;
-    consoleErrors.push(parameters.args.map((argument) => argument.description ?? argument.value).join(" "));
+    consoleErrors.push(
+      parameters.args.map((argument) => argument.description ?? argument.value).join(" "),
+    );
   });
   await cdp.send("Runtime.enable", {}, sessionId);
   await cdp.send("Page.enable", {}, sessionId);
@@ -129,10 +130,7 @@ async function verifyPublicSite(url) {
       `product preview has unexpected content type: ${previewImageResponse.headers.get("content-type")}`,
     );
   }
-  const [robots, sitemap] = await Promise.all([
-    robotsResponse.text(),
-    sitemapResponse.text(),
-  ]);
+  const [robots, sitemap] = await Promise.all([robotsResponse.text(), sitemapResponse.text()]);
   if (!robots.includes("Sitemap: https://skriuw.com/sitemap.xml")) {
     throw new Error("robots.txt does not advertise the canonical sitemap");
   }
@@ -190,7 +188,9 @@ async function verifyStaticDeployment(url) {
   const wasmResponse = await fetch(emittedWasm, { method: "HEAD" });
   if (!wasmResponse.ok) throw new Error(`WASM asset returned HTTP ${wasmResponse.status}`);
   if (wasmResponse.headers.get("content-type") !== "application/wasm") {
-    throw new Error(`WASM asset has unexpected content type: ${wasmResponse.headers.get("content-type")}`);
+    throw new Error(
+      `WASM asset has unexpected content type: ${wasmResponse.headers.get("content-type")}`,
+    );
   }
 }
 
@@ -243,7 +243,9 @@ function connectCdp(url) {
       resolve({
         send(method, params = {}, sessionId) {
           const id = nextId++;
-          connection.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
+          connection.send(
+            JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }),
+          );
           return new Promise((resolveCall, rejectCall) => {
             pending.set(id, { resolveCall, rejectCall, method });
           });

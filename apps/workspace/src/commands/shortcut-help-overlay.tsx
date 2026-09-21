@@ -62,9 +62,7 @@ function ComboSteps({ combo }: { combo: ShortcutHelpCombo }) {
     <span className="flex flex-none items-center gap-1">
       {combo.steps.map((step, index) => (
         <span key={`${step}-${index}`} className="flex items-center gap-1">
-          {index > 0 && (
-            <span className="text-[10px] text-muted-foreground/70">then</span>
-          )}
+          {index > 0 && <span className="text-[10px] text-muted-foreground/70">then</span>}
           <Kbd>{step}</Kbd>
         </span>
       ))}
@@ -78,17 +76,13 @@ function HelpRow({ row }: { row: ShortcutHelpRow }) {
       <span className="flex min-w-0 flex-1 items-baseline gap-2">
         <span className="truncate">{row.label}</span>
         {row.when && (
-          <span className="flex-none text-[11px] text-muted-foreground/80">
-            {row.when}
-          </span>
+          <span className="flex-none text-[11px] text-muted-foreground/80">{row.when}</span>
         )}
       </span>
       <span className="flex flex-none items-center gap-2">
         {row.combos.map((combo, index) => (
           <span key={combo.keys} className="flex items-center gap-2">
-            {index > 0 && (
-              <span className="text-[10px] text-muted-foreground/70">or</span>
-            )}
+            {index > 0 && <span className="text-[10px] text-muted-foreground/70">or</span>}
             <ComboSteps combo={combo} />
           </span>
         ))}
@@ -110,10 +104,7 @@ function ShortcutHelpDialog({ store, onOpenChange }: DialogProps) {
     sameShortcutOverrides,
   );
   const platform = detectPlatform() as ShortcutPlatform;
-  const toggleKeys = effectiveShortcutKeys(
-    shortcutDefinition("showShortcutHelp"),
-    overrides,
-  );
+  const toggleKeys = effectiveShortcutKeys(shortcutDefinition("showShortcutHelp"), overrides);
   const groups = useMemo(
     () => shortcutHelpGroups({ overrides, platform, query }),
     [overrides, platform, query],

@@ -31,9 +31,7 @@ function stateWithParagraph(text: string, trailing?: string): EditorState {
   }
   const doc = productSchema.node("doc", null, blocks);
   const state = EditorState.create({ doc, schema: productSchema });
-  return state.apply(
-    state.tr.setSelection(TextSelection.create(state.doc, 1 + text.length)),
-  );
+  return state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1 + text.length)));
 }
 
 function runSlashCommand(id: string, initial: EditorState): EditorState {
@@ -97,10 +95,12 @@ test("parse then serialize is a fixpoint, including around other blocks", () => 
 });
 
 test("cells that cannot be a pipe table degrade to flattened inline text", () => {
-  const paragraph = (text: string) =>
-    productSchema.node("paragraph", null, productSchema.text(text));
-  const listItem = (text: string) =>
-    productSchema.node("list_item", null, paragraph(text));
+  function paragraph(text: string) {
+    return productSchema.node("paragraph", null, productSchema.text(text));
+  }
+  function listItem(text: string) {
+    return productSchema.node("list_item", null, paragraph(text));
+  }
   const table = productSchema.node("table", null, [
     productSchema.node("table_row", null, [
       productSchema.node("table_header", null, paragraph("H")),
@@ -117,10 +117,7 @@ test("cells that cannot be a pipe table degrade to flattened inline text", () =>
   const serialized = serializeProductMarkdown(productSchema.node("doc", null, [table]));
 
   assert.equal(serialized, "| H |\n| --- |\n| one two |\n| first second |\n");
-  assert.equal(
-    serializeProductMarkdown(parseProductMarkdown(serialized)),
-    serialized,
-  );
+  assert.equal(serializeProductMarkdown(parseProductMarkdown(serialized)), serialized);
 });
 
 test("the table slash command inserts a 3x3 table with a header row", () => {

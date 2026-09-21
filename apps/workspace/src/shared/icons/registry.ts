@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { ComponentType, SVGProps } from "react";
+import type * as AnimatedComponents from "./animated-components";
 import {
   CalendarDaysIcon,
   ChevronLeftIcon,
@@ -16,20 +17,20 @@ import {
   UsersIcon,
 } from "./static";
 
-export type StaticIconComponent = ComponentType<
-  SVGProps<SVGSVGElement> & { size?: number }
->;
+export type StaticIconComponent = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>;
+
+type AnimatedIconRender = ComponentType<{
+  size?: number;
+  animate?: boolean;
+  className?: string;
+}>;
 
 /**
  * Both icon sources are driven the same way: a boolean that is true while the
  * pointer is over the control. animate-ui takes it directly as `animate`;
  * animateicons is adapted to the same shape in `adapt-animateicons.tsx`.
  */
-export type AnimatedIconComponent = ComponentType<{
-  size?: number;
-  animate?: boolean;
-  className?: string;
-}> & {
+export type AnimatedIconComponent = AnimatedIconRender & {
   /** Starts the chunk fetch so a later hover has nothing to wait on. */
   preload: () => Promise<unknown>;
 };
@@ -41,7 +42,7 @@ type IconEntry = {
   animated?: AnimatedIconComponent;
 };
 
-type AnimatedIconModule = typeof import("./animated-components");
+type AnimatedIconModule = typeof AnimatedComponents;
 type AnimatedIconName = keyof AnimatedIconModule["ANIMATED_ICONS"];
 
 let animatedIconModule: Promise<AnimatedIconModule> | undefined;
@@ -51,15 +52,15 @@ function loadAnimatedIconModule(): Promise<AnimatedIconModule> {
 }
 
 function animated(name: AnimatedIconName): AnimatedIconComponent {
-  const load = () => loadAnimatedIconModule().then((module) => ({
-    default: module.ANIMATED_ICONS[name],
-  }));
-  const component = lazy(
-    load as () => Promise<{ default: AnimatedIconComponent }>,
-  ) as unknown as AnimatedIconComponent;
   let started: Promise<unknown> | undefined;
-  component.preload = () => (started ??= load());
-  return component;
+  function load(): Promise<{ default: AnimatedIconRender }> {
+    return loadAnimatedIconModule().then((module) => ({
+      default: module.ANIMATED_ICONS[name],
+    }));
+  }
+  return Object.assign(lazy(load), {
+    preload: () => (started ??= load()),
+  });
 }
 
 /**

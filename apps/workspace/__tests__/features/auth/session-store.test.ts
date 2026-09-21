@@ -27,9 +27,7 @@ function createStorageStub(): Storage & { map: Map<string, string> } {
   };
 }
 
-function withStorage(
-  run: (storage: ReturnType<typeof createStorageStub>) => void,
-): void {
+function withStorage(run: (storage: ReturnType<typeof createStorageStub>) => void): void {
   const globals = globalThis as StorageGlobal;
   const storage = createStorageStub();
   globals.localStorage = storage;

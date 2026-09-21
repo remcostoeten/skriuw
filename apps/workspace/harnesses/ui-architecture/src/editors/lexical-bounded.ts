@@ -1,9 +1,4 @@
-import {
-  $createHeadingNode,
-  $createQuoteNode,
-  HeadingNode,
-  QuoteNode,
-} from "@lexical/rich-text";
+import { $createHeadingNode, $createQuoteNode, HeadingNode, QuoteNode } from "@lexical/rich-text";
 import {
   $createParagraphNode,
   $createTextNode,
@@ -14,12 +9,7 @@ import {
 } from "lexical";
 
 import { createBoundedCorpus } from "../corpus";
-import type {
-  BlockCount,
-  CanonicalBlock,
-  EditorCandidate,
-  PreparedState,
-} from "../types";
+import type { BlockCount, CanonicalBlock, EditorCandidate, PreparedState } from "../types";
 
 function appendBlock(block: CanonicalBlock): void {
   const text = $createTextNode(block.text);

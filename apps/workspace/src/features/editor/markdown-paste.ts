@@ -55,8 +55,7 @@ export function markdownPasteSlice(
   if (!looksLikeMarkdown(text)) return null;
   const parsed = parseProductMarkdownWithImages(text, knownImageIds);
   if (parsed.childCount === 0) return null;
-  const onlyParagraph =
-    parsed.childCount === 1 && parsed.firstChild?.type.name === "paragraph";
+  const onlyParagraph = parsed.childCount === 1 && parsed.firstChild?.type.name === "paragraph";
   if (onlyParagraph && parsed.textContent === text.trim()) return null;
   return withFreshPastedTaskIdentities(
     new Slice(parsed.content, onlyParagraph ? 1 : 0, onlyParagraph ? 1 : 0),

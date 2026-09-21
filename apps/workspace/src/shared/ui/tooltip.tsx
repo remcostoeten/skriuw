@@ -1,11 +1,7 @@
 import { cloneElement, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { FocusEvent, PointerEvent, ReactElement, ReactNode } from "react";
-import {
-  computeTooltipPlacement,
-  resolveOpenTiming,
-  type TooltipSide,
-} from "./tooltip-model";
+import { computeTooltipPlacement, resolveOpenTiming, type TooltipSide } from "./tooltip-model";
 
 const OPEN_DELAY_MS = 350;
 const SKIP_DELAY_MS = 300;
@@ -111,12 +107,14 @@ export function Tooltip({
     if (!open) {
       return;
     }
-    const dismiss = () => beginClose();
-    const dismissOnEscape = (event: KeyboardEvent) => {
+    function dismiss() {
+      beginClose();
+    }
+    function dismissOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         beginClose();
       }
-    };
+    }
     window.addEventListener("keydown", dismissOnEscape);
     window.addEventListener("scroll", dismiss, { capture: true, passive: true });
     window.addEventListener("resize", dismiss);

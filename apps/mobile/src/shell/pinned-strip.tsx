@@ -23,7 +23,11 @@ export function PinnedStrip({ onOpen }: Props) {
       <Text style={[styles.heading, { color: theme.color("sidebar-foreground", 0.5) }]}>
         Pinned
       </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.row}
+      >
         {pinned.map((entry) => (
           <Pressable
             key={entry.id}

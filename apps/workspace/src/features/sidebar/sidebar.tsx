@@ -250,9 +250,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   const [moveIds, setMoveIds] = useState<readonly string[] | null>(null);
   const dragRef = useRef<DragSession | null>(null);
   const hoverExpandRef = useRef<number | null>(null);
-  const autoScrollRef = useRef<{ raf: number; pointerX: number; pointerY: number } | null>(
-    null,
-  );
+  const autoScrollRef = useRef<{ raf: number; pointerX: number; pointerY: number } | null>(null);
   const suppressClickRef = useRef(false);
   const asideRef = useRef<HTMLElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -289,7 +287,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   }, []);
 
   useEffect(() => {
-    const revealFocusedNode = () => {
+    function revealFocusedNode() {
       const element = treeRef.current;
       const state = store.getState();
       const focusedId = state.focusedNodeId;
@@ -311,7 +309,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
         element.scrollTop = nextScrollTop;
         setTreeScrollRow(Math.floor(nextScrollTop / rowPitch));
       }
-    };
+    }
     revealFocusedNode();
     return store.subscribe((state) => state.focusedNodeId, revealFocusedNode);
   }, [rowHeight, isSearchOpen, store]);
@@ -361,9 +359,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
     [moveActive],
   );
   const moveFocusId = useRendererSelector(store, selectMoveFocusId);
-  const moveTarget = moveActive
-    ? moveDropTarget(store.getState().nodes, moveFocusId)
-    : null;
+  const moveTarget = moveActive ? moveDropTarget(store.getState().nodes, moveFocusId) : null;
   const moveTargetLabel =
     moveTarget === null
       ? null
@@ -619,7 +615,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
       autoScrollRef.current.pointerY = clientY;
       return;
     }
-    const tick = () => {
+    function tick() {
       const current = autoScrollRef.current;
       const tree = treeRef.current;
       if (!current || !tree || dragRef.current?.active !== true) {
@@ -641,7 +637,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
       tree.scrollTop += frameStep;
       updateDropTarget(current.pointerX, current.pointerY);
       current.raf = requestAnimationFrame(tick);
-    };
+    }
     autoScrollRef.current = {
       raf: requestAnimationFrame(tick),
       pointerX: clientX,
@@ -696,7 +692,6 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
       moveNodes(store, dropMoves(store.getState().nodes, session.dragIds, session.target));
     }
   }
-
 
   function rowElementFor(id: string): HTMLElement | null {
     return treeRef.current?.querySelector<HTMLElement>(`[data-row-key="${id}"]`) ?? null;
@@ -884,12 +879,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
     }
     const depth = indicatorIndentDepth(nodes, dropTarget);
     const maximumIndent = metrics.isVeryNarrow ? 40 : metrics.isNarrow ? 56 : 80;
-    const indent = visualTreeIndent(
-      depth,
-      metrics.basePadding,
-      metrics.depthIndent,
-      maximumIndent,
-    );
+    const indent = visualTreeIndent(depth, metrics.basePadding, metrics.depthIndent, maximumIndent);
     const rowOffset =
       dropTarget.kind === "row" && dropTarget.zone === "before" ? targetIndex : targetIndex + 1;
     const lineRow = dropTarget.kind === "root-gap" ? visibleIds.length : rowOffset;
@@ -904,9 +894,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   useEffect(() => () => endDrag(false), []);
 
   function openRowContextMenu(id: string): void {
-    const rowEl = treeRef.current?.querySelector<HTMLElement>(
-      `[data-row-key="${CSS.escape(id)}"]`,
-    );
+    const rowEl = treeRef.current?.querySelector<HTMLElement>(`[data-row-key="${CSS.escape(id)}"]`);
     if (!rowEl) {
       return;
     }
@@ -938,12 +926,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
         setMoveIds(null);
         return;
       }
-      if (
-        event.key === "Enter" ||
-        event.key === " " ||
-        event.key === "m" ||
-        event.key === "M"
-      ) {
+      if (event.key === "Enter" || event.key === " " || event.key === "m" || event.key === "M") {
         event.preventDefault();
         const cargo = moveIds.filter((id) => state.nodes.has(id));
         const moves = dropMoves(state.nodes, cargo, moveDropTarget(state.nodes, focusedId));
@@ -1189,9 +1172,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
     trashSubtrees(store, roots);
     showToast({
       message:
-        roots.length === 1
-          ? `Moved “${title}” to trash`
-          : `Moved ${roots.length} items to trash`,
+        roots.length === 1 ? `Moved “${title}” to trash` : `Moved ${roots.length} items to trash`,
       action: {
         label: "Undo",
         run: () => {
@@ -1327,9 +1308,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
                     key={depth ?? "all"}
                     onClick={() => copyFolderStructure(id, format, depth)}
                   >
-                    {depth === null
-                      ? "All levels"
-                      : `${depth} level${depth === 1 ? "" : "s"} deep`}
+                    {depth === null ? "All levels" : `${depth} level${depth === 1 ? "" : "s"} deep`}
                   </ContextMenuItem>
                 ))}
               </ContextMenuSubContent>
@@ -1357,10 +1336,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
               Rename
               <ContextMenuShortcut keys="R" />
             </ContextMenuItem>
-            <ContextMenuItem
-              onClick={() => setNodePinned(store, id, !isPinned)}
-              className="gap-2"
-            >
+            <ContextMenuItem onClick={() => setNodePinned(store, id, !isPinned)} className="gap-2">
               {isPinned ? <PinOffIcon className="w-4 h-4" /> : <PinIcon className="w-4 h-4" />}
               {isPinned ? "Unpin" : "Pin"}
               <ContextMenuShortcut keys="P" />
@@ -1602,16 +1578,11 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
                 Moving {moveIds.length} item{moveIds.length > 1 ? "s" : ""} →{" "}
                 <span className="text-foreground">{moveTargetLabel}</span>
               </span>
-              <span className="ml-auto shrink-0 text-muted-foreground">
-                ↵ drop · esc cancel
-              </span>
+              <span className="ml-auto shrink-0 text-muted-foreground">↵ drop · esc cancel</span>
             </div>
           )}
           <ContextMenuTrigger asChild>
-            <div
-              className="flex min-h-0 flex-1 flex-col"
-              onContextMenu={onListContextMenu}
-            >
+            <div className="flex min-h-0 flex-1 flex-col" onContextMenu={onListContextMenu}>
               {pinnedIds.length > 0 && (
                 <PinnedChips store={store} ids={pinnedIds} onSelect={onPinnedSelect} />
               )}
@@ -1637,10 +1608,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
                   setTreeScrollRow(Math.floor(event.currentTarget.scrollTop / rowPitch))
                 }
               >
-                <div
-                  className="relative w-full"
-                  style={{ height: `${treeWindow.totalHeight}px` }}
-                >
+                <div className="relative w-full" style={{ height: `${treeWindow.totalHeight}px` }}>
                   {renderedIds.map((id, position) => (
                     <SidebarRow
                       key={id}
@@ -1678,7 +1646,9 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
                 // still trapping, which pulled its mount-time focus back into
                 // the menu; now that the menu is gone the field can hold it.
                 event.preventDefault();
-                asideRef.current?.querySelector<HTMLInputElement>('input[aria-label^="Rename"]')?.focus();
+                asideRef.current
+                  ?.querySelector<HTMLInputElement>('input[aria-label^="Rename"]')
+                  ?.focus();
               }}
             >
               {renderItemContextItems(contextTarget.id)}

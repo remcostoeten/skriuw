@@ -99,9 +99,7 @@ function textContent(node: JsonRecord): string {
   if (!Array.isArray(node.content)) {
     return "";
   }
-  return node.content
-    .map((child) => (isRecord(child) ? textContent(child) : ""))
-    .join("");
+  return node.content.map((child) => (isRecord(child) ? textContent(child) : "")).join("");
 }
 
 /**
@@ -117,10 +115,7 @@ export function documentTitleText(documentJson: unknown): string {
   return isRecord(first) ? textContent(first) : "";
 }
 
-export function remapMarkdownIds(
-  markdown: string,
-  idMap: ReadonlyMap<string, string>,
-): string {
+export function remapMarkdownIds(markdown: string, idMap: ReadonlyMap<string, string>): string {
   let next = markdown;
   for (const [from, to] of idMap) {
     next = next.split(from).join(to);
@@ -133,11 +128,7 @@ export function remapMarkdownIds(
  * note's title — the shape `# Title` produces. Anything else is left alone
  * rather than risk mangling a fence or table row.
  */
-export function suffixMarkdownTitle(
-  markdown: string,
-  title: string,
-  suffix: string,
-): string {
+export function suffixMarkdownTitle(markdown: string, title: string, suffix: string): string {
   const breakAt = markdown.indexOf("\n");
   const firstLine = breakAt < 0 ? markdown : markdown.slice(0, breakAt);
   if (title.length === 0 || !firstLine.trimEnd().endsWith(title)) {

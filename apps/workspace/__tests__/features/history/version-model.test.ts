@@ -43,7 +43,10 @@ test("projectVersionList returns an empty list for missing or empty headers", ()
 });
 
 test("projectVersionList does not mutate the input array", () => {
-  const headers = [header({ versionId: "a", createdAt: 1 }), header({ versionId: "b", createdAt: 2 })];
+  const headers = [
+    header({ versionId: "a", createdAt: 1 }),
+    header({ versionId: "b", createdAt: 2 }),
+  ];
   const original = [...headers];
 
   projectVersionList(headers);
@@ -52,9 +55,7 @@ test("projectVersionList does not mutate the input array", () => {
 });
 
 test("projectVersionList includes cached diff counts", () => {
-  const [version] = projectVersionList([
-    header({ versionId: "a", additions: 12, deletions: 3 }),
-  ]);
+  const [version] = projectVersionList([header({ versionId: "a", additions: 12, deletions: 3 })]);
 
   assert.equal(version?.additions, 12);
   assert.equal(version?.deletions, 3);

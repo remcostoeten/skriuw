@@ -6,16 +6,8 @@ import { createLexicalBoundedCandidate } from "./editors/lexical-bounded";
 import { createProseMirrorCandidate } from "./editors/prosemirror";
 import { createProseMirrorBoundedCandidate } from "./editors/prosemirror-bounded";
 import { BOUNDED_EDITOR_UNSUPPORTED } from "./editors/bounded-correctness";
-import {
-  estimateFrameDuration,
-  measureMemory,
-  measureScenario,
-  nextPaint,
-} from "./metrics";
-import {
-  createNativeMeasurement,
-  type NativeMeasurement,
-} from "./native-metrics";
+import { estimateFrameDuration, measureMemory, measureScenario, nextPaint } from "./metrics";
+import { createNativeMeasurement, type NativeMeasurement } from "./native-metrics";
 import type {
   BenchmarkResult,
   BlockCount,
@@ -141,10 +133,7 @@ function requiredElement<T extends HTMLElement>(id: string): T {
   return element as T;
 }
 
-function createCandidate(
-  id: CandidateId,
-  strategy: RenderingStrategy,
-): EditorCandidate {
+function createCandidate(id: CandidateId, strategy: RenderingStrategy): EditorCandidate {
   if (strategy === "bounded") {
     return id === "prosemirror"
       ? createProseMirrorBoundedCandidate()
@@ -163,10 +152,7 @@ function formatBytes(value: number | null): string {
   return value === null ? "unsupported" : `${(value / 1_048_576).toFixed(1)} MiB`;
 }
 
-function validateBoundedStates(
-  states: readonly PreparedState[],
-  blockCount: BlockCount,
-): void {
+function validateBoundedStates(states: readonly PreparedState[], blockCount: BlockCount): void {
   if (states.length !== NOTE_COUNT) {
     throw new Error(`bounded candidate prepared ${states.length} of ${NOTE_COUNT} notes`);
   }
@@ -175,12 +161,14 @@ function validateBoundedStates(
     const rendered = state.renderedBlockCount ?? Number.POSITIVE_INFINITY;
     const start = state.windowStart ?? -1;
     const end = state.windowEnd ?? -1;
-    if (state.canonicalBlockCount !== blockCount
-      || rendered <= 0
-      || rendered > BOUNDED_BLOCK_LIMIT
-      || start < 0
-      || end > blockCount
-      || end - start !== rendered) {
+    if (
+      state.canonicalBlockCount !== blockCount ||
+      rendered <= 0 ||
+      rendered > BOUNDED_BLOCK_LIMIT ||
+      start < 0 ||
+      end > blockCount ||
+      end - start !== rendered
+    ) {
       throw new Error(`invalid bounded state: ${state.id}`);
     }
     if (stateIds.has(state.id)) {
@@ -198,32 +186,37 @@ function renderResult(result: BenchmarkResult): void {
     result.switching.droppedFrames + result.typing.droppedFrames,
   );
   requiredElement("memory").textContent = formatBytes(result.memory?.deltaBytes ?? null);
-  requiredElement("workspace-label").textContent = `${result.candidate} · ${result.strategy} · ${result.renderedBlocks.toLocaleString()} of ${result.canonicalBlocks.toLocaleString()} blocks × ${result.noteCount} notes`;
-  requiredElement("dom-count").textContent = `${result.activeDomNodes.toLocaleString()} active / ${result.totalDomNodes.toLocaleString()} total DOM elements · ${result.editorInstances} editor instances`;
+  requiredElement("workspace-label").textContent =
+    `${result.candidate} · ${result.strategy} · ${result.renderedBlocks.toLocaleString()} of ${result.canonicalBlocks.toLocaleString()} blocks × ${result.noteCount} notes`;
+  requiredElement("dom-count").textContent =
+    `${result.activeDomNodes.toLocaleString()} active / ${result.totalDomNodes.toLocaleString()} total DOM elements · ${result.editorInstances} editor instances`;
   const marker = requiredElement<HTMLElement>("latency-marker");
   marker.style.left = `${Math.min(100, (result.switching.settled.p95Ms / 16.67) * 100)}%`;
   rawOutput.textContent = JSON.stringify(result, null, 2);
-  const settledPass = result.switching.settled.p95Ms < 8
-    && result.switching.settled.maxMs < 16.67
-    && result.switching.droppedFrames === 0;
-  const invariantPass = result.hostMounts === 1
-    && result.preparationCallsBefore === result.preparationCallsAfter;
+  const settledPass =
+    result.switching.settled.p95Ms < 8 &&
+    result.switching.settled.maxMs < 16.67 &&
+    result.switching.droppedFrames === 0;
+  const invariantPass =
+    result.hostMounts === 1 && result.preparationCallsBefore === result.preparationCallsAfter;
   const preparationCalls = result.preparationCallsAfter - result.preparationCallsBefore;
   status.textContent = `${settledPass && invariantPass ? "END-TO-LAYOUT PASS" : "REVIEW"} · navigation P95 ${formatMs(result.switching.settled.p95Ms)} · preparation calls during navigation ${preparationCalls}`;
 }
 
 function handleNativeKeydown(event: KeyboardEvent): void {
-  if (event.key !== "ArrowDown"
-    || !event.isTrusted
-    || event.repeat
-    || event.altKey
-    || event.ctrlKey
-    || event.metaKey
-    || event.shiftKey
-    || !nativeMeasurement
-    || !activeCandidate
-    || activeStates.length === 0
-    || nativeHandledInteractions >= nativeExpectedInteractions) {
+  if (
+    event.key !== "ArrowDown" ||
+    !event.isTrusted ||
+    event.repeat ||
+    event.altKey ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.shiftKey ||
+    !nativeMeasurement ||
+    !activeCandidate ||
+    activeStates.length === 0 ||
+    nativeHandledInteractions >= nativeExpectedInteractions
+  ) {
     return;
   }
   event.preventDefault();
@@ -384,18 +377,22 @@ export function runBoundedCorrectnessScenario(): BoundedCorrectnessResult {
   activeCandidate.install(editedState);
   const restored = control.snapshot();
   requireEqual(restored.selection?.blockIndex, target, "restored note selection block");
-  requireEqual(restored.selection?.offset, edited.selection?.offset, "restored note selection offset");
-  requireEqual(restored.canonicalTexts[target], edited.canonicalTexts[target], "restored canonical edit");
+  requireEqual(
+    restored.selection?.offset,
+    edited.selection?.offset,
+    "restored note selection offset",
+  );
+  requireEqual(
+    restored.canonicalTexts[target],
+    edited.canonicalTexts[target],
+    "restored canonical edit",
+  );
   requireEqual(
     restored.renderedTexts[target - restored.start],
     edited.renderedTexts[target - edited.start],
     "restored rendered edit",
   );
-  requireEqual(
-    restored.undoDepth,
-    before.undoDepth + 1,
-    "restored bounded undo depth",
-  );
+  requireEqual(restored.undoDepth, before.undoDepth + 1, "restored bounded undo depth");
   requireEqual(
     restored.undoRetainedBlocks,
     before.undoRetainedBlocks + 1,
@@ -408,11 +405,7 @@ export function runBoundedCorrectnessScenario(): BoundedCorrectnessResult {
   requireEqual(control.undo(), true, "bounded undo command");
   const undone = control.snapshot();
   requireEqual(undone.canonicalTexts[target], reconciledText, "undone canonical edit");
-  requireEqual(
-    undone.renderedTexts[target - undone.start],
-    reconciledText,
-    "undone rendered edit",
-  );
+  requireEqual(undone.renderedTexts[target - undone.start], reconciledText, "undone rendered edit");
   control.moveWindow(undone.end + 32);
   const recycledForRedo = control.snapshot();
   const recycledBeforeRedo = target < recycledForRedo.start || target >= recycledForRedo.end;
@@ -483,112 +476,116 @@ export async function runBenchmark(
   runButton.disabled = true;
   armNativeButton.disabled = true;
   try {
-  candidateSelect.value = candidateId;
-  blockSelect.value = String(blockCount);
-  strategySelect.value = strategy;
-  status.textContent = "Preparing deterministic editor states outside measured navigation…";
-  activeCandidate?.destroy();
-  activeCandidate = null;
-  activeStates = [];
-  host.replaceChildren();
-  host.removeAttribute("contenteditable");
-  host.className = "editor-host";
+    candidateSelect.value = candidateId;
+    blockSelect.value = String(blockCount);
+    strategySelect.value = strategy;
+    status.textContent = "Preparing deterministic editor states outside measured navigation…";
+    activeCandidate?.destroy();
+    activeCandidate = null;
+    activeStates = [];
+    host.replaceChildren();
+    host.removeAttribute("contenteditable");
+    host.className = "editor-host";
 
-  await nextPaint();
-  const baselineBytes = await measureMemory();
-  const candidate = createCandidate(candidateId, strategy);
-  activeCandidate = candidate;
-  const preparationStarted = performance.now();
-  const states = candidate.prepare(blockCount, NOTE_COUNT);
-  if (strategy === "bounded") {
-    validateBoundedStates(states, blockCount);
-  }
-  activeStates = states;
-  const preparationMs = performance.now() - preparationStarted;
-  const initial = states[0];
-  if (!initial) {
-    throw new Error("candidate did not prepare an initial state");
-  }
-  const mountStarted = performance.now();
-  candidate.mount(host, states, initial);
-  const mountMs = performance.now() - mountStarted;
-  status.textContent = `Priming ${NOTE_COUNT} prepared notes outside measured navigation…`;
-  const primeStarted = performance.now();
-  for (const state of states) {
-    candidate.install(state);
+    await nextPaint();
+    const baselineBytes = await measureMemory();
+    const candidate = createCandidate(candidateId, strategy);
+    activeCandidate = candidate;
+    const preparationStarted = performance.now();
+    const states = candidate.prepare(blockCount, NOTE_COUNT);
+    if (strategy === "bounded") {
+      validateBoundedStates(states, blockCount);
+    }
+    activeStates = states;
+    const preparationMs = performance.now() - preparationStarted;
+    const initial = states[0];
+    if (!initial) {
+      throw new Error("candidate did not prepare an initial state");
+    }
+    const mountStarted = performance.now();
+    candidate.mount(host, states, initial);
+    const mountMs = performance.now() - mountStarted;
+    status.textContent = `Priming ${NOTE_COUNT} prepared notes outside measured navigation…`;
+    const primeStarted = performance.now();
+    for (const state of states) {
+      candidate.install(state);
+      candidate.layoutHeight();
+      await nextPaint();
+    }
+    candidate.install(initial);
     candidate.layoutHeight();
     await nextPaint();
-  }
-  candidate.install(initial);
-  candidate.layoutHeight();
-  await nextPaint();
-  const primeMs = performance.now() - primeStarted;
-  const residentBytes = await measureMemory();
-  const estimatedFrameMs = await estimateFrameDuration();
-  const preparationCallsBefore = candidate.preparationCount();
-  status.textContent = `Measuring ${SWITCH_SAMPLES} cached note switches…`;
-  const switching = await measureScenario(
-    candidate,
-    states,
-    SWITCH_SAMPLES,
-    estimatedFrameMs,
-    (_sampleIndex, state) => candidate.install(state),
-  );
-  status.textContent = `Measuring ${TYPING_SAMPLES} editor-owned updates…`;
-  const typing = await measureScenario(
-    candidate,
-    [states.at(-1) ?? initial],
-    TYPING_SAMPLES,
-    estimatedFrameMs,
-    (sampleIndex) => candidate.edit(sampleIndex),
-  );
-  const preparationCallsAfter = candidate.preparationCount();
-  if (strategy === "bounded"
-    && (candidate.mountCount() !== 1
-      || candidate.editorInstanceCount() !== 1
-      || candidate.activeDomNodeCount() > 512
-      || candidate.totalDomNodeCount() > 512)) {
-    throw new Error("bounded editor exceeded its host, instance, or DOM limit");
-  }
-  const result: BenchmarkResult = {
-    candidate: candidate.id,
-    strategy,
-    blockCount,
-    noteCount: NOTE_COUNT,
-    canonicalBlocks: blockCount,
-    renderedBlocks: initial.renderedBlockCount ?? blockCount,
-    windowRanges: strategy === "bounded"
-      ? states.map((state) => ({
-          start: state.windowStart ?? 0,
-          end: state.windowEnd ?? 0,
-        }))
-      : null,
-    preparationMs,
-    mountMs,
-    primeMs,
-    preparationCallsBefore,
-    preparationCallsAfter,
-    hostMounts: candidate.mountCount(),
-    editorInstances: candidate.editorInstanceCount(),
-    activeDomNodes: candidate.activeDomNodeCount(),
-    totalDomNodes: candidate.totalDomNodeCount(),
-    memory: baselineBytes === null || residentBytes === null
-      ? null
-      : {
-          baselineBytes,
-          residentBytes,
-          deltaBytes: residentBytes - baselineBytes,
-          source: "measureUserAgentSpecificMemory",
-        },
-    estimatedFrameMs,
-    switching,
-    typing,
-    measuredAt: new Date().toISOString(),
-    userAgent: navigator.userAgent,
-  };
-  lastResult = result;
-  renderResult(result);
-  return result;
+    const primeMs = performance.now() - primeStarted;
+    const residentBytes = await measureMemory();
+    const estimatedFrameMs = await estimateFrameDuration();
+    const preparationCallsBefore = candidate.preparationCount();
+    status.textContent = `Measuring ${SWITCH_SAMPLES} cached note switches…`;
+    const switching = await measureScenario(
+      candidate,
+      states,
+      SWITCH_SAMPLES,
+      estimatedFrameMs,
+      (_sampleIndex, state) => candidate.install(state),
+    );
+    status.textContent = `Measuring ${TYPING_SAMPLES} editor-owned updates…`;
+    const typing = await measureScenario(
+      candidate,
+      [states.at(-1) ?? initial],
+      TYPING_SAMPLES,
+      estimatedFrameMs,
+      (sampleIndex) => candidate.edit(sampleIndex),
+    );
+    const preparationCallsAfter = candidate.preparationCount();
+    if (
+      strategy === "bounded" &&
+      (candidate.mountCount() !== 1 ||
+        candidate.editorInstanceCount() !== 1 ||
+        candidate.activeDomNodeCount() > 512 ||
+        candidate.totalDomNodeCount() > 512)
+    ) {
+      throw new Error("bounded editor exceeded its host, instance, or DOM limit");
+    }
+    const result: BenchmarkResult = {
+      candidate: candidate.id,
+      strategy,
+      blockCount,
+      noteCount: NOTE_COUNT,
+      canonicalBlocks: blockCount,
+      renderedBlocks: initial.renderedBlockCount ?? blockCount,
+      windowRanges:
+        strategy === "bounded"
+          ? states.map((state) => ({
+              start: state.windowStart ?? 0,
+              end: state.windowEnd ?? 0,
+            }))
+          : null,
+      preparationMs,
+      mountMs,
+      primeMs,
+      preparationCallsBefore,
+      preparationCallsAfter,
+      hostMounts: candidate.mountCount(),
+      editorInstances: candidate.editorInstanceCount(),
+      activeDomNodes: candidate.activeDomNodeCount(),
+      totalDomNodes: candidate.totalDomNodeCount(),
+      memory:
+        baselineBytes === null || residentBytes === null
+          ? null
+          : {
+              baselineBytes,
+              residentBytes,
+              deltaBytes: residentBytes - baselineBytes,
+              source: "measureUserAgentSpecificMemory",
+            },
+      estimatedFrameMs,
+      switching,
+      typing,
+      measuredAt: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+    };
+    lastResult = result;
+    renderResult(result);
+    return result;
   } finally {
     benchmarkRunning = false;
     runButton.disabled = nativeMeasurement !== null;
@@ -622,18 +619,16 @@ window.__SKRIUW_BENCHMARK__ = {
 };
 
 declare global {
-  interface Window {
-    __SKRIUW_BENCHMARK__: {
-      run(
-        candidate?: CandidateId,
-        blockCount?: BlockCount,
-        strategy?: RenderingStrategy,
-      ): Promise<BenchmarkResult>;
-      armNativeNavigation(expectedInteractions?: number): void;
-      finishNativeNavigation(): Promise<NativeInteractionResult>;
-      runBoundedCorrectnessScenario(): BoundedCorrectnessResult;
-      lastResult(): BenchmarkResult | null;
-      lastNativeResult(): NativeInteractionResult | null;
-    };
-  }
+  var __SKRIUW_BENCHMARK__: {
+    run(
+      candidate?: CandidateId,
+      blockCount?: BlockCount,
+      strategy?: RenderingStrategy,
+    ): Promise<BenchmarkResult>;
+    armNativeNavigation(expectedInteractions?: number): void;
+    finishNativeNavigation(): Promise<NativeInteractionResult>;
+    runBoundedCorrectnessScenario(): BoundedCorrectnessResult;
+    lastResult(): BenchmarkResult | null;
+    lastNativeResult(): NativeInteractionResult | null;
+  };
 }

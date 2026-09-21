@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  appRouteHash,
-  resolveAppRoute,
-} from "@skriuw/renderer-core/route/app-route";
+import { appRouteHash, resolveAppRoute } from "@skriuw/renderer-core/route/app-route";
 import { THEME_NAMES } from "@skriuw/theme";
 import {
   SHELL_DESTINATIONS,
@@ -102,10 +99,7 @@ test("system themes follow the platform and a named theme overrides it", () => {
 });
 
 test("every generated theme can be chosen by hand", () => {
-  assert.deepEqual(
-    THEME_OPTIONS.map((option) => option.name).sort(),
-    [...THEME_NAMES].sort(),
-  );
+  assert.deepEqual(THEME_OPTIONS.map((option) => option.name).sort(), [...THEME_NAMES].sort());
   assert.equal(THEME_OPTIONS.length, 9);
 });
 
@@ -207,8 +201,14 @@ test("swiping locks to an axis only once the finger means it", () => {
 test("an undo can be taken once, and a stale dismissal never closes its successor", () => {
   const hub = createToastHub();
   const undone: string[] = [];
-  const first = hub.show({ message: "Deleted Inbox", action: { label: "Undo", run: () => undone.push("first") } });
-  const second = hub.show({ message: "Deleted Drafts", action: { label: "Undo", run: () => undone.push("second") } });
+  const first = hub.show({
+    message: "Deleted Inbox",
+    action: { label: "Undo", run: () => undone.push("first") },
+  });
+  const second = hub.show({
+    message: "Deleted Drafts",
+    action: { label: "Undo", run: () => undone.push("second") },
+  });
 
   hub.dismiss(first);
   assert.equal(hub.current()?.id, second);

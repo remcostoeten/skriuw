@@ -38,9 +38,7 @@ function adapt(Source: Source, duration: number) {
         handleRef.current?.stopAnimation();
       }
     }, [animate]);
-    return (
-      <Source ref={handleRef} size={size} duration={duration} className={className} />
-    );
+    return <Source ref={handleRef} size={size} duration={duration} className={className} />;
   };
 }
 

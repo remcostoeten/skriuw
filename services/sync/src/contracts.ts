@@ -66,7 +66,10 @@ export type SealedContent = {
   scheme: string;
   keyId: string;
   nonce: string;
-} & ({ transport: "inline"; ciphertext: string } | { transport: "chunked"; manifest: ContentManifest });
+} & (
+  | { transport: "inline"; ciphertext: string }
+  | { transport: "chunked"; manifest: ContentManifest }
+);
 
 export type SyncOperationPayload =
   | { form: "inline"; operation: WorkspaceOperationEnvelopeJson; assets?: ContentManifest[] }
@@ -201,18 +204,13 @@ type ReplicationClass =
   | "unsupported_sync_protocol_v1";
 
 const workspaceOperationPolicy = new Map<string, ReplicationClass>(
-  operationSyncPolicy.map(
-    ({ operationType, replicationClass }): [string, ReplicationClass] => [
-      operationType,
-      parseReplicationClass(replicationClass),
-    ],
-  ),
+  operationSyncPolicy.map(({ operationType, replicationClass }): [string, ReplicationClass] => [
+    operationType,
+    parseReplicationClass(replicationClass),
+  ]),
 );
 
-const operationSchemaValidator = new Validator(
-  workspaceOperationSchema as Schema,
-  "2020-12",
-);
+const operationSchemaValidator = new Validator(workspaceOperationSchema as Schema, "2020-12");
 
 export const WORKSPACE_OPERATION_SYNC_POLICY_V1 = operationSyncPolicy;
 
@@ -229,15 +227,8 @@ function parseReplicationClass(value: string): ReplicationClass {
 
 export function parseSyncPushRequest(input: unknown): SyncPushRequest {
   const request = requireRecord(input, "sync request");
-  requireExactKeys(
-    request,
-    ["syncProtocolVersion", "deviceId", "operations"],
-    "sync request",
-  );
-  const syncProtocolVersion = requireNumber(
-    request.syncProtocolVersion,
-    "syncProtocolVersion",
-  );
+  requireExactKeys(request, ["syncProtocolVersion", "deviceId", "operations"], "sync request");
+  const syncProtocolVersion = requireNumber(request.syncProtocolVersion, "syncProtocolVersion");
   if (!SUPPORTED_SYNC_PROTOCOL_VERSIONS.includes(syncProtocolVersion)) {
     throw new SyncContractError(`unsupported sync protocol ${syncProtocolVersion}`);
   }
@@ -262,10 +253,7 @@ export function parseSyncPushRequest(input: unknown): SyncPushRequest {
     if (clientSequences.has(operation.clientSequence)) {
       throw new SyncContractError(`duplicate client sequence ${operation.clientSequence}`);
     }
-    if (
-      previousSequence !== undefined &&
-      operation.clientSequence !== previousSequence + 1
-    ) {
+    if (previousSequence !== undefined && operation.clientSequence !== previousSequence + 1) {
       throw new SyncContractError("client sequences must be contiguous");
     }
     operationIds.add(operation.operationId);
@@ -286,10 +274,7 @@ export function parseSyncPushRequest(input: unknown): SyncPushRequest {
 
 export function parseSyncPullResponse(input: unknown): SyncPullResponse {
   const response = requireRecord(input, "sync pull response");
-  const syncProtocolVersion = requireNumber(
-    response.syncProtocolVersion,
-    "syncProtocolVersion",
-  );
+  const syncProtocolVersion = requireNumber(response.syncProtocolVersion, "syncProtocolVersion");
   if (!SUPPORTED_SYNC_PROTOCOL_VERSIONS.includes(syncProtocolVersion)) {
     throw new SyncContractError(`unsupported sync protocol ${syncProtocolVersion}`);
   }
@@ -324,15 +309,8 @@ export function parseSyncPullResponse(input: unknown): SyncPullResponse {
       syncProtocolVersion,
     );
     const deviceId = requireIdentifier(record.deviceId, "deviceId");
-    const serverSequence = requireSafeSequence(
-      record.serverSequence,
-      "serverSequence",
-      false,
-    );
-    if (
-      serverSequence <= previousServerSequence ||
-      serverSequence > latestServerSequence
-    ) {
+    const serverSequence = requireSafeSequence(record.serverSequence, "serverSequence", false);
+    if (serverSequence <= previousServerSequence || serverSequence > latestServerSequence) {
       throw new SyncContractError("server sequences must be ordered and bounded");
     }
     previousServerSequence = serverSequence;
@@ -365,10 +343,7 @@ export function parseWorkspaceCheckpoint(input: unknown): WorkspaceCheckpointRec
   if (checkpointVersion !== WORKSPACE_CHECKPOINT_VERSION) {
     throw new SyncContractError(`unsupported checkpoint version ${checkpointVersion}`);
   }
-  const syncProtocolVersion = requireNumber(
-    checkpoint.syncProtocolVersion,
-    "syncProtocolVersion",
-  );
+  const syncProtocolVersion = requireNumber(checkpoint.syncProtocolVersion, "syncProtocolVersion");
   if (!SUPPORTED_SYNC_PROTOCOL_VERSIONS.includes(syncProtocolVersion)) {
     throw new SyncContractError(`unsupported sync protocol ${syncProtocolVersion}`);
   }
@@ -433,10 +408,7 @@ export function requireSafeSequence(value: unknown, field: string, allowZero: bo
   return sequence;
 }
 
-function parseClientSyncOperation(
-  input: unknown,
-  protocolVersion: number,
-): ClientSyncOperation {
+function parseClientSyncOperation(input: unknown, protocolVersion: number): ClientSyncOperation {
   const operation = requireRecord(input, "sync operation");
   const chunkedCapable = protocolVersion >= MIN_CHUNKED_CONTENT_PROTOCOL_VERSION;
   requireExactKeys(
@@ -450,11 +422,7 @@ function parseClientSyncOperation(
     "sync operation",
   );
   const operationId = requireIdentifier(operation.operationId, "operationId");
-  const clientSequence = requireSafeSequence(
-    operation.clientSequence,
-    "clientSequence",
-    false,
-  );
+  const clientSequence = requireSafeSequence(operation.clientSequence, "clientSequence", false);
   const baseServerSequence = requireSafeSequence(
     operation.baseServerSequence,
     "baseServerSequence",
@@ -470,10 +438,7 @@ function parseClientSyncOperation(
     baseServerSequence,
     payload,
   };
-  if (
-    payload.form !== "chunked" &&
-    jsonByteLength(parsed) > MAX_INLINE_SYNC_OPERATION_BYTES
-  ) {
+  if (payload.form !== "chunked" && jsonByteLength(parsed) > MAX_INLINE_SYNC_OPERATION_BYTES) {
     throw new SyncContractError("sync operation requires chunked content transport");
   }
   return parsed;
@@ -555,7 +520,11 @@ export function parseSealedContent(
     throw new SyncContractError("sealed content nonce is not a base64 nonce");
   }
   if (sealed.transport === "inline") {
-    requireExactKeys(sealed, ["scheme", "keyId", "nonce", "transport", "ciphertext"], "sealed content");
+    requireExactKeys(
+      sealed,
+      ["scheme", "keyId", "nonce", "transport", "ciphertext"],
+      "sealed content",
+    );
     const ciphertext = sealed.ciphertext;
     if (typeof ciphertext !== "string" || ciphertext.length === 0 || !isBase64(ciphertext)) {
       throw new SyncContractError("sealed content ciphertext is empty or not base64");
@@ -563,7 +532,11 @@ export function parseSealedContent(
     return { scheme, keyId, nonce, transport: "inline", ciphertext };
   }
   if (sealed.transport === "chunked") {
-    requireExactKeys(sealed, ["scheme", "keyId", "nonce", "transport", "manifest"], "sealed content");
+    requireExactKeys(
+      sealed,
+      ["scheme", "keyId", "nonce", "transport", "manifest"],
+      "sealed content",
+    );
     const manifest = parseContentManifest(sealed.manifest);
     if (manifest.kind !== expectedKind || manifest.mimeType !== SEALED_CONTENT_MIME_TYPE) {
       throw new SyncContractError("sealed content manifest does not describe opaque bytes");
@@ -645,9 +618,7 @@ function parseOperationAssets(
     manifest.mimeType !== image.mimeType ||
     manifest.totalByteLength !== image.byteSize
   ) {
-    throw new SyncContractError(
-      "asset manifest does not match the content attach_image declares",
-    );
+    throw new SyncContractError("asset manifest does not match the content attach_image declares");
   }
   return assets;
 }
@@ -687,11 +658,7 @@ export function parseContentManifest(input: unknown): ContentManifest {
   }
   const contentDigest = requireContentDigest(manifest.contentDigest, "contentDigest");
   const mimeType = requireContentMimeType(manifest.mimeType);
-  const totalByteLength = requireSafeSequence(
-    manifest.totalByteLength,
-    "totalByteLength",
-    false,
-  );
+  const totalByteLength = requireSafeSequence(manifest.totalByteLength, "totalByteLength", false);
   if (totalByteLength > MAX_CONTENT_BYTES) {
     throw new SyncContractError("content exceeds its configured byte ceiling");
   }
@@ -721,9 +688,7 @@ export function parseContentManifest(input: unknown): ContentManifest {
     return { digest, byteLength };
   });
   if (total !== totalByteLength) {
-    throw new SyncContractError(
-      "declared content length does not match the sum of chunk lengths",
-    );
+    throw new SyncContractError("declared content length does not match the sum of chunk lengths");
   }
 
   return {
@@ -760,15 +725,9 @@ function requireContentMimeType(value: unknown): string {
   return value;
 }
 
-export function parseWorkspaceOperationEnvelope(
-  input: unknown,
-): WorkspaceOperationEnvelopeJson {
+export function parseWorkspaceOperationEnvelope(input: unknown): WorkspaceOperationEnvelopeJson {
   const workspaceEnvelope = requireRecord(input, "operation envelope");
-  requireExactKeys(
-    workspaceEnvelope,
-    ["protocolVersion", "operation"],
-    "operation envelope",
-  );
+  requireExactKeys(workspaceEnvelope, ["protocolVersion", "operation"], "operation envelope");
   const protocolVersion = requireNumber(
     workspaceEnvelope.protocolVersion,
     "operation.protocolVersion",
@@ -776,10 +735,7 @@ export function parseWorkspaceOperationEnvelope(
   if (protocolVersion !== 1) {
     throw new SyncContractError(`unsupported workspace protocol ${protocolVersion}`);
   }
-  const workspaceOperation = requireRecord(
-    workspaceEnvelope.operation,
-    "workspace operation",
-  );
+  const workspaceOperation = requireRecord(workspaceEnvelope.operation, "workspace operation");
   if (typeof workspaceOperation.type !== "string") {
     throw new SyncContractError("workspace operation type is required");
   }
@@ -799,9 +755,7 @@ export function parseWorkspaceOperationEnvelope(
 function requireReplicatedWorkspaceOperation(operationType: string): void {
   const replicationClass = workspaceOperationPolicy.get(operationType);
   if (replicationClass === undefined) {
-    throw new SyncContractError(
-      `unknown workspace operation type ${operationType}`,
-    );
+    throw new SyncContractError(`unknown workspace operation type ${operationType}`);
   }
   if (replicationClass === "device_local") {
     throw new SyncContractError(
@@ -876,11 +830,7 @@ function isUnknownRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isJsonValue(value: unknown): value is JsonValue {
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean"
-  ) {
+  if (value === null || typeof value === "string" || typeof value === "boolean") {
     return true;
   }
   if (typeof value === "number") {

@@ -26,9 +26,7 @@ export function registerVoiceDictationListener(next: Props): () => void {
 
 function activeListener(): Props | null {
   return (
-    listeners.find((listener) => listener.isFocused()) ??
-    listeners[listeners.length - 1] ??
-    null
+    listeners.find((listener) => listener.isFocused()) ?? listeners[listeners.length - 1] ?? null
   );
 }
 

@@ -4,10 +4,7 @@ import type { Node as ProseMirrorNode } from "prosemirror-model";
 export type DocumentEdge = "start" | "end";
 
 /** Caret selection at the very start or the very end of a ProseMirror document. */
-export function documentEdgeSelection(
-  document: ProseMirrorNode,
-  edge: DocumentEdge,
-): Selection {
+export function documentEdgeSelection(document: ProseMirrorNode, edge: DocumentEdge): Selection {
   return edge === "start" ? Selection.atStart(document) : Selection.atEnd(document);
 }
 

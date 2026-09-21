@@ -44,10 +44,7 @@ function parseBackup(content: string): StandardNotesBackup | null {
       return null;
     }
     return backup.items.some(
-      (item) =>
-        typeof item === "object" &&
-        item !== null &&
-        typeof item.content_type === "string",
+      (item) => typeof item === "object" && item !== null && typeof item.content_type === "string",
     )
       ? backup
       : null;
@@ -80,10 +77,7 @@ function isoToMillis(value: string | undefined): number | undefined {
 
 function isEncryptedItem(item: StandardNotesItem): boolean {
   const withPayload = item as { content?: unknown; enc_item_key?: unknown };
-  return (
-    typeof withPayload.content === "string" ||
-    typeof withPayload.enc_item_key === "string"
-  );
+  return typeof withPayload.content === "string" || typeof withPayload.enc_item_key === "string";
 }
 
 function parse(tree: MarkdownTree): ImportBundle {
@@ -109,10 +103,7 @@ function parse(tree: MarkdownTree): ImportBundle {
         }
         for (const reference of item.content?.references ?? []) {
           if (reference.content_type === "Note" && reference.uuid) {
-            tagsByNoteId.set(reference.uuid, [
-              ...(tagsByNoteId.get(reference.uuid) ?? []),
-              tag,
-            ]);
+            tagsByNoteId.set(reference.uuid, [...(tagsByNoteId.get(reference.uuid) ?? []), tag]);
           }
         }
       } else if (item.content_type === "Note") {
@@ -128,8 +119,7 @@ function parse(tree: MarkdownTree): ImportBundle {
   for (const [index, item] of noteItems.entries()) {
     const text = (item.content?.text ?? "").replace(/\r\n/g, "\n");
     const title =
-      (item.content?.title ?? "").trim() ||
-      noteTitleFromContent(text, `Untitled ${index + 1}`);
+      (item.content?.title ?? "").trim() || noteTitleFromContent(text, `Untitled ${index + 1}`);
     const baseName = sanitizeFileName(title);
     let relativePath = `${baseName}.md`;
     let counter = 2;

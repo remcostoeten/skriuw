@@ -19,8 +19,7 @@ const VAULT_MESSAGES: Record<CredentialVaultState, string | null> = {
   "vault-locked": "Unlock your system keyring to store keys beyond this session.",
   "vault-absent":
     "No system keyring is available on this device. Keys can only be kept for this session.",
-  "vault-blocked":
-    "This build cannot reach your keyring. Keys can only be kept for this session.",
+  "vault-blocked": "This build cannot reach your keyring. Keys can only be kept for this session.",
 };
 
 const RECOVERY_HINTS: Record<AiRecoveryAction, string | null> = {

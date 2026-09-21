@@ -56,8 +56,14 @@ test("upsert appends or replaces without changing the input collection", () => {
   const next = upsertNoteProperty(source, appended);
   const replaced = upsertNoteProperty(next, { ...next[0]!, name: "Stage" });
 
-  assert.deepEqual(source.map(({ id }) => id), ["status"]);
-  assert.deepEqual(next.map(({ id }) => id), ["status", "property_1"]);
+  assert.deepEqual(
+    source.map(({ id }) => id),
+    ["status"],
+  );
+  assert.deepEqual(
+    next.map(({ id }) => id),
+    ["status", "property_1"],
+  );
   assert.equal(replaced[0]?.name, "Stage");
   assert.notEqual(replaced[1], next[1]);
 });
@@ -72,10 +78,7 @@ test("upsert rejects foreign owners and hidden reorders", () => {
       }),
     /foreign note owner/,
   );
-  assert.throws(
-    () => upsertNoteProperty(source, { ...source[0]!, position: 1 }),
-    /cannot reorder/,
-  );
+  assert.throws(() => upsertNoteProperty(source, { ...source[0]!, position: 1 }), /cannot reorder/);
 });
 
 test("remove and reorder produce contiguous positions and require complete IDs", () => {
@@ -88,9 +91,18 @@ test("remove and reorder produce contiguous positions and require complete IDs",
   const reordered = reorderNoteProperties(source, [source[2]!.id, "status", source[1]!.id]);
   const removed = removeNoteProperty(reordered, "status");
 
-  assert.deepEqual(reordered.map(({ position }) => position), [0, 1, 2]);
-  assert.deepEqual(removed.map(({ position }) => position), [0, 1]);
-  assert.throws(() => reorderNoteProperties(source, ["status", "status", source[1]!.id]), /duplicate/);
+  assert.deepEqual(
+    reordered.map(({ position }) => position),
+    [0, 1, 2],
+  );
+  assert.deepEqual(
+    removed.map(({ position }) => position),
+    [0, 1],
+  );
+  assert.throws(
+    () => reorderNoteProperties(source, ["status", "status", source[1]!.id]),
+    /duplicate/,
+  );
   assert.throws(() => reorderNoteProperties(source, ["status"]), /complete ID set/);
 });
 
@@ -103,7 +115,10 @@ test("option removal clears dangling selections and preserves source objects", (
     type: "multi-select",
     value: ["done"],
   });
-  assert.deepEqual(next.options.map(({ id }) => id), ["done"]);
+  assert.deepEqual(
+    next.options.map(({ id }) => id),
+    ["done"],
+  );
   assert.deepEqual(source.value.value, ["open", "done"]);
 });
 
@@ -119,7 +134,10 @@ test("option create, update, and reorder remain immutable", () => {
 
   assert.equal(source.options.length, 2);
   assert.equal(updated.options[0]?.label, "Ready");
-  assert.deepEqual(reordered.options.map(({ id }) => id), ["option_1", "done", "open"]);
+  assert.deepEqual(
+    reordered.options.map(({ id }) => id),
+    ["option_1", "done", "open"],
+  );
   assert.throws(() => reorderPropertyOptions(updated, ["open", "done", "missing"]), /foreign IDs/);
 });
 

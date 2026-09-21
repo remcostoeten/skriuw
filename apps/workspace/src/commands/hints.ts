@@ -3,11 +3,7 @@ import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { sameOverrides, selectShortcutOverrides } from "@/features/settings/sections/selectors";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import {
-  effectiveShortcutKeys,
-  shortcutBindsOnPlatform,
-  shortcutDefinition,
-} from "./bindings";
+import { effectiveShortcutKeys, shortcutBindsOnPlatform, shortcutDefinition } from "./bindings";
 import type { ShortcutOverrides } from "./bindings";
 import type { ShortcutActionId, ShortcutPlatform } from "./definitions";
 

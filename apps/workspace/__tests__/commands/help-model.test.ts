@@ -25,12 +25,9 @@ function rowFor(id: string, platform: "mac" | "windows" | "linux" = "linux") {
 
 test("every group in the definitions shows up, in definition order", () => {
   const groups = shortcutHelpGroups({ overrides: {}, platform: "linux" });
-  const expected = [
-    ...new Set(SHORTCUT_DEFINITIONS.map((entry) => entry.group)),
-  ].filter((group) =>
+  const expected = [...new Set(SHORTCUT_DEFINITIONS.map((entry) => entry.group))].filter((group) =>
     SHORTCUT_DEFINITIONS.some(
-      (entry) =>
-        entry.group === group && shortcutHelpCombos(entry, {}, "linux").length > 0,
+      (entry) => entry.group === group && shortcutHelpCombos(entry, {}, "linux").length > 0,
     ),
   );
   assert.deepEqual(
@@ -39,9 +36,8 @@ test("every group in the definitions shows up, in definition order", () => {
   );
   assert.equal(
     shortcutHelpRowCount(groups),
-    SHORTCUT_DEFINITIONS.filter(
-      (entry) => shortcutHelpCombos(entry, {}, "linux").length > 0,
-    ).length,
+    SHORTCUT_DEFINITIONS.filter((entry) => shortcutHelpCombos(entry, {}, "linux").length > 0)
+      .length,
   );
 });
 
@@ -95,9 +91,7 @@ test("bindings that do not bind on this platform are dropped", () => {
   );
   const macGroups = shortcutHelpGroups({ overrides: {}, platform: "mac" });
   assert.equal(
-    macGroups
-      .flatMap((group) => group.rows)
-      .some((row) => row.id === "goToDocumentEnd"),
+    macGroups.flatMap((group) => group.rows).some((row) => row.id === "goToDocumentEnd"),
     false,
   );
 });
@@ -106,10 +100,7 @@ test("the when column is derived from scopes, guards, and editor binding", () =>
   assert.equal(shortcutWhenLabel(definition("jumpToLine")), "In the editor");
   assert.equal(shortcutWhenLabel(definition("focusPaneRight")), "Split view");
   assert.equal(shortcutWhenLabel(definition("openTab3")), "Tabs open");
-  assert.equal(
-    shortcutWhenLabel(definition("findInNote")),
-    "Notes view · Editor focused",
-  );
+  assert.equal(shortcutWhenLabel(definition("findInNote")), "Notes view · Editor focused");
   assert.equal(shortcutWhenLabel(definition("createTag")), "Tags view");
   assert.equal(
     shortcutWhenLabel(definition("trashCurrentNote")),
@@ -144,10 +135,11 @@ test("the filter matches labels, combos, groups, and when copy", () => {
 });
 
 test("the filter accepts common spellings of a key name", () => {
-  const groups = (query: string) =>
-    shortcutHelpGroups({ overrides: {}, platform: "linux", query })
+  function groups(query: string) {
+    return shortcutHelpGroups({ overrides: {}, platform: "linux", query })
       .flatMap((group) => group.rows)
       .map((row) => row.id);
+  }
   for (const query of ["pgup", "page up", "pageup", "ctrl shift pgup"]) {
     assert.ok(groups(query).includes("moveTabLeft"), `${query} found nothing`);
   }
@@ -202,5 +194,8 @@ test("the journal steps and go-to-date appear in the cheat sheet under Journal",
   })
     .flatMap((group) => group.rows)
     .find((row) => row.id === "journalNextMonth");
-  assert.deepEqual(rebound?.combos.map((combo) => combo.keys), ["alt+shift+m"]);
+  assert.deepEqual(
+    rebound?.combos.map((combo) => combo.keys),
+    ["alt+shift+m"],
+  );
 });

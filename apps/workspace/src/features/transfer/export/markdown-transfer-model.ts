@@ -58,10 +58,7 @@ export type MarkdownImportOptions = {
   reuseNotesByPath?: ReadonlyMap<string, MarkdownImportReuseTarget>;
 };
 
-type ExportSource = Pick<
-  RendererState,
-  "nodes" | "childrenByParent" | "documents" | "images"
->;
+type ExportSource = Pick<RendererState, "nodes" | "childrenByParent" | "documents" | "images">;
 
 /** Must stay in sync with `extension_for` in `crates/skriuw-images/src/lib.rs`. */
 export function imageFileExtension(mimeType: string): string {
@@ -222,9 +219,7 @@ export function referenceSafeMarkdown(
       typeof node.attrs.id === "string"
     ) {
       const target = nodes.get(node.attrs.id);
-      return target
-        ? { ...node, attrs: { ...node.attrs, label: target.title } }
-        : node;
+      return target ? { ...node, attrs: { ...node.attrs, label: target.title } } : node;
     }
     return {
       ...node,
@@ -232,12 +227,8 @@ export function referenceSafeMarkdown(
     };
   }
   try {
-    const rendered = serializeProductMarkdown(
-      productSchema.nodeFromJSON(visit(documentJson)),
-    );
-    return rendered.length === 0 && storedMarkdown.length > 0
-      ? storedMarkdown
-      : rendered;
+    const rendered = serializeProductMarkdown(productSchema.nodeFromJSON(visit(documentJson)));
+    return rendered.length === 0 && storedMarkdown.length > 0 ? storedMarkdown : rendered;
   } catch {
     return storedMarkdown;
   }
@@ -272,9 +263,7 @@ export function buildWorkspaceExportEntries(source: ExportSource): MarkdownExpor
           kind: "note",
           markdown: rewriteExportedImagePaths(markdown, source.images, imageIds),
         });
-        entries.push(
-          ...buildImageExportEntries(source.images, imageIds, prefix, takenImagePaths),
-        );
+        entries.push(...buildImageExportEntries(source.images, imageIds, prefix, takenImagePaths));
       }
     }
   }
@@ -311,8 +300,7 @@ function collectDirectoryPaths(tree: MarkdownTree): string[] {
     }
   }
   return [...paths].sort(
-    (left, right) =>
-      left.split("/").length - right.split("/").length || comparePaths(left, right),
+    (left, right) => left.split("/").length - right.split("/").length || comparePaths(left, right),
   );
 }
 
@@ -334,9 +322,7 @@ export function planMarkdownImport(
     const parentId =
       cut === -1
         ? (options.destinationParentId ?? null)
-        : (folderIdByPath.get(path.slice(0, cut)) ??
-          options.destinationParentId ??
-          null);
+        : (folderIdByPath.get(path.slice(0, cut)) ?? options.destinationParentId ?? null);
     operations.push({
       type: "create_folder",
       id,
@@ -358,9 +344,7 @@ export function planMarkdownImport(
       parentId:
         cut === -1
           ? (options.destinationParentId ?? null)
-          : (folderIdByPath.get(normalized.slice(0, cut)) ??
-            options.destinationParentId ??
-            null),
+          : (folderIdByPath.get(normalized.slice(0, cut)) ?? options.destinationParentId ?? null),
       title: fileName.replace(/\.md$/i, ""),
       id: options.reuseNotesByPath?.get(normalized)?.id ?? makeId(),
       reuse: options.reuseNotesByPath?.get(normalized),
@@ -426,8 +410,7 @@ export function planMarkdownImport(
     preservedSources,
     createdNotes: plannedFiles.filter((planned) => !planned.reuse).length,
     updatedNotes: plannedFiles.filter((planned) => planned.reuse).length,
-    duplicateTitles: [...idsByTitle.values()].filter((ids) => ids.length > 1)
-      .length,
+    duplicateTitles: [...idsByTitle.values()].filter((ids) => ids.length > 1).length,
   };
 }
 

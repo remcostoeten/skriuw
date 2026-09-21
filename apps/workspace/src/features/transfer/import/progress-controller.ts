@@ -28,13 +28,9 @@ export function beginImportProgress(initial: ImportProgress): {
   finish: () => void;
 } {
   const controller = new AbortController();
-  const publish = (progress: ImportProgress | null) => {
-    listener?.(
-      progress
-        ? { ...progress, cancel: () => controller.abort() }
-        : null,
-    );
-  };
+  function publish(progress: ImportProgress | null) {
+    listener?.(progress ? { ...progress, cancel: () => controller.abort() } : null);
+  }
   publish(initial);
   return {
     signal: controller.signal,

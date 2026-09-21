@@ -61,8 +61,7 @@ export const DRAWING_SHORTCUT_IDS = [
 
 export type NoteEditorShortcutId = (typeof NOTE_EDITOR_SHORTCUT_IDS)[number];
 export type RawMarkdownEdgeShortcutId = (typeof RAW_MARKDOWN_EDGE_SHORTCUT_IDS)[number];
-export type RawMarkdownSurfaceShortcutId =
-  (typeof RAW_MARKDOWN_SURFACE_SHORTCUT_IDS)[number];
+export type RawMarkdownSurfaceShortcutId = (typeof RAW_MARKDOWN_SURFACE_SHORTCUT_IDS)[number];
 export type EditorSearchShortcutId = (typeof EDITOR_SEARCH_SHORTCUT_IDS)[number];
 export type DrawingShortcutId = (typeof DRAWING_SHORTCUT_IDS)[number];
 

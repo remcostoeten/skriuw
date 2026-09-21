@@ -5,7 +5,10 @@ export default defineConfig(({ mode }) => ({
   base: "./",
   plugins: react(),
   resolve: {
-    alias: mode === "profiling" ? [{ find: "react-dom/client", replacement: "react-dom/profiling" }] : [],
+    alias:
+      mode === "profiling"
+        ? [{ find: "react-dom/client", replacement: "react-dom/profiling" }]
+        : [],
   },
   define: {
     __PROFILE_BUILD__: JSON.stringify(mode === "profiling"),

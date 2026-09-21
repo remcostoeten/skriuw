@@ -94,9 +94,7 @@ test("resource links rewrite to files under resources/", () => {
   const note = bundle.notes[0];
   assert.ok(note?.markdown.includes(`![cover](resources/${RESOURCE_ID}.png)`));
   assert.ok(note?.markdown.includes("file (attachment)"));
-  assert.ok(
-    bundle.warnings.some((warning) => warning.message.includes("attachment")),
-  );
+  assert.ok(bundle.warnings.some((warning) => warning.message.includes("attachment")));
 });
 
 test("deleted notes are skipped with a warning", () => {

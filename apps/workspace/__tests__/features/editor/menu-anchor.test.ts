@@ -53,7 +53,10 @@ test("a multi-line range anchors from the start of the selection", () => {
 
 test("anchors stay a gap away from both window edges", () => {
   withWindowWidth(1200, () => {
-    const nearLeft = viewWith({ left: 4, top: 400, bottom: 420 }, { left: 8, top: 400, bottom: 420 });
+    const nearLeft = viewWith(
+      { left: 4, top: 400, bottom: 420 },
+      { left: 8, top: 400, bottom: 420 },
+    );
     assert.equal(rangeMenuAnchor(nearLeft, 1, 2, WIDTH).x, 162);
     const nearRight = viewWith(
       { left: 1180, top: 400, bottom: 420 },

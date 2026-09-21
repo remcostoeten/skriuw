@@ -18,11 +18,17 @@ function selectedState(text: string): EditorState {
   return state.apply(state.tr.setSelection(TextSelection.create(document, 1, text.length + 1)));
 }
 
-function runCommand(state: EditorState, command: ReturnType<typeof setHighlightColor>): EditorState {
+function runCommand(
+  state: EditorState,
+  command: ReturnType<typeof setHighlightColor>,
+): EditorState {
   let next = state;
-  assert.equal(command(state, (transaction) => {
-    next = next.apply(transaction);
-  }), true);
+  assert.equal(
+    command(state, (transaction) => {
+      next = next.apply(transaction);
+    }),
+    true,
+  );
   return next;
 }
 
@@ -50,11 +56,16 @@ test("alignment applies to every selected text block", () => {
     productSchema.node("heading", { level: 2 }, [productSchema.text("Two")]),
   ]);
   let state = EditorState.create({ doc: document });
-  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1, state.doc.content.size - 1)));
+  state = state.apply(
+    state.tr.setSelection(TextSelection.create(state.doc, 1, state.doc.content.size - 1)),
+  );
   let aligned = state;
-  assert.equal(setTextAlignment("center")(state, (transaction) => {
-    aligned = aligned.apply(transaction);
-  }), true);
+  assert.equal(
+    setTextAlignment("center")(state, (transaction) => {
+      aligned = aligned.apply(transaction);
+    }),
+    true,
+  );
   assert.equal(aligned.doc.firstChild?.attrs.textAlign, "center");
   assert.equal(aligned.doc.lastChild?.attrs.textAlign, "center");
 });

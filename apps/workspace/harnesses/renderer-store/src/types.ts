@@ -80,11 +80,7 @@ export type StoreDiagnostics = {
 export type RendererStore = {
   getState: () => RendererState;
   select: <T>(selector: Selector<T>) => T;
-  subscribe: <T>(
-    selector: Selector<T>,
-    listener: Listener,
-    equality?: Equality<T>,
-  ) => () => void;
+  subscribe: <T>(selector: Selector<T>, listener: Listener, equality?: Equality<T>) => () => void;
   createBinding: <T>(selector: Selector<T>, equality?: Equality<T>) => SelectorBinding<T>;
   update: (updater: (state: RendererState) => RendererState) => boolean;
   setActiveNote: (id: string | null) => boolean;

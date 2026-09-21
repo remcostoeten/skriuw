@@ -59,8 +59,7 @@ export function activeThemeIndex(theme: string): number {
   return Math.max(
     0,
     THEME_ENTRIES.findIndex(
-      (entry) =>
-        entry.id === theme || entry.variants?.some((variant) => variant.id === theme),
+      (entry) => entry.id === theme || entry.variants?.some((variant) => variant.id === theme),
     ),
   );
 }

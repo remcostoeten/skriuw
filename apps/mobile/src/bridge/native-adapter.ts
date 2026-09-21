@@ -6,7 +6,11 @@ import {
   type WorkspaceDocument,
   type WorkspaceSnapshot,
 } from "@skriuw/renderer-core/contracts/workspace";
-import { DEFAULT_SLOT, type OpenedWorkspace, type SkriuwCore } from "../../modules/skriuw-core/src/core";
+import {
+  DEFAULT_SLOT,
+  type OpenedWorkspace,
+  type SkriuwCore,
+} from "../../modules/skriuw-core/src/core";
 import { SkriuwCoreError } from "../../modules/skriuw-core/src/errors";
 import { refuseMissingNativeCommand } from "./refusals";
 
@@ -63,7 +67,10 @@ function parsePayload<T>(json: string, command: string): T {
  * Sidebar expansion has no native home either, so it lasts for the process
  * only: a relaunch reads `null` and the tree falls back to its defaults.
  */
-export function createNativeBridge(core: SkriuwCore, options: NativeBridgeOptions = {}): NativeBridge {
+export function createNativeBridge(
+  core: SkriuwCore,
+  options: NativeBridgeOptions = {},
+): NativeBridge {
   const slot = options.slot ?? DEFAULT_SLOT;
   let opening: Promise<OpenedWorkspace> | null = null;
   let closing: Promise<void> | null = null;
@@ -187,7 +194,7 @@ export function createNativeBridge(core: SkriuwCore, options: NativeBridgeOption
         if (pendingOpen !== null) {
           await pendingOpen.then(ignoreOutcome, ignoreOutcome);
         }
-        await Promise.allSettled([...inFlight]);
+        await Promise.allSettled(inFlight);
         await core.shutdown();
       }
       function release(): void {

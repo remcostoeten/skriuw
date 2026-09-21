@@ -68,7 +68,9 @@ export function LockSection({ store }: SectionProps) {
         <div className={settingsGroupTitle}>Note lock</div>
         <div className={settingsRow}>
           <span className={settingsRowLabel}>
-            {lock.configured ? `${noun.charAt(0).toUpperCase()}${noun.slice(1)} lock` : "Not set up"}
+            {lock.configured
+              ? `${noun.charAt(0).toUpperCase()}${noun.slice(1)} lock`
+              : "Not set up"}
             <span className={settingsRowDescription}>
               {lockStatusText(lock.configured, lock.unlocked, lock.lockedNoteCount)}
             </span>

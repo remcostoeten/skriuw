@@ -41,7 +41,11 @@ function hasValidBody(message: Record<string, unknown>): boolean {
     case "request":
       return typeof message.requestId === "number" && typeof message.command === "string";
     case "failure":
-      return typeof message.code === "string" && FAILURE_CODES.has(message.code) && typeof message.detail === "string";
+      return (
+        typeof message.code === "string" &&
+        FAILURE_CODES.has(message.code) &&
+        typeof message.detail === "string"
+      );
     default:
       return false;
   }

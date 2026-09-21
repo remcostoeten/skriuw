@@ -45,7 +45,8 @@ const MESSAGES: Record<TaskWriteRefusal, string> = {
   "block-missing": "The source note no longer contains this checklist item.",
   "block-ambiguous":
     "The source note links this task from more than one checklist item. Delete the duplicate to change it here.",
-  "document-mismatch": "The source note could not be read here. Open it in the editor to change it.",
+  "document-mismatch":
+    "The source note could not be read here. Open it in the editor to change it.",
   "already-linked": "That checklist item is already a task.",
   "empty-title": "Give the checklist item some text before promoting it.",
   "invalid-identity": "That task could not be given an identity.",
@@ -106,11 +107,7 @@ function isRefusal(value: LoadedNote | TaskWriteResult): value is TaskWriteResul
  * reconciles to the new checkbox instead of reverting it (ADR-0031). Refuses
  * rather than guessing whenever the document and the record disagree.
  */
-export function buildTaskToggle(
-  state: RendererState,
-  taskId: string,
-  at: number,
-): TaskWriteResult {
+export function buildTaskToggle(state: RendererState, taskId: string, at: number): TaskWriteResult {
   const task = state.tasks.get(taskId);
   if (!task) {
     return refuse("unknown-task");
@@ -118,7 +115,10 @@ export function buildTaskToggle(
   const status = flipped(task.status);
   const updated: WorkspaceTask = { ...task, status, updatedAt: at };
   if (task.source === null) {
-    return { status: "ready", operations: [{ type: "update_task", task: updated, document: null }] };
+    return {
+      status: "ready",
+      operations: [{ type: "update_task", task: updated, document: null }],
+    };
   }
   const loaded = loadNote(state, task.source.noteId);
   if (isRefusal(loaded)) {

@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  InMemoryCustomThemeRegistry,
-  THEME_SCHEMA_VERSION,
-  THEME_TOKENS,
-} from "@skriuw/theme";
+import { InMemoryCustomThemeRegistry, THEME_SCHEMA_VERSION, THEME_TOKENS } from "@skriuw/theme";
 import {
   applySettingsToRoot,
   cssStringLiteral,
@@ -59,11 +55,7 @@ test("custom themes apply validated tokens and built-ins clear them", () => {
     tokens: THEME_TOKENS.paper,
   });
   const root = rootStub();
-  applySettingsToRoot(
-    root,
-    { ...DEFAULT_WORKSPACE_SETTINGS, theme: "custom-solar" },
-    themes,
-  );
+  applySettingsToRoot(root, { ...DEFAULT_WORKSPACE_SETTINGS, theme: "custom-solar" }, themes);
   assert.equal(root.dataset.theme, "custom-solar");
   assert.equal(root.dataset.colorScheme, "light");
   assert.equal(root.properties.get("--background"), "40 16% 95%");

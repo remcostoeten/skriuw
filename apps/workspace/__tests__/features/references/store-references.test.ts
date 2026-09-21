@@ -22,9 +22,7 @@ test("bootstrap normalizes tags, people, and reverse-reference projections", () 
     "note-b",
     "note-c",
   ]);
-  assert.deepEqual(state.incomingReferences.get(referenceKey("person", "person-ada")), [
-    "note-b",
-  ]);
+  assert.deepEqual(state.incomingReferences.get(referenceKey("person", "person-ada")), ["note-b"]);
 });
 
 test("saving a document updates outgoing and incoming projections atomically", () => {
@@ -46,9 +44,7 @@ test("saving a document updates outgoing and incoming projections atomically", (
   ]);
   assert.deepEqual(state.incomingReferences.get(referenceKey("note", "note-a")), ["note-b"]);
   assert.deepEqual(state.incomingReferences.get(referenceKey("tag", "tag-alpha")), ["note-b"]);
-  assert.deepEqual(state.incomingReferences.get(referenceKey("person", "person-bob")), [
-    "note-c",
-  ]);
+  assert.deepEqual(state.incomingReferences.get(referenceKey("person", "person-bob")), ["note-c"]);
 });
 
 test("saving without reference changes keeps projection identities stable", () => {
@@ -109,7 +105,14 @@ test("creating tags and people is idempotent per identifier", () => {
   store.applyReferenceOperations([
     {
       type: "create_tag",
-      tag: { id: "tag-new", name: "fresh", color: null, createdAt: 0, updatedAt: 0, createdIn: null },
+      tag: {
+        id: "tag-new",
+        name: "fresh",
+        color: null,
+        createdAt: 0,
+        updatedAt: 0,
+        createdIn: null,
+      },
     },
     {
       type: "create_tag",

@@ -1,8 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { MarkdownTree } from "../../../../src/features/transfer/export/markdown-transfer-model";
-import { detectImportSource, importSourceKey } from "../../../../src/features/transfer/import/model";
-import { applyImportGrouping, planImportBundle } from "../../../../src/features/transfer/import/plan";
+import {
+  detectImportSource,
+  importSourceKey,
+} from "../../../../src/features/transfer/import/model";
+import {
+  applyImportGrouping,
+  planImportBundle,
+} from "../../../../src/features/transfer/import/plan";
 import { importSources } from "../../../../src/features/transfer/import/sources";
 import { bearSource } from "../../../../src/features/transfer/import/sources/bear";
 import { appleNotesSource } from "../../../../src/features/transfer/import/sources/apple-notes";
@@ -75,11 +81,7 @@ test("textbundle files detect as bear and hoist notes out of bundles", () => {
 
 test("Bear TextBundle metadata supplies timestamps, tags, and protected-note diagnostics", () => {
   const input = tree({
-    directories: [
-      "One.textbundle",
-      "Secret.textbundle",
-      "Trash.textbundle",
-    ],
+    directories: ["One.textbundle", "Secret.textbundle", "Trash.textbundle"],
     files: [
       {
         relativePath: "One.textbundle/text.md",
@@ -119,19 +121,12 @@ test("Bear TextBundle metadata supplies timestamps, tags, and protected-note dia
   const bundle = bearSource.parse(input);
   assert.equal(bundle.notes.length, 1);
   assert.deepEqual(bundle.notes[0].tags, ["multi word", "project/alpha"]);
-  assert.equal(
-    bundle.notes[0].createdAt,
-    Date.parse("2026-01-02T03:04:05Z"),
-  );
-  assert.equal(
-    bundle.notes[0].modifiedAt,
-    Date.parse("2026-02-03T04:05:06Z"),
-  );
+  assert.equal(bundle.notes[0].createdAt, Date.parse("2026-01-02T03:04:05Z"));
+  assert.equal(bundle.notes[0].modifiedAt, Date.parse("2026-02-03T04:05:06Z"));
   assert.ok(bundle.warnings.some((warning) => warning.message.includes("trashed")));
   assert.ok(
     bundle.warnings.some(
-      (warning) =>
-        warning.severity === "error" && warning.message.includes("encrypted"),
+      (warning) => warning.severity === "error" && warning.message.includes("encrypted"),
     ),
   );
 });
@@ -233,9 +228,7 @@ test("planImportBundle builds folders from note paths and keeps adapter titles",
     folders.map((operation) => operation.type === "create_folder" && operation.title),
     ["Docs", "Empty"],
   );
-  const noteOperations = plan.operations.filter(
-    (operation) => operation.type === "create_note",
-  );
+  const noteOperations = plan.operations.filter((operation) => operation.type === "create_note");
   assert.equal(noteOperations.length, 2);
   const guide = noteOperations.find(
     (operation) => operation.type === "create_note" && operation.title === "Guide",
@@ -269,12 +262,8 @@ test("planImportBundle applies valid provider timestamps", () => {
     999,
     sequentialIds(),
   );
-  const create = plan.operations.find(
-    (operation) => operation.type === "create_note",
-  );
-  const save = plan.contentOperations.find(
-    (operation) => operation.type === "save_document",
-  );
+  const create = plan.operations.find((operation) => operation.type === "create_note");
+  const save = plan.contentOperations.find((operation) => operation.type === "save_document");
   assert.equal(create?.at, createdAt);
   assert.equal(save?.at, modifiedAt);
 });
@@ -299,9 +288,7 @@ test("planImportBundle pins created notes the adapter marked as pinned", () => {
     (operation) => operation.type === "create_note" && operation.title === "Pinned",
   );
   assert.ok(create);
-  const pins = plan.operations.filter(
-    (operation) => operation.type === "set_node_pinned",
-  );
+  const pins = plan.operations.filter((operation) => operation.type === "set_node_pinned");
   assert.equal(pins.length, 1);
   assert.deepEqual(pins[0], {
     type: "set_node_pinned",
@@ -310,9 +297,7 @@ test("planImportBundle pins created notes the adapter marked as pinned", () => {
     at: createdAt,
   });
   assert.equal(plan.pinnedNotes, 1);
-  assert.ok(
-    plan.operations.indexOf(pins[0]) > plan.operations.indexOf(create),
-  );
+  assert.ok(plan.operations.indexOf(pins[0]) > plan.operations.indexOf(create));
 });
 
 test("applyImportGrouping nests roots in a source folder with per-year note folders", () => {
@@ -352,9 +337,7 @@ test("applyImportGrouping nests roots in a source folder with per-year note fold
   );
   const parentByTitle = new Map(
     operations.flatMap((operation) =>
-      operation.type === "create_note"
-        ? [[operation.title, operation.placement.parentId]]
-        : [],
+      operation.type === "create_note" ? [[operation.title, operation.placement.parentId]] : [],
     ),
   );
   assert.equal(parentByTitle.get("Earlier"), "id-2");
@@ -393,9 +376,7 @@ test("applyImportGrouping without options matches plain destination reparenting"
       continue;
     }
     const expected =
-      operation.type === "create_note" && operation.title === "Guide"
-        ? nestedParent
-        : "dest";
+      operation.type === "create_note" && operation.title === "Guide" ? nestedParent : "dest";
     assert.equal(operation.placement.parentId, expected);
   }
 });
@@ -430,8 +411,7 @@ test("applyImportGrouping creates nothing when every note was a duplicate", () =
   ).operations;
   assert.deepEqual(
     operations.filter(
-      (operation) =>
-        operation.type === "create_note" || operation.type === "create_folder",
+      (operation) => operation.type === "create_note" || operation.type === "create_folder",
     ),
     [],
   );
@@ -457,9 +437,7 @@ test("applyImportGrouping reuses same-named folders from an earlier import", () 
       sourceId: "simplenote",
       sourceLabel: "Simplenote",
       directories: [],
-      notes: [
-        { relativePath: "Later.md", title: "Later", markdown: "Body", createdAt: y2023 },
-      ],
+      notes: [{ relativePath: "Later.md", title: "Later", markdown: "Body", createdAt: y2023 }],
       warnings: [],
     },
     999,
@@ -502,8 +480,7 @@ test("planImportBundle keeps provenance properties out of the main operations", 
   );
   assert.equal(plan.sourcePropertyNotes, 1);
   assert.equal(
-    plan.operations.filter((operation) => operation.type === "set_note_property")
-      .length,
+    plan.operations.filter((operation) => operation.type === "set_note_property").length,
     0,
   );
   const properties = plan.sourcePropertyOperations.flatMap((operation) =>
@@ -552,10 +529,7 @@ test("planImportBundle keeps property positions dense so the store accepts them"
     sequentialIds(),
   );
   const positionsByNote = new Map<string, number[]>();
-  for (const operation of [
-    ...plan.operations,
-    ...plan.sourcePropertyOperations,
-  ]) {
+  for (const operation of [...plan.operations, ...plan.sourcePropertyOperations]) {
     if (operation.type !== "set_note_property") {
       continue;
     }

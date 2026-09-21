@@ -33,5 +33,5 @@ export function availableOllamaSelection(
 ): string | null {
   return selected && models.some((model) => model.name === selected)
     ? selected
-    : models[0]?.name ?? null;
+    : (models[0]?.name ?? null);
 }

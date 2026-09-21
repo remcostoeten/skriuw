@@ -78,7 +78,9 @@ function landedText(markdown: string, line: number, source?: string): string {
   const document = parseProductMarkdown(markdown);
   const index = buildDocumentLineIndex(document, source);
   const target = documentLineTarget(document, index, line);
-  const $position = document.resolve(topLevelTextPosition(document, target.blockIndex, target.offset));
+  const $position = document.resolve(
+    topLevelTextPosition(document, target.blockIndex, target.offset),
+  );
   return $position.parent.textBetween($position.parentOffset, $position.parent.content.size);
 }
 

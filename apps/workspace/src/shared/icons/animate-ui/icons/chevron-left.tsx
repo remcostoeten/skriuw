@@ -1,13 +1,8 @@
-'use client';
+"use client";
 
-import { motion, type Variants } from 'motion/react';
+import { motion, type Variants } from "motion/react";
 
-import {
-  getVariants,
-  useAnimateIconContext,
-  IconWrapper,
-  type IconProps,
-} from './icon';
+import { getVariants, useAnimateIconContext, IconWrapper, type IconProps } from "./icon";
 
 type ChevronLeftProps = IconProps<keyof typeof animations>;
 
@@ -16,22 +11,22 @@ const animations = {
     path: {
       initial: {
         x: 0,
-        transition: { duration: 0.3, ease: 'easeInOut' },
+        transition: { duration: 0.3, ease: "easeInOut" },
       },
       animate: {
         x: -4,
-        transition: { duration: 0.3, ease: 'easeInOut' },
+        transition: { duration: 0.3, ease: "easeInOut" },
       },
     },
   } satisfies Record<string, Variants>,
-  'default-loop': {
+  "default-loop": {
     path: {
       initial: {
         x: 0,
       },
       animate: {
         x: [0, -4, 0],
-        transition: { duration: 0.6, ease: 'easeInOut' },
+        transition: { duration: 0.6, ease: "easeInOut" },
       },
     },
   } satisfies Record<string, Variants>,

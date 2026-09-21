@@ -12,22 +12,20 @@ import {
 import type { WorkspaceOperationEnvelope } from "@skriuw/renderer-core/contracts/workspace";
 
 declare global {
-  interface Window {
-    browserStorageE2e: {
-      write(): Promise<{ id: string; initialNodes: number }>;
-      count(id: string): Promise<number>;
-      archiveRoundTrip(): Promise<{ markerCopies: number; extraCopies: number }>;
-      invalidArchiveRejected(): Promise<{ code: string; nodesAfter: number }>;
-      contentSearch(): Promise<{
-        hits: number;
-        snippet: string;
-        diacriticHits: number;
-        opaqueHits: number;
-        rebuiltHits: number;
-        needsRebuildAfter: boolean;
-      }>;
-    };
-  }
+  var browserStorageE2e: {
+    write(): Promise<{ id: string; initialNodes: number }>;
+    count(id: string): Promise<number>;
+    archiveRoundTrip(): Promise<{ markerCopies: number; extraCopies: number }>;
+    invalidArchiveRejected(): Promise<{ code: string; nodesAfter: number }>;
+    contentSearch(): Promise<{
+      hits: number;
+      snippet: string;
+      diacriticHits: number;
+      opaqueHits: number;
+      rebuiltHits: number;
+      needsRebuildAfter: boolean;
+    }>;
+  };
 }
 
 function createNoteOperation(
@@ -66,9 +64,7 @@ window.browserStorageE2e = {
   async write() {
     const id = `browser-opfs-${crypto.randomUUID()}`;
     const before = await bootstrapWorkspace();
-    await applyWorkspaceOperations([
-      createFolderOperation(id, "Durable browser folder"),
-    ]);
+    await applyWorkspaceOperations([createFolderOperation(id, "Durable browser folder")]);
     const written = await bootstrapWorkspace();
     if (!written.nodes.some((node) => node.id === id)) {
       throw new Error("accepted browser write was not visible before reopen");
@@ -84,17 +80,13 @@ window.browserStorageE2e = {
     const markerId = `archive-marker-${crypto.randomUUID()}`;
     const extraId = `post-export-${crypto.randomUUID()}`;
     await bootstrapWorkspace();
-    await applyWorkspaceOperations([
-      createFolderOperation(markerId, "Archive round-trip marker"),
-    ]);
+    await applyWorkspaceOperations([createFolderOperation(markerId, "Archive round-trip marker")]);
     const report = await exportWorkspaceArchive();
     const saved = lastSavedTextFile();
     if (!saved || saved.fileName !== report.fileName) {
       throw new Error("archive export did not hand a download to the browser");
     }
-    await applyWorkspaceOperations([
-      createFolderOperation(extraId, "Created after export"),
-    ]);
+    await applyWorkspaceOperations([createFolderOperation(extraId, "Created after export")]);
     const pickedPath = rememberPickedFile(saved.fileName, saved.text);
     const imported = await importWorkspaceArchive(pickedPath);
     const snapshot = imported.snapshot;

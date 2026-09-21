@@ -1,8 +1,4 @@
-import type {
-  NodePlacement,
-  WorkspaceNode,
-  WorkspaceOperation,
-} from "../contracts/workspace";
+import type { NodePlacement, WorkspaceNode, WorkspaceOperation } from "../contracts/workspace";
 import { unavailableNodeIds } from "./tree";
 
 const RANK_STEP = 1024;

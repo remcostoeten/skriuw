@@ -109,7 +109,11 @@ function roundedPath(points: Point[], radius: number): string {
   return path;
 }
 
-function buildPathPoints(nav: HTMLElement, links: HTMLElement[], items: OutlineItem[]): {
+function buildPathPoints(
+  nav: HTMLElement,
+  links: HTMLElement[],
+  items: OutlineItem[],
+): {
   points: Point[];
   anchors: number[];
 } {
@@ -225,7 +229,11 @@ function mountOutlineController(
     }
     return next.every((item, index) => {
       const previous = items[index]!;
-      return previous.element === item.element && previous.label === item.label && previous.depth === item.depth;
+      return (
+        previous.element === item.element &&
+        previous.label === item.label &&
+        previous.depth === item.depth
+      );
     });
   }
 
@@ -290,7 +298,9 @@ function mountOutlineController(
     pathLength = activePath.getTotalLength();
     activePath.style.strokeDasharray = `${pathLength}`;
 
-    anchors = anchorIndices.map((index) => findLengthAtPoint(activePath, pathLength, points[index]!));
+    anchors = anchorIndices.map((index) =>
+      findLengthAtPoint(activePath, pathLength, points[index]!),
+    );
 
     rendered = Math.min(rendered, pathLength);
     target = Math.min(target, pathLength);

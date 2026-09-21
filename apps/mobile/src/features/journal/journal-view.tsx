@@ -1,13 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
-import {
-  PanResponder,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { AXIS_LOCK_PX } from "../../shell/edge-swipe";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
@@ -64,9 +57,7 @@ function selectDayEntry(state: RendererState, dateKey: DateKey): DayEntry {
 
 function sameDayEntry(left: DayEntry, right: DayEntry): boolean {
   return (
-    left.noteId === right.noteId &&
-    left.mood === right.mood &&
-    left.markdown === right.markdown
+    left.noteId === right.noteId && left.mood === right.mood && left.markdown === right.markdown
   );
 }
 
@@ -204,9 +195,7 @@ export function JournalView() {
             accessibilityLiveRegion="polite"
             style={[styles.drain, { color: theme.color("muted-foreground") }]}
           >
-            {lastDrain.written === 1
-              ? "1 capture added"
-              : `${lastDrain.written} captures added`}
+            {lastDrain.written === 1 ? "1 capture added" : `${lastDrain.written} captures added`}
             {lastDrain.deferred > 0 ? ", some still queued" : ""}
           </Text>
         )}

@@ -29,8 +29,14 @@ test("browser sync is no longer described as desktop-only", () => {
     assert.ok(text.length > 0);
     assert.ok(!text.includes("stay fully local"));
   }
-  assert.equal(syncDescription({ state: "localOnly" }, true), syncDescription({ state: "localOnly" }, false));
-  assert.equal(syncDescription({ state: "upToDate" }, true), syncDescription({ state: "upToDate" }, false));
+  assert.equal(
+    syncDescription({ state: "localOnly" }, true),
+    syncDescription({ state: "localOnly" }, false),
+  );
+  assert.equal(
+    syncDescription({ state: "upToDate" }, true),
+    syncDescription({ state: "upToDate" }, false),
+  );
 });
 
 test("a rejected browser session lands in a recoverable authenticationRequired description", () => {

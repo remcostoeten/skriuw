@@ -6,9 +6,7 @@ function DemoFrame({ status, children }: { status: string; children: React.React
   return (
     <div className="w-full max-w-[22rem]">
       <div className="mb-1.5 flex items-center justify-between px-0.5">
-        <span className={sectionLabelClass}>
-          Preview
-        </span>
+        <span className={sectionLabelClass}>Preview</span>
         <span className="rounded-full border border-border/70 px-1.5 py-0.5 text-[10px] text-muted-foreground">
           {status}
         </span>
@@ -44,7 +42,7 @@ export function CompactSidebarDemo({ enabled }: { enabled: boolean }) {
   );
 }
 
-type DemoTreeRowProps = {
+type Props = {
   label: string;
   depth: number;
   kind: "folder" | "file";
@@ -74,7 +72,7 @@ function DemoTreeGuides({ depth, showGuides }: { depth: number; showGuides: bool
   );
 }
 
-function DemoTreeRow({ label, depth, kind, showGuides }: DemoTreeRowProps) {
+function DemoTreeRow({ label, depth, kind, showGuides }: Props) {
   const Icon = kind === "folder" ? FolderIcon : FileTextIcon;
 
   return (

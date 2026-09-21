@@ -21,11 +21,7 @@ import {
   settingsRowLabel,
   settingsSection,
 } from "./settings-shared";
-import {
-  blockedCauseText,
-  blockedItemLabel,
-  blockedItemRetryable,
-} from "./sync-recovery";
+import { blockedCauseText, blockedItemLabel, blockedItemRetryable } from "./sync-recovery";
 import {
   syncDescription,
   syncDetail,
@@ -72,7 +68,7 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
   useEffect(() => {
     if (!user || browser) return;
     let mounted = true;
-    const load = () => {
+    function load() {
       listBlockedSyncOperations().then(
         (view) => {
           if (!mounted) return;
@@ -83,7 +79,7 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
           if (mounted) setRecoveryError(error instanceof Error ? error.message : String(error));
         },
       );
-    };
+    }
     load();
     const interval = window.setInterval(load, 10_000);
     return () => {
@@ -122,7 +118,7 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
             <span className={settingsRowDescription}>
               {user
                 ? user.email
-                : unavailableReason ?? "Use email and password to sign in or create an account."}
+                : (unavailableReason ?? "Use email and password to sign in or create an account.")}
             </span>
           </span>
           {user ? (
@@ -192,12 +188,22 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
                     {sync.pending ? "Retrying…" : "Retry sync"}
                   </button>
                 ) : null}
-                <button type="button" className={settingsButton} disabled={sync.pending} onClick={sync.pause}>
+                <button
+                  type="button"
+                  className={settingsButton}
+                  disabled={sync.pending}
+                  onClick={sync.pause}
+                >
                   {sync.pending ? "Pausing…" : "Pause sync"}
                 </button>
               </span>
             ) : (
-              <button type="button" className={settingsButton} disabled={sync.pending} onClick={sync.resume}>
+              <button
+                type="button"
+                className={settingsButton}
+                disabled={sync.pending}
+                onClick={sync.resume}
+              >
                 {sync.pending ? "Connecting…" : "Resume sync"}
               </button>
             )}
@@ -262,8 +268,8 @@ function BlockedChanges({ recovery, error, busyId, onRetry, onDiscard }: Blocked
                 <span className={settingsRowLabel}>
                   {blockedItemLabel(item)}
                   <span className={settingsRowDescription}>
-                    Discarded {formatRelativeTime(item.discardedAt)}; it never uploaded and
-                    other devices will not receive it.
+                    Discarded {formatRelativeTime(item.discardedAt)}; it never uploaded and other
+                    devices will not receive it.
                   </span>
                 </span>
               </li>

@@ -5,7 +5,10 @@ import { EditorState, type Transaction } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import { summarize } from "../../../performance/metrics";
 import { productSchema } from "../../../src/features/editor/schema";
-import { createMentionPlugin, type MentionContext } from "../../../src/features/references/mention-plugin";
+import {
+  createMentionPlugin,
+  type MentionContext,
+} from "../../../src/features/references/mention-plugin";
 import {
   queryMentionSuggestions,
   queryTagSuggestions,
@@ -196,8 +199,5 @@ test("high-reference documents save within the frame budget", () => {
     true,
   );
   assert.ok(projectBacklinks(state, "note-1").length > 0);
-  assert.ok(
-    summary.maxMs < 50,
-    `high-reference save max ${summary.maxMs}ms exceeds 50ms`,
-  );
+  assert.ok(summary.maxMs < 50, `high-reference save max ${summary.maxMs}ms exceeds 50ms`);
 });

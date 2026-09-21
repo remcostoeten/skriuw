@@ -43,7 +43,13 @@ test("family detection reads the first meaningful header line", () => {
 });
 
 test("gantt, pie, mindmap, and empty sources are unsupported", () => {
-  for (const source of ["gantt\n  title x", "pie\n  \"a\": 1", "mindmap\n  root", "", "   \n%% only"]) {
+  for (const source of [
+    "gantt\n  title x",
+    'pie\n  "a": 1',
+    "mindmap\n  root",
+    "",
+    "   \n%% only",
+  ]) {
     assert.equal(detectMermaidFamily(source), "unsupported", JSON.stringify(source));
   }
   assert.equal(detectMermaidFamily("graphics are not a header"), "unsupported");
@@ -104,7 +110,7 @@ test("the primary font family is the unquoted head of the stack", () => {
 
 test("sanitizing strips font imports, scripts, handlers, and javascript links", () => {
   const dirty = [
-    "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\" onload=\"steal()\">",
+    '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" onload="steal()">',
     "<style>",
     "  @import url('https://fonts.googleapis.com/css2?family=Geist');",
     "  text { font-family: 'Geist'; }",
@@ -166,10 +172,10 @@ test("bad source, unsupported families, and empty output become error results", 
 
 test("identical source, palette, and options hit the memo", async () => {
   let calls = 0;
-  const fake = async () => {
+  async function fake() {
     calls += 1;
-    return "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"12\" height=\"8\"></svg>";
-  };
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8"></svg>';
+  }
   const first = await renderMermaidSvg("graph TD\n  A --> B", palette, options, fake);
   const second = await renderMermaidSvg("graph TD\n  A --> B", palette, options, fake);
   assert.equal(calls, 1);
@@ -182,7 +188,9 @@ test("identical source, palette, and options hit the memo", async () => {
 });
 
 test("the memo stays bounded", async () => {
-  const fake = async () => "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1\" height=\"1\"></svg>";
+  async function fake() {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>';
+  }
   for (let index = 0; index < 80; index += 1) {
     await renderMermaidSvg(`graph TD\n  A${index} --> B`, palette, options, fake);
   }

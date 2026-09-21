@@ -1,8 +1,5 @@
 import { authConfiguration } from "@/features/auth/config";
-import {
-  clearBrowserSessionToken,
-  loadBrowserSessionToken,
-} from "@/features/auth/session-store";
+import { clearBrowserSessionToken, loadBrowserSessionToken } from "@/features/auth/session-store";
 import { noop } from "@/shared/lib/noop";
 import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 
@@ -44,12 +41,7 @@ export type BrowserSyncChange = {
 };
 
 export type SyncWorkerPort = {
-  request(
-    kind: string,
-    payload: unknown,
-    expected: string,
-    timeoutMs?: number,
-  ): Promise<unknown>;
+  request(kind: string, payload: unknown, expected: string, timeoutMs?: number): Promise<unknown>;
 };
 
 type BrowserSyncConnection = {
@@ -360,10 +352,7 @@ export function createBrowserSyncDriver(
     }
   }
 
-  async function establishSession(
-    token: string,
-    baseUrl: string,
-  ): Promise<WorkspaceSyncStatus> {
+  async function establishSession(token: string, baseUrl: string): Promise<WorkspaceSyncStatus> {
     const existing = (await dependencies.port.request(
       "sync_connection",
       undefined,
@@ -620,7 +609,9 @@ function publishResumeFailure(reason: string | null): void {
   for (const listener of resumeFailureListeners) listener();
 }
 
-function normalizeChange(changes: Partial<BrowserSyncChange> | null | undefined): BrowserSyncChange {
+function normalizeChange(
+  changes: Partial<BrowserSyncChange> | null | undefined,
+): BrowserSyncChange {
   return {
     noteIds: Array.isArray(changes?.noteIds)
       ? changes.noteIds.filter((id): id is string => typeof id === "string")
@@ -630,7 +621,9 @@ function normalizeChange(changes: Partial<BrowserSyncChange> | null | undefined)
   };
 }
 
-function publishBrowserWorkspaceChange(changes: Partial<BrowserSyncChange> | null | undefined): void {
+function publishBrowserWorkspaceChange(
+  changes: Partial<BrowserSyncChange> | null | undefined,
+): void {
   const change = normalizeChange(changes);
   if (!change.full && !change.structureChanged && change.noteIds.length === 0) return;
   for (const listener of workspaceChangeListeners) listener(change);
@@ -667,10 +660,7 @@ async function provisionBrowserDevice(
     );
   }
   const provisioned = (await response.json()) as Partial<ProvisionedWorkspace>;
-  if (
-    typeof provisioned.workspaceId !== "string" ||
-    typeof provisioned.deviceId !== "string"
-  ) {
+  if (typeof provisioned.workspaceId !== "string" || typeof provisioned.deviceId !== "string") {
     throw new Error("cloud provisioning response was invalid");
   }
   return { workspaceId: provisioned.workspaceId, deviceId: provisioned.deviceId };
@@ -724,10 +714,7 @@ function openBrowserPushChannel(
       connection.baseUrl.replace(/^http/, "ws") +
       `/v1/workspaces/${connection.workspaceId}/events?deviceId=${connection.deviceId}`;
     try {
-      socket = new WebSocket(url, [
-        SYNC_EVENTS_SUBPROTOCOL,
-        `skriuw-bearer.${token}`,
-      ]);
+      socket = new WebSocket(url, [SYNC_EVENTS_SUBPROTOCOL, `skriuw-bearer.${token}`]);
     } catch (error) {
       console.error("sync push channel could not connect", error);
       scheduleReconnect();

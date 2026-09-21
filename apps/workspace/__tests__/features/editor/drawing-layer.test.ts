@@ -34,20 +34,17 @@ function documentWith(layer: DrawingLayer | null, text = "Notes") {
 }
 
 test("a layer round-trips from document_json through the markdown fence", () => {
-  const layer = layerWith(
-    stroke("s1", [10, 20, 30.25, 41.5]),
-    {
-      id: "r1",
-      kind: "rect",
-      color: "#ff8787",
-      width: 4,
-      filled: true,
-      x1: 0,
-      y1: 0,
-      x2: 120,
-      y2: 60,
-    },
-  );
+  const layer = layerWith(stroke("s1", [10, 20, 30.25, 41.5]), {
+    id: "r1",
+    kind: "rect",
+    color: "#ff8787",
+    width: 4,
+    filled: true,
+    x1: 0,
+    y1: 0,
+    x2: 120,
+    y2: 60,
+  });
   const document = documentWith(layer);
 
   const markdown = serializeProductMarkdown(document);
@@ -182,7 +179,10 @@ test("caps reject a layer that would exceed its bounds", () => {
   );
   assert.equal(parseDrawingLayer(layerWith(...tooMany)), null);
 
-  const longStroke = stroke("s1", new Array((MAX_STROKE_POINTS + 1) * 2).fill(1));
+  const longStroke = stroke(
+    "s1",
+    Array.from({ length: (MAX_STROKE_POINTS + 1) * 2 }, () => 1),
+  );
   assert.equal(parseDrawingLayer(layerWith(longStroke)), null);
 });
 

@@ -105,8 +105,7 @@ test("trashed and encrypted items are skipped with warnings", () => {
   assert.ok(bundle.warnings.some((warning) => warning.message.includes("trashed")));
   assert.ok(
     bundle.warnings.some(
-      (warning) =>
-        warning.message.includes("encrypted") && warning.severity === "error",
+      (warning) => warning.message.includes("encrypted") && warning.severity === "error",
     ),
   );
 });

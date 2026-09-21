@@ -48,9 +48,7 @@ test("Markdown import reports notes preserved in raw mode", () => {
 
   assert.equal(plan.preservedSources, 1);
   assert.equal(
-    plan.contentOperations[0]?.type === "save_document"
-      ? plan.contentOperations[0].markdown
-      : null,
+    plan.contentOperations[0]?.type === "save_document" ? plan.contentOperations[0].markdown : null,
     footnotes,
   );
 });

@@ -43,9 +43,7 @@ export type AuthFailure = {
   message: string;
 };
 
-export type AuthOutcome<T> =
-  | { ok: true; value: T }
-  | { ok: false; error: AuthFailure };
+export type AuthOutcome<T> = { ok: true; value: T } | { ok: false; error: AuthFailure };
 
 export type Credentials = {
   email: string;
@@ -122,10 +120,7 @@ export function createAuthClient(options: AuthClientOptions): AuthClient {
     return { ok: true, value: { body, token } };
   }
 
-  async function authenticate(
-    path: string,
-    body: unknown,
-  ): Promise<AuthOutcome<SignedInSession>> {
+  async function authenticate(path: string, body: unknown): Promise<AuthOutcome<SignedInSession>> {
     const result = await call(path, { method: "POST", body });
     if (!result.ok) return result;
     const account = readAccount(result.value.body);

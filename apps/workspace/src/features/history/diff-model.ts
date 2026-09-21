@@ -55,10 +55,7 @@ function commonSuffixLength(
   limit: number,
 ): number {
   let index = 0;
-  while (
-    index < limit &&
-    before[before.length - 1 - index] === after[after.length - 1 - index]
-  ) {
+  while (index < limit && before[before.length - 1 - index] === after[after.length - 1 - index]) {
     index += 1;
   }
   return index;
@@ -91,9 +88,7 @@ function slideBlankRunsUp(ops: Op[]): Op[] {
     }
     const unit = first.text;
     const uniformBlank =
-      pure &&
-      unit.trim() === "" &&
-      result.slice(index, end).every((op) => op.text === unit);
+      pure && unit.trim() === "" && result.slice(index, end).every((op) => op.text === unit);
     if (uniformBlank) {
       let slide = 0;
       while (
@@ -136,7 +131,8 @@ function lineSimilarity(before: string, after: string): number {
   let suffix = 0;
   while (
     suffix < minLength - prefix &&
-    strippedBefore[strippedBefore.length - 1 - suffix] === strippedAfter[strippedAfter.length - 1 - suffix]
+    strippedBefore[strippedBefore.length - 1 - suffix] ===
+      strippedAfter[strippedAfter.length - 1 - suffix]
   ) {
     suffix += 1;
   }
@@ -231,7 +227,12 @@ function lineText(line: DiffLine): string {
   return line.segments.map((segment) => segment.text).join("");
 }
 
-function toLine(op: Op, beforeLine: number | null, afterLine: number | null, key: string): DiffLine {
+function toLine(
+  op: Op,
+  beforeLine: number | null,
+  afterLine: number | null,
+  key: string,
+): DiffLine {
   return {
     key,
     kind: op.kind,

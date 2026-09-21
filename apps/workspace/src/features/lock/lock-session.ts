@@ -45,9 +45,7 @@ export async function hydrateLockedDocuments(
 
 /** Replaces opened bodies with their stored placeholders after the key is dropped. */
 async function withholdLockedDocuments(store: RendererStore): Promise<void> {
-  const ids = lockedNodeIds(store.getState()).filter(
-    (id) => store.getState().documents.has(id),
-  );
+  const ids = lockedNodeIds(store.getState()).filter((id) => store.getState().documents.has(id));
   if (ids.length === 0) {
     return;
   }
@@ -124,11 +122,11 @@ function reportFailure(action: string) {
 export function withUnlockedSession(store: RendererStore, action: () => void): void {
   const lock = store.getState().noteLock;
   if (!lock.configured) {
-    requestLockDialog({ kind: "setup", then: action });
+    requestLockDialog({ kind: "setup", onReady: action });
     return;
   }
   if (!lock.unlocked) {
-    requestLockDialog({ kind: "unlock", then: action });
+    requestLockDialog({ kind: "unlock", onReady: action });
     return;
   }
   action();
@@ -184,9 +182,7 @@ type LockSessionDependencies = {
   onError: (context: string, error: unknown) => void;
 };
 
-function defaultDependencies(
-  overrides: Partial<LockSessionDependencies>,
-): LockSessionDependencies {
+function defaultDependencies(overrides: Partial<LockSessionDependencies>): LockSessionDependencies {
   return {
     window: overrides.window ?? window,
     document: overrides.document ?? document,
@@ -194,8 +190,7 @@ function defaultDependencies(
     relock: overrides.relock ?? relockNotes,
     hydrate: overrides.hydrate ?? ((store) => hydrateLockedDocuments(store)),
     refresh: overrides.refresh ?? refreshNoteLock,
-    onError:
-      overrides.onError ?? ((context, error) => console.error(`${context} failed`, error)),
+    onError: overrides.onError ?? ((context, error) => console.error(`${context} failed`, error)),
   };
 }
 

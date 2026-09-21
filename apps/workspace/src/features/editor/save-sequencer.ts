@@ -84,7 +84,7 @@ export class SaveSequencer {
 
   async flush(): Promise<void> {
     while (this.tails.size > 0) {
-      await Promise.allSettled([...this.tails.values()]);
+      await Promise.allSettled(this.tails.values());
     }
     const failures = this.currentFailures();
     if (failures.length > 0) {

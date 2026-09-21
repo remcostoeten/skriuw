@@ -57,14 +57,12 @@ test("an unlinked checklist item is returned untouched", () => {
 
 test("slice open depths and surrounding content survive the rewrite", () => {
   const nested = new Slice(
-    productSchema
-      .node("doc", null, [
-        productSchema.node("paragraph", null, [productSchema.text("before")]),
-        productSchema.node("check_list", null, [
-          checkItem({ checked: false, taskId: "task-1", blockId: "block-1" }),
-        ]),
-      ])
-      .content,
+    productSchema.node("doc", null, [
+      productSchema.node("paragraph", null, [productSchema.text("before")]),
+      productSchema.node("check_list", null, [
+        checkItem({ checked: false, taskId: "task-1", blockId: "block-1" }),
+      ]),
+    ]).content,
     1,
     1,
   );

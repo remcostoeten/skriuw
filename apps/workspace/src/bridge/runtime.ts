@@ -3,7 +3,10 @@ import {
   BrowserStorageWorkerClient,
   type BrowserStorageFailure,
 } from "../../../../crates/skriuw-sqlite-wasm/web/worker-client.ts";
-import type { WorkspaceArchive, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
+import type {
+  WorkspaceArchive,
+  WorkspaceSnapshot,
+} from "@skriuw/renderer-core/contracts/workspace";
 import type { ArchiveExportReport, ArchiveImportReport } from "./commands";
 import {
   deleteBrowserMediaBlob,
@@ -80,11 +83,7 @@ function getBrowserStorage(): Promise<BrowserStorageWorkerClient> {
   if (browserStorage) return browserStorage;
   if (storageReleased) {
     return Promise.reject(
-      browserFailure(
-        "shutdown",
-        "This tab handed the workspace to another Skriuw tab.",
-        true,
-      ),
+      browserFailure("shutdown", "This tab handed the workspace to another Skriuw tab.", true),
     );
   }
   const worker = new Worker(new URL("./browser-worker.ts", import.meta.url), {
@@ -93,14 +92,15 @@ function getBrowserStorage(): Promise<BrowserStorageWorkerClient> {
   });
   const client = new BrowserStorageWorkerClient(worker);
   client.setEventListener(publishBrowserSyncEvent);
-  browserStorage = client.initialize(activeDatabaseName()).then(() => client).catch((error) => {
-    client.terminate();
-    browserStorage = null;
-    throw error;
-  });
-  void browserStorage
-    .then(() => browserSyncDriver(syncWorkerPort).resume())
-    .catch(noop);
+  browserStorage = client
+    .initialize(activeDatabaseName())
+    .then(() => client)
+    .catch((error) => {
+      client.terminate();
+      browserStorage = null;
+      throw error;
+    });
+  void browserStorage.then(() => browserSyncDriver(syncWorkerPort).resume()).catch(noop);
   return browserStorage;
 }
 
@@ -137,11 +137,9 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
   }
   if (command === "adopt_workspace_slot") {
     const { workspaceId } = args as { workspaceId: string };
-    const linked = (await requestExpecting(
-      "sync_connection",
-      undefined,
-      "sync_connection",
-    )) as { workspaceId?: unknown } | null;
+    const linked = (await requestExpecting("sync_connection", undefined, "sync_connection")) as {
+      workspaceId?: unknown;
+    } | null;
     const adoption = adoptWorkspaceSlot(
       workspaceId,
       typeof linked?.workspaceId === "string" ? linked.workspaceId : null,
@@ -262,6 +260,7 @@ export async function clearBrowserData(): Promise<void> {
       await client.close();
     } catch {
       // close() always terminates the worker; the entire OPFS pool is deleted next.
+      noop();
     }
     browserStorage = null;
   }
@@ -418,7 +417,11 @@ function browserCommand(command: string, args: unknown): BrowserCommand {
     case "read_workspace_delta":
       return { kind: "read_workspace_delta", payload: args, expected: "workspace_delta" };
     case "note_lock_state":
-      return { kind: "note_lock_state", payload: { nowMs: Date.now() }, expected: "note_lock_state" };
+      return {
+        kind: "note_lock_state",
+        payload: { nowMs: Date.now() },
+        expected: "note_lock_state",
+      };
     case "configure_note_lock":
       return {
         kind: "configure_note_lock",

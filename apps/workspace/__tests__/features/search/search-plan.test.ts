@@ -189,9 +189,7 @@ test("journal entries participate in relationship filters so routing can claim t
   const store = fixtureStore();
   const plan = planWorkspaceSearch(store.getState(), "#design", LIMIT);
   assert.equal(plan.allowedNoteIds?.has("note-journal"), true);
-  assert.deepEqual(resultIds(store, "#design budget", hitsFor(["note-journal"])), [
-    "note-journal",
-  ]);
+  assert.deepEqual(resultIds(store, "#design budget", hitsFor(["note-journal"])), ["note-journal"]);
 });
 
 test("an unknown or ambiguous name blocks the search instead of widening it", () => {
@@ -200,10 +198,7 @@ test("an unknown or ambiguous name blocks the search instead of widening it", ()
   assert.equal(unknown.status, "blocked");
   assert.equal(unknown.requiresFullText, false);
   assert.equal(unknown.resolution.problems[0]?.reason, "unknown");
-  assert.deepEqual(
-    applySearchPlan(store.getState(), unknown, hitsFor(["note-plain"]), LIMIT),
-    [],
-  );
+  assert.deepEqual(applySearchPlan(store.getState(), unknown, hitsFor(["note-plain"]), LIMIT), []);
 
   store.applyReferenceOperations([{ type: "create_tag", tag: tag("tag-design-2", "Design") }]);
   const ambiguous = planWorkspaceSearch(store.getState(), "#design budget", LIMIT);

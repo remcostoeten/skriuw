@@ -1,11 +1,5 @@
 import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
-import type {
-  Account,
-  AuthClient,
-  AuthFailure,
-  Credentials,
-  Registration,
-} from "./client";
+import type { Account, AuthClient, AuthFailure, Credentials, Registration } from "./client";
 import type { ConnectOutcome } from "./connect";
 
 /**
@@ -77,7 +71,10 @@ export function createAccountController(options: AccountControllerOptions): Acco
 
   async function connect(account: Account, warning: string | null): Promise<void> {
     const forGeneration = generation;
-    publish({ kind: "signed-in", account, warning, connection: { kind: "connecting" } }, forGeneration);
+    publish(
+      { kind: "signed-in", account, warning, connection: { kind: "connecting" } },
+      forGeneration,
+    );
     let outcome: ConnectOutcome;
     try {
       outcome = await options.connect();

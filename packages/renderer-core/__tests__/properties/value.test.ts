@@ -115,11 +115,9 @@ test("option and person references must be unique and resolvable", () => {
     /unknown person person_1/,
   );
   assert.deepEqual(
-    normalizeNotePropertyValue(
-      { valueVersion: 1, type: "person", value: ["person_1"] },
-      [],
-      { personIds: new Set(["person_1"]) },
-    ),
+    normalizeNotePropertyValue({ valueVersion: 1, type: "person", value: ["person_1"] }, [], {
+      personIds: new Set(["person_1"]),
+    }),
     { valueVersion: 1, type: "person", value: ["person_1"] },
   );
 });
@@ -157,7 +155,10 @@ test("field collection normalization requires unique IDs and contiguous position
     options: [],
     value: { valueVersion: 1, type: "text", value: "" },
   };
-  assert.throws(() => normalizeNotePropertyFields([field, field]), /property IDs contain duplicates/);
+  assert.throws(
+    () => normalizeNotePropertyFields([field, field]),
+    /property IDs contain duplicates/,
+  );
   assert.throws(
     () => normalizeNotePropertyFields([{ ...field, position: 2 }]),
     /positions must be contiguous/,

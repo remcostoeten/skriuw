@@ -65,7 +65,10 @@ test("a live run is the only abortable one", () => {
 });
 
 test("the provider names the step it is being waited on in", () => {
-  assert.equal(aiRunSteps(startedRun("r1", 0), "groq · whisper")[0]?.label, "Sending to groq · whisper");
+  assert.equal(
+    aiRunSteps(startedRun("r1", 0), "groq · whisper")[0]?.label,
+    "Sending to groq · whisper",
+  );
   assert.equal(aiRunSteps(startedRun("r1", 0), null)[0]?.label, "Sending the request");
 });
 
@@ -119,7 +122,12 @@ test("the card's tone follows the outcome, and an empty result is not a success"
   assert.equal(aiRunTone(sending), "live");
   assert.equal(aiRunTone(runWithDelta(connectedRun(sending, "r1"), "r1", "Hi")), "live");
   assert.equal(
-    aiRunTone(runWithTerminal(runWithDelta(connectedRun(sending, "r1"), "r1", "Hi"), { type: "done", requestId: "r1" })),
+    aiRunTone(
+      runWithTerminal(runWithDelta(connectedRun(sending, "r1"), "r1", "Hi"), {
+        type: "done",
+        requestId: "r1",
+      }),
+    ),
     "result",
   );
   assert.equal(
@@ -146,7 +154,10 @@ test("start failures are translated for the writer and carry a next move", () =>
 
   const browser = startErrorMessage(new Error("AI completion needs the desktop app."));
   assert.equal(browser.recoveryAction, "none");
-  assert.equal(aiErrorHint({ providerId: "editor", category: "internal_failure", ...browser }), null);
+  assert.equal(
+    aiErrorHint({ providerId: "editor", category: "internal_failure", ...browser }),
+    null,
+  );
 });
 
 test("an aborted start is named as stopped, not as an exception", () => {
@@ -162,7 +173,12 @@ test("unknown start reasons pass through unchanged", () => {
 });
 
 test("a start failure carries its own recovery action into the run", () => {
-  const run = failedRun(startedRun("r1", 0), "r1", "The AI service in this app is not running.", "check_provider_status");
+  const run = failedRun(
+    startedRun("r1", 0),
+    "r1",
+    "The AI service in this app is not running.",
+    "check_provider_status",
+  );
   assert.equal(run.phase, "error");
   assert.equal(run.error?.recoveryAction, "check_provider_status");
   assert.equal(failedRun(startedRun("r1", 0), "r1", "x").error?.recoveryAction, "retry");

@@ -44,16 +44,18 @@ export async function reconcileSearchIndex(
  * function; a reconciliation already in flight is left to finish, because
  * abandoning a rebuild would leave the index half-written.
  */
-export function scheduleSearchIndexReconciliation(ports: SearchIndexPorts = bridgePorts): () => void {
+export function scheduleSearchIndexReconciliation(
+  ports: SearchIndexPorts = bridgePorts,
+): () => void {
   let cancelled = false;
-  const run = () => {
+  function run() {
     if (cancelled) {
       return;
     }
     reconcileSearchIndex(ports).catch((error) => {
       console.error("search index reconciliation failed", error);
     });
-  };
+  }
   if (typeof requestIdleCallback !== "function") {
     const timer = window.setTimeout(run, IDLE_TIMEOUT_MS);
     return () => {

@@ -107,9 +107,7 @@ function parseFrontmatterBlock(block: string): ParsedFrontmatter {
     ) {
       value = {
         type: "list",
-        values: pair.value.items.map((item) =>
-          String(isScalar(item) ? item.value : ""),
-        ),
+        values: pair.value.items.map((item) => String(isScalar(item) ? item.value : "")),
       };
     }
     if (value === null) {
@@ -171,24 +169,17 @@ function normalizeRelativePath(base: string, target: string): string {
   return segments.join("/");
 }
 
-function findAsset(
-  index: AssetIndex,
-  target: string,
-  notePath: string,
-): AssetResolution {
+function findAsset(index: AssetIndex, target: string, notePath: string): AssetResolution {
   const lowered = target.toLowerCase().replace(/^\.\//, "");
   const noteCut = notePath.lastIndexOf("/");
-  const noteDirectory =
-    noteCut === -1 ? "" : notePath.slice(0, noteCut).toLowerCase();
+  const noteDirectory = noteCut === -1 ? "" : notePath.slice(0, noteCut).toLowerCase();
   const relativePath = normalizeRelativePath(noteDirectory, lowered);
-  const byPath =
-    index.byPath.get(lowered) ?? index.byPath.get(relativePath);
+  const byPath = index.byPath.get(lowered) ?? index.byPath.get(relativePath);
   if (byPath !== undefined) {
     return { kind: "found", path: byPath };
   }
   const cut = lowered.lastIndexOf("/");
-  const matches =
-    index.byBaseName.get(cut === -1 ? lowered : lowered.slice(cut + 1)) ?? [];
+  const matches = index.byBaseName.get(cut === -1 ? lowered : lowered.slice(cut + 1)) ?? [];
   if (matches.length === 1) {
     return { kind: "found", path: matches[0] ?? "" };
   }
@@ -202,11 +193,7 @@ type EmbedConversion = {
   noteEmbeds: number;
 };
 
-function convertEmbeds(
-  markdown: string,
-  notePath: string,
-  assets: AssetIndex,
-): EmbedConversion {
+function convertEmbeds(markdown: string, notePath: string, assets: AssetIndex): EmbedConversion {
   let unresolvedImages = 0;
   let ambiguousImages = 0;
   let noteEmbeds = 0;

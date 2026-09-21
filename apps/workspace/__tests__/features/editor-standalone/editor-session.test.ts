@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { WORKSPACE_PROTOCOL_VERSION, envelope } from "@skriuw/renderer-core/contracts/workspace";
-import type { OperationAck, WorkspaceOperation, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
+import type {
+  OperationAck,
+  WorkspaceOperation,
+  WorkspaceSnapshot,
+} from "@skriuw/renderer-core/contracts/workspace";
 import { createEditorSession } from "../../../src/features/editor-standalone/editor-session";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../../../src/features/settings/settings-model";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
@@ -64,12 +68,18 @@ function harness(replyTimeoutMs = 1_000) {
     }),
   );
   const sent: EditorToHostMessage[] = [];
-  const session = createEditorSession({ store, send: (message) => sent.push(message), replyTimeoutMs });
+  const session = createEditorSession({
+    store,
+    send: (message) => sent.push(message),
+    replyTimeoutMs,
+  });
   return { store, sent, session };
 }
 
 function submit(session: ReturnType<typeof harness>["session"], operation: WorkspaceOperation) {
-  return session.invoke<OperationAck>("apply_workspace_operations", { operations: [envelope(operation)] });
+  return session.invoke<OperationAck>("apply_workspace_operations", {
+    operations: [envelope(operation)],
+  });
 }
 
 test("load adopts the document, the theme and the active note without a change", () => {
@@ -112,7 +122,13 @@ test("changes leave in submission order and settle by their own acknowledgement"
     ok: true,
     ack: { applied: 1, revisions: [{ id: "b", revision: 2 }], rankChanges: [] },
   });
-  session.receive({ v: EDITOR_PROTOCOL_VERSION, type: "ack", changeId: 1, ok: false, error: "revision conflict" });
+  session.receive({
+    v: EDITOR_PROTOCOL_VERSION,
+    type: "ack",
+    changeId: 1,
+    ok: false,
+    error: "revision conflict",
+  });
   assert.deepEqual((await second).revisions, [{ id: "b", revision: 2 }]);
   await assert.rejects(first, /revision conflict/);
 });
@@ -130,11 +146,21 @@ test("the rollback snapshot holds acknowledged documents, not optimistic ones", 
   });
   await accepted;
   const rejected = submit(session, saveOperation("a", "alpha rejected", 2));
-  session.receive({ v: EDITOR_PROTOCOL_VERSION, type: "ack", changeId: 2, ok: false, error: "disk full" });
+  session.receive({
+    v: EDITOR_PROTOCOL_VERSION,
+    type: "ack",
+    changeId: 2,
+    ok: false,
+    error: "disk full",
+  });
   await assert.rejects(rejected, /disk full/);
   const snapshot = await session.invoke<WorkspaceSnapshot>("bootstrap_workspace");
   assert.deepEqual(
-    snapshot.documents.map(({ noteId, revision, documentJson: json }) => ({ noteId, revision, json })),
+    snapshot.documents.map(({ noteId, revision, documentJson: json }) => ({
+      noteId,
+      revision,
+      json,
+    })),
     [{ noteId: "a", revision: 2, json: documentJson("alpha durable") }],
   );
 });
@@ -167,17 +193,37 @@ test("opening another note asks the host and keeps the loaded note on screen", (
 
 test("media commands cross as requests with bytes as base64 both ways", async () => {
   const { sent, session } = harness();
-  const stored = session.invoke<{ contentHash: string }>("store_note_image", new Uint8Array([1, 2, 3]));
-  const read = session.invoke<ArrayBuffer>("read_note_image_blob", { contentHash: "h", mimeType: "image/png" });
+  const stored = session.invoke<{ contentHash: string }>(
+    "store_note_image",
+    new Uint8Array([1, 2, 3]),
+  );
+  const read = session.invoke<ArrayBuffer>("read_note_image_blob", {
+    contentHash: "h",
+    mimeType: "image/png",
+  });
   assert.deepEqual(
-    sent.map((message) => (message.type === "request" ? [message.requestId, message.command, message.args] : null)),
+    sent.map((message) =>
+      message.type === "request" ? [message.requestId, message.command, message.args] : null,
+    ),
     [
       [1, "store_note_image", { $bytes: "AQID" }],
       [2, "read_note_image_blob", { contentHash: "h", mimeType: "image/png" }],
     ],
   );
-  session.receive({ v: EDITOR_PROTOCOL_VERSION, type: "response", requestId: 1, ok: true, value: { contentHash: "h" } });
-  session.receive({ v: EDITOR_PROTOCOL_VERSION, type: "response", requestId: 2, ok: true, value: { $bytes: "AQID" } });
+  session.receive({
+    v: EDITOR_PROTOCOL_VERSION,
+    type: "response",
+    requestId: 1,
+    ok: true,
+    value: { contentHash: "h" },
+  });
+  session.receive({
+    v: EDITOR_PROTOCOL_VERSION,
+    type: "response",
+    requestId: 2,
+    ok: true,
+    value: { $bytes: "AQID" },
+  });
   assert.deepEqual(await stored, { contentHash: "h" });
   assert.deepEqual([...new Uint8Array(await read)], [1, 2, 3]);
 });
@@ -189,7 +235,15 @@ test("remote changes and theme messages update the store in place", () => {
     v: EDITOR_PROTOCOL_VERSION,
     type: "remote-change",
     changeSet: {
-      documents: [{ noteId: "a", document: documentJson("remote"), markdown: "remote\n", wordCount: 1, revision: 5 }],
+      documents: [
+        {
+          noteId: "a",
+          document: documentJson("remote"),
+          markdown: "remote\n",
+          wordCount: 1,
+          revision: 5,
+        },
+      ],
     },
   });
   session.receive({

@@ -13,11 +13,7 @@ import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { openWorkspaceSession, type ShellSession } from "../../../shell/workspace-session";
 import { alignChecklist, checklistItems } from "../checklist-document";
 import { promoteChecklistItem, toggleTask, undoPromotion } from "../task-actions";
-import {
-  buildChecklistPromotion,
-  buildPromotionUndo,
-  buildTaskToggle,
-} from "../task-operations";
+import { buildChecklistPromotion, buildPromotionUndo, buildTaskToggle } from "../task-operations";
 import {
   projectPromotionSource,
   projectTasks,
@@ -251,7 +247,10 @@ test("promotion writes the document and the record as one operation", async () =
     assert.equal(operation.task.source?.blockId, "block-1");
     assert.equal(operation.task.status, "todo");
     assert.equal(operation.document.expectedRevision, 1);
-    assert.match(operation.document.markdown, /- \[ \] Ship the tasks view <!--skriuw-task:task-1:block-1-->/);
+    assert.match(
+      operation.document.markdown,
+      /- \[ \] Ship the tasks view <!--skriuw-task:task-1:block-1-->/,
+    );
   });
 });
 
@@ -292,9 +291,7 @@ test("promotion refuses an item that is already a task, empty, or missing", asyn
 });
 
 test("toggling a linked task rewrites the record and its checklist item", async () => {
-  const seeds: ItemSeed[] = [
-    { text: "Ship the tasks view", taskId: "task-1", blockId: "block-1" },
-  ];
+  const seeds: ItemSeed[] = [{ text: "Ship the tasks view", taskId: "task-1", blockId: "block-1" }];
   const bridge = createMemoryBridge({ snapshot: snapshot(seeds, [linkedTask()]) });
   await withSession(bridge, async (session) => {
     const result = buildTaskToggle(session.store.getState(), "task-1", AT + 1);
@@ -349,9 +346,7 @@ test("a task whose item left the document is reported, not guessed at", async ()
 });
 
 test("undoing a promotion deletes the record and unlinks the item", async () => {
-  const seeds: ItemSeed[] = [
-    { text: "Ship the tasks view", taskId: "task-1", blockId: "block-1" },
-  ];
+  const seeds: ItemSeed[] = [{ text: "Ship the tasks view", taskId: "task-1", blockId: "block-1" }];
   const bridge = createMemoryBridge({ snapshot: snapshot(seeds, [linkedTask()]) });
   await withSession(bridge, async (session) => {
     const result = buildPromotionUndo(session.store.getState(), "task-1", AT + 1);
@@ -368,9 +363,7 @@ test("tasks are grouped under their source note, detached work last", async () =
     linkedTask(),
     linkedTask({ id: "task-2", title: "Quick capture", source: null, detachedAt: AT }),
   ];
-  const seeds: ItemSeed[] = [
-    { text: "Ship the tasks view", taskId: "task-1", blockId: "block-1" },
-  ];
+  const seeds: ItemSeed[] = [{ text: "Ship the tasks view", taskId: "task-1", blockId: "block-1" }];
   const bridge = createMemoryBridge({ snapshot: snapshot(seeds, tasks) });
   await withSession(bridge, async (session) => {
     const groups = projectTasks(session.store.getState());
@@ -465,7 +458,11 @@ test("promote, complete and undo survive reopening the workspace", async () => {
       `- [ ] Write the tests <!--skriuw-task:${taskId}:${blockId}-->`,
     );
     assert.equal(checklistItems(documentOf(state).documentJson)[1]?.checked, false);
-    assert.equal(checklistItems(documentOf(state).documentJson)[0]?.taskId, null, "the item beside it was never touched");
+    assert.equal(
+      checklistItems(documentOf(state).documentJson)[0]?.taskId,
+      null,
+      "the item beside it was never touched",
+    );
   });
 });
 

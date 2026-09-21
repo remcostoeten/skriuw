@@ -256,7 +256,10 @@ export type WorkspaceSnapshot = {
     updatedAt: number;
     createdIn: string | null;
   }[];
-  references: { noteId: string; targets: { kind: "tag" | "person" | "note"; targetId: string }[] }[];
+  references: {
+    noteId: string;
+    targets: { kind: "tag" | "person" | "note"; targetId: string }[];
+  }[];
   images?: WorkspaceImage[];
   mediaMetadata?: MediaMetadata[];
   properties?: NoteProperty[];

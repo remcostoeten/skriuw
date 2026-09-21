@@ -6,11 +6,7 @@ import { showToast } from "@/shared/ui/toast";
 import { authConfiguration } from "./config";
 import { connectSyncForCurrentSession } from "./connect-sync";
 import { clearConnectFailure, connectFailureText, reportConnectFailure } from "./connect-state";
-import {
-  currentSessionToken,
-  forgetSessionToken,
-  rememberSessionToken,
-} from "./session-token";
+import { currentSessionToken, forgetSessionToken, rememberSessionToken } from "./session-token";
 
 export const KEYRING_UNAVAILABLE_MESSAGE =
   "Sync will not survive a restart: the system keyring is unavailable";

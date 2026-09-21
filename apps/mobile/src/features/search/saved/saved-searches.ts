@@ -60,9 +60,7 @@ export async function setSearchSaved(
   if (current.includes(normalized) === saved) {
     return;
   }
-  const next = saved
-    ? [...current, normalized]
-    : current.filter((entry) => entry !== normalized);
+  const next = saved ? [...current, normalized] : current.filter((entry) => entry !== normalized);
   if (next.length > SAVED_SEARCH_LIMIT) {
     throw new Error(`Remove a saved search before adding another (limit: ${SAVED_SEARCH_LIMIT}).`);
   }

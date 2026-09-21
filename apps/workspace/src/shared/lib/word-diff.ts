@@ -68,10 +68,7 @@ export function tokenizeWords(text: string): string[] {
   return text.match(WORD_PATTERN) ?? [];
 }
 
-export function wordSimilarity(
-  before: readonly string[],
-  after: readonly string[],
-): number {
+export function wordSimilarity(before: readonly string[], after: readonly string[]): number {
   if (before.length === 0 && after.length === 0) {
     return 1;
   }
@@ -109,7 +106,10 @@ export function mergeSegments(segments: readonly DiffSegment[]): DiffSegment[] {
   return merged;
 }
 
-function wholeBlob(before: string, after: string): {
+function wholeBlob(
+  before: string,
+  after: string,
+): {
   before: DiffSegment[];
   after: DiffSegment[];
 } {

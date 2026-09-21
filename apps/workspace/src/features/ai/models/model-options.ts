@@ -148,10 +148,7 @@ export function aiModelOptionFor(
   }
   for (const group of groups) {
     for (const option of group.options) {
-      if (
-        option.providerId === selection.providerId &&
-        option.modelId === selection.modelId
-      ) {
+      if (option.providerId === selection.providerId && option.modelId === selection.modelId) {
         return option;
       }
     }

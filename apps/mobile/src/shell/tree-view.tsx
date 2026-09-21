@@ -101,9 +101,7 @@ export function TreeView({ onOpenNote }: Props) {
           accessibilityRole="button"
           accessibilityLabel="New note"
           onPress={() => {
-            createNote(session, null)
-              .then(onOpenNote)
-              .catch(report);
+            createNote(session, null).then(onOpenNote).catch(report);
           }}
           style={styles.action}
         >
@@ -179,9 +177,7 @@ export function TreeView({ onOpenNote }: Props) {
         onDelete={onDeleteRow}
         onCreateNote={(row) => {
           setMenuRow(null);
-          createNote(session, row.id)
-            .then(onOpenNote)
-            .catch(report);
+          createNote(session, row.id).then(onOpenNote).catch(report);
         }}
         onCreateFolder={(row) => {
           setMenuRow(null);

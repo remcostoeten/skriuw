@@ -1,3 +1,5 @@
+import { noop } from "@/shared/lib/noop";
+
 /** Removes renderer-only Skriuw state without disturbing other apps on the origin. */
 export function clearSkriuwLocalState(storage?: Storage): void {
   try {
@@ -10,5 +12,6 @@ export function clearSkriuwLocalState(storage?: Storage): void {
     }
   } catch {
     // The durable stores are still cleared when a webview blocks localStorage.
+    noop();
   }
 }

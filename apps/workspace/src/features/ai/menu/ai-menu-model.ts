@@ -36,10 +36,7 @@ export function aiMenuRows(hasSelection: boolean): readonly AiMenuRow[] {
  * selection and note actions together, the original sections describe an order
  * that is no longer on screen.
  */
-export function filterAiMenuRows(
-  rows: readonly AiMenuRow[],
-  query: string,
-): readonly AiMenuRow[] {
+export function filterAiMenuRows(rows: readonly AiMenuRow[], query: string): readonly AiMenuRow[] {
   const needle = query.trim().toLowerCase();
   if (needle.length === 0) {
     return rows;
@@ -62,10 +59,7 @@ export function aiMenuRowNeedsInstruction(row: AiMenuRow): boolean {
 }
 
 /** How the model behind a run is named in the menu and the run card. */
-export function aiModelLabel(
-  providerId: string | null,
-  modelId: string | null,
-): string | null {
+export function aiModelLabel(providerId: string | null, modelId: string | null): string | null {
   if (providerId === null || modelId === null) {
     return null;
   }

@@ -1,11 +1,17 @@
 import { flushSync } from "react-dom";
 import { EditorView } from "prosemirror-view";
-import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "../src/features/editor/editor-working-set";
+import {
+  EDITOR_WORKING_SET_LIMIT,
+  EditorWorkingSet,
+} from "../src/features/editor/editor-working-set";
 import type { ProfilerOnRenderCallback } from "react";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { estimateFrameDuration, nextFrame, summarize } from "./metrics";
 import { readBridgeCalls, resetBridgeCalls } from "./bridge-mock";
-import { queryMentionSuggestions, queryTagSuggestions } from "../src/features/references/suggestion-index";
+import {
+  queryMentionSuggestions,
+  queryTagSuggestions,
+} from "../src/features/references/suggestion-index";
 import type {
   FixtureIdentity,
   LongAnimationFrameSample,
@@ -36,14 +42,14 @@ type Phase = {
 function startFrameMonitor(phase: Phase): () => void {
   let active = true;
   let previous = performance.now();
-  const frame = (timestamp: number) => {
+  function frame(timestamp: number) {
     if (!active) {
       return;
     }
     phase.frameGapsMs.push(timestamp - previous);
     previous = timestamp;
     requestAnimationFrame(frame);
-  };
+  }
   requestAnimationFrame(frame);
   return () => {
     active = false;
@@ -135,7 +141,9 @@ function instrumentEditor(onInstallation: (duration: number) => void): () => voi
   };
 }
 
-function instrumentWorkingSet(onPrune: (size: number, evictedIds: readonly string[]) => void): () => void {
+function instrumentWorkingSet(
+  onPrune: (size: number, evictedIds: readonly string[]) => void,
+): () => void {
   const original = EditorWorkingSet.prototype.prune;
   EditorWorkingSet.prototype.prune = function prune(protectedKeys) {
     const evicted = original.call(this, protectedKeys);
@@ -183,8 +191,10 @@ export async function createPerformanceController(
         if (!(node instanceof Element)) {
           continue;
         }
-        const hosts = Number(node.matches(".editor-host")) + node.querySelectorAll(".editor-host").length;
-        const views = Number(node.matches(".ProseMirror")) + node.querySelectorAll(".ProseMirror").length;
+        const hosts =
+          Number(node.matches(".editor-host")) + node.querySelectorAll(".editor-host").length;
+        const views =
+          Number(node.matches(".ProseMirror")) + node.querySelectorAll(".ProseMirror").length;
         editorHosts += hosts;
         prosemirrorViews += views;
       }
@@ -192,15 +202,11 @@ export async function createPerformanceController(
   });
   mutationObserver.observe(document.documentElement, { childList: true, subtree: true });
 
-  const onRender: ProfilerOnRenderCallback = (
-    _id,
-    _phase,
-    actualDuration,
-  ) => {
+  const onRender: ProfilerOnRenderCallback = (_id, _phase, actualDuration) => {
     phase?.reactCommitMs.push(actualDuration);
   };
 
-  const onKeyDown = (event: KeyboardEvent) => {
+  function onKeyDown(event: KeyboardEvent) {
     if (!phase || !event.isTrusted) {
       return;
     }
@@ -214,7 +220,7 @@ export async function createPerformanceController(
       typingHandled += 1;
       requestAnimationFrame((paintedAt) => phase?.nextPaintMs.push(paintedAt - started));
     }
-  };
+  }
   window.addEventListener("keydown", onKeyDown, { capture: true });
 
   await nextFrame();
@@ -430,7 +436,9 @@ export async function createPerformanceController(
     };
     const renderedEditorBlocks = editor?.children.length ?? 0;
     const renderedTreeItems = document.querySelectorAll("[role='treeitem']").length;
-    const shellHeight = document.querySelector<HTMLElement>("#root > div")?.getBoundingClientRect().height;
+    const shellHeight = document
+      .querySelector<HTMLElement>("#root > div")
+      ?.getBoundingClientRect().height;
     const boundedReader = document.querySelector("#bounded-editor-full-document");
     const correctness = [
       {
@@ -445,7 +453,8 @@ export async function createPerformanceController(
       },
       {
         name: "editor-host-and-view-stay-mounted",
-        pass: mounts.editorHosts === 1 && mounts.prosemirrorViews === 1 && mounts.editorRemounts === 0,
+        pass:
+          mounts.editorHosts === 1 && mounts.prosemirrorViews === 1 && mounts.editorRemounts === 0,
         detail: JSON.stringify(mounts),
       },
       {

@@ -101,12 +101,7 @@ test("blur and hidden flush pending work then refresh, coalesced by one trailing
   assert.equal([...h.timers.values()][0]?.delayMs, PROPAGATION_FLUSH_DEBOUNCE_MS);
   assert.deepEqual(h.log, ["visibility:true:false", "visibility:false:false"]);
   await h.runTimers();
-  assert.deepEqual(h.log, [
-    "visibility:true:false",
-    "visibility:false:false",
-    "flush",
-    "refresh",
-  ]);
+  assert.deepEqual(h.log, ["visibility:true:false", "visibility:false:false", "flush", "refresh"]);
   unbind();
 });
 

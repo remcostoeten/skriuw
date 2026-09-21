@@ -58,7 +58,10 @@ test("media embeds serialize as a link plus a kind marker", () => {
       productSchema.node("media", { kind, src: "https://example.com/clip.mp4", title: "Clip" }),
     ]);
     const markdown = serializeProductMarkdown(document);
-    assert.equal(markdown.trim(), `[Clip](https://example.com/clip.mp4)<!--skriuw-media:${kind}-->`);
+    assert.equal(
+      markdown.trim(),
+      `[Clip](https://example.com/clip.mp4)<!--skriuw-media:${kind}-->`,
+    );
 
     const parsed = parseProductMarkdown(markdown).firstChild;
     assert.equal(parsed?.type.name, "media");

@@ -53,11 +53,11 @@ function createHarness(store: RendererStore = fixtureStore()) {
     },
     focus() {},
   } as unknown as EditorView;
-  const type = (text: string) => {
+  function type(text: string) {
     for (const character of text) {
       view.dispatch(view.state.tr.insertText(character));
     }
-  };
+  }
   return { view, context, store, type, createdNotes, state: () => editorState };
 }
 
@@ -125,10 +125,7 @@ test("keyboard navigation wraps and enter accepts the highlighted item", () => {
   assert.equal(handleMentionKey(view, keyEvent("ArrowDown"), context), true);
   assert.equal(normalizedMentionIndex(mentionState(state()).index, items.length), 1);
   moveMentionSelection(view, -2);
-  assert.equal(
-    normalizedMentionIndex(mentionState(state()).index, items.length),
-    items.length - 1,
-  );
+  assert.equal(normalizedMentionIndex(mentionState(state()).index, items.length), items.length - 1);
   view.dispatch(view.state.tr.setMeta("noop", true));
   assert.equal(handleMentionKey(view, keyEvent("Enter"), context), true);
   assert.equal(extractReferences(state().doc.toJSON()).length, 1);
@@ -229,9 +226,15 @@ test("the note trigger creates and links a fresh note when nothing matches", () 
 test("mention menu items exclude exact duplicates from the create option", () => {
   const store = fixtureStore();
   const tagItems = mentionMenuItems(store.getState(), "#", "alpha");
-  assert.equal(tagItems.some((item) => item.type === "create"), false);
+  assert.equal(
+    tagItems.some((item) => item.type === "create"),
+    false,
+  );
   const personItems = mentionMenuItems(store.getState(), "$", "Ada");
-  assert.equal(personItems.some((item) => item.type === "create"), false);
+  assert.equal(
+    personItems.some((item) => item.type === "create"),
+    false,
+  );
   assert.equal(
     mentionMenuItems(store.getState(), "$", "Adaline").some((item) => item.type === "create"),
     true,
