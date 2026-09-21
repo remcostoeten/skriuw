@@ -1,6 +1,9 @@
+import type { IconName } from "@skriuw/icons";
 import { appRouteHash, type AppRoute } from "@skriuw/renderer-core/route/app-route";
 
-export type ShellIconName =
+/** The shared action icons the shell draws (`packages/icons/registry.ts`). */
+export type ShellIconName = Extract<
+  IconName,
   | "notes"
   | "journal"
   | "tasks"
@@ -14,7 +17,10 @@ export type ShellIconName =
   | "plus"
   | "folder"
   | "chevron"
-  | "pin";
+  | "pin"
+  | "back"
+  | "forward"
+>;
 
 export type ShellDestination = {
   route: ShellRoute;

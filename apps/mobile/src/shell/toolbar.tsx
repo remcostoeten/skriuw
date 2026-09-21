@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ShellIcon } from "./icons";
 import { MINIMUM_TOUCH_TARGET, TOOLBAR_HEIGHT } from "./metrics";
@@ -18,6 +19,11 @@ type Props = {
  */
 export function Toolbar({ title, onOpenTree, onOpenSearch, onCreateNote }: Props) {
   const theme = useTheme();
+  const [presses, setPresses] = useState({ menu: 0, search: 0, plus: 0 });
+
+  function pressed(control: keyof typeof presses) {
+    setPresses((current) => ({ ...current, [control]: current[control] + 1 }));
+  }
 
   return (
     <View
@@ -32,10 +38,15 @@ export function Toolbar({ title, onOpenTree, onOpenSearch, onCreateNote }: Props
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Open notes tree"
+        onPressIn={() => pressed("menu")}
         onPress={onOpenTree}
         style={styles.control}
       >
-        <ShellIcon name="menu" color={theme.color("sidebar-foreground", 0.75)} />
+        <ShellIcon
+          name="menu"
+          color={theme.color("sidebar-foreground", 0.75)}
+          playKey={presses.menu}
+        />
       </Pressable>
       <Text
         accessibilityRole="header"
@@ -47,18 +58,28 @@ export function Toolbar({ title, onOpenTree, onOpenSearch, onCreateNote }: Props
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Search notes"
+        onPressIn={() => pressed("search")}
         onPress={onOpenSearch}
         style={styles.control}
       >
-        <ShellIcon name="search" color={theme.color("sidebar-foreground", 0.75)} />
+        <ShellIcon
+          name="search"
+          color={theme.color("sidebar-foreground", 0.75)}
+          playKey={presses.search}
+        />
       </Pressable>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="New note"
+        onPressIn={() => pressed("plus")}
         onPress={onCreateNote}
         style={styles.control}
       >
-        <ShellIcon name="plus" color={theme.color("sidebar-foreground", 0.75)} />
+        <ShellIcon
+          name="plus"
+          color={theme.color("sidebar-foreground", 0.75)}
+          playKey={presses.plus}
+        />
       </Pressable>
     </View>
   );

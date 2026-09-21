@@ -103,7 +103,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Command palette** — every action reachable from one keyboard surface.
 - **Rebindable shortcuts** — the shortcut system is fully remappable from settings.
 - **Zoom and fullscreen** — standard desktop chrome controls, plus quick-quit.
-- **Animated icons** — interface icons animate on hover through paired static and animated variants, with a settings toggle to keep them static.
+- **Animated icons** — every icon is a Fluent Regular glyph shared by desktop and mobile; 28 of them play a short motion on hover (desktop) or press (mobile) and always settle back on the exact static glyph, with a settings toggle to keep them static. See [ADR-0049](adr/0049-shared-icon-system.md).
 - **Settings with a Data & Recovery surface** — export, import, backup-now, restore, and a guarded clear-all-data reset are all in the UI; the CLI is optional, not required.
 - **Storage you can see and move** — settings show every stored image with size and the notes that use it, open the database or blobs folder in the file manager, and can relocate the whole workspace (database, images, history, backups) to a new folder with a verified copy and automatic restart.
 - **Auto-updates** — built-in updater on top of a tag-driven, cross-platform release pipeline.

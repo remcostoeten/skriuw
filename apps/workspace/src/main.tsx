@@ -2,8 +2,8 @@ import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { AppWindow, TriangleAlert } from "lucide-react";
 import { App } from "./app";
+import { AppWindowIcon, WarningIcon } from "@/shared/icons/static";
 import { refreshSessionState } from "@/features/auth/adapter";
 import { listenForSessionExpiry } from "@/features/auth/session-expiry";
 import { currentSessionToken, forgetSessionToken } from "@/features/auth/session-token";
@@ -387,7 +387,7 @@ function main(): void {
   function renderBlocked(claiming: boolean): void {
     root.render(
       <StartupScreen
-        icon={<AppWindow />}
+        icon={<AppWindowIcon size={24} />}
         title="Skriuw is open in another tab"
         detail="Your workspace is a single database on this device, so only one tab can hold it at a time."
         hint={
@@ -411,7 +411,7 @@ function main(): void {
   function renderHandedOver(): void {
     root.render(
       <StartupScreen
-        icon={<AppWindow />}
+        icon={<AppWindowIcon size={24} />}
         title="Skriuw moved to another tab"
         detail="This tab handed the workspace over and stopped saving. Everything you wrote here was stored first."
         actions={[
@@ -440,7 +440,7 @@ function main(): void {
     render: (view) => {
       root.render(
         <StartupScreen
-          icon={<TriangleAlert />}
+          icon={<WarningIcon size={24} />}
           title={view.title}
           detail={view.detail}
           hint={view.hint}

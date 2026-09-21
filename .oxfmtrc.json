@@ -10,6 +10,7 @@
     "bucket/**",
     "Casks/**",
     "packages/theme/tokens.ts",
+    "packages/icons/generated/**",
     "tools/oxlint/anti-slop/**",
     "**/*.{json,jsonc,md,mdx,css,html,yml,yaml,toml,webmanifest}"
   ]

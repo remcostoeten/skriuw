@@ -16,6 +16,7 @@ import {
 import {
   ChevronDownIcon,
   CloseIcon,
+  PinFilledIcon,
   PinIcon,
   PinOffIcon,
   SplitViewIcon,
@@ -270,7 +271,7 @@ export function EditorPanes({ store }: Props) {
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     }`}
                   >
-                    {tab.isPinned && <PinIcon size={11} className="ml-2 shrink-0 fill-current" />}
+                    {tab.isPinned && <PinFilledIcon size={11} className="ml-2 shrink-0" />}
                     <button
                       type="button"
                       role="tab"

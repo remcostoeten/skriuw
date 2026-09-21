@@ -61,6 +61,9 @@ generated/
 !contracts/generated/
 !contracts/generated/*.schema.json
 
+# Icon data is generated from @fluentui/svg-icons and committed so the drift check can compare it.
+!packages/icons/generated/
+
 TODO.*
 .env*.local
 .pnpm-store/
