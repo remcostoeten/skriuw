@@ -22,7 +22,7 @@ export function Download() {
       <Container>
         <div ref={headingRef} className="reveal-wipe flex flex-wrap items-start justify-between gap-6">
           <Rail>
-            <h2 className="text-[30px] leading-[36px] font-semibold tracking-[-0.02em] text-ink-900">
+            <h2 className="font-serif text-[28px] leading-[34px] font-normal tracking-[-0.56px] text-ink-900">
               Free, on everything
             </h2>
             <Link

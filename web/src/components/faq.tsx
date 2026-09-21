@@ -16,7 +16,7 @@ export function Faq() {
       <Container>
         <div ref={headingRef} className="reveal-wipe flex flex-wrap items-start justify-between gap-6">
           <Rail>
-            <h2 className="text-[36px] leading-[40px] font-medium tracking-[-0.72px]">
+            <h2 className="font-serif text-[30px] leading-[36px] font-normal tracking-[-0.6px]">
               <span className="block text-ink-900">Questions.</span>
               <span className="block text-ink-700">Mostly about where your</span>
               <span className="block text-ink-700">notes live and how to get them out.</span>

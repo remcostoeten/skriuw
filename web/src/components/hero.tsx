@@ -84,11 +84,11 @@ export function Hero() {
             <ArrowRight className="size-3" />
           </Link>
 
-          <h1 className="mt-6 font-serif text-[50px] leading-[52px] font-normal tracking-[-2px] text-ink-900 text-balance">
+          <h1 className="mt-6 font-serif text-[44px] leading-[48px] font-normal tracking-[-1.5px] text-ink-900 text-balance">
             Notes that never make you wait
           </h1>
 
-          <p className="mt-5 text-[18px] leading-[24px] text-ink-500">
+          <p className="mt-5 text-[16px] leading-[24px] text-ink-500">
             Skriuw is a local-first writing workspace. Your notes live in{" "}
             <strong className="font-medium text-ink-900">a SQLite database on your own device</strong>
             {" "}&mdash; on disk on desktop, inside the browser on the web. No spinners, no

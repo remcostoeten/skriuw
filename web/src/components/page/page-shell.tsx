@@ -32,10 +32,10 @@ export function PageHero({ kicker, marks, eyebrow, title, lede, actions }: HeroP
 
         <div>
           <p className="text-[14px] text-ink-400">{eyebrow}</p>
-          <h1 className="mt-4 max-w-[720px] font-serif text-[44px] leading-[48px] font-normal tracking-[-0.9px] text-balance text-ink-900 md:text-[56px] md:leading-[58px]">
+          <h1 className="mt-4 max-w-[720px] font-serif text-[38px] leading-[44px] font-normal tracking-[-0.8px] text-balance text-ink-900 md:text-[48px] md:leading-[52px]">
             {title}
           </h1>
-          <p className="mt-6 max-w-[620px] text-[17px] leading-[27px] text-ink-500">{lede}</p>
+          <p className="mt-6 max-w-[620px] text-[16px] leading-[26px] text-ink-500">{lede}</p>
           <div className="mt-9 flex flex-wrap items-center gap-3">
             {actions.map((action, index) => (
               <Action
@@ -70,13 +70,13 @@ export function PageSection({ label, lead, trail, intro, children, tinted }: Sec
       <Container>
         <p className="font-mono text-[13px] tracking-[0.08em] text-ink-400 uppercase">{label}</p>
         <Rail className="mt-5">
-          <h2 className="max-w-[760px] text-[32px] leading-[38px] font-medium tracking-[-0.64px] text-balance">
+          <h2 className="max-w-[760px] font-serif text-[28px] leading-[34px] font-normal tracking-[-0.56px] text-balance">
             <span className="text-ink-900">{lead}</span>
             {trail ? <span className="block text-ink-700">{trail}</span> : null}
           </h2>
         </Rail>
         {intro ? (
-          <p className="mt-6 max-w-[680px] text-[16px] leading-[26px] text-ink-500">{intro}</p>
+          <p className="mt-6 max-w-[680px] text-[15px] leading-[24px] text-ink-500">{intro}</p>
         ) : null}
         {children ? <div className="mt-12">{children}</div> : null}
       </Container>
@@ -214,10 +214,10 @@ export function PageCta({ title, body, actions }: PageCtaProps) {
     <section className="bg-surface py-24">
       <Container>
         <div className="rounded-card bg-ink-900 px-8 py-16 text-center md:px-16">
-          <h2 className="mx-auto max-w-[680px] font-serif text-[32px] leading-[38px] font-normal tracking-[-0.64px] text-balance text-white">
+          <h2 className="mx-auto max-w-[680px] font-serif text-[28px] leading-[34px] font-normal tracking-[-0.56px] text-balance text-white">
             {title}
           </h2>
-          <p className="mx-auto mt-5 max-w-[560px] text-[16px] leading-[26px] text-white/70">
+          <p className="mx-auto mt-5 max-w-[560px] text-[15px] leading-[24px] text-white/70">
             {body}
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
