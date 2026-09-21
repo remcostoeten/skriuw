@@ -20,6 +20,7 @@ import { relockNotes, removeLock, unlockNotes } from "./lock-session";
 import { ChangeSecretView, SetupLockView } from "./lock-setup-view";
 import { LockButton, LockError, LockField } from "./secret-fields";
 import { UnlockView } from "./unlock-view";
+import { usePlatformBiometrics } from "./use-platform-biometrics";
 
 /**
  * Everything the owner of a workspace can do to its lock, on one screen: set
@@ -31,7 +32,8 @@ import { UnlockView } from "./unlock-view";
  */
 
 type Props = {
-  biometrics: BiometricUnlock;
+  /** Injected in tests; this device's keystore and sensor otherwise. */
+  biometrics?: BiometricUnlock;
 };
 
 type Panel = "settings" | "setup" | "change" | "unlock" | "remove";
@@ -44,7 +46,9 @@ function selectAutoLockMinutes(state: RendererState): number {
   return autoLockMinutes(state.settings);
 }
 
-export function LockSettingsView({ biometrics }: Props) {
+export function LockSettingsView({ biometrics: injected }: Props) {
+  const platformBiometrics = usePlatformBiometrics();
+  const biometrics = injected ?? platformBiometrics;
   const theme = useTheme();
   const session = useWorkspace();
   const lock = useWorkspaceSelector(selectLock);
