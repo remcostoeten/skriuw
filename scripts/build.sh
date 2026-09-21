@@ -68,9 +68,9 @@ log_dir="$repo_dir/.build/logs/$build_id"
 mkdir -p "$log_dir"
 
 case "$mode" in
-  check) total_steps=12 ;;
-  ci) total_steps=14 ;;
-  *) total_steps=13 ;;
+  check) total_steps=13 ;;
+  ci) total_steps=15 ;;
+  *) total_steps=14 ;;
 esac
 
 step_index=0
@@ -348,7 +348,7 @@ require_command rustc
 
 print_header
 
-run_step "Generated contracts and theme tokens" "generated-contracts" "$repo_dir/scripts/generate.sh" --check
+run_step "Generated contracts, theme tokens and icon data" "generated-contracts" "$repo_dir/scripts/generate.sh" --check
 run_step "Build entrypoint contract" "build-entrypoints" "$repo_dir/scripts/test-build.sh"
 run_step "Browser SQLite WASM module" "browser-wasm" "$repo_dir/scripts/build-browser-wasm.sh"
 run_step "Rust formatting" "rust-format" cargo fmt --all --check
@@ -361,6 +361,7 @@ run_step "UI architecture regression suite" "ui-architecture-tests" bun --cwd="$
 print_metric "$(node_test_summary "$last_log")"
 run_step "Renderer-store regression suite" "renderer-store-tests" bun --cwd="$repo_dir/app/harnesses/renderer-store" run test
 print_metric "$(node_test_summary "$last_log")"
+run_step "Shared icon geometry and motion suite" "icon-tests" bun --cwd="$repo_dir/shared/icons" run verify
 run_step "Renderer test suite and coverage" "renderer-tests" bun --cwd="$app_dir" run test
 print_metric "$(renderer_summary "$last_log")"
 run_step "Renderer type safety" "renderer-typecheck" bun --cwd="$app_dir" run typecheck
