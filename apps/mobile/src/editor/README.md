@@ -1,8 +1,8 @@
 # Editor host
 
 The one warm editor webview and the host half of the editor protocol
-([mobile-app spec](../../../docs/specs/mobile-app.md), R-F2, R-P2, R-P3;
-[ADR-0048](../../../docs/adr/0048-native-mobile-shell-over-shared-core.md)).
+([mobile-app spec](../../../../docs/specs/mobile-app.md), R-F2, R-P2, R-P3;
+[ADR-0048](../../../../docs/adr/0048-native-mobile-shell-over-shared-core.md)).
 
 | File | Owns |
 | --- | --- |

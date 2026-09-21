@@ -3,7 +3,7 @@ import {
   type EditorDocument,
   type EditorToHostMessage,
   type HostToEditorMessage,
-} from "../../../../mobile/src/editor/protocol.ts";
+} from "../../../mobile/src/editor/protocol.ts";
 
 /**
  * A stand-in for the native host: it owns the notes, speaks only the editor

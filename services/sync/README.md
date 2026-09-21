@@ -29,7 +29,7 @@ leaves the Worker. It is a secret: install it with
 
 The canonical wire types and bounds live in `skriuw-domain`; committed JSON
 Schemas, the generated
-[`WorkspaceOperation` policy](../docs/specs/workspace-operation-sync-policy-v1.md),
+[`WorkspaceOperation` policy](../../docs/specs/workspace-operation-sync-policy-v1.md),
 and the golden fixture bridge the Rust and Workers implementations.
 
 ## Commands

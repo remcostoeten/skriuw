@@ -30,7 +30,7 @@ import {
   launchChrome,
   stopProcess,
   waitFor,
-} from "../../../app/e2e/chrome-harness.mjs";
+} from "../../../apps/workspace/e2e/chrome-harness.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
