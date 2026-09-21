@@ -86,7 +86,7 @@ export function Platforms() {
               >
                 <div className="flex flex-col p-10">
                   <p className="text-[17.6px] font-bold opacity-90">{story.kicker}</p>
-                  <h3 className="mt-6 max-w-[520px] text-[26px] leading-[32px] font-medium tracking-[-0.304px]">
+                  <h3 className="mt-6 max-w-[520px] font-serif text-[24px] leading-[30px] font-normal tracking-[-0.3px]">
                     {story.lead}{" "}
                     <strong className="font-semibold">{story.brand}</strong> {story.tail}
                   </h3>

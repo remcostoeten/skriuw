@@ -114,7 +114,7 @@ export function SectionHeading({ lead, trail, className }: SectionHeadingProps) 
   return (
     <h2
       className={cx(
-        "max-w-[640px] text-[36px] leading-[40px] font-medium tracking-[-0.72px] text-balance",
+        "max-w-[640px] font-serif text-[30px] leading-[36px] font-normal tracking-[-0.6px] text-balance",
         className,
       )}
     >

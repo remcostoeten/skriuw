@@ -61,10 +61,10 @@ export default async function DocPage({ params }: Props) {
             <span className="px-2 text-ink-300">/</span>
             {page.kicker}
           </p>
-          <h1 className="mt-5 max-w-[760px] font-serif text-[44px] leading-[48px] font-normal tracking-[-0.9px] text-balance text-ink-900 md:text-[52px] md:leading-[56px]">
+          <h1 className="mt-5 max-w-[760px] font-serif text-[38px] leading-[44px] font-normal tracking-[-0.8px] text-balance text-ink-900 md:text-[46px] md:leading-[50px]">
             {page.title}
           </h1>
-          <p className="mt-6 max-w-[680px] text-[17px] leading-[27px] text-ink-500">
+          <p className="mt-6 max-w-[680px] text-[16px] leading-[26px] text-ink-500">
             {lede || page.description}
           </p>
           <p className="mt-7 font-mono text-[12px] text-ink-400">

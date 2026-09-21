@@ -29,14 +29,14 @@ export function ClosingCta() {
 
             <h2
               style={stagger(1)}
-              className="mt-7 font-serif text-[56px] leading-[60px] font-normal tracking-[-1.5px]"
+              className="mt-7 font-serif text-[46px] leading-[50px] font-normal tracking-[-1.2px]"
             >
               Open a page. Keep it yours.
             </h2>
 
             <p
               style={stagger(2)}
-              className="mt-5 max-w-[440px] text-[16px] leading-[24px] text-white/65"
+              className="mt-5 max-w-[440px] text-[15px] leading-[23px] text-white/65"
             >
               The full app runs in your browser right now, with no install and no sign-up. If you like it,
               the desktop build is the same renderer on the same Rust core.

@@ -20,11 +20,11 @@ export function StatusPage({ code, title, lede, actions, note, suggestions }: Pr
             {code}
           </span>
           <Rail className="mt-5">
-            <h1 className="max-w-[720px] font-serif text-[40px] leading-[46px] font-normal tracking-[-0.9px] text-balance text-ink-900 md:text-[52px] md:leading-[56px]">
+            <h1 className="max-w-[720px] font-serif text-[36px] leading-[42px] font-normal tracking-[-0.8px] text-balance text-ink-900 md:text-[46px] md:leading-[50px]">
               {title}
             </h1>
           </Rail>
-          <p className="mt-6 max-w-[580px] text-[17px] leading-[27px] text-ink-500">{lede}</p>
+          <p className="mt-6 max-w-[580px] text-[16px] leading-[26px] text-ink-500">{lede}</p>
           <div className="mt-9 flex flex-wrap items-center gap-3">{actions}</div>
           {note ? (
             <p className="mt-6 font-mono text-[13px] leading-[22px] text-ink-400">{note}</p>
