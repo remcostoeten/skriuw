@@ -14,6 +14,8 @@ import {
   showsToasts,
   usesAnimatedIcons,
   usesBlockDragHandle,
+  vimCursorBlinks,
+  vimCursorStyle,
   usesVimMode,
 } from "../../../src/features/settings/settings-model";
 
@@ -43,6 +45,8 @@ test("default settings project every editable field", () => {
     editorDefaultRawMode: false,
     blockDragHandle: true,
     vimMode: false,
+    vimCursorStyle: "block",
+    vimCursorBlink: false,
     openNotesInTabs: false,
     showToasts: true,
     openLinksInApp: false,
@@ -72,6 +76,23 @@ test("Vim mode stays off unless the persisted preference is explicitly true", ()
   assert.equal(usesVimMode({ ...DEFAULT_WORKSPACE_SETTINGS, vimMode: "yes" }), false);
   const { vimMode: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
   assert.equal(projectSettings(withoutField as WorkspaceSettings).vimMode, false);
+});
+
+test("Vim cursor preferences are neutral, solid, and validated", () => {
+  assert.equal(vimCursorStyle(DEFAULT_WORKSPACE_SETTINGS), "block");
+  assert.equal(vimCursorBlinks(DEFAULT_WORKSPACE_SETTINGS), false);
+  assert.equal(
+    vimCursorStyle({ ...DEFAULT_WORKSPACE_SETTINGS, vimCursorStyle: "underline" }),
+    "underline",
+  );
+  assert.equal(
+    vimCursorStyle({ ...DEFAULT_WORKSPACE_SETTINGS, vimCursorStyle: "future-shape" }),
+    "block",
+  );
+  assert.equal(
+    vimCursorBlinks({ ...DEFAULT_WORKSPACE_SETTINGS, vimCursorBlink: true }),
+    true,
+  );
 });
 
 test("AI stays disabled unless the persisted preference is explicitly true", () => {

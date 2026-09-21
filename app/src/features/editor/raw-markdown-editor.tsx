@@ -21,7 +21,12 @@ import {
 import { commitOperations } from "@/store/actions/workspace";
 import { setEditorMode } from "@/store/actions/editor-mode";
 import { registerPendingWork } from "@/shell/pending-work";
-import { usesVimMode } from "@/features/settings/settings-model";
+import {
+  usesVimMode,
+  vimCursorBlinks,
+  vimCursorStyle,
+} from "@/features/settings/settings-model";
+import type { VimCursorStyle } from "@/features/settings/settings-model";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { DocumentRecord, RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import type { DocumentEdge } from "./document-edges";
@@ -47,6 +52,7 @@ import {
 import { rawMarkdownSyntax } from "./raw-markdown-syntax";
 import {
   bindRawMarkdownVimHandlers,
+  observeRawMarkdownVimFeedback,
   observeRawMarkdownVimMode,
   rawMarkdownVim,
   type RawMarkdownVimMode,
@@ -77,6 +83,14 @@ function selectShowLineNumbers(state: RendererState): boolean {
 
 function selectVimMode(state: RendererState): boolean {
   return usesVimMode(state.settings);
+}
+
+function selectVimCursorStyle(state: RendererState): VimCursorStyle {
+  return vimCursorStyle(state.settings);
+}
+
+function selectVimCursorBlink(state: RendererState): boolean {
+  return vimCursorBlinks(state.settings);
 }
 
 function selectEditorPlaceholder(state: RendererState): string {
@@ -110,6 +124,8 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   const activeNoteId = useRendererSelector(store, selectNoteId);
   const showLineNumbers = useRendererSelector(store, selectShowLineNumbers);
   const vimEnabled = useRendererSelector(store, selectVimMode);
+  const vimCursor = useRendererSelector(store, selectVimCursorStyle);
+  const vimCursorBlink = useRendererSelector(store, selectVimCursorBlink);
   const editorPlaceholder = useRendererSelector(store, selectEditorPlaceholder);
   const selectRecord = useMemo(
     () =>
@@ -153,6 +169,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   const jumpFieldId = useId();
   const [cursorStatus, setCursorStatus] = useState(() => rawMarkdownCursorStatus(source.text, 0, 0));
   const [vimMode, setVimMode] = useState<RawMarkdownVimMode | null>(null);
+  const [vimFeedback, setVimFeedback] = useState<string | null>(null);
   const [rowStatus, setRowStatus] = useState<RawMarkdownRowStatus | null>(null);
   const wordCount = useMemo(() => countRawMarkdownWords(deferredText), [deferredText]);
   const rowCount = rowStatus?.rowCount ?? rawMarkdownLineCount(source.text);
@@ -348,6 +365,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     });
     if (!vimEnabled) {
       setVimMode(null);
+      setVimFeedback(null);
       return;
     }
     const unbind = bindRawMarkdownVimHandlers(view, {
@@ -367,7 +385,9 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
       },
     });
     const unobserve = observeRawMarkdownVimMode(view, setVimMode);
+    const unobserveFeedback = observeRawMarkdownVimFeedback(view, setVimFeedback);
     return () => {
+      unobserveFeedback();
       unobserve();
       unbind();
     };
@@ -510,12 +530,15 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
         className="raw-markdown-root"
         data-line-numbers={showLineNumbers ? "true" : "false"}
         data-vim-mode={vimMode ?? "off"}
+        data-vim-cursor-style={vimCursor}
+        data-vim-cursor-blink={vimCursorBlink ? "true" : "false"}
         style={{ "--raw-markdown-digits": Math.max(2, String(rowCount).length) } as CSSProperties}
       >
         <div ref={setEditorHost} className="raw-markdown-surface" />
         <div className="raw-markdown-status" aria-label={`${wordCount} words, ${selectionSummary}`}>
           <span>{wordCount} words</span>
           <span className="raw-markdown-status-end">
+            {vimFeedback ? <span role="status" aria-live="polite">{vimFeedback}</span> : null}
             {vimMode ? <span className="vim-mode-badge" data-mode={vimMode}>{vimMode}</span> : null}
             <span>{selectionSummary}</span>
           </span>

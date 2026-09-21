@@ -26,6 +26,7 @@ type Harness = {
   textAtCursor(): string;
   host: VimHost;
   calls: string[];
+  feedback: string[];
 };
 
 /** Markdown as the product serializer writes it, so expectations survive list and line-break formatting. */
@@ -37,6 +38,7 @@ function createHarness(markdown: string, cursorText?: string, enabled = true): H
   resetRegisters();
   resetVimSharedState();
   const calls: string[] = [];
+  const feedback: string[] = [];
   const host: VimHost = {
     enabled: () => enabled,
     noteKey: () => "note",
@@ -58,6 +60,9 @@ function createHarness(markdown: string, cursorText?: string, enabled = true): H
     },
     scrollContainer: () => null,
     clipboard: { write: () => undefined, read: async () => "" },
+    onFeedback: (message) => {
+      feedback.push(message);
+    },
   };
   const plugin = createVimPlugin(host);
   let state = EditorState.create({
@@ -137,6 +142,7 @@ function createHarness(markdown: string, cursorText?: string, enabled = true): H
     type,
     host,
     calls,
+    feedback,
     markdown: () => serializeProductMarkdown(state.doc),
     mode: () => vimModeOf(state, enabled),
     cursor: () => state.selection.head,
@@ -201,14 +207,28 @@ test("linewise delete removes a list item and keeps the list valid", () => {
 
 test("yank and put work charwise and linewise", () => {
   const editor = createHarness("first\n\nsecond");
-  editor.press("yyjp");
+  editor.press("yy");
+  assert.equal(editor.feedback.at(-1), "1 line yanked");
+  editor.press("jp");
   assert.equal(editor.markdown(), md("first\n\nsecond\n\nfirst"));
+  assert.equal(editor.feedback.at(-1), "1 line put");
   const chars = createHarness("abc");
-  chars.press("ylp");
+  chars.press("yl");
+  assert.equal(chars.feedback.at(-1), "1 character yanked");
+  chars.press("p");
   assert.equal(chars.markdown(), "aabc");
   const paste = createHarness("x y", "y");
   paste.press("yiw0P");
   assert.equal(paste.markdown(), "yx y");
+});
+
+test("operator feedback reports affected lines and characters", () => {
+  const lines = createHarness("one\\\ntwo\\\nthree");
+  lines.press("2dd");
+  assert.equal(lines.feedback.at(-1), "2 lines deleted");
+  const characters = createHarness("abcdef");
+  characters.press("3x");
+  assert.equal(characters.feedback.at(-1), "3 characters deleted");
 });
 
 test("join, replace, toggle case, and number increments", () => {

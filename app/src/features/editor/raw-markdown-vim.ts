@@ -16,6 +16,15 @@ type VimModeChange = { mode: string; subMode?: string };
 
 type ExTarget = { cm6: EditorView };
 
+type RawMarkdownVimFeedbackInput = {
+  keys: readonly string[];
+  before: string;
+  after: string;
+  selectionFrom: number;
+  selectionTo: number;
+  visualLine: boolean;
+};
+
 const handlersByView = new WeakMap<EditorView, RawMarkdownVimHandlers>();
 
 let exCommandsDefined = false;
@@ -68,6 +77,80 @@ export function rawMarkdownVim(): Extension {
   return vim();
 }
 
+function pluralized(count: number, singular: string): string {
+  return `${count} ${count === 1 ? singular : `${singular}s`}`;
+}
+
+function changedText(before: string, after: string): { removed: string; inserted: string } {
+  let start = 0;
+  while (start < before.length && start < after.length && before[start] === after[start]) start += 1;
+  let beforeEnd = before.length;
+  let afterEnd = after.length;
+  while (beforeEnd > start && afterEnd > start && before[beforeEnd - 1] === after[afterEnd - 1]) {
+    beforeEnd -= 1;
+    afterEnd -= 1;
+  }
+  return { removed: before.slice(start, beforeEnd), inserted: after.slice(start, afterEnd) };
+}
+
+function lineCount(text: string): number {
+  return Math.max(1, (text.match(/\n/gu)?.length ?? 0) + (text.endsWith("\n") ? 0 : 1));
+}
+
+function keyCommand(keys: readonly string[]): { command: string; count: number } {
+  const joined = keys.join("").replace(/^"(?:[a-zA-Z0-9+*_-])/, "");
+  const doubled = /^(\d*)([dyc<>])(\d*)\2$/u.exec(joined);
+  if (doubled) {
+    const prefixCount = Number(doubled[1] || 1);
+    const motionCount = Number(doubled[3] || 1);
+    return { command: `${doubled[2]}${doubled[2]}`, count: prefixCount * motionCount };
+  }
+  const match = /^(\d+)?(.*)$/u.exec(joined);
+  return { command: match?.[2] ?? joined, count: Number(match?.[1] ?? 1) };
+}
+
+export function describeRawMarkdownVimFeedback(input: RawMarkdownVimFeedbackInput): string | null {
+  const { command, count } = keyCommand(input.keys);
+  const selected = input.before.slice(input.selectionFrom, input.selectionTo);
+  const change = changedText(input.before, input.after);
+  const visualCount = input.visualLine ? lineCount(selected) : Math.max(1, Array.from(selected).length);
+  const visualUnit = input.visualLine ? "line" : "character";
+  if (/^(?:y|Y)$/u.test(command) && input.selectionFrom !== input.selectionTo) {
+    return `${pluralized(visualCount, visualUnit)} yanked`;
+  }
+  if (/^(?:d|x|D|X)$/u.test(command) && input.selectionFrom !== input.selectionTo) {
+    return `${pluralized(visualCount, visualUnit)} deleted`;
+  }
+  if (/^(?:c|s|C|S|R)$/u.test(command) && input.selectionFrom !== input.selectionTo) {
+    return `${pluralized(visualCount, visualUnit)} changed`;
+  }
+  if (/^(?:yy|Y)$/u.test(command)) return `${pluralized(count, "line")} yanked`;
+  if (/^dd$/u.test(command)) return `${pluralized(count, "line")} deleted`;
+  if (/^(?:cc|S)$/u.test(command)) return `${pluralized(count, "line")} changed`;
+  if (/^(?:>>|<<)$/u.test(command)) return `${pluralized(count, "line")} ${command === ">>" ? "indented" : "outdented"}`;
+  if (/^(?:x|X)$/u.test(command) && change.removed.length > 0) {
+    return `${pluralized(Array.from(change.removed).length, "character")} deleted`;
+  }
+  if (/^[dD]/u.test(command) && change.removed.length > 0) {
+    return `${pluralized(Array.from(change.removed).length, "character")} deleted`;
+  }
+  if (/^[cCsS]/u.test(command) && change.removed.length > 0) {
+    return `${pluralized(Array.from(change.removed).length, "character")} changed`;
+  }
+  if (/^[yY]/u.test(command)) return "Yanked";
+  if (/^(?:p|P|gp|gP)$/u.test(command) && change.inserted.length > 0) {
+    const lines = change.inserted.match(/\n/gu)?.length ?? 0;
+    return lines > 0
+      ? `${pluralized(lines, "line")} put`
+      : `${pluralized(Array.from(change.inserted).length, "character")} put`;
+  }
+  if (/^(?:J|gJ)$/u.test(command)) return `${pluralized(Math.max(2, count), "line")} joined`;
+  if (/^(?:~|g~|gu|gU|r.)$/u.test(command)) return "Text changed";
+  if (command === "<C-a>") return `Number increased by ${count}`;
+  if (command === "<C-x>") return `Number decreased by ${count}`;
+  return null;
+}
+
 export function bindRawMarkdownVimHandlers(
   view: EditorView,
   handlers: RawMarkdownVimHandlers,
@@ -111,5 +194,58 @@ export function observeRawMarkdownVimMode(
   onChange(current ? describeRawMarkdownVimMode({ mode: current.insertMode ? "insert" : current.visualMode ? "visual" : "normal", subMode: current.visualLine ? "linewise" : current.visualBlock ? "blockwise" : undefined }) : "normal");
   return () => {
     cm.off("vim-mode-change", listener);
+  };
+}
+
+export function observeRawMarkdownVimFeedback(
+  view: EditorView,
+  onChange: (message: string | null) => void,
+): () => void {
+  const cm = getCM(view);
+  if (!cm) return () => undefined;
+  let keys: string[] = [];
+  let before = view.state.doc.toString();
+  let selectionFrom = view.state.selection.main.from;
+  let selectionTo = view.state.selection.main.to;
+  let visualLine = cm.state.vim?.visualLine === true;
+  const inputListener = (event: { type?: string; key?: string }) => {
+    if (event.type !== "handleKey" || !event.key) return;
+    if (keys.length === 0) {
+      before = view.state.doc.toString();
+      selectionFrom = view.state.selection.main.from;
+      selectionTo = view.state.selection.main.to;
+      visualLine = cm.state.vim?.visualLine === true;
+      onChange(null);
+    }
+    keys.push(event.key);
+  };
+  const commandListener = () => {
+    const vim = cm.state.vim;
+    const input = vim?.inputState;
+    const pending = Boolean(
+      vim?.expectLiteralNext ||
+      input?.operator ||
+      input?.motion ||
+      input?.keyBuffer.length ||
+      input?.prefixRepeat.length ||
+      input?.motionRepeat.length,
+    );
+    if (pending) return;
+    const message = describeRawMarkdownVimFeedback({
+      keys,
+      before,
+      after: view.state.doc.toString(),
+      selectionFrom,
+      selectionTo,
+      visualLine,
+    });
+    keys = [];
+    if (message) onChange(message);
+  };
+  cm.on("inputEvent", inputListener);
+  cm.on("vim-keypress", commandListener);
+  return () => {
+    cm.off("inputEvent", inputListener);
+    cm.off("vim-keypress", commandListener);
   };
 }

@@ -26,6 +26,14 @@ export const EDITOR_LINE_HEIGHT_OPTIONS = [
   { value: "relaxed", label: "Relaxed" },
 ] as const;
 
+export const VIM_CURSOR_STYLE_OPTIONS = [
+  { value: "block", label: "Block" },
+  { value: "underline", label: "Underline" },
+  { value: "bar", label: "Bar" },
+] as const;
+
+export type VimCursorStyle = (typeof VIM_CURSOR_STYLE_OPTIONS)[number]["value"];
+
 export const DEFAULT_AUTO_LOCK_MINUTES = 5;
 
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
@@ -44,6 +52,8 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   editorDefaultRawMode: false,
   blockDragHandle: true,
   vimMode: false,
+  vimCursorStyle: "block",
+  vimCursorBlink: false,
   openNotesInTabs: false,
   showToasts: true,
   openLinksInApp: false,
@@ -65,6 +75,8 @@ export type SettingsViewModel = {
   editorDefaultRawMode: boolean;
   blockDragHandle: boolean;
   vimMode: boolean;
+  vimCursorStyle: VimCursorStyle;
+  vimCursorBlink: boolean;
   openNotesInTabs: boolean;
   showToasts: boolean;
   openLinksInApp: boolean;
@@ -110,6 +122,8 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     editorDefaultRawMode: settings.editorDefaultRawMode === true,
     blockDragHandle: usesBlockDragHandle(settings),
     vimMode: usesVimMode(settings),
+    vimCursorStyle: vimCursorStyle(settings),
+    vimCursorBlink: vimCursorBlinks(settings),
     openNotesInTabs: settings.openNotesInTabs === true,
     showToasts: showsToasts(settings),
     openLinksInApp: opensLinksInApp(settings),
@@ -125,6 +139,17 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
  */
 export function usesVimMode(settings: WorkspaceSettings): boolean {
   return settings.vimMode === true;
+}
+
+export function vimCursorStyle(settings: WorkspaceSettings): VimCursorStyle {
+  const value = settings["vimCursorStyle"];
+  return VIM_CURSOR_STYLE_OPTIONS.some((option) => option.value === value)
+    ? value as VimCursorStyle
+    : "block";
+}
+
+export function vimCursorBlinks(settings: WorkspaceSettings): boolean {
+  return settings["vimCursorBlink"] === true;
 }
 
 /**

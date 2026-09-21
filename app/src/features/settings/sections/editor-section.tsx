@@ -5,8 +5,12 @@ import { updateSetting } from "@/store/actions/settings";
 import {
   EDITOR_FONT_OPTIONS,
   EDITOR_LINE_HEIGHT_OPTIONS,
+  VIM_CURSOR_STYLE_OPTIONS,
 } from "@/features/settings/settings-model";
-import type { SettingsViewModel } from "@/features/settings/settings-model";
+import type {
+  SettingsViewModel,
+  VimCursorStyle,
+} from "@/features/settings/settings-model";
 import { cn } from "@/shared/lib/utils";
 import {
   SettingCardPicker,
@@ -55,6 +59,28 @@ const LINE_HEIGHT_PICKER_OPTIONS = EDITOR_LINE_HEIGHT_OPTIONS.map((option) => ({
   ...option,
   preview: <LineSpacingPreview gap={LINE_HEIGHT_PREVIEW_GAPS[option.value] ?? 5} />,
 }));
+
+const VIM_CURSOR_PICKER_OPTIONS = VIM_CURSOR_STYLE_OPTIONS.map((option) => ({
+  ...option,
+  preview: <VimCursorPreview style={option.value} />,
+}));
+
+function VimCursorPreview({ style }: { style: VimCursorStyle }) {
+  return (
+    <span className="font-mono text-xl text-foreground/75" aria-hidden="true">
+      a<span
+        className={cn(
+          "inline-flex h-6 w-[0.72em] items-center justify-center text-foreground",
+          style === "block" && "rounded-[2px] bg-foreground/75 text-background",
+          style === "underline" && "border-b-2 border-foreground/80",
+          style === "bar" && "border-l-2 border-foreground/80",
+        )}
+      >
+        b
+      </span>c
+    </span>
+  );
+}
 
 function LineSpacingPreview({ gap }: { gap: number }) {
   return (
@@ -138,6 +164,19 @@ export function EditorSection({ store }: SectionProps) {
           detail="Modal editing in both editors: normal, insert, and visual modes with counts, operators, text objects, registers, dot repeat, and : commands. Toggle anywhere with mod+alt+i."
           checked={settings.vimMode}
           onChange={(checked) => change("vimMode", checked)}
+        />
+        <SettingCardPicker
+          label="Vim cursor"
+          detail="The cursor shape used in normal and visual modes."
+          value={settings.vimCursorStyle}
+          options={VIM_CURSOR_PICKER_OPTIONS}
+          onChange={(value) => change("vimCursorStyle", value)}
+        />
+        <SettingToggle
+          label="Blink Vim cursor"
+          detail="Blink the normal-mode cursor in both rendered and raw Markdown editors."
+          checked={settings.vimCursorBlink}
+          onChange={(checked) => change("vimCursorBlink", checked)}
         />
       </div>
       <div className={settingsGroup}>
