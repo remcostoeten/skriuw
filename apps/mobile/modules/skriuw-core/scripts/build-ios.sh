@@ -15,7 +15,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 module_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-repo_dir="$(cd "$module_dir/../../.." && pwd)"
+repo_dir="$(cd "$module_dir/../../../.." && pwd)"
 frameworks_dir="$module_dir/ios/Frameworks"
 generated_dir="$module_dir/ios/Generated"
 staging_dir="$repo_dir/target/skriuw-mobile-ios"

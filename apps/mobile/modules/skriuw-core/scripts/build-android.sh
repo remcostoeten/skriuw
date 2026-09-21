@@ -11,7 +11,7 @@
 set -Eeuo pipefail
 
 module_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-repo_dir="$(cd "$module_dir/../../.." && pwd)"
+repo_dir="$(cd "$module_dir/../../../.." && pwd)"
 profile="${1:-release}"
 jni_dir="$module_dir/android/src/main/jniLibs"
 bindings_dir="$module_dir/android/src/main/java"

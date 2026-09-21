@@ -4,8 +4,8 @@ import { cpus, freemem, hostname, platform, release, tmpdir, totalmem } from "no
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const app = join(root, "app");
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const app = join(root, "apps/workspace");
 const fixtures = join(app, "performance/public/fixtures");
 const defaultOutput = join(app, "performance/results/latest.json");
 const outputIndex = process.argv.indexOf("--output");
