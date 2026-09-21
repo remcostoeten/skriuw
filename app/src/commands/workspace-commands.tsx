@@ -801,15 +801,15 @@ export function createWorkspaceCommands(
     },
     {
       id: "focus-sidebar",
-      label: "Focus current note in sidebar",
+      label: "Focus sidebar",
       group: "Navigation",
       icon: <PanelLeftIcon size={15} />,
       shortcut: "focusSidebar",
       enabled: (state, ui) => onNotesRoute(state, ui) && ui.sidebarOpen,
       run: () => {
-        const activeNoteId = store.getState().activeNoteId;
-        if (activeNoteId) {
-          store.setFocusedNode(activeNoteId);
+        const firstVisibleId = store.getState().visibleIds[0];
+        if (firstVisibleId) {
+          store.setFocusedNode(firstVisibleId);
         }
         focusRegion("sidebar");
       },

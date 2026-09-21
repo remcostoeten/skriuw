@@ -18,16 +18,16 @@ function DemoFrame({ status, children }: { status: string; children: React.React
   );
 }
 
-function DemoSidebarRow({ compact }: { compact: boolean }) {
+function DemoSidebarRow({ compact, label }: { compact: boolean; label: string }) {
   return (
     <div
       className={cn(
-        "flex items-center gap-1.5 rounded-sm px-2 text-[10px] text-foreground/88",
+        "flex items-center gap-1.5 rounded-sm px-2 text-[10px] text-foreground/88 transition-[height] duration-150",
         compact ? "h-6" : "h-8",
       )}
     >
       <FileTextIcon size={12} className="shrink-0 text-muted-foreground/70" />
-      <span className="truncate">Weekly review.md</span>
+      <span className="truncate">{label}</span>
     </div>
   );
 }
@@ -35,26 +35,10 @@ function DemoSidebarRow({ compact }: { compact: boolean }) {
 export function CompactSidebarDemo({ enabled }: { enabled: boolean }) {
   return (
     <DemoFrame status={enabled ? "Compact" : "Comfortable"}>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-sm border border-border/60 bg-sidebar/40 p-1.5">
-          <div className={cn("mb-1 px-1", sectionLabelClass)}>
-            Off
-          </div>
-          <DemoSidebarRow compact={false} />
-          <DemoSidebarRow compact={false} />
-        </div>
-        <div
-          className={cn(
-            "rounded-sm border bg-sidebar/40 p-1.5",
-            enabled ? "border-foreground/30" : "border-border/60",
-          )}
-        >
-          <div className={cn("mb-1 px-1", sectionLabelClass)}>
-            On
-          </div>
-          <DemoSidebarRow compact />
-          <DemoSidebarRow compact />
-        </div>
+      <div className="rounded-sm border border-border/60 bg-sidebar/40 p-1.5">
+        <DemoSidebarRow compact={enabled} label="Weekly review.md" />
+        <DemoSidebarRow compact={enabled} label="Research notes.md" />
+        <DemoSidebarRow compact={enabled} label="Ideas.md" />
       </div>
     </DemoFrame>
   );

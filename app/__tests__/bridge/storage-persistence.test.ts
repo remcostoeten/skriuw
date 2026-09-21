@@ -6,9 +6,12 @@ import {
 } from "../../src/bridge/storage-persistence";
 
 test("describePersistenceRisk warns while the browser may still evict the workspace", () => {
-  assert.match(describePersistenceRisk({ kind: "best-effort" }) ?? "", /delete your workspace/);
   assert.match(
-    describePersistenceRisk({ kind: "low-space", remainingBytes: 1024 }) ?? "",
+    describePersistenceRisk({ kind: "best-effort" })?.message ?? "",
+    /delete your workspace/,
+  );
+  assert.match(
+    describePersistenceRisk({ kind: "low-space", remainingBytes: 1024 })?.message ?? "",
     /out of storage/,
   );
 });

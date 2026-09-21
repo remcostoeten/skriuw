@@ -6,6 +6,11 @@ export type PersistenceState =
   | { kind: "best-effort" }
   | { kind: "low-space"; remainingBytes: number };
 
+export type PersistenceRisk = {
+  message: string;
+  description: string;
+};
+
 const LOW_SPACE_BYTES = 32 * 1024 * 1024;
 const ANNOUNCED_KEY = "skriuw.storage-risk";
 
@@ -56,12 +61,18 @@ export async function requestWorkspacePersistence(): Promise<PersistenceState> {
  * The warning a persistence state deserves, or null when nothing is at risk.
  * Kept separate from the request so the wording is testable without a browser.
  */
-export function describePersistenceRisk(state: PersistenceState): string | null {
+export function describePersistenceRisk(state: PersistenceState): PersistenceRisk | null {
   if (state.kind === "best-effort") {
-    return "This browser may delete your workspace when storage runs low. Export a backup, or install Skriuw to keep it.";
+    return {
+      message: "This browser may delete your workspace",
+      description: "Export a backup, or install Skriuw to keep it.",
+    };
   }
   if (state.kind === "low-space") {
-    return "This device is almost out of storage. Free some space, or Skriuw may not be able to save.";
+    return {
+      message: "This device is almost out of storage",
+      description: "Free some space, or Skriuw may not be able to save.",
+    };
   }
   return null;
 }

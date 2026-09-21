@@ -456,6 +456,13 @@
   --toast-inset: 0px;
 }
 
+dialog.command-palette {
+  inset-block: clamp(24px, 10vh, 96px) auto;
+  margin-block: 0;
+  margin-inline: auto;
+  max-height: min(30rem, calc(var(--viewport-height) - 48px));
+}
+
 @media (max-width: 899px) {
   :root {
     --toast-inset: calc(56px + var(--safe-bottom));
@@ -474,6 +481,7 @@
   }
 
   dialog.command-palette {
+    inset-block-start: 0;
     margin-top: 12px;
     max-height: calc(var(--viewport-height) - 24px);
   }
