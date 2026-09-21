@@ -35,6 +35,18 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 96
         }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Skriuw uses Face ID to release your note lock PIN instead of asking you to type it."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Skriuw uses Face ID to release your note lock PIN instead of asking you to type it."
+        }
       ]
     ],
     "experiments": {
