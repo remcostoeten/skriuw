@@ -1,4 +1,5 @@
 import { router, type Href } from "expo-router";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SHELL_DESTINATIONS, type ShellRoute } from "./destinations";
@@ -22,6 +23,11 @@ export function TabBar({ route, onOpenAccount }: Props) {
   const insets = useSafeAreaInsets();
   const resting = theme.color("sidebar-foreground", TAB_RESTING_ALPHA);
   const selected = theme.color("sidebar-foreground");
+  const [presses, setPresses] = useState<Record<string, number>>({});
+
+  function pressed(key: string) {
+    setPresses((current) => ({ ...current, [key]: (current[key] ?? 0) + 1 }));
+  }
 
   return (
     <View
@@ -45,10 +51,16 @@ export function TabBar({ route, onOpenAccount }: Props) {
             accessibilityRole="tab"
             accessibilityLabel={destination.label}
             accessibilityState={{ selected: active }}
+            onPressIn={() => pressed(destination.route)}
             onPress={() => router.replace(destination.path as Href)}
             style={styles.tab}
           >
-            <ShellIcon name={destination.icon} size={TAB_ICON_SIZE} color={color} />
+            <ShellIcon
+              name={destination.icon}
+              size={TAB_ICON_SIZE}
+              color={color}
+              playKey={presses[destination.route] ?? 0}
+            />
             <Text numberOfLines={1} style={[styles.label, { color }]}>
               {destination.label}
             </Text>
@@ -58,10 +70,11 @@ export function TabBar({ route, onOpenAccount }: Props) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Account and settings"
+        onPressIn={() => pressed("account")}
         onPress={onOpenAccount}
         style={styles.tab}
       >
-        <ShellIcon name="account" size={TAB_ICON_SIZE} color={resting} />
+        <ShellIcon name="account" size={TAB_ICON_SIZE} color={resting} playKey={presses.account ?? 0} />
         <Text numberOfLines={1} style={[styles.label, { color: resting }]}>
           Account
         </Text>

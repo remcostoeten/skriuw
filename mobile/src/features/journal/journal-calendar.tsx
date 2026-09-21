@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ShellIcon } from "../../shell/icons";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme } from "../../shell/theme";
 import {
@@ -52,7 +53,7 @@ export function JournalCalendar({
           onPress={() => onMonthChange(shiftMonth(month, -1))}
           style={styles.step}
         >
-          <Text style={[styles.stepGlyph, { color: theme.color("muted-foreground") }]}>‹</Text>
+          <ShellIcon name="back" size={22} color={theme.color("muted-foreground")} />
         </Pressable>
         <Text
           accessibilityRole="header"
@@ -66,7 +67,7 @@ export function JournalCalendar({
           onPress={() => onMonthChange(shiftMonth(month, 1))}
           style={styles.step}
         >
-          <Text style={[styles.stepGlyph, { color: theme.color("muted-foreground") }]}>›</Text>
+          <ShellIcon name="forward" size={22} color={theme.color("muted-foreground")} />
         </Pressable>
       </View>
       <View style={styles.week}>
@@ -145,10 +146,6 @@ const styles = StyleSheet.create({
     height: MINIMUM_TOUCH_TARGET,
     alignItems: "center",
     justifyContent: "center",
-  },
-  stepGlyph: {
-    fontSize: 24,
-    lineHeight: 26,
   },
   monthTitle: {
     fontSize: 15,
