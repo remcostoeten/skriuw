@@ -16,7 +16,7 @@ import { standardNotesSource } from "../../../../src/features/transfer/import/so
 
 const fixtures = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  "../../../../../fixtures/provider-import",
+  "../../../../../../fixtures/provider-import",
 );
 
 async function fixtureTree(name: string): Promise<MarkdownTree> {

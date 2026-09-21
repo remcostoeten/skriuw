@@ -1,5 +1,5 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import type { RendererState } from "../../../shared/renderer-core/src/store/types";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { useTheme } from "../shell/theme";
 import { useWorkspaceSelector } from "../shell/workspace-provider";
 import type { EditorFailureView } from "./failure-view";

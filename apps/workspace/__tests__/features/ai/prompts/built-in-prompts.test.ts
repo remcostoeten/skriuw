@@ -17,7 +17,7 @@ import {
 
 const GENERATED = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  "../../../../../contracts/generated/built-in-prompts.json",
+  "../../../../../../contracts/generated/built-in-prompts.json",
 );
 
 test("the shipped library is the generated contract", () => {

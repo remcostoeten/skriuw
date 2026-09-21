@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { SHELL_DESTINATIONS, type ShellRoute } from "../destinations";
 
-const appDir = resolve(__dirname, "../../../workspace");
+const appDir = resolve(__dirname, "../../../app");
 
 /**
  * The destinations whose surface is genuinely not built yet. A view that ships

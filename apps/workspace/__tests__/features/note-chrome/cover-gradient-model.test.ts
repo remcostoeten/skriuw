@@ -22,7 +22,7 @@ test("every gradient carries a distinct id and paint", () => {
 test("the gradient ids match the domain allow-list", () => {
   const source = readFileSync(
     fileURLToPath(
-      new URL("../../../../crates/skriuw-domain/src/lib.rs", import.meta.url),
+      new URL("../../../../../crates/skriuw-domain/src/lib.rs", import.meta.url),
     ),
     "utf8",
   );

@@ -62,7 +62,7 @@ function runTests(): Promise<{ counts: TestCounts; coverage: CoveragePct }> {
         "--test",
         "--experimental-test-coverage",
         "__tests__/**/*.test.ts",
-        "../packages/renderer-core/__tests__/**/*.test.ts",
+        "../../packages/renderer-core/__tests__/**/*.test.ts",
       ],
       { cwd: ROOT, stdio: ["inherit", "pipe", "pipe"], shell: false },
     );
