@@ -1,10 +1,11 @@
 import {
-  DARK_THEMES,
-  THEME_NAMES,
-  THEME_TOKENS,
+  BUILTIN_THEMES,
+  builtinThemeLabel,
+  isBuiltinThemeId,
+  resolveTheme,
   type ThemeName,
   type ThemeTokens,
-} from "../../../shared/theme/tokens";
+} from "@skriuw/theme";
 
 export type ColorScheme = "light" | "dark";
 
@@ -17,7 +18,7 @@ export const SYSTEM_THEMES: Record<ColorScheme, ThemeName> = {
 };
 
 export function isThemeName(value: string): value is ThemeName {
-  return (THEME_NAMES as readonly string[]).includes(value);
+  return isBuiltinThemeId(value);
 }
 
 export function themePreferenceFromSettings(theme: string): ThemePreference {
@@ -32,11 +33,11 @@ export function resolveThemeName(
 }
 
 export function themeIsDark(name: ThemeName): boolean {
-  return DARK_THEMES[name];
+  return resolveTheme(name).colorScheme === "dark";
 }
 
 export function themeTokens(name: ThemeName): ThemeTokens {
-  return THEME_TOKENS[name];
+  return resolveTheme(name).tokens;
 }
 
 /**
@@ -60,16 +61,9 @@ export type ThemeOption = {
   dark: boolean;
 };
 
-function titleCase(name: string): string {
-  return name
-    .split("-")
-    .map((word) => `${word.slice(0, 1).toUpperCase()}${word.slice(1)}`)
-    .join(" ");
-}
-
 /** Every generated theme, in generator order, for the appearance picker. */
-export const THEME_OPTIONS: readonly ThemeOption[] = THEME_NAMES.map((name) => ({
-  name,
-  label: titleCase(name),
-  dark: DARK_THEMES[name],
+export const THEME_OPTIONS: readonly ThemeOption[] = BUILTIN_THEMES.map((theme) => ({
+  name: theme.id,
+  label: builtinThemeLabel(theme),
+  dark: theme.colorScheme === "dark",
 }));

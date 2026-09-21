@@ -5,12 +5,19 @@ import type { OperationAck, WorkspaceOperation, WorkspaceSnapshot } from "@skriu
 import { createEditorSession } from "../../../src/features/editor-standalone/editor-session";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../../../src/features/settings/settings-model";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
+import { resolveTheme, type ThemeName } from "@skriuw/theme";
 import {
   EDITOR_FAILURE_DETAIL_LIMIT,
   EDITOR_PROTOCOL_VERSION,
   parseHostMessage,
   type EditorToHostMessage,
+  type EditorTheme,
 } from "../../../../mobile/src/editor/protocol.ts";
+
+function editorTheme(name: ThemeName): EditorTheme {
+  const { source: _source, ...theme } = resolveTheme(name);
+  return theme;
+}
 
 function documentJson(text: string) {
   return { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] };
@@ -26,7 +33,7 @@ function loadMessage(noteId: string, text: string, revision = 1) {
     markdown: `${text}\n`,
     wordCount: 1,
     revision,
-    theme: "paper",
+    theme: editorTheme("paper"),
   };
 }
 
@@ -185,7 +192,11 @@ test("remote changes and theme messages update the store in place", () => {
       documents: [{ noteId: "a", document: documentJson("remote"), markdown: "remote\n", wordCount: 1, revision: 5 }],
     },
   });
-  session.receive({ v: EDITOR_PROTOCOL_VERSION, type: "theme", name: "embers" });
+  session.receive({
+    v: EDITOR_PROTOCOL_VERSION,
+    type: "theme",
+    theme: editorTheme("embers"),
+  });
   assert.equal(store.getState().documents.get("a")?.revision, 5);
   assert.equal(store.getState().settings.theme, "embers");
   assert.equal(store.getState().activeNoteId, "a");
@@ -193,7 +204,7 @@ test("remote changes and theme messages update the store in place", () => {
 
 test("messages from another protocol version or shape are refused with a failure", () => {
   const { store, sent, session } = harness();
-  session.receive({ ...loadMessage("a", "alpha"), v: 2 });
+  session.receive({ ...loadMessage("a", "alpha"), v: EDITOR_PROTOCOL_VERSION + 1 });
   session.receive(JSON.stringify({ v: EDITOR_PROTOCOL_VERSION, type: "load", noteId: 7 }));
   session.receive("not json");
   assert.deepEqual(

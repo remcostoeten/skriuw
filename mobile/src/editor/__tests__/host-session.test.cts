@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { resolveTheme, type ThemeName } from "@skriuw/theme";
 import type { BridgePort } from "../../../../shared/renderer-core/src/bridge/port";
 import { createMemoryBridge } from "../../../../shared/renderer-core/src/bridge/memory-adapter";
 import {
@@ -14,11 +15,17 @@ import { createEditorHostSession, type EditorHostSession } from "../host-session
 import {
   EDITOR_PROTOCOL_VERSION,
   type EditorToHostMessage,
+  type EditorTheme,
   type HostToEditorMessage,
 } from "../protocol";
 
 const OPEN_NOTE = "note-native-shell";
 const OTHER_NOTE = "note-edge-swipe";
+
+function editorTheme(name: ThemeName): EditorTheme {
+  const { source: _source, ...theme } = resolveTheme(name);
+  return theme;
+}
 
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
 
@@ -51,7 +58,7 @@ async function openHost(bridge?: BridgePort): Promise<Harness> {
     session: workspace,
     send: (message) => sent.push(message),
     openLink: (url) => links.push(url),
-    theme: () => "midnight",
+    theme: () => editorTheme("midnight"),
     showFailure: (view) => {
       failure = view;
     },
@@ -105,7 +112,7 @@ test("ready fills the warm webview with the references and the open note", async
   const loads = only(harness.sent, "load");
   assert.equal(loads.length, 1);
   assert.equal(loads[0]?.noteId, OPEN_NOTE);
-  assert.equal(loads[0]?.theme, "midnight");
+  assert.equal(loads[0]?.theme.id, "midnight");
   assert.equal(
     loads[0]?.markdown,
     harness.workspace.store.getState().documents.get(OPEN_NOTE)?.markdown,
@@ -429,9 +436,12 @@ test("a theme change reaches the page without a reload", async () => {
   harness.says({ type: "ready" });
   harness.sent.length = 0;
 
-  harness.host.setTheme("paper");
+  const paper = editorTheme("paper");
+  harness.host.setTheme(paper);
 
-  assert.deepEqual(harness.sent, [{ v: EDITOR_PROTOCOL_VERSION, type: "theme", name: "paper" }]);
+  assert.deepEqual(harness.sent, [
+    { v: EDITOR_PROTOCOL_VERSION, type: "theme", theme: paper },
+  ]);
 
   await harness.close();
 });

@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { BUILTIN_THEMES, type BuiltinThemeMetadata } from "./metadata";
 
 export type GeneratedTheme = {
   name: string;
@@ -30,6 +31,9 @@ function parseDeclarations(selector: string, body: string): Map<string, string> 
     if (!declaration) {
       throw new Error(`${selector}: cannot parse "${trimmed}" as a custom property`);
     }
+    if (declarations.has(declaration[1])) {
+      throw new Error(`${selector}: declares --${declaration[1]} more than once`);
+    }
     declarations.set(declaration[1], declaration[2].trim());
   }
   return declarations;
@@ -53,7 +57,11 @@ function resolveValue(
   return resolveValue(theme, reference[1], declarations, [...visited, name]);
 }
 
-function buildTheme(name: string, declarations: Map<string, string>): GeneratedTheme {
+function buildTheme(
+  name: string,
+  declarations: Map<string, string>,
+  metadata?: BuiltinThemeMetadata,
+): GeneratedTheme {
   const tokens: Record<string, string> = {};
   let backgroundLightness: number | undefined;
   for (const token of declarations.keys()) {
@@ -70,11 +78,18 @@ function buildTheme(name: string, declarations: Map<string, string>): GeneratedT
   if (backgroundLightness === undefined) {
     throw new Error(`${name}: --background is required to derive the dark flag`);
   }
-  return { name, dark: backgroundLightness < 50, tokens };
+  return {
+    name,
+    dark: metadata ? metadata.colorScheme === "dark" : backgroundLightness < 50,
+    tokens,
+  };
 }
 
 /** Parses every `:root[data-theme]` block into resolved `hsl()` tokens. */
-export function parseThemes(css: string): GeneratedTheme[] {
+export function parseThemes(
+  css: string,
+  metadata: readonly BuiltinThemeMetadata[] = [],
+): GeneratedTheme[] {
   const themes: GeneratedTheme[] = [];
   for (const [, selector, body] of css.replace(COMMENT_PATTERN, "").matchAll(BLOCK_PATTERN)) {
     const declarations = parseDeclarations(selector.trim(), body);
@@ -82,7 +97,7 @@ export function parseThemes(css: string): GeneratedTheme[] {
       if (themes.some((theme) => theme.name === name)) {
         throw new Error(`${name}: declared in more than one block`);
       }
-      themes.push(buildTheme(name, declarations));
+      themes.push(buildTheme(name, declarations, metadata.find((theme) => theme.id === name)));
     }
   }
   if (themes.length === 0) throw new Error("no :root[data-theme] blocks found");
@@ -95,6 +110,15 @@ export function parseThemes(css: string): GeneratedTheme[] {
     if (missing.length > 0 || extra.length > 0) {
       throw new Error(
         `${theme.name}: token set differs from ${themes[0].name} (missing: ${missing.join(", ") || "none"}; extra: ${extra.join(", ") || "none"})`,
+      );
+    }
+  }
+  if (metadata.length > 0) {
+    const parsedNames = themes.map((theme) => theme.name).toSorted();
+    const metadataNames = metadata.map((theme) => theme.id).toSorted();
+    if (JSON.stringify(parsedNames) !== JSON.stringify(metadataNames)) {
+      throw new Error(
+        `theme metadata differs from themes.css (metadata: ${metadataNames.join(", ")}; css: ${parsedNames.join(", ")})`,
       );
     }
   }
@@ -148,7 +172,7 @@ function readCommitted(): string | undefined {
 
 function main(): void {
   const check = process.argv.includes("--check");
-  const expected = renderTokens(parseThemes(readFileSync(SOURCE_PATH, "utf8")));
+  const expected = renderTokens(parseThemes(readFileSync(SOURCE_PATH, "utf8"), BUILTIN_THEMES));
   const output = relative(REPO_DIR, OUTPUT_PATH);
   if (check) {
     if (readCommitted() !== expected) {

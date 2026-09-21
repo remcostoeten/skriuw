@@ -1,10 +1,15 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { useColorScheme } from "react-native";
-import type { ThemeName, ThemeTokens, TokenName } from "../../../shared/theme/tokens";
+import {
+  resolveTheme,
+  type ThemeDefinition,
+  type ThemeName,
+  type ThemeTokens,
+  type TokenName,
+} from "@skriuw/theme";
 import {
   resolveThemeName,
   themeIsDark,
-  themeTokens,
   withAlpha,
   type ColorScheme,
   type ThemePreference,
@@ -15,6 +20,7 @@ export type ShellTheme = {
   tokens: ThemeTokens;
   isDark: boolean;
   preference: ThemePreference;
+  definition: ThemeDefinition;
   setPreference: (preference: ThemePreference) => void;
   /** A generated token, optionally faded, as a React Native colour. */
   color: (token: TokenName, alpha?: number) => string;
@@ -36,7 +42,18 @@ export function ThemeProvider({ children, initialPreference = "system" }: Props)
   const [preference, setPreference] = useState<ThemePreference>(initialPreference);
   const scheme: ColorScheme = useColorScheme() === "light" ? "light" : "dark";
   const name = resolveThemeName(preference, scheme);
-  const tokens = themeTokens(name);
+  const resolved = useMemo(() => resolveTheme(name), [name]);
+  const definition = useMemo<ThemeDefinition>(
+    () => ({
+      schemaVersion: resolved.schemaVersion,
+      id: resolved.id,
+      label: resolved.label,
+      colorScheme: resolved.colorScheme,
+      tokens: resolved.tokens,
+    }),
+    [resolved],
+  );
+  const tokens = resolved.tokens;
   const color = useCallback(
     (token: TokenName, alpha?: number) =>
       alpha === undefined ? tokens[token] : withAlpha(tokens[token], alpha),
@@ -48,10 +65,11 @@ export function ThemeProvider({ children, initialPreference = "system" }: Props)
       tokens,
       isDark: themeIsDark(name),
       preference,
+      definition,
       setPreference,
       color,
     }),
-    [color, name, preference, tokens],
+    [color, definition, name, preference, tokens],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

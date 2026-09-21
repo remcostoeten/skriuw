@@ -16,9 +16,14 @@ function storageStub(): { entries: Map<string, string>; setItem: (key: string, v
 
 test("appearance attributes round-trip through the boot storage slot", () => {
   const storage = storageStub();
-  writeBootAppearance(storage, { theme: "paper", reduceMotion: true });
+  writeBootAppearance(storage, {
+    theme: "paper",
+    colorScheme: "light",
+    reduceMotion: true,
+  });
   assert.deepEqual(JSON.parse(storage.entries.get(BOOT_APPEARANCE_KEY) ?? "null"), {
     theme: "paper",
+    colorScheme: "light",
     reduceMotion: true,
   });
 });
@@ -31,7 +36,7 @@ test("a failing storage does not propagate out of the mirror", () => {
           throw new Error("quota exceeded");
         },
       },
-      { theme: "midnight", reduceMotion: false },
+      { theme: "midnight", colorScheme: "dark", reduceMotion: false },
     );
   });
 });

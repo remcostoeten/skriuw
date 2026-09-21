@@ -30,19 +30,37 @@
       (function () {
         var root = document.documentElement;
         var theme = "midnight";
+        var colorScheme = "dark";
         var reduceMotion = false;
+        var tokens = null;
         try {
           var stored = window.localStorage.getItem("skriuw.boot-appearance");
           var parsed = stored ? JSON.parse(stored) : null;
-          if (parsed && /^[a-z0-9-]{1,32}$/.test(parsed.theme)) {
+          if (parsed && /^[a-z0-9][a-z0-9-]{0,63}$/.test(parsed.theme)) {
             theme = parsed.theme;
           }
+          if (parsed && (parsed.colorScheme === "light" || parsed.colorScheme === "dark")) {
+            colorScheme = parsed.colorScheme;
+          }
+          tokens = parsed && parsed.tokens && typeof parsed.tokens === "object" ? parsed.tokens : null;
           reduceMotion = Boolean(parsed && parsed.reduceMotion);
         } catch (error) {
           theme = "midnight";
+          colorScheme = "dark";
           reduceMotion = false;
+          tokens = null;
+        }
+        if (tokens) {
+          Object.keys(tokens).forEach(function (token) {
+            var color = tokens[token];
+            var match = typeof color === "string" && /^hsl\((-?[\d.]+),\s*([\d.]+%),\s*([\d.]+%)\)$/.exec(color);
+            if (/^[a-z0-9-]+$/.test(token) && match) {
+              root.style.setProperty("--" + token, match[1] + " " + match[2] + " " + match[3]);
+            }
+          });
         }
         root.dataset.theme = theme;
+        root.dataset.colorScheme = colorScheme;
         if (reduceMotion) {
           root.dataset.reduceMotion = "true";
         }

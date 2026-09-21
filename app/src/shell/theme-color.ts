@@ -31,5 +31,5 @@ export function bindThemeColor(store: RendererStore, root: HTMLElement): () => v
     }
   }
   apply();
-  return store.subscribe((state) => state.settings, apply);
+  return store.subscribe((state) => state.settings.theme, apply);
 }

@@ -16,6 +16,7 @@ import { resolveEditorBundle } from "./bundle-source";
 import EditorSurface, { type EditorSurfaceHandle } from "./editor-surface";
 import { describeEditorFailure, isReloadable, type EditorFailureView } from "./failure-view";
 import { createEditorHostSession, type EditorHostSession } from "./host-session";
+import type { EditorTheme } from "./protocol";
 
 type Props = {
   /**
@@ -57,15 +58,15 @@ export function EditorHost({ visible = true }: Props) {
   const insets = useSafeAreaInsets();
   const surface = useRef<EditorSurfaceHandle | null>(null);
   const host = useRef<EditorHostSession | null>(null);
-  const themeName = useRef(theme.name);
+  const editorTheme = useRef<EditorTheme>(theme.definition);
   const [failure, setFailure] = useState<EditorFailureView | null>(null);
   const [generation, setGeneration] = useState(0);
   // Metro only inlines `EXPO_PUBLIC_*` reads written out in full.
   const bundle = useMemo(() => resolveEditorBundle(process.env.EXPO_PUBLIC_SKRIUW_EDITOR_ENTRY), []);
 
   useEffect(() => {
-    themeName.current = theme.name;
-  }, [theme.name]);
+    editorTheme.current = theme.definition;
+  }, [theme.definition]);
 
   useEffect(() => {
     const session = createEditorHostSession({
@@ -74,7 +75,7 @@ export function EditorHost({ visible = true }: Props) {
       openLink: (url) => {
         Linking.openURL(url).catch(workspace.reportFailure);
       },
-      theme: () => themeName.current,
+      theme: () => editorTheme.current,
       showFailure: setFailure,
     });
     host.current = session;
@@ -85,8 +86,8 @@ export function EditorHost({ visible = true }: Props) {
   }, [workspace]);
 
   useEffect(() => {
-    host.current?.setTheme(theme.name);
-  }, [theme.name]);
+    host.current?.setTheme(theme.definition);
+  }, [theme.definition]);
 
   const receive = useCallback(async (text: string) => {
     host.current?.receive(text);

@@ -1,15 +1,28 @@
 import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import {
+  TOKEN_NAMES,
+  resolveTheme,
+  themeTokenChannels,
+  type CustomThemeRegistry,
+  type ThemeColorScheme,
+  type ThemeTokens,
+} from "@skriuw/theme";
 import { writeBootAppearance } from "./boot-appearance";
-import { projectSettings } from "./settings-model";
 
 export type RootSettingsAttributes = {
   theme: string;
+  colorScheme: ThemeColorScheme;
   reduceMotion: boolean;
+  tokens?: ThemeTokens;
 };
 
 type RootElement = {
-  dataset: { theme?: string; reduceMotion?: string };
+  dataset: { theme?: string; colorScheme?: string; reduceMotion?: string };
+  style: {
+    setProperty: (property: string, value: string) => void;
+    removeProperty: (property: string) => void;
+  };
 };
 
 /**
@@ -19,17 +32,40 @@ type RootElement = {
  */
 export function rootSettingsAttributes(
   settings: WorkspaceSettings,
+  customThemes?: CustomThemeRegistry,
 ): RootSettingsAttributes {
-  const projected = projectSettings(settings);
-  return { theme: projected.theme, reduceMotion: projected.reduceMotion };
+  const theme = resolveTheme(settings.theme, customThemes);
+  return {
+    theme: theme.id,
+    colorScheme: theme.colorScheme,
+    reduceMotion: settings.reduceMotion,
+    ...(theme.source === "custom" ? { tokens: theme.tokens } : {}),
+  };
 }
 
 export function applySettingsToRoot(
   root: RootElement,
   settings: WorkspaceSettings,
+  customThemes?: CustomThemeRegistry,
 ): void {
-  const attributes = rootSettingsAttributes(settings);
+  applyAttributesToRoot(root, rootSettingsAttributes(settings, customThemes));
+}
+
+export function applyAttributesToRoot(
+  root: RootElement,
+  attributes: RootSettingsAttributes,
+): void {
+  for (const token of TOKEN_NAMES) {
+    root.style.removeProperty(`--${token}`);
+  }
+  if (attributes.tokens) {
+    for (const token of TOKEN_NAMES) {
+      const channels = themeTokenChannels(attributes.tokens[token]);
+      if (channels) root.style.setProperty(`--${token}`, channels);
+    }
+  }
   root.dataset.theme = attributes.theme;
+  root.dataset.colorScheme = attributes.colorScheme;
   if (attributes.reduceMotion) {
     root.dataset.reduceMotion = "true";
   } else {
@@ -44,17 +80,31 @@ export function applySettingsToRoot(
 export function bindSettingsToRoot(
   store: RendererStore,
   root: RootElement,
+  customThemes?: CustomThemeRegistry,
 ): () => void {
   function apply(): void {
     const settings = store.getState().settings;
-    applySettingsToRoot(root, settings);
+    applySettingsToRoot(root, settings, customThemes);
     const storage = globalThis.localStorage;
     if (storage) {
-      writeBootAppearance(storage, rootSettingsAttributes(settings));
+      writeBootAppearance(storage, rootSettingsAttributes(settings, customThemes));
     }
   }
   apply();
-  return store.subscribe((state) => state.settings, apply);
+  const unsubscribeSettings = store.subscribe(
+    (state) => ({
+      theme: state.settings.theme,
+      reduceMotion: state.settings.reduceMotion,
+    }),
+    apply,
+    (left, right) =>
+      left.theme === right.theme && left.reduceMotion === right.reduceMotion,
+  );
+  const unsubscribeThemes = customThemes?.subscribe?.(apply) ?? (() => {});
+  return () => {
+    unsubscribeSettings();
+    unsubscribeThemes();
+  };
 }
 
 /**

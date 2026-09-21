@@ -4,6 +4,7 @@ import { WORKSPACE_PROTOCOL_VERSION } from "@skriuw/renderer-core/contracts/work
 import { bindSettingsToRoot } from "@/features/settings/apply-settings";
 import { DEFAULT_WORKSPACE_SETTINGS } from "@/features/settings/settings-model";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
+import { InMemoryCustomThemeRegistry } from "@skriuw/theme";
 import { installEditorSession } from "./active-session";
 import { createEditorSession } from "./editor-session";
 import { StandaloneEditor } from "./standalone-editor";
@@ -31,7 +32,8 @@ function start(): void {
     }),
   );
   const transport = windowTransport();
-  const session = createEditorSession({ store, send: transport.send });
+  const themeRegistry = new InMemoryCustomThemeRegistry();
+  const session = createEditorSession({ store, send: transport.send, themeRegistry });
   installEditorSession(session);
   window.addEventListener("error", (event) => {
     session.fail("runtime-error", errorDetail(event.error ?? event.message));
@@ -39,7 +41,7 @@ function start(): void {
   window.addEventListener("unhandledrejection", (event) => {
     session.fail("runtime-error", errorDetail(event.reason));
   });
-  bindSettingsToRoot(store, document.documentElement);
+  bindSettingsToRoot(store, document.documentElement, themeRegistry);
   createRoot(root).render(
     <StrictMode>
       <StandaloneEditor store={store} />
