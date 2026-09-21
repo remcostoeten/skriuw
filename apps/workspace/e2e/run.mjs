@@ -4,8 +4,8 @@ import { cpus, hostname, platform, release, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const app = join(root, "app");
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const app = join(root, "apps/workspace");
 const port = Number(process.env.SKRIUW_E2E_PORT ?? 4192);
 const baseUrl = `http://127.0.0.1:${port}`;
 const outputIndex = process.argv.indexOf("--output");

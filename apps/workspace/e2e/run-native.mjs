@@ -5,8 +5,8 @@ import { cpus, hostname, platform, release, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const app = join(root, "app");
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const app = join(root, "apps/workspace");
 const binary = join(app, "src-tauri/target/debug/skriuw-app");
 const fixture = join(root, "fixtures/import-samples/notion-export.zip");
 const driverBaseUrl = "http://127.0.0.1:4444";

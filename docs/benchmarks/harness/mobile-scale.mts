@@ -20,8 +20,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createMemoryBridge } from "../../../shared/renderer-core/src/bridge/memory-adapter";
-import type { BridgePort } from "../../../shared/renderer-core/src/bridge/port";
+import { createMemoryBridge } from "../../../packages/renderer-core/src/bridge/memory-adapter";
+import type { BridgePort } from "../../../packages/renderer-core/src/bridge/port";
 import {
   envelope,
   WORKSPACE_PROTOCOL_VERSION,
@@ -29,17 +29,17 @@ import {
   type WorkspaceNode,
   type WorkspaceSettings,
   type WorkspaceSnapshot,
-} from "../../../shared/renderer-core/src/contracts/workspace";
-import { createInitialState, createRendererStore } from "../../../shared/renderer-core/src/store/store";
-import type { RendererStore } from "../../../shared/renderer-core/src/store/types";
-import { createEditorHostSession } from "../../../mobile/src/editor/host-session";
-import { EDITOR_PROTOCOL_VERSION, type HostToEditorMessage } from "../../../mobile/src/editor/protocol";
+} from "../../../packages/renderer-core/src/contracts/workspace";
+import { createInitialState, createRendererStore } from "../../../packages/renderer-core/src/store/store";
+import type { RendererStore } from "../../../packages/renderer-core/src/store/types";
+import { createEditorHostSession } from "../../../apps/mobile/src/editor/host-session";
+import { EDITOR_PROTOCOL_VERSION, type HostToEditorMessage } from "../../../apps/mobile/src/editor/protocol";
 import {
   idListsEqual,
   treeRowsEqual,
   treeRowSelector,
   visibleIdsSelector,
-} from "../../../mobile/src/shell/tree-model";
+} from "../../../apps/mobile/src/shell/tree-model";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RAW_DIR = join(HERE, "..", "raw");
