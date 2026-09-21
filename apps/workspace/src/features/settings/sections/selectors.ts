@@ -15,7 +15,9 @@ export function sameOverrides(left: ShortcutOverrides, right: ShortcutOverrides)
   const leftKeys = Object.keys(left);
   return (
     leftKeys.length === Object.keys(right).length &&
-    leftKeys.every((key) => left[key as keyof ShortcutOverrides] === right[key as keyof ShortcutOverrides])
+    leftKeys.every(
+      (key) => left[key as keyof ShortcutOverrides] === right[key as keyof ShortcutOverrides],
+    )
   );
 }
 

@@ -27,7 +27,9 @@ const baseUrl = `http://127.0.0.1:${port}`;
 const outputIndex = process.argv.indexOf("--output");
 const output = resolve(
   appDirectory,
-  outputIndex >= 0 ? (process.argv[outputIndex + 1] ?? "e2e/results/mobile-latest.json") : "e2e/results/mobile-latest.json",
+  outputIndex >= 0
+    ? (process.argv[outputIndex + 1] ?? "e2e/results/mobile-latest.json")
+    : "e2e/results/mobile-latest.json",
 );
 const profileDirectory = await mkdtemp(join(tmpdir(), "skriuw-mobile-shell-"));
 const VIEWPORT = { width: 390, height: 844 };
@@ -104,7 +106,13 @@ async function hold(cdp, sessionId, point, milliseconds) {
 }
 
 async function pressKey(cdp, sessionId, key, code, virtualKeyCode, text = "") {
-  const common = { key, code, windowsVirtualKeyCode: virtualKeyCode, nativeVirtualKeyCode: virtualKeyCode, ...(text ? { text, unmodifiedText: text } : {}) };
+  const common = {
+    key,
+    code,
+    windowsVirtualKeyCode: virtualKeyCode,
+    nativeVirtualKeyCode: virtualKeyCode,
+    ...(text ? { text, unmodifiedText: text } : {}),
+  };
   await cdp.send("Input.dispatchKeyEvent", { ...common, type: "keyDown" }, sessionId);
   await cdp.send("Input.dispatchKeyEvent", { ...common, type: "keyUp" }, sessionId);
 }
@@ -126,14 +134,36 @@ async function checkMermaidPreview(cdp, sessionId) {
   await pressKey(cdp, sessionId, "Enter", "Enter", 13);
   await pressKey(cdp, sessionId, "Enter", "Enter", 13);
   await cdp.send("Input.insertText", { text: "/sequence" }, sessionId);
-  await waitFor(cdp, sessionId, `Boolean(document.querySelector('.slash-menu[role="listbox"]'))`, "sequence slash command on the compact shell");
+  await waitFor(
+    cdp,
+    sessionId,
+    `Boolean(document.querySelector('.slash-menu[role="listbox"]'))`,
+    "sequence slash command on the compact shell",
+  );
   await pressKey(cdp, sessionId, "Enter", "Enter", 13);
-  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.dataset.mermaid === 'source'`, "mermaid fence in source mode");
-  const participants = Array.from({ length: 12 }, (_, index) => `participant P${index}`).join("\n  ");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${MERMAID_BLOCK}?.dataset.mermaid === 'source'`,
+    "mermaid fence in source mode",
+  );
+  const participants = Array.from({ length: 12 }, (_, index) => `participant P${index}`).join(
+    "\n  ",
+  );
   await cdp.send("Input.insertText", { text: `${participants}\n  ` }, sessionId);
-  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.textContent.includes('participant P11')`, "twelve participants typed into the source");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${MERMAID_BLOCK}?.textContent.includes('participant P11')`,
+    "twelve participants typed into the source",
+  );
   await evaluate(cdp, sessionId, `${MERMAID_BLOCK}.querySelector('.code-block-mode').click()`);
-  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.dataset.mermaid === 'preview' && Number(${MERMAID_BLOCK}.querySelector('.mermaid-preview svg')?.getAttribute('width')) > ${VIEWPORT.width}`, "rendered wide sequence preview");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${MERMAID_BLOCK}?.dataset.mermaid === 'preview' && Number(${MERMAID_BLOCK}.querySelector('.mermaid-preview svg')?.getAttribute('width')) > ${VIEWPORT.width}`,
+    "rendered wide sequence preview",
+  );
   const layout = await evaluate(
     cdp,
     sessionId,
@@ -158,7 +188,11 @@ async function checkMermaidPreview(cdp, sessionId) {
   );
   check(
     "a wide diagram scrolls inside its block without widening the page",
-    !layout.pageOverflow && !layout.noteOverflow && layout.previewScrolls && layout.wide === "true" && layout.svgWidth > VIEWPORT.width,
+    !layout.pageOverflow &&
+      !layout.noteOverflow &&
+      layout.previewScrolls &&
+      layout.wide === "true" &&
+      layout.svgWidth > VIEWPORT.width,
     layout,
   );
   check(
@@ -168,14 +202,25 @@ async function checkMermaidPreview(cdp, sessionId) {
   );
   check(
     "diagram controls are visible without hover and sized for touch",
-    layout.toolbarOpacity === "1" && layout.buttonHeights.every((height) => height >= 44) && layout.buttonLabels.includes("Expand diagram"),
+    layout.toolbarOpacity === "1" &&
+      layout.buttonHeights.every((height) => height >= 44) &&
+      layout.buttonLabels.includes("Expand diagram"),
     layout,
   );
 
-  const expand = await evaluate(cdp, sessionId, `(() => { const rect = ${MERMAID_BLOCK}.querySelector('.code-block-expand').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()`);
+  const expand = await evaluate(
+    cdp,
+    sessionId,
+    `(() => { const rect = ${MERMAID_BLOCK}.querySelector('.code-block-expand').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()`,
+  );
   await touch(cdp, sessionId, "touchStart", [expand]);
   await touch(cdp, sessionId, "touchEnd", []);
-  await waitFor(cdp, sessionId, `Boolean(document.querySelector('dialog.mermaid-expand[open] svg'))`, "expanded diagram sheet");
+  await waitFor(
+    cdp,
+    sessionId,
+    `Boolean(document.querySelector('dialog.mermaid-expand[open] svg'))`,
+    "expanded diagram sheet",
+  );
   const sheet = await evaluate(
     cdp,
     sessionId,
@@ -196,19 +241,46 @@ async function checkMermaidPreview(cdp, sessionId) {
   );
   check(
     "expand opens the diagram full-screen with a pannable, pinchable canvas",
-    sheet.fullWidth && sheet.fullHeight && sheet.canvasScrolls && sheet.closeHeight >= 44 && sheet.focused && /pinch-zoom|manipulation/.test(sheet.touchAction),
+    sheet.fullWidth &&
+      sheet.fullHeight &&
+      sheet.canvasScrolls &&
+      sheet.closeHeight >= 44 &&
+      sheet.focused &&
+      /pinch-zoom|manipulation/.test(sheet.touchAction),
     sheet,
   );
   await pressKey(cdp, sessionId, "Escape", "Escape", 27);
-  await waitFor(cdp, sessionId, `!document.querySelector('dialog.mermaid-expand')`, "expanded diagram closing from Escape");
+  await waitFor(
+    cdp,
+    sessionId,
+    `!document.querySelector('dialog.mermaid-expand')`,
+    "expanded diagram closing from Escape",
+  );
   await touch(cdp, sessionId, "touchStart", [expand]);
   await touch(cdp, sessionId, "touchEnd", []);
-  await waitFor(cdp, sessionId, `Boolean(document.querySelector('dialog.mermaid-expand[open]'))`, "expanded diagram reopened");
-  const closeButton = await evaluate(cdp, sessionId, `(() => { const rect = document.querySelector('dialog.mermaid-expand .mermaid-expand-close').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()`);
+  await waitFor(
+    cdp,
+    sessionId,
+    `Boolean(document.querySelector('dialog.mermaid-expand[open]'))`,
+    "expanded diagram reopened",
+  );
+  const closeButton = await evaluate(
+    cdp,
+    sessionId,
+    `(() => { const rect = document.querySelector('dialog.mermaid-expand .mermaid-expand-close').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()`,
+  );
   await touch(cdp, sessionId, "touchStart", [closeButton]);
   await touch(cdp, sessionId, "touchEnd", []);
-  await waitFor(cdp, sessionId, `!document.querySelector('dialog.mermaid-expand')`, "expanded diagram closing from its control");
-  checks.push({ name: "the expanded diagram closes from Escape and from its close control", passed: true });
+  await waitFor(
+    cdp,
+    sessionId,
+    `!document.querySelector('dialog.mermaid-expand')`,
+    "expanded diagram closing from its control",
+  );
+  checks.push({
+    name: "the expanded diagram closes from Escape and from its close control",
+    passed: true,
+  });
 }
 
 function centerOf(expression) {
@@ -248,7 +320,12 @@ async function checkJournalDay(cdp, sessionId, screenshotDirectory) {
   // The tab menu before this closed from Escape and swallows ghost clicks for 350ms.
   await delay(400);
   await evaluate(cdp, sessionId, `window.location.hash = '#/journal/2026-03-09'; true`);
-  await waitFor(cdp, sessionId, `Boolean(document.querySelector('[data-journal-starter]'))`, "template starter on an empty day");
+  await waitFor(
+    cdp,
+    sessionId,
+    `Boolean(document.querySelector('[data-journal-starter]'))`,
+    "template starter on an empty day",
+  );
   const layout = await evaluate(
     cdp,
     sessionId,
@@ -261,11 +338,17 @@ async function checkJournalDay(cdp, sessionId, screenshotDirectory) {
   );
   check(
     "the journal day fits the phone with touch-sized day, mood, and template controls",
-    !layout.overflow && [...layout.steps, ...layout.moods, ...layout.starter].every((height) => height >= 43.5),
+    !layout.overflow &&
+      [...layout.steps, ...layout.moods, ...layout.starter].every((height) => height >= 43.5),
     layout,
   );
 
-  await tap(cdp, sessionId, buttonWithTextExpression("Start from a template"), "template disclosure");
+  await tap(
+    cdp,
+    sessionId,
+    buttonWithTextExpression("Start from a template"),
+    "template disclosure",
+  );
   await tap(cdp, sessionId, buttonWithTextExpression("Daily note"), "daily note template");
   await waitFor(
     cdp,
@@ -273,12 +356,28 @@ async function checkJournalDay(cdp, sessionId, screenshotDirectory) {
     `!document.querySelector('[data-journal-starter]') && document.querySelector('main[aria-label="Journal"] .ProseMirror')?.textContent.includes('Monday, March 9, 2026')`,
     "template filling the entry with its own day",
   );
-  checks.push({ name: "a template fills the empty entry, stamped with the entry's day", passed: true });
+  checks.push({
+    name: "a template fills the empty entry, stamped with the entry's day",
+    passed: true,
+  });
 
   await tap(cdp, sessionId, buttonLabelledExpression("Next day"), "next day button");
-  await waitFor(cdp, sessionId, `window.location.hash === '#/journal/2026-03-10'`, "next day from the button");
-  await waitFor(cdp, sessionId, `Boolean(${buttonWithTextExpression("Start from Daily note")})`, "remembered template on the next empty day");
-  checks.push({ name: "the next empty day offers the remembered template in one tap", passed: true });
+  await waitFor(
+    cdp,
+    sessionId,
+    `window.location.hash === '#/journal/2026-03-10'`,
+    "next day from the button",
+  );
+  await waitFor(
+    cdp,
+    sessionId,
+    `Boolean(${buttonWithTextExpression("Start from Daily note")})`,
+    "remembered template on the next empty day",
+  );
+  checks.push({
+    name: "the next empty day offers the remembered template in one tap",
+    passed: true,
+  });
 
   await evaluate(cdp, sessionId, `window.location.hash = '#/journal/2026-03-16'; true`);
   await waitFor(
@@ -292,13 +391,32 @@ async function checkJournalDay(cdp, sessionId, screenshotDirectory) {
     await mkdir(screenshotDirectory, { recursive: true });
     await writeFile(join(screenshotDirectory, "journal-day.png"), Buffer.from(data, "base64"));
   }
-  await tap(cdp, sessionId, `document.querySelector('section[aria-labelledby="journal-on-this-day"] button')`, "recalled entry");
-  await waitFor(cdp, sessionId, `window.location.hash === '#/journal/2026-03-09'`, "opening the recalled day");
+  await tap(
+    cdp,
+    sessionId,
+    `document.querySelector('section[aria-labelledby="journal-on-this-day"] button')`,
+    "recalled entry",
+  );
+  await waitFor(
+    cdp,
+    sessionId,
+    `window.location.hash === '#/journal/2026-03-09'`,
+    "opening the recalled day",
+  );
   checks.push({ name: "On this day recalls the entry a week back and opens it", passed: true });
 
-  const heading = await evaluate(cdp, sessionId, centerOf(`document.querySelector('main[aria-label="Journal"] h1')`));
+  const heading = await evaluate(
+    cdp,
+    sessionId,
+    centerOf(`document.querySelector('main[aria-label="Journal"] h1')`),
+  );
   await drag(cdp, sessionId, { x: 80, y: heading.y }, { x: 260, y: heading.y + 6 });
-  await waitFor(cdp, sessionId, `window.location.hash === '#/journal/2026-03-08'`, "swiping the heading right to the previous day");
+  await waitFor(
+    cdp,
+    sessionId,
+    `window.location.hash === '#/journal/2026-03-08'`,
+    "swiping the heading right to the previous day",
+  );
   await drag(cdp, sessionId, { x: 300, y: heading.y }, { x: 300, y: heading.y + 120 });
   await delay(150);
   check(
@@ -316,7 +434,11 @@ const INSTALL_BANNER = `document.querySelector('[aria-label="Install Skriuw"]')`
  * the harness can be installed for real, so the run stops at the offer.
  */
 async function checkInstallBanner(cdp, sessionId) {
-  check("no install strip before the browser offers", (await evaluate(cdp, sessionId, `${INSTALL_BANNER} === null`)) === true, null);
+  check(
+    "no install strip before the browser offers",
+    (await evaluate(cdp, sessionId, `${INSTALL_BANNER} === null`)) === true,
+    null,
+  );
   await evaluate(
     cdp,
     sessionId,
@@ -336,20 +458,37 @@ async function checkInstallBanner(cdp, sessionId) {
   );
   check(
     "the install strip sits directly above the tab bar at a touch size",
-    Math.abs(geometry.stripBottom - geometry.tabsTop) <= 1 && geometry.stripHeight >= 44 && geometry.closeHeight >= 40 && !geometry.overflow,
+    Math.abs(geometry.stripBottom - geometry.tabsTop) <= 1 &&
+      geometry.stripHeight >= 44 &&
+      geometry.closeHeight >= 40 &&
+      !geometry.overflow,
     geometry,
   );
-  await evaluate(cdp, sessionId, `document.querySelector('[aria-label="Install Skriuw"] [aria-label="Not now"]').click(); true`);
+  await evaluate(
+    cdp,
+    sessionId,
+    `document.querySelector('[aria-label="Install Skriuw"] [aria-label="Not now"]').click(); true`,
+  );
   await waitFor(cdp, sessionId, `${INSTALL_BANNER} === null`, "install strip dismissed");
   await cdp.send("Page.reload", {}, sessionId);
-  await waitFor(cdp, sessionId, `Boolean(document.querySelector('.shell-tab-bar'))`, "compact shell after reload", 600);
+  await waitFor(
+    cdp,
+    sessionId,
+    `Boolean(document.querySelector('.shell-tab-bar'))`,
+    "compact shell after reload",
+    600,
+  );
   await evaluate(
     cdp,
     sessionId,
     `window.__consoleErrors = []; const original = console.error; console.error = (...args) => { window.__consoleErrors.push(args.map(String).join(' ')); original(...args); }; (() => { const event = new Event("beforeinstallprompt", { cancelable: true }); event.prompt = () => Promise.resolve(); event.userChoice = Promise.resolve({ outcome: "dismissed" }); window.dispatchEvent(event); })(); true`,
   );
   await delay(150);
-  check("a dismissed install strip stays away after a reload", (await evaluate(cdp, sessionId, `${INSTALL_BANNER} === null`)) === true, null);
+  check(
+    "a dismissed install strip stays away after a reload",
+    (await evaluate(cdp, sessionId, `${INSTALL_BANNER} === null`)) === true,
+    null,
+  );
 }
 
 const checks = [];
@@ -376,9 +515,19 @@ try {
     { ...VIEWPORT, deviceScaleFactor: 2, mobile: true },
     sessionId,
   );
-  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 }, sessionId);
+  await cdp.send(
+    "Emulation.setTouchEmulationEnabled",
+    { enabled: true, maxTouchPoints: 5 },
+    sessionId,
+  );
   await cdp.send("Page.navigate", { url: `${baseUrl}/e2e/index.html#/notes` }, sessionId);
-  await waitFor(cdp, sessionId, `Boolean(document.querySelector('.shell-tab-bar'))`, "compact shell", 600);
+  await waitFor(
+    cdp,
+    sessionId,
+    `Boolean(document.querySelector('.shell-tab-bar'))`,
+    "compact shell",
+    600,
+  );
   await evaluate(
     cdp,
     sessionId,
@@ -396,9 +545,17 @@ try {
       toolbar: Array.from(document.querySelectorAll('main button[aria-label]')).map((b) => b.getAttribute('aria-label')),
     })`,
   );
-  check("compact layout replaces the rail with a tab bar", layout.tabs === 7 && !layout.rail && !layout.overflow, layout);
+  check(
+    "compact layout replaces the rail with a tab bar",
+    layout.tabs === 7 && !layout.rail && !layout.overflow,
+    layout,
+  );
   check("touch emulation reports a coarse pointer", layout.coarse, layout);
-  check("compact toolbar drops the prev/next note pair", !layout.toolbar.includes("Previous note"), layout);
+  check(
+    "compact toolbar drops the prev/next note pair",
+    !layout.toolbar.includes("Previous note"),
+    layout,
+  );
   const edges = await evaluate(
     cdp,
     sessionId,
@@ -420,7 +577,10 @@ try {
   );
   check(
     "edge swipe strips never cover toolbar or tab bar controls",
-    edges.toggleLeftEdge && edges.metadataRightEdge && edges.firstTabLeftEdge && edges.stripAtEditorEdge,
+    edges.toggleLeftEdge &&
+      edges.metadataRightEdge &&
+      edges.firstTabLeftEdge &&
+      edges.stripAtEditorEdge,
     edges,
   );
 
@@ -429,25 +589,56 @@ try {
     sessionId,
     `Array.from(document.querySelectorAll('main button[aria-label]')).map((b) => [b.getAttribute('aria-label'), b.getBoundingClientRect().height])`,
   );
-  check("compact toolbar buttons grow to a 44px touch target", toolbarTargets.every(([, height]) => height >= 44), { toolbarTargets });
+  check(
+    "compact toolbar buttons grow to a 44px touch target",
+    toolbarTargets.every(([, height]) => height >= 44),
+    { toolbarTargets },
+  );
 
-  await tap(cdp, sessionId, `document.querySelector('main button[aria-label="Search"]')`, "search button");
-  await waitFor(cdp, sessionId, `document.querySelector('dialog.command-palette')?.open === true`, "palette from the toolbar");
+  await tap(
+    cdp,
+    sessionId,
+    `document.querySelector('main button[aria-label="Search"]')`,
+    "search button",
+  );
+  await waitFor(
+    cdp,
+    sessionId,
+    `document.querySelector('dialog.command-palette')?.open === true`,
+    "palette from the toolbar",
+  );
   const palette = await evaluate(
     cdp,
     sessionId,
     `(() => { const rect = document.querySelector('dialog.command-palette').getBoundingClientRect(); return { top: rect.top, bottom: rect.bottom, viewport: window.innerHeight }; })()`,
   );
-  check("the search button opens the palette inside the viewport", palette.top >= 0 && palette.bottom <= palette.viewport, palette);
+  check(
+    "the search button opens the palette inside the viewport",
+    palette.top >= 0 && palette.bottom <= palette.viewport,
+    palette,
+  );
   await pressKey(cdp, sessionId, "Escape", "Escape", 27);
-  await waitFor(cdp, sessionId, `!document.querySelector('dialog.command-palette')?.open`, "palette closing");
+  await waitFor(
+    cdp,
+    sessionId,
+    `!document.querySelector('dialog.command-palette')?.open`,
+    "palette closing",
+  );
   await delay(400);
 
   await evaluate(cdp, sessionId, pressLabelled("Toggle sidebar"));
   await waitForSheet(cdp, sessionId, "left", "tree sheet from the toolbar");
-  const rowHeight = await evaluate(cdp, sessionId, `document.querySelector('[role="treeitem"]').getBoundingClientRect().height`);
+  const rowHeight = await evaluate(
+    cdp,
+    sessionId,
+    `document.querySelector('[role="treeitem"]').getBoundingClientRect().height`,
+  );
   check("tree rows grow to a 44px touch target", rowHeight >= 44, { rowHeight });
-  const inert = await evaluate(cdp, sessionId, `document.querySelector('.shell-compact').hasAttribute('inert')`);
+  const inert = await evaluate(
+    cdp,
+    sessionId,
+    `document.querySelector('.shell-compact').hasAttribute('inert')`,
+  );
   check("the page behind an open sheet is inert", inert, { inert });
 
   const beta = await evaluate(cdp, sessionId, rowCenter("Beta note"));
@@ -455,7 +646,9 @@ try {
   await touch(cdp, sessionId, "touchEnd", []);
   await waitFor(cdp, sessionId, NO_SHEET, "sheet closing after a note tap");
   const crumbs = await evaluate(cdp, sessionId, `document.querySelector('main').textContent`);
-  check("tapping a note activates it and dismisses the sheet", crumbs.includes("Beta note"), { crumbs: crumbs.slice(0, 80) });
+  check("tapping a note activates it and dismisses the sheet", crumbs.includes("Beta note"), {
+    crumbs: crumbs.slice(0, 80),
+  });
 
   await checkMermaidPreview(cdp, sessionId);
 
@@ -492,7 +685,12 @@ try {
   await waitForSheet(cdp, sessionId, "left", "tree sheet for a close control");
   await evaluate(cdp, sessionId, pressLabelled("Close Notes"));
   await waitFor(cdp, sessionId, NO_SHEET, "sheet closing from its header");
-  await waitFor(cdp, sessionId, `history.state === null`, "overlay entry popping after a manual close");
+  await waitFor(
+    cdp,
+    sessionId,
+    `history.state === null`,
+    "overlay entry popping after a manual close",
+  );
   const positionAfterClose = await historyPosition(cdp, sessionId);
   check(
     "closing a sheet by hand pops its history entry",
@@ -508,11 +706,17 @@ try {
   const positionBeforeTab = await historyPosition(cdp, sessionId);
   await touch(cdp, sessionId, "touchStart", [journalTab]);
   await touch(cdp, sessionId, "touchEnd", []);
-  await waitFor(cdp, sessionId, `location.hash === "#/journal" && document.querySelector('.shell-tab[aria-label="Journal"][aria-current="page"]') !== null`, "journal tab");
+  await waitFor(
+    cdp,
+    sessionId,
+    `location.hash === "#/journal" && document.querySelector('.shell-tab[aria-label="Journal"][aria-current="page"]') !== null`,
+    "journal tab",
+  );
   const positionAfterTab = await historyPosition(cdp, sessionId);
   check(
     "a tab bar tap replaces the history entry instead of pushing one",
-    positionAfterTab.index === positionBeforeTab.index && positionAfterTab.url.endsWith("#/journal"),
+    positionAfterTab.index === positionBeforeTab.index &&
+      positionAfterTab.url.endsWith("#/journal"),
     { positionBeforeTab, positionAfterTab },
   );
   await evaluate(cdp, sessionId, `location.hash = "#/notes"; true`);
@@ -520,7 +724,12 @@ try {
   await waitFor(cdp, sessionId, NO_SHEET, "no sheet after returning to notes");
 
   await evaluate(cdp, sessionId, pressLabelled("Settings"));
-  await waitFor(cdp, sessionId, `Boolean(document.querySelector('dialog[open]'))`, "settings dialog");
+  await waitFor(
+    cdp,
+    sessionId,
+    `Boolean(document.querySelector('dialog[open]'))`,
+    "settings dialog",
+  );
   const settings = await evaluate(
     cdp,
     sessionId,
@@ -528,37 +737,80 @@ try {
   );
   check(
     "settings fills the phone edge to edge",
-    settings.width === VIEWPORT.width && settings.top === 0 && Math.abs(settings.height - settings.viewport) <= 1,
+    settings.width === VIEWPORT.width &&
+      settings.top === 0 &&
+      Math.abs(settings.height - settings.viewport) <= 1,
     settings,
   );
   await evaluate(cdp, sessionId, `history.back(); true`);
-  await waitFor(cdp, sessionId, `!document.querySelector('dialog[open]')`, "settings closing from the back gesture");
+  await waitFor(
+    cdp,
+    sessionId,
+    `!document.querySelector('dialog[open]')`,
+    "settings closing from the back gesture",
+  );
   checks.push({ name: "the back gesture closes the settings dialog", passed: true });
 
   // The native close event lands a task after the element closes, so the
   // trigger reports the settled state before it is pressed again.
-  await waitFor(cdp, sessionId, `document.querySelector('button[aria-label="Settings"]').getAttribute('aria-expanded') === 'false'`, "settings trigger settling");
+  await waitFor(
+    cdp,
+    sessionId,
+    `document.querySelector('button[aria-label="Settings"]').getAttribute('aria-expanded') === 'false'`,
+    "settings trigger settling",
+  );
   await evaluate(cdp, sessionId, pressLabelled("Settings"));
-  await waitFor(cdp, sessionId, `Boolean(document.querySelector('dialog[open] .dialog-grabber'))`, "settings grabber");
+  await waitFor(
+    cdp,
+    sessionId,
+    `Boolean(document.querySelector('dialog[open] .dialog-grabber'))`,
+    "settings grabber",
+  );
   const grabber = await evaluate(
     cdp,
     sessionId,
     `(() => { const rect = document.querySelector('dialog[open] .dialog-grabber').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, height: rect.height }; })()`,
   );
   check("a phone dialog shows a grabber to pull", grabber.height >= 20, grabber);
-  await drag(cdp, sessionId, { x: grabber.x, y: grabber.y }, { x: grabber.x + 2, y: grabber.y + 40 }, { steps: 8 });
+  await drag(
+    cdp,
+    sessionId,
+    { x: grabber.x, y: grabber.y },
+    { x: grabber.x + 2, y: grabber.y + 40 },
+    { steps: 8 },
+  );
   await delay(250);
-  const dialogStillOpen = await evaluate(cdp, sessionId, `Boolean(document.querySelector('dialog[open]'))`);
+  const dialogStillOpen = await evaluate(
+    cdp,
+    sessionId,
+    `Boolean(document.querySelector('dialog[open]'))`,
+  );
   check("a short pull settles the dialog back", dialogStillOpen, { dialogStillOpen });
-  await drag(cdp, sessionId, { x: grabber.x, y: grabber.y }, { x: grabber.x + 2, y: grabber.y + 160 }, { steps: 12 });
-  await waitFor(cdp, sessionId, `!document.querySelector('dialog[open]')`, "settings closing from a pull");
+  await drag(
+    cdp,
+    sessionId,
+    { x: grabber.x, y: grabber.y },
+    { x: grabber.x + 2, y: grabber.y + 160 },
+    { steps: 12 },
+  );
+  await waitFor(
+    cdp,
+    sessionId,
+    `!document.querySelector('dialog[open]')`,
+    "settings closing from a pull",
+  );
   checks.push({ name: "pulling the grabber down closes the dialog", passed: true });
 
   await evaluate(cdp, sessionId, pressLabelled("Toggle sidebar"));
   await waitForSheet(cdp, sessionId, "left", "tree sheet for gestures");
   const gamma = await evaluate(cdp, sessionId, rowCenter("Gamma note"));
   await hold(cdp, sessionId, gamma, 650);
-  await waitFor(cdp, sessionId, `document.querySelectorAll('[role="menuitem"]').length > 0`, "long-press menu");
+  await waitFor(
+    cdp,
+    sessionId,
+    `document.querySelectorAll('[role="menuitem"]').length > 0`,
+    "long-press menu",
+  );
   const menu = await evaluate(
     cdp,
     sessionId,
@@ -566,17 +818,37 @@ try {
   );
   check(
     "a held row opens the item menu with touch-sized rows",
-    menu.some((item) => item.label.startsWith("Rename")) && menu.some((item) => item.label.startsWith("Delete")) && menu.every((item) => item.height >= 43.5),
+    menu.some((item) => item.label.startsWith("Rename")) &&
+      menu.some((item) => item.label.startsWith("Delete")) &&
+      menu.every((item) => item.height >= 43.5),
     menu,
   );
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
-  await waitFor(cdp, sessionId, `document.querySelectorAll('[role="menuitem"]').length === 0`, "menu closing");
+  await cdp.send(
+    "Input.dispatchKeyEvent",
+    { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 },
+    sessionId,
+  );
+  await cdp.send(
+    "Input.dispatchKeyEvent",
+    { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 },
+    sessionId,
+  );
+  await waitFor(
+    cdp,
+    sessionId,
+    `document.querySelectorAll('[role="menuitem"]').length === 0`,
+    "menu closing",
+  );
   const stillOpen = await evaluate(cdp, sessionId, sheetOpenExpression("left"));
   check("Escape in the menu closes the menu, not the sheet", stillOpen, { stillOpen });
 
   await hold(cdp, sessionId, gamma, 650);
-  await waitFor(cdp, sessionId, `document.querySelectorAll('[role="menuitem"]').length > 0`, "menu for rename");
+  await waitFor(
+    cdp,
+    sessionId,
+    `document.querySelectorAll('[role="menuitem"]').length > 0`,
+    "menu for rename",
+  );
   const renameItem = await evaluate(
     cdp,
     sessionId,
@@ -586,7 +858,12 @@ try {
   // is part of the scenario: it must not reach the row underneath.
   await touch(cdp, sessionId, "touchStart", [renameItem]);
   await touch(cdp, sessionId, "touchEnd", []);
-  await waitFor(cdp, sessionId, `Boolean(document.querySelector('input[aria-label^="Rename"]'))`, "inline rename field");
+  await waitFor(
+    cdp,
+    sessionId,
+    `Boolean(document.querySelector('input[aria-label^="Rename"]'))`,
+    "inline rename field",
+  );
   await delay(400);
   const rename = await evaluate(
     cdp,
@@ -598,12 +875,31 @@ try {
     rename.font >= 16 && rename.focused && rename.sheetOpen,
     rename,
   );
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
-  await waitFor(cdp, sessionId, `!document.querySelector('input[aria-label^="Rename"]')`, "rename field closing");
+  await cdp.send(
+    "Input.dispatchKeyEvent",
+    { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 },
+    sessionId,
+  );
+  await cdp.send(
+    "Input.dispatchKeyEvent",
+    { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 },
+    sessionId,
+  );
+  await waitFor(
+    cdp,
+    sessionId,
+    `!document.querySelector('input[aria-label^="Rename"]')`,
+    "rename field closing",
+  );
 
   const root = await evaluate(cdp, sessionId, rowCenter("Root note"));
-  await drag(cdp, sessionId, { x: root.x + 120, y: root.y }, { x: root.x - 10, y: root.y + 2 }, { steps: 14 });
+  await drag(
+    cdp,
+    sessionId,
+    { x: root.x + 120, y: root.y },
+    { x: root.x - 10, y: root.y + 2 },
+    { steps: 14 },
+  );
   await waitFor(
     cdp,
     sessionId,
@@ -615,7 +911,11 @@ try {
     sessionId,
     `Array.from(document.querySelectorAll('[role="status"], [role="alert"]')).map((node) => node.textContent).join(' | ')`,
   );
-  check("a pull past the threshold trashes the row and offers undo", /Moved .*Root note.* to trash/.test(toast) && /Undo/.test(toast), { toast });
+  check(
+    "a pull past the threshold trashes the row and offers undo",
+    /Moved .*Root note.* to trash/.test(toast) && /Undo/.test(toast),
+    { toast },
+  );
   const toastPlacement = await evaluate(
     cdp,
     sessionId,
@@ -626,7 +926,11 @@ try {
       return { undoBottom: rect.bottom, tabBarTop: tabBar.top, undoHeight: rect.height };
     })()`,
   );
-  check("the undo toast sits above the tab bar", toastPlacement.undoBottom <= toastPlacement.tabBarTop, toastPlacement);
+  check(
+    "the undo toast sits above the tab bar",
+    toastPlacement.undoBottom <= toastPlacement.tabBarTop,
+    toastPlacement,
+  );
   await evaluate(
     cdp,
     sessionId,
@@ -641,7 +945,12 @@ try {
   checks.push({ name: "undo restores the swiped row", passed: true });
 
   await hold(cdp, sessionId, await evaluate(cdp, sessionId, rowCenter("Gamma note")), 650);
-  await waitFor(cdp, sessionId, `document.querySelectorAll('[role="menuitem"]').length > 0`, "menu for open in tab");
+  await waitFor(
+    cdp,
+    sessionId,
+    `document.querySelectorAll('[role="menuitem"]').length > 0`,
+    "menu for open in tab",
+  );
   const openInTab = await evaluate(
     cdp,
     sessionId,
@@ -650,22 +959,44 @@ try {
   await touch(cdp, sessionId, "touchStart", [openInTab]);
   await touch(cdp, sessionId, "touchEnd", []);
   await waitFor(cdp, sessionId, NO_SHEET, "sheet closing after opening a tab");
-  await waitFor(cdp, sessionId, `document.querySelectorAll('[role="tab"]').length === 2`, "two note tabs");
+  await waitFor(
+    cdp,
+    sessionId,
+    `document.querySelectorAll('[role="tab"]').length === 2`,
+    "two note tabs",
+  );
   const tab = await evaluate(
     cdp,
     sessionId,
     `(() => { const rect = document.querySelector('[role="tab"]').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, height: rect.height }; })()`,
   );
   await hold(cdp, sessionId, tab, 650);
-  await waitFor(cdp, sessionId, `document.querySelectorAll('[role="menuitem"]').length > 0`, "tab menu from a hold");
+  await waitFor(
+    cdp,
+    sessionId,
+    `document.querySelectorAll('[role="menuitem"]').length > 0`,
+    "tab menu from a hold",
+  );
   const tabMenu = await evaluate(
     cdp,
     sessionId,
     `Array.from(document.querySelectorAll('[role="menuitem"]')).map((item) => item.textContent.trim())`,
   );
-  check("a held note tab opens the tab menu at a touch size", tab.height >= 43.5 && tabMenu.includes("Close all but this"), { tab, tabMenu });
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
+  check(
+    "a held note tab opens the tab menu at a touch size",
+    tab.height >= 43.5 && tabMenu.includes("Close all but this"),
+    { tab, tabMenu },
+  );
+  await cdp.send(
+    "Input.dispatchKeyEvent",
+    { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 },
+    sessionId,
+  );
+  await cdp.send(
+    "Input.dispatchKeyEvent",
+    { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 },
+    sessionId,
+  );
 
   await checkJournalDay(cdp, sessionId, process.env.SKRIUW_E2E_SCREENSHOTS ?? null);
   await checkInstallBanner(cdp, sessionId);
@@ -679,7 +1010,10 @@ try {
   console.log(`mobile shell: ${checks.length} checks passed`);
 } catch (error) {
   await mkdir(dirname(output), { recursive: true });
-  await writeFile(output, `${JSON.stringify({ ok: false, checks, error: String(error) }, null, 2)}\n`);
+  await writeFile(
+    output,
+    `${JSON.stringify({ ok: false, checks, error: String(error) }, null, 2)}\n`,
+  );
   console.error(error);
   process.exitCode = 1;
 } finally {

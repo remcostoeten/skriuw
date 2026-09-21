@@ -159,7 +159,9 @@ function ReferenceDetailRow({ store, entry }: DetailRowProps) {
             aria-hidden="true"
             className={cn(
               "size-3 rounded-full",
-              entry.color ? "border border-black/10" : "border border-dashed border-muted-foreground/50",
+              entry.color
+                ? "border border-black/10"
+                : "border border-dashed border-muted-foreground/50",
             )}
             style={entry.color ? { backgroundColor: entry.color } : undefined}
           />

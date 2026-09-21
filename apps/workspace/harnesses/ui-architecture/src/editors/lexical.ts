@@ -1,9 +1,4 @@
-import {
-  $createHeadingNode,
-  $createQuoteNode,
-  HeadingNode,
-  QuoteNode,
-} from "@lexical/rich-text";
+import { $createHeadingNode, $createQuoteNode, HeadingNode, QuoteNode } from "@lexical/rich-text";
 import {
   $createParagraphNode,
   $createTextNode,
@@ -141,9 +136,7 @@ export function createLexicalCandidate(strategy: RenderingStrategy): EditorCandi
         const root = document.createElement("div");
         root.className = "editor-surface";
         setRootActive(root, false);
-        const editor = index === 0 && preparationEditor
-          ? preparationEditor
-          : createLexicalEditor();
+        const editor = index === 0 && preparationEditor ? preparationEditor : createLexicalEditor();
         host.append(root);
         editor.setRootElement(root);
         editor.setEditorState(asState(state), { tag: "initial-state" });

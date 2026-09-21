@@ -12,7 +12,12 @@ const tree = [
   { label: "Today", kind: "note" as const, depth: 1 },
 ];
 
-const outline = ["What local-first means", "The 8 ms budget", "Where the data lives", "Sync, opt-in"];
+const outline = [
+  "What local-first means",
+  "The 8 ms budget",
+  "Where the data lives",
+  "Sync, opt-in",
+];
 
 const properties = [
   { key: "Updated", value: "2 min ago" },
@@ -35,7 +40,13 @@ export function HeroAppPreview() {
       <div className="flex items-center gap-4 border-b border-border px-3 py-2">
         <div className="flex shrink-0 items-center gap-1.5">
           <svg viewBox="0 0 24 24" aria-hidden className="size-4 text-clay-500">
-            <g stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" fill="none">
+            <g
+              stroke="currentColor"
+              strokeWidth="1.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            >
               <path d="M4 20c1.8-.4 3.2-1.3 4.4-2.6L18.6 6.4a2 2 0 0 0-2.9-2.8L5.5 14.8C4.3 16 3.6 17.5 3.2 19.2Z" />
             </g>
           </svg>
@@ -54,7 +65,9 @@ export function HeroAppPreview() {
           <div className="hidden items-center gap-1.5 rounded-md border border-border px-2 py-1 sm:flex">
             <Search className="size-3 text-ink-400" />
             <span className="text-[11px] text-ink-400">Search every note</span>
-            <span className="ml-6 rounded border border-border px-1 text-[12px] text-ink-400">⌘K</span>
+            <span className="ml-6 rounded border border-border px-1 text-[12px] text-ink-400">
+              ⌘K
+            </span>
           </div>
           <span className="rounded-md border border-border px-1.5 py-1 font-mono text-[11px] text-ink-700">
             .md
@@ -109,7 +122,9 @@ export function HeroAppPreview() {
           <div className="mt-4 space-y-2 text-[11.5px] leading-[1.7] text-ink-700">
             <p>
               The test is not whether an app caches. It is whether the interface{" "}
-              <span className="font-medium text-ink-900">ever waits on something it does not own</span>
+              <span className="font-medium text-ink-900">
+                ever waits on something it does not own
+              </span>
               .
             </p>
             <p className="border-l-2 border-ink-200 pl-3 text-ink-500 italic">
@@ -131,7 +146,10 @@ export function HeroAppPreview() {
             </div>
             <ul className="space-y-1 pt-0.5">
               <li className="flex items-center gap-1.5">
-                <span aria-hidden className="grid size-3 place-items-center rounded-[3px] bg-ink-800 text-[8px] text-surface">
+                <span
+                  aria-hidden
+                  className="grid size-3 place-items-center rounded-[3px] bg-ink-800 text-[8px] text-surface"
+                >
                   ✓
                 </span>
                 <span className="text-ink-400 line-through">Measure the tree at 5,000 nodes</span>

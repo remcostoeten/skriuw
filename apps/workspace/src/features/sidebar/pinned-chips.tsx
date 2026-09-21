@@ -31,10 +31,7 @@ type PinnedChipProps = {
 
 const PinnedChip = memo(function PinnedChip({ store, id, onSelect }: PinnedChipProps) {
   const selectNode = useMemo(() => (state: RendererState) => state.nodes.get(id), [id]);
-  const selectActive = useMemo(
-    () => (state: RendererState) => state.activeNoteId === id,
-    [id],
-  );
+  const selectActive = useMemo(() => (state: RendererState) => state.activeNoteId === id, [id]);
   const node = useRendererSelector(store, selectNode);
   const isActive = useRendererSelector(store, selectActive);
   if (!node) {

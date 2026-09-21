@@ -26,7 +26,10 @@ function SearchResultRowView({ hit, onOpen }: Props) {
       </Text>
       {segments.length === 0 ? null : (
         <View>
-          <Text numberOfLines={2} style={[styles.snippet, { color: theme.color("muted-foreground") }]}>
+          <Text
+            numberOfLines={2}
+            style={[styles.snippet, { color: theme.color("muted-foreground") }]}
+          >
             {segments.map((segment, index) => (
               <Text
                 key={index}

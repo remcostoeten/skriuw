@@ -4,11 +4,7 @@ const barWidths = ["w-[92%]", "w-[84%]", "w-[60%]"];
 
 export default function Loading() {
   return (
-    <section
-      aria-busy="true"
-      aria-live="polite"
-      className="border-b border-border bg-surface"
-    >
+    <section aria-busy="true" aria-live="polite" className="border-b border-border bg-surface">
       <Container className="grid gap-10 py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:py-28">
         <span className="sr-only">Loading</span>
 

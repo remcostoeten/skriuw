@@ -74,7 +74,10 @@ export function snapshotOf(options: Options): WorkspaceSnapshot {
       wordCount: seed.body.split(/\s+/).filter((word) => word.length > 0).length,
     });
     const targets: StructuredReference[] = [
-      ...(seed.tags ?? []).map((name) => ({ kind: "tag" as const, targetId: entityId("tag", name) })),
+      ...(seed.tags ?? []).map((name) => ({
+        kind: "tag" as const,
+        targetId: entityId("tag", name),
+      })),
       ...(seed.people ?? []).map((name) => ({
         kind: "person" as const,
         targetId: entityId("person", name),

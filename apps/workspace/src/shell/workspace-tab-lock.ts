@@ -72,10 +72,7 @@ export function holdWorkspaceTab(
 }
 
 /** Binds a blocked tab to the moment the holder lets the workspace go. */
-export function watchWorkspaceRelease(
-  channel: TabLockChannel,
-  onRelease: () => void,
-): () => void {
+export function watchWorkspaceRelease(channel: TabLockChannel, onRelease: () => void): () => void {
   return channel.subscribe((message) => {
     if (message.kind === "released") {
       onRelease();

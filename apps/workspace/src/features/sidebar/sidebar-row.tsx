@@ -13,12 +13,7 @@ const rowBaseClass =
 
 function rowIndentStyle(depth: number, metrics: TreeMetrics): CSSProperties {
   const maximumIndent = metrics.isVeryNarrow ? 40 : metrics.isNarrow ? 56 : 80;
-  const indent = visualTreeIndent(
-    depth,
-    metrics.basePadding,
-    metrics.depthIndent,
-    maximumIndent,
-  );
+  const indent = visualTreeIndent(depth, metrics.basePadding, metrics.depthIndent, maximumIndent);
   return {
     paddingLeft: `${indent}px`,
     paddingRight: `${metrics.rightPadding}px`,
@@ -42,9 +37,7 @@ function RowLabel({ isFolder, isExpanded, isNarrow, grow = false, children }: Ro
     <span
       className={`flex min-w-0 items-center${grow ? " flex-1" : ""} ${isNarrow ? "gap-1" : "gap-1.5"}`}
     >
-      {isFolder && (
-        <Icon size={14} className="shrink-0 text-muted-foreground/70" />
-      )}
+      {isFolder && <Icon size={14} className="shrink-0 text-muted-foreground/70" />}
       <span className="flex h-[18px] min-w-0 flex-1 items-center">{children}</span>
     </span>
   );
@@ -103,14 +96,11 @@ export const SidebarRow = memo(function SidebarRow({
       ? "bg-muted text-foreground"
       : isSelected
         ? "border-foreground/[0.24] bg-foreground/[0.1] text-foreground"
-      : isFolder
-        ? "text-foreground/70 hover:bg-muted hover:text-foreground/88"
-        : "text-foreground/60 hover:bg-muted hover:text-foreground/85";
+        : isFolder
+          ? "text-foreground/70 hover:bg-muted hover:text-foreground/88"
+          : "text-foreground/60 hover:bg-muted hover:text-foreground/85";
   return (
-    <div
-      className="absolute inset-x-0"
-      style={{ top: `${top}px` }}
-    >
+    <div className="absolute inset-x-0" style={{ top: `${top}px` }}>
       {isEditing ? (
         <div
           className={`sidebar-tree-row relative flex h-[34px] w-full items-center overflow-hidden rounded-lg border border-border bg-muted text-left text-xs font-medium text-foreground${isFolder ? " justify-between" : ""}`}

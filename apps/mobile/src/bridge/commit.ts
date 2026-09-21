@@ -1,8 +1,5 @@
 import type { BridgePort } from "@skriuw/renderer-core/bridge/port";
-import {
-  envelope,
-  type WorkspaceOperation,
-} from "@skriuw/renderer-core/contracts/workspace";
+import { envelope, type WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import { commitGate } from "@skriuw/renderer-core/store/commit-gate";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 

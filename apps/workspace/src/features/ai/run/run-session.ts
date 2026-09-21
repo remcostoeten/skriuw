@@ -198,7 +198,12 @@ export function createRunSession(options: Options): RunSession {
     });
     consumer = ownConsumer;
 
-    void startCompletion(request, options.origin, (event) => ownConsumer.accept(event), options.signal)
+    void startCompletion(
+      request,
+      options.origin,
+      (event) => ownConsumer.accept(event),
+      options.signal,
+    )
       .then((ownHandle) => {
         if (activeRequestId !== request.requestId || disposed) {
           ownHandle.dispose();

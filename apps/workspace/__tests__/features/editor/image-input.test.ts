@@ -21,10 +21,7 @@ function item(kind: DataTransferItem["kind"], type: string, value: File | null):
 test("collectImageFiles reads clipboard image items when the file list is empty", () => {
   const pasted = file("clipboard.png", "image/png");
   const result = collectImageFiles(
-    transfer([], [
-      item("string", "text/html", null),
-      item("file", "image/png", pasted),
-    ]),
+    transfer([], [item("string", "text/html", null), item("file", "image/png", pasted)]),
   );
 
   assert.deepEqual(result, [pasted]);
@@ -33,10 +30,7 @@ test("collectImageFiles reads clipboard image items when the file list is empty"
 test("collectImageFiles ignores non-image and unavailable clipboard items", () => {
   const document = file("notes.txt", "text/plain");
   const result = collectImageFiles(
-    transfer([], [
-      item("file", "text/plain", document),
-      item("file", "image/png", null),
-    ]),
+    transfer([], [item("file", "text/plain", document), item("file", "image/png", null)]),
   );
 
   assert.deepEqual(result, []);
@@ -52,8 +46,7 @@ test("collectImageFiles falls back to transfer files for image drops", () => {
 test("collectImageFiles does not duplicate files exposed in items and files", () => {
   const pasted = file("clipboard.png", "image/png");
 
-  assert.deepEqual(
-    collectImageFiles(transfer([pasted], [item("file", "image/png", pasted)])),
-    [pasted],
-  );
+  assert.deepEqual(collectImageFiles(transfer([pasted], [item("file", "image/png", pasted)])), [
+    pasted,
+  ]);
 });

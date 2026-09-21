@@ -49,9 +49,7 @@ export function decodeBase64(text: string): Uint8Array {
 
 export function isEditorBytes(value: unknown): value is EditorBytes {
   return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as EditorBytes).$bytes === "string"
+    typeof value === "object" && value !== null && typeof (value as EditorBytes).$bytes === "string"
   );
 }
 

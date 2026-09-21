@@ -65,7 +65,10 @@ export function SetupLockView({ onDone, onCancel }: SetupProps) {
   if (recoveryCode !== null) {
     return (
       <ScrollView contentContainerStyle={styles.body}>
-        <Text accessibilityRole="header" style={[styles.heading, { color: theme.color("foreground") }]}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.heading, { color: theme.color("foreground") }]}
+        >
           Save your recovery code
         </Text>
         <Text style={[styles.intro, { color: theme.color("foreground") }]}>
@@ -99,7 +102,10 @@ export function SetupLockView({ onDone, onCancel }: SetupProps) {
 
   return (
     <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-      <Text accessibilityRole="header" style={[styles.heading, { color: theme.color("foreground") }]}>
+      <Text
+        accessibilityRole="header"
+        style={[styles.heading, { color: theme.color("foreground") }]}
+      >
         Lock notes
       </Text>
       <Text style={[styles.intro, { color: theme.color("muted-foreground") }]}>
@@ -171,7 +177,10 @@ export function ChangeSecretView({ biometrics, onDone, onCancel }: ChangeProps) 
 
   return (
     <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-      <Text accessibilityRole="header" style={[styles.heading, { color: theme.color("foreground") }]}>
+      <Text
+        accessibilityRole="header"
+        style={[styles.heading, { color: theme.color("foreground") }]}
+      >
         Change lock
       </Text>
       <Text style={[styles.intro, { color: theme.color("muted-foreground") }]}>

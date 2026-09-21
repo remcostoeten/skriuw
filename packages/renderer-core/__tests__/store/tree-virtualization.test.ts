@@ -71,8 +71,8 @@ test("tree selection ranges follow visible order and exclude selected descendant
     { id: "child", parentId: "folder", kind: "note", title: "Child" },
     { id: "sibling", parentId: null, kind: "note", title: "Sibling" },
   ]);
-  assert.deepEqual(
-    selectedTreeRoots(new Set(["folder", "child", "sibling"]), index.nodes),
-    ["folder", "sibling"],
-  );
+  assert.deepEqual(selectedTreeRoots(new Set(["folder", "child", "sibling"]), index.nodes), [
+    "folder",
+    "sibling",
+  ]);
 });

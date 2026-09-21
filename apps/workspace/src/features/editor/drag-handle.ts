@@ -127,10 +127,7 @@ export function createDragHandle(
     const rect = hoveredRect;
     if (!rect) return false;
     return (
-      y >= rect.top &&
-      y <= rect.bottom &&
-      x >= contentLeft - GUTTER_HIT_ZONE &&
-      x <= rect.right
+      y >= rect.top && y <= rect.bottom && x >= contentLeft - GUTTER_HIT_ZONE && x <= rect.right
     );
   }
 

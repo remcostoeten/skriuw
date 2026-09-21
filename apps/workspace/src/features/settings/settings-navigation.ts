@@ -41,7 +41,8 @@ export function filterSettingsSections<T extends SearchableSettingsSection>(
     return [...sections];
   }
   return sections.filter((section) => {
-    const content = `${section.label} ${section.description} ${section.searchText}`.toLocaleLowerCase();
+    const content =
+      `${section.label} ${section.description} ${section.searchText}`.toLocaleLowerCase();
     return tokens.every((token) => content.includes(token));
   });
 }
@@ -58,8 +59,10 @@ export function activeSettingsSection<T extends string>(
   availableIds: readonly T[],
   currentId: T,
 ): T | undefined {
-  return rovingSettingsSection(filteredIds, currentId) ??
-    (availableIds.includes(currentId) ? currentId : availableIds[0]);
+  return (
+    rovingSettingsSection(filteredIds, currentId) ??
+    (availableIds.includes(currentId) ? currentId : availableIds[0])
+  );
 }
 
 export function moveSettingsSection<T extends string>(

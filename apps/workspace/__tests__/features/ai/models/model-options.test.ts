@@ -69,9 +69,7 @@ function inventory(overrides: Partial<AiModelInventory> = {}): AiModelInventory 
 }
 
 test("installed Ollama models are selectable while uninstalled catalog picks stay visible but disabled", () => {
-  const groups = aiModelGroups(
-    inventory({ ollamaModels: [installedModel("gemma3:4b")] }),
-  );
+  const groups = aiModelGroups(inventory({ ollamaModels: [installedModel("gemma3:4b")] }));
   const ollama = groups[0];
   assert.equal(ollama.providerId, "ollama");
 
@@ -84,10 +82,7 @@ test("installed Ollama models are selectable while uninstalled catalog picks sta
     available: true,
     disabledReason: null,
   });
-  assert.equal(
-    ollama.options.filter((option) => option.modelId === "gemma3:4b").length,
-    1,
-  );
+  assert.equal(ollama.options.filter((option) => option.modelId === "gemma3:4b").length, 1);
 
   const uninstalled = ollama.options.filter((option) => option.modelId !== "gemma3:4b");
   assert.equal(uninstalled.length, OLLAMA_MODEL_CATALOG.length - 1);
@@ -121,9 +116,7 @@ test("an unknown Ollama state reads as still checking", () => {
 });
 
 test("a missing Ollama install names the install gap", () => {
-  const groups = aiModelGroups(
-    inventory({ ollamaStatus: ollamaStatus("not_installed") }),
-  );
+  const groups = aiModelGroups(inventory({ ollamaStatus: ollamaStatus("not_installed") }));
   for (const option of groups[0].options) {
     assert.equal(option.disabledReason, "Ollama is not installed");
   }
@@ -195,28 +188,24 @@ test("a remote provider with no catalog models is omitted entirely", () => {
       remoteModels: CATALOG,
     }),
   );
-  assert.equal(groups.some((group) => group.providerId === "gemini"), false);
+  assert.equal(
+    groups.some((group) => group.providerId === "gemini"),
+    false,
+  );
 });
 
 test("a selection resolves to its option and unknown selections resolve to nothing", () => {
-  const groups = aiModelGroups(
-    inventory({ ollamaModels: [installedModel("gemma3:4b")] }),
-  );
+  const groups = aiModelGroups(inventory({ ollamaModels: [installedModel("gemma3:4b")] }));
   assert.equal(aiModelOptionFor(groups, null), null);
   assert.equal(
     aiModelOptionFor(groups, { providerId: "ollama", modelId: "gemma3:4b" })?.available,
     true,
   );
-  assert.equal(
-    aiModelOptionFor(groups, { providerId: "groq", modelId: "gemma3:4b" }),
-    null,
-  );
+  assert.equal(aiModelOptionFor(groups, { providerId: "groq", modelId: "gemma3:4b" }), null);
 });
 
 test("describing a selection prefers labels and falls back to raw ids", () => {
-  const groups = aiModelGroups(
-    inventory({ ollamaModels: [installedModel("gemma3:4b")] }),
-  );
+  const groups = aiModelGroups(inventory({ ollamaModels: [installedModel("gemma3:4b")] }));
   assert.equal(describeAiSelection(groups, null), "No default model chosen");
   assert.equal(
     describeAiSelection(groups, { providerId: "ollama", modelId: "gemma3:4b" }),

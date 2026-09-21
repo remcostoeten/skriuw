@@ -62,7 +62,10 @@ export function MoodTrendStrip({ trend, today, onSelectDay }: Props) {
     if (width.current <= 0 || count === 0) {
       return;
     }
-    const index = clampIndex(Math.floor((event.nativeEvent.locationX / width.current) * count), count);
+    const index = clampIndex(
+      Math.floor((event.nativeEvent.locationX / width.current) * count),
+      count,
+    );
     const day = trend.days[index];
     if (day !== undefined) {
       onSelectDay(day.dateKey);
@@ -133,7 +136,10 @@ export function MoodTrendStrip({ trend, today, onSelectDay }: Props) {
           );
         })}
       </Pressable>
-      <Text accessibilityRole="summary" style={[styles.summary, { color: theme.color("foreground", 0.8) }]}>
+      <Text
+        accessibilityRole="summary"
+        style={[styles.summary, { color: theme.color("foreground", 0.8) }]}
+      >
         {moodTrendSummary(trend)}
       </Text>
       <Text style={[styles.counts, { color: theme.color("muted-foreground") }]}>

@@ -110,11 +110,16 @@ export function ToastHost({ visible = true, reduceMotion = false }: HostProps) {
     current.dismiss();
   }
 
-  useShortcutBinding("mod+shift+z", undoLatestAction, {
-    description: "Undo latest notification action",
-    disabled: actionableToast === null,
-    preventDefault: true,
-  }, { ignoreInputs: false });
+  useShortcutBinding(
+    "mod+shift+z",
+    undoLatestAction,
+    {
+      description: "Undo latest notification action",
+      disabled: actionableToast === null,
+      preventDefault: true,
+    },
+    { ignoreInputs: false },
+  );
 
   useEffect(() => {
     function listener() {

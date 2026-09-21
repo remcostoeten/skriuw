@@ -48,9 +48,7 @@ function snapshot(
 
 function layout(activeNoteId: string | null, openNoteIds: string[]): PaneLayout {
   return {
-    panes: [
-      { paneId: PRIMARY_PANE_ID, openNoteIds, pinnedNoteIds: [], activeNoteId },
-    ],
+    panes: [{ paneId: PRIMARY_PANE_ID, openNoteIds, pinnedNoteIds: [], activeNoteId }],
     orientation: "horizontal",
     ratio: 0.7,
   };

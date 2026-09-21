@@ -41,12 +41,7 @@ type Props = {
   store: RendererStore;
 };
 
-type SectionKey =
-  | "outline"
-  | "annotations"
-  | "revisions"
-  | "details"
-  | "relationships";
+type SectionKey = "outline" | "annotations" | "revisions" | "details" | "relationships";
 
 type SectionProps = {
   id: string;
@@ -557,9 +552,7 @@ function selectActiveNoteId(state: RendererState): string | null {
 }
 
 function selectActiveNoteMetadata(state: RendererState) {
-  return state.activeNoteId === null
-    ? null
-    : (state.metadata.get(state.activeNoteId) ?? null);
+  return state.activeNoteId === null ? null : (state.metadata.get(state.activeNoteId) ?? null);
 }
 
 function selectActiveNoteHistory(state: RendererState) {
@@ -649,10 +642,7 @@ export function MetadataPanel({ store }: Props) {
             className={outlineCount <= 1 ? "hidden" : undefined}
             keepMounted
           >
-            <div
-              data-outline-scroll
-              className="max-h-[38vh] overflow-y-auto overscroll-contain"
-            >
+            <div data-outline-scroll className="max-h-[38vh] overflow-y-auto overscroll-contain">
               <NoteOutline
                 key={activeNoteId}
                 store={store}

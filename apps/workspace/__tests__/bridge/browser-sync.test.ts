@@ -222,9 +222,7 @@ test("resume reopens sync from a persisted session without interactive sign-in",
   const status = await harness.driver.resume();
 
   assert.deepEqual(status, { state: "connecting" });
-  assert.deepEqual(harness.provisionCalls, [
-    { token: "persisted-token", deviceId: "device-a" },
-  ]);
+  assert.deepEqual(harness.provisionCalls, [{ token: "persisted-token", deviceId: "device-a" }]);
   assert.equal(harness.timers.filter((timer) => !timer.cleared).length, 1);
 });
 
@@ -293,10 +291,7 @@ test("an interactive connect rejected by the server clears the persisted session
       Promise.reject(new SyncSessionRejectedError("your Skriuw session expired; sign in again")),
   });
 
-  await assert.rejects(
-    () => harness.driver.connect("expired-token"),
-    /session expired/,
-  );
+  await assert.rejects(() => harness.driver.connect("expired-token"), /session expired/);
   assert.equal(harness.discardedSessions.length, 1);
 });
 
@@ -436,7 +431,12 @@ test("the change payload reaches listeners and empty reports stay silent", async
 test("a transient cycle failure backs off from one second and doubles to a minute", async () => {
   const harness = createHarness();
   await harness.driver.connect("token-1");
-  harness.failWith("sync_cycle", { code: "backend", message: "busy", recovery: "", terminal: false });
+  harness.failWith("sync_cycle", {
+    code: "backend",
+    message: "busy",
+    recovery: "",
+    terminal: false,
+  });
 
   const delays: number[] = [];
   for (let index = 0; index < 8; index += 1) {
@@ -515,7 +515,12 @@ test("five failed reconnects surface as a driver failure block", async () => {
     deviceId: "generated-device",
     observedServerSequence: 4,
   });
-  harness.failWith("sync_connect", { code: "worker_crashed", message: "", recovery: "", terminal: true });
+  harness.failWith("sync_connect", {
+    code: "worker_crashed",
+    message: "",
+    recovery: "",
+    terminal: true,
+  });
 
   for (let attempt = 0; attempt < DRIVER_FAILURE_AFTER_RECONNECTS; attempt += 1) {
     harness.driver.wake();

@@ -58,7 +58,9 @@ export const DEFAULT_SLOT = "default";
 const SLOT_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 function isNativeResult(value: unknown): value is NativeResult {
-  return typeof value === "object" && value !== null && typeof (value as NativeResult).ok === "boolean";
+  return (
+    typeof value === "object" && value !== null && typeof (value as NativeResult).ok === "boolean"
+  );
 }
 
 async function settle(call: Promise<NativeResult>): Promise<unknown> {

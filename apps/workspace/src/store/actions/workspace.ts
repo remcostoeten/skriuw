@@ -97,9 +97,7 @@ export async function createNoteFromTemplate(
   template: NoteTemplate,
   parentId: string | null,
 ): Promise<void> {
-  const plan = planTemplateNote(template, parentId, Date.now(), () =>
-    crypto.randomUUID(),
-  );
+  const plan = planTemplateNote(template, parentId, Date.now(), () => crypto.randomUUID());
   await commitOperations(store, [...plan.operations]);
 }
 
@@ -142,9 +140,9 @@ export function renameNode(store: RendererStore, id: string, title: string): voi
     store.setEditingNode(null);
     return;
   }
-  void commitOperations(store, [
-    { type: "rename_node", id, title: trimmed, at: Date.now() },
-  ]).catch(reportRejection("rename"));
+  void commitOperations(store, [{ type: "rename_node", id, title: trimmed, at: Date.now() }]).catch(
+    reportRejection("rename"),
+  );
   store.setEditingNode(null);
 }
 
@@ -163,8 +161,7 @@ export function trashSubtrees(store: RendererStore, rootIds: readonly string[]):
 export function restoreSubtree(store: RendererStore, rootId: string): void {
   const source = store.getState().sourceNodes.get(rootId);
   const parentStillAvailable =
-    source?.parentId != null &&
-    store.getState().nodes.has(source.parentId);
+    source?.parentId != null && store.getState().nodes.has(source.parentId);
   const placement: NodePlacement = {
     parentId: parentStillAvailable ? (source?.parentId ?? null) : null,
     position: { type: "last" },
@@ -189,16 +186,12 @@ export function emptyTrash(store: RendererStore, rootIds: readonly string[]): vo
 }
 
 export function setNodePinned(store: RendererStore, id: string, pinned: boolean): void {
-  void commitOperations(store, [
-    { type: "set_node_pinned", id, pinned, at: Date.now() },
-  ]).catch(reportRejection(pinned ? "pin" : "unpin"));
+  void commitOperations(store, [{ type: "set_node_pinned", id, pinned, at: Date.now() }]).catch(
+    reportRejection(pinned ? "pin" : "unpin"),
+  );
 }
 
-export function moveNode(
-  store: RendererStore,
-  id: string,
-  placement: NodePlacement,
-): void {
+export function moveNode(store: RendererStore, id: string, placement: NodePlacement): void {
   moveNodes(store, [{ id, placement }]);
 }
 
@@ -272,8 +265,7 @@ export function activateNote(store: RendererStore, id: string | null): void {
 export function noteNavigationOrder(state: RendererState): readonly string[] {
   if (opensNotesInTabs(state.settings)) {
     const pane =
-      state.panes.find((entry) => entry.paneId === state.focusedPaneId) ??
-      state.panes[0];
+      state.panes.find((entry) => entry.paneId === state.focusedPaneId) ?? state.panes[0];
     if (pane && pane.openNoteIds.length > 1) {
       return pane.openNoteIds;
     }
@@ -389,16 +381,12 @@ export function renameCurrentNote(store: RendererStore): boolean {
   return true;
 }
 
-
 /**
  * The note that takes over when `noteId` leaves the workspace: its successor in
  * the navigation order, or its predecessor when it was last. Null when nothing
  * remains, which leaves the workspace on its empty state.
  */
-export function nextNoteAfterRemoval(
-  state: RendererState,
-  noteId: string,
-): string | null {
+export function nextNoteAfterRemoval(state: RendererState, noteId: string): string | null {
   const order = noteNavigationOrder(state);
   const index = order.indexOf(noteId);
   if (index < 0) {
@@ -414,9 +402,7 @@ export type TrashedNote = { noteId: string; title: string };
  * pending edits so the trashed revision matches what was on screen. Returns what
  * was trashed so callers can offer an undo.
  */
-export async function trashCurrentNote(
-  store: RendererStore,
-): Promise<TrashedNote | null> {
+export async function trashCurrentNote(store: RendererStore): Promise<TrashedNote | null> {
   const noteId = focusedPaneNoteId(store.getState());
   if (noteId === null) {
     return null;

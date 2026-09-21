@@ -16,7 +16,10 @@ import {
   type CodeBlockNodeViewDeps,
 } from "../../../src/features/editor/code-block-nodeview";
 import type { MermaidRenderResult } from "../../../src/features/editor/mermaid-render";
-import { CODE_LANGUAGES, resolveHighlightLanguage } from "../../../src/features/editor/code-highlight";
+import {
+  CODE_LANGUAGES,
+  resolveHighlightLanguage,
+} from "../../../src/features/editor/code-highlight";
 import { productSchema, serializeProductMarkdown } from "../../../src/features/editor/schema";
 
 function stateWithCodeBlock(params: string, code: string): EditorState {
@@ -73,9 +76,7 @@ test("codeBlockClipboardText returns only code block content", () => {
   const code = productSchema.node("code_block", { params: "ts" }, [
     productSchema.text("const answer = 42;"),
   ]);
-  const paragraph = productSchema.node("paragraph", null, [
-    productSchema.text("not code"),
-  ]);
+  const paragraph = productSchema.node("paragraph", null, [productSchema.text("not code")]);
 
   assert.equal(codeBlockClipboardText(code), "const answer = 42;");
   assert.equal(codeBlockClipboardText(paragraph), "");
@@ -164,7 +165,10 @@ class FakeElement {
 
   removeEventListener(type: string, listener: Listener): void {
     const list = this.listeners.get(type) ?? [];
-    this.listeners.set(type, list.filter((entry) => entry !== listener));
+    this.listeners.set(
+      type,
+      list.filter((entry) => entry !== listener),
+    );
   }
 
   dispatchEvent(event: FakeEvent): boolean {
@@ -451,9 +455,7 @@ function mountMermaid(
   let state = stateWithCodeBlock(params, source);
   state = state.apply(
     state.tr.setSelection(
-      caretInside
-        ? TextSelection.create(state.doc, 1)
-        : NodeSelection.create(state.doc, 0),
+      caretInside ? TextSelection.create(state.doc, 1) : NodeSelection.create(state.doc, 0),
     ),
   );
   const view = {
@@ -518,7 +520,10 @@ test("a block mounted with the caret inside it opens in source mode", async () =
 });
 
 test("an unsupported family keeps plain source with a quiet note and no toggle", async () => {
-  const { dom, preview, code, note, modeToggle, calls } = mountMermaid("mermaid", "gantt\n  title Plan");
+  const { dom, preview, code, note, modeToggle, calls } = mountMermaid(
+    "mermaid",
+    "gantt\n  title Plan",
+  );
   assert.equal(dom.dataset.mermaid, undefined);
   assert.equal(preview.hidden, true);
   assert.equal(code.dataset.collapsed, undefined);
@@ -649,7 +654,11 @@ test("Enter on a selected diagram opens the source with the caret at the end", (
 test("Escape inside diagram source reselects the block", () => {
   const base = mermaidState(SEQUENCE);
   const inside = base.apply(base.tr.setSelection(TextSelection.create(base.doc, 12)));
-  assert.deepEqual(mermaidBlockAtSelection(inside), { pos: 8, node: inside.doc.child(1), selected: false });
+  assert.deepEqual(mermaidBlockAtSelection(inside), {
+    pos: 8,
+    node: inside.doc.child(1),
+    selected: false,
+  });
   const { handled, state } = runCommand(inside, exitMermaidSource);
   assert.equal(handled, true);
   assert.equal(state.selection.constructor.name, "NodeSelection");
@@ -665,10 +674,14 @@ test("the commands ignore code blocks that are not renderable mermaid", () => {
   assert.equal(exitMermaidSource(inside, undefined), false);
   assert.equal(toggleMermaidSource(inside, undefined), false);
   const typescript = mermaidState(SEQUENCE, "ts");
-  const insideTs = typescript.apply(typescript.tr.setSelection(TextSelection.create(typescript.doc, 12)));
+  const insideTs = typescript.apply(
+    typescript.tr.setSelection(TextSelection.create(typescript.doc, 12)),
+  );
   assert.equal(toggleMermaidSource(insideTs, undefined), false);
   const renderable = mermaidState(SEQUENCE);
-  const insideRenderable = renderable.apply(renderable.tr.setSelection(TextSelection.create(renderable.doc, 12)));
+  const insideRenderable = renderable.apply(
+    renderable.tr.setSelection(TextSelection.create(renderable.doc, 12)),
+  );
   assert.equal(toggleMermaidSource(insideRenderable, undefined), true);
 });
 
@@ -677,7 +690,10 @@ test("a browser selection inside a previewed block resolves to the block itself"
   const between = plugin.props.createSelectionBetween!;
   const state = mermaidState(SEQUENCE);
   function viewFor(mode: string | null) {
-    return ({ state, nodeDOM: () => (mode === null ? null : { dataset: { mermaid: mode } }) }) as unknown as EditorView;
+    return {
+      state,
+      nodeDOM: () => (mode === null ? null : { dataset: { mermaid: mode } }),
+    } as unknown as EditorView;
   }
   const inside = between(viewFor("preview"), state.doc.resolve(12), state.doc.resolve(20));
   assert.ok(inside instanceof NodeSelection);

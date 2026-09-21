@@ -13,7 +13,11 @@ import { allLines, lineOffset } from "../../../src/features/editor/vim/vim-lines
 import type { RowMeasure } from "../../../src/features/editor/vim/vim-rows";
 import { CHAR_WIDTH, wrappedLayout } from "./vim/wrapped-layout";
 
-function fakeView(doc: ReturnType<typeof parseProductMarkdown>, measure: RowMeasure, width: number): EditorView {
+function fakeView(
+  doc: ReturnType<typeof parseProductMarkdown>,
+  measure: RowMeasure,
+  width: number,
+): EditorView {
   return {
     state: { doc },
     dom: { clientWidth: width },

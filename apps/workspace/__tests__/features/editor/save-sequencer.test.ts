@@ -61,7 +61,10 @@ test("failure remains visible and flush rejects while a save is undurable", asyn
     /disk full/,
   );
 
-  assert.deepEqual(sequencer.currentFailures().map(({ noteId }) => noteId), ["note-1"]);
+  assert.deepEqual(
+    sequencer.currentFailures().map(({ noteId }) => noteId),
+    ["note-1"],
+  );
   await assert.rejects(sequencer.flush(), /1 note.*not durable/);
   assert.deepEqual(observed, [["note-1"]]);
 });
@@ -95,7 +98,10 @@ test("failure and recovery are independent between notes", async () => {
 
   await assert.rejects(failed);
   await saved;
-  assert.deepEqual(sequencer.currentFailures().map(({ noteId }) => noteId), ["note-1"]);
+  assert.deepEqual(
+    sequencer.currentFailures().map(({ noteId }) => noteId),
+    ["note-1"],
+  );
   await sequencer.enqueue("note-1", async () => {});
   await sequencer.flush();
 });

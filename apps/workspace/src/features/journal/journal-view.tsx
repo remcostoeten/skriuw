@@ -61,12 +61,7 @@ import {
   type JournalEntry,
   type MoodLevel,
 } from "./model";
-import {
-  entriesWithTag,
-  projectJournalTags,
-  tagIdsMatchingQuery,
-  type JournalTag,
-} from "./tags";
+import { entriesWithTag, projectJournalTags, tagIdsMatchingQuery, type JournalTag } from "./tags";
 
 type Props = {
   store: RendererStore;
@@ -152,10 +147,7 @@ function EntryRow({
           {mood.icon}
         </span>
       )}
-      <span
-        aria-hidden="true"
-        className="min-w-0 flex-1 truncate text-[11px] text-foreground/70"
-      >
+      <span aria-hidden="true" className="min-w-0 flex-1 truncate text-[11px] text-foreground/70">
         {entryListTitle(entry)}
       </span>
     </button>
@@ -189,7 +181,10 @@ function JournalStats({ entries }: { entries: readonly JournalEntry[] }) {
     { label: "Entries", value: `${entries.length}` },
     { label: "Words", value: `${totalWords}` },
     { label: "Streak", value: streak === 1 ? "1 day" : `${streak} days` },
-    { label: "This month", value: `${entries.filter((entry) => entry.dateKey.startsWith(today.slice(0, 7))).length}` },
+    {
+      label: "This month",
+      value: `${entries.filter((entry) => entry.dateKey.startsWith(today.slice(0, 7))).length}`,
+    },
   ];
   const stripLabel = `Mood, last ${MOOD_TREND_SPAN} days`;
   return (
@@ -197,9 +192,7 @@ function JournalStats({ entries }: { entries: readonly JournalEntry[] }) {
       <div className="grid grid-cols-2 gap-2">
         {tiles.map((tile) => (
           <div key={tile.label} className="rounded-md border border-border/60 bg-card/40 p-3">
-            <p className={sectionLabelClass}>
-              {tile.label}
-            </p>
+            <p className={sectionLabelClass}>{tile.label}</p>
             <p className="mt-1.5 text-[15px] font-semibold text-foreground">{tile.value}</p>
           </div>
         ))}
@@ -210,14 +203,16 @@ function JournalStats({ entries }: { entries: readonly JournalEntry[] }) {
           {trend.days.map((day) => {
             const mood = day.mood === null ? null : MOOD_OPTIONS[day.mood];
             const state = mood ? mood.label : day.hasEntry ? "No mood" : "No entry";
-            const height = day.mood === null ? undefined : `${Math.round(moodBarLevel(day.mood) * 100)}%`;
+            const height =
+              day.mood === null ? undefined : `${Math.round(moodBarLevel(day.mood) * 100)}%`;
             return (
               <li key={day.dateKey} className={cn("journal-mood-day", mood?.colorClass)}>
                 <button
                   type="button"
                   className={cn(
                     "journal-mood-bar",
-                    mood === null && (day.hasEntry ? "journal-mood-bar-unrated" : "journal-mood-bar-empty"),
+                    mood === null &&
+                      (day.hasEntry ? "journal-mood-bar-unrated" : "journal-mood-bar-empty"),
                     day.dateKey === today && "journal-mood-bar-today",
                   )}
                   style={height === undefined ? undefined : { height }}
@@ -230,7 +225,10 @@ function JournalStats({ entries }: { entries: readonly JournalEntry[] }) {
         </ol>
         <p className="mt-1.5 text-[11px] text-foreground/70">{moodTrendSummary(trend)}</p>
         {trend.ratedDays > 0 && (
-          <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground" aria-label="Mood counts">
+          <ul
+            className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground"
+            aria-label="Mood counts"
+          >
             {MOOD_LEVELS.filter((level) => trend.counts[level] > 0).map((level) => (
               <li key={level} className="flex items-center gap-1">
                 <span className={MOOD_OPTIONS[level].colorClass}>{MOOD_OPTIONS[level].icon}</span>
@@ -253,10 +251,7 @@ function TagDot({ color }: { color: string | null }) {
   return (
     <span
       aria-hidden="true"
-      className={cn(
-        "size-1.5 shrink-0 rounded-full",
-        color === null && "bg-muted-foreground/40",
-      )}
+      className={cn("size-1.5 shrink-0 rounded-full", color === null && "bg-muted-foreground/40")}
       style={color === null ? undefined : { backgroundColor: color }}
     />
   );
@@ -281,8 +276,8 @@ function JournalTags({
     return (
       <div className="p-3">
         <p className="text-[11px] leading-relaxed text-muted-foreground/60">
-          Tag an entry with <span className="font-medium text-foreground/70">#</span> and it
-          shows up here.
+          Tag an entry with <span className="font-medium text-foreground/70">#</span> and it shows
+          up here.
         </p>
       </div>
     );
@@ -373,10 +368,7 @@ export function JournalSidebar({ store }: Props) {
     searchInputRef.current?.focus();
     searchInputRef.current?.select();
   }, [pendingSearchFocus, tab]);
-  const entryDates = useMemo(
-    () => new Set(entries.map((entry) => entry.dateKey)),
-    [entries],
-  );
+  const entryDates = useMemo(() => new Set(entries.map((entry) => entry.dateKey)), [entries]);
   const monthEntries = useMemo(() => {
     const prefix = `${month.year}-${`${month.month + 1}`.padStart(2, "0")}`;
     return entries.filter((entry) => entry.dateKey.startsWith(prefix));
@@ -557,10 +549,7 @@ export function JournalSidebar({ store }: Props) {
             <p id="journal-search-hint" className="sr-only">
               Escape clears the search, then leaves the field.
             </p>
-            <p
-              role="status"
-              className={cn("mb-1.5", sectionLabelClass)}
-            >
+            <p role="status" className={cn("mb-1.5", sectionLabelClass)}>
               {searchResults.length} {searchResults.length === 1 ? "result" : "results"}
             </p>
             <div className="space-y-0.5">
@@ -635,10 +624,7 @@ function MoodSelector({
 
   return (
     <div className="mt-6 grid gap-2 max-[899px]:mt-4 sm:grid-cols-[4.5rem_1fr] sm:items-center">
-      <span
-        id="journal-mood-label"
-        className={sectionLabelClass}
-      >
+      <span id="journal-mood-label" className={sectionLabelClass}>
         Mood
       </span>
       <div
@@ -672,10 +658,7 @@ function MoodSelector({
               }`}
               aria-label={option.label}
             >
-              <span
-                aria-hidden="true"
-                className={`text-[13px] ${active ? option.colorClass : ""}`}
-              >
+              <span aria-hidden="true" className={`text-[13px] ${active ? option.colorClass : ""}`}>
                 {option.icon}
               </span>
               <span aria-hidden="true">{option.label}</span>
@@ -694,13 +677,7 @@ const dayStepButtonClass = cn(
   "rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 );
 
-function JournalEntryPane({
-  store,
-  selectedKey,
-}: {
-  store: RendererStore;
-  selectedKey: DateKey;
-}) {
+function JournalEntryPane({ store, selectedKey }: { store: RendererStore; selectedKey: DateKey }) {
   useEffect(() => {
     ensureJournalEntry(store, selectedKey);
   }, [selectedKey, store]);
@@ -931,7 +908,12 @@ type JournalViewProps = Props & {
 
 const JOURNAL_SHORTCUT_IDS = ["toggleSidebar", "toggleCommandPalette"] as const;
 
-export function JournalView({ store, sidebarOpen, onToggleSidebar, onOpenCommandPalette }: JournalViewProps) {
+export function JournalView({
+  store,
+  sidebarOpen,
+  onToggleSidebar,
+  onOpenCommandPalette,
+}: JournalViewProps) {
   const selectedKey = useSelectedJournalKey();
   const shortcutHints = useShortcutHints(store, JOURNAL_SHORTCUT_IDS);
   return (

@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type {
-  WorkspaceNode,
-  WorkspaceSnapshot,
-} from "@skriuw/renderer-core/contracts/workspace";
+import type { WorkspaceNode, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
 import {
   buildNoteExportEntry,
   buildWorkspaceExportEntries,
@@ -21,14 +18,9 @@ import {
 } from "../../../../src/features/transfer/export/markdown-transfer-model";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
-import {
-  productSchema,
-  serializeProductMarkdown,
-} from "../../../../src/features/editor/schema";
+import { productSchema, serializeProductMarkdown } from "../../../../src/features/editor/schema";
 
-function node(
-  partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">,
-): WorkspaceNode {
+function node(partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">): WorkspaceNode {
   return {
     parentId: null,
     rank: 0,
@@ -121,11 +113,7 @@ function childTitles(state: RendererState, parentId: string | null): string[] {
   );
 }
 
-function childIdByTitle(
-  state: RendererState,
-  parentId: string | null,
-  title: string,
-): string {
+function childIdByTitle(state: RendererState, parentId: string | null, title: string): string {
   const id = (state.childrenByParent.get(parentId) ?? []).find(
     (candidate) => state.nodes.get(candidate)?.title === title,
   );
@@ -166,10 +154,7 @@ test("Markdown export refreshes wiki-link labels from stable target ids", () => 
     ],
   };
 
-  assert.equal(
-    referenceSafeMarkdown(documentJson, "[[Old title]]", nodes),
-    "[[Renamed target]]",
-  );
+  assert.equal(referenceSafeMarkdown(documentJson, "[[Old title]]", nodes), "[[Renamed target]]");
 });
 
 test("workspace export mirrors the tree and dedupes colliding names", () => {
@@ -280,9 +265,7 @@ test("references and mentions degrade to plain text on import", () => {
   const plan = planMarkdownImport(
     {
       directories: [],
-      files: [
-        { relativePath: "Refs.md", content: "Hello @Alice, ask $Bob about #work today" },
-      ],
+      files: [{ relativePath: "Refs.md", content: "Hello @Alice, ask $Bob about #work today" }],
       skipped: 0,
     },
     1,
@@ -414,16 +397,16 @@ test("image helpers map mime types, ids, and paths", () => {
     ),
     "![a](images/image-1.png) ![a](images/image-1.png)",
   );
-  assert.equal(resolveImportedImagePath("Deep/Note.md", "./images/pic%201.png"), "Deep/images/pic 1.png");
+  assert.equal(
+    resolveImportedImagePath("Deep/Note.md", "./images/pic%201.png"),
+    "Deep/images/pic 1.png",
+  );
   assert.equal(resolveImportedImagePath("Note.md", "images/pic.png"), "images/pic.png");
   assert.equal(
     resolveImportedImagePath("Sub/Note.md", "../attachments/pic.png"),
     "attachments/pic.png",
   );
-  assert.equal(
-    resolveImportedImagePath("A/B/Note.md", "../../assets/pic.png"),
-    "assets/pic.png",
-  );
+  assert.equal(resolveImportedImagePath("A/B/Note.md", "../../assets/pic.png"), "assets/pic.png");
   assert.equal(resolveImportedImagePath("Note.md", "../escape.png"), "../escape.png");
 });
 
@@ -458,10 +441,9 @@ test("import converts local markdown images into image_ref nodes", () => {
   assert.ok(serialized.includes('"image_ref"'));
   assert.ok(serialized.includes('"image-1"'));
   assert.ok(serialized.includes("https://example.com/x.png"));
-  assert.deepEqual(
-    collectRemoteImageSources(operation.documentJson),
-    ["https://example.com/x.png"],
-  );
+  assert.deepEqual(collectRemoteImageSources(operation.documentJson), [
+    "https://example.com/x.png",
+  ]);
   assert.equal(plan.remoteImages, 1);
   assert.deepEqual(collectLocalImageSources(replaced), []);
 });
@@ -506,9 +488,7 @@ test("import keeps ambiguous and unresolved wiki-links as source text", () => {
   );
 
   const refs = plan.contentOperations.find(
-    (operation) =>
-      operation.type === "save_document" &&
-      operation.markdown.includes("[[Missing]]"),
+    (operation) => operation.type === "save_document" && operation.markdown.includes("[[Missing]]"),
   );
   assert.equal(refs?.type, "save_document");
   assert.ok(JSON.stringify(refs).includes("[[Same]]"));

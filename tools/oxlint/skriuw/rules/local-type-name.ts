@@ -4,13 +4,18 @@ import type { ESTree } from "@oxlint/plugins";
 
 type TypeDeclaration = ESTree.TSTypeAliasDeclaration | ESTree.TSInterfaceDeclaration;
 
-function topLevelTypeDeclaration(statement: ESTree.Statement | ESTree.Directive | ESTree.ModuleDeclaration) {
+function topLevelTypeDeclaration(
+  statement: ESTree.Statement | ESTree.Directive | ESTree.ModuleDeclaration,
+) {
   const declaration =
     statement.type === "ExportNamedDeclaration" || statement.type === "ExportDefaultDeclaration"
       ? statement.declaration
       : statement;
   if (declaration === null || declaration === undefined) return null;
-  if (declaration.type === "TSTypeAliasDeclaration" || declaration.type === "TSInterfaceDeclaration") {
+  if (
+    declaration.type === "TSTypeAliasDeclaration" ||
+    declaration.type === "TSInterfaceDeclaration"
+  ) {
     return { declaration, inlineExport: declaration !== statement };
   }
   return null;
@@ -24,7 +29,10 @@ function exportedNames(program: ESTree.Program): Set<string> {
         if (specifier.local.type === "Identifier") names.add(specifier.local.name);
       }
     }
-    if (statement.type === "ExportDefaultDeclaration" && statement.declaration.type === "Identifier") {
+    if (
+      statement.type === "ExportDefaultDeclaration" &&
+      statement.declaration.type === "Identifier"
+    ) {
       names.add(statement.declaration.name);
     }
   }
@@ -39,7 +47,8 @@ type FunctionNode =
 function functionName(node: FunctionNode): string | null {
   if (node.type !== "ArrowFunctionExpression" && node.id) return node.id.name;
   const parent = node.parent;
-  if (parent?.type === "VariableDeclarator" && parent.id.type === "Identifier") return parent.id.name;
+  if (parent?.type === "VariableDeclarator" && parent.id.type === "Identifier")
+    return parent.id.name;
   return null;
 }
 

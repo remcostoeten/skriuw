@@ -12,10 +12,7 @@ const playbackUrlByHash = new Map<string, Promise<string>>();
  * the asset protocol elsewhere. Falls back to the full-read blob URL so
  * playback degrades to the image path instead of breaking.
  */
-export function resolveMediaPlaybackUrl(
-  contentHash: string,
-  mimeType: string,
-): Promise<string> {
+export function resolveMediaPlaybackUrl(contentHash: string, mimeType: string): Promise<string> {
   const cached = playbackUrlByHash.get(contentHash);
   if (cached) {
     return cached;
@@ -28,10 +25,7 @@ export function resolveMediaPlaybackUrl(
   return pending;
 }
 
-async function resolvePlaybackUrl(
-  contentHash: string,
-  mimeType: string,
-): Promise<string> {
+async function resolvePlaybackUrl(contentHash: string, mimeType: string): Promise<string> {
   if (isBrowserRuntime()) {
     const file = await browserMediaFile(contentHash, mimeType);
     return URL.createObjectURL(file);
@@ -56,8 +50,7 @@ function encodeDataUrl(buffer: ArrayBuffer, mimeType: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () =>
-      reject(reader.error ?? new Error("media data URL encoding failed"));
+    reader.onerror = () => reject(reader.error ?? new Error("media data URL encoding failed"));
     reader.readAsDataURL(new Blob([buffer], { type: mimeType }));
   });
 }

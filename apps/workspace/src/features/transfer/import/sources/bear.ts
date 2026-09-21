@@ -31,9 +31,7 @@ function parseMetadata(content: string): BearMetadata | null {
   try {
     const root = JSON.parse(content) as Record<string, unknown>;
     const metadata = root["net.shinyfrog.bear"];
-    return typeof metadata === "object" && metadata !== null
-      ? (metadata as BearMetadata)
-      : {};
+    return typeof metadata === "object" && metadata !== null ? (metadata as BearMetadata) : {};
   } catch {
     return null;
   }
@@ -65,10 +63,7 @@ function extractTags(markdown: string): string[] {
   for (const { pattern, multiword } of patterns) {
     for (const match of markdown.matchAll(pattern)) {
       const tagStart = (match.index ?? 0) + (match[1]?.length ?? 0);
-      if (
-        !multiword &&
-        covered.some(([start, end]) => tagStart >= start && tagStart < end)
-      ) {
+      if (!multiword && covered.some(([start, end]) => tagStart >= start && tagStart < end)) {
         continue;
       }
       const tag = match[2]?.trim();

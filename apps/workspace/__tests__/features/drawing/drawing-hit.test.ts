@@ -104,10 +104,7 @@ test("a rubber band selects only what it fully contains", () => {
 test("a rubber band dragged up and to the left selects the same elements", () => {
   const inside = stroke("in", [20, 20, 40, 40]);
 
-  assert.deepEqual(
-    elementsWithinBox([inside], { x: 100, y: 100 }, { x: 0, y: 0 }),
-    ["in"],
-  );
+  assert.deepEqual(elementsWithinBox([inside], { x: 100, y: 100 }, { x: 0, y: 0 }), ["in"]);
 });
 
 test("moving an element shifts every coordinate and nothing else", () => {
@@ -117,10 +114,7 @@ test("moving an element shifts every coordinate and nothing else", () => {
   assert.equal(moved.id, "s1");
 
   const box = moveElement(shape("r1", "rect", [0, 0, 10, 10]), 3, 4);
-  assert.deepEqual(
-    box.kind === "rect" ? [box.x1, box.y1, box.x2, box.y2] : [],
-    [3, 4, 13, 14],
-  );
+  assert.deepEqual(box.kind === "rect" ? [box.x1, box.y1, box.x2, box.y2] : [], [3, 4, 13, 14]);
 });
 
 test("a moved element still hits where it landed, not where it was", () => {
@@ -131,10 +125,7 @@ test("a moved element still hits where it landed, not where it was", () => {
 });
 
 test("selection bounds cover every selected element", () => {
-  const bounds = selectionBounds([
-    stroke("a", [0, 0, 10, 10]),
-    stroke("b", [100, 200, 120, 220]),
-  ]);
+  const bounds = selectionBounds([stroke("a", [0, 0, 10, 10]), stroke("b", [100, 200, 120, 220])]);
 
   assert.ok(bounds);
   assert.equal(bounds.minX, -1);

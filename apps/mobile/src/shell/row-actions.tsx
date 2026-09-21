@@ -1,13 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MINIMUM_TOUCH_TARGET } from "./metrics";
 import { useTheme } from "./theme";
@@ -69,13 +61,7 @@ export function RowActions({
   };
 
   return (
-    <Modal
-      visible
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
+    <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Close actions"
@@ -143,7 +129,10 @@ export function RowActions({
                   onPress={() => onMove(row, target.id)}
                   style={[styles.action, { paddingLeft: treeIndent(target.depth) }]}
                 >
-                  <Text numberOfLines={1} style={[styles.actionLabel, { color: theme.color("foreground") }]}>
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.actionLabel, { color: theme.color("foreground") }]}
+                  >
                     {target.title}
                   </Text>
                 </Pressable>

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { projectCoVisitedNotes, projectRelationshipGraph, projectSharedEntities } from "../../../src/features/references/relationship-model";
+import {
+  projectCoVisitedNotes,
+  projectRelationshipGraph,
+  projectSharedEntities,
+} from "../../../src/features/references/relationship-model";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { referenceFixture } from "./fixtures";
 
@@ -24,7 +28,10 @@ test("co-visitation is symmetric, bounded renderer session state, and ranks repe
   renderer.setActiveNote("note-c");
   renderer.setActiveNote("note-a");
   renderer.setActiveNote("note-b");
-  assert.deepEqual(projectCoVisitedNotes(renderer.getState(), "note-a").map((entry) => entry.noteId), ["note-b", "note-c"]);
+  assert.deepEqual(
+    projectCoVisitedNotes(renderer.getState(), "note-a").map((entry) => entry.noteId),
+    ["note-b", "note-c"],
+  );
 });
 
 test("local graph has stable direct relationship nodes and remains bounded", () => {

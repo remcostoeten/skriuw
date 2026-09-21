@@ -1,11 +1,7 @@
 import { cloneElement, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { FocusEvent, PointerEvent, ReactElement, ReactNode } from "react";
-import {
-  computeTooltipPlacement,
-  resolveOpenTiming,
-  type TooltipSide,
-} from "./tooltip-model";
+import { computeTooltipPlacement, resolveOpenTiming, type TooltipSide } from "./tooltip-model";
 
 const OPEN_DELAY_MS = 350;
 const SKIP_DELAY_MS = 300;

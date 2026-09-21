@@ -23,9 +23,7 @@ function docWithThreads(...threadIds: string[]) {
     productSchema.node(
       "paragraph",
       null,
-      threadIds.map((threadId) =>
-        productSchema.text(threadId, [annotation.create({ threadId })]),
-      ),
+      threadIds.map((threadId) => productSchema.text(threadId, [annotation.create({ threadId })])),
     ),
   ]);
 }
@@ -56,12 +54,15 @@ function pushed(state: EditorState, inputs: AnnotationDecorationInputs): EditorS
 }
 
 function classesOf(state: EditorState): string[] {
-  const decorations = annotationDecorationPluginKey.getState(state)
-    ?.decorations as DecorationSet | undefined;
+  const decorations = annotationDecorationPluginKey.getState(state)?.decorations as
+    | DecorationSet
+    | undefined;
   assert.ok(decorations);
   return decorations
     .find()
-    .map((decoration) => String((decoration as { type: { attrs?: { class?: string } } }).type.attrs?.class ?? ""));
+    .map((decoration) =>
+      String((decoration as { type: { attrs?: { class?: string } } }).type.attrs?.class ?? ""),
+    );
 }
 
 test("an open thread is tinted and a resolved one is not", () => {
@@ -148,11 +149,7 @@ test("an anchor restored by undo is repainted without a fresh push", () => {
   assert.equal(classesOf(stripped).length, 0);
 
   const restored = stripped.apply(
-    stripped.tr.addMark(
-      1,
-      stripped.doc.content.size - 1,
-      annotation.create({ threadId: "only" }),
-    ),
+    stripped.tr.addMark(1, stripped.doc.content.size - 1, annotation.create({ threadId: "only" })),
   );
   assert.equal(classesOf(restored).length, 1);
 });

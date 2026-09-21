@@ -19,21 +19,23 @@ type Props = {
   messagePlacement?: "inline" | "stacked";
 };
 
-const sizeStyles: Record<Size, { container: string; button: string; message: string; gap: string }> =
-  {
-    sm: {
-      container: "min-h-[24px]",
-      button: "h-[22px] px-[8px] text-[11px]",
-      message: "text-[11px]",
-      gap: "gap-[4px]",
-    },
-    md: {
-      container: "min-h-[28px]",
-      button: "h-[26px] px-[10px] text-[12px]",
-      message: "text-[12px]",
-      gap: "gap-[6px]",
-    },
-  };
+const sizeStyles: Record<
+  Size,
+  { container: string; button: string; message: string; gap: string }
+> = {
+  sm: {
+    container: "min-h-[24px]",
+    button: "h-[22px] px-[8px] text-[11px]",
+    message: "text-[11px]",
+    gap: "gap-[4px]",
+  },
+  md: {
+    container: "min-h-[28px]",
+    button: "h-[26px] px-[10px] text-[12px]",
+    message: "text-[12px]",
+    gap: "gap-[6px]",
+  },
+};
 
 export function InlineConfirm({
   confirmLabel,

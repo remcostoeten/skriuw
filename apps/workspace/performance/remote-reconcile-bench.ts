@@ -30,7 +30,10 @@ function body(text: string) {
   };
 }
 
-function snapshot(revisionOf: (index: number) => number, changedIds: ReadonlySet<string>): WorkspaceSnapshot {
+function snapshot(
+  revisionOf: (index: number) => number,
+  changedIds: ReadonlySet<string>,
+): WorkspaceSnapshot {
   const nodes: WorkspaceNode[] = [];
   const documents: WorkspaceSnapshot["documents"] = [];
   for (let index = 0; index < NOTE_COUNT; index += 1) {
@@ -87,12 +90,18 @@ function report(label: string, samples: number[]): void {
 const base = snapshot(() => 1, new Set());
 const store = createRendererStore(createInitialState(base));
 let subscriberWakeups = 0;
-store.subscribe((state) => state.nodes, () => {
-  subscriberWakeups += 1;
-});
-store.subscribe((state) => state.documents, () => {
-  subscriberWakeups += 1;
-});
+store.subscribe(
+  (state) => state.nodes,
+  () => {
+    subscriberWakeups += 1;
+  },
+);
+store.subscribe(
+  (state) => state.documents,
+  () => {
+    subscriberWakeups += 1;
+  },
+);
 
 const changed = new Set(["n7", "n8", "n9"]);
 const deltaSnapshot = snapshot((index) => (changed.has(`n${index}`) ? 2 : 1), changed);

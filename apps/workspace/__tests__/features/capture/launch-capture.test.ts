@@ -51,7 +51,11 @@ test("shareNoteMarkdown titles from the shared title and appends the link once",
     { title: "Post", markdown: "# Post\n\nBody\n\n[Post](https://example.com/p)\n" },
   );
   assert.deepEqual(
-    shareNoteMarkdown({ title: "Post", text: "See https://example.com/p", url: "https://example.com/p" }),
+    shareNoteMarkdown({
+      title: "Post",
+      text: "See https://example.com/p",
+      url: "https://example.com/p",
+    }),
     { title: "Post", markdown: "# Post\n\nSee https://example.com/p\n" },
   );
 });

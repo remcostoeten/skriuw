@@ -10,7 +10,11 @@ import { isNoteSealed, lockedNodeIds, sealedNoteIds } from "../../../src/feature
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
-function node(id: string, lockedAt: number | null = null, parentId: string | null = null): WorkspaceNode {
+function node(
+  id: string,
+  lockedAt: number | null = null,
+  parentId: string | null = null,
+): WorkspaceNode {
   return {
     id,
     kind: "note",
@@ -161,7 +165,11 @@ test("sealed bodies are fetched once the session unlocks and again after a place
     nodes: [],
   });
   await flush();
-  assert.deepEqual(hydrations, [["locked"], ["locked"]], "a sync delta re-sealing a note is opened again");
+  assert.deepEqual(
+    hydrations,
+    [["locked"], ["locked"]],
+    "a sync delta re-sealing a note is opened again",
+  );
   unbind();
 });
 

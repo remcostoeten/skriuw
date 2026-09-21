@@ -29,7 +29,10 @@ export function SiteHeader() {
       )}
     >
       <Container className="flex h-[65px] items-center justify-between gap-6">
-        <Link href="/" className="shrink-0 transition-colors duration-150 ease-out focus-visible:text-focus-ink">
+        <Link
+          href="/"
+          className="shrink-0 transition-colors duration-150 ease-out focus-visible:text-focus-ink"
+        >
           <Wordmark />
         </Link>
 

@@ -16,11 +16,7 @@ import {
   subscribeBrowserResumeFailure,
   subscribeBrowserSyncProgress,
 } from "@/bridge/browser-sync";
-import {
-  pauseWorkspaceSync,
-  retryWorkspaceSync,
-  workspaceSyncStatus,
-} from "@/bridge/commands";
+import { pauseWorkspaceSync, retryWorkspaceSync, workspaceSyncStatus } from "@/bridge/commands";
 import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 import { isBrowserRuntime } from "@/bridge/runtime";
 import { showToast } from "@/shared/ui/toast";

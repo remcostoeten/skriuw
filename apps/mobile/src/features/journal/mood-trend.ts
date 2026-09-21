@@ -43,9 +43,7 @@ function emptyCounts(): Record<MoodLevel, number> {
 }
 
 function mean(values: readonly number[]): number | null {
-  return values.length === 0
-    ? null
-    : values.reduce((sum, value) => sum + value, 0) / values.length;
+  return values.length === 0 ? null : values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 function compareHalves(days: readonly MoodTrendDay[]): MoodDirection | null {

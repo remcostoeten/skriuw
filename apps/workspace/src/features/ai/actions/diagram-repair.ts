@@ -9,7 +9,8 @@ import type { RunRepair } from "@/features/ai/run/run-session";
 
 export type DiagramCheck = (source: string) => Promise<MermaidRenderResult>;
 
-const MERMAID_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})[ \t]*mermaid[^\n]*\n([\s\S]*?)\n {0,3}\1[ \t]*$/im;
+const MERMAID_FENCE_PATTERN =
+  /^ {0,3}(`{3,}|~{3,})[ \t]*mermaid[^\n]*\n([\s\S]*?)\n {0,3}\1[ \t]*$/im;
 
 const NO_FENCE_MESSAGE = "The reply did not contain a closed ```mermaid fence.";
 

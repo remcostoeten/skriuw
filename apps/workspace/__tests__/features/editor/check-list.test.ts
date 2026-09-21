@@ -31,9 +31,11 @@ function typeText(state: EditorState, text: string): EditorState {
   };
   const { from, to } = current.selection;
   const handled = current.plugins.some((plugin) => {
-    const handleTextInput = (plugin.props as {
-      handleTextInput?: (view: unknown, from: number, to: number, text: string) => boolean;
-    }).handleTextInput;
+    const handleTextInput = (
+      plugin.props as {
+        handleTextInput?: (view: unknown, from: number, to: number, text: string) => boolean;
+      }
+    ).handleTextInput;
     return handleTextInput?.call(plugin, view, from, to, text) ?? false;
   });
   if (!handled) {

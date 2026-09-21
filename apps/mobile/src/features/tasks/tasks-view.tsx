@@ -56,7 +56,10 @@ export function TasksView() {
   const items = useMemo(() => listItems(groups), [groups]);
 
   const settle = useCallback(
-    (action: TaskAction, announce: (action: Extract<TaskAction, { status: "committed" }>) => void) => {
+    (
+      action: TaskAction,
+      announce: (action: Extract<TaskAction, { status: "committed" }>) => void,
+    ) => {
       if (action.status === "refused") {
         setNotice(action.message);
         return;
@@ -138,7 +141,10 @@ export function TasksView() {
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <Text accessibilityRole="header" style={[styles.title, { color: theme.color("foreground") }]}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.title, { color: theme.color("foreground") }]}
+        >
           Tasks
         </Text>
         <Text style={[styles.summary, { color: theme.color("muted-foreground") }]}>
@@ -275,7 +281,10 @@ function PromotionSection({ source, theme, onPromote }: PromotionProps) {
         <View key={candidate.itemIndex} style={styles.row}>
           <View style={styles.rowBody}>
             <Checkbox checked={candidate.checked} theme={theme} muted />
-            <Text numberOfLines={2} style={[styles.rowTitle, { color: theme.color("foreground", 0.85) }]}>
+            <Text
+              numberOfLines={2}
+              style={[styles.rowTitle, { color: theme.color("foreground", 0.85) }]}
+            >
               {candidate.title}
             </Text>
           </View>
@@ -309,11 +318,7 @@ type CheckboxProps = {
  */
 function Checkbox({ checked, theme, muted = false }: CheckboxProps) {
   const accent = theme.color("theme-accent-blue");
-  const border = muted
-    ? theme.color("border")
-    : checked
-      ? accent
-      : theme.color("foreground", 0.45);
+  const border = muted ? theme.color("border") : checked ? accent : theme.color("foreground", 0.45);
   return (
     <View
       accessible={false}

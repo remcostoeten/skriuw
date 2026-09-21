@@ -370,11 +370,7 @@ function TemplatePicker({
           <p id={headingId} className={menuHeadingClass}>
             Replace properties with
           </p>
-          <div
-            role="menu"
-            aria-labelledby={headingId}
-            className="max-h-64 overflow-y-auto"
-          >
+          <div role="menu" aria-labelledby={headingId} className="max-h-64 overflow-y-auto">
             {builtInTemplates.map((template) => renderTemplateItem(template, close))}
             {customTemplates.length > 0 && (
               <>
@@ -508,7 +504,10 @@ function PropertyName({
           event.currentTarget.blur();
         }
       }}
-      className={cn(nameInputClass, invalid && "text-destructive focus-visible:ring-destructive/50")}
+      className={cn(
+        nameInputClass,
+        invalid && "text-destructive focus-visible:ring-destructive/50",
+      )}
     />
   );
 }
@@ -546,7 +545,11 @@ function ValueEditor({
   }
   if (value.type === "rating") {
     return (
-      <div role="group" aria-label={`${property.name} rating`} className="flex min-h-7 items-center">
+      <div
+        role="group"
+        aria-label={`${property.name} rating`}
+        className="flex min-h-7 items-center"
+      >
         {[1, 2, 3, 4, 5].map((rating) => (
           <button
             key={rating}
@@ -572,16 +575,18 @@ function ValueEditor({
       <Select
         label={`${property.name} value`}
         className="min-w-0 max-w-full"
-        triggerClassName={cn(ghostSelectTriggerClass, "max-w-full", value.value === null && "text-muted-foreground/55")}
+        triggerClassName={cn(
+          ghostSelectTriggerClass,
+          "max-w-full",
+          value.value === null && "text-muted-foreground/55",
+        )}
         menuClassName="w-max min-w-44 max-w-80"
         value={value.value ?? ""}
         options={[
           { value: "", label: "Empty" },
           ...property.options.map(({ id, label }) => ({ value: id, label })),
         ]}
-        onChange={(next) =>
-          onUpdate({ ...property, value: { ...value, value: next || null } })
-        }
+        onChange={(next) => onUpdate({ ...property, value: { ...value, value: next || null } })}
         align="start"
       />
     );
@@ -637,10 +642,7 @@ function StringValueEditor({
   onUpdate,
 }: {
   property: NoteProperty;
-  value: Extract<
-    NotePropertyValue,
-    { type: "text" | "url" | "location" | "email" | "phone" }
-  >;
+  value: Extract<NotePropertyValue, { type: "text" | "url" | "location" | "email" | "phone" }>;
   inputType: string;
   onUpdate: (property: NoteProperty) => void;
 }) {
@@ -801,7 +803,8 @@ function OptionEditor({
   function addOption(): void {
     const nextLabel = label.trim();
     if (!nextLabel) return;
-    const color = NOTE_PROPERTY_COLORS[property.options.length % NOTE_PROPERTY_COLORS.length] ?? "gray";
+    const color =
+      NOTE_PROPERTY_COLORS[property.options.length % NOTE_PROPERTY_COLORS.length] ?? "gray";
     onUpdate(createPropertyOption(property, nextLabel, color, idFactory));
     setLabel("");
   }

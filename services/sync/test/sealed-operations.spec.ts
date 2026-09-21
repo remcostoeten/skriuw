@@ -99,7 +99,10 @@ function pulledPage(result: SyncPullResult) {
   if (!result.ok) {
     throw new Error(`log truncated through ${result.compactedThrough}`);
   }
-  return { parsed: parseSyncPullResponse(JSON.parse(result.responseJson)), raw: result.responseJson };
+  return {
+    parsed: parseSyncPullResponse(JSON.parse(result.responseJson)),
+    raw: result.responseJson,
+  };
 }
 
 async function storedRows(workspace: Workspace): Promise<string> {
@@ -190,9 +193,7 @@ describe("sealed sync payloads", () => {
 
     const references = await runInDurableObject(workspace, (_instance, state) =>
       state.storage.sql
-        .exec<{ digest: string; ref_kind: string }>(
-          "SELECT digest, ref_kind FROM sync_chunk_refs",
-        )
+        .exec<{ digest: string; ref_kind: string }>("SELECT digest, ref_kind FROM sync_chunk_refs")
         .toArray(),
     );
     expect(references).toEqual([{ digest, ref_kind: "operation" }]);
@@ -208,7 +209,9 @@ describe("sealed sync payloads", () => {
     const result = await workspace.pushOperations(malformed);
     expect(result.ok).toBe(false);
 
-    const missingCiphertext = sealedRequest("device-sealed", [sealedOperation("sealed-bad-2", 1, 0)]);
+    const missingCiphertext = sealedRequest("device-sealed", [
+      sealedOperation("sealed-bad-2", 1, 0),
+    ]);
     missingCiphertext.operations[0]!.payload.operation.ciphertext = "";
     expect((await workspace.pushOperations(missingCiphertext)).ok).toBe(false);
 
@@ -279,9 +282,7 @@ describe("sealed sync payloads", () => {
     const rows = await storedRows(workspace);
     expect(rows).not.toContain(PLAINTEXT_TITLE);
     const { parsed } = pulledPage(await workspace.pullOperations(0, 32));
-    expect(parsed.operations.map((operation) => operation.operationId)).toEqual([
-      "sealed-first-1",
-    ]);
+    expect(parsed.operations.map((operation) => operation.operationId)).toEqual(["sealed-first-1"]);
   });
 
   it("refuses a plaintext checkpoint once the workspace holds sealed content", async () => {

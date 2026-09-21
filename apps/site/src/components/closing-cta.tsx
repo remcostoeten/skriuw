@@ -38,11 +38,14 @@ export function ClosingCta() {
               style={stagger(2)}
               className="mt-5 max-w-[440px] text-[15px] leading-[23px] text-white/65"
             >
-              The full app runs in your browser right now, with no install and no sign-up. If you like it,
-              the desktop build is the same renderer on the same Rust core.
+              The full app runs in your browser right now, with no install and no sign-up. If you
+              like it, the desktop build is the same renderer on the same Rust core.
             </p>
 
-            <div style={stagger(3)} className="mt-9 flex flex-wrap items-center justify-center gap-3">
+            <div
+              style={stagger(3)}
+              className="mt-9 flex flex-wrap items-center justify-center gap-3"
+            >
               <Action size="lg" variant="light" arrow="inline" href={appUrl}>
                 Open the app
               </Action>

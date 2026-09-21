@@ -160,8 +160,8 @@ export function AiUsagePanel({ signal }: Props) {
     <section aria-label="AI usage" className={settingsGroup}>
       <h2 className={settingsGroupTitle}>Usage</h2>
       <p className={settingsGroupHint}>
-        Every AI run this device made, recorded locally. Nothing here syncs, exports, or leaves
-        the machine.
+        Every AI run this device made, recorded locally. Nothing here syncs, exports, or leaves the
+        machine.
       </p>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -193,9 +193,7 @@ export function AiUsagePanel({ signal }: Props) {
           <span className={statValueClass}>{formatCostMicros(totals.costMicros)}</span>
         </div>
       </div>
-      {totalsNote ? (
-        <p className="mb-2 text-[11px] text-muted-foreground">{totalsNote}</p>
-      ) : null}
+      {totalsNote ? <p className="mb-2 text-[11px] text-muted-foreground">{totalsNote}</p> : null}
       {view?.pricingAsOf ? (
         <p className="mb-3 text-[11px] text-muted-foreground">
           Cost is calculated from the catalogue priced {view.pricingAsOf}, not from a provider
@@ -294,9 +292,7 @@ export function AiUsagePanel({ signal }: Props) {
                 type="button"
                 className={settingsButton}
                 aria-expanded={openRun?.runId === run.runId}
-                onClick={() =>
-                  setOpenRun((current) => (current?.runId === run.runId ? null : run))
-                }
+                onClick={() => setOpenRun((current) => (current?.runId === run.runId ? null : run))}
               >
                 {openRun?.runId === run.runId ? "Close" : "Open"}
               </button>
@@ -321,9 +317,7 @@ export function AiUsagePanel({ signal }: Props) {
               : formatCostMicros(openRun.costMicros)}
           </p>
           {openRun.tokens.source === "estimated" ? (
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {tokenSourceNote(true)}
-            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">{tokenSourceNote(true)}</p>
           ) : null}
           {openRun.prompts ? (
             <>

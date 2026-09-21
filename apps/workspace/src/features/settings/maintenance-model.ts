@@ -84,20 +84,14 @@ export function requestCancel(state: MaintenancePhase): MaintenancePhase {
   return { ...state, cancelRequested: true };
 }
 
-export function completeOperation(
-  state: MaintenancePhase,
-  detail: string,
-): MaintenancePhase {
+export function completeOperation(state: MaintenancePhase, detail: string): MaintenancePhase {
   if (state.phase !== "running") {
     return state;
   }
   return { phase: "success", kind: state.kind, detail };
 }
 
-export function failOperation(
-  state: MaintenancePhase,
-  message: string,
-): MaintenancePhase {
+export function failOperation(state: MaintenancePhase, message: string): MaintenancePhase {
   if (state.phase !== "running") {
     return state;
   }
@@ -107,10 +101,7 @@ export function failOperation(
   return { phase: "error", kind: state.kind, message };
 }
 
-export function backupNotDue(
-  state: MaintenancePhase,
-  nextDueAt: number,
-): MaintenancePhase {
+export function backupNotDue(state: MaintenancePhase, nextDueAt: number): MaintenancePhase {
   if (state.phase !== "running") {
     return state;
   }
@@ -129,8 +120,7 @@ export function describeBackupReport(
   report: BackupRotationReport,
 ): { created: true; detail: string } | { created: false; nextDueAt: number } {
   if (report.status === "created") {
-    const pruned =
-      report.pruned > 0 ? ` ${report.pruned} old backup(s) were pruned.` : "";
+    const pruned = report.pruned > 0 ? ` ${report.pruned} old backup(s) were pruned.` : "";
     return {
       created: true,
       detail: `Backup ${report.artifactFileName ?? "created"} was written and verified.${pruned}`,
@@ -139,9 +129,10 @@ export function describeBackupReport(
   return { created: false, nextDueAt: report.nextDueAt ?? 0 };
 }
 
-export function describeSwapReport(
-  report: DatabaseSwapReport,
-): { restored: boolean; detail: string } {
+export function describeSwapReport(report: DatabaseSwapReport): {
+  restored: boolean;
+  detail: string;
+} {
   if (report.status === "replaced") {
     const rollback = report.rollbackFileName
       ? ` The replaced database is kept as ${report.rollbackFileName}.`
@@ -194,9 +185,7 @@ export type RecoveryViewModel = {
   empty: boolean;
 };
 
-export function projectRecoveryInventory(
-  inventory: RecoveryInventory,
-): RecoveryViewModel {
+export function projectRecoveryInventory(inventory: RecoveryInventory): RecoveryViewModel {
   const backups = (inventory.manifest?.artifacts ?? [])
     .map((artifact) => ({
       fileName: artifact.filename,

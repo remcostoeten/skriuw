@@ -134,7 +134,7 @@ export function usesVimMode(settings: WorkspaceSettings): boolean {
 export function vimCursorStyle(settings: WorkspaceSettings): VimCursorStyle {
   const value = settings["vimCursorStyle"];
   return VIM_CURSOR_STYLE_OPTIONS.some((option) => option.value === value)
-    ? value as VimCursorStyle
+    ? (value as VimCursorStyle)
     : "block";
 }
 

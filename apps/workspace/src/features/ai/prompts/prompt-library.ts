@@ -199,9 +199,7 @@ export function promptDraftError(draft: PromptDraft): string | null {
   const temperature = parseTemperatureMillis(draft.temperature);
   if (
     temperature !== null &&
-    (Number.isNaN(temperature) ||
-      temperature < 0 ||
-      temperature > MAX_PROMPT_TEMPERATURE_MILLIS)
+    (Number.isNaN(temperature) || temperature < 0 || temperature > MAX_PROMPT_TEMPERATURE_MILLIS)
   ) {
     return "Temperature must be between 0 and 1.";
   }

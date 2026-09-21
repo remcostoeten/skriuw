@@ -70,10 +70,7 @@ const PHYSICAL_CODE_BY_KEY: ReadonlyMap<string, string> = new Map([
   ["?", "Slash"],
 ]);
 
-export function shortcutMatchesPhysicalKey(
-  event: PhysicalShortcutEvent,
-  keys: string,
-): boolean {
+export function shortcutMatchesPhysicalKey(event: PhysicalShortcutEvent, keys: string): boolean {
   if (isKeySequence(keys)) {
     return false;
   }
@@ -194,9 +191,7 @@ function defaultKeys(definition: ShortcutDefinition): string {
   return Array.isArray(definition.keys) ? (definition.keys[0] ?? "") : definition.keys;
 }
 
-export function shortcutOverridesFromSettings(
-  settings: WorkspaceSettings,
-): ShortcutOverrides {
+export function shortcutOverridesFromSettings(settings: WorkspaceSettings): ShortcutOverrides {
   const raw = settings["shortcutOverrides"];
   if (typeof raw !== "object" || raw === null) {
     return {};
@@ -211,10 +206,7 @@ export function shortcutOverridesFromSettings(
   return overrides;
 }
 
-export function sameShortcutOverrides(
-  left: ShortcutOverrides,
-  right: ShortcutOverrides,
-): boolean {
+export function sameShortcutOverrides(left: ShortcutOverrides, right: ShortcutOverrides): boolean {
   const leftKeys = Object.keys(left) as (keyof ShortcutOverrides)[];
   return (
     leftKeys.length === Object.keys(right).length &&

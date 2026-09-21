@@ -48,7 +48,10 @@ import { railActiveClass, railIconButtonClass, railInactiveClass } from "./rail-
 import { selectTheme } from "@/features/settings/sections/selectors";
 import type { SectionId } from "@/features/settings/sections/sections";
 import { syncSummary, syncTone } from "@/features/settings/sections/sync-status";
-import { SYNC_POLL_AMBIENT_MS, useWorkspaceSync } from "@/features/settings/sections/use-workspace-sync";
+import {
+  SYNC_POLL_AMBIENT_MS,
+  useWorkspaceSync,
+} from "@/features/settings/sections/use-workspace-sync";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 
 const TRANSFER_COMMANDS = [
@@ -196,10 +199,7 @@ export function AccountMenu({
       <Tooltip label="Settings" side="right" shortcut={hints.openSettings}>
         <button
           type="button"
-          className={cn(
-            railIconButtonClass,
-            settingsOpen ? railActiveClass : railInactiveClass,
-          )}
+          className={cn(railIconButtonClass, settingsOpen ? railActiveClass : railInactiveClass)}
           aria-label="Settings"
           aria-haspopup="dialog"
           aria-expanded={settingsOpen}
@@ -214,7 +214,8 @@ export function AccountMenu({
   const name = accountDisplayName(user.name, user.email);
   const initials = accountInitials(user.name, user.email);
   const tone = syncTone(sync.status);
-  const StatusIcon = tone === "offline" ? CloudOffIcon : tone === "syncing" ? RefreshIcon : CloudIcon;
+  const StatusIcon =
+    tone === "offline" ? CloudOffIcon : tone === "syncing" ? RefreshIcon : CloudIcon;
   const syncPaused = sync.status.state === "localOnly";
   const syncAction = sync.signInRequired
     ? onRequestSignIn
@@ -260,7 +261,8 @@ export function AccountMenu({
         collisionPadding={12}
         className={cn(
           "w-[268px]",
-          compact && "max-h-[70vh] w-[calc(100vw-24px)] max-w-[320px] overflow-y-auto overscroll-contain",
+          compact &&
+            "max-h-[70vh] w-[calc(100vw-24px)] max-w-[320px] overflow-y-auto overscroll-contain",
         )}
       >
         {activePanel === "appearance" ? (

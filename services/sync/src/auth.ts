@@ -48,10 +48,7 @@ export async function handleAuthRequest(request: Request, env: AuthEnv): Promise
     return new Response(null, { status: 204, headers });
   }
   if (!env.BETTER_AUTH_SECRET || env.BETTER_AUTH_SECRET.length < 32) {
-    return withHeaders(
-      Response.json({ error: "auth_not_configured" }, { status: 503 }),
-      headers,
-    );
+    return withHeaders(Response.json({ error: "auth_not_configured" }, { status: 503 }), headers);
   }
 
   const auth = await createAuth(env);

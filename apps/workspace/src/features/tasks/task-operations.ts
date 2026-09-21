@@ -1,4 +1,8 @@
-import type { TaskStatus, WorkspaceOperation, WorkspaceTask } from "@skriuw/renderer-core/contracts/workspace";
+import type {
+  TaskStatus,
+  WorkspaceOperation,
+  WorkspaceTask,
+} from "@skriuw/renderer-core/contracts/workspace";
 import { countWords, productSchema, serializeProductMarkdown } from "@/features/editor/schema";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 

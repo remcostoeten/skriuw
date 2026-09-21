@@ -56,11 +56,10 @@ export function stripLaunchCapture(href: string): string {
  * first line of the text, else the link's host; the body keeps the text as
  * paragraphs and adds the link once when the text does not already carry it.
  */
-export function shareNoteMarkdown(share: {
+export function shareNoteMarkdown(share: { title: string; text: string; url: string }): {
   title: string;
-  text: string;
-  url: string;
-}): { title: string; markdown: string } {
+  markdown: string;
+} {
   const title = shareTitle(share);
   const paragraphs = share.text
     .split(/\n{2,}/)

@@ -47,9 +47,7 @@ test("evernote notes carry title, tags, and utc timestamps", () => {
       "<created>20260105T093000Z</created><updated>20260106T101500Z</updated><tag>work</tag><tag>Work</tag><tag>meetings</tag>",
     ),
   );
-  const bundle = evernoteSource.parse(
-    tree({ files: [{ relativePath: "Export.enex", content }] }),
-  );
+  const bundle = evernoteSource.parse(tree({ files: [{ relativePath: "Export.enex", content }] }));
   assert.equal(bundle.notes.length, 1);
   const note = bundle.notes[0];
   assert.equal(note?.title, "Meeting notes");
@@ -60,12 +58,8 @@ test("evernote notes carry title, tags, and utc timestamps", () => {
 });
 
 test("duplicate titles get numbered paths and a single enex adds no folder", () => {
-  const content = enex(
-    noteBlock("Same", "<div>one</div>") + noteBlock("Same", "<div>two</div>"),
-  );
-  const bundle = evernoteSource.parse(
-    tree({ files: [{ relativePath: "Export.enex", content }] }),
-  );
+  const content = enex(noteBlock("Same", "<div>one</div>") + noteBlock("Same", "<div>two</div>"));
+  const bundle = evernoteSource.parse(tree({ files: [{ relativePath: "Export.enex", content }] }));
   assert.deepEqual(
     bundle.notes.map((note) => note.relativePath),
     ["Same.md", "Same (2).md"],
@@ -96,24 +90,18 @@ test("attachments and encrypted blocks surface as warnings", () => {
       '<div><en-media type="image/png" hash="abc"/></div><div><en-crypt cipher="AES">x</en-crypt></div>',
     ),
   );
-  const bundle = evernoteSource.parse(
-    tree({ files: [{ relativePath: "Export.enex", content }] }),
-  );
+  const bundle = evernoteSource.parse(tree({ files: [{ relativePath: "Export.enex", content }] }));
   assert.ok(bundle.warnings.some((warning) => warning.message.includes("attachment")));
   assert.ok(
     bundle.warnings.some(
-      (warning) =>
-        warning.message.includes("encrypted") && warning.severity === "error",
+      (warning) => warning.message.includes("encrypted") && warning.severity === "error",
     ),
   );
   assert.ok(bundle.notes[0]?.markdown.includes("(attachment)"));
 });
 
 test("evernote timestamps parse only the exact compact format", () => {
-  assert.equal(
-    evernoteTimestampToMillis("20260105T093000Z"),
-    Date.UTC(2026, 0, 5, 9, 30, 0),
-  );
+  assert.equal(evernoteTimestampToMillis("20260105T093000Z"), Date.UTC(2026, 0, 5, 9, 30, 0));
   assert.equal(evernoteTimestampToMillis("2026-01-05"), undefined);
   assert.equal(evernoteTimestampToMillis(null), undefined);
 });
@@ -160,10 +148,7 @@ test("enml tables become pipe tables and entities decode", () => {
   const { markdown } = enmlToMarkdown(
     "<en-note><table><tr><td>Name</td><td>Value</td></tr><tr><td>Fish &amp; chips</td><td>&#163;7</td></tr></table></en-note>",
   );
-  assert.equal(
-    markdown,
-    ["| Name | Value |", "| --- | --- |", "| Fish & chips | £7 |"].join("\n"),
-  );
+  assert.equal(markdown, ["| Name | Value |", "| --- | --- |", "| Fish & chips | £7 |"].join("\n"));
 });
 
 test("empty inline marks collapse instead of leaving bare markers", () => {

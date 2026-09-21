@@ -26,10 +26,7 @@ function rowElement(host: HTMLElement | null, taskId: string): HTMLInputElement 
 export function TasksView({ store }: TasksViewProps) {
   const groups = useRendererSelector(store, projectTasks, taskGroupsEqual);
   const rows = useMemo(() => flattenTaskRows(groups), [groups]);
-  const indexById = useMemo(
-    () => new Map(rows.map((row, index) => [row.id, index])),
-    [rows],
-  );
+  const indexById = useMemo(() => new Map(rows.map((row, index) => [row.id, index])), [rows]);
   const focusId = useRouteFocus();
   const [notice, setNotice] = useState<string | null>(null);
   const revealedFocusId = useRef<string | null>(null);
@@ -104,9 +101,15 @@ export function TasksView({ store }: TasksViewProps) {
           </h1>
         </div>
         <p className="mt-1 max-w-xl text-xs leading-[1.45] text-theme-secondary">
-          {rows.length === 0 ? "A little space for what’s next." : `${openCount} remaining · ${rows.length - openCount} completed`}
+          {rows.length === 0
+            ? "A little space for what’s next."
+            : `${openCount} remaining · ${rows.length - openCount} completed`}
         </p>
-        {notice && <p role="alert" className="mt-3 text-xs text-destructive">{notice}</p>}
+        {notice && (
+          <p role="alert" className="mt-3 text-xs text-destructive">
+            {notice}
+          </p>
+        )}
       </header>
 
       {rows.length === 0 ? (
@@ -124,7 +127,11 @@ export function TasksView({ store }: TasksViewProps) {
           </p>
         </div>
       ) : (
-        <div ref={listRef} className="min-h-0 overflow-y-auto" aria-describedby="tasks-keyboard-help">
+        <div
+          ref={listRef}
+          className="min-h-0 overflow-y-auto"
+          aria-describedby="tasks-keyboard-help"
+        >
           <div className={cn(columnClass, "py-2")}>
             {groups.map((group) => (
               <section key={group.noteId ?? "unsourced"} className="mb-6">
@@ -148,10 +155,18 @@ export function TasksView({ store }: TasksViewProps) {
               </section>
             ))}
             <p id="tasks-keyboard-help" className="tasks-keyboard-help">
-              <span><kbd>↑</kbd> <kbd>↓</kbd> Move</span>
-              <span><kbd>Space</kbd> Complete</span>
-              <span><kbd>Enter</kbd> Open note</span>
-              <span><kbd>Tab</kbd> Next control</span>
+              <span>
+                <kbd>↑</kbd> <kbd>↓</kbd> Move
+              </span>
+              <span>
+                <kbd>Space</kbd> Complete
+              </span>
+              <span>
+                <kbd>Enter</kbd> Open note
+              </span>
+              <span>
+                <kbd>Tab</kbd> Next control
+              </span>
             </p>
           </div>
         </div>

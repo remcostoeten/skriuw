@@ -60,11 +60,10 @@ test("pan and zoom remain inside their bounds", () => {
   assert.equal(coverTransformForKey(limits, "+"), limits);
 
   assert.deepEqual(
-    coverTransformForKey(
-      { positionX: 50, positionY: 50, zoom: 1.9 },
-      "+",
-      { shiftKey: true, maxZoom: 2 },
-    ),
+    coverTransformForKey({ positionX: 50, positionY: 50, zoom: 1.9 }, "+", {
+      shiftKey: true,
+      maxZoom: 2,
+    }),
     { positionX: 50, positionY: 50, zoom: 2 },
   );
   const minimum: CoverTransform = { positionX: 50, positionY: 50, zoom: 1 };

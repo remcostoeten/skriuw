@@ -1,5 +1,12 @@
 import { EditorSelection, StateEffect, StateField, type Extension } from "@codemirror/state";
-import { EditorView, GutterMarker, ViewPlugin, gutter, type BlockInfo, type ViewUpdate } from "@codemirror/view";
+import {
+  EditorView,
+  GutterMarker,
+  ViewPlugin,
+  gutter,
+  type BlockInfo,
+  type ViewUpdate,
+} from "@codemirror/view";
 import {
   buildRowLayout,
   locateRow,
@@ -126,7 +133,10 @@ class RowNumbersMarker extends GutterMarker {
 }
 
 function rowLayoutOf(view: EditorView): RawMarkdownRowLayout {
-  return view.plugin(rowLayoutPlugin)?.layout ?? buildRowLayout(Array.from({ length: view.state.doc.lines }, () => 1));
+  return (
+    view.plugin(rowLayoutPlugin)?.layout ??
+    buildRowLayout(Array.from({ length: view.state.doc.lines }, () => 1))
+  );
 }
 
 function markerFor(view: EditorView, block: BlockInfo): RowNumbersMarker {
@@ -135,7 +145,11 @@ function markerFor(view: EditorView, block: BlockInfo): RowNumbersMarker {
   const index = line.number - 1;
   const head = view.state.selection.main.head;
   const active = head >= line.from && head <= line.to ? view.state.field(activeRowIndex) : -1;
-  return new RowNumbersMarker(layout.starts[index] ?? line.number, layout.counts[index] ?? 1, active);
+  return new RowNumbersMarker(
+    layout.starts[index] ?? line.number,
+    layout.counts[index] ?? 1,
+    active,
+  );
 }
 
 function spacerFor(view: EditorView): RowNumbersMarker {
@@ -153,7 +167,8 @@ export function rawMarkdownRowNumbers(): Extension {
     class: "cm-lineNumbers",
     lineMarker: markerFor,
     lineMarkerChange: (update) =>
-      update.selectionSet || update.startState.field(activeRowIndex) !== update.state.field(activeRowIndex),
+      update.selectionSet ||
+      update.startState.field(activeRowIndex) !== update.state.field(activeRowIndex),
     initialSpacer: spacerFor,
     updateSpacer: (spacer, update) => {
       const next = spacerFor(update.view);

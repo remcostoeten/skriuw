@@ -73,23 +73,28 @@ export function projectSharedEntities(
       overlaps.set(candidateId, shared);
     }
   }
-  return [...overlaps].map(([candidateId, shared]) => {
-    const metadata = state.metadata.get(candidateId)!;
-    return {
-      noteId: candidateId,
-      title: metadata.title,
-      updatedAt: metadata.updatedAt,
-      sharedEntityIds: [...shared],
-    };
-  }).sort(
-    (a, b) =>
-      b.sharedEntityIds.length - a.sharedEntityIds.length ||
-      b.updatedAt - a.updatedAt ||
-      a.title.localeCompare(b.title),
-  );
+  return [...overlaps]
+    .map(([candidateId, shared]) => {
+      const metadata = state.metadata.get(candidateId)!;
+      return {
+        noteId: candidateId,
+        title: metadata.title,
+        updatedAt: metadata.updatedAt,
+        sharedEntityIds: [...shared],
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.sharedEntityIds.length - a.sharedEntityIds.length ||
+        b.updatedAt - a.updatedAt ||
+        a.title.localeCompare(b.title),
+    );
 }
 
-export function projectRelatedJournalEntries(state: RendererState, noteId: string): RelatedJournalEntry[] {
+export function projectRelatedJournalEntries(
+  state: RendererState,
+  noteId: string,
+): RelatedJournalEntry[] {
   const personIds = new Set(idsFor(state, noteId, "person"));
   const tagIds = new Set(idsFor(state, noteId, "tag"));
   const incoming = new Set(state.incomingReferences.get(referenceKey("note", noteId)) ?? []);
@@ -127,7 +132,10 @@ export function projectRelatedJournalEntries(state: RendererState, noteId: strin
       sharedEntityIds: [...sharedPersonIds, ...sharedTagIds],
     });
   }
-  return result.sort((a, b) => b.score - a.score || b.dateKey.localeCompare(a.dateKey) || a.title.localeCompare(b.title));
+  return result.sort(
+    (a, b) =>
+      b.score - a.score || b.dateKey.localeCompare(a.dateKey) || a.title.localeCompare(b.title),
+  );
 }
 
 export function projectCoVisitedNotes(state: RendererState, noteId: string): RelationshipNote[] {

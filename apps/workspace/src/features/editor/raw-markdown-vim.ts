@@ -10,7 +10,13 @@ export type RawMarkdownVimHandlers = {
   quit(): void;
 };
 
-export type RawMarkdownVimMode = "normal" | "insert" | "visual" | "visual line" | "visual block" | "replace";
+export type RawMarkdownVimMode =
+  | "normal"
+  | "insert"
+  | "visual"
+  | "visual line"
+  | "visual block"
+  | "replace";
 
 type VimModeChange = { mode: string; subMode?: string };
 
@@ -85,7 +91,8 @@ function pluralized(count: number, singular: string): string {
 
 function changedText(before: string, after: string): { removed: string; inserted: string } {
   let start = 0;
-  while (start < before.length && start < after.length && before[start] === after[start]) start += 1;
+  while (start < before.length && start < after.length && before[start] === after[start])
+    start += 1;
   let beforeEnd = before.length;
   let afterEnd = after.length;
   while (beforeEnd > start && afterEnd > start && before[beforeEnd - 1] === after[afterEnd - 1]) {
@@ -115,7 +122,9 @@ export function describeRawMarkdownVimFeedback(input: RawMarkdownVimFeedbackInpu
   const { command, count } = keyCommand(input.keys);
   const selected = input.before.slice(input.selectionFrom, input.selectionTo);
   const change = changedText(input.before, input.after);
-  const visualCount = input.visualLine ? lineCount(selected) : Math.max(1, Array.from(selected).length);
+  const visualCount = input.visualLine
+    ? lineCount(selected)
+    : Math.max(1, Array.from(selected).length);
   const visualUnit = input.visualLine ? "line" : "character";
   if (/^(?:y|Y)$/u.test(command) && input.selectionFrom !== input.selectionTo) {
     return `${pluralized(visualCount, visualUnit)} yanked`;
@@ -129,7 +138,8 @@ export function describeRawMarkdownVimFeedback(input: RawMarkdownVimFeedbackInpu
   if (/^(?:yy|Y)$/u.test(command)) return `${pluralized(count, "line")} yanked`;
   if (/^dd$/u.test(command)) return `${pluralized(count, "line")} deleted`;
   if (/^(?:cc|S)$/u.test(command)) return `${pluralized(count, "line")} changed`;
-  if (/^(?:>>|<<)$/u.test(command)) return `${pluralized(count, "line")} ${command === ">>" ? "indented" : "outdented"}`;
+  if (/^(?:>>|<<)$/u.test(command))
+    return `${pluralized(count, "line")} ${command === ">>" ? "indented" : "outdented"}`;
   if (/^(?:x|X)$/u.test(command) && change.removed.length > 0) {
     return `${pluralized(Array.from(change.removed).length, "character")} deleted`;
   }
@@ -193,7 +203,14 @@ export function observeRawMarkdownVimMode(
   }
   cm.on("vim-mode-change", listener);
   const current = cm.state.vim;
-  onChange(current ? describeRawMarkdownVimMode({ mode: current.insertMode ? "insert" : current.visualMode ? "visual" : "normal", subMode: current.visualLine ? "linewise" : current.visualBlock ? "blockwise" : undefined }) : "normal");
+  onChange(
+    current
+      ? describeRawMarkdownVimMode({
+          mode: current.insertMode ? "insert" : current.visualMode ? "visual" : "normal",
+          subMode: current.visualLine ? "linewise" : current.visualBlock ? "blockwise" : undefined,
+        })
+      : "normal",
+  );
   return () => {
     cm.off("vim-mode-change", listener);
   };

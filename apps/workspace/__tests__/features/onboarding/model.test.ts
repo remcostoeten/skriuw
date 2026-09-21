@@ -16,10 +16,7 @@ test("seeded preview content does not suppress onboarding", () => {
 });
 
 test("a completed workspace never shows onboarding again", () => {
-  assert.equal(
-    shouldShowOnboarding(completeOnboarding(DEFAULT_WORKSPACE_SETTINGS)),
-    false,
-  );
+  assert.equal(shouldShowOnboarding(completeOnboarding(DEFAULT_WORKSPACE_SETTINGS)), false);
 });
 
 test("completion is versioned and preserves unknown settings", () => {

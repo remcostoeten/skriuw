@@ -89,13 +89,21 @@ const MAX_CO_VISIT_NEIGHBOURS = 12;
 function recordCoVisit(current: CoVisits, sourceId: string, targetId: string): CoVisits {
   const next = new Map(current);
   const at = Date.now();
-  for (const [from, to] of [[sourceId, targetId], [targetId, sourceId]] as const) {
+  for (const [from, to] of [
+    [sourceId, targetId],
+    [targetId, sourceId],
+  ] as const) {
     const neighbours = new Map(next.get(from));
     const previous = neighbours.get(to);
     neighbours.set(to, { count: (previous?.count ?? 0) + 1, lastVisitedAt: at });
-    next.set(from, new Map([...neighbours.entries()]
-      .sort((a, b) => b[1].count - a[1].count || b[1].lastVisitedAt - a[1].lastVisitedAt)
-      .slice(0, MAX_CO_VISIT_NEIGHBOURS)));
+    next.set(
+      from,
+      new Map(
+        [...neighbours.entries()]
+          .sort((a, b) => b[1].count - a[1].count || b[1].lastVisitedAt - a[1].lastVisitedAt)
+          .slice(0, MAX_CO_VISIT_NEIGHBOURS),
+      ),
+    );
   }
   while (next.size > MAX_CO_VISIT_SOURCES) {
     const oldest = [...next.entries()].sort((a, b) => {
@@ -113,11 +121,14 @@ function recordCoVisit(current: CoVisits, sourceId: string, targetId: string): C
 function hasLosslessMarkdown(documentJson: unknown): boolean {
   if (typeof documentJson !== "object" || documentJson === null) return false;
   const content = (documentJson as { content?: unknown }).content;
-  return Array.isArray(content) && content.some(
-    (node) =>
-      typeof node === "object" &&
-      node !== null &&
-      (node as { type?: unknown }).type === "raw_markdown",
+  return (
+    Array.isArray(content) &&
+    content.some(
+      (node) =>
+        typeof node === "object" &&
+        node !== null &&
+        (node as { type?: unknown }).type === "raw_markdown",
+    )
   );
 }
 
@@ -266,12 +277,8 @@ function derive(
       ? base.focusedNodeId
       : activeNoteId;
   const editingNodeId =
-    base.editingNodeId !== null && index.nodes.has(base.editingNodeId)
-      ? base.editingNodeId
-      : null;
-  const selectedNodeIds = new Set(
-    [...base.selectedNodeIds].filter((id) => index.nodes.has(id)),
-  );
+    base.editingNodeId !== null && index.nodes.has(base.editingNodeId) ? base.editingNodeId : null;
+  const selectedNodeIds = new Set([...base.selectedNodeIds].filter((id) => index.nodes.has(id)));
   const selectionAnchorId =
     base.selectionAnchorId !== null && index.nodes.has(base.selectionAnchorId)
       ? base.selectionAnchorId
@@ -512,10 +519,7 @@ function detachTasksForNotes(
   return next;
 }
 
-function reduceState(
-  current: RendererState,
-  operation: WorkspaceOperation,
-): RendererState {
+function reduceState(current: RendererState, operation: WorkspaceOperation): RendererState {
   if (operation.type === "create_task") {
     if (current.tasks.has(operation.task.id)) return current;
     const tasks = new Map(current.tasks);
@@ -548,7 +552,12 @@ function reduceState(
     if (!task) return current;
     const next = withSavedDocument(current, operation.document, operation.at);
     const tasks = new Map(next.tasks);
-    tasks.set(operation.id, { ...task, source: null, detachedAt: operation.at, updatedAt: operation.at });
+    tasks.set(operation.id, {
+      ...task,
+      source: null,
+      detachedAt: operation.at,
+      updatedAt: operation.at,
+    });
     return { ...next, tasks };
   }
   if (operation.type === "create_annotation") {
@@ -658,10 +667,7 @@ function reduceState(
     };
   }
   if (operation.type === "set_active_note") {
-    if (
-      operation.noteId !== null &&
-      current.nodes.get(operation.noteId)?.kind !== "note"
-    ) {
+    if (operation.noteId !== null && current.nodes.get(operation.noteId)?.kind !== "note") {
       return current;
     }
     if (operation.noteId === current.activeNoteId) {
@@ -728,10 +734,7 @@ function reduceState(
     const currentProperties = current.propertiesByNoteId.get(operation.noteId);
     if (!currentProperties) return current;
     try {
-      const nextProperties = reorderNoteProperties(
-        currentProperties,
-        operation.orderedPropertyIds,
-      );
+      const nextProperties = reorderNoteProperties(currentProperties, operation.orderedPropertyIds);
       const propertiesByNoteId = new Map(current.propertiesByNoteId);
       propertiesByNoteId.set(operation.noteId, nextProperties);
       return { ...current, propertiesByNoteId };
@@ -744,10 +747,7 @@ function reduceState(
     try {
       return {
         ...current,
-        propertyTemplates: upsertPropertyTemplate(
-          current.propertyTemplates,
-          operation.template,
-        ),
+        propertyTemplates: upsertPropertyTemplate(current.propertyTemplates, operation.template),
       };
     } catch (error) {
       if (isPropertyValidationError(error)) return current;
@@ -758,10 +758,7 @@ function reduceState(
     try {
       return {
         ...current,
-        propertyTemplates: deletePropertyTemplate(
-          current.propertyTemplates,
-          operation.templateId,
-        ),
+        propertyTemplates: deletePropertyTemplate(current.propertyTemplates, operation.templateId),
       };
     } catch (error) {
       if (isPropertyValidationError(error)) return current;
@@ -824,15 +821,9 @@ function reduceState(
   let images: ReadonlyMap<string, WorkspaceImage> = current.images;
   if (operation.type === "purge_subtree") {
     const purgedNoteIds = [...documents.keys()].filter((noteId) => !sourceNodes.has(noteId));
-    documents = new Map(
-      [...documents].filter(([noteId]) => sourceNodes.has(noteId)),
-    );
-    expandedIds = new Set(
-      [...expandedIds].filter((id) => sourceNodes.get(id)?.kind === "folder"),
-    );
-    images = new Map(
-      [...images].filter(([, image]) => sourceNodes.has(image.noteId)),
-    );
+    documents = new Map([...documents].filter(([noteId]) => sourceNodes.has(noteId)));
+    expandedIds = new Set([...expandedIds].filter((id) => sourceNodes.get(id)?.kind === "folder"));
+    images = new Map([...images].filter(([, image]) => sourceNodes.has(image.noteId)));
     const propertiesByNoteId = new Map(
       [...current.propertiesByNoteId].filter(([noteId]) => sourceNodes.has(noteId)),
     );
@@ -882,8 +873,7 @@ function reduceImportBatch(
           "remove_note_property",
           "record_provider_import",
         ].includes(operation.type) ||
-        ((operation.type === "create_folder" ||
-          operation.type === "create_note") &&
+        ((operation.type === "create_folder" || operation.type === "create_note") &&
           operation.placement.position.type !== "last"),
     )
   ) {
@@ -901,10 +891,7 @@ function reduceImportBatch(
     ]),
   );
   const references = new Map<string, NoteReferences>(
-    [...current.outgoingReferences].map(([noteId, targets]) => [
-      noteId,
-      { noteId, targets },
-    ]),
+    [...current.outgoingReferences].map(([noteId, targets]) => [noteId, { noteId, targets }]),
   );
   const lastRankByParent = new Map<string | null, number>();
   for (const node of sourceNodes.values()) {
@@ -921,10 +908,7 @@ function reduceImportBatch(
   for (const operation of operations) {
     if (operation.type === "create_tag") {
       tags.set(operation.tag.id, operation.tag);
-    } else if (
-      operation.type === "create_folder" ||
-      operation.type === "create_note"
-    ) {
+    } else if (operation.type === "create_folder" || operation.type === "create_note") {
       const parentId = operation.placement.parentId;
       const rank = (lastRankByParent.get(parentId) ?? 0) + 1024;
       lastRankByParent.set(parentId, rank);
@@ -994,8 +978,7 @@ function reduceImportBatch(
         properties.filter((property) => property.id !== operation.propertyId),
       );
     } else if (operation.type === "set_note_property") {
-      const properties =
-        propertiesByNoteId.get(operation.property.noteId) ?? [];
+      const properties = propertiesByNoteId.get(operation.property.noteId) ?? [];
       propertiesByNoteId.set(
         operation.property.noteId,
         upsertNoteProperty(properties, operation.property, {
@@ -1211,7 +1194,9 @@ export function createRendererStore(initialState: RendererState): RendererStore 
   }
 
   function keepsSelection(selected: ReadonlySet<string>, activeId: string | null): boolean {
-    return selected.size === 0 || (selected.size === 1 && activeId !== null && selected.has(activeId));
+    return (
+      selected.size === 0 || (selected.size === 1 && activeId !== null && selected.has(activeId))
+    );
   }
 
   function setFocusedNode(id: string | null): boolean {
@@ -1388,9 +1373,7 @@ export function createRendererStore(initialState: RendererState): RendererStore 
       if (existing.some((candidate) => candidate.versionId === header.versionId)) {
         return current;
       }
-      const headers = existing
-        .concat(header)
-        .sort(compareHistoryHeaders);
+      const headers = existing.concat(header).sort(compareHistoryHeaders);
       const historyHeaders = new Map(current.historyHeaders);
       historyHeaders.set(header.noteId, headers);
       return { ...current, historyHeaders };

@@ -16,7 +16,11 @@
 
 export type MobilePlatform = "ios" | "android";
 
-export type BackgroundTrigger = "foreground-resume" | "wake-channel" | "silent-push" | "scheduled-task";
+export type BackgroundTrigger =
+  | "foreground-resume"
+  | "wake-channel"
+  | "silent-push"
+  | "scheduled-task";
 
 export type BackgroundGuarantee = "guaranteed" | "best-effort" | "unavailable";
 

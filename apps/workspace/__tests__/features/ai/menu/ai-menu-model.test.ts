@@ -27,7 +27,10 @@ test("with no selection the selection actions carry the reason, note actions do 
 
   assert.match(rewrite?.reason ?? "", /Select some text/);
   assert.equal(summarize?.reason, null);
-  assert.equal(aiMenuRows(true).every((row) => row.reason === null), true);
+  assert.equal(
+    aiMenuRows(true).every((row) => row.reason === null),
+    true,
+  );
 });
 
 test("each group heads its own first row", () => {
@@ -57,9 +60,7 @@ test("a query searches labels and keywords and regroups what it finds", () => {
 
 test("only an action that asks the writer something opens a second step", () => {
   const rows = aiMenuRows(true);
-  const needs = rows
-    .filter((row) => aiMenuRowNeedsInstruction(row))
-    .map((row) => row.action.id);
+  const needs = rows.filter((row) => aiMenuRowNeedsInstruction(row)).map((row) => row.action.id);
 
   assert.deepEqual(needs, ["change-tone", "translate", "diagram", "custom"]);
 });

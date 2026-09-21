@@ -80,8 +80,8 @@ export function RemoteProvidersPanel({
     <div className={settingsGroup}>
       <div className={settingsGroupTitle}>Providers</div>
       <p className={settingsGroupHint}>
-        Bring your own key. Keys go straight to this device's credential store and are
-        never readable from Skriuw again.
+        Bring your own key. Keys go straight to this device's credential store and are never
+        readable from Skriuw again.
       </p>
       {vaultNote ? (
         <p className="mb-3 rounded-lg border border-border bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground">
@@ -142,9 +142,7 @@ function RemoteProviderCard({
         <span
           className={cn(
             "h-2.5 w-2.5 shrink-0 rounded-full border",
-            ready
-              ? "border-emerald-500/40 bg-emerald-500"
-              : "border-border bg-muted-foreground/45",
+            ready ? "border-emerald-500/40 bg-emerald-500" : "border-border bg-muted-foreground/45",
           )}
           aria-hidden="true"
         />
@@ -247,8 +245,11 @@ function RemoteProviderCard({
             <button
               type="button"
               className={settingsButton}
-              disabled={draft.busy || providerModels.length === 0 ||
-                (!provider.keyTier && draft.key.trim().length === 0)}
+              disabled={
+                draft.busy ||
+                providerModels.length === 0 ||
+                (!provider.keyTier && draft.key.trim().length === 0)
+              }
               onClick={() => onVerifyKey(provider.providerId)}
             >
               Test key

@@ -95,7 +95,10 @@ test("the disclosure names the destination the adapter actually reaches", () => 
 
 test("key tier is described without ever revealing a key", () => {
   assert.equal(remoteAiKeyLabel(provider()), "No key configured");
-  assert.equal(remoteAiKeyLabel(provider({ keyTier: "vault" })), "Key stored in the system keyring");
+  assert.equal(
+    remoteAiKeyLabel(provider({ keyTier: "vault" })),
+    "Key stored in the system keyring",
+  );
   assert.equal(
     remoteAiKeyLabel(provider({ keyTier: "session-only" })),
     "Key held for this session only",
@@ -112,7 +115,10 @@ test("only a usable vault accepts a persisted key", () => {
 test("vault detail from the device wins over the generic message", () => {
   assert.equal(vaultMessage({ state: "vault-ok" }), null);
   assert.equal(
-    vaultMessage({ state: "vault-blocked", detail: "Run: snap connect skriuw:password-manager-service" }),
+    vaultMessage({
+      state: "vault-blocked",
+      detail: "Run: snap connect skriuw:password-manager-service",
+    }),
     "Run: snap connect skriuw:password-manager-service",
   );
   assert.match(String(vaultMessage({ state: "vault-locked" })), /Unlock your system keyring/);

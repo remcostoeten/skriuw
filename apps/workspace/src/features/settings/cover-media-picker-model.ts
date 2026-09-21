@@ -55,8 +55,8 @@ export function projectCoverMediaPicker(
         compareReferences,
       );
       const referenceIds = references.map((image) => image.id);
-      const noteIds = [...new Set(references.map((image) => image.noteId))].sort(
-        (left, right) => left.localeCompare(right),
+      const noteIds = [...new Set(references.map((image) => image.noteId))].sort((left, right) =>
+        left.localeCompare(right),
       );
       const usageCount = references.length;
       return {
@@ -88,10 +88,7 @@ function findImage(
   return [...images.values()].find((image) => image.id === imageId);
 }
 
-function matchesFilter(
-  item: CoverMediaPickerItem,
-  filter: CoverMediaPickerFilter,
-): boolean {
+function matchesFilter(item: CoverMediaPickerItem, filter: CoverMediaPickerFilter): boolean {
   if (filter === "used") return item.isUsed;
   if (filter === "unused") return !item.isUsed;
   if (filter === "duplicates") return item.isDuplicate;
@@ -102,13 +99,9 @@ function matchesQuery(item: CoverMediaPickerItem, query: string): boolean {
   if (!query) {
     return true;
   }
-  return [
-    item.name,
-    item.contentHash,
-    item.mimeType,
-    ...item.referenceIds,
-    ...item.noteIds,
-  ].some((value) => value.toLocaleLowerCase().includes(query));
+  return [item.name, item.contentHash, item.mimeType, ...item.referenceIds, ...item.noteIds].some(
+    (value) => value.toLocaleLowerCase().includes(query),
+  );
 }
 
 function compareReferences(left: WorkspaceImage, right: WorkspaceImage): number {
@@ -142,7 +135,6 @@ function compareItems(
     );
   }
   return (
-    right.modifiedAtMs - left.modifiedAtMs ||
-    left.contentHash.localeCompare(right.contentHash)
+    right.modifiedAtMs - left.modifiedAtMs || left.contentHash.localeCompare(right.contentHash)
   );
 }

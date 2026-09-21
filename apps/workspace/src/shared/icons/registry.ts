@@ -17,9 +17,7 @@ import {
   UsersIcon,
 } from "./static";
 
-export type StaticIconComponent = ComponentType<
-  SVGProps<SVGSVGElement> & { size?: number }
->;
+export type StaticIconComponent = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>;
 
 type AnimatedIconRender = ComponentType<{
   size?: number;

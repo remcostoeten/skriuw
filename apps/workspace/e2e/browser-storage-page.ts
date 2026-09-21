@@ -64,9 +64,7 @@ window.browserStorageE2e = {
   async write() {
     const id = `browser-opfs-${crypto.randomUUID()}`;
     const before = await bootstrapWorkspace();
-    await applyWorkspaceOperations([
-      createFolderOperation(id, "Durable browser folder"),
-    ]);
+    await applyWorkspaceOperations([createFolderOperation(id, "Durable browser folder")]);
     const written = await bootstrapWorkspace();
     if (!written.nodes.some((node) => node.id === id)) {
       throw new Error("accepted browser write was not visible before reopen");
@@ -82,17 +80,13 @@ window.browserStorageE2e = {
     const markerId = `archive-marker-${crypto.randomUUID()}`;
     const extraId = `post-export-${crypto.randomUUID()}`;
     await bootstrapWorkspace();
-    await applyWorkspaceOperations([
-      createFolderOperation(markerId, "Archive round-trip marker"),
-    ]);
+    await applyWorkspaceOperations([createFolderOperation(markerId, "Archive round-trip marker")]);
     const report = await exportWorkspaceArchive();
     const saved = lastSavedTextFile();
     if (!saved || saved.fileName !== report.fileName) {
       throw new Error("archive export did not hand a download to the browser");
     }
-    await applyWorkspaceOperations([
-      createFolderOperation(extraId, "Created after export"),
-    ]);
+    await applyWorkspaceOperations([createFolderOperation(extraId, "Created after export")]);
     const pickedPath = rememberPickedFile(saved.fileName, saved.text);
     const imported = await importWorkspaceArchive(pickedPath);
     const snapshot = imported.snapshot;

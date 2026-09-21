@@ -33,9 +33,7 @@ declare global {
   };
 }
 
-function envelope(
-  operation: WorkspaceOperationEnvelope["operation"],
-): WorkspaceOperationEnvelope {
+function envelope(operation: WorkspaceOperationEnvelope["operation"]): WorkspaceOperationEnvelope {
   return { protocolVersion: 1, operation };
 }
 

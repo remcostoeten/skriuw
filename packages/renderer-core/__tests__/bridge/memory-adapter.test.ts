@@ -58,9 +58,7 @@ test("create, rename and delete travel through the in-memory adapter", async () 
   assert.equal(durable?.deletedAt, 3);
   assert.deepEqual(restarted.getState().visibleIds, []);
 
-  await commit(restarted, bridge, [
-    { type: "purge_subtree", rootId: "note-1", trashedBefore: 4 },
-  ]);
+  await commit(restarted, bridge, [{ type: "purge_subtree", rootId: "note-1", trashedBefore: 4 }]);
   const snapshot = await bridge.bootstrapWorkspace();
   assert.deepEqual(snapshot.nodes, []);
   assert.deepEqual(snapshot.documents, []);

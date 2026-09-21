@@ -116,17 +116,11 @@ function CalendarPanel({
 
   const mondayOffset = (viewMonth.getDay() + 6) % 7;
   const days = Array.from({ length: GRID_CELLS }, (_, index) => {
-    return new Date(
-      viewMonth.getFullYear(),
-      viewMonth.getMonth(),
-      1 - mondayOffset + index,
-    );
+    return new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1 - mondayOffset + index);
   });
 
   function shiftMonth(offset: number): void {
-    setViewMonth(
-      (current) => new Date(current.getFullYear(), current.getMonth() + offset, 1),
-    );
+    setViewMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
   }
 
   return (

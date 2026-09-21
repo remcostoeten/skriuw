@@ -8,14 +8,17 @@ type Props = {
 };
 
 function selectPreparedDocument(state: ReturnType<RendererStore["getState"]>) {
-  return state.activeNoteId ? state.documents.get(state.activeNoteId) ?? null : null;
+  return state.activeNoteId ? (state.documents.get(state.activeNoteId) ?? null) : null;
 }
 
 function EditorSelectionConsumer({ store }: Props) {
   recordRender("EditorSelectionConsumer");
   const document = useRendererSelector(store, selectPreparedDocument);
   return (
-    <div className="prepared-document" data-prepared-document={document?.preparedIdentity ?? "empty"}>
+    <div
+      className="prepared-document"
+      data-prepared-document={document?.preparedIdentity ?? "empty"}
+    >
       <span className="document-kicker">Prepared document</span>
       <strong>{document?.preparedIdentity ?? "No note selected"}</strong>
     </div>

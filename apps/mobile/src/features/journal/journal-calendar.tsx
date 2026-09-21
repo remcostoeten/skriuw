@@ -97,8 +97,7 @@ export function JournalCalendar({
                   backgroundColor: theme.color("primary"),
                   borderColor: theme.color("primary"),
                 },
-                !isSelected &&
-                  day.key === today && { borderColor: theme.color("ring") },
+                !isSelected && day.key === today && { borderColor: theme.color("ring") },
               ]}
             >
               <Text

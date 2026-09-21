@@ -26,12 +26,7 @@ import { LiquidMetalButton } from "./liquid-metal-button";
 import { rangeMenuAnchor } from "./menu-anchor";
 import { COMPACT_SHELL_QUERY } from "@/shell/shell-layout";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
-import {
-  highlightColors,
-  productSchema,
-  type HighlightColor,
-  type TextAlignment,
-} from "./schema";
+import { highlightColors, productSchema, type HighlightColor, type TextAlignment } from "./schema";
 
 const BUBBLE_MENU_WIDTH = 340;
 
@@ -71,10 +66,7 @@ export const closedBubbleMenu: BubbleMenuState = {
   blockquote: false,
 };
 
-export function bubbleMenuStateEqual(
-  left: BubbleMenuState,
-  right: BubbleMenuState,
-): boolean {
+export function bubbleMenuStateEqual(left: BubbleMenuState, right: BubbleMenuState): boolean {
   return (
     left.open === right.open &&
     left.x === right.x &&
@@ -167,9 +159,10 @@ export function computeBubbleMenu(view: EditorView): BubbleMenuState {
     code: markActive(state, requiredMark("code")),
     link: markActive(state, requiredMark("link")),
     annotated: markActive(state, requiredMark("annotation")),
-    textAlign: parent.attrs.textAlign === "center" || parent.attrs.textAlign === "right"
-      ? parent.attrs.textAlign
-      : "left",
+    textAlign:
+      parent.attrs.textAlign === "center" || parent.attrs.textAlign === "right"
+        ? parent.attrs.textAlign
+        : "left",
     headingLevel: parent.type.name === "heading" ? Number(parent.attrs.level) : null,
     blockquote: insideBlockquote(state),
   };
@@ -251,11 +244,7 @@ export function setHighlightColor(color: HighlightColor): Command {
     }
     const transaction = active
       ? state.tr.removeMark(state.selection.from, state.selection.to, highlight)
-      : state.tr.addMark(
-        state.selection.from,
-        state.selection.to,
-        highlight.create({ color }),
-      );
+      : state.tr.addMark(state.selection.from, state.selection.to, highlight.create({ color }));
     dispatch(transaction.scrollIntoView());
     return true;
   };
@@ -271,9 +260,7 @@ export function clearHighlight(): Command {
       return true;
     }
     dispatch(
-      state.tr
-        .removeMark(state.selection.from, state.selection.to, highlight)
-        .scrollIntoView(),
+      state.tr.removeMark(state.selection.from, state.selection.to, highlight).scrollIntoView(),
     );
     return true;
   };
@@ -300,7 +287,6 @@ type BubbleEntry = BubbleAction & {
   group: "ai" | "marks" | "blocks";
   menu?: readonly BubbleAction[];
 };
-
 
 const ALIGNMENT_ICONS = {
   left: AlignLeftIcon,
@@ -345,7 +331,11 @@ function highlightActions(active: HighlightColor | null): BubbleAction[] {
     label: `Highlight ${color}`,
     active: active === color,
     content: (
-      <span className="bubble-menu-dot" style={{ background: backgroundColor }} aria-hidden="true" />
+      <span
+        className="bubble-menu-dot"
+        style={{ background: backgroundColor }}
+        aria-hidden="true"
+      />
     ),
     command: setHighlightColor(color as HighlightColor),
   }));
@@ -676,31 +666,31 @@ export function BubbleMenu({
               {entry.content}
             </LiquidMetalButton>
           ) : (
-          <button
-            ref={(element) => {
-              buttonsRef.current[index] = element;
-            }}
-            type="button"
-            title={entry.label}
-            aria-label={entry.label}
-            {...(entry.menu === undefined
-              ? { "aria-pressed": entry.active }
-              : { "aria-haspopup": "true" as const, "aria-expanded": openMenuId === entry.id })}
-            tabIndex={index === focusIndex ? 0 : -1}
-            className={entry.active ? "is-active" : ""}
-            onFocus={() => setFocusIndex(index)}
-            onMouseDown={(event) => {
-              event.preventDefault();
-            }}
-            onClick={(event) => {
-              pressEntry(entry, index, event.detail !== 0);
-            }}
-          >
-            {entry.content}
-            {entry.menu !== undefined && (
-              <ChevronDownIcon size={9} className="bubble-menu-caret" aria-hidden="true" />
-            )}
-          </button>
+            <button
+              ref={(element) => {
+                buttonsRef.current[index] = element;
+              }}
+              type="button"
+              title={entry.label}
+              aria-label={entry.label}
+              {...(entry.menu === undefined
+                ? { "aria-pressed": entry.active }
+                : { "aria-haspopup": "true" as const, "aria-expanded": openMenuId === entry.id })}
+              tabIndex={index === focusIndex ? 0 : -1}
+              className={entry.active ? "is-active" : ""}
+              onFocus={() => setFocusIndex(index)}
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={(event) => {
+                pressEntry(entry, index, event.detail !== 0);
+              }}
+            >
+              {entry.content}
+              {entry.menu !== undefined && (
+                <ChevronDownIcon size={9} className="bubble-menu-caret" aria-hidden="true" />
+              )}
+            </button>
           )}
           {entry.menu !== undefined && openMenuId === entry.id && (
             <BubbleSubmenu

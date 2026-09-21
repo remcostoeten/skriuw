@@ -1,13 +1,8 @@
-'use client';
+"use client";
 
-import { motion, type Variants } from 'motion/react';
+import { motion, type Variants } from "motion/react";
 
-import {
-  getVariants,
-  useAnimateIconContext,
-  IconWrapper,
-  type IconProps,
-} from './icon';
+import { getVariants, useAnimateIconContext, IconWrapper, type IconProps } from "./icon";
 
 type RotateCcwProps = IconProps<keyof typeof animations>;
 
@@ -16,11 +11,11 @@ const animations = {
     group: {
       initial: {
         rotate: 0,
-        transition: { type: 'spring', stiffness: 150, damping: 25 },
+        transition: { type: "spring", stiffness: 150, damping: 25 },
       },
       animate: {
         rotate: -45,
-        transition: { type: 'spring', stiffness: 150, damping: 25 },
+        transition: { type: "spring", stiffness: 150, damping: 25 },
       },
     },
     path1: {},
@@ -30,11 +25,11 @@ const animations = {
     group: {
       initial: {
         rotate: 0,
-        transition: { type: 'spring', stiffness: 150, damping: 25 },
+        transition: { type: "spring", stiffness: 150, damping: 25 },
       },
       animate: {
         rotate: -360,
-        transition: { type: 'spring', stiffness: 150, damping: 25 },
+        transition: { type: "spring", stiffness: 150, damping: 25 },
       },
     },
     path1: {},
@@ -68,12 +63,7 @@ function IconComponent({ size, ...props }: RotateCcwProps) {
         initial="initial"
         animate={controls}
       />
-      <motion.path
-        d="M3 3v5h5"
-        variants={variants.path2}
-        initial="initial"
-        animate={controls}
-      />
+      <motion.path d="M3 3v5h5" variants={variants.path2} initial="initial" animate={controls} />
     </motion.svg>
   );
 }

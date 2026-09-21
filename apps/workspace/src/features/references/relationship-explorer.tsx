@@ -5,7 +5,11 @@ import { activateNote } from "@/store/actions/workspace";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { SectionChevron, SectionLabel } from "@/shared/ui/section-header";
-import { projectBacklinks, projectOutgoingNotes, type BacklinkEntry } from "./reference-panel-model";
+import {
+  projectBacklinks,
+  projectOutgoingNotes,
+  type BacklinkEntry,
+} from "./reference-panel-model";
 import {
   projectCoVisitedNotes,
   projectRelatedJournalEntries,
@@ -166,13 +170,7 @@ function RelationshipSection({
   );
 }
 
-function NoteRow({
-  entry,
-  onOpen,
-}: {
-  entry: DetailedNote;
-  onOpen: () => void;
-}) {
+function NoteRow({ entry, onOpen }: { entry: DetailedNote; onOpen: () => void }) {
   return (
     <button
       type="button"
@@ -274,9 +272,7 @@ export function RelationshipExplorer({ store, noteId }: { store: RendererStore; 
           return (
             <NoteRow
               entry={entry}
-              onOpen={() =>
-                openJournalDay(entry.dateKey as Parameters<typeof openJournalDay>[0])
-              }
+              onOpen={() => openJournalDay(entry.dateKey as Parameters<typeof openJournalDay>[0])}
             />
           );
         }}

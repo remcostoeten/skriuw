@@ -1,5 +1,10 @@
 import type * as SecureStore from "expo-secure-store";
-import { createKeystore, createUnavailableKeystore, KEYSTORE_UNAVAILABLE_MESSAGE, type Keystore } from "./keystore";
+import {
+  createKeystore,
+  createUnavailableKeystore,
+  KEYSTORE_UNAVAILABLE_MESSAGE,
+  type Keystore,
+} from "./keystore";
 
 /**
  * The part of `expo-secure-store` a build needs to decide whether the platform

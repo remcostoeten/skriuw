@@ -1,9 +1,6 @@
 import type { BridgePort } from "@skriuw/renderer-core/bridge/port";
 import { bindSidebarExpansionPersistence } from "@skriuw/renderer-core/store/sidebar-expansion-persistence";
-import {
-  createInitialState,
-  createRendererStore,
-} from "@skriuw/renderer-core/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import type { WorkspaceSession } from "../bridge/commit";
 
 export type ShellSession = WorkspaceSession & {

@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { WorkspaceNode, WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
-import { editorModeForNote, setEditorMode, toggleEditorMode } from "../../../src/store/actions/editor-mode";
+import {
+  editorModeForNote,
+  setEditorMode,
+  toggleEditorMode,
+} from "../../../src/store/actions/editor-mode";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 
 function node(partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">): WorkspaceNode {

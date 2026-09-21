@@ -80,11 +80,7 @@ export function ensureJournalEntry(store: RendererStore, dateKey: DateKey): stri
   return noteId;
 }
 
-export function setJournalMood(
-  store: RendererStore,
-  noteId: string,
-  mood: MoodLevel | null,
-): void {
+export function setJournalMood(store: RendererStore, noteId: string, mood: MoodLevel | null): void {
   const properties = store.getState().propertiesByNoteId.get(noteId) ?? [];
   const existing = properties.find((property) => property.id === JOURNAL_MOOD_PROPERTY_ID);
   const at = Date.now();

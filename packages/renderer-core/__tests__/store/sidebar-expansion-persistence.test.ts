@@ -80,7 +80,12 @@ test("failed expansion persistence never rolls renderer state back", async () =>
     async () => {
       throw new Error("unavailable");
     },
-    { delayMs: 1, onError: () => { failures += 1; } },
+    {
+      delayMs: 1,
+      onError: () => {
+        failures += 1;
+      },
+    },
   );
 
   store.toggleExpanded("folder-a");
@@ -138,11 +143,7 @@ test("flush remains pending until the durable expansion write settles", async ()
   const durable = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const binding = bindSidebarExpansionPersistence(
-    store,
-    async () => durable,
-    { delayMs: 1_000 },
-  );
+  const binding = bindSidebarExpansionPersistence(store, async () => durable, { delayMs: 1_000 });
   store.toggleExpanded("folder-a");
 
   let flushed = false;

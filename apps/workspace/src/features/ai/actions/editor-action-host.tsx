@@ -134,13 +134,12 @@ export function AiEditorActionHost({
     }
   }
 
-  useEffect(
-    () =>
-      registerAiActionListener({
-        isFocused: () => getView()?.hasFocus() === true,
-        open: openMenu,
-        repeat: repeatAction,
-      }),
+  useEffect(() =>
+    registerAiActionListener({
+      isFocused: () => getView()?.hasFocus() === true,
+      open: openMenu,
+      repeat: repeatAction,
+    }),
   );
 
   /**
@@ -148,11 +147,7 @@ export function AiEditorActionHost({
    * Every refusal is answered in the menu the writer is still looking at, so a
    * blocked action never opens a run card that has nothing to show.
    */
-  function startRun(
-    capture: EditorCapture,
-    action: AiEditorAction,
-    instruction: string,
-  ): boolean {
+  function startRun(capture: EditorCapture, action: AiEditorAction, instruction: string): boolean {
     const input = actionInputText(capture.state, action.scope);
     const failure =
       aiActionInputError(action, input) ??

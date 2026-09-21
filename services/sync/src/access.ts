@@ -22,10 +22,7 @@ export type CredentialVerification =
   | { ok: false; code: CredentialFailureCode };
 
 export type CredentialVerifier = {
-  verifyBearerToken(
-    token: string,
-    nowEpochSeconds: number,
-  ): Promise<CredentialVerification>;
+  verifyBearerToken(token: string, nowEpochSeconds: number): Promise<CredentialVerification>;
 };
 
 export type WorkspaceMembership = {
@@ -38,10 +35,7 @@ export type WorkspaceMembershipLookup =
   | { state: "denied" };
 
 export type WorkspaceMembershipSource = {
-  lookupMembership(
-    trustedSubject: string,
-    workspaceId: string,
-  ): Promise<WorkspaceMembershipLookup>;
+  lookupMembership(trustedSubject: string, workspaceId: string): Promise<WorkspaceMembershipLookup>;
 };
 
 export type ReadySyncAccessConfiguration = {
@@ -190,10 +184,7 @@ export async function authenticateSyncRequest(
   request: Request,
   configuration: SyncAccessConfiguration,
   nowEpochSeconds: number,
-): Promise<
-  | { ok: true; identity: TrustedIdentity }
-  | { ok: false; code: SyncAccessFailureCode }
-> {
+): Promise<{ ok: true; identity: TrustedIdentity } | { ok: false; code: SyncAccessFailureCode }> {
   if (configuration.state === "unavailable") {
     return { ok: false, code: configuration.code };
   }
@@ -228,11 +219,7 @@ export async function authorizeWorkspaceRequest(
   if (configuration.state === "unavailable") {
     return { ok: false, code: configuration.code };
   }
-  const authentication = await authenticateSyncRequest(
-    request,
-    configuration,
-    nowEpochSeconds,
-  );
+  const authentication = await authenticateSyncRequest(request, configuration, nowEpochSeconds);
   if (!authentication.ok) return authentication;
   if (!isBoundDeviceId(workspaceId)) {
     return { ok: false, code: "invalid_workspace_identifier" };
@@ -269,10 +256,7 @@ export async function authorizeWorkspaceRequest(
   };
 }
 
-export function membershipAllowsDevice(
-  membership: WorkspaceMembership,
-  deviceId: string,
-): boolean {
+export function membershipAllowsDevice(membership: WorkspaceMembership, deviceId: string): boolean {
   return membership.deviceIds.includes(deviceId);
 }
 

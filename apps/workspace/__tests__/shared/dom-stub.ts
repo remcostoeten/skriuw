@@ -71,7 +71,14 @@ export function setupDOMStub(): void {
       },
       addEventListener: () => {},
       removeEventListener: () => {},
-      getBoundingClientRect: () => ({ left: 10, top: 10, right: 50, bottom: 30, width: 40, height: 20 }),
+      getBoundingClientRect: () => ({
+        left: 10,
+        top: 10,
+        right: 50,
+        bottom: 30,
+        width: 40,
+        height: 20,
+      }),
     };
     element.ownerDocument = (globalThis as any).document;
     return element;

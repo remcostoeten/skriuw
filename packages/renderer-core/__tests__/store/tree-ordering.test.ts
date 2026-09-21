@@ -3,9 +3,7 @@ import test from "node:test";
 import type { WorkspaceNode } from "../../src/contracts/workspace";
 import { orderAvailableNodes } from "../../src/store/tree";
 
-function node(
-  partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">,
-): WorkspaceNode {
+function node(partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">): WorkspaceNode {
   return {
     parentId: null,
     rank: 0,

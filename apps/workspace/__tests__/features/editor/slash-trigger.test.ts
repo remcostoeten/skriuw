@@ -11,9 +11,7 @@ function stateAfterTyping(text: string): EditorState {
   const doc = productSchema.node("doc", null, [productSchema.node("paragraph")]);
   const state = EditorState.create({ doc, plugins: createProductPlugins() });
   const transaction = state.tr.insertText(text, 1);
-  transaction.setSelection(
-    TextSelection.create(transaction.doc, transaction.doc.content.size - 1),
-  );
+  transaction.setSelection(TextSelection.create(transaction.doc, transaction.doc.content.size - 1));
   return state.apply(transaction);
 }
 

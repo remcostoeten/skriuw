@@ -58,10 +58,10 @@ test("uuid suffixes are stripped from paths, titles, and directories", () => {
       ],
     }),
   );
-  assert.deepEqual(
-    bundle.notes.map((note) => note.relativePath).sort(),
-    ["Home.md", "Projects/Roadmap.md"],
-  );
+  assert.deepEqual(bundle.notes.map((note) => note.relativePath).sort(), [
+    "Home.md",
+    "Projects/Roadmap.md",
+  ]);
   assert.deepEqual(bundle.directories, ["Projects"]);
   assert.equal(bundle.notes.find((note) => note.relativePath === "Home.md")?.title, "Home");
 });
@@ -75,10 +75,10 @@ test("stripped-name collisions dedupe with counters", () => {
       ],
     }),
   );
-  assert.deepEqual(
-    bundle.notes.map((note) => note.relativePath).sort(),
-    ["Page (2).md", "Page.md"],
-  );
+  assert.deepEqual(bundle.notes.map((note) => note.relativePath).sort(), [
+    "Page (2).md",
+    "Page.md",
+  ]);
 });
 
 test("the duplicated leading H1 title is stripped from the body", () => {
@@ -90,10 +90,7 @@ test("the duplicated leading H1 title is stripped from the body", () => {
       ],
     }),
   );
-  assert.equal(
-    bundle.notes.find((note) => note.title === "My Page")?.markdown,
-    "Actual body",
-  );
+  assert.equal(bundle.notes.find((note) => note.title === "My Page")?.markdown, "Actual body");
   assert.equal(
     bundle.notes.find((note) => note.title === "Other")?.markdown,
     "# Different Heading\n\nBody",
@@ -132,10 +129,7 @@ test("image links are rewritten to resolve from the renamed note path", () => {
       ],
     }),
   );
-  assert.equal(
-    bundle.notes[0].markdown,
-    `![chart](My%20Page%20${UUID}/chart%201.png)`,
-  );
+  assert.equal(bundle.notes[0].markdown, `![chart](My%20Page%20${UUID}/chart%201.png)`);
 });
 
 test("nested note image links climb out of renamed directories", () => {
@@ -151,10 +145,7 @@ test("nested note image links climb out of renamed directories", () => {
       ],
     }),
   );
-  assert.equal(
-    bundle.notes[0].markdown,
-    `![p](../Area%20${UUID}/Sub%20${UUID}/pic.png)`,
-  );
+  assert.equal(bundle.notes[0].markdown, `![p](../Area%20${UUID}/Sub%20${UUID}/pic.png)`);
 });
 
 test("links to database csv files stay and produce a warning", () => {
@@ -169,11 +160,7 @@ test("links to database csv files stay and produce a warning", () => {
     }),
   );
   assert.equal(bundle.notes[0].markdown, `[Tasks](Tasks%20${UUID}.csv)`);
-  assert.ok(
-    bundle.warnings.some((warning) =>
-      warning.message.includes("source link"),
-    ),
-  );
+  assert.ok(bundle.warnings.some((warning) => warning.message.includes("source link")));
 });
 
 test("database CSV rows become notes with typed properties", () => {

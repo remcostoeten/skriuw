@@ -1,8 +1,4 @@
-import {
-  decodeCaptureRecords,
-  encodeCaptureRecord,
-  type CaptureRecord,
-} from "./capture-record";
+import { decodeCaptureRecords, encodeCaptureRecord, type CaptureRecord } from "./capture-record";
 
 /**
  * The durable queue between a capture and the workspace. A record is on the

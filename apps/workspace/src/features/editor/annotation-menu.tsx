@@ -3,7 +3,10 @@ import type { RefObject } from "react";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
-import type { AnnotationComment, WorkspaceAnnotation } from "@skriuw/renderer-core/contracts/workspace";
+import type {
+  AnnotationComment,
+  WorkspaceAnnotation,
+} from "@skriuw/renderer-core/contracts/workspace";
 import { CheckIcon, PencilIcon, Trash2Icon } from "@/shared/icons/static";
 import { Tooltip } from "@/shared/ui/tooltip";
 import { rangeMenuAnchor, type MenuAnchor } from "./menu-anchor";
@@ -103,10 +106,7 @@ export function annotationAtCursor(state: EditorState): AnnotationRange | null {
 }
 
 /** Returns the innermost annotation containing a document position. */
-export function annotationAtPosition(
-  state: EditorState,
-  position: number,
-): AnnotationRange | null {
+export function annotationAtPosition(state: EditorState, position: number): AnnotationRange | null {
   const containing = annotationRanges(state).filter(
     (range) => position > range.from && position < range.to,
   );
@@ -117,11 +117,7 @@ export function annotationAtPosition(
   );
 }
 
-export function annotationMenuAnchor(
-  view: EditorView,
-  from: number,
-  to: number,
-): MenuAnchor {
+export function annotationMenuAnchor(view: EditorView, from: number, to: number): MenuAnchor {
   return rangeMenuAnchor(view, from, to, ANNOTATION_MENU_WIDTH);
 }
 

@@ -23,7 +23,14 @@ type Props = {
 };
 
 type Gesture =
-  | { kind: "drag"; startX: number; lastX: number; startPosition: number; moved: boolean; tap: boolean }
+  | {
+      kind: "drag";
+      startX: number;
+      lastX: number;
+      startPosition: number;
+      moved: boolean;
+      tap: boolean;
+    }
   | { kind: "pinch"; startDistance: number; startZoom: number };
 
 type Live = {
@@ -128,7 +135,8 @@ export function HistoryScrubber({ versions, selectedIndex, onScrub }: Props) {
   }
 
   function dragTo(gesture: Extract<Gesture, { kind: "drag" }>): void {
-    const offset = (gesture.lastX - gesture.startX) * positionsPerPixel(live.current.view, trackWidth());
+    const offset =
+      (gesture.lastX - gesture.startX) * positionsPerPixel(live.current.view, trackWidth());
     moveTo(gesture.startPosition + offset, true);
   }
 
@@ -155,7 +163,8 @@ export function HistoryScrubber({ versions, selectedIndex, onScrub }: Props) {
             ? gesture.lastX - rect.right + EDGE_PX
             : 0;
       if (overshoot !== 0) {
-        gesture.startPosition += overshoot * EDGE_PAN_RATE * positionsPerPixel(live.current.view, rect.width);
+        gesture.startPosition +=
+          overshoot * EDGE_PAN_RATE * positionsPerPixel(live.current.view, rect.width);
         dragTo(gesture);
       }
     }
@@ -341,7 +350,9 @@ export function HistoryScrubber({ versions, selectedIndex, onScrub }: Props) {
   const lastTick = Math.min(count - 1, Math.ceil(view.start + view.size));
   const snapped = Math.round(position);
   const zoomed = zoom > 1.01;
-  const settle = !gesturing && "transition-[left] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none";
+  const settle =
+    !gesturing &&
+    "transition-[left] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none";
 
   const ticks = [];
   for (let tick = firstTick; tick <= lastTick; tick += 1) {
@@ -409,10 +420,15 @@ export function HistoryScrubber({ versions, selectedIndex, onScrub }: Props) {
           aria-valuemin={1}
           aria-valuemax={count}
           aria-valuenow={count - activeIndex}
-          aria-valuetext={active ? `${formatVersionTimestamp(active.createdAt)}, ${active.summary}` : undefined}
+          aria-valuetext={
+            active ? `${formatVersionTimestamp(active.createdAt)}, ${active.summary}` : undefined
+          }
           aria-keyshortcuts="ArrowLeft ArrowRight Shift+ArrowLeft Shift+ArrowRight + - 0"
           onKeyDown={handleKeyDown}
-          className={cn("group absolute top-0 grid h-full w-8 -translate-x-1/2 place-items-center outline-none", settle)}
+          className={cn(
+            "group absolute top-0 grid h-full w-8 -translate-x-1/2 place-items-center outline-none",
+            settle,
+          )}
           style={{ left: `${fraction * 100}%` }}
         >
           <span

@@ -194,23 +194,14 @@ test("relative image paths win and ambiguous basenames stay as source text", () 
     bundle.notes.find((note) => note.title === "Exact")?.markdown,
     "![pic.png](assets/pic.png)",
   );
-  assert.equal(
-    bundle.notes.find((note) => note.title === "Ambiguous")?.markdown,
-    "![[pic.png]]",
-  );
-  assert.ok(
-    bundle.warnings.some((warning) =>
-      warning.message.includes("multiple vault files"),
-    ),
-  );
+  assert.equal(bundle.notes.find((note) => note.title === "Ambiguous")?.markdown, "![[pic.png]]");
+  assert.ok(bundle.warnings.some((warning) => warning.message.includes("multiple vault files")));
 });
 
 test("unresolved image embeds stay as text and note embeds become links", () => {
   const bundle = obsidianSource.parse(
     tree({
-      files: [
-        { relativePath: "Note.md", content: "![[missing.png]]\n![[Other Note]]" },
-      ],
+      files: [{ relativePath: "Note.md", content: "![[missing.png]]\n![[Other Note]]" }],
     }),
   );
   assert.equal(bundle.notes[0].markdown, "![[missing.png]]\n[[Other Note]]");

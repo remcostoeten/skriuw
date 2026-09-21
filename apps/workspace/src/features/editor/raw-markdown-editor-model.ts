@@ -95,7 +95,11 @@ export function buildRowLayout(counts: readonly number[]): RawMarkdownRowLayout 
 }
 
 /** The document-wide row number of a row inside a source line, clamped into that line. */
-export function rowNumberAt(layout: RawMarkdownRowLayout, lineIndex: number, rowIndex: number): number {
+export function rowNumberAt(
+  layout: RawMarkdownRowLayout,
+  lineIndex: number,
+  rowIndex: number,
+): number {
   const start = layout.starts[lineIndex] ?? layout.total;
   const count = layout.counts[lineIndex] ?? 1;
   return start + Math.min(Math.max(rowIndex, 0), count - 1);

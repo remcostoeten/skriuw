@@ -40,7 +40,9 @@ export function App({ projection, store }: Props) {
             <span className="brand-mark">SK</span>
             <div>
               <strong>Skriuw selector laboratory</strong>
-              <span>React renderer isolation / {__PROFILE_BUILD__ ? "profiling" : "production"}</span>
+              <span>
+                React renderer isolation / {__PROFILE_BUILD__ ? "profiling" : "production"}
+              </span>
             </div>
           </div>
           <div className="fixture-controls">
@@ -95,7 +97,10 @@ export function App({ projection, store }: Props) {
               <span className="ledger-key">P95 &lt; 8 ms / max &lt; 16.67 ms</span>
             </div>
           </header>
-          <pre ref={resultRef}>Run the benchmark to inspect raw timings, notifications, commits, and render invocations.</pre>
+          <pre ref={resultRef}>
+            Run the benchmark to inspect raw timings, notifications, commits, and render
+            invocations.
+          </pre>
         </section>
       </main>
     </Profiler>

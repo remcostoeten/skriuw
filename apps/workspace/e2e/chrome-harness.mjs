@@ -11,10 +11,14 @@ const CHROME_BINARY = process.env.CHROME_BINARY ?? "google-chrome-stable";
 const CHROME_EXTRA_ARGS = (process.env.CHROME_EXTRA_ARGS ?? "").split(" ").filter(Boolean);
 
 export function startViteServer(appDirectory, port, extraArguments = []) {
-  return spawn("bun", ["x", "vite", "--host", "127.0.0.1", "--port", String(port), ...extraArguments], {
-    cwd: appDirectory,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  return spawn(
+    "bun",
+    ["x", "vite", "--host", "127.0.0.1", "--port", String(port), ...extraArguments],
+    {
+      cwd: appDirectory,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
 }
 
 export async function waitForServer(child, baseUrl) {

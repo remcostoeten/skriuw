@@ -18,8 +18,14 @@ test("every pinned row is a target of at least 44 × 44 pt", () => {
   assert.equal(rows.length, 2);
   for (const row of rows) {
     const style = flattenStyle(row.props.style);
-    assert.ok(Number(style.height) >= MINIMUM_TOUCH_TARGET, `${String(row.props.accessibilityLabel)} height`);
-    assert.ok(Number(style.minWidth) >= MINIMUM_TOUCH_TARGET, `${String(row.props.accessibilityLabel)} width`);
+    assert.ok(
+      Number(style.height) >= MINIMUM_TOUCH_TARGET,
+      `${String(row.props.accessibilityLabel)} height`,
+    );
+    assert.ok(
+      Number(style.minWidth) >= MINIMUM_TOUCH_TARGET,
+      `${String(row.props.accessibilityLabel)} width`,
+    );
   }
 });
 

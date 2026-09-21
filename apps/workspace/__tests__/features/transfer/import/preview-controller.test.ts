@@ -6,9 +6,8 @@ import {
 } from "../../../../src/features/transfer/import/preview-controller";
 
 test("preview controller returns selected provider and unregisters cleanly", async () => {
-  let choose: Parameters<
-    Parameters<typeof registerImportPreviewListener>[0]
-  >[0]["resolve"] | null = null;
+  let choose: Parameters<Parameters<typeof registerImportPreviewListener>[0]>[0]["resolve"] | null =
+    null;
   const unregister = registerImportPreviewListener((request) => {
     assert.equal(request.detectedSourceId, "notion");
     choose = request.resolve;

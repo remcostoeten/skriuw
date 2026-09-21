@@ -82,8 +82,7 @@ export default function LocalFirstNotesPage() {
           "@type": "WebPage",
           name: "Private, local-first notes",
           url: "https://skriuw.com/local-first-notes/",
-          description:
-            "How Skriuw stores, protects, and optionally syncs a local-first workspace.",
+          description: "How Skriuw stores, protects, and optionally syncs a local-first workspace.",
           isPartOf: { "@id": "https://skriuw.com/#website" },
           about: { "@type": "SoftwareApplication", name: "Skriuw" },
         }}
@@ -144,11 +143,7 @@ export default function LocalFirstNotesPage() {
         />
       </PageSection>
 
-      <PageSection
-        label="Durability"
-        lead="Local should not mean"
-        trail="trapped in one database."
-      >
+      <PageSection label="Durability" lead="Local should not mean" trail="trapped in one database.">
         <TermGrid terms={durability} />
       </PageSection>
 

@@ -1,13 +1,8 @@
-'use client';
+"use client";
 
-import { motion, type Variants } from 'motion/react';
+import { motion, type Variants } from "motion/react";
 
-import {
-  getVariants,
-  useAnimateIconContext,
-  IconWrapper,
-  type IconProps,
-} from './icon';
+import { getVariants, useAnimateIconContext, IconWrapper, type IconProps } from "./icon";
 
 type UsersProps = IconProps<keyof typeof animations>;
 
@@ -21,7 +16,7 @@ const animations = {
         y: [0, 2, -2, 0],
         transition: {
           duration: 0.6,
-          ease: 'easeInOut',
+          ease: "easeInOut",
           delay: 0.1,
         },
       },
@@ -34,7 +29,7 @@ const animations = {
         y: [0, 4, -2, 0],
         transition: {
           duration: 0.6,
-          ease: 'easeInOut',
+          ease: "easeInOut",
         },
       },
     },
@@ -46,7 +41,7 @@ const animations = {
         y: [0, 2, -2, 0],
         transition: {
           duration: 0.6,
-          ease: 'easeInOut',
+          ease: "easeInOut",
         },
       },
     },
@@ -58,7 +53,7 @@ const animations = {
         y: [0, 4, -2, 0],
         transition: {
           duration: 0.6,
-          ease: 'easeInOut',
+          ease: "easeInOut",
           delay: 0.1,
         },
       },
@@ -75,7 +70,7 @@ const animations = {
         x: 0,
         opacity: 1,
         transition: {
-          type: 'spring',
+          type: "spring",
           stiffness: 100,
           damping: 10,
         },
@@ -90,7 +85,7 @@ const animations = {
         x: 0,
         opacity: 1,
         transition: {
-          type: 'spring',
+          type: "spring",
           stiffness: 100,
           damping: 10,
         },

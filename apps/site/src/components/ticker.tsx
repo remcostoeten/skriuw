@@ -20,9 +20,7 @@ export function Ticker() {
   return (
     <section className="relative border-b border-border bg-surface">
       <Container className="flex h-[90px] items-center gap-8 overflow-hidden">
-        <span className="shrink-0 text-[16px] font-medium text-ink-900">
-          What it is held to
-        </span>
+        <span className="shrink-0 text-[16px] font-medium text-ink-900">What it is held to</span>
         <div className="ticker-track relative min-w-0 flex-1 overflow-hidden">
           <div className="flex w-max animate-ticker items-center">
             <TickerRun />

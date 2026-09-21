@@ -123,7 +123,10 @@ test("snapshot hydration indexes ordered properties per note and ordered templat
     state.propertiesByNoteId.get("note_1")?.map(({ id }) => id),
     ["summary", "status"],
   );
-  assert.deepEqual(state.propertyTemplates.map(({ id }) => id), ["basic"]);
+  assert.deepEqual(
+    state.propertyTemplates.map(({ id }) => id),
+    ["basic"],
+  );
 });
 
 test("property operations replace only the owning note projection", () => {
@@ -155,10 +158,13 @@ test("property operations replace only the owning note projection", () => {
     },
   ]);
   assert.deepEqual(
-    store.getState().propertiesByNoteId.get("note_1")?.map(({ id, position }) => ({
-      id,
-      position,
-    })),
+    store
+      .getState()
+      .propertiesByNoteId.get("note_1")
+      ?.map(({ id, position }) => ({
+        id,
+        position,
+      })),
     [
       { id: "status", position: 0 },
       { id: "summary", position: 1 },
@@ -169,7 +175,10 @@ test("property operations replace only the owning note projection", () => {
     { type: "remove_note_property", noteId: "note_1", propertyId: "status", at: 12 },
   ]);
   assert.deepEqual(
-    store.getState().propertiesByNoteId.get("note_1")?.map(({ id }) => id),
+    store
+      .getState()
+      .propertiesByNoteId.get("note_1")
+      ?.map(({ id }) => id),
     ["summary"],
   );
 });
@@ -209,7 +218,10 @@ test("template operations preserve property projections and ordered identities",
 
   store.applyOperations([{ type: "set_note_property_template", template: extra }]);
   assert.equal(store.getState().propertiesByNoteId, propertiesBefore);
-  assert.deepEqual(store.getState().propertyTemplates.map(({ id }) => id), ["basic", "empty"]);
+  assert.deepEqual(
+    store.getState().propertyTemplates.map(({ id }) => id),
+    ["basic", "empty"],
+  );
 
   store.applyOperations([
     {
@@ -226,7 +238,10 @@ test("template operations preserve property projections and ordered identities",
   );
 
   store.applyOperations([{ type: "delete_note_property_template", templateId: "basic" }]);
-  assert.deepEqual(store.getState().propertyTemplates.map(({ id }) => id), ["empty"]);
+  assert.deepEqual(
+    store.getState().propertyTemplates.map(({ id }) => id),
+    ["empty"],
+  );
 });
 
 test("soft trash preserves properties while permanent purge removes descendant properties", () => {
@@ -235,9 +250,7 @@ test("soft trash preserves properties while permanent purge removes descendant p
   store.applyOperations([{ type: "trash_subtree", rootId: "folder_1", at: 20 }]);
   assert.equal(store.getState().propertiesByNoteId.has("note_1"), true);
 
-  store.applyOperations([
-    { type: "purge_subtree", rootId: "folder_1", trashedBefore: 21 },
-  ]);
+  store.applyOperations([{ type: "purge_subtree", rootId: "folder_1", trashedBefore: 21 }]);
   assert.equal(store.getState().propertiesByNoteId.has("note_1"), false);
   assert.equal(store.getState().propertiesByNoteId.has("note_2"), true);
 });

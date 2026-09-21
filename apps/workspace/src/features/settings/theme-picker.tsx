@@ -2,12 +2,7 @@ import { useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { CheckIcon, ChevronDownIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
-import {
-  THEME_ENTRIES,
-  activeThemeIndex,
-  isVariantActive,
-  type ThemeEntry,
-} from "./themes";
+import { THEME_ENTRIES, activeThemeIndex, isVariantActive, type ThemeEntry } from "./themes";
 
 const ARROW_KEYS = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
 
@@ -26,16 +21,13 @@ export function ThemePicker({ value, onSelect }: Props) {
     event.preventDefault();
     const index = activeThemeIndex(value);
     const delta = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
-    const next =
-      THEME_ENTRIES[(index + delta + THEME_ENTRIES.length) % THEME_ENTRIES.length];
+    const next = THEME_ENTRIES[(index + delta + THEME_ENTRIES.length) % THEME_ENTRIES.length];
     if (!next) {
       return;
     }
     setExpandedGroup(null);
     onSelect(next.id);
-    event.currentTarget
-      .querySelector<HTMLElement>(`[data-theme-id="${next.id}"]`)
-      ?.focus();
+    event.currentTarget.querySelector<HTMLElement>(`[data-theme-id="${next.id}"]`)?.focus();
   }
 
   return (
@@ -52,9 +44,7 @@ export function ThemePicker({ value, onSelect }: Props) {
             entry={entry}
             value={value}
             expanded={expandedGroup === entry.id}
-            onToggle={() =>
-              setExpandedGroup((current) => (current === entry.id ? null : entry.id))
-            }
+            onToggle={() => setExpandedGroup((current) => (current === entry.id ? null : entry.id))}
             onSelect={onSelect}
           />
         ) : (
@@ -155,10 +145,7 @@ function ThemeGroupCard({ entry, value, expanded, onToggle, onSelect }: GroupCar
           ) : (
             <ChevronDownIcon
               size={14}
-              className={cn(
-                "text-muted-foreground transition-transform",
-                expanded && "rotate-180",
-              )}
+              className={cn("text-muted-foreground transition-transform", expanded && "rotate-180")}
             />
           )}
         </div>

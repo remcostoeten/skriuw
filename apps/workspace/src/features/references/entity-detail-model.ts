@@ -87,11 +87,7 @@ type BlockText = {
   matchLength: number;
 };
 
-function renderBlock(
-  children: readonly JsonNode[],
-  kind: EntityKind,
-  id: string,
-): BlockText {
+function renderBlock(children: readonly JsonNode[], kind: EntityKind, id: string): BlockText {
   let text = "";
   let matchAt: number | null = null;
   let matchLength = 0;
@@ -224,8 +220,7 @@ function projectRelated(
     }
   }
   related.sort(
-    (left, right) =>
-      right.sharedNotes - left.sharedNotes || left.name.localeCompare(right.name),
+    (left, right) => right.sharedNotes - left.sharedNotes || left.name.localeCompare(right.name),
   );
   return related.slice(0, RELATED_LIMIT);
 }

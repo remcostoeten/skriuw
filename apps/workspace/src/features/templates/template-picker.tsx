@@ -1,8 +1,5 @@
 import { flushPendingWork } from "@/shell/pending-work";
-import {
-  personalTemplates,
-  removePersonalTemplate,
-} from "./personal-templates";
+import { personalTemplates, removePersonalTemplate } from "./personal-templates";
 import { showToast } from "@/shared/ui/toast";
 import { useEffect, useId, useMemo, useState } from "react";
 import { createNoteFromTemplate } from "@/store/actions/workspace";
@@ -16,10 +13,7 @@ import {
   templatePropertyTemplate,
   type NoteTemplate,
 } from "./note-templates";
-import {
-  registerTemplatePicker,
-  type TemplatePickerRequest,
-} from "./template-picker-controller";
+import { registerTemplatePicker, type TemplatePickerRequest } from "./template-picker-controller";
 
 type HostProps = {
   store: RendererStore;
@@ -35,15 +29,10 @@ async function createPickedTemplate(
     const current = personalTemplates(store.getState()).find(
       (entry) => entry.sourceNoteId === template.sourceNoteId,
     );
-    if (!current)
-      throw new Error("The template source is no longer available.");
+    if (!current) throw new Error("The template source is no longer available.");
     template = current;
   }
-  await createNoteFromTemplate(
-    store,
-    template,
-    parentId ?? template.defaultParentId ?? null,
-  );
+  await createNoteFromTemplate(store, template, parentId ?? template.defaultParentId ?? null);
 }
 
 /**
@@ -63,8 +52,8 @@ export function TemplatePickerHost({ store }: HostProps) {
       onClose={() => setRequest(null)}
       onPick={(template) => {
         setRequest(null);
-        void createPickedTemplate(store, template, request.parentId).catch(
-          (error: unknown) => showToast({ message: String(error) }),
+        void createPickedTemplate(store, template, request.parentId).catch((error: unknown) =>
+          showToast({ message: String(error) }),
         );
       }}
     />
@@ -106,9 +95,7 @@ type BodyProps = {
 };
 
 function TemplatePickerBody({ store, onPick }: BodyProps) {
-  const [personal, setPersonal] = useState(() =>
-    personalTemplates(store.getState()),
-  );
+  const [personal, setPersonal] = useState(() => personalTemplates(store.getState()));
   const [query, setQuery] = useState("");
   const listboxId = useId();
   const closeDialog = useDialogClose();
@@ -118,16 +105,15 @@ function TemplatePickerBody({ store, onPick }: BodyProps) {
     [personal, query],
   );
 
-  const { activeIndex, listRef, onKeyDown, setActiveIndex } =
-    useListboxNavigation({
-      count: templates.length,
-      onSelect: (index) => {
-        const template = templates[index];
-        if (template) {
-          pick(template);
-        }
-      },
-    });
+  const { activeIndex, listRef, onKeyDown, setActiveIndex } = useListboxNavigation({
+    count: templates.length,
+    onSelect: (index) => {
+      const template = templates[index];
+      if (template) {
+        pick(template);
+      }
+    },
+  });
   const activeTemplate = templates[activeIndex];
 
   function pick(template: NoteTemplate): void {
@@ -153,9 +139,7 @@ function TemplatePickerBody({ store, onPick }: BodyProps) {
           aria-expanded="true"
           aria-controls={listboxId}
           aria-autocomplete="list"
-          aria-activedescendant={
-            activeTemplate ? `${listboxId}-item-${activeIndex}` : undefined
-          }
+          aria-activedescendant={activeTemplate ? `${listboxId}-item-${activeIndex}` : undefined}
         />
         <kbd className="flex-none rounded border border-border bg-muted px-[5px] py-px font-mono text-[10px] text-muted-foreground">
           Esc
@@ -222,9 +206,7 @@ function TemplatePickerBody({ store, onPick }: BodyProps) {
                   setPersonal(personalTemplates(store.getState()));
                   setActiveIndex(0);
                 })
-                .catch((error: unknown) =>
-                  showToast({ message: String(error) }),
-                );
+                .catch((error: unknown) => showToast({ message: String(error) }));
             }}
           >
             Remove template

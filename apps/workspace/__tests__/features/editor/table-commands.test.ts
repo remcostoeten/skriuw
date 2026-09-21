@@ -65,7 +65,9 @@ test("table commands expose stable menu labels", () => {
 test("table commands only report available inside a table", () => {
   const outside = EditorState.create({
     schema: productSchema,
-    doc: productSchema.node("doc", null, [productSchema.node("paragraph", null, productSchema.text("outside"))]),
+    doc: productSchema.node("doc", null, [
+      productSchema.node("paragraph", null, productSchema.text("outside")),
+    ]),
   });
   const inside = stateInCell(1, 0);
 
@@ -135,9 +137,11 @@ test("toggling a row header changes its cells between body and header cells", ()
   row.forEach((cell) => assert.equal(cell.type.name, "table_header"));
 
   const withoutHeader = apply(withHeader, toggleHeaderRow);
-  firstTable(withoutHeader.doc).child(1).forEach((cell) => {
-    assert.equal(cell.type.name, "table_cell");
-  });
+  firstTable(withoutHeader.doc)
+    .child(1)
+    .forEach((cell) => {
+      assert.equal(cell.type.name, "table_cell");
+    });
 });
 
 test("delete table removes the selected table and leaves a valid document", () => {

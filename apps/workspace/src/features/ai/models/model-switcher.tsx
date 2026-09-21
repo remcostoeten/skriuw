@@ -14,11 +14,7 @@ import {
   type AiModelOption,
   type AiProviderGroup,
 } from "./model-options";
-import {
-  parseAiModelSelection,
-  sameAiModel,
-  selectRawAiModelSetting,
-} from "./model-selection";
+import { parseAiModelSelection, sameAiModel, selectRawAiModelSetting } from "./model-selection";
 import { registerModelSwitcher } from "./model-switcher-controller";
 
 type HostProps = {
@@ -74,13 +70,8 @@ type SwitcherRow = {
   option: AiModelOption;
 };
 
-function switcherRows(
-  groups: readonly AiProviderGroup[],
-  query: string,
-): SwitcherRow[] {
-  const rows = groups.flatMap((group) =>
-    group.options.map((option) => ({ group, option })),
-  );
+function switcherRows(groups: readonly AiProviderGroup[], query: string): SwitcherRow[] {
+  const rows = groups.flatMap((group) => group.options.map((option) => ({ group, option })));
   const needle = query.trim().toLowerCase();
   if (needle.length === 0) {
     return rows;
@@ -131,10 +122,7 @@ function ModelSwitcherBody({ store, openAiSettings }: BodyProps) {
     };
   }, []);
 
-  const groups = useMemo(
-    () => (inventory === null ? [] : aiModelGroups(inventory)),
-    [inventory],
-  );
+  const groups = useMemo(() => (inventory === null ? [] : aiModelGroups(inventory)), [inventory]);
   const rows = useMemo(() => switcherRows(groups, query), [groups, query]);
 
   const { activeIndex, listRef, onKeyDown, setActiveIndex } = useListboxNavigation({
@@ -186,9 +174,7 @@ function ModelSwitcherBody({ store, openAiSettings }: BodyProps) {
           aria-expanded="true"
           aria-controls={listboxId}
           aria-autocomplete="list"
-          aria-activedescendant={
-            activeRow ? `${listboxId}-item-${activeIndex}` : undefined
-          }
+          aria-activedescendant={activeRow ? `${listboxId}-item-${activeIndex}` : undefined}
         />
         <kbd className="flex-none rounded border border-border bg-muted px-[5px] py-px font-mono text-[10px] text-muted-foreground">
           Esc
@@ -203,10 +189,7 @@ function ModelSwitcherBody({ store, openAiSettings }: BodyProps) {
         className="min-h-0 flex-auto overflow-y-auto p-1.5"
       >
         {!loaded ? (
-          <div
-            role="status"
-            className="px-4 py-10 text-center text-[13px] text-muted-foreground"
-          >
+          <div role="status" className="px-4 py-10 text-center text-[13px] text-muted-foreground">
             {loadError ?? "Checking providers…"}
           </div>
         ) : rows.length === 0 ? (

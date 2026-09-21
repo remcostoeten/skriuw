@@ -182,11 +182,13 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
         return null;
       }),
     ]);
-    store = createRendererStore(createInitialState(snapshot, expandedFolderIds ?? [], {
-      tags: snapshot.tags,
-      people: snapshot.people,
-      references: snapshot.references,
-    }));
+    store = createRendererStore(
+      createInitialState(snapshot, expandedFolderIds ?? [], {
+        tags: snapshot.tags,
+        people: snapshot.people,
+        references: snapshot.references,
+      }),
+    );
     const restoredLayout = parsePaneLayout(paneLayoutJson);
     if (restoredLayout) {
       store.update((current) => restoreSession(current, restoredLayout, snapshot.activeNoteId));
@@ -220,16 +222,12 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
             },
           },
         );
-    const expansionPersistence = bindSidebarExpansionPersistence(
-      store,
-      saveSidebarExpansion,
-      { onError: (error) => console.error("sidebar expansion persistence failed", error) },
-    );
-    const paneLayoutPersistence = bindPaneLayoutPersistence(
-      store,
-      savePaneLayout,
-      { onError: (error) => console.error("pane layout persistence failed", error) },
-    );
+    const expansionPersistence = bindSidebarExpansionPersistence(store, saveSidebarExpansion, {
+      onError: (error) => console.error("sidebar expansion persistence failed", error),
+    });
+    const paneLayoutPersistence = bindPaneLayoutPersistence(store, savePaneLayout, {
+      onError: (error) => console.error("pane layout persistence failed", error),
+    });
     const unregisterExpansionFlush = registerPendingWork(expansionPersistence.flush, {
       bestEffort: true,
     });
@@ -239,12 +237,11 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
     function disposeUiPersistence(): void {
       unregisterExpansionFlush();
       unregisterPaneLayoutFlush();
-      void Promise.all([
-        expansionPersistence.dispose(),
-        paneLayoutPersistence.dispose(),
-      ]).catch((error) => {
-        console.error("ui persistence dispose failed", error);
-      });
+      void Promise.all([expansionPersistence.dispose(), paneLayoutPersistence.dispose()]).catch(
+        (error) => {
+          console.error("ui persistence dispose failed", error);
+        },
+      );
     }
     for (const header of pendingHeaders) {
       store.publishHistoryHeader(header);
@@ -255,11 +252,12 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
       bootstrap: bootstrapWorkspace,
       readDelta: readWorkspaceDelta,
       onError: (error) => console.error("synced workspace reconciliation failed", error),
-      onRecoveryNeeded: () => showToast({
-        message: "Synced changes could not refresh. Retry to update this view.",
-        action: { label: "Retry refresh", run: () => reconciler?.retry() },
-        durationMs: 60_000,
-      }),
+      onRecoveryNeeded: () =>
+        showToast({
+          message: "Synced changes could not refresh. Retry to update this view.",
+          action: { label: "Retry refresh", run: () => reconciler?.retry() },
+          durationMs: 60_000,
+        }),
     });
     if (changeBeforeStore) {
       reconciler.report(changeBeforeStore);

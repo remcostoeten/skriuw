@@ -72,9 +72,7 @@ export function MediaLightbox({
           </div>
           <aside className="flex w-full shrink-0 flex-col border-t border-border bg-popover lg:w-80 lg:border-t-0 lg:border-l">
             <div className="border-b border-border px-5 py-4">
-              <p className={cn("m-0", sectionLabelClass)}>
-                Media details
-              </p>
+              <p className={cn("m-0", sectionLabelClass)}>Media details</p>
               <p
                 className="mt-1.5 break-all font-mono text-xs leading-5 text-foreground"
                 title={contentHash}
@@ -93,18 +91,14 @@ export function MediaLightbox({
             <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-4 border-b border-border px-5 py-4 text-xs">
               <MediaDetail label="Format" value={mimeType} />
               <MediaDetail label="Size" value={formatByteSize(byteSize)} />
-              {dimensions && (
-                <MediaDetail label="Dimensions" value={dimensions} />
-              )}
+              {dimensions && <MediaDetail label="Dimensions" value={dimensions} />}
               {addedAt !== null && addedAt !== undefined && (
                 <MediaDetail label="Added" value={formatMediaDate(addedAt)} />
               )}
             </dl>
             <div className="min-h-0 flex-1 px-3 py-4">
               <div className="flex items-baseline justify-between px-2">
-                <h3 className="m-0 text-xs font-semibold text-foreground">
-                  Used in
-                </h3>
+                <h3 className="m-0 text-xs font-semibold text-foreground">Used in</h3>
                 <span className="text-[11px] tabular-nums text-muted-foreground">
                   {usageCount === 0
                     ? "Not used"
@@ -115,8 +109,7 @@ export function MediaLightbox({
               </div>
               {usageCount === 0 ? (
                 <p className="m-0 px-2 pt-3 text-xs leading-5 text-muted-foreground">
-                  This file is stored in the workspace but is not used in a note
-                  yet.
+                  This file is stored in the workspace but is not used in a note yet.
                 </p>
               ) : (
                 <ul className="m-0 mt-2 max-h-52 list-none space-y-1 overflow-y-auto p-0 lg:max-h-none">
@@ -171,13 +164,7 @@ function sliderTrackStyle(fraction: number): { background: string } {
   };
 }
 
-function MediaLightboxVideo({
-  src,
-  onError,
-}: {
-  src: string;
-  onError?: () => void;
-}) {
+function MediaLightboxVideo({ src, onError }: { src: string; onError?: () => void }) {
   const playerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -230,9 +217,7 @@ function MediaLightboxVideo({
     <div
       ref={playerRef}
       className={`relative block max-h-full max-w-full overflow-hidden rounded-sm bg-black shadow-2xl ${
-        isPip
-          ? "fixed right-5 bottom-5 z-[90] w-[min(360px,calc(100vw-32px))]"
-          : ""
+        isPip ? "fixed right-5 bottom-5 z-[90] w-[min(360px,calc(100vw-32px))]" : ""
       }`}
     >
       <video
@@ -263,10 +248,18 @@ function MediaLightboxVideo({
         {isPlaying ? <Pause size={19} /> : <Play size={19} fill="currentColor" />}
       </button>
       <div className="absolute right-0 bottom-0 left-0 flex min-h-12 items-center gap-2 bg-gradient-to-t from-black/90 via-black/55 to-transparent px-3 pt-5 pb-2 text-white">
-        <button type="button" className={videoControlClass} aria-label={isPlaying ? "Pause video" : "Play video"} onClick={togglePlayback}>
+        <button
+          type="button"
+          className={videoControlClass}
+          aria-label={isPlaying ? "Pause video" : "Play video"}
+          onClick={togglePlayback}
+        >
           {isPlaying ? <Pause size={16} /> : <Play size={16} fill="currentColor" />}
         </button>
-        <output className="min-w-[5.8em] text-[11px] tabular-nums text-white/80" aria-label="Playback time">
+        <output
+          className="min-w-[5.8em] text-[11px] tabular-nums text-white/80"
+          aria-label="Playback time"
+        >
           {timeLabel}
         </output>
         <input
@@ -307,7 +300,7 @@ function MediaLightboxVideo({
           onWheel={(event) => {
             event.preventDefault();
             updateVolume(
-              (videoRef.current?.muted ? 0 : videoRef.current?.volume ?? volume) +
+              (videoRef.current?.muted ? 0 : (videoRef.current?.volume ?? volume)) +
                 (event.deltaY < 0 ? 0.01 : -0.01),
             );
           }}
@@ -325,10 +318,20 @@ function MediaLightboxVideo({
         >
           <Repeat2 size={16} />
         </button>
-        <button type="button" className={videoControlClass} aria-label={isPip ? "Return video to preview" : "Keep video playing in Skriuw"} onClick={() => setIsPip((value) => !value)}>
+        <button
+          type="button"
+          className={videoControlClass}
+          aria-label={isPip ? "Return video to preview" : "Keep video playing in Skriuw"}
+          onClick={() => setIsPip((value) => !value)}
+        >
           {isPip ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
         </button>
-        <button type="button" className={videoControlClass} aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"} onClick={toggleFullscreen}>
+        <button
+          type="button"
+          className={videoControlClass}
+          aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          onClick={toggleFullscreen}
+        >
           {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
         </button>
       </div>
@@ -345,13 +348,8 @@ function formatPlaybackTime(seconds: number): string {
 function MediaDetail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className={sectionLabelClass}>
-        {label}
-      </dt>
-      <dd
-        className="mt-1 truncate text-xs font-medium text-foreground"
-        title={value}
-      >
+      <dt className={sectionLabelClass}>{label}</dt>
+      <dd className="mt-1 truncate text-xs font-medium text-foreground" title={value}>
         {value}
       </dd>
     </div>

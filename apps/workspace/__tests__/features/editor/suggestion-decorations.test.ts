@@ -63,9 +63,7 @@ function decorations(state: EditorState) {
 type Found = ReturnType<typeof decorations>[number];
 
 function rangeClass(found: readonly Found[]): string | null {
-  const painted = found.find(
-    (decoration) => typeof decoration.type.attrs?.class === "string",
-  );
+  const painted = found.find((decoration) => typeof decoration.type.attrs?.class === "string");
   return painted === undefined ? null : String(painted.type.attrs.class);
 }
 
@@ -95,10 +93,7 @@ test("an empty range shows the card without claiming any text is going away", ()
 
 test("editing the note dismisses the preview, because the result no longer fits", () => {
   let dismissed = 0;
-  const state = pushed(
-    stateWith("hello world"),
-    preview({ onDismiss: () => (dismissed += 1) }),
-  );
+  const state = pushed(stateWith("hello world"), preview({ onDismiss: () => (dismissed += 1) }));
   const edited = state.apply(state.tr.insertText("!", 1));
   assert.equal(suggestionPluginKey.getState(edited)?.preview, null);
   assert.equal(decorations(edited).length, 0);

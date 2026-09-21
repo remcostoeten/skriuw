@@ -128,9 +128,7 @@ export function createWorkflowController(store: RendererStore) {
   async function focusRow(id: string): Promise<string> {
     store.setFocusedNode(id);
     await nextPaint();
-    const row = document.querySelector<HTMLElement>(
-      `[data-row-key="${CSS.escape(id)}"]`,
-    );
+    const row = document.querySelector<HTMLElement>(`[data-row-key="${CSS.escape(id)}"]`);
     if (!row) {
       throw new Error(`workspace row not found: ${id}`);
     }
@@ -154,9 +152,7 @@ export function createWorkflowController(store: RendererStore) {
         .filter((node) => node.deletedAt !== null)
         .map((node) => node.id)
         .sort(),
-      tags: Object.fromEntries(
-        [...current.tags.values()].map((tag) => [tag.id, tag.name]),
-      ),
+      tags: Object.fromEntries([...current.tags.values()].map((tag) => [tag.id, tag.name])),
       people: Object.fromEntries(
         [...current.people.values()].map((person) => [person.id, person.name]),
       ),

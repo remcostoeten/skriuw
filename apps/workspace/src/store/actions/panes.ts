@@ -292,10 +292,7 @@ export function closePane(store: RendererStore, paneId: string): void {
     return {
       ...current,
       panes: result.panes,
-      closedTabsByPaneId: discardClosedTabs(
-        inherited,
-        promotedFrom ?? SECONDARY_PANE_ID,
-      ),
+      closedTabsByPaneId: discardClosedTabs(inherited, promotedFrom ?? SECONDARY_PANE_ID),
       focusedPaneId: PRIMARY_PANE_ID,
     };
   });
@@ -306,7 +303,9 @@ export function closePane(store: RendererStore, paneId: string): void {
 
 export function setSplitOrientation(store: RendererStore, orientation: SplitOrientation): void {
   store.update((current) =>
-    current.splitOrientation === orientation ? current : { ...current, splitOrientation: orientation },
+    current.splitOrientation === orientation
+      ? current
+      : { ...current, splitOrientation: orientation },
   );
 }
 
@@ -349,10 +348,7 @@ export function focusPaneTowards(
   fromIndex: number | null,
 ): number | null {
   const state = store.getState();
-  return focusPaneAtIndex(
-    store,
-    paneIndexInDirection(state.panes.length, fromIndex, direction),
-  );
+  return focusPaneAtIndex(store, paneIndexInDirection(state.panes.length, fromIndex, direction));
 }
 
 /** `focusPaneTowards` that wraps, so repeated presses cycle through the panes. */
@@ -367,8 +363,7 @@ export function cyclePaneFocus(
 
 export function focusPane(store: RendererStore, paneId: string): void {
   store.update((current) =>
-    current.focusedPaneId === paneId ||
-    !current.panes.some((pane) => pane.paneId === paneId)
+    current.focusedPaneId === paneId || !current.panes.some((pane) => pane.paneId === paneId)
       ? current
       : { ...current, focusedPaneId: paneId },
   );

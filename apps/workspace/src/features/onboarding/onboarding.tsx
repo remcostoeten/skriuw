@@ -45,8 +45,7 @@ export function Onboarding({
         <SkriuwLogo size={22} className="onboarding-logo" aria-hidden="true" />
         <h1 id="onboarding-title">Where your notes live</h1>
         <p id="onboarding-description">
-          Notes stay on this device. Sign in only if you want the same workspace
-          on another machine.
+          Notes stay on this device. Sign in only if you want the same workspace on another machine.
         </p>
 
         <div className="onboarding-actions">
@@ -78,8 +77,8 @@ export function Onboarding({
         ) : null}
 
         <p className="onboarding-note">
-          Sync is encrypted in transit, not end-to-end. Either way you can
-          change it later in Account &amp; sync.
+          Sync is encrypted in transit, not end-to-end. Either way you can change it later in
+          Account &amp; sync.
         </p>
       </div>
     </div>

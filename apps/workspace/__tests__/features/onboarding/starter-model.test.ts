@@ -75,8 +75,5 @@ test("reclaiming clears the note list but keeps the seed spent", () => {
 });
 
 test("a workspace that never seeded has nothing to reclaim", () => {
-  assert.deepEqual(
-    reclaimableNoteIds(DEFAULT_WORKSPACE_SETTINGS, [{ id: "a", updatedAt: 1 }]),
-    [],
-  );
+  assert.deepEqual(reclaimableNoteIds(DEFAULT_WORKSPACE_SETTINGS, [{ id: "a", updatedAt: 1 }]), []);
 });

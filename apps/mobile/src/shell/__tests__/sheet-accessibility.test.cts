@@ -15,7 +15,11 @@ test("an open sheet renders in its own modal window, so TalkBack cannot reach th
   function onClose() {}
   const [root] = renderSheet(true, onClose);
 
-  assert.equal(root?.type, "Modal", "the sheet must be the root of a Modal, not a sibling of the shell");
+  assert.equal(
+    root?.type,
+    "Modal",
+    "the sheet must be the root of a Modal, not a sibling of the shell",
+  );
   assert.equal(root.props.visible, true);
   assert.equal(root.props.transparent, true);
   assert.equal(root.props.onRequestClose, onClose, "the Android back action closes the sheet");
@@ -37,8 +41,14 @@ test("both of the sheet's close controls are at least 44 pt", () => {
     const style = flattenStyle(control.props.style);
     const fillsWindow = style.position === "absolute" && style.top === 0 && style.bottom === 0;
     if (!fillsWindow) {
-      assert.ok(Number(style.width) >= MINIMUM_TOUCH_TARGET, `${String(control.props.accessibilityLabel)} width`);
-      assert.ok(Number(style.height) >= MINIMUM_TOUCH_TARGET, `${String(control.props.accessibilityLabel)} height`);
+      assert.ok(
+        Number(style.width) >= MINIMUM_TOUCH_TARGET,
+        `${String(control.props.accessibilityLabel)} width`,
+      );
+      assert.ok(
+        Number(style.height) >= MINIMUM_TOUCH_TARGET,
+        `${String(control.props.accessibilityLabel)} height`,
+      );
     }
   }
 });

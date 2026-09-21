@@ -147,11 +147,7 @@ const ContextMenuLabel = React.forwardRef<
 >(({ className, inset, ...props }, ref) => (
   <ContextMenuPrimitive.Label
     ref={ref}
-    className={cn(
-      cn("px-2.5 py-1.5", sectionLabelClass),
-      inset && "pl-8",
-      className,
-    )}
+    className={cn(cn("px-2.5 py-1.5", sectionLabelClass), inset && "pl-8", className)}
     {...props}
   />
 ));

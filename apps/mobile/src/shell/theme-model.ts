@@ -25,10 +25,7 @@ export function themePreferenceFromSettings(theme: string): ThemePreference {
   return isThemeName(theme) ? theme : "system";
 }
 
-export function resolveThemeName(
-  preference: ThemePreference,
-  scheme: ColorScheme,
-): ThemeName {
+export function resolveThemeName(preference: ThemePreference, scheme: ColorScheme): ThemeName {
   return preference === "system" ? SYSTEM_THEMES[scheme] : preference;
 }
 

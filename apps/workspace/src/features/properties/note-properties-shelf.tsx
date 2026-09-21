@@ -54,7 +54,9 @@ export function NotePropertiesShelf({ store, selectNoteId }: Props) {
           open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
         )}
       >
-        <div className={cn("min-h-0", bodyOverflowVisible ? "overflow-visible" : "overflow-hidden")}>
+        <div
+          className={cn("min-h-0", bodyOverflowVisible ? "overflow-visible" : "overflow-hidden")}
+        >
           <NotePropertiesPanel store={store} selectNoteId={selectNoteId} />
         </div>
       </div>

@@ -43,7 +43,10 @@ test("the backend is asked for the free text and the candidate set, and its orde
   assert.deepEqual(calls[0]?.query, "ranked");
   assert.equal(calls[0]?.limit, SEARCH_RESULT_LIMIT);
   assert.deepEqual([...(calls[0]?.noteIds ?? [])].sort(), ["note-a", "note-b"]);
-  assert.deepEqual(outcome?.hits.map((entry) => entry.noteId), ["note-b", "note-a"]);
+  assert.deepEqual(
+    outcome?.hits.map((entry) => entry.noteId),
+    ["note-b", "note-a"],
+  );
   assert.equal(outcome?.status, "ready");
 });
 
@@ -60,7 +63,10 @@ test("a filter-only query never reaches the backend", async () => {
   const outcome = await runner.run("#search");
 
   assert.equal(called, 0);
-  assert.deepEqual(outcome?.hits.map((entry) => entry.noteId), ["note-b", "note-a"]);
+  assert.deepEqual(
+    outcome?.hits.map((entry) => entry.noteId),
+    ["note-b", "note-a"],
+  );
 });
 
 test("a response the field has moved past is dropped rather than shown", async () => {
@@ -83,7 +89,10 @@ test("a response the field has moved past is dropped rather than shown", async (
   slow.resolve([hit("note-a", 1)]);
 
   assert.equal(await first, null);
-  assert.deepEqual((await second)?.hits.map((entry) => entry.noteId), ["note-b"]);
+  assert.deepEqual(
+    (await second)?.hits.map((entry) => entry.noteId),
+    ["note-b"],
+  );
 });
 
 test("an unresolved filter reports its problem instead of results", async () => {

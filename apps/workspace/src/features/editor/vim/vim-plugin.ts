@@ -51,7 +51,13 @@ import {
   type CaseChange,
   type OperatorRange,
 } from "./vim-operators";
-import { describePendingKeys, parseVimKeys, type VimCommand, type VimMotion, type VimOperator } from "./vim-parser";
+import {
+  describePendingKeys,
+  parseVimKeys,
+  type VimCommand,
+  type VimMotion,
+  type VimOperator,
+} from "./vim-parser";
 import { stepDisplayRow, viewRowMeasure } from "./vim-rows";
 import {
   isClipboardRegister,
@@ -124,10 +130,28 @@ type LastChange = { keys: string[]; insertTokens: ReplayToken[] | null };
 
 export const vimPluginKey = new PluginKey<VimPluginState>("skriuw-vim");
 
-const VIM_CONTROL_KEYS = new Set(["<C-r>", "<C-d>", "<C-u>", "<C-f>", "<C-b>", "<C-a>", "<C-x>", "<Esc>"]);
+const VIM_CONTROL_KEYS = new Set([
+  "<C-r>",
+  "<C-d>",
+  "<C-u>",
+  "<C-f>",
+  "<C-b>",
+  "<C-a>",
+  "<C-x>",
+  "<Esc>",
+]);
 const ROW_DOWN_KEYS = new Set(["j", "gj", "<Down>"]);
 const ROW_UP_KEYS = new Set(["k", "gk", "<Up>"]);
-const INSERT_RECORDED_KEYS = new Set(["<CR>", "<BS>", "<Tab>", "<Del>", "<Left>", "<Right>", "<Up>", "<Down>"]);
+const INSERT_RECORDED_KEYS = new Set([
+  "<CR>",
+  "<BS>",
+  "<Tab>",
+  "<Del>",
+  "<Left>",
+  "<Right>",
+  "<Up>",
+  "<Down>",
+]);
 const DOM_KEY_NAMES: Record<string, { key: string; keyCode: number }> = {
   "<CR>": { key: "Enter", keyCode: 13 },
   "<BS>": { key: "Backspace", keyCode: 8 },
@@ -175,7 +199,9 @@ export function carryVimState(previous: EditorState, next: EditorState): EditorS
   const before = vimPluginKey.getState(previous);
   if (!before || !before.initialized) return next;
   return next.apply(
-    next.tr.setMeta(vimPluginKey, { mode: before.mode === "insert" ? "insert" : "normal" } satisfies VimMeta),
+    next.tr.setMeta(vimPluginKey, {
+      mode: before.mode === "insert" ? "insert" : "normal",
+    } satisfies VimMeta),
   );
 }
 
@@ -193,9 +219,14 @@ function pluralized(count: number, singular: string): string {
   return `${count} ${count === 1 ? singular : `${singular}s`}`;
 }
 
-function rangeUnitCount(state: EditorState, range: OperatorRange): { count: number; unit: "line" | "character" } {
+function rangeUnitCount(
+  state: EditorState,
+  range: OperatorRange,
+): { count: number; unit: "line" | "character" } {
   if (range.linewise) {
-    const count = allLines(state.doc).filter((line) => line.start >= range.from && line.end <= range.to).length;
+    const count = allLines(state.doc).filter(
+      (line) => line.start >= range.from && line.end <= range.to,
+    ).length;
     return { count: Math.max(1, count), unit: "line" };
   }
   const text = state.doc.textBetween(range.from, range.to, "\n", "\uFFFC");
@@ -223,7 +254,12 @@ function clampNormalCursor(state: EditorState): number | null {
   return null;
 }
 
-function visualSelection(doc: EditorState["doc"], anchor: number, head: number, linewise: boolean): TextSelection {
+function visualSelection(
+  doc: EditorState["doc"],
+  anchor: number,
+  head: number,
+  linewise: boolean,
+): TextSelection {
   const size = doc.content.size;
   const clampedAnchor = Math.max(0, Math.min(anchor, size));
   const clampedHead = Math.max(0, Math.min(head, size));
@@ -321,7 +357,10 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
   function dispatchCursor(view: EditorView, pos: number, change: VimMeta = {}): void {
     const clamped = Math.max(0, Math.min(pos, view.state.doc.content.size));
     view.dispatch(
-      meta(view.state.tr.setSelection(TextSelection.create(view.state.doc, clamped)), change).scrollIntoView(),
+      meta(
+        view.state.tr.setSelection(TextSelection.create(view.state.doc, clamped)),
+        change,
+      ).scrollIntoView(),
     );
   }
 
@@ -373,7 +412,11 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     const target: EditorSearchTarget = view;
     const options = buildSearchOptions(request.pattern, request.wholeWord);
     const current = getSearchState(target);
-    if (!current || current.term !== request.pattern || current.options.wholeWord !== options.wholeWord) {
+    if (
+      !current ||
+      current.term !== request.pattern ||
+      current.options.wholeWord !== options.wholeWord
+    ) {
       setSearch(target, request.pattern, options);
     }
     const state = getSearchState(target);
@@ -395,7 +438,13 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     return state.matches[index]?.from ?? null;
   }
 
-  function motionContext(view: EditorView, cursor: number, count: number | null, operatorPending: boolean, changeOperator: boolean): MotionContext {
+  function motionContext(
+    view: EditorView,
+    cursor: number,
+    count: number | null,
+    operatorPending: boolean,
+    changeOperator: boolean,
+  ): MotionContext {
     const container = host.scrollContainer(view);
     const pageLines = container ? Math.max(5, Math.floor(container.clientHeight / 28)) : 20;
     return {
@@ -426,13 +475,28 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
   }
 
   /** `j`/`k` over the rows the view wrapped; null hands over to logical line stepping. */
-  function displayRowTarget(view: EditorView, cursor: number, motion: VimMotion, count: number | null): number | null {
+  function displayRowTarget(
+    view: EditorView,
+    cursor: number,
+    motion: VimMotion,
+    count: number | null,
+  ): number | null {
     if (motion.kind !== "simple") return null;
     const down = ROW_DOWN_KEYS.has(motion.key);
     if (!down && !ROW_UP_KEYS.has(motion.key)) return null;
     if (typeof view.coordsAtPos !== "function") return null;
-    const goalX = session.desiredColumn === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : session.desiredX;
-    const stepped = stepDisplayRow(view.state.doc, viewRowMeasure(view), cursor, down ? 1 : -1, count ?? 1, goalX);
+    const goalX =
+      session.desiredColumn === Number.POSITIVE_INFINITY
+        ? Number.POSITIVE_INFINITY
+        : session.desiredX;
+    const stepped = stepDisplayRow(
+      view.state.doc,
+      viewRowMeasure(view),
+      cursor,
+      down ? 1 : -1,
+      count ?? 1,
+      goalX,
+    );
     if (!stepped) return null;
     session.desiredX = stepped.x;
     return stepped.pos;
@@ -463,7 +527,10 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     }
     if (!lineAt(view.state.doc, cursor)) {
       const $cursor = view.state.doc.resolve(cursor);
-      const nearest = TextSelection.near($cursor, motion.kind === "simple" && (motion.key === "k" || motion.key === "<Up>") ? -1 : 1);
+      const nearest = TextSelection.near(
+        $cursor,
+        motion.kind === "simple" && (motion.key === "k" || motion.key === "<Up>") ? -1 : 1,
+      );
       if (nearest.head !== cursor) dispatchCursor(view, nearest.head);
       return;
     }
@@ -484,7 +551,11 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
       if (!inVisual) host.windowStep(target.edge === "end" ? 1 : -1);
       return;
     }
-    if (motion.kind === "simple" && (motion.key === "G" || motion.key === "gg") && host.documentEdge(target.edge ?? "end")) {
+    if (
+      motion.kind === "simple" &&
+      (motion.key === "G" || motion.key === "gg") &&
+      host.documentEdge(target.edge ?? "end")
+    ) {
       moveToFirstNonBlank(view, {});
       return;
     }
@@ -495,7 +566,11 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     dispatchCursor(view, target.pos);
   }
 
-  function operatorRange(view: EditorView, command: Extract<VimCommand, { type: "operator" }>, count: number | null): OperatorRange | null {
+  function operatorRange(
+    view: EditorView,
+    command: Extract<VimCommand, { type: "operator" }>,
+    count: number | null,
+  ): OperatorRange | null {
     const cursor = view.state.selection.head;
     if (command.motion === null) {
       const line = lineAt(view.state.doc, cursor);
@@ -506,7 +581,11 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     if (command.motion.kind === "textobject") {
       return resolveTextObject(view.state.doc, cursor, command.motion, count);
     }
-    if (command.motion.kind === "simple" && (command.motion.key === "G" || command.motion.key === "gg") && count !== null) {
+    if (
+      command.motion.kind === "simple" &&
+      (command.motion.key === "G" || command.motion.key === "gg") &&
+      count !== null
+    ) {
       return null;
     }
     const target = resolveMotion(
@@ -516,13 +595,18 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     if (!target || (target.edge && target.pos === cursor)) return null;
     rememberMotion(target);
     if (target.linewise) {
-      return { from: Math.min(cursor, target.pos), to: Math.max(cursor, target.pos), linewise: true };
+      return {
+        from: Math.min(cursor, target.pos),
+        to: Math.max(cursor, target.pos),
+        linewise: true,
+      };
     }
     const from = Math.min(cursor, target.pos);
     let to = Math.max(cursor, target.pos);
     if (target.inclusive) {
       const line = lineAt(view.state.doc, to);
-      if (line && hasCharacterAt(line, lineOffset(line, to))) to = positionAt(line, lineOffset(line, to) + 1);
+      if (line && hasCharacterAt(line, lineOffset(line, to)))
+        to = positionAt(line, lineOffset(line, to) + 1);
     }
     if (from === to) return null;
     return { from, to, linewise: false };
@@ -539,11 +623,22 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     const { state } = view;
     const clipboard = host.clipboard;
     function finish(tr: Transaction, cursor: number, nextMode: VimMode = "normal") {
-      view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, Math.max(0, Math.min(cursor, tr.doc.content.size)))), { mode: nextMode }).scrollIntoView());
+      view.dispatch(
+        meta(
+          tr.setSelection(
+            TextSelection.create(tr.doc, Math.max(0, Math.min(cursor, tr.doc.content.size))),
+          ),
+          { mode: nextMode },
+        ).scrollIntoView(),
+      );
     }
     if (fromVisual) {
       const vim = pluginState(state);
-      session.lastVisual = { anchor: vim.visualAnchor, head: vim.visualHead, linewise: range.linewise };
+      session.lastVisual = {
+        anchor: vim.visualAnchor,
+        head: vim.visualHead,
+        linewise: range.linewise,
+      };
     }
     switch (operator) {
       case "y": {
@@ -565,7 +660,9 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         yankRange(state.doc, range, register, { yank: false, clipboard });
         announce(operatorFeedback(state, range, "changed"));
         const tr = state.tr;
-        const cursor = range.linewise ? clearLinesForChange(tr, range) : (tr.delete(range.from, range.to), range.from);
+        const cursor = range.linewise
+          ? clearLinesForChange(tr, range)
+          : (tr.delete(range.from, range.to), range.from);
         view.dispatch(meta(tr, { mode: "insert" }));
         enterInsert(view, cursor, keys);
         return;
@@ -576,10 +673,21 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         const checkItem = productSchema.nodes.check_item;
         const toggleItem = productSchema.nodes.toggle_item;
         if (!listItem || !checkItem || !toggleItem) return;
-        const command = operator === ">"
-          ? chainCommands(sinkListItem(checkItem), sinkListItem(toggleItem), sinkListItem(listItem))
-          : chainCommands(liftListItem(checkItem), liftListItem(toggleItem), liftListItem(listItem));
-        const selected = state.apply(state.tr.setSelection(TextSelection.create(state.doc, range.from, range.to)));
+        const command =
+          operator === ">"
+            ? chainCommands(
+                sinkListItem(checkItem),
+                sinkListItem(toggleItem),
+                sinkListItem(listItem),
+              )
+            : chainCommands(
+                liftListItem(checkItem),
+                liftListItem(toggleItem),
+                liftListItem(listItem),
+              );
+        const selected = state.apply(
+          state.tr.setSelection(TextSelection.create(state.doc, range.from, range.to)),
+        );
         let result: Transaction | null = null;
         const ran = command(selected, (tr) => {
           result = tr;
@@ -600,7 +708,8 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
       case "g~":
       case "gu":
       case "gU": {
-        const change: CaseChange = operator === "g~" ? "toggle" : operator === "gu" ? "lower" : "upper";
+        const change: CaseChange =
+          operator === "g~" ? "toggle" : operator === "gu" ? "lower" : "upper";
         const tr = state.tr;
         const cursor = changeCase(tr, range, change);
         recordChange(keys);
@@ -620,7 +729,10 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     const head = Math.max(vim.visualAnchor, vim.visualHead);
     if (linewise) return { from, to: head, linewise: true };
     const line = lineAt(view.state.doc, head);
-    const to = line && hasCharacterAt(line, lineOffset(line, head)) ? positionAt(line, lineOffset(line, head) + 1) : head;
+    const to =
+      line && hasCharacterAt(line, lineOffset(line, head))
+        ? positionAt(line, lineOffset(line, head) + 1)
+        : head;
     return { from, to, linewise: false };
   }
 
@@ -631,7 +743,14 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     return { from: line.start, to: stepped.line.end, linewise: true };
   }
 
-  function put(view: EditorView, register: string | null, after: boolean, count: number, keys: readonly string[], cursorAfter: boolean): void {
+  function put(
+    view: EditorView,
+    register: string | null,
+    after: boolean,
+    count: number,
+    keys: readonly string[],
+    cursorAfter: boolean,
+  ): void {
     function apply(content: ReturnType<typeof readRegister>) {
       if (!content) return;
       const tr = view.state.tr;
@@ -643,7 +762,11 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         : Math.max(1, Array.from(content.text).length);
       announce(`${pluralized(contentCount * count, unit)} put`);
       const finalCursor = cursorAfter ? Math.min(cursor + 1, tr.doc.content.size) : cursor;
-      view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, finalCursor)), { mode: "normal" }).scrollIntoView());
+      view.dispatch(
+        meta(tr.setSelection(TextSelection.create(tr.doc, finalCursor)), {
+          mode: "normal",
+        }).scrollIntoView(),
+      );
     }
     if (isClipboardRegister(register)) {
       void host.clipboard.read().then((text) => {
@@ -661,7 +784,8 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     for (let index = start; index < plugins.length; index += 1) {
       const candidate = plugins[index];
       const handler = candidate?.props.handleKeyDown;
-      if (candidate && handler && handler.call(candidate, view, event as KeyboardEvent)) return true;
+      if (candidate && handler && handler.call(candidate, view, event as KeyboardEvent))
+        return true;
     }
     return false;
   }
@@ -773,7 +897,12 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     }
   }
 
-  function runNormalAction(view: EditorView, command: Extract<VimCommand, { type: "action" }>, count: number | null, keys: readonly string[]): void {
+  function runNormalAction(
+    view: EditorView,
+    command: Extract<VimCommand, { type: "action" }>,
+    count: number | null,
+    keys: readonly string[],
+  ): void {
     const { state } = view;
     const cursor = state.selection.head;
     const line = lineAt(state.doc, cursor);
@@ -784,7 +913,11 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         enterInsert(view, cursor, keys);
         return;
       case "a":
-        enterInsert(view, line && hasCharacterAt(line, column) ? positionAt(line, column + 1) : cursor, keys);
+        enterInsert(
+          view,
+          line && hasCharacterAt(line, column) ? positionAt(line, column + 1) : cursor,
+          keys,
+        );
         return;
       case "I":
         enterInsert(view, line ? positionAt(line, firstNonBlank(line.text)) : cursor, keys);
@@ -810,7 +943,14 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         const from = backward ? positionAt(line, Math.max(0, column - n)) : cursor;
         const to = backward ? cursor : positionAt(line, Math.min(line.text.length, column + n));
         if (from === to) return;
-        applyOperator(view, command.action === "s" ? "c" : "d", { from, to, linewise: false }, command.register, keys, false);
+        applyOperator(
+          view,
+          command.action === "s" ? "c" : "d",
+          { from, to, linewise: false },
+          command.register,
+          keys,
+          false,
+        );
         return;
       }
       case "S": {
@@ -823,7 +963,14 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         if (!line) return;
         const stepped = lineStep(state.doc, line, 1, n - 1).line;
         const range = { from: cursor, to: stepped.end, linewise: false };
-        applyOperator(view, command.action === "D" ? "d" : "c", range, command.register, keys, false);
+        applyOperator(
+          view,
+          command.action === "D" ? "d" : "c",
+          range,
+          command.register,
+          keys,
+          false,
+        );
         return;
       }
       case "Y": {
@@ -835,7 +982,14 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
       case "P":
       case "gp":
       case "gP":
-        put(view, command.register, command.action.endsWith("p"), n, keys, command.action.startsWith("g"));
+        put(
+          view,
+          command.register,
+          command.action.endsWith("p"),
+          n,
+          keys,
+          command.action.startsWith("g"),
+        );
         return;
       case "J":
       case "gJ": {
@@ -843,7 +997,11 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         const joinPoint = joinLines(tr, cursor, n, command.action === "J");
         recordChange(keys);
         announce(`${pluralized(n, "line")} joined`);
-        view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, joinPoint)), { mode: "normal" }).scrollIntoView());
+        view.dispatch(
+          meta(tr.setSelection(TextSelection.create(tr.doc, joinPoint)), {
+            mode: "normal",
+          }).scrollIntoView(),
+        );
         return;
       }
       case "u":
@@ -864,7 +1022,11 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         }
         if (!contiguousText(line, column, column + n)) return;
         const tr = state.tr;
-        const end = replaceCharacters(tr, { from: cursor, to: positionAt(line, column + n), linewise: false }, command.character);
+        const end = replaceCharacters(
+          tr,
+          { from: cursor, to: positionAt(line, column + n), linewise: false },
+          command.character,
+        );
         recordChange(keys);
         announce(`${pluralized(n, "character")} replaced`);
         view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, end)), { mode: "normal" }));
@@ -878,7 +1040,11 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         recordChange(keys);
         announce(`${pluralized(Math.max(1, lineOffset(line, to) - column), "character")} changed`);
         const next = Math.min(lineOffset(line, to), lastCursorIndex(line));
-        view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, positionAt(line, next))), { mode: "normal" }));
+        view.dispatch(
+          meta(tr.setSelection(TextSelection.create(tr.doc, positionAt(line, next))), {
+            mode: "normal",
+          }),
+        );
         return;
       }
       case ".":
@@ -946,7 +1112,12 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     }
   }
 
-  function runVisualAction(view: EditorView, command: Extract<VimCommand, { type: "action" }>, count: number | null, keys: readonly string[]): void {
+  function runVisualAction(
+    view: EditorView,
+    command: Extract<VimCommand, { type: "action" }>,
+    count: number | null,
+    keys: readonly string[],
+  ): void {
     const { state } = view;
     const vim = pluginState(state);
     const linewise = mode(state) === "visual-line";
@@ -1014,17 +1185,25 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         recordChange(keys);
         announce(operatorFeedback(state, range, "changed"));
         session.lastVisual = { anchor: vim.visualAnchor, head: vim.visualHead, linewise };
-        view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, cursor)), { mode: "normal" }));
+        view.dispatch(
+          meta(tr.setSelection(TextSelection.create(tr.doc, cursor)), { mode: "normal" }),
+        );
         return;
       }
       case "J":
       case "gJ": {
         const first = lineAt(state.doc, range.from);
-        const last = lineAt(state.doc, range.linewise ? range.to : Math.max(range.from, range.to - 1));
+        const last = lineAt(
+          state.doc,
+          range.linewise ? range.to : Math.max(range.from, range.to - 1),
+        );
         if (!first || !last) return;
         let lines = 1;
         let current: VimLine | null = first;
-        while (current && !(current.blockPos === last.blockPos && current.segmentIndex === last.segmentIndex)) {
+        while (
+          current &&
+          !(current.blockPos === last.blockPos && current.segmentIndex === last.segmentIndex)
+        ) {
           current = lineStep(state.doc, current, 1, 1).line;
           lines += 1;
           if (lines > 10_000) break;
@@ -1033,21 +1212,35 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         const joinPoint = joinLines(tr, first.start, Math.max(2, lines), command.action === "J");
         recordChange(keys);
         announce(`${pluralized(lines, "line")} joined`);
-        view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, joinPoint)), { mode: "normal" }));
+        view.dispatch(
+          meta(tr.setSelection(TextSelection.create(tr.doc, joinPoint)), { mode: "normal" }),
+        );
         return;
       }
       case "p":
       case "P": {
-        const content = isClipboardRegister(command.register) ? null : readRegister(command.register);
+        const content = isClipboardRegister(command.register)
+          ? null
+          : readRegister(command.register);
         if (!content) return;
         yankRange(state.doc, range, null, { yank: false, clipboard: host.clipboard });
         const tr = state.tr;
         const cursor = deleteRange(tr, range);
         const putAt = Math.max(0, Math.min(cursor, tr.doc.content.size));
-        const afterPut = putRegister(tr.setSelection(TextSelection.create(tr.doc, putAt)), putAt, content, false, count ?? 1);
+        const afterPut = putRegister(
+          tr.setSelection(TextSelection.create(tr.doc, putAt)),
+          putAt,
+          content,
+          false,
+          count ?? 1,
+        );
         recordChange(keys);
         announce(operatorFeedback(state, range, "changed"));
-        view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, afterPut)), { mode: "normal" }).scrollIntoView());
+        view.dispatch(
+          meta(tr.setSelection(TextSelection.create(tr.doc, afterPut)), {
+            mode: "normal",
+          }).scrollIntoView(),
+        );
         return;
       }
       case "replace": {
@@ -1056,7 +1249,9 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         replaceCharacters(tr, range, command.character);
         recordChange(keys);
         announce(operatorFeedback(state, range, "changed"));
-        view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, range.from)), { mode: "normal" }));
+        view.dispatch(
+          meta(tr.setSelection(TextSelection.create(tr.doc, range.from)), { mode: "normal" }),
+        );
         return;
       }
       case "I":
@@ -1124,7 +1319,10 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     if (pattern.length === 0) return;
     let regex: RegExp;
     try {
-      regex = new RegExp(pattern, `${flags.includes("g") ? "g" : ""}${flags.includes("i") ? "i" : ""}u`);
+      regex = new RegExp(
+        pattern,
+        `${flags.includes("g") ? "g" : ""}${flags.includes("i") ? "i" : ""}u`,
+      );
     } catch {
       session.message = `Invalid pattern: ${pattern}`;
       return;
@@ -1175,7 +1373,11 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     announce(`${pluralized(replaced, "replacement")} made`);
     recordChange([`<ex:${scope === "all" ? "%" : ""}s${spec}>`]);
     const cursor = lastPos ?? state.selection.head;
-    view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, Math.min(cursor, tr.doc.content.size))), { mode: "normal" }).scrollIntoView());
+    view.dispatch(
+      meta(tr.setSelection(TextSelection.create(tr.doc, Math.min(cursor, tr.doc.content.size))), {
+        mode: "normal",
+      }).scrollIntoView(),
+    );
   }
 
   function runEx(view: EditorView, text: string): void {
@@ -1233,7 +1435,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         runEx(view, prompt.text);
         return;
       }
-      const pattern = prompt.text.length > 0 ? prompt.text : shared.lastSearch?.pattern ?? "";
+      const pattern = prompt.text.length > 0 ? prompt.text : (shared.lastSearch?.pattern ?? "");
       if (pattern.length === 0) return;
       const keys = [...prompt.pendingKeys, `<search:${prompt.prefix}${pattern}>`];
       feedKeys(view, keys);
@@ -1334,12 +1536,19 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
           const visual = effective === "visual" || effective === "visual-line";
           if (visual && selection.empty) {
             next = { ...next, mode: "normal", initialized: true };
-          } else if (effective === "normal" && !selection.empty && selection instanceof TextSelection) {
+          } else if (
+            effective === "normal" &&
+            !selection.empty &&
+            selection instanceof TextSelection
+          ) {
             next = {
               ...next,
               mode: "visual",
               visualAnchor: selection.anchor,
-              visualHead: selection.head > selection.anchor ? Math.max(selection.anchor, selection.head - 1) : selection.head,
+              visualHead:
+                selection.head > selection.anchor
+                  ? Math.max(selection.anchor, selection.head - 1)
+                  : selection.head,
               initialized: true,
             };
           }
@@ -1360,7 +1569,8 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         const key = vimKeyFromEvent(event);
         if (current === "insert") {
           if (key === "<Esc>") {
-            if (session.macro && !session.replaying) session.macro.tokens.push({ kind: "key", key });
+            if (session.macro && !session.replaying)
+              session.macro.tokens.push({ kind: "key", key });
             exitInsert(view);
             render();
             return true;

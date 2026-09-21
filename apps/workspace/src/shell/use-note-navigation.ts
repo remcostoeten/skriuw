@@ -27,20 +27,12 @@ function selectNavigation(state: RendererState): NavigationSnapshot {
   if (index < 0) {
     return [title, null, null, activeNoteId];
   }
-  return [
-    title,
-    state.noteIds[index - 1] ?? null,
-    state.noteIds[index + 1] ?? null,
-    activeNoteId,
-  ];
+  return [title, state.noteIds[index - 1] ?? null, state.noteIds[index + 1] ?? null, activeNoteId];
 }
 
 function sameNavigation(left: NavigationSnapshot, right: NavigationSnapshot): boolean {
   return (
-    left[0] === right[0] &&
-    left[1] === right[1] &&
-    left[2] === right[2] &&
-    left[3] === right[3]
+    left[0] === right[0] && left[1] === right[1] && left[2] === right[2] && left[3] === right[3]
   );
 }
 

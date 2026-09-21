@@ -58,8 +58,14 @@ test("default settings project every editable field", () => {
 
 test("history diff layout is unified unless the workspace explicitly chose split", () => {
   assert.equal(historyDiffLayout(DEFAULT_WORKSPACE_SETTINGS), "unified");
-  assert.equal(historyDiffLayout({ ...DEFAULT_WORKSPACE_SETTINGS, historyDiffLayout: "split" }), "split");
-  assert.equal(historyDiffLayout({ ...DEFAULT_WORKSPACE_SETTINGS, historyDiffLayout: "stacked" }), "unified");
+  assert.equal(
+    historyDiffLayout({ ...DEFAULT_WORKSPACE_SETTINGS, historyDiffLayout: "split" }),
+    "split",
+  );
+  assert.equal(
+    historyDiffLayout({ ...DEFAULT_WORKSPACE_SETTINGS, historyDiffLayout: "stacked" }),
+    "unified",
+  );
 });
 
 test("changing the history diff layout keeps unrelated settings intact", () => {
@@ -89,37 +95,25 @@ test("Vim cursor preferences are neutral, solid, and validated", () => {
     vimCursorStyle({ ...DEFAULT_WORKSPACE_SETTINGS, vimCursorStyle: "future-shape" }),
     "block",
   );
-  assert.equal(
-    vimCursorBlinks({ ...DEFAULT_WORKSPACE_SETTINGS, vimCursorBlink: true }),
-    true,
-  );
+  assert.equal(vimCursorBlinks({ ...DEFAULT_WORKSPACE_SETTINGS, vimCursorBlink: true }), true);
 });
 
 test("AI stays disabled unless the persisted preference is explicitly true", () => {
   assert.equal(projectSettings(DEFAULT_WORKSPACE_SETTINGS).aiEnabled, false);
-  assert.equal(
-    projectSettings({ ...DEFAULT_WORKSPACE_SETTINGS, aiEnabled: true }).aiEnabled,
-    true,
-  );
+  assert.equal(projectSettings({ ...DEFAULT_WORKSPACE_SETTINGS, aiEnabled: true }).aiEnabled, true);
   const { aiEnabled: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
   assert.equal(projectSettings(withoutField as WorkspaceSettings).aiEnabled, false);
 });
 
 test("animated icons stay enabled unless the setting is explicitly false", () => {
   assert.equal(usesAnimatedIcons(DEFAULT_WORKSPACE_SETTINGS), true);
-  assert.equal(
-    usesAnimatedIcons({ ...DEFAULT_WORKSPACE_SETTINGS, animatedIcons: false }),
-    false,
-  );
+  assert.equal(usesAnimatedIcons({ ...DEFAULT_WORKSPACE_SETTINGS, animatedIcons: false }), false);
   const { animatedIcons: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
   assert.equal(usesAnimatedIcons(withoutField as WorkspaceSettings), true);
 });
 
 test("reduce motion does not override an explicit animated-icons opt-in", () => {
-  assert.equal(
-    usesAnimatedIcons({ ...DEFAULT_WORKSPACE_SETTINGS, reduceMotion: true }),
-    true,
-  );
+  assert.equal(usesAnimatedIcons({ ...DEFAULT_WORKSPACE_SETTINGS, reduceMotion: true }), true);
 });
 
 test("toasts stay enabled unless the setting is explicitly false", () => {
@@ -137,10 +131,7 @@ test("the block gutter stays enabled unless the setting is explicitly false", ()
   );
   const { blockDragHandle: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
   assert.equal(usesBlockDragHandle(withoutField as WorkspaceSettings), true);
-  assert.equal(
-    usesBlockDragHandle({ ...DEFAULT_WORKSPACE_SETTINGS, blockDragHandle: "no" }),
-    true,
-  );
+  assert.equal(usesBlockDragHandle({ ...DEFAULT_WORKSPACE_SETTINGS, blockDragHandle: "no" }), true);
 });
 
 test("turning the block gutter off keeps unknown settings data", () => {
@@ -220,12 +211,18 @@ test("reset-all removes every listed override but keeps extension data", () => {
 test("reset-all without matching overrides returns the same document", () => {
   const settings = extendedSettings();
   assert.equal(resetShortcutOverrides(settings, ["createFolder"]), settings);
-  assert.equal(resetShortcutOverrides(DEFAULT_WORKSPACE_SETTINGS, ["createNote"]), DEFAULT_WORKSPACE_SETTINGS);
+  assert.equal(
+    resetShortcutOverrides(DEFAULT_WORKSPACE_SETTINGS, ["createNote"]),
+    DEFAULT_WORKSPACE_SETTINGS,
+  );
 });
 
 test("links open in the system browser unless the setting is explicitly on", () => {
   assert.equal(opensLinksInApp(DEFAULT_WORKSPACE_SETTINGS), false);
   assert.equal(opensLinksInApp({ ...DEFAULT_WORKSPACE_SETTINGS, openLinksInApp: true }), true);
   assert.equal(opensLinksInApp({ ...DEFAULT_WORKSPACE_SETTINGS, openLinksInApp: "yes" }), false);
-  assert.equal(opensLinksInApp({ ...DEFAULT_WORKSPACE_SETTINGS, openLinksInApp: undefined }), false);
+  assert.equal(
+    opensLinksInApp({ ...DEFAULT_WORKSPACE_SETTINGS, openLinksInApp: undefined }),
+    false,
+  );
 });

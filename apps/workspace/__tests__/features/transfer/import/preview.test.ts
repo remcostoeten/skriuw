@@ -14,9 +14,7 @@ function bundle(): ImportBundle {
         relativePath: "Folder/Note.md",
         title: "Note",
         markdown: "![local](image.png)",
-        properties: [
-          { name: "Done", value: { type: "checkbox", value: true } },
-        ],
+        properties: [{ name: "Done", value: { type: "checkbox", value: true } }],
       },
     ],
     warnings: [{ path: "Folder/Note.md", message: "Unsupported field" }],
@@ -97,7 +95,5 @@ test("preview uses successful image preflight count", () => {
     0,
   );
   assert.equal(preview.localImageCount, 0);
-  assert.ok(
-    preview.warningLines.includes("1 unreadable image will be skipped"),
-  );
+  assert.ok(preview.warningLines.includes("1 unreadable image will be skipped"));
 });

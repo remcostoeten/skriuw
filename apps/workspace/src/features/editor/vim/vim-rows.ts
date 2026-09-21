@@ -1,6 +1,14 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { EditorView } from "prosemirror-view";
-import { lastCursorIndex, lineAbove, lineAt, lineBelow, lineOffset, positionAt, type VimLine } from "./vim-lines";
+import {
+  lastCursorIndex,
+  lineAbove,
+  lineAt,
+  lineBelow,
+  lineOffset,
+  positionAt,
+  type VimLine,
+} from "./vim-lines";
 
 /** Screen box of the character a cursor index sits on, as the view laid it out. */
 export type RowRect = { left: number; top: number; bottom: number };
@@ -35,7 +43,12 @@ function rectAt(measure: RowMeasure, line: VimLine, index: number): RowRect | nu
   return measure(positionAt(line, index));
 }
 
-function rowEndFrom(measure: RowMeasure, line: VimLine, index: number, reference: RowRect): number | null {
+function rowEndFrom(
+  measure: RowMeasure,
+  line: VimLine,
+  index: number,
+  reference: RowRect,
+): number | null {
   let low = index;
   let high = lastCursorIndex(line);
   while (low < high) {
@@ -48,7 +61,12 @@ function rowEndFrom(measure: RowMeasure, line: VimLine, index: number, reference
   return low;
 }
 
-function rowStartFrom(measure: RowMeasure, line: VimLine, index: number, reference: RowRect): number | null {
+function rowStartFrom(
+  measure: RowMeasure,
+  line: VimLine,
+  index: number,
+  reference: RowRect,
+): number | null {
   let low = 0;
   let high = index;
   while (low < high) {
@@ -75,7 +93,12 @@ function rowEndingAt(measure: RowMeasure, line: VimLine, end: number): Row | nul
   return start === null ? null : { line, start, end };
 }
 
-function rowBelow(doc: ProseMirrorNode, measure: RowMeasure, line: VimLine, index: number): Row | null {
+function rowBelow(
+  doc: ProseMirrorNode,
+  measure: RowMeasure,
+  line: VimLine,
+  index: number,
+): Row | null {
   const reference = rectAt(measure, line, index);
   if (!reference) return null;
   const end = rowEndFrom(measure, line, index, reference);
@@ -85,7 +108,12 @@ function rowBelow(doc: ProseMirrorNode, measure: RowMeasure, line: VimLine, inde
   return below ? rowStartingAt(measure, below, 0) : null;
 }
 
-function rowAbove(doc: ProseMirrorNode, measure: RowMeasure, line: VimLine, index: number): Row | null {
+function rowAbove(
+  doc: ProseMirrorNode,
+  measure: RowMeasure,
+  line: VimLine,
+  index: number,
+): Row | null {
   const reference = rectAt(measure, line, index);
   if (!reference) return null;
   const start = rowStartFrom(measure, line, index, reference);

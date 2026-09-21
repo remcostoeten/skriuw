@@ -49,7 +49,10 @@ export default function DocsIndexPage() {
                   {page.kicker}
                 </span>
                 <h2 className="text-[20px] font-medium text-ink-900">
-                  <Link href={docHref(page)} className="hover:text-focus-ink focus-visible:text-focus-ink">
+                  <Link
+                    href={docHref(page)}
+                    className="hover:text-focus-ink focus-visible:text-focus-ink"
+                  >
                     {page.title}
                   </Link>
                 </h2>

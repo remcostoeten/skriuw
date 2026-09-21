@@ -211,9 +211,7 @@ export function ShortcutsSection({
         </div>
       </div>
       {trimmedQuery.length > 0 && matchCount === 0 && (
-        <p className="text-sm text-muted-foreground">
-          No shortcuts match “{trimmedQuery}”.
-        </p>
+        <p className="text-sm text-muted-foreground">No shortcuts match “{trimmedQuery}”.</p>
       )}
       {groups.map(({ group, definitions }) => (
         <div key={group} className={settingsGroup}>

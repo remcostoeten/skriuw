@@ -12,9 +12,7 @@ export type AiPlanItem = {
   text: string;
 };
 
-type AiPlanParse =
-  | { ok: true; items: readonly AiPlanItem[] }
-  | { ok: false; message: string };
+type AiPlanParse = { ok: true; items: readonly AiPlanItem[] } | { ok: false; message: string };
 
 const BULLET = /^\s*(?:[-*+•]|\d+[.)])\s+/;
 const CHECKBOX = /^\[[ xX]\]\s*/;

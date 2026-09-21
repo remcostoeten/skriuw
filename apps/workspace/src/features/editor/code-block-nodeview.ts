@@ -52,9 +52,7 @@ export function setCodeBlockLanguage(pos: number, language: string): Command {
     const node = state.doc.nodeAt(pos);
     if (!node || node.type.name !== "code_block") return false;
     if (node.attrs.params === language) return false;
-    dispatch?.(
-      state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, params: language }),
-    );
+    dispatch?.(state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, params: language }));
     return true;
   };
 }
@@ -112,7 +110,11 @@ export function mermaidBlockAtSelection(
   return null;
 }
 
-function requestMermaidMode(view: EditorView | undefined, pos: number, mode: MermaidModeRequest): boolean {
+function requestMermaidMode(
+  view: EditorView | undefined,
+  pos: number,
+  mode: MermaidModeRequest,
+): boolean {
   if (!view || typeof view.nodeDOM !== "function") return false;
   const dom = view.nodeDOM(pos);
   if (!dom || typeof (dom as HTMLElement).dispatchEvent !== "function") return false;
@@ -151,7 +153,11 @@ export const toggleMermaidSource: Command = (state, dispatch, view) => {
   return true;
 };
 
-function previewBlockAround(view: EditorView, $anchor: ResolvedPos, $head: ResolvedPos): number | null {
+function previewBlockAround(
+  view: EditorView,
+  $anchor: ResolvedPos,
+  $head: ResolvedPos,
+): number | null {
   for (let depth = $anchor.depth; depth > 0; depth -= 1) {
     const node = $anchor.node(depth);
     if (node.type.name !== "code_block") continue;
@@ -200,7 +206,9 @@ function documentFont(): string {
 type IdleScheduler = (callback: () => void) => void;
 
 function idleScheduler(): IdleScheduler {
-  const host = globalThis as { requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number };
+  const host = globalThis as {
+    requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+  };
   const requestIdle = host.requestIdleCallback;
   if (typeof requestIdle === "function") {
     return (callback) => requestIdle(callback, { timeout: 500 });
@@ -338,7 +346,8 @@ export function createCodeBlockNodeView(
   }
 
   function setMode(next: MermaidModeRequest): void {
-    const resolved: MermaidViewMode = next === "toggle" ? (mode === "preview" ? "source" : "preview") : next;
+    const resolved: MermaidViewMode =
+      next === "toggle" ? (mode === "preview" ? "source" : "preview") : next;
     if (resolved === mode) return;
     mode = resolved;
     paintMermaid();
@@ -349,7 +358,9 @@ export function createCodeBlockNodeView(
       renderedSvg = result.svg;
       preview.innerHTML = result.svg;
       preview.dataset.wide =
-        typeof preview.clientWidth === "number" && preview.clientWidth > 0 && result.width > preview.clientWidth
+        typeof preview.clientWidth === "number" &&
+        preview.clientWidth > 0 &&
+        result.width > preview.clientWidth
           ? "true"
           : "false";
       error.textContent = "";
@@ -367,18 +378,16 @@ export function createCodeBlockNodeView(
     hasAnimated = true;
     renderedSource = source;
     const palette = readMermaidPalette(globalThis.document?.documentElement ?? null);
-    void deps
-      .render(source, palette, { animate, font: documentFont() })
-      .then(
-        (result) => {
-          if (destroyed || sequence !== renderSequence) return;
-          applyRender(result);
-        },
-        (error: unknown) => {
-          if (destroyed || sequence !== renderSequence) return;
-          applyRender({ ok: false, message: error instanceof Error ? error.message : String(error) });
-        },
-      );
+    void deps.render(source, palette, { animate, font: documentFont() }).then(
+      (result) => {
+        if (destroyed || sequence !== renderSequence) return;
+        applyRender(result);
+      },
+      (error: unknown) => {
+        if (destroyed || sequence !== renderSequence) return;
+        applyRender({ ok: false, message: error instanceof Error ? error.message : String(error) });
+      },
+    );
   }
 
   function scheduleRender(immediate: boolean): void {

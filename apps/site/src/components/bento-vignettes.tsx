@@ -63,18 +63,27 @@ export function EditorVignette() {
       <div className="p-5">
         <p className="font-mono text-[10px] tracking-[0.08em] text-ink-400 uppercase">Rich text</p>
         <div className="mt-4 space-y-2.5">
-          <p style={slotDelay(0)} className="vg-appear text-[17px] font-semibold tracking-[-0.01em] text-ink-900">
+          <p
+            style={slotDelay(0)}
+            className="vg-appear text-[17px] font-semibold tracking-[-0.01em] text-ink-900"
+          >
             The 8 ms budget
           </p>
           <p style={slotDelay(1)} className="vg-appear text-[13px] leading-5 text-ink-500">
             Every keystroke paints in the{" "}
             <span className="font-semibold text-ink-900">same frame</span>.
           </p>
-          <p style={slotDelay(2)} className="vg-appear flex items-center gap-2 text-[13px] text-ink-500">
+          <p
+            style={slotDelay(2)}
+            className="vg-appear flex items-center gap-2 text-[13px] text-ink-500"
+          >
             <span aria-hidden className="size-1 rounded-full bg-ink-400" />
             measured on a production build
           </p>
-          <p style={slotDelay(3)} className="vg-appear flex items-center gap-2 text-[13px] text-ink-400">
+          <p
+            style={slotDelay(3)}
+            className="vg-appear flex items-center gap-2 text-[13px] text-ink-400"
+          >
             <span className="grid size-3.5 place-items-center rounded-[3px] bg-clay-500 text-surface">
               <Check className="size-2.5" />
             </span>
@@ -95,7 +104,10 @@ export function EditorVignette() {
               {line.slot !== undefined ? (
                 <span className="flex items-center">
                   <span
-                    style={vars({ "--chars": line.text.length, "--delay": `${line.slot * lineStep}s` })}
+                    style={vars({
+                      "--chars": line.text.length,
+                      "--delay": `${line.slot * lineStep}s`,
+                    })}
                     className={cx("vg-typed", tones[line.tone])}
                   >
                     {line.text}

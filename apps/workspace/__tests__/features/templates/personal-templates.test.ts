@@ -70,9 +70,7 @@ test("personal templates expand dates, retain source content and use its folder"
   assert.equal(create.placement.parentId, "folder");
   assert.equal(JSON.stringify(state.documents.get("source")), original);
   assert.notEqual(create.id, "source");
-  const property = plan.operations.find(
-    (operation) => operation.type === "set_note_property",
-  );
+  const property = plan.operations.find((operation) => operation.type === "set_note_property");
   assert.ok(property && property.type === "set_note_property");
   assert.notEqual(property.property.id, "field-original");
   assert.notEqual(property.property.options[0].id, "option-original");
@@ -88,13 +86,8 @@ test("unavailable source notes stay registered but are excluded from the picker"
 
 test("template membership survives serialization and rejects malformed input", () => {
   const settings = templateState().settings;
-  assert.deepEqual(personalTemplateIds(JSON.parse(JSON.stringify(settings))), [
-    "source",
-  ]);
-  assert.throws(
-    () => personalTemplateIds({ ...settings, noteTemplateIds: [42] }),
-    /invalid/,
-  );
+  assert.deepEqual(personalTemplateIds(JSON.parse(JSON.stringify(settings))), ["source"]);
+  assert.throws(() => personalTemplateIds({ ...settings, noteTemplateIds: [42] }), /invalid/);
   assert.throws(
     () =>
       personalTemplateIds({
@@ -111,7 +104,11 @@ test("each template copy owns fresh task and block IDs without source comment an
   const json = structuredClone(record.documentJson) as {
     content: Array<{ content: Array<{ attrs?: Record<string, unknown>; marks?: unknown[] }> }>;
   };
-  json.content[1].content[0].attrs = { checked: false, taskId: "source-task", blockId: "source-block" };
+  json.content[1].content[0].attrs = {
+    checked: false,
+    taskId: "source-task",
+    blockId: "source-block",
+  };
   json.content[0].content[0].marks = [{ type: "annotation", attrs: { threadId: "source-thread" } }];
   state.documents.set("source", { ...record, documentJson: json });
   const [template] = personalTemplates(state);
@@ -124,7 +121,10 @@ test("each template copy owns fresh task and block IDs without source comment an
   assert.equal(secondCreate.type, "create_note");
   if (firstCreate.type !== "create_note" || secondCreate.type !== "create_note") return;
   for (const create of [firstCreate, secondCreate]) {
-    assert.doesNotMatch(JSON.stringify(create.documentJson), /source-task|source-block|source-thread/);
+    assert.doesNotMatch(
+      JSON.stringify(create.documentJson),
+      /source-task|source-block|source-thread/,
+    );
     assert.doesNotMatch(create.markdown, /source-task|source-block|source-thread/);
   }
   assert.notDeepEqual(firstCreate.documentJson, secondCreate.documentJson);

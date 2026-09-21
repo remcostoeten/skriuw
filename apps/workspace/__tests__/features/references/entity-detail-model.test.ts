@@ -91,10 +91,7 @@ test("findMentionSnippet descends into nested blocks and collapses whitespace", 
             content: [
               {
                 type: "paragraph",
-                content: [
-                  { type: "text", text: "owned\n  by " },
-                  personRef("person-1", "Ada"),
-                ],
+                content: [{ type: "text", text: "owned\n  by " }, personRef("person-1", "Ada")],
               },
             ],
           },
@@ -113,9 +110,7 @@ test("findMentionSnippet returns null when the document holds no matching refere
 test("entityDetailEqual distinguishes snippet and co-occurrence changes", () => {
   const base: EntityDetail = {
     notes: [{ noteId: "n1", title: "One", updatedAt: 4, snippet: "a" }],
-    related: [
-      { kind: "tag", id: "t1", name: "one", color: null, initials: null, sharedNotes: 2 },
-    ],
+    related: [{ kind: "tag", id: "t1", name: "one", color: null, initials: null, sharedNotes: 2 }],
   };
   assert.equal(entityDetailEqual(base, structuredClone(base)), true);
   assert.equal(

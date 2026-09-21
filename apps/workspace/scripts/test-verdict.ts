@@ -20,10 +20,7 @@ const RED = "\x1b[31m";
 
 let exitCode = 0;
 
-const ENTRY_POINTS = new Set([
-  "main.tsx",
-  "vite-env.d.ts",
-]);
+const ENTRY_POINTS = new Set(["main.tsx", "vite-env.d.ts"]);
 
 type TestCounts = {
   total: number;
@@ -147,9 +144,7 @@ function analyzeFiles(): DirCoverage[] {
   const entries: FileEntry[] = srcFiles
     .filter((rel) => !isEntryPoint(rel))
     .map((rel) => {
-      const testRel = rel
-        .replace(/\.tsx?$/, ".test.ts")
-        .replace(/\.jsx?$/, ".test.js");
+      const testRel = rel.replace(/\.tsx?$/, ".test.ts").replace(/\.jsx?$/, ".test.js");
       const testFull = resolve(TESTS, testRel);
       return { rel, testRel, tested: existsSync(testFull) };
     });
@@ -182,16 +177,10 @@ function pctColor(v: number): string {
 
 function bar(tested: number, total: number, width = 10): string {
   const filled = Math.round((tested / Math.max(total, 1)) * width);
-  return (
-    `${GREEN}${"●".repeat(filled)}${GRAY}${"○".repeat(width - filled)}${RESET}`
-  );
+  return `${GREEN}${"●".repeat(filled)}${GRAY}${"○".repeat(width - filled)}${RESET}`;
 }
 
-function printVerdict(
-  counts: TestCounts,
-  coverage: CoveragePct,
-  dirs: DirCoverage[],
-): void {
+function printVerdict(counts: TestCounts, coverage: CoveragePct, dirs: DirCoverage[]): void {
   const totalSrc = dirs.reduce((s, d) => s + d.total, 0);
   const totalTested = dirs.reduce((s, d) => s + d.tested, 0);
 
@@ -213,16 +202,14 @@ function printVerdict(
   parts.push(`· ${counts.total} total`);
   console.log(parts.join(" "));
 
-  const exitLabel = exitCode === 0
-    ? `${PASS} all good`
-    : `${FAIL} exit ${exitCode}`;
+  const exitLabel = exitCode === 0 ? `${PASS} all good` : `${FAIL} exit ${exitCode}`;
   console.log(`  ${BOLD}Exit${RESET}      ${exitLabel}`);
 
   if (coverage.lines !== null) {
     console.log(
       `\n  ${BOLD}Coverage${RESET}   lines ${pctColor(coverage.lines)}` +
-      ` · branches ${pctColor(coverage.branches ?? 0)}` +
-      ` · funcs ${pctColor(coverage.funcs ?? 0)}`,
+        ` · branches ${pctColor(coverage.branches ?? 0)}` +
+        ` · funcs ${pctColor(coverage.funcs ?? 0)}`,
     );
   }
 
@@ -238,8 +225,8 @@ function printVerdict(
 
     console.log(
       `    ${d.dir}/  ${bar(d.tested, d.total)}  ` +
-      `${d.tested}/${d.total}  ${pctColor(pct)}` +
-      (untestedCount > 0 ? `  ${GRAY}(${untestedCount} missing)${RESET}` : ""),
+        `${d.tested}/${d.total}  ${pctColor(pct)}` +
+        (untestedCount > 0 ? `  ${GRAY}(${untestedCount} missing)${RESET}` : ""),
     );
   }
 
@@ -253,16 +240,14 @@ function printVerdict(
   }
 
   const untestedNonZero = allUntested.filter((e) => {
-    const d = dirs.find((d2) =>
-      d2.entries.some((e2) => e2.rel === e.rel && !e2.tested)
-    );
+    const d = dirs.find((d2) => d2.entries.some((e2) => e2.rel === e.rel && !e2.tested));
     return d && d.tested > 0;
   });
 
   if (untestedNonZero.length > 0 && zeroDirs.length > 0) {
     console.log(
       `\n  ${WARN} ${BOLD}Also missing${RESET}  ` +
-      `${untestedNonZero.length} files in partially-tested modules`,
+        `${untestedNonZero.length} files in partially-tested modules`,
     );
   }
 
@@ -275,8 +260,7 @@ function printVerdict(
     const missing = totalSrc - totalTested;
 
     if (missing === 0) {
-      verdict =
-        `${PASS} ${BOLD}Full file coverage — every source file has a matching test${RESET}`;
+      verdict = `${PASS} ${BOLD}Full file coverage — every source file has a matching test${RESET}`;
     } else if (zeroDirs.length > 0) {
       verdict =
         `${WARN} ${BOLD}${missing} source files lack tests` +

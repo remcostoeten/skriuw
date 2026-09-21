@@ -16,7 +16,11 @@ function selectVisibleIds(state: ReturnType<RendererStore["getState"]>) {
   return state.visibleIds;
 }
 
-const TreeHostCommitProbe = memo(function TreeHostCommitProbe({ revision: _revision }: { revision: readonly string[] }) {
+const TreeHostCommitProbe = memo(function TreeHostCommitProbe({
+  revision: _revision,
+}: {
+  revision: readonly string[];
+}) {
   return null;
 });
 
@@ -79,7 +83,11 @@ export function TreeHost({ store }: Props) {
             return;
           }
           next = Math.min(state.visibleIds.length - 1, current + 1);
-        } else if (event.key === "ArrowLeft" && node.kind === "folder" && state.expandedIds.has(node.id)) {
+        } else if (
+          event.key === "ArrowLeft" &&
+          node.kind === "folder" &&
+          state.expandedIds.has(node.id)
+        ) {
           store.toggleExpanded(node.id);
           return;
         } else if (event.key === "ArrowLeft" && node.parentId) {
@@ -99,7 +107,11 @@ export function TreeHost({ store }: Props) {
           }
           const top = next * ROW_HEIGHT_PX;
           const viewport = viewportRef.current;
-          if (viewport && (top < viewport.scrollTop || top + ROW_HEIGHT_PX > viewport.scrollTop + VIEWPORT_HEIGHT_PX)) {
+          if (
+            viewport &&
+            (top < viewport.scrollTop ||
+              top + ROW_HEIGHT_PX > viewport.scrollTop + VIEWPORT_HEIGHT_PX)
+          ) {
             viewport.scrollTop = Math.max(0, top - VIEWPORT_HEIGHT_PX / 2);
           }
           return;

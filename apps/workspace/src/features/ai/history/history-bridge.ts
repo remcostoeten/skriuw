@@ -6,9 +6,7 @@ export function loadAiHistory(filter: AiRunFilter, sinceMs: number): Promise<AiH
   return invoke<AiHistoryView>("ai_run_history", { filter, sinceMs });
 }
 
-export function saveAiHistorySettings(
-  settings: AiHistorySettings,
-): Promise<AiHistorySettings> {
+export function saveAiHistorySettings(settings: AiHistorySettings): Promise<AiHistorySettings> {
   requireDesktopRuntime("AI usage history");
   return invoke<AiHistorySettings>("set_ai_history_settings", { settings });
 }

@@ -258,11 +258,7 @@ export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument 
    * reaches here with an unchanged block range and still has to be recorded —
    * otherwise the stroke is dropped and cannot be undone.
    */
-  function adoptAttributes(
-    document: ProseMirrorNode,
-    entryStart: number,
-    at: number,
-  ): boolean {
+  function adoptAttributes(document: ProseMirrorNode, entryStart: number, at: number): boolean {
     if (attributesEqual(attrs, document.attrs)) {
       return false;
     }

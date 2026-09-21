@@ -213,7 +213,9 @@ export function EditorPanes({ store }: Props) {
   }
 
   const contextTab =
-    contextTarget?.kind === "tab" ? (tabs.find((tab) => tab.id === contextTarget.id) ?? null) : null;
+    contextTarget?.kind === "tab"
+      ? (tabs.find((tab) => tab.id === contextTarget.id) ?? null)
+      : null;
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
@@ -236,7 +238,10 @@ export function EditorPanes({ store }: Props) {
               aria-label="Open notes"
               onContextMenu={onStripContextMenu}
             >
-              <div ref={listRef} className="scrollbar-none flex min-w-0 flex-1 items-stretch overflow-x-auto">
+              <div
+                ref={listRef}
+                className="scrollbar-none flex min-w-0 flex-1 items-stretch overflow-x-auto"
+              >
                 {visibleTabs.map((tab) => (
                   <div
                     key={tab.id}
@@ -256,16 +261,16 @@ export function EditorPanes({ store }: Props) {
                     onDragOver={(event) => onTabDragOver(event, tab)}
                     onDrop={onTabDrop}
                     className={`group flex shrink items-center border-r border-sidebar-border ${
-                      drag !== null && drag.before === tab.id ? "shadow-[inset_2px_0_0_0_var(--color-primary)]" : ""
+                      drag !== null && drag.before === tab.id
+                        ? "shadow-[inset_2px_0_0_0_var(--color-primary)]"
+                        : ""
                     } ${drag?.id === tab.id ? "opacity-50" : ""} ${
                       tab.isActive
                         ? "bg-theme-editor text-foreground"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     }`}
                   >
-                    {tab.isPinned && (
-                      <PinIcon size={11} className="ml-2 shrink-0 fill-current" />
-                    )}
+                    {tab.isPinned && <PinIcon size={11} className="ml-2 shrink-0 fill-current" />}
                     <button
                       type="button"
                       role="tab"
@@ -342,10 +347,14 @@ export function EditorPanes({ store }: Props) {
                   <button
                     type="button"
                     aria-label={
-                      orientation === "vertical" ? "Stack split panes" : "Place split panes side by side"
+                      orientation === "vertical"
+                        ? "Stack split panes"
+                        : "Place split panes side by side"
                     }
                     title={
-                      orientation === "vertical" ? "Stack split panes" : "Place split panes side by side"
+                      orientation === "vertical"
+                        ? "Stack split panes"
+                        : "Place split panes side by side"
                     }
                     className="shrink-0 self-center px-2 text-muted-foreground hover:text-foreground"
                     onClick={() => toggleSplitOrientation(store)}
@@ -370,7 +379,9 @@ export function EditorPanes({ store }: Props) {
           <ContextMenuContent className="w-52">
             {contextTab ? (
               <>
-                <ContextMenuItem onClick={() => togglePinTab(store, contextTab.id, PRIMARY_PANE_ID)}>
+                <ContextMenuItem
+                  onClick={() => togglePinTab(store, contextTab.id, PRIMARY_PANE_ID)}
+                >
                   {contextTab.isPinned ? (
                     <PinOffIcon size={14} className="h-3.5 w-3.5" />
                   ) : (
@@ -379,27 +390,41 @@ export function EditorPanes({ store }: Props) {
                   {contextTab.isPinned ? "Unpin" : "Pin"}
                 </ContextMenuItem>
                 <ContextMenuSeparator />
-                <ContextMenuItem onClick={() => closeTab(store, contextTab.id, PRIMARY_PANE_ID)}>Close</ContextMenuItem>
-                <ContextMenuItem onClick={() => closeOtherTabs(store, contextTab.id, PRIMARY_PANE_ID)}>
+                <ContextMenuItem onClick={() => closeTab(store, contextTab.id, PRIMARY_PANE_ID)}>
+                  Close
+                </ContextMenuItem>
+                <ContextMenuItem
+                  onClick={() => closeOtherTabs(store, contextTab.id, PRIMARY_PANE_ID)}
+                >
                   Close all but this
                 </ContextMenuItem>
-                <ContextMenuItem onClick={() => closeTabsToSide(store, contextTab.id, "right", PRIMARY_PANE_ID)}>
+                <ContextMenuItem
+                  onClick={() => closeTabsToSide(store, contextTab.id, "right", PRIMARY_PANE_ID)}
+                >
                   Close all to the right
                 </ContextMenuItem>
-                <ContextMenuItem onClick={() => closeTabsToSide(store, contextTab.id, "left", PRIMARY_PANE_ID)}>
+                <ContextMenuItem
+                  onClick={() => closeTabsToSide(store, contextTab.id, "left", PRIMARY_PANE_ID)}
+                >
                   Close all to the left
                 </ContextMenuItem>
                 <ContextMenuSeparator />
-                <ContextMenuItem onClick={() => closeAllTabs(store, PRIMARY_PANE_ID)}>Close all</ContextMenuItem>
+                <ContextMenuItem onClick={() => closeAllTabs(store, PRIMARY_PANE_ID)}>
+                  Close all
+                </ContextMenuItem>
               </>
             ) : (
               <>
-                <ContextMenuItem onClick={() => closeAllTabs(store, PRIMARY_PANE_ID)}>Close all</ContextMenuItem>
+                <ContextMenuItem onClick={() => closeAllTabs(store, PRIMARY_PANE_ID)}>
+                  Close all
+                </ContextMenuItem>
                 {hasSplit && (
                   <>
                     <ContextMenuSeparator />
                     <ContextMenuItem onClick={() => toggleSplitOrientation(store)}>
-                      {orientation === "vertical" ? "Stack split panes" : "Split panes side by side"}
+                      {orientation === "vertical"
+                        ? "Stack split panes"
+                        : "Split panes side by side"}
                     </ContextMenuItem>
                     <ContextMenuItem onClick={resetSplit}>Reset split size</ContextMenuItem>
                     <ContextMenuItem onClick={() => closeSplit(store)}>Close split</ContextMenuItem>

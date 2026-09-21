@@ -405,10 +405,9 @@ test("closing a tab records it and mod+shift+w reopens it at its old position", 
   openNoteInTab(rendererStore, "c");
   closeTab(rendererStore, "b");
   assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["a", "c"]);
-  assert.deepEqual(
-    rendererStore.getState().closedTabsByPaneId.get(PRIMARY_PANE_ID),
-    [{ noteId: "b", index: 1 }],
-  );
+  assert.deepEqual(rendererStore.getState().closedTabsByPaneId.get(PRIMARY_PANE_ID), [
+    { noteId: "b", index: 1 },
+  ]);
 
   reopenClosedTab(rendererStore);
   assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["a", "b", "c"]);

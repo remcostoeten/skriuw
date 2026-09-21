@@ -21,9 +21,6 @@ export function reconcileRawMarkdown(
   return { noteId, text: markdown, dirty: false };
 }
 
-export function updateRawMarkdown(
-  current: RawMarkdownState,
-  text: string,
-): RawMarkdownState {
+export function updateRawMarkdown(current: RawMarkdownState, text: string): RawMarkdownState {
   return { ...current, text, dirty: true };
 }

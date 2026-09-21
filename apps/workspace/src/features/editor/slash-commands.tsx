@@ -85,8 +85,12 @@ function headingCommands(): SlashCommand[] {
       label: `Heading ${level}`,
       subtext: headingSubtexts[level - 1]!,
       group: "Basic",
-      aliases: [`h${level}`, "#".repeat(level), ...(level === 1 ? ["title"] : []),
-        ...(level === 2 ? ["subtitle"] : [])],
+      aliases: [
+        `h${level}`,
+        "#".repeat(level),
+        ...(level === 1 ? ["title"] : []),
+        ...(level === 2 ? ["subtitle"] : []),
+      ],
       icon: <Icon size={16} />,
       command: setBlockType(requiredNode("heading"), { level }),
     };
@@ -323,9 +327,7 @@ function wrapInToggleHeading(level: number): Command {
     if (!wrapping) return false;
     if (dispatch) {
       const transaction = state.tr.wrap(range, wrapping);
-      const $summary = transaction.doc.resolve(
-        transaction.mapping.map(state.selection.from),
-      );
+      const $summary = transaction.doc.resolve(transaction.mapping.map(state.selection.from));
       transaction.setNodeMarkup($summary.before($summary.depth), heading, { level });
       dispatch(transaction.scrollIntoView());
     }
@@ -346,9 +348,7 @@ export function insertMedia(kind: MediaKind): Command {
         if (!transaction.doc.resolve(afterMedia).nodeAfter) {
           transaction.insert(afterMedia, paragraph.create());
         }
-        transaction.setSelection(
-          NodeSelection.create(transaction.doc, insertedAt),
-        );
+        transaction.setSelection(NodeSelection.create(transaction.doc, insertedAt));
       }
       dispatch(transaction.scrollIntoView());
     }
@@ -368,9 +368,7 @@ function insertHorizontalRule(
     if (!transaction.doc.resolve(afterRule).nodeAfter) {
       transaction.insert(afterRule, paragraph.create());
     }
-    transaction.setSelection(
-      TextSelection.near(transaction.doc.resolve(afterRule), 1),
-    );
+    transaction.setSelection(TextSelection.near(transaction.doc.resolve(afterRule), 1));
     dispatch(transaction.scrollIntoView());
   }
   return true;
@@ -430,15 +428,13 @@ const TABLE_BODY_ROWS = 2;
 function tableRow(cellType: ReturnType<typeof requiredNode>) {
   const cells = Array.from({ length: TABLE_COLUMNS }, () => cellType.createAndFill());
   if (cells.some((cell) => cell === null)) return null;
-  return requiredNode("table_row").createAndFill(null, cells as NonNullable<
-    (typeof cells)[number]
-  >[]);
+  return requiredNode("table_row").createAndFill(
+    null,
+    cells as NonNullable<(typeof cells)[number]>[],
+  );
 }
 
-function insertTable(
-  state: Parameters<Command>[0],
-  dispatch?: Parameters<Command>[1],
-): boolean {
+function insertTable(state: Parameters<Command>[0], dispatch?: Parameters<Command>[1]): boolean {
   const header = tableRow(requiredNode("table_header"));
   if (!header) return false;
   const rows = [header];
@@ -458,9 +454,7 @@ function insertTable(
       if (!transaction.doc.resolve(afterTable).nodeAfter) {
         transaction.insert(afterTable, paragraph.create());
       }
-      transaction.setSelection(
-        TextSelection.near(transaction.doc.resolve(tableStart), 1),
-      );
+      transaction.setSelection(TextSelection.near(transaction.doc.resolve(tableStart), 1));
     }
     dispatch(transaction.scrollIntoView());
   }

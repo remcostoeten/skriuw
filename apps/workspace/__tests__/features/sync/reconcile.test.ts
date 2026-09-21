@@ -171,13 +171,15 @@ test("failed reads recover without another sync event", async () => {
   const log: string[] = [];
   let reads = 0;
   const reconciler = createSyncReconciler({
-    store: fakeStore(log), gate: createCommitGate(),
+    store: fakeStore(log),
+    gate: createCommitGate(),
     bootstrap: async () => emptySnapshot,
     readDelta: async (ids) => {
       if (++reads < 3) throw new Error("storage busy");
       return deltaFor(ids);
     },
-    onError: () => undefined, retryDelaysMs: [0, 0],
+    onError: () => undefined,
+    retryDelaysMs: [0, 0],
   });
   reconciler.report({ noteIds: ["a"], structureChanged: false, full: false });
   await reconciler.settled();
@@ -190,14 +192,18 @@ test("exhaustion retains failed IDs for manual retry with later changes", async 
   let fail = true;
   let notices = 0;
   const reconciler = createSyncReconciler({
-    store: fakeStore(log), gate: createCommitGate(),
+    store: fakeStore(log),
+    gate: createCommitGate(),
     bootstrap: async () => emptySnapshot,
     readDelta: async (ids) => {
       if (fail) throw new Error("storage busy");
       return deltaFor(ids);
     },
-    onError: () => undefined, retryDelaysMs: [],
-    onRecoveryNeeded: () => { notices += 1; },
+    onError: () => undefined,
+    retryDelaysMs: [],
+    onRecoveryNeeded: () => {
+      notices += 1;
+    },
   });
   reconciler.report({ noteIds: ["a"], structureChanged: false, full: false });
   await reconciler.settled();
@@ -215,14 +221,16 @@ test("disposal cancels retry backoff and rejects late read application", async (
     const read = deferred<WorkspaceDelta>();
     let started = false;
     const reconciler = createSyncReconciler({
-      store: fakeStore(log), gate: createCommitGate(),
+      store: fakeStore(log),
+      gate: createCommitGate(),
       bootstrap: async () => emptySnapshot,
       readDelta: async () => {
         started = true;
         if (!delayedRead) throw new Error("storage busy");
         return read.promise;
       },
-      onError: () => undefined, retryDelaysMs: [60_000],
+      onError: () => undefined,
+      retryDelaysMs: [60_000],
     });
     reconciler.report({ noteIds: ["a"], structureChanged: false, full: false });
     await new Promise<void>((resolve) => setImmediate(resolve));
@@ -241,14 +249,20 @@ test("repeated refresh failures release the gate for delayed local saves", async
     const log: string[] = [];
     let reads = 0;
     const ack = deferred<void>();
-    const save = gate.enterCommit(async () => { await ack.promise; log.push("saved"); });
+    const save = gate.enterCommit(async () => {
+      await ack.promise;
+      log.push("saved");
+    });
     const reconciler = createSyncReconciler({
-      store: fakeStore(log), gate, bootstrap: async () => emptySnapshot,
+      store: fakeStore(log),
+      gate,
+      bootstrap: async () => emptySnapshot,
       readDelta: async (ids) => {
         if (++reads === 1) throw new Error("storage busy");
         return deltaFor(ids);
       },
-      onError: () => undefined, retryDelaysMs: [0],
+      onError: () => undefined,
+      retryDelaysMs: [0],
     });
     reconciler.report({ noteIds: ["remote"], structureChanged: false, full: false });
     assert.deepEqual(log, []);

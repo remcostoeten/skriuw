@@ -61,7 +61,10 @@ export function EditorHost({ visible = true }: Props) {
   const [failure, setFailure] = useState<EditorFailureView | null>(null);
   const [generation, setGeneration] = useState(0);
   // Metro only inlines `EXPO_PUBLIC_*` reads written out in full.
-  const bundle = useMemo(() => resolveEditorBundle(process.env.EXPO_PUBLIC_SKRIUW_EDITOR_ENTRY), []);
+  const bundle = useMemo(
+    () => resolveEditorBundle(process.env.EXPO_PUBLIC_SKRIUW_EDITOR_ENTRY),
+    [],
+  );
 
   useEffect(() => {
     editorTheme.current = theme.definition;
@@ -170,8 +173,8 @@ function EditorFailureSurface({ view, onReload }: FailureProps) {
         {view.detail}
       </Text>
       <Text style={[styles.failureDetail, { color: theme.color("muted-foreground") }]}>
-        Saved edits are safe. They were written to this device before the editor was told they
-        had landed.
+        Saved edits are safe. They were written to this device before the editor was told they had
+        landed.
       </Text>
       {isReloadable(view) ? (
         <Pressable

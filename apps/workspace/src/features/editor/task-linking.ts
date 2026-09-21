@@ -29,9 +29,7 @@ export function documentSaveOperations(
   at: number,
 ): WorkspaceOperation[] {
   const promotions = taskPromotionOperations(document, noteId, source, knownTasks, at);
-  return promotions.length > 0
-    ? promotions
-    : [{ type: "save_document", noteId, ...source, at }];
+  return promotions.length > 0 ? promotions : [{ type: "save_document", noteId, ...source, at }];
 }
 
 /**

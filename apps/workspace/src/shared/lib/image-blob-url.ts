@@ -6,10 +6,7 @@ const objectUrlByHash = new Map<string, Promise<string>>();
  * Resolves a stored image blob to an object URL, fetching each content hash
  * at most once for the lifetime of the window.
  */
-export function resolveImageBlobUrl(
-  contentHash: string,
-  mimeType: string,
-): Promise<string> {
+export function resolveImageBlobUrl(contentHash: string, mimeType: string): Promise<string> {
   const cached = objectUrlByHash.get(contentHash);
   if (cached) {
     return cached;

@@ -53,7 +53,10 @@ export function bindLongPress(element: HTMLElement, onOpen: () => void): () => v
     if (!origin || event.pointerId !== origin.id) {
       return;
     }
-    if (Math.abs(event.clientX - origin.x) > MOVE_SLOP_PX || Math.abs(event.clientY - origin.y) > MOVE_SLOP_PX) {
+    if (
+      Math.abs(event.clientX - origin.x) > MOVE_SLOP_PX ||
+      Math.abs(event.clientY - origin.y) > MOVE_SLOP_PX
+    ) {
       cancel();
     }
   }

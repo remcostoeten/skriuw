@@ -14,10 +14,22 @@ function resolved(input: string, context = CONTEXT): string {
 }
 
 test("every step keeps the day of the month and clamps to shorter ones", () => {
-  assert.equal(stepJournalDay("2026-09-15", { unit: "day", amount: -1 }, FIXTURE_TODAY), "2026-09-14");
-  assert.equal(stepJournalDay("2026-09-15", { unit: "week", amount: 1 }, FIXTURE_TODAY), "2026-09-22");
-  assert.equal(stepJournalDay("2026-01-31", { unit: "month", amount: 1 }, FIXTURE_TODAY), "2026-02-28");
-  assert.equal(stepJournalDay("2024-02-29", { unit: "year", amount: 1 }, FIXTURE_TODAY), "2025-02-28");
+  assert.equal(
+    stepJournalDay("2026-09-15", { unit: "day", amount: -1 }, FIXTURE_TODAY),
+    "2026-09-14",
+  );
+  assert.equal(
+    stepJournalDay("2026-09-15", { unit: "week", amount: 1 }, FIXTURE_TODAY),
+    "2026-09-22",
+  );
+  assert.equal(
+    stepJournalDay("2026-01-31", { unit: "month", amount: 1 }, FIXTURE_TODAY),
+    "2026-02-28",
+  );
+  assert.equal(
+    stepJournalDay("2024-02-29", { unit: "year", amount: 1 }, FIXTURE_TODAY),
+    "2025-02-28",
+  );
   assert.equal(stepJournalDay("2026-01-01", { unit: "today" }, FIXTURE_TODAY), FIXTURE_TODAY);
   assert.equal(shiftMonthKeepingDay("2028-01-31", 1), "2028-02-29");
   assert.equal(shiftYearKeepingDay("2024-02-29", -1), "2023-02-28");

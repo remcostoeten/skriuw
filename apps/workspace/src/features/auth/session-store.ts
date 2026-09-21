@@ -92,6 +92,8 @@ export function clearBrowserSessionToken(): void {
   try {
     storage.removeItem(STORAGE_KEY);
   } catch {
-    console.error("Clearing the stored Skriuw cloud session failed; it may reappear after a reload.");
+    console.error(
+      "Clearing the stored Skriuw cloud session failed; it may reappear after a reload.",
+    );
   }
 }

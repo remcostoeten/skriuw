@@ -31,8 +31,7 @@ const FENCE = "```mermaid\nflowchart TD\n  A --> B\n```";
 const passes: DiagramCheck = () =>
   Promise.resolve({ ok: true, svg: "<svg/>", width: 10, height: 10 });
 
-const fails: DiagramCheck = () =>
-  Promise.resolve({ ok: false, message: "Parse error on line 2" });
+const fails: DiagramCheck = () => Promise.resolve({ ok: false, message: "Parse error on line 2" });
 
 test("the fence source is read from a bare, wrapped, or tilde fence", () => {
   assert.equal(mermaidFenceSource(FENCE), "flowchart TD\n  A --> B");

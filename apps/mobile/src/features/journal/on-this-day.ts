@@ -24,10 +24,7 @@ function yearsAgoLabel(years: number): string {
  * March 29-31 never all point at the same late-February entry. Pure over the
  * already-projected entry list: no I/O on the navigation path.
  */
-export function onThisDay(
-  entries: readonly JournalEntry[],
-  dateKey: DateKey,
-): Anniversary[] {
+export function onThisDay(entries: readonly JournalEntry[], dateKey: DateKey): Anniversary[] {
   const byDate = new Map(entries.map((entry) => [entry.dateKey, entry]));
   const found: Anniversary[] = [];
   const weekAgo = byDate.get(shiftDay(dateKey, -7));

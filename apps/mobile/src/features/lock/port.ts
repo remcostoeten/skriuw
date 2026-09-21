@@ -1,11 +1,5 @@
-import type {
-  BridgePort,
-  NoteLockSecretInput,
-} from "@skriuw/renderer-core/bridge/port";
-import type {
-  NoteLockKind,
-  NoteLockState,
-} from "@skriuw/renderer-core/contracts/workspace";
+import type { BridgePort, NoteLockSecretInput } from "@skriuw/renderer-core/bridge/port";
+import type { NoteLockKind, NoteLockState } from "@skriuw/renderer-core/contracts/workspace";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 /**

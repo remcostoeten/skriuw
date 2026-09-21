@@ -1,6 +1,11 @@
 import type { MarkdownTree } from "@/features/transfer/export/markdown-transfer-model";
 import { sanitizeFileName } from "@/features/transfer/export/markdown-transfer-model";
-import type { ImportBundle, ImportSourceAdapter, ImportedNote, ImportWarning } from "@/features/transfer/import/model";
+import type {
+  ImportBundle,
+  ImportSourceAdapter,
+  ImportedNote,
+  ImportWarning,
+} from "@/features/transfer/import/model";
 import { noteTitleFromContent } from "@/features/transfer/import/model";
 
 type SimplenoteEntry = {
@@ -18,9 +23,7 @@ type SimplenoteExport = {
 };
 
 function findExportFile(tree: MarkdownTree): string | null {
-  const candidate = tree.files.find((file) =>
-    /(^|\/)notes\.json$/i.test(file.relativePath),
-  );
+  const candidate = tree.files.find((file) => /(^|\/)notes\.json$/i.test(file.relativePath));
   return candidate?.content ?? null;
 }
 
@@ -81,7 +84,9 @@ function parse(tree: MarkdownTree): ImportBundle {
   }
   const trashed = data.trashedNotes?.length ?? 0;
   if (trashed > 0) {
-    warnings.push({ message: `Skipped ${trashed} trashed Simplenote note${trashed === 1 ? "" : "s"}` });
+    warnings.push({
+      message: `Skipped ${trashed} trashed Simplenote note${trashed === 1 ? "" : "s"}`,
+    });
   }
   return {
     sourceId: simplenoteSource.id,

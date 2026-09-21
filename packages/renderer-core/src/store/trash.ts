@@ -112,8 +112,10 @@ export function filterTrashRows(rows: readonly TrashRow[], query: string): Trash
 export type TrashSortKey = "newest" | "oldest" | "az" | "za";
 
 const trashComparators: Record<TrashSortKey, (left: TrashRow, right: TrashRow) => number> = {
-  newest: (left, right) => right.deletedAt - left.deletedAt || left.title.localeCompare(right.title),
-  oldest: (left, right) => left.deletedAt - right.deletedAt || left.title.localeCompare(right.title),
+  newest: (left, right) =>
+    right.deletedAt - left.deletedAt || left.title.localeCompare(right.title),
+  oldest: (left, right) =>
+    left.deletedAt - right.deletedAt || left.title.localeCompare(right.title),
   az: (left, right) => left.title.localeCompare(right.title) || left.deletedAt - right.deletedAt,
   za: (left, right) => right.title.localeCompare(left.title) || left.deletedAt - right.deletedAt,
 };
@@ -131,10 +133,7 @@ export function trashWindowRange(
 ): TrashWindow {
   return {
     start: Math.max(0, Math.floor(scrollTop / rowHeight) - overscan),
-    end: Math.min(
-      itemCount,
-      Math.ceil((scrollTop + viewportHeight) / rowHeight) + overscan,
-    ),
+    end: Math.min(itemCount, Math.ceil((scrollTop + viewportHeight) / rowHeight) + overscan),
   };
 }
 
@@ -162,9 +161,7 @@ export function isNodeInSubtree(
   return false;
 }
 
-function childrenByParent(
-  nodes: ReadonlyMap<string, WorkspaceNode>,
-): Map<string, WorkspaceNode[]> {
+function childrenByParent(nodes: ReadonlyMap<string, WorkspaceNode>): Map<string, WorkspaceNode[]> {
   const children = new Map<string, WorkspaceNode[]>();
   for (const node of nodes.values()) {
     if (node.parentId === null) {

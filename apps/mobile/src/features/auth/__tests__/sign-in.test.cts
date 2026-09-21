@@ -136,9 +136,7 @@ test("a build without a keystore refuses rather than falling back to plain stora
 test("signing in reads the bearer header and stores what it received", async () => {
   const secureStore = fakeSecureStore();
   const session = createSessionStore(createKeystore(secureStore));
-  const { fetch, exchanges } = fakeFetch([
-    { status: 200, body: account(), token: "issued-token" },
-  ]);
+  const { fetch, exchanges } = fakeFetch([{ status: 200, body: account(), token: "issued-token" }]);
   const client = createAuthClient({ baseUrl: BASE_URL, session, fetch });
 
   const result = await client.signIn({ email: "writer@example.com", password: "correct horse" });
@@ -154,7 +152,10 @@ test("signing in reads the bearer header and stores what it received", async () 
   const [exchange] = exchanges;
   assert.equal(exchange?.url, `${BASE_URL}/api/auth/sign-in/email`);
   assert.equal(exchange?.method, "POST");
-  assert.equal(exchange?.body, JSON.stringify({ email: "writer@example.com", password: "correct horse" }));
+  assert.equal(
+    exchange?.body,
+    JSON.stringify({ email: "writer@example.com", password: "correct horse" }),
+  );
 });
 
 test("a sign-in without a credential in the answer is not treated as signed in", async () => {
@@ -320,11 +321,17 @@ function stubClient(overrides: Partial<AuthClient> = {}): AuthClient {
   return {
     signIn: async () => ({
       ok: true,
-      value: { account: { id: "user-1", email: "writer@example.com", name: null }, persisted: true },
+      value: {
+        account: { id: "user-1", email: "writer@example.com", name: null },
+        persisted: true,
+      },
     }),
     signUp: async () => ({
       ok: true,
-      value: { account: { id: "user-1", email: "writer@example.com", name: null }, persisted: true },
+      value: {
+        account: { id: "user-1", email: "writer@example.com", name: null },
+        persisted: true,
+      },
     }),
     currentAccount: async () => ({ ok: true, value: null }),
     signOut: async () => ({ ok: true, value: { revoked: true } }),
@@ -440,7 +447,10 @@ test("a rejected sign-in reports the refusal and leaves the device signed out", 
     stubClient({
       signIn: async () => ({
         ok: false,
-        error: { code: "invalid-credentials", message: "That email and password do not match an account." },
+        error: {
+          code: "invalid-credentials",
+          message: "That email and password do not match an account.",
+        },
       }),
     }),
   );

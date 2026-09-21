@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createWorkflowSnapshot } from "../../../../e2e/fixture";
 import { planImportBundle } from "../../../../src/features/transfer/import/plan";
-import {
-  createInitialState,
-  createRendererStore,
-} from "@skriuw/renderer-core/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 
 test("plans a 10,000-note provider import within bounded time", () => {
   const notes = Array.from({ length: 10_000 }, (_, index) => ({

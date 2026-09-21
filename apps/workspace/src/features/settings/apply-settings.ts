@@ -51,10 +51,7 @@ export function applySettingsToRoot(
   applyAttributesToRoot(root, rootSettingsAttributes(settings, customThemes));
 }
 
-export function applyAttributesToRoot(
-  root: RootElement,
-  attributes: RootSettingsAttributes,
-): void {
+export function applyAttributesToRoot(root: RootElement, attributes: RootSettingsAttributes): void {
   for (const token of TOKEN_NAMES) {
     root.style.removeProperty(`--${token}`);
   }
@@ -97,8 +94,7 @@ export function bindSettingsToRoot(
       reduceMotion: state.settings.reduceMotion,
     }),
     apply,
-    (left, right) =>
-      left.theme === right.theme && left.reduceMotion === right.reduceMotion,
+    (left, right) => left.theme === right.theme && left.reduceMotion === right.reduceMotion,
   );
   const unsubscribeThemes = customThemes?.subscribe?.(apply) ?? (() => {});
   return () => {

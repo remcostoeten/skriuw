@@ -84,15 +84,11 @@ export function formatRecordingClock(seconds: number): string {
   return `${minutes}:${String(remainder).padStart(2, "0")}`;
 }
 
-export function selectRawVoiceModelSetting(state: {
-  settings: WorkspaceSettings;
-}): unknown {
+export function selectRawVoiceModelSetting(state: { settings: WorkspaceSettings }): unknown {
   return state.settings["voiceSttModel"];
 }
 
-export function readVoiceModelSelection(
-  settings: WorkspaceSettings,
-): AiModelSelection | null {
+export function readVoiceModelSelection(settings: WorkspaceSettings): AiModelSelection | null {
   return parseAiModelSelection(settings["voiceSttModel"]);
 }
 
@@ -113,9 +109,7 @@ export function changeVoiceModelSelection(
   };
 }
 
-export function selectRawVoiceModeSetting(state: {
-  settings: WorkspaceSettings;
-}): unknown {
+export function selectRawVoiceModeSetting(state: { settings: WorkspaceSettings }): unknown {
   return state.settings["voiceDictationMode"];
 }
 
@@ -171,9 +165,7 @@ type VoiceFormatRequestInput = {
  * The reformat step is an ordinary completion: the transcript is the whole
  * user prompt and nothing else is added on the way to the provider.
  */
-export function buildVoiceFormatRequest(
-  input: VoiceFormatRequestInput,
-): AiCompletionRequest {
+export function buildVoiceFormatRequest(input: VoiceFormatRequestInput): AiCompletionRequest {
   return {
     requestId: input.requestId,
     providerId: input.selection.providerId,

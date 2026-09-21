@@ -1,13 +1,8 @@
-'use client';
+"use client";
 
-import { motion, type Variants } from 'motion/react';
+import { motion, type Variants } from "motion/react";
 
-import {
-  getVariants,
-  useAnimateIconContext,
-  IconWrapper,
-  type IconProps,
-} from './icon';
+import { getVariants, useAnimateIconContext, IconWrapper, type IconProps } from "./icon";
 
 type PanelRightProps = IconProps<keyof typeof animations>;
 
@@ -21,7 +16,7 @@ const animations = {
         y1: 4,
         x2: 17,
         y2: 20,
-        transition: { type: 'spring', damping: 18, stiffness: 200 },
+        transition: { type: "spring", damping: 18, stiffness: 200 },
       },
     },
   } satisfies Record<string, Variants>,

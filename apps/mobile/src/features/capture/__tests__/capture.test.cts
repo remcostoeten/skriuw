@@ -168,9 +168,7 @@ test("an unfinished line is skipped without taking the queue down with it", () =
 
 test("settling drops the acknowledged records and keeps the rest", () => {
   const inbox = createCaptureInbox(
-    createMemoryInboxFile(
-      sharedLine("share-1", "One", null) + sharedLine("share-2", "Two", null),
-    ),
+    createMemoryInboxFile(sharedLine("share-1", "One", null) + sharedLine("share-2", "Two", null)),
   );
 
   inbox.settle(["share-1"]);

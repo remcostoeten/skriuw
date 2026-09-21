@@ -41,14 +41,35 @@ test("splitRows leaves an empty cell for pure insertions", () => {
   const rows = splitRows(lines("a\nd\n", "a\nb\nc\nd\n"));
   const inserted = rows.filter((row) => row.before === null);
 
-  assert.deepEqual(inserted.map((row) => text(row.after)), ["b", "c"]);
+  assert.deepEqual(
+    inserted.map((row) => text(row.after)),
+    ["b", "c"],
+  );
   assert.ok(inserted.every((row) => row.after?.kind === "added"));
 });
 
 test("splitRows pairs in order even when the model emits surplus removals after additions", () => {
-  const removedA: DiffLine = { key: "r1", kind: "removed", beforeLine: 1, afterLine: null, segments: [{ text: "A", changed: false }] };
-  const addedB: DiffLine = { key: "a1", kind: "added", beforeLine: null, afterLine: 1, segments: [{ text: "B", changed: false }] };
-  const removedC: DiffLine = { key: "r2", kind: "removed", beforeLine: 2, afterLine: null, segments: [{ text: "C", changed: false }] };
+  const removedA: DiffLine = {
+    key: "r1",
+    kind: "removed",
+    beforeLine: 1,
+    afterLine: null,
+    segments: [{ text: "A", changed: false }],
+  };
+  const addedB: DiffLine = {
+    key: "a1",
+    kind: "added",
+    beforeLine: null,
+    afterLine: 1,
+    segments: [{ text: "B", changed: false }],
+  };
+  const removedC: DiffLine = {
+    key: "r2",
+    kind: "removed",
+    beforeLine: 2,
+    afterLine: null,
+    segments: [{ text: "C", changed: false }],
+  };
 
   const rows = splitRows([removedA, addedB, removedC]);
 

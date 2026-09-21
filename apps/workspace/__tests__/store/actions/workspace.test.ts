@@ -24,19 +24,64 @@ test("workspace action exports exist and are functions", () => {
 });
 
 test("navigateNote walks sidebar order and wraps at both ends", async () => {
-  const { createInitialState, createRendererStore } = await import("@skriuw/renderer-core/store/store");
+  const { createInitialState, createRendererStore } =
+    await import("@skriuw/renderer-core/store/store");
   const { navigateNote } = await import("../../../src/store/actions/workspace");
   const base = {
     protocolVersion: 1,
     activeNoteId: "a",
     nodes: [
-      { id: "a", kind: "note", parentId: null, rank: 1, title: "a", icon: null, createdAt: 1, updatedAt: 1, deletedAt: null, pinnedAt: null },
-      { id: "b", kind: "note", parentId: null, rank: 2, title: "b", icon: null, createdAt: 1, updatedAt: 1, deletedAt: null, pinnedAt: null },
-      { id: "c", kind: "note", parentId: null, rank: 3, title: "c", icon: null, createdAt: 1, updatedAt: 1, deletedAt: null, pinnedAt: null },
+      {
+        id: "a",
+        kind: "note",
+        parentId: null,
+        rank: 1,
+        title: "a",
+        icon: null,
+        createdAt: 1,
+        updatedAt: 1,
+        deletedAt: null,
+        pinnedAt: null,
+      },
+      {
+        id: "b",
+        kind: "note",
+        parentId: null,
+        rank: 2,
+        title: "b",
+        icon: null,
+        createdAt: 1,
+        updatedAt: 1,
+        deletedAt: null,
+        pinnedAt: null,
+      },
+      {
+        id: "c",
+        kind: "note",
+        parentId: null,
+        rank: 3,
+        title: "c",
+        icon: null,
+        createdAt: 1,
+        updatedAt: 1,
+        deletedAt: null,
+        pinnedAt: null,
+      },
     ],
     documents: [],
     historyHeaders: [],
-    settings: { settingsVersion: 1, theme: "system", compactSidebar: false, showPageIcons: true, reduceMotion: false, rememberLastNote: true, editorFont: "sans", editorLineHeight: "1.6", showLineNumbers: false, editorPlaceholder: "" },
+    settings: {
+      settingsVersion: 1,
+      theme: "system",
+      compactSidebar: false,
+      showPageIcons: true,
+      reduceMotion: false,
+      rememberLastNote: true,
+      editorFont: "sans",
+      editorLineHeight: "1.6",
+      showLineNumbers: false,
+      editorPlaceholder: "",
+    },
   };
   const store = createRendererStore(createInitialState(base as never));
 
@@ -50,20 +95,66 @@ test("navigateNote walks sidebar order and wraps at both ends", async () => {
 });
 
 test("navigateNote follows the focused pane's tab order when notes open in tabs", async () => {
-  const { createInitialState, createRendererStore } = await import("@skriuw/renderer-core/store/store");
+  const { createInitialState, createRendererStore } =
+    await import("@skriuw/renderer-core/store/store");
   const { navigateNote } = await import("../../../src/store/actions/workspace");
   const { openNoteInTab } = await import("../../../src/store/actions/panes");
   const base = {
     protocolVersion: 1,
     activeNoteId: "a",
     nodes: [
-      { id: "a", kind: "note", parentId: null, rank: 1, title: "a", icon: null, createdAt: 1, updatedAt: 1, deletedAt: null, pinnedAt: null },
-      { id: "b", kind: "note", parentId: null, rank: 2, title: "b", icon: null, createdAt: 1, updatedAt: 1, deletedAt: null, pinnedAt: null },
-      { id: "c", kind: "note", parentId: null, rank: 3, title: "c", icon: null, createdAt: 1, updatedAt: 1, deletedAt: null, pinnedAt: null },
+      {
+        id: "a",
+        kind: "note",
+        parentId: null,
+        rank: 1,
+        title: "a",
+        icon: null,
+        createdAt: 1,
+        updatedAt: 1,
+        deletedAt: null,
+        pinnedAt: null,
+      },
+      {
+        id: "b",
+        kind: "note",
+        parentId: null,
+        rank: 2,
+        title: "b",
+        icon: null,
+        createdAt: 1,
+        updatedAt: 1,
+        deletedAt: null,
+        pinnedAt: null,
+      },
+      {
+        id: "c",
+        kind: "note",
+        parentId: null,
+        rank: 3,
+        title: "c",
+        icon: null,
+        createdAt: 1,
+        updatedAt: 1,
+        deletedAt: null,
+        pinnedAt: null,
+      },
     ],
     documents: [],
     historyHeaders: [],
-    settings: { settingsVersion: 1, theme: "system", compactSidebar: false, showPageIcons: true, reduceMotion: false, rememberLastNote: true, editorFont: "sans", editorLineHeight: "1.6", showLineNumbers: false, editorPlaceholder: "", openNotesInTabs: true },
+    settings: {
+      settingsVersion: 1,
+      theme: "system",
+      compactSidebar: false,
+      showPageIcons: true,
+      reduceMotion: false,
+      rememberLastNote: true,
+      editorFont: "sans",
+      editorLineHeight: "1.6",
+      showLineNumbers: false,
+      editorPlaceholder: "",
+      openNotesInTabs: true,
+    },
   };
   const store = createRendererStore(createInitialState(base as never));
   openNoteInTab(store, "c");
@@ -75,7 +166,8 @@ test("navigateNote follows the focused pane's tab order when notes open in tabs"
 });
 
 test("navigateNote is a no-op without an active note", async () => {
-  const { createInitialState, createRendererStore } = await import("@skriuw/renderer-core/store/store");
+  const { createInitialState, createRendererStore } =
+    await import("@skriuw/renderer-core/store/store");
   const { navigateNote } = await import("../../../src/store/actions/workspace");
   const base = {
     protocolVersion: 1,
@@ -83,7 +175,18 @@ test("navigateNote is a no-op without an active note", async () => {
     nodes: [],
     documents: [],
     historyHeaders: [],
-    settings: { settingsVersion: 1, theme: "system", compactSidebar: false, showPageIcons: true, reduceMotion: false, rememberLastNote: true, editorFont: "sans", editorLineHeight: "1.6", showLineNumbers: false, editorPlaceholder: "" },
+    settings: {
+      settingsVersion: 1,
+      theme: "system",
+      compactSidebar: false,
+      showPageIcons: true,
+      reduceMotion: false,
+      rememberLastNote: true,
+      editorFont: "sans",
+      editorLineHeight: "1.6",
+      showLineNumbers: false,
+      editorPlaceholder: "",
+    },
   };
   const store = createRendererStore(createInitialState(base as never));
   navigateNote(store, 1);
@@ -123,7 +226,8 @@ function folderNode(id: string, rank: number, parentId: string | null = null) {
 }
 
 async function storeWith(snapshot: Record<string, unknown>) {
-  const { createInitialState, createRendererStore } = await import("@skriuw/renderer-core/store/store");
+  const { createInitialState, createRendererStore } =
+    await import("@skriuw/renderer-core/store/store");
   return createRendererStore(
     createInitialState({
       protocolVersion: 1,
@@ -283,9 +387,8 @@ test("trashCurrentNote is a silent no-op without an open note", async () => {
 });
 
 test("restoreTrashedNote brings the note back and reopens it", async () => {
-  const { restoreTrashedNote, trashCurrentNote } = await import(
-    "../../../src/store/actions/workspace"
-  );
+  const { restoreTrashedNote, trashCurrentNote } =
+    await import("../../../src/store/actions/workspace");
   const store = await storeWith({
     activeNoteId: "a",
     nodes: [noteNode("a", 1), noteNode("b", 2)],
@@ -501,7 +604,9 @@ test("duplicateCurrentNote copies the open note after it and opens the copy", as
         noteId: "a",
         documentJson: {
           type: "doc",
-          content: [{ type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "a" }] }],
+          content: [
+            { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "a" }] },
+          ],
         },
         markdown: "# a\n",
         revision: 1,
@@ -521,7 +626,9 @@ test("duplicateCurrentNote copies the open note after it and opens the copy", as
   assert.notEqual(duplicated.noteId, "a");
   assert.equal(state.sourceNodes.get(duplicated.noteId)?.pinnedAt, null);
   assert.equal(state.nodes.has("a"), true);
-  const order = state.nodeOrder.filter((id) => id === "a" || id === duplicated.noteId || id === "b");
+  const order = state.nodeOrder.filter(
+    (id) => id === "a" || id === duplicated.noteId || id === "b",
+  );
   assert.deepEqual(order, ["a", duplicated.noteId, "b"]);
 });
 
@@ -535,7 +642,9 @@ test("duplicateCurrentNote leaves the original pinned state and dates alone", as
         noteId: "a",
         documentJson: {
           type: "doc",
-          content: [{ type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "a" }] }],
+          content: [
+            { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "a" }] },
+          ],
         },
         markdown: "# a\n",
         revision: 1,
@@ -562,7 +671,9 @@ test("duplicateCurrentNote copies the note it is handed, not the open one", asyn
         noteId: "b",
         documentJson: {
           type: "doc",
-          content: [{ type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "b" }] }],
+          content: [
+            { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "b" }] },
+          ],
         },
         markdown: "# b\n",
         revision: 1,

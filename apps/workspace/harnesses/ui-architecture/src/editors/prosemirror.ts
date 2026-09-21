@@ -57,9 +57,7 @@ function setSurfaceActive(surface: HTMLElement, active: boolean): void {
   surface.inert = !active;
 }
 
-export function createProseMirrorCandidate(
-  strategy: RenderingStrategy,
-): EditorCandidate {
+export function createProseMirrorCandidate(strategy: RenderingStrategy): EditorCandidate {
   let view: EditorView | null = null;
   const retainedEditors = new Map<string, RetainedEditor>();
   let activeId: string | null = null;
@@ -74,22 +72,14 @@ export function createProseMirrorCandidate(
     prepare(blockCount: BlockCount, noteCount: number) {
       preparations += 1;
       return Array.from({ length: noteCount }, (_, noteIndex) => {
-        const doc = schema.node(
-          "doc",
-          null,
-          createCorpus(blockCount, noteIndex).map(toNode),
-        );
+        const doc = schema.node("doc", null, createCorpus(blockCount, noteIndex).map(toNode));
         return {
           id: `prosemirror-${blockCount}-${noteIndex}`,
           value: EditorState.create({ doc }),
         };
       });
     },
-    mount(
-      host: HTMLElement,
-      states: readonly PreparedState[],
-      initial: PreparedState,
-    ) {
+    mount(host: HTMLElement, states: readonly PreparedState[], initial: PreparedState) {
       mounts += 1;
       mountedHost = host;
       activeId = initial.id;
@@ -131,12 +121,10 @@ export function createProseMirrorCandidate(
         strategy === "replace"
           ? view
           : activeId
-            ? retainedEditors.get(activeId)?.view ?? null
+            ? (retainedEditors.get(activeId)?.view ?? null)
             : null;
       if (activeView) {
-        activeView.dispatch(
-          activeView.state.tr.insertText(String(sampleIndex % 10), 1),
-        );
+        activeView.dispatch(activeView.state.tr.insertText(String(sampleIndex % 10), 1));
       }
     },
     preparationCount() {
@@ -146,16 +134,14 @@ export function createProseMirrorCandidate(
       return mounts;
     },
     editorInstanceCount() {
-      return strategy === "replace"
-        ? Number(view !== null)
-        : retainedEditors.size;
+      return strategy === "replace" ? Number(view !== null) : retainedEditors.size;
     },
     activeDomNodeCount() {
       const activeView =
         strategy === "replace"
           ? view
           : activeId
-            ? retainedEditors.get(activeId)?.view ?? null
+            ? (retainedEditors.get(activeId)?.view ?? null)
             : null;
       return countDomNodes(activeView);
     },
@@ -173,9 +159,7 @@ export function createProseMirrorCandidate(
       if (strategy === "replace") {
         return mountedHost?.offsetHeight ?? 0;
       }
-      return activeId
-        ? retainedEditors.get(activeId)?.surface.offsetHeight ?? 0
-        : 0;
+      return activeId ? (retainedEditors.get(activeId)?.surface.offsetHeight ?? 0) : 0;
     },
     destroy() {
       view?.destroy();

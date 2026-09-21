@@ -19,7 +19,13 @@ const REQUEST: AiCompletionRequest = {
   modelId: "echo",
   systemPrompt: "s",
   userPrompt: "u",
-  parameters: { maxOutputBytes: 1, timeoutMs: 1, retryCount: 0, temperatureMillis: null, topPMillis: null },
+  parameters: {
+    maxOutputBytes: 1,
+    timeoutMs: 1,
+    retryCount: 0,
+    temperatureMillis: null,
+    topPMillis: null,
+  },
 };
 
 function entry(noteId: string, signal: AbortSignal, cancelled: number[] = []): RegisteredAiRun {
@@ -107,8 +113,14 @@ test("an owner's abort ends its runs and reports the ones still streaming", asyn
   const streaming = entry("note-a", owner.signal, cancelled);
   const idle = entry("note-b", owner.signal);
   const stopped: string[] = [];
-  registerAiRun(streaming, { signal: owner.signal, onStopped: (run) => stopped.push(run.target.noteId) });
-  registerAiRun(idle, { signal: owner.signal, onStopped: (run) => stopped.push(run.target.noteId) });
+  registerAiRun(streaming, {
+    signal: owner.signal,
+    onStopped: (run) => stopped.push(run.target.noteId),
+  });
+  registerAiRun(idle, {
+    signal: owner.signal,
+    onStopped: (run) => stopped.push(run.target.noteId),
+  });
   streaming.session.fire(REQUEST);
   await new Promise((resolve) => setTimeout(resolve, 0));
 

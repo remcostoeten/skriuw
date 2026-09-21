@@ -34,7 +34,10 @@ export function collectLines(doc: ProseMirrorNode, from: number, to: number): Vi
   if (!first || !last) return [];
   const lines: VimLine[] = [first];
   let current: VimLine | null = first;
-  while (current && !(current.blockPos === last.blockPos && current.segmentIndex === last.segmentIndex)) {
+  while (
+    current &&
+    !(current.blockPos === last.blockPos && current.segmentIndex === last.segmentIndex)
+  ) {
     current = lineBelow(doc, current);
     if (current) lines.push(current);
   }
@@ -83,7 +86,11 @@ export function yankRange(
   writeRegister(register, registerFromRange(doc, range), options);
 }
 
-function cursorOnLine(doc: ProseMirrorNode, pos: number, column: "first-non-blank" | number): number {
+function cursorOnLine(
+  doc: ProseMirrorNode,
+  pos: number,
+  column: "first-non-blank" | number,
+): number {
   const clamped = Math.max(0, Math.min(pos, doc.content.size));
   const near = TextSelection.near(doc.resolve(clamped)).from;
   const line = lineAt(doc, near);
@@ -194,7 +201,11 @@ export function changeCase(tr: Transaction, range: OperatorRange, change: CaseCh
 }
 
 /** `r` over a span: every text character becomes `character`; inline nodes stay. */
-export function replaceCharacters(tr: Transaction, range: OperatorRange, character: string): number {
+export function replaceCharacters(
+  tr: Transaction,
+  range: OperatorRange,
+  character: string,
+): number {
   const span = rangeSpan(range, tr.doc);
   const spans = textNodeSpans(tr.doc, span.from, span.to);
   for (let index = spans.length - 1; index >= 0; index -= 1) {
@@ -207,9 +218,9 @@ export function replaceCharacters(tr: Transaction, range: OperatorRange, charact
 function paragraphsFromText(text: string): ProseMirrorNode[] {
   const paragraph = productSchema.nodes.paragraph;
   if (!paragraph) throw new Error("product schema is missing the paragraph node");
-  return text.split("\n").map((line) =>
-    paragraph.create(null, line.length > 0 ? productSchema.text(line) : undefined),
-  );
+  return text
+    .split("\n")
+    .map((line) => paragraph.create(null, line.length > 0 ? productSchema.text(line) : undefined));
 }
 
 function repeatFragment(nodes: readonly ProseMirrorNode[], count: number): Fragment {
@@ -272,7 +283,11 @@ export function joinLines(
     tr.delete(from, to);
     const rest = next.text.slice(leading);
     const needsSpace =
-      withSpaces && line.text.length > 0 && !/\s$/u.test(line.text) && rest.length > 0 && !rest.startsWith(")");
+      withSpaces &&
+      line.text.length > 0 &&
+      !/\s$/u.test(line.text) &&
+      rest.length > 0 &&
+      !rest.startsWith(")");
     if (needsSpace) tr.insertText(" ", from);
     joinPoint = from;
     const rejoined = lineAt(tr.doc, from);

@@ -5,17 +5,8 @@ import { commitOperations } from "../../bridge/commit";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme } from "../../shell/theme";
 import { useWorkspace, useWorkspaceSelector } from "../../shell/workspace-provider";
-import {
-  describeBiometry,
-  type BiometricEnrollment,
-  type BiometricUnlock,
-} from "./biometrics";
-import {
-  AUTO_LOCK_OPTIONS,
-  autoLockMinutes,
-  lockErrorMessage,
-  secretNoun,
-} from "./lock-model";
+import { describeBiometry, type BiometricEnrollment, type BiometricUnlock } from "./biometrics";
+import { AUTO_LOCK_OPTIONS, autoLockMinutes, lockErrorMessage, secretNoun } from "./lock-model";
 import { relockNotes, removeLock, unlockNotes } from "./lock-session";
 import { ChangeSecretView, SetupLockView } from "./lock-setup-view";
 import { LockButton, LockError, LockField } from "./secret-fields";
@@ -139,15 +130,18 @@ export function LockSettingsView({ biometrics: injected }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-      <Text accessibilityRole="header" style={[styles.heading, { color: theme.color("foreground") }]}>
+      <Text
+        accessibilityRole="header"
+        style={[styles.heading, { color: theme.color("foreground") }]}
+      >
         Locked notes
       </Text>
 
       {!lock.configured ? (
         <>
           <Text style={[styles.detail, { color: theme.color("muted-foreground") }]}>
-            Set one {noun} to encrypt any note or folder you lock. Locked notes leave search,
-            links, tasks and history until they are unlocked again.
+            Set one {noun} to encrypt any note or folder you lock. Locked notes leave search, links,
+            tasks and history until they are unlocked again.
           </Text>
           <LockButton label="Set up lock" onPress={() => setPanel("setup")} primary />
         </>

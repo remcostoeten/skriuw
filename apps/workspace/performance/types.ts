@@ -119,7 +119,9 @@ export type PerformanceController = {
   prepareKeyboard: () => Promise<{ anchors: string[] }>;
   positionKeyboard: (id: string) => string;
   confirmKeyboard: (expectedId: string) => void;
-  finishKeyboard: () => Promise<PhaseResult & { expected: number; handled: number; selections: number }>;
+  finishKeyboard: () => Promise<
+    PhaseResult & { expected: number; handled: number; selections: number }
+  >;
   prepareTyping: () => Promise<{ expected: number }>;
   confirmTyping: () => void;
   finishTyping: () => Promise<PhaseResult & { expected: number; handled: number }>;

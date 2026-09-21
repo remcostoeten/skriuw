@@ -1,9 +1,8 @@
 import type { NodeRecord, ProjectedNode, RendererState } from "./types";
 
-export function buildNodeIndex(nodes: readonly ProjectedNode[]): Pick<
-  RendererState,
-  "nodes" | "childrenByParent" | "nodeOrder"
-> {
+export function buildNodeIndex(
+  nodes: readonly ProjectedNode[],
+): Pick<RendererState, "nodes" | "childrenByParent" | "nodeOrder"> {
   const byId = new Map<string, NodeRecord>();
   const children = new Map<string | null, string[]>();
   const order: string[] = [];

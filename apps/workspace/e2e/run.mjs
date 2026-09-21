@@ -188,9 +188,7 @@ async function evaluate(cdp, sessionId, expression, timeoutMilliseconds = 30_000
     throw new Error(`${String(error)}\nExpression: ${expression.slice(0, 500)}`);
   }
   if (result.exceptionDetails) {
-    throw new Error(
-      result.exceptionDetails.exception?.description ?? result.exceptionDetails.text,
-    );
+    throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text);
   }
   return result.result.value;
 }
@@ -216,15 +214,7 @@ async function waitFor(cdp, sessionId, expression, description) {
   throw new Error(`timed out waiting for ${description}: ${diagnostic}`);
 }
 
-async function dispatchKey(
-  cdp,
-  sessionId,
-  key,
-  code,
-  virtualKeyCode,
-  text = "",
-  modifiers = 0,
-) {
+async function dispatchKey(cdp, sessionId, key, code, virtualKeyCode, text = "", modifiers = 0) {
   const common = {
     key,
     code,
@@ -233,11 +223,7 @@ async function dispatchKey(
     modifiers,
     ...(text ? { text, unmodifiedText: text } : {}),
   };
-  await cdp.send(
-    "Input.dispatchKeyEvent",
-    { ...common, type: "keyDown" },
-    sessionId,
-  );
+  await cdp.send("Input.dispatchKeyEvent", { ...common, type: "keyDown" }, sessionId);
   await cdp.send("Input.dispatchKeyEvent", { ...common, type: "keyUp" }, sessionId);
 }
 
@@ -319,7 +305,7 @@ async function runProviderImport(cdp, sessionId, checks, control, settle, state)
   await waitFor(
     cdp,
     sessionId,
-    "document.querySelector('[role=\"listbox\"][aria-label=\"Destination\"] [role=\"option\"]') !== null",
+    'document.querySelector(\'[role="listbox"][aria-label="Destination"] [role="option"]\') !== null',
     "import destination options",
   );
   await evaluate(
@@ -358,8 +344,7 @@ async function runProviderImport(cdp, sessionId, checks, control, settle, state)
   assert(
     checks,
     "provider-import-destination-and-commit",
-    importedNoteId &&
-      current.parents[current.parents[importedNoteId]] === "folder-a",
+    importedNoteId && current.parents[current.parents[importedNoteId]] === "folder-a",
     JSON.stringify({ importedNoteId, parents: current.parents }),
   );
   assert(
@@ -388,46 +373,147 @@ async function checkTaskKeyboard(cdp, sessionId, checks) {
   await typeText(cdp, sessionId, "- [] Plan the next release");
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
   await typeText(cdp, sessionId, "Review the keyboard experience");
-  await waitFor(cdp, sessionId, "document.querySelectorAll('.check-item').length === 2", "two editor tasks");
-  const firstId = await evaluate(cdp, sessionId, "document.querySelector('.check-item').dataset.taskId");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelectorAll('.check-item').length === 2",
+    "two editor tasks",
+  );
+  const firstId = await evaluate(
+    cdp,
+    sessionId,
+    "document.querySelector('.check-item').dataset.taskId",
+  );
   await evaluate(cdp, sessionId, `window.location.hash = '#/tasks/${firstId}'`);
-  await waitFor(cdp, sessionId, "document.querySelectorAll('.task-checkbox').length === 2", "saved workspace tasks");
-  await evaluate(cdp, sessionId, "window.location.hash = '#/tasks/' + document.querySelector('.task-checkbox').dataset.taskId");
-  await waitFor(cdp, sessionId, "document.activeElement === document.querySelector('.task-checkbox')", "deep-linked task focus");
-  const secondTitle = await evaluate(cdp, sessionId, "document.querySelectorAll('.task-checkbox')[1].getAttribute('aria-label')");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelectorAll('.task-checkbox').length === 2",
+    "saved workspace tasks",
+  );
+  await evaluate(
+    cdp,
+    sessionId,
+    "window.location.hash = '#/tasks/' + document.querySelector('.task-checkbox').dataset.taskId",
+  );
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.activeElement === document.querySelector('.task-checkbox')",
+    "deep-linked task focus",
+  );
+  const secondTitle = await evaluate(
+    cdp,
+    sessionId,
+    "document.querySelectorAll('.task-checkbox')[1].getAttribute('aria-label')",
+  );
   await dispatchKey(cdp, sessionId, "ArrowDown", "ArrowDown", 40);
   await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-  await waitFor(cdp, sessionId, "document.querySelectorAll('.task-checkbox')[1].checked", "Space completes task");
-  assert(checks, "task-toggle-retains-moved-focus", await evaluate(cdp, sessionId,
-    "document.activeElement === document.querySelectorAll('.task-checkbox')[1]"), "focus stays on the second task after a deep link");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelectorAll('.task-checkbox')[1].checked",
+    "Space completes task",
+  );
+  assert(
+    checks,
+    "task-toggle-retains-moved-focus",
+    await evaluate(
+      cdp,
+      sessionId,
+      "document.activeElement === document.querySelectorAll('.task-checkbox')[1]",
+    ),
+    "focus stays on the second task after a deep link",
+  );
   await dispatchKey(cdp, sessionId, "Home", "Home", 36);
-  assert(checks, "task-home-focus", await evaluate(cdp, sessionId,
-    "document.activeElement === document.querySelector('.task-checkbox')"), "Home focuses first task");
+  assert(
+    checks,
+    "task-home-focus",
+    await evaluate(
+      cdp,
+      sessionId,
+      "document.activeElement === document.querySelector('.task-checkbox')",
+    ),
+    "Home focuses first task",
+  );
   await dispatchKey(cdp, sessionId, "End", "End", 35);
-  assert(checks, "task-end-focus", await evaluate(cdp, sessionId,
-    "document.activeElement === document.querySelectorAll('.task-checkbox')[1]"), "End focuses last task");
+  assert(
+    checks,
+    "task-end-focus",
+    await evaluate(
+      cdp,
+      sessionId,
+      "document.activeElement === document.querySelectorAll('.task-checkbox')[1]",
+    ),
+    "End focuses last task",
+  );
   await dispatchKey(cdp, sessionId, "Tab", "Tab", 9);
-  assert(checks, "task-source-tab-focus", await evaluate(cdp, sessionId,
-    "document.activeElement.classList.contains('task-source')"), "Tab reaches source button");
+  assert(
+    checks,
+    "task-source-tab-focus",
+    await evaluate(cdp, sessionId, "document.activeElement.classList.contains('task-source')"),
+    "Tab reaches source button",
+  );
   await dispatchKey(cdp, sessionId, "Tab", "Tab", 9, "", 8);
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
   await waitFor(cdp, sessionId, "window.location.hash === '#/notes'", "Enter opens source");
-  assert(checks, "task-source-completion-matches", await evaluate(cdp, sessionId,
-    `[...document.querySelectorAll('.check-item')].find(item => item.textContent === ${JSON.stringify(secondTitle)})?.dataset.checked === 'true'`), "source checklist reflects completion");
-  const uncheckedTitle = await evaluate(cdp, sessionId, "document.querySelector('.check-item[data-checked=false]').textContent");
-  await evaluate(cdp, sessionId, 'window.__SKRIUW_WORKFLOW_E2E__.focusSelector(".check-item[data-checked=false] .check-item-box")');
+  assert(
+    checks,
+    "task-source-completion-matches",
+    await evaluate(
+      cdp,
+      sessionId,
+      `[...document.querySelectorAll('.check-item')].find(item => item.textContent === ${JSON.stringify(secondTitle)})?.dataset.checked === 'true'`,
+    ),
+    "source checklist reflects completion",
+  );
+  const uncheckedTitle = await evaluate(
+    cdp,
+    sessionId,
+    "document.querySelector('.check-item[data-checked=false]').textContent",
+  );
+  await evaluate(
+    cdp,
+    sessionId,
+    'window.__SKRIUW_WORKFLOW_E2E__.focusSelector(".check-item[data-checked=false] .check-item-box")',
+  );
   await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-  await waitFor(cdp, sessionId, "document.querySelectorAll('.check-item[data-checked=true]').length === 2", "editor keyboard completion");
-  assert(checks, "editor-toggle-retains-focus", await evaluate(cdp, sessionId,
-    "document.activeElement?.classList.contains('check-item-box')"), "editor checkbox retains keyboard focus");
-  assert(checks, "editor-checkbox-accessible-name", await evaluate(cdp, sessionId,
-    `document.getElementById(document.activeElement.getAttribute("aria-labelledby"))?.textContent === ${JSON.stringify(uncheckedTitle)}`), "checkbox is named by task text");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelectorAll('.check-item[data-checked=true]').length === 2",
+    "editor keyboard completion",
+  );
+  assert(
+    checks,
+    "editor-toggle-retains-focus",
+    await evaluate(cdp, sessionId, "document.activeElement?.classList.contains('check-item-box')"),
+    "editor checkbox retains keyboard focus",
+  );
+  assert(
+    checks,
+    "editor-checkbox-accessible-name",
+    await evaluate(
+      cdp,
+      sessionId,
+      `document.getElementById(document.activeElement.getAttribute("aria-labelledby"))?.textContent === ${JSON.stringify(uncheckedTitle)}`,
+    ),
+    "checkbox is named by task text",
+  );
   const accessibility = await cdp.send("Accessibility.getFullAXTree", {}, sessionId);
-  assert(checks, "editor-checkbox-accessibility-tree", accessibility.nodes.some((node) =>
-    node.role?.value === "checkbox" && node.name?.value === uncheckedTitle &&
-    node.properties?.some((property) => property.name === "checked" && property.value.value === "true")),
-    "browser exposes the task name and checked state to assistive technology");
-
+  assert(
+    checks,
+    "editor-checkbox-accessibility-tree",
+    accessibility.nodes.some(
+      (node) =>
+        node.role?.value === "checkbox" &&
+        node.name?.value === uncheckedTitle &&
+        node.properties?.some(
+          (property) => property.name === "checked" && property.value.value === "true",
+        ),
+    ),
+    "browser exposes the task name and checked state to assistive technology",
+  );
 }
 
 const ALT = 1;
@@ -438,7 +524,11 @@ async function journalHash(cdp, sessionId) {
 }
 
 async function pressOutsideEntry(cdp, sessionId, key, code, virtualKeyCode, text, modifiers) {
-  await evaluate(cdp, sessionId, "document.activeElement instanceof HTMLElement && document.activeElement.blur()");
+  await evaluate(
+    cdp,
+    sessionId,
+    "document.activeElement instanceof HTMLElement && document.activeElement.blur()",
+  );
   await dispatchKey(cdp, sessionId, key, code, virtualKeyCode, text, modifiers);
 }
 
@@ -446,43 +536,127 @@ async function checkJournalNavigation(cdp, sessionId, checks) {
   const openDialog = "document.querySelector('dialog[open] input[aria-label=\"Date to go to\"]')";
   const preview = "(document.querySelector('dialog[open] [role=status]')?.textContent ?? '')";
   await evaluate(cdp, sessionId, "window.location.hash = '#/journal/2026-01-31'");
-  await waitFor(cdp, sessionId, "document.querySelector('main[aria-label=\"Journal\"] .ProseMirror[contenteditable=\"true\"]') !== null", "journal entry editor");
+  await waitFor(
+    cdp,
+    sessionId,
+    'document.querySelector(\'main[aria-label="Journal"] .ProseMirror[contenteditable="true"]\') !== null',
+    "journal entry editor",
+  );
   await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.settle()");
-  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.focusSelector('main[aria-label=\"Journal\"] .ProseMirror[contenteditable=\"true\"]')");
+  await evaluate(
+    cdp,
+    sessionId,
+    'window.__SKRIUW_WORKFLOW_E2E__.focusSelector(\'main[aria-label="Journal"] .ProseMirror[contenteditable="true"]\')',
+  );
   await typeText(cdp, sessionId, "Draft kept across steps");
-  await waitFor(cdp, sessionId, "document.querySelector('main[aria-label=\"Journal\"] .ProseMirror')?.textContent.includes('Draft kept across steps') === true", "draft typed into the entry");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('main[aria-label=\"Journal\"] .ProseMirror')?.textContent.includes('Draft kept across steps') === true",
+    "draft typed into the entry",
+  );
   await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.settle()");
 
   await pressOutsideEntry(cdp, sessionId, "]", "BracketRight", 221, "", ALT);
-  await waitFor(cdp, sessionId, "window.location.hash === '#/journal/2026-02-28'", "alt+] steps a month, clamped");
+  await waitFor(
+    cdp,
+    sessionId,
+    "window.location.hash === '#/journal/2026-02-28'",
+    "alt+] steps a month, clamped",
+  );
   assert(checks, "journal-next-month-shortcut", true, await journalHash(cdp, sessionId));
   await pressOutsideEntry(cdp, sessionId, "{", "BracketLeft", 219, "", SHIFT);
-  await waitFor(cdp, sessionId, "window.location.hash === '#/journal/2026-02-21'", "shift+[ steps back a week");
+  await waitFor(
+    cdp,
+    sessionId,
+    "window.location.hash === '#/journal/2026-02-21'",
+    "shift+[ steps back a week",
+  );
   await pressOutsideEntry(cdp, sessionId, "[", "BracketLeft", 219, "", ALT);
-  await waitFor(cdp, sessionId, "window.location.hash === '#/journal/2026-01-21'", "alt+[ steps back a month");
+  await waitFor(
+    cdp,
+    sessionId,
+    "window.location.hash === '#/journal/2026-01-21'",
+    "alt+[ steps back a month",
+  );
   await evaluate(cdp, sessionId, "window.location.hash = '#/journal/2026-01-31'");
-  await waitFor(cdp, sessionId, "document.querySelector('main[aria-label=\"Journal\"] .ProseMirror')?.textContent.includes('Draft kept across steps') === true", "entry content after stepping away and back");
-  assert(checks, "journal-entry-content-kept", true, "typed entry text survives month and week steps");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('main[aria-label=\"Journal\"] .ProseMirror')?.textContent.includes('Draft kept across steps') === true",
+    "entry content after stepping away and back",
+  );
+  assert(
+    checks,
+    "journal-entry-content-kept",
+    true,
+    "typed entry text survives month and week steps",
+  );
 
   await pressOutsideEntry(cdp, sessionId, "d", "KeyD", 68, "d", 0);
-  await waitFor(cdp, sessionId, `${openDialog} !== null && document.activeElement === ${openDialog}`, "go to date dialog with focused field");
-  assert(checks, "journal-go-to-suggestions", await evaluate(cdp, sessionId, "document.querySelectorAll('dialog[open] [role=option]').length > 0"), "suggestions listed while empty");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${openDialog} !== null && document.activeElement === ${openDialog}`,
+    "go to date dialog with focused field",
+  );
+  assert(
+    checks,
+    "journal-go-to-suggestions",
+    await evaluate(
+      cdp,
+      sessionId,
+      "document.querySelectorAll('dialog[open] [role=option]').length > 0",
+    ),
+    "suggestions listed while empty",
+  );
   await typeText(cdp, sessionId, "1/1/202");
-  await waitFor(cdp, sessionId, `${preview}.includes('two or four digits')`, "inline error for a malformed year");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${preview}.includes('two or four digits')`,
+    "inline error for a malformed year",
+  );
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
-  assert(checks, "journal-go-to-invalid-stays", (await journalHash(cdp, sessionId)) === "#/journal/2026-01-31" && (await evaluate(cdp, sessionId, `${openDialog} !== null`)), "Enter on an invalid date keeps the dialog open");
+  assert(
+    checks,
+    "journal-go-to-invalid-stays",
+    (await journalHash(cdp, sessionId)) === "#/journal/2026-01-31" &&
+      (await evaluate(cdp, sessionId, `${openDialog} !== null`)),
+    "Enter on an invalid date keeps the dialog open",
+  );
   await replaceText(cdp, sessionId, "dec 2025");
-  await waitFor(cdp, sessionId, `${preview}.includes('December 2025') && ${preview}.includes('Monday, December 1, 2025')`, "month preview with its opening day");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${preview}.includes('December 2025') && ${preview}.includes('Monday, December 1, 2025')`,
+    "month preview with its opening day",
+  );
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
-  await waitFor(cdp, sessionId, "window.location.hash === '#/journal/2025-12-01' && document.querySelector('dialog[open]') === null", "go to dec 2025");
+  await waitFor(
+    cdp,
+    sessionId,
+    "window.location.hash === '#/journal/2025-12-01' && document.querySelector('dialog[open]') === null",
+    "go to dec 2025",
+  );
   assert(checks, "journal-go-to-month", true, await journalHash(cdp, sessionId));
 
   await pressOutsideEntry(cdp, sessionId, "d", "KeyD", 68, "d", 0);
   await waitFor(cdp, sessionId, `${openDialog} !== null`, "go to date dialog reopened");
   await typeText(cdp, sessionId, "tomorrow");
   await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
-  await waitFor(cdp, sessionId, "document.querySelector('dialog[open]') === null", "escape closes the dialog");
-  assert(checks, "journal-go-to-escape", (await journalHash(cdp, sessionId)) === "#/journal/2025-12-01", "Escape leaves the day unchanged");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('dialog[open]') === null",
+    "escape closes the dialog",
+  );
+  assert(
+    checks,
+    "journal-go-to-escape",
+    (await journalHash(cdp, sessionId)) === "#/journal/2025-12-01",
+    "Escape leaves the day unchanged",
+  );
 }
 
 const MERMAID_BLOCK = "document.querySelector('pre.code-block[data-language=\"mermaid\"]')";
@@ -494,23 +668,55 @@ async function checkMermaidRender(cdp, sessionId, checks) {
   await evaluate(cdp, sessionId, 'window.__SKRIUW_WORKFLOW_E2E__.focusNamed("New note")');
   await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
   await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.settle()");
-  await waitFor(cdp, sessionId, "document.querySelector('.ProseMirror[contenteditable=\"true\"]') !== null", "editable note for mermaid checks");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('.ProseMirror[contenteditable=\"true\"]') !== null",
+    "editable note for mermaid checks",
+  );
   await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.focusEditor()");
   await replaceText(cdp, sessionId, "Diagram note");
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
   await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.settle()");
   await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.focusEditor()");
   await typeText(cdp, sessionId, "Intro");
-  await waitFor(cdp, sessionId, "document.querySelector('.ProseMirror[contenteditable=\"true\"]').textContent.includes('Intro')", "body text before the fence");
-  const blocksBefore = await evaluate(cdp, sessionId, "document.querySelector('.ProseMirror[contenteditable=\"true\"]').childElementCount");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('.ProseMirror[contenteditable=\"true\"]').textContent.includes('Intro')",
+    "body text before the fence",
+  );
+  const blocksBefore = await evaluate(
+    cdp,
+    sessionId,
+    "document.querySelector('.ProseMirror[contenteditable=\"true\"]').childElementCount",
+  );
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
-  await waitFor(cdp, sessionId, `document.querySelector('.ProseMirror[contenteditable="true"]').childElementCount > ${blocksBefore}`, "fresh block for the mermaid fence");
+  await waitFor(
+    cdp,
+    sessionId,
+    `document.querySelector('.ProseMirror[contenteditable="true"]').childElementCount > ${blocksBefore}`,
+    "fresh block for the mermaid fence",
+  );
   await typeText(cdp, sessionId, "/sequence");
-  await waitFor(cdp, sessionId, "document.querySelector('.slash-menu[role=\"listbox\"]') !== null", "sequence slash command");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('.slash-menu[role=\"listbox\"]') !== null",
+    "sequence slash command",
+  );
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
-  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.dataset.mermaid === 'source'`, "mermaid fence inserted in source mode");
-  const caret = await evaluate(cdp, sessionId, `(() => {
+  await waitFor(
+    cdp,
+    sessionId,
+    `${MERMAID_BLOCK}?.dataset.mermaid === 'source'`,
+    "mermaid fence inserted in source mode",
+  );
+  const caret = await evaluate(
+    cdp,
+    sessionId,
+    `(() => {
     const block = ${MERMAID_BLOCK};
     const selection = window.getSelection();
     return {
@@ -519,14 +725,33 @@ async function checkMermaidRender(cdp, sessionId, checks) {
       toolbarVisible: getComputedStyle(block.querySelector('.code-block-toolbar')).opacity,
       toggle: block.querySelector('.code-block-mode')?.textContent,
     };
-  })()`);
-  assert(checks, "mermaid-template-caret-on-first-token", caret.insideSource && caret.textAfterCaret === "Alice" && caret.toggle === "Preview", JSON.stringify(caret));
+  })()`,
+  );
+  assert(
+    checks,
+    "mermaid-template-caret-on-first-token",
+    caret.insideSource && caret.textAfterCaret === "Alice" && caret.toggle === "Preview",
+    JSON.stringify(caret),
+  );
 
   await typeText(cdp, sessionId, "Dr");
-  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.textContent.includes('DrAlice->>Bob')`, "edited mermaid source");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${MERMAID_BLOCK}?.textContent.includes('DrAlice->>Bob')`,
+    "edited mermaid source",
+  );
   await evaluate(cdp, sessionId, `${MERMAID_BLOCK}.querySelector('.code-block-mode').click()`);
-  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.dataset.mermaid === 'preview' && ${MERMAID_SVG} !== null && ${MERMAID_SVG}.textContent.includes('DrAlice')`, "rendered sequence preview with the edit");
-  const preview = await evaluate(cdp, sessionId, `(() => {
+  await waitFor(
+    cdp,
+    sessionId,
+    `${MERMAID_BLOCK}?.dataset.mermaid === 'preview' && ${MERMAID_SVG} !== null && ${MERMAID_SVG}.textContent.includes('DrAlice')`,
+    "rendered sequence preview with the edit",
+  );
+  const preview = await evaluate(
+    cdp,
+    sessionId,
+    `(() => {
     const block = ${MERMAID_BLOCK};
     const svg = ${MERMAID_SVG};
     const code = block.querySelector('code');
@@ -540,50 +765,145 @@ async function checkMermaidRender(cdp, sessionId, checks) {
       fontImport: svg.innerHTML.includes('fonts.googleapis'),
       pageOverflow: document.querySelector('.editor-scroll')?.scrollWidth > document.querySelector('.editor-scroll')?.clientWidth,
     };
-  })()`);
-  assert(checks, "mermaid-preview-visible-and-labelled", preview.selectedNode && preview.svgVisible && preview.sourceCollapsed && preview.role === "img" && preview.label === "Sequence diagram preview" && !preview.fontImport && !preview.pageOverflow, JSON.stringify(preview));
+  })()`,
+  );
+  assert(
+    checks,
+    "mermaid-preview-visible-and-labelled",
+    preview.selectedNode &&
+      preview.svgVisible &&
+      preview.sourceCollapsed &&
+      preview.role === "img" &&
+      preview.label === "Sequence diagram preview" &&
+      !preview.fontImport &&
+      !preview.pageOverflow,
+    JSON.stringify(preview),
+  );
 
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
-  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.dataset.mermaid === 'source' && ${MERMAID_BLOCK}.querySelector('code').contains(window.getSelection().anchorNode)`, "Enter opens the source with the caret inside");
-  assert(checks, "mermaid-enter-opens-source", true, "Enter on the selected preview reveals the source");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${MERMAID_BLOCK}?.dataset.mermaid === 'source' && ${MERMAID_BLOCK}.querySelector('code').contains(window.getSelection().anchorNode)`,
+    "Enter opens the source with the caret inside",
+  );
+  assert(
+    checks,
+    "mermaid-enter-opens-source",
+    true,
+    "Enter on the selected preview reveals the source",
+  );
   await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
-  await waitFor(cdp, sessionId, `${MERMAID_BLOCK}?.dataset.mermaid === 'preview' && ${MERMAID_BLOCK}.classList.contains('ProseMirror-selectednode')`, "Escape returns to the selected preview");
-  assert(checks, "mermaid-escape-returns-to-preview", true, "Escape in the source reselects the preview");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${MERMAID_BLOCK}?.dataset.mermaid === 'preview' && ${MERMAID_BLOCK}.classList.contains('ProseMirror-selectednode')`,
+    "Escape returns to the selected preview",
+  );
+  assert(
+    checks,
+    "mermaid-escape-returns-to-preview",
+    true,
+    "Escape in the source reselects the preview",
+  );
 
   const before = await evaluate(cdp, sessionId, `${MERMAID_SVG}.getAttribute('style')`);
   await evaluate(cdp, sessionId, "document.documentElement.dataset.theme = 'paper'");
-  await waitFor(cdp, sessionId, `${MERMAID_SVG}?.getAttribute('style') !== ${JSON.stringify(before)} && ${MERMAID_SVG}?.getAttribute('style').includes('40 16% 95%')`, "preview re-rendered with the paper palette");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${MERMAID_SVG}?.getAttribute('style') !== ${JSON.stringify(before)} && ${MERMAID_SVG}?.getAttribute('style').includes('40 16% 95%')`,
+    "preview re-rendered with the paper palette",
+  );
   await evaluate(cdp, sessionId, "document.documentElement.dataset.theme = 'midnight'");
-  await waitFor(cdp, sessionId, `${MERMAID_SVG}?.getAttribute('style') === ${JSON.stringify(before)}`, "preview restored to the midnight palette");
-  assert(checks, "mermaid-theme-switch-rerenders", true, "a theme change re-renders the preview in place");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${MERMAID_SVG}?.getAttribute('style') === ${JSON.stringify(before)}`,
+    "preview restored to the midnight palette",
+  );
+  assert(
+    checks,
+    "mermaid-theme-switch-rerenders",
+    true,
+    "a theme change re-renders the preview in place",
+  );
 
   await evaluate(cdp, sessionId, `${MERMAID_BLOCK}.querySelector('.code-block-expand').click()`);
-  await waitFor(cdp, sessionId, "document.querySelector('dialog.mermaid-expand[open] svg') !== null", "expanded diagram dialog");
-  assert(checks, "mermaid-expand-opens-dialog", await evaluate(cdp, sessionId, "document.activeElement === document.querySelector('dialog.mermaid-expand .mermaid-expand-close')"), "expand focuses its close control");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('dialog.mermaid-expand[open] svg') !== null",
+    "expanded diagram dialog",
+  );
+  assert(
+    checks,
+    "mermaid-expand-opens-dialog",
+    await evaluate(
+      cdp,
+      sessionId,
+      "document.activeElement === document.querySelector('dialog.mermaid-expand .mermaid-expand-close')",
+    ),
+    "expand focuses its close control",
+  );
   await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
-  await waitFor(cdp, sessionId, "document.querySelector('dialog.mermaid-expand') === null", "expanded diagram closed by Escape");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('dialog.mermaid-expand') === null",
+    "expanded diagram closed by Escape",
+  );
   assert(checks, "mermaid-expand-escape-closes", true, "Escape closes the expanded diagram");
 
   await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.focusEditor()");
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
   await typeText(cdp, sessionId, "/er");
-  await waitFor(cdp, sessionId, "document.querySelector('.slash-menu[role=\"listbox\"]') !== null", "er slash command");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('.slash-menu[role=\"listbox\"]') !== null",
+    "er slash command",
+  );
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
-  await waitFor(cdp, sessionId, "document.querySelectorAll('pre.code-block[data-language=\"mermaid\"]').length === 2", "second mermaid fence");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelectorAll('pre.code-block[data-language=\"mermaid\"]').length === 2",
+    "second mermaid fence",
+  );
   await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
-  await waitFor(cdp, sessionId, "document.querySelectorAll('pre.code-block[data-mermaid=\"preview\"]').length === 2", "ER fence back in preview");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelectorAll('pre.code-block[data-mermaid=\"preview\"]').length === 2",
+    "ER fence back in preview",
+  );
   await dispatchKey(cdp, sessionId, "ArrowDown", "ArrowDown", 40);
   await typeText(cdp, sessionId, "/code");
-  await waitFor(cdp, sessionId, "document.querySelector('.slash-menu[role=\"listbox\"]') !== null", "code slash command");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('.slash-menu[role=\"listbox\"]') !== null",
+    "code slash command",
+  );
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
   await typeText(cdp, sessionId, "plain code");
-  const plain = await evaluate(cdp, sessionId, `(() => {
+  const plain = await evaluate(
+    cdp,
+    sessionId,
+    `(() => {
     const blocks = [...document.querySelectorAll('pre.code-block')];
     const last = blocks[blocks.length - 1];
     return { language: last.dataset.language, mermaid: last.dataset.mermaid ?? null, toggleHidden: last.querySelector('.code-block-mode').hidden, note: last.querySelector('.mermaid-note').hidden };
-  })()`);
-  assert(checks, "mermaid-plain-code-block-untouched", plain.language === "" && plain.mermaid === null && plain.toggleHidden && plain.note, JSON.stringify(plain));
+  })()`,
+  );
+  assert(
+    checks,
+    "mermaid-plain-code-block-untouched",
+    plain.language === "" && plain.mermaid === null && plain.toggleHidden && plain.note,
+    JSON.stringify(plain),
+  );
 }
 
 async function runWorkflow() {
@@ -599,35 +919,28 @@ async function runWorkflow() {
     const cdp = await connectCdp(launched.wsUrl);
     const browser = await cdp.send("Browser.getVersion");
     const target = await cdp.send("Target.createTarget", { url: "about:blank" });
-    const attached = await cdp.send(
-      "Target.attachToTarget",
-      { targetId: target.targetId, flatten: true },
-    );
+    const attached = await cdp.send("Target.attachToTarget", {
+      targetId: target.targetId,
+      flatten: true,
+    });
     const sessionId = attached.sessionId;
     await cdp.send("Runtime.enable", {}, sessionId);
     await cdp.send("Page.enable", {}, sessionId);
     cdp.on("Runtime.consoleAPICalled", (parameters, eventSession) => {
       if (eventSession === sessionId && parameters.type === "error") {
         consoleErrors.push(
-          parameters.args
-            .map((argument) => argument.description ?? argument.value)
-            .join(" "),
+          parameters.args.map((argument) => argument.description ?? argument.value).join(" "),
         );
       }
     });
     cdp.on("Runtime.exceptionThrown", (parameters, eventSession) => {
       if (eventSession === sessionId) {
         pageErrors.push(
-          parameters.exceptionDetails.exception?.description ??
-            parameters.exceptionDetails.text,
+          parameters.exceptionDetails.exception?.description ?? parameters.exceptionDetails.text,
         );
       }
     });
-    await cdp.send(
-      "Page.navigate",
-      { url: `${baseUrl}/e2e/index.html` },
-      sessionId,
-    );
+    await cdp.send("Page.navigate", { url: `${baseUrl}/e2e/index.html` }, sessionId);
     await waitFor(
       cdp,
       sessionId,
@@ -650,60 +963,147 @@ async function runWorkflow() {
       await typeText(cdp, sessionId, "Save note as template");
       await settle();
       await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
-      await waitFor(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.state().settings.noteTemplateIds?.length === 1", "saved template");
+      await waitFor(
+        cdp,
+        sessionId,
+        "window.__SKRIUW_WORKFLOW_E2E__.state().settings.noteTemplateIds?.length === 1",
+        "saved template",
+      );
       await control('focusNamed("Command menu")');
       await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
       await typeText(cdp, sessionId, "New note from template");
       await settle();
       await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
-      await waitFor(cdp, sessionId, `document.querySelector('[aria-label="Note templates"]') !== null`, "template picker");
-      assert(checks, "personal-template-visible", await evaluate(cdp, sessionId, 'document.body.textContent.includes("Personal template")'), "personal source in picker");
+      await waitFor(
+        cdp,
+        sessionId,
+        `document.querySelector('[aria-label="Note templates"]') !== null`,
+        "template picker",
+      );
+      assert(
+        checks,
+        "personal-template-visible",
+        await evaluate(cdp, sessionId, 'document.body.textContent.includes("Personal template")'),
+        "personal source in picker",
+      );
       const before = (await state()).nodeOrder.length;
       await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
-      await waitFor(cdp, sessionId, `window.__SKRIUW_WORKFLOW_E2E__.state().nodeOrder.length === ${before + 1}`, "template copy");
+      await waitFor(
+        cdp,
+        sessionId,
+        `window.__SKRIUW_WORKFLOW_E2E__.state().nodeOrder.length === ${before + 1}`,
+        "template copy",
+      );
       assert(checks, "template-copy-created", true, "new canonical note created");
       await control('focusNamed("Search notes")');
       await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
       await settle();
-      await evaluate(cdp, sessionId, `document.querySelector('input[aria-label="Search notes"]').focus()`);
+      await evaluate(
+        cdp,
+        sessionId,
+        `document.querySelector('input[aria-label="Search notes"]').focus()`,
+      );
       await typeText(cdp, sessionId, "Alpha");
       await settle();
       await control('focusNamed("Save this search")');
       await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-      await waitFor(cdp, sessionId, 'window.__SKRIUW_WORKFLOW_E2E__.state().settings.savedSearches?.includes("Alpha")', "saved query");
+      await waitFor(
+        cdp,
+        sessionId,
+        'window.__SKRIUW_WORKFLOW_E2E__.state().settings.savedSearches?.includes("Alpha")',
+        "saved query",
+      );
       await control('focusNamed("Close search")');
       await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-      await evaluate(cdp, sessionId, `document.querySelector('nav[aria-label="Saved searches"] button').focus()`);
+      await evaluate(
+        cdp,
+        sessionId,
+        `document.querySelector('nav[aria-label="Saved searches"] button').focus()`,
+      );
       await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-      await waitFor(cdp, sessionId, `document.querySelector('input[aria-label="Search notes"]')?.value === "Alpha"`, "reopened query");
+      await waitFor(
+        cdp,
+        sessionId,
+        `document.querySelector('input[aria-label="Search notes"]')?.value === "Alpha"`,
+        "reopened query",
+      );
       assert(checks, "saved-search-reopened", true, "saved query restores sidebar search");
       await control('focusNamed("Remove saved search Alpha")');
       await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-      await waitFor(cdp, sessionId, 'window.__SKRIUW_WORKFLOW_E2E__.state().settings.savedSearches?.length === 0', "removed query");
-      assert(checks, "personal-browser-errors-empty", consoleErrors.length === 0 && pageErrors.length === 0, JSON.stringify({ consoleErrors, pageErrors }));
+      await waitFor(
+        cdp,
+        sessionId,
+        "window.__SKRIUW_WORKFLOW_E2E__.state().settings.savedSearches?.length === 0",
+        "removed query",
+      );
+      assert(
+        checks,
+        "personal-browser-errors-empty",
+        consoleErrors.length === 0 && pageErrors.length === 0,
+        JSON.stringify({ consoleErrors, pageErrors }),
+      );
       cdp.close();
-      return { browser: browser.product, steps: ["personal-template", "saved-search"], checks, consoleErrors, pageErrors };
+      return {
+        browser: browser.product,
+        steps: ["personal-template", "saved-search"],
+        checks,
+        consoleErrors,
+        pageErrors,
+      };
     }
 
     if (mermaidOnly) {
       await checkMermaidRender(cdp, sessionId, checks);
-      assert(checks, "mermaid-browser-errors-empty", consoleErrors.length === 0 && pageErrors.length === 0, JSON.stringify({ consoleErrors, pageErrors }));
+      assert(
+        checks,
+        "mermaid-browser-errors-empty",
+        consoleErrors.length === 0 && pageErrors.length === 0,
+        JSON.stringify({ consoleErrors, pageErrors }),
+      );
       cdp.close();
-      return { browser: browser.product, steps: ["mermaid-render"], checks, consoleErrors, pageErrors };
+      return {
+        browser: browser.product,
+        steps: ["mermaid-render"],
+        checks,
+        consoleErrors,
+        pageErrors,
+      };
     }
 
     if (journalOnly) {
       await checkJournalNavigation(cdp, sessionId, checks);
-      assert(checks, "journal-browser-errors-empty", consoleErrors.length === 0 && pageErrors.length === 0, JSON.stringify({ consoleErrors, pageErrors }));
+      assert(
+        checks,
+        "journal-browser-errors-empty",
+        consoleErrors.length === 0 && pageErrors.length === 0,
+        JSON.stringify({ consoleErrors, pageErrors }),
+      );
       cdp.close();
-      return { browser: browser.product, steps: ["journal-navigation"], checks, consoleErrors, pageErrors };
+      return {
+        browser: browser.product,
+        steps: ["journal-navigation"],
+        checks,
+        consoleErrors,
+        pageErrors,
+      };
     }
 
     if (tasksOnly) {
       await checkTaskKeyboard(cdp, sessionId, checks);
-      assert(checks, "task-browser-errors-empty", consoleErrors.length === 0 && pageErrors.length === 0, JSON.stringify({ consoleErrors, pageErrors }));
+      assert(
+        checks,
+        "task-browser-errors-empty",
+        consoleErrors.length === 0 && pageErrors.length === 0,
+        JSON.stringify({ consoleErrors, pageErrors }),
+      );
       cdp.close();
-      return { browser: browser.product, steps: ["task-keyboard"], checks, consoleErrors, pageErrors };
+      return {
+        browser: browser.product,
+        steps: ["task-keyboard"],
+        checks,
+        consoleErrors,
+        pageErrors,
+      };
     }
 
     let current = await state();
@@ -754,7 +1154,8 @@ async function runWorkflow() {
     assert(
       checks,
       "keyboard-create-note",
-      createdNoteId !== null && !["note-alpha", "note-beta", "note-gamma", "note-root"].includes(createdNoteId),
+      createdNoteId !== null &&
+        !["note-alpha", "note-beta", "note-gamma", "note-root"].includes(createdNoteId),
       createdNoteId,
     );
     await control("focusEditor()");
@@ -895,11 +1296,7 @@ async function runWorkflow() {
     assert(
       checks,
       "keyboard-slash-command",
-      (await evaluate(
-        cdp,
-        sessionId,
-        "document.querySelector('.slash-menu') === null",
-      )) === true,
+      (await evaluate(cdp, sessionId, "document.querySelector('.slash-menu') === null")) === true,
       "slash menu remained open",
     );
     steps.push("write-and-slash");
@@ -1167,12 +1564,7 @@ async function runWorkflow() {
       JSON.stringify(current.deleted),
     );
     await dispatchKey(cdp, sessionId, "6", "Digit6", 54, "", 10);
-    await waitFor(
-      cdp,
-      sessionId,
-      "window.location.hash === '#/trash'",
-      "trash route",
-    );
+    await waitFor(cdp, sessionId, "window.location.hash === '#/trash'", "trash route");
     await settle();
     await control('focusNamed("Restore Beta note")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
@@ -1185,12 +1577,7 @@ async function runWorkflow() {
       JSON.stringify(current.deleted),
     );
     await dispatchKey(cdp, sessionId, "1", "Digit1", 49, "", 10);
-    await waitFor(
-      cdp,
-      sessionId,
-      "window.location.hash === '#/notes'",
-      "notes route",
-    );
+    await waitFor(cdp, sessionId, "window.location.hash === '#/notes'", "notes route");
     await settle();
     await control('focusTree("note-beta")');
     await dispatchKey(cdp, sessionId, "Delete", "Delete", 46);
@@ -1203,19 +1590,14 @@ async function runWorkflow() {
       JSON.stringify(current.deleted),
     );
     await dispatchKey(cdp, sessionId, "6", "Digit6", 54, "", 10);
-    await waitFor(
-      cdp,
-      sessionId,
-      "window.location.hash === '#/trash'",
-      "trash route for purge",
-    );
+    await waitFor(cdp, sessionId, "window.location.hash === '#/trash'", "trash route for purge");
     await settle();
     await control('focusNamed("Delete Beta note permanently")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('[role=\"group\"][aria-label=\"Delete forever\"] button') !== null",
+      'document.querySelector(\'[role="group"][aria-label="Delete forever"] button\') !== null',
       "armed purge confirmation",
     );
     await control('focusLastNamed("Delete forever")');
@@ -1252,19 +1634,14 @@ async function runWorkflow() {
     await dispatchKey(cdp, sessionId, "Delete", "Delete", 46);
     await settle();
     await dispatchKey(cdp, sessionId, "6", "Digit6", 54, "", 10);
-    await waitFor(
-      cdp,
-      sessionId,
-      "window.location.hash === '#/trash'",
-      "trash route for empty",
-    );
+    await waitFor(cdp, sessionId, "window.location.hash === '#/trash'", "trash route for empty");
     await settle();
     await control('focusNamed("Empty trash")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('[role=\"group\"][aria-label=\"Delete 1 item forever\"] button') !== null",
+      'document.querySelector(\'[role="group"][aria-label="Delete 1 item forever"] button\') !== null',
       "armed empty-trash confirmation",
     );
     await control('focusLastNamed("Delete 1 item forever")');
@@ -1280,12 +1657,7 @@ async function runWorkflow() {
     steps.push("trash-empty-inline-confirm");
 
     await dispatchKey(cdp, sessionId, "1", "Digit1", 49, "", 10);
-    await waitFor(
-      cdp,
-      sessionId,
-      "window.location.hash === '#/notes'",
-      "notes route after trash",
-    );
+    await waitFor(cdp, sessionId, "window.location.hash === '#/notes'", "notes route after trash");
     await settle();
     await control('focusNamed("Search notes")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
@@ -1307,7 +1679,7 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('[role=\"listbox\"][aria-label=\"Version history\"] [role=\"option\"]') !== null",
+      'document.querySelector(\'[role="listbox"][aria-label="Version history"] [role="option"]\') !== null',
       "history route",
     );
     await control('focusContaining("Earlier alpha version")');
@@ -1330,7 +1702,7 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('[role=\"group\"][aria-label=\"Restore\"] button') !== null",
+      'document.querySelector(\'[role="group"][aria-label="Restore"] button\') !== null',
       "armed history restore confirmation",
     );
     await control('focusLastNamed("Restore")');
@@ -1490,7 +1862,7 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('[role=\"group\"][aria-label=\"Replace workspace\"] button') !== null",
+      'document.querySelector(\'[role="group"][aria-label="Replace workspace"] button\') !== null',
       "armed archive replace confirmation",
     );
     await control('focusLastNamed("Replace workspace")');
@@ -1524,7 +1896,7 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('[role=\"group\"][aria-label=\"Restore backup\"] button') !== null",
+      'document.querySelector(\'[role="group"][aria-label="Restore backup"] button\') !== null',
       "armed backup restore confirmation",
     );
     await control('focusLastNamed("Restore backup")');
@@ -1554,12 +1926,7 @@ async function runWorkflow() {
       current.activeElement,
     );
     await dispatchKey(cdp, sessionId, "4", "Digit4", 52, "", 10);
-    await waitFor(
-      cdp,
-      sessionId,
-      "window.location.hash === '#/tags'",
-      "tags route",
-    );
+    await waitFor(cdp, sessionId, "window.location.hash === '#/tags'", "tags route");
     await settle();
     current = await state();
     assert(
@@ -1574,7 +1941,7 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('form[aria-label=\"New tag\"] input[aria-label=\"Name\"]') !== null",
+      'document.querySelector(\'form[aria-label="New tag"] input[aria-label="Name"]\') !== null',
       "new tag form",
     );
     await settle();
@@ -1616,11 +1983,8 @@ async function runWorkflow() {
     assert(
       checks,
       "entity-row-home-focus",
-      (await evaluate(
-        cdp,
-        sessionId,
-        "document.activeElement?.getAttribute('data-entity-id')",
-      )) === "tag-research",
+      (await evaluate(cdp, sessionId, "document.activeElement?.getAttribute('data-entity-id')")) ===
+        "tag-research",
       "Home did not focus the first entity row",
     );
     async function openEntityMenu(rowName, itemLabel) {
@@ -1678,7 +2042,7 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('[role=\"group\"][aria-label=\"Delete tag\"] button') !== null",
+      'document.querySelector(\'[role="group"][aria-label="Delete tag"] button\') !== null',
       "delete tag confirm group",
     );
     await control('focusNamed("Delete tag")');
@@ -1694,23 +2058,14 @@ async function runWorkflow() {
     steps.push("entity-tags");
 
     await dispatchKey(cdp, sessionId, "5", "Digit5", 53, "", 10);
-    await waitFor(
-      cdp,
-      sessionId,
-      "window.location.hash === '#/people'",
-      "people route",
-    );
+    await waitFor(cdp, sessionId, "window.location.hash === '#/people'", "people route");
     await settle();
     current = await state();
     assert(
       checks,
       "entity-people-empty-state",
       Object.keys(current.people).length === 0 &&
-        (await evaluate(
-          cdp,
-          sessionId,
-          "document.body.textContent.includes('No people yet')",
-        )),
+        (await evaluate(cdp, sessionId, "document.body.textContent.includes('No people yet')")),
       JSON.stringify(current.people),
     );
     await control('focusContaining("New person")');
@@ -1718,11 +2073,13 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('form[aria-label=\"New person\"] input[aria-label=\"Name\"]') !== null",
+      'document.querySelector(\'form[aria-label="New person"] input[aria-label="Name"]\') !== null',
       "new person form",
     );
     await settle();
-    await control('focusSelector("form[aria-label=\\"New person\\"] input[aria-label=\\"Name\\"]")');
+    await control(
+      'focusSelector("form[aria-label=\\"New person\\"] input[aria-label=\\"Name\\"]")',
+    );
     await typeText(cdp, sessionId, "Ada Lovelace");
     await dispatchKey(cdp, sessionId, "Enter", "Enter", 13, "\r");
     await settle();
@@ -1731,18 +2088,14 @@ async function runWorkflow() {
       checks,
       "keyboard-create-person",
       Object.values(current.people).includes("Ada Lovelace") &&
-        !(await evaluate(
-          cdp,
-          sessionId,
-          "document.body.textContent.includes('No people yet')",
-        )),
+        !(await evaluate(cdp, sessionId, "document.body.textContent.includes('No people yet')")),
       JSON.stringify(current.people),
     );
     await openEntityMenu("Ada Lovelace", "Delete");
     await waitFor(
       cdp,
       sessionId,
-      "document.querySelector('[role=\"group\"][aria-label=\"Delete person\"] button') !== null",
+      'document.querySelector(\'[role="group"][aria-label="Delete person"] button\') !== null',
       "delete person confirm group",
     );
     await control('focusNamed("Delete person")');
@@ -1753,11 +2106,7 @@ async function runWorkflow() {
       checks,
       "keyboard-delete-person-restores-empty-state",
       Object.keys(current.people).length === 0 &&
-        (await evaluate(
-          cdp,
-          sessionId,
-          "document.body.textContent.includes('No people yet')",
-        )),
+        (await evaluate(cdp, sessionId, "document.body.textContent.includes('No people yet')")),
       JSON.stringify(current.people),
     );
     steps.push("entity-people");
@@ -1774,12 +2123,7 @@ async function runWorkflow() {
       pageErrors.length === 0,
       JSON.stringify(pageErrors),
     );
-    assert(
-      checks,
-      "complete-workflow-step-set",
-      steps.length === 19,
-      JSON.stringify(steps),
-    );
+    assert(checks, "complete-workflow-step-set", steps.length === 19, JSON.stringify(steps));
     await checkTaskKeyboard(cdp, sessionId, checks);
     steps.push("task-keyboard");
     cdp.close();

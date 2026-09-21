@@ -45,7 +45,8 @@ export default async function DocPage({ params }: Props) {
   }
 
   const { html, headings, lede } = await renderDoc(page);
-  const outline = headings.length > 30 ? headings.filter((heading) => heading.depth === 2) : headings;
+  const outline =
+    headings.length > 30 ? headings.filter((heading) => heading.depth === 2) : headings;
   const index = docPages.indexOf(page);
   const previous = docPages[index - 1];
   const next = docPages[index + 1];

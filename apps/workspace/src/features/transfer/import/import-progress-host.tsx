@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { Dialog } from "@/shared/ui/dialog";
-import {
-  registerImportProgressListener,
-  type ImportProgress,
-} from "./progress-controller";
+import { registerImportProgressListener, type ImportProgress } from "./progress-controller";
 
 type ActiveProgress = ImportProgress & {
   cancel: () => void;
@@ -50,10 +47,7 @@ export function ImportProgressHost() {
           />
         </div>
         <div className="flex justify-end">
-          <Button
-            disabled={!progress.cancellable}
-            onClick={progress.cancel}
-          >
+          <Button disabled={!progress.cancellable} onClick={progress.cancel}>
             {progress.cancellable ? "Cancel" : "Finishing…"}
           </Button>
         </div>

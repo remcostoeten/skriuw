@@ -56,14 +56,8 @@ test("roving focus follows the active section or the first visible result", () =
 });
 
 test("active section survives empty search results and stale ids", () => {
-  assert.equal(
-    activeSettingsSection([], ["appearance", "editor"], "editor"),
-    "editor",
-  );
-  assert.equal(
-    activeSettingsSection([], ["appearance", "editor"], "ai"),
-    "appearance",
-  );
+  assert.equal(activeSettingsSection([], ["appearance", "editor"], "editor"), "editor");
+  assert.equal(activeSettingsSection([], ["appearance", "editor"], "ai"), "appearance");
   assert.equal(activeSettingsSection([], [], "appearance"), undefined);
 });
 

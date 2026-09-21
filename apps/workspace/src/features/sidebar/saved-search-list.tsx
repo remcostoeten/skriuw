@@ -1,9 +1,6 @@
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
-import {
-  savedSearches,
-  setSearchSaved,
-} from "@/features/search/saved-searches";
+import { savedSearches, setSearchSaved } from "@/features/search/saved-searches";
 import { showToast } from "@/shared/ui/toast";
 
 type Props = {
@@ -13,10 +10,7 @@ type Props = {
 };
 
 export function SavedSearchList({ store, query, onSelect }: Props) {
-  const value = useRendererSelector(
-    store,
-    (state) => state.settings.savedSearches,
-  );
+  const value = useRendererSelector(store, (state) => state.settings.savedSearches);
   const searches = savedSearches({
     ...store.getState().settings,
     savedSearches: value,
@@ -56,8 +50,8 @@ export function SavedSearchList({ store, query, onSelect }: Props) {
             aria-label={`Remove saved search ${search}`}
             className="rounded px-2 py-1.5 text-muted-foreground hover:bg-accent"
             onClick={() => {
-              void setSearchSaved(store, search, false).catch(
-                (error: unknown) => showToast({ message: String(error) }),
+              void setSearchSaved(store, search, false).catch((error: unknown) =>
+                showToast({ message: String(error) }),
               );
             }}
           >

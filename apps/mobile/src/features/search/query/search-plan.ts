@@ -46,7 +46,11 @@ function intersectReferencedNotes(
   return allowed;
 }
 
-export function planWorkspaceSearch(state: RendererState, raw: string, limit: number): WorkspaceSearchPlan {
+export function planWorkspaceSearch(
+  state: RendererState,
+  raw: string,
+  limit: number,
+): WorkspaceSearchPlan {
   const parsed = parseSearchQuery(raw);
   const resolution = resolveSearchFilters(state, parsed.filters);
   const allowedNoteIds = intersectReferencedNotes(state, resolution);
@@ -120,6 +124,7 @@ export function applySearchPlan(
   if (!plan.requiresFullText) {
     return allowedNoteIds === null ? [] : projectFilteredNotes(state, allowedNoteIds, limit);
   }
-  const matched = allowedNoteIds === null ? hits : hits.filter((hit) => allowedNoteIds.has(hit.noteId));
+  const matched =
+    allowedNoteIds === null ? hits : hits.filter((hit) => allowedNoteIds.has(hit.noteId));
   return matched.slice(0, limit);
 }

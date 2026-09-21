@@ -71,7 +71,9 @@ function connectCdp(wsUrl) {
           const id = nextId;
           nextId += 1;
           socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
-          return new Promise((resolveCall, rejectCall) => pending.set(id, { resolveCall, rejectCall }));
+          return new Promise((resolveCall, rejectCall) =>
+            pending.set(id, { resolveCall, rejectCall }),
+          );
         },
         on(method, handler) {
           listeners.push({ method, handler });
@@ -105,7 +107,11 @@ function connectCdp(wsUrl) {
 
 async function evaluate(cdp, sessionId, expression, timeoutMs = 180_000) {
   const result = await Promise.race([
-    cdp.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, sessionId),
+    cdp.send(
+      "Runtime.evaluate",
+      { expression, awaitPromise: true, returnByValue: true },
+      sessionId,
+    ),
     sleep(timeoutMs).then(() => {
       throw new Error(`evaluation timed out: ${expression.slice(0, 70)}`);
     }),
@@ -178,18 +184,24 @@ function renderInvariantFailures(benchmark) {
     }
     const expectedRows = scenario.expectedTreeRowRenders;
     const allowedComponents = [...allowed, ...Object.keys(expectedRows)];
-    const unexpected = Object.keys(scenario.renders).filter((component) => !allowedComponents.includes(component));
+    const unexpected = Object.keys(scenario.renders).filter(
+      (component) => !allowedComponents.includes(component),
+    );
     if (unexpected.length > 0) {
       failures.push(`${name}: unexpected renders ${unexpected.join(", ")}`);
     }
     for (const [component, count] of Object.entries(expected)) {
       if ((scenario.renders[component] ?? 0) !== count) {
-        failures.push(`${name}: ${component} rendered ${scenario.renders[component] ?? 0}, expected ${count}`);
+        failures.push(
+          `${name}: ${component} rendered ${scenario.renders[component] ?? 0}, expected ${count}`,
+        );
       }
     }
     for (const [component, count] of Object.entries(expectedRows)) {
       if (scenario.renders[component] !== count) {
-        failures.push(`${name}: ${component} rendered ${scenario.renders[component] ?? 0}, expected ${count}`);
+        failures.push(
+          `${name}: ${component} rendered ${scenario.renders[component] ?? 0}, expected ${count}`,
+        );
       }
     }
     if (benchmark.profileBuild) {
@@ -274,7 +286,10 @@ async function runContext(baseUrl, fixture, label, resultsDir) {
     const cdp = await connectCdp(wsUrl);
     const version = await cdp.send("Browser.getVersion");
     const target = await cdp.send("Target.createTarget", { url: "about:blank" });
-    const attached = await cdp.send("Target.attachToTarget", { targetId: target.targetId, flatten: true });
+    const attached = await cdp.send("Target.attachToTarget", {
+      targetId: target.targetId,
+      flatten: true,
+    });
     const sessionId = attached.sessionId;
     await cdp.send("Runtime.enable", {}, sessionId);
     await cdp.send("Page.enable", {}, sessionId);
@@ -285,7 +300,9 @@ async function runContext(baseUrl, fixture, label, resultsDir) {
     });
     cdp.on("Runtime.exceptionThrown", (params, eventSession) => {
       if (eventSession === sessionId) {
-        pageErrors.push(params.exceptionDetails.exception?.description ?? params.exceptionDetails.text);
+        pageErrors.push(
+          params.exceptionDetails.exception?.description ?? params.exceptionDetails.text,
+        );
       }
     });
     await cdp.send("Page.navigate", { url: `${baseUrl}/?fixture=${fixture}` }, sessionId);
@@ -369,7 +386,9 @@ async function runContext(baseUrl, fixture, label, resultsDir) {
       sessionId,
       "window.__SKRIUW_RENDERER_STORE__.destroy()",
     );
-    const failedChecks = [...benchmark.correctness, ...galleryChecks].filter((check) => !check.pass);
+    const failedChecks = [...benchmark.correctness, ...galleryChecks].filter(
+      (check) => !check.pass,
+    );
     if (failedChecks.length > 0) {
       throw new Error(`correctness failures: ${JSON.stringify(failedChecks)}`);
     }
@@ -391,7 +410,9 @@ async function runContext(baseUrl, fixture, label, resultsDir) {
       throw new Error(`lifecycle guard failure: ${JSON.stringify(lifecycleChecks)}`);
     }
     if (benchmark.diagnostics.listenerLeak !== 0 || teardownListeners !== 0) {
-      throw new Error(`subscriber leak: ${benchmark.diagnostics.listenerLeak}/${teardownListeners}`);
+      throw new Error(
+        `subscriber leak: ${benchmark.diagnostics.listenerLeak}/${teardownListeners}`,
+      );
     }
     if (consoleErrors.length > 0 || pageErrors.length > 0) {
       throw new Error(`browser errors: ${JSON.stringify({ consoleErrors, pageErrors })}`);
@@ -412,8 +433,14 @@ async function runContext(baseUrl, fixture, label, resultsDir) {
       teardownListeners,
       measuredAt: new Date().toISOString(),
     };
-    await writeFile(join(resultsDir, `${label}-${fixture}.json`), `${JSON.stringify(record, null, 2)}\n`);
-    await writeFile(join(resultsDir, `${label}-${fixture}.png`), Buffer.from(screenshot.data, "base64"));
+    await writeFile(
+      join(resultsDir, `${label}-${fixture}.json`),
+      `${JSON.stringify(record, null, 2)}\n`,
+    );
+    await writeFile(
+      join(resultsDir, `${label}-${fixture}.png`),
+      Buffer.from(screenshot.data, "base64"),
+    );
     cdp.close();
     return record;
   } finally {
@@ -440,7 +467,8 @@ async function removeDirectoryWithRetry(directory) {
   }
 }
 
-const [baseUrl = "http://127.0.0.1:4175", label = "production", ...fixtures] = process.argv.slice(2);
+const [baseUrl = "http://127.0.0.1:4175", label = "production", ...fixtures] =
+  process.argv.slice(2);
 const selectedFixtures = fixtures.length > 0 ? fixtures : ["nested-5000"];
 const root = dirname(fileURLToPath(import.meta.url));
 const resultsDir = join(root, "..", "results");

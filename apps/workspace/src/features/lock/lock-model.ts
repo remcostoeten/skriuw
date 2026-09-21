@@ -104,7 +104,6 @@ export function lockedNodeIds(state: RendererState): string[] {
   return ids;
 }
 
-
 /** The lock request a dialog opens for, and what to run once the session can proceed. */
 export type LockDialogRequest =
   | { kind: "setup"; onReady?: () => void }

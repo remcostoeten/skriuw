@@ -29,11 +29,7 @@ export function beginImportProgress(initial: ImportProgress): {
 } {
   const controller = new AbortController();
   function publish(progress: ImportProgress | null) {
-    listener?.(
-      progress
-        ? { ...progress, cancel: () => controller.abort() }
-        : null,
-    );
+    listener?.(progress ? { ...progress, cancel: () => controller.abort() } : null);
   }
   publish(initial);
   return {

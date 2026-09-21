@@ -1,9 +1,6 @@
 import { createMemoryBridge } from "@skriuw/renderer-core/bridge/memory-adapter";
 import type { BridgePort } from "@skriuw/renderer-core/bridge/port";
-import {
-  createInitialState,
-  createRendererStore,
-} from "@skriuw/renderer-core/store/store";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { thousandNoteSnapshot } from "./fixture";
 

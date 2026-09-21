@@ -27,10 +27,7 @@ export function createInitialState(projection: TreeProjection): RendererState {
     projection.nodes.filter((node) => node.kind === "folder").map((node) => node.id),
   );
   const documents = new Map<string, { id: string; preparedIdentity: string }>();
-  const metadata = new Map<
-    string,
-    { title: string; wordCount: number; updatedAt: string }
-  >();
+  const metadata = new Map<string, { title: string; wordCount: number; updatedAt: string }>();
   for (const node of projection.nodes) {
     if (node.kind === "note") {
       documents.set(node.id, { id: node.id, preparedIdentity: `prepared:${node.id}` });

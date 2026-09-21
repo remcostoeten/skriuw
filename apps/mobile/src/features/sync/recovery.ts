@@ -103,8 +103,7 @@ export function blockedLabel(item: {
   targetTitle: string | null;
   targetId: string | null;
 }): string {
-  const operation =
-    OPERATION_LABELS[item.operationType] ?? item.operationType.replaceAll("_", " ");
+  const operation = OPERATION_LABELS[item.operationType] ?? item.operationType.replaceAll("_", " ");
   if (item.targetTitle !== null && item.targetTitle.length > 0) {
     return `${operation} · ${item.targetTitle}`;
   }

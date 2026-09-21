@@ -12,7 +12,13 @@ type Props = {
 
 type Ripple = { x: number; y: number; id: number };
 
-type Particle = { left: number; edge: "top" | "bottom"; delay: number; duration: number; size: number };
+type Particle = {
+  left: number;
+  edge: "top" | "bottom";
+  delay: number;
+  duration: number;
+  size: number;
+};
 
 const PARTICLE_COUNT = 6;
 
@@ -91,7 +97,11 @@ export function LiquidMetalButton({ label, children, tabIndex, onRef, onPress, o
 
     const rect = buttonRef.current?.getBoundingClientRect();
     if (rect) {
-      const ripple = { x: event.clientX - rect.left, y: event.clientY - rect.top, id: rippleId.current++ };
+      const ripple = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+        id: rippleId.current++,
+      };
       setRipples((current) => [...current, ripple]);
       window.setTimeout(() => {
         setRipples((current) => current.filter((entry) => entry.id !== ripple.id));
@@ -154,7 +164,11 @@ export function LiquidMetalButton({ label, children, tabIndex, onRef, onPress, o
       >
         <span className="liquid-metal-label">{children}</span>
         {ripples.map((ripple) => (
-          <span key={ripple.id} className="liquid-metal-ripple" style={{ left: ripple.x, top: ripple.y }} />
+          <span
+            key={ripple.id}
+            className="liquid-metal-ripple"
+            style={{ left: ripple.x, top: ripple.y }}
+          />
         ))}
       </button>
     </span>

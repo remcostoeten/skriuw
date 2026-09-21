@@ -20,7 +20,10 @@ export function Download() {
   return (
     <section id="download" className="bg-surface py-24">
       <Container>
-        <div ref={headingRef} className="reveal-wipe flex flex-wrap items-start justify-between gap-6">
+        <div
+          ref={headingRef}
+          className="reveal-wipe flex flex-wrap items-start justify-between gap-6"
+        >
           <Rail>
             <h2 className="font-serif text-[28px] leading-[34px] font-normal tracking-[-0.56px] text-ink-900">
               Free, on everything

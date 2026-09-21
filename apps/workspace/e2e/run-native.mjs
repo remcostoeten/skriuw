@@ -129,10 +129,7 @@ function makeSession(sessionId) {
 function launchDriver(workspaceDirectory) {
   const child = spawn(
     "tauri-driver",
-    [
-      "--native-driver",
-      process.env.WEBKIT_WEBDRIVER ?? "/usr/bin/WebKitWebDriver",
-    ],
+    ["--native-driver", process.env.WEBKIT_WEBDRIVER ?? "/usr/bin/WebKitWebDriver"],
     {
       stdio: ["ignore", "ignore", "pipe"],
       env: {
@@ -173,11 +170,7 @@ function assert(checks, name, pass, detail) {
 }
 
 async function runProviderImport(session) {
-  await session.keys([
-    { hold: KEY.control },
-    { type: "k" },
-    { release: KEY.control },
-  ]);
+  await session.keys([{ hold: KEY.control }, { type: "k" }, { release: KEY.control }]);
   await session.waitFor(
     "return document.querySelector('dialog[open] h2')?.textContent === 'Command palette'",
     "command palette",
@@ -216,9 +209,7 @@ async function confirmImport(session) {
     "import completion report",
     600,
   );
-  const report = await session.script(
-    "return document.querySelector('dialog[open]').textContent",
-  );
+  const report = await session.script("return document.querySelector('dialog[open]').textContent");
   await session.keys([{ type: KEY.escape }]);
   await session.waitFor(
     "return document.querySelector('dialog[open]') === null",
@@ -281,8 +272,7 @@ async function runScenario(session) {
   assert(
     checks,
     "preview-detects-notion-with-real-zip-intake",
-    preview.text.includes("Notion - detected") &&
-      preview.text.includes("notion-export.zip"),
+    preview.text.includes("Notion - detected") && preview.text.includes("notion-export.zip"),
     preview.text.slice(0, 300),
   );
   assert(
@@ -324,9 +314,7 @@ async function runScenario(session) {
   assert(
     checks,
     "reimport-skip-mode-commits-nothing",
-    secondReport.includes(
-      "Imported 0 new notes, updated 0, skipped 6, and created 0 folders",
-    ),
+    secondReport.includes("Imported 0 new notes, updated 0, skipped 6, and created 0 folders"),
     secondReport,
   );
   const afterSecond = await treeState(session);
@@ -349,10 +337,7 @@ async function assertCommittedDatabase(checks, workspaceDirectory) {
     ],
     { capture: true },
   );
-  const [notes, folders, properties, receipts] = query.stdout
-    .trim()
-    .split("|")
-    .map(Number);
+  const [notes, folders, properties, receipts] = query.stdout.trim().split("|").map(Number);
   // Six imported notes in one folder, on top of the five seeded preview notes
   // across their three folders.
   assert(
@@ -401,9 +386,7 @@ try {
   };
   await mkdir(dirname(output), { recursive: true });
   await writeFile(output, `${JSON.stringify(result, null, 2)}\n`);
-  process.stdout.write(
-    `Native import E2E passed ${scenario.checks.length} assertions\n`,
-  );
+  process.stdout.write(`Native import E2E passed ${scenario.checks.length} assertions\n`);
   process.stdout.write(`raw native E2E evidence: ${output}\n`);
 } catch (error) {
   process.stderr.write(`${driver.readStderr()}\n`);

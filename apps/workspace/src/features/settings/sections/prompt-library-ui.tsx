@@ -64,9 +64,9 @@ export function PromptLibraryPanel({
     <div className={settingsGroup}>
       <div className={settingsGroupTitle}>Prompts</div>
       <p className={settingsGroupHint}>
-        The instructions behind each writing action. Edit a built-in to make your own copy of
-        it; reset puts the shipped one back. Prompts hold no keys and sync with the rest of
-        your workspace.
+        The instructions behind each writing action. Edit a built-in to make your own copy of it;
+        reset puts the shipped one back. Prompts hold no keys and sync with the rest of your
+        workspace.
       </p>
       <ul className="flex list-none flex-col gap-1.5 p-0">
         {entries.map((entry) => (
@@ -229,12 +229,7 @@ function PromptEditor({ draft, onDraftChange, onSave, onCancel }: EditorProps) {
         </p>
       )}
       <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          className={settingsButton}
-          disabled={error !== null}
-          onClick={onSave}
-        >
+        <button type="button" className={settingsButton} disabled={error !== null} onClick={onSave}>
           Save
         </button>
         <button type="button" className={settingsButton} onClick={onCancel}>

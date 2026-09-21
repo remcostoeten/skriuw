@@ -28,8 +28,7 @@ function prefersDark() {
 
 /** Resolves `system` against the OS setting and stamps the result on `<html>`. */
 export function applyTheme(choice: ThemeChoice): ResolvedTheme {
-  const resolved: ResolvedTheme =
-    choice === "system" ? (prefersDark() ? "dark" : "light") : choice;
+  const resolved: ResolvedTheme = choice === "system" ? (prefersDark() ? "dark" : "light") : choice;
 
   document.documentElement.dataset.theme = resolved;
 

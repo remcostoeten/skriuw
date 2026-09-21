@@ -1,9 +1,6 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { HistoryHeader, WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
-import {
-  countWords,
-  parseProductMarkdown,
-} from "@/features/editor/schema";
+import { countWords, parseProductMarkdown } from "@/features/editor/schema";
 
 export type VersionListItem = {
   versionId: string;
@@ -109,7 +106,12 @@ export function groupVersionRows(
     const day = startOfDay(item.createdAt);
     if (day !== currentDay) {
       currentDay = day;
-      currentHeader = { kind: "group", key: `day-${day}`, label: dayLabel(day, todayStart), count: 0 };
+      currentHeader = {
+        kind: "group",
+        key: `day-${day}`,
+        label: dayLabel(day, todayStart),
+        count: 0,
+      };
       rows.push(currentHeader);
     }
     if (currentHeader) {

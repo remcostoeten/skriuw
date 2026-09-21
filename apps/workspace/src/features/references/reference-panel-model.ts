@@ -1,5 +1,9 @@
 import type { RendererState } from "@skriuw/renderer-core/store/types";
-import { referenceKey, type ReferenceKind, type ReferenceOperation } from "@skriuw/renderer-core/references/types";
+import {
+  referenceKey,
+  type ReferenceKind,
+  type ReferenceOperation,
+} from "@skriuw/renderer-core/references/types";
 
 export function buildRenameReferenceOperation(
   entry: ReferenceDetailEntry,
@@ -63,9 +67,7 @@ export function projectReferencingNotes(
 }
 
 export function projectBacklinks(state: RendererState, noteId: string): BacklinkEntry[] {
-  return projectReferencingNotes(state, "note", noteId).filter(
-    (entry) => entry.noteId !== noteId,
-  );
+  return projectReferencingNotes(state, "note", noteId).filter((entry) => entry.noteId !== noteId);
 }
 
 export function projectOutgoingNotes(state: RendererState, noteId: string): BacklinkEntry[] {
@@ -130,8 +132,7 @@ export function backlinksEqual(
     return false;
   }
   return left.every(
-    (entry, index) =>
-      entry.noteId === right[index]?.noteId && entry.title === right[index]?.title,
+    (entry, index) => entry.noteId === right[index]?.noteId && entry.title === right[index]?.title,
   );
 }
 

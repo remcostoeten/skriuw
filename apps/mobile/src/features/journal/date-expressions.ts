@@ -232,11 +232,7 @@ function resolveDigitRun(text: string, context: DateKey): Outcome {
     if (!inYearRange(Number(yearText))) {
       return invalid(yearRangeMessage(yearText));
     }
-    return dayFromParts(
-      Number(yearText),
-      Number(text.slice(4, 6)),
-      Number(text.slice(6)),
-    );
+    return dayFromParts(Number(yearText), Number(text.slice(4, 6)), Number(text.slice(6)));
   }
   return invalid("That doesn't look like a date.");
 }

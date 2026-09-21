@@ -37,7 +37,13 @@ function body(text: string) {
 }
 
 function document(noteId: string, revision: number, text: string) {
-  return { noteId, documentJson: body(text), markdown: text, revision, wordCount: text.split(" ").length };
+  return {
+    noteId,
+    documentJson: body(text),
+    markdown: text,
+    revision,
+    wordCount: text.split(" ").length,
+  };
 }
 
 function snapshot(overrides: Partial<WorkspaceSnapshot> = {}): WorkspaceSnapshot {
@@ -144,7 +150,13 @@ test("replaceFromSnapshot keeps the current record when it is ahead of the snaps
   store.applyAck({ applied: 1, revisions: [{ id: "a", revision: 4 }], rankChanges: [] });
   const ahead = store.getState().documents.get("a");
   store.replaceFromSnapshot(
-    snapshot({ documents: [document("a", 2, "alpha older"), document("b", 1, "bravo"), document("c", 1, "charlie")] }),
+    snapshot({
+      documents: [
+        document("a", 2, "alpha older"),
+        document("b", 1, "bravo"),
+        document("c", 1, "charlie"),
+      ],
+    }),
   );
   assert.equal(store.getState().documents.get("a"), ahead);
 });
@@ -154,7 +166,11 @@ test("replaceFromSnapshot reuses records and the tree index when nothing structu
   const before = store.getState();
   store.replaceFromSnapshot(
     snapshot({
-      documents: [document("a", 1, "alpha"), document("b", 3, "bravo remote"), document("c", 1, "charlie")],
+      documents: [
+        document("a", 1, "alpha"),
+        document("b", 3, "bravo remote"),
+        document("c", 1, "charlie"),
+      ],
       nodes: [node("a", 1), node("b", 2, { updatedAt: 42 }), node("c", 3)],
     }),
   );

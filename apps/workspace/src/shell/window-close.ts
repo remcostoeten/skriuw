@@ -21,9 +21,7 @@ type Options = {
   onContinuityError?: (error: unknown) => void;
 };
 
-type PersistOperations = (
-  operations: WorkspaceOperationEnvelope[],
-) => Promise<unknown>;
+type PersistOperations = (operations: WorkspaceOperationEnvelope[]) => Promise<unknown>;
 
 const DEFAULT_CLOSE_PERSISTENCE_TIMEOUT_MS = 2_000;
 

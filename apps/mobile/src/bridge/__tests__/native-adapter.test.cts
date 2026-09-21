@@ -1,14 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { BridgePort } from "@skriuw/renderer-core/bridge/port";
-import {
-  envelope,
-  type WorkspaceOperation,
-} from "@skriuw/renderer-core/contracts/workspace";
-import {
-  createInitialState,
-  createRendererStore,
-} from "@skriuw/renderer-core/store/store";
+import { envelope, type WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
+import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { SkriuwCoreError } from "../../../modules/skriuw-core/src/errors";
 import { commitOperations } from "../commit";
@@ -73,9 +67,7 @@ test("create, rename and delete travel through the native adapter", async () => 
   assert.equal(durable?.deletedAt, 3);
   assert.deepEqual(restarted.getState().visibleIds, []);
 
-  await commit(restarted, bridge, [
-    { type: "purge_subtree", rootId: "note-1", trashedBefore: 4 },
-  ]);
+  await commit(restarted, bridge, [{ type: "purge_subtree", rootId: "note-1", trashedBefore: 4 }]);
   const snapshot = await bridge.bootstrapWorkspace();
   assert.deepEqual(snapshot.nodes, []);
   assert.deepEqual(snapshot.documents, []);

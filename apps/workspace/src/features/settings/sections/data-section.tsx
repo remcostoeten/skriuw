@@ -70,8 +70,7 @@ const maintenanceTimeFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: "short",
 });
 
-const dangerZoneClass =
-  "rounded-lg border border-destructive/25 px-4 pb-1 pt-3";
+const dangerZoneClass = "rounded-lg border border-destructive/25 px-4 pb-1 pt-3";
 
 const RUNNING_LABELS: Record<MaintenanceKind, string> = {
   export: "Exporting archive…",
@@ -289,9 +288,9 @@ export function DataSection({ store }: SectionProps) {
             <span className={settingsRowLabel}>
               Workspace database
               <span className={settingsRowDescription}>
-                Stored durably in this browser&rsquo;s private site storage (OPFS) on
-                this device. Clearing site data for this origin deletes it, so keep a
-                recent exported archive outside the browser.
+                Stored durably in this browser&rsquo;s private site storage (OPFS) on this device.
+                Clearing site data for this origin deletes it, so keep a recent exported archive
+                outside the browser.
               </span>
             </span>
           </div>
@@ -301,8 +300,8 @@ export function DataSection({ store }: SectionProps) {
             <span className={settingsRowLabel}>
               Install Skriuw
               <span className={settingsRowDescription}>
-                Adds Skriuw to your home screen or app list with its own window,
-                and tells the browser this storage is worth keeping.
+                Adds Skriuw to your home screen or app list with its own window, and tells the
+                browser this storage is worth keeping.
               </span>
             </span>
             <button
@@ -318,58 +317,60 @@ export function DataSection({ store }: SectionProps) {
           </div>
         )}
         {!browser && (
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            Workspace database
-            <span className={settingsRowDetail}>{storagePath ?? "Locating…"}</span>
-          </span>
-          <button
-            type="button"
-            className={settingsButton}
-            onClick={() => {
-              revealWorkspaceStorage().catch((error) => {
-                console.error("reveal storage rejected", error);
-              });
-            }}
-          >
-            <FolderOpenIcon size={15} />
-            Show in file manager
-          </button>
-        </div>
+          <div className={settingsRow}>
+            <span className={settingsRowLabel}>
+              Workspace database
+              <span className={settingsRowDetail}>{storagePath ?? "Locating…"}</span>
+            </span>
+            <button
+              type="button"
+              className={settingsButton}
+              onClick={() => {
+                revealWorkspaceStorage().catch((error) => {
+                  console.error("reveal storage rejected", error);
+                });
+              }}
+            >
+              <FolderOpenIcon size={15} />
+              Show in file manager
+            </button>
+          </div>
         )}
         {!browser && (
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            Move workspace
-            <span className={settingsRowDescription}>
-              Copies the database, images, history, and backups to a new folder, then
-              restarts the app using it.
+          <div className={settingsRow}>
+            <span className={settingsRowLabel}>
+              Move workspace
+              <span className={settingsRowDescription}>
+                Copies the database, images, history, and backups to a new folder, then restarts the
+                app using it.
+              </span>
             </span>
-          </span>
-          <InlineConfirm
-            className="shrink-0"
-            confirmLabel={confirmation?.kind === "relocate" && copy ? copy.confirmLabel : "Move and restart"}
-            message={confirmation?.kind === "relocate" && copy ? copy.body : null}
-            messagePlacement="stacked"
-            armed={confirmation?.kind === "relocate"}
-            onArmedChange={(next) => {
-              if (!next) {
-                setPhase((current) => dismissConfirmation(current));
+            <InlineConfirm
+              className="shrink-0"
+              confirmLabel={
+                confirmation?.kind === "relocate" && copy ? copy.confirmLabel : "Move and restart"
               }
-            }}
-            onConfirm={runConfirmed}
-            renderIdle={() => (
-              <button
-                type="button"
-                className={settingsButton}
-                disabled={busy}
-                onClick={chooseStorageLocation}
-              >
-                Change location…
-              </button>
-            )}
-          />
-        </div>
+              message={confirmation?.kind === "relocate" && copy ? copy.body : null}
+              messagePlacement="stacked"
+              armed={confirmation?.kind === "relocate"}
+              onArmedChange={(next) => {
+                if (!next) {
+                  setPhase((current) => dismissConfirmation(current));
+                }
+              }}
+              onConfirm={runConfirmed}
+              renderIdle={() => (
+                <button
+                  type="button"
+                  className={settingsButton}
+                  disabled={busy}
+                  onClick={chooseStorageLocation}
+                >
+                  Change location…
+                </button>
+              )}
+            />
+          </div>
         )}
         <MaintenanceStatus
           phase={phase}
@@ -379,50 +380,49 @@ export function DataSection({ store }: SectionProps) {
         />
       </div>
       {!browser && (
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Import & export</div>
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            Import notes from a folder
-            <span className={settingsRowDescription}>
-              Markdown, text, Obsidian vaults, extracted Notion exports, or
-              TextBundles. Shows a preview before anything changes.
+        <div className={settingsGroup}>
+          <div className={settingsGroupTitle}>Import & export</div>
+          <div className={settingsRow}>
+            <span className={settingsRowLabel}>
+              Import notes from a folder
+              <span className={settingsRowDescription}>
+                Markdown, text, Obsidian vaults, extracted Notion exports, or TextBundles. Shows a
+                preview before anything changes.
+              </span>
             </span>
-          </span>
-          <button
-            type="button"
-            className={settingsButton}
-            disabled={busy}
-            onClick={() => {
-              void importMarkdownIntoWorkspace(store);
-            }}
-          >
-            <UploadIcon size={15} />
-            Choose folder…
-          </button>
-        </div>
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            Import a provider export
-            <span className={settingsRowDescription}>
-              ZIP, Evernote ENEX, Joplin, Google Keep, Standard Notes, Bear
-              .bear2bk, Simplenote JSON, Notion CSV, Markdown, or text files.
-              Shows a preview before anything changes.
+            <button
+              type="button"
+              className={settingsButton}
+              disabled={busy}
+              onClick={() => {
+                void importMarkdownIntoWorkspace(store);
+              }}
+            >
+              <UploadIcon size={15} />
+              Choose folder…
+            </button>
+          </div>
+          <div className={settingsRow}>
+            <span className={settingsRowLabel}>
+              Import a provider export
+              <span className={settingsRowDescription}>
+                ZIP, Evernote ENEX, Joplin, Google Keep, Standard Notes, Bear .bear2bk, Simplenote
+                JSON, Notion CSV, Markdown, or text files. Shows a preview before anything changes.
+              </span>
             </span>
-          </span>
-          <button
-            type="button"
-            className={settingsButton}
-            disabled={busy}
-            onClick={() => {
-              void importProviderExportIntoWorkspace(store);
-            }}
-          >
-            <UploadIcon size={15} />
-            Choose file…
-          </button>
+            <button
+              type="button"
+              className={settingsButton}
+              disabled={busy}
+              onClick={() => {
+                void importProviderExportIntoWorkspace(store);
+              }}
+            >
+              <UploadIcon size={15} />
+              Choose file…
+            </button>
+          </div>
         </div>
-      </div>
       )}
       <div className={settingsGroup}>
         <div className={settingsRow}>
@@ -455,29 +455,28 @@ export function DataSection({ store }: SectionProps) {
         <div className={settingsGroupTitle}>Backups & recovery</div>
         {browser && (
           <p className={settingsRowDetail} role="note">
-            Verified scheduled backups run in the desktop app. In the browser, an
-            exported archive is the backup: download one regularly and keep it
-            outside this browser.
+            Verified scheduled backups run in the desktop app. In the browser, an exported archive
+            is the backup: download one regularly and keep it outside this browser.
           </p>
         )}
         {!browser && (
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            Scheduled backups
-            <span className={settingsRowDescription}>
-              The desktop app takes a verified backup every six hours while it runs.
+          <div className={settingsRow}>
+            <span className={settingsRowLabel}>
+              Scheduled backups
+              <span className={settingsRowDescription}>
+                The desktop app takes a verified backup every six hours while it runs.
+              </span>
             </span>
-          </span>
-          <button
-            type="button"
-            className={settingsButton}
-            disabled={busy}
-            aria-busy={backingUp}
-            onClick={() => runBackup(false)}
-          >
-            {backingUp ? "Backing up…" : "Back up now"}
-          </button>
-        </div>
+            <button
+              type="button"
+              className={settingsButton}
+              disabled={busy}
+              aria-busy={backingUp}
+              onClick={() => runBackup(false)}
+            >
+              {backingUp ? "Backing up…" : "Back up now"}
+            </button>
+          </div>
         )}
         <MaintenanceStatus
           phase={phase}
@@ -486,29 +485,31 @@ export function DataSection({ store }: SectionProps) {
           onForceBackup={() => runBackup(true)}
         />
         {!browser && (
-        <BackupInventory
-          inventory={inventory}
-          failed={inventoryFailed}
-          busy={busy}
-          onRetry={refreshInventory}
-          onRestore={(entry) => {
-            const next = requestConfirmation(phase, {
-              kind: "restore",
-              artifactFileName: entry.fileName,
-              createdAt: entry.createdAt,
-            });
-            if (next) {
-              setPhase(next);
+          <BackupInventory
+            inventory={inventory}
+            failed={inventoryFailed}
+            busy={busy}
+            onRetry={refreshInventory}
+            onRestore={(entry) => {
+              const next = requestConfirmation(phase, {
+                kind: "restore",
+                artifactFileName: entry.fileName,
+                createdAt: entry.createdAt,
+              });
+              if (next) {
+                setPhase(next);
+              }
+            }}
+            restoringFileName={
+              confirmation?.kind === "restore" ? confirmation.artifactFileName : null
             }
-          }}
-          restoringFileName={
-            confirmation?.kind === "restore" ? confirmation.artifactFileName : null
-          }
-          restoreConfirmLabel={confirmation?.kind === "restore" && copy ? copy.confirmLabel : "Restore backup"}
-          restoreMessage={confirmation?.kind === "restore" && copy ? copy.body : null}
-          onCancelRestore={() => setPhase((current) => dismissConfirmation(current))}
-          onConfirmRestore={runConfirmed}
-        />
+            restoreConfirmLabel={
+              confirmation?.kind === "restore" && copy ? copy.confirmLabel : "Restore backup"
+            }
+            restoreMessage={confirmation?.kind === "restore" && copy ? copy.body : null}
+            onCancelRestore={() => setPhase((current) => dismissConfirmation(current))}
+            onConfirmRestore={runConfirmed}
+          />
         )}
       </div>
       <div className={cn(settingsGroup, dangerZoneClass)}>
@@ -517,15 +518,11 @@ export function DataSection({ store }: SectionProps) {
           <span className={settingsRowLabel}>
             Replace workspace from archive
             <span className={settingsRowDescription}>
-              Replaces every note in this workspace with the contents of a previously
-              exported archive file.
-              {browser
-                ? " A safety copy of the current workspace is downloaded first."
-                : ""}
+              Replaces every note in this workspace with the contents of a previously exported
+              archive file.
+              {browser ? " A safety copy of the current workspace is downloaded first." : ""}
             </span>
-            {importPath !== "" && (
-              <span className={settingsRowDetail}>{importPath}</span>
-            )}
+            {importPath !== "" && <span className={settingsRowDetail}>{importPath}</span>}
           </span>
           <div className="flex shrink-0 items-center justify-end gap-2">
             <button
@@ -537,7 +534,9 @@ export function DataSection({ store }: SectionProps) {
               Choose archive…
             </button>
             <InlineConfirm
-              confirmLabel={confirmation?.kind === "import" && copy ? copy.confirmLabel : "Replace workspace"}
+              confirmLabel={
+                confirmation?.kind === "import" && copy ? copy.confirmLabel : "Replace workspace"
+              }
               message={confirmation?.kind === "import" && copy ? copy.body : null}
               messagePlacement="stacked"
               armed={confirmation?.kind === "import"}
@@ -578,11 +577,13 @@ export function DataSection({ store }: SectionProps) {
           <span className={settingsRowLabel}>
             Clear all data
             <span className={settingsRowDescription}>
-              Permanently deletes notes, settings, and {browser
+              Permanently deletes notes, settings, and{" "}
+              {browser
                 ? "browser-owned SQLite and media storage"
-                : "SQLite data, Markdown history, media, backups, and generated exports"} from this device, then
-              {browser ? " reloads with" : " restarts into"} a fresh workspace.
-              You will also be signed out.
+                : "SQLite data, Markdown history, media, backups, and generated exports"}{" "}
+              from this device, then
+              {browser ? " reloads with" : " restarts into"} a fresh workspace. You will also be
+              signed out.
             </span>
             {clearError ? (
               <span className="text-[11px] text-destructive" role="alert">
@@ -813,7 +814,10 @@ function MaintenanceStatus({ phase, kinds, onCancel, onForceBackup }: Maintenanc
   }
   if (phase.phase === "error") {
     return (
-      <p className={cn(maintenanceStatusClass, "border-destructive/50 text-destructive")} role="alert">
+      <p
+        className={cn(maintenanceStatusClass, "border-destructive/50 text-destructive")}
+        role="alert"
+      >
         {phase.message}
       </p>
     );

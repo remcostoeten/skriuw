@@ -43,10 +43,13 @@ test("withFreshBlockIds replaces per-note block identities consistently", () => 
   assert.equal(copy.content[0]?.attrs.blockId, "new-2");
   assert.equal(copy.content[1]?.attrs.taskId, "new-1");
   assert.equal(copy.content[1]?.attrs.blockId, null);
-  assert.deepEqual([...idMap], [
-    ["task-1", "new-1"],
-    ["block-1", "new-2"],
-  ]);
+  assert.deepEqual(
+    [...idMap],
+    [
+      ["task-1", "new-1"],
+      ["block-1", "new-2"],
+    ],
+  );
   assert.equal(source.content[0]?.attrs.taskId, "task-1");
 });
 

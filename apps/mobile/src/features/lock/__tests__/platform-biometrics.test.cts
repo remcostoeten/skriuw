@@ -110,8 +110,12 @@ test("the sensor's own answers become the settings row's states", async () => {
     }).describe();
   }
 
-  assert.deepEqual(await describe({ hasHardwareAsync: async () => false }), { state: "unsupported" });
-  assert.deepEqual(await describe({ isEnrolledAsync: async () => false }), { state: "notEnrolled" });
+  assert.deepEqual(await describe({ hasHardwareAsync: async () => false }), {
+    state: "unsupported",
+  });
+  assert.deepEqual(await describe({ isEnrolledAsync: async () => false }), {
+    state: "notEnrolled",
+  });
   assert.deepEqual(await describe({ supportedAuthenticationTypesAsync: async () => [2] }), {
     state: "off",
     kind: "face",

@@ -114,10 +114,7 @@ export async function handleSyncWorkspaceStateRequest(
 
 async function readProvisionBody(
   request: Request,
-): Promise<
-  | { ok: true; deviceId: string }
-  | { ok: false; status: number; code: string }
-> {
+): Promise<{ ok: true; deviceId: string } | { ok: false; status: number; code: string }> {
   if (request.headers.get("Content-Type")?.split(";", 1)[0]?.trim() !== "application/json") {
     return { ok: false, status: 400, code: "invalid_request" };
   }

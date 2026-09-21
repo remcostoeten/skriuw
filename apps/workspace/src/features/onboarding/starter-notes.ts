@@ -27,9 +27,7 @@ export async function loadStarterTree(): Promise<MarkdownTree> {
       content: await load(),
     })),
   );
-  const files = entries.sort((left, right) =>
-    left.relativePath.localeCompare(right.relativePath),
-  );
+  const files = entries.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
   return {
     directories: directoriesOf(files.map((file) => file.relativePath)),
     files,

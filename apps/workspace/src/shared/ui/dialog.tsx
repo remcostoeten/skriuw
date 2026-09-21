@@ -152,11 +152,7 @@ function DialogShell({
     }
     function handleKeyDown(event: KeyboardEvent) {
       handlersRef.current.onKeyDown?.(event);
-      if (
-        event.key !== "Escape" ||
-        event.defaultPrevented ||
-        !isTopmostOpenDialog(dialog)
-      ) {
+      if (event.key !== "Escape" || event.defaultPrevented || !isTopmostOpenDialog(dialog)) {
         return;
       }
       closeFromEscape(event);

@@ -25,10 +25,7 @@ export type MermaidRenderer = (
   options: MermaidRenderOptions,
 ) => Promise<MermaidRenderResult>;
 
-type LibraryRender = (
-  source: string,
-  options: Record<string, unknown>,
-) => Promise<string>;
+type LibraryRender = (source: string, options: Record<string, unknown>) => Promise<string>;
 
 export const RENDERABLE_MERMAID_FAMILIES: readonly Exclude<MermaidFamily, "unsupported">[] = [
   "flowchart",
@@ -138,7 +135,11 @@ export function readMermaidPalette(root: HTMLElement | null): MermaidPalette {
  * family it is given, so passing a whole stack would produce one bogus name.
  */
 export function primaryFontFamily(stack: string): string {
-  const first = stack.split(",")[0]?.trim().replace(/^["']|["']$/g, "") ?? "";
+  const first =
+    stack
+      .split(",")[0]
+      ?.trim()
+      .replace(/^["']|["']$/g, "") ?? "";
   return first === "" ? DEFAULT_FONT : first;
 }
 

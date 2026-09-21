@@ -104,17 +104,28 @@ export function MediaLibraryPicker({
         </p>
         <span className="flex shrink-0 items-center gap-2">
           {onUseUrl && (
-            <button type="button" className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted" onClick={onUseUrl}>
+            <button
+              type="button"
+              className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+              onClick={onUseUrl}
+            >
               Embed URL instead
             </button>
           )}
-          <button type="button" className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted" onClick={onUpload}>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+            onClick={onUpload}
+          >
             <UploadIcon size={13} /> Upload new
           </button>
         </span>
       </div>
       <label className="relative m-3 block">
-        <SearchIcon size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <SearchIcon
+          size={13}
+          className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+        />
         <span className="sr-only">Search {label} assets</span>
         <input
           autoFocus
@@ -126,23 +137,34 @@ export function MediaLibraryPicker({
         />
       </label>
       {failed ? (
-        <p className="p-6 text-center text-sm text-destructive">Media could not be loaded. Close and try again.</p>
+        <p className="p-6 text-center text-sm text-destructive">
+          Media could not be loaded. Close and try again.
+        </p>
       ) : blobs === null ? (
         <p className="p-6 text-center text-sm text-muted-foreground">Loading {label} assets…</p>
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center gap-3 p-8 text-center">
           <Icon size={22} className="text-muted-foreground" />
           <p className="text-sm text-muted-foreground">No {label} assets match.</p>
-          <button type="button" className="rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background" onClick={onUpload}>
+          <button
+            type="button"
+            className="rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background"
+            onClick={onUpload}
+          >
             Upload {label}
           </button>
         </div>
       ) : (
-        <ul aria-label={`${label} assets`} className="grid max-h-[52vh] list-none grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5 overflow-y-auto p-3.5">
+        <ul
+          aria-label={`${label} assets`}
+          className="grid max-h-[52vh] list-none grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5 overflow-y-auto p-3.5"
+        >
           {items.map((item, index) => (
             <li key={item.contentHash}>
               <button
-                ref={(element) => { cardRefs.current[index] = element; }}
+                ref={(element) => {
+                  cardRefs.current[index] = element;
+                }}
                 type="button"
                 tabIndex={index === activeIndex ? 0 : -1}
                 aria-label={`Use ${item.mimeType} asset ${item.contentHash.slice(0, 12)}, ${Math.ceil(item.byteSize / 1024)} KB`}
@@ -153,7 +175,9 @@ export function MediaLibraryPicker({
               >
                 <AssetPreview blob={item} kind={kind} />
                 <span className="flex items-center justify-between gap-2 px-2 py-1.5 font-mono text-[10px] text-muted-foreground">
-                  <span className="truncate">{item.mimeType.replace(`${kind}/`, "").toUpperCase()}</span>
+                  <span className="truncate">
+                    {item.mimeType.replace(`${kind}/`, "").toUpperCase()}
+                  </span>
                   <span className="shrink-0">{Math.ceil(item.byteSize / 1024)} KB</span>
                 </span>
               </button>
@@ -169,12 +193,31 @@ function AssetPreview({ blob, kind }: { blob: MediaBlobPayload; kind: LibraryMed
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
-    const resolve = kind === "image" ? resolveImageBlobUrl(blob.contentHash, blob.mimeType) : resolveMediaPlaybackUrl(blob.contentHash, blob.mimeType);
-    void resolve.then((value) => { if (active) setUrl(value); }).catch(() => { if (active) setUrl(null); });
-    return () => { active = false; };
+    const resolve =
+      kind === "image"
+        ? resolveImageBlobUrl(blob.contentHash, blob.mimeType)
+        : resolveMediaPlaybackUrl(blob.contentHash, blob.mimeType);
+    void resolve
+      .then((value) => {
+        if (active) setUrl(value);
+      })
+      .catch(() => {
+        if (active) setUrl(null);
+      });
+    return () => {
+      active = false;
+    };
   }, [blob.byteSize, blob.contentHash, blob.mimeType, kind]);
   if (kind === "video") {
-    return url ? <video src={url} muted preload="metadata" className="h-24 w-full object-cover" /> : <span className="block h-24 w-full bg-muted" aria-hidden="true" />;
+    return url ? (
+      <video src={url} muted preload="metadata" className="h-24 w-full object-cover" />
+    ) : (
+      <span className="block h-24 w-full bg-muted" aria-hidden="true" />
+    );
   }
-  return url ? <img src={url} alt="" loading="lazy" className="h-24 w-full object-cover" /> : <span className="block h-24 w-full bg-muted" aria-hidden="true" />;
+  return url ? (
+    <img src={url} alt="" loading="lazy" className="h-24 w-full object-cover" />
+  ) : (
+    <span className="block h-24 w-full bg-muted" aria-hidden="true" />
+  );
 }

@@ -114,10 +114,7 @@ export function activeWorkspaceSlot(): Promise<string | null> {
   return invoke<string | null>("active_workspace_slot");
 }
 
-export function connectWorkspaceSync(
-  token: string,
-  baseUrl: string,
-): Promise<WorkspaceSyncStatus> {
+export function connectWorkspaceSync(token: string, baseUrl: string): Promise<WorkspaceSyncStatus> {
   return invoke<WorkspaceSyncStatus>("connect_workspace_sync", { token, baseUrl });
 }
 
@@ -162,9 +159,7 @@ export function enableWorkspaceEncryption(): Promise<string> {
   return invoke<string>("enable_workspace_encryption");
 }
 
-export function unlockWorkspaceEncryption(
-  recoveryCode: string,
-): Promise<WorkspaceEncryptionState> {
+export function unlockWorkspaceEncryption(recoveryCode: string): Promise<WorkspaceEncryptionState> {
   return invoke<WorkspaceEncryptionState>("unlock_workspace_encryption", { recoveryCode });
 }
 
@@ -180,7 +175,11 @@ export function discardBlockedSyncOperation(blockedId: string): Promise<SyncReco
   return invoke<SyncRecoveryView>("discard_blocked_sync_operation", { blockedId });
 }
 
-export function searchWorkspace(query: string, limit: number, noteIds: readonly string[] | null = null): Promise<SearchHit[]> {
+export function searchWorkspace(
+  query: string,
+  limit: number,
+  noteIds: readonly string[] | null = null,
+): Promise<SearchHit[]> {
   return invoke<SearchHit[]>("search_workspace", { query, limit, noteIds });
 }
 
@@ -280,9 +279,7 @@ export function exportWorkspaceArchive(): Promise<ArchiveExportReport> {
   return invoke<ArchiveExportReport>("export_workspace_archive");
 }
 
-export function importWorkspaceArchive(
-  archivePath: string,
-): Promise<ArchiveImportReport> {
+export function importWorkspaceArchive(archivePath: string): Promise<ArchiveImportReport> {
   return invoke<ArchiveImportReport>("import_workspace_archive", { archivePath });
 }
 
@@ -294,9 +291,7 @@ export function listWorkspaceRecovery(): Promise<RecoveryInventory> {
   return invoke<RecoveryInventory>("list_workspace_recovery");
 }
 
-export function restoreWorkspaceBackup(
-  artifactFileName: string,
-): Promise<DatabaseSwapReport> {
+export function restoreWorkspaceBackup(artifactFileName: string): Promise<DatabaseSwapReport> {
   return invoke<DatabaseSwapReport>("restore_workspace_backup", { artifactFileName });
 }
 
@@ -352,17 +347,13 @@ export type PreparedImportSourcePayload = {
   tree: MarkdownTreePayload;
 };
 
-export function prepareImportSource(
-  sourcePath: string,
-): Promise<PreparedImportSourcePayload> {
+export function prepareImportSource(sourcePath: string): Promise<PreparedImportSourcePayload> {
   return invoke<PreparedImportSourcePayload>("prepare_import_source", {
     sourcePath,
   });
 }
 
-export function prepareImportSources(
-  sourcePaths: string[],
-): Promise<PreparedImportSourcePayload> {
+export function prepareImportSources(sourcePaths: string[]): Promise<PreparedImportSourcePayload> {
   return invoke<PreparedImportSourcePayload>("prepare_import_sources", {
     sourcePaths,
   });
@@ -385,10 +376,7 @@ export function downloadRemoteMedia(url: string): Promise<StoredImagePayload> {
   return invoke<StoredImagePayload>("download_remote_media", { url });
 }
 
-export function readNoteImageBlob(
-  contentHash: string,
-  mimeType: string,
-): Promise<ArrayBuffer> {
+export function readNoteImageBlob(contentHash: string, mimeType: string): Promise<ArrayBuffer> {
   return invoke<ArrayBuffer>("read_note_image_blob", { contentHash, mimeType });
 }
 
@@ -420,9 +408,7 @@ export function revealMediaBlob(contentHash: string, mimeType: string): Promise<
  * database-side view of attachments; the desktop backend derives the live
  * set from its own images table and ignores the argument.
  */
-export function sweepUnusedMediaBlobs(
-  liveContentHashes: readonly string[],
-): Promise<number> {
+export function sweepUnusedMediaBlobs(liveContentHashes: readonly string[]): Promise<number> {
   return invoke<number>("sweep_unused_media_blobs", { liveContentHashes });
 }
 

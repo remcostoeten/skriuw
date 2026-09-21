@@ -16,7 +16,12 @@ export function iconStrokeWidth(size: number, weightPx = ICON_STROKE_PX): number
   return (ICON_VIEWBOX / size) * weightPx;
 }
 
-function LucideIcon({ size = 16, strokeWidth, children, ...props }: Props & { children: ReactNode }) {
+function LucideIcon({
+  size = 16,
+  strokeWidth,
+  children,
+  ...props
+}: Props & { children: ReactNode }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

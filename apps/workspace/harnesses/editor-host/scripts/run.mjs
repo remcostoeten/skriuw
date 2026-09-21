@@ -31,7 +31,9 @@ const hostUrl = `${baseUrl}/harnesses/editor-host/host.html`;
 const outputIndex = process.argv.indexOf("--output");
 const output = resolve(
   harnessDirectory,
-  outputIndex >= 0 ? (process.argv[outputIndex + 1] ?? "results/latest.json") : "results/latest.json",
+  outputIndex >= 0
+    ? (process.argv[outputIndex + 1] ?? "results/latest.json")
+    : "results/latest.json",
 );
 const VIEWPORT = { width: 390, height: 844 };
 const ALTERNATING_LOADS = 200;
@@ -58,7 +60,9 @@ function run(command, args) {
     child.stdout.on("data", (chunk) => (log += String(chunk)));
     child.stderr.on("data", (chunk) => (log += String(chunk)));
     child.on("error", rejectRun);
-    child.on("exit", (code) => (code === 0 ? resolveRun(log) : rejectRun(new Error(`${command} exited ${code}\n${log}`))));
+    child.on("exit", (code) =>
+      code === 0 ? resolveRun(log) : rejectRun(new Error(`${command} exited ${code}\n${log}`)),
+    );
   });
 }
 
@@ -100,7 +104,13 @@ function rectOf(selector) {
 }
 
 function insideViewport(rect) {
-  return rect !== null && rect.left >= 0 && rect.right <= VIEWPORT.width && rect.top >= 0 && rect.bottom <= VIEWPORT.height;
+  return (
+    rect !== null &&
+    rect.left >= 0 &&
+    rect.right <= VIEWPORT.width &&
+    rect.top >= 0 &&
+    rect.bottom <= VIEWPORT.height
+  );
 }
 
 async function loadNote(cdp, sessionId, noteId, expectedText) {
@@ -161,9 +171,18 @@ try {
     { ...VIEWPORT, deviceScaleFactor: 3, mobile: true },
     sessionId,
   );
-  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 }, sessionId);
+  await cdp.send(
+    "Emulation.setTouchEmulationEnabled",
+    { enabled: true, maxTouchPoints: 5 },
+    sessionId,
+  );
   await cdp.send("Page.navigate", { url: hostUrl }, sessionId);
-  await waitFor(cdp, sessionId, `${HOST}?.messages.some((message) => message.type === 'ready') === true`, "ready message");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${HOST}?.messages.some((message) => message.type === 'ready') === true`,
+    "ready message",
+  );
   const ready = await evaluate(cdp, sessionId, `${HOST}.messages[0]`);
   check("first message is a versioned ready", ready.type === "ready" && ready.v === 1, ready);
 
@@ -175,20 +194,36 @@ try {
     `[...performance.getEntriesByType('resource'), ...document.querySelector('#editor').contentWindow.performance.getEntriesByType('resource')].map((entry) => ({ url: entry.name, type: entry.initiatorType }))`,
   );
   const offOrigin = requests.filter(({ url }) => !url.startsWith(baseUrl));
-  const dataRequests = requests.filter(({ type }) => type === "fetch" || type === "xmlhttprequest" || type === "beacon");
-  check("load makes no network request beyond the bundle", offOrigin.length === 0 && dataRequests.length === 0, {
-    offOrigin,
-    dataRequests,
-  });
+  const dataRequests = requests.filter(
+    ({ type }) => type === "fetch" || type === "xmlhttprequest" || type === "beacon",
+  );
+  check(
+    "load makes no network request beyond the bundle",
+    offOrigin.length === 0 && dataRequests.length === 0,
+    {
+      offOrigin,
+      dataRequests,
+    },
+  );
 
   await evaluate(cdp, sessionId, `(${PROSEMIRROR}.dataset.harnessView = 'original', true)`);
   await caretToEnd(cdp, sessionId);
   await cdp.send("Input.insertText", { text: " first-edit" }, sessionId);
-  await waitFor(cdp, sessionId, `${changesFor("note-1")}.length === 1`, "debounced change for note-1");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${changesFor("note-1")}.length === 1`,
+    "debounced change for note-1",
+  );
   await caretToEnd(cdp, sessionId);
   await cdp.send("Input.insertText", { text: " second-edit" }, sessionId);
   await loadNote(cdp, sessionId, "note-2", "Body of note 2.");
-  await waitFor(cdp, sessionId, `${changesFor("note-1")}.length === 2`, "change flushed by the note switch");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${changesFor("note-1")}.length === 2`,
+    "change flushed by the note switch",
+  );
   await loadNote(cdp, sessionId, "note-1", "first-edit second-edit");
   const changes = await evaluate(cdp, sessionId, changesFor("note-1"));
   check(
@@ -207,11 +242,20 @@ try {
     { revision: durable.revision, markdown: durable.markdown },
   );
 
-  const elementsBefore = await evaluate(cdp, sessionId, `${EDITOR_DOCUMENT}.querySelectorAll('*').length`);
+  const elementsBefore = await evaluate(
+    cdp,
+    sessionId,
+    `${EDITOR_DOCUMENT}.querySelectorAll('*').length`,
+  );
   const heapBefore = await heapUsed(cdp, sessionId);
   for (let index = 0; index < ALTERNATING_LOADS; index += 1) {
     const second = index % 2 === 0;
-    await loadNote(cdp, sessionId, second ? "note-2" : "note-1", second ? "Body of note 2." : "first-edit second-edit");
+    await loadNote(
+      cdp,
+      sessionId,
+      second ? "note-2" : "note-1",
+      second ? "Body of note 2." : "first-edit second-edit",
+    );
   }
   const heapAfter = await heapUsed(cdp, sessionId);
   const views = await evaluate(
@@ -227,15 +271,28 @@ try {
     views.count === 1 && views.original && views.elements <= elementsBefore + 8,
     { ...views, elementsBefore },
   );
-  check("alternating loads do not grow the heap", heapAfter - heapBefore < HEAP_GROWTH_LIMIT_BYTES, {
-    heapBefore,
-    heapAfter,
-  });
-  const spuriousChanges = await evaluate(cdp, sessionId, `${HOST}.messages.filter((message) => message.type === 'change').length`);
+  check(
+    "alternating loads do not grow the heap",
+    heapAfter - heapBefore < HEAP_GROWTH_LIMIT_BYTES,
+    {
+      heapBefore,
+      heapAfter,
+    },
+  );
+  const spuriousChanges = await evaluate(
+    cdp,
+    sessionId,
+    `${HOST}.messages.filter((message) => message.type === 'change').length`,
+  );
   check("loads alone emit no change", spuriousChanges === 2, { changes: spuriousChanges });
 
   await evaluate(cdp, sessionId, `${HOST}.setTheme('paper')`);
-  await waitFor(cdp, sessionId, `${EDITOR_DOCUMENT}.documentElement.dataset.theme === 'paper'`, "theme message applied");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${EDITOR_DOCUMENT}.documentElement.dataset.theme === 'paper'`,
+    "theme message applied",
+  );
   check(
     "theme swaps without reloading the view",
     await evaluate(cdp, sessionId, `${PROSEMIRROR}.dataset.harnessView === 'original'`),
@@ -247,21 +304,41 @@ try {
     sessionId,
     `${HOST}.send({ type: 'remote-change', changeSet: { documents: [{ ...${HOST}.note('note-1'), revision: 9, markdown: '# Note 1\\n\\nRemote body.\\n', document: { type: 'doc', content: [{ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Note 1' }] }, { type: 'paragraph', content: [{ type: 'text', text: 'Remote body.' }] }] } }] } })`,
   );
-  await waitFor(cdp, sessionId, `${PROSEMIRROR}.textContent.includes('Remote body.')`, "remote change on screen");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${PROSEMIRROR}.textContent.includes('Remote body.')`,
+    "remote change on screen",
+  );
 
   const paragraph = await evaluate(cdp, sessionId, rectOf(".ProseMirror p"));
   await tap(cdp, sessionId, { x: paragraph.right - 4, y: paragraph.y });
   await caretToEnd(cdp, sessionId);
   await pressEnter(cdp, sessionId);
   await cdp.send("Input.insertText", { text: "/" }, sessionId);
-  await waitFor(cdp, sessionId, `Boolean(${EDITOR_DOCUMENT}.querySelector('.slash-menu [role="option"]'))`, "slash menu under touch");
+  await waitFor(
+    cdp,
+    sessionId,
+    `Boolean(${EDITOR_DOCUMENT}.querySelector('.slash-menu [role="option"]'))`,
+    "slash menu under touch",
+  );
   const slashRect = await evaluate(cdp, sessionId, rectOf(".slash-menu"));
   check("slash menu fits the 390px viewport", insideViewport(slashRect), slashRect);
   await cdp.send("Input.insertText", { text: "quote" }, sessionId);
-  await waitFor(cdp, sessionId, `${EDITOR_DOCUMENT}.querySelectorAll('.slash-menu [role="option"]').length >= 1`, "filtered slash items");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${EDITOR_DOCUMENT}.querySelectorAll('.slash-menu [role="option"]').length >= 1`,
+    "filtered slash items",
+  );
   const option = await evaluate(cdp, sessionId, rectOf('.slash-menu [role="option"]'));
   await tap(cdp, sessionId, { x: option.x, y: option.y });
-  await waitFor(cdp, sessionId, `!${EDITOR_DOCUMENT}.querySelector('.slash-menu') && Boolean(${PROSEMIRROR}.querySelector('blockquote'))`, "slash command applied by tap");
+  await waitFor(
+    cdp,
+    sessionId,
+    `!${EDITOR_DOCUMENT}.querySelector('.slash-menu') && Boolean(${PROSEMIRROR}.querySelector('blockquote'))`,
+    "slash command applied by tap",
+  );
 
   await evaluate(
     cdp,
@@ -278,18 +355,37 @@ try {
       return true;
     })()`,
   );
-  await waitFor(cdp, sessionId, `Boolean(${EDITOR_DOCUMENT}.querySelector('.bubble-menu[role="toolbar"]'))`, "bubble menu for a touch selection");
+  await waitFor(
+    cdp,
+    sessionId,
+    `Boolean(${EDITOR_DOCUMENT}.querySelector('.bubble-menu[role="toolbar"]'))`,
+    "bubble menu for a touch selection",
+  );
   const bubbleRect = await evaluate(cdp, sessionId, rectOf(".bubble-menu"));
   check("bubble menu fits the 390px viewport", insideViewport(bubbleRect), bubbleRect);
   const bold = await evaluate(cdp, sessionId, rectOf('.bubble-menu button[aria-label="Bold"]'));
   check("bubble menu offers Bold at phone width", bold !== null, bold);
   await tap(cdp, sessionId, { x: bold.x, y: bold.y });
-  await waitFor(cdp, sessionId, `${PROSEMIRROR}.querySelector('p strong')?.textContent === 'Remote'`, "bold applied by tap");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${PROSEMIRROR}.querySelector('p strong')?.textContent === 'Remote'`,
+    "bold applied by tap",
+  );
 
   await evaluate(cdp, sessionId, `${HOST}.sendRaw({ v: 99, type: 'load' })`);
-  await waitFor(cdp, sessionId, `${HOST}.messages.some((message) => message.type === 'failure' && message.code === 'protocol-version')`, "version mismatch failure");
+  await waitFor(
+    cdp,
+    sessionId,
+    `${HOST}.messages.some((message) => message.type === 'failure' && message.code === 'protocol-version')`,
+    "version mismatch failure",
+  );
 
-  const runtimeFailures = await evaluate(cdp, sessionId, `${HOST}.messages.filter((message) => message.type === 'failure' && message.code === 'runtime-error')`);
+  const runtimeFailures = await evaluate(
+    cdp,
+    sessionId,
+    `${HOST}.messages.filter((message) => message.type === 'failure' && message.code === 'runtime-error')`,
+  );
   check("the editor reported no runtime error", runtimeFailures.length === 0, runtimeFailures);
 
   const result = {
@@ -305,7 +401,9 @@ try {
   await mkdir(dirname(output), { recursive: true });
   await writeFile(output, `${JSON.stringify(result, null, 2)}\n`);
   for (const { name } of checks) console.log(`ok - ${name}`);
-  console.log(`bundle ${result.bundleTotalBytes} bytes (${result.bundleTotalGzipBytes} gzip) → ${output}`);
+  console.log(
+    `bundle ${result.bundleTotalBytes} bytes (${result.bundleTotalGzipBytes} gzip) → ${output}`,
+  );
 } finally {
   socket?.close();
   await stopProcess(browser, "SIGTERM");

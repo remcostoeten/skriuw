@@ -56,27 +56,20 @@ export function buildImportPreviewCandidate(
     ...(plan.skippedDuplicates > 0
       ? [`${count(plan.skippedDuplicates, "previously imported note")} will be skipped`]
       : []),
-    ...(readableLocalImageCount !== undefined &&
-    localImageCount > readableLocalImageCount
-      ? [
-          `${count(localImageCount - readableLocalImageCount, "unreadable image")} will be skipped`,
-        ]
+    ...(readableLocalImageCount !== undefined && localImageCount > readableLocalImageCount
+      ? [`${count(localImageCount - readableLocalImageCount, "unreadable image")} will be skipped`]
       : []),
     ...(plan.tagSkippedNotes > 0
       ? [`Tags cannot attach to ${count(plan.tagSkippedNotes, "raw-preserved note")}`]
       : []),
     ...(plan.tagPropertyNotes > 0
-      ? [
-          `Tags will use a Tags property on ${count(plan.tagPropertyNotes, "raw-preserved note")}`,
-        ]
+      ? [`Tags will use a Tags property on ${count(plan.tagPropertyNotes, "raw-preserved note")}`]
       : []),
     ...(plan.skippedTags > 0
       ? [`${count(plan.skippedTags, "invalid or oversized tag")} will be skipped`]
       : []),
     ...(tree.skipped > 0 ? [`${count(tree.skipped, "unreadable file")} will be skipped`] : []),
-    ...(tree.unsupported ?? []).map(
-      (path) => `${path}: unsupported attachment will be skipped`,
-    ),
+    ...(tree.unsupported ?? []).map((path) => `${path}: unsupported attachment will be skipped`),
     ...bundle.warnings.map((warning) =>
       warning.path ? `${warning.path}: ${warning.message}` : warning.message,
     ),

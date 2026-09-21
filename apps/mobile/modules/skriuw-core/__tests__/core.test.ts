@@ -110,12 +110,24 @@ test("a conflict keeps both revisions", async () => {
   const core = createSkriuwCore(
     fakeNative({
       saveDocument: () =>
-        fail({ kind: "conflict", message: "note-1 changed", id: "note-1", expected: 3, current: 5 }),
+        fail({
+          kind: "conflict",
+          message: "note-1 changed",
+          id: "note-1",
+          expected: 3,
+          current: 5,
+        }),
     }),
   );
 
   const error = await rejection(
-    core.saveDocument({ noteId: "note-1", documentJson: "{}", markdown: "", expectedRevision: 3, at: 1 }),
+    core.saveDocument({
+      noteId: "note-1",
+      documentJson: "{}",
+      markdown: "",
+      expectedRevision: 3,
+      at: 1,
+    }),
   );
   assert.equal(error.kind, "conflict");
   assert.equal(error.id, "note-1");
@@ -126,7 +138,9 @@ test("a conflict keeps both revisions", async () => {
 
 test("an open failure is the recovery surface", async () => {
   const core = createSkriuwCore(
-    fakeNative({ open: () => fail({ kind: "recovery", message: "database disk image is malformed" }) }),
+    fakeNative({
+      open: () => fail({ kind: "recovery", message: "database disk image is malformed" }),
+    }),
   );
 
   const error = await rejection(core.open());
@@ -174,8 +188,17 @@ test("failures this build cannot name stay visible as internal", async () => {
 
   assert.equal((await rejection(core.submitOperations("[]"))).kind, "internal");
   assert.equal(
-    (await rejection(core.saveDocument({ noteId: "n", documentJson: "{}", markdown: "", expectedRevision: 0, at: 0 })))
-      .kind,
+    (
+      await rejection(
+        core.saveDocument({
+          noteId: "n",
+          documentJson: "{}",
+          markdown: "",
+          expectedRevision: 0,
+          at: 0,
+        }),
+      )
+    ).kind,
     "internal",
   );
 });

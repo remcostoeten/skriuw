@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorkspace, useWorkspaceSelector } from "../../../shell/workspace-provider";
-import {
-  reconcileSearchIndex,
-  type SearchIndexView,
-} from "../index-status";
+import { reconcileSearchIndex, type SearchIndexView } from "../index-status";
 import {
   savedSearchView,
   savedSearchViewsEqual,

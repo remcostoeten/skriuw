@@ -109,7 +109,11 @@ export function createBoundedEditorProjection(
   }
 
   function moveWindow(requestedStart: number): void {
-    const nextStart = clamp(Math.floor(requestedStart), 0, Math.max(0, canonical.length - windowSize));
+    const nextStart = clamp(
+      Math.floor(requestedStart),
+      0,
+      Math.max(0, canonical.length - windowSize),
+    );
     const previousStart = windowStart;
     windowStart = nextStart;
     windowEnd = Math.min(canonical.length, nextStart + windowSize);

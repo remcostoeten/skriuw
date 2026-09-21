@@ -132,10 +132,7 @@ export function SearchWidget({
   }
 
   return (
-    <search
-      aria-label="Find and replace"
-      className="flex w-full items-stretch gap-1"
-    >
+    <search aria-label="Find and replace" className="flex w-full items-stretch gap-1">
       <Tooltip label={showReplace ? "Hide replace" : "Show replace"} side="bottom">
         <button
           type="button"
@@ -153,8 +150,7 @@ export function SearchWidget({
           <div
             className={cn(
               fieldClass,
-              regexError &&
-                "border-destructive shadow-[inset_0_0_0_1px_hsl(var(--destructive))]",
+              regexError && "border-destructive shadow-[inset_0_0_0_1px_hsl(var(--destructive))]",
             )}
           >
             <input
@@ -216,12 +212,7 @@ export function SearchWidget({
             >
               <ArrowUpIcon size={16} />
             </IconButton>
-            <IconButton
-              label="Next match"
-              shortcut="Enter"
-              onClick={onNext}
-              disabled={total === 0}
-            >
+            <IconButton label="Next match" shortcut="Enter" onClick={onNext} disabled={total === 0}>
               <ArrowDownIcon size={16} />
             </IconButton>
             <IconButton label="Close" shortcut="Esc" onClick={onClose}>

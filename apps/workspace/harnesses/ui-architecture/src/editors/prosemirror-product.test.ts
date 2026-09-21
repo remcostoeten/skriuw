@@ -52,9 +52,7 @@ test("representative plugins track slash state and bounded undo", () => {
   const document = productSchema.node("doc", null, [paragraph]);
   let state = EditorState.create({ doc: document, plugins: createProductPlugins() });
   state = state.apply(
-    state.tr
-      .setSelection(TextSelection.create(state.doc, 1))
-      .insertText("/heading"),
+    state.tr.setSelection(TextSelection.create(state.doc, 1)).insertText("/heading"),
   );
   assert.deepEqual(slashMenuState(state), { open: true, query: "heading" });
   assert.equal(undoDepth(state), 1);
@@ -77,5 +75,8 @@ test("bounded product corpus includes lossless rich top-level nodes", () => {
     null,
     blocks.map((block) => productSchema.nodeFromJSON(block.node)),
   );
-  assert.deepEqual(document.toJSON().content, blocks.map((block) => block.node));
+  assert.deepEqual(
+    document.toJSON().content,
+    blocks.map((block) => block.node),
+  );
 });

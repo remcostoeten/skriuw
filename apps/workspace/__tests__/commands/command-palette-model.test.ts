@@ -231,7 +231,10 @@ test("content hits stay hidden while idle and rank after title matches when sear
     searching.map((group) => group.group),
     ["Notes", "Content"],
   );
-  assert.deepEqual(searching[1]?.items.map((item) => item.id), ["note:body"]);
+  assert.deepEqual(
+    searching[1]?.items.map((item) => item.id),
+    ["note:body"],
+  );
 });
 
 test("a relationship filter scopes the palette to relationship-aware content", () => {
@@ -276,9 +279,7 @@ test("an incomplete operator leaves the palette unscoped", () => {
   const items: CommandPaletteItem[] = [
     { id: "action", label: "Create note", group: "Actions", action: noop },
   ];
-  assert.deepEqual(getCommandPaletteGroups(items, "#"), [
-    { group: "Actions", items: [items[0]] },
-  ]);
+  assert.deepEqual(getCommandPaletteGroups(items, "#"), [{ group: "Actions", items: [items[0]] }]);
 });
 
 test("the recents keyword scopes the palette to recent notes", () => {

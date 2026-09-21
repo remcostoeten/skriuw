@@ -53,7 +53,10 @@ test("the reset is confirmed, runs once and restarts through the port", async ()
 
   select(views.at(-1), "Reset workspace…");
   select(views.at(-1), "Delete and restart");
-  assert.equal(views.at(-1)?.actions.every((action) => action.disabled), true);
+  assert.equal(
+    views.at(-1)?.actions.every((action) => action.disabled),
+    true,
+  );
   select(views.at(-1), "Delete and restart");
   assert.equal(resets, 1);
   settle();

@@ -51,10 +51,7 @@ class DeterministicMembershipSource implements WorkspaceMembershipSource {
     return this.results.get(`${trustedSubject}:${workspaceId}`) ?? { state: "denied" };
   }
 
-  allow(
-    workspaceId: string,
-    deviceIds: readonly string[] = [DEVICE_ID, OTHER_DEVICE_ID],
-  ): void {
+  allow(workspaceId: string, deviceIds: readonly string[] = [DEVICE_ID, OTHER_DEVICE_ID]): void {
     this.results.set(`${SUBJECT}:${workspaceId}`, {
       state: "active",
       membership: { role: "editor", deviceIds },
@@ -128,10 +125,7 @@ async function openEventsSocket(
   dependencies: PublicSyncDependencies,
   options: Parameters<typeof eventsRequest>[1] = {},
 ): Promise<WebSocket> {
-  const response = await handlePublicSyncRequest(
-    eventsRequest(workspaceId, options),
-    dependencies,
-  );
+  const response = await handlePublicSyncRequest(eventsRequest(workspaceId, options), dependencies);
   expect(response.status).toBe(101);
   const socket = response.webSocket;
   expect(socket).not.toBeNull();
@@ -247,11 +241,9 @@ describe("sync events channel", () => {
     const pusherSocket = await openEventsSocket("events-broadcast", context.dependencies, {
       deviceId: DEVICE_ID,
     });
-    const listenerSocket = await openEventsSocket(
-      "events-broadcast",
-      context.dependencies,
-      { deviceId: OTHER_DEVICE_ID },
-    );
+    const listenerSocket = await openEventsSocket("events-broadcast", context.dependencies, {
+      deviceId: OTHER_DEVICE_ID,
+    });
     const pusherMessages = collectMessages(pusherSocket);
     const listenerMessages = collectMessages(listenerSocket);
 

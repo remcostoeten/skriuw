@@ -760,9 +760,7 @@ test("turning biometrics off in the device settings falls back to the PIN", asyn
   const biometrics = createBiometricUnlock({
     biometrics: fakeBiometrics({
       availability: async () =>
-        enrolled
-          ? { available: true, kind: "face" }
-          : { available: false, reason: "notEnrolled" },
+        enrolled ? { available: true, kind: "face" } : { available: false, reason: "notEnrolled" },
     }),
     keystore: createBiometricKeystore(secureStore),
   });
@@ -819,7 +817,9 @@ test("a build without the keystore refuses to arm biometrics instead of storing 
 });
 
 /** Standing in for the real one, so the re-wrap can be observed exactly. */
-function recordingBiometrics(initial: string | null): BiometricUnlock & { held: () => string | null } {
+function recordingBiometrics(
+  initial: string | null,
+): BiometricUnlock & { held: () => string | null } {
   let held = initial;
   return {
     held: () => held,

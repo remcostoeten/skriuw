@@ -36,10 +36,7 @@ import {
 } from "@/store/actions/workspace";
 import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
 import { authConfiguration } from "@/features/auth/config";
-import {
-  openEditorSearch,
-  openEditorSearchAndReplace,
-} from "@/features/editor/search-controller";
+import { openEditorSearch, openEditorSearchAndReplace } from "@/features/editor/search-controller";
 import {
   exportNoteAsMarkdown,
   exportWorkspaceAsMarkdown,
@@ -199,10 +196,7 @@ async function runImportMarkdownFile(
   controls: CommandUiControls,
 ): Promise<void> {
   const initialDestinationFolderId = focusedFolderId(store.getState());
-  const createdNoteIds = await importMarkdownFileIntoWorkspace(
-    store,
-    initialDestinationFolderId,
-  );
+  const createdNoteIds = await importMarkdownFileIntoWorkspace(store, initialDestinationFolderId);
   const [noteId] = createdNoteIds ?? [];
   if (noteId !== undefined && createdNoteIds?.length === 1) {
     controls.navigate("notes");
@@ -316,7 +310,14 @@ export function createWorkspaceCommands(
       run: () => {
         const id = targetNoteId(store.getState());
         if (!id) return;
-        void savePersonalTemplate(store, id).then(() => showToast({ message: "Template saved. Edit this note to update it. Use {{date}} for today’s date." })).catch((error: unknown) => showToast({ message: String(error) }));
+        void savePersonalTemplate(store, id)
+          .then(() =>
+            showToast({
+              message:
+                "Template saved. Edit this note to update it. Use {{date}} for today’s date.",
+            }),
+          )
+          .catch((error: unknown) => showToast({ message: String(error) }));
       },
     },
     {
@@ -834,9 +835,7 @@ export function createWorkspaceCommands(
       enabled: (state, ui) => onNotesRoute(state, ui) && state.activeNoteId !== null,
       run: () => {
         const state = store.getState();
-        const paneIndex = state.panes.findIndex(
-          (pane) => pane.paneId === state.focusedPaneId,
-        );
+        const paneIndex = state.panes.findIndex((pane) => pane.paneId === state.focusedPaneId);
         if (state.panes.length > 1 && paneIndex >= 0 && focusEditorPane(paneIndex)) {
           return;
         }

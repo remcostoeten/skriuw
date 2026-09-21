@@ -22,15 +22,11 @@ export function parseAiModelSelection(value: unknown): AiModelSelection | null {
   return { providerId: candidate.providerId, modelId: candidate.modelId };
 }
 
-export function selectRawAiModelSetting(state: {
-  settings: WorkspaceSettings;
-}): unknown {
+export function selectRawAiModelSetting(state: { settings: WorkspaceSettings }): unknown {
   return state.settings["aiModel"];
 }
 
-export function readAiModelSelection(
-  settings: WorkspaceSettings,
-): AiModelSelection | null {
+export function readAiModelSelection(settings: WorkspaceSettings): AiModelSelection | null {
   return parseAiModelSelection(settings["aiModel"]);
 }
 
@@ -51,10 +47,7 @@ export function changeAiModelSelection(
   };
 }
 
-export function sameAiModel(
-  a: AiModelSelection | null,
-  b: AiModelSelection | null,
-): boolean {
+export function sameAiModel(a: AiModelSelection | null, b: AiModelSelection | null): boolean {
   if (a === null || b === null) {
     return a === b;
   }

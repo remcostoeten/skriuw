@@ -43,9 +43,7 @@ export type DiagramModel = {
   edges: DiagramEdge[];
 };
 
-export type DiagramParseResult =
-  | { ok: true; model: DiagramModel }
-  | { ok: false; error: string };
+export type DiagramParseResult = { ok: true; model: DiagramModel } | { ok: false; error: string };
 
 const NODE_ID = /^[A-Za-z_][A-Za-z0-9_-]{0,63}$/;
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
@@ -64,13 +62,13 @@ function color(value: unknown): string | null {
 
 function direction(value: unknown): DiagramDirection {
   return typeof value === "string" && diagramDirections.includes(value as DiagramDirection)
-    ? value as DiagramDirection
+    ? (value as DiagramDirection)
     : "LR";
 }
 
 function shape(value: unknown): DiagramShape {
   return typeof value === "string" && diagramShapes.includes(value as DiagramShape)
-    ? value as DiagramShape
+    ? (value as DiagramShape)
     : "rectangle";
 }
 
@@ -230,9 +228,10 @@ export function readDiagramModel(value: unknown): DiagramModel {
     const node = raw as Record<string, unknown>;
     const id = typeof node.id === "string" && NODE_ID.test(node.id) ? node.id : "";
     if (!id || ids.has(id)) continue;
-    const position = typeof node.position === "object" && node.position !== null
-      ? node.position as Record<string, unknown>
-      : {};
+    const position =
+      typeof node.position === "object" && node.position !== null
+        ? (node.position as Record<string, unknown>)
+        : {};
     const x = finiteCoordinate(position.x);
     const y = finiteCoordinate(position.y);
     ids.add(id);
@@ -285,7 +284,9 @@ function unquote(value: string): string {
   return trimmed;
 }
 
-function parseNodeExpression(expression: string): Omit<DiagramNode, "position" | "fill" | "stroke"> | null {
+function parseNodeExpression(
+  expression: string,
+): Omit<DiagramNode, "position" | "fill" | "stroke"> | null {
   const source = expression.trim().replace(/;$/, "");
   const idMatch = /^([A-Za-z_][A-Za-z0-9_-]{0,63})/.exec(source);
   if (!idMatch) return null;
@@ -371,7 +372,8 @@ export function reflowDiagram(value: unknown): DiagramModel {
 export function parseMermaidFlowchart(source: string, previous?: DiagramModel): DiagramParseResult {
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   const headerIndex = lines.findIndex((line) => /^(?:flowchart|graph)\s+/i.test(line.trim()));
-  if (headerIndex < 0) return { ok: false, error: "Start with ‘flowchart LR’ or another direction." };
+  if (headerIndex < 0)
+    return { ok: false, error: "Start with ‘flowchart LR’ or another direction." };
   const header = /^(?:flowchart|graph)\s+(TD|TB|BT|LR|RL)\s*$/i.exec(lines[headerIndex]!.trim());
   if (!header) return { ok: false, error: "Use TD, TB, BT, LR, or RL after ‘flowchart’." };
   const nodes = new Map<string, DiagramNode>();
@@ -435,11 +437,17 @@ export function parseMermaidFlowchart(source: string, previous?: DiagramModel): 
     }
   }
   if (unsupportedLine !== null) {
-    return { ok: false, error: `Line ${unsupportedLine} is outside Skriuw’s editable flowchart syntax.` };
+    return {
+      ok: false,
+      error: `Line ${unsupportedLine} is outside Skriuw’s editable flowchart syntax.`,
+    };
   }
   if (nodes.size === 0) return { ok: false, error: "Add at least one diagram node." };
   if (nodes.size > MAX_DIAGRAM_NODES || edges.length > MAX_DIAGRAM_EDGES) {
-    return { ok: false, error: `Visual editing supports ${MAX_DIAGRAM_NODES} nodes and ${MAX_DIAGRAM_EDGES} connectors.` };
+    return {
+      ok: false,
+      error: `Visual editing supports ${MAX_DIAGRAM_NODES} nodes and ${MAX_DIAGRAM_EDGES} connectors.`,
+    };
   }
   for (const [id, style] of styles) {
     const node = nodes.get(id);
@@ -447,13 +455,16 @@ export function parseMermaidFlowchart(source: string, previous?: DiagramModel): 
   }
   return {
     ok: true,
-    model: arrange({
-      version: DIAGRAM_MODEL_VERSION,
-      direction: direction(header[1]?.toUpperCase()),
-      background: previous?.background ?? null,
-      nodes: [...nodes.values()],
-      edges,
-    }, previous),
+    model: arrange(
+      {
+        version: DIAGRAM_MODEL_VERSION,
+        direction: direction(header[1]?.toUpperCase()),
+        background: previous?.background ?? null,
+        nodes: [...nodes.values()],
+        edges,
+      },
+      previous,
+    ),
   };
 }
 
@@ -480,8 +491,10 @@ export function serializeMermaidFlowchart(value: unknown): string {
     lines.push(`  ${edge.from} ${connector}${edgeLabel} ${edge.to}`);
   }
   for (const node of model.nodes) {
-    const declarations = [node.fill ? `fill:${node.fill}` : "", node.stroke ? `stroke:${node.stroke}` : ""]
-      .filter(Boolean);
+    const declarations = [
+      node.fill ? `fill:${node.fill}` : "",
+      node.stroke ? `stroke:${node.stroke}` : "",
+    ].filter(Boolean);
     if (declarations.length > 0) lines.push(`  style ${node.id} ${declarations.join(",")}`);
   }
   return lines.join("\n");
@@ -512,8 +525,14 @@ export function addDiagramStep(
     ? { x: Math.round(options.at.x), y: Math.round(options.at.y) }
     : from
       ? horizontal
-        ? { x: from.position.x + sign * (DIAGRAM_NODE_WIDTH + DIAGRAM_RANK_GAP), y: from.position.y }
-        : { x: from.position.x, y: from.position.y + sign * (DIAGRAM_NODE_HEIGHT + DIAGRAM_RANK_GAP) }
+        ? {
+            x: from.position.x + sign * (DIAGRAM_NODE_WIDTH + DIAGRAM_RANK_GAP),
+            y: from.position.y,
+          }
+        : {
+            x: from.position.x,
+            y: from.position.y + sign * (DIAGRAM_NODE_HEIGHT + DIAGRAM_RANK_GAP),
+          }
       : { x: 12, y: 24 };
   position.x = Math.max(0, position.x);
   position.y = Math.max(0, position.y);
@@ -521,14 +540,22 @@ export function addDiagramStep(
     while (
       model.nodes.some(
         (node) =>
-          Math.abs(node.position.x - position.x) < 24 && Math.abs(node.position.y - position.y) < 24,
+          Math.abs(node.position.x - position.x) < 24 &&
+          Math.abs(node.position.y - position.y) < 24,
       )
     ) {
       if (horizontal) position.y += DIAGRAM_NODE_HEIGHT + DIAGRAM_LANE_GAP;
       else position.x += DIAGRAM_NODE_WIDTH + DIAGRAM_LANE_GAP;
     }
   }
-  model.nodes.push({ id, label: "New step", shape: "rectangle", position, fill: null, stroke: null });
+  model.nodes.push({
+    id,
+    label: "New step",
+    shape: "rectangle",
+    position,
+    fill: null,
+    stroke: null,
+  });
   if (from) {
     model.edges.push({
       id: nextDiagramEdgeId(model, from.id, id),

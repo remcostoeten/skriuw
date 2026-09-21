@@ -8,10 +8,7 @@ import {
 import type { TaskSource, WorkspaceTask } from "@skriuw/renderer-core/contracts/workspace";
 import type { NodeRecord, RendererState } from "@skriuw/renderer-core/store/types";
 
-function task(
-  id: string,
-  overrides: Partial<WorkspaceTask> = {},
-): WorkspaceTask {
+function task(id: string, overrides: Partial<WorkspaceTask> = {}): WorkspaceTask {
   return {
     id,
     title: `Task ${id}`,
@@ -64,7 +61,10 @@ test("tasks group under the title of the note they came from", () => {
   assert.equal(groups.length, 1);
   assert.equal(groups[0]?.noteId, "note-a");
   assert.equal(groups[0]?.noteTitle, "Skriuw");
-  assert.deepEqual(groups[0]?.rows.map((row) => row.id), ["t1"]);
+  assert.deepEqual(
+    groups[0]?.rows.map((row) => row.id),
+    ["t1"],
+  );
   assert.equal(groups[0]?.rows[0]?.blockId, "note-a-block");
   assert.equal(groups[0]?.rows[0]?.detached, false);
 });
@@ -81,7 +81,10 @@ test("two tasks from one note share a group, ordered by creation", () => {
   );
 
   assert.equal(groups.length, 1);
-  assert.deepEqual(groups[0]?.rows.map((row) => row.id), ["early", "late"]);
+  assert.deepEqual(
+    groups[0]?.rows.map((row) => row.id),
+    ["early", "late"],
+  );
 });
 
 test("a task with no source lands in the trailing no-source group", () => {
@@ -92,7 +95,10 @@ test("a task with no source lands in the trailing no-source group", () => {
     ),
   );
 
-  assert.deepEqual(groups.map((group) => group.noteTitle), ["Skriuw", UNSOURCED_GROUP_LABEL]);
+  assert.deepEqual(
+    groups.map((group) => group.noteTitle),
+    ["Skriuw", UNSOURCED_GROUP_LABEL],
+  );
   assert.equal(groups[1]?.rows[0]?.detached, true);
   assert.equal(groups[1]?.rows[0]?.noteId, null);
 });
@@ -102,7 +108,10 @@ test("a task whose source note no longer resolves is kept, not dropped", () => {
 
   assert.equal(groups.length, 1);
   assert.equal(groups[0]?.noteTitle, UNSOURCED_GROUP_LABEL);
-  assert.deepEqual(groups[0]?.rows.map((row) => row.id), ["orphan"]);
+  assert.deepEqual(
+    groups[0]?.rows.map((row) => row.id),
+    ["orphan"],
+  );
   assert.equal(groups[0]?.rows[0]?.noteId, null);
   assert.equal(groups[0]?.rows[0]?.blockId, null);
   assert.equal(groups[0]?.rows[0]?.detached, false);
@@ -127,7 +136,10 @@ test("groups are ordered deterministically across repeated projections", () => {
 
 test("completed tasks are marked done and stay in the list", () => {
   const groups = projectTasks(
-    stateWith([task("t1", { status: "done", source: source("note-a") })], [note("note-a", "Skriuw")]),
+    stateWith(
+      [task("t1", { status: "done", source: source("note-a") })],
+      [note("note-a", "Skriuw")],
+    ),
   );
 
   assert.equal(groups[0]?.rows.length, 1);

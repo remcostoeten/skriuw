@@ -236,10 +236,7 @@ export function visualTreeIndent(
   depthIndent: number,
   maximumIndent: number,
 ): number {
-  return Math.min(
-    basePadding + Math.max(0, depth - 1) * depthIndent,
-    maximumIndent,
-  );
+  return Math.min(basePadding + Math.max(0, depth - 1) * depthIndent, maximumIndent);
 }
 
 export function virtualTreeWindow(

@@ -140,10 +140,7 @@ test("a draft is rejected with an actionable message before it reaches the backe
   const blank = newPromptDraft("generated-id", 1);
   assert.match(promptDraftError(blank) ?? "", /name/i);
 
-  assert.match(
-    promptDraftError({ ...blank, name: "Named" }) ?? "",
-    /system prompt/i,
-  );
+  assert.match(promptDraftError({ ...blank, name: "Named" }) ?? "", /system prompt/i);
 
   const filled = { ...blank, name: "Named", systemPrompt: "Do the thing." };
   assert.equal(promptDraftError(filled), null);

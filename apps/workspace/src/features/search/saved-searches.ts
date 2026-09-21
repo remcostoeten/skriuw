@@ -10,15 +10,10 @@ export function savedSearches(settings: WorkspaceSettings): readonly string[] {
     !Array.isArray(value) ||
     value.length > 100 ||
     value.some(
-      (query) =>
-        typeof query !== "string" ||
-        query.trim().length === 0 ||
-        query.length > 512,
+      (query) => typeof query !== "string" || query.trim().length === 0 || query.length > 512,
     )
   ) {
-    throw new Error(
-      "Saved searches are invalid. Restore a verified workspace backup.",
-    );
+    throw new Error("Saved searches are invalid. Restore a verified workspace backup.");
   }
   return value as string[];
 }
@@ -35,13 +30,9 @@ export async function setSearchSaved(
   const settings = store.getState().settings;
   const current = savedSearches(settings);
   if (current.includes(normalized) === saved) return;
-  const next = saved
-    ? [...current, normalized]
-    : current.filter((entry) => entry !== normalized);
+  const next = saved ? [...current, normalized] : current.filter((entry) => entry !== normalized);
   if (next.length > 100)
-    throw new Error(
-      "Remove a saved search before adding another (limit: 100).",
-    );
+    throw new Error("Remove a saved search before adding another (limit: 100).");
   await commitOperations(store, [
     { type: "update_settings", settings: { ...settings, savedSearches: next } },
   ]);

@@ -1,14 +1,18 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { EditorView } from "prosemirror-view";
 import { ChevronRightIcon, SettingsIcon, SparklesIcon } from "@/shared/icons/static";
 import { useListboxNavigation } from "@/shared/ui/use-listbox-navigation";
 import { rangeMenuAnchor, type MenuAnchor } from "@/features/editor/menu-anchor";
-import {
-  aiMenuRows,
-  filterAiMenuRows,
-  type AiMenuRow,
-} from "./ai-menu-model";
+import { aiMenuRows, filterAiMenuRows, type AiMenuRow } from "./ai-menu-model";
 import {
   aiActionInstructionError,
   aiActionUserPrompt,
@@ -276,18 +280,28 @@ function AiMenuList({
           aria-expanded="true"
           aria-controls={listboxId}
           aria-autocomplete="list"
-          aria-activedescendant={
-            rows[activeIndex] ? `${listboxId}-item-${activeIndex}` : undefined
-          }
+          aria-activedescendant={rows[activeIndex] ? `${listboxId}-item-${activeIndex}` : undefined}
         />
       </div>
-      <div ref={listRef} id={listboxId} role="listbox" aria-label="AI actions" className="max-h-[max(120px,min(46vh,calc(var(--ai-menu-room,100vh)-96px)))] overflow-y-auto p-[5px] [scrollbar-width:thin]">
+      <div
+        ref={listRef}
+        id={listboxId}
+        role="listbox"
+        aria-label="AI actions"
+        className="max-h-[max(120px,min(46vh,calc(var(--ai-menu-room,100vh)-96px)))] overflow-y-auto p-[5px] [scrollbar-width:thin]"
+      >
         {rows.length === 0 ? (
-          <p className="px-4 py-[34px] text-center text-[13px] text-muted-foreground">No AI action matches “{query}”</p>
+          <p className="px-4 py-[34px] text-center text-[13px] text-muted-foreground">
+            No AI action matches “{query}”
+          </p>
         ) : (
           rows.map((row, index) => (
             <div key={row.action.id}>
-              {row.heading !== null && <div className="px-[9px] pt-2 pb-[3px] text-[10px] font-[560] uppercase tracking-[0.12em] text-muted-foreground/70">{row.heading}</div>}
+              {row.heading !== null && (
+                <div className="px-[9px] pt-2 pb-[3px] text-[10px] font-[560] uppercase tracking-[0.12em] text-muted-foreground/70">
+                  {row.heading}
+                </div>
+              )}
               <button
                 type="button"
                 tabIndex={-1}
@@ -311,7 +325,11 @@ function AiMenuList({
                   <span className="flex-none text-[11px] text-muted-foreground">{row.reason}</span>
                 )}
                 {row.reason === null && row.action.instruction !== null && (
-                  <ChevronRightIcon size={12} className="flex-none text-muted-foreground" aria-hidden="true" />
+                  <ChevronRightIcon
+                    size={12}
+                    className="flex-none text-muted-foreground"
+                    aria-hidden="true"
+                  />
                 )}
               </button>
             </div>
@@ -324,12 +342,22 @@ function AiMenuList({
         </p>
       )}
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-border/80 px-3 py-[7px] text-[11px]">
-        <span className="min-w-0 flex-[0_1_auto] overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-muted-foreground">{modelLabel ?? "No model chosen"}</span>
-        <button type="button" className="-mx-0.5 -my-[3px] rounded-lg bg-foreground/7 px-2 py-[3px] text-[11px] text-foreground/85 transition-colors duration-[110ms] hover:bg-foreground/12 hover:text-foreground focus-visible:bg-foreground/16 focus-visible:text-foreground" onClick={onChangeModel}>
+        <span className="min-w-0 flex-[0_1_auto] overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-muted-foreground">
+          {modelLabel ?? "No model chosen"}
+        </span>
+        <button
+          type="button"
+          className="-mx-0.5 -my-[3px] rounded-lg bg-foreground/7 px-2 py-[3px] text-[11px] text-foreground/85 transition-colors duration-[110ms] hover:bg-foreground/12 hover:text-foreground focus-visible:bg-foreground/16 focus-visible:text-foreground"
+          onClick={onChangeModel}
+        >
           Change model
         </button>
         <span className="ml-auto flex gap-2.5">
-          <button type="button" className="-mx-0.5 -my-[3px] rounded-lg bg-foreground/7 px-2 py-[3px] text-[11px] text-foreground/85 transition-colors duration-[110ms] hover:bg-foreground/12 hover:text-foreground focus-visible:bg-foreground/16 focus-visible:text-foreground" onClick={onOpenPrompts}>
+          <button
+            type="button"
+            className="-mx-0.5 -my-[3px] rounded-lg bg-foreground/7 px-2 py-[3px] text-[11px] text-foreground/85 transition-colors duration-[110ms] hover:bg-foreground/12 hover:text-foreground focus-visible:bg-foreground/16 focus-visible:text-foreground"
+            onClick={onOpenPrompts}
+          >
             Prompts
           </button>
           <button
@@ -387,14 +415,20 @@ function AiMenuCompose({
     <div className="flex flex-col">
       <div className="flex items-center gap-[9px] border-b border-border/80 px-3 py-[9px]">
         {canGoBack && (
-          <button type="button" className="-mx-1 -my-0.5 cursor-pointer rounded-[3px] px-1 py-0.5 text-[11px] text-theme-secondary hover:text-foreground focus-visible:bg-foreground/14 focus-visible:text-foreground" onClick={onBack}>
+          <button
+            type="button"
+            className="-mx-1 -my-0.5 cursor-pointer rounded-[3px] px-1 py-0.5 text-[11px] text-theme-secondary hover:text-foreground focus-visible:bg-foreground/14 focus-visible:text-foreground"
+            onClick={onBack}
+          >
             ← All actions
           </button>
         )}
         <span className="text-[13px] font-[560] text-foreground">{action.label}</span>
       </div>
       <label className="flex flex-col gap-[5px] px-3 pt-[11px] pb-[9px]">
-        <span className="text-[11px] font-[560] text-theme-secondary">{shape?.label ?? "Instruction"}</span>
+        <span className="text-[11px] font-[560] text-theme-secondary">
+          {shape?.label ?? "Instruction"}
+        </span>
         <input
           autoFocus
           className="w-full bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-muted-foreground rounded-lg border border-border bg-background px-[9px] py-1.5 transition-[border-color] duration-[140ms] focus:border-ring"
@@ -423,7 +457,10 @@ function AiMenuCompose({
         {showPayload ? "Hide" : "Show"} exactly what is sent
       </button>
       {showPayload && (
-        <pre className="mx-3 mb-[9px] max-h-[150px] overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-background px-2.5 py-2 font-mono text-[11.5px] leading-[1.55] text-foreground/85 [overflow-wrap:anywhere]" aria-label="Request preview">
+        <pre
+          className="mx-3 mb-[9px] max-h-[150px] overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-background px-2.5 py-2 font-mono text-[11.5px] leading-[1.55] text-foreground/85 [overflow-wrap:anywhere]"
+          aria-label="Request preview"
+        >
           {aiActionUserPrompt(action, input, instruction)}
         </pre>
       )}
@@ -443,7 +480,11 @@ function AiMenuCompose({
               ? `${modelLabel} · leaves your device`
               : `${modelLabel} · on your device`}
         </span>
-        <button type="button" className="-mx-0.5 -my-[3px] rounded-lg bg-foreground/7 px-2 py-[3px] text-[11px] text-foreground/85 transition-colors duration-[110ms] hover:bg-foreground/12 hover:text-foreground focus-visible:bg-foreground/16 focus-visible:text-foreground" onClick={onChangeModel}>
+        <button
+          type="button"
+          className="-mx-0.5 -my-[3px] rounded-lg bg-foreground/7 px-2 py-[3px] text-[11px] text-foreground/85 transition-colors duration-[110ms] hover:bg-foreground/12 hover:text-foreground focus-visible:bg-foreground/16 focus-visible:text-foreground"
+          onClick={onChangeModel}
+        >
           Change
         </button>
       </div>

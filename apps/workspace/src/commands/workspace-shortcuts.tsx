@@ -187,10 +187,7 @@ export function WorkspaceShortcuts({
           options: {
             description: definition.description ?? definition.label,
             preventDefault: true,
-            except: shortcutExcept(
-              definition,
-              definition.secondaryWorksWhileTyping === true,
-            ),
+            except: shortcutExcept(definition, definition.secondaryWorksWhileTyping === true),
             scopes: definition.scopes,
             ...sequenceHandlerOptions(definition.secondaryKeys),
           },
@@ -227,19 +224,13 @@ export function WorkspaceShortcuts({
   });
 
   useEffect(() => {
-    const activeDefinitions = shortcutDefinitionsForState(
-      suspended,
-      activeWhileSuspended,
-    );
+    const activeDefinitions = shortcutDefinitionsForState(suspended, activeWhileSuspended);
     const activeScopeSet = new Set(activeScopes);
     function handlePhysicalShortcut(event: KeyboardEvent) {
       for (const definition of activeDefinitions) {
         if (
           !shortcutScopesActive(definition, activeScopeSet) ||
-          !shortcutMatchesPhysicalKey(
-            event,
-            effectiveShortcutKeys(definition, overrides),
-          ) ||
+          !shortcutMatchesPhysicalKey(event, effectiveShortcutKeys(definition, overrides)) ||
           shortcutExcept(definition, definition.worksWhileTyping === true)?.(event)
         ) {
           continue;

@@ -1,7 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  KeyboardEvent as ReactKeyboardEvent,
-} from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { activateNote } from "@/store/actions/workspace";
 import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import { isBrowserRuntime } from "@/bridge/runtime";
@@ -51,8 +49,7 @@ const AiSection = lazy(async () => {
 
 const BROWSER_RUNTIME = isBrowserRuntime();
 
-const sectionGroupClass =
-  "flex flex-col gap-0.5 max-[620px]:contents";
+const sectionGroupClass = "flex flex-col gap-0.5 max-[620px]:contents";
 
 const sectionTabClass = cn(
   "flex min-h-[38px] items-center gap-2 rounded-lg border-0 bg-transparent px-[9px] py-1.5 text-left text-[13px] text-muted-foreground cursor-pointer hover:bg-muted hover:text-foreground max-[620px]:min-h-[34px] max-[620px]:flex-none",
@@ -93,20 +90,13 @@ export function SettingsDialog({
     [availableSections, query],
   );
   const sectionGroups = useMemo<SectionGroups>(
-    () =>
-      query
-        ? { top: filteredSections, bottom: [] }
-        : groupSettingsSections(filteredSections),
+    () => (query ? { top: filteredSections, bottom: [] } : groupSettingsSections(filteredSections)),
     [filteredSections, query],
   );
   const availableIds = availableSections.map((entry) => entry.id);
   const filteredIds = filteredSections.map((entry) => entry.id);
   const rovingSection = rovingSettingsSection(filteredIds, section);
-  const activeSection = activeSettingsSection(
-    filteredIds,
-    availableIds,
-    section,
-  ) ?? "appearance";
+  const activeSection = activeSettingsSection(filteredIds, availableIds, section) ?? "appearance";
   const activeMeta = SECTIONS.find((entry) => entry.id === activeSection) ?? SECTIONS[0];
 
   useEffect(() => {
@@ -150,9 +140,7 @@ export function SettingsDialog({
         <span className="flex min-w-0 flex-1 flex-col gap-[3px] leading-[1.05]">
           <span className="truncate">{entry.label}</span>
           {query && (
-            <span className="truncate text-[10px] text-muted-foreground">
-              {entry.description}
-            </span>
+            <span className="truncate text-[10px] text-muted-foreground">{entry.description}</span>
           )}
         </span>
       </button>
@@ -171,12 +159,7 @@ export function SettingsDialog({
       searchRef.current?.focus();
       return;
     }
-    if (
-      event.key.toLocaleLowerCase() === "e" &&
-      event.ctrlKey &&
-      !event.metaKey &&
-      !event.altKey
-    ) {
+    if (event.key.toLocaleLowerCase() === "e" && event.ctrlKey && !event.metaKey && !event.altKey) {
       event.preventDefault();
       if (rovingSection) {
         focusSection(rovingSection);
@@ -211,11 +194,7 @@ export function SettingsDialog({
     if (!current) {
       return;
     }
-    if (
-      event.key === "Enter" ||
-      event.key === " " ||
-      event.key === "ArrowRight"
-    ) {
+    if (event.key === "Enter" || event.key === " " || event.key === "ArrowRight") {
       event.preventDefault();
       setSection(current);
       focusFirstSetting();
@@ -280,10 +259,7 @@ export function SettingsDialog({
                 if (event.key === "Escape") {
                   event.preventDefault();
                   event.stopPropagation();
-                  const action = settingsSearchEscape(
-                    query,
-                    recordingCountRef.current > 0,
-                  );
+                  const action = settingsSearchEscape(query, recordingCountRef.current > 0);
                   if (action === "clear-query") {
                     setQuery("");
                   } else if (action === "close-dialog") {

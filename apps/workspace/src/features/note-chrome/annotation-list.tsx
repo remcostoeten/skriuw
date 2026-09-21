@@ -62,9 +62,7 @@ export function AnnotationList({ store, noteId }: Props) {
 
   const threads = useMemo(() => threadsForNote(annotations, noteId), [annotations, noteId]);
   const anchored = useMemo(() => anchoredThreadIds(markdown), [markdown]);
-  const visible = threads.filter(
-    (thread) => filter === "all" || thread.status === filter,
-  );
+  const visible = threads.filter((thread) => filter === "all" || thread.status === filter);
 
   if (threads.length === 0) {
     return <p className="m-0 text-[12px] text-muted-foreground">No comments in this note.</p>;

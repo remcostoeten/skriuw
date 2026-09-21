@@ -112,9 +112,7 @@ function GoToDateBody({ context }: BodyProps) {
           aria-expanded={suggestions.length > 0}
           aria-controls={listboxId}
           aria-autocomplete="list"
-          aria-activedescendant={
-            activeSuggestion ? `${listboxId}-item-${activeIndex}` : undefined
-          }
+          aria-activedescendant={activeSuggestion ? `${listboxId}-item-${activeIndex}` : undefined}
           autoComplete="off"
           spellCheck={false}
           className="min-w-0 flex-1 border-none bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground"

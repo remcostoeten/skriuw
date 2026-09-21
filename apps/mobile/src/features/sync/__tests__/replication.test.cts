@@ -362,10 +362,12 @@ test("the wake channel only wakes on a workspace change", () => {
 
 type OpenSocket = { handlers: WakeSocketHandlers; closed: boolean; bearer: string };
 
-function channelHarness(target: { url: string; bearer: string } | null = {
-  url: "wss://sync.skriuw.app/v1/events",
-  bearer: "session-token",
-}): {
+function channelHarness(
+  target: { url: string; bearer: string } | null = {
+    url: "wss://sync.skriuw.app/v1/events",
+    bearer: "session-token",
+  },
+): {
   sockets: OpenSocket[];
   connected: boolean[];
   wakes: number;

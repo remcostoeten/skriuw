@@ -199,11 +199,7 @@ function combineCounts(a: number | null, b: number | null): number | null {
   return (a ?? 1) * (b ?? 1);
 }
 
-function parseMotion(
-  keys: readonly string[],
-  at: number,
-  allowTextObjects: boolean,
-): MotionParse {
+function parseMotion(keys: readonly string[], at: number, allowTextObjects: boolean): MotionParse {
   const key = keys[at];
   if (key === undefined) return { result: "pending" };
   if (SIMPLE_MOTIONS.has(key)) {
@@ -223,7 +219,11 @@ function parseMotion(
     if (character.length !== 1 && character !== "<Space>") return { result: "invalid" };
     return {
       result: "complete",
-      motion: { kind: "find", find: key as FindKind, character: character === "<Space>" ? " " : character },
+      motion: {
+        kind: "find",
+        find: key as FindKind,
+        character: character === "<Space>" ? " " : character,
+      },
       next: at + 2,
     };
   }
@@ -251,7 +251,10 @@ function parseMotion(
   return { result: "invalid" };
 }
 
-function readOperator(keys: readonly string[], at: number): { operator: VimOperator; next: number } | "pending" | null {
+function readOperator(
+  keys: readonly string[],
+  at: number,
+): { operator: VimOperator; next: number } | "pending" | null {
   const key = keys[at];
   if (key === undefined) return "pending";
   if (key === "d" || key === "c" || key === "y" || key === ">" || key === "<") {
@@ -267,7 +270,11 @@ function readOperator(keys: readonly string[], at: number): { operator: VimOpera
   return null;
 }
 
-function doubledOperatorEnd(operator: VimOperator, keys: readonly string[], at: number): number | "pending" | null {
+function doubledOperatorEnd(
+  operator: VimOperator,
+  keys: readonly string[],
+  at: number,
+): number | "pending" | null {
   const key = keys[at];
   if (key === undefined) return "pending";
   if (operator.length === 1) return key === operator ? at + 1 : null;
@@ -327,7 +334,8 @@ function parseNormal(
   if (key === "r") {
     const character = keys[at + 1];
     if (character === undefined) return { status: "pending" };
-    if (character.length !== 1 && character !== "<Space>" && character !== "<CR>") return { status: "invalid" };
+    if (character.length !== 1 && character !== "<Space>" && character !== "<CR>")
+      return { status: "invalid" };
     if (at + 2 !== keys.length) return { status: "invalid" };
     return complete({
       type: "action",
@@ -368,12 +376,20 @@ function parseNormal(
       return { status: "invalid" };
     }
     if (key === "z") {
-      if (second === "z" || second === "t" || second === "b" || second === "." || second === "<CR>" || second === "-") {
+      if (
+        second === "z" ||
+        second === "t" ||
+        second === "b" ||
+        second === "." ||
+        second === "<CR>" ||
+        second === "-"
+      ) {
         return complete({ type: "action", action: `z${second}`, count, register, character: null });
       }
       return { status: "invalid" };
     }
-    if (second === "Z") return complete({ type: "action", action: "ZZ", count, register, character: null });
+    if (second === "Z")
+      return complete({ type: "action", action: "ZZ", count, register, character: null });
     return { status: "invalid" };
   }
   if (NORMAL_ACTIONS.has(key)) {

@@ -11,10 +11,7 @@ import {
 import { THEME_NAMES, THEME_TOKENS } from "./tokens";
 
 test("the registry is the complete built-in theme catalog", () => {
-  assert.deepEqual(
-    BUILTIN_THEMES.map((theme) => theme.id).toSorted(),
-    [...THEME_NAMES].toSorted(),
-  );
+  assert.deepEqual(BUILTIN_THEMES.map((theme) => theme.id).toSorted(), [...THEME_NAMES].toSorted());
   for (const theme of BUILTIN_THEMES) assert.equal(isBuiltinThemeId(theme.id), true);
 });
 

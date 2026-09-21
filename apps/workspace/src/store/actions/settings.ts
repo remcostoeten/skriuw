@@ -31,10 +31,7 @@ function reportRejection(action: string) {
   };
 }
 
-export function updateSettings(
-  store: RendererStore,
-  settings: WorkspaceSettings,
-): void {
+export function updateSettings(store: RendererStore, settings: WorkspaceSettings): void {
   void commitOperations(store, [{ type: "update_settings", settings }]).catch(
     reportRejection("update settings"),
   );
@@ -69,10 +66,7 @@ export function setShortcutOverride(
   actionId: ShortcutActionId,
   combo: string,
 ): void {
-  updateSettings(
-    store,
-    changeShortcutOverride(store.getState().settings, actionId, combo),
-  );
+  updateSettings(store, changeShortcutOverride(store.getState().settings, actionId, combo));
 }
 
 /**
@@ -109,10 +103,7 @@ export function clearAllShortcutOverrides(store: RendererStore): void {
   updateSettings(store, settings);
 }
 
-export function clearShortcutOverride(
-  store: RendererStore,
-  actionId: ShortcutActionId,
-): void {
+export function clearShortcutOverride(store: RendererStore, actionId: ShortcutActionId): void {
   const current = store.getState().settings;
   const settings = resetShortcutOverride(current, actionId);
   if (settings === current) {

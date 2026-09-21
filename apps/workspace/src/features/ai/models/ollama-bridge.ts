@@ -45,12 +45,7 @@ export function installOllamaRuntime(
   onProgress: ProgressCallback,
   signal: AbortSignal,
 ): Promise<LocalAiStatus> {
-  return runProgressOperation(
-    "install_ollama_runtime",
-    {},
-    onProgress,
-    signal,
-  );
+  return runProgressOperation("install_ollama_runtime", {}, onProgress, signal);
 }
 
 export function pullOllamaModel(
@@ -58,12 +53,7 @@ export function pullOllamaModel(
   onProgress: ProgressCallback,
   signal: AbortSignal,
 ): Promise<void> {
-  return runProgressOperation(
-    "pull_ollama_model",
-    { model },
-    onProgress,
-    signal,
-  );
+  return runProgressOperation("pull_ollama_model", { model }, onProgress, signal);
 }
 
 async function runProgressOperation<T>(

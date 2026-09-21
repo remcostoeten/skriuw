@@ -65,10 +65,7 @@ function sameTransform(left: CoverTransform, right: CoverTransform): boolean {
   );
 }
 
-function changedTransform(
-  current: CoverTransform,
-  next: CoverTransform,
-): CoverTransform {
+function changedTransform(current: CoverTransform, next: CoverTransform): CoverTransform {
   return sameTransform(current, next) ? current : next;
 }
 
@@ -90,12 +87,8 @@ export function coverTransformForKey(
   options: CoverKeyboardTransformOptions = {},
 ): CoverTransform | null {
   const shifted = options.shiftKey ?? false;
-  const panStep = shifted
-    ? (options.largePanStep ?? 10)
-    : (options.panStep ?? 2);
-  const zoomStep = shifted
-    ? (options.largeZoomStep ?? 0.25)
-    : (options.zoomStep ?? 0.1);
+  const panStep = shifted ? (options.largePanStep ?? 10) : (options.panStep ?? 2);
+  const zoomStep = shifted ? (options.largeZoomStep ?? 0.25) : (options.zoomStep ?? 0.1);
   const maxZoom = Math.max(1, options.maxZoom ?? 3);
 
   let next: CoverTransform;

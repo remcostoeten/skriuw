@@ -76,9 +76,7 @@ function createRenderer(sourceDir: string, headings: DocHeading[]) {
         const resolved = resolveDocHref(href, sourceDir);
         const label = this.parser.parseInline(tokens);
         const titleAttr = title ? ` title="${title}"` : "";
-        const external = /^https?:/.test(resolved)
-          ? ' target="_blank" rel="noreferrer"'
-          : "";
+        const external = /^https?:/.test(resolved) ? ' target="_blank" rel="noreferrer"' : "";
 
         return `<a href="${resolved}"${titleAttr}${external}>${label}</a>`;
       },

@@ -58,7 +58,9 @@ function isEmptyParagraph(block: ProseMirrorNode): boolean {
   if (block.type !== "paragraph") {
     return false;
   }
-  return block.content === undefined || (Array.isArray(block.content) && block.content.length === 0);
+  return (
+    block.content === undefined || (Array.isArray(block.content) && block.content.length === 0)
+  );
 }
 
 export type AppendOutcome =
@@ -83,9 +85,10 @@ export function appendParagraphs(
   if (blocks === null) {
     return { ok: false, reason: "unreadable-document" };
   }
-  const kept = blocks.length > 0 && isEmptyParagraph(blocks[blocks.length - 1]!)
-    ? blocks.slice(0, -1)
-    : blocks;
+  const kept =
+    blocks.length > 0 && isEmptyParagraph(blocks[blocks.length - 1]!)
+      ? blocks.slice(0, -1)
+      : blocks;
   const nextMarkdown = `${markdown.replace(/\s+$/, "")}${
     markdown.trim().length === 0 ? "" : "\n\n"
   }${trimmed.join("\n\n")}\n`;

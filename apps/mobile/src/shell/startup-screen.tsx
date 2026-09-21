@@ -20,7 +20,10 @@ export function StartupScreen({ view }: Props) {
   if (view === null) {
     return (
       <View style={[styles.root, { backgroundColor: theme.color("background") }]}>
-        <ActivityIndicator accessibilityLabel="Opening your workspace" color={theme.color("muted-foreground")} />
+        <ActivityIndicator
+          accessibilityLabel="Opening your workspace"
+          color={theme.color("muted-foreground")}
+        />
       </View>
     );
   }

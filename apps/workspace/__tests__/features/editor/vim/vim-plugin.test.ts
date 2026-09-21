@@ -117,11 +117,16 @@ function createHarness(markdown: string, cursorText?: string, enabled = true): H
         preventDefault() {},
         ...keyEvent(token),
       };
-      const handled = plugin.props.handleKeyDown?.call(plugin, view, event as unknown as KeyboardEvent);
+      const handled = plugin.props.handleKeyDown?.call(
+        plugin,
+        view,
+        event as unknown as KeyboardEvent,
+      );
       if (!handled && vimModeOf(state, enabled) === "insert") {
         for (const other of state.plugins) {
           if (other === plugin) continue;
-          if (other.props.handleKeyDown?.call(other, view, event as unknown as KeyboardEvent)) break;
+          if (other.props.handleKeyDown?.call(other, view, event as unknown as KeyboardEvent))
+            break;
         }
       }
     }
@@ -387,7 +392,13 @@ test("j and k step through wrapped rows when the view can measure them", () => {
   assert.equal(editor.textAtCursor(), "z");
   editor.press("0vj");
   assert.equal(editor.mode(), "visual");
-  assert.equal(editor.view.state.doc.textBetween(editor.view.state.selection.from, editor.view.state.selection.to), "abcdefghijk");
+  assert.equal(
+    editor.view.state.doc.textBetween(
+      editor.view.state.selection.from,
+      editor.view.state.selection.to,
+    ),
+    "abcdefghijk",
+  );
   editor.press("<Esc>");
   editor.press("G");
   editor.press("j");

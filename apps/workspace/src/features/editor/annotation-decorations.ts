@@ -30,10 +30,7 @@ const OPEN_CLASS = "skriuw-annotation";
 const RESOLVED_CLASS = "skriuw-annotation skriuw-annotation--resolved";
 const ACTIVE_CLASS = "skriuw-annotation skriuw-annotation--active";
 
-function buildDecorations(
-  doc: ProseMirrorNode,
-  inputs: AnnotationDecorationInputs,
-): DecorationSet {
+function buildDecorations(doc: ProseMirrorNode, inputs: AnnotationDecorationInputs): DecorationSet {
   const ranges = annotationRangesInDoc(doc);
   if (ranges.length === 0) return DecorationSet.empty;
   const decorations = ranges.map((range) => {
@@ -46,10 +43,7 @@ function buildDecorations(
   return DecorationSet.create(doc, decorations);
 }
 
-function sameInputs(
-  left: AnnotationDecorationInputs,
-  right: AnnotationDecorationInputs,
-): boolean {
+function sameInputs(left: AnnotationDecorationInputs, right: AnnotationDecorationInputs): boolean {
   if (left.activeThreadId !== right.activeThreadId) return false;
   if (left.resolvedThreadIds.size !== right.resolvedThreadIds.size) return false;
   for (const id of left.resolvedThreadIds) {

@@ -45,10 +45,7 @@ function reachedIndex(run: AiActionRun): number {
   return 0;
 }
 
-export function aiRunSteps(
-  run: AiActionRun,
-  providerLabel: string | null,
-): readonly AiRunStep[] {
+export function aiRunSteps(run: AiActionRun, providerLabel: string | null): readonly AiRunStep[] {
   const labels = stepLabels(providerLabel);
   if (run.phase === "composing") {
     return STEP_ORDER.map((id) => ({ id, label: labels[id], state: "pending" as const }));

@@ -92,7 +92,12 @@ test("prompt playground command registers only while enabled and hides on its ow
   command?.run();
   assert.equal(openedPlayground, 1);
 
-  const ui = { route: "prompt-playground", sidebarOpen: true, metadataOpen: true, settingsOpen: false } as const;
+  const ui = {
+    route: "prompt-playground",
+    sidebarOpen: true,
+    metadataOpen: true,
+    settingsOpen: false,
+  } as const;
   assert.equal(command?.visible?.(state(true), ui), false);
   assert.equal(command?.visible?.(state(true), { ...ui, route: "notes" }), true);
 });

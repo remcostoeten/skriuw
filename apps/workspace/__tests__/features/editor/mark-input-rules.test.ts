@@ -39,9 +39,11 @@ function typeText(state: EditorState, text: string): EditorState {
   };
   const { from, to } = current.selection;
   const handled = current.plugins.some((plugin) => {
-    const handleTextInput = (plugin.props as {
-      handleTextInput?: (view: unknown, from: number, to: number, text: string) => boolean;
-    }).handleTextInput;
+    const handleTextInput = (
+      plugin.props as {
+        handleTextInput?: (view: unknown, from: number, to: number, text: string) => boolean;
+      }
+    ).handleTextInput;
     return handleTextInput?.call(plugin, view, from, to, text) ?? false;
   });
   if (!handled) {
@@ -69,9 +71,11 @@ function pressModU(state: EditorState): EditorState {
     preventDefault: () => undefined,
   } as KeyboardEvent;
   const handled = current.plugins.some((plugin) => {
-    const handleKeyDown = (plugin.props as {
-      handleKeyDown?: (view: unknown, event: KeyboardEvent) => boolean;
-    }).handleKeyDown;
+    const handleKeyDown = (
+      plugin.props as {
+        handleKeyDown?: (view: unknown, event: KeyboardEvent) => boolean;
+      }
+    ).handleKeyDown;
     return handleKeyDown?.call(plugin, view, event) ?? false;
   });
   assert.equal(handled, true);
@@ -226,9 +230,7 @@ test("link syntax inside a code mark stays literal", () => {
 test("strikethrough survives the markdown roundtrip", () => {
   const strikethrough = requiredMark("strikethrough");
   const doc = productSchema.node("doc", null, [
-    productSchema.node("paragraph", null, [
-      productSchema.text("gone", [strikethrough.create()]),
-    ]),
+    productSchema.node("paragraph", null, [productSchema.text("gone", [strikethrough.create()])]),
   ]);
   const markdown = serializeProductMarkdown(doc);
   assert.ok(markdown.includes("~~gone~~"));
@@ -268,10 +270,7 @@ test("autolinking does not fire inside a code block", () => {
   );
   const typed = typeText(state, " ");
   assert.equal(typed.doc.textContent, "https://example.com ");
-  assert.equal(
-    typed.doc.rangeHasMark(1, typed.doc.content.size - 1, requiredMark("link")),
-    false,
-  );
+  assert.equal(typed.doc.rangeHasMark(1, typed.doc.content.size - 1, requiredMark("link")), false);
 });
 
 test("an already linked URL is not re-marked when more whitespace is typed", () => {

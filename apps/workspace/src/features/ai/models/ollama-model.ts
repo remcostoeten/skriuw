@@ -77,11 +77,7 @@ export function ollamaProgressText(progress: LocalAiProgress): string {
 }
 
 export function ollamaProgressPercent(progress: LocalAiProgress | null): number | null {
-  if (
-    progress?.type !== "progress" ||
-    !progress.totalBytes ||
-    progress.totalBytes <= 0
-  ) {
+  if (progress?.type !== "progress" || !progress.totalBytes || progress.totalBytes <= 0) {
     return null;
   }
   return Math.min(100, Math.round((progress.completedBytes / progress.totalBytes) * 100));
@@ -114,5 +110,7 @@ export function ollamaProgressTiming(
 
 export function ollamaModelSourceUrl(model: string): string {
   const base = model.split(":")[0]?.trim();
-  return base ? `https://ollama.com/library/${encodeURIComponent(base)}` : OLLAMA_INSTALL_SOURCE_URL;
+  return base
+    ? `https://ollama.com/library/${encodeURIComponent(base)}`
+    : OLLAMA_INSTALL_SOURCE_URL;
 }

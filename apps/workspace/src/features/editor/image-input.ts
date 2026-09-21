@@ -173,9 +173,8 @@ export function insertLibraryMedia(
   const existing = [...state.images.values()].find(
     (image) => image.noteId === noteId && image.contentHash === blob.contentHash,
   );
-  const known = existing ?? [...state.images.values()].find(
-    (image) => image.contentHash === blob.contentHash,
-  );
+  const known =
+    existing ?? [...state.images.values()].find((image) => image.contentHash === blob.contentHash);
   const id = existing?.id ?? crypto.randomUUID();
   const node =
     kind === "image"

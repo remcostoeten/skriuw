@@ -87,7 +87,11 @@ export function createPlatformBiometricUnlock(options: PlatformBiometricsOptions
     },
   };
 
-  return createBiometricUnlock({ biometrics: port, keystore: slot, reportError: options.reportError });
+  return createBiometricUnlock({
+    biometrics: port,
+    keystore: slot,
+    reportError: options.reportError,
+  });
 }
 
 /** A device with more than one modality gets the generic noun: the platform picks which one prompts. */

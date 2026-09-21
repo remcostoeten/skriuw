@@ -78,18 +78,17 @@ function TauriWindowControls({ className }: WindowControlsProps) {
       data-tauri-drag-region
       className={cn("flex h-11 shrink-0 items-center gap-0.5 pl-3 pr-1", className)}
     >
-      <ControlButton label="Minimize" onClick={runWindowAction(() => getCurrentWindow().minimize())}>
+      <ControlButton
+        label="Minimize"
+        onClick={runWindowAction(() => getCurrentWindow().minimize())}
+      >
         <MinimizeIcon size={14} />
       </ControlButton>
       <ControlButton
         label={isMaximized ? "Restore" : "Maximize"}
         onClick={runWindowAction(() => getCurrentWindow().toggleMaximize())}
       >
-        {isMaximized ? (
-          <RestoreIcon size={12} />
-        ) : (
-          <MaximizeIcon size={12} />
-        )}
+        {isMaximized ? <RestoreIcon size={12} /> : <MaximizeIcon size={12} />}
       </ControlButton>
       <ControlButton
         label="Close"

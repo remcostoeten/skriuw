@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createOverlayHistory, overlayIdOf, type HistoryView } from "../../src/shell/overlay-history";
+import {
+  createOverlayHistory,
+  overlayIdOf,
+  type HistoryView,
+} from "../../src/shell/overlay-history";
 
 type Entry = { state: unknown };
 

@@ -34,10 +34,7 @@ test("catalog ids are unique and every property template resolves", () => {
 test("every template scaffold opens with a level-one heading", () => {
   for (const template of NOTE_TEMPLATES) {
     const markdown = template.buildMarkdown(FIXED_AT);
-    assert.ok(
-      markdown.startsWith("# "),
-      `${template.id} scaffold must start with a title heading`,
-    );
+    assert.ok(markdown.startsWith("# "), `${template.id} scaffold must start with a title heading`);
   }
 });
 
@@ -53,7 +50,10 @@ test("filterNoteTemplates matches name and description, empty query returns all"
     ["meeting"],
   );
   const byDescription = filterNoteTemplates(NOTE_TEMPLATES, "checklist");
-  assert.deepEqual(byDescription.map((template) => template.id), ["todo"]);
+  assert.deepEqual(
+    byDescription.map((template) => template.id),
+    ["todo"],
+  );
   assert.equal(filterNoteTemplates(NOTE_TEMPLATES, "zzz").length, 0);
 });
 
@@ -99,15 +99,11 @@ test("planTemplateNote stores a canonical document/markdown pair", () => {
 test("planTemplateNote instantiates the paired property template with fresh ids", () => {
   const template = noteTemplate("meeting");
   assert.ok(template);
-  const meetingFields = BUILT_IN_PROPERTY_TEMPLATES.find(
-    (entry) => entry.id === "meeting",
-  );
+  const meetingFields = BUILT_IN_PROPERTY_TEMPLATES.find((entry) => entry.id === "meeting");
   assert.ok(meetingFields);
 
   const plan = planTemplateNote(template, null, FIXED_AT, sequentialIds());
-  const propertyOps = plan.operations.filter(
-    (operation) => operation.type === "set_note_property",
-  );
+  const propertyOps = plan.operations.filter((operation) => operation.type === "set_note_property");
 
   assert.equal(propertyOps.length, meetingFields.properties.length);
   for (const operation of propertyOps) {

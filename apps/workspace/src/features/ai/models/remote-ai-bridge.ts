@@ -60,16 +60,12 @@ export function removeRemoteAiKey(providerId: string): Promise<RemoteAiProviderS
   return invoke<RemoteAiProviderState[]>("remove_remote_ai_key", { providerId });
 }
 
-export function acceptRemoteAiDisclosure(
-  providerId: string,
-): Promise<RemoteAiProviderState[]> {
+export function acceptRemoteAiDisclosure(providerId: string): Promise<RemoteAiProviderState[]> {
   requireDesktop();
   return invoke<RemoteAiProviderState[]>("accept_remote_ai_disclosure", { providerId });
 }
 
-export function revokeRemoteAiProvider(
-  providerId: string,
-): Promise<RemoteAiProviderState[]> {
+export function revokeRemoteAiProvider(providerId: string): Promise<RemoteAiProviderState[]> {
   requireDesktop();
   return invoke<RemoteAiProviderState[]>("revoke_remote_ai_provider", { providerId });
 }

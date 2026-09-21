@@ -6,11 +6,7 @@ import {
   type ThemeTokens,
   type TokenName,
 } from "./tokens";
-import {
-  BUILTIN_THEMES,
-  type BuiltinThemeMetadata,
-  type ThemeColorScheme,
-} from "./metadata";
+import { BUILTIN_THEMES, type BuiltinThemeMetadata, type ThemeColorScheme } from "./metadata";
 
 export { BUILTIN_THEMES } from "./metadata";
 export type { BuiltinThemeMetadata, ThemeColorScheme, ThemeFamily } from "./metadata";
@@ -85,10 +81,7 @@ export function validateThemeDefinition(theme: ThemeDefinition): string | null {
   return null;
 }
 
-export function resolveTheme(
-  id: string,
-  customThemes?: CustomThemeRegistry,
-): ResolvedTheme {
+export function resolveTheme(id: string, customThemes?: CustomThemeRegistry): ResolvedTheme {
   if (isBuiltinThemeId(id)) {
     return resolveBuiltinTheme(id);
   }

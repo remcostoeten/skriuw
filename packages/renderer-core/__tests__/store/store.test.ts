@@ -79,9 +79,18 @@ test("initial state orders siblings by rank and excludes trashed subtrees", () =
 
 test("tasks hydrate and task operations update the narrow task projection", () => {
   const task: WorkspaceTask = {
-    id: "task-1", title: "Ship", status: "todo", priority: "medium", dueDate: null,
-    description: "", tagIds: [], assigneeIds: [], source: { noteId: "note-child", blockId: "block-1" },
-    detachedAt: null, createdAt: 1, updatedAt: 1,
+    id: "task-1",
+    title: "Ship",
+    status: "todo",
+    priority: "medium",
+    dueDate: null,
+    description: "",
+    tagIds: [],
+    assigneeIds: [],
+    source: { noteId: "note-child", blockId: "block-1" },
+    detachedAt: null,
+    createdAt: 1,
+    updatedAt: 1,
   };
   const initial = createInitialState({ ...snapshot(), tasks: [task] });
   assert.equal(initial.tasks.get("task-1")?.title, "Ship");
@@ -219,9 +228,7 @@ test("set_note_cover updates only owning note", () => {
   assert.equal(store.getState().sourceNodes.get("note-root")?.coverPositionY, 75);
   assert.equal(store.getState().sourceNodes.get("note-root")?.coverZoom, 1.6);
 
-  store.applyOperations([
-    { type: "set_note_cover", noteId: "note-root", imageId: null, at: 60 },
-  ]);
+  store.applyOperations([{ type: "set_note_cover", noteId: "note-root", imageId: null, at: 60 }]);
   assert.equal(store.getState().sourceNodes.get("note-root")?.coverImageId, null);
   assert.equal(store.getState().sourceNodes.get("note-root")?.coverFullWidth, false);
   assert.equal(store.getState().sourceNodes.get("note-root")?.coverPositionX, 50);
@@ -258,9 +265,7 @@ test("set_note_cover_gradient and set_note_cover replace each other", () => {
   assert.equal(withImage?.coverImageId, "cover-2");
   assert.equal(withImage?.coverFullWidth, true);
 
-  store.applyOperations([
-    { type: "set_note_cover", noteId: "note-root", imageId: null, at: 55 },
-  ]);
+  store.applyOperations([{ type: "set_note_cover", noteId: "note-root", imageId: null, at: 55 }]);
   const cleared = store.getState().sourceNodes.get("note-root");
   assert.equal(cleared?.coverImageId, null);
   assert.equal(cleared?.coverGradient, null);
@@ -685,7 +690,10 @@ test("history publication is exactly once, stable, and note scoped", () => {
     false,
   );
   assert.deepEqual(
-    store.getState().historyHeaders.get("note-child")?.map((header) => header.versionId),
+    store
+      .getState()
+      .historyHeaders.get("note-child")
+      ?.map((header) => header.versionId),
     ["version-a", "version-b"],
   );
   assert.equal(childHistoryNotifications, 1);

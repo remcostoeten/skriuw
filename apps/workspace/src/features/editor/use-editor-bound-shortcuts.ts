@@ -41,10 +41,7 @@ export type EditorBoundHandlers = Partial<Record<ShortcutActionId, EditorBoundHa
  * this against their list from `editor-bound-shortcut-ids`, so adding an id to
  * the list without writing its handler fails to compile.
  */
-export type EditorBoundHandlersFor<Id extends ShortcutActionId> = Record<
-  Id,
-  EditorBoundHandler
->;
+export type EditorBoundHandlersFor<Id extends ShortcutActionId> = Record<Id, EditorBoundHandler>;
 
 /**
  * Binds editor-only shortcut definitions to one editor surface. The listener
@@ -62,11 +59,7 @@ export function useEditorBoundShortcuts(
   handlers: EditorBoundHandlers,
   activeScopes?: string[],
 ): void {
-  const overrides = useRendererSelector(
-    store,
-    selectShortcutOverrides,
-    sameShortcutOverrides,
-  );
+  const overrides = useRendererSelector(store, selectShortcutOverrides, sameShortcutOverrides);
   const platform = detectPlatform() as ShortcutPlatform;
 
   const shortcutMap = useMemo(() => {

@@ -78,14 +78,10 @@ test("bounded undo groups bursts, retains compact ranges, and caps history", () 
   const burst = createBoundedDocument(createDocument(500));
   for (let index = 0; index < 4; index += 1) {
     const window = burst.windowDocument();
-    const changed = productSchema.node(
-      "doc",
-      null,
-      [
-        productSchema.node("paragraph", null, productSchema.text(`burst ${index}`)),
-        ...Array.from({ length: window.childCount - 1 }, (_, child) => window.child(child + 1)),
-      ],
-    );
+    const changed = productSchema.node("doc", null, [
+      productSchema.node("paragraph", null, productSchema.text(`burst ${index}`)),
+      ...Array.from({ length: window.childCount - 1 }, (_, child) => window.child(child + 1)),
+    ]);
     burst.replaceWindow(changed, 1_000 + index * 100);
   }
   assert.equal(burst.undoDepth(), 1);
@@ -123,7 +119,10 @@ test("block-relative offsets reach nested textblocks and settle on the nearest t
   const $position = document.resolve(position);
   assert.equal($position.parent, secondItemText);
   assert.equal($position.parentOffset, 0);
-  assert.equal(document.resolve(topLevelTextPosition(document, 0, 1)).parent, list.child(0).firstChild);
+  assert.equal(
+    document.resolve(topLevelTextPosition(document, 0, 1)).parent,
+    list.child(0).firstChild,
+  );
   assert.equal(document.resolve(topLevelTextPosition(document, 0, 9_999)).parent, secondItemText);
   assert.equal(topLevelTextPosition(document, 1, 0), list.nodeSize + 1);
 });
@@ -223,7 +222,11 @@ test("adoptRemoteDocument shifts later undo entries and drops the ones the chang
     return blocks;
   }
   const inserted = remoteBlocks();
-  inserted.splice(5, 0, productSchema.node("paragraph", null, productSchema.text("remote inserted")));
+  inserted.splice(
+    5,
+    0,
+    productSchema.node("paragraph", null, productSchema.text("remote inserted")),
+  );
   assert.equal(bounded.adoptRemoteDocument(productSchema.node("doc", null, inserted)), true);
   assert.equal(bounded.blockCount(), 401);
   assert.equal(bounded.fullDocument().child(5).textContent, "remote inserted");
@@ -233,7 +236,11 @@ test("adoptRemoteDocument shifts later undo entries and drops the ones the chang
   assert.deepEqual(bounded.selection(), { blockIndex: 101, offset: 3 });
 
   const overwritten = remoteBlocks();
-  overwritten.splice(101, 1, productSchema.node("paragraph", null, productSchema.text("remote hundred")));
+  overwritten.splice(
+    101,
+    1,
+    productSchema.node("paragraph", null, productSchema.text("remote hundred")),
+  );
   assert.equal(bounded.adoptRemoteDocument(productSchema.node("doc", null, overwritten)), true);
   assert.equal(bounded.undoDepth(), 1, "the entry the remote change overwrote is gone");
   assert.deepEqual(bounded.selection(), { blockIndex: 101, offset: 0 });

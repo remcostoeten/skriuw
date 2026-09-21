@@ -71,7 +71,14 @@ function setupDOMStub() {
       },
       addEventListener: () => {},
       removeEventListener: () => {},
-      getBoundingClientRect: () => ({ left: 10, top: 10, right: 50, bottom: 30, width: 40, height: 20 }),
+      getBoundingClientRect: () => ({
+        left: 10,
+        top: 10,
+        right: 50,
+        bottom: 30,
+        width: 40,
+        height: 20,
+      }),
     };
     return element;
   }

@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import { sheetDragCloses, sheetDragOffset, swipeAxis, type SwipeEdge } from "./edge-swipe";
 import { bindOverlayBack } from "./overlay-history";
 import { haptic } from "@/shared/lib/haptics";
@@ -76,7 +82,10 @@ export function MobileSheet({ side, open, label, onClose, children }: Props) {
       document.removeEventListener("keydown", onKeyDown);
       const previous = returnFocusRef.current;
       const active = document.activeElement;
-      if (previous?.isConnected && (active === null || active === document.body || panel?.contains(active))) {
+      if (
+        previous?.isConnected &&
+        (active === null || active === document.body || panel?.contains(active))
+      ) {
         previous.focus({ preventScroll: true });
       }
     };
@@ -91,7 +100,12 @@ export function MobileSheet({ side, open, label, onClose, children }: Props) {
     if (event.target instanceof Element && event.target.closest('[role="tree"]')) {
       return;
     }
-    dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, axis: null };
+    dragRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      axis: null,
+    };
   }
 
   function onPointerMove(event: ReactPointerEvent<HTMLDivElement>): void {
@@ -155,7 +169,12 @@ export function MobileSheet({ side, open, label, onClose, children }: Props) {
       >
         <div className="mobile-sheet-header">
           <span>{label}</span>
-          <button type="button" className="mobile-sheet-close" aria-label={`Close ${label}`} onClick={onClose}>
+          <button
+            type="button"
+            className="mobile-sheet-close"
+            aria-label={`Close ${label}`}
+            onClick={onClose}
+          >
             <CloseIcon size={18} />
           </button>
         </div>

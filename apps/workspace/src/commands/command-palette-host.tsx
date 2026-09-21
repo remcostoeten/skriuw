@@ -157,7 +157,11 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
       return;
     }
     const timer = window.setTimeout(() => {
-      searchWorkspace(plan.text, plan.fullTextLimit, plan.allowedNoteIds === null ? null : [...plan.allowedNoteIds])
+      searchWorkspace(
+        plan.text,
+        plan.fullTextLimit,
+        plan.allowedNoteIds === null ? null : [...plan.allowedNoteIds],
+      )
         .then((results) => {
           if (requestRef.current === requestId) {
             setHits(results);
@@ -185,16 +189,14 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
         const definition = DEFINITION_BY_ID.get(actionId);
         return definition ? effectiveShortcutKeys(definition, overrides) : "";
       }),
-      ...selectNoteEntries(state).map(
-        (note): CommandPaletteItem => ({
-          id: `note:${note.id}`,
-          label: note.title,
-          keywords: ["open"],
-          group: "Notes",
-          icon: <FileTextIcon size={15} />,
-          action: () => activateNote(store, note.id),
-        }),
-      ),
+      ...selectNoteEntries(state).map((note): CommandPaletteItem => ({
+        id: `note:${note.id}`,
+        label: note.title,
+        keywords: ["open"],
+        group: "Notes",
+        icon: <FileTextIcon size={15} />,
+        action: () => activateNote(store, note.id),
+      })),
       ...recentNoteItems(store, state),
       ...entityItems(projectEntities(state, "tag"), "tag"),
       ...entityItems(projectEntities(state, "person"), "person"),

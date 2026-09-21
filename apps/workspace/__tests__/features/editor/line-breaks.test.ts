@@ -14,9 +14,7 @@ function stateFromMarkdown(markdown: string): EditorState {
     plugins: createProductPlugins(),
   });
   return state.apply(
-    state.tr.setSelection(
-      TextSelection.near(state.doc.resolve(state.doc.content.size), -1),
-    ),
+    state.tr.setSelection(TextSelection.near(state.doc.resolve(state.doc.content.size), -1)),
   );
 }
 
@@ -30,7 +28,14 @@ function pressEnter(state: EditorState, shiftKey = false): EditorState {
       current = current.apply(transaction);
     },
   };
-  const event = { key: "Enter", keyCode: 13, shiftKey, ctrlKey: false, altKey: false, metaKey: false };
+  const event = {
+    key: "Enter",
+    keyCode: 13,
+    shiftKey,
+    ctrlKey: false,
+    altKey: false,
+    metaKey: false,
+  };
   for (const plugin of current.plugins) {
     if (plugin.props.handleKeyDown?.(view as never, event as never)) break;
   }

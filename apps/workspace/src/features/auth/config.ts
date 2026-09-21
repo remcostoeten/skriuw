@@ -5,7 +5,10 @@ export type AuthConfiguration =
   | { available: true; baseUrl: string }
   | { available: false; reason: string };
 
-export function resolveAuthConfiguration(raw: string | undefined, development: boolean): AuthConfiguration {
+export function resolveAuthConfiguration(
+  raw: string | undefined,
+  development: boolean,
+): AuthConfiguration {
   const configured = raw?.trim();
   if (!configured) {
     return { available: true, baseUrl: PRODUCTION_CLOUD_URL };
@@ -19,16 +22,19 @@ export function resolveAuthConfiguration(raw: string | undefined, development: b
   }
   const localDevelopment = development && url.protocol === "http:" && url.hostname === "localhost";
   const trustedProductionHost =
-    url.protocol === "https:" && CLOUD_HOST_SUFFIXES.some((suffix) => url.hostname.endsWith(suffix));
+    url.protocol === "https:" &&
+    CLOUD_HOST_SUFFIXES.some((suffix) => url.hostname.endsWith(suffix));
   if (!localDevelopment && !trustedProductionHost) {
     return { available: false, reason: "The configured cloud sign-in URL is not trusted." };
   }
   return { available: true, baseUrl: url.origin };
 }
 
-const viteEnvironment = (import.meta as ImportMeta & {
-  env?: { DEV?: boolean; VITE_SKRIUW_CLOUD_URL?: string };
-}).env;
+const viteEnvironment = (
+  import.meta as ImportMeta & {
+    env?: { DEV?: boolean; VITE_SKRIUW_CLOUD_URL?: string };
+  }
+).env;
 
 export const authConfiguration = resolveAuthConfiguration(
   viteEnvironment?.VITE_SKRIUW_CLOUD_URL,

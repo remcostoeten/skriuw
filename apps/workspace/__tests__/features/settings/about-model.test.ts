@@ -26,12 +26,6 @@ test("update check reports the unconfigured state until a feed exists", async ()
 
 test("update outcomes each render a message", () => {
   assert.match(describeUpdateOutcome({ status: "upToDate" }), /latest/);
-  assert.match(
-    describeUpdateOutcome({ status: "available", version: "1.2.3" }),
-    /1\.2\.3/,
-  );
-  assert.equal(
-    describeUpdateOutcome({ status: "error", message: "network down" }),
-    "network down",
-  );
+  assert.match(describeUpdateOutcome({ status: "available", version: "1.2.3" }), /1\.2\.3/);
+  assert.equal(describeUpdateOutcome({ status: "error", message: "network down" }), "network down");
 });

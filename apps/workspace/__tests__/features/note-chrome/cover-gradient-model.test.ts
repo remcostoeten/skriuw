@@ -21,18 +21,12 @@ test("every gradient carries a distinct id and paint", () => {
 
 test("the gradient ids match the domain allow-list", () => {
   const source = readFileSync(
-    fileURLToPath(
-      new URL("../../../../../crates/skriuw-domain/src/lib.rs", import.meta.url),
-    ),
+    fileURLToPath(new URL("../../../../../crates/skriuw-domain/src/lib.rs", import.meta.url)),
     "utf8",
   );
-  const declaration = source.match(
-    /pub const COVER_GRADIENT_IDS: \[&str; \d+\] = \[([^\]]*)\]/,
-  );
+  const declaration = source.match(/pub const COVER_GRADIENT_IDS: \[&str; \d+\] = \[([^\]]*)\]/);
   assert.ok(declaration, "the domain still declares COVER_GRADIENT_IDS");
-  const domainIds = [...declaration[1].matchAll(/"([^"]+)"/g)].map(
-    (match) => match[1],
-  );
+  const domainIds = [...declaration[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
   assert.deepEqual(
     COVER_GRADIENTS.map((gradient) => gradient.id),
     domainIds,

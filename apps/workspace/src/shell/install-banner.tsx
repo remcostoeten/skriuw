@@ -31,7 +31,11 @@ export function InstallBanner({ compact }: Props) {
     <div role="region" aria-label="Install Skriuw" className="shell-install-banner">
       <DownloadIcon size={16} className="shrink-0" aria-hidden="true" />
       <span className="shell-install-banner-text">Add Skriuw to your home screen</span>
-      <button type="button" className="shell-install-banner-install" onClick={() => void promptInstall()}>
+      <button
+        type="button"
+        className="shell-install-banner-install"
+        onClick={() => void promptInstall()}
+      >
         Install
       </button>
       <button

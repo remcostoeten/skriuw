@@ -45,10 +45,7 @@ export function AppearanceSection({ store }: SectionProps) {
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Theme</div>
         <p className={settingsGroupHint}>Applied across the workspace.</p>
-        <ThemePicker
-          value={settings.theme}
-          onSelect={(themeId) => change("theme", themeId)}
-        />
+        <ThemePicker value={settings.theme} onSelect={(themeId) => change("theme", themeId)} />
       </div>
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Sidebar</div>
@@ -117,8 +114,8 @@ export function AppearanceSection({ store }: SectionProps) {
           <span className={settingsRowLabel}>
             Reset preferences
             <span className={settingsRowDescription}>
-              Restores appearance, editor, and keyboard shortcuts to their defaults.
-              Notes and workspace data are not affected.
+              Restores appearance, editor, and keyboard shortcuts to their defaults. Notes and
+              workspace data are not affected.
             </span>
           </span>
           <InlineConfirm
@@ -141,12 +138,11 @@ export function AppearanceSection({ store }: SectionProps) {
       >
         <div className="space-y-4 px-4 py-4 text-sm leading-6 text-muted-foreground">
           <p className="m-0">
-            AI tools and settings will disappear immediately, and any request in progress
-            will stop.
+            AI tools and settings will disappear immediately, and any request in progress will stop.
           </p>
           <p className="m-0">
-            Saved provider keys, history, and prompts stay on this device unless you delete
-            them separately.
+            Saved provider keys, history, and prompts stay on this device unless you delete them
+            separately.
           </p>
           <div className="flex justify-end gap-2 pt-1">
             <Button onClick={() => setConfirmDisableAi(false)}>Keep enabled</Button>

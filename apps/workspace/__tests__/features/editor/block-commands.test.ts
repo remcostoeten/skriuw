@@ -91,16 +91,8 @@ test("insertBlockAfter adds an empty paragraph below and puts the cursor in it",
 test("moveBlock swaps a block with its neighbour in both directions", () => {
   const state = stateWith(paragraph("one"), paragraph("two"), paragraph("three"));
   const secondPos = state.doc.child(0).nodeSize + 1;
-  assert.deepEqual(blockTexts(apply(state, moveBlock(secondPos, -1))), [
-    "two",
-    "one",
-    "three",
-  ]);
-  assert.deepEqual(blockTexts(apply(state, moveBlock(secondPos, 1))), [
-    "one",
-    "three",
-    "two",
-  ]);
+  assert.deepEqual(blockTexts(apply(state, moveBlock(secondPos, -1))), ["two", "one", "three"]);
+  assert.deepEqual(blockTexts(apply(state, moveBlock(secondPos, 1))), ["one", "three", "two"]);
 });
 
 test("moveBlock refuses to move past either end of the document", () => {
@@ -125,9 +117,7 @@ test("moveBlock moves whole lists, not individual items", () => {
 test("moveBlock keeps the text cursor on the block it moved", () => {
   const state = stateWith(paragraph("one"), paragraph("two"));
   const cursor = state.doc.child(0).nodeSize + 2;
-  const selected = state.apply(
-    state.tr.setSelection(TextSelection.create(state.doc, cursor)),
-  );
+  const selected = state.apply(state.tr.setSelection(TextSelection.create(state.doc, cursor)));
   const next = apply(selected, moveSelectedBlock(-1));
   assert.deepEqual(blockTexts(next), ["two", "one"]);
   assert.equal(next.selection.$from.parent.textContent, "two");

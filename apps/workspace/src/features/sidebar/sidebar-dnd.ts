@@ -20,9 +20,7 @@ export function dragRoots(
   nodes: ReadonlyMap<string, NodeRecord>,
 ): string[] {
   const idSet = new Set(ids);
-  return ids.filter(
-    (id) => !ancestorIds(nodes, id).some((ancestorId) => idSet.has(ancestorId)),
-  );
+  return ids.filter((id) => !ancestorIds(nodes, id).some((ancestorId) => idSet.has(ancestorId)));
 }
 
 export function isWithinSubtree(
@@ -60,11 +58,7 @@ export function rowIndexAt(
  * Splits a row into drop zones: folders get 25% before / 50% inside / 25%
  * after bands, notes split 50/50 into before and after.
  */
-export function dropZoneForOffset(
-  offsetY: number,
-  rowPitch: number,
-  isFolder: boolean,
-): DropZone {
+export function dropZoneForOffset(offsetY: number, rowPitch: number, isFolder: boolean): DropZone {
   const ratio = Math.min(Math.max(offsetY / rowPitch, 0), 1);
   if (!isFolder) {
     return ratio < 0.5 ? "before" : "after";
@@ -126,8 +120,7 @@ export function dropMoves(
   if (placement === null) {
     return [];
   }
-  const ordered =
-    placement.position.type === "after" ? [...dragIds].reverse() : [...dragIds];
+  const ordered = placement.position.type === "after" ? [...dragIds].reverse() : [...dragIds];
   return ordered.map((id) => ({ id, placement }));
 }
 

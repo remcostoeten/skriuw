@@ -3,15 +3,16 @@ import test from "node:test";
 import { createMemoryBridge } from "@skriuw/renderer-core/bridge/memory-adapter";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { FIXTURE_NOTE_COUNT, thousandNoteSnapshot } from "../benchmark/fixture";
-import { BENCHMARK_QUERIES, QUERY_LATENCY_CEILING_MS, measureQueryLatency } from "../benchmark/benchmark";
+import {
+  BENCHMARK_QUERIES,
+  QUERY_LATENCY_CEILING_MS,
+  measureQueryLatency,
+} from "../benchmark/benchmark";
 
 test("the fixture is the workspace the benchmark claims to measure", () => {
   const snapshot = thousandNoteSnapshot();
   assert.equal(snapshot.documents.length, FIXTURE_NOTE_COUNT);
-  assert.equal(
-    snapshot.nodes.filter((node) => node.kind === "note").length,
-    FIXTURE_NOTE_COUNT,
-  );
+  assert.equal(snapshot.nodes.filter((node) => node.kind === "note").length, FIXTURE_NOTE_COUNT);
   assert.ok(snapshot.tags.length > 0);
   assert.ok(snapshot.people.length > 0);
 });

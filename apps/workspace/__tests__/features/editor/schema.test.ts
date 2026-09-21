@@ -88,11 +88,17 @@ flowchart LR
 \`\`\``);
   const previousJson = before.toJSON() as any;
   previousJson.content[0].attrs.model.nodes[1].position = { x: 713, y: 191 };
-  const after = parseProductMarkdownWithImages(`\`\`\`mermaid
+  const after = parseProductMarkdownWithImages(
+    `\`\`\`mermaid
 flowchart TD
   first["First"] --> second["Renamed"]
-\`\`\``, new Set(), previousJson);
-  const second = after.firstChild?.attrs.model.nodes.find(({ id }: { id: string }) => id === "second");
+\`\`\``,
+    new Set(),
+    previousJson,
+  );
+  const second = after.firstChild?.attrs.model.nodes.find(
+    ({ id }: { id: string }) => id === "second",
+  );
   assert.deepEqual(second?.position, { x: 713, y: 191 });
   assert.equal(second?.label, "Renamed");
 });
@@ -103,14 +109,9 @@ test("rich formatting survives JSON, DOM specs, and Markdown roundtrips", () => 
   assert.ok(underline);
   assert.ok(highlight);
   const document = productSchema.node("doc", null, [
-    productSchema.node("heading", { level: 2, textAlign: "right" }, [
-      productSchema.text("Title"),
-    ]),
+    productSchema.node("heading", { level: 2, textAlign: "right" }, [productSchema.text("Title")]),
     productSchema.node("paragraph", { textAlign: "center" }, [
-      productSchema.text("Marked", [
-        underline.create(),
-        highlight.create({ color: "blue" }),
-      ]),
+      productSchema.text("Marked", [underline.create(), highlight.create({ color: "blue" })]),
     ]),
   ]);
 
@@ -123,14 +124,15 @@ test("rich formatting survives JSON, DOM specs, and Markdown roundtrips", () => 
 
   const paragraphToDom = productSchema.nodes.paragraph?.spec.toDOM;
   assert.equal(typeof paragraphToDom, "function");
-  assert.deepEqual(
-    paragraphToDom?.(productSchema.node("paragraph", { textAlign: "center" })),
-    ["p", { "data-text-align": "center", style: "text-align: center" }, 0],
-  );
+  assert.deepEqual(paragraphToDom?.(productSchema.node("paragraph", { textAlign: "center" })), [
+    "p",
+    { "data-text-align": "center", style: "text-align: center" },
+    0,
+  ]);
   const paragraphRule = productSchema.nodes.paragraph?.spec.parseDOM?.[0];
   assert.ok(paragraphRule && "getAttrs" in paragraphRule && paragraphRule.getAttrs);
   const parsedParagraph = paragraphRule.getAttrs?.({
-    getAttribute: (name: string) => name === "data-text-align" ? "center" : null,
+    getAttribute: (name: string) => (name === "data-text-align" ? "center" : null),
     style: { textAlign: "" },
   } as unknown as HTMLElement);
   assert.deepEqual(parsedParagraph, { textAlign: "center" });
@@ -138,7 +140,7 @@ test("rich formatting survives JSON, DOM specs, and Markdown roundtrips", () => 
   const highlightRule = productSchema.marks.highlight?.spec.parseDOM?.[0];
   assert.ok(highlightRule && "getAttrs" in highlightRule && highlightRule.getAttrs);
   const parsedHighlight = highlightRule.getAttrs?.({
-    getAttribute: (name: string) => name === "data-skriuw-highlight" ? "blue" : null,
+    getAttribute: (name: string) => (name === "data-skriuw-highlight" ? "blue" : null),
   } as unknown as HTMLElement);
   assert.deepEqual(parsedHighlight, { color: "blue" });
 });
@@ -263,10 +265,7 @@ test("plain Markdown images render as blocked placeholders without a src attribu
   assert.ok(Array.isArray(rendered));
   assert.equal(rendered[0], "span");
   assert.equal("src" in (rendered[1] as Record<string, unknown>), false);
-  assert.equal(
-    serializeProductMarkdown(document),
-    "![Remote](https://example.com/image.png)",
-  );
+  assert.equal(serializeProductMarkdown(document), "![Remote](https://example.com/image.png)");
 });
 
 test("createProductPlugins builds standard plugin set", () => {

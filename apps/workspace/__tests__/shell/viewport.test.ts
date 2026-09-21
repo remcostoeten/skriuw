@@ -4,7 +4,10 @@ import { keyboardOpen, viewportMetrics } from "../../src/shell/viewport";
 
 type FakeWindow = Parameters<typeof viewportMetrics>[0];
 
-function windowWith(innerHeight: number, visual?: { height: number; offsetTop: number }): FakeWindow {
+function windowWith(
+  innerHeight: number,
+  visual?: { height: number; offsetTop: number },
+): FakeWindow {
   return { innerHeight, visualViewport: visual } as unknown as FakeWindow;
 }
 

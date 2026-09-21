@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  RAIL_ITEMS,
-  railModShiftKeys,
-  railSequenceKeys,
-} from "../../src/commands/rail-items";
+import { RAIL_ITEMS, railModShiftKeys, railSequenceKeys } from "../../src/commands/rail-items";
 
 test("rail items are ordered Notes, Journal, Tasks, Tags, People, Trash", () => {
   assert.deepEqual(

@@ -55,12 +55,7 @@ export function SidebarCalendar({ store }: Props) {
       className="group relative shrink-0 border-t border-sidebar-border"
       aria-label="Journal calendar"
     >
-      <SectionToggle
-        title="Calendar"
-        open={open}
-        onToggle={toggleOpen}
-        className="bg-sidebar/90"
-      />
+      <SectionToggle title="Calendar" open={open} onToggle={toggleOpen} className="bg-sidebar/90" />
       {open && (
         <div className="px-2.5 pb-2 pt-2">
           <JournalCalendar

@@ -61,8 +61,7 @@ export function writeRegister(
       text: `${existing.text}${joiner}${content.text}`,
       linewise: existing.linewise || content.linewise,
       slice: null,
-      blocks:
-        existing.blocks && content.blocks ? [...existing.blocks, ...content.blocks] : null,
+      blocks: existing.blocks && content.blocks ? [...existing.blocks, ...content.blocks] : null,
     });
     return;
   }

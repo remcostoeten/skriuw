@@ -17,7 +17,10 @@ export default defineConfig({
       { find: "@", replacement: resolve(import.meta.dirname, "../src") },
       { find: "react-dom/client", replacement: "react-dom/profiling" },
       { find: "@tauri-apps/api/core", replacement: resolve(import.meta.dirname, "bridge-mock.ts") },
-      { find: "@tauri-apps/api/window", replacement: resolve(import.meta.dirname, "window-mock.ts") },
+      {
+        find: "@tauri-apps/api/window",
+        replacement: resolve(import.meta.dirname, "window-mock.ts"),
+      },
     ],
   },
   build: {

@@ -1,8 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
-import { bindPaneLayoutPersistence, paneLayout } from "@skriuw/renderer-core/store/pane-layout-persistence";
-import { PRIMARY_PANE_ID, parsePaneLayout, serializePaneLayout } from "@skriuw/renderer-core/store/panes";
+import {
+  bindPaneLayoutPersistence,
+  paneLayout,
+} from "@skriuw/renderer-core/store/pane-layout-persistence";
+import {
+  PRIMARY_PANE_ID,
+  parsePaneLayout,
+  serializePaneLayout,
+} from "@skriuw/renderer-core/store/panes";
 import {
   openNoteInTab,
   setSplitRatio,
@@ -108,7 +115,12 @@ test("failed pane layout persistence never rolls renderer state back", async () 
     async () => {
       throw new Error("unavailable");
     },
-    { delayMs: 1, onError: () => { failures += 1; } },
+    {
+      delayMs: 1,
+      onError: () => {
+        failures += 1;
+      },
+    },
   );
 
   openNoteInTab(store, "note-b");
@@ -161,11 +173,7 @@ test("flush remains pending until the durable pane write settles", async () => {
   const durable = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const binding = bindPaneLayoutPersistence(
-    store,
-    async () => durable,
-    { delayMs: 1_000 },
-  );
+  const binding = bindPaneLayoutPersistence(store, async () => durable, { delayMs: 1_000 });
   openNoteInTab(store, "note-b");
 
   let flushed = false;

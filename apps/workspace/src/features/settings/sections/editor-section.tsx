@@ -7,10 +7,7 @@ import {
   EDITOR_LINE_HEIGHT_OPTIONS,
   VIM_CURSOR_STYLE_OPTIONS,
 } from "@/features/settings/settings-model";
-import type {
-  SettingsViewModel,
-  VimCursorStyle,
-} from "@/features/settings/settings-model";
+import type { SettingsViewModel, VimCursorStyle } from "@/features/settings/settings-model";
 import { cn } from "@/shared/lib/utils";
 import {
   SettingCardPicker,
@@ -68,7 +65,8 @@ const VIM_CURSOR_PICKER_OPTIONS = VIM_CURSOR_STYLE_OPTIONS.map((option) => ({
 function VimCursorPreview({ style }: { style: VimCursorStyle }) {
   return (
     <span className="font-mono text-xl text-foreground/75" aria-hidden="true">
-      a<span
+      a
+      <span
         className={cn(
           "inline-flex h-6 w-[0.72em] items-center justify-center text-foreground",
           style === "block" && "rounded-[2px] bg-foreground/75 text-background",
@@ -77,18 +75,15 @@ function VimCursorPreview({ style }: { style: VimCursorStyle }) {
         )}
       >
         b
-      </span>c
+      </span>
+      c
     </span>
   );
 }
 
 function LineSpacingPreview({ gap }: { gap: number }) {
   return (
-    <span
-      className="flex w-full flex-col justify-center px-5"
-      style={{ gap }}
-      aria-hidden="true"
-    >
+    <span className="flex w-full flex-col justify-center px-5" style={{ gap }} aria-hidden="true">
       <span className="h-[3px] w-full rounded-full bg-foreground/25" />
       <span className="h-[3px] w-4/5 rounded-full bg-foreground/25" />
       <span className="h-[3px] w-[90%] rounded-full bg-foreground/25" />
@@ -105,10 +100,7 @@ export function EditorSection({ store }: SectionProps) {
       return;
     }
     const target = event.target;
-    if (
-      !(target instanceof HTMLElement) ||
-      !target.hasAttribute("data-directional-focus")
-    ) {
+    if (!(target instanceof HTMLElement) || !target.hasAttribute("data-directional-focus")) {
       return;
     }
     const controls = Array.from(
@@ -124,11 +116,7 @@ export function EditorSection({ store }: SectionProps) {
   }
 
   return (
-    <section
-      aria-label="Editor preferences"
-      className={settingsSection}
-      onKeyDown={handleKeyDown}
-    >
+    <section aria-label="Editor preferences" className={settingsSection} onKeyDown={handleKeyDown}>
       <SettingsHeading
         title="Editor"
         detail="Tune the writing surface without changing note content."

@@ -208,9 +208,10 @@ export function codeBlockTokens(node: ProseMirrorNode): readonly CodeToken[] {
   const cached = tokenCache.get(node);
   if (cached) return cached;
   const text = node.textContent;
-  const tokens = text.length > MAX_HIGHLIGHT_LENGTH
-    ? NO_TOKENS
-    : highlightCode(String(node.attrs.params ?? ""), text);
+  const tokens =
+    text.length > MAX_HIGHLIGHT_LENGTH
+      ? NO_TOKENS
+      : highlightCode(String(node.attrs.params ?? ""), text);
   tokenCache.set(node, tokens);
   return tokens;
 }

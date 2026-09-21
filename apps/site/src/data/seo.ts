@@ -15,8 +15,7 @@ export const homeSchema = {
       "@id": `${siteUrl}/#website`,
       name: "Skriuw",
       url: `${siteUrl}/`,
-      description:
-        "A local-first workspace for writing, journaling, and connected knowledge.",
+      description: "A local-first workspace for writing, journaling, and connected knowledge.",
     },
     {
       "@type": "Organization",

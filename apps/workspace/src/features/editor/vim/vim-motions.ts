@@ -72,11 +72,7 @@ export type MotionTarget = {
 
 export type ObjectRange = { from: number; to: number; linewise: boolean };
 
-function target(
-  line: VimLine,
-  column: number,
-  extra: Partial<MotionTarget> = {},
-): MotionTarget {
+function target(line: VimLine, column: number, extra: Partial<MotionTarget> = {}): MotionTarget {
   return {
     pos: positionAt(line, column),
     linewise: false,
@@ -143,7 +139,10 @@ function wordForward(
     }
     const below = lineBelow(context.doc, currentLine);
     if (!below || (context.operatorPending && remaining === 1)) {
-      return target(currentLine, context.operatorPending ? currentLine.text.length : lastCursorIndex(currentLine));
+      return target(
+        currentLine,
+        context.operatorPending ? currentLine.text.length : lastCursorIndex(currentLine),
+      );
     }
     currentLine = below;
     currentColumn = isBlankLine(below.text) ? 0 : firstNonBlank(below.text);
@@ -191,7 +190,9 @@ function wordBackward(
       if (!above) return target(currentLine, 0);
       currentLine = above;
       currentColumn = above.text.length;
-      start = isBlankLine(above.text) ? 0 : previousWordStart(above.text, above.text.length, bigWord);
+      start = isBlankLine(above.text)
+        ? 0
+        : previousWordStart(above.text, above.text.length, bigWord);
     }
     currentColumn = start;
   }
@@ -221,7 +222,12 @@ function wordEndBackward(
   return target(currentLine, currentColumn, { inclusive: true });
 }
 
-function paragraphMotion(context: MotionContext, line: VimLine, direction: 1 | -1, count: number): MotionTarget {
+function paragraphMotion(
+  context: MotionContext,
+  line: VimLine,
+  direction: 1 | -1,
+  count: number,
+): MotionTarget {
   let currentLine = line;
   for (let remaining = count; remaining > 0; remaining -= 1) {
     const topLevel = context.doc.resolve(currentLine.blockPos).index(0);
@@ -231,7 +237,10 @@ function paragraphMotion(context: MotionContext, line: VimLine, direction: 1 | -
     } while (next && context.doc.resolve(next.blockPos).index(0) === topLevel);
     if (!next) {
       return direction === 1
-        ? target(currentLine, context.operatorPending ? currentLine.text.length : lastCursorIndex(currentLine))
+        ? target(
+            currentLine,
+            context.operatorPending ? currentLine.text.length : lastCursorIndex(currentLine),
+          )
         : target(currentLine, 0);
     }
     if (direction === -1) {
@@ -288,7 +297,11 @@ export function resolveMotion(context: MotionContext, motion: VimMotion): Motion
     return findMotion(line, column, motion.find, motion.character, count, false);
   }
   if (motion.kind === "search") {
-    return searchMotion(context, { pattern: motion.pattern, backward: motion.backward, wholeWord: false });
+    return searchMotion(context, {
+      pattern: motion.pattern,
+      backward: motion.backward,
+      wholeWord: false,
+    });
   }
   if (motion.kind === "textobject") return null;
   switch (motion.key) {
@@ -316,7 +329,10 @@ export function resolveMotion(context: MotionContext, motion: VimMotion): Motion
         line,
         column,
         1,
-        context.count ?? (motion.key === "<C-d>" ? Math.max(1, Math.floor(context.pageLines / 2)) : context.pageLines),
+        context.count ??
+          (motion.key === "<C-d>"
+            ? Math.max(1, Math.floor(context.pageLines / 2))
+            : context.pageLines),
       );
     case "<C-u>":
     case "<PageUp>":
@@ -326,7 +342,10 @@ export function resolveMotion(context: MotionContext, motion: VimMotion): Motion
         line,
         column,
         -1,
-        context.count ?? (motion.key === "<C-u>" ? Math.max(1, Math.floor(context.pageLines / 2)) : context.pageLines),
+        context.count ??
+          (motion.key === "<C-u>"
+            ? Math.max(1, Math.floor(context.pageLines / 2))
+            : context.pageLines),
       );
     case "0":
     case "g0":
@@ -338,10 +357,14 @@ export function resolveMotion(context: MotionContext, motion: VimMotion): Motion
     case "g$":
     case "<End>": {
       const stepped = count > 1 ? lineStep(context.doc, line, 1, count - 1).line : line;
-      return target(stepped, context.operatorPending ? stepped.text.length : lastCursorIndex(stepped), {
-        inclusive: true,
-        desiredColumn: Number.POSITIVE_INFINITY,
-      });
+      return target(
+        stepped,
+        context.operatorPending ? stepped.text.length : lastCursorIndex(stepped),
+        {
+          inclusive: true,
+          desiredColumn: Number.POSITIVE_INFINITY,
+        },
+      );
     }
     case "g_": {
       const stepped = count > 1 ? lineStep(context.doc, line, 1, count - 1).line : line;
@@ -353,7 +376,11 @@ export function resolveMotion(context: MotionContext, motion: VimMotion): Motion
     case "w":
     case "W": {
       const bigWord = motion.key === "W";
-      if (context.changeOperator && hasCharacterAt(line, column) && !/\s/u.test(line.text[column]!)) {
+      if (
+        context.changeOperator &&
+        hasCharacterAt(line, column) &&
+        !/\s/u.test(line.text[column]!)
+      ) {
         return wordEndForward(context, line, column, count, bigWord);
       }
       return wordForward(context, line, column, count, bigWord);
@@ -413,7 +440,10 @@ export function resolveMotion(context: MotionContext, motion: VimMotion): Motion
     case "N": {
       const last = context.lastSearch;
       if (!last) return null;
-      return searchMotion(context, { ...last, backward: motion.key === "N" ? !last.backward : last.backward });
+      return searchMotion(context, {
+        ...last,
+        backward: motion.key === "N" ? !last.backward : last.backward,
+      });
     }
     case "*":
     case "#": {

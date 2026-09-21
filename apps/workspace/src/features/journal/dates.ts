@@ -192,9 +192,7 @@ export function formatListDate(key: DateKey): string {
 /** "Today", "Yesterday", "Tomorrow", or the weekday name, like the original. */
 export function formatDayHeading(key: DateKey, today: DateKey = todayKey()): string {
   const dayMs = 24 * 60 * 60 * 1000;
-  const offset = Math.round(
-    (parseDateKey(key).getTime() - parseDateKey(today).getTime()) / dayMs,
-  );
+  const offset = Math.round((parseDateKey(key).getTime() - parseDateKey(today).getTime()) / dayMs);
   if (offset === 0) {
     return "Today";
   }

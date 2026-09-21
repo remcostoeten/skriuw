@@ -43,25 +43,15 @@ export type CommandRegistry = {
   ) => CommandPaletteItem[];
 };
 
-function commandEnabled(
-  command: AppCommand,
-  state: RendererState,
-  ui: CommandUiState,
-): boolean {
+function commandEnabled(command: AppCommand, state: RendererState, ui: CommandUiState): boolean {
   return command.enabled?.(state, ui) ?? true;
 }
 
-function commandVisible(
-  command: AppCommand,
-  state: RendererState,
-  ui: CommandUiState,
-): boolean {
+function commandVisible(command: AppCommand, state: RendererState, ui: CommandUiState): boolean {
   return command.visible?.(state, ui) ?? true;
 }
 
-export function createCommandRegistry(
-  commands: readonly AppCommand[],
-): CommandRegistry {
+export function createCommandRegistry(commands: readonly AppCommand[]): CommandRegistry {
   const byId = new Map<string, AppCommand>();
   const byShortcut = new Map<ShortcutActionId, AppCommand>();
   for (const command of commands) {

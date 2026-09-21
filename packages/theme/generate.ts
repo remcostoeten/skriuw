@@ -97,7 +97,13 @@ export function parseThemes(
       if (themes.some((theme) => theme.name === name)) {
         throw new Error(`${name}: declared in more than one block`);
       }
-      themes.push(buildTheme(name, declarations, metadata.find((theme) => theme.id === name)));
+      themes.push(
+        buildTheme(
+          name,
+          declarations,
+          metadata.find((theme) => theme.id === name),
+        ),
+      );
     }
   }
   if (themes.length === 0) throw new Error("no :root[data-theme] blocks found");

@@ -31,8 +31,7 @@ export function rangeMenuAnchor(
   const half = width / 2;
   const sameLine = start.top === end.top;
   const center = sameLine ? (start.left + end.left) / 2 : start.left + half;
-  const below =
-    start.top - height - EDGE_GAP < 0 && window.innerHeight - end.bottom > start.top;
+  const below = start.top - height - EDGE_GAP < 0 && window.innerHeight - end.bottom > start.top;
   return {
     x: Math.max(half + EDGE_GAP, Math.min(center, window.innerWidth - half - EDGE_GAP)),
     y: below ? end.bottom : start.top,

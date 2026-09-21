@@ -97,7 +97,12 @@ const gridColumns: Record<2 | 3 | 4, string> = {
 
 export function CardGrid({ columns = 3, items }: CardGridProps) {
   return (
-    <div className={cx("grid gap-px overflow-hidden rounded-card border border-border bg-border", gridColumns[columns])}>
+    <div
+      className={cx(
+        "grid gap-px overflow-hidden rounded-card border border-border bg-border",
+        gridColumns[columns],
+      )}
+    >
       {items.map((item) => (
         <article key={item.title} className="flex flex-col gap-3 bg-surface p-6">
           {item.tag ? (

@@ -48,12 +48,7 @@ try {
   if (!result.ok) throw new Error(`firefox write failed: ${JSON.stringify(result.error)}`);
 
   await session.send("browsingContext.reload", { context, wait: "complete" });
-  await waitFor(
-    session,
-    context,
-    "window.browserStorageE2e !== undefined",
-    "reloaded test module",
-  );
+  await waitFor(session, context, "window.browserStorageE2e !== undefined", "reloaded test module");
   const reopened = await evaluateJson(
     session,
     context,
@@ -99,14 +94,7 @@ function launchFirefox(profile) {
   return new Promise((resolve, reject) => {
     const child = spawn(
       firefoxBinary,
-      [
-        "-headless",
-        "-no-remote",
-        "-profile",
-        profile,
-        "--remote-debugging-port=0",
-        "about:blank",
-      ],
+      ["-headless", "-no-remote", "-profile", profile, "--remote-debugging-port=0", "about:blank"],
       { stdio: ["ignore", "pipe", "pipe"] },
     );
     let output = "";

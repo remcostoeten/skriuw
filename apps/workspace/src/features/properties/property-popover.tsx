@@ -116,12 +116,7 @@ export function PropertyPopover({ renderTrigger, children, align = "start", clas
   }
 
   return (
-    <div
-      ref={rootRef}
-      className={cn("relative", className)}
-      onKeyDown={onKeyDown}
-      onBlur={onBlur}
-    >
+    <div ref={rootRef} className={cn("relative", className)} onKeyDown={onKeyDown} onBlur={onBlur}>
       {renderTrigger({ toggle: () => setOpen((current) => !current), open })}
       {open && (
         <div

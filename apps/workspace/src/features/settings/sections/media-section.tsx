@@ -8,12 +8,7 @@ import {
   sweepUnusedMediaBlobs,
 } from "@/bridge/commands";
 import type { MediaBlobPayload } from "@/bridge/commands";
-import {
-  FolderOpenIcon,
-  PencilIcon,
-  Trash2Icon,
-  UploadIcon,
-} from "@/shared/icons/static";
+import { FolderOpenIcon, PencilIcon, Trash2Icon, UploadIcon } from "@/shared/icons/static";
 import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
 import { resolveMediaPlaybackUrl } from "@/shared/lib/media-playback-url";
 import { isBrowserRuntime } from "@/bridge/runtime";
@@ -51,8 +46,7 @@ import {
 } from "./settings-shared";
 import type { SectionProps } from "./settings-shared";
 
-const ACCEPTED_TYPES =
-  "image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm";
+const ACCEPTED_TYPES = "image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm";
 const PAGE_SIZE = 60;
 
 type MediaStatus =
@@ -102,9 +96,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
   const [filter, setFilter] = useState<MediaFilter>("all");
   const [visibleLimit, setVisibleLimit] = useState(PAGE_SIZE);
   const [sweepArmed, setSweepArmed] = useState(false);
-  const [previewEntry, setPreviewEntry] = useState<MediaLibraryEntry | null>(
-    null,
-  );
+  const [previewEntry, setPreviewEntry] = useState<MediaLibraryEntry | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const filterBeforeSweepRef = useRef<MediaFilter>("all");
@@ -232,11 +224,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
     }
     setBusy(true);
     const count = selectedEntries.length;
-    Promise.all(
-      selectedEntries.map((entry) =>
-        deleteMediaBlob(entry.contentHash, entry.mimeType),
-      ),
-    )
+    Promise.all(selectedEntries.map((entry) => deleteMediaBlob(entry.contentHash, entry.mimeType)))
       .then(() => {
         clearSelection();
         finish({
@@ -258,10 +246,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
     });
   }
 
-  function renameEntry(
-    entry: MediaLibraryEntry,
-    fields: { name: string; alt: string },
-  ): void {
+  function renameEntry(entry: MediaLibraryEntry, fields: { name: string; alt: string }): void {
     void setMediaMetadata(store, entry.contentHash, fields).catch((error) => {
       setStatus({ kind: "error", message: `Rename failed: ${String(error)}` });
     });
@@ -286,9 +271,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
 
   function removeAllUnused(): void {
     setBusy(true);
-    const liveContentHashes = [
-      ...new Set([...images.values()].map((image) => image.contentHash)),
-    ];
+    const liveContentHashes = [...new Set([...images.values()].map((image) => image.contentHash))];
     sweepUnusedMediaBlobs(liveContentHashes)
       .then((removed) => {
         const noun = removed === 1 ? "image" : "images";
@@ -317,8 +300,8 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
             Library
             <span className={settingsRowDescription}>
               {entries.length === 1 ? "1 file" : `${entries.length} files`}
-              {unusedCount > 0 ? ` · ${unusedCount} unused` : ""}. Stored once
-              per unique file in the blobs folder next to the database.
+              {unusedCount > 0 ? ` · ${unusedCount} unused` : ""}. Stored once per unique file in
+              the blobs folder next to the database.
             </span>
           </span>
           <span className="flex shrink-0 items-center gap-2">
@@ -363,8 +346,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
             <span className={settingsRowLabel}>
               Remove all unused
               <span className={settingsRowDescription}>
-                Deletes every image that no note references. This cannot be
-                undone.
+                Deletes every image that no note references. This cannot be undone.
               </span>
             </span>
             <InlineConfirm
@@ -426,10 +408,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
         </span>
       </div>
       {selectableHashes.length > 0 && (
-        <div
-          className="mb-3 flex flex-wrap items-center gap-2"
-          aria-label="Media selection"
-        >
+        <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="Media selection">
           <button
             type="button"
             className={settingsButton}
@@ -495,8 +474,8 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
             className={settingsButton}
             onClick={() => setVisibleLimit((limit) => limit + PAGE_SIZE)}
           >
-            Show {Math.min(PAGE_SIZE, visibleEntries.length - visibleLimit)}{" "}
-            more of {visibleEntries.length - visibleLimit} remaining
+            Show {Math.min(PAGE_SIZE, visibleEntries.length - visibleLimit)} more of{" "}
+            {visibleEntries.length - visibleLimit} remaining
           </button>
         </div>
       )}
@@ -524,10 +503,7 @@ type MediaGridProps = {
   onReveal: (entry: MediaLibraryEntry) => void;
   selected: ReadonlySet<string>;
   onToggleSelected: (contentHash: string) => void;
-  onRename: (
-    entry: MediaLibraryEntry,
-    fields: { name: string; alt: string },
-  ) => void;
+  onRename: (entry: MediaLibraryEntry, fields: { name: string; alt: string }) => void;
 };
 
 function MediaGrid({
@@ -548,9 +524,7 @@ function MediaGrid({
   if (failed) {
     return (
       <div className={cn(settingsRow, "text-destructive")} role="alert">
-        <span className={settingsRowLabel}>
-          The media library could not be listed.
-        </span>
+        <span className={settingsRowLabel}>The media library could not be listed.</span>
         <button type="button" className={settingsButton} onClick={onRetry}>
           Retry
         </button>
@@ -603,10 +577,7 @@ type MediaCardProps = {
   onDelete: (entry: MediaLibraryEntry) => void;
   onReveal: (entry: MediaLibraryEntry) => void;
   onToggleSelected: (contentHash: string) => void;
-  onRename: (
-    entry: MediaLibraryEntry,
-    fields: { name: string; alt: string },
-  ) => void;
+  onRename: (entry: MediaLibraryEntry, fields: { name: string; alt: string }) => void;
 };
 
 function MediaCard({
@@ -684,8 +655,7 @@ function MediaCard({
           <span className={settingsRowDescription}>{entry.alt}</span>
         )}
         <span className="font-mono text-[11px] text-muted-foreground">
-          {imageFormatLabel(entry.mimeType)} · {formatSizeBytes(entry.byteSize)}{" "}
-          · {dimensions}
+          {imageFormatLabel(entry.mimeType)} · {formatSizeBytes(entry.byteSize)} · {dimensions}
           {entry.missingBlob ? " · file missing" : ""}
         </span>
         <span
@@ -697,9 +667,7 @@ function MediaCard({
             ? "Not attached"
             : new Date(entry.createdAt).toLocaleDateString()}
         </span>
-        <span className={settingsRowDescription}>
-          {describeMediaUsage(entry)}
-        </span>
+        <span className={settingsRowDescription}>{describeMediaUsage(entry)}</span>
         {entry.usages.length > 0 && (
           <span className="flex flex-wrap gap-1">
             {entry.usages.map((usage) => (
@@ -712,9 +680,7 @@ function MediaCard({
               >
                 {usage.title}
                 <span className="text-[9px] uppercase tracking-wide text-muted-foreground">
-                  {usage.surface === "journal"
-                    ? `Journal ${usage.placement}`
-                    : usage.placement}
+                  {usage.surface === "journal" ? `Journal ${usage.placement}` : usage.placement}
                 </span>
                 {usage.count > 1 && (
                   <span className="text-[9px] tabular-nums text-muted-foreground">
@@ -777,9 +743,7 @@ function MediaDetailsForm({ entry, onCancel, onSubmit }: MediaDetailsFormProps) 
       }}
     >
       <label className="flex flex-col gap-0.5">
-        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-          Name
-        </span>
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Name</span>
         <input
           autoFocus
           type="text"
@@ -815,16 +779,9 @@ function MediaDetailsForm({ entry, onCancel, onSubmit }: MediaDetailsFormProps) 
   );
 }
 
-const previewClass =
-  "block h-28 w-full border-b border-border bg-muted object-cover";
+const previewClass = "block h-28 w-full border-b border-border bg-muted object-cover";
 
-function MediaPreview({
-  entry,
-  onOpen,
-}: {
-  entry: MediaLibraryEntry;
-  onOpen: () => void;
-}) {
+function MediaPreview({ entry, onOpen }: { entry: MediaLibraryEntry; onOpen: () => void }) {
   const [url, setUrl] = useState<string | null>(null);
   const [nearViewport, setNearViewport] = useState(false);
   const [useBlobFallback, setUseBlobFallback] = useState(false);
@@ -874,25 +831,15 @@ function MediaPreview({
     return () => {
       cancelled = true;
     };
-  }, [
-    entry.contentHash,
-    entry.mimeType,
-    entry.missingBlob,
-    nearViewport,
-    useBlobFallback,
-  ]);
+  }, [entry.contentHash, entry.mimeType, entry.missingBlob, nearViewport, useBlobFallback]);
   if (!url) {
-    return (
-      <span ref={placeholderRef} className={previewClass} aria-hidden="true" />
-    );
+    return <span ref={placeholderRef} className={previewClass} aria-hidden="true" />;
   }
   return (
     <button
       type="button"
       className="block w-full cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-      aria-label={
-        isVideoMime(entry.mimeType) ? "Preview video" : "Preview image"
-      }
+      aria-label={isVideoMime(entry.mimeType) ? "Preview video" : "Preview image"}
       onClick={onOpen}
     >
       {isVideoMime(entry.mimeType) ? (
@@ -936,11 +883,9 @@ function MediaPreviewDialog({
       isVideoMime(entry.mimeType) && !useBlobFallback
         ? resolveMediaPlaybackUrl
         : resolveImageBlobUrl;
-    void resolve(entry.contentHash, entry.mimeType).then(
-      (resolved) => {
-        if (active) setUrl(resolved);
-      },
-    );
+    void resolve(entry.contentHash, entry.mimeType).then((resolved) => {
+      if (active) setUrl(resolved);
+    });
     return () => {
       active = false;
     };
@@ -954,9 +899,7 @@ function MediaPreviewDialog({
       byteSize={entry.byteSize}
       contentHash={entry.contentHash}
       dimensions={
-        entry.width !== null && entry.height !== null
-          ? `${entry.width} × ${entry.height}`
-          : null
+        entry.width !== null && entry.height !== null ? `${entry.width} × ${entry.height}` : null
       }
       addedAt={entry.createdAt}
       usages={entry.usages.map((usage) => ({

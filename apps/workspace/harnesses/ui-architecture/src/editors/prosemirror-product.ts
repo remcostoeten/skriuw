@@ -42,9 +42,7 @@ function createSlashMenuPlugin(): Plugin<SlashMenuState> {
         if (!$from.parent.isTextblock) return { open: false, query: "" };
         const before = $from.parent.textBetween(0, $from.parentOffset, "\0", "\0");
         const match = before.match(/^\/([a-z-]*)$/i);
-        return match
-          ? { open: true, query: match[1] ?? "" }
-          : { open: false, query: "" };
+        return match ? { open: true, query: match[1] ?? "" } : { open: false, query: "" };
       },
     },
   });
@@ -168,9 +166,7 @@ function canonicalBlock(node: ProseMirrorNode, kind: CanonicalBlock["kind"]): Ca
   };
 }
 
-export function createProductCanonicalBlocks(
-  blocks: readonly CanonicalBlock[],
-): CanonicalBlock[] {
+export function createProductCanonicalBlocks(blocks: readonly CanonicalBlock[]): CanonicalBlock[] {
   return blocks.map((block, index) => {
     const text = block.text.length > 0 ? [{ type: "text", text: block.text }] : undefined;
     let json: CanonicalNode;

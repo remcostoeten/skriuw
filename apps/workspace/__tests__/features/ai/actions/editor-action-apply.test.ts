@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { EditorState, TextSelection } from "prosemirror-state";
-import {
-  productSchema,
-  serializeProductMarkdown,
-} from "../../../../src/features/editor/schema";
+import { productSchema, serializeProductMarkdown } from "../../../../src/features/editor/schema";
 import {
   actionInputRange,
   actionInputText,

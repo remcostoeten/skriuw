@@ -7,10 +7,7 @@ import {
   type CoverMediaPickerSort,
 } from "../../../src/features/settings/cover-media-picker-model";
 
-function blob(
-  contentHash: string,
-  overrides: Partial<MediaBlobPayload> = {},
-): MediaBlobPayload {
+function blob(contentHash: string, overrides: Partial<MediaBlobPayload> = {}): MediaBlobPayload {
   return {
     contentHash,
     mimeType: "image/png",
@@ -91,36 +88,26 @@ test("resolves current asset from hash or image ID and pins it first", () => {
 
 test("finds assets by hash, MIME type, reference ID, or note ID", () => {
   assert.deepEqual(
-    projectCoverMediaPicker(BLOBS, IMAGES, { query: "JPEG" }).map(
-      (item) => item.contentHash,
-    ),
+    projectCoverMediaPicker(BLOBS, IMAGES, { query: "JPEG" }).map((item) => item.contentHash),
     ["beta"],
   );
   assert.deepEqual(
-    projectCoverMediaPicker(BLOBS, IMAGES, { query: "second" }).map(
-      (item) => item.contentHash,
-    ),
+    projectCoverMediaPicker(BLOBS, IMAGES, { query: "second" }).map((item) => item.contentHash),
     ["alpha"],
   );
   assert.deepEqual(
-    projectCoverMediaPicker(BLOBS, IMAGES, { query: "ROADMAP" }).map(
-      (item) => item.contentHash,
-    ),
+    projectCoverMediaPicker(BLOBS, IMAGES, { query: "ROADMAP" }).map((item) => item.contentHash),
     ["beta", "alpha"],
   );
 });
 
 test("filters used, unused, and duplicate assets", () => {
   assert.deepEqual(
-    projectCoverMediaPicker(BLOBS, IMAGES, { filter: "used" }).map(
-      (item) => item.contentHash,
-    ),
+    projectCoverMediaPicker(BLOBS, IMAGES, { filter: "used" }).map((item) => item.contentHash),
     ["beta", "alpha"],
   );
   assert.deepEqual(
-    projectCoverMediaPicker(BLOBS, IMAGES, { filter: "unused" }).map(
-      (item) => item.contentHash,
-    ),
+    projectCoverMediaPicker(BLOBS, IMAGES, { filter: "unused" }).map((item) => item.contentHash),
     ["gamma"],
   );
   assert.deepEqual(
@@ -133,19 +120,14 @@ test("filters used, unused, and duplicate assets", () => {
 
 test("sorts by recent, size, or usage with deterministic ties", () => {
   function hashes(sort: CoverMediaPickerSort) {
-    return projectCoverMediaPicker(BLOBS, IMAGES, { sort }).map(
-      (item) => item.contentHash,
-    );
+    return projectCoverMediaPicker(BLOBS, IMAGES, { sort }).map((item) => item.contentHash);
   }
 
   assert.deepEqual(hashes("recent"), ["gamma", "beta", "alpha"]);
   assert.deepEqual(hashes("size"), ["beta", "gamma", "alpha"]);
   assert.deepEqual(hashes("usage"), ["alpha", "beta", "gamma"]);
 
-  const tied = [
-    blob("zeta", { modifiedAtMs: 1 }),
-    blob("delta", { modifiedAtMs: 1 }),
-  ];
+  const tied = [blob("zeta", { modifiedAtMs: 1 }), blob("delta", { modifiedAtMs: 1 })];
   assert.deepEqual(
     projectCoverMediaPicker(tied, new Map()).map((item) => item.contentHash),
     ["delta", "zeta"],

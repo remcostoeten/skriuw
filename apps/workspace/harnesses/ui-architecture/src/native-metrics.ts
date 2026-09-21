@@ -41,9 +41,7 @@ function toEventRecord(entry: EventEntry): EventTimingRecord {
   };
 }
 
-function toLongAnimationFrameRecord(
-  entry: LongAnimationFrameEntry,
-): LongAnimationFrameRecord {
+function toLongAnimationFrameRecord(entry: LongAnimationFrameEntry): LongAnimationFrameRecord {
   return {
     startTime: entry.startTime,
     durationMs: entry.duration,
@@ -54,17 +52,17 @@ function toLongAnimationFrameRecord(
   };
 }
 
-export function createNativeMeasurement(
-  expectedInteractions: number,
-): NativeMeasurement {
+export function createNativeMeasurement(expectedInteractions: number): NativeMeasurement {
   const startedAt = performance.now();
   const handlerSamples: NativeHandlerSample[] = [];
   const eventEntries: EventEntry[] = [];
   const longAnimationFrameEntries: LongAnimationFrameEntry[] = [];
-  const eventTimingSupported = typeof PerformanceObserver !== "undefined"
-    && PerformanceObserver.supportedEntryTypes.includes("event");
-  const longAnimationFramesSupported = typeof PerformanceObserver !== "undefined"
-    && PerformanceObserver.supportedEntryTypes.includes("long-animation-frame");
+  const eventTimingSupported =
+    typeof PerformanceObserver !== "undefined" &&
+    PerformanceObserver.supportedEntryTypes.includes("event");
+  const longAnimationFramesSupported =
+    typeof PerformanceObserver !== "undefined" &&
+    PerformanceObserver.supportedEntryTypes.includes("long-animation-frame");
   const eventObserver = eventTimingSupported
     ? new PerformanceObserver((list) => {
         eventEntries.push(...(list.getEntries() as EventEntry[]));
@@ -72,9 +70,7 @@ export function createNativeMeasurement(
     : null;
   const longAnimationFrameObserver = longAnimationFramesSupported
     ? new PerformanceObserver((list) => {
-        longAnimationFrameEntries.push(
-          ...(list.getEntries() as LongAnimationFrameEntry[]),
-        );
+        longAnimationFrameEntries.push(...(list.getEntries() as LongAnimationFrameEntry[]));
       })
     : null;
 
@@ -103,14 +99,12 @@ export function createNativeMeasurement(
       const entries = eventEntries
         .filter((entry) => entry.startTime >= startedAt)
         .filter((entry) => entry.name === "keydown")
-        .filter((entry) => handlerSamples.some(
-          (sample) => Math.abs(sample.eventTime - entry.startTime) < 0.5,
-        ))
+        .filter((entry) =>
+          handlerSamples.some((sample) => Math.abs(sample.eventTime - entry.startTime) < 0.5),
+        )
         .map(toEventRecord);
       const reportedInteractions = new Set(
-        entries
-          .map((entry) => entry.interactionId)
-          .filter((interactionId) => interactionId > 0),
+        entries.map((entry) => entry.interactionId).filter((interactionId) => interactionId > 0),
       ).size;
       const longAnimationFrames = longAnimationFrameEntries
         .filter((entry) => entry.startTime + entry.duration >= startedAt)
@@ -121,10 +115,7 @@ export function createNativeMeasurement(
         handledInteractions: handlerSamples.length,
         reportedEventEntries: entries.length,
         reportedInteractions,
-        unreportedEventEntries: Math.max(
-          0,
-          handlerSamples.length - entries.length,
-        ),
+        unreportedEventEntries: Math.max(0, handlerSamples.length - entries.length),
         durationThresholdMs: 16,
         handlerSamples,
         entries,

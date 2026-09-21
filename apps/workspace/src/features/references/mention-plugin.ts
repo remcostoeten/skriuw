@@ -3,11 +3,7 @@ import type { EditorView } from "prosemirror-view";
 import { productSchema } from "@/features/editor/schema";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { createMentionMenu } from "./mention-menu";
-import {
-  queryMentionSuggestions,
-  queryTagSuggestions,
-  type Suggestion,
-} from "./suggestion-index";
+import { queryMentionSuggestions, queryTagSuggestions, type Suggestion } from "./suggestion-index";
 import type { ReferenceOperation } from "@skriuw/renderer-core/references/types";
 
 export type MentionTrigger = "#" | "$" | "@";
@@ -45,8 +41,7 @@ const inactiveState: MentionState = {
 export const mentionPluginKey = new PluginKey<MentionState>("skriuw-mentions");
 
 const TRIGGER_PATTERN = /(?:^|[\s([{])([#$])([\p{L}\p{N}_-]{0,64})$/u;
-const NOTE_TRIGGER_PATTERN =
-  /(?:^|[\s([{])@((?:[\p{L}\p{N}_-][\p{L}\p{N}_ -]{0,95})?)$/u;
+const NOTE_TRIGGER_PATTERN = /(?:^|[\s([{])@((?:[\p{L}\p{N}_-][\p{L}\p{N}_ -]{0,95})?)$/u;
 const CONTEXT_WINDOW = 96;
 
 function activeMentionState(
@@ -167,7 +162,9 @@ function referenceNode(item: MentionMenuItem, context: MentionContext) {
     }
     if (item.kind === "note") {
       context.createNote(id, item.name);
-      return productSchema.nodes.mention_ref?.create({ kind: "note", id, label: item.name }) ?? null;
+      return (
+        productSchema.nodes.mention_ref?.create({ kind: "note", id, label: item.name }) ?? null
+      );
     }
     context.applyReferenceOperations([
       {
@@ -184,11 +181,15 @@ function referenceNode(item: MentionMenuItem, context: MentionContext) {
         },
       },
     ]);
-    return productSchema.nodes.mention_ref?.create({ kind: "person", id, label: item.name }) ?? null;
+    return (
+      productSchema.nodes.mention_ref?.create({ kind: "person", id, label: item.name }) ?? null
+    );
   }
   const { suggestion } = item;
   if (suggestion.kind === "tag") {
-    return productSchema.nodes.tag_ref?.create({ id: suggestion.id, label: suggestion.label }) ?? null;
+    return (
+      productSchema.nodes.tag_ref?.create({ id: suggestion.id, label: suggestion.label }) ?? null
+    );
   }
   return (
     productSchema.nodes.mention_ref?.create({
@@ -264,9 +265,7 @@ export function createMentionPlugin(context: MentionContext): Plugin<MentionStat
       apply(transaction, previous, _oldState, newState) {
         const meta = transaction.getMeta(mentionPluginKey) as "dismiss" | number | undefined;
         if (meta === "dismiss") {
-          return previous.active
-            ? { ...inactiveState, dismissedFrom: previous.from }
-            : previous;
+          return previous.active ? { ...inactiveState, dismissedFrom: previous.from } : previous;
         }
         if (typeof meta === "number") {
           return previous.active ? { ...previous, index: previous.index + meta } : previous;

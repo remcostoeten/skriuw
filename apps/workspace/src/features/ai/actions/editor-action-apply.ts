@@ -177,7 +177,5 @@ export function appendTagPlanTransaction(
     content.push(tagRef.create({ id: reference.id, label: reference.name }));
   }
   const at = state.doc.content.size;
-  return state.tr
-    .insert(at, productSchema.node("paragraph", null, content))
-    .scrollIntoView();
+  return state.tr.insert(at, productSchema.node("paragraph", null, content)).scrollIntoView();
 }

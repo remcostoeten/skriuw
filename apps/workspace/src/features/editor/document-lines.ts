@@ -132,7 +132,10 @@ function lineCarries(source: SourceLines, line: number, pieces: readonly string[
   const unescaped = source.unescaped[line] ?? "";
   const carriesAll = meaningful.every((piece) => raw.includes(piece) || unescaped.includes(piece));
   if (carriesAll) return true;
-  const longest = meaningful.reduce((best, piece) => (piece.length > best.length ? piece : best), "");
+  const longest = meaningful.reduce(
+    (best, piece) => (piece.length > best.length ? piece : best),
+    "",
+  );
   return raw.includes(longest) || unescaped.includes(longest);
 }
 
@@ -168,7 +171,10 @@ function findBlockLines(source: SourceLines, markdown: string, from: number, tex
  * it. Anything that cannot be matched inherits the running line cursor and
  * the next match re-anchors, so one odd block cannot skew everything below.
  */
-export function buildDocumentLineIndex(document: ProseMirrorNode, markdown?: string): DocumentLineIndex {
+export function buildDocumentLineIndex(
+  document: ProseMirrorNode,
+  markdown?: string,
+): DocumentLineIndex {
   const sourceText = markdown ?? serializeProductMarkdown(document);
   const source = splitSource(sourceText);
   const lineCount = source.raw.length;
@@ -195,7 +201,10 @@ export function buildDocumentLineIndex(document: ProseMirrorNode, markdown?: str
       if (blockStart === -1) blockStart = line;
     });
     if (blockStart === -1) {
-      blockStart = Math.min(cursor + (blockStartLines.length === 0 ? 0 : 1), Math.max(lineCount - 1, 0));
+      blockStart = Math.min(
+        cursor + (blockStartLines.length === 0 ? 0 : 1),
+        Math.max(lineCount - 1, 0),
+      );
       blockEnd = blockStart + countLines(text) - 1;
     } else if (matched === -1) {
       blockEnd = Math.max(lastLine, blockStart);
@@ -216,7 +225,10 @@ function blockOwningLine(index: DocumentLineIndex, line: number): number {
   return blockIndex;
 }
 
-function blockLineRange(index: DocumentLineIndex, blockIndex: number): { first: number; last: number } {
+function blockLineRange(
+  index: DocumentLineIndex,
+  blockIndex: number,
+): { first: number; last: number } {
   const first = index.blockStartLines[blockIndex] ?? 1;
   const next = index.blockStartLines[blockIndex + 1];
   return { first, last: next === undefined ? index.lineCount : next - 1 };
@@ -242,7 +254,10 @@ export function documentLineTarget(
 
 /** The one-based Markdown line a caret sits on, for a block-relative caret offset. */
 export function documentLineAt(index: DocumentLineIndex, target: DocumentLineTarget): number {
-  const blockIndex = Math.min(Math.max(target.blockIndex, 0), Math.max(index.blockStartLines.length - 1, 0));
+  const blockIndex = Math.min(
+    Math.max(target.blockIndex, 0),
+    Math.max(index.blockStartLines.length - 1, 0),
+  );
   const { first, last } = blockLineRange(index, blockIndex);
   let line = first;
   for (let current = first; current <= last; current += 1) {

@@ -54,10 +54,7 @@ test("the hint stays hidden until the first miss and waits are formatted", () =>
   assert.equal(missed.showHint, true);
   assert.equal(missed.attemptsLeftBeforeDelay, 2);
 
-  const throttled = unlockPresentation(
-    lock({ failedAttempts: 3, nextAttemptAt: 31_000 }),
-    1_000,
-  );
+  const throttled = unlockPresentation(lock({ failedAttempts: 3, nextAttemptAt: 31_000 }), 1_000);
   assert.equal(throttled.throttled, true);
   assert.equal(throttled.waitMs, 30_000);
   assert.equal(retryWaitMs(lock({ nextAttemptAt: 500 }), 1_000), 0);

@@ -120,8 +120,12 @@ function connectCdp(webSocketUrl) {
         send(method, parameters = {}, sessionId) {
           const id = nextId;
           nextId += 1;
-          socket.send(JSON.stringify({ id, method, params: parameters, ...(sessionId ? { sessionId } : {}) }));
-          return new Promise((resolveCall, rejectCall) => pending.set(id, { resolveCall, rejectCall }));
+          socket.send(
+            JSON.stringify({ id, method, params: parameters, ...(sessionId ? { sessionId } : {}) }),
+          );
+          return new Promise((resolveCall, rejectCall) =>
+            pending.set(id, { resolveCall, rejectCall }),
+          );
         },
         on(method, handler) {
           listeners.push({ method, handler });
@@ -155,7 +159,11 @@ function connectCdp(webSocketUrl) {
 
 async function evaluate(cdp, sessionId, expression, timeoutMilliseconds = 180_000) {
   const result = await Promise.race([
-    cdp.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, sessionId),
+    cdp.send(
+      "Runtime.evaluate",
+      { expression, awaitPromise: true, returnByValue: true },
+      sessionId,
+    ),
     sleep(timeoutMilliseconds).then(() => {
       throw new Error(`evaluation timed out: ${expression.slice(0, 80)}`);
     }),
@@ -193,11 +201,7 @@ async function dispatchKey(cdp, sessionId, key, code, virtualKeyCode, text) {
     windowsVirtualKeyCode: virtualKeyCode,
     nativeVirtualKeyCode: virtualKeyCode,
   };
-  await cdp.send(
-    "Input.dispatchKeyEvent",
-    { ...common, type: "rawKeyDown" },
-    sessionId,
-  );
+  await cdp.send("Input.dispatchKeyEvent", { ...common, type: "rawKeyDown" }, sessionId);
   if (text) {
     await cdp.send(
       "Input.dispatchKeyEvent",
@@ -242,23 +246,34 @@ async function runContext(context) {
     const cdp = await connectCdp(launched.wsUrl);
     const browser = await cdp.send("Browser.getVersion");
     const target = await cdp.send("Target.createTarget", { url: "about:blank" });
-    const attached = await cdp.send("Target.attachToTarget", { targetId: target.targetId, flatten: true });
+    const attached = await cdp.send("Target.attachToTarget", {
+      targetId: target.targetId,
+      flatten: true,
+    });
     const sessionId = attached.sessionId;
     await cdp.send("Runtime.enable", {}, sessionId);
     await cdp.send("Page.enable", {}, sessionId);
     cdp.on("Runtime.consoleAPICalled", (parameters, eventSession) => {
       if (eventSession === sessionId && parameters.type === "error") {
-        consoleErrors.push(parameters.args.map((argument) => argument.description ?? argument.value).join(" "));
+        consoleErrors.push(
+          parameters.args.map((argument) => argument.description ?? argument.value).join(" "),
+        );
       }
     });
     cdp.on("Runtime.exceptionThrown", (parameters, eventSession) => {
       if (eventSession === sessionId) {
-        pageErrors.push(parameters.exceptionDetails.exception?.description ?? parameters.exceptionDetails.text);
+        pageErrors.push(
+          parameters.exceptionDetails.exception?.description ?? parameters.exceptionDetails.text,
+        );
       }
     });
-    await cdp.send("Page.navigate", {
-      url: `${baseUrl}/performance/index.html?fixture=${context.fixture}&blocks=${context.blocks}`,
-    }, sessionId);
+    await cdp.send(
+      "Page.navigate",
+      {
+        url: `${baseUrl}/performance/index.html?fixture=${context.fixture}&blocks=${context.blocks}`,
+      },
+      sessionId,
+    );
     await waitForHarness(cdp, sessionId, pageErrors);
     const selection = await evaluate(
       cdp,
