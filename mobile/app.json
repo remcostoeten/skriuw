@@ -2,6 +2,7 @@
   "expo": {
     "name": "Skriuw",
     "slug": "skriuw",
+    "owner": "remcostoeten",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,6 +21,7 @@
       }
     },
     "web": {
+      "bundler": "metro",
       "output": "static",
       "favicon": "./assets/favicon.png"
     },
@@ -38,6 +40,11 @@
     "experiments": {
       "reactCompiler": true,
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "cf3b8939-0f17-4f6f-969a-313c48900b56"
+      }
     }
   }
 }
