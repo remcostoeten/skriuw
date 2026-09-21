@@ -3,6 +3,7 @@
   "private": true,
   "workspaces": [
     "app",
+    "web",
     "mobile",
     "shared/*"
   ],
@@ -10,6 +11,8 @@
     "menu": "dev-menu",
     "dev": "dev-menu",
     "dev:raw": "scripts/run-in.sh app dev",
+    "web": "scripts/run-in.sh web dev",
+    "build:web": "scripts/run-in.sh web build",
     "build": "scripts/build.sh web",
     "tauri": "scripts/tauri.sh",
     "tauri:build": "scripts/build.sh desktop",

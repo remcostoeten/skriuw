@@ -4,7 +4,7 @@ set -Eeuo pipefail
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 app_dir="$repo_dir/app"
 output_dir="$repo_dir/.build/vercel-public"
-site_dir="$repo_dir/site"
+web_dir="$repo_dir/web"
 tool_dir="$repo_dir/.build/vercel-tools"
 task_cargo_home="$repo_dir/.build/vercel-cargo"
 task_rustup_home="$repo_dir/.build/vercel-rustup"
@@ -52,15 +52,16 @@ fi
   SKRIUW_WEB_BASE="/app/" bun run build:frontend
 )
 
+(
+  cd "$web_dir"
+  bun run build
+)
+
 if [[ -z "$output_dir" || "$output_dir" != "$repo_dir/.build/vercel-public" ]]; then
   printf 'Refusing to replace an unexpected deployment directory: %s\n' "$output_dir" >&2
   exit 1
 fi
 rm -rf "$output_dir"
 mkdir -p "$output_dir/app"
-cp -R "$site_dir/." "$output_dir/"
-cp "$app_dir/public/favicon.ico" "$output_dir/favicon.ico"
-cp "$app_dir/src-tauri/icons/icon.png" "$output_dir/app-icon.png"
-cp "$repo_dir/docs/assets/demo.gif" "$output_dir/demo.gif"
-cp "$repo_dir/docs/assets/preview.png" "$output_dir/preview.png"
+cp -R "$web_dir/out/." "$output_dir/"
 cp -R "$app_dir/dist/." "$output_dir/app/"

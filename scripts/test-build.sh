@@ -11,6 +11,7 @@ bash -n \
   scripts/tauri.sh \
   scripts/vercel-build.sh
 node --check scripts/verify-web-deployment.mjs
+bun --cwd=web run build
 node scripts/test-web-seo.mjs
 NO_COLOR=1 ./scripts/build.sh --help | grep -Fq 'desktop    Verify everything and build the Tauri desktop application'
 grep -Fq '"build": "../scripts/build.sh web"' app/package.json
@@ -22,8 +23,9 @@ grep -Fq 'run: ./scripts/build.sh ci' .github/workflows/ci-v2.yml
 grep -Fq 'run: ./scripts/check-wasm.sh' .github/workflows/ci-v2.yml
 grep -Fq 'wasm-bindgen-0.2.126' .github/workflows/ci-v2.yml
 grep -Fq 'SKRIUW_WEB_BASE="/app/" bun run build:frontend' scripts/vercel-build.sh
-grep -Fq 'cp -R "$site_dir/." "$output_dir/"' scripts/vercel-build.sh
-grep -Fq 'cp "$repo_dir/docs/assets/preview.png" "$output_dir/preview.png"' scripts/vercel-build.sh
+grep -Fq 'cp -R "$web_dir/out/." "$output_dir/"' scripts/vercel-build.sh
+grep -Fq 'cp -R "$app_dir/dist/." "$output_dir/app/"' scripts/vercel-build.sh
+grep -Fq '"build": "next build"' web/package.json
 grep -Fq 'run_step "Browser SQLite WASM module"' scripts/build.sh
 grep -Fq '(cd cloud && bun install --frozen-lockfile)' .github/workflows/ci-v2.yml
 grep -Fq 'exec "$repo_dir/scripts/build.sh" check "$@"' scripts/check.sh
