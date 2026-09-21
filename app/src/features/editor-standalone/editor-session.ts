@@ -5,6 +5,7 @@ import {
   type EditorBytes,
   type EditorDocument,
   type EditorFailureCode,
+  type EditorTheme,
   type EditorToHostMessage,
   type HostToEditorMessage,
 } from "../../../../mobile/src/editor/protocol.ts";
@@ -18,6 +19,11 @@ import {
 } from "@skriuw/renderer-core/contracts/workspace";
 import type { PersonRecord, TagRecord } from "@skriuw/renderer-core/references/types";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import {
+  InMemoryCustomThemeRegistry,
+  type ThemeDefinition,
+  type ThemeTokens,
+} from "@skriuw/theme";
 
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
 
@@ -36,6 +42,7 @@ export type EditorSessionOptions = {
   send: (message: EditorToHostMessage) => void;
   /** How long a `change` or `request` may stay unanswered before it is rejected. */
   replyTimeoutMs?: number;
+  themeRegistry?: InMemoryCustomThemeRegistry;
 };
 
 export type EditorSession = {
@@ -116,6 +123,7 @@ export function createEditorSession({
   store,
   send,
   replyTimeoutMs = DEFAULT_REPLY_TIMEOUT_MS,
+  themeRegistry = new InMemoryCustomThemeRegistry(),
 }: EditorSessionOptions): EditorSession {
   const durableDocuments = new Map<string, WorkspaceDocument>();
   const pendingChanges = new Map<number, PendingChange>();
@@ -154,9 +162,12 @@ export function createEditorSession({
     if (nodes.length > 0) store.applyRemoteDocuments({ documents: [], nodes });
   }
 
-  function applyTheme(theme: string): void {
+  function applyTheme(theme: EditorTheme): void {
+    themeRegistry.set({ ...theme, tokens: theme.tokens as ThemeTokens } as ThemeDefinition);
     store.update((state) =>
-      state.settings.theme === theme ? state : { ...state, settings: { ...state.settings, theme } },
+      state.settings.theme === theme.id
+        ? state
+        : { ...state, settings: { ...state.settings, theme: theme.id } },
     );
   }
 
@@ -234,7 +245,7 @@ export function createEditorSession({
         load(message);
         return;
       case "theme":
-        applyTheme(message.name);
+        applyTheme(message.theme);
         return;
       case "remote-change":
         adoptDocuments(message.changeSet.documents);

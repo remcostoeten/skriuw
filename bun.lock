@@ -29,7 +29,7 @@
         "@remcostoeten/use-shortcut": "^2.4.1",
         "@replit/codemirror-vim": "6.4.0",
         "@skriuw/renderer-core": "workspace:*",
-        "@skriuw/renderer-core": "workspace:*",
+        "@skriuw/theme": "workspace:*",
         "@tanstack/react-virtual": "^3.14.8",
         "@tauri-apps/api": "2.11.1",
         "@tauri-apps/plugin-opener": "^2.5.4",
@@ -81,6 +81,7 @@
       "name": "skriuw-mobile",
       "version": "0.0.0",
       "dependencies": {
+        "@skriuw/theme": "workspace:*",
         "expo": "~57.0.24",
         "expo-constants": "~57.0.19",
         "expo-dev-client": "~57.0.19",

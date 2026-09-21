@@ -6,7 +6,7 @@
  * and the Expo host under `mobile/` compile the same file.
  */
 
-export const EDITOR_PROTOCOL_VERSION = 1;
+export const EDITOR_PROTOCOL_VERSION = 2;
 
 /** Longest `failure.detail` the editor emits; diagnostics stay bounded. */
 export const EDITOR_FAILURE_DETAIL_LIMIT = 512;
@@ -36,6 +36,14 @@ export type EditorRevision = { id: string; revision: number };
 
 export type EditorRankChange = { id: string; parentId: string | null; rank: number };
 
+export type EditorTheme = {
+  schemaVersion: 1;
+  id: string;
+  label: string;
+  colorScheme: "light" | "dark";
+  tokens: Record<string, string>;
+};
+
 /** Mirrors `OperationAck` in the generated workspace contract. */
 export type EditorOperationAck = {
   applied: number;
@@ -57,9 +65,9 @@ export type HostToEditorMessage = Versioned<
       markdown: string;
       wordCount: number;
       revision: number;
-      theme: string;
+      theme: EditorTheme;
     }
-  | { type: "theme"; name: string }
+  | { type: "theme"; theme: EditorTheme }
   | { type: "remote-change"; changeSet: { documents: EditorDocument[] } }
   /**
    * Replaces the lookup tables behind mention search, note-link resolution and
@@ -143,14 +151,31 @@ function isEditorDocument(value: unknown): boolean {
   );
 }
 
+function isEditorTheme(value: unknown): value is EditorTheme {
+  return (
+    isRecord(value) &&
+    value.schemaVersion === 1 &&
+    typeof value.id === "string" &&
+    typeof value.label === "string" &&
+    (value.colorScheme === "light" || value.colorScheme === "dark") &&
+    isRecord(value.tokens) &&
+    Object.entries(value.tokens).every(
+      ([token, color]) =>
+        /^[a-z0-9-]+$/.test(token) &&
+        typeof color === "string" &&
+        /^hsl\(-?[\d.]+,\s*[\d.]+%,\s*[\d.]+%\)$/.test(color),
+    )
+  );
+}
+
 function hasValidBody(message: Record<string, unknown>): boolean {
   switch (message.type) {
     case "load":
       return (
-        isEditorDocument(message) && typeof message.title === "string" && typeof message.theme === "string"
+        isEditorDocument(message) && typeof message.title === "string" && isEditorTheme(message.theme)
       );
     case "theme":
-      return typeof message.name === "string";
+      return isEditorTheme(message.theme);
     case "remote-change":
       return (
         isRecord(message.changeSet) &&

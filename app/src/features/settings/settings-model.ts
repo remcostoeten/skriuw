@@ -1,18 +1,12 @@
 import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
+import { BUILTIN_THEMES, builtinThemeLabel, resolveTheme } from "@skriuw/theme";
 import type { ShortcutActionId } from "@/commands/definitions";
 import { isDiffLayout, type DiffLayout } from "@/features/history/split-diff-model";
 
-export const THEME_OPTIONS = [
-  { value: "midnight", label: "Midnight" },
-  { value: "paper", label: "Paper" },
-  { value: "embers", label: "Embers" },
-  { value: "mocha", label: "Mocha" },
-  { value: "rose-pine", label: "Rosé Pine" },
-  { value: "rose-pine-dawn", label: "Rosé Pine Dawn" },
-  { value: "catppuccin-latte", label: "Catppuccin Latte" },
-  { value: "gruvbox", label: "Gruvbox" },
-  { value: "tokyo-night", label: "Tokyo Night" },
-] as const;
+export const THEME_OPTIONS = BUILTIN_THEMES.map((theme) => ({
+  value: theme.id,
+  label: builtinThemeLabel(theme),
+}));
 
 export const EDITOR_FONT_OPTIONS = [
   { value: "inter", label: "Sans" },
@@ -98,11 +92,7 @@ function supportedValue(
 
 export function projectSettings(settings: WorkspaceSettings): SettingsViewModel {
   return {
-    theme: supportedValue(
-      settings.theme,
-      THEME_OPTIONS,
-      DEFAULT_WORKSPACE_SETTINGS.theme,
-    ),
+    theme: resolveTheme(settings.theme).id,
     compactSidebar: settings.compactSidebar,
     showTreeGuides: settings.showTreeGuides === true,
     reduceMotion: settings.reduceMotion,

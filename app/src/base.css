@@ -14,9 +14,7 @@
   --keyboard-inset: 0px;
 }
 
-:root[data-theme="paper"],
-:root[data-theme="rose-pine-dawn"],
-:root[data-theme="catppuccin-latte"] {
+:root[data-color-scheme="light"] {
   color-scheme: light;
   --selection-opacity: 0.15;
 }

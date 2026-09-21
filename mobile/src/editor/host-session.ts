@@ -13,6 +13,7 @@ import { parseEditorMessage } from "./host-messages";
 import {
   EDITOR_PROTOCOL_VERSION,
   type EditorDocument,
+  type EditorTheme,
   type EditorToHostMessage,
   type HostToEditorMessage,
 } from "./protocol";
@@ -30,8 +31,8 @@ export type EditorHostOptions = {
   send: (message: HostToEditorMessage) => void;
   /** Opens an external URL natively; the webview is never allowed to navigate. */
   openLink: (url: string) => void;
-  /** The shell theme name, read at the moment a message is composed. */
-  theme: () => string;
+  /** The resolved shell palette, read at the moment a message is composed. */
+  theme: () => EditorTheme;
   /** Renders the recoverable surface; `null` clears it. */
   showFailure: (view: EditorFailureView | null) => void;
 };
@@ -40,7 +41,7 @@ export type EditorHostSession = {
   /** One raw message from the webview, parsed at the trust boundary. */
   receive: (raw: unknown) => void;
   /** Publishes a theme change without reloading the page. */
-  setTheme: (name: string) => void;
+  setTheme: (theme: EditorTheme) => void;
   /** The webview's process died: the same recoverable surface as a `failure`. */
   reportWebviewGone: (detail: string) => void;
   /** Recovery action. The caller remounts the webview; the next `ready` refills it. */
@@ -362,8 +363,8 @@ export function createEditorHostSession({
 
   return {
     receive,
-    setTheme: (name) => {
-      if (ready) emit({ type: "theme", name });
+    setTheme: (theme) => {
+      if (ready) emit({ type: "theme", theme });
     },
     reportWebviewGone: (detail) => reset(describeEditorFailure("webview-gone", detail)),
     restart: () => reset(null),

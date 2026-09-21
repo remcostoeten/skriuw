@@ -12,6 +12,7 @@
     "test": "tsx --test '**/__tests__/*.test.cts' '**/__tests__/*.test.ts' '../shared/theme/*.test.ts'"
   },
   "dependencies": {
+    "@skriuw/theme": "workspace:*",
     "expo": "~57.0.24",
     "expo-constants": "~57.0.19",
     "expo-dev-client": "~57.0.19",

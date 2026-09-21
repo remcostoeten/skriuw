@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "exports": {
-    ".": "./tokens.ts"
+    ".": "./index.ts",
+    "./tokens": "./tokens.ts"
   },
   "scripts": {
     "generate": "bun generate.ts",

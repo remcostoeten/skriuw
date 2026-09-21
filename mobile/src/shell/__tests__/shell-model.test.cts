@@ -4,7 +4,7 @@ import {
   appRouteHash,
   resolveAppRoute,
 } from "../../../../shared/renderer-core/src/route/app-route";
-import { THEME_NAMES } from "../../../../shared/theme/tokens";
+import { THEME_NAMES } from "@skriuw/theme";
 import {
   SHELL_DESTINATIONS,
   destinationForRoute,
@@ -103,8 +103,8 @@ test("system themes follow the platform and a named theme overrides it", () => {
 
 test("every generated theme can be chosen by hand", () => {
   assert.deepEqual(
-    THEME_OPTIONS.map((option) => option.name),
-    [...THEME_NAMES],
+    THEME_OPTIONS.map((option) => option.name).sort(),
+    [...THEME_NAMES].sort(),
   );
   assert.equal(THEME_OPTIONS.length, 9);
 });

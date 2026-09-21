@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { resolveTheme } from "@skriuw/theme";
 import type { BridgePort, NoteLockSecretInput } from "../../../../../shared/renderer-core/src/bridge/port";
 import { createMemoryBridge } from "../../../../../shared/renderer-core/src/bridge/memory-adapter";
 import {
@@ -542,7 +543,10 @@ test("lock, background, foreground: the body leaves the webview and the session 
       session,
       send: (message) => sent.push(message),
       openLink: () => undefined,
-      theme: () => "midnight",
+      theme: () => {
+        const { source: _source, ...theme } = resolveTheme("midnight");
+        return theme;
+      },
       showFailure: () => undefined,
     });
     host.receive({ v: EDITOR_PROTOCOL_VERSION, type: "ready" });
