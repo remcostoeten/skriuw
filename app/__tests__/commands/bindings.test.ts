@@ -82,7 +82,7 @@ test("effective keys prefer the override and fall back to the definition", () =>
   assert.equal(effectiveShortcutKeys(createNote, {}), "mod+n");
 });
 
-test("focus sidebar defaults to returning to the current note", () => {
+test("focus sidebar keeps its default binding", () => {
   const focusSidebar = SHORTCUT_DEFINITIONS.find(
     (definition) => definition.id === "focusSidebar",
   );

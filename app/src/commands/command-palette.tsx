@@ -53,7 +53,7 @@ function Kbd({ children, ...rest }: ComponentProps<"kbd">) {
 }
 
 export const PALETTE_DIALOG_CLASS =
-  "command-palette mx-auto mb-auto mt-[12vh] max-h-[calc(var(--viewport-height)*0.64)] w-[calc(100vw-1.5rem)] max-w-[46rem] overflow-hidden";
+  "command-palette w-[calc(100vw-1.5rem)] max-w-[46rem] overflow-hidden";
 
 export function CommandPalette({
   open,

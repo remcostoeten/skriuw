@@ -97,8 +97,7 @@ body.sidebar-resizing {
   z-index: 2;
 }
 
-.sidebar-guides [role="treeitem"] > button,
-.sidebar-guides [role="treeitem"] > div {
+.sidebar-guides .sidebar-tree-row {
   background-image: repeating-linear-gradient(
     to right,
     transparent 0 calc(var(--tree-step, 16px) - 1px),

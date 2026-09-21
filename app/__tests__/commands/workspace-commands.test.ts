@@ -153,6 +153,19 @@ async function pinFixture(snapshot: Record<string, unknown>) {
   );
 }
 
+test("focus sidebar moves the tree cursor to its first visible row", async () => {
+  const store = await pinFixture({
+    activeNoteId: "open",
+    nodes: [node("first", 1), node("open", 2)],
+  });
+  store.setFocusedNode("open");
+  const registry = createCommandRegistry(createWorkspaceCommands(store, controls));
+
+  withSidebarFocus(false, () => registry.run("focus-sidebar", store.getState(), fakeUi()));
+
+  assert.equal(store.getState().focusedNodeId, "first");
+});
+
 type DocumentGlobal = { document?: unknown };
 
 function withSidebarFocus<T>(inSidebar: boolean, body: () => T): T {

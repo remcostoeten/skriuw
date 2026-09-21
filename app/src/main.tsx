@@ -88,7 +88,8 @@ async function announcePersistenceRisk(): Promise<void> {
   const warning = describePersistenceRisk(state);
   if (warning && claimRiskAnnouncement(state)) {
     showToast({
-      message: warning,
+      message: warning.message,
+      description: warning.description,
       durationMs: 12_000,
       ...(state.kind === "best-effort" && installOffered()
         ? { action: { label: "Install", run: () => void promptInstall() } }

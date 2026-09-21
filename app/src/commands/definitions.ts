@@ -542,7 +542,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
   {
     id: "focusSidebar",
     keys: "mod+e",
-    label: "Focus current note in sidebar",
+    label: "Focus sidebar",
     group: "Navigation",
     worksWhileTyping: true,
     scopes: "notes-route",
@@ -552,7 +552,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+shift+e",
     label: "Collapse all folders",
     description:
-      "Collapse every folder in the sidebar tree, the shifted sibling of mod+e's reveal-in-sidebar.",
+      "Collapse every folder in the sidebar tree, the shifted sibling of mod+e's sidebar focus.",
     group: "Navigation",
     worksWhileTyping: true,
     guards: ["modal"],

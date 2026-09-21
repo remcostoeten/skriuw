@@ -9,7 +9,7 @@ import { restoreRenameReturnFocus } from "./rename-focus";
 import type { TreeMetrics } from "./sidebar";
 
 const rowBaseClass =
-  "sidebar-tree-row relative flex h-[34px] w-full items-center overflow-hidden rounded-lg border border-transparent text-left text-xs font-medium active:scale-[0.985]";
+  "sidebar-tree-row relative flex h-[34px] w-full items-center overflow-hidden rounded-lg border border-transparent text-left text-xs font-medium outline-none active:scale-[0.985] focus-visible:bg-foreground/[0.16] focus-visible:text-foreground";
 
 function rowIndentStyle(depth: number, metrics: TreeMetrics): CSSProperties {
   const maximumIndent = metrics.isVeryNarrow ? 40 : metrics.isNarrow ? 56 : 80;

@@ -12,6 +12,7 @@ export type ToastAction = {
 
 export type ToastRequest = {
   message: string;
+  description?: string;
   action?: ToastAction;
   durationMs?: number;
 };
@@ -67,11 +68,17 @@ export function showToast(request: ToastRequest): void {
       : {}),
     onDismiss: (id: string) => clearAction(id),
   };
+  const hint = Boolean(request.action && run);
   const message =
-    request.action && run ? (
-      <span className="flex items-center gap-2">
-        <span>{request.message}</span>
-        <KeyCaps keys={undoKeys()} />
+    hint || request.description ? (
+      <span className="flex flex-col items-start gap-1">
+        <span className="text-pretty">{request.message}</span>
+        {request.description ? (
+          <span className="text-pretty text-[12px] font-normal leading-snug text-muted-foreground">
+            {request.description}
+          </span>
+        ) : null}
+        {hint ? <KeyCaps keys={undoKeys()} className="mt-1" /> : null}
       </span>
     ) : (
       request.message
@@ -120,7 +127,7 @@ export function ToastHost({ visible = true, reduceMotion = false }: HostProps) {
 
   return (
     <div
-      className="toast-host [&_:is([role=status],[role=alert],[role=alertdialog])>div>div:first-child]:pr-2.5!"
+      className="toast-host [&_:is([role=status],[role=alert],[role=alertdialog])>div>div:first-child]:pr-2.5! [&_:is([role=status],[role=alert],[role=alertdialog])>div]:max-w-[min(420px,calc(100vw-32px))]!"
       style={{ display: visible ? undefined : "none" }}
     >
       {/* The in-app reduce-motion setting is authoritative over the OS
