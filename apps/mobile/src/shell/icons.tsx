@@ -1,339 +1,169 @@
-import { View, type ViewStyle } from "react-native";
+import {
+  ANIMATED_GEOMETRY,
+  type AnimatedIconId,
+  type AnimatedPart,
+  type Clip,
+} from "@skriuw/icons";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { View } from "react-native";
+import Svg, { ClipPath, Defs, G, Mask, Path, Rect } from "react-native-svg";
 import type { ShellIconName } from "./destinations";
+import {
+  SHELL_ICON_GRID,
+  shellGlyph,
+  shellMotionFrame,
+  shellMotionLength,
+  type PartFrame,
+} from "./icon-model";
 
-type Props = {
+type ShellIconProps = {
   name: ShellIconName;
   color: string;
   size?: number;
+  /** Plays the icon's motion once each time this value changes. */
+  playKey?: number;
 };
 
-type Part = ViewStyle;
+type MotionPartsProps = {
+  motion: AnimatedIconId;
+  frame: ReadonlyMap<string, PartFrame>;
+  prefix: string;
+};
 
-/**
- * The shell's glyphs, drawn from views. The desktop rail uses an SVG registry
- * (`apps/workspace/src/shared/icons`); React Native has no SVG runtime in this build, so
- * each glyph is composed from the primitives that are always available and
- * scales from the box it is given.
- */
-export function ShellIcon({ name, color, size = 20 }: Props) {
-  const parts = glyph(name, size, color);
+const MASK_BOX = { x: -2, y: -2, width: 28, height: 28 } as const;
+
+function useMotionClock(
+  motion: AnimatedIconId | undefined,
+  playKey: number | undefined,
+): number | null {
+  const [elapsed, setElapsed] = useState<number | null>(null);
+  const firstKey = useRef(playKey);
+  useEffect(() => {
+    if (motion === undefined || playKey === undefined || playKey === firstKey.current) return;
+    const length = shellMotionLength(motion);
+    let start: number | undefined;
+    let handle = 0;
+    function tick(now: number) {
+      start ??= now;
+      const time = now - start;
+      if (time >= length) {
+        setElapsed(null);
+        return;
+      }
+      setElapsed(time);
+      handle = requestAnimationFrame(tick);
+    }
+    handle = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(handle);
+      setElapsed(null);
+    };
+  }, [motion, playKey]);
+  return elapsed;
+}
+
+function clipDef(id: string, clip: Clip) {
   return (
-    <View accessible={false} importantForAccessibility="no" style={{ width: size, height: size }}>
-      {parts.map((part, index) => (
-        <View key={index} style={[{ position: "absolute" }, part]} />
-      ))}
-    </View>
+    <ClipPath key={id} id={id}>
+      <Path d={clip.d} clipRule={clip.rule} />
+    </ClipPath>
   );
 }
 
-function glyph(name: ShellIconName, size: number, color: string): Part[] {
-  const stroke = Math.max(1, Math.round(size / 13));
-  const unit = size / 20;
-  const outline: Part = { borderColor: color, borderWidth: stroke };
-
-  switch (name) {
-    case "notes":
-      return [
-        {
-          ...outline,
-          left: 3 * unit,
-          top: 2 * unit,
-          width: 14 * unit,
-          height: 16 * unit,
-          borderRadius: 3 * unit,
-        },
-        { left: 6 * unit, top: 6 * unit, width: 8 * unit, height: stroke, backgroundColor: color },
-        {
-          left: 6 * unit,
-          top: 9.5 * unit,
-          width: 8 * unit,
-          height: stroke,
-          backgroundColor: color,
-        },
-        { left: 6 * unit, top: 13 * unit, width: 5 * unit, height: stroke, backgroundColor: color },
-      ];
-    case "journal":
-      return [
-        {
-          ...outline,
-          left: 2.5 * unit,
-          top: 4 * unit,
-          width: 15 * unit,
-          height: 14 * unit,
-          borderRadius: 3 * unit,
-        },
-        {
-          left: 2.5 * unit,
-          top: 7.5 * unit,
-          width: 15 * unit,
-          height: stroke,
-          backgroundColor: color,
-        },
-        {
-          left: 6 * unit,
-          top: 1.5 * unit,
-          width: stroke,
-          height: 4 * unit,
-          backgroundColor: color,
-        },
-        {
-          left: 14 * unit,
-          top: 1.5 * unit,
-          width: stroke,
-          height: 4 * unit,
-          backgroundColor: color,
-        },
-        {
-          left: 9 * unit,
-          top: 11 * unit,
-          width: 2.5 * unit,
-          height: 2.5 * unit,
-          borderRadius: 1.5 * unit,
-          backgroundColor: color,
-        },
-      ];
-    case "tasks":
-      return [
-        {
-          ...outline,
-          left: 2.5 * unit,
-          top: 2.5 * unit,
-          width: 15 * unit,
-          height: 15 * unit,
-          borderRadius: 4 * unit,
-        },
-        {
-          left: 6 * unit,
-          top: 10.5 * unit,
-          width: 4 * unit,
-          height: stroke,
-          backgroundColor: color,
-          transform: [{ rotate: "45deg" }],
-        },
-        {
-          left: 8.5 * unit,
-          top: 9 * unit,
-          width: 7 * unit,
-          height: stroke,
-          backgroundColor: color,
-          transform: [{ rotate: "-45deg" }],
-        },
-      ];
-    case "tags":
-      return [
-        {
-          ...outline,
-          left: 3.5 * unit,
-          top: 3.5 * unit,
-          width: 13 * unit,
-          height: 13 * unit,
-          borderRadius: 2 * unit,
-          transform: [{ rotate: "45deg" }],
-        },
-        {
-          left: 7 * unit,
-          top: 7 * unit,
-          width: 3 * unit,
-          height: 3 * unit,
-          borderRadius: 2 * unit,
-          backgroundColor: color,
-        },
-      ];
-    case "people":
-      return [
-        {
-          ...outline,
-          left: 6.5 * unit,
-          top: 2.5 * unit,
-          width: 7 * unit,
-          height: 7 * unit,
-          borderRadius: 4 * unit,
-        },
-        {
-          ...outline,
-          left: 3 * unit,
-          top: 12 * unit,
-          width: 14 * unit,
-          height: 10 * unit,
-          borderRadius: 7 * unit,
-        },
-      ];
-    case "trash":
-      return [
-        { left: 3 * unit, top: 5 * unit, width: 14 * unit, height: stroke, backgroundColor: color },
-        {
-          left: 8 * unit,
-          top: 2.5 * unit,
-          width: 4 * unit,
-          height: stroke,
-          backgroundColor: color,
-        },
-        {
-          ...outline,
-          left: 5 * unit,
-          top: 7 * unit,
-          width: 10 * unit,
-          height: 11 * unit,
-          borderRadius: 2 * unit,
-        },
-        {
-          left: 9.5 * unit,
-          top: 9.5 * unit,
-          width: stroke,
-          height: 6 * unit,
-          backgroundColor: color,
-        },
-      ];
-    case "account":
-      return [
-        {
-          ...outline,
-          left: 2 * unit,
-          top: 2 * unit,
-          width: 16 * unit,
-          height: 16 * unit,
-          borderRadius: 8 * unit,
-        },
-        {
-          left: 7.5 * unit,
-          top: 5.5 * unit,
-          width: 5 * unit,
-          height: 5 * unit,
-          borderRadius: 3 * unit,
-          backgroundColor: color,
-        },
-        {
-          left: 4.5 * unit,
-          top: 13 * unit,
-          width: 11 * unit,
-          height: 6 * unit,
-          borderRadius: 5.5 * unit,
-          backgroundColor: color,
-        },
-      ];
-    case "search":
-      return [
-        {
-          ...outline,
-          left: 2.5 * unit,
-          top: 2.5 * unit,
-          width: 11 * unit,
-          height: 11 * unit,
-          borderRadius: 5.5 * unit,
-        },
-        {
-          left: 11.5 * unit,
-          top: 13.5 * unit,
-          width: 6 * unit,
-          height: stroke,
-          backgroundColor: color,
-          transform: [{ rotate: "45deg" }],
-        },
-      ];
-    case "menu":
-      return [
-        { left: 3 * unit, top: 5 * unit, width: 14 * unit, height: stroke, backgroundColor: color },
-        {
-          left: 3 * unit,
-          top: 9.5 * unit,
-          width: 14 * unit,
-          height: stroke,
-          backgroundColor: color,
-        },
-        {
-          left: 3 * unit,
-          top: 14 * unit,
-          width: 14 * unit,
-          height: stroke,
-          backgroundColor: color,
-        },
-      ];
-    case "close":
-      return [
-        {
-          left: 3 * unit,
-          top: 9.5 * unit,
-          width: 14 * unit,
-          height: stroke,
-          backgroundColor: color,
-          transform: [{ rotate: "45deg" }],
-        },
-        {
-          left: 3 * unit,
-          top: 9.5 * unit,
-          width: 14 * unit,
-          height: stroke,
-          backgroundColor: color,
-          transform: [{ rotate: "-45deg" }],
-        },
-      ];
-    case "plus":
-      return [
-        {
-          left: 3.5 * unit,
-          top: 9.5 * unit,
-          width: 13 * unit,
-          height: stroke,
-          backgroundColor: color,
-        },
-        {
-          left: 9.5 * unit,
-          top: 3.5 * unit,
-          width: stroke,
-          height: 13 * unit,
-          backgroundColor: color,
-        },
-      ];
-    case "folder":
-      return [
-        {
-          left: 2.5 * unit,
-          top: 3.5 * unit,
-          width: 7 * unit,
-          height: 2.5 * unit,
-          borderTopLeftRadius: 2 * unit,
-          borderTopRightRadius: 2 * unit,
-          backgroundColor: color,
-        },
-        {
-          ...outline,
-          left: 2.5 * unit,
-          top: 5.5 * unit,
-          width: 15 * unit,
-          height: 11 * unit,
-          borderRadius: 2.5 * unit,
-        },
-      ];
-    case "chevron":
-      return [
-        {
-          left: 6 * unit,
-          top: 6 * unit,
-          width: 7 * unit,
-          height: 7 * unit,
-          borderColor: color,
-          borderTopWidth: stroke,
-          borderRightWidth: stroke,
-          transform: [{ rotate: "45deg" }],
-        },
-      ];
-    case "pin":
-      return [
-        {
-          left: 7 * unit,
-          top: 2.5 * unit,
-          width: 6 * unit,
-          height: 6 * unit,
-          borderRadius: 3 * unit,
-          backgroundColor: color,
-        },
-        {
-          left: 9.5 * unit,
-          top: 8 * unit,
-          width: stroke,
-          height: 9 * unit,
-          backgroundColor: color,
-        },
-      ];
+function partNode(
+  part: AnimatedPart,
+  parts: readonly AnimatedPart[],
+  frame: ReadonlyMap<string, PartFrame>,
+  prefix: string,
+): ReactNode {
+  const pose = frame.get(part.id);
+  let node: ReactNode = (
+    <G key={part.id} transform={pose?.transform} opacity={pose?.opacity}>
+      <Path d={part.d} clipPath={part.clip ? `url(#${prefix}-${part.id}-clip)` : undefined} />
+      {parts
+        .filter((child) => child.within === part.id)
+        .map((child) => partNode(child, parts, frame, prefix))}
+    </G>
+  );
+  if (part.window) {
+    node = (
+      <G key={`${part.id}-window`} clipPath={`url(#${prefix}-${part.id}-window)`}>
+        {node}
+      </G>
+    );
   }
+  if (part.occluder) {
+    node = (
+      <G key={`${part.id}-mask`} mask={`url(#${prefix}-${part.id}-mask)`}>
+        {node}
+      </G>
+    );
+  }
+  return node;
+}
+
+function MotionParts({ motion, frame, prefix }: MotionPartsProps) {
+  const parts = ANIMATED_GEOMETRY[motion].parts;
+  return (
+    <>
+      <Defs>
+        {parts.flatMap((part) => [
+          part.clip ? clipDef(`${prefix}-${part.id}-clip`, part.clip) : null,
+          part.window ? clipDef(`${prefix}-${part.id}-window`, part.window) : null,
+          part.occluder ? (
+            <Mask
+              key={`${part.id}-mask`}
+              id={`${prefix}-${part.id}-mask`}
+              maskUnits="userSpaceOnUse"
+              {...MASK_BOX}
+            >
+              <Rect {...MASK_BOX} fill="white" />
+              <G transform={frame.get(part.occluder.follows)?.transform}>
+                <Path d={part.occluder.d} fill="black" />
+              </G>
+            </Mask>
+          ) : null,
+        ])}
+      </Defs>
+      {parts
+        .filter((part) => part.within === undefined)
+        .map((part) => partNode(part, parts, frame, prefix))}
+    </>
+  );
+}
+
+/**
+ * The shell's icons: the shared Fluent glyphs drawn with react-native-svg.
+ * At rest an icon is its static glyph; `playKey` swaps in the moving parts
+ * for one run of the shared motion spec, sampled on the JS thread per frame.
+ */
+export function ShellIcon({ name, color, size = 20, playKey }: ShellIconProps) {
+  const glyph = shellGlyph(name);
+  const elapsed = useMotionClock(glyph.motion, playKey);
+  const prefix = `icon${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  const playing = glyph.motion !== undefined && elapsed !== null;
+  return (
+    <View
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      style={{ width: size, height: size }}
+    >
+      <Svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${SHELL_ICON_GRID} ${SHELL_ICON_GRID}`}
+        fill={color}
+      >
+        {playing ? (
+          <MotionParts
+            motion={glyph.motion!}
+            frame={shellMotionFrame(glyph.motion!, elapsed)}
+            prefix={prefix}
+          />
+        ) : (
+          <Path d={glyph.d} />
+        )}
+      </Svg>
+    </View>
+  );
 }

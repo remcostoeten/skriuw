@@ -1,6 +1,16 @@
-import { Maximize2, Minimize2, Pause, Play, Repeat2, Volume2, VolumeX } from "lucide-react";
+import {
+  CopyIcon,
+  EnterFullscreenIcon,
+  ExitFullscreenIcon,
+  PauseIcon,
+  PictureInPictureEnterIcon,
+  PictureInPictureExitIcon,
+  PlayIcon,
+  RepeatIcon,
+  VolumeIcon,
+  VolumeOffIcon,
+} from "@/shared/icons/static";
 import { useEffect, useRef, useState } from "react";
-import { CopyIcon } from "@/shared/icons/static";
 import { formatByteSize } from "@/shared/lib/format-bytes";
 import { Dialog } from "./dialog";
 import { cn } from "@/shared/lib/utils";
@@ -245,7 +255,7 @@ function MediaLightboxVideo({ src, onError }: { src: string; onError?: () => voi
         onClick={togglePlayback}
         hidden={isPlaying}
       >
-        {isPlaying ? <Pause size={19} /> : <Play size={19} fill="currentColor" />}
+        {isPlaying ? <PauseIcon size={19} /> : <PlayIcon size={19} />}
       </button>
       <div className="absolute right-0 bottom-0 left-0 flex min-h-12 items-center gap-2 bg-gradient-to-t from-black/90 via-black/55 to-transparent px-3 pt-5 pb-2 text-white">
         <button
@@ -254,7 +264,7 @@ function MediaLightboxVideo({ src, onError }: { src: string; onError?: () => voi
           aria-label={isPlaying ? "Pause video" : "Play video"}
           onClick={togglePlayback}
         >
-          {isPlaying ? <Pause size={16} /> : <Play size={16} fill="currentColor" />}
+          {isPlaying ? <PauseIcon size={16} /> : <PlayIcon size={16} />}
         </button>
         <output
           className="min-w-[5.8em] text-[11px] tabular-nums text-white/80"
@@ -284,7 +294,7 @@ function MediaLightboxVideo({ src, onError }: { src: string; onError?: () => voi
           aria-label={volume === 0 ? "Unmute video" : "Mute video"}
           onClick={() => updateVolume(volume === 0 ? 0.5 : 0)}
         >
-          {volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+          {volume === 0 ? <VolumeOffIcon size={16} /> : <VolumeIcon size={16} />}
         </button>
         <input
           type="range"
@@ -316,7 +326,7 @@ function MediaLightboxVideo({ src, onError }: { src: string; onError?: () => voi
             setLoop(nextLoop);
           }}
         >
-          <Repeat2 size={16} />
+          <RepeatIcon size={16} />
         </button>
         <button
           type="button"
@@ -324,7 +334,7 @@ function MediaLightboxVideo({ src, onError }: { src: string; onError?: () => voi
           aria-label={isPip ? "Return video to preview" : "Keep video playing in Skriuw"}
           onClick={() => setIsPip((value) => !value)}
         >
-          {isPip ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          {isPip ? <PictureInPictureExitIcon size={16} /> : <PictureInPictureEnterIcon size={16} />}
         </button>
         <button
           type="button"
@@ -332,7 +342,7 @@ function MediaLightboxVideo({ src, onError }: { src: string; onError?: () => voi
           aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           onClick={toggleFullscreen}
         >
-          {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          {isFullscreen ? <ExitFullscreenIcon size={16} /> : <EnterFullscreenIcon size={16} />}
         </button>
       </div>
     </div>

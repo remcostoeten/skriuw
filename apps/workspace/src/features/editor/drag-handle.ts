@@ -1,5 +1,6 @@
 import { NodeSelection, type Selection } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
+import { glyphMarkup } from "@/shared/icons/markup";
 import { moveBlockToIndex, topLevelBlockAt } from "./block-commands";
 
 const GUTTER_GAP = 10;
@@ -8,11 +9,9 @@ const DRAG_THRESHOLD = 4;
 const AUTOSCROLL_ZONE = 64;
 const AUTOSCROLL_MAX_SPEED = 20;
 
-const PLUS_ICON =
-  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+const PLUS_ICON = glyphMarkup("add", 14);
 
-const GRIP_ICON =
-  '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
+const GRIP_ICON = glyphMarkup("re_order_dots_vertical", 14);
 
 export type BlockMenuTarget = {
   pos: number;

@@ -3,6 +3,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { AXIS_LOCK_PX } from "../../shell/edge-swipe";
+import { ShellIcon } from "../../shell/icons";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme } from "../../shell/theme";
 import { useWorkspace, useWorkspaceSelector } from "../../shell/workspace-provider";
@@ -137,7 +138,7 @@ export function JournalView() {
             onPress={() => step(-1)}
             style={styles.step}
           >
-            <Text style={[styles.stepGlyph, { color: theme.color("muted-foreground") }]}>‹</Text>
+            <ShellIcon name="back" size={22} color={theme.color("muted-foreground")} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -161,7 +162,7 @@ export function JournalView() {
             onPress={() => step(1)}
             style={styles.step}
           >
-            <Text style={[styles.stepGlyph, { color: theme.color("muted-foreground") }]}>›</Text>
+            <ShellIcon name="forward" size={22} color={theme.color("muted-foreground")} />
           </Pressable>
         </View>
 
@@ -230,7 +231,7 @@ export function JournalView() {
           { backgroundColor: theme.color("primary"), borderColor: theme.color("primary") },
         ]}
       >
-        <Text style={[styles.captureGlyph, { color: theme.color("primary-foreground") }]}>+</Text>
+        <ShellIcon name="plus" size={24} color={theme.color("primary-foreground")} />
       </Pressable>
 
       <QuickCapture
@@ -280,10 +281,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  stepGlyph: {
-    fontSize: 26,
-    lineHeight: 28,
-  },
   heading: {
     flex: 1,
     minHeight: MINIMUM_TOUCH_TARGET,
@@ -332,10 +329,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 28,
     borderWidth: StyleSheet.hairlineWidth,
-  },
-  captureGlyph: {
-    fontSize: 28,
-    lineHeight: 32,
-    fontWeight: "600",
   },
 });

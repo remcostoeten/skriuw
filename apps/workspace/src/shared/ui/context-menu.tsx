@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 
-import { CheckIcon, ChevronRightIcon, CircleIcon } from "@/shared/icons/static";
+import { CheckIcon, ChevronRightIcon, CircleFilledIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { KeyCaps } from "@/shared/ui/key-caps";
 import { overlayContentMotion } from "./overlay-motion";
@@ -131,7 +131,7 @@ const ContextMenuRadioItem = React.forwardRef<
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <ContextMenuPrimitive.ItemIndicator>
-        <CircleIcon className="h-2 w-2 fill-current" />
+        <CircleFilledIcon className="h-2 w-2" />
       </ContextMenuPrimitive.ItemIndicator>
     </span>
     {children}

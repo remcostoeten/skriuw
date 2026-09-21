@@ -6,3 +6,4 @@ cd "$repo_dir"
 
 cargo run --quiet -p xtask -- generate "$@"
 bun packages/theme/generate.ts "$@"
+bun packages/icons/generate.ts "$@"

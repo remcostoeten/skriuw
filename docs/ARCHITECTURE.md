@@ -26,7 +26,9 @@ Application shell
 
 The store, operation queue, tree model and route model live once, in
 `shared/renderer-core`, and are consumed by the desktop/browser renderer in
-`apps/workspace/` and by the mobile client in `apps/mobile/`.
+`apps/workspace/` and by the mobile client in `apps/mobile/`. Icons follow the same pattern:
+`packages/icons` holds generated Fluent glyph data and the animation spec, and
+each platform only draws it ([ADR-0049](adr/0049-shared-icon-system.md)).
 
 The backend foundation, React product shell, and direct ProseMirror editor exist today. The isolated UI architecture harness remains measurement evidence rather than a runtime adapter.
 
@@ -263,5 +265,6 @@ happened, so R-P4 is unverified rather than met. See
 - [ADR-0046: per-account local workspaces](adr/0046-per-account-local-workspaces.md)
 - [ADR-0047: the compact shell owns the back gesture and the install offer](adr/0047-compact-shell-owns-back-and-install.md)
 - [ADR-0048: a native mobile shell over the shared Rust core](adr/0048-native-mobile-shell-over-shared-core.md)
+- [ADR-0049: one shared icon system](adr/0049-shared-icon-system.md)
 
 Personal templates reuse ordinary source notes; saved searches and template membership use bounded workspace preferences. See [ADR-0038](adr/0038-personal-template-and-search-preferences.md). Modal Vim editing is one `vimMode` setting driving CodeMirror's Vim extension in the raw Markdown view and a document-model Vim plugin in the rendered editor; see [ADR-0042](adr/0042-modal-vim-editing.md). Sync refresh retries and candidate-filtered full-text search follow the [refresh and search contract](specs/refresh-and-filtered-search.md).

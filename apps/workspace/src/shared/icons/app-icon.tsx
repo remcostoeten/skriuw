@@ -1,8 +1,7 @@
-import { Suspense, useEffect, useRef, useState } from "react";
-import type { CSSProperties } from "react";
-import { iconStrokeWidth } from "./static";
+import { ICON_REGISTRY, selectGlyph } from "@skriuw/icons";
+import { useEffect, useId, useRef } from "react";
+import { AnimatedGlyph, playIconMotion } from "./animated-glyph";
 import { useAnimatedIcons } from "./animated-icons-context";
-import { APP_ICONS } from "./registry";
 import type { AppIconName } from "./registry";
 
 type Props = {
@@ -13,106 +12,52 @@ type Props = {
 
 /**
  * Buttons are the hover target, not the glyph: a 16px icon inside a 36px
- * button would otherwise only animate when the pointer crossed the strokes.
+ * button would otherwise only animate when the pointer crossed its ink.
  */
 const HOVER_HOST_SELECTOR = "button, a[href], label, [role='button']";
-
-function whenIdle(run: () => void): () => void {
-  if (typeof requestIdleCallback !== "function") {
-    const timer = setTimeout(run, 200);
-    return () => clearTimeout(timer);
-  }
-  const handle = requestIdleCallback(run, { timeout: 2000 });
-  return () => cancelIdleCallback(handle);
-}
+const ANIMATED_GRID = 24;
 
 /**
- * The one icon component the application renders. It resolves the static and
- * animated counterparts from the registry and decides between them from the
- * global preference, so call sites only name the action.
- *
- * When animation is on, the animated component is fetched and mounted during
- * idle time rather than on hover — waiting for a chunk at hover time is
- * perceptible. When it is off, nothing is fetched or mounted at all and the
- * cost is exactly the static SVG that would have rendered anyway.
+ * The one icon component the application renders for named actions. It draws
+ * the action's Fluent glyph and, when the animated-icons preference is on,
+ * plays the action's motion once each time the pointer enters the host
+ * control. The motion data ships in the main bundle, so nothing is fetched on
+ * hover and hovering never re-renders React.
  */
 export function AppIcon({ name, size = 16, className }: Props) {
-  const entry = APP_ICONS[name];
-  const StaticIcon = entry.static;
-  const AnimatedIcon = "animated" in entry ? entry.animated : undefined;
-  const animationEnabled = useAnimatedIcons() && AnimatedIcon !== undefined;
-
-  const anchorRef = useRef<HTMLSpanElement | null>(null);
-  const [ready, setReady] = useState(false);
-  const [hovering, setHovering] = useState(false);
+  const entry = ICON_REGISTRY[name];
+  const motion = "motion" in entry ? entry.motion : undefined;
+  const animated = useAnimatedIcons() && motion !== undefined;
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const idPrefix = `icon${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  const glyph = selectGlyph(entry.glyph, size, ANIMATED_GRID);
 
   useEffect(() => {
-    if (!animationEnabled || !AnimatedIcon) {
-      return;
+    const svg = svgRef.current;
+    if (!animated || !motion || !svg) return;
+    const host = svg.closest(HOVER_HOST_SELECTOR) ?? svg.parentElement ?? svg;
+    function play() {
+      if (svg) playIconMotion(svg, motion!);
     }
-    let cancelled = false;
-    const cancelIdle = whenIdle(() => {
-      void AnimatedIcon.preload().then(() => {
-        if (!cancelled) {
-          setReady(true);
-        }
-      });
-    });
-    return () => {
-      cancelled = true;
-      cancelIdle();
-    };
-  }, [animationEnabled, AnimatedIcon]);
-
-  useEffect(() => {
-    if (!animationEnabled) {
-      return;
-    }
-    const anchor = anchorRef.current;
-    if (!anchor) {
-      return;
-    }
-    const host = anchor.closest(HOVER_HOST_SELECTOR) ?? anchor;
-    function enter() {
-      setReady(true);
-      setHovering(true);
-    }
-    function leave() {
-      setHovering(false);
-    }
-    host.addEventListener("pointerenter", enter);
-    host.addEventListener("pointerleave", leave);
-    return () => {
-      host.removeEventListener("pointerenter", enter);
-      host.removeEventListener("pointerleave", leave);
-    };
-  }, [animationEnabled]);
-
-  useEffect(() => {
-    if (animationEnabled) {
-      return;
-    }
-    setReady(false);
-    setHovering(false);
-  }, [animationEnabled]);
-
-  const fallback = <StaticIcon size={size} aria-hidden="true" />;
-  const showAnimated = animationEnabled && ready && AnimatedIcon !== undefined;
+    host.addEventListener("pointerenter", play);
+    return () => host.removeEventListener("pointerenter", play);
+  }, [animated, motion]);
 
   return (
-    <span
-      ref={anchorRef}
-      className={`app-icon${className ? ` ${className}` : ""}`}
-      style={{ "--app-icon-stroke": iconStrokeWidth(size) } as CSSProperties}
-      aria-hidden="true"
-    >
-      {showAnimated ? (
-        <Suspense fallback={fallback}>
-          <AnimatedIcon size={size} animate={hovering} />
-        </Suspense>
-      ) : (
-        fallback
-      )}
+    <span className={`app-icon${className ? ` ${className}` : ""}`} aria-hidden="true">
+      <svg
+        ref={svgRef}
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox={`0 0 ${glyph.grid} ${glyph.grid}`}
+        width={size}
+        height={size}
+        fill="currentColor"
+        focusable="false"
+        overflow="visible"
+      >
+        <path data-motion-rest="" d={glyph.d} />
+        {animated && motion && <AnimatedGlyph icon={motion} idPrefix={idPrefix} />}
+      </svg>
     </span>
   );
 }

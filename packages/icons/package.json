@@ -1,0 +1,21 @@
+{
+  "name": "@skriuw/icons",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "generate": "bun generate.ts",
+    "check": "bun generate.ts --check",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "verify": "tsc --noEmit && bun test"
+  },
+  "devDependencies": {
+    "@fluentui/svg-icons": "1.1.341",
+    "@types/node": "26.1.1",
+    "typescript": "7.0.2"
+  }
+}

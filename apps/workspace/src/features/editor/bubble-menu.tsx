@@ -7,21 +7,18 @@ import {
   AlignCenterIcon,
   AlignLeftIcon,
   AlignRightIcon,
-  BoldIcon,
   ChevronDownIcon,
-  CodeIcon,
   Heading1Icon,
   Heading2Icon,
   Heading3Icon,
   HighlighterIcon,
-  ItalicIcon,
-  LinkIcon,
   MessageSquareIcon,
   PilcrowIcon,
   SparklesIcon,
   StrikethroughIcon,
   TextQuoteIcon,
 } from "@/shared/icons/static";
+import { AppIcon } from "@/shared/icons/app-icon";
 import { LiquidMetalButton } from "./liquid-metal-button";
 import { rangeMenuAnchor } from "./menu-anchor";
 import { COMPACT_SHELL_QUERY } from "@/shell/shell-layout";
@@ -388,7 +385,7 @@ function blockActions(headingLevel: number | null, blockquote: boolean): BubbleA
       id: "blockquote",
       label: "Quote",
       active: blockquote,
-      content: <TextQuoteIcon size={14} />,
+      content: <AppIcon name="quote" size={14} />,
       command: toggleBlockquote(blockquote),
       detached: true,
     },
@@ -407,7 +404,7 @@ function bubbleEntries(state: BubbleMenuState, handlers: EntryHandlers): BubbleE
       label: "Bold",
       active: state.bold,
       group: "marks",
-      content: <BoldIcon size={14} />,
+      content: <AppIcon name="bold" size={14} />,
       command: toggleMark(requiredMark("strong")),
     },
     {
@@ -415,7 +412,7 @@ function bubbleEntries(state: BubbleMenuState, handlers: EntryHandlers): BubbleE
       label: "Italic",
       active: state.italic,
       group: "marks",
-      content: <ItalicIcon size={14} />,
+      content: <AppIcon name="italic" size={14} />,
       command: toggleMark(requiredMark("em")),
     },
     {
@@ -439,7 +436,7 @@ function bubbleEntries(state: BubbleMenuState, handlers: EntryHandlers): BubbleE
       label: "Inline code",
       active: state.code,
       group: "marks",
-      content: <CodeIcon size={14} />,
+      content: <AppIcon name="code" size={14} />,
       command: toggleMark(requiredMark("code")),
     },
     {
@@ -447,7 +444,7 @@ function bubbleEntries(state: BubbleMenuState, handlers: EntryHandlers): BubbleE
       label: "Link",
       active: state.link,
       group: "marks",
-      content: <LinkIcon size={14} />,
+      content: <AppIcon name="link" size={14} />,
       command: () => true,
       onPress: handlers.onLink,
     },
