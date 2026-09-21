@@ -1,14 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createElement } from "react";
+import { createElement, type ComponentProps } from "react";
 import { flattenStyle, interactiveHosts, renderHosts } from "./native-host.cjs";
 import { MINIMUM_TOUCH_TARGET } from "../metrics";
 import { SideSheet } from "../sheet";
 
 function renderSheet(open: boolean, onClose: () => void = () => undefined) {
-  return renderHosts(
-    createElement(SideSheet, { side: "left", open, title: "Notes", onClose }, "tree"),
-  );
+  const props: ComponentProps<typeof SideSheet> = {
+    side: "left",
+    open,
+    title: "Notes",
+    onClose,
+    children: "tree",
+  };
+  return renderHosts(createElement(SideSheet, props));
 }
 
 test("an open sheet renders in its own modal window, so TalkBack cannot reach the shell behind it", () => {
