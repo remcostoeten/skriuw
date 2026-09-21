@@ -1,4 +1,13 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type AccessibilityActionEvent,
+  type GestureResponderEvent,
+  type LayoutChangeEvent,
+} from "react-native";
 import { useTheme } from "../../shell/theme";
 import { formatLongDate, type DateKey } from "./dates";
 import { MOOD_OPTIONS } from "./model";
@@ -14,10 +23,20 @@ const STRIP_HEIGHT = 56;
 const UNRATED_HEIGHT = 6;
 const EMPTY_HEIGHT = StyleSheet.hairlineWidth;
 
+const STRIP_ACTIONS = [
+  { name: "increment", label: "Next day" },
+  { name: "decrement", label: "Previous day" },
+  { name: "activate", label: "Open day" },
+];
+
 function barLabel(dateKey: DateKey, moodLabel: string | null): string {
   return moodLabel === null
     ? `${formatLongDate(dateKey)}, no mood`
     : `${formatLongDate(dateKey)}, ${moodLabel.toLowerCase()}`;
+}
+
+function clampIndex(index: number, count: number): number {
+  return Math.max(0, Math.min(count - 1, index));
 }
 
 /**
@@ -25,13 +44,65 @@ function barLabel(dateKey: DateKey, moodLabel: string | null): string {
  * `docs/specs/journal-daily.md`: a rated day rises with its mood and takes its
  * colour, a written but unrated day is a short grey bar, and a day without an
  * entry is a hairline so gaps stay visible. Today is outlined.
+ *
+ * Thirty bars cannot each be a 44 pt target on a phone, so the strip is one
+ * target: a tap opens the day under the finger, and a screen reader adjusts
+ * through the days and activates the one it announces.
  */
 export function MoodTrendStrip({ trend, today, onSelectDay }: Props) {
   const theme = useTheme();
+  const width = useRef(0);
+  const count = trend.days.length;
+  const [focused, setFocused] = useState(count - 1);
+  const focusedDay = trend.days[clampIndex(focused, count)];
+  const focusedMood =
+    focusedDay === undefined || focusedDay.mood === null ? null : MOOD_OPTIONS[focusedDay.mood];
+
+  function openDayAt(event: GestureResponderEvent) {
+    if (width.current <= 0 || count === 0) {
+      return;
+    }
+    const index = clampIndex(Math.floor((event.nativeEvent.locationX / width.current) * count), count);
+    const day = trend.days[index];
+    if (day !== undefined) {
+      onSelectDay(day.dateKey);
+    }
+  }
+
+  function handleAction(event: AccessibilityActionEvent) {
+    switch (event.nativeEvent.actionName) {
+      case "increment":
+        setFocused(clampIndex(focused + 1, count));
+        return;
+      case "decrement":
+        setFocused(clampIndex(focused - 1, count));
+        return;
+      case "activate":
+        if (focusedDay !== undefined) {
+          onSelectDay(focusedDay.dateKey);
+        }
+        return;
+    }
+  }
 
   return (
     <View style={styles.root}>
-      <View accessibilityRole="list" style={styles.strip}>
+      <Pressable
+        accessibilityRole="adjustable"
+        accessibilityLabel={`Mood, last ${count} days`}
+        accessibilityValue={
+          focusedDay === undefined
+            ? undefined
+            : { text: barLabel(focusedDay.dateKey, focusedMood?.label ?? null) }
+        }
+        accessibilityActions={STRIP_ACTIONS}
+        onAccessibilityAction={handleAction}
+        onLayout={(event: LayoutChangeEvent) => {
+          width.current = event.nativeEvent.layout.width;
+        }}
+        onPress={openDayAt}
+        style={styles.strip}
+      >
         {trend.days.map((day) => {
           const mood = day.mood === null ? null : MOOD_OPTIONS[day.mood];
           const height =
@@ -41,13 +112,7 @@ export function MoodTrendStrip({ trend, today, onSelectDay }: Props) {
                 ? UNRATED_HEIGHT
                 : EMPTY_HEIGHT;
           return (
-            <Pressable
-              key={day.dateKey}
-              accessibilityRole="button"
-              accessibilityLabel={barLabel(day.dateKey, mood?.label ?? null)}
-              onPress={() => onSelectDay(day.dateKey)}
-              style={styles.column}
-            >
+            <View key={day.dateKey} pointerEvents="none" style={styles.column}>
               <View
                 style={[
                   styles.bar,
@@ -64,10 +129,10 @@ export function MoodTrendStrip({ trend, today, onSelectDay }: Props) {
                   },
                 ]}
               />
-            </Pressable>
+            </View>
           );
         })}
-      </View>
+      </Pressable>
       <Text accessibilityRole="summary" style={[styles.summary, { color: theme.color("foreground", 0.8) }]}>
         {moodTrendSummary(trend)}
       </Text>
