@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ShellIcon } from "./icons";
+import { MINIMUM_TOUCH_TARGET } from "./metrics";
 import { useTheme } from "./theme";
 import { pinnedEntriesEqual, pinnedEntriesSelector } from "./tree-model";
 import { useWorkspaceSelector } from "./workspace-provider";
@@ -29,21 +30,25 @@ export function PinnedStrip({ onOpen }: Props) {
             accessibilityRole="button"
             accessibilityLabel={`Open ${entry.title}`}
             onPress={() => onOpen(entry.id)}
-            style={[
-              styles.chip,
-              {
-                backgroundColor: theme.color("sidebar-accent"),
-                borderColor: theme.color("sidebar-border"),
-              },
-            ]}
+            style={styles.target}
           >
-            <ShellIcon name="pin" size={12} color={theme.color("favorite")} />
-            <Text
-              numberOfLines={1}
-              style={[styles.label, { color: theme.color("sidebar-foreground", 0.85) }]}
+            <View
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: theme.color("sidebar-accent"),
+                  borderColor: theme.color("sidebar-border"),
+                },
+              ]}
             >
-              {entry.title}
-            </Text>
+              <ShellIcon name="pin" size={12} color={theme.color("favorite")} />
+              <Text
+                numberOfLines={1}
+                style={[styles.label, { color: theme.color("sidebar-foreground", 0.85) }]}
+              >
+                {entry.title}
+              </Text>
+            </View>
           </Pressable>
         ))}
       </ScrollView>
@@ -54,18 +59,21 @@ export function PinnedStrip({ onOpen }: Props) {
 const styles = StyleSheet.create({
   root: {
     paddingTop: 8,
-    paddingBottom: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   heading: {
     paddingHorizontal: 14,
-    paddingBottom: 6,
     fontSize: 11,
     fontWeight: "600",
   },
   row: {
     paddingHorizontal: 14,
     gap: 6,
+  },
+  target: {
+    minWidth: MINIMUM_TOUCH_TARGET,
+    height: MINIMUM_TOUCH_TARGET,
+    justifyContent: "center",
   },
   chip: {
     maxWidth: 160,

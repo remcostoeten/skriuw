@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Animated,
   Easing,
+  Modal,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -47,6 +48,10 @@ const SHEET_CURVE = Easing.bezier(
  * travelling 260 ms along `cubic-bezier(0.32, 0.72, 0, 1)`, closing to the
  * scrim, to its own control, to the back gesture, and to a pull back toward
  * the edge it is anchored to.
+ *
+ * It renders in a transparent `Modal` because `accessibilityViewIsModal` is
+ * iOS-only: the modal's own window is what keeps TalkBack from swiping out of
+ * an open sheet into the shell behind it.
  */
 export function SideSheet({ side, open, title, onClose, children }: Props) {
   const theme = useTheme();
@@ -114,54 +119,63 @@ export function SideSheet({ side, open, title, onClose, children }: Props) {
   const scrimOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0, SCRIM_ALPHA] });
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents={open ? "auto" : "none"}>
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          { backgroundColor: theme.color("scrim"), opacity: scrimOpacity },
-        ]}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Close ${title.toLowerCase()}`}
-          onPress={onClose}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
-      <Animated.View
-        accessibilityViewIsModal={open}
-        {...responder.panHandlers}
-        style={[
-          styles.panel,
-          side === "left"
-            ? { left: 0, paddingLeft: insets.left, borderRightWidth: StyleSheet.hairlineWidth }
-            : { right: 0, paddingRight: insets.right, borderLeftWidth: StyleSheet.hairlineWidth },
-          {
-            width,
-            paddingTop: insets.top,
-            paddingBottom: insets.bottom,
-            backgroundColor: theme.color("sidebar-background"),
-            borderColor: theme.color("sidebar-border"),
-            transform: [{ translateX }],
-          },
-        ]}
-      >
-        <View style={[styles.header, { borderBottomColor: theme.color("sidebar-border") }]}>
-          <Text style={[styles.title, { color: theme.color("sidebar-foreground", 0.8) }]}>
-            {title}
-          </Text>
+    <Modal
+      visible
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={onClose}
+    >
+      <View style={StyleSheet.absoluteFill} pointerEvents={open ? "auto" : "none"}>
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: theme.color("scrim"), opacity: scrimOpacity },
+          ]}
+        >
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Close ${title.toLowerCase()}`}
             onPress={onClose}
-            style={styles.close}
-          >
-            <ShellIcon name="close" size={18} color={theme.color("sidebar-foreground", 0.6)} />
-          </Pressable>
-        </View>
-        <View style={styles.body}>{children}</View>
-      </Animated.View>
-    </View>
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+        <Animated.View
+          accessibilityViewIsModal={open}
+          {...responder.panHandlers}
+          style={[
+            styles.panel,
+            side === "left"
+              ? { left: 0, paddingLeft: insets.left, borderRightWidth: StyleSheet.hairlineWidth }
+              : { right: 0, paddingRight: insets.right, borderLeftWidth: StyleSheet.hairlineWidth },
+            {
+              width,
+              paddingTop: insets.top,
+              paddingBottom: insets.bottom,
+              backgroundColor: theme.color("sidebar-background"),
+              borderColor: theme.color("sidebar-border"),
+              transform: [{ translateX }],
+            },
+          ]}
+        >
+          <View style={[styles.header, { borderBottomColor: theme.color("sidebar-border") }]}>
+            <Text style={[styles.title, { color: theme.color("sidebar-foreground", 0.8) }]}>
+              {title}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Close ${title.toLowerCase()}`}
+              onPress={onClose}
+              style={styles.close}
+            >
+              <ShellIcon name="close" size={18} color={theme.color("sidebar-foreground", 0.6)} />
+            </Pressable>
+          </View>
+          <View style={styles.body}>{children}</View>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }
 
