@@ -3,6 +3,8 @@
 - Status: accepted
 - Date: 2026-07-25
 
+> Superseded for the v2 filesystem layout by [ADR-0049](0049-v2-repository-layout.md). This record preserves the historical import decision and its original top-level `v2/` context.
+
 ## Context
 
 This codebase started life as `remcostoeten/skriuw-standalone`: a ground-up rebuild of [Skriuw](https://github.com/remcostoeten/skriuw), re-architected for performance from the first commit. The original Skriuw is a bun monorepo (`apps/web|mobile|desktop|extension|documentation` plus shared `packages/`) with cloud support and a broader feature surface; it stays available and maintained as the **v1** line. The rebuild is the **v2** line and the primary focus of development going forward.

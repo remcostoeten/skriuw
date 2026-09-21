@@ -4,28 +4,33 @@ set -Eeuo pipefail
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_dir"
 
-bash -n \
-  scripts/build.sh \
-  scripts/build-browser-wasm.sh \
-  scripts/check.sh \
-  scripts/tauri.sh \
-  scripts/vercel-build.sh
-node --check scripts/verify-web-deployment.mjs
-bun --cwd=web run build
+for script in bin/* scripts/*.sh; do
+  bash -n "$script"
+  [[ -x "$script" ]]
+done
+for script in scripts/*.mjs; do
+  node --check "$script"
+done
+for command in dev build check; do
+  (cd "${TMPDIR:-/tmp}" && "$repo_dir/bin/$command" --help)
+  if "$repo_dir/bin/$command" unknown-target; then
+    printf '%s accepted an unknown target\n' "$command" >&2
+    exit 1
+  fi
+done
+bun --cwd=apps/site run build
 node scripts/test-web-seo.mjs
-NO_COLOR=1 ./scripts/build.sh --help | grep -Fq 'desktop    Verify everything and build the Tauri desktop application'
-grep -Fq '"build": "../scripts/build.sh web"' app/package.json
-grep -Fq '"tauri": "../scripts/tauri.sh"' app/package.json
-grep -Fq '"tauri:build": "../scripts/build.sh desktop"' app/package.json
-grep -Fq '"check": "bun run types:check && bun run typecheck && bun run test"' cloud/package.json
-grep -Fq '"beforeBuildCommand": "bash ../scripts/run-in.sh app build:frontend"' app/src-tauri/tauri.conf.json
-grep -Fq 'run: ./scripts/build.sh ci' .github/workflows/ci-v2.yml
-grep -Fq 'run: ./scripts/check-wasm.sh' .github/workflows/ci-v2.yml
+grep -Fq '"build": "../../bin/build browser"' apps/workspace/package.json
+grep -Fq '"tauri": "../../scripts/tauri.sh"' apps/workspace/package.json
+grep -Fq '"tauri:build": "../../bin/build desktop"' apps/workspace/package.json
+grep -Fq '"check": "bun run types:check && bun run typecheck && bun run test"' services/sync/package.json
+grep -Fq '"beforeBuildCommand": "bash ../../scripts/run-in.sh apps/workspace build:frontend"' apps/workspace/src-tauri/tauri.conf.json
+grep -Fq 'run: ./bin/build ci' .github/workflows/ci-v2.yml
+grep -Fq 'run: ./bin/check browser' .github/workflows/ci-v2.yml
 grep -Fq 'wasm-bindgen-0.2.126' .github/workflows/ci-v2.yml
 grep -Fq 'SKRIUW_WEB_BASE="/app/" bun run build:frontend' scripts/vercel-build.sh
 grep -Fq 'cp -R "$web_dir/out/." "$output_dir/"' scripts/vercel-build.sh
 grep -Fq 'cp -R "$app_dir/dist/." "$output_dir/app/"' scripts/vercel-build.sh
-grep -Fq '"build": "next build"' web/package.json
+grep -Fq '"build": "next build"' apps/site/package.json
 grep -Fq 'run_step "Browser SQLite WASM module"' scripts/build.sh
-grep -Fq '(cd cloud && bun install --frozen-lockfile)' .github/workflows/ci-v2.yml
-grep -Fq 'exec "$repo_dir/scripts/build.sh" check "$@"' scripts/check.sh
+grep -Fq '(cd services/sync && bun install --frozen-lockfile)' .github/workflows/ci-v2.yml

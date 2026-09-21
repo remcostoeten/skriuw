@@ -60,13 +60,13 @@ One release-mode run on the development machine materialized the 5,018 `mixed-50
 The `export_tree_projection` example writes one JSON file per canonical fixture for browser tree workloads. Each file contains the fixture metadata, the pinned operations digest, the active note ID, and every node as `{id, parentId, kind, title}` in creation order, which equals sibling order because every fixture placement is semantic `last`. The example generates each projection twice and asserts byte equality before writing; nothing generated is committed.
 
 ```bash
-cargo run --release --locked -p skriuw-fixtures --example export_tree_projection -- app/harnesses/renderer-store/public/fixtures
+cargo run --release --locked -p skriuw-fixtures --example export_tree_projection -- apps/workspace/harnesses/renderer-store/public/fixtures
 ```
 
-`app/harnesses/renderer-store/scripts/export-fixtures.sh` wraps the same command for the renderer-store harness, which asserts node, folder, and document counts, maximum depth, and parent relationships against the embedded metadata after hydration.
+`apps/workspace/harnesses/renderer-store/scripts/export-fixtures.sh` wraps the same command for the renderer-store harness, which asserts node, folder, and document counts, maximum depth, and parent relationships against the embedded metadata after hydration.
 
-`app/performance/run.mjs` generates the same projections into its ignored
-`app/performance/public/fixtures/` directory before it measures the product
+`apps/workspace/performance/run.mjs` generates the same projections into its ignored
+`apps/workspace/performance/public/fixtures/` directory before it measures the product
 renderer. Both consumers rebuild projections from the Rust generator instead
 of relying on committed JSON.
 

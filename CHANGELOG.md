@@ -509,7 +509,7 @@ work is folded into the mainline as of `0.22.1`.
 
 ### Release
 
-- Unified web/cloud release `0.21.0`; mobile app advances to `0.2.0` with
+- Unified apps/site/cloud release `0.21.0`; mobile app advances to `0.2.0` with
   Android version code `2`.
 
 ## [0.18.1] — 2026-07-09

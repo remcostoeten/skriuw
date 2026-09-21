@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const exportRoot = new URL("../web/out/", import.meta.url);
+const exportRoot = new URL("../apps/site/out/", import.meta.url);
 
 const marketingRoutes = [
   {
@@ -31,7 +31,7 @@ const marketingRoutes = [
 const [siteHtml, appHtml, robots, sitemap, vercelConfigSource, ...routeHtml] =
   await Promise.all([
     readExport("index.html"),
-    readFile(new URL("../app/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps/workspace/index.html", import.meta.url), "utf8"),
     readExport("robots.txt"),
     readExport("sitemap.xml"),
     readFile(new URL("../vercel.json", import.meta.url), "utf8"),
@@ -117,7 +117,7 @@ async function readExport(file) {
   } catch (error) {
     if (error.code === "ENOENT") {
       throw new Error(
-        `web/out/${file} is missing. Run "bun --cwd web run build" before the SEO checks.`,
+        `apps/site/out/${file} is missing. Run "bun --cwd apps/site run build" before the SEO checks.`,
       );
     }
     throw error;

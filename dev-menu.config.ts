@@ -2,27 +2,8 @@ import { defineConfig } from '@remcostoeten/dev-menu'
 
 export default defineConfig({
 	processes: [
-		{
-			tag: 'tauri',
-			color: '33',
-			cmd: 'bun',
-			args: ['run', 'tauri', 'dev'],
-			cwd: 'app',
-			url: 'http://localhost:5183',
-			port: 5183,
-			openKey: 't',
-		},
+		{ tag: 'app', color: '33', cmd: 'bun', args: ['run', 'dev'], cwd: 'app', port: 5173, url: 'http://localhost:5173', openKey: 'a' },
+		{ tag: 'web', color: '36', cmd: 'bun', args: ['run', 'dev'], cwd: 'web', port: 5182, url: 'http://localhost:5182', openKey: 'w' },
 	],
-	links: [{ label: 'e2e harness', url: 'http://localhost:5183/e2e/index.html', openKey: 'e' }],
-	scripts: [
-		{ label: 'check', cmd: './scripts/check.sh', key: 'c' },
-		{ label: 'generate contracts', cmd: './scripts/generate.sh', key: 'g' },
-		{ label: 'init dev db', cmd: './scripts/dev-db.sh' },
-		{ label: 'renderer tests', cmd: 'bun', args: ['--cwd=app', 'run', 'test'] },
-		{ label: 'typecheck', cmd: 'bun', args: ['--cwd=app', 'run', 'typecheck'] },
-	],
-	errorPatterns: {
-		header: [/^error\[E\d+\]/, /^\s*thread '[^']*' panicked at/],
-	},
-	guardedPaths: ['app/src/', 'crates/', 'contracts/', 'migrations/'],
+	guardedPaths: ['apps/workspace/src/', 'apps/site/src/', 'apps/mobile/src/', 'packages/renderer-core/src/'],
 })

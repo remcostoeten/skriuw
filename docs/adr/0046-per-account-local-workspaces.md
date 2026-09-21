@@ -6,7 +6,7 @@
 ## Context
 
 A cloud workspace id is derived from the account: `sha256("skriuw-sync-workspace-v1\0" + userId)`,
-computed in `cloud/src/provision.ts`. It is stable for an account and unique
+computed in `services/sync/src/provision.ts`. It is stable for an account and unique
 between accounts, so the account that owns a workspace is never ambiguous.
 
 An installation, however, had exactly one local store. The first account to

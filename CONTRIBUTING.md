@@ -20,34 +20,34 @@ Do not report vulnerabilities in a public issue. Follow [SECURITY.md](SECURITY.m
 Install Rust 1.95, Bun 1.3, Node.js 24, Bash, and the platform dependencies required by Tauri.
 
 ```bash
-./scripts/bootstrap.sh
-./scripts/check.sh
+./bin/setup
+./bin/check
 ```
 
 Build individual targets with:
 
 ```bash
-./scripts/build.sh web
-./scripts/build.sh desktop
+./bin/build browser
+./bin/build desktop
 ```
 
-See [README.md](README.md) for the complete command reference.
+See [docs/development.md](docs/development.md#commands) for the command reference.
 
 ### v2 mobile
 
-`app/`, `mobile/` and `shared/*` are bun workspaces resolved from one root
-lockfile, so `bun install` at the repository root installs all three. `cloud/`,
-the harnesses under `app/harnesses/` and `v1/` stay outside the workspace and
+`apps/workspace/`, `apps/site/`, `apps/mobile/`, and `packages/*` are Bun workspaces resolved from one root
+lockfile, so `bun install` at the repository root installs them together. `services/sync/`,
+the harnesses under `apps/workspace/harnesses/` and `v1/` stay outside the workspace and
 keep their own installs.
 
 ```bash
-bun install                 # from the repository root
-bun run mobile              # expo start
-./scripts/check-mobile.sh   # the mobile product gate
+bun install          # from the repository root
+./bin/dev mobile     # expo start
+./bin/check mobile   # the mobile product gate
 ```
 
-`./scripts/check-mobile.sh` is deliberately separate from `./scripts/check.sh`.
-Run it for changes under `mobile/`, `shared/` or `crates/skriuw-mobile`.
+`./bin/check mobile` is deliberately separate from `./bin/check`.
+Run it for changes under `apps/mobile/`, `packages/` or `crates/skriuw-mobile`.
 
 Android is the local verification target; iOS artifacts come from EAS builds.
 The client is described by

@@ -125,7 +125,7 @@ pub const MAX_IMAGE_MIME_BYTES: usize = 128;
 pub const IMAGE_CONTENT_HASH_BYTES: usize = 64;
 /// The cover gradients a note may name. A cover gradient travels as an
 /// identifier, never as CSS, so a synced or imported workspace can never make
-/// the renderer paint style it did not ship. `app/src/features/note-chrome/cover-gradient-model.ts`
+/// the renderer paint style it did not ship. `apps/workspace/src/features/note-chrome/cover-gradient-model.ts`
 /// mirrors this list and owns the paint for each id.
 pub const COVER_GRADIENT_IDS: [&str; 12] = [
     "slate", "crimson", "sunset", "gold", "meadow", "lagoon", "ocean", "dusk", "bloom", "aurora",

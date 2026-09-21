@@ -35,7 +35,7 @@ both versions rather than silently choosing one.
 - Test recovery-visible failures, restart behavior, and duplicate delivery at
   every durable boundary.
 - No agent may make a network request part of an editing or navigation path.
-- `./scripts/check.sh` is the v2 integration gate. A focused command named in a
+- `./bin/check` is the v2 integration gate. A focused command named in a
   task is the minimum iteration check, not permission to skip the final gate.
 
 ## Dependency map
@@ -121,7 +121,7 @@ allowed), while a local-only workspace produces no sync rows or requests.
 
 ### C. Cloud control and data-plane owner
 
-**Owns:** `cloud/`, Worker routes, Durable Object schema/RPC, auth and workspace
+**Owns:** `services/sync/`, Worker routes, Durable Object schema/RPC, auth and workspace
 authorization adapters, R2 chunk/checkpoint transport, cloud tests and runbook.
 **Prerequisite:** internal log exists; public routes require A before exposure.
 **Unblocks:** D, G, F, H.
@@ -317,7 +317,7 @@ allowed on the basis of a functioning happy-path sync demo.
 | 5 | F deletion/export; H beta rehearsal | Private-beta release criteria met |
 
 At each wave, designate one integration owner to rebase the parallel changes,
-regenerate contracts, run `./scripts/check.sh`, and update the master tracker
+regenerate contracts, run `./bin/check`, and update the master tracker
 with code/test/benchmark links. A task is not complete merely because its
 subagents produced patches; it is complete only after the owner proves its done
 condition and records the evidence.

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Skriuw",
+  "version": "0.46.0",
+  "identifier": "dev.skriuw.app",
+  "build": {
+    "beforeDevCommand": "bash ../../scripts/run-in.sh apps/workspace dev",
+    "devUrl": "http://localhost:5183",
+    "beforeBuildCommand": "bash ../../scripts/run-in.sh apps/workspace build:frontend",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Skriuw",
+        "width": 1200,
+        "height": 800,
+        "visible": false,
+        "decorations": false,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "capabilities": ["default"],
+      "assetProtocol": {
+        "enable": true,
+        "scope": []
+      },
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob: asset: http://asset.localhost; connect-src ipc: http://ipc.localhost http://localhost:8787 https://*.skriuw.app https://*.workers.dev https://kv.better-auth.com https://github.com https://objects.githubusercontent.com"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true
+      },
+      "deb": {
+        "desktopTemplate": "Skriuw.desktop"
+      },
+      "rpm": {
+        "desktopTemplate": "Skriuw.desktop"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCRjU3Nzk0MUYwNEMwNkQKUldSdHdBUWZsSGYxeTdrUm11T1daZmMvVlEyV0k4K2xUVGJhTXJGdkFySllZTituRGR4RXlpSTUK",
+      "endpoints": [
+        "https://github.com/remcostoeten/skriuw/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}

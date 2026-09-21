@@ -53,7 +53,7 @@ identifiable after its anchor is deleted from the document.
 ## Thread entity
 
 `WorkspaceAnnotation` (`crates/skriuw-domain/src/annotation.rs`,
-`app/src/contracts/workspace.ts`):
+`apps/workspace/src/contracts/workspace.ts`):
 
 | Field        | Meaning                                            |
 | ------------ | -------------------------------------------------- |
@@ -171,7 +171,7 @@ Behavior is covered through public surfaces: mark round-trips and the
 overlapping-`</mark>` case in the editor schema tests, operation validation and
 replay in the domain crate, projection folding in the renderer store tests, and
 anchor detection plus per-note ordering in
-`app/__tests__/features/note-chrome/annotation-list-model.test.ts`.
+`apps/workspace/__tests__/features/note-chrome/annotation-list-model.test.ts`.
 
 ## References
 

@@ -16,7 +16,7 @@ a v1 release cannot replace the current v2 channels.
 
 The iOS and Android client is a separate channel on its own version line and
 is **not published**; its store metadata, privacy and export-compliance
-answers, and submission checklist live in [`mobile/`](mobile/README.md).
+answers, and submission checklist live in [`apps/mobile/`](../apps/mobile/README.md).
 
 Winget and Snap are prepared by the workflow, but are **not current v2 install
 channels**: Winget's public manifest is older and the Snap Store upload needs

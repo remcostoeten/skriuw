@@ -10,9 +10,11 @@ on:
         tags:
             - "mobile-v*"
         paths: &mobile-paths
-            - "mobile/**"
-            - "shared/**"
+            - "apps/mobile/**"
+            - "packages/renderer-core/**"
+            - "packages/theme/**"
             - "crates/skriuw-mobile/**"
+            - "bin/check"
             - "scripts/check-mobile.sh"
             - ".github/workflows/mobile-*.yml"
             - "!**/*.md"
@@ -34,7 +36,7 @@ defaults:
         shell: bash
 
 env:
-    MODULE_DIR: mobile/modules/skriuw-core
+    MODULE_DIR: apps/mobile/modules/skriuw-core
 
 jobs:
     gate:
@@ -69,7 +71,7 @@ jobs:
               run: bun install --frozen-lockfile
 
             - name: Mobile product gate
-              run: ./scripts/check-mobile.sh
+              run: ./bin/check mobile
 
             - name: Facade host tests
               run: cargo test -p skriuw-mobile --locked
@@ -178,7 +180,7 @@ jobs:
               run: ${{ env.MODULE_DIR }}/scripts/build-ios.sh
 
             # One artifact holding both directories, unpacked over
-            # mobile/modules/skriuw-core/ios before `pod install`.
+            # apps/mobile/modules/skriuw-core/ios before `pod install`.
             - uses: actions/upload-artifact@v4
               with:
                   name: skriuw-core-ios
@@ -242,7 +244,7 @@ jobs:
             # The Expo template signs release variants with the debug keystore,
             # so this APK installs on any device but is not a store build.
             - name: Assemble the preview APK
-              working-directory: mobile
+              working-directory: apps/mobile
               run: |
                   bunx expo prebuild --platform android --no-install
                   cd android
@@ -251,7 +253,7 @@ jobs:
             - uses: actions/upload-artifact@v4
               with:
                   name: skriuw-android-preview
-                  path: mobile/android/app/build/outputs/apk/release/app-release.apk
+                  path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
                   if-no-files-found: error
                   retention-days: 30
 
@@ -287,7 +289,7 @@ jobs:
             # Unsigned, so it runs in a simulator only. A device build needs
             # Apple credentials and goes through the `eas-preview` job.
             - name: Build the simulator app
-              working-directory: mobile
+              working-directory: apps/mobile
               run: |
                   bunx expo prebuild --platform ios
                   workspace="$(find ios -maxdepth 1 -name '*.xcworkspace' | head -n 1)"
@@ -333,10 +335,10 @@ jobs:
               run: |
                   missing=()
                   [[ -n "$EXPO_TOKEN" ]] || missing+=("the EXPO_TOKEN repository secret is not configured")
-                  jq -e '.expo.extra.eas.projectId' mobile/app.json >/dev/null \
-                      || missing+=("mobile/app.json has no expo.extra.eas.projectId (run eas init)")
-                  jq -e '.scripts["eas-build-post-install"]' mobile/package.json >/dev/null \
-                      || missing+=("mobile/package.json has no eas-build-post-install hook that builds the gitignored Rust core on the EAS worker")
+                  jq -e '.expo.extra.eas.projectId' apps/mobile/app.json >/dev/null \
+                      || missing+=("apps/mobile/app.json has no expo.extra.eas.projectId (run eas init)")
+                  jq -e '.scripts["eas-build-post-install"]' apps/mobile/package.json >/dev/null \
+                      || missing+=("apps/mobile/package.json has no eas-build-post-install hook that builds the gitignored Rust core on the EAS worker")
                   if ((${#missing[@]} == 0)); then
                       echo "ready=true" >> "$GITHUB_OUTPUT"
                       exit 0
@@ -383,7 +385,7 @@ jobs:
               run: bun install --frozen-lockfile
 
             - name: Build preview for both platforms
-              working-directory: mobile
+              working-directory: apps/mobile
               run: npx -y eas-cli@latest build --profile preview --platform all --non-interactive --wait --json | tee "$RUNNER_TEMP/eas-builds.json"
 
             - name: Link the builds
@@ -424,7 +426,7 @@ jobs:
               run: bun install --frozen-lockfile
 
             - name: Probe EAS Simulator availability
-              working-directory: mobile
+              working-directory: apps/mobile
               run: |
                   if ! npx -y eas-cli@latest simulator:availability --json | tee "$RUNNER_TEMP/simulator.json"; then
                       echo "::warning title=EAS Simulator unavailable::eas simulator:availability failed, so no iOS smoke run exists; iOS stays unverified."

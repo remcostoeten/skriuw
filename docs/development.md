@@ -8,24 +8,46 @@ Contributor-facing detail that goes beyond the quick start in the
 Rust 1.95.0 (`rust-toolchain.toml` installs components via rustup), Bun 1.3,
 Node.js 24, Bash, and the platform dependencies required by Tauri.
 
-## Scripts
+## Commands
 
 ```bash
-./scripts/bootstrap.sh   # one-time setup
-./scripts/check.sh       # full check gate: contracts, lint, all tests
-./scripts/build.sh       # build (also: web | desktop | ci)
-./scripts/generate.sh    # regenerate Rust→TypeScript JSON Schema contracts
-./scripts/check-wasm.sh  # browser portability, OPFS durability, per-account workspaces, and the keyboard workflow e2e
-./scripts/dev-db.sh      # local dev database
+./bin/setup         # install dependencies, generate contracts, and check
+./bin/dev desktop   # also: browser | site | mobile; default: desktop
+./bin/check         # desktop gate; also: browser | mobile
+./bin/build         # Rust workspace; also: desktop | browser | site | ci
+./bin/generate      # regenerate Rust→TypeScript contracts and theme tokens
+./bin/skriuw init .data/skriuw.db
 ```
 
+`bin/` is the contributor interface; `scripts/` holds internal helpers and
+deployment automation. Commands resolve paths from the repository, so they
+also work when invoked from another directory. `browser` means the app in
+`apps/workspace/`; `site` means the marketing site in `apps/site/`.
+
+The default desktop check covers contracts, Rust lint and tests, renderer
+tests and types, retained harnesses, and cloud checks. It builds the marketing
+site for SEO assertions and WASM for verification. Browser checks cover the
+portability and browser end-to-end suites; mobile has its own gate.
+Desktop, browser, workspace, and CI builds run the desktop gate first.
+The site build only builds the marketing site. `bin/setup` finishes by running
+the desktop gate.
+
+`bun dev` opens the interactive menu. Package commands delegate to the same
+entrypoints: `bun run dev:browser`, `bun run site`, `bun run mobile`,
+`bun run build:browser`, and `bun run build:site`. The old `dev:raw`, `web`,
+`build:web`, and `bootstrap` aliases are replaced by `dev:browser`, `site`,
+`build:site`, and `setup` respectively.
+
+The CLI database above is separate from the desktop app's default storage.
+Use `SKRIUW_DB="$PWD/.data/skriuw.db" ./bin/dev desktop` to open it in the app.
+
 Generated contracts in `contracts/generated` are committed and drift-checked
-in CI. `skriuw-cli` (`cargo run -p skriuw-cli -- <snapshot|integrity|export|backup|restore>`)
+in CI. `bin/skriuw <snapshot|integrity|export|backup|restore>`
 provides database utilities.
 
 ### Native AI end-to-end suite
 
-`node app/e2e/run-native-ai.mjs` drives a real Tauri debug build through
+`node apps/workspace/e2e/run-native-ai.mjs` drives a real Tauri debug build through
 `tauri-driver` and WebKitWebDriver: AI opt-in gating, the Ollama runtime and
 model panels, the prompt playground (including a live mid-stream cancel), and
 the remote-provider credential flows. It needs a complete Ollama release
@@ -51,19 +73,24 @@ crates/skriuw-images       Note image decoding and storage
 crates/skriuw-lifecycle    Startup, shutdown, and backup rotation
 crates/skriuw-fixtures     Deterministic scale fixtures
 crates/skriuw-cli          Database development utility
-cloud                      Cloudflare Worker sync service
-app                        React renderer and Tauri desktop shell
-app/harnesses              Retained measurement harnesses run by the build
+apps/workspace             React renderer plus browser and Tauri desktop shells
+apps/mobile                Expo native mobile application
+apps/site                  Marketing site
+services/sync              Cloudflare Worker authentication and sync service
+packages/renderer-core     Shared renderer contracts, store, and route logic
+packages/theme             Shared theme token generator and generated tokens
+apps/workspace/harnesses   Retained measurement harnesses run by the build
 crates/xtask               Repository automation and contract generation
 contracts/generated        Generated JSON Schema
 docs                       ADRs, specs, and benchmarks
-scripts                    Contributor/CI entrypoints
+bin                        Extensionless contributor commands
+scripts                    Internal helpers and deployment automation
 ```
 
-Inside `app/src`, product features live under `features/` (editor, journal,
+Inside `apps/workspace/src`, product features live under `features/` (editor, journal,
 references, settings, transfer, and so on); `bridge/`, `store/`, `shell/`,
 `commands/`, `shared/`, and `contracts/` are the platform layers beside them.
-The desktop shell in `app/src-tauri` keeps `lib.rs` as command registration,
+The desktop shell in `apps/workspace/src-tauri` keeps `lib.rs` as command registration,
 with shared state in `state.rs` and one command module per capability under
 `commands/`.
 
@@ -85,14 +112,14 @@ MIME type, browser bootstrap, OPFS initialization, and browser console.
 
 ## Cloud development
 
-The sync service is a Cloudflare Worker in `cloud/`; see
-[cloud/README.md](../cloud/README.md) for deployment. Development and release
+The sync service is a Cloudflare Worker in `services/sync/`; see
+[services/sync/README.md](../services/sync/README.md) for deployment. Development and release
 builds both use the production Worker by default. To develop against a local
 Worker instead, apply its D1 migrations, create `.dev.vars` from
 `.dev.vars.example`, and opt in when starting Tauri:
 
 ```bash
-SKRIUW_DEV_CLOUD=local bun run tauri dev
+SKRIUW_DEV_CLOUD=local ./bin/dev desktop
 ```
 
 `SKRIUW_DEV_CLOUD=cloud` selects the default explicitly. The development
@@ -107,14 +134,14 @@ isolated real infrastructure use the `preview` environment, which has its own
 D1/R2/Durable Object storage:
 
 ```bash
-bun --cwd cloud run check
-bunx wrangler deploy --env preview   # in cloud/
+bun --cwd services/sync run check
+bunx wrangler deploy --env preview   # in services/sync/
 ```
 
 The Worker is deployed before the clients that need it, never after: the
 browser client deploys automatically from `daddy` through Vercel, so a client
 change that depends on a new Worker route must not reach `daddy` first. See
-[the deploy order](../cloud/README.md#deploy-order). `GET /health` reports the
+[the deploy order](../services/sync/README.md#deploy-order). `GET /health` reports the
 deployment's supported sync protocol versions, workspace schema version, and
 routes; `node scripts/verify-cloud-capabilities.mjs [base-url]` checks a
 deployment against what current clients require and is the same check the

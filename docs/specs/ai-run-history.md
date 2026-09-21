@@ -11,7 +11,7 @@ record a run of its own, and cannot skip recording one.
 
 The seam records after the terminal event has been published to the renderer,
 and hands the record to an `AiRunRecorder` that must not block. The desktop
-implementation (`app/src-tauri/src/ai_history.rs`) pushes onto a bounded queue
+implementation (`apps/workspace/src-tauri/src/ai_history.rs`) pushes onto a bounded queue
 drained by a dedicated thread holding its own SQLite connection, so accounting
 never touches the serialized workspace queue, the renderer thread, or the
 completion worker's delivery path. A full queue drops the record; diagnostics

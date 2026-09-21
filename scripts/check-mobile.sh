@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Product gate for the mobile client (docs/specs/mobile-app.md, R-Q3).
-# Deliberately separate from scripts/check.sh, which owns the desktop tree and
-# shared/renderer-core. This gate owns mobile/, the skriuw-core module, and
-# shared/theme's token generator, whose output only the mobile client consumes.
+# Deliberately separate from bin/check desktop, which owns the desktop tree and
+# packages/renderer-core. This gate owns apps/mobile/, the skriuw-core module, and
+# packages/theme's token generator, whose output only the mobile client consumes.
 # The Android emulator suite and the facade's Rust tests run in CI, not here.
 set -Eeuo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-mobile_dir="$repo_dir/mobile"
+mobile_dir="$repo_dir/apps/mobile"
 cd "$repo_dir"
 
 if [[ -z "${NO_COLOR:-}" ]] && { [[ -t 1 ]] || [[ -n "${FORCE_COLOR:-}" ]] || [[ "${CI:-}" == "true" ]]; }; then

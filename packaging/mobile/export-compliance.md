@@ -14,7 +14,7 @@ and it should be confirmed before the first submission rather than after.
 | --- | --- | --- |
 | Sync payloads (note bodies, titles, tags, people, media, checkpoints) | XChaCha20-Poly1305, key from Argon2id (19 MiB, t = 2) over a recovery code | `crates/skriuw-crypto`, [ADR-0043](../../docs/adr/0043-end-to-end-encrypted-sync.md) |
 | Locked note bodies at rest | XChaCha20-Poly1305, key wrapped under an Argon2id key from the PIN/passphrase and, separately, from a recovery code | `crates/skriuw-crypto`, [ADR-0044](../../docs/adr/0044-locked-notes.md) |
-| Sign-in credential and the biometric-gated PIN | Platform keystore (Android Keystore, iOS Keychain) | `mobile/src/features/auth/keystore.ts`, `mobile/src/features/lock/biometrics.ts` |
+| Sign-in credential and the biometric-gated PIN | Platform keystore (Android Keystore, iOS Keychain) | `apps/mobile/src/features/auth/keystore.ts`, `apps/mobile/src/features/lock/biometrics.ts` |
 | Transport | HTTPS/TLS, provided by the platform | — |
 
 All of it is standard, published, unmodified cryptography from well-known
@@ -38,7 +38,7 @@ its own key management, which is exactly the case the "non-exempt" answer
 exists for. Declaring `false` to skip the questionnaire is a false statement on
 a submission.
 
-Setting either key requires an `ios.infoPlist` entry in `mobile/app.json`,
+Setting either key requires an `ios.infoPlist` entry in `apps/mobile/app.json`,
 which Mobile 16 does not own.
 
 ### Questionnaire answers
@@ -84,6 +84,6 @@ different question and the answer is yes; it is filled in
    one time).
 2. File the annual self-classification report, or set a reminder for the first
    1 February after launch.
-3. Add `ITSAppUsesNonExemptEncryption` to `mobile/app.json` under
+3. Add `ITSAppUsesNonExemptEncryption` to `apps/mobile/app.json` under
    `ios.infoPlist`, so App Store Connect stops asking per build.
 4. Record Apple's returned compliance code here once it is issued.

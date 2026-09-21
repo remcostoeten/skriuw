@@ -34,7 +34,7 @@ Routing is a single rule, applied in this order:
 | any other family (`gantt`, `pie`, `mindmap`, ...) | `code_block`, source only, with a one-line note |
 
 The renderer is `@vercel/beautiful-mermaid` 0.1.5 (MIT), pinned exactly and
-wrapped by `app/src/features/editor/mermaid-render.ts`. It is pure TypeScript
+wrapped by `apps/workspace/src/features/editor/mermaid-render.ts`. It is pure TypeScript
 with one dependency (`@dagrejs/dagre`), takes a string and returns an SVG
 string, and has no DOM dependency, so it can move behind a Worker seam later as
 a transport change only. The chunk is loaded with a dynamic import on the first

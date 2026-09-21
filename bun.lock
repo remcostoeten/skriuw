@@ -8,7 +8,59 @@
         "@remcostoeten/dev-menu": "^0.2.2",
       },
     },
-    "app": {
+    "apps/mobile": {
+      "name": "skriuw-mobile",
+      "version": "0.0.0",
+      "dependencies": {
+        "@skriuw/renderer-core": "workspace:*",
+        "@skriuw/theme": "workspace:*",
+        "expo": "~57.0.24",
+        "expo-constants": "~57.0.19",
+        "expo-dev-client": "~57.0.19",
+        "expo-file-system": "~57.0.7",
+        "expo-linking": "~57.0.10",
+        "expo-local-authentication": "~57.0.3",
+        "expo-router": "~57.0.22",
+        "expo-secure-store": "~57.0.4",
+        "expo-splash-screen": "~57.0.9",
+        "expo-status-bar": "~57.0.1",
+        "expo-system-ui": "~57.0.4",
+        "react": "19.2.3",
+        "react-dom": "19.2.3",
+        "react-native": "0.86.3",
+        "react-native-gesture-handler": "~2.32.0",
+        "react-native-reanimated": "4.5.1",
+        "react-native-safe-area-context": "~5.7.0",
+        "react-native-screens": "~4.26.0",
+        "react-native-web": "~0.21.0",
+        "react-native-worklets": "0.10.1",
+      },
+      "devDependencies": {
+        "@types/node": "26.1.1",
+        "@types/react": "~19.2.2",
+        "tsx": "4.20.6",
+        "typescript": "~6.0.3",
+      },
+    },
+    "apps/site": {
+      "name": "skriuw-web",
+      "version": "0.0.0",
+      "dependencies": {
+        "marked": "^18.0.13",
+        "next": "16.3.5",
+        "react": "19.2.7",
+        "react-dom": "19.2.7",
+      },
+      "devDependencies": {
+        "@tailwindcss/postcss": "^4.3.3",
+        "@types/node": "26.1.1",
+        "@types/react": "19.2.14",
+        "@types/react-dom": "19.2.3",
+        "tailwindcss": "^4.3.3",
+        "typescript": "5.9.3",
+      },
+    },
+    "apps/workspace": {
       "name": "skriuw-app",
       "version": "0.0.0",
       "dependencies": {
@@ -77,40 +129,7 @@
         "vite": "8.1.5",
       },
     },
-    "mobile": {
-      "name": "skriuw-mobile",
-      "version": "0.0.0",
-      "dependencies": {
-        "@skriuw/theme": "workspace:*",
-        "expo": "~57.0.24",
-        "expo-constants": "~57.0.19",
-        "expo-dev-client": "~57.0.19",
-        "expo-file-system": "~57.0.7",
-        "expo-linking": "~57.0.10",
-        "expo-local-authentication": "~57.0.3",
-        "expo-router": "~57.0.22",
-        "expo-secure-store": "~57.0.4",
-        "expo-splash-screen": "~57.0.9",
-        "expo-status-bar": "~57.0.1",
-        "expo-system-ui": "~57.0.4",
-        "react": "19.2.3",
-        "react-dom": "19.2.3",
-        "react-native": "0.86.3",
-        "react-native-gesture-handler": "~2.32.0",
-        "react-native-reanimated": "4.5.1",
-        "react-native-safe-area-context": "~5.7.0",
-        "react-native-screens": "~4.26.0",
-        "react-native-web": "~0.21.0",
-        "react-native-worklets": "0.10.1",
-      },
-      "devDependencies": {
-        "@types/node": "26.1.1",
-        "@types/react": "~19.2.2",
-        "tsx": "4.20.6",
-        "typescript": "~6.0.3",
-      },
-    },
-    "shared/renderer-core": {
+    "packages/renderer-core": {
       "name": "@skriuw/renderer-core",
       "version": "0.0.0",
       "devDependencies": {
@@ -124,27 +143,9 @@
         "react": "^19.0.0",
       },
     },
-    "shared/theme": {
+    "packages/theme": {
       "name": "@skriuw/theme",
       "version": "0.0.0",
-    },
-    "web": {
-      "name": "skriuw-web",
-      "version": "0.0.0",
-      "dependencies": {
-        "marked": "^18.0.13",
-        "next": "16.3.5",
-        "react": "19.2.7",
-        "react-dom": "19.2.7",
-      },
-      "devDependencies": {
-        "@tailwindcss/postcss": "^4.3.3",
-        "@types/node": "26.1.1",
-        "@types/react": "19.2.14",
-        "@types/react-dom": "19.2.3",
-        "tailwindcss": "^4.3.3",
-        "typescript": "5.9.3",
-      },
     },
   },
   "packages": {
@@ -728,9 +729,9 @@
 
     "@sinclair/typebox": ["@sinclair/typebox@0.27.12", "", {}, "sha512-hhyNJ+nbR6ZR7pToHvllEFun9TL0sbL+tk/ON75lo+Xas054uez98qRbsuNt7MBCyZKK4+8Yli/OAGZhmfBZ/g=="],
 
-    "@skriuw/renderer-core": ["@skriuw/renderer-core@workspace:shared/renderer-core"],
+    "@skriuw/renderer-core": ["@skriuw/renderer-core@workspace:packages/renderer-core"],
 
-    "@skriuw/theme": ["@skriuw/theme@workspace:shared/theme"],
+    "@skriuw/theme": ["@skriuw/theme@workspace:packages/theme"],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
@@ -1572,11 +1573,11 @@
 
     "sisteransi": ["sisteransi@1.0.5", "", {}, "sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg=="],
 
-    "skriuw-app": ["skriuw-app@workspace:app"],
+    "skriuw-app": ["skriuw-app@workspace:apps/workspace"],
 
-    "skriuw-mobile": ["skriuw-mobile@workspace:mobile"],
+    "skriuw-mobile": ["skriuw-mobile@workspace:apps/mobile"],
 
-    "skriuw-web": ["skriuw-web@workspace:web"],
+    "skriuw-web": ["skriuw-web@workspace:apps/site"],
 
     "slugify": ["slugify@1.6.9", "", {}, "sha512-vZ7rfeehZui7wQs438JXBckYLkIIdfHOXsaVEUMyS5fHo1483l1bMdo0EDSWYclY0yZKFOipDy4KHuKs6ssvdg=="],
 

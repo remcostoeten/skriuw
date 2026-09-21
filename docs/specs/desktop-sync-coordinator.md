@@ -224,7 +224,7 @@ commit/focus/shutdown triggers, and emits `sync-workspace-changed` and
 
 ## Browser driver
 
-`app/src/bridge/browser-sync.ts` schedules the same cycle inside the storage
+`apps/workspace/src/bridge/browser-sync.ts` schedules the same cycle inside the storage
 worker. It classifies driver failures: a transient failure backs off from
 1 s to 60 s and keeps the session active; a terminal or session-lost failure
 resets the resume state and re-establishes the session from the persisted

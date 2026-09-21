@@ -1,0 +1,20 @@
+{
+  "browser": "Chrome/150.0.7871.46",
+  "notes": 5000,
+  "seed": {
+    "initializeMs": 255,
+    "initialNodes": 0,
+    "totalOperations": 5050,
+    "batches": 79,
+    "applyMs": 4345.300000000745
+  },
+  "measure": {
+    "coldBootstrapMs": 139,
+    "warmBootstrapMs": 49.69999999925494,
+    "nodes": 5050,
+    "documents": 5000,
+    "searchMs": 6.699999999254942,
+    "searchHits": 20
+  },
+  "recordedAt": "2026-08-04T23:59:41.317Z"
+}

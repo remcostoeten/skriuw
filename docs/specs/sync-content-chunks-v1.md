@@ -119,7 +119,7 @@ record, because that indicates local corruption rather than a missing file.
   as the legacy golden request that exercises the Worker upgrade shim.
   [`sync-push-v2.json`](../../contracts/fixtures/sync-push-v2.json) is the
   current golden request and carries one inline and one chunked operation.
-- The Worker mirrors these rules in `cloud/src/contracts.ts` because it cannot
+- The Worker mirrors these rules in `services/sync/src/contracts.ts` because it cannot
   execute the Rust validator.
 
 ## Client behavior

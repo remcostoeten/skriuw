@@ -22,21 +22,21 @@ person does not rediscover it.
 ## 1. Unblock EAS
 
 - [x] Create the EAS project and add `expo.extra.eas.projectId` to
-      `mobile/app.json` — `@remcostoeten/skriuw`, #421.
+      `apps/mobile/app.json` — `@remcostoeten/skriuw`, #421.
       `eas simulator:availability --json` runs and answers
       `"available": false`: the account is on the EAS Simulator waitlist.
 - [ ] Add the `EXPO_TOKEN` repository secret so the `eas-preflight` job in
       `.github/workflows/mobile-ci.yml` stops skipping.
 - [ ] Make the Rust libraries reach EAS workers — they are gitignored, so add
-      an `eas-build-post-install` script to `mobile/package.json` that
+      an `eas-build-post-install` script to `apps/mobile/package.json` that
       installs rustup targets and cargo-ndk and runs
-      `mobile/modules/skriuw-core/scripts/build-android.sh` (and
-      `build-ios.sh` on macOS workers). A `mobile/.easignore` cannot do it:
+      `apps/mobile/modules/skriuw-core/scripts/build-android.sh` (and
+      `build-ios.sh` on macOS workers). A `apps/mobile/.easignore` cannot do it:
       eas-cli only reads `.easignore` at the Git root, where it would replace
       every `.gitignore` in the monorepo. Recorded against #421.
-- [ ] Fill the `submit.production` profile in `mobile/eas.json` with the Apple
+- [ ] Fill the `submit.production` profile in `apps/mobile/eas.json` with the Apple
       team and ASC app identifiers, and the Play service-account key path.
-- [ ] Run eas-cli **from `mobile/`**, never from the repository root: it drops
+- [ ] Run eas-cli **from `apps/mobile/`**, never from the repository root: it drops
       a stray `app.json` at the working directory.
 
 ## 2. Close the product blockers

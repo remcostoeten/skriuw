@@ -2,9 +2,9 @@
 set -Eeuo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-app_dir="$repo_dir/app"
+app_dir="$repo_dir/apps/workspace"
 output_dir="$repo_dir/.build/vercel-public"
-web_dir="$repo_dir/web"
+web_dir="$repo_dir/apps/site"
 tool_dir="$repo_dir/.build/vercel-tools"
 task_cargo_home="$repo_dir/.build/vercel-cargo"
 task_rustup_home="$repo_dir/.build/vercel-rustup"

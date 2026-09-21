@@ -34,7 +34,7 @@ truth and without breaking the existing checkbox.
 ## Existing behavior
 
 Verified by running the editor in `node --test` against
-`app/src/features/editor/schema.ts`. Do not re-derive these; they are measured,
+`apps/workspace/src/features/editor/schema.ts`. Do not re-derive these; they are measured,
 not inferred.
 
 | Input | Current result |
@@ -52,7 +52,7 @@ not inferred.
 | Serializing a `bullet_list` | `* text` (asterisk, from `defaultMarkdownSerializer`) |
 
 Why `- ` then `[] ` does nothing today: `checkListInputRule` in
-`app/src/features/editor/schema.ts:750` deletes the marker and then calls
+`apps/workspace/src/features/editor/schema.ts:750` deletes the marker and then calls
 `findWrapping(range, checkList)`. Inside a `list_item` the block range's parent
 is the `list_item`, whose content expression is `paragraph block*`. Wrapping the
 item's only paragraph in a `check_list` would leave the `list_item` with no
@@ -102,7 +102,7 @@ metadata beyond title/status/source is exposed here.
 
 - Nodes: `check_list` (`content: "check_item+"`, group `block`) and
   `check_item` (`content: "paragraph block*"`, `defining: true`), declared at
-  `app/src/features/editor/schema.ts:378-423` and registered at `schema.ts:604`.
+  `apps/workspace/src/features/editor/schema.ts:378-423` and registered at `schema.ts:604`.
 - `check_item` attrs: `checked` (default `false`), `taskId` (default `null`),
   `blockId` (default `null`).
 - DOM: `li.check-item[data-checked]` with a `span.check-item-box`
@@ -112,7 +112,7 @@ metadata beyond title/status/source is exposed here.
 - Toggle: `createCheckboxTogglePlugin` (`schema.ts:857`) handles `mousedown` on
   `.check-item-box` only. **There is no keyboard path and no `tabindex`.** This
   is a pre-existing accessibility gap that this work must close.
-- CSS: `app/src/features/editor/editor.css:77-130`.
+- CSS: `apps/workspace/src/features/editor/editor.css:77-130`.
 
 ### Current list implementation
 
@@ -172,7 +172,7 @@ document.
 
 ### Current Markdown parser/serializer
 
-Both live in `app/src/features/editor/schema.ts`.
+Both live in `apps/workspace/src/features/editor/schema.ts`.
 
 Serializer (`productMarkdownSerializer`, `schema.ts:1129`):
 
@@ -209,7 +209,7 @@ listed as a stretch item; if you change it, `toCheckItem` must keep accepting
 both shapes or existing vaults lose their links.
 
 `markdown-paste.ts` and the import adapters
-(`app/src/features/transfer/import/sources/*`) all funnel through
+(`apps/workspace/src/features/transfer/import/sources/*`) all funnel through
 `parseProductMarkdown`, so imported `- [ ] x` becomes an **unlinked** checkbox.
 That is the desired behavior and must not change.
 
@@ -218,12 +218,12 @@ That is the desired behavior and must not change.
 - `check_item.taskId` and `check_item.blockId` are the only per-block
   identities in the schema. No generic block-id system exists.
 - They are generated nowhere in the renderer today. `crypto.randomUUID()` is
-  the repository's id factory (`app/src/store/actions/workspace.ts:71`).
-- `app/src/store/actions/duplicate-note.ts:17` declares
+  the repository's id factory (`apps/workspace/src/store/actions/workspace.ts:71`).
+- `apps/workspace/src/store/actions/duplicate-note.ts:17` declares
   `BLOCK_IDENTITY_ATTRS = ["taskId", "blockId"]` and `withFreshBlockIds`
   regenerates both when a note is duplicated — the precedent for how copies
   must behave.
-- `app/src/features/editor/task-promotion.ts` exposes
+- `apps/workspace/src/features/editor/task-promotion.ts` exposes
   `promoteSelectedChecklistItem` and `promotedChecklistTaskLinks`. **Neither
   has a single caller outside its own test.** It is a finished, tested seam
   waiting to be wired.
@@ -241,24 +241,24 @@ This is the finding that most changes the plan. The durable task model is
   `PromoteChecklistTask`, `UpdateTask`, `DeleteTask`, `DetachTask`;
   `reconcile_note_tasks` (line 1068) re-syncs linked task title/status/block on
   every `SaveDocument`; `detach_tasks` clears the link instead of deleting.
-- `app/src/contracts/workspace.ts:115-139, 306-310` — generated TS mirrors:
+- `apps/workspace/src/contracts/workspace.ts:115-139, 306-310` — generated TS mirrors:
   `TaskStatus`, `TaskPriority`, `TaskSource`, `WorkspaceTask`,
   `TaskSourceDocument`, and the five operation variants.
 - `WorkspaceSnapshot.tasks?: WorkspaceTask[]` exists at
-  `app/src/contracts/workspace.ts:176` and `:200`.
-- `app/src/store/operations.ts:246-250` already routes the five task operation
+  `apps/workspace/src/contracts/workspace.ts:176` and `:200`.
+- `apps/workspace/src/store/operations.ts:246-250` already routes the five task operation
   types to the backend.
 
 What is **missing** is entirely renderer-side:
 
-- `RendererState` has no `tasks` field (`app/src/store/types.ts:52-86`).
-- `createInitialState` ignores `snapshot.tasks` (`app/src/store/store.ts:197`).
+- `RendererState` has no `tasks` field (`apps/workspace/src/store/types.ts:52-86`).
+- `createInitialState` ignores `snapshot.tasks` (`apps/workspace/src/store/store.ts:197`).
 - No editor gesture, command, or UI creates a task.
-- There is no `tasks` app route (`app/src/app-route.ts:3`).
+- There is no `tasks` app route (`apps/workspace/src/app-route.ts:3`).
 
 ### Current slash commands
 
-`app/src/features/editor/slash-commands.tsx`. Shape:
+`apps/workspace/src/features/editor/slash-commands.tsx`. Shape:
 
 ```ts
 export type SlashCommand = {
@@ -490,7 +490,7 @@ existing content stays valid. This is cheaper; use it if the lift path proves
 awkward, but the lift path handles every case uniformly.
 
 Id generation: `crypto.randomUUID()` for both, matching
-`app/src/store/actions/workspace.ts:71`. The two ids must differ —
+`apps/workspace/src/store/actions/workspace.ts:71`. The two ids must differ —
 `document_task_links` in Rust rejects `task_id == block_id`
 (`crates/skriuw-domain/src/task.rs:293`), as does the TS validator in
 `task-promotion.ts`.
@@ -512,7 +512,7 @@ plain `Mod-z` is the only path and it is sufficient.
 
 **None to the node specs.** `check_item` already carries `taskId` and `blockId`.
 
-Changes inside `app/src/features/editor/schema.ts`:
+Changes inside `apps/workspace/src/features/editor/schema.ts`:
 
 1. Add `taskInputRule()` and register it **before** `checkListInputRule()` in
    the `inputRules` array at `schema.ts:1026`.
@@ -619,7 +619,7 @@ consequence of reusing `check_item`; no new work.
   exactly this for the disclosure button. Reuse that shape.
 - Add an editor-bound shortcut so the checkbox can be toggled with the caret
   inside the item without reaching the box. Follow
-  `app/src/features/editor/editor-bound-shortcut-ids.ts` and honour the 60%
+  `apps/workspace/src/features/editor/editor-bound-shortcut-ids.ts` and honour the 60%
   keyboard constraint: no Home/End/PageUp/PageDown, and provide a
   `Shift`+arrow alias if you use an arrow.
 - Every toggle is one `setNodeMarkup` transaction, so it is undoable and
@@ -640,7 +640,7 @@ Nothing special. Every change above is a single transaction inside the existing
 
 ## Slash-menu integration
 
-In `app/src/features/editor/slash-commands.tsx`:
+In `apps/workspace/src/features/editor/slash-commands.tsx`:
 
 1. Narrow the existing entry — remove `"todo"` and `"task"` from `check-list`'s
    aliases, leaving `["checkbox", "checklist"]`. Consider retitling its
@@ -685,7 +685,7 @@ The `/tasks` view's four questions, and where each is answered today:
 Navigating back to the exact source block: resolve `source.noteId` →
 `store.setActiveNote(noteId)`, then scan the loaded document for the
 `check_item` whose `blockId` matches and select it. Follow the pattern in
-`app/src/features/references/reference-navigation.ts`, which pushes the current
+`apps/workspace/src/features/references/reference-navigation.ts`, which pushes the current
 location onto a back stack before jumping. Reveal with
 `view.dispatch(tr.setSelection(...).scrollIntoView())`, as
 `note-editor.tsx:929` already does for document edges.
@@ -727,7 +727,7 @@ until the item has a title.
 
 Design:
 
-- A renderer module (suggested: `app/src/features/editor/task-linking.ts`)
+- A renderer module (suggested: `apps/workspace/src/features/editor/task-linking.ts`)
   reads the current document after paint — reuse the existing debounce that
   drives `persistCurrentDocument` in `note-editor.tsx:546` rather than adding a
   second timer.
@@ -745,14 +745,14 @@ Design:
 
 ### Renderer store slice
 
-Add to `RendererState` (`app/src/store/types.ts`):
+Add to `RendererState` (`apps/workspace/src/store/types.ts`):
 
 ```ts
 tasks: ReadonlyMap<string, WorkspaceTask>;
 ```
 
 - Hydrate from `snapshot.tasks ?? []` in `createInitialState`
-  (`app/src/store/store.ts:197`), following the `images` and `properties`
+  (`apps/workspace/src/store/store.ts:197`), following the `images` and `properties`
   patterns at `store.ts:238-242`.
 - Apply the five task operations in the store's operation reducer so optimistic
   state matches what the backend will do.
@@ -771,7 +771,7 @@ Not built here. What v1 must leave in place so it is a small, additive change:
   startup and kept current by operations — it is not recomputed by scanning
   documents. Workspace-wide document scans on edit are forbidden by the
   performance contract.
-- Add `"tasks"` to `AppRoute` in `app/src/app-route.ts:3` and a `#/tasks` case
+- Add `"tasks"` to `AppRoute` in `apps/workspace/src/app-route.ts:3` and a `#/tasks` case
   in `resolveAppRoute`, following the `journal` and `tags` entries.
 - The view groups tasks by `source.noteId` (resolving the note title through
   `state.nodes`), renders detached tasks (`source === null`) in their own group,
@@ -829,8 +829,8 @@ If you touch the save path, re-measure keystroke-to-paint against the
 - No SQLite migration. `0016_workspace_tasks.sql` is already applied.
 - No schema version bump; no new node or attribute.
 - No contract regeneration — `WorkspaceTask` and the five operations are already
-  in `app/src/contracts/workspace.ts` and `contracts/generated/*.json`. If you
-  find yourself running `scripts/generate.sh`, you have added something the
+  in `apps/workspace/src/contracts/workspace.ts` and `contracts/generated/*.json`. If you
+  find yourself running `bin/generate`, you have added something the
   design says you should not have.
 - Existing notes: unaffected. Every existing `check_item` has
   `taskId: null` and stays a checkbox.
@@ -845,23 +845,23 @@ If you touch the save path, re-measure keystroke-to-paint against the
 
 | File | Why | Responsibility |
 | --- | --- | --- |
-| `app/src/features/editor/schema.ts` | `taskInputRule()`, rule registration, `splitListItem` attr reset, toggle-handler attr preservation, keyboard toggle, `tabindex` in `checkItemSpec.toDOM` | All ProseMirror structure and input handling. No store or IPC code here. |
-| `app/src/features/editor/task-promotion.ts` | Add the shared "make this check_item a task" transform used by both the input rule and `/task`; keep the existing exports | Pure document transforms and link extraction. Already framework-free — keep it that way. |
-| `app/src/features/editor/slash-commands.tsx` | Add `/task`; narrow `check-list` aliases | Slash-menu vocabulary only. |
-| `app/src/features/editor/task-linking.ts` *(new)* | Idle reconciler that turns unpromoted links into `promote_checklist_task` operations | The only place that bridges document → workspace operation. Keeps IPC out of `schema.ts`. |
-| `app/src/features/editor/note-editor.tsx` | Call the reconciler from the existing save debounce (`persistCurrentDocument`, line 546) | Wiring only; no task logic here. |
-| `app/src/store/types.ts` | `tasks: ReadonlyMap<string, WorkspaceTask>` on `RendererState` | State shape. |
-| `app/src/store/store.ts` | Hydrate `snapshot.tasks`; apply the five task operations | Renderer projection of canonical state. |
-| `app/src/features/editor/editor.css` | Focus ring for the now-focusable `.check-item-box` | Visual only. Do not add task-specific chrome in v1. |
-| `app/src/features/editor/editor-bound-shortcut-ids.ts` | Register the toggle shortcut id | Shortcut registry. |
-| `app/__tests__/features/editor/tasks.test.ts` *(new)* | Input rule, transitions, false positives, Enter/Tab, serialization | Mirrors `src/` per the repository's test-layout convention. |
-| `app/__tests__/features/editor/check-list.test.ts` | Add regression assertions that `[] ` still produces an **unlinked** item | Guards the checkbox. |
+| `apps/workspace/src/features/editor/schema.ts` | `taskInputRule()`, rule registration, `splitListItem` attr reset, toggle-handler attr preservation, keyboard toggle, `tabindex` in `checkItemSpec.toDOM` | All ProseMirror structure and input handling. No store or IPC code here. |
+| `apps/workspace/src/features/editor/task-promotion.ts` | Add the shared "make this check_item a task" transform used by both the input rule and `/task`; keep the existing exports | Pure document transforms and link extraction. Already framework-free — keep it that way. |
+| `apps/workspace/src/features/editor/slash-commands.tsx` | Add `/task`; narrow `check-list` aliases | Slash-menu vocabulary only. |
+| `apps/workspace/src/features/editor/task-linking.ts` *(new)* | Idle reconciler that turns unpromoted links into `promote_checklist_task` operations | The only place that bridges document → workspace operation. Keeps IPC out of `schema.ts`. |
+| `apps/workspace/src/features/editor/note-editor.tsx` | Call the reconciler from the existing save debounce (`persistCurrentDocument`, line 546) | Wiring only; no task logic here. |
+| `apps/workspace/src/store/types.ts` | `tasks: ReadonlyMap<string, WorkspaceTask>` on `RendererState` | State shape. |
+| `apps/workspace/src/store/store.ts` | Hydrate `snapshot.tasks`; apply the five task operations | Renderer projection of canonical state. |
+| `apps/workspace/src/features/editor/editor.css` | Focus ring for the now-focusable `.check-item-box` | Visual only. Do not add task-specific chrome in v1. |
+| `apps/workspace/src/features/editor/editor-bound-shortcut-ids.ts` | Register the toggle shortcut id | Shortcut registry. |
+| `apps/workspace/__tests__/features/editor/tasks.test.ts` *(new)* | Input rule, transitions, false positives, Enter/Tab, serialization | Mirrors `src/` per the repository's test-layout convention. |
+| `apps/workspace/__tests__/features/editor/check-list.test.ts` | Add regression assertions that `[] ` still produces an **unlinked** item | Guards the checkbox. |
 | `docs/adr/0032-task-shaped-typing-is-explicit.md` *(new)* | Amend ADR 0031's "nothing promotes implicitly" for the typing gesture | Durable reasoning. |
 | `docs/FEATURES.md` | Document the checkbox/task distinction | User-facing feature list. |
 
 Do **not** change: any file under `crates/`, any file under
-`contracts/generated/`, `app/src/contracts/workspace.ts`, or any import adapter
-under `app/src/features/transfer/`.
+`contracts/generated/`, `apps/workspace/src/contracts/workspace.ts`, or any import adapter
+under `apps/workspace/src/features/transfer/`.
 
 ---
 
@@ -879,7 +879,7 @@ under `app/src/features/transfer/`.
 6. Add `RendererState.tasks`, hydration, and operation application.
 7. Add `task-linking.ts` and call it from the save debounce.
 8. Write ADR 0032 and update `docs/FEATURES.md`.
-9. Run `./scripts/check.sh`.
+9. Run `./bin/check`.
 
 Steps 1–5 are shippable without 6–7; the document carries the intent and the
 records materialize once the store slice lands.
@@ -891,7 +891,7 @@ records materialize once the store slice lands.
 ### Editor structure
 
 - [ ] Fix `Enter`: replace `splitListItem(checkItem, { checked: false })` at
-      `app/src/features/editor/schema.ts:1066` with a command that continues task
+      `apps/workspace/src/features/editor/schema.ts:1066` with a command that continues task
       identity — splitting a `check_item` with a non-null `taskId` gives the new
       item **fresh, distinct** `taskId`/`blockId`; splitting a plain checkbox
       leaves both `null`. Never copy the source ids. Single dispatch, so `Mod-z`
@@ -913,14 +913,14 @@ records materialize once the store slice lands.
 ### Shared transform
 
 - [ ] Add a `taskCheckItemAttrs(checked)` / `insertTaskTransform(state)` helper
-      in `app/src/features/editor/task-promotion.ts` used by both the input rule
+      in `apps/workspace/src/features/editor/task-promotion.ts` used by both the input rule
       and the slash command, so there is one definition of "a task-shaped
       `check_item`".
 
 ### Slash menu
 
 - [ ] Remove `"todo"` and `"task"` from the `check-list` entry's aliases in
-      `app/src/features/editor/slash-commands.tsx:176`.
+      `apps/workspace/src/features/editor/slash-commands.tsx:176`.
 - [ ] Add a `task` slash command (`aliases: ["todo", "task"]`, group `"Lists"`)
       whose `command` produces a `check_list > check_item` carrying fresh
       `taskId`/`blockId` — not bare `wrapInList(check_list)`.
@@ -942,9 +942,9 @@ records materialize once the store slice lands.
 ### Store
 
 - [ ] Add `tasks: ReadonlyMap<string, WorkspaceTask>` to `RendererState` in
-      `app/src/store/types.ts`.
+      `apps/workspace/src/store/types.ts`.
 - [ ] Hydrate it from `snapshot.tasks ?? []` in `createInitialState`
-      (`app/src/store/store.ts:197`), following the `images` pattern.
+      (`apps/workspace/src/store/store.ts:197`), following the `images` pattern.
 - [ ] Apply `create_task`, `update_task`, `delete_task`, `detach_task`, and
       `promote_checklist_task` to the local map so optimistic state matches the
       backend.
@@ -953,7 +953,7 @@ records materialize once the store slice lands.
 
 ### Promotion
 
-- [ ] Add `app/src/features/editor/task-linking.ts` that calls
+- [ ] Add `apps/workspace/src/features/editor/task-linking.ts` that calls
       `promotedChecklistTaskLinks(document, noteId, at)` and returns the links
       whose `taskId` has no record in `state.tasks`.
 - [ ] Submit one `promote_checklist_task` operation per unrecorded link,
@@ -973,7 +973,7 @@ records materialize once the store slice lands.
 
 - [ ] Regenerate `taskId`/`blockId` on `check_item` nodes arriving through
       `handlePaste`, reusing the `withFreshBlockIds` approach in
-      `app/src/store/actions/duplicate-note.ts:31`, so pasting a task creates a
+      `apps/workspace/src/store/actions/duplicate-note.ts:31`, so pasting a task creates a
       new task instead of a second link to the existing one.
 - [ ] Leave `markdown-paste.ts` alone — pasted `- [ ] ` Markdown must remain an
       unlinked checkbox.
@@ -990,10 +990,10 @@ records materialize once the store slice lands.
 
 ## Test plan
 
-New file `app/__tests__/features/tasks/tasks.test.ts` (or
-`app/__tests__/features/editor/tasks.test.ts` to sit beside the editor tests).
+New file `apps/workspace/__tests__/features/tasks/tasks.test.ts` (or
+`apps/workspace/__tests__/features/editor/tasks.test.ts` to sit beside the editor tests).
 Reuse the `stateWithText` / `typeText` harness from
-`app/__tests__/features/editor/check-list.test.ts:11-42` — note that its
+`apps/workspace/__tests__/features/editor/check-list.test.ts:11-42` — note that its
 `typeText` feeds the whole string at once; the task tests need per-character
 feeding so `- ` fires before `[] ` is seen.
 
@@ -1133,11 +1133,11 @@ feeding so `- ` fires before `[] ` is seen.
     is introduced.
 14. Keystroke-to-paint stays within `docs/performance-contract.md`; no IPC,
     database read, or workspace scan runs on the editing path.
-15. `app/__tests__/features/editor/check-list.test.ts` and
+15. `apps/workspace/__tests__/features/editor/check-list.test.ts` and
     `task-promotion.test.ts` pass unmodified.
 16. New tests cover input rules, false positives, editing, toggling, copy/paste,
     slash commands, serialization, and store application.
-17. `./scripts/check.sh` passes.
+17. `./bin/check` passes.
 
 ---
 

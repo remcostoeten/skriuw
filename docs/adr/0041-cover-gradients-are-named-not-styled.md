@@ -25,7 +25,7 @@ has no transform, so position and zoom reset when one is chosen.
 The stored value is an **identifier from a fixed allow-list**, never CSS.
 `COVER_GRADIENT_IDS` in `skriuw-domain` is the trust boundary — validation
 rejects any other value on an operation and in an archive — and
-`app/src/features/note-chrome/cover-gradient-model.ts` is the only place an id
+`apps/workspace/src/features/note-chrome/cover-gradient-model.ts` is the only place an id
 becomes paint. A workspace is untrusted content that arrives over sync, import,
 and archive restore; a free-form style string would let a peer or a crafted file
 choose what the renderer paints, including a `url()` that reaches the network

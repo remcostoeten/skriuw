@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="app/src-tauri/icons/128x128.png" width="88" alt="Skriuw logo" />
+  <img src="apps/workspace/src-tauri/icons/128x128.png" width="88" alt="Skriuw logo" />
 </p>
 
 <h1 align="center">Skriuw</h1>
@@ -120,7 +120,7 @@ have no current publication; use a release asset or one of the channels above.
 
 ### iPhone and Android
 
-**Not published yet.** A native client exists in [`mobile/`](mobile) — the same
+**Not published yet.** A native client exists in [`apps/mobile/`](apps/mobile) — the same
 Rust core, the same editor, the same workspace — with notes, journal, tasks,
 locked notes and end-to-end encrypted sync, but it has never been submitted to
 either store and iOS has never been launched on a device. What is built, what
@@ -164,9 +164,10 @@ Rust 1.95, Bun 1.3, Node.js 24, and the platform dependencies required by
 Tauri.
 
 ```bash
-./scripts/bootstrap.sh   # one-time setup
-./scripts/check.sh       # full gate: contracts, lint, all tests
-./scripts/build.sh       # build (also: web | desktop | ci)
+./bin/setup         # install dependencies, generate contracts, and check
+./bin/dev desktop   # also: browser | site | mobile
+./bin/check         # desktop gate; also: browser | mobile
+./bin/build         # Rust workspace; also: desktop | browser | site | ci
 ```
 
 The repository layout, web deployment, and cloud development reference is in

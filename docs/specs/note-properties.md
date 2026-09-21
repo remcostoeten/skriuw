@@ -106,4 +106,4 @@ The dense metadata information architecture remains intact. Property editing doe
 - Trashing preserves properties and purging removes them.
 - The metadata panel observes only the active note's property projection.
 - Adding and editing a property paints synchronously and performs no navigation-time read.
-- `./scripts/generate.sh` and `./scripts/check.sh` pass.
+- `./bin/generate` and `./bin/check` pass.

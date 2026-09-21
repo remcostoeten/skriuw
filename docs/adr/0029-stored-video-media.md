@@ -51,7 +51,7 @@ plumbing instead of adding a parallel pipeline:
   `File` handle. All retain a full-read blob-URL fallback. Images keep the
   byte-copy path.
 - The browser runtime gained its own media blob store
-  (`app/src/bridge/browser-media.ts`): the same content-addressed
+  (`apps/workspace/src/bridge/browser-media.ts`): the same content-addressed
   `<sha256>.<ext>` layout in one flat OPFS directory, with a TypeScript
   mirror of the magic-byte sniffer. Its unused sweep takes the live hash set
   from the renderer (the browser has no backend-side attachment view) and

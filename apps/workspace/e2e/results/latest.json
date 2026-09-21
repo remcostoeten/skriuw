@@ -1,0 +1,489 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-09-19T12:24:07.602Z",
+  "revision": "5e9dc62adab71e3885c0ac534b2c93fe39168045",
+  "command": "node apps/workspace/e2e/run.mjs --output /home/remcostoeten/dev/skriuw/app/e2e/results/latest.json",
+  "machine": {
+    "hostname": "remcostoeten",
+    "platform": "linux",
+    "release": "7.1.2-arch3-1",
+    "cpu": "Intel(R) Core(TM) i7-10700F CPU @ 2.90GHz",
+    "logicalCpuCount": 16,
+    "node": "v24.21.0",
+    "chromeBinary": "google-chrome-stable"
+  },
+  "workflow": {
+    "browser": "Chrome/150.0.7871.46",
+    "steps": [
+      "create",
+      "rename",
+      "sibling-reorder",
+      "nest",
+      "cross-folder-move",
+      "write-and-slash",
+      "diagram-keyboard-and-source",
+      "find-replace",
+      "jump-to-line-overlay",
+      "sidebar-search",
+      "trash-restore-purge",
+      "trash-empty-inline-confirm",
+      "metadata-history-restore",
+      "palette",
+      "provider-import",
+      "settings-shortcut-rebind",
+      "archive-backup-recovery",
+      "entity-tags",
+      "entity-people",
+      "task-keyboard"
+    ],
+    "checks": [
+      {
+        "name": "initial-route",
+        "pass": true,
+        "detail": "#/notes"
+      },
+      {
+        "name": "initial-active-state",
+        "pass": true,
+        "detail": "note-alpha"
+      },
+      {
+        "name": "initial-empty-trash-state-exists",
+        "pass": true,
+        "detail": "trash route control missing"
+      },
+      {
+        "name": "keyboard-create-note",
+        "pass": true,
+        "detail": "5a663804-021b-4892-84eb-6d21f7f2e253"
+      },
+      {
+        "name": "keyboard-create-title",
+        "pass": true,
+        "detail": "{\"folder-a\":\"Projects\",\"note-alpha\":\"Alpha note\",\"note-beta\":\"Beta note\",\"folder-b\":\"Archive\",\"note-gamma\":\"Gamma note\",\"note-root\":\"Root note\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"Created note\"}"
+      },
+      {
+        "name": "keyboard-rename",
+        "pass": true,
+        "detail": "Renamed note"
+      },
+      {
+        "name": "keyboard-sibling-reorder",
+        "pass": true,
+        "detail": "[\"folder-a\",\"note-beta\",\"note-alpha\",\"folder-b\",\"note-gamma\",\"note-root\",\"5a663804-021b-4892-84eb-6d21f7f2e253\"]"
+      },
+      {
+        "name": "keyboard-nest-through-context-menu",
+        "pass": true,
+        "detail": "folder-a"
+      },
+      {
+        "name": "context-menu-cross-folder-move",
+        "pass": true,
+        "detail": "folder-b"
+      },
+      {
+        "name": "keyboard-writing",
+        "pass": true,
+        "detail": "typed content missing"
+      },
+      {
+        "name": "keyboard-slash-command",
+        "pass": true,
+        "detail": "slash menu remained open"
+      },
+      {
+        "name": "diagram-default-renders",
+        "pass": true,
+        "detail": "default diagram nodes missing"
+      },
+      {
+        "name": "diagram-keyboard-nudge",
+        "pass": true,
+        "detail": "Shift+ArrowRight did not move the selected diagram node"
+      },
+      {
+        "name": "diagram-add-connected-step",
+        "pass": true,
+        "detail": "keyboard add did not create a fourth node"
+      },
+      {
+        "name": "diagram-source-is-readable",
+        "pass": true,
+        "detail": "Mermaid source editor did not open"
+      },
+      {
+        "name": "find-panel-does-not-shift-editor-layout",
+        "pass": true,
+        "detail": "{\"scrollTop\":0,\"clientWidth\":884,\"scrollWidth\":884,\"editorTop\":135.1875,\"editorLeft\":428.53125,\"editorWidth\":658.9375} -> {\"scrollTop\":0,\"clientWidth\":884,\"scrollWidth\":884,\"editorTop\":135.1875,\"editorLeft\":428.53125,\"editorWidth\":658.9375}"
+      },
+      {
+        "name": "find-and-jump-share-one-resizing-overlay",
+        "pass": true,
+        "detail": "{\"activeNoteId\":\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"focusedNodeId\":\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"nodeTitles\":{\"folder-a\":\"Projects\",\"note-alpha\":\"Alpha note\",\"note-beta\":\"Beta note\",\"folder-b\":\"Archive\",\"note-gamma\":\"Gamma note\",\"note-root\":\"Root note\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"Renamed note\"},\"parents\":{\"folder-a\":null,\"note-alpha\":\"folder-b\",\"note-beta\":\"folder-a\",\"folder-b\":null,\"note-gamma\":\"folder-b\",\"note-root\":null,\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"folder-a\"},\"nodeOrder\":[\"folder-a\",\"note-beta\",\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"folder-b\",\"note-gamma\",\"note-alpha\",\"note-root\"],\"deleted\":[],\"tags\":{\"tag-research\":\"Research\",\"tag-ideas\":\"Ideas\"},\"people\":{},\"settings\":{\"settingsVersion\":1,\"onboardingVersion\":1,\"theme\":\"midnight\",\"compactSidebar\":false,\"showPageIcons\":true,\"reduceMotion\":false,\"rememberLastNote\":true,\"editorFont\":\"inter\",\"editorLineHeight\":\"comfortable\",\"showLineNumbers\":true,\"editorPlaceholder\":\"Start writing...\"},\"bridgeCommands\":[\"search_index_status\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\"],\"route\":\"#/notes\",\"activeElement\":\"Jump to line, 1 to 4\",\"dialog\":null,\"statusText\":[]}"
+      },
+      {
+        "name": "jump-switches-back-to-find-in-the-same-overlay",
+        "pass": true,
+        "detail": "{\"activeNoteId\":\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"focusedNodeId\":\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"nodeTitles\":{\"folder-a\":\"Projects\",\"note-alpha\":\"Alpha note\",\"note-beta\":\"Beta note\",\"folder-b\":\"Archive\",\"note-gamma\":\"Gamma note\",\"note-root\":\"Root note\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"Renamed note\"},\"parents\":{\"folder-a\":null,\"note-alpha\":\"folder-b\",\"note-beta\":\"folder-a\",\"folder-b\":null,\"note-gamma\":\"folder-b\",\"note-root\":null,\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"folder-a\"},\"nodeOrder\":[\"folder-a\",\"note-beta\",\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"folder-b\",\"note-gamma\",\"note-alpha\",\"note-root\"],\"deleted\":[],\"tags\":{\"tag-research\":\"Research\",\"tag-ideas\":\"Ideas\"},\"people\":{},\"settings\":{\"settingsVersion\":1,\"onboardingVersion\":1,\"theme\":\"midnight\",\"compactSidebar\":false,\"showPageIcons\":true,\"reduceMotion\":false,\"rememberLastNote\":true,\"editorFont\":\"inter\",\"editorLineHeight\":\"comfortable\",\"showLineNumbers\":true,\"editorPlaceholder\":\"Start writing...\"},\"bridgeCommands\":[\"search_index_status\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\"],\"route\":\"#/notes\",\"activeElement\":\"Find\",\"dialog\":null,\"statusText\":[]}"
+      },
+      {
+        "name": "keyboard-find-query",
+        "pass": true,
+        "detail": "workflow"
+      },
+      {
+        "name": "keyboard-focus-show-replace",
+        "pass": true,
+        "detail": "{\"activeNoteId\":\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"focusedNodeId\":\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"nodeTitles\":{\"folder-a\":\"Projects\",\"note-alpha\":\"Alpha note\",\"note-beta\":\"Beta note\",\"folder-b\":\"Archive\",\"note-gamma\":\"Gamma note\",\"note-root\":\"Root note\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"Created note workflow text\"},\"parents\":{\"folder-a\":null,\"note-alpha\":\"folder-b\",\"note-beta\":\"folder-a\",\"folder-b\":null,\"note-gamma\":\"folder-b\",\"note-root\":null,\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"folder-a\"},\"nodeOrder\":[\"folder-a\",\"note-beta\",\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"folder-b\",\"note-gamma\",\"note-alpha\",\"note-root\"],\"deleted\":[],\"tags\":{\"tag-research\":\"Research\",\"tag-ideas\":\"Ideas\"},\"people\":{},\"settings\":{\"settingsVersion\":1,\"onboardingVersion\":1,\"theme\":\"midnight\",\"compactSidebar\":false,\"showPageIcons\":true,\"reduceMotion\":false,\"rememberLastNote\":true,\"editorFont\":\"inter\",\"editorLineHeight\":\"comfortable\",\"showLineNumbers\":true,\"editorPlaceholder\":\"Start writing...\"},\"bridgeCommands\":[\"search_index_status\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\"],\"route\":\"#/notes\",\"activeElement\":\"Show replace\",\"dialog\":null,\"statusText\":[\"1 of 1\"]}"
+      },
+      {
+        "name": "keyboard-open-replace",
+        "pass": true,
+        "detail": "{\"activeNoteId\":\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"focusedNodeId\":\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"nodeTitles\":{\"folder-a\":\"Projects\",\"note-alpha\":\"Alpha note\",\"note-beta\":\"Beta note\",\"folder-b\":\"Archive\",\"note-gamma\":\"Gamma note\",\"note-root\":\"Root note\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"Created note workflow text\"},\"parents\":{\"folder-a\":null,\"note-alpha\":\"folder-b\",\"note-beta\":\"folder-a\",\"folder-b\":null,\"note-gamma\":\"folder-b\",\"note-root\":null,\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"folder-a\"},\"nodeOrder\":[\"folder-a\",\"note-beta\",\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"folder-b\",\"note-gamma\",\"note-alpha\",\"note-root\"],\"deleted\":[],\"tags\":{\"tag-research\":\"Research\",\"tag-ideas\":\"Ideas\"},\"people\":{},\"settings\":{\"settingsVersion\":1,\"onboardingVersion\":1,\"theme\":\"midnight\",\"compactSidebar\":false,\"showPageIcons\":true,\"reduceMotion\":false,\"rememberLastNote\":true,\"editorFont\":\"inter\",\"editorLineHeight\":\"comfortable\",\"showLineNumbers\":true,\"editorPlaceholder\":\"Start writing...\"},\"bridgeCommands\":[\"search_index_status\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\"],\"route\":\"#/notes\",\"activeElement\":\"Hide replace\",\"dialog\":null,\"statusText\":[\"1 of 1\"]}"
+      },
+      {
+        "name": "keyboard-find-replace",
+        "pass": true,
+        "detail": "replacement missing"
+      },
+      {
+        "name": "jump-to-line-does-not-shift-editor-layout",
+        "pass": true,
+        "detail": "{\"scrollTop\":0,\"clientWidth\":884,\"scrollWidth\":884,\"editorTop\":135.1875,\"editorLeft\":428.53125,\"editorWidth\":658.9375} -> {\"scrollTop\":0,\"clientWidth\":884,\"scrollWidth\":884,\"editorTop\":135.1875,\"editorLeft\":428.53125,\"editorWidth\":658.9375}"
+      },
+      {
+        "name": "keyboard-sidebar-search",
+        "pass": true,
+        "detail": "{\"activeNoteId\":\"note-gamma\",\"focusedNodeId\":\"note-gamma\",\"nodeTitles\":{\"folder-a\":\"Projects\",\"note-alpha\":\"Alpha note\",\"note-beta\":\"Beta note\",\"folder-b\":\"Archive\",\"note-gamma\":\"Gamma note\",\"note-root\":\"Root note\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"Created note verified text\"},\"parents\":{\"folder-a\":null,\"note-alpha\":\"folder-b\",\"note-beta\":\"folder-a\",\"folder-b\":null,\"note-gamma\":\"folder-b\",\"note-root\":null,\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"folder-a\"},\"nodeOrder\":[\"folder-a\",\"note-beta\",\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"folder-b\",\"note-gamma\",\"note-alpha\",\"note-root\"],\"deleted\":[],\"tags\":{\"tag-research\":\"Research\",\"tag-ideas\":\"Ideas\"},\"people\":{},\"settings\":{\"settingsVersion\":1,\"onboardingVersion\":1,\"theme\":\"midnight\",\"compactSidebar\":false,\"showPageIcons\":true,\"reduceMotion\":false,\"rememberLastNote\":true,\"editorFont\":\"inter\",\"editorLineHeight\":\"comfortable\",\"showLineNumbers\":true,\"editorPlaceholder\":\"Start writing...\"},\"bridgeCommands\":[\"search_index_status\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\"],\"route\":\"#/notes\",\"activeElement\":\"Gamma note\",\"dialog\":null,\"statusText\":[]}"
+      },
+      {
+        "name": "keyboard-trash",
+        "pass": true,
+        "detail": "[\"note-beta\"]"
+      },
+      {
+        "name": "keyboard-trash-restore",
+        "pass": true,
+        "detail": "[]"
+      },
+      {
+        "name": "keyboard-trash-again",
+        "pass": true,
+        "detail": "[\"note-beta\"]"
+      },
+      {
+        "name": "keyboard-trash-purge",
+        "pass": true,
+        "detail": "{\"folder-a\":\"Projects\",\"note-alpha\":\"Alpha note\",\"folder-b\":\"Archive\",\"note-gamma\":\"Gamma note\",\"note-root\":\"Root note\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"Created note verified text\"}"
+      },
+      {
+        "name": "trash-empty-and-disabled-state",
+        "pass": true,
+        "detail": "empty trash state missing"
+      },
+      {
+        "name": "keyboard-trash-empty",
+        "pass": true,
+        "detail": "{\"folder-a\":\"Projects\",\"note-alpha\":\"Alpha note\",\"folder-b\":\"Archive\",\"note-gamma\":\"Gamma note\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"Created note verified text\"}"
+      },
+      {
+        "name": "keyboard-select-history-note",
+        "pass": true,
+        "detail": "{\"activeNoteId\":\"note-alpha\",\"focusedNodeId\":\"note-alpha\",\"nodeTitles\":{\"folder-a\":\"Projects\",\"note-alpha\":\"Alpha note\",\"folder-b\":\"Archive\",\"note-gamma\":\"Gamma note\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"Created note verified text\"},\"parents\":{\"folder-a\":null,\"note-alpha\":\"folder-b\",\"folder-b\":null,\"note-gamma\":\"folder-b\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"folder-a\"},\"nodeOrder\":[\"folder-a\",\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"folder-b\",\"note-gamma\",\"note-alpha\"],\"deleted\":[],\"tags\":{\"tag-research\":\"Research\",\"tag-ideas\":\"Ideas\"},\"people\":{},\"settings\":{\"settingsVersion\":1,\"onboardingVersion\":1,\"theme\":\"midnight\",\"compactSidebar\":false,\"showPageIcons\":true,\"reduceMotion\":false,\"rememberLastNote\":true,\"editorFont\":\"inter\",\"editorLineHeight\":\"comfortable\",\"showLineNumbers\":true,\"editorPlaceholder\":\"Start writing...\"},\"bridgeCommands\":[\"search_index_status\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\"],\"route\":\"#/notes\",\"activeElement\":\"Alpha note\",\"dialog\":null,\"statusText\":[\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Root note” to trashCtrlShiftZUndo\"]}"
+      },
+      {
+        "name": "keyboard-focus-history-version",
+        "pass": true,
+        "detail": "{\"activeNoteId\":\"note-alpha\",\"focusedNodeId\":\"note-alpha\",\"nodeTitles\":{\"folder-a\":\"Projects\",\"note-alpha\":\"Alpha note\",\"folder-b\":\"Archive\",\"note-gamma\":\"Gamma note\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"Created note verified text\"},\"parents\":{\"folder-a\":null,\"note-alpha\":\"folder-b\",\"folder-b\":null,\"note-gamma\":\"folder-b\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"folder-a\"},\"nodeOrder\":[\"folder-a\",\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"folder-b\",\"note-gamma\",\"note-alpha\"],\"deleted\":[],\"tags\":{\"tag-research\":\"Research\",\"tag-ideas\":\"Ideas\"},\"people\":{},\"settings\":{\"settingsVersion\":1,\"onboardingVersion\":1,\"theme\":\"midnight\",\"compactSidebar\":false,\"showPageIcons\":true,\"reduceMotion\":false,\"rememberLastNote\":true,\"editorFont\":\"inter\",\"editorLineHeight\":\"comfortable\",\"showLineNumbers\":true,\"editorPlaceholder\":\"Start writing...\"},\"bridgeCommands\":[\"search_index_status\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\"],\"route\":\"#/history/note-alpha\",\"activeElement\":\"10:26 AMEarlier alpha version\",\"dialog\":null,\"statusText\":[\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Root note” to trashCtrlShiftZUndo\"]}"
+      },
+      {
+        "name": "keyboard-history-restore",
+        "pass": true,
+        "detail": "{\"activeNoteId\":\"note-alpha\",\"focusedNodeId\":\"note-alpha\",\"nodeTitles\":{\"folder-a\":\"Projects\",\"note-alpha\":\"Alpha note\",\"folder-b\":\"Archive\",\"note-gamma\":\"Gamma note\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"Created note verified text\"},\"parents\":{\"folder-a\":null,\"note-alpha\":\"folder-b\",\"folder-b\":null,\"note-gamma\":\"folder-b\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"folder-a\"},\"nodeOrder\":[\"folder-a\",\"5a663804-021b-4892-84eb-6d21f7f2e253\",\"folder-b\",\"note-gamma\",\"note-alpha\"],\"deleted\":[],\"tags\":{\"tag-research\":\"Research\",\"tag-ideas\":\"Ideas\"},\"people\":{},\"settings\":{\"settingsVersion\":1,\"onboardingVersion\":1,\"theme\":\"midnight\",\"compactSidebar\":false,\"showPageIcons\":true,\"reduceMotion\":false,\"rememberLastNote\":true,\"editorFont\":\"inter\",\"editorLineHeight\":\"comfortable\",\"showLineNumbers\":true,\"editorPlaceholder\":\"Start writing...\"},\"bridgeCommands\":[\"search_index_status\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"read_history_version\",\"apply_workspace_operations\"],\"route\":\"#/history/note-alpha\",\"activeElement\":\"ProjectsCreated note verified textArchiveGamma noteAlpha noteSeptember 2026MoTuWeThFrSaSu311234567891011121314151617181920212223242526272829301234JournalTodaySeptember 2026MoTuWeThFrSaSu311234567891011121314151617181920212223242526272829301234New entryArchiveAlpha noteAdd coverProperties(0)Add propertyTemplatesrestored alpha version Add a heading to build the outline. Jul 20, 202510:26 AMlast yearOpen historyViewed together(1)Gamma noteWords3Characters22Read time1mFile size22 BytesCreatedJul 20, 2025, 10:26 AMUpdatedSep 19, 2026, 2:24 PMBack to noteAlpha note1Latest revision last yearJul 20, 2025110:26 AMEarlier alpha versionSelect a revision to preview its content and restore it.Moved “Beta note” to trashCtrlShiftZUndoMoved “Beta note” to trashCtrlShiftZUndoMoved “Root note” to trashCtrlShiftZUndo\",\"dialog\":null,\"statusText\":[\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Root note” to trashCtrlShiftZUndo\"]}"
+      },
+      {
+        "name": "metadata-state",
+        "pass": true,
+        "detail": "metadata details missing"
+      },
+      {
+        "name": "keyboard-command-palette",
+        "pass": true,
+        "detail": "palette command did not toggle sidebar"
+      },
+      {
+        "name": "provider-import-destination-and-commit",
+        "pass": true,
+        "detail": "{\"importedNoteId\":\"57a871d6-526c-433d-b125-e67d88274c7e\",\"parents\":{\"folder-a\":null,\"note-alpha\":\"folder-b\",\"folder-b\":null,\"note-gamma\":\"folder-b\",\"5a663804-021b-4892-84eb-6d21f7f2e253\":\"folder-a\",\"b69e4551-d860-46a0-8613-1e00ac23e780\":\"folder-a\",\"57a871d6-526c-433d-b125-e67d88274c7e\":\"b69e4551-d860-46a0-8613-1e00ac23e780\"}}"
+      },
+      {
+        "name": "provider-import-bridge-command-flow",
+        "pass": true,
+        "detail": "[\"search_index_status\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"read_history_version\",\"apply_workspace_operations\",\"pick_import_files\",\"prepare_import_sources\",\"apply_workspace_operations\"]"
+      },
+      {
+        "name": "keyboard-reduced-motion-setting",
+        "pass": true,
+        "detail": "{\"settingsVersion\":1,\"onboardingVersion\":1,\"theme\":\"midnight\",\"compactSidebar\":false,\"showPageIcons\":true,\"reduceMotion\":true,\"rememberLastNote\":true,\"editorFont\":\"inter\",\"editorLineHeight\":\"comfortable\",\"showLineNumbers\":true,\"editorPlaceholder\":\"Start writing...\"}"
+      },
+      {
+        "name": "keyboard-shortcut-rebinding-conflict",
+        "pass": true,
+        "detail": "{\"settingsVersion\":1,\"onboardingVersion\":1,\"theme\":\"midnight\",\"compactSidebar\":false,\"showPageIcons\":true,\"reduceMotion\":true,\"rememberLastNote\":true,\"editorFont\":\"inter\",\"editorLineHeight\":\"comfortable\",\"showLineNumbers\":true,\"editorPlaceholder\":\"Start writing...\"}"
+      },
+      {
+        "name": "keyboard-shortcut-rebinding",
+        "pass": true,
+        "detail": "{\"settingsVersion\":1,\"onboardingVersion\":1,\"theme\":\"midnight\",\"compactSidebar\":false,\"showPageIcons\":true,\"reduceMotion\":true,\"rememberLastNote\":true,\"editorFont\":\"inter\",\"editorLineHeight\":\"comfortable\",\"showLineNumbers\":true,\"editorPlaceholder\":\"Start writing...\",\"shortcutOverrides\":{\"toggleCommandPalette\":\"ctrl+alt+u\"}}"
+      },
+      {
+        "name": "maintenance-error-state",
+        "pass": true,
+        "detail": "[\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Root note” to trashCtrlShiftZUndo\",\"Error: injected export failure\",\"No backups yet. Use “Back up now” or wait for the next scheduled backup.\"]"
+      },
+      {
+        "name": "keyboard-archive-export",
+        "pass": true,
+        "detail": "[\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Root note” to trashCtrlShiftZUndo\",\"Exported 6 item(s), 4 document(s), and undefined image(s) to skriuw-e2e-export.json.\",\"No backups yet. Use “Back up now” or wait for the next scheduled backup.\"]"
+      },
+      {
+        "name": "keyboard-archive-import-round-trip",
+        "pass": true,
+        "detail": "[\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Root note” to trashCtrlShiftZUndo\",\"No backups yet. Use “Back up now” or wait for the next scheduled backup.\",\"Imported 6 item(s), 4 document(s), and undefined image(s). The previous workspace was kept as pre-import-e2e.sqlite.\"]"
+      },
+      {
+        "name": "keyboard-backup",
+        "pass": true,
+        "detail": "[\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Root note” to trashCtrlShiftZUndo\",\"Backup skriuw-backup-e2e.sqlite was written and verified.\"]"
+      },
+      {
+        "name": "keyboard-recovery-restore",
+        "pass": true,
+        "detail": "[\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Root note” to trashCtrlShiftZUndo\",\"Backup restored. The replaced database is kept as rollback-e2e.sqlite.\"]"
+      },
+      {
+        "name": "settings-focus-restoration",
+        "pass": true,
+        "detail": "Settings"
+      },
+      {
+        "name": "entity-tags-route",
+        "pass": true,
+        "detail": "{\"activeNoteId\":null,\"focusedNodeId\":null,\"nodeTitles\":{\"folder-a\":\"Projects\",\"note-alpha\":\"Alpha note\",\"note-beta\":\"Beta note\",\"folder-b\":\"Archive\",\"note-gamma\":\"Gamma note\",\"note-root\":\"Root note\"},\"parents\":{\"folder-a\":null,\"note-alpha\":\"folder-a\",\"note-beta\":\"folder-a\",\"folder-b\":null,\"note-gamma\":\"folder-b\",\"note-root\":null},\"nodeOrder\":[\"folder-a\",\"note-alpha\",\"note-beta\",\"folder-b\",\"note-gamma\",\"note-root\"],\"deleted\":[],\"tags\":{\"tag-research\":\"Research\",\"tag-ideas\":\"Ideas\"},\"people\":{},\"settings\":{\"settingsVersion\":1,\"onboardingVersion\":1,\"theme\":\"midnight\",\"compactSidebar\":false,\"showPageIcons\":true,\"reduceMotion\":false,\"rememberLastNote\":true,\"editorFont\":\"inter\",\"editorLineHeight\":\"comfortable\",\"showLineNumbers\":true,\"editorPlaceholder\":\"Start writing...\"},\"bridgeCommands\":[\"search_index_status\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"read_history_version\",\"apply_workspace_operations\",\"pick_import_files\",\"prepare_import_sources\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"apply_workspace_operations\",\"workspace_storage_path\",\"list_workspace_recovery\",\"export_workspace_archive\",\"export_workspace_archive\",\"pick_import_file\",\"import_workspace_archive\",\"list_workspace_recovery\",\"create_workspace_backup\",\"list_workspace_recovery\",\"restore_workspace_backup\",\"list_workspace_recovery\"],\"route\":\"#/tags\",\"activeElement\":\"Settings\",\"dialog\":null,\"statusText\":[\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Beta note” to trashCtrlShiftZUndo\",\"Moved “Root note” to trashCtrlShiftZUndo\"]}"
+      },
+      {
+        "name": "keyboard-create-tag",
+        "pass": true,
+        "detail": "{\"tag-research\":\"Research\",\"tag-ideas\":\"Ideas\",\"31fc0de3-0fe1-492e-8bac-de3ce747f46e\":\"Urgent\"}"
+      },
+      {
+        "name": "entity-row-arrow-focus",
+        "pass": true,
+        "detail": "ArrowDown did not move entity row focus"
+      },
+      {
+        "name": "entity-row-end-focus",
+        "pass": true,
+        "detail": "End did not focus the last entity row"
+      },
+      {
+        "name": "entity-row-home-focus",
+        "pass": true,
+        "detail": "Home did not focus the first entity row"
+      },
+      {
+        "name": "entity-menu-focus-rename-urgent",
+        "pass": true,
+        "detail": "menu focus never reached Rename"
+      },
+      {
+        "name": "keyboard-rename-tag",
+        "pass": true,
+        "detail": "{\"tag-research\":\"Research\",\"tag-ideas\":\"Ideas\",\"31fc0de3-0fe1-492e-8bac-de3ce747f46e\":\"Priority\"}"
+      },
+      {
+        "name": "entity-menu-focus-delete-priority",
+        "pass": true,
+        "detail": "menu focus never reached Delete"
+      },
+      {
+        "name": "keyboard-delete-tag",
+        "pass": true,
+        "detail": "{\"tag-research\":\"Research\",\"tag-ideas\":\"Ideas\"}"
+      },
+      {
+        "name": "entity-people-empty-state",
+        "pass": true,
+        "detail": "{}"
+      },
+      {
+        "name": "keyboard-create-person",
+        "pass": true,
+        "detail": "{\"cb7122cb-60c8-4f5e-b037-6ccf374c7b8e\":\"Ada Lovelace\"}"
+      },
+      {
+        "name": "entity-menu-focus-delete-ada-lovelace",
+        "pass": true,
+        "detail": "menu focus never reached Delete"
+      },
+      {
+        "name": "keyboard-delete-person-restores-empty-state",
+        "pass": true,
+        "detail": "{}"
+      },
+      {
+        "name": "browser-console-is-clean",
+        "pass": true,
+        "detail": "[]"
+      },
+      {
+        "name": "browser-page-errors-are-empty",
+        "pass": true,
+        "detail": "[]"
+      },
+      {
+        "name": "complete-workflow-step-set",
+        "pass": true,
+        "detail": "[\"create\",\"rename\",\"sibling-reorder\",\"nest\",\"cross-folder-move\",\"write-and-slash\",\"diagram-keyboard-and-source\",\"find-replace\",\"jump-to-line-overlay\",\"sidebar-search\",\"trash-restore-purge\",\"trash-empty-inline-confirm\",\"metadata-history-restore\",\"palette\",\"provider-import\",\"settings-shortcut-rebind\",\"archive-backup-recovery\",\"entity-tags\",\"entity-people\"]"
+      },
+      {
+        "name": "task-toggle-retains-moved-focus",
+        "pass": true,
+        "detail": "focus stays on the second task after a deep link"
+      },
+      {
+        "name": "task-home-focus",
+        "pass": true,
+        "detail": "Home focuses first task"
+      },
+      {
+        "name": "task-end-focus",
+        "pass": true,
+        "detail": "End focuses last task"
+      },
+      {
+        "name": "task-source-tab-focus",
+        "pass": true,
+        "detail": "Tab reaches source button"
+      },
+      {
+        "name": "task-source-completion-matches",
+        "pass": true,
+        "detail": "source checklist reflects completion"
+      },
+      {
+        "name": "editor-toggle-retains-focus",
+        "pass": true,
+        "detail": "editor checkbox retains keyboard focus"
+      },
+      {
+        "name": "editor-checkbox-accessible-name",
+        "pass": true,
+        "detail": "checkbox is named by task text"
+      },
+      {
+        "name": "editor-checkbox-accessibility-tree",
+        "pass": true,
+        "detail": "browser exposes the task name and checked state to assistive technology"
+      }
+    ],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "finalState": {
+      "activeNoteId": null,
+      "focusedNodeId": null,
+      "nodeTitles": {
+        "folder-a": "Projects",
+        "note-alpha": "Alpha note",
+        "note-beta": "Beta note",
+        "folder-b": "Archive",
+        "note-gamma": "Gamma note",
+        "note-root": "Root note"
+      },
+      "parents": {
+        "folder-a": null,
+        "note-alpha": "folder-a",
+        "note-beta": "folder-a",
+        "folder-b": null,
+        "note-gamma": "folder-b",
+        "note-root": null
+      },
+      "nodeOrder": [
+        "folder-a",
+        "note-alpha",
+        "note-beta",
+        "folder-b",
+        "note-gamma",
+        "note-root"
+      ],
+      "deleted": [],
+      "tags": {
+        "tag-research": "Research",
+        "tag-ideas": "Ideas"
+      },
+      "people": {},
+      "settings": {
+        "settingsVersion": 1,
+        "onboardingVersion": 1,
+        "theme": "midnight",
+        "compactSidebar": false,
+        "showPageIcons": true,
+        "reduceMotion": false,
+        "rememberLastNote": true,
+        "editorFont": "inter",
+        "editorLineHeight": "comfortable",
+        "showLineNumbers": true,
+        "editorPlaceholder": "Start writing..."
+      },
+      "bridgeCommands": [
+        "search_index_status",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "read_history_version",
+        "apply_workspace_operations",
+        "pick_import_files",
+        "prepare_import_sources",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "workspace_storage_path",
+        "list_workspace_recovery",
+        "export_workspace_archive",
+        "export_workspace_archive",
+        "pick_import_file",
+        "import_workspace_archive",
+        "list_workspace_recovery",
+        "create_workspace_backup",
+        "list_workspace_recovery",
+        "restore_workspace_backup",
+        "list_workspace_recovery",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations",
+        "apply_workspace_operations"
+      ],
+      "route": "#/people",
+      "activeElement": "ProjectsAlpha noteBeta noteArchiveGamma noteRoot noteSeptember 2026MoTuWeThFrSaSu311234567891011121314151617181920212223242526272829301234JournalTodaySeptember 2026MoTuWeThFrSaSu311234567891011121314151617181920212223242526272829301234New entrySelect a noteNo note selectedSelect a note from the sidebar or create a new one to start writing.PeopleNew personCtrl+NNo people yetCreate people here or by typing $ while writing a note.New personMoved “Beta note” to trashCtrlShiftZUndoMoved “Beta note” to trashCtrlShiftZUndoMoved “Root note” to trashCtrlShiftZUndo",
+      "dialog": null,
+      "statusText": [
+        "Moved “Beta note” to trashCtrlShiftZUndo",
+        "Moved “Beta note” to trashCtrlShiftZUndo",
+        "Moved “Root note” to trashCtrlShiftZUndo"
+      ]
+    }
+  }
+}

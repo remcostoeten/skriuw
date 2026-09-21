@@ -32,7 +32,7 @@ source. Visible focus rings and an inline keyboard guide expose these controls.
 Deep links focus once, so later updates do not take focus from another task.
 Keyboard actions and completion have no animation, including with reduced motion.
 
-Run `node app/e2e/run.mjs --tasks-only` for the task keyboard regression workflow.
+Run `node apps/workspace/e2e/run.mjs --tasks-only` for the task keyboard regression workflow.
 
 ## Goal
 
@@ -72,12 +72,12 @@ Read first, in order:
 Do not rebuild any of this.
 
 - `RendererState.tasks: ReadonlyMap<string, WorkspaceTask>`
-  (`app/src/store/types.ts:82`), hydrated from `snapshot.tasks` at
-  `app/src/store/store.ts:243`.
+  (`apps/workspace/src/store/types.ts:82`), hydrated from `snapshot.tasks` at
+  `apps/workspace/src/store/store.ts:243`.
 - All five task operations are applied to that map at `store.ts:301-324`,
   including local detachment mirroring.
 - `WorkspaceTask`, `TaskSource`, `TaskSourceDocument`, `TaskStatus`,
-  `TaskPriority` in `app/src/contracts/workspace.ts:115-145`.
+  `TaskPriority` in `apps/workspace/src/contracts/workspace.ts:115-145`.
 - Backend handlers for `create_task`, `update_task`, `delete_task`,
   `detach_task`, `promote_checklist_task`, plus `reconcile_note_tasks`, in
   `crates/skriuw-sqlite/src/operations.rs`.
@@ -114,7 +114,7 @@ detachment.
 
 ### The precedent to copy
 
-`app/src/features/references/entity-merge.ts` already rewrites the documents of
+`apps/workspace/src/features/references/entity-merge.ts` already rewrites the documents of
 notes that are not open in any editor, for entity merges. Its
 `buildMergeSaveDocuments` is the exact shape to follow:
 
@@ -174,7 +174,7 @@ type TaskSourceDocument = {
 
 ## Route and navigation
 
-`app/src/app-route.ts`:
+`apps/workspace/src/app-route.ts`:
 
 - Add `"tasks"` to the `AppRoute` union at line 3.
 - Add `if (hash === "#/tasks" || hash.startsWith("#/tasks/")) return "tasks";`
@@ -184,12 +184,12 @@ type TaskSourceDocument = {
   single task. Recommended: **yes**, `#/tasks/<taskId>` focuses that row, which
   makes the surface linkable from a future notification or search result.
 
-`app/src/commands/rail-items.ts`:
+`apps/workspace/src/commands/rail-items.ts`:
 
 - Add `{ actionId: "goToTasks", route: "tasks", label: "Tasks", section: "primary" }`
   after the Journal entry.
 
-`app/src/commands/definitions.ts` and `app/src/app.tsx`:
+`apps/workspace/src/commands/definitions.ts` and `apps/workspace/src/app.tsx`:
 
 - Add a `goToTasks` command definition following `goToJournal`
   (`app.tsx:91`), and render `{route === "tasks" && <TasksView store={store} />}`
@@ -202,7 +202,7 @@ both the check-list and task slash commands and reads correctly here.
 
 ## View structure
 
-New feature folder `app/src/features/tasks/`, mirroring how `references`,
+New feature folder `apps/workspace/src/features/tasks/`, mirroring how `references`,
 `journal`, and `trash` are organized:
 
 | File | Responsibility |
@@ -217,8 +217,8 @@ testable without a DOM, exactly as `entity-manager-model.ts` and
 `entity-merge.ts` are.
 
 `TasksView` is a full-screen surface, so **it must host `WindowControls`
-itself** — see `app/src/shell/window-controls.tsx` and how
-`app/src/features/references/entity-view.tsx` imports and places it. There is
+itself** — see `apps/workspace/src/shell/window-controls.tsx` and how
+`apps/workspace/src/features/references/entity-view.tsx` imports and places it. There is
 no shared chrome that does this for you.
 
 ### Projection
@@ -256,7 +256,7 @@ Rules:
 - Sort groups by note title, then rows by `createdAt`. Keep it deterministic;
   an unstable order makes the list jump when anything reconciles.
 - Provide a `taskRowsEqual` comparator and use it with
-  `useRendererSelector` (`app/src/store/use-renderer-selector.ts`) so the view
+  `useRendererSelector` (`apps/workspace/src/store/use-renderer-selector.ts`) so the view
   re-renders only when the projected rows actually change — mirroring
   `entityRowsEqual` in `entity-manager-model.ts`.
 
@@ -327,7 +327,7 @@ is ahead of the store record, and this write will either be rejected on
 revision mismatch or land and then be overwritten by the editor's next save.
 
 The editor stages its document via `preparedDocuments.stage(...)`
-(`app/src/features/editor/prepared-documents.ts:57`) and saves on a debounce
+(`apps/workspace/src/features/editor/prepared-documents.ts:57`) and saves on a debounce
 (`note-editor.tsx:546`). Options, in preference order:
 
 1. **Flush first.** Before building the toggle, ask the editor to persist the
@@ -349,7 +349,7 @@ first thing to do in this section, and it may change the shape of the seam.
 Clicking a row's note label, or pressing Enter on a focused row, navigates to
 the source.
 
-Follow `app/src/features/references/reference-navigation.ts`, which pushes the
+Follow `apps/workspace/src/features/references/reference-navigation.ts`, which pushes the
 current location onto a back stack before jumping so `navigateBack` can return
 the reader. Reuse that module rather than writing a second back stack.
 
@@ -418,24 +418,24 @@ note label. Completed rows are de-emphasized.
 
 | File | Why |
 | --- | --- |
-| `app/src/app-route.ts` | `tasks` route + focus parsing |
-| `app/src/commands/rail-items.ts` | Rail entry |
-| `app/src/commands/definitions.ts` | `goToTasks` command |
-| `app/src/app.tsx` | Route branch + action mapping |
-| `app/src/features/tasks/tasks-view.tsx` *(new)* | The surface; hosts `WindowControls` |
-| `app/src/features/tasks/tasks-model.ts` *(new)* | Pure projection + row equality |
-| `app/src/features/tasks/task-operations.ts` *(new)* | Paired-write builders |
-| `app/src/features/editor/note-editor.tsx` | Reveal-by-blockId, and `transformPasted` for task identity |
-| `app/src/features/editor/reveal-controller.ts` *(new)* | Cross-route reveal request, replayed after the note switch |
-| `app/src/features/editor/block-locations.ts` *(new)* | Position and top-level index of a `blockId` |
-| `app/src/features/editor/task-paste.ts` *(new)* | Fresh identity for pasted `check_item`s |
-| `app/src/store/store.ts` | Apply a task operation's paired document optimistically |
-| `app/__tests__/features/tasks/tasks-model.test.ts` *(new)* | Projection, grouping, detached handling |
-| `app/__tests__/features/tasks/task-operations.test.ts` *(new)* | Paired writes, refusal cases |
+| `apps/workspace/src/app-route.ts` | `tasks` route + focus parsing |
+| `apps/workspace/src/commands/rail-items.ts` | Rail entry |
+| `apps/workspace/src/commands/definitions.ts` | `goToTasks` command |
+| `apps/workspace/src/app.tsx` | Route branch + action mapping |
+| `apps/workspace/src/features/tasks/tasks-view.tsx` *(new)* | The surface; hosts `WindowControls` |
+| `apps/workspace/src/features/tasks/tasks-model.ts` *(new)* | Pure projection + row equality |
+| `apps/workspace/src/features/tasks/task-operations.ts` *(new)* | Paired-write builders |
+| `apps/workspace/src/features/editor/note-editor.tsx` | Reveal-by-blockId, and `transformPasted` for task identity |
+| `apps/workspace/src/features/editor/reveal-controller.ts` *(new)* | Cross-route reveal request, replayed after the note switch |
+| `apps/workspace/src/features/editor/block-locations.ts` *(new)* | Position and top-level index of a `blockId` |
+| `apps/workspace/src/features/editor/task-paste.ts` *(new)* | Fresh identity for pasted `check_item`s |
+| `apps/workspace/src/store/store.ts` | Apply a task operation's paired document optimistically |
+| `apps/workspace/__tests__/features/tasks/tasks-model.test.ts` *(new)* | Projection, grouping, detached handling |
+| `apps/workspace/__tests__/features/tasks/task-operations.test.ts` *(new)* | Paired writes, refusal cases |
 | `docs/FEATURES.md` | Document the surface |
 
 Do not change anything under `crates/`, `contracts/generated/`, or
-`app/src/contracts/workspace.ts`. If you need a new operation type, stop and
+`apps/workspace/src/contracts/workspace.ts`. If you need a new operation type, stop and
 re-read ADR 0031 — the five that exist are sufficient.
 
 ## Implementation order
@@ -501,9 +501,9 @@ Steps 1–2 are shippable alone as a read-only surface.
 
 ### Regression
 
-- [ ] `app/__tests__/features/editor/tasks.test.ts`,
+- [ ] `apps/workspace/__tests__/features/editor/tasks.test.ts`,
       `task-promotion.test.ts`, and `check-list.test.ts` pass unmodified.
-- [ ] `./scripts/check.sh` passes.
+- [ ] `./bin/check` passes.
 
 ---
 
@@ -566,7 +566,7 @@ comment. `unique_document_task_link` will not match a duplicated link, so
 `reconcile_note_tasks` stopped reconciling that task and toggling it from here
 hit refusal case 6.
 
-`app/src/features/editor/task-paste.ts` now regenerates `taskId`/`blockId` on
+`apps/workspace/src/features/editor/task-paste.ts` now regenerates `taskId`/`blockId` on
 every pasted `check_item`. It is wired twice, because the two paste paths do
 not share a slice: as `transformPasted` on the editor view, and inside
 `markdownPasteSlice`, which dispatches its own slice and never reaches

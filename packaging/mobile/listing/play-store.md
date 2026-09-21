@@ -102,9 +102,9 @@ apps — all over the same Rust core, with the same editor.
 
 ## Declared permissions
 
-`mobile/app.json` declares no runtime permissions. The only manifest addition
+`apps/mobile/app.json` declares no runtime permissions. The only manifest addition
 is the share intent filter from
-`mobile/src/features/capture/share-extension/plugin.js`
+`apps/mobile/src/features/capture/share-extension/plugin.js`
 (`android.intent.action.SEND`, `text/plain`), which is not a permission and
 needs no declaration form.
 
