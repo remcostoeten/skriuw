@@ -451,6 +451,7 @@ function countingBridge(inner: BridgePort): { bridge: BridgePort; calls: () => n
   let calls = 0;
   const bridge = new Proxy(inner, {
     get(target, property, receiver) {
+      // oxlint-disable-next-line anti-slop/no-reflect-get -- a Proxy get trap must forward the receiver.
       const value = Reflect.get(target, property, receiver);
       if (typeof value !== "function") return value;
       return (...args: unknown[]) => {

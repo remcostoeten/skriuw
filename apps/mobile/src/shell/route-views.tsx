@@ -31,13 +31,13 @@ export function NotesColumn() {
   );
 }
 
-type PlaceholderProps = {
+type Props = {
   route: ShellRoute;
   detail: string;
 };
 
 /** A destination whose surface arrives with its own issue in wave 3. */
-export function RoutePlaceholder({ route, detail }: PlaceholderProps) {
+export function RoutePlaceholder({ route, detail }: Props) {
   const theme = useTheme();
 
   return (

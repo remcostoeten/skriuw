@@ -1,3 +1,4 @@
+import type * as SecureStore from "expo-secure-store";
 import { createKeystore, createUnavailableKeystore, KEYSTORE_UNAVAILABLE_MESSAGE, type Keystore } from "./keystore";
 
 /**
@@ -6,7 +7,7 @@ import { createKeystore, createUnavailableKeystore, KEYSTORE_UNAVAILABLE_MESSAGE
  * when the Face ID usage description is missing from the build.
  */
 export type LoadedSecureStore = Pick<
-  typeof import("expo-secure-store"),
+  typeof SecureStore,
   | "getItemAsync"
   | "setItemAsync"
   | "deleteItemAsync"

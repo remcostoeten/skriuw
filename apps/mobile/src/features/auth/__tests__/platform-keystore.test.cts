@@ -30,7 +30,9 @@ function unexpected(error: unknown): never {
 
 test("a build with the keystore keeps the credential across a restart", async () => {
   const secureStore = installedSecureStore();
-  const load = async () => secureStore;
+  async function load() {
+    return secureStore;
+  }
 
   const first = createSessionStore(createPlatformKeystore(resolveSecureStore(load, unexpected)));
   assert.deepEqual(await first.remember("bearer-1"), { persisted: true });

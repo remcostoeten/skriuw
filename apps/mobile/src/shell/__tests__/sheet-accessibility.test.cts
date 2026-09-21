@@ -7,12 +7,12 @@ import { SideSheet } from "../sheet";
 
 function renderSheet(open: boolean, onClose: () => void = () => undefined) {
   return renderHosts(
-    createElement(SideSheet, { side: "left", open, title: "Notes", onClose, children: "tree" }),
+    createElement(SideSheet, { side: "left", open, title: "Notes", onClose }, "tree"),
   );
 }
 
 test("an open sheet renders in its own modal window, so TalkBack cannot reach the shell behind it", () => {
-  const onClose = () => undefined;
+  function onClose() {}
   const [root] = renderSheet(true, onClose);
 
   assert.equal(root?.type, "Modal", "the sheet must be the root of a Modal, not a sibling of the shell");
