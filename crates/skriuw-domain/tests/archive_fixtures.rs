@@ -5,8 +5,9 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use skriuw_domain::{
-    ArchiveValidationError, NodeKind, OperationValidationError, SUPPORTED_ARCHIVE_VERSIONS,
-    TaskPriority, TaskSource, TaskStatus, WorkspaceArchive, WorkspaceSnapshot,
+    AnnotationStatus, ArchiveValidationError, NodeKind, OperationValidationError,
+    SUPPORTED_ARCHIVE_VERSIONS, TaskPriority, TaskSource, TaskStatus, WorkspaceArchive,
+    WorkspaceSnapshot,
 };
 
 #[derive(Debug, Deserialize)]
@@ -336,6 +337,54 @@ fn older_archives_default_to_empty_tasks() {
     ] {
         assert!(load_fixture_archive(file).tasks.is_empty(), "{file}");
     }
+}
+
+#[test]
+fn prompt_fixture_preserves_built_in_and_custom_prompts() {
+    let archive = load_fixture_archive("v5/prompts.json");
+
+    assert_eq!(archive.prompts.len(), 2);
+    let built_in = archive
+        .prompts
+        .iter()
+        .find(|prompt| prompt.id == "prompt-shadow-rewrite")
+        .expect("built-in prompt");
+    assert_eq!(built_in.built_in_id.as_deref(), Some("rewrite"));
+    assert_eq!(built_in.parameters.temperature_millis, Some(450));
+    assert_eq!(built_in.parameters.max_output_bytes, 65_536);
+
+    let custom = archive
+        .prompts
+        .iter()
+        .find(|prompt| prompt.id == "prompt-standup")
+        .expect("custom prompt");
+    assert_eq!(custom.built_in_id, None);
+    assert_eq!(custom.parameters.temperature_millis, None);
+    assert_eq!(custom.parameters.max_output_bytes, 8_192);
+}
+
+#[test]
+fn annotation_fixture_preserves_open_and_resolved_threads() {
+    let archive = load_fixture_archive("v6/annotations.json");
+
+    assert_eq!(archive.annotations.len(), 2);
+    let open = archive
+        .annotations
+        .iter()
+        .find(|annotation| annotation.id == "annotation-open")
+        .expect("open annotation");
+    assert_eq!(open.status, AnnotationStatus::Open);
+    assert_eq!(open.anchor_text, "needs a source");
+    assert_eq!(open.comments.len(), 2);
+
+    let resolved = archive
+        .annotations
+        .iter()
+        .find(|annotation| annotation.id == "annotation-orphaned")
+        .expect("resolved annotation");
+    assert_eq!(resolved.status, AnnotationStatus::Resolved);
+    assert_eq!(resolved.resolved_at, Some(1_755_600_004_000));
+    assert_eq!(resolved.comments.len(), 1);
 }
 
 #[test]

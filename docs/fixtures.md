@@ -65,6 +65,11 @@ cargo run --release --locked -p skriuw-fixtures --example export_tree_projection
 
 `app/harnesses/renderer-store/scripts/export-fixtures.sh` wraps the same command for the renderer-store harness, which asserts node, folder, and document counts, maximum depth, and parent relationships against the embedded metadata after hydration.
 
+`app/performance/run.mjs` generates the same projections into its ignored
+`app/performance/public/fixtures/` directory before it measures the product
+renderer. Both consumers rebuild projections from the Rust generator instead
+of relying on committed JSON.
+
 ## Backend workload measurements
 
 `tests/backend_workloads.rs` adds deterministic correctness coverage plus manual optimized-build measurements for import, bootstrap, and native Git history workloads over the `mixed-1000` and `mixed-5000` fixtures. The default suite proves the complete pipeline with a 120-note mixed fixture: archive import, bootstrap state, search counts, SQLite integrity, outbox-to-Git drain, Git history integrity, and validated cache rebuild.

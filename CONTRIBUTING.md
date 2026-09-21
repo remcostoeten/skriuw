@@ -9,12 +9,6 @@ Skriuw contains two product lines:
 - The repository root is the current (v2) local-first desktop application.
 - `v1/` contains the frozen legacy web, mobile, and self-hosted line.
 
-Git hooks live at the repository root and are shared by both lines. Enable them once per clone:
-
-```bash
-git config core.hooksPath .husky/_
-```
-
 Check for an existing issue before starting a large change. Open an issue first when a proposal changes persisted data, public contracts, security behavior, or an architectural decision.
 
 Do not report vulnerabilities in a public issue. Follow [SECURITY.md](SECURITY.md).
