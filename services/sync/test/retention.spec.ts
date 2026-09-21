@@ -390,7 +390,7 @@ describe("chunk deletion versus concurrent references", () => {
 
     const gate = { started: false, released: false };
     await runInDurableObject(workspace, (instance) => {
-      const content = (instance as unknown as { content: WorkspaceContentStore }).content;
+      const content = instance["content"];
       const original = content.deleteChunks.bind(content);
       content.deleteChunks = async (id, digests) => {
         gate.started = true;

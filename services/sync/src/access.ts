@@ -21,12 +21,12 @@ export type CredentialVerification =
   | { ok: true; identity: TrustedIdentity }
   | { ok: false; code: CredentialFailureCode };
 
-export interface CredentialVerifier {
+export type CredentialVerifier = {
   verifyBearerToken(
     token: string,
     nowEpochSeconds: number,
   ): Promise<CredentialVerification>;
-}
+};
 
 export type WorkspaceMembership = {
   role: WorkspaceRole;
@@ -37,12 +37,12 @@ export type WorkspaceMembershipLookup =
   | { state: "active"; membership: WorkspaceMembership }
   | { state: "denied" };
 
-export interface WorkspaceMembershipSource {
+export type WorkspaceMembershipSource = {
   lookupMembership(
     trustedSubject: string,
     workspaceId: string,
   ): Promise<WorkspaceMembershipLookup>;
-}
+};
 
 export type ReadySyncAccessConfiguration = {
   state: "ready";
@@ -302,7 +302,17 @@ function isTrustedIdentity(identity: TrustedIdentity): boolean {
 }
 
 function isBoundedOpaqueValue(value: string): boolean {
-  return value.length > 0 && value.length <= 256 && !/[\u0000-\u001f\u007f]/.test(value);
+  return value.length > 0 && value.length <= 256 && !containsControlCharacter(value);
+}
+
+function containsControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code <= 0x1f || code === 0x7f) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function isBoundDeviceId(value: string): boolean {

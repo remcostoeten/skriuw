@@ -9,7 +9,6 @@ import {
   requestWithSubprotocolCredential,
 } from "./access";
 import { readBoundedBytes } from "./bounded-body";
-import { requireIdentifier } from "./contracts";
 import { type WorkspaceContentStore, isContentDigest } from "./content-store";
 import {
   type AcknowledgementResult,
@@ -27,6 +26,7 @@ import {
   type WorkspaceSyncState,
   parseSyncPullResponse,
   parseSyncPushRequest,
+  requireIdentifier,
   requireSafeSequence,
 } from "./contracts";
 

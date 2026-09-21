@@ -622,18 +622,16 @@ window.__SKRIUW_BENCHMARK__ = {
 };
 
 declare global {
-  interface Window {
-    __SKRIUW_BENCHMARK__: {
-      run(
-        candidate?: CandidateId,
-        blockCount?: BlockCount,
-        strategy?: RenderingStrategy,
-      ): Promise<BenchmarkResult>;
-      armNativeNavigation(expectedInteractions?: number): void;
-      finishNativeNavigation(): Promise<NativeInteractionResult>;
-      runBoundedCorrectnessScenario(): BoundedCorrectnessResult;
-      lastResult(): BenchmarkResult | null;
-      lastNativeResult(): NativeInteractionResult | null;
-    };
-  }
+  var __SKRIUW_BENCHMARK__: {
+    run(
+      candidate?: CandidateId,
+      blockCount?: BlockCount,
+      strategy?: RenderingStrategy,
+    ): Promise<BenchmarkResult>;
+    armNativeNavigation(expectedInteractions?: number): void;
+    finishNativeNavigation(): Promise<NativeInteractionResult>;
+    runBoundedCorrectnessScenario(): BoundedCorrectnessResult;
+    lastResult(): BenchmarkResult | null;
+    lastNativeResult(): NativeInteractionResult | null;
+  };
 }

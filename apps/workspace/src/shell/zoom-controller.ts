@@ -97,7 +97,7 @@ export function initZoom(): () => void {
   if (zoomPercent !== ZOOM_DEFAULT_PERCENT) {
     applyZoomNow();
   }
-  const onWheel = (event: WheelEvent) => {
+  function onWheel(event: WheelEvent) {
     if (!event.ctrlKey) {
       return;
     }
@@ -107,7 +107,7 @@ export function initZoom(): () => void {
     }
     const step = event.deltaY < 0 ? ZOOM_WHEEL_STEP_PERCENT : -ZOOM_WHEEL_STEP_PERCENT;
     setZoomPercent(zoomPercent + step);
-  };
+  }
   window.addEventListener("wheel", onWheel, { passive: false });
   return () => {
     window.removeEventListener("wheel", onWheel);

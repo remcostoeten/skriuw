@@ -11,9 +11,7 @@ import type { WorkflowController } from "./harness";
 import "../src/styles.css";
 
 declare global {
-  interface Window {
-    __SKRIUW_WORKFLOW_E2E__: WorkflowController;
-  }
+  var __SKRIUW_WORKFLOW_E2E__: WorkflowController;
 }
 
 Object.defineProperty(window, "__TAURI_INTERNALS__", {

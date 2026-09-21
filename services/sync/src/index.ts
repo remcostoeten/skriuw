@@ -52,8 +52,12 @@ export default {
       if (!headers) return jsonError(403, "origin_not_allowed");
       if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
       const accessConfiguration = productionSyncAccessConfiguration(env);
-      const nowEpochSeconds = () => Math.floor(Date.now() / 1_000);
-      const resolveWorkspace = (workspaceId: string) => env.WORKSPACES.getByName(workspaceId);
+      function nowEpochSeconds() {
+        return Math.floor(Date.now() / 1_000);
+      }
+      function resolveWorkspace(workspaceId: string) {
+        return env.WORKSPACES.getByName(workspaceId);
+      }
       const response = url.pathname === "/v1/sync/provision"
         ? await handleSyncProvisionRequest(request, {
             accessConfiguration,

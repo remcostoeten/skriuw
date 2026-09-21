@@ -21,8 +21,9 @@ const tasksOnly = process.argv.includes("--tasks-only");
 const providerImportOnly = process.argv.includes("--provider-import-only");
 const journalOnly = process.argv.includes("--journal-only");
 const mermaidOnly = process.argv.includes("--mermaid-only");
-const sleep = (milliseconds) =>
-  new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
+function sleep(milliseconds) {
+  return new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
+}
 
 function run(command, arguments_, options = {}) {
   return new Promise((resolveRun, reject) => {
@@ -94,7 +95,7 @@ function launchChrome(profileDirectory) {
     let buffered = "";
     let settled = false;
     const timeout = setTimeout(() => fail(new Error("Chrome did not expose DevTools")), 15_000);
-    const fail = (error) => {
+    function fail(error) {
       if (settled) {
         return;
       }
@@ -102,7 +103,7 @@ function launchChrome(profileDirectory) {
       clearTimeout(timeout);
       child.kill("SIGKILL");
       reject(error);
-    };
+    }
     child.stderr.on("data", (chunk) => {
       buffered += String(chunk);
       const match = buffered.match(/DevTools listening on (ws:\/\/\S+)/);
@@ -504,7 +505,7 @@ async function checkMermaidRender(cdp, sessionId, checks) {
   const blocksBefore = await evaluate(cdp, sessionId, "document.querySelector('.ProseMirror[contenteditable=\"true\"]').childElementCount");
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
-  await waitFor(cdp, sessionId, `document.querySelector('.ProseMirror[contenteditable=\"true\"]').childElementCount > ${blocksBefore}`, "fresh block for the mermaid fence");
+  await waitFor(cdp, sessionId, `document.querySelector('.ProseMirror[contenteditable="true"]').childElementCount > ${blocksBefore}`, "fresh block for the mermaid fence");
   await typeText(cdp, sessionId, "/sequence");
   await waitFor(cdp, sessionId, "document.querySelector('.slash-menu[role=\"listbox\"]') !== null", "sequence slash command");
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
@@ -633,10 +634,15 @@ async function runWorkflow() {
       "typeof window.__SKRIUW_WORKFLOW_E2E__ !== 'undefined'",
       "workflow controller",
     );
-    const control = (expression) =>
-      evaluate(cdp, sessionId, `window.__SKRIUW_WORKFLOW_E2E__.${expression}`);
-    const settle = () => control("settle()");
-    const state = () => control("state()");
+    function control(expression) {
+      return evaluate(cdp, sessionId, `window.__SKRIUW_WORKFLOW_E2E__.${expression}`);
+    }
+    function settle() {
+      return control("settle()");
+    }
+    function state() {
+      return control("state()");
+    }
 
     if (personalOnly) {
       await control('focusNamed("Command menu")');

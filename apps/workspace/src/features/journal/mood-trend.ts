@@ -44,8 +44,9 @@ function mean(values: readonly number[]): number | null {
 
 function compareHalves(days: readonly MoodTrendDay[]): MoodDirection | null {
   const middle = Math.floor(days.length / 2);
-  const scores = (slice: readonly MoodTrendDay[]) =>
-    slice.flatMap((day) => (day.mood === null ? [] : [MOOD_SCORE[day.mood]]));
+  function scores(slice: readonly MoodTrendDay[]) {
+    return slice.flatMap((day) => (day.mood === null ? [] : [MOOD_SCORE[day.mood]]));
+  }
   const earlier = scores(days.slice(0, middle));
   const later = scores(days.slice(middle));
   if (earlier.length < HALF_MINIMUM || later.length < HALF_MINIMUM) {

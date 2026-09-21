@@ -53,11 +53,11 @@ function createHarness(store: RendererStore = fixtureStore()) {
     },
     focus() {},
   } as unknown as EditorView;
-  const type = (text: string) => {
+  function type(text: string) {
     for (const character of text) {
       view.dispatch(view.state.tr.insertText(character));
     }
-  };
+  }
   return { view, context, store, type, createdNotes, state: () => editorState };
 }
 

@@ -1,4 +1,4 @@
-import { Directory, File, Paths } from "expo-file-system";
+import { type Directory, File, Paths } from "expo-file-system";
 import { createCaptureInbox, type CaptureInbox, type InboxFile } from "./inbox";
 
 /**

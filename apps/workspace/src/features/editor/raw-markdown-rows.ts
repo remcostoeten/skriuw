@@ -126,7 +126,7 @@ class RowNumbersMarker extends GutterMarker {
 }
 
 function rowLayoutOf(view: EditorView): RawMarkdownRowLayout {
-  return view.plugin(rowLayoutPlugin)?.layout ?? buildRowLayout(new Array<number>(view.state.doc.lines).fill(1));
+  return view.plugin(rowLayoutPlugin)?.layout ?? buildRowLayout(Array.from({ length: view.state.doc.lines }, () => 1));
 }
 
 function markerFor(view: EditorView, block: BlockInfo): RowNumbersMarker {

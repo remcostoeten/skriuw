@@ -301,7 +301,7 @@ test("a background refresh does not wait behind the foreground queue", async () 
 });
 
 test("a background window the platform withdraws is expired rather than failed", async () => {
-  let release = (): void => undefined;
+  let release: () => void = () => undefined;
   const expiration = new Promise<void>((resolve) => {
     release = resolve;
   });

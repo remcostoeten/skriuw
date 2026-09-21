@@ -12,7 +12,9 @@ type Props = {
   store: RendererStore;
 };
 
-const selectVisibleIds = (state: ReturnType<RendererStore["getState"]>) => state.visibleIds;
+function selectVisibleIds(state: ReturnType<RendererStore["getState"]>) {
+  return state.visibleIds;
+}
 
 const TreeHostCommitProbe = memo(function TreeHostCommitProbe({ revision: _revision }: { revision: readonly string[] }) {
   return null;

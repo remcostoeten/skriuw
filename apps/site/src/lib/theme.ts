@@ -63,7 +63,9 @@ export function useTheme() {
     }
 
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => setResolved(applyTheme("system"));
+    function onChange() {
+      setResolved(applyTheme("system"));
+    }
 
     media.addEventListener("change", onChange);
 

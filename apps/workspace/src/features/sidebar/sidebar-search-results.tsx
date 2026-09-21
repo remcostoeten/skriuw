@@ -26,7 +26,7 @@ function selectIncomingReferences(state: RendererState) {
   return state.incomingReferences;
 }
 
-type SearchResultsProps = {
+type Props = {
   ref: React.Ref<HTMLDivElement>;
   store: RendererStore;
   query: string;
@@ -44,7 +44,7 @@ export function SidebarSearchResults({
   onBlur,
   onFolderSelect,
   onNoteSelect,
-}: SearchResultsProps) {
+}: Props) {
   const nodes = useRendererSelector(store, selectNodes);
   const nodeOrder = useRendererSelector(store, selectNodeOrder);
   const activeNoteId = useRendererSelector(store, selectActiveNoteId);

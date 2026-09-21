@@ -236,12 +236,12 @@ function visualSelection(doc: EditorState["doc"], anchor: number, head: number, 
         : TextSelection.create(doc, last.end, first.start);
     }
   }
-  const pastChar = (pos: number) => {
+  function pastChar(pos: number) {
     const line = lineAt(doc, pos);
     if (!line) return pos;
     const column = lineOffset(line, pos);
     return hasCharacterAt(line, column) ? positionAt(line, column + 1) : pos;
-  };
+  }
   if (clampedHead >= clampedAnchor) {
     return TextSelection.create(doc, clampedAnchor, pastChar(clampedHead));
   }
@@ -518,7 +518,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     if (target.linewise) {
       return { from: Math.min(cursor, target.pos), to: Math.max(cursor, target.pos), linewise: true };
     }
-    let from = Math.min(cursor, target.pos);
+    const from = Math.min(cursor, target.pos);
     let to = Math.max(cursor, target.pos);
     if (target.inclusive) {
       const line = lineAt(view.state.doc, to);
@@ -538,9 +538,9 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
   ): void {
     const { state } = view;
     const clipboard = host.clipboard;
-    const finish = (tr: Transaction, cursor: number, nextMode: VimMode = "normal") => {
+    function finish(tr: Transaction, cursor: number, nextMode: VimMode = "normal") {
       view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, Math.max(0, Math.min(cursor, tr.doc.content.size)))), { mode: nextMode }).scrollIntoView());
-    };
+    }
     if (fromVisual) {
       const vim = pluginState(state);
       session.lastVisual = { anchor: vim.visualAnchor, head: vim.visualHead, linewise: range.linewise };
@@ -632,7 +632,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
   }
 
   function put(view: EditorView, register: string | null, after: boolean, count: number, keys: readonly string[], cursorAfter: boolean): void {
-    const apply = (content: ReturnType<typeof readRegister>) => {
+    function apply(content: ReturnType<typeof readRegister>) {
       if (!content) return;
       const tr = view.state.tr;
       const cursor = putRegister(tr, view.state.selection.head, content, after, count);
@@ -644,7 +644,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
       announce(`${pluralized(contentCount * count, unit)} put`);
       const finalCursor = cursorAfter ? Math.min(cursor + 1, tr.doc.content.size) : cursor;
       view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, finalCursor)), { mode: "normal" }).scrollIntoView());
-    };
+    }
     if (isClipboardRegister(register)) {
       void host.clipboard.read().then((text) => {
         if (text.length > 0) apply(textRegister(text, text.includes("\n") && text.endsWith("\n")));
@@ -661,7 +661,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     for (let index = start; index < plugins.length; index += 1) {
       const candidate = plugins[index];
       const handler = candidate?.props.handleKeyDown;
-      if (candidate && handler && handler.call(candidate, view, event as unknown as KeyboardEvent)) return true;
+      if (candidate && handler && handler.call(candidate, view, event as KeyboardEvent)) return true;
     }
     return false;
   }
@@ -670,7 +670,9 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     const { from, to } = view.state.selection;
     const plugins = view.state.plugins;
     const start = plugins.indexOf(plugin) + 1;
-    const fallback = () => view.state.tr.insertText(text, from, to);
+    function fallback() {
+      return view.state.tr.insertText(text, from, to);
+    }
     for (let index = start; index < plugins.length; index += 1) {
       const candidate = plugins[index];
       const handler = candidate?.props.handleTextInput;
@@ -949,7 +951,9 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     const vim = pluginState(state);
     const linewise = mode(state) === "visual-line";
     const range = visualRange(view);
-    const lineRange = (): OperatorRange => ({ from: range.from, to: range.to, linewise: true });
+    function lineRange(): OperatorRange {
+      return { from: range.from, to: range.to, linewise: true };
+    }
     switch (command.action) {
       case "<Esc>":
       case "v":
@@ -1431,11 +1435,11 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
       detail.className = "vim-status-detail";
       statusElement.append(badge, detail);
       view.dom.parentElement?.appendChild(statusElement);
-      const syncDom = () => {
+      function syncDom() {
         const current = mode(view.state);
         view.dom.classList.toggle("vim-normal", current !== "insert");
         view.dom.dataset.vimMode = host.enabled() ? current : "off";
-      };
+      }
       render = () => {
         syncDom();
         renderStatus(view);

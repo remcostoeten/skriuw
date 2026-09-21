@@ -926,7 +926,7 @@ function toggleListInputRule(): InputRule {
 }
 
 function linkInputRule(): InputRule {
-  return new InputRule(/\[([^\[\]]+)\]\(([^()\s]+)\)$/, (state, match, start, end) => {
+  return new InputRule(/\[([^[\]]+)\]\(([^()\s]+)\)$/, (state, match, start, end) => {
     const link = productSchema.marks.link;
     const text = match[1] ?? "";
     const href = match[2] ?? "";
@@ -1581,7 +1581,21 @@ export function serializeProductMarkdown(document: ProseMirrorNode): string {
   return body.length > 0 ? `${body}\n\n${fence}` : fence;
 }
 
-function inlineWikiLinkRule(state: any, silent: boolean): boolean {
+type MarkdownTokenizer = typeof defaultMarkdownParser.tokenizer;
+type InlineRuleState = Parameters<Parameters<MarkdownTokenizer["inline"]["ruler"]["before"]>[2]>[0];
+type CoreRuleState = Parameters<Parameters<MarkdownTokenizer["core"]["ruler"]["push"]>[1]>[0];
+type MarkdownToken = CoreRuleState["tokens"][number];
+type MarkdownRuler = MarkdownTokenizer["inline"]["ruler"] | MarkdownTokenizer["core"]["ruler"];
+
+function hasMarkdownRule(ruler: MarkdownRuler, name: string): boolean {
+  if (!("__rules" in ruler) || !Array.isArray(ruler.__rules)) return false;
+  return ruler.__rules.some(
+    (rule: unknown) =>
+      typeof rule === "object" && rule !== null && "name" in rule && rule.name === name,
+  );
+}
+
+function inlineWikiLinkRule(state: InlineRuleState, silent: boolean): boolean {
   const max = state.posMax;
   const start = state.pos;
 
@@ -1617,17 +1631,17 @@ function inlineWikiLinkRule(state: any, silent: boolean): boolean {
   return true;
 }
 
-if (!(defaultMarkdownParser.tokenizer.inline.ruler as any).__rules?.some((r: any) => r.name === "wiki_link")) {
+if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.inline.ruler, "wiki_link")) {
   defaultMarkdownParser.tokenizer.inline.ruler.before("link", "wiki_link", inlineWikiLinkRule);
 }
 
 type RichMarkTag = "highlight" | "annotation";
 
-function openRichMarkTags(state: any): RichMarkTag[] {
+function openRichMarkTags(state: InlineRuleState): RichMarkTag[] {
   return (state.env.skriuwOpenRichMarkTags ??= []);
 }
 
-function richFormattingTagRule(state: any, silent: boolean): boolean {
+function richFormattingTagRule(state: InlineRuleState, silent: boolean): boolean {
   const source = state.src.slice(state.pos, state.posMax);
   const underline = source.match(/^<(\/?)u>/i);
   if (underline) {
@@ -1685,7 +1699,7 @@ function richFormattingTagRule(state: any, silent: boolean): boolean {
   return true;
 }
 
-if (!(defaultMarkdownParser.tokenizer.inline.ruler as any).__rules?.some((r: any) => r.name === "skriuw_rich_formatting")) {
+if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.inline.ruler, "skriuw_rich_formatting")) {
   defaultMarkdownParser.tokenizer.inline.ruler.before("text", "skriuw_rich_formatting", richFormattingTagRule);
 }
 
@@ -1704,9 +1718,9 @@ if (!(defaultMarkdownParser.tokenizer.inline.ruler as any).__rules?.some((r: any
  * dropped by `createAndFill`. Wrapping the inline run in paragraph tokens keeps
  * the cell content valid without a bespoke token handler.
  */
-function wrapTableCellContent(state: any): boolean {
+function wrapTableCellContent(state: CoreRuleState): boolean {
   const tokens = state.tokens;
-  const wrapped: any[] = [];
+  const wrapped: MarkdownToken[] = [];
   let inCell = false;
   for (const token of tokens) {
     if (token.type === "th_open" || token.type === "td_open") inCell = true;
@@ -1724,15 +1738,16 @@ function wrapTableCellContent(state: any): boolean {
   return true;
 }
 
-if (!(defaultMarkdownParser.tokenizer.core.ruler as any).__rules?.some((r: any) => r.name === "table_cell_paragraphs")) {
+if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.core.ruler, "table_cell_paragraphs")) {
   defaultMarkdownParser.tokenizer.core.ruler.push("table_cell_paragraphs", wrapTableCellContent);
 }
 
-function applyTextAlignmentMarkers(state: any): boolean {
+function applyTextAlignmentMarkers(state: CoreRuleState): boolean {
   const tokens = state.tokens;
   for (let index = 0; index < tokens.length - 1; index += 1) {
     const opening = tokens[index];
     const inline = tokens[index + 1];
+    if (!opening || !inline) continue;
     if (
       (opening.type !== "paragraph_open" && opening.type !== "heading_open") ||
       inline.type !== "inline"
@@ -1744,16 +1759,16 @@ function applyTextAlignmentMarkers(state: any): boolean {
     const match = first.content.match(/^<!--skriuw-align:(center|right)-->/);
     if (!match) continue;
     first.content = first.content.slice(match[0].length);
-    opening.meta = { ...(opening.meta ?? {}), textAlign: match[1] };
+    opening.meta = { ...opening.meta, textAlign: match[1] };
   }
   return true;
 }
 
-if (!(defaultMarkdownParser.tokenizer.core.ruler as any).__rules?.some((r: any) => r.name === "skriuw_text_alignment")) {
+if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.core.ruler, "skriuw_text_alignment")) {
   defaultMarkdownParser.tokenizer.core.ruler.push("skriuw_text_alignment", applyTextAlignmentMarkers);
 }
 
-function convertDiagramFences(state: any): boolean {
+function convertDiagramFences(state: CoreRuleState): boolean {
   for (const token of state.tokens) {
     if (token.type !== "fence") continue;
     const language = String(token.info ?? "").trim().toLowerCase();
@@ -1761,12 +1776,12 @@ function convertDiagramFences(state: any): boolean {
     const parsed = parseMermaidFlowchart(String(token.content ?? ""));
     if (!parsed.ok) continue;
     token.type = "skriuw_diagram";
-    token.meta = { ...(token.meta ?? {}), diagramModel: parsed.model };
+    token.meta = { ...token.meta, diagramModel: parsed.model };
   }
   return true;
 }
 
-if (!(defaultMarkdownParser.tokenizer.core.ruler as any).__rules?.some((r: any) => r.name === "skriuw_diagram_fences")) {
+if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.core.ruler, "skriuw_diagram_fences")) {
   defaultMarkdownParser.tokenizer.core.ruler.push("skriuw_diagram_fences", convertDiagramFences);
 }
 
@@ -1787,11 +1802,11 @@ const productMarkdownParser = new MarkdownParser(
     s: { mark: "strikethrough" },
     paragraph: {
       block: "paragraph",
-      getAttrs: (tok: any) => ({ textAlign: tok.meta?.textAlign ?? "left" }),
+      getAttrs: (tok) => ({ textAlign: tok.meta?.textAlign ?? "left" }),
     },
     heading: {
       block: "heading",
-      getAttrs: (tok: any) => ({
+      getAttrs: (tok) => ({
         level: +tok.tag.slice(1),
         textAlign: tok.meta?.textAlign ?? "left",
       }),
@@ -1799,15 +1814,15 @@ const productMarkdownParser = new MarkdownParser(
     skriuw_underline: { mark: "underline" },
     skriuw_highlight: {
       mark: "highlight",
-      getAttrs: (tok: any) => ({ color: tok.meta?.color ?? "yellow" }),
+      getAttrs: (tok) => ({ color: tok.meta?.color ?? "yellow" }),
     },
     skriuw_annotation: {
       mark: "annotation",
-      getAttrs: (tok: any) => ({ threadId: tok.meta?.threadId ?? "" }),
+      getAttrs: (tok) => ({ threadId: tok.meta?.threadId ?? "" }),
     },
     skriuw_diagram: {
       node: "diagram",
-      getAttrs: (tok: any) => ({ model: tok.meta?.diagramModel ?? createDefaultDiagram() }),
+      getAttrs: (tok) => ({ model: tok.meta?.diagramModel ?? createDefaultDiagram() }),
     },
     table: { block: "table" },
     thead: { ignore: true },
@@ -1817,7 +1832,7 @@ const productMarkdownParser = new MarkdownParser(
     td: { block: "table_cell" },
     wiki_link: {
       node: "mention_ref",
-      getAttrs: (tok: any) => ({
+      getAttrs: (tok) => ({
         kind: "note",
         id: tok.content,
         label: tok.content,

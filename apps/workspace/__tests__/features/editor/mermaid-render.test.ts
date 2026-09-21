@@ -166,10 +166,10 @@ test("bad source, unsupported families, and empty output become error results", 
 
 test("identical source, palette, and options hit the memo", async () => {
   let calls = 0;
-  const fake = async () => {
+  async function fake() {
     calls += 1;
     return "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"12\" height=\"8\"></svg>";
-  };
+  }
   const first = await renderMermaidSvg("graph TD\n  A --> B", palette, options, fake);
   const second = await renderMermaidSvg("graph TD\n  A --> B", palette, options, fake);
   assert.equal(calls, 1);
@@ -182,7 +182,9 @@ test("identical source, palette, and options hit the memo", async () => {
 });
 
 test("the memo stays bounded", async () => {
-  const fake = async () => "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1\" height=\"1\"></svg>";
+  async function fake() {
+    return "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1\" height=\"1\"></svg>";
+  }
   for (let index = 0; index < 80; index += 1) {
     await renderMermaidSvg(`graph TD\n  A${index} --> B`, palette, options, fake);
   }

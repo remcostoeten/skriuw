@@ -144,10 +144,11 @@ test("the filter matches labels, combos, groups, and when copy", () => {
 });
 
 test("the filter accepts common spellings of a key name", () => {
-  const groups = (query: string) =>
-    shortcutHelpGroups({ overrides: {}, platform: "linux", query })
+  function groups(query: string) {
+    return shortcutHelpGroups({ overrides: {}, platform: "linux", query })
       .flatMap((group) => group.rows)
       .map((row) => row.id);
+  }
   for (const query of ["pgup", "page up", "pageup", "ctrl shift pgup"]) {
     assert.ok(groups(query).includes("moveTabLeft"), `${query} found nothing`);
   }

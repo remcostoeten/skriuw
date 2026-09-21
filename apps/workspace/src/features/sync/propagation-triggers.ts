@@ -40,21 +40,16 @@ export type PropagationTriggerDependencies = {
 };
 
 function defaultDependencies(): PropagationTriggerDependencies {
-  const globals = globalThis as unknown as {
-    window: EventSource;
-    document: VisibilitySource;
-    navigator: ConnectivitySource;
-  };
   return {
-    window: globals.window,
-    document: globals.document,
-    navigator: globals.navigator,
+    window: globalThis.window,
+    document: globalThis.document,
+    navigator: globalThis.navigator,
     flush: flushPendingWork,
     refresh: refreshWorkspaceSync,
     setOnline: setWorkspaceSyncOnline,
     setVisibility: setWorkspaceSyncVisibility,
     timers: {
-      setTimeout: (callback, delayMs) => globalThis.setTimeout(callback, delayMs) as unknown as number,
+      setTimeout: (callback, delayMs) => globalThis.window.setTimeout(callback, delayMs),
       clearTimeout: (handle) => globalThis.clearTimeout(handle),
     },
     onError: (context, error) => console.error(`${context} failed`, error),
@@ -100,17 +95,17 @@ export function bindPropagationTriggers(
       .catch((error) => deps.onError("sync connectivity report", error));
   }
 
-  const handleBlur = () => {
+  function handleBlur() {
     reportVisibility();
     scheduleFlushAndRefresh();
-  };
-  const handleFocus = () => {
+  }
+  function handleFocus() {
     reportVisibility();
-  };
-  const handleVisibilityChange = () => {
+  }
+  function handleVisibilityChange() {
     reportVisibility();
     if (deps.document.visibilityState === "hidden") scheduleFlushAndRefresh();
-  };
+  }
 
   deps.window.addEventListener("blur", handleBlur);
   deps.window.addEventListener("focus", handleFocus);

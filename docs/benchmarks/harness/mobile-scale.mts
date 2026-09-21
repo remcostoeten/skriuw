@@ -198,6 +198,7 @@ type Counter = { calls: number; byCommand: Record<string, number> };
 function countingBridge(port: BridgePort, counter: Counter): BridgePort {
   return new Proxy(port, {
     get(target, property, receiver) {
+      // oxlint-disable-next-line anti-slop/no-reflect-get -- a Proxy get trap must forward the receiver.
       const value = Reflect.get(target, property, receiver);
       if (typeof value !== "function" || typeof property !== "string") {
         return value;
@@ -223,8 +224,9 @@ type Samples = {
 
 function summarize(raw: number[]): Samples {
   const sorted = [...raw].sort((left, right) => left - right);
-  const at = (quantile: number) =>
-    sorted[Math.min(sorted.length - 1, Math.floor(quantile * sorted.length))] ?? 0;
+  function at(quantile: number) {
+    return sorted[Math.min(sorted.length - 1, Math.floor(quantile * sorted.length))] ?? 0;
+  }
   return {
     count: raw.length,
     p50: at(0.5),

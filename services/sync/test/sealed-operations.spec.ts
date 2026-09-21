@@ -80,7 +80,7 @@ function plaintextRequest(deviceId: string, operationId: string, clientSequence:
   };
 }
 
-function sealedRequest(deviceId: string, operations: ReturnType<typeof sealedOperation>[]) {
+function sealedRequest<Operation>(deviceId: string, operations: Operation[]) {
   return {
     syncProtocolVersion: WORKSPACE_SYNC_PROTOCOL_VERSION,
     deviceId,
@@ -183,7 +183,7 @@ describe("sealed sync payloads", () => {
                 },
               },
             },
-          } as unknown as ReturnType<typeof sealedOperation>,
+          },
         ]),
       ),
     );

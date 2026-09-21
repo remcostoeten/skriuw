@@ -89,9 +89,9 @@ export function AiUsagePanel({ signal }: Props) {
     let active = true;
     const sinceMs = usagePeriodStart(period, Date.now());
     void loadAiHistory(filter, sinceMs)
-      .then((next) => {
+      .then((history) => {
         if (!active || signal.aborted) return;
-        setView(next);
+        setView(history);
         setError(null);
       })
       .catch((reason: unknown) => {

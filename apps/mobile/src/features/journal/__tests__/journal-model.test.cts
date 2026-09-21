@@ -30,7 +30,7 @@ test("entries project newest day first and skip days that were only opened", () 
   assert.equal(entries.length, FIXTURE_ENTRIES.length);
   assert.deepEqual(
     entries.map((entry) => entry.dateKey),
-    [...FIXTURE_ENTRIES.map((entry) => entry.dateKey)].sort((left, right) =>
+    FIXTURE_ENTRIES.map((entry) => entry.dateKey).sort((left, right) =>
       right.localeCompare(left),
     ),
   );

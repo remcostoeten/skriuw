@@ -1,10 +1,8 @@
 declare global {
-  interface Window {
-    browserResetE2e: {
-      corruptDatabase(): Promise<{ file: string; size: number }>;
-      workspaceFileCount(): Promise<number>;
-    };
-  }
+  var browserResetE2e: {
+    corruptDatabase(): Promise<{ file: string; size: number }>;
+    workspaceFileCount(): Promise<number>;
+  };
 }
 
 const WORKSPACE_DIRECTORY = ".skriuw-v2";

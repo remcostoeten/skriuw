@@ -36,10 +36,10 @@ export async function startAiCompletion(
     return invoke<boolean>("cancel_ai_completion", { requestId: request.requestId });
   }
 
-  const abort = () => {
+  function abort() {
     active = false;
     void cancel().catch(noop);
-  };
+  }
   signal?.addEventListener("abort", abort, { once: true });
 
   try {

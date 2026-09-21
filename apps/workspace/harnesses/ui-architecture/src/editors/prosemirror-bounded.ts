@@ -43,8 +43,7 @@ function createView(
   state: EditorState,
   dispatch: (view: EditorView, transaction: Transaction) => void,
 ): EditorView {
-  let mountedView: EditorView;
-  mountedView = new EditorView(
+  const mountedView: EditorView = new EditorView(
     { mount: host },
     {
       state,

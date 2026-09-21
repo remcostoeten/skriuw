@@ -31,9 +31,9 @@ import {
   projectMediaLibrary,
   MEDIA_ALT_MAX_BYTES,
   MEDIA_NAME_MAX_BYTES,
+  type MediaLibraryEntry,
+  type MediaUsage,
 } from "@/features/settings/media-library-model";
-import type { MediaLibraryEntry } from "@/features/settings/media-library-model";
-import type { MediaUsage } from "@/features/settings/media-library-model";
 import { formatSizeBytes } from "@/features/settings/maintenance-model";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { setMediaMetadata } from "@/store/actions/media";

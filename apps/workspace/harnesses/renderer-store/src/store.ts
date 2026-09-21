@@ -17,7 +17,9 @@ type Subscriber<T = unknown> = {
   listener: Listener;
 };
 
-const strictEqual = <T,>(left: T, right: T) => Object.is(left, right);
+function strictEqual<T>(left: T, right: T) {
+  return Object.is(left, right);
+}
 
 export function createInitialState(projection: TreeProjection): RendererState {
   const index = buildNodeIndex(projection.nodes);
@@ -131,7 +133,7 @@ export function createRendererStore(initialState: RendererState): RendererStore 
       state = next;
       changed = true;
       counters.effectiveUpdates += 1;
-      for (const subscriber of [...subscribers]) {
+      for (const subscriber of Array.from(subscribers)) {
         if (!subscriber.active) {
           continue;
         }

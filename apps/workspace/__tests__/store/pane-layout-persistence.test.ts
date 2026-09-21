@@ -8,6 +8,7 @@ import {
   setSplitRatio,
   toggleSplitOrientation,
 } from "../../src/store/actions/panes";
+import { noop } from "../../src/shared/lib/noop";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 
 const snapshot: WorkspaceSnapshot = {
@@ -53,7 +54,9 @@ const snapshot: WorkspaceSnapshot = {
   },
 };
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
+function settle() {
+  return new Promise((resolve) => setTimeout(resolve, 10));
+}
 
 test("pane layout persistence coalesces synchronous updates into the latest write", async () => {
   const store = createRendererStore(createInitialState(snapshot, []));
@@ -154,7 +157,7 @@ test("teardown flushes the latest pane layout before the coalescing delay", asyn
 
 test("flush remains pending until the durable pane write settles", async () => {
   const store = createRendererStore(createInitialState(snapshot, []));
-  let release = () => {};
+  let release: () => void = noop;
   const durable = new Promise<void>((resolve) => {
     release = resolve;
   });

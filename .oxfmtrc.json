@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 100,
+  "ignorePatterns": [
+    "v1/**",
+    "contracts/**",
+    "docs/**",
+    "fixtures/**",
+    "packaging/**",
+    "bucket/**",
+    "Casks/**",
+    "packages/theme/tokens.ts",
+    "tools/oxlint/anti-slop/**",
+    "**/*.{json,jsonc,md,mdx,css,html,yml,yaml,toml,webmanifest}"
+  ]
+}

@@ -43,7 +43,7 @@ export function registerAiRun(entry: RegisteredAiRun, { signal, onStopped }: Opt
   const noteId = entry.target.noteId;
   runs.get(noteId)?.session.dispose();
   runs.set(noteId, entry);
-  const abandon = () => {
+  function abandon() {
     if (runs.get(noteId) !== entry) {
       return;
     }
@@ -55,7 +55,7 @@ export function registerAiRun(entry: RegisteredAiRun, { signal, onStopped }: Opt
     if (streaming) {
       onStopped?.(entry);
     }
-  };
+  }
   if (signal.aborted) {
     abandon();
     return;

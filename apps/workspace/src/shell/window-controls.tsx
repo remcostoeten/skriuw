@@ -57,14 +57,14 @@ function TauriWindowControls({ className }: WindowControlsProps) {
   useEffect(() => {
     const appWindow = getCurrentWindow();
     let active = true;
-    const refresh = () => {
+    function refresh() {
       appWindow
         .isMaximized()
         .then((value) => {
           if (active) setIsMaximized(value);
         })
         .catch(noop);
-    };
+    }
     refresh();
     const unlisten = appWindow.onResized(refresh);
     return () => {

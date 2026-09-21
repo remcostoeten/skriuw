@@ -613,7 +613,7 @@ export function createDiagramNodeView(
       const origin = { ...diagramNode.position };
       const start = { x: event.clientX, y: event.clientY };
       let moved = false;
-      const move = (moveEvent: PointerEvent) => {
+      function move(moveEvent: PointerEvent) {
         const position = {
           x: Math.round(origin.x + moveEvent.clientX - start.x),
           y: Math.round(origin.y + moveEvent.clientY - start.y),
@@ -630,8 +630,8 @@ export function createDiagramNodeView(
           target.style.transform = `translate3d(${active.position.x}px, ${active.position.y}px, 0)`;
           updateIncidentEdges(active.id);
         });
-      };
-      const finish = () => {
+      }
+      function finish() {
         target.removeEventListener("pointermove", move);
         target.removeEventListener("pointerup", finish);
         target.removeEventListener("pointercancel", finish);
@@ -646,7 +646,7 @@ export function createDiagramNodeView(
           commit(next);
           announce(`Moved ${diagramNode.label}`);
         }
-      };
+      }
       target.addEventListener("pointermove", move);
       target.addEventListener("pointerup", finish);
       target.addEventListener("pointercancel", finish);
@@ -679,7 +679,7 @@ export function createDiagramNodeView(
       connectorSvg.append(preview);
       target.dataset.connecting = "true";
       let dropId: string | null = null;
-      const move = (moveEvent: PointerEvent) => {
+      function move(moveEvent: PointerEvent) {
         const rect = canvas.getBoundingClientRect();
         preview.setAttribute(
           "d",
@@ -698,8 +698,8 @@ export function createDiagramNodeView(
           dropId = nextDrop;
           setDropTarget(dropId);
         }
-      };
-      const stop = (connect: boolean) => {
+      }
+      function stop(connect: boolean) {
         port.removeEventListener("pointermove", move);
         port.removeEventListener("pointerup", finish);
         port.removeEventListener("pointercancel", cancel);
@@ -708,9 +708,13 @@ export function createDiagramNodeView(
         delete target.dataset.connecting;
         if (connect && dropId) createEdge(diagramNode.id, dropId);
         else if (connect) announce("Drop on another step to connect");
-      };
-      const finish = () => stop(true);
-      const cancel = () => stop(false);
+      }
+      function finish() {
+        stop(true);
+      }
+      function cancel() {
+        stop(false);
+      }
       port.addEventListener("pointermove", move);
       port.addEventListener("pointerup", finish);
       port.addEventListener("pointercancel", cancel);

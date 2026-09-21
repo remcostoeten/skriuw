@@ -1,4 +1,4 @@
-import type { Node as ProseMirrorNode } from "prosemirror-model";
+import type { Node as ProseMirrorNode, ResolvedPos } from "prosemirror-model";
 import {
   NodeSelection,
   Plugin,
@@ -6,7 +6,6 @@ import {
   type Command,
   type EditorState,
 } from "prosemirror-state";
-import type { ResolvedPos } from "prosemirror-model";
 import type { EditorView, NodeView } from "prosemirror-view";
 import { CODE_LANGUAGES, codeLanguageLabel } from "./code-highlight";
 import {
@@ -449,12 +448,12 @@ export function createCodeBlockNodeView(
   // drops a node-selecting range into the collapsed source. A caret that the
   // editor state places inside the block (keyboard navigation) reveals the
   // source, and focusing re-syncs the DOM selection into the now editable text.
-  const revealSourceForCaret = () => {
+  function revealSourceForCaret() {
     if (destroyed || mode !== "preview" || !isRenderable()) return;
     if (!caretInsideBlock()) return;
     setMode("source");
     view.focus();
-  };
+  }
 
   function closeExpand(): void {
     if (!expandDialog) return;
@@ -513,10 +512,10 @@ export function createCodeBlockNodeView(
     return items.findIndex((item) => item === document.activeElement);
   }
 
-  const closeOnOutside = (event: MouseEvent) => {
+  function closeOnOutside(event: MouseEvent) {
     if (event.target instanceof Node && toolbar.contains(event.target)) return;
     setOpen(false);
-  };
+  }
 
   function setOpen(next: boolean): void {
     if (open === next) return;

@@ -6,8 +6,9 @@ type Props = {
   store: RendererStore;
 };
 
-const selectTitle = (state: ReturnType<RendererStore["getState"]>) =>
-  state.activeNoteId ? state.metadata.get(state.activeNoteId)?.title ?? "Untitled" : "No note";
+function selectTitle(state: ReturnType<RendererStore["getState"]>) {
+  return state.activeNoteId ? state.metadata.get(state.activeNoteId)?.title ?? "Untitled" : "No note";
+}
 
 export function MetadataTitle({ store }: Props) {
   recordRender("MetadataTitle");

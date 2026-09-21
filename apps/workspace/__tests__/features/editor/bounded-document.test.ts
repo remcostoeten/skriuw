@@ -200,7 +200,7 @@ test("reconciling an external write adopts its annotation layer", () => {
 test("adoptRemoteDocument shifts later undo entries and drops the ones the change overlaps", () => {
   const bounded = createBoundedDocument(createDocument(400));
   const window = bounded.windowDocument();
-  const edited = (index: number, text: string, at: number) => {
+  function edited(index: number, text: string, at: number) {
     const replacement = productSchema.node(
       "doc",
       null,
@@ -211,17 +211,17 @@ test("adoptRemoteDocument shifts later undo entries and drops the ones the chang
       ),
     );
     assert.equal(bounded.replaceWindow(replacement, at), true);
-  };
+  }
   edited(10, "local ten", 1_000);
   edited(100, "local hundred", 5_000);
   assert.equal(bounded.undoDepth(), 2);
   bounded.rememberSelection({ blockIndex: 100, offset: 3 });
 
-  const remoteBlocks = () => {
+  function remoteBlocks() {
     const blocks: ReturnType<typeof window.child>[] = [];
     bounded.fullDocument().forEach((block) => blocks.push(block));
     return blocks;
-  };
+  }
   const inserted = remoteBlocks();
   inserted.splice(5, 0, productSchema.node("paragraph", null, productSchema.text("remote inserted")));
   assert.equal(bounded.adoptRemoteDocument(productSchema.node("doc", null, inserted)), true);

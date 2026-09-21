@@ -434,7 +434,7 @@ export function AiRunCard({
   }, [isReplacement, run.preview, showResult, target.input]);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
         discard();
@@ -454,7 +454,7 @@ export function AiRunCard({
           applyTagPlan();
         }
       }
-    };
+    }
     host.addEventListener("keydown", handleKeyDown);
     return () => host.removeEventListener("keydown", handleKeyDown);
   });

@@ -99,7 +99,7 @@ function fakeTimers() {
     },
     advance(ms: number) {
       now += ms;
-      for (const [id, entry] of [...scheduled]) {
+      for (const [id, entry] of Array.from(scheduled)) {
         if (entry.at <= now) {
           scheduled.delete(id);
           entry.run();

@@ -22,6 +22,7 @@ export async function waitForServer(child, baseUrl) {
   child.stderr.on("data", (chunk) => {
     stderr += String(chunk);
   });
+  let lastFetchError;
   for (let attempt = 0; attempt < 150; attempt += 1) {
     if (child.exitCode !== null) {
       throw new Error(`Vite exited before readiness (${child.exitCode})\n${stderr}`);
@@ -29,12 +30,12 @@ export async function waitForServer(child, baseUrl) {
     try {
       const response = await fetch(baseUrl);
       if (response.ok) return;
-    } catch {
-      // The server is still starting.
+    } catch (error) {
+      lastFetchError = error;
     }
     await delay(100);
   }
-  throw new Error(`Vite did not become ready\n${stderr}`);
+  throw new Error(`Vite did not become ready\n${stderr}`, { cause: lastFetchError });
 }
 
 export function launchChrome(profile) {

@@ -14,12 +14,12 @@ import {
  useRef,
  type HTMLAttributes,
 } from "react";
-export interface CalendarDaysIconHandle {
+export type CalendarDaysIconHandle = {
  startAnimation: () => void;
  stopAnimation: () => void;
-}
+};
 
-interface CalendarDaysIconProps extends Omit<
+type CalendarDaysIconProps = Omit<
  HTMLAttributes<HTMLDivElement>,
  | "color"
  | "onDrag"
@@ -28,12 +28,12 @@ interface CalendarDaysIconProps extends Omit<
  | "onAnimationStart"
  | "onAnimationEnd"
  | "onAnimationIteration"
-> {
+> & {
  size?: number;
  duration?: number;
  isAnimated?: boolean;
  color?: string;
-}
+};
 
 const CalendarDaysIcon = forwardRef<
  CalendarDaysIconHandle,
@@ -68,10 +68,10 @@ const CalendarDaysIcon = forwardRef<
   });
 
   const handleEnter = useCallback(
-   (e?: React.MouseEvent<HTMLDivElement>) => {
+   (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isAnimated || reduced) return;
     if (!isControlled.current) controls.start("animate");
-    else onMouseEnter?.(e as any);
+    else onMouseEnter?.(e);
    },
    [controls, reduced, isAnimated, onMouseEnter],
   );
@@ -81,7 +81,7 @@ const CalendarDaysIcon = forwardRef<
     if (!isControlled.current) {
      controls.start("normal");
     } else {
-     onMouseLeave?.(e as any);
+     onMouseLeave?.(e);
     }
    },
    [controls, onMouseLeave],

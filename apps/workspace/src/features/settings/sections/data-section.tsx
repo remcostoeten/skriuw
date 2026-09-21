@@ -235,12 +235,12 @@ export function DataSection({ store }: SectionProps) {
         if (!picked) {
           return;
         }
-        const next = requestConfirmation(phase, {
+        const confirmation = requestConfirmation(phase, {
           kind: "relocate",
           targetDir: picked,
         });
-        if (next) {
-          setPhase(next);
+        if (confirmation) {
+          setPhase(confirmation);
         }
       })
       .catch((error) => {

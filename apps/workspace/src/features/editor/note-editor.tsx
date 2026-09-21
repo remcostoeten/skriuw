@@ -2029,7 +2029,7 @@ const closeJumpToLine = useCallback(() => {
     viewRef.current = view;
     const scrollHost = host.closest<HTMLElement>(".editor-scroll");
     scrollHostRef.current = scrollHost;
-    const handleScroll = () => {
+    function handleScroll() {
       setBubbleMenu((previous) => (previous.open ? closedBubbleMenu : previous));
       setLinkMenu((previous) =>
         previous.open && !previous.editing ? closedLinkMenu : previous,
@@ -2043,11 +2043,11 @@ const closeJumpToLine = useCallback(() => {
       if (Math.abs(target - entry.bounded.windowStart()) >= WINDOW_SHIFT) {
         moveBoundedWindow(entry, target);
       }
-    };
-    const handleCompositionStart = () => {
+    }
+    function handleCompositionStart() {
       composingRef.current = true;
-    };
-    const handleCompositionEnd = () => {
+    }
+    function handleCompositionEnd() {
       composingRef.current = false;
       const pending = pendingWindowRef.current;
       pendingWindowRef.current = null;
@@ -2057,8 +2057,8 @@ const closeJumpToLine = useCallback(() => {
       pendingRemoteRef.current = null;
       const record = pendingRemote ? store.getState().documents.get(pendingRemote) : undefined;
       if (pendingRemote && record) adoptRecord(pendingRemote, record);
-    };
-    const handleAnnotationMouseOver = (event: MouseEvent) => {
+    }
+    function handleAnnotationMouseOver(event: MouseEvent) {
       if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
       const target = event.target;
       if (!(target instanceof Element)) return;
@@ -2072,8 +2072,8 @@ const closeJumpToLine = useCallback(() => {
       if (!range) return;
       cancelAnnotationHoverClose();
       showAnnotationThread(range, "hover", false);
-    };
-    const handleAnnotationMouseOut = (event: MouseEvent) => {
+    }
+    function handleAnnotationMouseOut(event: MouseEvent) {
       const target = event.target;
       if (!(target instanceof Element)) return;
       const anchor = target.closest<HTMLElement>("mark[data-skriuw-annotation]");
@@ -2082,8 +2082,8 @@ const closeJumpToLine = useCallback(() => {
       if (next instanceof Node && anchor.contains(next)) return;
       if (next instanceof Node && annotationMenuHostRef.current?.contains(next)) return;
       scheduleAnnotationHoverClose();
-    };
-    const handleLinkMouseOver = (event: MouseEvent) => {
+    }
+    function handleLinkMouseOver(event: MouseEvent) {
       if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
       const target = event.target;
       if (!(target instanceof Element)) return;
@@ -2096,8 +2096,8 @@ const closeJumpToLine = useCallback(() => {
       const menu = linkMenuRef.current;
       if (menu.open && menu.from === range.from && menu.to === range.to) return;
       showLinkMenu(view, range, "hover");
-    };
-    const handleLinkMouseOut = (event: MouseEvent) => {
+    }
+    function handleLinkMouseOut(event: MouseEvent) {
       const target = event.target;
       if (!(target instanceof Element)) return;
       const anchor = target.closest<HTMLElement>("a[href]");
@@ -2106,8 +2106,8 @@ const closeJumpToLine = useCallback(() => {
       if (next instanceof Node && anchor.contains(next)) return;
       if (next instanceof Node && linkMenuHostRef.current?.contains(next)) return;
       scheduleLinkHoverClose();
-    };
-    const handleBlur = (event: FocusEvent) => {
+    }
+    function handleBlur(event: FocusEvent) {
       const focused = event.relatedTarget;
       const intoBubbleMenu =
         focused instanceof HTMLElement && focused.closest(".bubble-menu") !== null;
@@ -2123,8 +2123,8 @@ const closeJumpToLine = useCallback(() => {
       if (!intoAnnotationMenu && annotationMenuRef.current.source !== "hover") {
         setAnnotationMenu(closedAnnotationMenu);
       }
-    };
-    const handleCopy = (event: ClipboardEvent) => {
+    }
+    function handleCopy(event: ClipboardEvent) {
       const entry = activeEntry();
       const bounded = entry?.bounded;
       if (!entry?.wholeSelected || !bounded || !event.clipboardData) return;
@@ -2132,8 +2132,8 @@ const closeJumpToLine = useCallback(() => {
       event.preventDefault();
       event.clipboardData.setData("text/plain", fullDocumentText(document));
       event.clipboardData.setData("text/html", fullDocumentHtml(document));
-    };
-    const handleContextMenu = (event: MouseEvent) => {
+    }
+    function handleContextMenu(event: MouseEvent) {
       const target = event.target;
       if (!(target instanceof HTMLElement) || !target.closest("table")) return;
       const found = view.posAtCoords({ left: event.clientX, top: event.clientY });
@@ -2143,7 +2143,7 @@ const closeJumpToLine = useCallback(() => {
         view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(found.pos))),
       );
       openTableMenu(view, found.pos, event.clientX, event.clientY);
-    };
+    }
     scrollHost?.addEventListener("scroll", handleScroll, { passive: true });
     view.dom.addEventListener("compositionstart", handleCompositionStart);
     view.dom.addEventListener("compositionend", handleCompositionEnd);

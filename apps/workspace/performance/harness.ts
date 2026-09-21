@@ -36,14 +36,14 @@ type Phase = {
 function startFrameMonitor(phase: Phase): () => void {
   let active = true;
   let previous = performance.now();
-  const frame = (timestamp: number) => {
+  function frame(timestamp: number) {
     if (!active) {
       return;
     }
     phase.frameGapsMs.push(timestamp - previous);
     previous = timestamp;
     requestAnimationFrame(frame);
-  };
+  }
   requestAnimationFrame(frame);
   return () => {
     active = false;
@@ -200,7 +200,7 @@ export async function createPerformanceController(
     phase?.reactCommitMs.push(actualDuration);
   };
 
-  const onKeyDown = (event: KeyboardEvent) => {
+  function onKeyDown(event: KeyboardEvent) {
     if (!phase || !event.isTrusted) {
       return;
     }
@@ -214,7 +214,7 @@ export async function createPerformanceController(
       typingHandled += 1;
       requestAnimationFrame((paintedAt) => phase?.nextPaintMs.push(paintedAt - started));
     }
-  };
+  }
   window.addEventListener("keydown", onKeyDown, { capture: true });
 
   await nextFrame();

@@ -14,12 +14,12 @@ import {
  useRef,
  type HTMLAttributes,
 } from "react";
-export interface FolderOpenIconHandle {
+export type FolderOpenIconHandle = {
  startAnimation: () => void;
  stopAnimation: () => void;
-}
+};
 
-interface FolderOpenIconProps extends Omit<
+type FolderOpenIconProps = Omit<
  HTMLAttributes<HTMLDivElement>,
  | "color"
  | "onDrag"
@@ -28,12 +28,12 @@ interface FolderOpenIconProps extends Omit<
  | "onAnimationStart"
  | "onAnimationEnd"
  | "onAnimationIteration"
-> {
+> & {
  size?: number;
  duration?: number;
  isAnimated?: boolean;
  color?: string;
-}
+};
 
 const FolderOpenIcon = forwardRef<FolderOpenIconHandle, FolderOpenIconProps>(
  (
@@ -76,25 +76,25 @@ const FolderOpenIcon = forwardRef<FolderOpenIconHandle, FolderOpenIconProps>(
   });
 
   const handleEnter = useCallback(
-   (e?: React.MouseEvent<HTMLDivElement>) => {
+   (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isAnimated || reduced) return;
     if (!isControlled.current) {
      folderControls.start("animate");
      paperControls.start("animate");
     } else {
-     onMouseEnter?.(e as any);
+     onMouseEnter?.(e);
     }
    },
    [folderControls, paperControls, reduced, onMouseEnter, isAnimated],
   );
 
   const handleLeave = useCallback(
-   (e?: React.MouseEvent<HTMLDivElement>) => {
+   (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isControlled.current) {
      folderControls.start("normal");
      paperControls.start("normal");
     } else {
-     onMouseLeave?.(e as any);
+     onMouseLeave?.(e);
     }
    },
    [folderControls, paperControls, onMouseLeave],

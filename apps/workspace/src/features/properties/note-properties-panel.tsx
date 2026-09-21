@@ -195,7 +195,7 @@ function PropertyTypePicker({
   const headingId = useId();
   return (
     <PropertyPopover
-      trigger={({ toggle, open }) => (
+      renderTrigger={({ toggle, open }) => (
         <button
           type="button"
           onClick={toggle}
@@ -254,7 +254,7 @@ function AddPropertyButton({
 
   return (
     <PropertyPopover
-      trigger={({ toggle, open }) => (
+      renderTrigger={({ toggle, open }) => (
         <button
           type="button"
           onClick={toggle}
@@ -352,7 +352,7 @@ function TemplatePicker({
 
   return (
     <PropertyPopover
-      trigger={({ toggle, open }) => (
+      renderTrigger={({ toggle, open }) => (
         <button
           type="button"
           onClick={toggle}

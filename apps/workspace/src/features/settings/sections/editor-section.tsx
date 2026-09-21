@@ -212,12 +212,12 @@ export function EditorSection({ store }: SectionProps) {
   );
 }
 
-type PlaceholderProps = {
+type Props = {
   store: SectionProps["store"];
   settings: SettingsViewModel;
 };
 
-function PlaceholderField({ store, settings }: PlaceholderProps) {
+function PlaceholderField({ store, settings }: Props) {
   const [value, setValue] = useState(settings.editorPlaceholder);
 
   useEffect(() => {

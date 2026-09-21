@@ -141,7 +141,9 @@ function contentKey(bytes: Uint8Array): string {
     high = Math.imul(high ^ byte, 0x01000193);
     low = Math.imul(low ^ byte, 0x811c9dc5);
   }
-  const hex = (value: number) => (value >>> 0).toString(16).padStart(8, "0");
+  function hex(value: number) {
+    return (value >>> 0).toString(16).padStart(8, "0");
+  }
   return `${hex(high)}${hex(low)}${hex(bytes.length)}`;
 }
 

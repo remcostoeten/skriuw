@@ -72,7 +72,7 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
   useEffect(() => {
     if (!user || browser) return;
     let mounted = true;
-    const load = () => {
+    function load() {
       listBlockedSyncOperations().then(
         (view) => {
           if (!mounted) return;
@@ -83,7 +83,7 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
           if (mounted) setRecoveryError(error instanceof Error ? error.message : String(error));
         },
       );
-    };
+    }
     load();
     const interval = window.setInterval(load, 10_000);
     return () => {

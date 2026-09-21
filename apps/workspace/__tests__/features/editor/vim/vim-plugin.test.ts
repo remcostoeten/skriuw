@@ -129,7 +129,9 @@ function createHarness(markdown: string, cursorText?: string, enabled = true): H
 
   function type(text: string) {
     const { from, to } = state.selection;
-    const fallback = () => state.tr.insertText(text, from, to);
+    function fallback() {
+      return state.tr.insertText(text, from, to);
+    }
     for (const candidate of state.plugins) {
       if (candidate.props.handleTextInput?.call(candidate, view, from, to, text, fallback)) return;
     }

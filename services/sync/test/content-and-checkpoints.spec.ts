@@ -107,10 +107,11 @@ function chunkRequest(
   if (token !== null) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  return new Request(
-    `https://example.test/v1/workspaces/${workspaceId}/chunks/${digest}`,
-    { method, headers, body },
-  );
+  const init: RequestInit = { method, headers };
+  if (body !== undefined) {
+    init.body = body;
+  }
+  return new Request(`https://example.test/v1/workspaces/${workspaceId}/chunks/${digest}`, init);
 }
 
 function jsonRequest(
@@ -124,11 +125,11 @@ function jsonRequest(
   if (token !== null) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  return new Request(`https://example.test/v1/workspaces/${workspaceId}/${path}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  const init: RequestInit = { method, headers };
+  if (body !== undefined) {
+    init.body = JSON.stringify(body);
+  }
+  return new Request(`https://example.test/v1/workspaces/${workspaceId}/${path}`, init);
 }
 
 async function buildCheckpoint(

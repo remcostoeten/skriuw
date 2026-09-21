@@ -66,7 +66,7 @@ export function DateValueEditor({ property, value, onUpdate }: Props) {
   return (
     <PropertyPopover
       className="w-full min-w-0"
-      trigger={({ toggle, open }) => (
+      renderTrigger={({ toggle, open }) => (
         <button
           type="button"
           onClick={toggle}

@@ -63,11 +63,11 @@ export function Select<TValue extends string>({
     if (!open) {
       return;
     }
-    const onPointerDown = (event: PointerEvent) => {
+    function onPointerDown(event: PointerEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false);
       }
-    };
+    }
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);

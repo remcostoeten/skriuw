@@ -7,8 +7,9 @@ type Props = {
   store: RendererStore;
 };
 
-const selectPreparedDocument = (state: ReturnType<RendererStore["getState"]>) =>
-  state.activeNoteId ? state.documents.get(state.activeNoteId) ?? null : null;
+function selectPreparedDocument(state: ReturnType<RendererStore["getState"]>) {
+  return state.activeNoteId ? state.documents.get(state.activeNoteId) ?? null : null;
+}
 
 function EditorSelectionConsumer({ store }: Props) {
   recordRender("EditorSelectionConsumer");
@@ -26,13 +27,13 @@ export function EditorHost({ store }: Props) {
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const sentinelId = useMemo(() => `editor-host-${crypto.randomUUID()}`, []);
   useEffect(() => recordMount("EditorHost"), []);
-  const onInput = () => {
+  function onInput() {
     const editor = editorRef.current;
     if (!editor) {
       return;
     }
     editor.dataset["ownedUpdates"] = String(Number(editor.dataset["ownedUpdates"] ?? 0) + 1);
-  };
+  }
   return (
     <section className="editor-host" data-editor-host={sentinelId}>
       <Profiler id="EditorSelectionConsumer" onRender={recordProfilerCommit}>

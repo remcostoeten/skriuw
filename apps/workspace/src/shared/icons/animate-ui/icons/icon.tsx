@@ -12,6 +12,7 @@ import {
 } from 'motion/react';
 
 import { cn } from '@/shared/lib/utils';
+import { noop } from '@/shared/lib/noop';
 import { useIsInView } from '@/shared/hooks/use-is-in-view';
 import { Slot, type WithAsChild } from '@/shared/icons/animate-ui/primitives/animate/slot';
 
@@ -263,7 +264,7 @@ function AnimateIcon({
           try {
             await animateEndPromiseRef.current;
           } catch {
-            // noop
+            noop();
           }
         }
         if (!persistOnAnimateEnd) {

@@ -9,12 +9,15 @@ import type {
   TreeProjection,
 } from "./types";
 
-const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+function nextFrame() {
+  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+}
 
 function summarize(samplesMs: readonly number[]): TimingSummary {
   const sorted = [...samplesMs].sort((left, right) => left - right);
-  const at = (fraction: number) =>
-    sorted[Math.max(0, Math.min(sorted.length - 1, Math.ceil(sorted.length * fraction) - 1))] ?? 0;
+  function at(fraction: number) {
+    return sorted[Math.max(0, Math.min(sorted.length - 1, Math.ceil(sorted.length * fraction) - 1))] ?? 0;
+  }
   return { p50Ms: at(0.5), p95Ms: at(0.95), p99Ms: at(0.99), maxMs: sorted.at(-1) ?? 0 };
 }
 
@@ -41,8 +44,8 @@ async function measureScenario(
   const samplesMs: number[] = [];
   const frameGapsMs: number[] = [];
   const expectedTreeRowRenders: Record<string, number> = {};
-  const rowSignatures = () =>
-    new Map(
+  function rowSignatures() {
+    return new Map(
       [...document.querySelectorAll<HTMLElement>("[data-node-id]")].map((row) => [
         row.dataset["nodeId"] ?? "",
         [
@@ -54,11 +57,12 @@ async function measureScenario(
         ].join("|"),
       ]),
     );
+  }
   for (const action of actions) {
     const rowsBefore = rowSignatures();
     const started = performance.now();
     flushSync(action);
-    document.documentElement.offsetHeight;
+    void document.documentElement.offsetHeight;
     const settled = performance.now();
     for (const [id, signature] of rowSignatures()) {
       if (rowsBefore.get(id) !== signature) {
@@ -269,7 +273,7 @@ export function installBenchmark(store: RendererStore, projection: TreeProjectio
   let trustedLongFrames: { durationMs: number; blockingMs: number }[] = [];
   let trustedObservers: PerformanceObserver[] = [];
   let running = false;
-  const onTrustedKeyDown = (event: KeyboardEvent) => {
+  function onTrustedKeyDown(event: KeyboardEvent) {
     if (trustedStart === 0 || !event.isTrusted || event.key !== "ArrowDown") {
       return;
     }
@@ -278,7 +282,7 @@ export function installBenchmark(store: RendererStore, projection: TreeProjectio
     requestAnimationFrame(() => {
       trustedHandlerMs.push(performance.now() - started);
     });
-  };
+  }
   window.addEventListener("keydown", onTrustedKeyDown, { capture: true });
 
   benchmarkWindow.__SKRIUW_RENDERER_STORE__ = {

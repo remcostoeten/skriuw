@@ -27,12 +27,10 @@ type MeasureReport = {
 };
 
 declare global {
-  interface Window {
-    browserScaleE2e: {
-      seed(total: number): Promise<SeedReport>;
-      measure(): Promise<MeasureReport>;
-    };
-  }
+  var browserScaleE2e: {
+    seed(total: number): Promise<SeedReport>;
+    measure(): Promise<MeasureReport>;
+  };
 }
 
 function envelope(

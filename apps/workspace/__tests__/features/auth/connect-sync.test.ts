@@ -22,7 +22,7 @@ function installTokenStore(): void {
   let token: string | null = null;
   const globals = globalThis as TauriGlobal;
   globals.window = {
-    ...(globals.window ?? {}),
+    ...globals.window,
     __TAURI_INTERNALS__: {
       invoke: (command: string, args?: { token?: string; workspaceId?: string }) => {
         switch (command) {

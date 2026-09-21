@@ -35,7 +35,8 @@ function setupDOMStub() {
         remove: (c: string) => classListSet.delete(c),
         toggle: (c: string, flag?: boolean) => {
           if (flag === undefined) {
-            classListSet.has(c) ? classListSet.delete(c) : classListSet.add(c);
+            if (classListSet.has(c)) classListSet.delete(c);
+            else classListSet.add(c);
           } else if (flag) {
             classListSet.add(c);
           } else {

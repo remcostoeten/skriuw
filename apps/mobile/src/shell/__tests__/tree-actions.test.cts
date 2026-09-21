@@ -141,7 +141,7 @@ test("deleting the open note hands the editor to the note beside it", async () =
 
 test("deleting the last note leaves no note open", async () => {
   await withSession(async (session) => {
-    for (const id of [...session.store.getState().noteIds]) {
+    for (const id of session.store.getState().noteIds) {
       activateNote(session.store, id);
       await trashNode(session, id);
     }

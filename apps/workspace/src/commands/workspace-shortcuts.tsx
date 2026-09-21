@@ -106,12 +106,12 @@ export function activeShortcutScopes(
 function useNoteFocusScope(): boolean {
   const [focused, setFocused] = useState(false);
   useEffect(() => {
-    const syncFocus = () => {
+    function syncFocus() {
       setFocused(
         document.activeElement instanceof HTMLElement &&
           document.activeElement.closest(".editor-pane") !== null,
       );
-    };
+    }
     syncFocus();
     document.addEventListener("focusin", syncFocus);
     document.addEventListener("focusout", syncFocus);
@@ -167,9 +167,9 @@ export function WorkspaceShortcuts({
       if (definition.boundInEditor) {
         continue;
       }
-      const handler = () => {
+      function handler() {
         actionsRef.current[definition.id]();
-      };
+      }
       map[definition.id] = {
         keys: effectiveShortcutKeys(definition, overrides),
         handler,
@@ -232,7 +232,7 @@ export function WorkspaceShortcuts({
       activeWhileSuspended,
     );
     const activeScopeSet = new Set(activeScopes);
-    const handlePhysicalShortcut = (event: KeyboardEvent) => {
+    function handlePhysicalShortcut(event: KeyboardEvent) {
       for (const definition of activeDefinitions) {
         if (
           !shortcutScopesActive(definition, activeScopeSet) ||
@@ -248,7 +248,7 @@ export function WorkspaceShortcuts({
         actionsRef.current[definition.id]();
         return;
       }
-    };
+    }
     window.addEventListener("keydown", handlePhysicalShortcut);
     return () => window.removeEventListener("keydown", handlePhysicalShortcut);
   }, [activeScopes, activeWhileSuspended, overrides, suspended]);

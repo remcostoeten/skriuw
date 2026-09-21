@@ -182,7 +182,7 @@ test("caps reject a layer that would exceed its bounds", () => {
   );
   assert.equal(parseDrawingLayer(layerWith(...tooMany)), null);
 
-  const longStroke = stroke("s1", new Array((MAX_STROKE_POINTS + 1) * 2).fill(1));
+  const longStroke = stroke("s1", Array.from({ length: (MAX_STROKE_POINTS + 1) * 2 }, () => 1));
   assert.equal(parseDrawingLayer(layerWith(longStroke)), null);
 });
 

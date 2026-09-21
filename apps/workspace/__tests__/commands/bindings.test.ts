@@ -201,8 +201,9 @@ test("trash current note binds both delete keys and stays silent while typing", 
 test("mod+backspace and mod+delete both match the trash binding", () => {
   const base = { key: "Backspace", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
   const modifier = parseShortcut("mod+k").modifiers.meta ? "metaKey" : "ctrlKey";
-  const withMod = (key: string) =>
-    ({ ...base, key, [modifier]: true }) as unknown as KeyboardEvent;
+  function withMod(key: string) {
+    return ({ ...base, key, [modifier]: true }) as unknown as KeyboardEvent;
+  }
   assert.equal(matchesShortcut(withMod("Backspace"), parseShortcut("mod+backspace")), true);
   assert.equal(matchesShortcut(withMod("Delete"), parseShortcut("mod+delete")), true);
   assert.equal(
@@ -281,8 +282,9 @@ test("a binding without a platform list registers on every platform", () => {
 
 test("ctrl+arrowup and ctrl+arrowdown match only with ctrl held", () => {
   const base = { key: "ArrowUp", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
-  const pressed = (key: string) =>
-    ({ ...base, key, ctrlKey: true }) as unknown as KeyboardEvent;
+  function pressed(key: string) {
+    return ({ ...base, key, ctrlKey: true }) as unknown as KeyboardEvent;
+  }
   assert.equal(matchesShortcut(pressed("ArrowUp"), parseShortcut("ctrl+arrowup")), true);
   assert.equal(matchesShortcut(pressed("ArrowDown"), parseShortcut("ctrl+arrowdown")), true);
   assert.equal(

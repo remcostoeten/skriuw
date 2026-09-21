@@ -15,7 +15,9 @@ const marketingRoutes = [
 ];
 const chromeBinary = process.env.CHROME_BINARY ?? "google-chrome-stable";
 const profileDirectory = await mkdtemp(join(tmpdir(), "skriuw-live-smoke-"));
-const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
 let browser;
 let socket;
 

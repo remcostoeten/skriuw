@@ -124,11 +124,11 @@ function reportFailure(action: string) {
 export function withUnlockedSession(store: RendererStore, action: () => void): void {
   const lock = store.getState().noteLock;
   if (!lock.configured) {
-    requestLockDialog({ kind: "setup", then: action });
+    requestLockDialog({ kind: "setup", onReady: action });
     return;
   }
   if (!lock.unlocked) {
-    requestLockDialog({ kind: "unlock", then: action });
+    requestLockDialog({ kind: "unlock", onReady: action });
     return;
   }
   action();

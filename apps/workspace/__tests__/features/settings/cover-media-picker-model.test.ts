@@ -132,10 +132,11 @@ test("filters used, unused, and duplicate assets", () => {
 });
 
 test("sorts by recent, size, or usage with deterministic ties", () => {
-  const hashes = (sort: CoverMediaPickerSort) =>
-    projectCoverMediaPicker(BLOBS, IMAGES, { sort }).map(
+  function hashes(sort: CoverMediaPickerSort) {
+    return projectCoverMediaPicker(BLOBS, IMAGES, { sort }).map(
       (item) => item.contentHash,
     );
+  }
 
   assert.deepEqual(hashes("recent"), ["gamma", "beta", "alpha"]);
   assert.deepEqual(hashes("size"), ["beta", "gamma", "alpha"]);

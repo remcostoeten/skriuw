@@ -25,33 +25,33 @@ const ENTRY_POINTS = new Set([
   "vite-env.d.ts",
 ]);
 
-interface TestCounts {
+type TestCounts = {
   total: number;
   pass: number;
   fail: number;
   skip: number;
-}
+};
 
-interface CoveragePct {
+type CoveragePct = {
   lines: number | null;
   branches: number | null;
   funcs: number | null;
-}
+};
 
-interface FileEntry {
+type FileEntry = {
   /** relative from src/ */
   rel: string;
   /** expected test path relative from __tests__/ */
   testRel: string;
   tested: boolean;
-}
+};
 
-interface DirCoverage {
+type DirCoverage = {
   dir: string;
   total: number;
   tested: number;
   entries: FileEntry[];
-}
+};
 
 function runTests(): Promise<{ counts: TestCounts; coverage: CoveragePct }> {
   return new Promise((resolvePromise) => {

@@ -47,7 +47,9 @@ const snapshot: WorkspaceSnapshot = {
   },
 };
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
+function settle() {
+  return new Promise((resolve) => setTimeout(resolve, 10));
+}
 
 test("expansion persistence coalesces synchronous paints into the latest write", async () => {
   const store = createRendererStore(createInitialState(snapshot, []));
@@ -132,7 +134,7 @@ test("teardown flushes the latest expansion before the coalescing delay", async 
 
 test("flush remains pending until the durable expansion write settles", async () => {
   const store = createRendererStore(createInitialState(snapshot, []));
-  let release = () => {};
+  let release: () => void = () => {};
   const durable = new Promise<void>((resolve) => {
     release = resolve;
   });

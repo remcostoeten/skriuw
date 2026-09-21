@@ -262,6 +262,7 @@ export async function clearBrowserData(): Promise<void> {
       await client.close();
     } catch {
       // close() always terminates the worker; the entire OPFS pool is deleted next.
+      noop();
     }
     browserStorage = null;
   }

@@ -21,8 +21,9 @@ const output = resolve(
 // the scenario uses the smallest model Ollama publishes and deletes it again.
 const PULL_MODEL = "all-minilm";
 const KEY = { control: "", enter: "", escape: "" };
-const sleep = (milliseconds) =>
-  new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
+function sleep(milliseconds) {
+  return new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
+}
 
 function noop() {}
 
@@ -56,7 +57,7 @@ async function driverRequest(method, path, body) {
   const response = await fetch(`${driverBaseUrl}${path}`, {
     method,
     headers: { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     signal: AbortSignal.timeout(60_000),
   });
   const payload = await response.json();

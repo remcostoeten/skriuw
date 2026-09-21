@@ -44,7 +44,7 @@ export function CompactSidebarDemo({ enabled }: { enabled: boolean }) {
   );
 }
 
-type DemoTreeRowProps = {
+type Props = {
   label: string;
   depth: number;
   kind: "folder" | "file";
@@ -74,7 +74,7 @@ function DemoTreeGuides({ depth, showGuides }: { depth: number; showGuides: bool
   );
 }
 
-function DemoTreeRow({ label, depth, kind, showGuides }: DemoTreeRowProps) {
+function DemoTreeRow({ label, depth, kind, showGuides }: Props) {
   const Icon = kind === "folder" ? FolderIcon : FileTextIcon;
 
   return (

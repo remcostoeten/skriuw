@@ -70,7 +70,9 @@ export function syncPanes(
   sourceNodes: ReadonlyMap<string, WorkspaceNode>,
   openInTabs = false,
 ): readonly PaneState[] {
-  const isNote = (id: string) => sourceNodes.get(id)?.kind === "note";
+  function isNote(id: string) {
+    return sourceNodes.get(id)?.kind === "note";
+  }
   let changed = false;
   const next = panes.map((pane) => {
     const openNoteIds = pane.openNoteIds.filter(isNote);
@@ -117,8 +119,9 @@ export function restorePanes(
   openInTabs = false,
 ): readonly PaneState[] {
   const unavailable = unavailableNodeIds([...sourceNodes.values()]);
-  const isAvailableNote = (id: string) =>
-    sourceNodes.get(id)?.kind === "note" && !unavailable.has(id);
+  function isAvailableNote(id: string) {
+    return sourceNodes.get(id)?.kind === "note" && !unavailable.has(id);
+  }
   const restored = panes.flatMap((pane, index) => {
     const openNoteIds = pane.openNoteIds.filter(isAvailableNote);
     if (index > 0 && openNoteIds.length === 0) {

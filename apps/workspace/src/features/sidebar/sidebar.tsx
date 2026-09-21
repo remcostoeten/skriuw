@@ -289,7 +289,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   }, []);
 
   useEffect(() => {
-    const revealFocusedNode = () => {
+    function revealFocusedNode() {
       const element = treeRef.current;
       const state = store.getState();
       const focusedId = state.focusedNodeId;
@@ -311,7 +311,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
         element.scrollTop = nextScrollTop;
         setTreeScrollRow(Math.floor(nextScrollTop / rowPitch));
       }
-    };
+    }
     revealFocusedNode();
     return store.subscribe((state) => state.focusedNodeId, revealFocusedNode);
   }, [rowHeight, isSearchOpen, store]);
@@ -619,7 +619,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
       autoScrollRef.current.pointerY = clientY;
       return;
     }
-    const tick = () => {
+    function tick() {
       const current = autoScrollRef.current;
       const tree = treeRef.current;
       if (!current || !tree || dragRef.current?.active !== true) {
@@ -641,7 +641,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
       tree.scrollTop += frameStep;
       updateDropTarget(current.pointerX, current.pointerY);
       current.raf = requestAnimationFrame(tick);
-    };
+    }
     autoScrollRef.current = {
       raf: requestAnimationFrame(tick),
       pointerX: clientX,

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { SaveSequencer } from "../../../src/features/editor/save-sequencer";
+import { noop } from "../../../src/shared/lib/noop";
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
-  let resolve = () => {};
+  let resolve: () => void = noop;
   const promise = new Promise<void>((done) => {
     resolve = done;
   });

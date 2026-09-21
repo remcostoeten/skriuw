@@ -82,10 +82,10 @@ async function runProgressOperation<T>(
       onProgress(progress);
     }
   };
-  const abort = () => {
+  function abort() {
     active = false;
     void invoke<boolean>("cancel_ollama_operation", { operationId }).catch(noop);
-  };
+  }
   signal.addEventListener("abort", abort, { once: true });
   try {
     return await invoke<T>(command, { ...args, operationId, onEvent: channel });

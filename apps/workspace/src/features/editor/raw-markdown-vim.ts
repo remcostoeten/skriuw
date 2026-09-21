@@ -16,6 +16,8 @@ type VimModeChange = { mode: string; subMode?: string };
 
 type ExTarget = { cm6: EditorView };
 
+type VimAdapter = NonNullable<ReturnType<typeof getCM>>;
+
 type RawMarkdownVimFeedbackInput = {
   keys: readonly string[];
   before: string;
@@ -43,18 +45,18 @@ function defineExCommands(): void {
   exCommandsDefined = true;
   mapRowMotions();
   Vim.defineEx("write", "w", (cm) => {
-    handlersOf(cm as unknown as ExTarget)?.write();
+    handlersOf(cm)?.write();
   });
   Vim.defineEx("quit", "q", (cm) => {
-    handlersOf(cm as unknown as ExTarget)?.quit();
+    handlersOf(cm)?.quit();
   });
   Vim.defineEx("wq", undefined, (cm) => {
-    const handlers = handlersOf(cm as unknown as ExTarget);
+    const handlers = handlersOf(cm);
     handlers?.write();
     handlers?.quit();
   });
   Vim.defineEx("xit", "x", (cm) => {
-    const handlers = handlersOf(cm as unknown as ExTarget);
+    const handlers = handlersOf(cm);
     handlers?.write();
     handlers?.quit();
   });
@@ -186,9 +188,9 @@ export function observeRawMarkdownVimMode(
     onChange(null);
     return () => undefined;
   }
-  const listener = (change: VimModeChange) => {
+  function listener(change: VimModeChange) {
     onChange(describeRawMarkdownVimMode(change));
-  };
+  }
   cm.on("vim-mode-change", listener);
   const current = cm.state.vim;
   onChange(current ? describeRawMarkdownVimMode({ mode: current.insertMode ? "insert" : current.visualMode ? "visual" : "normal", subMode: current.visualLine ? "linewise" : current.visualBlock ? "blockwise" : undefined }) : "normal");
@@ -203,12 +205,20 @@ export function observeRawMarkdownVimFeedback(
 ): () => void {
   const cm = getCM(view);
   if (!cm) return () => undefined;
+  return observeVimAdapterFeedback(view, cm, onChange);
+}
+
+function observeVimAdapterFeedback(
+  view: EditorView,
+  cm: VimAdapter,
+  onChange: (message: string | null) => void,
+): () => void {
   let keys: string[] = [];
   let before = view.state.doc.toString();
   let selectionFrom = view.state.selection.main.from;
   let selectionTo = view.state.selection.main.to;
   let visualLine = cm.state.vim?.visualLine === true;
-  const inputListener = (event: { type?: string; key?: string }) => {
+  function inputListener(event: { type?: string; key?: string }) {
     if (event.type !== "handleKey" || !event.key) return;
     if (keys.length === 0) {
       before = view.state.doc.toString();
@@ -218,8 +228,8 @@ export function observeRawMarkdownVimFeedback(
       onChange(null);
     }
     keys.push(event.key);
-  };
-  const commandListener = () => {
+  }
+  function commandListener() {
     const vim = cm.state.vim;
     const input = vim?.inputState;
     const pending = Boolean(
@@ -241,7 +251,7 @@ export function observeRawMarkdownVimFeedback(
     });
     keys = [];
     if (message) onChange(message);
-  };
+  }
   cm.on("inputEvent", inputListener);
   cm.on("vim-keypress", commandListener);
   return () => {

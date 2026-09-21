@@ -39,7 +39,9 @@ export function LockDialogHost({ store }: HostProps) {
   if (request === null) {
     return null;
   }
-  const close = () => setRequest(null);
+  function close() {
+    setRequest(null);
+  }
   return (
     <Dialog
       open
@@ -48,10 +50,10 @@ export function LockDialogHost({ store }: HostProps) {
       className="mx-auto mb-auto mt-[14vh] w-[calc(100vw-1.5rem)] max-w-sm"
     >
       {request.kind === "setup" && (
-        <SetupLockBody store={store} onDone={request.then} />
+        <SetupLockBody store={store} onDone={request.onReady} />
       )}
       {request.kind === "unlock" && (
-        <UnlockBody store={store} onDone={request.then} />
+        <UnlockBody store={store} onDone={request.onReady} />
       )}
       {request.kind === "change" && <ChangeSecretBody store={store} />}
     </Dialog>

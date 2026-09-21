@@ -111,12 +111,14 @@ export function Tooltip({
     if (!open) {
       return;
     }
-    const dismiss = () => beginClose();
-    const dismissOnEscape = (event: KeyboardEvent) => {
+    function dismiss() {
+      beginClose();
+    }
+    function dismissOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         beginClose();
       }
-    };
+    }
     window.addEventListener("keydown", dismissOnEscape);
     window.addEventListener("scroll", dismiss, { capture: true, passive: true });
     window.addEventListener("resize", dismiss);

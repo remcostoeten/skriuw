@@ -166,14 +166,14 @@ export function enmlToMarkdown(enml: string): EnmlConversion {
   function emitTable(): void {
     flushLine();
     const width = Math.max(...tableRows.map((row) => row.length), 1);
-    const pad = (row: string[]): string[] => [
-      ...row,
-      ...Array(width - row.length).fill(""),
-    ];
-    const render = (row: string[]): string =>
-      `| ${pad(row)
+    function pad(row: string[]): string[] {
+      return [...row, ...Array(width - row.length).fill("")];
+    }
+    function render(row: string[]): string {
+      return `| ${pad(row)
         .map((cell) => cell.replace(/\|/g, "\\|").replace(/\s+/g, " ").trim())
         .join(" | ")} |`;
+    }
     const [header = [], ...rest] = tableRows;
     lines.push(render(header));
     lines.push(`| ${Array(width).fill("---").join(" | ")} |`);

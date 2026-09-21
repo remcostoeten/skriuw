@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Apple, Check, Globe, Linux, Lock, Windows } from "@/components/ui/icons";
 
-type FrameProps = {
+type Props = {
   title: ReactNode;
   children: ReactNode;
 };
@@ -10,7 +10,7 @@ function index(value: number) {
   return { "--i": value } as CSSProperties;
 }
 
-function Frame({ title, children }: FrameProps) {
+function Frame({ title, children }: Props) {
   return (
     <div className="w-full max-w-[340px] overflow-hidden rounded-[10px] border border-current/15 bg-black/10 text-[12px] backdrop-blur-[2px]">
       <div className="flex items-center gap-2 border-b border-current/10 px-3 py-2">

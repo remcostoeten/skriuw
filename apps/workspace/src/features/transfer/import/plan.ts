@@ -326,8 +326,9 @@ export function planImportBundle(
     notes: includedNotes,
     directories: bundle.directories.filter((directory) => {
       const prefix = `${normalizeTreePath(directory)}/`;
-      const holdsNote = (note: ImportedNote) =>
-        normalizeTreePath(note.relativePath).startsWith(prefix);
+      function holdsNote(note: ImportedNote) {
+        return normalizeTreePath(note.relativePath).startsWith(prefix);
+      }
       return includedNotes.some(holdsNote) || !bundle.notes.some(holdsNote);
     }),
   };

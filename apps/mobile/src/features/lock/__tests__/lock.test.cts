@@ -416,7 +416,7 @@ function phaseSource(initial: AppPhase): Observable<AppPhase> & { set: (value: A
     },
     set: (next) => {
       value = next;
-      for (const listener of [...listeners]) listener(next);
+      for (const listener of Array.from(listeners)) listener(next);
     },
   };
 }
@@ -675,7 +675,9 @@ test("the idle timer drops the key without the application going anywhere", asyn
       timers: {
         setTimeout: ((run: () => void) => {
           fire = run;
-          return 1 as unknown as ReturnType<typeof setTimeout>;
+          const handle = setTimeout(() => undefined, 0);
+          clearTimeout(handle);
+          return handle;
         }) as typeof setTimeout,
         clearTimeout: (() => undefined) as typeof clearTimeout,
       },

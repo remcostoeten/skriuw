@@ -3,7 +3,7 @@ import type { FocusEvent, KeyboardEvent, ReactNode } from "react";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
-  trigger: (api: { toggle: () => void; open: boolean }) => ReactNode;
+  renderTrigger: (api: { toggle: () => void; open: boolean }) => ReactNode;
   children: (api: { close: () => void }) => ReactNode;
   align?: "start" | "end";
   className?: string;
@@ -38,7 +38,7 @@ function initialFocusTarget(panel: HTMLElement): HTMLElement | null {
  * controls (text inputs, confirm buttons) keep native Tab order and close via
  * blur once focus leaves the root.
  */
-export function PropertyPopover({ trigger, children, align = "start", className }: Props) {
+export function PropertyPopover({ renderTrigger, children, align = "start", className }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -46,9 +46,9 @@ export function PropertyPopover({ trigger, children, align = "start", className 
 
   useEffect(() => {
     if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
+    function onPointerDown(event: PointerEvent) {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
+    }
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
@@ -122,7 +122,7 @@ export function PropertyPopover({ trigger, children, align = "start", className 
       onKeyDown={onKeyDown}
       onBlur={onBlur}
     >
-      {trigger({ toggle: () => setOpen((current) => !current), open })}
+      {renderTrigger({ toggle: () => setOpen((current) => !current), open })}
       {open && (
         <div
           ref={panelRef}

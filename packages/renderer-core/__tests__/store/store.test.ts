@@ -274,7 +274,9 @@ test("pinnedNodeIds orders most-recently-pinned-first and hides trashed nodes", 
     { type: "set_node_pinned", id: "folder", pinned: true, at: 20 },
     { type: "set_node_pinned", id: "note-child", pinned: true, at: 30 },
   ]);
-  const nodesOf = () => [...store.getState().sourceNodes.values()];
+  function nodesOf() {
+    return [...store.getState().sourceNodes.values()];
+  }
   assert.deepEqual(pinnedNodeIds(nodesOf()), ["note-child", "folder", "note-root"]);
 
   store.applyOperations([{ type: "trash_subtree", rootId: "folder", at: 40 }]);

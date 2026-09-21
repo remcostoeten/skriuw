@@ -6,8 +6,9 @@ type Props = {
   store: RendererStore;
 };
 
-const selectWordCount = (state: ReturnType<RendererStore["getState"]>) =>
-  state.activeNoteId ? state.metadata.get(state.activeNoteId)?.wordCount ?? 0 : 0;
+function selectWordCount(state: ReturnType<RendererStore["getState"]>) {
+  return state.activeNoteId ? state.metadata.get(state.activeNoteId)?.wordCount ?? 0 : 0;
+}
 
 export function MetadataWordCount({ store }: Props) {
   recordRender("MetadataWordCount");

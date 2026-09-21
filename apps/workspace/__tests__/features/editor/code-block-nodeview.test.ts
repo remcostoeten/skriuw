@@ -169,7 +169,7 @@ class FakeElement {
 
   dispatchEvent(event: FakeEvent): boolean {
     event.target = this;
-    let cursor: FakeElement | null = this;
+    let cursor: FakeElement | null = event.target;
     while (cursor && !event.propagationStopped) {
       for (const listener of cursor.listeners.get(event.type) ?? []) listener(event);
       cursor = cursor.parentElement;
@@ -676,8 +676,9 @@ test("a browser selection inside a previewed block resolves to the block itself"
   const plugin = createMermaidPreviewSelectionPlugin();
   const between = plugin.props.createSelectionBetween!;
   const state = mermaidState(SEQUENCE);
-  const viewFor = (mode: string | null) =>
-    ({ state, nodeDOM: () => (mode === null ? null : { dataset: { mermaid: mode } }) }) as unknown as EditorView;
+  function viewFor(mode: string | null) {
+    return ({ state, nodeDOM: () => (mode === null ? null : { dataset: { mermaid: mode } }) }) as unknown as EditorView;
+  }
   const inside = between(viewFor("preview"), state.doc.resolve(12), state.doc.resolve(20));
   assert.ok(inside instanceof NodeSelection);
   assert.equal(inside?.from, 8);

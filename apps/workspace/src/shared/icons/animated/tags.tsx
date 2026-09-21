@@ -14,12 +14,12 @@ import {
  useRef,
  type HTMLAttributes,
 } from "react";
-export interface TagsIconHandle {
+export type TagsIconHandle = {
  startAnimation: () => void;
  stopAnimation: () => void;
-}
+};
 
-interface TagsIconProps extends Omit<
+type TagsIconProps = Omit<
  HTMLAttributes<HTMLDivElement>,
  | "color"
  | "onDrag"
@@ -28,12 +28,12 @@ interface TagsIconProps extends Omit<
  | "onAnimationStart"
  | "onAnimationEnd"
  | "onAnimationIteration"
-> {
+> & {
  size?: number;
  duration?: number;
  isAnimated?: boolean;
  color?: string;
-}
+};
 
 const TagsIcon = forwardRef<TagsIconHandle, TagsIconProps>(
  (
@@ -65,10 +65,10 @@ const TagsIcon = forwardRef<TagsIconHandle, TagsIconProps>(
   });
 
   const handleEnter = useCallback(
-   (e?: React.MouseEvent<HTMLDivElement>) => {
+   (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isAnimated || reduced) return;
     if (!isControlled.current) controls.start("animate");
-    else onMouseEnter?.(e as any);
+    else onMouseEnter?.(e);
    },
    [controls, reduced, isAnimated, onMouseEnter],
   );
@@ -78,7 +78,7 @@ const TagsIcon = forwardRef<TagsIconHandle, TagsIconProps>(
     if (!isControlled.current) {
      controls.start("normal");
     } else {
-     onMouseLeave?.(e as any);
+     onMouseLeave?.(e);
     }
    },
    [controls, onMouseLeave],

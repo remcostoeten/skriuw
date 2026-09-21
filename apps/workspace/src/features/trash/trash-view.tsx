@@ -173,13 +173,14 @@ function TrashList({ rows, onRestore, onPurge }: TrashListProps) {
   );
 
   useLayoutEffect(() => {
-    const element = ref.current;
-    if (!element) {
+    const mounted = ref.current;
+    if (!mounted) {
       return;
     }
-    const updateHeight = () => {
+    const element: HTMLElement = mounted;
+    function updateHeight() {
       setViewport((current) => ({ ...current, height: element.clientHeight }));
-    };
+    }
     updateHeight();
     const observer = new ResizeObserver(updateHeight);
     observer.observe(element);

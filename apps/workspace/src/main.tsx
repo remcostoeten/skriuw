@@ -363,11 +363,11 @@ function main(): void {
       return;
     }
     const unsubscribe = watchWorkspaceRelease(lock, () => void attemptOpen());
-    const retryWhenVisible = () => {
+    function retryWhenVisible() {
       if (document.visibilityState === "visible") {
         void attemptOpen();
       }
-    };
+    }
     document.addEventListener("visibilitychange", retryWhenVisible);
     const timer = setInterval(retryWhenVisible, BLOCKED_RETRY_INTERVAL_MS);
     unbindWaiting = () => {

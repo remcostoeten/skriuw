@@ -50,11 +50,11 @@ export function useWorkspaceSearch(): WorkspaceSearch {
     setRunning(true);
     runner
       .run(query)
-      .then((next) => {
-        if (cancelled || next === null) {
+      .then((result) => {
+        if (cancelled || result === null) {
           return;
         }
-        setOutcome(next);
+        setOutcome(result);
         setFailure(null);
         setRunning(false);
       })

@@ -326,7 +326,9 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
     scrollHostRef.current = scrollHost;
     applySurfaceTokens();
     schedulePaint();
-    const onScroll = () => schedulePaint();
+    function onScroll() {
+      schedulePaint();
+    }
     scrollHost?.addEventListener("scroll", onScroll, { passive: true });
     const observer = new ResizeObserver(() => schedulePaint());
     observer.observe(host);
@@ -758,10 +760,12 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
   }, [host, active, finish, schedulePaint, centreOfViewport]);
 
   const handlers = useMemo<EditorBoundHandlersFor<DrawingShortcutId>>(() => {
-    const selectTool = (tool: DrawingToolId) => () =>
-      setBrush((current) => ({ ...current, tool }));
-    const selectInk = (colorId: string) => () =>
-      setBrush((current) => ({ ...current, colorId }));
+    function selectTool(tool: DrawingToolId) {
+      return () => setBrush((current) => ({ ...current, tool }));
+    }
+    function selectInk(colorId: string) {
+      return () => setBrush((current) => ({ ...current, colorId }));
+    }
     return {
       drawPen: selectTool("pen"),
       drawHighlighter: selectTool("highlighter"),

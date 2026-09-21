@@ -326,7 +326,9 @@ export function HistoryScrubber({ versions, selectedIndex, onScrub }: Props) {
     if (!root) {
       return;
     }
-    const listener = (event: WheelEvent) => wheelHandlerRef.current(event);
+    function listener(event: WheelEvent) {
+      wheelHandlerRef.current(event);
+    }
     root.addEventListener("wheel", listener, { passive: false });
     return () => {
       root.removeEventListener("wheel", listener);

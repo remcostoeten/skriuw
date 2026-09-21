@@ -211,7 +211,9 @@ export function EntityView({ store, kind }: Props) {
 
   function mergeInto(source: EntityRow, targetId: string): void {
     const saves = buildMergeSaveDocuments(store.getState(), kind, source.id, targetId);
-    const finalizeDelete = () => commit([buildDelete(kind, source.id)]);
+    function finalizeDelete() {
+      commit([buildDelete(kind, source.id)]);
+    }
     if (saves.length === 0) {
       finalizeDelete();
       return;

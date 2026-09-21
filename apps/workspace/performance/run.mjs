@@ -21,7 +21,9 @@ const contexts = [
   { fixture: "wide-5000", blocks: 2000 },
 ];
 
-const sleep = (milliseconds) => new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
+function sleep(milliseconds) {
+  return new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
+}
 
 function run(command, arguments_, options = {}) {
   return new Promise((resolveRun, reject) => {
@@ -82,7 +84,7 @@ function launchChrome(profileDirectory) {
     let buffered = "";
     let settled = false;
     const timeout = setTimeout(() => fail(new Error("Chrome did not expose DevTools")), 15_000);
-    const fail = (error) => {
+    function fail(error) {
       if (settled) {
         return;
       }
@@ -92,7 +94,7 @@ function launchChrome(profileDirectory) {
         child.kill("SIGKILL");
       }
       reject(error);
-    };
+    }
     child.stderr.on("data", (chunk) => {
       buffered += String(chunk);
       const match = buffered.match(/DevTools listening on (ws:\/\/\S+)/);
@@ -216,7 +218,9 @@ function traceSummary(events, eventType) {
     )
     .map((event) => event.dur / 1_000);
   const sorted = [...samples].sort((left, right) => left - right);
-  const at = (fraction) => sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)] ?? 0;
+  function at(fraction) {
+    return sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)] ?? 0;
+  }
   return {
     count: samples.length,
     samplesMs: samples,
@@ -375,22 +379,28 @@ async function runContext(context) {
       chrome.kill("SIGKILL");
       await exited;
     }
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      try {
-        await rm(profileDirectory, { recursive: true, force: true });
-        break;
-      } catch (error) {
-        if (error?.code !== "ENOTEMPTY" || attempt === 19) {
-          throw error;
-        }
-        await sleep(100);
+    await removeDirectoryWithRetry(profileDirectory);
+  }
+}
+
+async function removeDirectoryWithRetry(directory) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      await rm(directory, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      if (error?.code !== "ENOTEMPTY" || attempt === 19) {
+        throw error;
       }
+      await sleep(100);
     }
   }
 }
 
 function budgetStatus(record) {
-  const below = (summary, p95, maximum) => summary.p95Ms < p95 && summary.maxMs < maximum;
+  function below(summary, p95, maximum) {
+    return summary.p95Ms < p95 && summary.maxMs < maximum;
+  }
   return {
     cachedEditorSwap: below(record.selection.summary.editorInstallation, 8, 16.67),
     boundedEditorWorkingSet:

@@ -187,7 +187,7 @@ export function createNativeBridge(core: SkriuwCore, options: NativeBridgeOption
         if (pendingOpen !== null) {
           await pendingOpen.then(ignoreOutcome, ignoreOutcome);
         }
-        await Promise.allSettled([...inFlight]);
+        await Promise.allSettled(inFlight);
         await core.shutdown();
       }
       function release(): void {

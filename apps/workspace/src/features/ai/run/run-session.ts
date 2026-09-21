@@ -147,15 +147,15 @@ export function createRunSession(options: Options): RunSession {
       return !disposed && activeRequestId === request.requestId && run.phase === "streaming";
     }
     void repair(run.preview, request)
-      .then((next) => {
+      .then((repaired) => {
         if (!stillCurrent()) {
           return;
         }
-        if (next === null) {
+        if (repaired === null) {
           setRun(runWithTerminal(run, event));
           return;
         }
-        send(next);
+        send(repaired);
       })
       .catch(() => {
         if (stillCurrent()) {

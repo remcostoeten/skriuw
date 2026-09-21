@@ -66,7 +66,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
  * reader who followed a link can return with a single key. Ignored while typing.
  */
 export function installBackNavigation(store: RendererStore): () => void {
-  const handler = (event: KeyboardEvent) => {
+  function handler(event: KeyboardEvent) {
     if (event.key !== "Backspace" || event.metaKey || event.ctrlKey || event.altKey) {
       return;
     }
@@ -75,7 +75,7 @@ export function installBackNavigation(store: RendererStore): () => void {
     }
     event.preventDefault();
     navigateBack(store);
-  };
+  }
   window.addEventListener("keydown", handler);
   return () => window.removeEventListener("keydown", handler);
 }

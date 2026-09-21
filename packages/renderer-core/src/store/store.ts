@@ -99,8 +99,9 @@ function recordCoVisit(current: CoVisits, sourceId: string, targetId: string): C
   }
   while (next.size > MAX_CO_VISIT_SOURCES) {
     const oldest = [...next.entries()].sort((a, b) => {
-      const latest = (entries: ReadonlyMap<string, { lastVisitedAt: number }>) =>
-        Math.max(...[...entries.values()].map((entry) => entry.lastVisitedAt));
+      function latest(entries: ReadonlyMap<string, { lastVisitedAt: number }>) {
+        return Math.max(...[...entries.values()].map((entry) => entry.lastVisitedAt));
+      }
       return latest(a[1]) - latest(b[1]);
     })[0]?.[0];
     if (!oldest) break;
@@ -1164,7 +1165,7 @@ export function createRendererStore(initialState: RendererState): RendererStore 
       }
       state = next;
       changed = true;
-      for (const subscriber of [...subscribers]) {
+      for (const subscriber of Array.from(subscribers)) {
         if (!subscriber.active) {
           continue;
         }

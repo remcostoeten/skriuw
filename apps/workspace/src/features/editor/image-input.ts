@@ -14,7 +14,7 @@ type ImageDimensions = {
 
 const inFlightPersists = new Set<Promise<void>>();
 
-registerPendingWork(() => Promise.all([...inFlightPersists]).then(() => undefined));
+registerPendingWork(() => Promise.all(inFlightPersists).then(() => undefined));
 
 function collectFiles(transfer: DataTransfer | null, mimePrefix: string): File[] {
   if (!transfer) {

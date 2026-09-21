@@ -8,7 +8,9 @@ const CHROME_BINARY = process.env.CHROME_BINARY ?? "google-chrome-stable";
 const KEY_COUNT = 100;
 const KEY_INTERVAL_MS = 24;
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function launchChrome(profileDir) {
   return new Promise((resolve, reject) => {
@@ -28,7 +30,7 @@ function launchChrome(profileDir) {
     );
     let buffered = "";
     let settled = false;
-    const onData = (chunk) => {
+    function onData(chunk) {
       buffered += String(chunk);
       const match = buffered.match(/DevTools listening on (ws:\/\/\S+)/);
       if (match) {
@@ -37,8 +39,8 @@ function launchChrome(profileDir) {
         child.stderr.off("data", onData);
         resolve({ child, wsUrl: match[1] });
       }
-    };
-    const fail = (error) => {
+    }
+    function fail(error) {
       if (settled) {
         return;
       }
@@ -49,7 +51,7 @@ function launchChrome(profileDir) {
         child.kill("SIGKILL");
       }
       reject(error);
-    };
+    }
     const timeout = setTimeout(() => fail(new Error("chrome did not expose DevTools")), 15_000);
     child.stderr.on("data", onData);
     child.on("error", fail);
@@ -152,7 +154,9 @@ function traceSummary(events) {
     )
     .map((event) => event.dur / 1_000)
     .sort((left, right) => left - right);
-  const at = (fraction) => samples[Math.ceil(samples.length * fraction) - 1] ?? 0;
+  function at(fraction) {
+    return samples[Math.ceil(samples.length * fraction) - 1] ?? 0;
+  }
   return {
     count: samples.length,
     samplesMs: samples,
@@ -166,7 +170,7 @@ function traceSummary(events) {
 function renderInvariantFailures(benchmark) {
   const failures = [];
   const byName = new Map(benchmark.scenarios.map((scenario) => [scenario.name, scenario]));
-  const assertAllowed = (name, allowed, expected) => {
+  function assertAllowed(name, allowed, expected) {
     const scenario = byName.get(name);
     if (!scenario) {
       failures.push(`${name}: missing scenario`);
@@ -216,13 +220,13 @@ function renderInvariantFailures(benchmark) {
         );
       }
     }
-  };
-  const assertCommits = (name, count) => {
+  }
+  function assertCommits(name, count) {
     const scenario = byName.get(name);
     if (benchmark.profileBuild && scenario && scenario.commits !== count) {
       failures.push(`${name}: ${scenario.commits} commits, expected ${count}`);
     }
-  };
+  }
   assertAllowed(
     "selection-diagnostic-100",
     ["EditorSelectionConsumer", "MetadataTitle", "MetadataWordCount"],
@@ -418,16 +422,20 @@ async function runContext(baseUrl, fixture, label, resultsDir) {
       child.kill("SIGKILL");
       await exited;
     }
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      try {
-        await rm(profileDir, { recursive: true, force: true });
-        break;
-      } catch (error) {
-        if (error?.code !== "ENOTEMPTY" || attempt === 19) {
-          throw error;
-        }
-        await sleep(100);
+    await removeDirectoryWithRetry(profileDir);
+  }
+}
+
+async function removeDirectoryWithRetry(directory) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      await rm(directory, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      if (error?.code !== "ENOTEMPTY" || attempt === 19) {
+        throw error;
       }
+      await sleep(100);
     }
   }
 }

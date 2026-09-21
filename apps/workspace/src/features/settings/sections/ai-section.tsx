@@ -143,7 +143,9 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
         });
     }
     refresh();
-    const abort = () => operationRef.current?.abort();
+    function abort() {
+      operationRef.current?.abort();
+    }
     signal.addEventListener("abort", abort, { once: true });
     const poll = window.setInterval(() => {
       if (!signal.aborted && operationRef.current === null) {

@@ -97,10 +97,12 @@ test("parse then serialize is a fixpoint, including around other blocks", () => 
 });
 
 test("cells that cannot be a pipe table degrade to flattened inline text", () => {
-  const paragraph = (text: string) =>
-    productSchema.node("paragraph", null, productSchema.text(text));
-  const listItem = (text: string) =>
-    productSchema.node("list_item", null, paragraph(text));
+  function paragraph(text: string) {
+    return productSchema.node("paragraph", null, productSchema.text(text));
+  }
+  function listItem(text: string) {
+    return productSchema.node("list_item", null, paragraph(text));
+  }
   const table = productSchema.node("table", null, [
     productSchema.node("table_row", null, [
       productSchema.node("table_header", null, paragraph("H")),

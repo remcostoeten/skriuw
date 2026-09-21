@@ -189,9 +189,9 @@ function MediaLightboxVideo({
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
-    const handleFullscreenChange = () => {
+    function handleFullscreenChange() {
       setIsFullscreen(document.fullscreenElement === playerRef.current);
-    };
+    }
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);

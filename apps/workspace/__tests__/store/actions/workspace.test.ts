@@ -602,16 +602,18 @@ test("duplicateCurrentNote opens the copy in the focused split pane", async () =
   const { duplicateCurrentNote } = await import("../../../src/store/actions/workspace");
   const { focusPane, openBeside } = await import("../../../src/store/actions/panes");
   const { SECONDARY_PANE_ID, secondaryPane } = await import("@skriuw/renderer-core/store/panes");
-  const document = (noteId: string, text: string) => ({
-    noteId,
-    documentJson: {
-      type: "doc",
-      content: [{ type: "heading", attrs: { level: 1 }, content: [{ type: "text", text }] }],
-    },
-    markdown: `# ${text}\n`,
-    revision: 1,
-    wordCount: 1,
-  });
+  function document(noteId: string, text: string) {
+    return {
+      noteId,
+      documentJson: {
+        type: "doc",
+        content: [{ type: "heading", attrs: { level: 1 }, content: [{ type: "text", text }] }],
+      },
+      markdown: `# ${text}\n`,
+      revision: 1,
+      wordCount: 1,
+    };
+  }
   const store = await storeWith({
     activeNoteId: "a",
     nodes: [noteNode("a", 1), noteNode("b", 2)],

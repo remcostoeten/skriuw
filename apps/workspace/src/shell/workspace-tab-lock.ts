@@ -36,11 +36,11 @@ export function browserTabLockChannel(): TabLockChannel | null {
   return {
     post: (message) => channel.postMessage(message),
     subscribe: (listener) => {
-      const handler = (event: MessageEvent<unknown>) => {
+      function handler(event: MessageEvent<unknown>) {
         if (isTabLockMessage(event.data)) {
           listener(event.data);
         }
-      };
+      }
       channel.addEventListener("message", handler);
       return () => channel.removeEventListener("message", handler);
     },

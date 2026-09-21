@@ -68,16 +68,16 @@ function segmentsOfTextblock(textblock: ProseMirrorNode, contentOffset: number):
   let piece = "";
   let segmentStart = contentOffset;
   let position = contentOffset;
-  const endPiece = () => {
+  function endPiece() {
     if (piece.length > 0) pieces.push(piece);
     piece = "";
-  };
-  const endSegment = (nextStart: number) => {
+  }
+  function endSegment(nextStart: number) {
     endPiece();
     segments.push({ offset: segmentStart, pieces });
     pieces = [];
     segmentStart = nextStart;
-  };
+  }
   textblock.forEach((child) => {
     if (child.isText) {
       const value = child.text ?? "";
@@ -109,7 +109,7 @@ type BlockSegments = {
 function collectSegments(block: ProseMirrorNode): BlockSegments {
   const segments: TextSegment[] = [];
   const rowStarts = new Set<number>();
-  const walk = (node: ProseMirrorNode, contentOffset: number) => {
+  function walk(node: ProseMirrorNode, contentOffset: number) {
     if (node.isTextblock) {
       segments.push(...segmentsOfTextblock(node, contentOffset));
       return;
@@ -120,7 +120,7 @@ function collectSegments(block: ProseMirrorNode): BlockSegments {
       walk(child, childOffset + 1);
       childOffset += child.nodeSize;
     });
-  };
+  }
   walk(block, 0);
   return { segments, rowStarts };
 }

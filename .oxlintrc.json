@@ -1,0 +1,121 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc",
+    "react",
+    "jsx-a11y",
+    "import",
+    "promise"
+  ],
+  "jsPlugins": [
+    {
+      "name": "anti-slop",
+      "specifier": "./tools/oxlint/anti-slop/index.ts"
+    },
+    {
+      "name": "skriuw",
+      "specifier": "./tools/oxlint/skriuw/index.ts"
+    }
+  ],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "func-style": [
+      "error",
+      "declaration",
+      {
+        "allowTypeAnnotation": true
+      }
+    ],
+    "prefer-arrow-callback": [
+      "error",
+      {
+        "allowNamedFunctions": true
+      }
+    ],
+    "no-empty": "error",
+    "no-var": "error",
+    "prefer-const": "error",
+    "eqeqeq": [
+      "error",
+      "smart"
+    ],
+    "typescript/no-explicit-any": "error",
+    "typescript/ban-ts-comment": "error",
+    "typescript/consistent-type-imports": "error",
+    "typescript/consistent-type-definitions": [
+      "error",
+      "type"
+    ],
+    "import/no-duplicates": "error",
+    "react/rules-of-hooks": "error",
+    "react/jsx-key": "error",
+    "react/no-unstable-nested-components": "error",
+    "anti-slop/no-chained-type-assertions": "error",
+    "anti-slop/no-module-mocking": "error",
+    "anti-slop/no-object-parameters": "error",
+    "anti-slop/no-reflect-apply": "error",
+    "anti-slop/no-reflect-get": "error",
+    "anti-slop/no-unknown-type-aliases": "error",
+    "anti-slop/no-widen-then-assert": "error",
+    "skriuw/no-silent-catch": "error",
+    "react/refs": "off",
+    "react/set-state-in-effect": "off",
+    "react/purity": "off",
+    "react/immutability": "off",
+    "react/use-memo": "off",
+    "react/static-components": "off",
+    "react/incompatible-library": "off",
+    "react-hooks/exhaustive-deps": "off",
+    "react/exhaustive-deps": "off",
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "jsx-a11y/no-autofocus": "off",
+    "jsx-a11y/no-noninteractive-element-interactions": "off",
+    "jsx-a11y/interactive-supports-focus": "off",
+    "jsx-a11y/no-static-element-interactions": "off",
+    "jsx-a11y/no-noninteractive-element-to-interactive-role": "off",
+    "jsx-a11y/click-events-have-key-events": "off",
+    "jsx-a11y/label-has-associated-control": "off",
+    "jsx-a11y/role-supports-aria-props": "off",
+    "jsx-a11y/no-interactive-element-to-noninteractive-role": "off",
+    "jsx-a11y/no-noninteractive-tabindex": "off"
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/*.tsx"
+      ],
+      "rules": {
+        "skriuw/local-type-name": "error"
+      }
+    },
+    {
+      "files": [
+        "**/__tests__/**",
+        "**/*.test.*",
+        "**/*.spec.*",
+        "apps/workspace/harnesses/**",
+        "apps/workspace/e2e/**",
+        "apps/workspace/performance/**"
+      ],
+      "rules": {
+        "anti-slop/no-chained-type-assertions": "off",
+        "typescript/no-explicit-any": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "v1/**",
+    "target/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.next/**",
+    "**/.expo/**",
+    "**/*.d.ts",
+    "packages/theme/tokens.ts",
+    "tools/oxlint/anti-slop/**"
+  ]
+}

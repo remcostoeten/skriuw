@@ -63,7 +63,7 @@ type DragOrigin = CoverTransform & {
 
 const inFlightCoverWrites = new Set<Promise<void>>();
 
-registerPendingWork(() => Promise.all([...inFlightCoverWrites]).then(() => undefined));
+registerPendingWork(() => Promise.all(inFlightCoverWrites).then(() => undefined));
 
 function selectMediaMetadata(state: RendererState) {
   return state.mediaMetadata;

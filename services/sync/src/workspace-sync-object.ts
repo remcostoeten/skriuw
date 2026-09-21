@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 
 import { WorkspaceContentStore } from "./content-store";
+import { noop } from "./shared/lib/noop";
 import {
   SYNC_EVENTS_DEVICE_HEADER,
   SYNC_EVENTS_EXPIRY_HEADER,
@@ -1214,7 +1215,7 @@ function closeQuietly(socket: WebSocket): void {
   try {
     socket.close(1011, "sync events channel closed");
   } catch {
-    // Already closed or errored; hibernation cleans the socket up regardless.
+    noop();
   }
 }
 

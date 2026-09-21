@@ -137,19 +137,20 @@ function DialogShell({
   // focus out of a modal once an autoplaying <video> starts, so Escape in a
   // stacked lightbox otherwise lands on the dialog underneath and closes it.
   useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) {
+    const mounted = ref.current;
+    if (!mounted) {
       return;
     }
-    const closeFromEscape = (event: KeyboardEvent) => {
+    const dialog: HTMLDialogElement = mounted;
+    function closeFromEscape(event: KeyboardEvent) {
       event.preventDefault();
       const cancelEvent = new Event("cancel", { cancelable: true });
       handlersRef.current.onCancel?.(cancelEvent);
       if (!cancelEvent.defaultPrevented) {
         dialog.close();
       }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
+    }
+    function handleKeyDown(event: KeyboardEvent) {
       handlersRef.current.onKeyDown?.(event);
       if (
         event.key !== "Escape" ||
@@ -159,8 +160,8 @@ function DialogShell({
         return;
       }
       closeFromEscape(event);
-    };
-    const handleWindowKeyDown = (event: KeyboardEvent) => {
+    }
+    function handleWindowKeyDown(event: KeyboardEvent) {
       if (
         event.key !== "Escape" ||
         event.defaultPrevented ||
@@ -170,18 +171,18 @@ function DialogShell({
         return;
       }
       closeFromEscape(event);
-    };
-    const handleCancel = (event: Event) => {
+    }
+    function handleCancel(event: Event) {
       handlersRef.current.onCancel?.(event);
-    };
-    const handleClose = () => {
+    }
+    function handleClose() {
       handlersRef.current.onClose();
-    };
-    const handlePointerDown = (event: PointerEvent) => {
+    }
+    function handlePointerDown(event: PointerEvent) {
       if (event.target === dialog) {
         dialog.close();
       }
-    };
+    }
     dialog.addEventListener("keydown", handleKeyDown);
     dialog.addEventListener("cancel", handleCancel);
     dialog.addEventListener("close", handleClose);

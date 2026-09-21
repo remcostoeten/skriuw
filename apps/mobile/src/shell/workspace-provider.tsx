@@ -49,13 +49,13 @@ export function WorkspaceProvider({ bridge, children }: Props) {
     }
 
     open()
-      .then((next) => {
-        opened = next;
+      .then((nextSession) => {
+        opened = nextSession;
         if (cancelled) {
-          void next.close();
+          void nextSession.close();
           return;
         }
-        setSession(next);
+        setSession(nextSession);
       })
       .catch((error: unknown) => {
         if (cancelled) {

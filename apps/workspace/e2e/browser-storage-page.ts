@@ -12,22 +12,20 @@ import {
 import type { WorkspaceOperationEnvelope } from "@skriuw/renderer-core/contracts/workspace";
 
 declare global {
-  interface Window {
-    browserStorageE2e: {
-      write(): Promise<{ id: string; initialNodes: number }>;
-      count(id: string): Promise<number>;
-      archiveRoundTrip(): Promise<{ markerCopies: number; extraCopies: number }>;
-      invalidArchiveRejected(): Promise<{ code: string; nodesAfter: number }>;
-      contentSearch(): Promise<{
-        hits: number;
-        snippet: string;
-        diacriticHits: number;
-        opaqueHits: number;
-        rebuiltHits: number;
-        needsRebuildAfter: boolean;
-      }>;
-    };
-  }
+  var browserStorageE2e: {
+    write(): Promise<{ id: string; initialNodes: number }>;
+    count(id: string): Promise<number>;
+    archiveRoundTrip(): Promise<{ markerCopies: number; extraCopies: number }>;
+    invalidArchiveRejected(): Promise<{ code: string; nodesAfter: number }>;
+    contentSearch(): Promise<{
+      hits: number;
+      snippet: string;
+      diacriticHits: number;
+      opaqueHits: number;
+      rebuiltHits: number;
+      needsRebuildAfter: boolean;
+    }>;
+  };
 }
 
 function createNoteOperation(

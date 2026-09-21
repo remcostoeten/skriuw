@@ -178,7 +178,7 @@ const VISUAL_ACTIONS = new Set([
   "A",
 ]);
 
-const REGISTER_NAMES = /^[a-zA-Z0-9"+*_\-]$/;
+const REGISTER_NAMES = /^[a-zA-Z0-9"+*_-]$/;
 
 function isCountDigit(key: string, first: boolean): boolean {
   return /^[0-9]$/.test(key) && !(first && key === "0");

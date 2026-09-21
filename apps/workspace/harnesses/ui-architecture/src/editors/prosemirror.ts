@@ -35,8 +35,7 @@ type RetainedEditor = {
 };
 
 function createView(host: HTMLElement, state: EditorState): EditorView {
-  let mountedView: EditorView;
-  mountedView = new EditorView(
+  const mountedView: EditorView = new EditorView(
     { mount: host },
     {
       state,

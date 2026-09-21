@@ -1,6 +1,5 @@
 import { Profiler } from "react";
-import { recordRender } from "./ledger";
-import { recordProfilerCommit } from "./ledger";
+import { recordProfilerCommit, recordRender } from "./ledger";
 import { MetadataTitle } from "./MetadataTitle";
 import { MetadataUpdatedAt } from "./MetadataUpdatedAt";
 import { MetadataWordCount } from "./MetadataWordCount";

@@ -16,12 +16,12 @@ const fixtureNames = ["nested-1000", "nested-5000", "wide-5000", "mixed-5000"];
 export function App({ projection, store }: Props) {
   recordRender("ApplicationShell");
   const resultRef = useRef<HTMLPreElement>(null);
-  const onFixtureChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  function onFixtureChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const url = new URL(window.location.href);
     url.searchParams.set("fixture", event.target.value);
     window.location.assign(url);
-  };
-  const onRun = async () => {
+  }
+  async function onRun() {
     if (!resultRef.current) {
       return;
     }
@@ -31,7 +31,7 @@ export function App({ projection, store }: Props) {
     };
     const result = await benchmarkWindow.__SKRIUW_RENDERER_STORE__.run();
     resultRef.current.textContent = JSON.stringify(result, null, 2);
-  };
+  }
   return (
     <Profiler id="renderer-store" onRender={recordProfilerCommit}>
       <main className="application-shell">

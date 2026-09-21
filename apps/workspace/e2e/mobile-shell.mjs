@@ -35,8 +35,9 @@ let server;
 let browser;
 let socket;
 
-const SHEET_OPEN = (side) =>
-  `Boolean(document.querySelector('.mobile-sheet-root[data-state="open"][data-side="${side}"]'))`;
+function sheetOpenExpression(side) {
+  return `Boolean(document.querySelector('.mobile-sheet-root[data-state="open"][data-side="${side}"]'))`;
+}
 const NO_SHEET = `!document.querySelector('.mobile-sheet-root[data-state="open"]')`;
 // The panel slides in over 260ms; a touch aimed at a row before it settles
 // lands beside the viewport.
@@ -48,7 +49,7 @@ const SHEET_SETTLED = `(() => {
 })()`;
 
 async function waitForSheet(cdp, sessionId, side, label) {
-  await waitFor(cdp, sessionId, SHEET_OPEN(side), label);
+  await waitFor(cdp, sessionId, sheetOpenExpression(side), label);
   await waitFor(cdp, sessionId, SHEET_SETTLED, `${label} settling`);
 }
 const IGNORED_CONSOLE = /navigator\.vibrate/;
@@ -214,10 +215,12 @@ function centerOf(expression) {
   return `(() => { const node = ${expression}; if (!node) return null; const rect = node.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, width: rect.width, height: rect.height }; })()`;
 }
 
-const BUTTON_WITH_TEXT = (text) =>
-  `Array.from(document.querySelectorAll('main[aria-label="Journal"] button')).find((button) => button.textContent.trim() === ${JSON.stringify(text)})`;
-const BUTTON_LABELLED = (label) =>
-  `document.querySelector('main[aria-label="Journal"] button[aria-label=${JSON.stringify(label)}]')`;
+function buttonWithTextExpression(text) {
+  return `Array.from(document.querySelectorAll('main[aria-label="Journal"] button')).find((button) => button.textContent.trim() === ${JSON.stringify(text)})`;
+}
+function buttonLabelledExpression(label) {
+  return `document.querySelector('main[aria-label="Journal"] button[aria-label=${JSON.stringify(label)}]')`;
+}
 
 async function tap(cdp, sessionId, expression, label) {
   await waitFor(cdp, sessionId, `Boolean(${expression})`, label);
@@ -262,8 +265,8 @@ async function checkJournalDay(cdp, sessionId, screenshotDirectory) {
     layout,
   );
 
-  await tap(cdp, sessionId, BUTTON_WITH_TEXT("Start from a template"), "template disclosure");
-  await tap(cdp, sessionId, BUTTON_WITH_TEXT("Daily note"), "daily note template");
+  await tap(cdp, sessionId, buttonWithTextExpression("Start from a template"), "template disclosure");
+  await tap(cdp, sessionId, buttonWithTextExpression("Daily note"), "daily note template");
   await waitFor(
     cdp,
     sessionId,
@@ -272,9 +275,9 @@ async function checkJournalDay(cdp, sessionId, screenshotDirectory) {
   );
   checks.push({ name: "a template fills the empty entry, stamped with the entry's day", passed: true });
 
-  await tap(cdp, sessionId, BUTTON_LABELLED("Next day"), "next day button");
+  await tap(cdp, sessionId, buttonLabelledExpression("Next day"), "next day button");
   await waitFor(cdp, sessionId, `window.location.hash === '#/journal/2026-03-10'`, "next day from the button");
-  await waitFor(cdp, sessionId, `Boolean(${BUTTON_WITH_TEXT("Start from Daily note")})`, "remembered template on the next empty day");
+  await waitFor(cdp, sessionId, `Boolean(${buttonWithTextExpression("Start from Daily note")})`, "remembered template on the next empty day");
   checks.push({ name: "the next empty day offers the remembered template in one tap", passed: true });
 
   await evaluate(cdp, sessionId, `window.location.hash = '#/journal/2026-03-16'; true`);
@@ -569,7 +572,7 @@ try {
   await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
   await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
   await waitFor(cdp, sessionId, `document.querySelectorAll('[role="menuitem"]').length === 0`, "menu closing");
-  const stillOpen = await evaluate(cdp, sessionId, SHEET_OPEN("left"));
+  const stillOpen = await evaluate(cdp, sessionId, sheetOpenExpression("left"));
   check("Escape in the menu closes the menu, not the sheet", stillOpen, { stillOpen });
 
   await hold(cdp, sessionId, gamma, 650);
@@ -588,7 +591,7 @@ try {
   const rename = await evaluate(
     cdp,
     sessionId,
-    `(() => { const input = document.querySelector('input[aria-label^="Rename"]'); return { font: parseFloat(getComputedStyle(input).fontSize), focused: document.activeElement === input, sheetOpen: ${SHEET_OPEN("left")} }; })()`,
+    `(() => { const input = document.querySelector('input[aria-label^="Rename"]'); return { font: parseFloat(getComputedStyle(input).fontSize), focused: document.activeElement === input, sheetOpen: ${sheetOpenExpression("left")} }; })()`,
   );
   check(
     "hold then Rename focuses an inline field the tap underneath cannot disturb",

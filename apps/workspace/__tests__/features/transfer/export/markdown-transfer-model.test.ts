@@ -7,12 +7,18 @@ import type {
 import {
   buildNoteExportEntry,
   buildWorkspaceExportEntries,
+  collectImageRefIds,
+  collectLocalImageSources,
   collectRemoteImageSources,
+  imageFileExtension,
   planMarkdownImport,
   referenceSafeMarkdown,
+  replaceLocalImages,
+  resolveImportedImagePath,
+  rewriteExportedImagePaths,
   sanitizeFileName,
+  type MarkdownTree,
 } from "../../../../src/features/transfer/export/markdown-transfer-model";
-import type { MarkdownTree } from "../../../../src/features/transfer/export/markdown-transfer-model";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 import {
@@ -341,15 +347,6 @@ test("import creates folders for empty directories and nested files", () => {
   const down = folders.find((operation) => operation.title === "Down");
   assert.equal(note.placement.parentId, down && "id" in down ? down.id : null);
 });
-
-import {
-  collectImageRefIds,
-  collectLocalImageSources,
-  imageFileExtension,
-  replaceLocalImages,
-  resolveImportedImagePath,
-  rewriteExportedImagePaths,
-} from "../../../../src/features/transfer/export/markdown-transfer-model";
 
 function imageRefDoc(id: string) {
   return {

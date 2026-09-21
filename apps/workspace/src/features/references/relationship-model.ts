@@ -134,9 +134,12 @@ export function projectCoVisitedNotes(state: RendererState, noteId: string): Rel
   return [...(state.coVisits.get(noteId) ?? [])]
     .filter(([candidateId]) => candidateId !== noteId && availableNote(state, candidateId))
     .sort((a, b) => {
-      const score = (entry: readonly [string, { count: number; lastVisitedAt: number }]) =>
-        entry[1].count * 10 +
-        Math.max(0, 9 - Math.floor((Date.now() - entry[1].lastVisitedAt) / 86_400_000));
+      function score(entry: readonly [string, { count: number; lastVisitedAt: number }]) {
+        return (
+          entry[1].count * 10 +
+          Math.max(0, 9 - Math.floor((Date.now() - entry[1].lastVisitedAt) / 86_400_000))
+        );
+      }
       return score(b) - score(a) || b[1].lastVisitedAt - a[1].lastVisitedAt;
     })
     .map(([candidateId]) => {
@@ -165,11 +168,11 @@ type GraphCandidate = GraphNode & { from: string; to: string };
 function relationshipCandidates(state: RendererState, noteId: string): GraphCandidate[] {
   const candidates: GraphCandidate[] = [];
   const seen = new Set<string>([noteId]);
-  const add = (candidate: GraphCandidate) => {
+  function add(candidate: GraphCandidate) {
     if (seen.has(candidate.id)) return;
     seen.add(candidate.id);
     candidates.push(candidate);
-  };
+  }
   for (const entry of state.incomingReferences.get(referenceKey("note", noteId)) ?? []) {
     if (availableNote(state, entry)) {
       add({
