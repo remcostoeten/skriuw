@@ -9,6 +9,7 @@ import { createLockLifecycle } from "./lock-lifecycle";
 import { isNoteSealed } from "./lock-model";
 import type { AppPhase, Observable, ScreenGuard } from "./port";
 import { UnlockView } from "./unlock-view";
+import { usePlatformBiometrics } from "./use-platform-biometrics";
 
 /**
  * The one mount point the shell needs for locked notes.
@@ -21,7 +22,8 @@ import { UnlockView } from "./unlock-view";
  */
 
 type Props = {
-  biometrics: BiometricUnlock;
+  /** Injected in tests; this device's keystore and sensor otherwise. */
+  biometrics?: BiometricUnlock;
   children: ReactNode;
   /** Injected in tests; the platform's `AppState` otherwise. */
   phase?: Observable<AppPhase>;
@@ -46,6 +48,7 @@ function sameSealedNote(left: SealedNote, right: SealedNote): boolean {
 
 export function LockGate({ biometrics, children, phase, screenGuard }: Props) {
   const theme = useTheme();
+  const platformBiometrics = usePlatformBiometrics();
   const session = useWorkspace();
   const [concealed, setConcealed] = useState(false);
   const sealed = useWorkspaceSelector(selectSealedActiveNote, sameSealedNote);
@@ -68,7 +71,7 @@ export function LockGate({ biometrics, children, phase, screenGuard }: Props) {
       {sealed.noteId !== null && (
         <View style={[styles.overlay, { backgroundColor: theme.color("background") }]}>
           <UnlockView
-            biometrics={biometrics}
+            biometrics={biometrics ?? platformBiometrics}
             /* Nothing to do: hydrating the opened body clears `sealed` itself. */
             onUnlocked={() => undefined}
             title={sealed.title.length === 0 ? "This note is locked" : `${sealed.title} is locked`}
