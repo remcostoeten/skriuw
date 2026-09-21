@@ -3,7 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { hasTauriRuntime } from "@/bridge/external-links";
 import { cn } from "@/shared/lib/utils";
 import { noop } from "@/shared/lib/noop";
-import { CloseIcon, MaximizeIcon, MinimizeIcon, RestoreIcon } from "@/shared/icons/static";
+import { CloseIcon, MaximizeIcon, MinusIcon, RestoreIcon } from "@/shared/icons/static";
 
 type ControlButtonProps = {
   label: string;
@@ -79,7 +79,7 @@ function TauriWindowControls({ className }: WindowControlsProps) {
       className={cn("flex h-11 shrink-0 items-center gap-0.5 pl-3 pr-1", className)}
     >
       <ControlButton label="Minimize" onClick={runWindowAction(() => getCurrentWindow().minimize())}>
-        <MinimizeIcon size={14} />
+        <MinusIcon size={14} />
       </ControlButton>
       <ControlButton
         label={isMaximized ? "Restore" : "Maximize"}

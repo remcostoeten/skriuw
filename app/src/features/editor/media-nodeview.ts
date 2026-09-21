@@ -1,5 +1,6 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { EditorView, NodeView } from "prosemirror-view";
+import { glyphMarkup } from "@/shared/icons/markup";
 import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
 import { resolveMediaPlaybackUrl } from "@/shared/lib/media-playback-url";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
@@ -12,14 +13,14 @@ export type MediaUploadHandler = (file: File, assignedId: string) => void;
 type VideoPlayerElement = HTMLDivElement & { disposePlayer: () => void };
 
 const videoControlIcons = {
-  play: '<svg viewBox="0 0 24 24" focusable="false"><path d="m8 5 11 7-11 7V5Z" fill="currentColor" /></svg>',
-  pause: '<svg viewBox="0 0 24 24" focusable="false"><path d="M7 5h3v14H7zm7 0h3v14h-3z" fill="currentColor" /></svg>',
-  volume: '<svg viewBox="0 0 24 24" focusable="false"><path d="M4 9v6h4l5 4V5L8 9H4Zm12.5.5a3.5 3.5 0 0 1 0 5M19 7a7 7 0 0 1 0 10" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" /></svg>',
-  muted: '<svg viewBox="0 0 24 24" focusable="false"><path d="M4 9v6h4l5 4V5L8 9H4Zm12 1 4 4m0-4-4 4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" /></svg>',
-  loop: '<svg viewBox="0 0 24 24" focusable="false"><path d="M17 3.5 20.5 7 17 10.5M4 7h16M7 20.5 3.5 17 7 13.5m13 3.5H4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" /></svg>',
-  popOut: '<svg viewBox="0 0 24 24" focusable="false"><path d="M9 5H5v14h14v-4m-7-10h7v7m0-7-9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" /></svg>',
-  returnToNote: '<svg viewBox="0 0 24 24" focusable="false"><path d="M15 5h4v14H5v-4m7-10H5v7m0-7 9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" /></svg>',
-  fullscreen: '<svg viewBox="0 0 24 24" focusable="false"><path d="M8 4H4v4m12-4h4v4M4 16v4h4m12-4v4h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" /></svg>',
+  play: glyphMarkup("play"),
+  pause: glyphMarkup("pause"),
+  volume: glyphMarkup("speaker_2"),
+  muted: glyphMarkup("speaker_mute"),
+  loop: glyphMarkup("arrow_repeat_all"),
+  popOut: glyphMarkup("picture_in_picture_enter"),
+  returnToNote: glyphMarkup("picture_in_picture_exit"),
+  fullscreen: glyphMarkup("full_screen_maximize"),
 } as const;
 
 const placeholders: Record<MediaKind, string> = {

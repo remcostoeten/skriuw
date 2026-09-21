@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Button } from "@/shared/ui/button";
-import { LockIcon, iconStrokeWidth } from "@/shared/icons/static";
+import { LockIcon } from "@/shared/icons/static";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { secretNoun } from "./lock-model";
@@ -31,7 +31,7 @@ export function UnlockPane({ store, noteId }: Props) {
       className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center"
       data-testid="unlock-pane"
     >
-      <LockIcon size={40} strokeWidth={iconStrokeWidth(40, 1.25)} className="text-muted-foreground" />
+      <LockIcon size={40} className="text-muted-foreground" />
       <div className="max-w-md space-y-2">
         <p className="m-0 text-sm font-medium text-foreground">{title || "This note"} is locked</p>
         <p className="m-0 text-sm text-muted-foreground">

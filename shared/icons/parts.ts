@@ -44,8 +44,8 @@ function column(from: number, to: number): Cut {
   return { d: `M${from} -2H${to}V26H${from}Z` };
 }
 
-const FOLDER_FLAP: Cut = { d: "M3.5 14.28L5.47 10.87C6.14 9.71 7.38 9 8.72 9H26V26H3.5Z" };
-const PIN_HEAD: Cut = { d: "M-2 6.06L17.94 26H26V-2H-2Z" };
+const FOLDER_FLAP: Cut = { d: "M3.5 14.1L5.4 10.75C6.07 9.58 7.32 8.85 8.72 8.85H26V26H3.5Z" };
+const PIN_HEAD: Cut = { d: "M-2 6.5L17.5 26H26V-2H-2Z" };
 const SIDEBAR_DIVIDER: Cut = { d: "M8 5.5H9.5V18.5H8Z" };
 const METADATA_DIVIDER: Cut = { d: "M14.5 5.5H16V18.5H14.5Z" };
 

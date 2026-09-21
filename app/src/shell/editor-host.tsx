@@ -4,7 +4,7 @@ import { NoteEditor } from "@/features/editor/note-editor";
 import { RawMarkdownEditor } from "@/features/editor/raw-markdown-editor";
 import { NotePropertiesShelf } from "@/features/properties/note-properties-shelf";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import { WaypointsIcon, iconStrokeWidth } from "@/shared/icons/static";
+import { WaypointsIcon } from "@/shared/icons/static";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { NoteCover } from "@/features/note-chrome/note-cover";
 import { UnlockPane } from "@/features/lock/unlock-pane";
@@ -89,7 +89,7 @@ export function EditorHost({
       {hasActiveNote && isSealed && <UnlockPane store={store} noteId={noteId} />}
       {!hasActiveNote && (
         <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-          <WaypointsIcon size={40} strokeWidth={iconStrokeWidth(40, 1.25)} className="text-muted-foreground" />
+          <WaypointsIcon size={40} className="text-muted-foreground" />
           <div className="max-w-md space-y-2">
             <p className="text-sm font-medium text-foreground">No note selected</p>
             <p className="text-sm text-muted-foreground">{emptyMessage}</p>

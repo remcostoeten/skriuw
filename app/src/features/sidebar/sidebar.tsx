@@ -45,9 +45,7 @@ import {
   FolderInputIcon,
   FolderPlusIcon,
   FoldVerticalIcon,
-  NewFolderIcon,
-  NewNoteIcon,
-  PanelRightToggleIcon,
+  PanelRightIcon,
   PencilIcon,
   PinIcon,
   LockIcon,
@@ -58,6 +56,7 @@ import {
   Trash2Icon,
   UnfoldVerticalIcon,
 } from "@/shared/icons/static";
+import { AppIcon } from "@/shared/icons/app-icon";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -1405,7 +1404,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
                   <ContextMenuShortcut keys="O" />
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => openBeside(store, id)} className="gap-2">
-                  <PanelRightToggleIcon className="w-4 h-4" />
+                  <PanelRightIcon className="w-4 h-4" />
                   Open beside
                   <ContextMenuShortcut keys="B" />
                 </ContextMenuItem>
@@ -1474,7 +1473,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
                 aria-label="New note"
                 onClick={() => createNote(store, null)}
               >
-                <NewNoteIcon size={18} />
+                <AppIcon name="new-note" size={18} />
               </button>
             </Tooltip>
             <Tooltip label="New folder" side="bottom" shortcut={shortcutHints.createFolder}>
@@ -1484,7 +1483,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
                 aria-label="New folder"
                 onClick={() => createFolder(store, null)}
               >
-                <NewFolderIcon size={18} />
+                <FolderPlusIcon size={18} />
               </button>
             </Tooltip>
             <Tooltip label="Toggle all folders" side="bottom">

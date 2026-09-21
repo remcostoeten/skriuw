@@ -12,7 +12,7 @@ import {
   ChevronRightIcon,
   ClockIcon,
   HashIcon,
-  PanelLeftToggleIcon,
+  PanelLeftIcon,
   PlusIcon,
   SearchIcon,
   Trash2Icon,
@@ -948,7 +948,7 @@ export function JournalView({ store, sidebarOpen, onToggleSidebar, onOpenCommand
             aria-label="Toggle sidebar"
             aria-expanded={sidebarOpen}
           >
-            <PanelLeftToggleIcon size={16} />
+            <PanelLeftIcon size={16} />
           </button>
         </Tooltip>
         {onOpenCommandPalette && (
