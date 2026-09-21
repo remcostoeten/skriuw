@@ -1,0 +1,35 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'dev.skriuw'
+version = '0.1.0'
+
+def generatedBindings = file('src/main/java/uniffi/skriuw_mobile/skriuw_mobile.kt')
+def nativeLibraries = file('src/main/jniLibs')
+
+android {
+  namespace "dev.skriuw.core"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
+
+dependencies {
+  implementation 'net.java.dev.jna:jna:5.17.0@aar'
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+}
+
+tasks.register('verifySkriuwCoreArtifacts') {
+  doLast {
+    if (!generatedBindings.exists() || !nativeLibraries.exists()) {
+      throw new GradleException(
+        'The Rust core is not built for Android. Run apps/mobile/modules/skriuw-core/scripts/build-android.sh first.'
+      )
+    }
+  }
+}
+
+preBuild.dependsOn('verifySkriuwCoreArtifacts')

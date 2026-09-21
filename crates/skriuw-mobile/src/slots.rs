@@ -26,7 +26,7 @@ const REGISTRY_FILE: &str = "workspaces.json";
 const SLOT_PARENT: &str = "workspaces";
 
 /// Outcome of pointing the installation at an account's workspace. Mirrors
-/// `SlotAdoption` in `app/src-tauri/src/workspace_slots.rs` and the
+/// `SlotAdoption` in `apps/workspace/src-tauri/src/workspace_slots.rs` and the
 /// `SlotAdoption` union the renderer bridge already speaks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, uniffi::Enum)]
 #[serde(rename_all = "camelCase")]

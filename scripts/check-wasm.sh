@@ -12,7 +12,7 @@ cargo build \
   --locked
 
 ./scripts/build-browser-wasm.sh
-bun --cwd=app run e2e:browser-storage
-bun --cwd=app run e2e:browser-reset
-bun --cwd=app run e2e:browser-account-switch
-bun --cwd=app run e2e
+bun --cwd=apps/workspace run e2e:browser-storage
+bun --cwd=apps/workspace run e2e:browser-reset
+bun --cwd=apps/workspace run e2e:browser-account-switch
+bun --cwd=apps/workspace run e2e

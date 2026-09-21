@@ -5,7 +5,7 @@ VS Code-style search widget over a ProseMirror document, with match
 highlighting, next/previous navigation, match case / whole word / regex
 options, and replace / replace-all.
 
-The implementation lives in `app/src/features/editor/`:
+The implementation lives in `apps/workspace/src/features/editor/`:
 
 | File | Role |
 | --- | --- |

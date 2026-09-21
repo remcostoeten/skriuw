@@ -2,8 +2,8 @@
 set -Eeuo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-app_dir="$repo_dir/app"
-cloud_dir="$repo_dir/cloud"
+app_dir="$repo_dir/apps/workspace"
+cloud_dir="$repo_dir/services/sync"
 mode="${1:-workspace}"
 
 if [[ $# -gt 0 ]]; then
@@ -11,13 +11,13 @@ if [[ $# -gt 0 ]]; then
 fi
 
 case "$mode" in
-  check|ci|desktop|web|workspace) ;;
+  check|ci|desktop|browser|workspace) ;;
   -h|--help|help)
     cat <<'EOF'
-Usage: ./scripts/build.sh [check|web|desktop|workspace|ci]
+Usage: ./scripts/build.sh [check|browser|desktop|workspace|ci]
 
-  check      Run every verification and coverage step without building
-  web        Verify everything and build the renderer bundle
+  check      Run the desktop gate, including site and WASM build prerequisites
+  browser    Verify everything and build the renderer bundle
   desktop    Verify everything and build the Tauri desktop application
   workspace  Verify everything and build the Rust workspace
   ci         Verify everything and build release CLI and desktop artifacts
@@ -341,25 +341,25 @@ require_command cargo
 require_command git
 require_command node
 require_command rustc
-[[ -d "$app_dir/node_modules" ]] || fail "Frontend dependencies are missing. Run ./scripts/bootstrap.sh or install manually in app/."
-[[ -d "$cloud_dir/node_modules" ]] || fail "Cloud dependencies are missing. Run ./scripts/bootstrap.sh or install manually in cloud/."
-[[ -d "$repo_dir/app/harnesses/ui-architecture/node_modules" ]] || fail "UI architecture dependencies are missing. Run ./scripts/bootstrap.sh or install manually in app/harnesses/ui-architecture/."
-[[ -d "$repo_dir/app/harnesses/renderer-store/node_modules" ]] || fail "Renderer-store dependencies are missing. Run ./scripts/bootstrap.sh or install manually in app/harnesses/renderer-store/."
+[[ -d "$app_dir/node_modules" ]] || fail "Frontend dependencies are missing. Run ./bin/setup."
+[[ -d "$cloud_dir/node_modules" ]] || fail "Cloud dependencies are missing. Run ./bin/setup."
+[[ -d "$repo_dir/apps/workspace/harnesses/ui-architecture/node_modules" ]] || fail "UI architecture dependencies are missing. Run ./bin/setup."
+[[ -d "$repo_dir/apps/workspace/harnesses/renderer-store/node_modules" ]] || fail "Renderer-store dependencies are missing. Run ./bin/setup."
 
 print_header
 
-run_step "Generated contracts and theme tokens" "generated-contracts" "$repo_dir/scripts/generate.sh" --check
+run_step "Generated contracts and theme tokens" "generated-contracts" "$repo_dir/bin/generate" --check
 run_step "Build entrypoint contract" "build-entrypoints" "$repo_dir/scripts/test-build.sh"
 run_step "Browser SQLite WASM module" "browser-wasm" "$repo_dir/scripts/build-browser-wasm.sh"
 run_step "Rust formatting" "rust-format" cargo fmt --all --check
 run_step "Rust lint" "rust-clippy" cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 run_step "Backend test suite" "backend-tests" cargo test --workspace --locked --no-fail-fast
 print_metric "$(rust_test_summary "$last_log")"
-run_step "Desktop bridge test suite" "desktop-tests" cargo test --manifest-path app/src-tauri/Cargo.toml --locked --no-fail-fast
+run_step "Desktop bridge test suite" "desktop-tests" cargo test --manifest-path apps/workspace/src-tauri/Cargo.toml --locked --no-fail-fast
 print_metric "$(rust_test_summary "$last_log")"
-run_step "UI architecture regression suite" "ui-architecture-tests" bun --cwd="$repo_dir/app/harnesses/ui-architecture" run test
+run_step "UI architecture regression suite" "ui-architecture-tests" bun --cwd="$repo_dir/apps/workspace/harnesses/ui-architecture" run test
 print_metric "$(node_test_summary "$last_log")"
-run_step "Renderer-store regression suite" "renderer-store-tests" bun --cwd="$repo_dir/app/harnesses/renderer-store" run test
+run_step "Renderer-store regression suite" "renderer-store-tests" bun --cwd="$repo_dir/apps/workspace/harnesses/renderer-store" run test
 print_metric "$(node_test_summary "$last_log")"
 run_step "Renderer test suite and coverage" "renderer-tests" bun --cwd="$app_dir" run test
 print_metric "$(renderer_summary "$last_log")"
@@ -368,7 +368,7 @@ run_step "Cloud sync contract and runtime suite" "cloud-sync-tests" bun --cwd="$
 
 case "$mode" in
   check) ;;
-  web)
+  browser)
     run_step --stream "Renderer production bundle" "renderer-build" bun --cwd="$app_dir" run build:frontend
     ;;
   desktop)
@@ -390,7 +390,7 @@ printf '%s%sBUILD SUCCEEDED%s  %s mode completed in %s\n' "$bold" "$green" "$res
 if [[ "$mode" != "check" ]]; then
   printf '\n%sArtifacts%s\n' "$bold" "$reset"
   case "$mode" in
-    web)
+    browser)
       print_artifact "Renderer bundle" "$app_dir/dist"
       ;;
     desktop)

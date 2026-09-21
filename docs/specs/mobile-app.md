@@ -26,15 +26,15 @@ builder, drawing, tablet layouts.
   Rust core, serialized and transactional. No second persistence path in
   TypeScript.
 - **R-A2** The mobile client implements the existing bridge seam
-  (`app/src/bridge/commands.ts`) for the subset in *Command surface*. It
+  (`apps/workspace/src/bridge/commands.ts`) for the subset in *Command surface*. It
   submits the same versioned `WorkspaceOperation` messages and consumes the
   same generated contracts. No mobile-only operation kinds.
 - **R-A3** `crates/skriuw-mobile` depends on domain, runtime, storage, sqlite,
   sync and crypto only. `skriuw-domain` gains no new dependency. The facade
   exposes narrow use cases, not table-shaped CRUD.
 - **R-A4** Store, operation queue, tree and route logic exist once, in
-  `shared/renderer-core`, consumed by `app/` and `mobile/`. Moving them changes
-  no desktop behavior; `./scripts/check.sh` stays green throughout.
+  `packages/renderer-core`, consumed by `apps/workspace/` and `apps/mobile/`. Moving them changes
+  no desktop behavior; `./bin/check` stays green throughout.
 - **R-A5** Theme tokens are authored once in `themes.css`. The React Native
   token map is generated, committed and drift-checked. All nine themes ship.
 - **R-A6** The editor is the desktop editor bundle, unforked. Mobile-specific
@@ -79,27 +79,27 @@ builder, drawing, tablet layouts.
   `shell/startup-failure.ts`.
 - **R-Q2** Every screen is operable with VoiceOver and TalkBack; touch targets
   are at least 44 pt.
-- **R-Q3** `scripts/check-mobile.sh` is the product gate: typecheck, unit
+- **R-Q3** `bin/check mobile` is the product gate: typecheck, unit
   tests, facade tests on the host, token and contract drift, Android emulator
-  end-to-end. CI runs it on every PR touching `mobile/`, `shared/` or
+  end-to-end. CI runs it on every PR touching `apps/mobile/`, `packages/` or
   `crates/skriuw-mobile`.
 
 ## Layout
 
 ```text
 crates/skriuw-mobile/          UniFFI facade over skriuw-runtime (host-testable)
-mobile/                        Expo app: app/ routes only, src/ everything else
-mobile/modules/skriuw-core/    Expo module: generated bindings, jniLibs, xcframework
-mobile/src/bridge/             third implementation of the command surface + fake
-mobile/src/shell/              toolbar, tab bar, sheets (native)
-mobile/src/editor/             DOM component host and message protocol
-shared/renderer-core/          store, operations, tree, routes (moved from app/src)
-shared/theme/                  themes.css, generator, generated tokens.ts
-scripts/check-mobile.sh        product gate
+apps/mobile/                        Expo app: apps/workspace/ routes only, src/ everything else
+apps/mobile/modules/skriuw-core/    Expo module: generated bindings, jniLibs, xcframework
+apps/mobile/src/bridge/             third implementation of the command surface + fake
+apps/mobile/src/shell/              toolbar, tab bar, sheets (native)
+apps/mobile/src/editor/             DOM component host and message protocol
+packages/renderer-core/          store, operations, tree, routes (moved from apps/workspace/src)
+packages/theme/                  themes.css, generator, generated tokens.ts
+scripts/check-mobile.sh        product gate implementation (bin/check mobile)
 ```
 
-The repository root becomes a bun workspace over `app`, `mobile` and
-`shared/*`. `v1/` is frozen and stays outside it.
+The repository root is a Bun workspace over `apps/workspace`, `apps/mobile`,
+`apps/site`, and `packages/*`. `v1/` is frozen and stays outside it.
 
 ## Command surface
 
@@ -142,21 +142,21 @@ Issues in the same wave have disjoint owned paths and can run concurrently.
 
 | Wave | Issue | Owns | Depends on |
 | --- | --- | --- | --- |
-| 0 | Mobile 01 Workspace and scaffold | root `package.json`, `mobile/` skeleton, `scripts/check-mobile.sh` | — |
+| 0 | Mobile 01 Workspace and scaffold | root `package.json`, `apps/mobile/` skeleton, `scripts/check-mobile.sh` | — |
 | 1 | Mobile 02 UniFFI facade | `crates/skriuw-mobile` | — |
-| 1 | Mobile 03 Extract renderer core | `shared/renderer-core`, `app/src/store` imports | 01 |
-| 1 | Mobile 04 Theme token generator | `shared/theme`, `scripts/generate.sh` | 01 |
-| 1 | Mobile 05 Editor bundle and protocol | `app/src/features/editor` entry, `mobile/src/editor/protocol` | 01 |
-| 2 | Mobile 06 Expo native module | `mobile/modules/skriuw-core` | 02 |
-| 2 | Mobile 07 Native shell | `mobile/src/shell`, `mobile/app` | 03, 04 |
-| 2 | Mobile 08 Bridge adapter | `mobile/src/bridge` | 03, 06 |
-| 2 | Mobile 09 Editor host | `mobile/src/editor` | 05, 07 |
-| 2 | Mobile 10 CI and builds | `.github/workflows`, `mobile/eas.json` | 06 |
-| 3 | Mobile 11 Search | `mobile/src/features/search` | 07, 08 |
-| 3 | Mobile 12 Journal and capture | `mobile/src/features/journal`, share extension | 07, 08 |
-| 3 | Mobile 13 Tasks | `mobile/src/features/tasks` | 07, 08 |
-| 3 | Mobile 14 Sync and accounts | `mobile/src/features/sync`, facade sync surface | 08 |
-| 3 | Mobile 15 Locked notes | `mobile/src/features/lock` | 08, 09 |
+| 1 | Mobile 03 Extract renderer core | `shared/renderer-core`, `apps/workspace/src/store` imports | 01 |
+| 1 | Mobile 04 Theme token generator | `shared/theme`, `bin/generate` | 01 |
+| 1 | Mobile 05 Editor bundle and protocol | `apps/workspace/src/features/editor` entry, `apps/mobile/src/editor/protocol` | 01 |
+| 2 | Mobile 06 Expo native module | `apps/mobile/modules/skriuw-core` | 02 |
+| 2 | Mobile 07 Native shell | `apps/mobile/src/shell`, `apps/mobile/app` | 03, 04 |
+| 2 | Mobile 08 Bridge adapter | `apps/mobile/src/bridge` | 03, 06 |
+| 2 | Mobile 09 Editor host | `apps/mobile/src/editor` | 05, 07 |
+| 2 | Mobile 10 CI and builds | `.github/workflows`, `apps/mobile/eas.json` | 06 |
+| 3 | Mobile 11 Search | `apps/mobile/src/features/search` | 07, 08 |
+| 3 | Mobile 12 Journal and capture | `apps/mobile/src/features/journal`, share extension | 07, 08 |
+| 3 | Mobile 13 Tasks | `apps/mobile/src/features/tasks` | 07, 08 |
+| 3 | Mobile 14 Sync and accounts | `apps/mobile/src/features/sync`, facade sync surface | 08 |
+| 3 | Mobile 15 Locked notes | `apps/mobile/src/features/lock` | 08, 09 |
 | 4 | Mobile 16 Release readiness | benchmarks, store metadata, docs | all |
 
 Mobile 03 exports the bridge port and an in-memory adapter from

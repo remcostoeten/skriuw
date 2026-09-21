@@ -79,7 +79,7 @@ the same task, could be undone by that pop. The renderer's overlays navigate
 before they close, so the ordering holds today; a new overlay that navigates
 during unmount must keep it.
 
-The compact e2e (`app/e2e/mobile-shell.mjs`) drives the back gesture, the
+The compact e2e (`apps/workspace/e2e/mobile-shell.mjs`) drives the back gesture, the
 tab bar, and the settings dialog through CDP navigation history, which
 reports the current index where `history.length` cannot once forward entries
 exist.

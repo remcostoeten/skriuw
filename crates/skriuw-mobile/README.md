@@ -57,7 +57,7 @@ client cannot drift from desktop.
 ## Generating bindings
 
 `bindgen/` is the generator, and it declares its own `[workspace]` so the
-repository gate never builds it. That is not a style choice: `scripts/build.sh`
+repository gate never builds it. That is not a style choice: `bin/build`
 runs clippy with `--all-features`, so a feature flag inside this crate would
 still have pulled clap, askama and `cargo_metadata` into every `check.sh`.
 
@@ -98,7 +98,7 @@ Verified on Linux:
   refused before any database work, calls after shutdown, eight concurrent
   callers without a deadlock, the panic guard, and the dependency boundary.
 - Kotlin and Swift bindings generate from the built `cdylib`.
-- `./scripts/check.sh` passes with the crate in the workspace.
+- `./bin/check` passes with the crate in the workspace.
 
 Not verified, and the reason:
 

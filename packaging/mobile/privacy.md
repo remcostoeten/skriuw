@@ -24,7 +24,7 @@ Established from the source rather than from intent:
   sequence numbers, sizes, and timestamps. The recovery code is never sent.
 - **The account** is an email address and a password, held by Better Auth on
   the Skriuw cloud. The session credential is written only to the platform
-  keystore (`mobile/src/features/auth/keystore.ts`), never to
+  keystore (`apps/mobile/src/features/auth/keystore.ts`), never to
   JavaScript-reachable storage.
 - **Locked notes** are encrypted at rest on the device with their own key
   ([ADR-0044](../../docs/adr/0044-locked-notes.md)). Biometric unlock stores

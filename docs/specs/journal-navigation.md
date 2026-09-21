@@ -5,11 +5,11 @@ shortcuts and the "Go to date…" dialog with its date grammar.
 
 | File | Role |
 | --- | --- |
-| `app/src/features/journal/date-expressions.ts` | The grammar. Pure; takes the viewed day and today as arguments. |
-| `app/src/features/journal/dates.ts` | Calendar math over local `YYYY-MM-DD` keys (month/year clamping, Monday-first weeks). |
-| `app/src/features/journal/navigation.ts` | Writes the destination into the route hash and carries the open-dialog request. |
-| `app/src/features/journal/go-to-date-dialog.tsx` | The dialog, built on the shared `Dialog`. |
-| `app/src/commands/definitions.ts` | Default bindings. |
+| `apps/workspace/src/features/journal/date-expressions.ts` | The grammar. Pure; takes the viewed day and today as arguments. |
+| `apps/workspace/src/features/journal/dates.ts` | Calendar math over local `YYYY-MM-DD` keys (month/year clamping, Monday-first weeks). |
+| `apps/workspace/src/features/journal/navigation.ts` | Writes the destination into the route hash and carries the open-dialog request. |
+| `apps/workspace/src/features/journal/go-to-date-dialog.tsx` | The dialog, built on the shared `Dialog`. |
+| `apps/workspace/src/commands/definitions.ts` | Default bindings. |
 
 ## Step shortcuts
 

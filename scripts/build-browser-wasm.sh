@@ -7,7 +7,7 @@ output_dir="$repo_dir/.build/browser-wasm"
 
 command -v cargo >/dev/null 2>&1 || { echo "cargo is required" >&2; exit 1; }
 command -v wasm-bindgen >/dev/null 2>&1 || {
-  echo "wasm-bindgen-cli 0.2.126 is required; run ./scripts/bootstrap.sh" >&2
+  echo "wasm-bindgen-cli 0.2.126 is required; run ./bin/setup" >&2
   exit 1
 }
 

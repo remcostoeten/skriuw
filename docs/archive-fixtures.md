@@ -15,7 +15,11 @@ fixtures/archives/
 ├── v3/
 │   └── typed-properties.json
 └── v4/
-    └── tasks.json
+│   └── tasks.json
+├── v5/
+│   └── prompts.json
+└── v6/
+    └── annotations.json
 ```
 
 - `manifest.json` declares `supportedArchiveVersions` and catalogues every golden file with its version.
@@ -24,6 +28,8 @@ fixtures/archives/
 - `v2/pinned.json` covers `pinnedAt`: a pinned folder, a pinned note, and an unpinned note round trip exactly.
 - `v3/typed-properties.json` covers typed note properties and property templates, including person and select values with their bounded options.
 - `v4/tasks.json` covers tasks: one promoted task whose source checklist item is present in the document, one detached task that outlived its source, and one standalone task. Its ordinary checklist item proves that an unlinked `check_item` creates no task.
+- `v5/prompts.json` covers a built-in prompt override and a custom prompt, including input shape and optional generation limits.
+- `v6/annotations.json` covers an open annotation thread with replies and a resolved annotation whose original text no longer exists in the document.
 
 Fixture bytes are immutable compatibility inputs. Never regenerate them from current code to make a failing test pass; a mismatch means the production format drifted.
 
@@ -34,7 +40,7 @@ Fixture bytes are immutable compatibility inputs. Never regenerate them from cur
 
 Fixtures are stored in the canonical export order (nodes by `(parent_id, rank, id)` with root nodes first, documents by `note_id`), so round-trip comparisons use direct typed equality with no normalization.
 
-Exports always emit the current archive version (`WORKSPACE_ARCHIVE_VERSION`, currently 4). Importing an older supported fixture and re-exporting therefore produces the fixture's content at the current version; the SQLite round-trip tests compare against the fixture with only `archiveVersion` upgraded. Version 2 added the optional node field `pinnedAt`; version 1 archives without it deserialize with `pinnedAt = null`. Version 3 added typed properties and property templates, and version 4 added `tasks`; older archives deserialize both as empty collections.
+Exports always emit the current archive version (`WORKSPACE_ARCHIVE_VERSION`, currently 6). Importing an older supported fixture and re-exporting therefore produces the fixture's content at the current version; the SQLite round-trip tests compare against the fixture with only `archiveVersion` upgraded. Version 2 added the optional node field `pinnedAt`; version 1 archives without it deserialize with `pinnedAt = null`. Version 3 added typed properties and property templates, version 4 added `tasks`, version 5 added workspace prompts, and version 6 added annotations. Older archives deserialize fields introduced later as empty collections.
 
 ## Adding a new archive version
 

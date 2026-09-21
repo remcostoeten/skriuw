@@ -1,15 +1,19 @@
 # Import samples
 
-Ready-to-import sample exports, one per supported provider, for manually
-exercising the import flow. Unlike the parser golden fixtures in
-[`../provider-import/`](../provider-import/README.md), these include the
-packaged archive forms and richer content: nested folders, frontmatter
-properties, wikilinks, tags, image assets, tables, and checklists.
+This is a small grab bag of ready-to-import exports for trying the import flow
+by hand. It covers five common routes and includes the useful messy bits:
+nested folders, frontmatter properties, wikilinks, tags, images, tables, and
+checklists.
+
+It is not the full provider test corpus. The smaller
+[`../provider-import/`](../provider-import/README.md) fixtures cover all nine
+supported providers and keep the parsers honest. These samples are here when
+you want to open the app and see a real import preview.
 
 All content is synthetic and safe to import into any workspace. Every import
 is previewed and atomic, so cancelling leaves the workspace unchanged.
 
-## How to import each sample
+## Pick a sample
 
 | Sample | Command palette action | Pick |
 | --- | --- | --- |

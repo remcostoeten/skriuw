@@ -133,7 +133,7 @@ fn write_generated(
             .map_err(|error| format!("cannot read generated file {}: {error}", path.display()))?;
         if actual != expected {
             return Err(format!(
-                "generated contract is stale: {}. Run ./scripts/generate.sh",
+                "generated contract is stale: {}. Run ./bin/generate",
                 path.display()
             )
             .into());

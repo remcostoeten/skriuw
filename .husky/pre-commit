@@ -1,1 +1,0 @@
-cd v1 && bun lint-staged

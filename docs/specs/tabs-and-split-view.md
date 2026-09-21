@@ -18,14 +18,14 @@ This feature requires a real decision, likely its own ADR, on at least:
 
 ## Renderer shape (proposed)
 
-- `app/src/app.tsx` currently mounts one `<EditorHost store={store} />` (`app.tsx:194`). Introduce a `PaneLayout` concept above `EditorHost`: an ordered list of panes (1 for normal mode, 2 for split), each pane owning an ordered list of open note IDs (tabs) and one active note ID.
+- `apps/workspace/src/app.tsx` currently mounts one `<EditorHost store={store} />` (`app.tsx:194`). Introduce a `PaneLayout` concept above `EditorHost`: an ordered list of panes (1 for normal mode, 2 for split), each pane owning an ordered list of open note IDs (tabs) and one active note ID.
 - Only the active note ID of each *visible* pane gets a live `EditorHost` mount. A pane with 8 open tabs but 1 visible does not instantiate 8 editors.
 - Closing a tab that isn't the active one is a pure state update — no editor teardown needed since it was never mounted.
 - Switching the active tab within a pane reuses the existing fast-switch machinery (C2) — this is exactly the "switch between notes" case that's already measured and budgeted; the new cost is only in split view, where two panes are live simultaneously, doubling steady-state editor-host cost (acceptable — it doubles because there are genuinely two visible editors, not because of overhead).
 
 ## Native/store state
 
-Add to native UI state (same persistence path as sidebar expansion, `app/src/store/sidebar-expansion-persistence.ts` — extend or sibling it, don't reinvent the persistence mechanism):
+Add to native UI state (same persistence path as sidebar expansion, `apps/workspace/src/store/sidebar-expansion-persistence.ts` — extend or sibling it, don't reinvent the persistence mechanism):
 
 ```ts
 type PaneState = {
@@ -49,7 +49,7 @@ Persisted the same way expansion is: synchronous local update, coalesced backgro
 
 ## Acceptance criteria
 
-- With tabs enabled and 10 tabs open, only the active tab has a live editor instance — verified via the same render-count/editor-host-mount instrumentation C1/C2 already use. Covered at the unit level by `app/__tests__/shell/editor-panes.test.ts`, which renders `EditorPanes` with `react-dom/server` and asserts exactly one mounted editor host with N tabs and no split, and exactly two with a split open.
+- With tabs enabled and 10 tabs open, only the active tab has a live editor instance — verified via the same render-count/editor-host-mount instrumentation C1/C2 already use. Covered at the unit level by `apps/workspace/__tests__/shell/editor-panes.test.ts`, which renders `EditorPanes` with `react-dom/server` and asserts exactly one mounted editor host with N tabs and no split, and exactly two with a split open.
 - Split view shows two independently-scrollable, independently-focusable panes; typing in one does not affect the other's scroll position or selection.
 - Cached-switch and keystroke-to-paint budgets from `docs/performance-contract.md` hold for the active pane(s) with an arbitrary number of background tabs open — background tab count must not regress steady-state performance.
 - Open tabs/panes and their order survive desktop restart.

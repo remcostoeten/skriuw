@@ -14,7 +14,7 @@ When loading static assets (fonts, logos, images, config files) in route handler
 **Incorrect (reads font file on every request):**
 
 ```typescript
-// app/api/og/route.tsx
+// apps/workspace/api/og/route.tsx
 import { ImageResponse } from 'next/og'
 
 export async function GET(request: Request) {
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
 **Correct (loads once at module initialization):**
 
 ```typescript
-// app/api/og/route.tsx
+// apps/workspace/api/og/route.tsx
 import { ImageResponse } from 'next/og'
 
 // Module-level: runs ONCE when module is first imported
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
 **Correct (synchronous fs at module level):**
 
 ```typescript
-// app/api/og/route.tsx
+// apps/workspace/api/og/route.tsx
 import { ImageResponse } from 'next/og'
 import { readFileSync } from 'fs'
 import { join } from 'path'

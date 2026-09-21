@@ -19,7 +19,7 @@ it matters:
   Tauri, filesystem-layout, or operating-system dependency, and no crate
   manifest names Tauri.
 - The renderer already talks to storage through one seam,
-  `app/src/bridge/commands.ts`, with two implementations: Tauri `invoke` and
+  `apps/workspace/src/bridge/commands.ts`, with two implementations: Tauri `invoke` and
   the browser storage worker.
 - Rust/TypeScript contracts are generated, committed and drift-checked.
 
@@ -34,13 +34,13 @@ layers:
 
 1. **Shared core, native.** A new `crates/skriuw-mobile` facade exposes the
    use cases the mobile client needs over UniFFI. An Expo native module
-   (`mobile/modules/skriuw-core`) wraps the generated bindings. SQLite stays
+   (`apps/mobile/modules/skriuw-core`) wraps the generated bindings. SQLite stays
    canonical and native (`rusqlite`, bundled); durable writes stay serialized
    and transactional inside Rust. The mobile client is the third implementation
    of the bridge seam, not a new protocol.
 2. **Shared renderer logic, extracted.** The dependency-free store, operation
-   queue, tree model and route model move from `app/src` into
-   `shared/renderer-core`, consumed by both `app/` and `mobile/`. Theme tokens
+   queue, tree model and route model move from `apps/workspace/src` into
+   `packages/renderer-core`, consumed by both `apps/workspace/` and `apps/mobile/`. Theme tokens
    stay authored in `themes.css`; a generator emits a committed, drift-checked
    TypeScript token map for React Native.
 3. **Native chrome, web editor.** Navigation, toolbar, tab bar, sheets, lists,
@@ -71,8 +71,8 @@ Excluded from the mobile build: `skriuw-history-git` (libgit2),
 
 - Two interfaces must hold parity. Shared core, shared store and generated
   tokens bound the drift; chrome is duplicated on purpose.
-- The repository root gains JavaScript workspaces so `app/`, `mobile/` and
-  `shared/*` resolve one another.
+- The repository root gains JavaScript workspaces so `apps/workspace/`, `apps/mobile/`, and
+  `packages/*` resolve one another.
 - iOS artifacts need macOS: the xcframework is produced by a macOS CI runner
   and the application by EAS Build. Android builds and emulator end-to-end
   tests run on Linux and are the local development target.

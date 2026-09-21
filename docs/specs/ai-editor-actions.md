@@ -13,7 +13,7 @@ through the one provider seam; none of them is a second completion path.
 
 ## Actions are data
 
-`app/src/features/ai/actions/editor-actions.ts` holds the catalogue. An action names a
+`apps/workspace/src/features/ai/actions/editor-actions.ts` holds the catalogue. An action names a
 built-in prompt id and never carries prompt text, so the shipped wording lives
 in `skriuw_domain::prompt::BUILT_IN_PROMPTS` and reaches the renderer through
 the generated `contracts/generated/built-in-prompts.json`. A user-customised
@@ -200,7 +200,7 @@ without inspecting prompts. Recording itself happens at the seam; see
 
 ## Verification
 
-`app/__tests__/features/ai/` covers the catalogue and its prompt references,
+`apps/workspace/__tests__/features/ai/` covers the catalogue and its prompt references,
 input and instruction bounds, plan parsing, the palette command gate and request
 queue, the ProseMirror transactions, and — driven through the shipped completion
 consumer — streaming, cancellation, timeout, malformed output, malformed plans,

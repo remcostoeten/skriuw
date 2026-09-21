@@ -2,26 +2,30 @@
   "name": "skriuw",
   "private": true,
   "workspaces": [
-    "app",
-    "web",
-    "mobile",
-    "shared/*"
+    "apps/workspace",
+    "apps/site",
+    "apps/mobile",
+    "packages/*"
   ],
   "scripts": {
     "menu": "dev-menu",
     "dev": "dev-menu",
-    "dev:raw": "scripts/run-in.sh app dev",
-    "web": "scripts/run-in.sh web dev",
-    "build:web": "scripts/run-in.sh web build",
-    "build": "scripts/build.sh web",
+    "dev:desktop": "bin/dev desktop",
+    "dev:browser": "bin/dev browser",
+    "site": "bin/dev site",
+    "build:site": "bin/build site",
+    "build:browser": "bin/build browser",
+    "build": "bin/build browser",
     "tauri": "scripts/tauri.sh",
-    "tauri:build": "scripts/build.sh desktop",
-    "test": "scripts/run-in.sh app test",
-    "typecheck": "scripts/run-in.sh app typecheck",
-    "check": "scripts/check.sh",
-    "mobile": "scripts/run-in.sh mobile start",
-    "check:mobile": "scripts/check-mobile.sh",
-    "bootstrap": "scripts/bootstrap.sh"
+    "tauri:build": "bin/build desktop",
+    "test": "scripts/run-in.sh apps/workspace test",
+    "typecheck": "scripts/run-in.sh apps/workspace typecheck",
+    "check": "bin/check",
+    "mobile": "bin/dev mobile",
+    "check:browser": "bin/check browser",
+    "check:mobile": "bin/check mobile",
+    "setup": "bin/setup",
+    "generate": "bin/generate"
   },
   "devDependencies": {
     "@remcostoeten/dev-menu": "^0.2.2"

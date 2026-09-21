@@ -29,7 +29,7 @@ Use a nullable timestamp (`pinned_at`), not a boolean, matching the existing `de
 
 `crates/skriuw-domain/src/lib.rs`: add `pinned_at: Option<i64>` to the `WorkspaceNode` struct, alongside `deleted_at`. Update every exhaustive match/constructor that builds a `WorkspaceNode` (the compiler will find them).
 
-`app/src/contracts/workspace.ts`: add `pinnedAt: number | null` to `WorkspaceNode`, regenerate via `./scripts/generate.sh`, do not hand-edit the generated JSON Schema under `contracts/generated/`.
+`apps/workspace/src/contracts/workspace.ts`: add `pinnedAt: number | null` to `WorkspaceNode`, regenerate via `./bin/generate`, do not hand-edit the generated JSON Schema under `contracts/generated/`.
 
 ## Domain operation
 
@@ -57,11 +57,11 @@ Follow the existing pattern for every other operation: the storage port trait ge
 
 ## Renderer
 
-- `app/src/store/tree.ts`: add a `pinnedNodeIds` (or similar) derived selector — nodes with non-null `pinnedAt`, filtered through the existing `unavailableNodeIds` exclusion (a trashed node is never shown pinned even if the column briefly disagrees), sorted by `pinnedAt` descending.
-- `app/src/features/sidebar/sidebar.tsx`: render a "Pinned" section above the tree root, using the existing sidebar row component (`sidebar-row.tsx`) so styling, context menu, and keyboard behavior stay consistent — do not fork a new row component. The section is absent entirely when there are zero pinned nodes (no empty-state placeholder needed here; this is a convenience shelf, not a primary view).
+- `apps/workspace/src/store/tree.ts`: add a `pinnedNodeIds` (or similar) derived selector — nodes with non-null `pinnedAt`, filtered through the existing `unavailableNodeIds` exclusion (a trashed node is never shown pinned even if the column briefly disagrees), sorted by `pinnedAt` descending.
+- `apps/workspace/src/features/sidebar/sidebar.tsx`: render a "Pinned" section above the tree root, using the existing sidebar row component (`sidebar-row.tsx`) so styling, context menu, and keyboard behavior stay consistent — do not fork a new row component. The section is absent entirely when there are zero pinned nodes (no empty-state placeholder needed here; this is a convenience shelf, not a primary view).
 - Context menu (existing Radix context menu used elsewhere in the sidebar, per `[[entity-page-parity]]`): add "Pin" / "Unpin" as a toggle item, wired to dispatch `SetNodePinned`.
 - Command palette: add a "Pin/Unpin current note" action.
-- Keyboard shortcut: pick an unused binding through the existing rebindable shortcut system (`app/src/commands`); do not hardcode a key that bypasses user remapping.
+- Keyboard shortcut: pick an unused binding through the existing rebindable shortcut system (`apps/workspace/src/commands`); do not hardcode a key that bypasses user remapping.
 
 ## Ordering and interaction rules
 

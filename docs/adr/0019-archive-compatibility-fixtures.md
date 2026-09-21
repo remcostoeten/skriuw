@@ -25,7 +25,7 @@ Committed, human-reviewable archive JSON lives under `fixtures/archives/v{N}/`, 
 
 ### Supported-version policy
 
-Version 1 is the only supported archive version. Unsupported future versions fail validation explicitly with `UnsupportedArchiveVersion`; they are never coerced to version 1. Backward compatibility is claimed only for versions the production validator actually accepts.
+Versions 1 through 6 are currently supported. Unsupported future versions fail validation explicitly with `UnsupportedArchiveVersion`; they are never coerced to the current version. Backward compatibility is claimed only for versions the production validator actually accepts.
 
 ### Normalization rules
 
@@ -39,5 +39,5 @@ A release may raise or extend the supported archive version set only when it shi
 
 - Format drift in nodes, documents, settings, extensions, Unicode content, or the active note now fails deterministic tests against committed bytes.
 - SQLite import/export is proven stable across two full round trips for every golden file.
-- Adding archive version 2 has a documented, test-enforced checklist instead of an implicit convention.
+- Adding an archive version has a documented, test-enforced checklist instead of an implicit convention.
 - Fixture review happens in ordinary diff review because files are small and human-readable.

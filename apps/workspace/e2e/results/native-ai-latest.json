@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-08-18T19:52:32.980Z",
+  "revision": "2e15fe691b69af9a4bc7935d55a02491c36bb59c",
+  "command": "node apps/workspace/e2e/run-native-ai.mjs --output /home/remcostoeten/dev/skriuw/app/e2e/results/native-ai-latest.json",
+  "machine": {
+    "hostname": "remcostoeten",
+    "platform": "linux",
+    "release": "7.1.2-arch3-1",
+    "cpu": "Intel(R) Core(TM) i7-10700F CPU @ 2.90GHz",
+    "logicalCpuCount": 16,
+    "node": "v24.15.0"
+  },
+  "scenario": {
+    "checks": [
+      {
+        "name": "playground-route-is-unreachable-before-opt-in",
+        "pass": true,
+        "detail": "#/prompt-playground bounced to #/notes"
+      },
+      {
+        "name": "ai-section-absent-until-opt-in",
+        "pass": true,
+        "detail": "[\"\",\"\",\"\",\"\",\"\",\"General\",\"Editor\",\"Shortcuts\",\"Account & sync\",\"Media\",\"Data & recovery\",\"About\"]"
+      },
+      {
+        "name": "ai-features-toggle-is-reachable",
+        "pass": true,
+        "detail": "{\"checked\":true,\"found\":true}"
+      },
+      {
+        "name": "opt-in-reveals-ai-section",
+        "pass": true,
+        "detail": "[\"\",\"\",\"\",\"\",\"\",\"General\",\"Editor\",\"AI\",\"Shortcuts\",\"Account & sync\",\"Media\",\"Data & recovery\",\"About\"]"
+      },
+      {
+        "name": "runtime-card-reports-a-real-state",
+        "pass": true,
+        "detail": "AIRun writing tools locally, or bring your own key for a remote provider.Default modelInstall Ollama or add a provider key below, then pick the model AI features use.OllamaLlama 3.2 1BOllama is not ru"
+      },
+      {
+        "name": "start-action-brings-the-runtime-up",
+        "pass": true,
+        "detail": "AIRun writing tools locally, or bring your own key for a remote provider.Default modelNo default model chosenOllamaqwen2.5:0.5b379.4 MB · 494.03Mqwen2.5:0.5bgemma3:4b3184.1 MB · 4.3Bgemma3:4bLlama 3.2"
+      },
+      {
+        "name": "ownership-is-reported-honestly",
+        "pass": true,
+        "detail": "AIRun writing tools locally, or bring your own key for a remote provider.Default modelNo default model chosenOllamaqwen2.5:0.5b379.4 MB · 494.03Mqwen2.5:0.5bgemma3:4b3184.1 MB · 4.3Bgemma3:4bLlama 3.2 1BNot installed — pull it in AI settingsLlama 3.2 3BNot installed — pull it in AI settingsLlama 3.1"
+      },
+      {
+        "name": "model-panel-appears-once-running",
+        "pass": true,
+        "detail": "AIRun writing tools locally, or bring your own key for a remote provider.Default modelNo default model chosenOllamaqwen2.5:0.5b379.4 MB · 494.03Mqwen2.5:0.5bgemma3:4b3184.1 MB · 4.3Bgemma3:4bLlama 3.2 1BNot installed — pull it in AI settingsLlama 3.2 3BNot installed — pull it in AI settingsLlama 3.1"
+      },
+      {
+        "name": "pull-progress-is-announced-politely",
+        "pass": true,
+        "detail": "[\"pulling manifestCancel\"]"
+      },
+      {
+        "name": "pulled-model-is-listed-with-its-disk-use",
+        "pass": true,
+        "detail": "[{\"checked\":true,\"text\":\"all-minilm:latest23M · F16 · 43.8 MB · Aug 18, 2026\"},{\"checked\":false,\"text\":\"qwen2.5:0.5b494.03M · Q4_K_M · 379.4 MB · Aug 18, 2026\"},{\"checked\":false,\"text\":\"gemma3:4b4.3B · Q4_K_M · 3184.1 MB · Aug 17, 2026\"}]"
+      },
+      {
+        "name": "pulled-model-becomes-the-selection",
+        "pass": true,
+        "detail": "[{\"checked\":true,\"text\":\"all-minilm:latest23M · F16 · 43.8 MB · Aug 18, 2026\"},{\"checked\":false,\"text\":\"qwen2.5:0.5b494.03M · Q4_K_M · 379.4 MB · Aug 18, 2026\"},{\"checked\":false,\"text\":\"gemma3:4b4.3B · Q4_K_M · 3184.1 MB · Aug 17, 2026\"}]"
+      },
+      {
+        "name": "playground-lists-fake-and-runnable-models",
+        "pass": true,
+        "detail": "[{\"label\":\"Fake (offline demo)\",\"value\":\"fake\\u001ffake\"},{\"label\":\"all-minilm:latest\",\"value\":\"ollama\\u001fall-minilm:latest\"},{\"label\":\"qwen2.5:0.5b\",\"value\":\"ollama\\u001fqwen2.5:0.5b\"},{\"label\":\"gemma3:4b\",\"value\":\"ollama\\u001fgemma3:4b\"}]"
+      },
+      {
+        "name": "playground-streams-live-tokens-and-announces-it",
+        "pass": true,
+        "detail": "{\"status\":\"Cancelled\",\"runDisabled\":false,\"output\":\"Here's\",\"models\":[{\"label\":\"Fake (offline demo)\",\"value\":\"fake\\u001ffake\"},{\"label\":\"all-minilm:latest\",\"value\":\"ollama\\u001fall-minilm:latest\"},{\"label\":\"qwen2.5:0.5b\",\"value\":\"ollama\\u001fqwen2.5:0.5b\"},{\"label\":\"gemma3:4b\",\"value\":\"ollama\\u001fgemma3:4b\"}]}"
+      },
+      {
+        "name": "escape-cancels-mid-stream-and-the-stream-actually-stops",
+        "pass": true,
+        "detail": "{\"status\":\"Cancelled\",\"atCancel\":6,\"after\":6}"
+      },
+      {
+        "name": "cancelled-playground-is-ready-to-run-again",
+        "pass": true,
+        "detail": "{\"runDisabled\":false,\"status\":\"Cancelled\"}"
+      },
+      {
+        "name": "delete-arms-before-it-destroys",
+        "pass": true,
+        "detail": "[\"all-minilm:latest23M · F16 · 43.8 MB · Aug 18, 2026\",\"Confirm delete\"]"
+      },
+      {
+        "name": "confirmed-delete-removes-the-model",
+        "pass": true,
+        "detail": "[{\"checked\":true,\"text\":\"qwen2.5:0.5b494.03M · Q4_K_M · 379.4 MB · Aug 18, 2026\"},{\"checked\":false,\"text\":\"gemma3:4b4.3B · Q4_K_M · 3184.1 MB · Aug 17, 2026\"}]"
+      },
+      {
+        "name": "remote-providers-are-listed",
+        "pass": true,
+        "detail": "[\"Google Gemini\",\"Groq\"]"
+      },
+      {
+        "name": "key-entry-is-gated-behind-consent",
+        "pass": true,
+        "detail": "[{\"label\":\"Google Gemini\",\"hasKeyInput\":false},{\"label\":\"Groq\",\"hasKeyInput\":false}]"
+      },
+      {
+        "name": "consent-reveals-key-entry-and-revoke",
+        "pass": true,
+        "detail": "[\"Revoke\",\"Save key\",\"Test key\"]"
+      },
+      {
+        "name": "session-only-key-is-accepted-without-the-keyring",
+        "pass": true,
+        "detail": "Google GeminiKey held for this session only · Disclosure acceptedRevokeSave keySystem keyringThis session onlyTest withGemini 2.5 Pro — 1M context · in $1.25/MTok · out $10.00/MTokGemini 2.5 Flash — 1"
+      },
+      {
+        "name": "stored-key-is-never-rendered-back",
+        "pass": true,
+        "detail": "{\"echoedInText\":false,\"inputValue\":\"\"}"
+      },
+      {
+        "name": "remove-key-arms-before-it-destroys",
+        "pass": true,
+        "detail": "[\"Revoke\",\"Save key\",\"Test key\",\"Confirm remove\"]"
+      },
+      {
+        "name": "revoke-returns-the-provider-to-consent-required",
+        "pass": true,
+        "detail": "[\"Accept and continue\"]"
+      }
+    ],
+    "finalCard": "AIRun writing tools locally, or bring your own key for a remote provider.Default modelNo default model chosenOllamaqwen2.5:0.5b379.4 MB · 494.03Mqwen2.5:0.5bgemma3:4b3184.1 MB · 4.3Bgemma3:4bLlama 3.2 1BNot installed — pull it in AI settingsLlama 3.2 3BNot installed — pull it in AI settingsLlama 3.1 8BNot installed — pull it in AI settingsGemma 3 12BNot installed — pull it in AI settingsQwen 2.5 7",
+    "localRuntimeVerified": true
+  }
+}

@@ -76,5 +76,5 @@ The following do not belong to editor parity without a separate product and arch
 - No navigation-critical code is lazy-loaded after startup.
 - Large notes retain full-document copy, search, undo, accessibility traversal, and bounded DOM behavior.
 - Every new canonical node or mark has JSON, clipboard, Markdown, history, and archive coverage.
-- `./scripts/check.sh` passes.
+- `./bin/check` passes.
 - Performance-sensitive changes are measured against `docs/performance-contract.md`.

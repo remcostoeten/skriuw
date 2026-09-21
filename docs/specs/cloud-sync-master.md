@@ -84,7 +84,7 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
 ### Foundation
 
 - [x] Preserve the portable `skriuw-domain` and `skriuw-storage`
-  [WASM gate](../../scripts/check-wasm.sh).
+  [WASM gate](../../bin/check browser).
 - [x] Confirm [native SQLite remains canonical](../adr/0002-sqlite-canonical.md)
   and local-only by default.
 - [x] Commit versioned
@@ -103,10 +103,10 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
 ### Cloud data plane
 
 - [x] Scaffold the
-  [v2-only Worker and SQLite-backed Workspace Durable Object](../../cloud/src/workspace-sync-object.ts).
+  [v2-only Worker and SQLite-backed Workspace Durable Object](../../services/sync/src/workspace-sync-object.ts).
 - [x] Implement bounded, idempotent ordered push and cursor pull in that object.
 - [x] Test retries, sequence gaps, conflicting duplicates, and
-  [workspace isolation in the Workers runtime](../../cloud/test/workspace-sync-object.spec.ts).
+  [workspace isolation in the Workers runtime](../../services/sync/test/workspace-sync-object.spec.ts).
 - [x] Add and test the fail-closed
   [provider-independent authentication and authorization boundary](cloud-sync-authentication.md),
   including roles, device binding, generated operation-field validation, safe
@@ -153,7 +153,7 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
 
 - [x] Implement the worker transport and browser `WorkspacePort`.
 - [x] Implement SQLite WASM over OPFS using the shared migrations and prove a
-  [real Chromium close/reload round trip](../../app/e2e/browser-storage.mjs).
+  [real Chromium close/reload round trip](../../apps/workspace/e2e/browser-storage.mjs).
 - [x] Pass native/browser operation and archive fixture parity.
 - [x] Define browser history and recovery behavior in
   [ADR-0027](../adr/0027-browser-sqlite-opfs-sah-pool.md).
@@ -182,7 +182,7 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
   code, with the metadata boundary fixed in
   [ADR-0043](../adr/0043-end-to-end-encrypted-sync.md) and covered by
   [`encrypted_scenarios.rs`](../../crates/skriuw-sync/tests/encrypted_scenarios.rs)
-  and [`sealed-operations.spec.ts`](../../cloud/test/sealed-operations.spec.ts).
+  and [`sealed-operations.spec.ts`](../../services/sync/test/sealed-operations.spec.ts).
   The service keeps a write-once encryption record per workspace, refuses
   plaintext and foreign-key content with 423 once it exists, and arbitrates
   enable; clients check it before uploading, verify recovery codes against

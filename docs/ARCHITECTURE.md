@@ -26,7 +26,7 @@ Application shell
 
 The store, operation queue, tree model and route model live once, in
 `shared/renderer-core`, and are consumed by the desktop/browser renderer in
-`app/` and by the mobile client in `mobile/`.
+`apps/workspace/` and by the mobile client in `apps/mobile/`.
 
 The backend foundation, React product shell, and direct ProseMirror editor exist today. The isolated UI architecture harness remains measurement evidence rather than a runtime adapter.
 
@@ -46,7 +46,7 @@ Embedded flowcharts are versioned atomic ProseMirror nodes stored inside the can
 
 The product sidebar ports the measured dependency-free fixed-row tree into one viewport-bounded row pool. Rendered DOM stays independent of 1,000-node and 5,000-node workspace size; deterministic sibling order, collapsed-subtree exclusion, imperative focus reveal, active-descendant semantics, and exact ARIA level/set metadata survive row recycling. Visual indentation clamps by sidebar width while semantic depth remains unlimited. Expansion IDs persist through a serialized native-only SQLite use case, are excluded from portable archives, and update after synchronous local paint through a coalesced background acknowledgement.
 
-The `app/harnesses/ui-architecture` and `app/harnesses/renderer-store` harnesses are the isolated measurement code behind that selection ([ADR-0020](adr/0020-ui-architecture.md), accepted): direct editor state switching, and a normalized dependency-free external store with narrow React selectors where the application shell and persistent editor host hold no workspace subscription, editor typing remains editor-owned, and equivalent updates stop before selector traversal. Both harnesses are retained as regression suites — `./scripts/build.sh` and CI still run them — and stay separate from production and profiling artifacts.
+The `apps/workspace/harnesses/ui-architecture` and `apps/workspace/harnesses/renderer-store` harnesses are the isolated measurement code behind that selection ([ADR-0020](adr/0020-ui-architecture.md), accepted): direct editor state switching, and a normalized dependency-free external store with narrow React selectors where the application shell and persistent editor host hold no workspace subscription, editor typing remains editor-owned, and equivalent updates stop before selector traversal. Both harnesses are retained as regression suites — `./bin/build` and CI still run them — and stay separate from production and profiling artifacts.
 
 ## Runtime contract
 
@@ -153,9 +153,9 @@ The iOS and Android client is the third implementation of the same bridge
 seam, not a second protocol. `crates/skriuw-mobile` is a UniFFI facade
 exposing narrow use cases over `skriuw-runtime`; it depends on domain,
 runtime, storage, sqlite, sync and crypto only, and `skriuw-domain` gained no
-dependency for it. An Expo native module (`mobile/modules/skriuw-core`) wraps
+dependency for it. An Expo native module (`apps/mobile/modules/skriuw-core`) wraps
 the generated bindings — `jniLibs` on Android, an xcframework built on a macOS
-runner for iOS — and `mobile/src/bridge` adapts that module to the
+runner for iOS — and `apps/mobile/src/bridge` adapts that module to the
 `BridgePort` the shared store already speaks. SQLite stays canonical and
 native; durable writes stay serialized and transactional inside Rust. Git
 history, local AI, import adapters, scheduled backups, tabs and split view are

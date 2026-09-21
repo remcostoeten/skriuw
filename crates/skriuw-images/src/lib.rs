@@ -288,7 +288,7 @@ fn validate_content_hash(value: &str) -> Result<(), ImageStoreError> {
 }
 
 /// Maps a MIME type onto the blob file extension. Must stay in sync with the
-/// renderer's `imageFileExtension` in `app/src/export/markdown-transfer-model.ts`.
+/// renderer's `imageFileExtension` in `apps/workspace/src/export/markdown-transfer-model.ts`.
 #[must_use]
 pub fn extension_for(mime_type: &str) -> &'static str {
     match mime_type {

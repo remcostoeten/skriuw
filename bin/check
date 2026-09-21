@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+target="${1:-desktop}"
+if [[ $# -gt 0 ]]; then shift; fi
+
+case "$target" in
+  desktop) exec "$repo_dir/scripts/build.sh" check "$@" ;;
+  browser) exec "$repo_dir/scripts/check-wasm.sh" "$@" ;;
+  mobile) exec "$repo_dir/scripts/check-mobile.sh" "$@" ;;
+  -h|--help|help)
+    printf 'Usage: bin/check [desktop|browser|mobile]\nDefault: desktop. The desktop gate includes marketing-site and WASM builds required by verification.\n'
+    ;;
+  *) printf 'Unknown check target: %s. Run bin/check --help.\n' "$target" >&2; exit 2 ;;
+esac

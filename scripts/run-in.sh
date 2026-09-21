@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run a package.json script inside <dir> (relative to the repo root) with bun.
-# Used by the root package.json and by app/src-tauri/tauri.conf.json's
+# Used by the root package.json and by apps/workspace/src-tauri/tauri.conf.json's
 # beforeDevCommand/beforeBuildCommand.
 #
 # Usage: run-in.sh <dir> <script> [args...]

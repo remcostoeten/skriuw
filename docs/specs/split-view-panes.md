@@ -10,19 +10,19 @@ The pane model stays capped at **two panes**. ADR-0021's live-editor invariant (
 
 | Concern | Today | File |
 | --- | --- | --- |
-| Pane list | `PaneState[]`, length 1–2, each with `openNoteIds`/`pinnedNoteIds`/`activeNoteId` | `app/src/store/panes.ts` |
-| Orientation | Both, layout-level, toggleable and persisted | `app/src/store/panes.ts`, `app/src/shell/editor-panes.tsx` |
-| Sizing | Ratio-driven grid tracks, dragged/nudged through the divider | `app/src/shell/split-layout.ts`, `app/src/shell/split-divider.tsx` |
-| Tab strip | Renders the primary pane's tabs only | `app/src/shell/editor-panes.tsx` |
-| Tab actions | `closeTab`, `closeOtherTabs`, `closeTabsToSide`, `closeAllTabs`, `togglePinTab`, `reorderTab`, `cycleTabId` all hardcode `primaryPane(panes)` | `app/src/store/panes.ts` |
-| Pane focus | `focusedPaneId` tracked, set on `focusin` per pane; directional and wrapping cycle moves | `app/src/store/actions/panes.ts`, `app/src/shell/editor-panes.tsx` |
-| Persistence | `panes`, `orientation`, `ratio` serialized at `PANE_LAYOUT_VERSION = 3`, v2 migrated forward | `app/src/store/pane-layout-persistence.ts` |
-| Entry points | `mod+alt+v` / `mod+alt+h` split, sidebar context menu, `mod+alt+w` close split, strip button and context menu for orientation and reset | `app/src/commands/definitions.ts` |
+| Pane list | `PaneState[]`, length 1–2, each with `openNoteIds`/`pinnedNoteIds`/`activeNoteId` | `apps/workspace/src/store/panes.ts` |
+| Orientation | Both, layout-level, toggleable and persisted | `apps/workspace/src/store/panes.ts`, `apps/workspace/src/shell/editor-panes.tsx` |
+| Sizing | Ratio-driven grid tracks, dragged/nudged through the divider | `apps/workspace/src/shell/split-layout.ts`, `apps/workspace/src/shell/split-divider.tsx` |
+| Tab strip | Renders the primary pane's tabs only | `apps/workspace/src/shell/editor-panes.tsx` |
+| Tab actions | `closeTab`, `closeOtherTabs`, `closeTabsToSide`, `closeAllTabs`, `togglePinTab`, `reorderTab`, `cycleTabId` all hardcode `primaryPane(panes)` | `apps/workspace/src/store/panes.ts` |
+| Pane focus | `focusedPaneId` tracked, set on `focusin` per pane; directional and wrapping cycle moves | `apps/workspace/src/store/actions/panes.ts`, `apps/workspace/src/shell/editor-panes.tsx` |
+| Persistence | `panes`, `orientation`, `ratio` serialized at `PANE_LAYOUT_VERSION = 3`, v2 migrated forward | `apps/workspace/src/store/pane-layout-persistence.ts` |
+| Entry points | `mod+alt+v` / `mod+alt+h` split, sidebar context menu, `mod+alt+w` close split, strip button and context menu for orientation and reset | `apps/workspace/src/commands/definitions.ts` |
 
 Two existing behaviours are wrong once both panes own tabs, and this spec treats them as bug fixes rather than new features:
 
-- `closeActiveTab` closes the whole split when a secondary pane exists, instead of closing the focused pane's active tab (`app/src/store/actions/panes.ts:44`).
-- `cycleTab` always cycles the primary pane's strip regardless of `focusedPaneId` (`app/src/store/actions/panes.ts:200`).
+- `closeActiveTab` closes the whole split when a secondary pane exists, instead of closing the focused pane's active tab (`apps/workspace/src/store/actions/panes.ts:44`).
+- `cycleTab` always cycles the primary pane's strip regardless of `focusedPaneId` (`apps/workspace/src/store/actions/panes.ts:200`).
 
 ## Model
 
@@ -86,7 +86,7 @@ When a split already exists, every one of these targets the non-focused pane ins
 
 Promotion matters: the store's `activeNoteId` and everything bound to it (metadata panel, note history, save path, title) always follow pane 1, so collapsing a split must rewrite pane identity rather than delete the wrong list.
 
-`closedTabsByPaneId` for a discarded pane is dropped, as it is today (`app/src/store/actions/panes.ts:225`).
+`closedTabsByPaneId` for a discarded pane is dropped, as it is today (`apps/workspace/src/store/actions/panes.ts:225`).
 
 ### Focus
 
@@ -104,7 +104,7 @@ Promotion matters: the store's `activeNoteId` and everything bound to it (metada
 
 ### Resizing
 
-Shipped as `SplitDivider` (`app/src/shell/split-divider.tsx`), a sibling of `PanelResizeHandle` rather than a generalization of it. **This supersedes the original "reuse `PanelResizeHandle`" instruction**, on the grounds that the two handles share a drag skeleton but no bound model: the sidebar handle is px-width with a collapse threshold and an animated settle, the split divider is a fraction with a hard clamp, no collapse, and two axes. Folding both into one component meant a props union where half the props are inert per call site. What is shared is the *pattern* — rAF-coalesced pointer move, direct DOM preview, one commit on release — and that is duplicated deliberately, about 60 lines.
+Shipped as `SplitDivider` (`apps/workspace/src/shell/split-divider.tsx`), a sibling of `PanelResizeHandle` rather than a generalization of it. **This supersedes the original "reuse `PanelResizeHandle`" instruction**, on the grounds that the two handles share a drag skeleton but no bound model: the sidebar handle is px-width with a collapse threshold and an animated settle, the split divider is a fraction with a hard clamp, no collapse, and two axes. Folding both into one component meant a props union where half the props are inert per call site. What is shared is the *pattern* — rAF-coalesced pointer move, direct DOM preview, one commit on release — and that is duplicated deliberately, about 60 lines.
 
 The three generalizations the original instruction asked for still hold, they just live in the new component:
 
@@ -123,7 +123,7 @@ Keyboard users must never need the divider's DOM focus: `Grow focused pane` / `S
 
 ### Per-pane tab strips
 
-Each pane renders its own strip with its own: tab order, pinned set, active tab, closed-tab stack, context menu, and drag reordering. Concretely, every function in `store/panes.ts` that currently calls `primaryPane(panes)` takes a `paneId` instead — `closeTab`, `closeOtherTabs`, `closeTabsToSide`, `closeAllTabs`, `togglePinTab`, `reorderTab`, `cycleTabId`, `openNoteInTab`. Their `CloseTabResult.nextActiveNoteId` contract (which drives `activateNote`) applies **only when `paneId === PRIMARY_PANE_ID`**; secondary-pane activation goes through `activateTabInPane`, as it already does for tab-index keys (`app/src/store/actions/panes.ts:190`).
+Each pane renders its own strip with its own: tab order, pinned set, active tab, closed-tab stack, context menu, and drag reordering. Concretely, every function in `store/panes.ts` that currently calls `primaryPane(panes)` takes a `paneId` instead — `closeTab`, `closeOtherTabs`, `closeTabsToSide`, `closeAllTabs`, `togglePinTab`, `reorderTab`, `cycleTabId`, `openNoteInTab`. Their `CloseTabResult.nextActiveNoteId` contract (which drives `activateNote`) applies **only when `paneId === PRIMARY_PANE_ID`**; secondary-pane activation goes through `activateTabInPane`, as it already does for tab-index keys (`apps/workspace/src/store/actions/panes.ts:190`).
 
 Strip visibility rule stays as it is: a strip renders when it carries information — more than one tab in that pane, or a split is open.
 
@@ -133,14 +133,14 @@ Dragging a tab between strips moves it (removed from origin, inserted at the dro
 
 This is a first-class case, not an edge case.
 
-**Independent view state.** `NoteEditor` holds its `EditorWorkingSet` in a component-instance ref (`app/src/features/editor/note-editor.tsx:332`), so two mounted instances already keep separate `EditorState`, `scrollTop`, selection, bounded-document window, and search state per note. Two panes showing the same note therefore scroll and select independently by construction. This spec makes that a tested guarantee rather than an accident:
+**Independent view state.** `NoteEditor` holds its `EditorWorkingSet` in a component-instance ref (`apps/workspace/src/features/editor/note-editor.tsx:332`), so two mounted instances already keep separate `EditorState`, `scrollTop`, selection, bounded-document window, and search state per note. Two panes showing the same note therefore scroll and select independently by construction. This spec makes that a tested guarantee rather than an accident:
 
 - Scrolling pane B does not move pane A, for the same note.
 - Selection and caret position are per pane.
 - Find-in-note state, the bounded-document window, and the outline highlight are per pane.
 - Raw-Markdown mode is per note, not per pane (it is a note-level setting) — flipping it in one pane flips both, and both re-render from the same document.
 
-**Edit propagation.** Edits reach the other pane through the store's `documents` subscription (`app/src/features/editor/note-editor.tsx:1216`), which currently reconciles a mounted editor when the record changes and the pane is not itself dirty. That gives save-flush granularity: pane B updates when pane A's save lands, not per keystroke. That is acceptable and is what the spec requires — but the dirty guard opens a real divergence window when **both** panes are dirty on the same note, where each pane would ignore the other's write and the last flush would silently win.
+**Edit propagation.** Edits reach the other pane through the store's `documents` subscription (`apps/workspace/src/features/editor/note-editor.tsx:1216`), which currently reconciles a mounted editor when the record changes and the pane is not itself dirty. That gives save-flush granularity: pane B updates when pane A's save lands, not per keystroke. That is acceptable and is what the spec requires — but the dirty guard opens a real divergence window when **both** panes are dirty on the same note, where each pane would ignore the other's write and the last flush would silently win.
 
 Required rule: **one pane at a time owns editing for a given note.** Implemented as:
 
@@ -155,11 +155,11 @@ This keeps the save sequencer's single-writer assumption intact without introduc
 
 ### Unavailable notes
 
-Unchanged from ADR-0021 and applied per pane: a purged note's tab disappears during derivation; a note trashed this session keeps its tab with the struck-through affordance (`app/src/shell/editor-panes.tsx:171`) and its pane resolves to the empty state; restored layouts drop already-unavailable tabs on load. A pane whose every tab is dropped on restore collapses the split rather than restoring an empty pane (`restorePanes` already does this for index > 0 — `app/src/store/panes.ts:96`).
+Unchanged from ADR-0021 and applied per pane: a purged note's tab disappears during derivation; a note trashed this session keeps its tab with the struck-through affordance (`apps/workspace/src/shell/editor-panes.tsx:171`) and its pane resolves to the empty state; restored layouts drop already-unavailable tabs on load. A pane whose every tab is dropped on restore collapses the split rather than restoring an empty pane (`restorePanes` already does this for index > 0 — `apps/workspace/src/store/panes.ts:96`).
 
 ## Keyboard
 
-Every action below is a rebindable definition in `app/src/commands/definitions.ts` with a matching entry in the `ShortcutActions` map and, where it is a discoverable verb, a command-palette entry. No hardcoded listeners.
+Every action below is a rebindable definition in `apps/workspace/src/commands/definitions.ts` with a matching entry in the `ShortcutActions` map and, where it is a discoverable verb, a command-palette entry. No hardcoded listeners.
 
 ### Existing bindings
 
@@ -197,7 +197,7 @@ Conflict notes to carry into the definitions' `description` fields, following th
 
 ### Scopes
 
-`split` is already computed in `activeShortcutScopes` from `state.panes.length > 1` (`app/src/commands/workspace-shortcuts.tsx`) — every binding that needs an open split uses it, so with one pane those keys fall through untouched. The two split-opening keys use `notes-route` instead, since their whole job is creating the split.
+`split` is already computed in `activeShortcutScopes` from `state.panes.length > 1` (`apps/workspace/src/commands/workspace-shortcuts.tsx`) — every binding that needs an open split uses it, so with one pane those keys fall through untouched. The two split-opening keys use `notes-route` instead, since their whole job is creating the split.
 
 ### Keyboard-only completeness
 
@@ -205,18 +205,18 @@ The following must each be reachable with no pointer, and each is covered by a b
 
 ## Toolbar and menus
 
-### Top action bar (`app/src/app.tsx:471`)
+### Top action bar (`apps/workspace/src/app.tsx:471`)
 
 Two controls, placed between the note title and the version-history button:
 
 - **Split** (`ColumnsIcon` / `RowsIcon`, reflecting the current orientation). Click toggles the split open or closed. `aria-pressed` reflects whether a split exists. Disabled with no active note. Shortcut hint from `openBeside`.
 - **Orientation** (`RowsIcon` when currently vertical, i.e. "switch to stacked"). Only rendered while a split exists. Shortcut hint from `toggleSplitOrientation`.
 
-Both follow the existing `toolbarIconButtonClass` and `TOOLBAR_SHORTCUT_IDS` hint plumbing (`app/src/shell/toolbar-styles.ts`, `app/src/app.tsx:145`).
+Both follow the existing `toolbarIconButtonClass` and `TOOLBAR_SHORTCUT_IDS` hint plumbing (`apps/workspace/src/shell/toolbar-styles.ts`, `apps/workspace/src/app.tsx:145`).
 
 ### Tab strip context menu
 
-Add to the existing menu (`app/src/shell/editor-panes.tsx:221`), after the pin separator:
+Add to the existing menu (`apps/workspace/src/shell/editor-panes.tsx:221`), after the pin separator:
 
 - **Split right** / **Split down** — open that tab in a new pane with the given orientation.
 - **Move to other pane** — only while a split exists.
@@ -225,7 +225,7 @@ The strip's empty-area menu keeps **Close all** and **Close split**, and gains *
 
 ### Command palette
 
-New entries in `app/src/commands/workspace-commands.tsx`, mirroring the shortcut table: Split right, Split down, Toggle split orientation, Swap panes, Focus other pane, Move tab to other pane, Reset split sizes, Maximize focused pane, Close split. Each carries its shortcut hint via `shortcutDefinition(...)`.
+New entries in `apps/workspace/src/commands/workspace-commands.tsx`, mirroring the shortcut table: Split right, Split down, Toggle split orientation, Swap panes, Focus other pane, Move tab to other pane, Reset split sizes, Maximize focused pane, Close split. Each carries its shortcut hint via `shortcutDefinition(...)`.
 
 ## Accessibility
 
@@ -248,7 +248,7 @@ New entries in `app/src/commands/workspace-commands.tsx`, mirroring the shortcut
 
 ## Acceptance criteria
 
-1. With N tabs open and no split, exactly one editor instance is mounted; with a split, exactly two — asserted in `app/__tests__/shell/editor-panes.test.ts` alongside the existing assertions.
+1. With N tabs open and no split, exactly one editor instance is mounted; with a split, exactly two — asserted in `apps/workspace/__tests__/shell/editor-panes.test.ts` alongside the existing assertions.
 2. Both panes render an independent tab strip; closing, pinning, reordering, cycling, and index-activating operate on the focused pane only.
 3. Orientation toggles between side-by-side and stacked, preserves `ratio` and pane order, and remounts neither editor.
 4. The divider drags to any ratio in `[0.15, 0.85]`, honours the pixel minimums, resets on double-click, and is fully operable from the keyboard with correct `aria-valuenow`.
@@ -259,7 +259,7 @@ New entries in `app/src/commands/workspace-commands.tsx`, mirroring the shortcut
 9. Every listed interaction is reachable by keyboard alone, verified by a keyboard-only pass through the acceptance list.
 10. Pane focus, ratio changes, and orientation changes are announced to assistive technology.
 11. Pane layout remains absent from portable archive export.
-12. `./scripts/check.sh` is green, and the split-view path is measured against the performance contract before merge (editor-host mount counts, divider drag frames, orientation-toggle remount count).
+12. `./bin/check` is green, and the split-view path is measured against the performance contract before merge (editor-host mount counts, divider drag frames, orientation-toggle remount count).
 
 ## Out of scope
 

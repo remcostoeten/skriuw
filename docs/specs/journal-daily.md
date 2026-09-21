@@ -7,12 +7,12 @@ Keyboard navigation and the date grammar are in
 
 | File | Role |
 | --- | --- |
-| `app/src/features/journal/journal-template.ts` | Template list, the remembered choice, and the plan that fills an entry. |
-| `app/src/features/journal/entry-starter.tsx` | The empty-entry affordance. |
-| `app/src/features/journal/on-this-day.ts` | Which earlier entries a day recalls, and their excerpts. Pure. |
-| `app/src/features/journal/on-this-day-section.tsx` | The section under the editor. |
-| `app/src/features/journal/day-swipe.ts` | The heading swipe recognizer. Pure. |
-| `app/src/features/journal/model.ts` | The entry projection both the sidebar and the section read. |
+| `apps/workspace/src/features/journal/journal-template.ts` | Template list, the remembered choice, and the plan that fills an entry. |
+| `apps/workspace/src/features/journal/entry-starter.tsx` | The empty-entry affordance. |
+| `apps/workspace/src/features/journal/on-this-day.ts` | Which earlier entries a day recalls, and their excerpts. Pure. |
+| `apps/workspace/src/features/journal/on-this-day-section.tsx` | The section under the editor. |
+| `apps/workspace/src/features/journal/day-swipe.ts` | The heading swipe recognizer. Pure. |
+| `apps/workspace/src/features/journal/model.ts` | The entry projection both the sidebar and the section read. |
 
 ## Starting from a template
 

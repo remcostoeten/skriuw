@@ -42,7 +42,7 @@ outstanding; see the readiness document for why.
 ## Where this code belongs
 
 These drivers measure `mobile/`, so they belong beside the code they drive —
-`mobile/e2e/`, next to `mobile/modules/skriuw-core/e2e`. They live here because
+`apps/mobile/e2e/`, next to `apps/mobile/modules/skriuw-core/e2e`. They live here because
 Mobile 16 owns `docs/benchmarks` and not `mobile/`. Moving them, and wiring the
 scale driver into `scripts/check-mobile.sh` as a budget gate, is a follow-up
 for whoever next owns `mobile/`.

@@ -31,7 +31,7 @@ durable `WorkspaceSyncQueue` port.
   synchronous XHR, and each call is one bounded request with its own deadline.
   URLs and HTTP status classification live in the shared `skriuw_sync::http`
   module used by both the desktop `reqwest` transport and the browser bridge.
-- Scheduling: `app/src/bridge/browser-sync.ts` replaces the coordinator
+- Scheduling: `apps/workspace/src/bridge/browser-sync.ts` replaces the coordinator
   thread. It submits one bounded `sync_cycle` worker request at a time and
   derives the next wake from the reported outcome, coalescing local commits,
   focus, and reconnect events like the coordinator's wake flag.
@@ -60,7 +60,7 @@ durable `WorkspaceSyncQueue` port.
   visible progress; interruption leaves durable state untouched and the next
   cycle restarts hydration.
 - The browser session token persists in `localStorage` under a versioned key
-  (`app/src/features/auth/session-store.ts`) so a reload of a linked workspace resumes
+  (`apps/workspace/src/features/auth/session-store.ts`) so a reload of a linked workspace resumes
   sync without interactive sign-in. Cookies are not an option because the
   cloud Worker is cross-origin and the auth client already runs the Bearer
   token flow, so `localStorage` is the least-novel fit; the accepted tradeoff
