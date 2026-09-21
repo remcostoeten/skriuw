@@ -19,37 +19,126 @@
   caret-color: transparent;
 }
 
-.prosemirror-host .ProseMirror .vim-cursor {
-  background: hsl(var(--foreground));
-  color: hsl(var(--background));
-  border-radius: 1px;
+/* The block is padded past the glyph box so it reads as a terminal cell
+   rather than a swatch clipped to the ascenders, and the padding is cancelled
+   by matching negative margins so it never reflows the line it sits on. */
+.prosemirror-host .ProseMirror {
+  --vim-cursor-color: var(--foreground);
+  --vim-cursor-pad-block: 0.2em;
+  --vim-cursor-pad-inline: 0.05em;
+  --vim-cursor-radius: 2px;
 }
 
-.prosemirror-host .ProseMirror:not(:focus) .vim-cursor {
+.prosemirror-host .ProseMirror .vim-cursor,
+.prosemirror-host .ProseMirror .vim-cursor-eol {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.prosemirror-host[data-vim-cursor-style="block"] .ProseMirror .vim-cursor,
+.prosemirror-host[data-vim-cursor-style="block"] .ProseMirror .vim-cursor-eol {
+  padding-block: var(--vim-cursor-pad-block);
+  margin-block: calc(-1 * var(--vim-cursor-pad-block));
+  padding-inline: var(--vim-cursor-pad-inline);
+  margin-inline: calc(-1 * var(--vim-cursor-pad-inline));
+  border-radius: var(--vim-cursor-radius);
+  background: hsl(var(--vim-cursor-color) / 0.78);
+}
+
+.prosemirror-host[data-vim-cursor-style="block"] .ProseMirror .vim-cursor {
+  color: hsl(var(--background));
+}
+
+.prosemirror-host[data-vim-cursor-style="underline"] .ProseMirror .vim-cursor,
+.prosemirror-host[data-vim-cursor-style="underline"] .ProseMirror .vim-cursor-eol {
+  box-shadow: inset 0 -2px hsl(var(--vim-cursor-color) / 0.9);
+}
+
+.prosemirror-host[data-vim-cursor-style="bar"] .ProseMirror .vim-cursor,
+.prosemirror-host[data-vim-cursor-style="bar"] .ProseMirror .vim-cursor-eol {
+  box-shadow: inset 2px 0 hsl(var(--vim-cursor-color) / 0.9);
+}
+
+.prosemirror-host .ProseMirror:not(:focus) .vim-cursor,
+.prosemirror-host .ProseMirror:not(:focus) .vim-cursor-eol {
   background: transparent;
   color: inherit;
-  box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.6);
+  box-shadow: inset 0 0 0 1px hsl(var(--vim-cursor-color) / 0.55);
 }
 
 .prosemirror-host .ProseMirror .vim-cursor-node {
-  outline: 2px solid hsl(var(--foreground));
+  outline: 2px solid hsl(var(--vim-cursor-color));
   outline-offset: 1px;
   border-radius: 3px;
 }
 
 .prosemirror-host .ProseMirror .vim-cursor-eol {
   display: inline-block;
-  width: 0.55em;
-  height: 1.05em;
+  width: 0.5em;
+  height: 1.15em;
+  vertical-align: baseline;
   margin-bottom: -0.2em;
-  background: hsl(var(--foreground));
-  border-radius: 1px;
   pointer-events: none;
 }
 
-.prosemirror-host .ProseMirror:not(:focus) .vim-cursor-eol {
-  background: transparent;
-  box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.6);
+.prosemirror-host[data-vim-cursor-style="block"] .ProseMirror .vim-cursor-eol {
+  margin-bottom: calc(-0.2em - var(--vim-cursor-pad-block));
+}
+
+.prosemirror-host[data-vim-cursor-blink="true"][data-vim-cursor-style="block"]
+  .ProseMirror:focus
+  .vim-cursor {
+  animation: vim-block-cursor-blink 1.2s step-end infinite;
+}
+
+.prosemirror-host[data-vim-cursor-blink="true"] .ProseMirror:focus .vim-cursor-eol,
+.prosemirror-host[data-vim-cursor-blink="true"] .ProseMirror:focus .vim-cursor-node {
+  animation: vim-cursor-blink 1.2s step-end infinite;
+}
+
+.prosemirror-host[data-vim-cursor-blink="true"][data-vim-cursor-style="underline"]
+  .ProseMirror:focus
+  .vim-cursor,
+.prosemirror-host[data-vim-cursor-blink="true"][data-vim-cursor-style="bar"]
+  .ProseMirror:focus
+  .vim-cursor {
+  animation: vim-cursor-blink 1.2s step-end infinite;
+}
+
+@keyframes vim-block-cursor-blink {
+  0%,
+  49% {
+    background: hsl(var(--vim-cursor-color) / 0.78);
+    color: hsl(var(--background));
+  }
+  50%,
+  100% {
+    background: transparent;
+    color: inherit;
+  }
+}
+
+@keyframes vim-cursor-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prosemirror-host[data-vim-cursor-blink="true"] .ProseMirror:focus .vim-cursor,
+  .prosemirror-host[data-vim-cursor-blink="true"] .ProseMirror:focus .vim-cursor-eol,
+  .prosemirror-host[data-vim-cursor-blink="true"] .ProseMirror:focus .vim-cursor-node,
+  .raw-markdown-root[data-vim-cursor-blink="true"]
+    .cm-editor.cm-focused
+    > .cm-scroller
+    > .cm-cursorLayer {
+    animation: none;
+  }
 }
 
 .prosemirror-host .ProseMirror.vim-normal[data-vim-mode^="visual"] ::selection {
@@ -177,10 +266,12 @@
   flex: none;
   width: 18px;
   height: 18px;
-  margin-top: 0.34em;
+  margin-top: calc(0.2em + (1.7em - 18px) / 2);
   border: 1.5px solid hsl(var(--theme-text-secondary));
   border-radius: 6px;
+  background: hsl(var(--theme-bg-editor));
   cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
 }
 
 .prosemirror-host .ProseMirror .check-item-box::before {
@@ -191,18 +282,18 @@
 
 @media (hover: hover) and (pointer: fine) {
   .prosemirror-host .ProseMirror .check-item-box:hover {
-    border-color: hsl(var(--ring));
+    border-color: hsl(var(--primary));
   }
 }
 
 .prosemirror-host .ProseMirror .check-item-box:focus-visible {
-  outline: 2px solid hsl(var(--foreground) / 0.75);
+  outline: 2px solid hsl(var(--primary) / 0.75);
   outline-offset: 2px;
 }
 
 .prosemirror-host .ProseMirror .check-item[data-checked="true"] > .check-item-box {
-  background: hsl(var(--success));
-  border-color: hsl(var(--success));
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
 }
 
 .prosemirror-host .ProseMirror .check-item[data-checked="true"] > .check-item-box::after {
@@ -212,7 +303,7 @@
   top: 2px;
   width: 4px;
   height: 8px;
-  border: solid hsl(var(--theme-bg-editor));
+  border: solid hsl(var(--primary-foreground));
   border-width: 0 1.5px 1.5px 0;
   transform: rotate(45deg);
 }
@@ -474,13 +565,36 @@
 /* Vim's block cursor and command line reuse the theme instead of the
    extension's pink defaults. */
 .raw-markdown-root .cm-editor .cm-fat-cursor {
-  background: hsl(var(--foreground));
+  background: hsl(var(--foreground) / 0.78);
   color: hsl(var(--background));
+  border-radius: 2px;
+}
+
+.raw-markdown-root[data-vim-cursor-style="underline"] .cm-editor .cm-fat-cursor {
+  background: transparent;
+  color: inherit;
+  border-radius: 0;
+  border-bottom: 2px solid hsl(var(--foreground) / 0.9);
+}
+
+.raw-markdown-root[data-vim-cursor-style="bar"] .cm-editor .cm-fat-cursor {
+  background: transparent;
+  color: inherit;
+  border-radius: 0;
+  border-left: 2px solid hsl(var(--foreground) / 0.9);
 }
 
 .raw-markdown-root .cm-editor:not(.cm-focused) .cm-fat-cursor {
-  background: none;
-  outline: 1px solid hsl(var(--foreground) / 0.6);
+  background: transparent;
+  outline: 1px solid hsl(var(--foreground) / 0.55);
+  outline-offset: -1px;
+}
+
+.raw-markdown-root[data-vim-cursor-blink="false"]
+  .cm-editor.cm-focused
+  > .cm-scroller
+  > .cm-cursorLayer {
+  animation: none;
 }
 
 .raw-markdown-root .cm-editor .cm-panels {

@@ -2462,6 +2462,8 @@ const closeJumpToLine = useCallback(() => {
         className="prosemirror-host"
         data-editor-font={editorSettings.editorFont}
         data-editor-line-height={editorSettings.editorLineHeight}
+        data-vim-cursor-style={editorSettings.vimCursorStyle}
+        data-vim-cursor-blink={editorSettings.vimCursorBlink ? "true" : "false"}
         style={
           {
             "--editor-placeholder": cssStringLiteral(editorSettings.editorPlaceholder),

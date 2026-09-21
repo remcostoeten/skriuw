@@ -88,6 +88,7 @@ export type VimHost = {
   windowStep(direction: 1 | -1): boolean;
   scrollContainer(view: EditorView): HTMLElement | null;
   clipboard: ClipboardBridge;
+  onFeedback?(message: string): void;
 };
 
 type VimPluginState = {
@@ -186,6 +187,28 @@ export function setVimEnabled(view: EditorView, enabled: boolean): void {
 
 function modeLabel(mode: VimMode): string {
   return mode === "visual-line" ? "visual line" : mode;
+}
+
+function pluralized(count: number, singular: string): string {
+  return `${count} ${count === 1 ? singular : `${singular}s`}`;
+}
+
+function rangeUnitCount(state: EditorState, range: OperatorRange): { count: number; unit: "line" | "character" } {
+  if (range.linewise) {
+    const count = allLines(state.doc).filter((line) => line.start >= range.from && line.end <= range.to).length;
+    return { count: Math.max(1, count), unit: "line" };
+  }
+  const text = state.doc.textBetween(range.from, range.to, "\n", "\uFFFC");
+  return { count: Math.max(1, Array.from(text).length), unit: "character" };
+}
+
+function operatorFeedback(
+  state: EditorState,
+  range: OperatorRange,
+  action: "yanked" | "deleted" | "changed" | "indented" | "outdented",
+): string {
+  const { count, unit } = rangeUnitCount(state, range);
+  return `${pluralized(count, unit)} ${action}`;
 }
 
 function clampNormalCursor(state: EditorState): number | null {
@@ -288,6 +311,11 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
 
   function mode(state: EditorState): VimMode {
     return vimModeOf(state, host.enabled());
+  }
+
+  function announce(message: string): void {
+    session.message = message;
+    host.onFeedback?.(message);
   }
 
   function dispatchCursor(view: EditorView, pos: number, change: VimMeta = {}): void {
@@ -520,11 +548,13 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
     switch (operator) {
       case "y": {
         yankRange(state.doc, range, register, { yank: true, clipboard });
+        announce(operatorFeedback(state, range, "yanked"));
         finish(state.tr, range.linewise && !fromVisual ? state.selection.head : range.from);
         return;
       }
       case "d": {
         yankRange(state.doc, range, register, { yank: false, clipboard });
+        announce(operatorFeedback(state, range, "deleted"));
         const tr = state.tr;
         const cursor = deleteRange(tr, range);
         recordChange(keys);
@@ -533,6 +563,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
       }
       case "c": {
         yankRange(state.doc, range, register, { yank: false, clipboard });
+        announce(operatorFeedback(state, range, "changed"));
         const tr = state.tr;
         const cursor = range.linewise ? clearLinesForChange(tr, range) : (tr.delete(range.from, range.to), range.from);
         view.dispatch(meta(tr, { mode: "insert" }));
@@ -558,6 +589,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
           finish(state.tr, range.from);
           return;
         }
+        announce(operatorFeedback(state, range, operator === ">" ? "indented" : "outdented"));
         const applied: Transaction = result;
         const mapped = applied.mapping.map(range.from);
         view.dispatch(meta(applied, { mode: "normal" }));
@@ -572,6 +604,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         const tr = state.tr;
         const cursor = changeCase(tr, range, change);
         recordChange(keys);
+        announce(operatorFeedback(state, range, "changed"));
         finish(tr, cursor);
         return;
       }
@@ -604,6 +637,11 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
       const tr = view.state.tr;
       const cursor = putRegister(tr, view.state.selection.head, content, after, count);
       recordChange(keys);
+      const unit = content.linewise ? "line" : "character";
+      const contentCount = content.linewise
+        ? Math.max(1, content.blocks?.length ?? (content.text.match(/\n/gu)?.length || 1))
+        : Math.max(1, Array.from(content.text).length);
+      announce(`${pluralized(contentCount * count, unit)} put`);
       const finalCursor = cursorAfter ? Math.min(cursor + 1, tr.doc.content.size) : cursor;
       view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, finalCursor)), { mode: "normal" }).scrollIntoView());
     };
@@ -802,6 +840,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         const tr = state.tr;
         const joinPoint = joinLines(tr, cursor, n, command.action === "J");
         recordChange(keys);
+        announce(`${pluralized(n, "line")} joined`);
         view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, joinPoint)), { mode: "normal" }).scrollIntoView());
         return;
       }
@@ -825,6 +864,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         const tr = state.tr;
         const end = replaceCharacters(tr, { from: cursor, to: positionAt(line, column + n), linewise: false }, command.character);
         recordChange(keys);
+        announce(`${pluralized(n, "character")} replaced`);
         view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, end)), { mode: "normal" }));
         return;
       }
@@ -834,6 +874,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         const tr = state.tr;
         changeCase(tr, { from: cursor, to, linewise: false }, "toggle");
         recordChange(keys);
+        announce(`${pluralized(Math.max(1, lineOffset(line, to) - column), "character")} changed`);
         const next = Math.min(lineOffset(line, to), lastCursorIndex(line));
         view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, positionAt(line, next))), { mode: "normal" }));
         return;
@@ -861,6 +902,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         const tr = state.tr;
         const end = adjustNumber(tr, line, number, command.action === "<C-a>" ? n : -n);
         recordChange(keys);
+        announce(`Number ${command.action === "<C-a>" ? "increased" : "decreased"} by ${n}`);
         view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, end)), { mode: "normal" }));
         return;
       }
@@ -966,6 +1008,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         const tr = state.tr;
         const cursor = changeCase(tr, range, change);
         recordChange(keys);
+        announce(operatorFeedback(state, range, "changed"));
         session.lastVisual = { anchor: vim.visualAnchor, head: vim.visualHead, linewise };
         view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, cursor)), { mode: "normal" }));
         return;
@@ -985,6 +1028,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         const tr = state.tr;
         const joinPoint = joinLines(tr, first.start, Math.max(2, lines), command.action === "J");
         recordChange(keys);
+        announce(`${pluralized(lines, "line")} joined`);
         view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, joinPoint)), { mode: "normal" }));
         return;
       }
@@ -998,6 +1042,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         const putAt = Math.max(0, Math.min(cursor, tr.doc.content.size));
         const afterPut = putRegister(tr.setSelection(TextSelection.create(tr.doc, putAt)), putAt, content, false, count ?? 1);
         recordChange(keys);
+        announce(operatorFeedback(state, range, "changed"));
         view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, afterPut)), { mode: "normal" }).scrollIntoView());
         return;
       }
@@ -1006,6 +1051,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
         const tr = state.tr;
         replaceCharacters(tr, range, command.character);
         recordChange(keys);
+        announce(operatorFeedback(state, range, "changed"));
         view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, range.from)), { mode: "normal" }));
         return;
       }
@@ -1122,6 +1168,7 @@ export function createVimPlugin(host: VimHost): Plugin<VimPluginState> {
       session.message = `Pattern not found: ${pattern}`;
       return;
     }
+    announce(`${pluralized(replaced, "replacement")} made`);
     recordChange([`<ex:${scope === "all" ? "%" : ""}s${spec}>`]);
     const cursor = lastPos ?? state.selection.head;
     view.dispatch(meta(tr.setSelection(TextSelection.create(tr.doc, Math.min(cursor, tr.doc.content.size))), { mode: "normal" }).scrollIntoView());
