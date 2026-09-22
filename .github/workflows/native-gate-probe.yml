@@ -1,0 +1,82 @@
+name: Native gate probe
+
+# Temporary: proves the headless native boot gate runs on a CI runner before it
+# is wired into release-v2.yml. Delete once the gate ships.
+on:
+    push:
+        branches:
+            - ci/v2-release-automation
+
+permissions:
+    contents: read
+
+jobs:
+    native-gate:
+        runs-on: ubuntu-22.04
+        timeout-minutes: 45
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            - name: Install Tauri and WebDriver system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev webkit2gtk-driver xvfb
+
+            - name: Setup Rust toolchain
+              uses: dtolnay/rust-toolchain@master
+              with:
+                  toolchain: 1.95.0
+                  targets: wasm32-unknown-unknown
+
+            - name: Rust cache
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: |
+                      . -> target
+                      apps/workspace/src-tauri -> target
+
+            - name: Install wasm-bindgen-cli
+              run: |
+                  curl --location --silent --show-error --fail \
+                      https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.126/wasm-bindgen-0.2.126-x86_64-unknown-linux-musl.tar.gz \
+                      | tar --extract --gzip --strip-components=1 --directory="$HOME/.cargo/bin" \
+                            wasm-bindgen-0.2.126-x86_64-unknown-linux-musl/wasm-bindgen
+                  wasm-bindgen --version
+
+            - name: Cache tauri-driver
+              id: driver-cache
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cargo/bin/tauri-driver
+                  key: tauri-driver-${{ runner.os }}-v1
+
+            - name: Install tauri-driver
+              if: steps.driver-cache.outputs.cache-hit != 'true'
+              run: cargo install tauri-driver --locked
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: "1.4.2"
+
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: "24"
+
+            - name: Install frontend dependencies
+              run: bun install --frozen-lockfile
+
+            - name: Build browser WASM bindings
+              run: ./scripts/build-browser-wasm.sh
+
+            - name: Native import boot gate
+              run: xvfb-run --auto-servernum node apps/workspace/e2e/run-native.mjs
+
+            - name: Upload native evidence
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: native-e2e-evidence
+                  if-no-files-found: warn
+                  path: apps/workspace/e2e/results/native-latest.json
