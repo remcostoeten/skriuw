@@ -12,7 +12,7 @@ permissions:
 
 jobs:
     native-gate:
-        runs-on: ubuntu-22.04
+        runs-on: ubuntu-latest
         timeout-minutes: 45
         steps:
             - uses: actions/checkout@v5
