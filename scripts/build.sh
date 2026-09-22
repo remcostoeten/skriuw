@@ -11,7 +11,7 @@ if [[ $# -gt 0 ]]; then
 fi
 
 case "$mode" in
-  check|ci|desktop|browser|workspace) ;;
+  check|ci|desktop|browser|workspace|ci:rust|ci:desktop|ci:renderer|ci:release) ;;
   -h|--help|help)
     cat <<'EOF'
 Usage: ./scripts/build.sh [check|browser|desktop|workspace|ci]
@@ -21,6 +21,12 @@ Usage: ./scripts/build.sh [check|browser|desktop|workspace|ci]
   desktop    Verify everything and build the Tauri desktop application
   workspace  Verify everything and build the Rust workspace
   ci         Verify everything and build release CLI and desktop artifacts
+
+  CI shards run one slice of the gate so jobs can run in parallel:
+  ci:rust      Generated contracts, Rust formatting, lint and backend tests
+  ci:desktop   Desktop bridge test suite
+  ci:renderer  Entrypoints, browser WASM, TypeScript formatting, lint, tests and types
+  ci:release   Release CLI and desktop artifacts only, without the gate
 
 Environment:
   NO_COLOR=1       Disable ANSI color and terminal hyperlinks
@@ -68,8 +74,17 @@ log_dir="$repo_dir/.build/logs/$build_id"
 mkdir -p "$log_dir"
 
 case "$mode" in
+  ci:*) gate="${mode#ci:}" ;;
+  *) gate=all ;;
+esac
+
+case "$mode" in
   check) total_steps=15 ;;
   ci) total_steps=17 ;;
+  ci:rust) total_steps=4 ;;
+  ci:desktop) total_steps=1 ;;
+  ci:renderer) total_steps=10 ;;
+  ci:release) total_steps=2 ;;
   *) total_steps=16 ;;
 esac
 
@@ -335,6 +350,10 @@ print_desktop_artifacts() {
   fi
 }
 
+gate_includes() {
+  [[ "$gate" == all || "$gate" == "$1" ]]
+}
+
 require_command bash
 require_command bun
 require_command cargo
@@ -342,36 +361,52 @@ require_command git
 require_command node
 require_command rustc
 [[ -x "$repo_dir/node_modules/.bin/oxlint" ]] || fail "Workspace dependencies are missing. Run ./bin/setup."
-[[ -d "$app_dir/node_modules" ]] || fail "Frontend dependencies are missing. Run ./bin/setup."
-[[ -d "$cloud_dir/node_modules" ]] || fail "Cloud dependencies are missing. Run ./bin/setup."
-[[ -d "$repo_dir/apps/workspace/harnesses/ui-architecture/node_modules" ]] || fail "UI architecture dependencies are missing. Run ./bin/setup."
-[[ -d "$repo_dir/apps/workspace/harnesses/renderer-store/node_modules" ]] || fail "Renderer-store dependencies are missing. Run ./bin/setup."
+if gate_includes renderer; then [[ -d "$app_dir/node_modules" ]] || fail "Frontend dependencies are missing. Run ./bin/setup."; fi
+if gate_includes renderer; then [[ -d "$cloud_dir/node_modules" ]] || fail "Cloud dependencies are missing. Run ./bin/setup."; fi
+if gate_includes renderer; then [[ -d "$repo_dir/apps/workspace/harnesses/ui-architecture/node_modules" ]] || fail "UI architecture dependencies are missing. Run ./bin/setup."; fi
+if gate_includes renderer; then [[ -d "$repo_dir/apps/workspace/harnesses/renderer-store/node_modules" ]] || fail "Renderer-store dependencies are missing. Run ./bin/setup."; fi
 
 print_header
 
-run_step "Generated contracts, theme tokens and icon data" "generated-contracts" "$repo_dir/bin/generate" --check
-run_step "Build entrypoint contract" "build-entrypoints" "$repo_dir/scripts/test-build.sh"
-run_step "Browser SQLite WASM module" "browser-wasm" "$repo_dir/scripts/build-browser-wasm.sh"
-run_step "Rust formatting" "rust-format" cargo fmt --all --check
-run_step "Rust lint" "rust-clippy" cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-run_step "TypeScript formatting" "ts-format" bun --cwd="$repo_dir" run format:check
-run_step "TypeScript lint" "ts-lint" bun --cwd="$repo_dir" run lint
-run_step "Backend test suite" "backend-tests" cargo test --workspace --locked --no-fail-fast
-print_metric "$(rust_test_summary "$last_log")"
-run_step "Desktop bridge test suite" "desktop-tests" cargo test --manifest-path apps/workspace/src-tauri/Cargo.toml --locked --no-fail-fast
-print_metric "$(rust_test_summary "$last_log")"
-run_step "UI architecture regression suite" "ui-architecture-tests" bun --cwd="$repo_dir/apps/workspace/harnesses/ui-architecture" run test
-print_metric "$(node_test_summary "$last_log")"
-run_step "Renderer-store regression suite" "renderer-store-tests" bun --cwd="$repo_dir/apps/workspace/harnesses/renderer-store" run test
-print_metric "$(node_test_summary "$last_log")"
-run_step "Shared icon geometry and motion suite" "icon-tests" bun --cwd="$repo_dir/packages/icons" run verify
-run_step "Renderer test suite and coverage" "renderer-tests" bun --cwd="$app_dir" run test
-print_metric "$(renderer_summary "$last_log")"
-run_step "Renderer type safety" "renderer-typecheck" bun --cwd="$app_dir" run typecheck
-run_step "Cloud sync contract and runtime suite" "cloud-sync-tests" bun --cwd="$cloud_dir" run check
+if gate_includes rust; then
+  run_step "Generated contracts, theme tokens and icon data" "generated-contracts" "$repo_dir/bin/generate" --check
+fi
+if gate_includes renderer; then
+  run_step "Build entrypoint contract" "build-entrypoints" "$repo_dir/scripts/test-build.sh"
+fi
+if gate_includes renderer; then
+  run_step "Browser SQLite WASM module" "browser-wasm" "$repo_dir/scripts/build-browser-wasm.sh"
+fi
+if gate_includes rust; then
+  run_step "Rust formatting" "rust-format" cargo fmt --all --check
+  run_step "Rust lint" "rust-clippy" cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+fi
+if gate_includes renderer; then
+  run_step "TypeScript formatting" "ts-format" bun --cwd="$repo_dir" run format:check
+  run_step "TypeScript lint" "ts-lint" bun --cwd="$repo_dir" run lint
+fi
+if gate_includes rust; then
+  run_step "Backend test suite" "backend-tests" cargo test --workspace --locked --no-fail-fast
+  print_metric "$(rust_test_summary "$last_log")"
+fi
+if gate_includes desktop; then
+  run_step "Desktop bridge test suite" "desktop-tests" cargo test --manifest-path apps/workspace/src-tauri/Cargo.toml --locked --no-fail-fast
+  print_metric "$(rust_test_summary "$last_log")"
+fi
+if gate_includes renderer; then
+  run_step "UI architecture regression suite" "ui-architecture-tests" bun --cwd="$repo_dir/apps/workspace/harnesses/ui-architecture" run test
+  print_metric "$(node_test_summary "$last_log")"
+  run_step "Renderer-store regression suite" "renderer-store-tests" bun --cwd="$repo_dir/apps/workspace/harnesses/renderer-store" run test
+  print_metric "$(node_test_summary "$last_log")"
+  run_step "Shared icon geometry and motion suite" "icon-tests" bun --cwd="$repo_dir/packages/icons" run verify
+  run_step "Renderer test suite and coverage" "renderer-tests" bun --cwd="$app_dir" run test
+  print_metric "$(renderer_summary "$last_log")"
+  run_step "Renderer type safety" "renderer-typecheck" bun --cwd="$app_dir" run typecheck
+  run_step "Cloud sync contract and runtime suite" "cloud-sync-tests" bun --cwd="$cloud_dir" run check
+fi
 
 case "$mode" in
-  check) ;;
+  check|ci:rust|ci:desktop|ci:renderer) ;;
   browser)
     run_step --stream "Renderer production bundle" "renderer-build" bun --cwd="$app_dir" run build:frontend
     ;;
@@ -381,7 +416,7 @@ case "$mode" in
   workspace)
     run_step --stream "Rust workspace binaries" "workspace-build" cargo build --workspace --locked
     ;;
-  ci)
+  ci|ci:release)
     run_step --stream "Rust release binaries" "workspace-build" cargo build --workspace --release --locked
     run_step --stream "Tauri release application" "desktop-build" bun --cwd="$app_dir" run tauri:build:raw "$@"
     ;;
@@ -391,7 +426,7 @@ elapsed=$(( $(date +%s) - started_at ))
 printf '%s\n' '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
 printf '%s%sBUILD SUCCEEDED%s  %s mode completed in %s\n' "$bold" "$green" "$reset" "$mode" "$(duration_text "$elapsed")"
 
-if [[ "$mode" != "check" ]]; then
+if [[ "$mode" != check && "$mode" != ci:rust && "$mode" != ci:desktop && "$mode" != ci:renderer ]]; then
   printf '\n%sArtifacts%s\n' "$bold" "$reset"
   case "$mode" in
     browser)
@@ -404,7 +439,7 @@ if [[ "$mode" != "check" ]]; then
     workspace)
       print_cli_artifact "debug"
       ;;
-    ci)
+    ci|ci:release)
       print_cli_artifact "release"
       print_desktop_artifacts
       print_artifact "Renderer bundle" "$app_dir/dist"

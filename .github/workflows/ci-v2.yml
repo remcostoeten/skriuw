@@ -14,6 +14,18 @@ on:
 permissions:
     contents: read
 
+concurrency:
+    group: ci-v2-${{ github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# The gate is sharded across parallel jobs; every shard runs a slice of
+# scripts/build.sh so `./bin/check` stays the single local source of truth.
+# Release artifacts are only built on pushes: no pull request consumes them.
+env:
+    BUN_VERSION: "1.4.2"
+    NODE_VERSION: "24"
+    WASM_BINDGEN_URL: https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.126/wasm-bindgen-0.2.126-x86_64-unknown-linux-musl.tar.gz
+
 jobs:
     portable-wasm:
         runs-on: ubuntu-latest
@@ -30,71 +42,143 @@ jobs:
               uses: Swatinem/rust-cache@v2
               with:
                   workspaces: . -> target
+                  save-if: ${{ github.ref == 'refs/heads/daddy' }}
 
             - name: Install wasm-bindgen-cli
               run: |
-                  curl --location --silent --show-error --fail \
-                      https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.126/wasm-bindgen-0.2.126-x86_64-unknown-linux-musl.tar.gz \
+                  curl --location --silent --show-error --fail "$WASM_BINDGEN_URL" \
                       | tar --extract --gzip --strip-components=1 --directory="$HOME/.cargo/bin" \
                             wasm-bindgen-0.2.126-x86_64-unknown-linux-musl/wasm-bindgen
                   wasm-bindgen --version
 
-            - name: Install bun
-              uses: oven-sh/setup-bun@v2
+            - uses: oven-sh/setup-bun@v2
               with:
-                  bun-version: latest
+                  bun-version: ${{ env.BUN_VERSION }}
 
-            - name: Install Node.js
-              uses: actions/setup-node@v5
+            - uses: actions/setup-node@v5
               with:
-                  node-version: "24"
+                  node-version: ${{ env.NODE_VERSION }}
 
             - name: Install app deps
               run: bun install --frozen-lockfile
 
-            - name: Verify portable Rust crates
+            - name: Verify portable Rust crates and browser e2e
               run: ./bin/check browser
 
-    verify-and-build:
+    rust:
         runs-on: ubuntu-latest
-        timeout-minutes: 45
+        timeout-minutes: 20
         steps:
             - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            - name: Install declared Rust toolchain
+              run: rustup show active-toolchain
+
+            - name: Cache Cargo
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: . -> target
+                  save-if: ${{ github.ref == 'refs/heads/daddy' }}
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+
+            - name: Install workspace deps
+              run: bun install --frozen-lockfile
+
+            - name: Contracts, formatting, lint and backend tests
+              run: ./bin/build ci:rust
+
+            - name: Upload build logs
+              if: failure()
+              uses: actions/upload-artifact@v5
+              with:
+                  name: rust-build-logs
+                  if-no-files-found: warn
+                  path: .build/logs
+
+    desktop:
+        runs-on: ubuntu-latest
+        timeout-minutes: 25
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
 
             - name: Install Tauri system dependencies
               run: |
                   sudo apt-get update
                   sudo apt-get install --yes libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
-            - name: Install Rust toolchain
-              uses: dtolnay/rust-toolchain@stable
-              with:
-                  components: clippy, rustfmt
+            - name: Install declared Rust toolchain
+              run: rustup show active-toolchain
 
             - name: Cache Cargo
               uses: Swatinem/rust-cache@v2
               with:
-                  workspaces: |
-                      . -> target
-                      apps/workspace/src-tauri -> target
+                  workspaces: apps/workspace/src-tauri -> target
+                  save-if: ${{ github.ref == 'refs/heads/daddy' }}
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+
+            - name: Install workspace deps
+              run: bun install --frozen-lockfile
+
+            - name: Desktop bridge tests
+              run: ./bin/build ci:desktop
+
+            - name: Upload build logs
+              if: failure()
+              uses: actions/upload-artifact@v5
+              with:
+                  name: desktop-build-logs
+                  if-no-files-found: warn
+                  path: .build/logs
+
+    renderer:
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            - name: Install declared Rust toolchain
+              run: rustup show active-toolchain
+
+            - name: Cache Cargo
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: . -> target
+                  save-if: ${{ github.ref == 'refs/heads/daddy' }}
 
             - name: Install wasm-bindgen-cli
               run: |
-                  curl --location --silent --show-error --fail \
-                      https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.126/wasm-bindgen-0.2.126-x86_64-unknown-linux-musl.tar.gz \
+                  curl --location --silent --show-error --fail "$WASM_BINDGEN_URL" \
                       | tar --extract --gzip --strip-components=1 --directory="$HOME/.cargo/bin" \
                             wasm-bindgen-0.2.126-x86_64-unknown-linux-musl/wasm-bindgen
                   wasm-bindgen --version
 
-            - name: Install bun
-              uses: oven-sh/setup-bun@v2
+            - uses: oven-sh/setup-bun@v2
               with:
-                  bun-version: latest
+                  bun-version: ${{ env.BUN_VERSION }}
 
-            - name: Install Node.js
-              uses: actions/setup-node@v5
+            - uses: actions/setup-node@v5
               with:
-                  node-version: "24"
+                  node-version: ${{ env.NODE_VERSION }}
 
             - name: Install frontend deps
               run: |
@@ -103,14 +187,61 @@ jobs:
                   (cd apps/workspace/harnesses/ui-architecture && bun install --frozen-lockfile)
                   (cd apps/workspace/harnesses/renderer-store && bun install --frozen-lockfile)
 
-            - name: Verify and build
-              # Updater artifacts are only signed in the release workflow; CI builds skip them
-              run: ./bin/build ci --config '{"bundle":{"createUpdaterArtifacts":false}}'
+            - name: Entrypoints, browser WASM, formatting, lint, tests and types
+              run: ./bin/build ci:renderer
 
             - name: Upload build logs
               if: failure()
               uses: actions/upload-artifact@v5
               with:
-                  name: skriuw-v2-build-logs
+                  name: renderer-build-logs
+                  if-no-files-found: warn
+                  path: .build/logs
+
+    release-build:
+        if: github.event_name == 'push'
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            - name: Install Tauri system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+            - name: Install declared Rust toolchain
+              run: rustup show active-toolchain
+
+            - name: Cache Cargo
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: |
+                      . -> target
+                      apps/workspace/src-tauri -> target
+                  save-if: ${{ github.ref == 'refs/heads/daddy' }}
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+
+            - name: Install frontend deps
+              run: bun install --frozen-lockfile
+
+            - name: Release CLI and desktop artifacts
+              # Updater artifacts are only signed in the release workflow; CI builds skip them
+              run: ./bin/build ci:release --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+            - name: Upload build logs
+              if: failure()
+              uses: actions/upload-artifact@v5
+              with:
+                  name: release-build-logs
                   if-no-files-found: warn
                   path: .build/logs
