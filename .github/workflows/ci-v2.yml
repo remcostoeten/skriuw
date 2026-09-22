@@ -113,10 +113,9 @@ jobs:
                   persist-credentials: false
 
             - name: Install Tauri system dependencies
-              uses: awalsh128/cache-apt-pkgs-action@v1
-              with:
-                  packages: libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-                  version: 1
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
             - name: Install declared Rust toolchain
               run: rustup show active-toolchain
@@ -209,10 +208,9 @@ jobs:
                   persist-credentials: false
 
             - name: Install Tauri system dependencies
-              uses: awalsh128/cache-apt-pkgs-action@v1
-              with:
-                  packages: libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-                  version: 1
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
             - name: Install declared Rust toolchain
               run: rustup show active-toolchain
