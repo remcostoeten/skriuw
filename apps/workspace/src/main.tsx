@@ -26,7 +26,12 @@ import {
   savePaneLayout,
   saveSidebarExpansion,
 } from "@/bridge/commands";
-import { clearBrowserData, isBrowserRuntime, releaseBrowserStorage } from "@/bridge/runtime";
+import {
+  abandonBrowserStorage,
+  clearBrowserData,
+  isBrowserRuntime,
+  releaseBrowserStorage,
+} from "@/bridge/runtime";
 import { bindInstallPrompt, installOffered, promptInstall } from "@/bridge/install-prompt";
 import { applyShellUpdate, registerShellWorker } from "@/bridge/service-worker";
 import {
@@ -55,6 +60,7 @@ import {
   claimWorkspaceTab,
   holdWorkspaceTab,
   watchWorkspaceRelease,
+  type WorkspaceTabHold,
 } from "@/shell/workspace-tab-lock";
 import { bindSettingsToRoot } from "@/features/settings/apply-settings";
 import { bindLockSession } from "@/features/lock/lock-session";
@@ -345,9 +351,39 @@ function main(): void {
   }
   const root = createRoot(container);
   const lock = isBrowserRuntime() ? browserTabLockChannel() : null;
-  let unbindHolder: (() => void) | null = null;
+  let hold: WorkspaceTabHold | null = null;
   let unbindWaiting: (() => void) | null = null;
   let opening = false;
+  let abandoned = false;
+  let handoverRefused = false;
+
+  // A page frozen into the back/forward cache runs nothing, so it can neither
+  // answer a claim nor close its worker: it would hold the single-writer
+  // database until the browser discarded it. Dropping the worker on the way out
+  // keeps the next tab usable, and the restored page reloads to write again.
+  window.addEventListener("pagehide", () => {
+    // Not conditioned on holding: a tab still opening the workspace, or still
+    // closing it gracefully, has a worker on the exclusive handles all the same.
+    if (!abandonBrowserStorage()) {
+      return;
+    }
+    abandoned = true;
+    lock?.post({ kind: "released" });
+  });
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted && abandoned) {
+      window.location.reload();
+    }
+  });
+
+  // Mobile browsers freeze a backgrounded page without warning. Once another
+  // tab is known to be waiting, this tab hands the workspace over as it leaves
+  // view rather than risking a freeze that would strand the waiting tab.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden" && hold?.contested()) {
+      void hold.yieldNow().catch((error) => console.error("workspace handover failed", error));
+    }
+  });
 
   function stopWaiting(): void {
     unbindWaiting?.();
@@ -361,9 +397,11 @@ function main(): void {
       return;
     }
     const unsubscribe = watchWorkspaceRelease(lock, () => void attemptOpen());
+    // Every retry claims again: a holder that was asleep when the first claim
+    // went out only hears the one that reaches it after it wakes.
     function retryWhenVisible() {
       if (document.visibilityState === "visible") {
-        void attemptOpen();
+        void claimAndOpen(false);
       }
     }
     document.addEventListener("visibilitychange", retryWhenVisible);
@@ -375,13 +413,31 @@ function main(): void {
     };
   }
 
-  async function takeOver(): Promise<void> {
-    if (!lock) {
+  async function claimAndOpen(announce: boolean): Promise<void> {
+    if (!lock || opening) {
       return;
     }
-    renderBlocked(true);
+    if (announce) {
+      renderBlocked(true);
+    }
     await claimWorkspaceTab(lock);
     await attemptOpen();
+    if (!hold && !opening) {
+      // The holder never answered, so it is frozen or gone rather than busy.
+      // Saying so beats repeating that this tab will open on its own.
+      handoverRefused = true;
+      renderBlocked(false);
+    }
+  }
+
+  function blockedHint(claiming: boolean): string {
+    if (claiming) {
+      return "Asking the other tab to hand it over…";
+    }
+    if (handoverRefused) {
+      return "The other tab is not answering. Close it, or keep using Skriuw there; this one opens as soon as it lets go.";
+    }
+    return "This tab opens on its own as soon as the other one lets go.";
   }
 
   function renderBlocked(claiming: boolean): void {
@@ -390,19 +446,15 @@ function main(): void {
         icon={<AppWindowIcon size={24} />}
         title="Skriuw is open in another tab"
         detail="Your workspace is a single database on this device, so only one tab can hold it at a time."
-        hint={
-          claiming
-            ? "Asking the other tab to hand it over…"
-            : "This tab opens on its own as soon as the other one lets go."
-        }
+        hint={blockedHint(claiming)}
         actions={[
           {
             label: "Use this tab instead",
             variant: "primary",
             disabled: claiming,
-            onSelect: () => void takeOver(),
+            onSelect: () => void claimAndOpen(true),
           },
-          { label: "Retry", disabled: claiming, onSelect: () => void attemptOpen() },
+          { label: "Retry", disabled: claiming, onSelect: () => void claimAndOpen(false) },
         ]}
       />,
     );
@@ -465,18 +517,20 @@ function main(): void {
       return;
     }
     opening = true;
-    unbindHolder?.();
-    unbindHolder = null;
+    hold?.dispose();
+    hold = null;
     try {
       const detach = await openWorkspace(root);
       stopWaiting();
+      handoverRefused = false;
       if (lock) {
-        unbindHolder = holdWorkspaceTab(lock, async () => {
+        hold = holdWorkspaceTab(lock, async () => {
           await detach();
+          hold?.dispose();
+          hold = null;
           renderHandedOver();
           await releaseBrowserStorage();
         });
-        window.addEventListener("pagehide", () => lock.post({ kind: "released" }), { once: true });
       }
     } catch (error) {
       console.error("workspace failed to open", error);

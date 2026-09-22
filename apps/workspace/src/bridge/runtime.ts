@@ -41,6 +41,8 @@ type BrowserCommand = {
 const NOTE_LOCK_ENTROPY_BYTES = 68;
 
 let browserStorage: Promise<BrowserStorageWorkerClient> | null = null;
+/** The worker behind `browserStorage`, reachable without awaiting it. */
+let openStorageWorker: BrowserStorageWorkerClient | null = null;
 let storageReleased = false;
 
 /** True when the renderer is running in a browser rather than the Tauri shell. */
@@ -72,11 +74,40 @@ export async function releaseBrowserStorage(): Promise<void> {
   browserSyncDriver(syncWorkerPort).stop();
   const pending = browserStorage;
   browserStorage = null;
-  if (!pending) return;
+  if (!pending) {
+    openStorageWorker = null;
+    return;
+  }
   const client = await pending.catch(() => null);
   if (client) {
     await client.close().catch(noop);
   }
+  // Cleared only once the worker is really gone: a page frozen mid-close still
+  // has one to terminate, and nothing else can reach it.
+  openStorageWorker = null;
+}
+
+/**
+ * Drops the durable database synchronously, for the moment the page is being
+ * unloaded or frozen into the back/forward cache. A graceful close cannot be
+ * awaited there: a frozen page runs no further tasks, so its worker would keep
+ * the exclusive OPFS handles and block every other tab indefinitely. A close
+ * already under way is no exception; its worker is alive until it answers.
+ * Accepted writes are already durable; only debounced UI continuity is at
+ * risk, which is best-effort by contract. The page must reload to write again.
+ *
+ * @returns True when a worker was still holding the database, so the caller
+ * knows this page can no longer write and has to reload before it may again.
+ */
+export function abandonBrowserStorage(): boolean {
+  const client = openStorageWorker;
+  if (!isBrowserRuntime() || !client) return false;
+  storageReleased = true;
+  browserSyncDriver(syncWorkerPort).stop();
+  browserStorage = null;
+  openStorageWorker = null;
+  client.terminate();
+  return true;
 }
 
 function getBrowserStorage(): Promise<BrowserStorageWorkerClient> {
@@ -91,6 +122,7 @@ function getBrowserStorage(): Promise<BrowserStorageWorkerClient> {
     name: "skriuw-storage",
   });
   const client = new BrowserStorageWorkerClient(worker);
+  openStorageWorker = client;
   client.setEventListener(publishBrowserSyncEvent);
   browserStorage = client
     .initialize(activeDatabaseName())
@@ -98,6 +130,7 @@ function getBrowserStorage(): Promise<BrowserStorageWorkerClient> {
     .catch((error) => {
       client.terminate();
       browserStorage = null;
+      openStorageWorker = null;
       throw error;
     });
   void browserStorage.then(() => browserSyncDriver(syncWorkerPort).resume()).catch(noop);
@@ -120,6 +153,7 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
     const client = await getBrowserStorage();
     await client.close();
     browserStorage = null;
+    openStorageWorker = null;
     return undefined as T;
   }
   if (command === "pick_import_file") {
@@ -241,6 +275,7 @@ async function reopenForActiveSlot(): Promise<void> {
   browserSyncDriver(syncWorkerPort).stop();
   const pending = browserStorage;
   browserStorage = null;
+  openStorageWorker = null;
   if (pending) {
     await pending.then((client) => client.close()).catch(noop);
   }
@@ -263,6 +298,7 @@ export async function clearBrowserData(): Promise<void> {
       noop();
     }
     browserStorage = null;
+    openStorageWorker = null;
   }
   if (typeof navigator.storage?.getDirectory === "function") {
     const root = await navigator.storage.getDirectory();
@@ -297,6 +333,7 @@ async function requestExpecting(
   if (response.kind !== expected) {
     client.terminate();
     browserStorage = null;
+    openStorageWorker = null;
     throw browserFailure(
       "worker_crashed",
       `Browser storage returned ${response.kind}; expected ${expected}.`,

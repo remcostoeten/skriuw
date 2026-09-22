@@ -122,12 +122,92 @@ test("unbinding the holder stops it answering claims", async () => {
   const holder = hub.connect();
   const waiter = hub.connect();
   let yields = 0;
-  const unbind = holdWorkspaceTab(holder, async () => {
+  const hold = holdWorkspaceTab(holder, async () => {
     yields += 1;
   });
-  unbind();
+  hold.dispose();
 
   await claimWorkspaceTab(waiter, 5);
 
   assert.equal(yields, 0);
+});
+
+test("a hold is contested only while a claim is recent", async () => {
+  const hub = createHub();
+  const holder = hub.connect();
+  const waiter = hub.connect();
+  let clock = 1_000;
+  const hold = holdWorkspaceTab(holder, async () => {}, {
+    now: () => clock,
+    contestWindowMs: 100,
+  });
+
+  assert.equal(hold.contested(), false);
+
+  await claimWorkspaceTab(waiter, 1_000);
+
+  assert.equal(hold.contested(), true);
+  clock += 101;
+  assert.equal(hold.contested(), false);
+});
+
+test("yielding without a claim releases the workspace once", async () => {
+  const hub = createHub();
+  const holder = hub.connect();
+  const waiter = hub.connect();
+  let yields = 0;
+  let releases = 0;
+  const hold = holdWorkspaceTab(holder, async () => {
+    yields += 1;
+  });
+  watchWorkspaceRelease(waiter, () => {
+    releases += 1;
+  });
+
+  await hold.yieldNow();
+  await hold.yieldNow();
+
+  assert.equal(yields, 1);
+  assert.equal(releases, 1);
+});
+
+test("a tab that yielded before a claim answers it without yielding twice", async () => {
+  const hub = createHub();
+  const holder = hub.connect();
+  const waiter = hub.connect();
+  let yields = 0;
+  const hold = holdWorkspaceTab(holder, async () => {
+    yields += 1;
+  });
+
+  await hold.yieldNow();
+  await claimWorkspaceTab(waiter, 1_000);
+
+  assert.equal(yields, 1);
+});
+
+test("a failed yield rejects and leaves the workspace held", async () => {
+  const hub = createHub();
+  const holder = hub.connect();
+  const waiter = hub.connect();
+  let releases = 0;
+  let attempts = 0;
+  const hold = holdWorkspaceTab(holder, async () => {
+    attempts += 1;
+    if (attempts === 1) {
+      throw new Error("flush failed");
+    }
+  });
+  watchWorkspaceRelease(waiter, () => {
+    releases += 1;
+  });
+
+  await assert.rejects(hold.yieldNow(), /flush failed/);
+
+  assert.equal(releases, 0);
+
+  await hold.yieldNow();
+
+  assert.equal(attempts, 2);
+  assert.equal(releases, 1);
 });

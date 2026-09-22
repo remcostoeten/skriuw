@@ -6,11 +6,20 @@
  * broadcast channel: a waiting tab claims, the holder flushes and releases, and
  * the waiter reopens without the user reloading anything.
  *
+ * A holder only answers a claim while it still runs. Mobile browsers freeze a
+ * backgrounded page without warning, and a frozen holder can neither hear a
+ * claim nor let the database go, which strands every other tab on the blocked
+ * screen. So the hold also records that another tab is waiting, and the shell
+ * hands the workspace over the moment this tab goes out of view rather than
+ * risking the freeze.
+ *
  * The channel is injectable so the protocol can be tested without a DOM.
  */
 
 const CHANNEL_NAME = "skriuw.workspace-tab-lock";
 const CLAIM_TIMEOUT_MS = 3_000;
+/** How long a claim keeps counting as another tab waiting for the workspace. */
+const CONTEST_WINDOW_MS = 300_000;
 
 export type TabLockMessage = { kind: "claim" } | { kind: "released" };
 
@@ -18,6 +27,28 @@ export type TabLockChannel = {
   post: (message: TabLockMessage) => void;
   subscribe: (listener: (message: TabLockMessage) => void) => () => void;
 };
+
+/** The workspace hold this tab owns while its database is open. */
+export type WorkspaceTabHold = {
+  /** True while another tab has recently asked for the workspace. */
+  contested: () => boolean;
+  /**
+   * Hands the workspace over now. Resolves once the release has gone out and
+   * rejects when the handover failed, which leaves a later claim free to retry.
+   */
+  yieldNow: () => Promise<void>;
+  /** Stops answering claims, without releasing anything. */
+  dispose: () => void;
+};
+
+export type HoldOptions = {
+  now?: () => number;
+  contestWindowMs?: number;
+};
+
+function reportHandoverFailure(error: unknown): void {
+  console.error("workspace handover failed", error);
+}
 
 function isTabLockMessage(value: unknown): value is TabLockMessage {
   if (typeof value !== "object" || value === null) {
@@ -55,20 +86,49 @@ export function browserTabLockChannel(): TabLockChannel | null {
 export function holdWorkspaceTab(
   channel: TabLockChannel,
   yieldWorkspace: () => Promise<void>,
-): () => void {
-  let yielding = false;
-  return channel.subscribe((message) => {
-    if (message.kind !== "claim" || yielding) {
+  options: HoldOptions = {},
+): WorkspaceTabHold {
+  const now = options.now ?? Date.now;
+  const contestWindowMs = options.contestWindowMs ?? CONTEST_WINDOW_MS;
+  let claimedAt: number | null = null;
+  let handover: Promise<void> | null = null;
+  let released = false;
+
+  function handOver(): Promise<void> {
+    if (!handover) {
+      handover = yieldWorkspace()
+        .then(() => {
+          released = true;
+          channel.post({ kind: "released" });
+        })
+        .catch((error: unknown) => {
+          handover = null;
+          throw error;
+        });
+    }
+    return handover;
+  }
+
+  const unsubscribe = channel.subscribe((message) => {
+    if (message.kind !== "claim") {
       return;
     }
-    yielding = true;
-    void yieldWorkspace()
-      .then(() => channel.post({ kind: "released" }))
-      .catch((error) => {
-        yielding = false;
-        console.error("workspace handover failed", error);
-      });
+    claimedAt = now();
+    // A tab that let the workspace go before the claim answers it again;
+    // otherwise the claimant waits out its timeout for a release that has
+    // already been and gone.
+    if (released) {
+      channel.post({ kind: "released" });
+      return;
+    }
+    void handOver().catch(reportHandoverFailure);
   });
+
+  return {
+    contested: () => claimedAt !== null && now() - claimedAt <= contestWindowMs,
+    yieldNow: handOver,
+    dispose: unsubscribe,
+  };
 }
 
 /** Binds a blocked tab to the moment the holder lets the workspace go. */
