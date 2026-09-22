@@ -6,7 +6,7 @@ target="${1:-workspace}"
 if [[ $# -gt 0 ]]; then shift; fi
 
 case "$target" in
-  desktop|browser|workspace|ci) exec "$repo_dir/scripts/build.sh" "$target" "$@" ;;
+  desktop|browser|workspace|ci|ci:rust|ci:desktop|ci:renderer|ci:release) exec "$repo_dir/scripts/build.sh" "$target" "$@" ;;
   site) exec "$repo_dir/scripts/run-in.sh" apps/site build "$@" ;;
   -h|--help|help)
     printf 'Usage: bin/build [desktop|browser|site|workspace|ci] [args...]\nDefault: workspace. Desktop, browser, workspace and CI builds run the desktop check gate first.\n'
