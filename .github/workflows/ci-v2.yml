@@ -223,6 +223,13 @@ jobs:
                       apps/workspace/src-tauri -> target
                   save-if: ${{ github.ref == 'refs/heads/daddy' }}
 
+            - name: Install wasm-bindgen-cli
+              run: |
+                  curl --location --silent --show-error --fail "$WASM_BINDGEN_URL" \
+                      | tar --extract --gzip --strip-components=1 --directory="$HOME/.cargo/bin" \
+                            wasm-bindgen-0.2.126-x86_64-unknown-linux-musl/wasm-bindgen
+                  wasm-bindgen --version
+
             - uses: oven-sh/setup-bun@v2
               with:
                   bun-version: ${{ env.BUN_VERSION }}

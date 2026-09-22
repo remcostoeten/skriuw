@@ -26,7 +26,7 @@ Usage: ./scripts/build.sh [check|browser|desktop|workspace|ci]
   ci:rust      Generated contracts, Rust formatting, lint and backend tests
   ci:desktop   Desktop bridge test suite
   ci:renderer  Entrypoints, browser WASM, TypeScript formatting, lint, tests and types
-  ci:release   Release CLI and desktop artifacts only, without the gate
+  ci:release   Browser WASM plus release CLI and desktop artifacts, without the gate
 
 Environment:
   NO_COLOR=1       Disable ANSI color and terminal hyperlinks
@@ -84,7 +84,7 @@ case "$mode" in
   ci:rust) total_steps=4 ;;
   ci:desktop) total_steps=1 ;;
   ci:renderer) total_steps=10 ;;
-  ci:release) total_steps=2 ;;
+  ci:release) total_steps=3 ;;
   *) total_steps=16 ;;
 esac
 
@@ -374,7 +374,7 @@ fi
 if gate_includes renderer; then
   run_step "Build entrypoint contract" "build-entrypoints" "$repo_dir/scripts/test-build.sh"
 fi
-if gate_includes renderer; then
+if gate_includes renderer || gate_includes release; then
   run_step "Browser SQLite WASM module" "browser-wasm" "$repo_dir/scripts/build-browser-wasm.sh"
 fi
 if gate_includes rust; then
