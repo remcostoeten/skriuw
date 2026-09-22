@@ -362,11 +362,12 @@ function main(): void {
   // database until the browser discarded it. Dropping the worker on the way out
   // keeps the next tab usable, and the restored page reloads to write again.
   window.addEventListener("pagehide", () => {
-    if (!hold) {
+    // Not conditioned on holding: a tab still opening the workspace, or still
+    // closing it gracefully, has a worker on the exclusive handles all the same.
+    if (!abandonBrowserStorage()) {
       return;
     }
     abandoned = true;
-    abandonBrowserStorage();
     lock?.post({ kind: "released" });
   });
   window.addEventListener("pageshow", (event) => {
@@ -380,7 +381,7 @@ function main(): void {
   // view rather than risking a freeze that would strand the waiting tab.
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden" && hold?.contested()) {
-      void hold.yieldNow();
+      void hold.yieldNow().catch((error) => console.error("workspace handover failed", error));
     }
   });
 
@@ -453,7 +454,7 @@ function main(): void {
             disabled: claiming,
             onSelect: () => void claimAndOpen(true),
           },
-          { label: "Retry", disabled: claiming, onSelect: () => void attemptOpen() },
+          { label: "Retry", disabled: claiming, onSelect: () => void claimAndOpen(false) },
         ]}
       />,
     );

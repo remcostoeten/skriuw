@@ -32,7 +32,10 @@ export type TabLockChannel = {
 export type WorkspaceTabHold = {
   /** True while another tab has recently asked for the workspace. */
   contested: () => boolean;
-  /** Hands the workspace over now; resolves once the release has gone out. */
+  /**
+   * Hands the workspace over now. Resolves once the release has gone out and
+   * rejects when the handover failed, which leaves a later claim free to retry.
+   */
   yieldNow: () => Promise<void>;
   /** Stops answering claims, without releasing anything. */
   dispose: () => void;
@@ -42,6 +45,10 @@ export type HoldOptions = {
   now?: () => number;
   contestWindowMs?: number;
 };
+
+function reportHandoverFailure(error: unknown): void {
+  console.error("workspace handover failed", error);
+}
 
 function isTabLockMessage(value: unknown): value is TabLockMessage {
   if (typeof value !== "object" || value === null) {
@@ -94,9 +101,9 @@ export function holdWorkspaceTab(
           released = true;
           channel.post({ kind: "released" });
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           handover = null;
-          console.error("workspace handover failed", error);
+          throw error;
         });
     }
     return handover;
@@ -114,7 +121,7 @@ export function holdWorkspaceTab(
       channel.post({ kind: "released" });
       return;
     }
-    void handOver();
+    void handOver().catch(reportHandoverFailure);
   });
 
   return {

@@ -185,3 +185,29 @@ test("a tab that yielded before a claim answers it without yielding twice", asyn
 
   assert.equal(yields, 1);
 });
+
+test("a failed yield rejects and leaves the workspace held", async () => {
+  const hub = createHub();
+  const holder = hub.connect();
+  const waiter = hub.connect();
+  let releases = 0;
+  let attempts = 0;
+  const hold = holdWorkspaceTab(holder, async () => {
+    attempts += 1;
+    if (attempts === 1) {
+      throw new Error("flush failed");
+    }
+  });
+  watchWorkspaceRelease(waiter, () => {
+    releases += 1;
+  });
+
+  await assert.rejects(hold.yieldNow(), /flush failed/);
+
+  assert.equal(releases, 0);
+
+  await hold.yieldNow();
+
+  assert.equal(attempts, 2);
+  assert.equal(releases, 1);
+});

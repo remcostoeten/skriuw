@@ -74,30 +74,40 @@ export async function releaseBrowserStorage(): Promise<void> {
   browserSyncDriver(syncWorkerPort).stop();
   const pending = browserStorage;
   browserStorage = null;
-  openStorageWorker = null;
-  if (!pending) return;
+  if (!pending) {
+    openStorageWorker = null;
+    return;
+  }
   const client = await pending.catch(() => null);
   if (client) {
     await client.close().catch(noop);
   }
+  // Cleared only once the worker is really gone: a page frozen mid-close still
+  // has one to terminate, and nothing else can reach it.
+  openStorageWorker = null;
 }
 
 /**
  * Drops the durable database synchronously, for the moment the page is being
  * unloaded or frozen into the back/forward cache. A graceful close cannot be
  * awaited there: a frozen page runs no further tasks, so its worker would keep
- * the exclusive OPFS handles and block every other tab indefinitely.
+ * the exclusive OPFS handles and block every other tab indefinitely. A close
+ * already under way is no exception; its worker is alive until it answers.
  * Accepted writes are already durable; only debounced UI continuity is at
  * risk, which is best-effort by contract. The page must reload to write again.
+ *
+ * @returns True when a worker was still holding the database, so the caller
+ * knows this page can no longer write and has to reload before it may again.
  */
-export function abandonBrowserStorage(): void {
-  if (!isBrowserRuntime() || storageReleased) return;
+export function abandonBrowserStorage(): boolean {
+  const client = openStorageWorker;
+  if (!isBrowserRuntime() || !client) return false;
   storageReleased = true;
   browserSyncDriver(syncWorkerPort).stop();
   browserStorage = null;
-  const client = openStorageWorker;
   openStorageWorker = null;
-  client?.terminate();
+  client.terminate();
+  return true;
 }
 
 function getBrowserStorage(): Promise<BrowserStorageWorkerClient> {
