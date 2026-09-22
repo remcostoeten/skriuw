@@ -87,7 +87,7 @@ release-notes-v2-*.txt
 *.db
 *.db-shm
 *.db-wal
-/app/e2e/results/
+/apps/workspace/e2e/results/
 
 # Local MCP config; holds machine-absolute paths
 /.mcp.json
