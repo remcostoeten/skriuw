@@ -1,0 +1,88 @@
+name: Cut v2 release
+
+# One button for a desktop release: bump the version daddy ships, tag it, and
+# hand the tag to release-v2.yml, which builds, gates and publishes it.
+# Version lives in apps/workspace/src-tauri/tauri.conf.json only — package.json
+# and Cargo.toml deliberately stay 0.0.0, because tauri-action reads the former.
+on:
+    workflow_dispatch:
+        inputs:
+            level:
+                description: "Version bump"
+                required: true
+                default: patch
+                type: choice
+                options:
+                    - patch
+                    - minor
+                    - major
+
+permissions:
+    contents: write
+
+jobs:
+    cut:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  ref: daddy
+                  fetch-depth: 0
+
+            - name: Refuse to cut from a red daddy
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  sha="$(git rev-parse HEAD)"
+                  state="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${sha}/check-runs" \
+                      --jq '[.check_runs[] | select(.name | test("^(rust|desktop|renderer|portable-wasm|release-build)$")) | .conclusion] | join(",")')"
+                  printf 'gate conclusions: %s\n' "$state"
+                  case "$state" in
+                      *failure*|*cancelled*|*timed_out*) echo "::error::the CI v2 gate is not green on daddy" && exit 1 ;;
+                      "") echo "::error::no CI v2 gate results for $sha" && exit 1 ;;
+                  esac
+
+            - name: Bump the shipped version
+              id: bump
+              run: |
+                  node --input-type=module - "${{ inputs.level }}" <<'NODE'
+                  import { readFile, writeFile } from "node:fs/promises";
+
+                  const path = "apps/workspace/src-tauri/tauri.conf.json";
+                  const level = process.argv[2];
+                  const source = await readFile(path, "utf8");
+                  const current = source.match(/"version":\s*"(\d+)\.(\d+)\.(\d+)"/);
+                  if (!current) {
+                      throw new Error(`no version field in ${path}`);
+                  }
+                  const [major, minor, patch] = current.slice(1).map(Number);
+                  const next =
+                      level === "major"
+                          ? `${major + 1}.0.0`
+                          : level === "minor"
+                            ? `${major}.${minor + 1}.0`
+                            : `${major}.${minor}.${patch + 1}`;
+                  await writeFile(path, source.replace(current[0], `"version": "${next}"`));
+                  await writeFile(process.env.GITHUB_OUTPUT, `version=${next}\n`, { flag: "a" });
+                  NODE
+
+            - name: Commit and tag
+              env:
+                  VERSION: ${{ steps.bump.outputs.version }}
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git commit -am "chore(v2): release v2-v${VERSION}"
+                  git tag "v2-v${VERSION}"
+                  git push origin daddy
+                  git push origin "v2-v${VERSION}"
+
+            - name: Start the release build
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  VERSION: ${{ steps.bump.outputs.version }}
+              # a tag pushed with GITHUB_TOKEN does not trigger workflows, so
+              # release-v2 is dispatched against the tag explicitly
+              run: |
+                  gh workflow run release-v2.yml --ref "v2-v${VERSION}"
+                  printf 'cut v2-v%s\n' "$VERSION" >> "$GITHUB_STEP_SUMMARY"
