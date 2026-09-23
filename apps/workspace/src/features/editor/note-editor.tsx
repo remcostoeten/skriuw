@@ -4,6 +4,7 @@ import {
   lazy,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useId,
   useMemo,
   useRef,
@@ -25,7 +26,7 @@ import {
 import { EditorView } from "prosemirror-view";
 import { createCodeBlockNodeView, toggleMermaidSource } from "./code-block-nodeview";
 import { createDiagramNodeView } from "./diagram-nodeview";
-import { createImageNodeViews } from "./image-nodeview";
+import { createImageNodeViews, type ImageTouchActions } from "./image-nodeview";
 import {
   collectImageFiles,
   collectVideoFiles,
@@ -44,7 +45,8 @@ import { openExternalUrl } from "@/bridge/external-links";
 import { defaultLinkTarget, openLinkAt, type LinkTarget } from "./open-link";
 import { useShortcutHints } from "@/commands/hints";
 import type { MediaBlobPayload } from "@/bridge/commands";
-import { ImageInfoDialog, ImageLightbox, ImageRenameDialog } from "./image-menu";
+import { ImageEditDialog, ImageInfoDialog, ImageLightbox } from "./image-menu";
+import { setMediaMetadata } from "@/store/actions/media";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -316,7 +318,7 @@ const SLASH_MENU_WIDTH = 264;
 const SLASH_MENU_MAX_HEIGHT = 324;
 
 type ImageDialogState =
-  | { kind: "rename"; imageId: string; alt: string }
+  | { kind: "rename"; imageId: string; image: WorkspaceImage | null; alt: string }
   | { kind: "bigger"; image: WorkspaceImage; alt: string }
   | { kind: "info"; image: WorkspaceImage; alt: string }
   | null;
@@ -476,6 +478,7 @@ const VoiceDictationHost = lazy(async () => {
 
 export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const imageTouchActionsRef = useRef<ImageTouchActions | null>(null);
   const [shortcutHost, setShortcutHost] = useState<HTMLDivElement | null>(null);
   const [utilityOverlayHost, setUtilityOverlayHost] = useState<HTMLDivElement | null>(null);
   // An inline ref callback gets a fresh identity every render, so React 19
@@ -1800,12 +1803,20 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       return true;
     }
     const referenceViews = createReferenceNodeViews(store);
-    const imageViews = createImageNodeViews(store, (imageId, clientX, clientY) => {
-      setImageMenuImageId(imageId);
-      imageMenuTriggerRef.current?.dispatchEvent(
-        new MouseEvent("contextmenu", { bubbles: true, clientX, clientY }),
-      );
-    });
+    const imageViews = createImageNodeViews(
+      store,
+      (imageId, clientX, clientY) => {
+        setImageMenuImageId(imageId);
+        imageMenuTriggerRef.current?.dispatchEvent(
+          new MouseEvent("contextmenu", { bubbles: true, clientX, clientY }),
+        );
+      },
+      {
+        rename: (imageId) => imageTouchActionsRef.current?.rename(imageId),
+        view: (imageId) => imageTouchActionsRef.current?.view(imageId),
+        info: (imageId) => imageTouchActionsRef.current?.info(imageId),
+      },
+    );
     const view = new EditorView(host, {
       state: createEditorState(emptyDocument(), editorPlugins),
       editable: () => activeIdRef.current !== null,
@@ -2333,7 +2344,30 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   function openImageRename(imageId: string): void {
     const view = viewRef.current;
     if (!view) return;
-    setImageDialog({ kind: "rename", imageId, alt: readImageAlt(view.state.doc, imageId) });
+    setImageDialog({
+      kind: "rename",
+      imageId,
+      image: store.getState().images.get(imageId) ?? null,
+      alt: readImageAlt(view.state.doc, imageId),
+    });
+  }
+
+  function saveImageFields(
+    imageId: string,
+    image: WorkspaceImage | null,
+    fields: { name: string; alt: string },
+  ): void {
+    const view = viewRef.current;
+    if (view) renameImageNode(view, imageId, fields.alt);
+    if (!image) return;
+    const current = store.getState().mediaMetadata.get(image.contentHash);
+    if ((current?.name ?? "") === fields.name) return;
+    void setMediaMetadata(store, image.contentHash, {
+      name: fields.name,
+      alt: current?.alt ?? "",
+    }).catch((error: unknown) => {
+      console.error("Could not rename image", error);
+    });
   }
 
   function openImageBigger(imageId: string): void {
@@ -2349,6 +2383,14 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     if (!view || !image) return;
     setImageDialog({ kind: "info", image, alt: readImageAlt(view.state.doc, imageId) });
   }
+
+  useLayoutEffect(() => {
+    imageTouchActionsRef.current = {
+      rename: openImageRename,
+      view: openImageBigger,
+      info: openImageInfo,
+    };
+  });
 
   const blockMenuIsTable =
     blockMenuPos !== null && viewRef.current?.state.doc.nodeAt(blockMenuPos)?.type.name === "table";
@@ -2678,13 +2720,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
             className="fixed left-0 top-0 h-0 w-0"
           />
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-44">
+        <ContextMenuContent className="w-52">
           <ContextMenuItem
             className="gap-2"
             onSelect={() => imageMenuImageId && openImageRename(imageMenuImageId)}
           >
             <PencilIcon size={14} />
-            Rename
+            Edit name and alt text
           </ContextMenuItem>
           <ContextMenuItem
             className="gap-2"
@@ -2703,17 +2745,20 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         </ContextMenuContent>
       </ContextMenu>
       {imageDialog?.kind === "rename" && (
-        <ImageRenameDialog
-          initialAlt={imageDialog.alt}
-          onSubmit={(alt) => {
-            const view = viewRef.current;
-            if (view) renameImageNode(view, imageDialog.imageId, alt);
+        <ImageEditDialog
+          initial={{
+            name: imageDialog.image
+              ? (store.getState().mediaMetadata.get(imageDialog.image.contentHash)?.name ?? "")
+              : "",
+            alt: imageDialog.alt,
           }}
+          onSubmit={(fields) => saveImageFields(imageDialog.imageId, imageDialog.image, fields)}
           onClose={() => setImageDialog(null)}
         />
       )}
       {imageDialog?.kind === "bigger" && (
         <ImageLightbox
+          store={store}
           image={imageDialog.image}
           alt={imageDialog.alt}
           onClose={() => setImageDialog(null)}
@@ -2721,8 +2766,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       )}
       {imageDialog?.kind === "info" && (
         <ImageInfoDialog
+          store={store}
           image={imageDialog.image}
           alt={imageDialog.alt}
+          onSave={(fields) => saveImageFields(imageDialog.image.id, imageDialog.image, fields)}
           onClose={() => setImageDialog(null)}
         />
       )}
@@ -2733,6 +2780,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           onOpenChange={(open) => {
             if (!open) setMediaLibraryKind(null);
           }}
+          metadata={store.getState().mediaMetadata}
           onSelect={selectLibraryMedia}
           onUpload={uploadLibraryMedia}
           onUseUrl={mediaLibraryKind === "video" ? insertVideoUrl : undefined}

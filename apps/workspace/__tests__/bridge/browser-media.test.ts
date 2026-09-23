@@ -35,3 +35,10 @@ test("sniffMediaMime mirrors the Rust magic-byte sniffer", () => {
   );
   assert.equal(sniffMediaMime(bytes("<svg></svg>")), null);
 });
+
+test("sniffMediaMime separates HEIC photos and QuickTime movies from MP4", () => {
+  assert.equal(sniffMediaMime(bytes(0, 0, 0, 0x18, "ftypheic", 0, 0, 0, 0)), "image/heic");
+  assert.equal(sniffMediaMime(bytes(0, 0, 0, 0x18, "ftypmif1", 0, 0, 0, 0)), "image/heif");
+  assert.equal(sniffMediaMime(bytes(0, 0, 0, 0x14, "ftypqt  ", 0, 0, 2, 0)), "video/quicktime");
+  assert.equal(sniffMediaMime(bytes(0, 0, 0, 0x20, "ftypmp42", 0, 0, 0, 0)), "video/mp4");
+});

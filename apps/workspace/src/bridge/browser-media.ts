@@ -17,13 +17,30 @@ const EXTENSION_BY_MIME: Record<string, string> = {
   "image/webp": "webp",
   "video/mp4": "mp4",
   "video/webm": "webm",
+  "video/quicktime": "mov",
 };
+
+const HEIC_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis"]);
+const HEIF_BRANDS = new Set(["mif1", "msf1", "heif"]);
+
+/** Formats the sniffer recognises but the workspace cannot store or render. */
+export const UNSTORABLE_MEDIA_MIMES = new Set(["image/heic", "image/heif"]);
+
+export class UnsupportedMediaError extends Error {
+  override name = "UnsupportedMediaError";
+}
+
+let persistenceRequested = false;
 
 const MIME_BY_EXTENSION = Object.fromEntries(
   Object.entries(EXTENSION_BY_MIME).map(([mime, extension]) => [extension, mime]),
 );
 
-/** Must stay in sync with `sniff_mime` in `crates/skriuw-images/src/lib.rs`. */
+/**
+ * Must stay in sync with `sniff_mime` in `crates/skriuw-images/src/lib.rs`.
+ * The ISO-BMFF branch reads the major brand so HEIC photos and QuickTime
+ * movies are not mistaken for MP4.
+ */
 export function sniffMediaMime(bytes: Uint8Array): string | null {
   if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
     return "image/png";
@@ -38,12 +55,25 @@ export function sniffMediaMime(bytes: Uint8Array): string | null {
     return "image/webp";
   }
   if (bytes.length >= 12 && textAt(bytes, 4, 4) === "ftyp") {
-    return "video/mp4";
+    return isoBrandMime(textAt(bytes, 8, 4));
   }
   if (startsWith(bytes, [0x1a, 0x45, 0xdf, 0xa3]) && containsWebmDoctype(bytes)) {
     return "video/webm";
   }
   return null;
+}
+
+function isoBrandMime(brand: string): string {
+  if (HEIC_BRANDS.has(brand)) {
+    return "image/heic";
+  }
+  if (HEIF_BRANDS.has(brand)) {
+    return "image/heif";
+  }
+  if (brand === "qt  ") {
+    return "video/quicktime";
+  }
+  return "video/mp4";
 }
 
 function startsWith(bytes: Uint8Array, prefix: readonly number[]): boolean {
@@ -92,7 +122,12 @@ async function contentHashOf(bytes: Uint8Array): Promise<string> {
 export async function storeBrowserMediaBlob(bytes: Uint8Array): Promise<StoredImagePayload> {
   const mimeType = sniffMediaMime(bytes);
   if (!mimeType) {
-    throw new Error("unsupported image data");
+    throw new UnsupportedMediaError(
+      "This file type isn’t supported. Use PNG, JPEG, GIF, WebP, MP4, WebM or MOV.",
+    );
+  }
+  if (UNSTORABLE_MEDIA_MIMES.has(mimeType)) {
+    throw new UnsupportedMediaError("HEIC photos aren’t supported yet. Convert to JPEG and retry.");
   }
   const contentHash = await contentHashOf(bytes);
   const directory = await blobsDirectory();
@@ -107,7 +142,26 @@ export async function storeBrowserMediaBlob(bytes: Uint8Array): Promise<StoredIm
     );
     await writable.close();
   }
+  void requestMediaPersistenceOnce();
   return { contentHash, mimeType, byteSize: bytes.byteLength };
+}
+
+/**
+ * Asks the browser once per session to exempt this origin from eviction, the
+ * first time media lands in OPFS. Media is the bulk of what eviction destroys.
+ */
+export async function requestMediaPersistenceOnce(): Promise<void> {
+  if (persistenceRequested || typeof navigator.storage?.persist !== "function") {
+    return;
+  }
+  persistenceRequested = true;
+  try {
+    if (!(await navigator.storage.persisted())) {
+      await navigator.storage.persist();
+    }
+  } catch (error) {
+    console.error("media storage persistence request failed", error);
+  }
 }
 
 /**

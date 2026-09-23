@@ -1332,7 +1332,8 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
   content: attr(alt);
 }
 
-.ProseMirror-selectednode.note-image {
+.ProseMirror-selectednode.note-image,
+.ProseMirror-selectednode.note-image-frame {
   outline: none;
 }
 

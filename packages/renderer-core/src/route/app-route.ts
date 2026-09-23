@@ -6,6 +6,7 @@ export type AppRoute =
   | "history"
   | "journal"
   | "tasks"
+  | "media"
   | "prompt-playground";
 
 export function resolveAppRoute(hash: string): AppRoute {
@@ -14,6 +15,9 @@ export function resolveAppRoute(hash: string): AppRoute {
   }
   if (hash === "#/prompt-playground") {
     return "prompt-playground";
+  }
+  if (hash === "#/media") {
+    return "media";
   }
   if (hash.startsWith("#/history/")) {
     return "history";
@@ -67,6 +71,9 @@ export function appRouteHash(route: AppRoute): string {
   }
   if (route === "prompt-playground") {
     return "#/prompt-playground";
+  }
+  if (route === "media") {
+    return "#/media";
   }
   return "#/notes";
 }

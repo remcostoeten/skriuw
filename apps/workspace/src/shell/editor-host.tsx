@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { editorModeForNote } from "@/store/actions/editor-mode";
 import { NoteEditor } from "@/features/editor/note-editor";
 import { RawMarkdownEditor } from "@/features/editor/raw-markdown-editor";
@@ -9,6 +9,9 @@ import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/t
 import { NoteCover } from "@/features/note-chrome/note-cover";
 import { UnlockPane } from "@/features/lock/unlock-pane";
 import { isNoteSealed } from "@/features/lock/lock-model";
+import { InsertMediaAccessory } from "@/features/editor/insert-media-accessory";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
+import { COMPACT_SHELL_QUERY } from "./shell-layout";
 
 type Props = {
   store: RendererStore;
@@ -67,10 +70,12 @@ export function EditorHost({
   );
   const hasCover = useRendererSelector(store, selectHasCover);
   const isRawMode = useRendererSelector(store, selectRawMode);
+  const compact = useMediaQuery(COMPACT_SHELL_QUERY);
+  const hostRef = useRef<HTMLDivElement>(null);
   const hasActiveNote = noteId !== null;
   const showsEditor = hasActiveNote && !isSealed;
   return (
-    <div className="editor-scroll h-full min-w-0 overflow-y-auto bg-theme-editor">
+    <div ref={hostRef} className="editor-scroll h-full min-w-0 overflow-y-auto bg-theme-editor">
       <div className={showsEditor ? "relative w-full" : "hidden"}>
         {showsEditor && <NoteCover store={store} selectNoteId={selectEditableNoteId} />}
         <div className={`mx-auto w-[calc(100%_-_6rem)] max-w-[72ch]${hasCover ? "" : " pt-8"}`}>
@@ -84,6 +89,7 @@ export function EditorHost({
           )}
         </div>
       </div>
+      {compact && showsEditor && !isRawMode && <InsertMediaAccessory hostRef={hostRef} />}
       {hasActiveNote && isSealed && <UnlockPane store={store} noteId={noteId} />}
       {!hasActiveNote && (
         <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">

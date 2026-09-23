@@ -4,13 +4,20 @@ import type { MediaBlobPayload } from "@/bridge/commands";
 import { storeNoteImage } from "@/bridge/commands";
 import { registerPendingWork } from "@/shell/pending-work";
 import { noop } from "@/shared/lib/noop";
+import { showToast } from "@/shared/ui/toast";
+import { UnsupportedMediaError } from "@/bridge/browser-media";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { productSchema } from "./schema";
+import { setMediaUploadState } from "./media-upload-state";
 
 type ImageDimensions = {
   width: number;
   height: number;
 };
+
+export const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+export const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+const PICKER_ABANDON_MS = 60_000;
 
 const inFlightPersists = new Set<Promise<void>>();
 
@@ -51,8 +58,10 @@ export function pickImageFiles(onPicked: (files: readonly File[]) => void): void
 }
 
 export function pickVideoFiles(onPicked: (files: readonly File[]) => void): void {
-  pickMediaFiles("video/mp4,video/webm", onPicked);
+  pickMediaFiles(VIDEO_ACCEPT, onPicked);
 }
+
+export const VIDEO_ACCEPT = "video/mp4,video/webm,video/quicktime,.mov";
 
 function pickMediaFiles(accept: string, onPicked: (files: readonly File[]) => void): void {
   const input = document.createElement("input");
@@ -61,21 +70,25 @@ function pickMediaFiles(accept: string, onPicked: (files: readonly File[]) => vo
   input.multiple = true;
   input.hidden = true;
   document.body.append(input);
+  let abandonTimer: number | undefined;
+  function detach(): void {
+    window.clearTimeout(abandonTimer);
+    window.removeEventListener("focus", scheduleAbandon);
+    input.remove();
+  }
+  // iOS standalone PWAs refocus the window before `change` fires, and older
+  // WebKitGTK never dispatches `cancel`; only a long-abandoned picker is reaped.
+  function scheduleAbandon(): void {
+    window.clearTimeout(abandonTimer);
+    abandonTimer = window.setTimeout(detach, PICKER_ABANDON_MS);
+  }
   input.addEventListener("change", () => {
     const files = [...(input.files ?? [])];
-    input.remove();
+    detach();
     onPicked(files);
   });
-  input.addEventListener("cancel", () => input.remove());
-  // Older WebKitGTK builds never dispatch `cancel` on dismissal; once focus
-  // returns from the picker, detach after `change` had its chance to fire.
-  window.addEventListener(
-    "focus",
-    () => {
-      window.setTimeout(() => input.remove(), 1000);
-    },
-    { once: true },
-  );
+  input.addEventListener("cancel", detach);
+  window.addEventListener("focus", scheduleAbandon);
   input.click();
 }
 
@@ -222,15 +235,67 @@ export function persistMediaFile(
   void task.finally(() => inFlightPersists.delete(task));
 }
 
+function isHeicFile(file: File): boolean {
+  return /^image\/hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
+}
+
+function formatMegabytes(bytes: number): string {
+  return `${Math.round(bytes / (1024 * 1024))} MB`;
+}
+
+/**
+ * Why a picked or dropped file cannot be stored, checked before any bytes are
+ * read so an oversized video never lands in memory. Null when it may proceed.
+ */
+export function mediaFileProblem(file: File): string | null {
+  if (isHeicFile(file)) {
+    return "HEIC photos aren’t supported yet. Convert to JPEG and retry.";
+  }
+  const isVideo = file.type.startsWith("video/") || /\.mov$/i.test(file.name);
+  const limit = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+  if (file.size > limit) {
+    return `This ${isVideo ? "video" : "image"} is ${formatMegabytes(file.size)}; the limit is ${formatMegabytes(limit)}.`;
+  }
+  return null;
+}
+
+function isQuotaError(error: unknown): boolean {
+  if (!(error instanceof Error) && !(error instanceof DOMException)) {
+    return false;
+  }
+  return error.name === "QuotaExceededError" || /quota/i.test(error.message);
+}
+
+/** A short, user-facing reason for a failed media store. */
+export function describeMediaFailure(error: unknown): { title: string; message: string } {
+  if (isQuotaError(error)) {
+    return {
+      title: "Storage full",
+      message: "Free up space on this device, then retry.",
+    };
+  }
+  if (error instanceof UnsupportedMediaError) {
+    return { title: "Unsupported file", message: error.message };
+  }
+  return { title: "Couldn’t save media", message: "Something went wrong saving this file." };
+}
+
 async function persistImage(
   store: RendererStore,
   noteId: string,
   id: string,
   file: File,
 ): Promise<void> {
+  const problem = mediaFileProblem(file);
+  if (problem) {
+    setMediaUploadState(id, { status: "failed", message: problem, retry: null });
+    showToast({ message: "Can’t add this file", description: problem });
+    return;
+  }
+  setMediaUploadState(id, { status: "saving", label: `Saving ${formatMegabytes(file.size)}…` });
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const dimensions = await readDimensions(file);
+    const dimensions = file.type.startsWith("image/") ? await readDimensions(file) : null;
     const stored = await storeNoteImage(bytes);
     await commitOperations(store, [
       {
@@ -247,8 +312,16 @@ async function persistImage(
         },
       },
     ]);
+    setMediaUploadState(id, null);
   } catch (error) {
-    console.error("image attach rejected", error);
+    console.error("media attach rejected", error);
+    const failure = describeMediaFailure(error);
+    const retry =
+      error instanceof UnsupportedMediaError
+        ? null
+        : () => persistMediaFile(store, noteId, id, file);
+    setMediaUploadState(id, { status: "failed", message: failure.message, retry });
+    showToast({ message: failure.title, description: failure.message });
   }
 }
 

@@ -4,6 +4,9 @@ import { glyphMarkup } from "@/shared/icons/markup";
 import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
 import { resolveMediaPlaybackUrl } from "@/shared/lib/media-playback-url";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import { VIDEO_ACCEPT } from "./image-input";
+import { mediaUploadState, setMediaUploadState, subscribeMediaUploads } from "./media-upload-state";
+import { createUploadStatus } from "./media-touch-ui";
 import { isMediaKind, mediaTitleFromSource, type MediaKind } from "./schema";
 
 export type MediaOpenHandler = (src: string) => void;
@@ -331,6 +334,7 @@ export function createMediaNodeView(
   const dom = document.createElement("div");
   let input: HTMLInputElement | null = null;
   let unsubscribe: (() => void) | null = null;
+  let unsubscribeUploads: (() => void) | null = null;
   let resolvedRefId: string | null = null;
   let paintedKey = "";
 
@@ -350,7 +354,7 @@ export function createMediaNodeView(
   function pickVideo(): void {
     const picker = document.createElement("input");
     picker.type = "file";
-    picker.accept = "video/mp4,video/webm";
+    picker.accept = VIDEO_ACCEPT;
     picker.hidden = true;
     document.body.append(picker);
     picker.addEventListener("change", () => {
@@ -374,23 +378,39 @@ export function createMediaNodeView(
     dom.replaceChildren(notice);
   }
 
+  function removeNode(refId: string): void {
+    const position = getPos();
+    if (position === undefined) return;
+    const current = view.state.doc.nodeAt(position);
+    if (!current || current.type.name !== "media") return;
+    setMediaUploadState(refId, null);
+    view.dispatch(view.state.tr.delete(position, position + current.nodeSize));
+  }
+
+  function rerender(): void {
+    const position = getPos();
+    const current = position === undefined ? null : view.state.doc.nodeAt(position);
+    if (current) render(current);
+  }
+
+  function stopWatching(): void {
+    unsubscribe?.();
+    unsubscribe = null;
+    unsubscribeUploads?.();
+    unsubscribeUploads = null;
+  }
+
   function paintStored(kind: MediaKind, refId: string, title: string): void {
     const image = store.getState().images.get(refId);
     if (!image) {
-      dom.dataset.mediaState = "loading";
-      dom.replaceChildren();
-      unsubscribe ??= store.subscribe(
-        (state) => state.images,
-        () => {
-          const position = getPos();
-          const current = position === undefined ? null : view.state.doc.nodeAt(position);
-          if (current) render(current);
-        },
-      );
+      const upload = mediaUploadState(refId);
+      dom.dataset.mediaState = upload?.status === "failed" ? "failed" : "loading";
+      dom.replaceChildren(...(upload ? [createUploadStatus(upload, () => removeNode(refId))] : []));
+      unsubscribe ??= store.subscribe((state) => state.images, rerender);
+      unsubscribeUploads ??= subscribeMediaUploads(rerender);
       return;
     }
-    unsubscribe?.();
-    unsubscribe = null;
+    stopWatching();
     resolvedRefId = refId;
     const { contentHash, mimeType } = image;
     resolveMediaPlaybackUrl(contentHash, mimeType)
@@ -476,8 +496,7 @@ export function createMediaNodeView(
     },
     destroy() {
       disposePlayer(dom.firstElementChild as HTMLElement | null);
-      unsubscribe?.();
-      unsubscribe = null;
+      stopWatching();
     },
     stopEvent: (event) => event.target instanceof HTMLElement && dom.contains(event.target),
     ignoreMutation: () => true,

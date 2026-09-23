@@ -33,6 +33,7 @@ import { formatSizeBytes } from "@/features/settings/maintenance-model";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { setMediaMetadata } from "@/store/actions/media";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import { useNearViewport } from "@/shared/hooks/use-near-viewport";
 import {
   SettingsHeading,
   settingsButton,
@@ -386,7 +387,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
         </p>
       )}
       <div
-        className="mb-3 flex items-center gap-1 border-b border-border pb-2"
+        className="mb-3 flex items-center gap-1 overflow-x-auto border-b border-border pb-2"
         aria-label="Filter media"
       >
         {MEDIA_FILTERS.map((option) => (
@@ -395,7 +396,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
             type="button"
             aria-pressed={filter === option.id}
             className={cn(
-              "rounded px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground",
+              "shrink-0 rounded px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:px-3 pointer-coarse:text-[13px]",
               filter === option.id && "bg-muted text-foreground",
             )}
             onClick={() => changeFilter(option.id)}
@@ -403,7 +404,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
             {option.label}
           </button>
         ))}
-        <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
+        <span className="ml-auto shrink-0 pl-2 text-[11px] tabular-nums text-muted-foreground">
           {visibleEntries.length} of {entries.length}
         </span>
       </div>
@@ -611,7 +612,7 @@ function MediaCard({
           {selectable && (
             <input
               type="checkbox"
-              className="mt-0.5 shrink-0"
+              className="mt-0.5 shrink-0 pointer-coarse:size-5"
               checked={selected}
               disabled={busy}
               aria-label={`Select ${mediaDisplayName(entry)}`}
@@ -623,7 +624,7 @@ function MediaCard({
           </span>
           <button
             type="button"
-            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:-my-2.5 pointer-coarse:grid pointer-coarse:size-11 pointer-coarse:place-items-center"
             aria-label={entry.name === "" ? "Name this file" : "Rename this file"}
             aria-expanded={editing}
             onClick={() => setEditing((open) => !open)}
@@ -633,7 +634,7 @@ function MediaCard({
           {!isBrowserRuntime() && !entry.missingBlob && (
             <button
               type="button"
-              className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:-my-2.5 pointer-coarse:grid pointer-coarse:size-11 pointer-coarse:place-items-center"
               aria-label={`Show ${mediaDisplayName(entry)} in the file manager`}
               onClick={() => onReveal(entry)}
             >
@@ -669,12 +670,12 @@ function MediaCard({
         </span>
         <span className={settingsRowDescription}>{describeMediaUsage(entry)}</span>
         {entry.usages.length > 0 && (
-          <span className="flex flex-wrap gap-1">
+          <span className="flex flex-wrap gap-1 pointer-coarse:gap-2">
             {entry.usages.map((usage) => (
               <button
                 key={`${usage.noteId}-${usage.surface}-${usage.placement}`}
                 type="button"
-                className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-muted px-1.5 py-0.5 text-[11px] text-foreground hover:bg-accent hover:text-accent-foreground"
+                className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-muted px-1.5 py-0.5 text-[11px] text-foreground hover:bg-accent hover:text-accent-foreground pointer-coarse:min-h-11 pointer-coarse:px-2.5 pointer-coarse:text-[13px]"
                 title={`Open “${usage.title}”`}
                 onClick={() => onOpenReference(usage)}
               >
@@ -783,31 +784,11 @@ const previewClass = "block h-28 w-full border-b border-border bg-muted object-c
 
 function MediaPreview({ entry, onOpen }: { entry: MediaLibraryEntry; onOpen: () => void }) {
   const [url, setUrl] = useState<string | null>(null);
-  const [nearViewport, setNearViewport] = useState(false);
+  const [placeholderRef, nearViewport] = useNearViewport<HTMLSpanElement>("300px");
   const [useBlobFallback, setUseBlobFallback] = useState(false);
-  const placeholderRef = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     setUseBlobFallback(false);
   }, [entry.contentHash, entry.mimeType]);
-  useEffect(() => {
-    const target = placeholderRef.current;
-    if (!target || typeof IntersectionObserver === "undefined") {
-      setNearViewport(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      (observed) => {
-        if (observed.some((observation) => observation.isIntersecting)) {
-          setNearViewport(true);
-        }
-      },
-      { rootMargin: "600px" },
-    );
-    observer.observe(target);
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
   useEffect(() => {
     if (entry.missingBlob || !nearViewport) {
       return;
@@ -832,9 +813,30 @@ function MediaPreview({ entry, onOpen }: { entry: MediaLibraryEntry; onOpen: () 
       cancelled = true;
     };
   }, [entry.contentHash, entry.mimeType, entry.missingBlob, nearViewport, useBlobFallback]);
-  if (!url) {
-    return <span ref={placeholderRef} className={previewClass} aria-hidden="true" />;
-  }
+  return (
+    <span ref={placeholderRef} className="block">
+      {url && nearViewport ? (
+        <MediaPreviewButton
+          entry={entry}
+          url={url}
+          onOpen={onOpen}
+          onVideoError={() => setUseBlobFallback(true)}
+        />
+      ) : (
+        <span className={previewClass} aria-hidden="true" />
+      )}
+    </span>
+  );
+}
+
+type MediaPreviewButtonProps = {
+  entry: MediaLibraryEntry;
+  url: string;
+  onOpen: () => void;
+  onVideoError: () => void;
+};
+
+function MediaPreviewButton({ entry, url, onOpen, onVideoError }: MediaPreviewButtonProps) {
   return (
     <button
       type="button"
@@ -857,7 +859,7 @@ function MediaPreview({ entry, onOpen }: { entry: MediaLibraryEntry; onOpen: () 
             // a frame is decoded; `loadeddata` guarantees that frame exists.
             event.currentTarget.currentTime = 0.001;
           }}
-          onError={() => setUseBlobFallback(true)}
+          onError={onVideoError}
         />
       ) : (
         <img className={previewClass} src={url} alt={entry.alt} loading="lazy" />
