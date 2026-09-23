@@ -1,4 +1,5 @@
 import { authConfiguration } from "@/features/auth/config";
+import { connectFailureText } from "@/features/auth/connect-state";
 import { clearBrowserSessionToken, loadBrowserSessionToken } from "@/features/auth/session-store";
 import { noop } from "@/shared/lib/noop";
 import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
@@ -414,7 +415,7 @@ export function createBrowserSyncDriver(
       if (sessionLost) reconnectFailures += 1;
       if (!(error instanceof SyncSessionRejectedError)) {
         console.error("cloud sync resume failed", error);
-        publishResumeFailure(error instanceof Error ? error.message : String(error));
+        publishResumeFailure(connectFailureText(error));
       }
       return status();
     }
@@ -684,10 +685,20 @@ const SYNC_EVENTS_SUBPROTOCOL = "skriuw-sync-v1";
 /**
  * Wake-hint WebSocket to the workspace events endpoint. Browsers cannot attach
  * an Authorization header to a WebSocket, so the bearer token rides a
- * `skriuw-bearer.<token>` subprotocol entry. Every failure only schedules a
+ * `skriuw-bearer.<token>` subprotocol entry, percent-encoded because a signed
+ * session token holds `/` and `=`, which the WebSocket constructor refuses. Every failure only schedules a
  * capped reconnect: correctness always comes from the polled sync cycle, and
  * the channel state only shapes how often that poll runs.
  */
+/** The bearer token as a WebSocket subprotocol entry the service decodes. */
+export function bearerSubprotocol(token: string): string {
+  const encoded = encodeURIComponent(token).replace(
+    /[()]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `skriuw-bearer.${encoded}`;
+}
+
 function openBrowserPushChannel(
   connection: PushChannelConnection,
   onWake: () => void,
@@ -714,7 +725,7 @@ function openBrowserPushChannel(
       connection.baseUrl.replace(/^http/, "ws") +
       `/v1/workspaces/${connection.workspaceId}/events?deviceId=${connection.deviceId}`;
     try {
-      socket = new WebSocket(url, [SYNC_EVENTS_SUBPROTOCOL, `skriuw-bearer.${token}`]);
+      socket = new WebSocket(url, [SYNC_EVENTS_SUBPROTOCOL, bearerSubprotocol(token)]);
     } catch (error) {
       console.error("sync push channel could not connect", error);
       scheduleReconnect();

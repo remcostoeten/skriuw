@@ -29,3 +29,16 @@ test("a connect failure is published to subscribers and described distinctly fro
   assert.equal(seen.length, 2);
   clearConnectFailure();
 });
+
+test("a storage worker failure object reports its message instead of [object Object]", () => {
+  reportConnectFailure({
+    code: "invalid_request",
+    message: "This workspace is linked to another cloud workspace.",
+    recovery: "Correct the request and retry.",
+    terminal: false,
+  });
+  assert.equal(latestConnectFailure(), "This workspace is linked to another cloud workspace.");
+  reportConnectFailure({ code: "worker_crashed" });
+  assert.equal(latestConnectFailure(), "[object Object]");
+  clearConnectFailure();
+});

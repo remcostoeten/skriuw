@@ -82,6 +82,9 @@ const BEARER_SUBPROTOCOL_PREFIX = "skriuw-bearer.";
  * the events route also accepts the bearer token as a `skriuw-bearer.<token>`
  * entry in Sec-WebSocket-Protocol. The header path remains canonical; when an
  * Authorization header is present the subprotocol is ignored.
+ *
+ * Session tokens carry `/` and `=`, which a subprotocol may not contain, so
+ * the client percent-encodes the token; `%` is a valid subprotocol character.
  */
 export function requestWithSubprotocolCredential(request: Request): Request {
   if (request.headers.get("Authorization") !== null) {
@@ -96,12 +99,23 @@ export function requestWithSubprotocolCredential(request: Request): Request {
     .map((protocol) => protocol.trim())
     .find((protocol) => protocol.startsWith(BEARER_SUBPROTOCOL_PREFIX))
     ?.slice(BEARER_SUBPROTOCOL_PREFIX.length);
-  if (!token || /[\s,]/.test(token)) {
+  const decoded = token === undefined ? null : decodeSubprotocolToken(token);
+  if (!decoded) {
     return request;
   }
   const headers = new Headers(request.headers);
-  headers.set("Authorization", `Bearer ${token}`);
+  headers.set("Authorization", `Bearer ${decoded}`);
   return new Request(request.url, { method: request.method, headers });
+}
+
+function decodeSubprotocolToken(encoded: string): string | null {
+  let token: string;
+  try {
+    token = decodeURIComponent(encoded);
+  } catch {
+    return null;
+  }
+  return token.length === 0 || /[\s,]/.test(token) ? null : token;
 }
 
 export function offersSyncEventsSubprotocol(headers: Headers): boolean {

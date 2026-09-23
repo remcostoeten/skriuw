@@ -18,6 +18,7 @@ import {
 
 const NOW = 1_900_000_000;
 const VALID_TOKEN = "valid-token";
+const SIGNED_TOKEN = "RJLzPY8Jdug6tmhF.vH11P7qAab/GmqxDH0+oq5ik7+eOK6mobTw1wb6gla7E=";
 const SUBJECT = "user-1";
 const DEVICE_ID = "device-1";
 const OTHER_DEVICE_ID = "device-2";
@@ -26,14 +27,16 @@ class DeterministicCredentialVerifier implements CredentialVerifier {
   readonly results = new Map<string, CredentialVerification>();
 
   constructor() {
-    this.results.set(VALID_TOKEN, {
-      ok: true,
-      identity: {
-        subject: SUBJECT,
-        sessionId: "session-1",
-        expiresAtEpochSeconds: NOW + 3_600,
-      },
-    });
+    for (const token of [VALID_TOKEN, SIGNED_TOKEN]) {
+      this.results.set(token, {
+        ok: true,
+        identity: {
+          subject: SUBJECT,
+          sessionId: "session-1",
+          expiresAtEpochSeconds: NOW + 3_600,
+        },
+      });
+    }
   }
 
   async verifyBearerToken(token: string): Promise<CredentialVerification> {
@@ -179,6 +182,23 @@ describe("sync events channel", () => {
 
     expect(response.status).toBe(101);
     expect(response.headers.get("Sec-WebSocket-Protocol")).toBe("skriuw-sync-v1");
+    response.webSocket!.accept();
+    response.webSocket!.close();
+  });
+
+  it("accepts a percent-encoded signed session token as a subprotocol credential", async () => {
+    const context = createContext();
+    context.memberships.allow("events-encoded-subprotocol");
+
+    const response = await handlePublicSyncRequest(
+      eventsRequest("events-encoded-subprotocol", {
+        token: null,
+        subprotocols: `skriuw-sync-v1, skriuw-bearer.${encodeURIComponent(SIGNED_TOKEN)}`,
+      }),
+      context.dependencies,
+    );
+
+    expect(response.status).toBe(101);
     response.webSocket!.accept();
     response.webSocket!.close();
   });

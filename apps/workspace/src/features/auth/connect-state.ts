@@ -12,8 +12,18 @@ function publish(): void {
   for (const listener of listeners) listener();
 }
 
+/**
+ * Readable reason for a failed connect. The browser storage worker and the
+ * desktop shell reject with plain `{ message }` objects rather than `Error`s,
+ * which would otherwise render as "[object Object]".
+ */
 export function connectFailureText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null) {
+    const { message } = error as { message?: unknown };
+    if (typeof message === "string" && message.length > 0) return message;
+  }
+  return String(error);
 }
 
 export function reportConnectFailure(error: unknown): void {
