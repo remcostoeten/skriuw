@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  bearerSubprotocol,
   classifyDriverFailure,
   createBrowserSyncDriver,
   DRIVER_FAILURE_AFTER_RECONNECTS,
@@ -687,4 +688,11 @@ test("driver failures classify by code, terminal flag, and lost-session messages
     }),
     "terminal",
   );
+});
+
+test("the bearer subprotocol entry is a valid WebSocket token for a signed session token", () => {
+  const token = "RJLzPY8Jdug6tmhF.vH11P7qAab/GmqxDH0+oq5ik7+eOK6mobTw1wb6gla7E=";
+  const entry = bearerSubprotocol(token);
+  assert.match(entry, /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/);
+  assert.equal(decodeURIComponent(entry.slice("skriuw-bearer.".length)), token);
 });

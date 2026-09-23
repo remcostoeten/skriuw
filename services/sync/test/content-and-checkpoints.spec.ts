@@ -13,6 +13,7 @@ import { WorkspaceContentStore, contentDigest } from "../src/content-store";
 import {
   CANONICAL_CHUNK_BYTES,
   MAX_WORKSPACE_STORAGE_BYTES,
+  SUPPORTED_ARCHIVE_VERSIONS,
   type SyncPullResponse,
   type SyncPullResult,
   parseSyncPullResponse,
@@ -156,7 +157,7 @@ async function buildCheckpoint(
   return {
     checkpointVersion: 1,
     syncProtocolVersion: 2,
-    archiveVersion: 3,
+    archiveVersion: archive.archiveVersion,
     workspaceId,
     serverSequence,
     createdAt: NOW,
@@ -379,6 +380,35 @@ describe("checkpoint publication and hydration", () => {
       serverSequence: 1,
       archiveVersion: 3,
     });
+  });
+
+  it("publishes a checkpoint in the newest archive version a client writes", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-checkpoint-current");
+    await handlePublicSyncRequest(
+      jsonRequest("workspace-checkpoint-current", "push", "POST", {
+        syncProtocolVersion: 1,
+        deviceId: DEVICE_ID,
+        operations: goldenPushV2.operations.slice(0, 1).map((operation) => ({
+          operationId: operation.operationId,
+          clientSequence: operation.clientSequence,
+          baseServerSequence: operation.baseServerSequence,
+          operation: operation.payload.operation,
+        })),
+      }),
+      harness.dependencies,
+    );
+    const newest = Math.max(...SUPPORTED_ARCHIVE_VERSIONS);
+
+    const checkpoint = await buildCheckpoint("workspace-checkpoint-current", 1, harness.store, {
+      archiveVersion: newest,
+    });
+    const published = await handlePublicSyncRequest(
+      jsonRequest("workspace-checkpoint-current", "checkpoint", "POST", checkpoint),
+      harness.dependencies,
+    );
+
+    expect(published.status).toBe(200);
   });
 
   it("never publishes a checkpoint whose content is missing", async () => {
