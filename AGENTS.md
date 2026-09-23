@@ -59,6 +59,7 @@ Read `docs/performance-contract.md` before changing navigation, editor, store su
 - Keep transient editor and interaction state out of broad React context.
 - Import from the owning module instead of introducing new barrel exports.
 - Cover behavior through public user or domain interfaces, not implementation details.
+- Put v2 TypeScript suites at `__tests__/<path of the code they cover>` and write them for Vitest; see `docs/testing.md`.
 
 ## Rust and persistence
 

@@ -9,7 +9,7 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 import { useTheme } from "../../shell/theme";
-import { formatLongDate, type DateKey } from "./dates";
+import { formatLongDate, type DateKey } from "@skriuw/renderer-core/journal/dates";
 import { MOOD_OPTIONS } from "./model";
 import { moodBarLevel, moodTrendSummary, type MoodTrend } from "./mood-trend";
 

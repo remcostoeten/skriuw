@@ -61,27 +61,8 @@ run_step() {
 command -v bun >/dev/null 2>&1 || fail "Missing required command: bun"
 [[ -d "$mobile_dir/node_modules" ]] || fail "Mobile dependencies are missing. Run bun install at the repository root."
 
-# The test script globs `**/__tests__/*.test.?ts`, so a suite written anywhere
-# else is collected by nothing and fails silently by never running. Sixteen of
-# these accumulated during the mobile epic before anyone noticed.
-check_test_discovery() {
-  local stray
-  stray="$(
-    find "$mobile_dir" \
-      \( -path '*/node_modules' -o -path '*/.expo' -o -path '*/android/build' \) -prune -o \
-      -type f \( -name '*.test.ts' -o -name '*.test.tsx' -o -name '*.test.cts' -o -name '*.test.mts' \) -print |
-      grep -v '/__tests__/' |
-      sed "s|^$repo_dir/||" |
-      sort
-  )"
-  if [[ -n "$stray" ]]; then
-    printf 'These suites are outside a __tests__ directory, so the gate never runs them:\n%s\n' "$stray" >&2
-    return 1
-  fi
-}
-
 run_step "Root lockfile freshness" bun install --frozen-lockfile --dry-run
-run_step "Test discovery" check_test_discovery
+run_step "Test layout" "$repo_dir/scripts/check-test-layout.sh"
 run_step "Mobile type safety" bun --cwd="$mobile_dir" run typecheck
 run_step "Mobile unit tests" bun --cwd="$mobile_dir" run test
 

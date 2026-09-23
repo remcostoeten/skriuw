@@ -430,8 +430,8 @@ note label. Completed rows are de-emphasized.
 | `apps/workspace/src/features/editor/block-locations.ts` *(new)* | Position and top-level index of a `blockId` |
 | `apps/workspace/src/features/editor/task-paste.ts` *(new)* | Fresh identity for pasted `check_item`s |
 | `apps/workspace/src/store/store.ts` | Apply a task operation's paired document optimistically |
-| `apps/workspace/__tests__/features/tasks/tasks-model.test.ts` *(new)* | Projection, grouping, detached handling |
-| `apps/workspace/__tests__/features/tasks/task-operations.test.ts` *(new)* | Paired writes, refusal cases |
+| `__tests__/apps/workspace/src/features/tasks/tasks-model.test.ts` *(new)* | Projection, grouping, detached handling |
+| `__tests__/apps/workspace/src/features/tasks/task-operations.test.ts` *(new)* | Paired writes, refusal cases |
 | `docs/FEATURES.md` | Document the surface |
 
 Do not change anything under `crates/`, `contracts/generated/`, or
@@ -501,7 +501,7 @@ Steps 1–2 are shippable alone as a read-only surface.
 
 ### Regression
 
-- [ ] `apps/workspace/__tests__/features/editor/tasks.test.ts`,
+- [ ] `__tests__/apps/workspace/src/features/editor/tasks.test.ts`,
       `task-promotion.test.ts`, and `check-list.test.ts` pass unmodified.
 - [ ] `./bin/check` passes.
 

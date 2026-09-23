@@ -10,6 +10,6 @@
   "scripts": {
     "generate": "bun generate.ts",
     "check": "bun generate.ts --check",
-    "test": "bun test"
+    "test": "bun --cwd=../.. vitest run --project theme"
   }
 }

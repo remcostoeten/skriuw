@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { formatListDate } from "@/features/journal/dates";
+import { formatListDate } from "@skriuw/renderer-core/journal/dates";
 import { openJournalDay } from "@/features/journal/navigation";
 import { activateNote } from "@/store/actions/workspace";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";

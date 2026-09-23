@@ -79,13 +79,13 @@ case "$mode" in
 esac
 
 case "$mode" in
-  check) total_steps=15 ;;
-  ci) total_steps=17 ;;
+  check) total_steps=17 ;;
+  ci) total_steps=19 ;;
   ci:rust) total_steps=4 ;;
   ci:desktop) total_steps=1 ;;
-  ci:renderer) total_steps=10 ;;
+  ci:renderer) total_steps=12 ;;
   ci:release) total_steps=3 ;;
-  *) total_steps=16 ;;
+  *) total_steps=18 ;;
 esac
 
 step_index=0
@@ -288,19 +288,19 @@ rust_test_summary() {
 renderer_summary() {
   local log="$1"
   local tests coverage
-  tests="$(sed -n 's/^ℹ tests //p' "$log" | tail -n 1)"
-  coverage="$(awk -F '|' '/all files/ {
-    for (field = 2; field <= 4; field += 1) gsub(/[[:space:]]/, "", $field)
-    result = $2 "% lines · " $3 "% branches · " $4 "% functions"
+  tests="$(sed -n 's/^ *Tests  *//p' "$log" | tail -n 1)"
+  coverage="$(awk -F '|' '/^All files/ {
+    for (field = 2; field <= 5; field += 1) gsub(/[[:space:]]/, "", $field)
+    result = $5 "% lines · " $3 "% branches · " $4 "% functions"
   } END { print result }' "$log")"
-  printf '%s tests · executed source: %s' "${tests:-0}" "${coverage:-coverage unavailable}"
+  printf '%s · source coverage: %s' "${tests:-0 tests}" "${coverage:-coverage unavailable}"
 }
 
-node_test_summary() {
+vitest_summary() {
   local log="$1"
   local tests
-  tests="$(sed -n 's/^ℹ tests //p' "$log" | tail -n 1)"
-  printf '%s passed' "${tests:-0}"
+  tests="$(sed -n 's/^ *Tests  *//p' "$log" | tail -n 1)"
+  printf '%s' "${tests:-0 passed}"
 }
 
 print_metric() {
@@ -394,11 +394,15 @@ if gate_includes desktop; then
   print_metric "$(rust_test_summary "$last_log")"
 fi
 if gate_includes renderer; then
+  run_step "Test layout" "test-layout" "$repo_dir/scripts/check-test-layout.sh"
   run_step "UI architecture regression suite" "ui-architecture-tests" bun --cwd="$repo_dir/apps/workspace/harnesses/ui-architecture" run test
-  print_metric "$(node_test_summary "$last_log")"
+  print_metric "$(vitest_summary "$last_log")"
   run_step "Renderer-store regression suite" "renderer-store-tests" bun --cwd="$repo_dir/apps/workspace/harnesses/renderer-store" run test
-  print_metric "$(node_test_summary "$last_log")"
+  print_metric "$(vitest_summary "$last_log")"
   run_step "Shared icon geometry and motion suite" "icon-tests" bun --cwd="$repo_dir/packages/icons" run verify
+  print_metric "$(vitest_summary "$last_log")"
+  run_step "Shared theme token suite" "theme-tests" bun --cwd="$repo_dir/packages/theme" run test
+  print_metric "$(vitest_summary "$last_log")"
   run_step "Renderer test suite and coverage" "renderer-tests" bun --cwd="$app_dir" run test
   print_metric "$(renderer_summary "$last_log")"
   run_step "Renderer type safety" "renderer-typecheck" bun --cwd="$app_dir" run typecheck

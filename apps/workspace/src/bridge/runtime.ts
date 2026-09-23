@@ -17,7 +17,7 @@ import {
 } from "./browser-media";
 import { pickTextFile, readPickedFile, saveTextFile } from "./browser-files";
 import { browserSyncDriver, publishBrowserSyncEvent, type SyncWorkerPort } from "./browser-sync";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 import { clearSkriuwLocalState } from "./local-state";
 import {
   activeDatabaseName,

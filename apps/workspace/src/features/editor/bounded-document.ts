@@ -1,3 +1,4 @@
+import { clamp } from "@skriuw/shared/helpers/clamp";
 import { Fragment, type Attrs, type Node as ProseMirrorNode } from "prosemirror-model";
 import { productSchema } from "./schema";
 
@@ -116,10 +117,6 @@ function changedRange(
     before: before.slice(prefix, before.length - suffix),
     after: after.slice(prefix, after.length - suffix),
   };
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value));
 }
 
 function spansIntersect(

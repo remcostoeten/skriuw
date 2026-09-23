@@ -1,0 +1,8 @@
+{
+  "extends": "../../apps/workspace/tsconfig.json",
+  "compilerOptions": {
+    "typeRoots": ["../../apps/workspace/node_modules/@types"],
+    "paths": {}
+  },
+  "include": ["*.ts", "../../vitest.config.ts", "../../services/sync/vitest.config.ts"]
+}

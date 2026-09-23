@@ -17,7 +17,7 @@ import {
   todayKey,
   type DateKey,
   type MonthKey,
-} from "./dates";
+} from "@skriuw/renderer-core/journal/dates";
 import { daySwipeStep } from "./day-swipe";
 import { GoToDateSheet } from "./go-to-date-sheet";
 import { JournalCalendar } from "./journal-calendar";

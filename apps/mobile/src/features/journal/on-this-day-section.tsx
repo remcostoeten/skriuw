@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme } from "../../shell/theme";
-import { formatListDate, type DateKey } from "./dates";
+import { formatListDate, type DateKey } from "@skriuw/renderer-core/journal/dates";
 import { MOOD_OPTIONS } from "./model";
 import type { Anniversary } from "./on-this-day";
 

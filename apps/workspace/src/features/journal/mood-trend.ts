@@ -1,4 +1,4 @@
-import { shiftDay, type DateKey } from "./dates";
+import { shiftDay, type DateKey } from "@skriuw/renderer-core/journal/dates";
 import { MOOD_LEVELS, MOOD_OPTIONS, type JournalEntry, type MoodLevel } from "./model";
 
 export type MoodTrendDay = {

@@ -8,8 +8,8 @@ import {
   JOURNAL_DATE_SUGGESTIONS,
   resolveJournalDateExpression,
   type JournalDateResolution,
-} from "./date-expressions";
-import { formatLongDate, todayKey, type DateKey } from "./dates";
+} from "@skriuw/renderer-core/journal/date-expressions";
+import { formatLongDate, todayKey, type DateKey } from "@skriuw/renderer-core/journal/dates";
 import { onJournalGoToDate, openJournalDay } from "./navigation";
 
 type HostProps = {

@@ -36,7 +36,7 @@ import {
   todayKey,
   type DateKey,
   type MonthKey,
-} from "./dates";
+} from "@skriuw/renderer-core/journal/dates";
 import { daySwipeStep } from "./day-swipe";
 import { EntryStarter } from "./entry-starter";
 import { JournalCalendar } from "./journal-calendar";

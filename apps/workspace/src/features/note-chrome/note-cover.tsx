@@ -1,3 +1,4 @@
+import { clamp } from "@skriuw/shared/helpers/clamp";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commitOperations } from "@/store/actions/workspace";
 import { downloadRemoteMedia, listMediaBlobs, storeNoteImage } from "@/bridge/commands";
@@ -14,7 +15,7 @@ import {
   RestoreIcon,
   SearchIcon,
 } from "@/shared/icons/static";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 import { cn } from "@/shared/lib/utils";
 import {
   ContextMenu,
@@ -71,10 +72,6 @@ function selectMediaMetadata(state: RendererState) {
 
 function selectImages(state: RendererState) {
   return state.images;
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value));
 }
 
 async function imageDimensions(file: File): Promise<ImageDimensions | null> {

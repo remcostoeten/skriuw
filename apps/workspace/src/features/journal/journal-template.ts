@@ -12,10 +12,10 @@ import { NOTE_TEMPLATES, type NoteTemplate } from "@/features/templates/note-tem
 import { personalTemplates } from "@/features/templates/personal-templates";
 import { documentTitleText, type IdFactory } from "@/store/actions/duplicate-note";
 import { commitOperations, isRevisionConflict } from "@/store/actions/workspace";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 import { flushPendingWork } from "@/shell/pending-work";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import { parseDateKey, type DateKey } from "./dates";
+import { parseDateKey, type DateKey } from "@skriuw/renderer-core/journal/dates";
 
 export const JOURNAL_TEMPLATE_SETTING = "journalTemplateId";
 

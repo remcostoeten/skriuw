@@ -1,6 +1,6 @@
 import { useCallback, useSyncExternalStore } from "react";
 
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 
 /**
  * Tracks a CSS media query so layout decisions React cannot express in a class

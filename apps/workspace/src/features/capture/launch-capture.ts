@@ -1,5 +1,5 @@
 import { appRouteHash, journalDayHash } from "@skriuw/renderer-core/route/app-route";
-import { todayKey } from "@/features/journal/dates";
+import { todayKey } from "@skriuw/renderer-core/journal/dates";
 import {
   planMarkdownImport,
   sanitizeFileName,

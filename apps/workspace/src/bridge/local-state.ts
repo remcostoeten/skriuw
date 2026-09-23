@@ -1,4 +1,4 @@
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 
 /** Removes renderer-only Skriuw state without disturbing other apps on the origin. */
 export function clearSkriuwLocalState(storage?: Storage): void {

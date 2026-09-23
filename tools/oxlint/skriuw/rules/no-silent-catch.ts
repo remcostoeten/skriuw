@@ -10,7 +10,7 @@ export const noSilentCatchRule = defineRule({
     },
     messages: {
       silentCatch:
-        "Handle or log this error. To swallow it deliberately, call `noop()` from `@/shared/lib/noop`.",
+        "Handle or log this error. To swallow it deliberately, call `noop()` from `@skriuw/shared/helpers/noop`.",
     },
   },
   create(context) {

@@ -854,8 +854,8 @@ If you touch the save path, re-measure keystroke-to-paint against the
 | `apps/workspace/src/store/store.ts` | Hydrate `snapshot.tasks`; apply the five task operations | Renderer projection of canonical state. |
 | `apps/workspace/src/features/editor/editor.css` | Focus ring for the now-focusable `.check-item-box` | Visual only. Do not add task-specific chrome in v1. |
 | `apps/workspace/src/features/editor/editor-bound-shortcut-ids.ts` | Register the toggle shortcut id | Shortcut registry. |
-| `apps/workspace/__tests__/features/editor/tasks.test.ts` *(new)* | Input rule, transitions, false positives, Enter/Tab, serialization | Mirrors `src/` per the repository's test-layout convention. |
-| `apps/workspace/__tests__/features/editor/check-list.test.ts` | Add regression assertions that `[] ` still produces an **unlinked** item | Guards the checkbox. |
+| `__tests__/apps/workspace/src/features/editor/tasks.test.ts` *(new)* | Input rule, transitions, false positives, Enter/Tab, serialization | Mirrors `src/` per the repository's test-layout convention. |
+| `__tests__/apps/workspace/src/features/editor/check-list.test.ts` | Add regression assertions that `[] ` still produces an **unlinked** item | Guards the checkbox. |
 | `docs/adr/0032-task-shaped-typing-is-explicit.md` *(new)* | Amend ADR 0031's "nothing promotes implicitly" for the typing gesture | Durable reasoning. |
 | `docs/FEATURES.md` | Document the checkbox/task distinction | User-facing feature list. |
 
@@ -990,10 +990,10 @@ records materialize once the store slice lands.
 
 ## Test plan
 
-New file `apps/workspace/__tests__/features/tasks/tasks.test.ts` (or
-`apps/workspace/__tests__/features/editor/tasks.test.ts` to sit beside the editor tests).
+New file `__tests__/apps/workspace/src/features/tasks/tasks.test.ts` (or
+`__tests__/apps/workspace/src/features/editor/tasks.test.ts` to sit beside the editor tests).
 Reuse the `stateWithText` / `typeText` harness from
-`apps/workspace/__tests__/features/editor/check-list.test.ts:11-42` — note that its
+`__tests__/apps/workspace/src/features/editor/check-list.test.ts:11-42` — note that its
 `typeText` feeds the whole string at once; the task tests need per-character
 feeding so `- ` fires before `[] ` is seen.
 
@@ -1133,7 +1133,7 @@ feeding so `- ` fires before `[] ` is seen.
     is introduced.
 14. Keystroke-to-paint stays within `docs/performance-contract.md`; no IPC,
     database read, or workspace scan runs on the editing path.
-15. `apps/workspace/__tests__/features/editor/check-list.test.ts` and
+15. `__tests__/apps/workspace/src/features/editor/check-list.test.ts` and
     `task-promotion.test.ts` pass unmodified.
 16. New tests cover input rules, false positives, editing, toggling, copy/paste,
     slash commands, serialization, and store application.

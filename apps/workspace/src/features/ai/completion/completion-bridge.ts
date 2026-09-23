@@ -1,7 +1,7 @@
 import { Channel } from "@tauri-apps/api/core";
 import type { AiCompletionEvent, AiCompletionRequest } from "@/contracts/ai";
 import { invoke, requireDesktopRuntime } from "@/bridge/runtime";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 
 export type AiCompletionHandle = {
   cancel: () => Promise<boolean>;

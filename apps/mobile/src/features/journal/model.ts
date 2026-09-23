@@ -7,7 +7,7 @@ import {
 } from "@skriuw/renderer-core/journal/constants";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 import type { TokenName } from "@skriuw/theme/tokens";
-import { isDateKey, type DateKey } from "./dates";
+import { isDateKey, type DateKey } from "@skriuw/renderer-core/journal/dates";
 
 export { JOURNAL_DATE_PROPERTY_ID, JOURNAL_MOOD_PROPERTY_ID, JOURNAL_ROOT_ID, JOURNAL_ROOT_TITLE };
 

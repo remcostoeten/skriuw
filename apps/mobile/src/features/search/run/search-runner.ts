@@ -1,7 +1,11 @@
 import type { SearchHit } from "@skriuw/renderer-core/contracts/workspace";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
-import { describeSearchFilterProblem } from "../query/filter-resolution";
-import { applySearchPlan, planWorkspaceSearch, type SearchPlanStatus } from "../query/search-plan";
+import { describeSearchFilterProblem } from "@skriuw/renderer-core/search/filter-resolution";
+import {
+  applySearchPlan,
+  planWorkspaceSearch,
+  type SearchPlanStatus,
+} from "@skriuw/renderer-core/search/search-plan";
 
 export const SEARCH_RESULT_LIMIT = 50;
 

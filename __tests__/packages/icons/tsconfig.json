@@ -1,0 +1,7 @@
+{
+  "extends": "../../../packages/icons/tsconfig.json",
+  "compilerOptions": {
+    "typeRoots": ["../../../packages/icons/node_modules/@types"]
+  },
+  "include": ["**/*.ts"]
+}

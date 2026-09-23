@@ -49,6 +49,6 @@ Still outside this directory:
 
 ## Checks
 
-`bin/check mobile` typechecks this directory and runs the `.cts`
-suites in `__tests__`, including the Mobile 16 invariants: no bridge call
+`bin/check mobile` typechecks this directory and runs the suites in
+`__tests__/apps/mobile/src/editor/`, including the Mobile 16 invariants: no bridge call
 across 100 note switches and no synchronous bridge call across 60 changes.

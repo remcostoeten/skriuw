@@ -1,0 +1,15 @@
+{
+  "extends": "../../../apps/mobile/tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "typeRoots": ["../../../apps/mobile/node_modules/@types"],
+    "paths": {
+      "@/*": ["../../../apps/mobile/src/*"],
+      "@skriuw/renderer-core/*": ["../../../packages/renderer-core/src/*"],
+      "@skriuw/theme": ["../../../packages/theme/index.ts"],
+      "@skriuw/icons": ["../../../packages/icons/index.ts"],
+      "react": ["../../../apps/mobile/node_modules/@types/react"]
+    }
+  },
+  "include": ["**/*.ts"]
+}

@@ -4,7 +4,7 @@
  * `docs/specs/journal-daily.md` under "On this day".
  */
 
-import { shiftDay, shiftMonthKeepingDay, type DateKey } from "./dates";
+import { shiftDay, shiftMonthKeepingDay, type DateKey } from "@skriuw/renderer-core/journal/dates";
 import type { JournalEntry } from "./model";
 
 export type Anniversary = {

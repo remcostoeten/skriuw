@@ -14,7 +14,7 @@ import {
   type CalendarDay,
   type DateKey,
   type MonthKey,
-} from "./dates";
+} from "@skriuw/renderer-core/journal/dates";
 
 type Props = {
   month: MonthKey;

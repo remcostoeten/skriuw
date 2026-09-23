@@ -6,7 +6,7 @@ import {
   productSchema,
   serializeProductMarkdown,
 } from "@/features/editor/schema";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 export type MarkdownExportEntry = {

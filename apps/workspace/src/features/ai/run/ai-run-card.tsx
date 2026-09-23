@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { EditorView } from "prosemirror-view";
 import { detectPlatform } from "@remcostoeten/use-shortcut/constants";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 import { diffWords, type DiffSegment } from "@/shared/lib/word-diff";
 import { Button } from "@/shared/ui/button";
 import { Checkbox } from "@/shared/ui/checkbox";

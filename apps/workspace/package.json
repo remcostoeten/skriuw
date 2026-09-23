@@ -17,7 +17,7 @@
     "e2e:browser-scale": "node e2e/browser-scale.mjs",
     "e2e:mobile": "node e2e/mobile-shell.mjs",
     "e2e:native": "node e2e/run-native.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit --project ../../__tests__/support",
     "tauri": "../../scripts/tauri.sh",
     "tauri:cli": "tauri",
     "tauri:dev": "tauri dev",
@@ -75,7 +75,8 @@
     "react-dom": "19.2.7",
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
-    "yaml": "^2.8.1"
+    "yaml": "^2.8.1",
+    "@skriuw/shared": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

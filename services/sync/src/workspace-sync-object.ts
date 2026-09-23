@@ -1,7 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 
 import { WorkspaceContentStore } from "./content-store";
-import { noop } from "./shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 import { SYNC_EVENTS_DEVICE_HEADER, SYNC_EVENTS_EXPIRY_HEADER } from "./public-api";
 import {
   type AcknowledgementResult,

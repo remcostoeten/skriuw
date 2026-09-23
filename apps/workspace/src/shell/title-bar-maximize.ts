@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { hasTauriRuntime } from "@/bridge/external-links";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 
 /**
  * Restores the OS title-bar gesture the undecorated window loses: a double
