@@ -68,3 +68,9 @@ test("journal routes resolve with an optional day focus", () => {
   assert.equal(resolveRouteFocus("#/journal"), null);
   assert.equal(journalDayHash("2026-07-27"), "#/journal/2026-07-27");
 });
+
+test("the media library has its own full-screen route", () => {
+  assert.equal(resolveAppRoute("#/media"), "media");
+  assert.equal(appRouteHash("media"), "#/media");
+  assert.equal(resolveRouteFocus("#/media"), null);
+});

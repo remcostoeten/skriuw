@@ -298,6 +298,7 @@ pub fn extension_for(mime_type: &str) -> &'static str {
         "image/webp" => "webp",
         "video/mp4" => "mp4",
         "video/webm" => "webm",
+        "video/quicktime" => "mov",
         _ => "img",
     }
 }
@@ -312,7 +313,21 @@ pub fn mime_for_extension(extension: &str) -> Option<&'static str> {
         "webp" => Some("image/webp"),
         "mp4" => Some("video/mp4"),
         "webm" => Some("video/webm"),
+        "mov" => Some("video/quicktime"),
         _ => None,
+    }
+}
+
+/// HEIC/HEIF stills share the ISO-BMFF container with MP4 and QuickTime, so
+/// the major brand decides; stills are unsupported rather than stored as video.
+/// Must stay in sync with `isoBrandMime` in `apps/workspace/src/bridge/browser-media.ts`.
+fn iso_brand_mime(brand: &[u8]) -> Option<&'static str> {
+    match brand {
+        b"heic" | b"heix" | b"hevc" | b"hevx" | b"heim" | b"heis" | b"mif1" | b"msf1" | b"heif" => {
+            None
+        }
+        b"qt  " => Some("video/quicktime"),
+        _ => Some("video/mp4"),
     }
 }
 
@@ -332,7 +347,7 @@ pub fn sniff_mime(bytes: &[u8]) -> Option<&'static str> {
         return Some("image/webp");
     }
     if bytes.len() >= 12 && &bytes[4..8] == b"ftyp" {
-        return Some("video/mp4");
+        return iso_brand_mime(&bytes[8..12]);
     }
     if bytes.starts_with(&[0x1a, 0x45, 0xdf, 0xa3]) && contains_webm_doctype(bytes) {
         return Some("video/webm");
@@ -499,6 +514,14 @@ mod tests {
         assert_eq!(
             sniff_mime(b"\x00\x00\x00\x20ftypisom\x00\x00\x02\x00"),
             Some("video/mp4")
+        );
+        assert_eq!(
+            sniff_mime(b"\x00\x00\x00\x14ftypqt  \x00\x00\x02\x00"),
+            Some("video/quicktime")
+        );
+        assert_eq!(
+            sniff_mime(b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00"),
+            None
         );
         assert_eq!(
             sniff_mime(b"\x1a\x45\xdf\xa3\x01\x00\x00\x00\x00\x00\x00\x1f\x42\x86webm"),

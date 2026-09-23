@@ -9,6 +9,7 @@ import {
   CloudOffIcon,
   DatabaseIcon,
   DownloadIcon,
+  ImageIcon,
   InfoIcon,
   KeyboardIcon,
   LogOutIcon,
@@ -34,6 +35,7 @@ import { Tooltip } from "@/shared/ui/tooltip";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import { installOffered, promptInstall, subscribeInstallOffer } from "@/bridge/install-prompt";
 import { useShortcutHints } from "@/commands/hints";
+import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   accountDisplayName,
@@ -358,6 +360,14 @@ export function AccountMenu({
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
             )}
+            <DropdownMenuItem
+              onSelect={() => {
+                window.location.hash = appRouteHash("media");
+              }}
+            >
+              <ImageIcon size={15} className="shrink-0" aria-hidden="true" />
+              Media library
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => onOpenSettings("data")}>
               <DatabaseIcon size={15} className="shrink-0" aria-hidden="true" />
               Data and recovery

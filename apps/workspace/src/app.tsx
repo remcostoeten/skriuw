@@ -32,6 +32,7 @@ import { ShortcutHelpOverlay } from "@/commands/shortcut-help-overlay";
 import { TrashView } from "@/features/trash/trash-view";
 import { EntityView } from "@/features/references/entity-view";
 import { TasksView } from "@/features/tasks/tasks-view";
+import { MediaLibraryView } from "@/features/media/media-library-view";
 import { HistoryView } from "@/features/history/history-view";
 import { JournalSidebar, JournalView } from "@/features/journal/journal-view";
 import { WindowControls } from "@/shell/window-controls";
@@ -752,6 +753,7 @@ function WorkspaceShell({ store }: Props) {
         )}
         {route === "tasks" && <TasksView store={store} />}
         {route === "trash" && <TrashView store={store} />}
+        {route === "media" && <MediaLibraryView store={store} />}
         {route === "prompt-playground" && (
           <AiOptInGate store={store}>
             {(signal) => (

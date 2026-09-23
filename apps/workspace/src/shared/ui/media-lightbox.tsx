@@ -1,4 +1,5 @@
 import {
+  CloseIcon,
   CopyIcon,
   EnterFullscreenIcon,
   ExitFullscreenIcon,
@@ -11,8 +12,22 @@ import {
   VolumeOffIcon,
 } from "@/shared/icons/static";
 import { useEffect, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { formatByteSize } from "@/shared/lib/format-bytes";
-import { Dialog } from "./dialog";
+import { Dialog, useDialogClose } from "./dialog";
+import {
+  clampPan,
+  DOUBLE_TAP_SLOP_PX,
+  IDENTITY_ZOOM,
+  isDoubleTap,
+  midpoint,
+  pointDistance,
+  swipeDismisses,
+  toggleZoom,
+  zoomAround,
+  type Point,
+  type ZoomTransform,
+} from "./zoom-gesture";
 import { cn } from "@/shared/lib/utils";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 
@@ -30,11 +45,15 @@ type MediaLightboxProps = {
   mimeType: string;
   byteSize: number;
   contentHash: string;
+  title?: string;
+  alt?: string;
   dimensions?: string | null;
   addedAt?: number | null;
   usages?: readonly MediaLightboxUsage[];
   onVideoError?: () => void;
 };
+
+const touchTargetClass = "pointer-coarse:min-h-11 pointer-coarse:min-w-11";
 
 export function MediaLightbox({
   open,
@@ -43,20 +62,23 @@ export function MediaLightbox({
   mimeType,
   byteSize,
   contentHash,
+  title = "Media preview",
+  alt = "",
   dimensions,
   addedAt,
   usages = [],
   onVideoError,
 }: MediaLightboxProps) {
-  const usageCount = usages.length;
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Media preview"
-      className="h-dvh max-h-none w-screen max-w-none rounded-none border-0"
+      title={title}
+      showHeader={false}
+      className="h-dvh max-h-none w-screen max-w-none rounded-none border-0 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)]"
     >
       <div className="flex h-full min-h-0 flex-col bg-background">
+        <MediaLightboxHeader title={title} />
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[hsl(var(--foreground)/0.035)] p-5 sm:p-8">
             <div
@@ -72,15 +94,10 @@ export function MediaLightbox({
             {mimeType.startsWith("video/") ? (
               <MediaLightboxVideo src={src} onError={onVideoError} />
             ) : (
-              <img
-                src={src}
-                alt=""
-                className="relative block max-h-full max-w-full select-none rounded-sm object-contain shadow-2xl"
-                draggable={false}
-              />
+              <ZoomableImage src={src} alt={alt} />
             )}
           </div>
-          <aside className="flex w-full shrink-0 flex-col border-t border-border bg-popover lg:w-80 lg:border-t-0 lg:border-l">
+          <aside className="flex max-h-[45%] w-full shrink-0 flex-col overflow-y-auto border-t border-border bg-popover lg:max-h-none lg:w-80 lg:border-t-0 lg:border-l">
             <div className="border-b border-border px-5 py-4">
               <p className={cn("m-0", sectionLabelClass)}>Media details</p>
               <p
@@ -91,7 +108,10 @@ export function MediaLightbox({
               </p>
               <button
                 type="button"
-                className="mt-2 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className={cn(
+                  "mt-2 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:px-3 pointer-coarse:text-[13px]",
+                  touchTargetClass,
+                )}
                 onClick={() => void navigator.clipboard?.writeText(contentHash)}
               >
                 <CopyIcon size={13} />
@@ -107,54 +127,224 @@ export function MediaLightbox({
               )}
             </dl>
             <div className="min-h-0 flex-1 px-3 py-4">
-              <div className="flex items-baseline justify-between px-2">
-                <h3 className="m-0 text-xs font-semibold text-foreground">Used in</h3>
-                <span className="text-[11px] tabular-nums text-muted-foreground">
-                  {usageCount === 0
-                    ? "Not used"
-                    : usageCount === 1
-                      ? "1 place"
-                      : `${usageCount} places`}
-                </span>
-              </div>
-              {usageCount === 0 ? (
-                <p className="m-0 px-2 pt-3 text-xs leading-5 text-muted-foreground">
-                  This file is stored in the workspace but is not used in a note yet.
-                </p>
-              ) : (
-                <ul className="m-0 mt-2 max-h-52 list-none space-y-1 overflow-y-auto p-0 lg:max-h-none">
-                  {usages.map((usage) => (
-                    <li key={usage.id}>
-                      <button
-                        type="button"
-                        className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        onClick={usage.onOpen}
-                      >
-                        <span className="min-w-0 truncate text-xs font-medium text-foreground">
-                          {usage.title}
-                        </span>
-                        <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
-                          {usage.detail}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <MediaUsageList usages={usages} />
             </div>
           </aside>
         </div>
-        <footer className="flex shrink-0 items-center justify-between border-t border-border bg-popover px-4 py-2 text-[11px] text-muted-foreground lg:hidden">
-          <span>{mimeType}</span>
-          <span>{formatByteSize(byteSize)}</span>
-        </footer>
       </div>
     </Dialog>
   );
 }
 
+function MediaLightboxHeader({ title }: { title: string }) {
+  const close = useDialogClose();
+  return (
+    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-popover py-1 pr-1 pl-4">
+      <h2 className="m-0 min-w-0 truncate text-sm font-semibold text-foreground">{title}</h2>
+      <button
+        type="button"
+        className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-[var(--radius)] border-none bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="Close preview"
+        onClick={close}
+      >
+        <CloseIcon size={18} />
+      </button>
+    </header>
+  );
+}
+
+/**
+ * Lists the notes that reference a file. Closes the enclosing dialog through
+ * the native element before navigating, so the opened note can take focus.
+ */
+export function MediaUsageList({ usages }: { usages: readonly MediaLightboxUsage[] }) {
+  const close = useDialogClose();
+  const usageCount = usages.length;
+  return (
+    <>
+      <div className="flex items-baseline justify-between px-2">
+        <h3 className="m-0 text-xs font-semibold text-foreground">Used in</h3>
+        <span className="text-[11px] tabular-nums text-muted-foreground">
+          {usageCount === 0 ? "Not used" : usageCount === 1 ? "1 place" : `${usageCount} places`}
+        </span>
+      </div>
+      {usageCount === 0 ? (
+        <p className="m-0 px-2 pt-3 text-xs leading-5 text-muted-foreground">
+          This file is stored in the workspace but is not used in a note yet.
+        </p>
+      ) : (
+        <ul className="m-0 mt-2 max-h-52 list-none space-y-1 overflow-y-auto p-0 lg:max-h-none">
+          {usages.map((usage) => (
+            <li key={usage.id}>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
+                onClick={() => {
+                  close();
+                  usage.onOpen();
+                }}
+              >
+                <span className="min-w-0 truncate text-xs font-medium text-foreground pointer-coarse:text-sm">
+                  {usage.title}
+                </span>
+                <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {usage.detail}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+type Gesture =
+  | { kind: "idle" }
+  | { kind: "pan"; pointerId: number; start: Point; origin: ZoomTransform; moved: boolean }
+  | { kind: "pinch"; startDistance: number; origin: ZoomTransform; focus: Point };
+
+/**
+ * Image stage with pinch and double-tap zoom, pan while zoomed, and a
+ * swipe-down dismiss at rest. The transform is written straight to the DOM so
+ * a gesture never re-renders React.
+ */
+function ZoomableImage({ src, alt }: { src: string; alt: string }) {
+  const close = useDialogClose();
+  const stageRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const transformRef = useRef<ZoomTransform>(IDENTITY_ZOOM);
+  const pointersRef = useRef(new Map<number, Point>());
+  const gestureRef = useRef<Gesture>({ kind: "idle" });
+  const lastTapRef = useRef<{ time: number; point: Point } | null>(null);
+
+  function stageFocus(point: Point): Point {
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return { x: point.x - rect.left - rect.width / 2, y: point.y - rect.top - rect.height / 2 };
+  }
+
+  function apply(next: ZoomTransform, settle: boolean, dismissOffset = 0): void {
+    const stage = stageRef.current;
+    const image = imageRef.current;
+    if (!stage || !image) return;
+    const bounded = clampPan(
+      next,
+      { width: stage.clientWidth, height: stage.clientHeight },
+      { width: image.offsetWidth, height: image.offsetHeight },
+    );
+    transformRef.current = bounded;
+    image.style.transition = settle ? "transform 180ms ease-out, opacity 180ms ease-out" : "none";
+    image.style.transform = `translate(${bounded.x}px, ${bounded.y + dismissOffset}px) scale(${bounded.scale})`;
+    image.style.opacity = dismissOffset > 0 ? String(Math.max(0.4, 1 - dismissOffset / 400)) : "";
+    image.style.cursor = bounded.scale > 1 ? "grab" : "zoom-in";
+  }
+
+  function startGesture(): void {
+    const [first, second] = [...pointersRef.current.entries()];
+    if (first && second) {
+      gestureRef.current = {
+        kind: "pinch",
+        startDistance: Math.max(1, pointDistance(first[1], second[1])),
+        origin: transformRef.current,
+        focus: stageFocus(midpoint(first[1], second[1])),
+      };
+    } else if (first) {
+      gestureRef.current = {
+        kind: "pan",
+        pointerId: first[0],
+        start: first[1],
+        origin: transformRef.current,
+        moved: false,
+      };
+    } else {
+      gestureRef.current = { kind: "idle" };
+    }
+  }
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>): void {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    startGesture();
+  }
+
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>): void {
+    if (!pointersRef.current.has(event.pointerId)) return;
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const gesture = gestureRef.current;
+    if (gesture.kind === "pinch") {
+      const [first, second] = [...pointersRef.current.values()];
+      if (!first || !second) return;
+      const scale = (gesture.origin.scale * pointDistance(first, second)) / gesture.startDistance;
+      apply(zoomAround(gesture.origin, gesture.focus, scale), false);
+      return;
+    }
+    if (gesture.kind !== "pan" || event.pointerId !== gesture.pointerId) return;
+    const dx = event.clientX - gesture.start.x;
+    const dy = event.clientY - gesture.start.y;
+    if (!gesture.moved && Math.hypot(dx, dy) < DOUBLE_TAP_SLOP_PX / 2) return;
+    gesture.moved = true;
+    if (gesture.origin.scale > 1) {
+      apply({ ...gesture.origin, x: gesture.origin.x + dx, y: gesture.origin.y + dy }, false);
+    } else if (event.pointerType === "touch") {
+      apply(IDENTITY_ZOOM, false, Math.max(0, dy));
+    }
+  }
+
+  function onPointerEnd(event: ReactPointerEvent<HTMLDivElement>, cancelled: boolean): void {
+    if (!pointersRef.current.has(event.pointerId)) return;
+    const point = { x: event.clientX, y: event.clientY };
+    const gesture = gestureRef.current;
+    pointersRef.current.delete(event.pointerId);
+    if (gesture.kind === "pan" && event.pointerId === gesture.pointerId && !cancelled) {
+      const dx = point.x - gesture.start.x;
+      const dy = point.y - gesture.start.y;
+      if (!gesture.moved) {
+        handleTap(point);
+      } else if (event.pointerType === "touch" && swipeDismisses(gesture.origin.scale, dx, dy)) {
+        close();
+        return;
+      }
+    }
+    if (pointersRef.current.size === 0 && transformRef.current.scale <= 1) {
+      apply(IDENTITY_ZOOM, true);
+    }
+    startGesture();
+  }
+
+  function handleTap(point: Point): void {
+    const now = performance.now();
+    if (isDoubleTap(lastTapRef.current, now, point)) {
+      lastTapRef.current = null;
+      apply(toggleZoom(transformRef.current, stageFocus(point)), true);
+      return;
+    }
+    lastTapRef.current = { time: now, point };
+  }
+
+  return (
+    <div
+      ref={stageRef}
+      className="absolute inset-0 flex touch-none items-center justify-center overflow-hidden p-5 sm:p-8"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={(event) => onPointerEnd(event, false)}
+      onPointerCancel={(event) => onPointerEnd(event, true)}
+    >
+      <img
+        ref={imageRef}
+        src={src}
+        alt={alt}
+        className="relative block max-h-full max-w-full cursor-zoom-in select-none rounded-sm object-contain shadow-2xl will-change-transform"
+        draggable={false}
+      />
+    </div>
+  );
+}
+
 const videoControlClass =
-  "grid size-8 shrink-0 place-items-center rounded-full text-white transition-[background,transform] duration-150 hover:bg-white/15 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "grid size-8 pointer-coarse:size-11 shrink-0 place-items-center rounded-full text-white transition-[background,transform] duration-150 hover:bg-white/15 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 const videoSliderClass = cn(
   "h-1 cursor-pointer appearance-none rounded-full bg-transparent outline-none",

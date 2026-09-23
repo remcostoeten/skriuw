@@ -6,6 +6,13 @@ import { ImageIcon, SearchIcon, UploadIcon, VideoIcon } from "@/shared/icons/sta
 import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
 import { resolveMediaPlaybackUrl } from "@/shared/lib/media-playback-url";
 import { Dialog } from "@/shared/ui/dialog";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
+import { useNearViewport } from "@/shared/hooks/use-near-viewport";
+import { COARSE_POINTER_QUERY } from "@/shell/panel-layout";
+import type { MediaMetadata } from "@skriuw/renderer-core/contracts/workspace";
+import { filterLibraryMedia } from "./media-library-search";
+
+const PAGE_SIZE = 48;
 
 export type LibraryMediaKind = "image" | "video";
 
@@ -16,6 +23,8 @@ type Props = {
   onSelect: (blob: MediaBlobPayload) => void;
   onUpload: () => void;
   onUseUrl?: () => void;
+  /** Names and alt text people gave assets, so search can match them. */
+  metadata?: ReadonlyMap<string, MediaMetadata>;
 };
 
 export function MediaLibraryPicker({
@@ -25,7 +34,10 @@ export function MediaLibraryPicker({
   onSelect,
   onUpload,
   onUseUrl,
+  metadata,
 }: Props) {
+  const coarse = useMediaQuery(COARSE_POINTER_QUERY);
+  const [visibleLimit, setVisibleLimit] = useState(PAGE_SIZE);
   const [blobs, setBlobs] = useState<MediaBlobPayload[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [query, setQuery] = useState("");
@@ -40,6 +52,7 @@ export function MediaLibraryPicker({
     setFailed(false);
     setQuery("");
     setActiveIndex(0);
+    setVisibleLimit(PAGE_SIZE);
     void listMediaBlobs()
       .then(setBlobs)
       .catch(() => {
@@ -48,29 +61,18 @@ export function MediaLibraryPicker({
       });
   }, [open]);
 
-  const items = useMemo(() => {
-    const needle = query.trim().toLocaleLowerCase();
-    return (blobs ?? [])
-      .filter((blob) => blob.mimeType.startsWith(`${kind}/`))
-      .filter(
-        (blob) =>
-          !needle ||
-          blob.mimeType.toLocaleLowerCase().includes(needle) ||
-          blob.contentHash.toLocaleLowerCase().includes(needle),
-      )
-      .sort(
-        (left, right) =>
-          right.modifiedAtMs - left.modifiedAtMs ||
-          left.contentHash.localeCompare(right.contentHash),
-      );
-  }, [blobs, kind, query]);
+  const items = useMemo(
+    () => filterLibraryMedia(blobs ?? [], kind, query, metadata),
+    [blobs, kind, metadata, query],
+  );
+  const shown = items.slice(0, visibleLimit);
 
   useEffect(() => {
     setActiveIndex((index) => Math.min(index, Math.max(items.length - 1, 0)));
   }, [items.length]);
 
   function moveFocus(next: number): void {
-    const index = Math.max(0, Math.min(next, items.length - 1));
+    const index = Math.max(0, Math.min(next, shown.length - 1));
     setActiveIndex(index);
     cardRefs.current[index]?.focus();
   }
@@ -87,7 +89,7 @@ export function MediaLibraryPicker({
       moveFocus(0);
     } else if (event.key === "End") {
       event.preventDefault();
-      moveFocus(items.length - 1);
+      moveFocus(shown.length - 1);
     }
   }
 
@@ -100,13 +102,14 @@ export function MediaLibraryPicker({
     >
       <div className="flex items-center justify-between gap-3 border-b border-border px-3.5 py-2.5">
         <p className="text-xs text-muted-foreground">
-          Pick a {label} already stored in this workspace. Use arrow keys to move between assets.
+          Pick a {label} already stored in this workspace.
+          {coarse ? "" : " Use arrow keys to move between assets."}
         </p>
         <span className="flex shrink-0 items-center gap-2">
           {onUseUrl && (
             <button
               type="button"
-              className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+              className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted pointer-coarse:min-h-11 pointer-coarse:px-3.5"
               onClick={onUseUrl}
             >
               Embed URL instead
@@ -114,7 +117,7 @@ export function MediaLibraryPicker({
           )}
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted pointer-coarse:min-h-11 pointer-coarse:px-3.5"
             onClick={onUpload}
           >
             <UploadIcon size={13} /> Upload new
@@ -128,11 +131,11 @@ export function MediaLibraryPicker({
         />
         <span className="sr-only">Search {label} assets</span>
         <input
-          autoFocus
+          autoFocus={!coarse}
           type="search"
           value={query}
           placeholder={`Search ${label} assets`}
-          className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs outline-none [&::-webkit-search-cancel-button]:hidden placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs outline-none [&::-webkit-search-cancel-button]:hidden placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-11 pointer-coarse:text-base"
           onChange={(event) => setQuery(event.currentTarget.value)}
         />
       </label>
@@ -148,7 +151,7 @@ export function MediaLibraryPicker({
           <p className="text-sm text-muted-foreground">No {label} assets match.</p>
           <button
             type="button"
-            className="rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background"
+            className="rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background pointer-coarse:min-h-11 pointer-coarse:px-4"
             onClick={onUpload}
           >
             Upload {label}
@@ -159,7 +162,7 @@ export function MediaLibraryPicker({
           aria-label={`${label} assets`}
           className="grid max-h-[52vh] list-none grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5 overflow-y-auto p-3.5"
         >
-          {items.map((item, index) => (
+          {shown.map((item, index) => (
             <li key={item.contentHash}>
               <button
                 ref={(element) => {
@@ -183,13 +186,42 @@ export function MediaLibraryPicker({
               </button>
             </li>
           ))}
+          {items.length > shown.length && (
+            <li className="col-span-full flex justify-center">
+              <button
+                type="button"
+                className="rounded-md pointer-coarse:min-h-11 min-h-8 border border-border px-3.5 text-xs font-medium hover:bg-muted"
+                onClick={() => setVisibleLimit((limit) => limit + PAGE_SIZE)}
+              >
+                Show {Math.min(PAGE_SIZE, items.length - shown.length)} more
+              </button>
+            </li>
+          )}
         </ul>
       )}
     </Dialog>
   );
 }
 
-function AssetPreview({ blob, kind }: { blob: MediaBlobPayload; kind: LibraryMediaKind }) {
+type AssetPreviewProps = { blob: MediaBlobPayload; kind: LibraryMediaKind };
+
+function AssetPreview({ blob, kind }: AssetPreviewProps) {
+  const [frameRef, near] = useNearViewport<HTMLSpanElement>("300px");
+  return (
+    <span ref={frameRef} className="relative block h-24 w-full bg-muted">
+      {near && <AssetFrame blob={blob} kind={kind} />}
+      {kind === "video" && (
+        <VideoIcon
+          size={16}
+          className="pointer-events-none absolute left-1.5 top-1.5 text-white drop-shadow"
+          aria-hidden="true"
+        />
+      )}
+    </span>
+  );
+}
+
+function AssetFrame({ blob, kind }: AssetPreviewProps) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
@@ -208,16 +240,11 @@ function AssetPreview({ blob, kind }: { blob: MediaBlobPayload; kind: LibraryMed
       active = false;
     };
   }, [blob.byteSize, blob.contentHash, blob.mimeType, kind]);
+  if (!url) return null;
   if (kind === "video") {
-    return url ? (
-      <video src={url} muted preload="metadata" className="h-24 w-full object-cover" />
-    ) : (
-      <span className="block h-24 w-full bg-muted" aria-hidden="true" />
+    return (
+      <video src={url} muted playsInline preload="none" className="h-24 w-full object-cover" />
     );
   }
-  return url ? (
-    <img src={url} alt="" loading="lazy" className="h-24 w-full object-cover" />
-  ) : (
-    <span className="block h-24 w-full bg-muted" aria-hidden="true" />
-  );
+  return <img src={url} alt="" loading="lazy" className="h-24 w-full object-cover" />;
 }

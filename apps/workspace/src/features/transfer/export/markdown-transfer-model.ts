@@ -75,6 +75,8 @@ export function imageFileExtension(mimeType: string): string {
       return "mp4";
     case "video/webm":
       return "webm";
+    case "video/quicktime":
+      return "mov";
     default:
       return "img";
   }
