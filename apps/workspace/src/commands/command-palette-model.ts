@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { parseSearchQuery } from "@/features/search/query-parser";
-import type { SnippetSegment } from "@/features/search/snippet";
+import { parseSearchQuery } from "@skriuw/renderer-core/search/query-parser";
+import type { SnippetSegment } from "@skriuw/renderer-core/search/snippet";
 import { fuzzyMatchScore } from "@/shared/lib/fuzzy-match";
 
 export type CommandPaletteItem = {

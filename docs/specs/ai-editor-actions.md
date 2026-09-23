@@ -200,7 +200,7 @@ without inspecting prompts. Recording itself happens at the seam; see
 
 ## Verification
 
-`apps/workspace/__tests__/features/ai/` covers the catalogue and its prompt references,
+`__tests__/apps/workspace/src/features/ai/` covers the catalogue and its prompt references,
 input and instruction bounds, plan parsing, the palette command gate and request
 queue, the ProseMirror transactions, and — driven through the shipped completion
 consumer — streaming, cancellation, timeout, malformed output, malformed plans,

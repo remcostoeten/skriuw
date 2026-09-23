@@ -3,7 +3,7 @@ import { commitOperations } from "@/store/actions/workspace";
 import type { MediaBlobPayload } from "@/bridge/commands";
 import { storeNoteImage } from "@/bridge/commands";
 import { registerPendingWork } from "@/shell/pending-work";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 import { showToast } from "@/shared/ui/toast";
 import { UnsupportedMediaError } from "@/bridge/browser-media";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";

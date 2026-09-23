@@ -1,6 +1,7 @@
 {
   "name": "skriuw",
   "private": true,
+  "type": "module",
   "workspaces": [
     "apps/workspace",
     "apps/site",
@@ -18,7 +19,7 @@
     "build": "bin/build browser",
     "tauri": "scripts/tauri.sh",
     "tauri:build": "bin/build desktop",
-    "test": "scripts/run-in.sh apps/workspace test",
+    "test": "vitest run",
     "typecheck": "scripts/run-in.sh apps/workspace typecheck",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
@@ -34,7 +35,9 @@
   "devDependencies": {
     "@oxlint/plugins": "1.85.0",
     "@remcostoeten/dev-menu": "^0.2.2",
+    "@vitest/coverage-v8": "4.1.10",
     "oxfmt": "0.70.0",
-    "oxlint": "1.85.0"
+    "oxlint": "1.85.0",
+    "vitest": "4.1.10"
   }
 }

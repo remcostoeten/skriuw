@@ -5,7 +5,7 @@ import {
   shiftYearKeepingDay,
   todayKey,
   type DateKey,
-} from "./dates";
+} from "@skriuw/renderer-core/journal/dates";
 
 /** The search parameter the journal route carries its day in. */
 export const JOURNAL_DAY_PARAM = "day";

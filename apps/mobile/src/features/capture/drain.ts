@@ -1,6 +1,6 @@
 import type { WorkspaceSession } from "../../bridge/commit";
 import { appendToJournalEntry, createJournalEntry, JournalAppendError } from "../journal/actions";
-import { isDateKey, todayKey, type DateKey } from "../journal/dates";
+import { isDateKey, todayKey, type DateKey } from "@skriuw/renderer-core/journal/dates";
 import { journalNoteIdForDate } from "../journal/model";
 import { newNodeId } from "../../shell/identity";
 import { captureLines, type CaptureRecord } from "./capture-record";

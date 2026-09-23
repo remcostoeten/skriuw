@@ -17,8 +17,8 @@ import {
   JOURNAL_DATE_SUGGESTIONS,
   resolveJournalDateExpression,
   type JournalDateResolution,
-} from "./date-expressions";
-import type { DateKey } from "./dates";
+} from "@skriuw/renderer-core/journal/date-expressions";
+import type { DateKey } from "@skriuw/renderer-core/journal/dates";
 
 type Props = {
   open: boolean;

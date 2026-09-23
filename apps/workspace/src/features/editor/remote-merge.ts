@@ -1,3 +1,4 @@
+import { clamp } from "@skriuw/shared/helpers/clamp";
 import { Slice, type Attrs, type Node as ProseMirrorNode } from "prosemirror-model";
 import { EditorState, Selection, type Plugin, type Transaction } from "prosemirror-state";
 import { ReplaceStep } from "prosemirror-transform";
@@ -44,10 +45,6 @@ export type RemoteApplication =
   | { kind: "unchanged" }
   | { kind: "transaction"; tr: Transaction; strategy: RemoteStrategy }
   | { kind: "rebuild" };
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value));
-}
 
 function caretAfterReplace(head: number, diff: ContentDiff): number {
   if (head < diff.start) return head;

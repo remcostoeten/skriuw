@@ -3,7 +3,12 @@ import { journalDayHash } from "@skriuw/renderer-core/route/app-route";
 import { SectionToggle } from "@/shared/ui/section-header";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
-import { monthOfKey, todayKey, type DateKey, type MonthKey } from "./dates";
+import {
+  monthOfKey,
+  todayKey,
+  type DateKey,
+  type MonthKey,
+} from "@skriuw/renderer-core/journal/dates";
 import { JournalCalendar } from "./journal-calendar";
 import { sameDateKeySet, selectEntryDateKeys } from "./model";
 

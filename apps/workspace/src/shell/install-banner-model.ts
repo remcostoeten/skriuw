@@ -1,4 +1,4 @@
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 
 const DISMISSED_KEY = "skriuw.install-banner.dismissed.v1";
 

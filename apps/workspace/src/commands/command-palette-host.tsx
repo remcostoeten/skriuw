@@ -11,9 +11,9 @@ import {
   type EntityKind,
   type EntityRow,
 } from "@/features/references/entity-manager-model";
-import { describeSearchFilterProblem } from "@/features/search/filter-resolution";
-import { applySearchPlan, planWorkspaceSearch } from "@/features/search/search-plan";
-import { snippetPlainText, snippetSegments } from "@/features/search/snippet";
+import { describeSearchFilterProblem } from "@skriuw/renderer-core/search/filter-resolution";
+import { applySearchPlan, planWorkspaceSearch } from "@skriuw/renderer-core/search/search-plan";
+import { snippetPlainText, snippetSegments } from "@skriuw/renderer-core/search/snippet";
 import { CircleIcon, FileTextIcon, SearchIcon, WaypointsIcon } from "@/shared/icons/static";
 import { fuzzyMatchScore } from "@/shared/lib/fuzzy-match";
 import { CommandPalette } from "./command-palette";

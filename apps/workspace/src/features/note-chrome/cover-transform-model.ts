@@ -1,3 +1,4 @@
+import { clamp } from "@skriuw/shared/helpers/clamp";
 export type CoverTransform = {
   positionX: number;
   positionY: number;
@@ -48,10 +49,6 @@ const RESET_TRANSFORM: CoverTransform = {
   positionY: 50,
   zoom: 1,
 };
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value));
-}
 
 function findFocalPreset(id: CoverFocalPresetId): CoverFocalPreset {
   return COVER_FOCAL_PRESETS.find((preset) => preset.id === id)!;

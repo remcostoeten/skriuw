@@ -2,7 +2,7 @@ import type { NoteProperty, WorkspaceOperation } from "@skriuw/renderer-core/con
 import type { DocumentRecord } from "@skriuw/renderer-core/store/types";
 import { commitOperations, type WorkspaceSession } from "../../bridge/commit";
 import { newNodeId } from "../../shell/identity";
-import type { DateKey } from "./dates";
+import type { DateKey } from "@skriuw/renderer-core/journal/dates";
 import { appendParagraphs, emptyEntryDocument } from "./entry-document";
 import {
   JOURNAL_DATE_PROPERTY_ID,

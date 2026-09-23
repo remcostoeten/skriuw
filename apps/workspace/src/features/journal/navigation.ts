@@ -6,7 +6,7 @@ import {
   shiftYearKeepingDay,
   todayKey,
   type DateKey,
-} from "./dates";
+} from "@skriuw/renderer-core/journal/dates";
 
 const FOCUS_SEARCH_EVENT = "skriuw:journal-focus-search";
 const GO_TO_DATE_EVENT = "skriuw:journal-go-to-date";

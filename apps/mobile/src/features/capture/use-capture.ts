@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 import type { WorkspaceSession } from "../../bridge/commit";
 import { newNodeId } from "../../shell/identity";
-import type { DateKey } from "../journal/dates";
+import type { DateKey } from "@skriuw/renderer-core/journal/dates";
 import type { CaptureRecord, CaptureSource } from "./capture-record";
 import { drainCaptureInbox, type CaptureDrainResult } from "./drain";
 import { createDeviceCaptureInbox } from "./file-inbox";

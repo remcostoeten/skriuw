@@ -1,4 +1,4 @@
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 
 const STORAGE_KEY = "skriuw:command-frecency:v1";
 const MAX_ENTRIES = 100;

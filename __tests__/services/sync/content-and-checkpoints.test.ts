@@ -1,0 +1,742 @@
+import { env, runInDurableObject } from "cloudflare:test";
+import { describe, expect, it } from "vitest";
+
+import goldenPushV2 from "../../../contracts/fixtures/sync-push-v2.json";
+import goldenPushV2Content from "../../../contracts/fixtures/sync-push-v2-content.json";
+import {
+  type CredentialVerification,
+  type CredentialVerifier,
+  type WorkspaceMembershipLookup,
+  type WorkspaceMembershipSource,
+} from "../../../services/sync/src/access";
+import { WorkspaceContentStore, contentDigest } from "../../../services/sync/src/content-store";
+import {
+  CANONICAL_CHUNK_BYTES,
+  MAX_WORKSPACE_STORAGE_BYTES,
+  SUPPORTED_ARCHIVE_VERSIONS,
+  type SyncPullResponse,
+  type SyncPullResult,
+  parseSyncPullResponse,
+} from "../../../services/sync/src/contracts";
+import {
+  type PublicSyncDependencies,
+  type SyncSecurityLogEvent,
+  handlePublicSyncRequest,
+} from "../../../services/sync/src/public-api";
+
+const NOW = 1_900_000_000;
+const TOKEN = "valid-token";
+const SUBJECT = "user-1";
+const DEVICE_ID = "device-1";
+
+const chunkedContentBytes = new TextEncoder().encode(JSON.stringify(goldenPushV2Content));
+const chunkedDigest = goldenPushV2.operations[1]!.payload.manifest!.chunks[0]!.digest;
+
+class StaticVerifier implements CredentialVerifier {
+  async verifyBearerToken(token: string): Promise<CredentialVerification> {
+    if (token !== TOKEN) {
+      return { ok: false, code: "credential_invalid" };
+    }
+    return {
+      ok: true,
+      identity: {
+        subject: SUBJECT,
+        sessionId: "session-1",
+        expiresAtEpochSeconds: NOW + 3_600,
+      },
+    };
+  }
+}
+
+class StaticMemberships implements WorkspaceMembershipSource {
+  private readonly allowed = new Map<string, WorkspaceMembershipLookup>();
+
+  allow(workspaceId: string, role: "owner" | "editor" | "viewer" = "owner"): void {
+    this.allowed.set(workspaceId, {
+      state: "active",
+      membership: { role, deviceIds: [DEVICE_ID] },
+    });
+  }
+
+  async lookupMembership(
+    _subject: string,
+    workspaceId: string,
+  ): Promise<WorkspaceMembershipLookup> {
+    return this.allowed.get(workspaceId) ?? { state: "denied" };
+  }
+}
+
+type Harness = {
+  memberships: StaticMemberships;
+  logs: SyncSecurityLogEvent[];
+  dependencies: PublicSyncDependencies;
+  store: WorkspaceContentStore;
+};
+
+function createHarness(): Harness {
+  const memberships = new StaticMemberships();
+  const logs: SyncSecurityLogEvent[] = [];
+  const store = new WorkspaceContentStore(env.SYNC_CONTENT);
+  return {
+    memberships,
+    logs,
+    store,
+    dependencies: {
+      accessConfiguration: {
+        state: "ready",
+        credentialVerifier: new StaticVerifier(),
+        membershipSource: memberships,
+      },
+      resolveWorkspace: (workspaceId) => env.WORKSPACES.getByName(workspaceId),
+      contentStore: store,
+      log: (event) => logs.push(event),
+      nowEpochSeconds: () => NOW,
+    },
+  };
+}
+
+function chunkRequest(
+  workspaceId: string,
+  digest: string,
+  method: "PUT" | "GET" | "HEAD",
+  body?: BodyInit,
+  token: string | null = TOKEN,
+): Request {
+  const headers = new Headers();
+  if (token !== null) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  const init: RequestInit = { method, headers };
+  if (body !== undefined) {
+    init.body = body;
+  }
+  return new Request(`https://example.test/v1/workspaces/${workspaceId}/chunks/${digest}`, init);
+}
+
+function jsonRequest(
+  workspaceId: string,
+  path: string,
+  method: "POST" | "GET",
+  body?: unknown,
+  token: string | null = TOKEN,
+): Request {
+  const headers = new Headers({ "Content-Type": "application/json" });
+  if (token !== null) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  const init: RequestInit = { method, headers };
+  if (body !== undefined) {
+    init.body = JSON.stringify(body);
+  }
+  return new Request(`https://example.test/v1/workspaces/${workspaceId}/${path}`, init);
+}
+
+async function buildCheckpoint(
+  workspaceId: string,
+  serverSequence: number,
+  store: WorkspaceContentStore,
+  archiveOverrides: Record<string, unknown> = {},
+): Promise<Record<string, unknown>> {
+  const archive = {
+    archiveVersion: 3,
+    protocolVersion: 1,
+    exportedAt: 10,
+    activeNoteId: null,
+    nodes: [],
+    documents: [],
+    settings: { version: 1, theme: "system", extensions: {} },
+    tags: [],
+    people: [],
+    properties: [],
+    propertyTemplates: [],
+    ...archiveOverrides,
+  };
+  const bytes = new TextEncoder().encode(JSON.stringify(archive));
+  const digest = await contentDigest(bytes);
+  await store.putChunk(workspaceId, digest, bytes);
+  return {
+    checkpointVersion: 1,
+    syncProtocolVersion: 2,
+    archiveVersion: archive.archiveVersion,
+    workspaceId,
+    serverSequence,
+    createdAt: NOW,
+    content: {
+      manifestVersion: 1,
+      kind: "checkpoint",
+      algorithm: "sha256",
+      encoding: "identity",
+      contentDigest: digest,
+      mimeType: "application/json",
+      totalByteLength: bytes.byteLength,
+      chunks: [{ digest, byteLength: bytes.byteLength }],
+    },
+  };
+}
+
+function pulledPage(result: SyncPullResult): SyncPullResponse {
+  if (!result.ok) {
+    throw new Error(`log truncated through ${result.compactedThrough}`);
+  }
+  return parseSyncPullResponse(JSON.parse(result.responseJson));
+}
+
+describe("authorized chunk transfer", () => {
+  it("stores a chunk once and treats an identical retry as a no-op", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-upload");
+
+    const first = await handlePublicSyncRequest(
+      chunkRequest("workspace-upload", chunkedDigest, "PUT", chunkedContentBytes),
+      harness.dependencies,
+    );
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({ digest: chunkedDigest, created: true });
+
+    const retry = await handlePublicSyncRequest(
+      chunkRequest("workspace-upload", chunkedDigest, "PUT", chunkedContentBytes),
+      harness.dependencies,
+    );
+    expect(await retry.json()).toEqual({ digest: chunkedDigest, created: false });
+
+    const probe = await handlePublicSyncRequest(
+      chunkRequest("workspace-upload", chunkedDigest, "HEAD"),
+      harness.dependencies,
+    );
+    expect(probe.status).toBe(204);
+
+    const download = await handlePublicSyncRequest(
+      chunkRequest("workspace-upload", chunkedDigest, "GET"),
+      harness.dependencies,
+    );
+    expect(new Uint8Array(await download.arrayBuffer())).toEqual(chunkedContentBytes);
+  });
+
+  it("rejects bytes that do not hash to the requested digest", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-mismatch");
+
+    const response = await handlePublicSyncRequest(
+      chunkRequest(
+        "workspace-mismatch",
+        chunkedDigest,
+        "PUT",
+        new TextEncoder().encode("different bytes"),
+      ),
+      harness.dependencies,
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "chunk_digest_mismatch" });
+    expect(await harness.store.hasChunk("workspace-mismatch", chunkedDigest)).toBe(false);
+  });
+
+  it("rejects content above the canonical chunk size", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-oversized");
+    const oversized = new Uint8Array(CANONICAL_CHUNK_BYTES + 1);
+
+    const response = await handlePublicSyncRequest(
+      chunkRequest("workspace-oversized", await contentDigest(oversized), "PUT", oversized),
+      harness.dependencies,
+    );
+
+    expect(response.status).toBe(413);
+  });
+
+  it("keeps identical bytes in different workspaces mutually unreachable", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-owner-a");
+    await harness.store.putChunk("workspace-owner-a", chunkedDigest, chunkedContentBytes);
+
+    const foreign = await handlePublicSyncRequest(
+      chunkRequest("workspace-owner-b", chunkedDigest, "GET"),
+      harness.dependencies,
+    );
+
+    expect(foreign.status).toBe(404);
+    expect(await foreign.json()).toEqual({ error: "workspace_access_denied" });
+  });
+
+  it("requires a credential before any content is readable", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-anon");
+    await harness.store.putChunk("workspace-anon", chunkedDigest, chunkedContentBytes);
+
+    const response = await handlePublicSyncRequest(
+      chunkRequest("workspace-anon", chunkedDigest, "GET", undefined, null),
+      harness.dependencies,
+    );
+
+    expect(response.status).toBe(401);
+  });
+
+  it("refuses an operation whose chunks are only partially uploaded", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-partial");
+
+    const response = await handlePublicSyncRequest(
+      jsonRequest("workspace-partial", "push", "POST", {
+        ...goldenPushV2,
+        deviceId: DEVICE_ID,
+      }),
+      harness.dependencies,
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "content_unavailable" });
+
+    const pulled = await handlePublicSyncRequest(
+      new Request(
+        "https://example.test/v1/workspaces/workspace-partial/pull?" +
+          "syncProtocolVersion=2&afterServerSequence=0&limit=128",
+        { headers: { Authorization: `Bearer ${TOKEN}` } },
+      ),
+      harness.dependencies,
+    );
+    expect(await pulled.json<{ operations: unknown[] }>()).toMatchObject({
+      operations: [],
+    });
+  });
+});
+
+describe("workspace storage quota", () => {
+  it("records uploads against the workspace and refuses one that would exceed the quota", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-quota");
+    const workspace = env.WORKSPACES.getByName("workspace-quota");
+
+    const first = await handlePublicSyncRequest(
+      chunkRequest("workspace-quota", chunkedDigest, "PUT", chunkedContentBytes),
+      harness.dependencies,
+    );
+    expect(first.status).toBe(200);
+    await handlePublicSyncRequest(
+      chunkRequest("workspace-quota", chunkedDigest, "PUT", chunkedContentBytes),
+      harness.dependencies,
+    );
+    expect(await workspace.storageUsage()).toEqual({
+      byteLength: chunkedContentBytes.byteLength,
+      quotaBytes: MAX_WORKSPACE_STORAGE_BYTES,
+    });
+
+    await runInDurableObject(workspace, (_instance, state) => {
+      state.storage.sql.exec(
+        "UPDATE sync_storage_usage SET byte_length = ? WHERE id = 1",
+        MAX_WORKSPACE_STORAGE_BYTES - 8,
+      );
+    });
+    const other = new TextEncoder().encode("another chunk of content");
+    const rejected = await handlePublicSyncRequest(
+      chunkRequest("workspace-quota", await contentDigest(other), "PUT", other),
+      harness.dependencies,
+    );
+    expect(rejected.status).toBe(413);
+    expect(await rejected.json()).toEqual({ error: "quota_exceeded" });
+    expect(await harness.store.hasChunk("workspace-quota", await contentDigest(other))).toBe(false);
+    expect(harness.logs).toEqual([
+      {
+        event: "sync_request_rejected",
+        code: "quota_exceeded",
+        status: 413,
+        route: "chunk",
+        method: "PUT",
+      },
+    ]);
+  });
+});
+
+describe("checkpoint publication and hydration", () => {
+  it("publishes atomically and serves the latest checkpoint", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-checkpoint");
+    await handlePublicSyncRequest(
+      jsonRequest("workspace-checkpoint", "push", "POST", {
+        syncProtocolVersion: 1,
+        deviceId: DEVICE_ID,
+        operations: goldenPushV2.operations.slice(0, 1).map((operation) => ({
+          operationId: operation.operationId,
+          clientSequence: operation.clientSequence,
+          baseServerSequence: operation.baseServerSequence,
+          operation: operation.payload.operation,
+        })),
+      }),
+      harness.dependencies,
+    );
+
+    const checkpoint = await buildCheckpoint("workspace-checkpoint", 1, harness.store);
+    const published = await handlePublicSyncRequest(
+      jsonRequest("workspace-checkpoint", "checkpoint", "POST", checkpoint),
+      harness.dependencies,
+    );
+    expect(published.status).toBe(200);
+    expect(await published.json()).toMatchObject({ serverSequence: 1 });
+
+    const latest = await handlePublicSyncRequest(
+      jsonRequest("workspace-checkpoint", "checkpoint", "GET"),
+      harness.dependencies,
+    );
+    expect(await latest.json()).toMatchObject({
+      serverSequence: 1,
+      archiveVersion: 3,
+    });
+  });
+
+  it("publishes a checkpoint in the newest archive version a client writes", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-checkpoint-current");
+    await handlePublicSyncRequest(
+      jsonRequest("workspace-checkpoint-current", "push", "POST", {
+        syncProtocolVersion: 1,
+        deviceId: DEVICE_ID,
+        operations: goldenPushV2.operations.slice(0, 1).map((operation) => ({
+          operationId: operation.operationId,
+          clientSequence: operation.clientSequence,
+          baseServerSequence: operation.baseServerSequence,
+          operation: operation.payload.operation,
+        })),
+      }),
+      harness.dependencies,
+    );
+    const newest = Math.max(...SUPPORTED_ARCHIVE_VERSIONS);
+
+    const checkpoint = await buildCheckpoint("workspace-checkpoint-current", 1, harness.store, {
+      archiveVersion: newest,
+    });
+    const published = await handlePublicSyncRequest(
+      jsonRequest("workspace-checkpoint-current", "checkpoint", "POST", checkpoint),
+      harness.dependencies,
+    );
+
+    expect(published.status).toBe(200);
+  });
+
+  it("never publishes a checkpoint whose content is missing", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-interrupted");
+    const checkpoint = await buildCheckpoint("workspace-interrupted", 0, harness.store);
+    await harness.store.deleteChunks("workspace-interrupted", [
+      (checkpoint.content as { chunks: { digest: string }[] }).chunks[0]!.digest,
+    ]);
+
+    const response = await handlePublicSyncRequest(
+      jsonRequest("workspace-interrupted", "checkpoint", "POST", checkpoint),
+      harness.dependencies,
+    );
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: "content_unavailable" });
+
+    const latest = await handlePublicSyncRequest(
+      jsonRequest("workspace-interrupted", "checkpoint", "GET"),
+      harness.dependencies,
+    );
+    expect(latest.status).toBe(404);
+  });
+
+  it("rejects a checkpoint ahead of the workspace and tolerates duplicate builders", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-duplicate");
+
+    const ahead = await buildCheckpoint("workspace-duplicate", 5, harness.store);
+    const rejected = await handlePublicSyncRequest(
+      jsonRequest("workspace-duplicate", "checkpoint", "POST", ahead),
+      harness.dependencies,
+    );
+    expect(rejected.status).toBe(400);
+
+    const checkpoint = await buildCheckpoint("workspace-duplicate", 0, harness.store);
+    const first = await handlePublicSyncRequest(
+      jsonRequest("workspace-duplicate", "checkpoint", "POST", checkpoint),
+      harness.dependencies,
+    );
+    const second = await handlePublicSyncRequest(
+      jsonRequest("workspace-duplicate", "checkpoint", "POST", checkpoint),
+      harness.dependencies,
+    );
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(await second.json()).toMatchObject({ serverSequence: 0 });
+  });
+});
+
+describe("acknowledgement cursors and compaction", () => {
+  it("records a device cursor and refuses one ahead of the log", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-ack");
+
+    const ahead = await handlePublicSyncRequest(
+      jsonRequest("workspace-ack", "acknowledge", "POST", {
+        deviceId: DEVICE_ID,
+        serverSequence: 9,
+      }),
+      harness.dependencies,
+    );
+    expect(ahead.status).toBe(400);
+    expect(await ahead.json()).toEqual({ error: "sync_rejected" });
+
+    const accepted = await handlePublicSyncRequest(
+      jsonRequest("workspace-ack", "acknowledge", "POST", {
+        deviceId: DEVICE_ID,
+        serverSequence: 0,
+      }),
+      harness.dependencies,
+    );
+    expect(await accepted.json()).toEqual({
+      deviceId: DEVICE_ID,
+      acknowledgedServerSequence: 0,
+    });
+  });
+
+  it("rejects an acknowledgement from a device outside the membership", async () => {
+    const harness = createHarness();
+    harness.memberships.allow("workspace-ack-foreign");
+
+    const response = await handlePublicSyncRequest(
+      jsonRequest("workspace-ack-foreign", "acknowledge", "POST", {
+        deviceId: "device-unknown",
+        serverSequence: 0,
+      }),
+      harness.dependencies,
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "device_not_authorized" });
+  });
+
+  it("keeps operations a device has not acknowledged and drops what no one needs", async () => {
+    const workspaceId = "workspace-compaction";
+    const workspace = env.WORKSPACES.getByName(workspaceId);
+    const store = new WorkspaceContentStore(env.SYNC_CONTENT);
+    await store.putChunk(workspaceId, chunkedDigest, chunkedContentBytes);
+    await workspace.pushOperations({
+      ...goldenPushV2,
+      deviceId: DEVICE_ID,
+    });
+
+    const withoutCheckpoint = await workspace.compact(NOW, 60);
+    expect(withoutCheckpoint.removedOperations).toBe(0);
+
+    expect(await workspace.acknowledgeOperations(DEVICE_ID, 2, NOW)).toMatchObject({
+      ok: true,
+      acknowledgedServerSequence: 2,
+    });
+    const checkpoint = await buildCheckpoint(workspaceId, 2, store);
+    expect(await workspace.publishCheckpoint(checkpoint)).toMatchObject({ ok: true });
+
+    const compacted = await workspace.compact(NOW, 60);
+    expect(compacted.removedOperations).toBe(2);
+    expect(compacted.removedChunks).toBe(1);
+    expect(await store.hasChunk(workspaceId, chunkedDigest)).toBe(false);
+
+    const remaining = pulledPage(await workspace.pullOperations(2, 128));
+    expect(remaining.operations).toEqual([]);
+  });
+
+  it("answers a pull below the compaction floor with 410 log_truncated", async () => {
+    const harness = createHarness();
+    const workspaceId = "workspace-truncated";
+    harness.memberships.allow(workspaceId);
+    const workspace = env.WORKSPACES.getByName(workspaceId);
+    await harness.store.putChunk(workspaceId, chunkedDigest, chunkedContentBytes);
+    await workspace.pushOperations({ ...goldenPushV2, deviceId: DEVICE_ID });
+    await workspace.acknowledgeOperations(DEVICE_ID, 2, NOW);
+    const checkpoint = await buildCheckpoint(workspaceId, 2, harness.store);
+    const published = await handlePublicSyncRequest(
+      jsonRequest(workspaceId, "checkpoint", "POST", checkpoint),
+      harness.dependencies,
+    );
+    expect(await published.json()).toMatchObject({
+      serverSequence: 2,
+      compaction: { removedOperations: 2 },
+    });
+
+    const truncated = await handlePublicSyncRequest(
+      new Request(
+        `https://example.test/v1/workspaces/${workspaceId}/pull?` +
+          "syncProtocolVersion=2&afterServerSequence=1&limit=128",
+        { headers: { Authorization: `Bearer ${TOKEN}` } },
+      ),
+      harness.dependencies,
+    );
+    expect(truncated.status).toBe(410);
+    expect(truncated.headers.get("Cache-Control")).toBe("no-store");
+    expect(await truncated.text()).toBe('{"error":"log_truncated"}');
+    expect(harness.logs).toEqual([
+      {
+        event: "sync_request_rejected",
+        code: "log_truncated",
+        status: 410,
+        route: "pull",
+        method: "GET",
+      },
+    ]);
+
+    const atFloor = await handlePublicSyncRequest(
+      new Request(
+        `https://example.test/v1/workspaces/${workspaceId}/pull?` +
+          "syncProtocolVersion=2&afterServerSequence=2&limit=128",
+        { headers: { Authorization: `Bearer ${TOKEN}` } },
+      ),
+      harness.dependencies,
+    );
+    expect(atFloor.status).toBe(200);
+    expect(await atFloor.json()).toMatchObject({ operations: [], latestServerSequence: 2 });
+
+    const acknowledged = await handlePublicSyncRequest(
+      jsonRequest(workspaceId, "acknowledge", "POST", {
+        deviceId: DEVICE_ID,
+        serverSequence: 1,
+      }),
+      harness.dependencies,
+    );
+    expect(acknowledged.status).toBe(200);
+  });
+
+  it("keeps the sequence high-water mark after compaction empties the log", async () => {
+    const workspaceId = "workspace-compaction-hwm";
+    const workspace = env.WORKSPACES.getByName(workspaceId);
+    const store = new WorkspaceContentStore(env.SYNC_CONTENT);
+    await store.putChunk(workspaceId, chunkedDigest, chunkedContentBytes);
+    await workspace.pushOperations({ ...goldenPushV2, deviceId: DEVICE_ID });
+    await workspace.acknowledgeOperations(DEVICE_ID, 2, NOW);
+    const checkpoint = await buildCheckpoint(workspaceId, 2, store);
+    await workspace.publishCheckpoint(checkpoint);
+    const compacted = await workspace.compact(NOW, 60);
+    expect(compacted.removedOperations).toBe(2);
+
+    expect(await workspace.acknowledgeOperations(DEVICE_ID, 2, NOW)).toMatchObject({
+      ok: true,
+      acknowledgedServerSequence: 2,
+    });
+
+    const followUp = await workspace.pushOperations({
+      syncProtocolVersion: 2,
+      deviceId: DEVICE_ID,
+      operations: [
+        {
+          operationId: "operation-after-compaction",
+          clientSequence: 3,
+          baseServerSequence: 2,
+          payload: {
+            form: "inline",
+            operation: {
+              protocolVersion: 1,
+              operation: {
+                type: "create_folder",
+                id: "folder-after-compaction",
+                title: "Folder",
+                placement: { parentId: null, position: { type: "last" } },
+                at: 3,
+              },
+            },
+          },
+        },
+      ],
+    });
+    expect(followUp).toMatchObject({
+      ok: true,
+      response: {
+        accepted: [{ operationId: "operation-after-compaction", serverSequence: 3 }],
+        latestServerSequence: 3,
+      },
+    });
+  });
+
+  it("holds the log for a lagging device until it is expired as stale", async () => {
+    const workspaceId = "workspace-stale-device";
+    const workspace = env.WORKSPACES.getByName(workspaceId);
+    const store = new WorkspaceContentStore(env.SYNC_CONTENT);
+    await store.putChunk(workspaceId, chunkedDigest, chunkedContentBytes);
+    await workspace.pushOperations({ ...goldenPushV2, deviceId: DEVICE_ID });
+
+    await workspace.acknowledgeOperations(DEVICE_ID, 2, NOW);
+    await workspace.acknowledgeOperations("device-lagging", 0, NOW - 10_000);
+    const checkpoint = await buildCheckpoint(workspaceId, 2, store);
+    await workspace.publishCheckpoint(checkpoint);
+
+    const held = await workspace.compact(NOW, 60_000);
+    expect(held.expiredDevices).toBe(0);
+    expect(held.removedOperations).toBe(0);
+
+    const afterExpiry = await workspace.compact(NOW, 60);
+    expect(afterExpiry.expiredDevices).toBe(1);
+    expect(afterExpiry.removedOperations).toBe(2);
+  });
+
+  it("answers an encrypted workspace's plaintext push with 423 and exposes its encryption record", async () => {
+    const harness = createHarness();
+    const workspaceId = "workspace-encrypted-route";
+    harness.memberships.allow(workspaceId);
+    const plain = await handlePublicSyncRequest(
+      jsonRequest(workspaceId, "encryption", "GET"),
+      harness.dependencies,
+    );
+    expect(plain.status).toBe(200);
+    expect(await plain.json()).toBeNull();
+
+    const sealed = await handlePublicSyncRequest(
+      jsonRequest(workspaceId, "push", "POST", {
+        syncProtocolVersion: 2,
+        deviceId: DEVICE_ID,
+        operations: [
+          {
+            operationId: "sealed-route-1",
+            clientSequence: 1,
+            baseServerSequence: 0,
+            payload: {
+              form: "sealed",
+              operation: {
+                scheme: "argon2id-xchacha20poly1305-v2",
+                keyId: "0f1e2d3c4b5a6978",
+                nonce: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                transport: "inline",
+                ciphertext: "c2VhbGVk",
+              },
+            },
+          },
+        ],
+      }),
+      harness.dependencies,
+    );
+    expect(sealed.status).toBe(200);
+
+    const record = await handlePublicSyncRequest(
+      jsonRequest(workspaceId, "encryption", "GET"),
+      harness.dependencies,
+    );
+    expect(await record.json()).toMatchObject({
+      keyId: "0f1e2d3c4b5a6978",
+      encryptedFromServerSequence: 0,
+    });
+
+    const refused = await handlePublicSyncRequest(
+      jsonRequest(workspaceId, "push", "POST", {
+        syncProtocolVersion: 2,
+        deviceId: DEVICE_ID,
+        operations: [
+          {
+            operationId: "plaintext-route-2",
+            clientSequence: 2,
+            baseServerSequence: 1,
+            payload: {
+              form: "inline",
+              operation: {
+                protocolVersion: 1,
+                operation: {
+                  type: "create_folder",
+                  id: "folder-route-2",
+                  title: "Readable",
+                  placement: { parentId: null, position: { type: "last" } },
+                  at: 1,
+                },
+              },
+            },
+          },
+        ],
+      }),
+      harness.dependencies,
+    );
+    expect(refused.status).toBe(423);
+    expect(await refused.json()).toEqual({ error: "workspace_encrypted" });
+  });
+});

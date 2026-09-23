@@ -171,7 +171,7 @@ Behavior is covered through public surfaces: mark round-trips and the
 overlapping-`</mark>` case in the editor schema tests, operation validation and
 replay in the domain crate, projection folding in the renderer store tests, and
 anchor detection plus per-note ordering in
-`apps/workspace/__tests__/features/note-chrome/annotation-list-model.test.ts`.
+`__tests__/apps/workspace/src/features/note-chrome/annotation-list-model.test.ts`.
 
 ## References
 

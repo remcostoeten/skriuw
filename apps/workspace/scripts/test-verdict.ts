@@ -1,12 +1,15 @@
 import { spawn } from "node:child_process";
-import { readdirSync, existsSync } from "node:fs";
+import { readdirSync, existsSync, readFileSync } from "node:fs";
 import { resolve, dirname, relative, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
+const REPOSITORY = resolve(ROOT, "../..");
 const SRC = resolve(ROOT, "src");
-const TESTS = resolve(ROOT, "__tests__");
+const TESTS = resolve(REPOSITORY, "__tests__/apps/workspace/src");
+const RESULTS = resolve(REPOSITORY, "coverage/workspace/results.json");
+const COVERAGE_SUMMARY = resolve(REPOSITORY, "coverage/workspace/coverage-summary.json");
 
 const PASS = "\x1b[32m✓\x1b[0m";
 const FAIL = "\x1b[31m✗\x1b[0m";
@@ -52,71 +55,54 @@ type DirCoverage = {
 
 function runTests(): Promise<{ counts: TestCounts; coverage: CoveragePct }> {
   return new Promise((resolvePromise) => {
-    const tsxBin = resolve(ROOT, "node_modules", ".bin", "tsx");
     const child = spawn(
-      tsxBin,
+      resolve(REPOSITORY, "node_modules", ".bin", "vitest"),
       [
-        "--test",
-        "--experimental-test-coverage",
-        "__tests__/**/*.test.ts",
-        "../../packages/renderer-core/__tests__/**/*.test.ts",
+        "run",
+        "--project",
+        "workspace",
+        "--project",
+        "renderer-core",
+        "--project",
+        "shared",
+        "--coverage",
+        "--reporter=default",
+        "--reporter=json",
+        `--outputFile.json=${RESULTS}`,
       ],
-      { cwd: ROOT, stdio: ["inherit", "pipe", "pipe"], shell: false },
+      { cwd: REPOSITORY, stdio: "inherit", shell: false },
     );
-
-    const outChunks: Buffer[] = [];
-
-    child.stdout.on("data", (chunk: Buffer) => {
-      process.stdout.write(chunk);
-      outChunks.push(chunk);
-    });
-
-    child.stderr.on("data", (chunk: Buffer) => {
-      process.stderr.write(chunk);
-    });
 
     child.on("close", (code) => {
       exitCode = code ?? 1;
-      const allOut = Buffer.concat(outChunks).toString("utf-8");
-      resolvePromise(parseOutput(allOut));
+      resolvePromise({ counts: readCounts(), coverage: readCoverage() });
     });
   });
 }
 
-function parseOutput(text: string): { counts: TestCounts; coverage: CoveragePct } {
-  const counts: TestCounts = { total: 0, pass: 0, fail: 0, skip: 0 };
-  const coverage: CoveragePct = { lines: null, branches: null, funcs: null };
+function readCounts(): TestCounts {
+  if (!existsSync(RESULTS)) return { total: 0, pass: 0, fail: 0, skip: 0 };
+  const results = JSON.parse(readFileSync(RESULTS, "utf-8")) as {
+    numTotalTests: number;
+    numPassedTests: number;
+    numFailedTests: number;
+    numPendingTests: number;
+    numTodoTests: number;
+  };
+  return {
+    total: results.numTotalTests,
+    pass: results.numPassedTests,
+    fail: results.numFailedTests,
+    skip: results.numPendingTests + results.numTodoTests,
+  };
+}
 
-  for (const raw of text.split("\n")) {
-    // strip leading non-alpha (ℹ, whitespace) to get clean keyword lines
-    const line = raw.replace(/^[^a-zA-Z]+/, "").trim();
-    if (!line) continue;
-
-    let m: RegExpMatchArray | null;
-
-    m = line.match(/^(tests|pass|fail|skipped)\s+(\d+)/i);
-    if (m) {
-      const key = m[1].toLowerCase();
-      const val = Number(m[2]);
-      if (key === "tests") counts.total = val;
-      else if (key === "pass") counts.pass = val;
-      else if (key === "fail") counts.fail = val;
-      else if (key === "skipped") counts.skip = val;
-      continue;
-    }
-
-    m = line.match(/^all files\s*\|/i);
-    if (m) {
-      const parts = line.split("|");
-      if (parts.length >= 4) {
-        coverage.lines = Number(parts[1].trim());
-        coverage.branches = Number(parts[2].trim());
-        coverage.funcs = Number(parts[3].trim());
-      }
-    }
-  }
-
-  return { counts, coverage };
+function readCoverage(): CoveragePct {
+  if (!existsSync(COVERAGE_SUMMARY)) return { lines: null, branches: null, funcs: null };
+  const { total } = JSON.parse(readFileSync(COVERAGE_SUMMARY, "utf-8")) as {
+    total: Record<"lines" | "branches" | "functions", { pct: number }>;
+  };
+  return { lines: total.lines.pct, branches: total.branches.pct, funcs: total.functions.pct };
 }
 
 function walkDir(dir: string, base: string): string[] {

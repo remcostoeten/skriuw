@@ -1,7 +1,7 @@
 import { Channel } from "@tauri-apps/api/core";
 import { invoke, requireDesktopRuntime } from "@/bridge/runtime";
 import type { LocalAiModel, LocalAiProgress, LocalAiStatus } from "@/contracts/ai";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 
 type ProgressCallback = (progress: LocalAiProgress) => void;
 

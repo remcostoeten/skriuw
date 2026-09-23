@@ -1,0 +1,76 @@
+import assert from "node:assert/strict";
+import { test } from "vitest";
+import {
+  appRouteHash,
+  entityFocusHash,
+  journalDayHash,
+  noteHistoryHash,
+  resolveAppRoute,
+  resolveHistoryVersion,
+  resolveRouteFocus,
+} from "../../../../../packages/renderer-core/src/route/app-route";
+
+test("trash has a dedicated hash route and unknown routes return to notes", () => {
+  assert.equal(resolveAppRoute("#/trash"), "trash");
+  assert.equal(resolveAppRoute("#/notes"), "notes");
+  assert.equal(resolveAppRoute("#/trash/nested"), "notes");
+});
+
+test("tag and person routes accept a focused entity sub-path", () => {
+  assert.equal(resolveAppRoute("#/tags"), "tags");
+  assert.equal(resolveAppRoute("#/tags/tag-1"), "tags");
+  assert.equal(resolveAppRoute("#/people/person-9"), "people");
+});
+
+test("resolveRouteFocus extracts the focused entity id", () => {
+  assert.equal(resolveRouteFocus("#/tags/tag-1"), "tag-1");
+  assert.equal(resolveRouteFocus("#/people/person-9"), "person-9");
+  assert.equal(resolveRouteFocus("#/tags"), null);
+  assert.equal(resolveRouteFocus("#/notes"), null);
+});
+
+test("entityFocusHash round-trips ids that need encoding", () => {
+  const hash = entityFocusHash("person", "a/b c");
+  assert.equal(resolveAppRoute(hash), "people");
+  assert.equal(resolveRouteFocus(hash), "a/b c");
+});
+
+test("history routes carry the note id as the route focus", () => {
+  const hash = noteHistoryHash("note-1/a");
+  assert.equal(hash, "#/history/note-1%2Fa");
+  assert.equal(resolveAppRoute(hash), "history");
+  assert.equal(resolveRouteFocus(hash), "note-1/a");
+  assert.equal(resolveAppRoute("#/history"), "notes");
+  assert.equal(resolveHistoryVersion(hash), null);
+});
+
+test("history routes carry an optional preselected version id", () => {
+  const hash = noteHistoryHash("note-1", "version/7");
+  assert.equal(hash, "#/history/note-1/version%2F7");
+  assert.equal(resolveAppRoute(hash), "history");
+  assert.equal(resolveRouteFocus(hash), "note-1");
+  assert.equal(resolveHistoryVersion(hash), "version/7");
+  assert.equal(resolveHistoryVersion("#/tags/tag-1"), null);
+});
+
+test("prompt playground has a dedicated hash route without sub-paths", () => {
+  assert.equal(resolveAppRoute("#/prompt-playground"), "prompt-playground");
+  assert.equal(resolveAppRoute("#/prompt-playground/extra"), "notes");
+  assert.equal(appRouteHash("prompt-playground"), "#/prompt-playground");
+  assert.equal(resolveAppRoute(appRouteHash("prompt-playground")), "prompt-playground");
+  assert.equal(resolveRouteFocus("#/prompt-playground"), null);
+});
+
+test("journal routes resolve with an optional day focus", () => {
+  assert.equal(resolveAppRoute("#/journal"), "journal");
+  assert.equal(resolveAppRoute("#/journal/2026-07-27"), "journal");
+  assert.equal(resolveRouteFocus("#/journal/2026-07-27"), "2026-07-27");
+  assert.equal(resolveRouteFocus("#/journal"), null);
+  assert.equal(journalDayHash("2026-07-27"), "#/journal/2026-07-27");
+});
+
+test("the media library has its own full-screen route", () => {
+  assert.equal(resolveAppRoute("#/media"), "media");
+  assert.equal(appRouteHash("media"), "#/media");
+  assert.equal(resolveRouteFocus("#/media"), null);
+});

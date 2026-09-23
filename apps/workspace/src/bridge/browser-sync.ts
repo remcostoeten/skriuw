@@ -1,7 +1,7 @@
 import { authConfiguration } from "@/features/auth/config";
 import { connectFailureText } from "@/features/auth/connect-state";
 import { clearBrowserSessionToken, loadBrowserSessionToken } from "@/features/auth/session-store";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 
 /**

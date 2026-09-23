@@ -96,7 +96,7 @@ import {
   sameDropTarget,
 } from "./sidebar-dnd";
 import type { DropTarget } from "./sidebar-dnd";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 import { SidebarCalendar } from "@/features/journal/sidebar-calendar";
 import { nextFolderExpansion } from "./sidebar-search";
 import { PinnedChips } from "./pinned-chips";

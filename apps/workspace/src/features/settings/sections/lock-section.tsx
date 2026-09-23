@@ -136,7 +136,7 @@ export function LockSection({ store }: SectionProps) {
         </div>
         <SettingToggle
           label="Lock when the window loses focus"
-          detail="Closes locked notes the moment you switch to another app."
+          detail="Closes locked notes the moment you switch to another app or tab."
           checked={settings.lockOnBlur}
           onChange={(checked) => change("lockOnBlur", checked)}
         />

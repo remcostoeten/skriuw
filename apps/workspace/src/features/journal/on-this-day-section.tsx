@@ -3,7 +3,7 @@ import { cn } from "@/shared/lib/utils";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import { formatLongDate, type DateKey } from "./dates";
+import { formatLongDate, type DateKey } from "@skriuw/renderer-core/journal/dates";
 import { MOOD_OPTIONS, selectJournalEntries, type MoodLevel } from "./model";
 import { openJournalDay } from "./navigation";
 import { entryExcerpt, onThisDay } from "./on-this-day";

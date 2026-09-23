@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { SearchHit } from "@skriuw/renderer-core/contracts/workspace";
 import { MINIMUM_TOUCH_TARGET } from "../../../shell/metrics";
 import { useTheme } from "../../../shell/theme";
-import { snippetPlainText, snippetSegments } from "./snippet";
+import { snippetPlainText, snippetSegments } from "@skriuw/renderer-core/search/snippet";
 
 type Props = {
   hit: SearchHit;

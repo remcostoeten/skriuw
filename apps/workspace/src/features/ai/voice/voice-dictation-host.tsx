@@ -5,7 +5,7 @@ import { Dialog, useDialogClose } from "@/shared/ui/dialog";
 import { Button } from "@/shared/ui/button";
 import { Select } from "@/shared/ui/select";
 import { cn } from "@/shared/lib/utils";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { updateSettings } from "@/store/actions/settings";

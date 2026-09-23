@@ -10,8 +10,8 @@
     "generate": "bun generate.ts",
     "check": "bun generate.ts --check",
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
-    "verify": "tsc --noEmit && bun test"
+    "test": "bun --cwd=../.. vitest run --project icons",
+    "verify": "tsc --noEmit && tsc --noEmit --project ../../__tests__/packages/icons && bun run test"
   },
   "devDependencies": {
     "@fluentui/svg-icons": "1.1.341",

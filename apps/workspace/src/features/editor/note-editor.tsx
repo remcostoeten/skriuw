@@ -81,7 +81,7 @@ import { cssStringLiteral } from "@/features/settings/apply-settings";
 import { projectSettings, usesVimMode } from "@/features/settings/settings-model";
 import { opensNotesInTabs } from "@skriuw/renderer-core/settings/open-notes-in-tabs";
 import { closeTab } from "@/store/actions/panes";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 import { toastActionIsAvailable } from "@/shared/ui/toast";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import {

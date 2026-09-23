@@ -78,6 +78,7 @@ apps/mobile                Expo native mobile application
 apps/site                  Marketing site
 services/sync              Cloudflare Worker authentication and sync service
 packages/renderer-core     Shared renderer contracts, store, and route logic
+packages/shared            Framework-independent helpers with direct subpath imports
 packages/theme             Shared theme token generator and generated tokens
 apps/workspace/harnesses   Retained measurement harnesses run by the build
 crates/xtask               Repository automation and contract generation

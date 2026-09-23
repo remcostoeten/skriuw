@@ -1,5 +1,5 @@
 import type { LocalAiModel } from "@/contracts/ai";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 
 const STORAGE_KEY = "skriuw:v2:ai:ollama-model";
 const MAX_MODEL_NAME_LENGTH = 256;

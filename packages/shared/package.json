@@ -1,0 +1,13 @@
+{
+  "name": "@skriuw/shared",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./helpers/noop": "./src/helpers/noop.ts",
+    "./helpers/clamp": "./src/helpers/clamp.ts"
+  },
+  "scripts": {
+    "test": "bun --cwd=../.. vitest run --project shared"
+  }
+}

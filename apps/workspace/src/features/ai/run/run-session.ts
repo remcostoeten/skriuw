@@ -1,5 +1,5 @@
 import type { AiCompletionEvent, AiCompletionRequest } from "@/contracts/ai";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 import {
   startAiCompletion,
   type AiCompletionHandle,

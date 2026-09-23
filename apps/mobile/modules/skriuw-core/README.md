@@ -29,7 +29,8 @@ types, so this module holds no second copy of the contract.
 Every call returns a promise and runs off the JS thread: Kotlin bodies are
 coroutines moved to `Dispatchers.IO`, and Swift `AsyncFunction` bodies run on
 the Expo modules background queue. There is no `Function`, constant or property
-that reaches Rust synchronously, and `__tests__/core.test.ts` holds the
+that reaches Rust synchronously, and
+`__tests__/apps/mobile/modules/skriuw-core/core.test.ts` holds the
 TypeScript surface to promises.
 
 Failures reject with `SkriuwCoreError`; branch on `kind`. The kinds mirror
@@ -121,10 +122,10 @@ output.
 ## Checks
 
 ```bash
-cd mobile
-bunx tsx --test modules/skriuw-core/__tests__/*.test.ts
+cd apps/mobile
+bun --cwd=../.. vitest run --project mobile __tests__/apps/mobile/modules/skriuw-core
 bunx tsc --noEmit --project modules/skriuw-core
-bunx tsc --noEmit --project modules/skriuw-core/__tests__
+bunx tsc --noEmit --project ../../__tests__/apps/mobile
 
 modules/skriuw-core/scripts/e2e-android.sh   # needs a booted emulator
 ```

@@ -248,7 +248,7 @@ New entries in `apps/workspace/src/commands/workspace-commands.tsx`, mirroring t
 
 ## Acceptance criteria
 
-1. With N tabs open and no split, exactly one editor instance is mounted; with a split, exactly two — asserted in `apps/workspace/__tests__/shell/editor-panes.test.ts` alongside the existing assertions.
+1. With N tabs open and no split, exactly one editor instance is mounted; with a split, exactly two — asserted in `__tests__/apps/workspace/src/shell/editor-panes.test.ts` alongside the existing assertions.
 2. Both panes render an independent tab strip; closing, pinning, reordering, cycling, and index-activating operate on the focused pane only.
 3. Orientation toggles between side-by-side and stacked, preserves `ratio` and pane order, and remounts neither editor.
 4. The divider drags to any ratio in `[0.15, 0.85]`, honours the pixel minimums, resets on double-click, and is fully operable from the keyboard with correct `aria-valuenow`.

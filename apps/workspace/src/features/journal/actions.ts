@@ -1,7 +1,7 @@
 import { commitOperations, trashSubtree } from "@/store/actions/workspace";
 import type { NoteProperty, WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
-import type { DateKey } from "./dates";
+import type { DateKey } from "@skriuw/renderer-core/journal/dates";
 import {
   JOURNAL_DATE_PROPERTY_ID,
   JOURNAL_MOOD_PROPERTY_ID,

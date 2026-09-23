@@ -48,7 +48,7 @@ import type {
 } from "@/features/settings/maintenance-model";
 import { isBrowserRuntime } from "@/bridge/runtime";
 import { installOffered, promptInstall, subscribeInstallOffer } from "@/bridge/install-prompt";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 import { cn } from "@/shared/lib/utils";
 import {
   SettingsHeading,

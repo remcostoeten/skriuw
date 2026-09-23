@@ -175,6 +175,8 @@ The repository layout, web deployment, and cloud development reference is in
 [CONTRIBUTING.md](CONTRIBUTING.md); report security issues through
 [SECURITY.md](SECURITY.md) instead of a public issue.
 
+Framework-independent v2 helpers live in [`packages/shared`](packages/shared/README.md).
+
 ## Using the previous generation
 
 The previous generation of Skriuw (web, mobile, collaboration, self-hosting)

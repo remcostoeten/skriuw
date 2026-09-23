@@ -43,6 +43,10 @@ The rule set and the reasoning behind it are recorded in [ADR-0050](docs/adr/005
 
 See [docs/development.md](docs/development.md#commands) for the command reference.
 
+Generic v2 utilities belong in [`packages/shared`](packages/shared/README.md).
+Import helpers directly from `@skriuw/shared/helpers/<name>`; keep product rules
+in `renderer-core`. See [TypeScript testing](docs/testing.md) for suite placement.
+
 ### v2 mobile
 
 `apps/workspace/`, `apps/site/`, `apps/mobile/`, and `packages/*` are Bun workspaces resolved from one root

@@ -12,7 +12,7 @@
   "scripts": {
     "types": "wrangler types worker-configuration.d.ts",
     "types:check": "bash scripts/without-dev-vars.sh wrangler types worker-configuration.d.ts --check",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit --project ../../__tests__/services/sync",
     "test": "bash scripts/without-dev-vars.sh vitest run",
     "check": "bun run types:check && bun run typecheck && bun run test",
     "deploy:dry": "wrangler deploy --dry-run",
@@ -22,6 +22,7 @@
   "dependencies": {
     "@better-auth/infra": "0.4.1",
     "@cfworker/json-schema": "4.1.1",
-    "better-auth": "1.6.26"
+    "better-auth": "1.6.26",
+    "@skriuw/shared": "file:../../packages/shared"
   }
 }

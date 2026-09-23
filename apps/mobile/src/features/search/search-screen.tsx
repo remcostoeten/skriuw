@@ -8,7 +8,7 @@ import { useWorkspace } from "../../shell/workspace-provider";
 import { describeSearchIndex } from "./index-status";
 import { SavedSearchBar } from "./saved/saved-search-bar";
 import { SearchResultRow } from "./results/search-result-row";
-import type { SearchPlanStatus } from "./query/search-plan";
+import type { SearchPlanStatus } from "@skriuw/renderer-core/search/search-plan";
 import { setSearchSaved } from "./saved/saved-searches";
 import { useWorkspaceSearch } from "./run/use-search";
 

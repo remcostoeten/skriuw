@@ -1,5 +1,5 @@
 import { activeEditorSession } from "./active-session";
-import { noop } from "@/shared/lib/noop";
+import { noop } from "@skriuw/shared/helpers/noop";
 
 /**
  * Stands in for `@/bridge/external-links` in the standalone editor bundle: a
