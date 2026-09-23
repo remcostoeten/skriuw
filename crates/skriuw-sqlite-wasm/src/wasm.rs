@@ -4,8 +4,8 @@ use std::sync::Arc;
 use skriuw_sqlite::SqliteWorkspace;
 use skriuw_sync::{
     SyncCancellation, SyncClock, SyncHttpEndpoints, SyncTransport, TransportError,
-    classify_http_failure, classify_optional_route_failure, rejected_error_code,
-    request_timeout_ms,
+    classify_http_failure, classify_optional_route_failure, classify_rejected_response,
+    rejected_error_code, request_timeout_ms,
 };
 use sqlite_wasm_vfs::sahpool::{
     OpfsSAHError, OpfsSAHPoolCfgBuilder, install as install_opfs_sahpool,
@@ -320,8 +320,9 @@ impl XhrSyncTransport {
     ) -> Result<T, TransportError> {
         let response = self.request_json_response(method, url, payload, cancellation)?;
         if !(200..300).contains(&response.status) {
-            return Err(classify_http_failure(
+            return Err(classify_rejected_response(
                 response.status,
+                rejected_error_code(&response.body).as_deref(),
                 response.retry_after_ms,
             ));
         }

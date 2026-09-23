@@ -103,6 +103,8 @@ impl SyncHttpEndpoints {
     }
 }
 
+const VALIDATION_DETAIL_REQUEST_REJECTED: &str = "request_rejected";
+
 /// Maps a non-success HTTP status to the stable transport failure
 /// classification the coordinator's retry, pause, and status behavior depends
 /// on. Every transport implementation must route rejected responses through
@@ -117,8 +119,27 @@ pub fn classify_http_failure(status: u16, retry_after_ms: Option<i64>) -> Transp
         413 => TransportError::Validation(VALIDATION_DETAIL_QUOTA_EXCEEDED.into()),
         423 => TransportError::Validation(VALIDATION_DETAIL_WORKSPACE_ENCRYPTED.into()),
         429 => TransportError::RateLimited { retry_after_ms },
-        400..=499 => TransportError::Validation("request_rejected".into()),
+        400..=499 => TransportError::Validation(VALIDATION_DETAIL_REQUEST_REJECTED.into()),
         _ => TransportError::Server { retry_after_ms },
+    }
+}
+
+/// Classifies a rejected response like [`classify_http_failure`], but keeps
+/// the service's own error code as the validation detail instead of the
+/// generic `request_rejected`, so a blocked sync names why it was refused.
+#[must_use]
+pub fn classify_rejected_response(
+    status: u16,
+    error_code: Option<&str>,
+    retry_after_ms: Option<i64>,
+) -> TransportError {
+    match (classify_http_failure(status, retry_after_ms), error_code) {
+        (TransportError::Validation(detail), Some(code))
+            if detail == VALIDATION_DETAIL_REQUEST_REJECTED =>
+        {
+            TransportError::Validation(code.to_owned())
+        }
+        (failure, _) => failure,
     }
 }
 
@@ -191,6 +212,22 @@ mod tests {
         assert_eq!(
             endpoints.events("w_1", "device-1"),
             "https://cloud.example/v1/workspaces/w_1/events?deviceId=device-1"
+        );
+    }
+
+    #[test]
+    fn a_rejected_response_keeps_the_service_error_code() {
+        assert_eq!(
+            classify_rejected_response(400, Some("invalid_request"), None),
+            TransportError::Validation("invalid_request".into())
+        );
+        assert_eq!(
+            classify_rejected_response(400, None, None),
+            TransportError::Validation("request_rejected".into())
+        );
+        assert_eq!(
+            classify_rejected_response(401, Some("credential_expired"), None),
+            TransportError::AuthenticationRequired
         );
     }
 
