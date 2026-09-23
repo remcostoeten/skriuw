@@ -21,8 +21,9 @@ use skriuw_storage::{NewSyncConnection, SyncRecovery, WorkspaceSyncQueue};
 use skriuw_sync::{
     SyncAssetStore, SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncHttpEndpoints,
     SyncStatus, SyncTransport, SyncWorkspaceObserver, SystemClock, TransportError,
-    classify_http_failure, classify_optional_route_failure, enable_workspace_encryption,
-    rejected_error_code, request_timeout_ms, unlock_workspace_encryption,
+    classify_http_failure, classify_optional_route_failure, classify_rejected_response,
+    enable_workspace_encryption, rejected_error_code, request_timeout_ms,
+    unlock_workspace_encryption,
 };
 use uuid::Uuid;
 
@@ -737,9 +738,12 @@ impl HttpSyncTransport {
         let response = self.dispatch(request, cancellation)?;
         let status = response.status();
         if !status.is_success() {
-            return Err(transport_error(
-                status,
-                response.headers().get("Retry-After"),
+            let retry_after_ms = retry_after_ms(response.headers().get("Retry-After"));
+            let body = read_bounded(response).unwrap_or_default();
+            return Err(classify_rejected_response(
+                status.as_u16(),
+                rejected_error_code(&body).as_deref(),
+                retry_after_ms,
             ));
         }
         let body = read_bounded(response)?;

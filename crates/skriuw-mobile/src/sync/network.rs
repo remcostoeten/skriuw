@@ -22,7 +22,8 @@ use skriuw_domain::{
 };
 use skriuw_sync::{
     SyncCancellation, SyncHttpEndpoints, SyncTransport, TransportError, classify_http_failure,
-    classify_optional_route_failure, rejected_error_code, request_timeout_ms,
+    classify_optional_route_failure, classify_rejected_response, rejected_error_code,
+    request_timeout_ms,
 };
 
 use crate::error::MobileError;
@@ -223,8 +224,9 @@ impl NetworkTransport {
     ) -> Result<T, TransportError> {
         let response = self.exchange(request, cancellation)?;
         if !is_success(response.status) {
-            return Err(classify_http_failure(
+            return Err(classify_rejected_response(
                 response.status,
+                rejected_error_code(&response.body).as_deref(),
                 response.retry_after_ms,
             ));
         }

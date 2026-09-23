@@ -50,7 +50,7 @@ pub use cycle::{
 pub use http::{
     ERROR_CODE_NOT_FOUND, SyncHttpEndpoints, VALIDATION_DETAIL_QUOTA_EXCEEDED,
     VALIDATION_DETAIL_WORKSPACE_ENCRYPTED, classify_http_failure, classify_optional_route_failure,
-    rejected_error_code, request_timeout_ms,
+    classify_rejected_response, rejected_error_code, request_timeout_ms,
 };
 pub use seal::{
     WorkspaceSealer, derive_workspace_seal, enable_workspace_encryption, new_recovery_code,
