@@ -71,6 +71,7 @@ type Listener = () => void;
 function fakeTarget() {
   const listeners = new Map<string, Set<Listener>>();
   return {
+    visibilityState: "visible" as DocumentVisibilityState,
     addEventListener(type: string, listener: EventListenerOrEventListenerObject) {
       const set = listeners.get(type) ?? new Set();
       set.add(listener as Listener);
@@ -113,9 +114,17 @@ function fakeTimers() {
     pending() {
       return scheduled.size;
     },
+    now() {
+      return now;
+    },
+    skip(ms: number) {
+      now += ms;
+    },
   } as unknown as Pick<typeof globalThis, "setTimeout" | "clearTimeout"> & {
     advance(ms: number): void;
     pending(): number;
+    now(): number;
+    skip(ms: number): void;
   };
 }
 
@@ -229,4 +238,72 @@ test("blur relocks only when the setting asks for it", async () => {
   assert.equal(relocks, 1);
   unbind();
   assert.deepEqual(lockedNodeIds(store.getState()), ["locked"]);
+});
+
+test("hiding the tab relocks once when the setting asks for it", async () => {
+  const store = createRendererStore(
+    createInitialState(snapshot({ autoLockMinutes: 0, lockOnBlur: true }), []),
+  );
+  const windowTarget = fakeTarget();
+  const documentTarget = fakeTarget();
+  let relocks = 0;
+  const unbind = bindLockSession(store, {
+    window: windowTarget,
+    document: documentTarget,
+    timers: fakeTimers(),
+    refresh: async () => undefined,
+    hydrate: async () => undefined,
+    relock: async () => {
+      relocks += 1;
+    },
+    onError: (context, error) => assert.fail(`${context}: ${String(error)}`),
+  });
+  unlockedStore(store);
+  documentTarget.visibilityState = "hidden";
+  documentTarget.fire("visibilitychange");
+  await flush();
+  assert.equal(relocks, 1, "a tab switch relocks without a window blur");
+
+  documentTarget.fire("visibilitychange");
+  windowTarget.fire("blur");
+  await flush();
+  assert.equal(relocks, 2, "a tab switch firing both events relocks once");
+  unbind();
+  assert.equal(documentTarget.count("visibilitychange"), 0);
+});
+
+test("returning to the tab after the idle deadline relocks even when the timer never ran", async () => {
+  const store = createRendererStore(createInitialState(snapshot({ autoLockMinutes: 1 }), []));
+  const documentTarget = fakeTarget();
+  const timers = fakeTimers();
+  let relocks = 0;
+  const unbind = bindLockSession(store, {
+    window: fakeTarget(),
+    document: documentTarget,
+    timers,
+    now: () => timers.now(),
+    refresh: async () => undefined,
+    hydrate: async () => undefined,
+    relock: async () => {
+      relocks += 1;
+    },
+    onError: (context, error) => assert.fail(`${context}: ${String(error)}`),
+  });
+  unlockedStore(store);
+  documentTarget.visibilityState = "hidden";
+  documentTarget.fire("visibilitychange");
+  timers.skip(30_000);
+  documentTarget.visibilityState = "visible";
+  documentTarget.fire("visibilitychange");
+  await flush();
+  assert.equal(relocks, 0, "back before the deadline keeps the session open");
+
+  documentTarget.visibilityState = "hidden";
+  documentTarget.fire("visibilitychange");
+  timers.skip(5 * 60_000);
+  documentTarget.visibilityState = "visible";
+  documentTarget.fire("visibilitychange");
+  await flush();
+  assert.equal(relocks, 1);
+  unbind();
 });
