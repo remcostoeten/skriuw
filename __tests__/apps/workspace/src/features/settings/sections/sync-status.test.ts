@@ -47,10 +47,10 @@ test("a rejected browser session lands in a recoverable authenticationRequired d
   assert.ok(text.includes("reconnect"));
 });
 
-test("a signed-in device that is local-only reads as paused, not as an unfinished setup step", () => {
+test("a signed-in device that is local-only never reads as a user-chosen pause", () => {
   const text = syncDescription({ state: "localOnly" }, false);
-  assert.ok(text.startsWith("Paused."));
-  assert.ok(text.includes("resume sync"));
+  assert.ok(!/paused/i.test(text));
+  assert.ok(text.includes("retries automatically"));
 });
 
 test("browser blocked copy never points at the desktop-only blocked list", () => {
@@ -137,9 +137,9 @@ test("every sync state has a short menu summary that fits one line", () => {
   }
 });
 
-test("a paused workspace never reads as synced in the menu", () => {
+test("a disconnected workspace never reads as synced in the menu", () => {
   assert.equal(syncTone({ state: "localOnly" }), "offline");
-  assert.match(syncSummary({ state: "localOnly" }), /paused/i);
+  assert.match(syncSummary({ state: "localOnly" }), /not connected/i);
 });
 
 test("states needing the user read as attention, not as a healthy dot", () => {
