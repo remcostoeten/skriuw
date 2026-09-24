@@ -2,7 +2,7 @@
 
 import type { ComponentType, SVGProps } from "react";
 import { Moon, Sun } from "@/components/ui/icons";
-import { cx } from "@/components/ui/primitives";
+import { cn } from "@skriuw/shared/helpers/cn";
 import { useTheme } from "@/lib/theme";
 import type { ResolvedTheme } from "@/lib/theme";
 
@@ -27,14 +27,14 @@ export function ThemeToggle({ className }: Props) {
     <div
       role="radiogroup"
       aria-label="Color theme"
-      className={cx(
+      className={cn(
         "relative grid grid-cols-2 rounded-full border border-border bg-surface p-0.5",
         className,
       )}
     >
       <span
         aria-hidden
-        className={cx(
+        className={cn(
           "absolute inset-y-0.5 left-0.5 w-[calc(50%-0.125rem)] rounded-full bg-ink-100",
           "transition-transform duration-200 ease-out motion-reduce:duration-75",
         )}
@@ -50,7 +50,7 @@ export function ThemeToggle({ className }: Props) {
           aria-label={option.label}
           title={option.label}
           onClick={() => select(option.value)}
-          className={cx(
+          className={cn(
             "relative grid size-7 place-items-center rounded-full",
             "transition-colors duration-150 ease-out",
             "focus-visible:text-focus-ink",

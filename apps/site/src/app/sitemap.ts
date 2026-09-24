@@ -1,8 +1,6 @@
 import type { MetadataRoute } from "next";
 import { docPages } from "@/data/docs";
 
-export const dynamic = "force-static";
-
 const routes = [
   "/",
   "/download/",

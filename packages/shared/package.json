@@ -4,8 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "exports": {
-    "./helpers/noop": "./src/helpers/noop.ts",
-    "./helpers/clamp": "./src/helpers/clamp.ts"
+    "./helpers/clamp": "./src/helpers/clamp.ts",
+    "./helpers/cn": "./src/helpers/cn.ts",
+    "./helpers/noop": "./src/helpers/noop.ts"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.6.0"
   },
   "scripts": {
     "test": "bun --cwd=../.. vitest run --project shared"

@@ -4,6 +4,7 @@ import { useRef, useState, type CSSProperties } from "react";
 import { Action, CarouselNav, Container, Rail, SectionHeading } from "@/components/ui/primitives";
 import { stagger, useReveal } from "@/components/ui/reveal";
 import { appUrl, themes } from "@/data/content";
+import { clamp } from "@skriuw/shared/helpers/clamp";
 
 export function Themes() {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -17,7 +18,7 @@ export function Themes() {
       return;
     }
 
-    const clamped = Math.min(themes.length - 1, Math.max(0, next));
+    const clamped = clamp(next, 0, themes.length - 1);
     setIndex(clamped);
     track.scrollTo({ left: clamped * 284, behavior: "smooth" });
   }

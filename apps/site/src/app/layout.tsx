@@ -4,6 +4,7 @@ import { Geist_Mono, Inter } from "next/font/google";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { socialImage } from "@/data/seo";
+import { cn } from "@skriuw/shared/helpers/cn";
 import "./globals.css";
 
 const inter = Inter({
@@ -62,7 +63,7 @@ type Props = {
 
 export default function RootLayout({ children }: Props) {
   return (
-    <html lang="en" className={`${inter.variable} ${geistMono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={cn(inter.variable, geistMono.variable)} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

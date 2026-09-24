@@ -57,6 +57,19 @@ function createRenderer(sourceDir: string, headings: DocHeading[]) {
 
   marked.use({
     renderer: {
+      /**
+       * Renders one markdown heading as an anchored `<hN>` element.
+       *
+       * The id is slugified from the visible text; a heading repeated on the
+       * same page gets a `-2`, `-3`, … suffix so anchors stay unique. Depth 2
+       * and 3 headings are also recorded in `headings` for the page's table
+       * of contents.
+       *
+       * @param token - The heading token, destructured.
+       * @param token.tokens - Inline tokens for the heading text, rendered through the parser's inline pass.
+       * @param token.depth - Heading level from the source markdown, 1–6.
+       * @returns The heading markup wrapped in its permalink anchor, newline-terminated.
+       */
       heading({ tokens, depth }) {
         const html = this.parser.parseInline(tokens);
         const text = stripTags(html);
@@ -101,6 +114,7 @@ function splitLede(source: string) {
 }
 
 export async function renderDoc(page: DocPage): Promise<RenderedDoc> {
+  "use cache";
   const absolute = path.join(repoRoot, page.source);
   const source = await readFile(absolute, "utf8");
   const { lede, body } = splitLede(source);

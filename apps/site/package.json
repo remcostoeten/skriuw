@@ -7,20 +7,26 @@
     "dev": "next dev --port 5182",
     "build": "next build",
     "typecheck": "tsc --noEmit",
-    "start": "npx serve out"
+    "start": "next start --port 5182"
   },
   "dependencies": {
+    "@skriuw/shared": "workspace:*",
     "marked": "^18.0.13",
     "next": "16.3.5",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "@skriuw/shared": "workspace:*"
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "semver": "^7.8.5",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "26.1.1",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "@types/semver": "^7.8.0",
     "tailwindcss": "^4.3.3",
     "typescript": "5.9.3"
   }
