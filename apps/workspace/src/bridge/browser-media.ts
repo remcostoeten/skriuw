@@ -119,6 +119,25 @@ async function contentHashOf(bytes: Uint8Array): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+function writeThroughWorker(fileName: string, buffer: ArrayBuffer): Promise<void> {
+  const worker = new Worker(new URL("./media-write-worker.ts", import.meta.url), {
+    type: "module",
+    name: "skriuw-media-write",
+  });
+  return new Promise((resolve, reject) => {
+    worker.onmessage = (event: MessageEvent<{ ok: boolean; message?: string }>) => {
+      worker.terminate();
+      if (event.data.ok) resolve();
+      else reject(new Error(event.data.message ?? "media write failed"));
+    };
+    worker.onerror = (event) => {
+      worker.terminate();
+      reject(new Error(event.message || "media write worker failed"));
+    };
+    worker.postMessage({ directory: activeBlobsDirectory(), fileName, buffer }, [buffer]);
+  });
+}
+
 export async function storeBrowserMediaBlob(bytes: Uint8Array): Promise<StoredImagePayload> {
   const mimeType = sniffMediaMime(bytes);
   if (!mimeType) {
@@ -136,11 +155,17 @@ export async function storeBrowserMediaBlob(bytes: Uint8Array): Promise<StoredIm
   });
   const existing = await handle.getFile();
   if (existing.size !== bytes.byteLength) {
-    const writable = await handle.createWritable();
-    await writable.write(
-      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
-    );
-    await writable.close();
+    const buffer = bytes.buffer.slice(
+      bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength,
+    ) as ArrayBuffer;
+    if (typeof handle.createWritable === "function") {
+      const writable = await handle.createWritable();
+      await writable.write(buffer);
+      await writable.close();
+    } else {
+      await writeThroughWorker(blobFileName(contentHash, mimeType), buffer);
+    }
   }
   void requestMediaPersistenceOnce();
   return { contentHash, mimeType, byteSize: bytes.byteLength };
