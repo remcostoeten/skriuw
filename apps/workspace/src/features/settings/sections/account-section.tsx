@@ -22,12 +22,7 @@ import {
   settingsSection,
 } from "./settings-shared";
 import { blockedCauseText, blockedItemLabel, blockedItemRetryable } from "./sync-recovery";
-import {
-  syncDescription,
-  syncDetail,
-  syncProgressText,
-  syncProgressVisible,
-} from "./sync-status";
+import { syncDescription, syncDetail, syncProgressText, syncProgressVisible } from "./sync-status";
 import { SyncEncryptionPanel } from "./sync-encryption-panel";
 import { useWorkspaceSync } from "./use-workspace-sync";
 import { shortWorkspaceId, workspaceOwnershipText } from "./workspace-ownership";
