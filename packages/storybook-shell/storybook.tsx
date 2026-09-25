@@ -614,11 +614,7 @@ function Shell({
               {canvas ?? <p className="text-muted-foreground">{labels.noStories}</p>}
             </div>
             {features.tableOfContents && active && (
-              <TableOfContents
-                contentRef={contentRef}
-                scrollRef={scrollRef}
-                storyId={active.id}
-              />
+              <TableOfContents contentRef={contentRef} scrollRef={scrollRef} storyId={active.id} />
             )}
           </div>
         </main>

@@ -12,7 +12,7 @@ curl -fsSL https://raw.githubusercontent.com/remcostoeten/skriuw/daddy/packages/
 
 Pin a commit or tag with `STORYBOOK_SHELL_REF=<ref>` (default `daddy`); point at a fork with `STORYBOOK_SHELL_REPO=<owner/repo>`. From a local checkout, `bun packages/storybook-shell/install.ts <project-root>` does the same.
 
-The installer writes `.storybook-shell.json` next to the copied files: the repo, ref and commit it came from, plus a hash of each file as installed. Rerunning keeps existing files. To pull a newer shell:
+The installer writes `.storybook-shell.json` next to the copied files: the repo, ref and commit it came from, plus a hash of each file as installed. Rerunning without a flag keeps existing files, including ones you edited, and `--update` still treats those as edited. To pull a newer shell:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/remcostoeten/skriuw/daddy/packages/storybook-shell/install.sh | bash -s -- . --update
@@ -22,19 +22,28 @@ curl -fsSL https://raw.githubusercontent.com/remcostoeten/skriuw/daddy/packages/
 
 ## Requirements
 
-- React 19.
-- Tailwind CSS v4. The shell uses the shadcn-style colors `background`, `foreground`, `muted`, `muted-foreground`, `border` and `ring`; when the app does not define them, the installer copies `tokens.css` (neutral light/dark defaults that still honour `--background` etc. if set) and prints the `@import` to add.
-- A `@source` entry so Tailwind scans this package:
-
-```css
-@import "tailwindcss";
-@source "../node_modules/@skriuw/storybook-shell";
-```
+- `bun` to run the installer (`curl` and `tar` too for the one-liner).
+- React 19 and `react-dom` 19.
+- Tailwind CSS v4 with an integration such as `@tailwindcss/vite`, and a CSS entry containing `@import "tailwindcss";`. The installer finds that entry and prints any line it still needs.
+- Colors: the shell uses the shadcn-style colors `background`, `foreground`, `muted`, `muted-foreground`, `border` and `ring`. When the CSS entry does not define `--color-background`, the installer copies `tokens.css` (neutral light/dark defaults that still honour `--background` etc. if set) and prints the `@import` to add after the Tailwind import.
+- Tailwind scans the copied files automatically when they sit under the CSS entry's folder (the default `src/storybook` with `src/index.css`). Otherwise the installer prints the `@source` line to add.
+- Vite, for the `?raw` imports and `import.meta.glob` shown below; the shell itself runs anywhere React does.
 
 ## Usage
 
+The installer writes `storybook-app.tsx` next to the shell; render `<StorybookApp />` from it on its own route or entry, for example in `src/main.tsx`:
+
 ```tsx
-import { Storybook, Variant, type Story } from "@skriuw/storybook-shell";
+import "./index.css";
+import { StorybookApp } from "./storybook/storybook-app";
+
+createRoot(document.getElementById("root")!).render(<StorybookApp />);
+```
+
+Then replace its stories with your own. Import from the copied folder (`./storybook`, or wherever `--dir` put it):
+
+```tsx
+import { Storybook, Variant, type Story } from "./storybook";
 import buttonSource from "./ui/button.tsx?raw";
 
 const stories: Story[] = [
@@ -123,7 +132,7 @@ All preferences persist in `localStorage` under `storageKey` (default `storybook
 `typographyStories(spec, options?)` turns a spec into up to four stories (fonts, type scale, line heights, text styles); empty sections are skipped. Each entry is rendered with its `className`/`style`, and the font family, size, line height, weight and tracking shown beside it are read from the rendered element, so the catalog reflects the real CSS.
 
 ```tsx
-import { typographyStories } from "@skriuw/storybook-shell";
+import { typographyStories } from "./storybook";
 
 const stories = [
   ...typographyStories({

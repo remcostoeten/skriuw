@@ -10,7 +10,8 @@ import {
   SHELL_FILES,
   findTailwindEntry,
   install,
-  providesTokens,
+  definesTokens,
+  importsTokens,
   type Manifest,
 } from "../../../packages/storybook-shell/install";
 
@@ -89,6 +90,35 @@ test("a plain rerun keeps existing files", () => {
   assert.equal(readFileSync(story, "utf8"), "edited");
 });
 
+test("restores tokens.css that the stylesheet imports but the folder lost", () => {
+  const root = project({
+    css: { "src/index.css": '@import "tailwindcss";\n@import "./storybook/tokens.css";\n' },
+  });
+  const result = install({ project: root });
+  assert.equal(result.files["tokens.css"], "written");
+  assert.ok(!result.steps.some((step) => step.includes("tokens.css")));
+});
+
+test("update keeps a file edited before a plain rerun", () => {
+  const root = project();
+  install({ project: root });
+  const story = join(root, "src/storybook/story.tsx");
+  writeFileSync(story, "edited");
+  install({ project: root });
+  assert.equal(install({ project: root, mode: "update" }).files["story.tsx"], "kept-edited");
+  assert.equal(readFileSync(story, "utf8"), "edited");
+});
+
+test("update keeps files that existed before the first install", () => {
+  const root = project();
+  const story = join(root, "src/storybook/story.tsx");
+  mkdirSync(join(root, "src/storybook"), { recursive: true });
+  writeFileSync(story, "preexisting");
+  install({ project: root });
+  assert.equal(install({ project: root, mode: "update" }).files["story.tsx"], "kept-edited");
+  assert.equal(readFileSync(story, "utf8"), "preexisting");
+});
+
 test("update replaces unedited files and keeps edited ones", () => {
   const root = project();
   install({ project: root });
@@ -160,9 +190,10 @@ test("finds the Tailwind entry outside src and ignores dependencies", () => {
 });
 
 test("recognises token definitions and the tokens import", () => {
-  assert.ok(providesTokens("--color-background: red;"));
-  assert.ok(providesTokens('@import "./storybook/tokens.css";'));
-  assert.ok(!providesTokens('@import "tailwindcss";'));
+  assert.ok(definesTokens("--color-background: red;"));
+  assert.ok(!definesTokens('@import "./storybook/tokens.css";'));
+  assert.ok(importsTokens('@import "./storybook/tokens.css";'));
+  assert.ok(!importsTokens('@import "tailwindcss";'));
 });
 
 function createHashOf(content: string): string {
