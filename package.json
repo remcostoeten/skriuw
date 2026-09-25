@@ -5,6 +5,7 @@
   "workspaces": [
     "apps/workspace",
     "apps/site",
+    "apps/storybook",
     "apps/mobile",
     "packages/*"
   ],

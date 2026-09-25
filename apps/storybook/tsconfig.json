@@ -1,0 +1,10 @@
+{
+  "extends": "../workspace/tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@storybook/*": ["./src/*"],
+      "@/*": ["../workspace/src/*"]
+    }
+  },
+  "include": ["src"]
+}

@@ -29,8 +29,8 @@ grep -Fq 'run: ./bin/build ci' .github/workflows/ci-v2.yml
 grep -Fq 'run: ./bin/check browser' .github/workflows/ci-v2.yml
 grep -Fq 'wasm-bindgen-0.2.126' .github/workflows/ci-v2.yml
 grep -Fq 'SKRIUW_WEB_BASE="/app/" bun run build:frontend' scripts/vercel-build.sh
-grep -Fq 'cp -R "$web_dir/out/." "$output_dir/"' scripts/vercel-build.sh
-grep -Fq 'cp -R "$app_dir/dist/." "$output_dir/app/"' scripts/vercel-build.sh
+grep -Fq 'cp -R "$app_dir/dist/." "$web_dir/public/app/"' scripts/vercel-build.sh
+grep -Fq '"buildCommand": "bash ../../scripts/vercel-build.sh"' apps/site/vercel.json
 grep -Fq '"build": "next build"' apps/site/package.json
 grep -Fq 'run_step "Browser SQLite WASM module"' scripts/build.sh
 grep -Fq '(cd services/sync && bun install --frozen-lockfile)' .github/workflows/ci-v2.yml

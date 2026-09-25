@@ -1,0 +1,7 @@
+{
+  "extends": "../../../packages/storybook-shell/tsconfig.json",
+  "compilerOptions": {
+    "typeRoots": ["../../../packages/storybook-shell/node_modules/@types", "../../../node_modules/@types"]
+  },
+  "include": ["**/*.ts"]
+}

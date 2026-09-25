@@ -16,7 +16,14 @@ export type RenderedDoc = {
   lede: string;
 };
 
-const repoRoot = path.resolve(process.cwd(), "../..");
+const docReaders: Record<string, () => Promise<string>> = {
+  "docs/FEATURES.md": () => readFile(path.join(process.cwd(), "../../docs/FEATURES.md"), "utf8"),
+  "docs/ARCHITECTURE.md": () =>
+    readFile(path.join(process.cwd(), "../../docs/ARCHITECTURE.md"), "utf8"),
+  "docs/performance-contract.md": () =>
+    readFile(path.join(process.cwd(), "../../docs/performance-contract.md"), "utf8"),
+  "CHANGELOG.md": () => readFile(path.join(process.cwd(), "../../CHANGELOG.md"), "utf8"),
+};
 
 function slugify(value: string) {
   return value
@@ -57,6 +64,19 @@ function createRenderer(sourceDir: string, headings: DocHeading[]) {
 
   marked.use({
     renderer: {
+      /**
+       * Renders one markdown heading as an anchored `<hN>` element.
+       *
+       * The id is slugified from the visible text; a heading repeated on the
+       * same page gets a `-2`, `-3`, … suffix so anchors stay unique. Depth 2
+       * and 3 headings are also recorded in `headings` for the page's table
+       * of contents.
+       *
+       * @param token - The heading token, destructured.
+       * @param token.tokens - Inline tokens for the heading text, rendered through the parser's inline pass.
+       * @param token.depth - Heading level from the source markdown, 1–6.
+       * @returns The heading markup wrapped in its permalink anchor, newline-terminated.
+       */
       heading({ tokens, depth }) {
         const html = this.parser.parseInline(tokens);
         const text = stripTags(html);
@@ -101,8 +121,10 @@ function splitLede(source: string) {
 }
 
 export async function renderDoc(page: DocPage): Promise<RenderedDoc> {
-  const absolute = path.join(repoRoot, page.source);
-  const source = await readFile(absolute, "utf8");
+  "use cache";
+  const read = docReaders[page.source];
+  if (!read) throw new Error(`No docs reader registered for ${page.source}`);
+  const source = await read();
   const { lede, body } = splitLede(source);
   const headings: DocHeading[] = [];
   const marked = createRenderer(path.posix.dirname(page.source), headings);

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Action, Container, Wordmark, cx } from "@/components/ui/primitives";
+import { cn } from "@skriuw/shared/helpers/cn";
+import { Action, Container, Wordmark } from "@/components/ui/primitives";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { appUrl, navLinks } from "@/data/content";
 
@@ -22,7 +23,7 @@ export function SiteHeader() {
 
   return (
     <header
-      className={cx(
+      className={cn(
         "sticky top-0 z-50 w-full border-b backdrop-blur-md",
         "transition-[background-color,border-color] duration-200 ease-out",
         scrolled ? "border-border/70 bg-surface/85" : "border-transparent bg-surface",

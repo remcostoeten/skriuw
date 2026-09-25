@@ -1,0 +1,30 @@
+{
+  "name": "skriuw-storybook",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@skriuw/icons": "workspace:*",
+    "@skriuw/shared": "workspace:*",
+    "@skriuw/storybook-shell": "workspace:*",
+    "@skriuw/theme": "workspace:*",
+    "motion": "^12.42.2",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "26.1.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "7.0.2",
+    "vite": "8.1.5"
+  }
+}

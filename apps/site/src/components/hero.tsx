@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Action, Container, cx } from "@/components/ui/primitives";
+import { cn } from "@skriuw/shared/helpers/cn";
+import { Action, Container } from "@/components/ui/primitives";
 import { Apple, ArrowRight, Download, Linux, Windows } from "@/components/ui/icons";
 import { HeroAppPreview } from "@/components/hero-app-preview";
 import { appUrl, releasesUrl } from "@/data/content";
@@ -111,7 +112,7 @@ export function Hero() {
         </div>
 
         <div
-          className={cx(
+          className={cn(
             "relative lg:-mr-[22vw]",
             "transition-[opacity,transform] duration-500 ease-out",
             "starting:translate-y-3 starting:scale-[0.985] starting:opacity-0",

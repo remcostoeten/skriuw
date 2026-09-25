@@ -6,6 +6,8 @@ import { Action, CarouselNav, Container, Rail, SectionHeading } from "@/componen
 import { useReveal } from "@/components/ui/reveal";
 import { BrowserArt, DataArt, DesktopArt } from "@/components/platform-art";
 import { platformStories } from "@/data/content";
+import { clamp } from "@skriuw/shared/helpers/clamp";
+import { cn } from "@skriuw/shared/helpers/cn";
 
 const toneStyles = {
   dark: {
@@ -42,7 +44,7 @@ export function Platforms() {
       return;
     }
 
-    const clamped = Math.min(platformStories.length - 1, Math.max(0, next));
+    const clamped = clamp(next, 0, platformStories.length - 1);
     setIndex(clamped);
     track.scrollTo({ left: clamped * track.clientWidth, behavior: "smooth" });
   }
@@ -85,7 +87,10 @@ export function Platforms() {
             return (
               <article
                 key={story.kicker}
-                className={`grid min-h-[420px] w-full shrink-0 snap-start overflow-hidden rounded-[14px] md:grid-cols-2 ${tone.panel}`}
+                className={cn(
+                  "grid min-h-[420px] w-full shrink-0 snap-start overflow-hidden rounded-[14px] md:grid-cols-2",
+                  tone.panel,
+                )}
               >
                 <div className="flex flex-col p-10">
                   <p className="text-[17.6px] font-bold opacity-90">{story.kicker}</p>
@@ -109,7 +114,10 @@ export function Platforms() {
 
                   <Link
                     href={"/docs/features/"}
-                    className={`mt-auto pt-8 text-[15px] underline underline-offset-4 opacity-80 transition-colors duration-150 ease-out focus-visible:opacity-100 ${tone.link}`}
+                    className={cn(
+                      "mt-auto pt-8 text-[15px] underline underline-offset-4 opacity-80 transition-colors duration-150 ease-out focus-visible:opacity-100",
+                      tone.link,
+                    )}
                   >
                     What runs where
                   </Link>
@@ -117,7 +125,10 @@ export function Platforms() {
 
                 <div
                   aria-hidden
-                  className={`relative hidden place-items-center overflow-hidden p-10 md:grid ${tone.art}`}
+                  className={cn(
+                    "relative hidden place-items-center overflow-hidden p-10 md:grid",
+                    tone.art,
+                  )}
                 >
                   <span className="pattern-field texture-dither" />
                   <div className="relative grid w-full place-items-center">

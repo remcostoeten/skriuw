@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Action, Container, Rail, cx } from "@/components/ui/primitives";
+import { cn } from "@skriuw/shared/helpers/cn";
+import { Action, Container, Rail } from "@/components/ui/primitives";
 
 type HeroProps = {
   kicker: string;
@@ -66,7 +67,7 @@ type SectionProps = {
 
 export function PageSection({ label, lead, trail, intro, children, tinted }: SectionProps) {
   return (
-    <section className={cx("border-b border-border py-20", tinted ? "bg-panel" : "bg-surface")}>
+    <section className={cn("border-b border-border py-20", tinted ? "bg-panel" : "bg-surface")}>
       <Container>
         <p className="font-mono text-[13px] tracking-[0.08em] text-ink-400 uppercase">{label}</p>
         <Rail className="mt-5">
@@ -98,7 +99,7 @@ const gridColumns: Record<2 | 3 | 4, string> = {
 export function CardGrid({ columns = 3, items }: CardGridProps) {
   return (
     <div
-      className={cx(
+      className={cn(
         "grid gap-px overflow-hidden rounded-card border border-border bg-border",
         gridColumns[columns],
       )}

@@ -19,6 +19,10 @@ bounds. Supply bounds in ascending order. A NaN argument produces NaN.
 `noop()` returns undefined and performs no work; use it for deliberately ignored
 callbacks or failures that do not require recovery.
 
+`@skriuw/shared/components/theme-toggle` exports `ThemeToggle`, a controlled
+light/dark(/system) segmented switch. It needs React and Tailwind; add
+`@source` for `packages/shared/src/components` to the app's stylesheet.
+
 Each helper documents its types, behavior, and usage in JSDoc beside its source.
 Tests mirror the source under `__tests__/packages/shared/src/helpers/`.
 

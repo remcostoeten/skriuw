@@ -1,0 +1,5 @@
+@import "../../workspace/src/styles.css";
+@source "../../workspace/src";
+@source "./";
+@source "../../../packages/storybook-shell";
+@source "../../../packages/shared/src/components";

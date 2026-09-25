@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Check, Lock, Search } from "@/components/ui/icons";
-import { cx } from "@/components/ui/primitives";
+import { cn } from "@skriuw/shared/helpers/cn";
 
 type PanelProps = {
   children: ReactNode;
@@ -14,7 +14,7 @@ function vars(values: Record<string, string | number>) {
 function Panel({ children, className }: PanelProps) {
   return (
     <div
-      className={cx(
+      className={cn(
         "vg-panel h-full w-full rounded-tl-[10px] border-t border-l border-border bg-muted",
         className,
       )}
@@ -108,7 +108,7 @@ export function EditorVignette() {
                       "--chars": line.text.length,
                       "--delay": `${line.slot * lineStep}s`,
                     })}
-                    className={cx("vg-typed", tones[line.tone])}
+                    className={cn("vg-typed", tones[line.tone])}
                   >
                     {line.text}
                   </span>
@@ -151,7 +151,7 @@ export function JournalVignette() {
           <span
             key={day}
             style={vars({ "--i": day })}
-            className={cx(
+            className={cn(
               "grid h-7 place-items-center rounded-[3px] font-mono text-[10px]",
               day === today
                 ? "bg-ink-800 text-surface"
@@ -238,7 +238,7 @@ export function HistoryVignette() {
           <span
             key={index}
             style={vars({ "--i": index, "--h": 0.3 + ((index * 7) % 10) / 14 })}
-            className={cx("vg-bar h-8 flex-1 origin-bottom rounded-[1px]", barTone(index))}
+            className={cn("vg-bar h-8 flex-1 origin-bottom rounded-[1px]", barTone(index))}
           />
         ))}
       </div>
@@ -246,7 +246,7 @@ export function HistoryVignette() {
       <ul className="mt-4 space-y-2">
         {revisions.map((revision) => (
           <li key={revision.time} className="flex items-center gap-2.5">
-            <span className={cx("size-1.5 shrink-0 rounded-full", revision.dot)} />
+            <span className={cn("size-1.5 shrink-0 rounded-full", revision.dot)} />
             <span className="text-[12px] text-ink-900">{revision.time}</span>
             <span className="ml-auto font-mono text-[11px] text-clay-500">+{revision.plus}</span>
             <span className="w-7 text-right font-mono text-[11px] text-ink-400">
@@ -290,14 +290,14 @@ export function LockVignette() {
             className="flex items-center gap-2.5 py-1.5 pr-5"
           >
             <span
-              className={cx(
+              className={cn(
                 "grid size-5 shrink-0 place-items-center rounded",
                 node.locked ? "bg-clay-100 text-clay-500" : "text-ink-400",
               )}
             >
               {node.locked ? <Lock className="size-3" /> : <Check className="size-3" />}
             </span>
-            <span className={cx("text-[12.5px]", node.locked ? "text-ink-900" : "text-ink-500")}>
+            <span className={cn("text-[12.5px]", node.locked ? "text-ink-900" : "text-ink-500")}>
               {node.name}
             </span>
             {node.locked ? (
@@ -322,7 +322,7 @@ export function LockVignette() {
               <span
                 key={ciphertext}
                 style={vars({ "--i": index })}
-                className={cx("vg-cycle absolute inset-0", index > 0 && "opacity-0")}
+                className={cn("vg-cycle absolute inset-0", index > 0 && "opacity-0")}
               >
                 {ciphertext} …
               </span>
@@ -381,7 +381,7 @@ export function PaletteVignette() {
               <li
                 key={command.label}
                 style={vars({ "--i": index })}
-                className={cx(
+                className={cn(
                   "vg-sweep flex items-center gap-2 rounded px-2 py-2 text-[12.5px]",
                   index === 0 && "motion-reduce:bg-clay-100",
                 )}

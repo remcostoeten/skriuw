@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Action, Container, Rail, SectionHeading, cx } from "@/components/ui/primitives";
+import { cn } from "@skriuw/shared/helpers/cn";
+import { Action, Container, Rail, SectionHeading } from "@/components/ui/primitives";
 import { stagger, useReveal } from "@/components/ui/reveal";
 import { bentoCards } from "@/data/content";
 import {
@@ -52,13 +53,13 @@ export function Bento() {
             <article
               key={card.title}
               style={stagger(index)}
-              className={cx(
+              className={cn(
                 "vg-card flex flex-col overflow-hidden border-r border-b border-border",
                 "wide" in card && "lg:flex-row lg:items-stretch",
                 card.span,
               )}
             >
-              <div className={cx("p-8 pb-0", "wide" in card && "lg:w-[38%] lg:shrink-0 lg:pb-8")}>
+              <div className={cn("p-8 pb-0", "wide" in card && "lg:w-[38%] lg:shrink-0 lg:pb-8")}>
                 <p className="font-mono text-[11px] text-ink-400">
                   <span className="text-clay-500">{card.keys}</span>
                   <span className="mx-2 text-ink-300">/</span>

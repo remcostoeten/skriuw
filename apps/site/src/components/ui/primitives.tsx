@@ -1,10 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import Link from "next/link";
+import { cn } from "@skriuw/shared/helpers/cn";
 import { ArrowRight, ChevronLeft, ChevronRight } from "@/components/ui/icons";
-
-export function cx(...values: Array<string | false | null | undefined>) {
-  return values.filter(Boolean).join(" ");
-}
 
 type ContainerProps = {
   children: ReactNode;
@@ -12,7 +9,7 @@ type ContainerProps = {
 };
 
 export function Container({ children, className }: ContainerProps) {
-  return <div className={cx("mx-auto w-full max-w-6xl px-5", className)}>{children}</div>;
+  return <div className={cn("mx-auto w-full max-w-6xl px-5", className)}>{children}</div>;
 }
 
 type ActionProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "type"> & {
@@ -59,7 +56,7 @@ export function Action({
   className,
   ...rest
 }: ActionProps) {
-  const classes = cx(
+  const classes = cn(
     "group inline-flex shrink-0 items-center gap-2 font-medium",
     pill || arrow === "disc" ? "rounded-full" : "rounded",
     "transition-[color,background-color,border-color,transform] duration-150 ease-out",
@@ -76,7 +73,7 @@ export function Action({
       {arrow === "disc" ? (
         <span
           aria-hidden
-          className={cx(
+          className={cn(
             "grid place-items-center rounded-full bg-action-fg text-action",
             "transition-transform duration-200 ease-out group-hover:translate-x-0.5",
             "motion-reduce:transition-none motion-reduce:group-hover:translate-x-0",
@@ -113,7 +110,7 @@ type SectionHeadingProps = {
 export function SectionHeading({ lead, trail, className }: SectionHeadingProps) {
   return (
     <h2
-      className={cx(
+      className={cn(
         "max-w-[640px] font-serif text-[30px] leading-[36px] font-normal tracking-[-0.6px] text-balance",
         className,
       )}
@@ -131,7 +128,7 @@ type RailProps = {
 
 export function Rail({ children, className }: RailProps) {
   return (
-    <div className={cx("relative pl-5", className)}>
+    <div className={cn("relative pl-5", className)}>
       <span aria-hidden className="absolute top-1.5 left-0 h-7 w-px bg-ink-900" />
       {children}
     </div>
@@ -176,7 +173,7 @@ type WordmarkProps = {
 
 export function Wordmark({ className }: WordmarkProps) {
   return (
-    <span className={cx("inline-flex items-center gap-1.5", className)}>
+    <span className={cn("inline-flex items-center gap-1.5", className)}>
       <svg viewBox="0 0 24 24" aria-hidden className="size-[18px]">
         <g fill="currentColor" transform="translate(0.84 0) skewX(-4)">
           <rect x="4.3" y="6.4" width="4.7" height="12.4" rx="1" />
