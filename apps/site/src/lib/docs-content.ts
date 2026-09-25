@@ -16,7 +16,14 @@ export type RenderedDoc = {
   lede: string;
 };
 
-const repoRoot = path.resolve(process.cwd(), "../..");
+const docReaders: Record<string, () => Promise<string>> = {
+  "docs/FEATURES.md": () => readFile(path.join(process.cwd(), "../../docs/FEATURES.md"), "utf8"),
+  "docs/ARCHITECTURE.md": () =>
+    readFile(path.join(process.cwd(), "../../docs/ARCHITECTURE.md"), "utf8"),
+  "docs/performance-contract.md": () =>
+    readFile(path.join(process.cwd(), "../../docs/performance-contract.md"), "utf8"),
+  "CHANGELOG.md": () => readFile(path.join(process.cwd(), "../../CHANGELOG.md"), "utf8"),
+};
 
 function slugify(value: string) {
   return value
@@ -115,8 +122,9 @@ function splitLede(source: string) {
 
 export async function renderDoc(page: DocPage): Promise<RenderedDoc> {
   "use cache";
-  const absolute = path.join(repoRoot, page.source);
-  const source = await readFile(absolute, "utf8");
+  const read = docReaders[page.source];
+  if (!read) throw new Error(`No docs reader registered for ${page.source}`);
+  const source = await read();
   const { lede, body } = splitLede(source);
   const headings: DocHeading[] = [];
   const marked = createRenderer(path.posix.dirname(page.source), headings);
