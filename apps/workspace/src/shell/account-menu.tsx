@@ -218,21 +218,12 @@ export function AccountMenu({
   const tone = syncTone(sync.status);
   const StatusIcon =
     tone === "offline" ? CloudOffIcon : tone === "syncing" ? RefreshIcon : CloudIcon;
-  const syncPaused = sync.status.state === "localOnly";
   const syncAction = sync.signInRequired
     ? onRequestSignIn
-    : syncPaused
-      ? sync.resume
-      : sync.status.state === "blocked"
-        ? sync.retry
-        : sync.pause;
-  const syncActionLabel = sync.signInRequired
-    ? "Sign in"
-    : syncPaused
-      ? "Resume"
-      : sync.status.state === "blocked"
-        ? "Retry sync"
-        : "Pause sync";
+    : sync.status.state === "blocked"
+      ? sync.retry
+      : null;
+  const syncActionLabel = sync.signInRequired ? "Sign in" : "Retry sync";
   const activePanel = compact ? panel : "root";
 
   return (
@@ -298,8 +289,8 @@ export function AccountMenu({
             <button
               type="button"
               className="mb-1 flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-background/60 px-2.5 py-2 text-left text-[11px] text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground disabled:pointer-events-none disabled:opacity-60 pointer-coarse:min-h-11 pointer-coarse:text-xs"
-              disabled={sync.pending}
-              onClick={syncAction}
+              disabled={sync.pending || syncAction === null}
+              onClick={syncAction ?? undefined}
             >
               <span className="flex min-w-0 items-center gap-2">
                 <StatusIcon
@@ -309,7 +300,9 @@ export function AccountMenu({
                 />
                 <span className="truncate">{sync.error ?? syncSummary(sync.status)}</span>
               </span>
-              <span className="shrink-0 text-foreground/45">{syncActionLabel}</span>
+              {syncAction ? (
+                <span className="shrink-0 text-foreground/45">{syncActionLabel}</span>
+              ) : null}
             </button>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => onOpenSettings("appearance")}>

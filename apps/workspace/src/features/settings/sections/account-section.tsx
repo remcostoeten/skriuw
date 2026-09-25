@@ -22,13 +22,7 @@ import {
   settingsSection,
 } from "./settings-shared";
 import { blockedCauseText, blockedItemLabel, blockedItemRetryable } from "./sync-recovery";
-import {
-  syncDescription,
-  syncDetail,
-  syncEnabled,
-  syncProgressText,
-  syncProgressVisible,
-} from "./sync-status";
+import { syncDescription, syncDetail, syncProgressText, syncProgressVisible } from "./sync-status";
 import { SyncEncryptionPanel } from "./sync-encryption-panel";
 import { useWorkspaceSync } from "./use-workspace-sync";
 import { shortWorkspaceId, workspaceOwnershipText } from "./workspace-ownership";
@@ -176,37 +170,16 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
               >
                 Sign in
               </button>
-            ) : syncEnabled(sync.status) ? (
-              <span className="flex items-center gap-1.5">
-                {sync.status.state === "blocked" ? (
-                  <button
-                    type="button"
-                    className={settingsButton}
-                    disabled={sync.pending}
-                    onClick={sync.retry}
-                  >
-                    {sync.pending ? "Retrying…" : "Retry sync"}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className={settingsButton}
-                  disabled={sync.pending}
-                  onClick={sync.pause}
-                >
-                  {sync.pending ? "Pausing…" : "Pause sync"}
-                </button>
-              </span>
-            ) : (
+            ) : sync.status.state === "blocked" ? (
               <button
                 type="button"
                 className={settingsButton}
                 disabled={sync.pending}
-                onClick={sync.resume}
+                onClick={sync.retry}
               >
-                {sync.pending ? "Connecting…" : "Resume sync"}
+                {sync.pending ? "Retrying…" : "Retry sync"}
               </button>
-            )}
+            ) : null}
           </div>
         ) : null}
       </div>

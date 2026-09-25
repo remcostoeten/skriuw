@@ -3,7 +3,7 @@ import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 import { formatByteSize } from "@/shared/lib/format-bytes";
 import { blockedStateText } from "./sync-recovery";
 
-/** Whether sync is currently linked, so the row offers pause instead of enable. */
+/** Whether sync is currently linked, so the row offers no reconnect action. */
 export function syncEnabled(status: WorkspaceSyncStatus): boolean {
   return status.state !== "localOnly" && status.state !== "authenticationRequired";
 }
@@ -12,7 +12,7 @@ export function syncEnabled(status: WorkspaceSyncStatus): boolean {
 export function syncDescription(status: WorkspaceSyncStatus, browser: boolean): string {
   switch (status.state) {
     case "localOnly":
-      return "Paused. Notes stay only on this device until you resume sync.";
+      return "Connecting to your cloud workspace. Sync retries automatically while you are signed in.";
     case "connecting":
       return "Connecting this device securely…";
     case "upToDate":
@@ -23,8 +23,8 @@ export function syncDescription(status: WorkspaceSyncStatus, browser: boolean): 
       return "Offline. Changes remain local and will retry automatically.";
     case "authenticationRequired":
       return browser
-        ? "Paused. Your cloud session ended; sign in again to reconnect."
-        : "Paused. Sign in again to reconnect this device.";
+        ? "Your cloud session ended; sign in again to reconnect."
+        : "Sign in again to reconnect this device.";
     case "rehydrating":
       return "Rebuilding this device from your cloud workspace…";
     case "retrying":
@@ -72,7 +72,7 @@ export function syncTone(status: WorkspaceSyncStatus): SyncTone {
 export function syncSummary(status: WorkspaceSyncStatus): string {
   switch (status.state) {
     case "localOnly":
-      return "Sync paused";
+      return "Sync not connected";
     case "connecting":
       return "Connecting…";
     case "upToDate":

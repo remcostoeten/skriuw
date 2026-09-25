@@ -19,7 +19,6 @@ import {
 import { pauseWorkspaceSync, retryWorkspaceSync, workspaceSyncStatus } from "@/bridge/commands";
 import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 import { isBrowserRuntime } from "@/bridge/runtime";
-import { showToast } from "@/shared/ui/toast";
 
 /** Cadence for a surface the user is actively watching, such as the settings row. */
 export const SYNC_POLL_ACTIVE_MS = 2_000;
@@ -30,6 +29,43 @@ export const SYNC_POLL_ACTIVE_MS = 2_000;
  * entire life of the window.
  */
 export const SYNC_POLL_AMBIENT_MS = 15_000;
+
+const RECONNECT_BASE_MS = 5_000;
+const RECONNECT_MAX_MS = 60_000;
+
+const reconnect = { userId: null as string | null, failures: 0, inFlight: false };
+
+function reconnectDelayMs(userId: string): number {
+  if (reconnect.userId !== userId) return 0;
+  if (reconnect.failures === 0) return 0;
+  return Math.min(RECONNECT_BASE_MS * 2 ** (reconnect.failures - 1), RECONNECT_MAX_MS);
+}
+
+/**
+ * Connects a signed-in workspace that is not linked yet, backing off between
+ * failures. Shared across every mounted `useWorkspaceSync` so the rail and the
+ * settings row never race two connects.
+ */
+async function reconnectInBackground(userId: string): Promise<boolean> {
+  if (reconnect.userId !== userId) {
+    reconnect.userId = userId;
+    reconnect.failures = 0;
+  }
+  if (reconnect.inFlight) return false;
+  reconnect.inFlight = true;
+  try {
+    await connectSyncForCurrentSession();
+    clearConnectFailure();
+    reconnect.failures = 0;
+    return true;
+  } catch (reason) {
+    reportConnectFailure(reason);
+    reconnect.failures += 1;
+    return false;
+  } finally {
+    reconnect.inFlight = false;
+  }
+}
 
 function subscribeProgress(onStoreChange: () => void): () => void {
   return subscribeBrowserSyncProgress(() => onStoreChange());
@@ -57,8 +93,6 @@ export type WorkspaceSync = {
   /** The session is dead: every surface offers sign-in, whatever the session hook says. */
   signInRequired: boolean;
   retry: () => void;
-  resume: () => void;
-  pause: () => void;
   /** Pauses sync before ending the session, so no push races the sign-out. */
   signOut: () => void;
   refresh: () => Promise<void>;
@@ -72,6 +106,7 @@ export type WorkspaceSync = {
 export function useWorkspaceSync(pollIntervalMs = SYNC_POLL_ACTIVE_MS): WorkspaceSync {
   const { user, signOut } = useAuth();
   const [status, setStatus] = useState<WorkspaceSyncStatus>({ state: "localOnly" });
+  const [statusPolled, setStatusPolled] = useState(false);
   const [pending, setPending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const browser = isBrowserRuntime();
@@ -97,6 +132,7 @@ export function useWorkspaceSync(pollIntervalMs = SYNC_POLL_ACTIVE_MS): Workspac
           (latest) => {
             if (!mounted) return;
             setStatus(latest);
+            setStatusPolled(true);
             if (latest.state !== "localOnly") clearConnectFailure();
           },
           (reason: unknown) => {
@@ -127,23 +163,20 @@ export function useWorkspaceSync(pollIntervalMs = SYNC_POLL_ACTIVE_MS): Workspac
     }
   }
 
-  async function resumeSync(): Promise<void> {
-    setPending(true);
-    setActionError(null);
-    try {
-      await connectSyncForCurrentSession();
-      clearConnectFailure();
-      setStatus(await workspaceSyncStatus());
-    } catch (reason) {
-      reportConnectFailure(reason);
-      showToast({
-        message: connectFailureDescription(connectFailureText(reason)),
-        durationMs: 10_000,
+  const userId = user?.id ?? null;
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
+  const shouldReconnect =
+    userId !== null && statusPolled && status.state === "localOnly" && !pending;
+  useEffect(() => {
+    if (!shouldReconnect || userId === null) return;
+    const timer = window.setTimeout(() => {
+      void reconnectInBackground(userId).then((connected) => {
+        if (connected) void workspaceSyncStatus().then(setStatus, () => undefined);
+        else setReconnectAttempt((attempt) => attempt + 1);
       });
-    } finally {
-      setPending(false);
-    }
-  }
+    }, reconnectDelayMs(userId));
+    return () => window.clearTimeout(timer);
+  }, [shouldReconnect, userId, reconnectAttempt]);
 
   async function signOutSafely(): Promise<void> {
     await pauseWorkspaceSync().catch(() => undefined);
@@ -169,8 +202,6 @@ export function useWorkspaceSync(pollIntervalMs = SYNC_POLL_ACTIVE_MS): Workspac
     browser,
     signInRequired: status.state === "authenticationRequired",
     retry: () => void run(retryWorkspaceSync),
-    resume: () => void resumeSync(),
-    pause: () => void run(pauseWorkspaceSync),
     signOut: () => void signOutSafely(),
     refresh: async () => {
       setStatus(await workspaceSyncStatus());
