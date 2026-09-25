@@ -1,0 +1,25 @@
+{
+  "name": "@skriuw/storybook-shell",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "install-into": "bun install.ts",
+    "test": "bun --cwd=../.. vitest run --project storybook-shell",
+    "verify": "tsc --noEmit && tsc --noEmit --project ../../__tests__/packages/storybook-shell && bun run test"
+  },
+  "peerDependencies": {
+    "react": ">=19",
+    "react-dom": ">=19"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "typescript": "7.0.2"
+  }
+}

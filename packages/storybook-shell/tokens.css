@@ -1,0 +1,8 @@
+@theme inline {
+  --color-background: var(--background, light-dark(#ffffff, #0a0a0a));
+  --color-foreground: var(--foreground, light-dark(#0a0a0a, #fafafa));
+  --color-muted: var(--muted, light-dark(#f4f4f5, #27272a));
+  --color-muted-foreground: var(--muted-foreground, light-dark(#71717a, #a1a1aa));
+  --color-border: var(--border, light-dark(#e4e4e7, #27272a));
+  --color-ring: var(--ring, light-dark(#a1a1aa, #52525b));
+}

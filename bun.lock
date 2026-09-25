@@ -74,6 +74,29 @@
         "typescript": "5.9.3",
       },
     },
+    "apps/storybook": {
+      "name": "skriuw-storybook",
+      "version": "0.0.0",
+      "dependencies": {
+        "@skriuw/icons": "workspace:*",
+        "@skriuw/shared": "workspace:*",
+        "@skriuw/storybook-shell": "workspace:*",
+        "@skriuw/theme": "workspace:*",
+        "motion": "^12.42.2",
+        "react": "19.2.7",
+        "react-dom": "19.2.7",
+      },
+      "devDependencies": {
+        "@tailwindcss/vite": "^4.3.3",
+        "@types/node": "26.1.1",
+        "@types/react": "19.2.14",
+        "@types/react-dom": "19.2.3",
+        "@vitejs/plugin-react": "6.0.3",
+        "tailwindcss": "^4.3.3",
+        "typescript": "7.0.2",
+        "vite": "8.1.5",
+      },
+    },
     "apps/workspace": {
       "name": "skriuw-app",
       "version": "0.0.0",
@@ -171,6 +194,26 @@
       "dependencies": {
         "clsx": "^2.1.1",
         "tailwind-merge": "^3.6.0",
+      },
+      "devDependencies": {
+        "@types/react": "19.2.14",
+      },
+      "peerDependencies": {
+        "react": ">=19",
+      },
+    },
+    "packages/storybook-shell": {
+      "name": "@skriuw/storybook-shell",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@types/node": "26.1.1",
+        "@types/react": "19.2.14",
+        "@types/react-dom": "19.2.3",
+        "typescript": "7.0.2",
+      },
+      "peerDependencies": {
+        "react": ">=19",
+        "react-dom": ">=19",
       },
     },
     "packages/theme": {
@@ -846,6 +889,8 @@
     "@skriuw/renderer-core": ["@skriuw/renderer-core@workspace:packages/renderer-core"],
 
     "@skriuw/shared": ["@skriuw/shared@workspace:packages/shared"],
+
+    "@skriuw/storybook-shell": ["@skriuw/storybook-shell@workspace:packages/storybook-shell"],
 
     "@skriuw/theme": ["@skriuw/theme@workspace:packages/theme"],
 
@@ -1922,6 +1967,8 @@
     "skriuw-app": ["skriuw-app@workspace:apps/workspace"],
 
     "skriuw-mobile": ["skriuw-mobile@workspace:apps/mobile"],
+
+    "skriuw-storybook": ["skriuw-storybook@workspace:apps/storybook"],
 
     "skriuw-web": ["skriuw-web@workspace:apps/site"],
 

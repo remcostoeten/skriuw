@@ -58,6 +58,7 @@ export default defineConfig({
       suite("icons", "packages/icons"),
       suite("theme", "packages/theme"),
       suite("shared", "packages/shared"),
+      suite("storybook-shell", "packages/storybook-shell"),
     ],
     coverage: {
       provider: "v8",
