@@ -102,3 +102,5 @@ release-notes-v2-*.txt
 /.claude/skills/signing-tauri-apps
 /.claude/skills/tauri-v2
 .claude/skills/react-doctor/
+
+/apps/site/public/app/

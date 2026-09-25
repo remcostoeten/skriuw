@@ -1,42 +1,52 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { createServer } from "node:net";
 
-const exportRoot = new URL("../apps/site/out/", import.meta.url);
+const siteRoot = new URL("../apps/site/", import.meta.url);
+const port = await freePort();
+const origin = `http://127.0.0.1:${port}`;
+const server = spawn(
+  "bun",
+  ["x", "next", "start", "--port", String(port), "--hostname", "127.0.0.1"],
+  {
+    cwd: siteRoot,
+    stdio: ["ignore", "ignore", "inherit"],
+  },
+);
+process.on("exit", () => server.kill());
+await waitForServer();
 
 const marketingRoutes = [
   {
     path: "/download/",
-    file: "download/index.html",
     heading: "Install it.",
   },
   {
     path: "/local-first-notes/",
-    file: "local-first-notes/index.html",
     heading: "A notes app that starts on your machine.",
   },
   {
     path: "/markdown-notes/",
-    file: "markdown-notes/index.html",
     heading: "Markdown when you want it.",
   },
   {
     path: "/import/",
-    file: "import/index.html",
     heading: "Bring the archive.",
   },
 ];
 
 const [siteHtml, appHtml, robots, sitemap, vercelConfigSource, ...routeHtml] = await Promise.all([
-  readExport("index.html"),
+  readRoute("/"),
   readFile(new URL("../apps/workspace/index.html", import.meta.url), "utf8"),
-  readExport("robots.txt"),
-  readExport("sitemap.xml"),
-  readFile(new URL("../vercel.json", import.meta.url), "utf8"),
-  ...marketingRoutes.map((route) => readExport(route.file)),
+  readRoute("/robots.txt"),
+  readRoute("/sitemap.xml"),
+  readFile(new URL("vercel.json", siteRoot), "utf8"),
+  ...marketingRoutes.map((route) => readRoute(route.path)),
 ]);
-const socialImage = await readFile(new URL("og-image.png", exportRoot));
+const socialImage = await readFile(new URL("public/og-image.png", siteRoot));
 const vercelConfig = JSON.parse(vercelConfigSource);
 
 assert.match(siteHtml, /<title>Skriuw: Fast, Private, Local-First Notes<\/title>/u);
@@ -110,18 +120,38 @@ assert.ok(
 );
 
 process.stdout.write("web SEO configuration passed\n");
+process.exit(0);
 
-async function readExport(file) {
-  try {
-    return await readFile(new URL(file, exportRoot), "utf8");
-  } catch (error) {
-    if (error.code === "ENOENT") {
-      throw new Error(
-        `apps/site/out/${file} is missing. Run "bun --cwd apps/site run build" before the SEO checks.`,
-      );
+async function readRoute(path) {
+  const response = await fetch(`${origin}${path}`, { redirect: "manual" });
+  assert.equal(response.status, 200, `${path} must respond with 200`);
+  return response.text();
+}
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const probe = createServer();
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const { port: assigned } = probe.address();
+      probe.close(() => resolve(assigned));
+    });
+  });
+}
+
+async function waitForServer() {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    if (server.exitCode !== null)
+      throw new Error("apps/site next start exited; run its build first");
+    try {
+      await fetch(origin);
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 250));
     }
-    throw error;
   }
+  throw new Error(`apps/site did not start on ${origin} within 30s`);
 }
 
 function structuredData(html) {
