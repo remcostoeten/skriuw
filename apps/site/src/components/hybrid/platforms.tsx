@@ -4,8 +4,8 @@ import Link from "next/link";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { stagger, useReveal } from "@/components/ui/reveal";
 import { Apple, Globe, Linux, Windows } from "@/components/ui/icons";
-import { installChannels, platformStories } from "@/data/content";
-import { card, outlineButton } from "@/components/hybrid/control";
+import { installChannels, releasesUrl } from "@/data/content";
+import { badge, outlineButton } from "@/components/hybrid/control";
 import { HybridSectionHead } from "@/components/hybrid/section-head";
 
 const iconMap = {
@@ -15,8 +15,32 @@ const iconMap = {
   windows: Windows,
 };
 
+const rows = [
+  {
+    label: "Desktop",
+    lead: "The full app, offline.",
+    body: "One SQLite file on your disk, a Rust core, no account and no network needed.",
+    tags: ["one file", "rust core", "offline"],
+    channels: ["macos", "windows", "linux"],
+  },
+  {
+    label: "Browser",
+    lead: "The same core, compiled to WebAssembly.",
+    body: "Try the real app at skriuw.com/app without installing anything. Zero bytes leave the tab until you sign in.",
+    tags: ["0 bytes out", "installs to home screen"],
+    channels: ["browser"],
+  },
+  {
+    label: "Your data",
+    lead: "Exportable to plain Markdown, any time.",
+    body: "Versioned archives, six-hourly verified backups, and MIT-licensed source.",
+    tags: ["markdown", "6 h backups", "mit"],
+    channels: [],
+  },
+] as const;
+
 export function HybridPlatforms() {
-  const gridRef = useReveal<HTMLDivElement>();
+  const listRef = useReveal<HTMLDivElement>();
 
   return (
     <section id="platforms">
@@ -27,44 +51,55 @@ export function HybridPlatforms() {
         action={{ label: "Download", href: "/download/" }}
       />
 
-      <div ref={gridRef} className="reveal-group mt-8 grid gap-3 md:grid-cols-3">
-        {platformStories.map((story, index) => (
-          <article key={story.kicker} style={stagger(index)} className={cn(card, "p-5")}>
-            <p className="caps text-ink-400">{story.kicker}</p>
-            <p className="mt-3 text-[15px] leading-[22px] text-ink-500">
-              {story.lead}{" "}
-              <strong className="font-medium text-ink-900">{story.brand}</strong> {story.tail}
-            </p>
-            <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-dashed border-line pt-4">
-              {story.stats.map((stat) => (
-                <div key={stat.label}>
-                  <dt className="font-mono text-[18px] leading-none font-medium tracking-[-0.02em] text-ink-900 tabular-nums">
-                    {stat.value}
-                  </dt>
-                  <dd className="m-0 mt-2 text-[12px] leading-[17px] text-ink-500">{stat.label}</dd>
-                </div>
-              ))}
-            </dl>
-          </article>
+      <div
+        ref={listRef}
+        className="reveal-group mt-8 divide-y divide-dashed divide-line rounded-[10px] border border-line bg-hy-card"
+      >
+        {rows.map((row, index) => (
+          <div
+            key={row.label}
+            style={stagger(index)}
+            className="grid gap-4 p-5 md:grid-cols-[120px_minmax(0,1fr)_auto] md:items-start"
+          >
+            <p className="caps pt-0.5 text-ink-400">{row.label}</p>
+
+            <div className="min-w-0">
+              <p className="text-[15px] leading-[22px] text-ink-900">
+                <strong className="font-medium">{row.lead}</strong>{" "}
+                <span className="text-ink-500">{row.body}</span>
+              </p>
+              <p className="mt-3 flex flex-wrap gap-1.5">
+                {row.tags.map((tag) => (
+                  <span key={tag} className={cn(badge, "bg-ink-900/8 text-ink-500")}>
+                    {tag}
+                  </span>
+                ))}
+              </p>
+            </div>
+
+            {row.channels.length > 0 ? (
+              <ul className="flex flex-wrap gap-1.5 md:justify-end">
+                {row.channels.map((key) => {
+                  const channel = installChannels.find((item) => item.icon === key);
+                  const Icon = iconMap[key];
+                  return (
+                    <li key={key}>
+                      <Link
+                        href={channel?.href ?? releasesUrl}
+                        title={channel?.hint.replace(/`/g, "")}
+                        className={outlineButton}
+                      >
+                        <Icon className="size-3" />
+                        {channel?.name ?? key}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+          </div>
         ))}
       </div>
-
-      <ul className="mt-4 flex flex-wrap items-center gap-2">
-        {installChannels.map((channel) => {
-          const Icon = iconMap[channel.icon];
-          return (
-            <li key={channel.name}>
-              <Link href={channel.href} className={outlineButton} title={channel.summary}>
-                <Icon className="size-3" />
-                {channel.name}
-                <span className="font-sans text-[0.72rem] normal-case tracking-normal opacity-60">
-                  {channel.hint.replace(/`/g, "")}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
     </section>
   );
 }

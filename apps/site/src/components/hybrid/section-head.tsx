@@ -15,7 +15,6 @@ export function HybridSectionHead({ index, label, title, action }: Props) {
       <div>
         <p className="caps flex items-center gap-2 text-ink-400">
           <span className="text-accent tabular-nums">{index}</span>
-          <span aria-hidden className="h-px w-6 bg-line" />
           {label}
         </p>
         <h2 className="mt-4 max-w-[560px] font-serif text-[30px] leading-[36px] font-normal tracking-[-0.6px] text-balance text-ink-900">

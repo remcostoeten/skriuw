@@ -1007,8 +1007,8 @@
 @utility hy-hatch {
   background-image: repeating-linear-gradient(
     -45deg,
-    var(--line) 0px,
-    var(--line) 1px,
+    var(--hatch, var(--line)) 0px,
+    var(--hatch, var(--line)) 1px,
     transparent 1px,
     transparent 7px
   );
