@@ -110,10 +110,20 @@ device and starts Metro. Re-run `build-android.sh` whenever
 
 `scripts/build-ios.sh` runs on macOS only. It produces
 `ios/Frameworks/SkriuwMobile.xcframework` (device plus a fat simulator slice)
-and `ios/Generated/skriuw_mobile.swift`. A macOS CI runner is meant to run it
-and publish both directories as one artifact, which the application build
-unpacks into `ios/` before `pod install`; wiring that job belongs to the CI
-issue, not to this module.
+and `ios/Generated/skriuw_mobile.swift`. The `xcframework` job in
+`.github/workflows/mobile-ci.yml` runs it on a macOS runner and publishes both
+directories as one artifact.
+
+### EAS Build
+
+EAS workers get the repository without these gitignored artifacts and have no
+Rust toolchain. `scripts/eas-build-pre-install.sh`, wired as the
+`eas-build-pre-install` hook in `apps/mobile/package.json`, installs rustup,
+the toolchain pinned in `rust-toolchain.toml` and the platform's targets, then
+runs `build-android.sh` (plus cargo-ndk) or `build-ios.sh` according to
+`EAS_BUILD_PLATFORM`. It is the pre-install hook because on iOS the
+post-install hook runs after `pod install`, too late for the podspec to see
+the framework and the Swift bindings.
 
 **iOS is unverified.** The Swift module, the podspec and `build-ios.sh` have
 not been compiled or run; they were written on Linux against the UniFFI Swift

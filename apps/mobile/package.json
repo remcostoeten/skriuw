@@ -9,7 +9,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "find . -name tsconfig.json -not -path './node_modules/*' -not -path './.expo/*' | sort | xargs -n1 tsc --noEmit --project && tsc --noEmit --project ../../__tests__/apps/mobile",
-    "test": "bun --cwd=../.. vitest run --project mobile --project theme --project icons"
+    "test": "bun --cwd=../.. vitest run --project mobile --project theme --project icons",
+    "eas-build-pre-install": "bash modules/skriuw-core/scripts/eas-build-pre-install.sh"
   },
   "dependencies": {
     "@skriuw/renderer-core": "workspace:*",

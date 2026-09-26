@@ -27,7 +27,8 @@ also work when invoked from another directory. `browser` means the app in
 The default desktop check covers contracts, Rust lint and tests, renderer
 tests and types, retained harnesses, and cloud checks. It builds the marketing
 site for SEO assertions and WASM for verification. Browser checks cover the
-portability and browser end-to-end suites; mobile has its own gate.
+portability and browser end-to-end suites; mobile has its own gate. Signed
+mobile builds go through EAS; see [Mobile builds](/v2/mobile-builds).
 Desktop, browser, workspace, and CI builds run the desktop gate first.
 The site build only builds the marketing site. `bin/setup` finishes by running
 the desktop gate.

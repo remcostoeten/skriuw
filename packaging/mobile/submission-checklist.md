@@ -25,15 +25,17 @@ person does not rediscover it.
       `apps/mobile/app.json` — `@remcostoeten/skriuw`, #421.
       `eas simulator:availability --json` runs and answers
       `"available": false`: the account is on the EAS Simulator waitlist.
-- [ ] Add the `EXPO_TOKEN` repository secret so the `eas-preflight` job in
+- [x] Add the `EXPO_TOKEN` repository secret so the `eas-preflight` job in
       `.github/workflows/mobile-ci.yml` stops skipping.
-- [ ] Make the Rust libraries reach EAS workers — they are gitignored, so add
-      an `eas-build-post-install` script to `apps/mobile/package.json` that
-      installs rustup targets and cargo-ndk and runs
-      `apps/mobile/modules/skriuw-core/scripts/build-android.sh` (and
-      `build-ios.sh` on macOS workers). A `apps/mobile/.easignore` cannot do it:
-      eas-cli only reads `.easignore` at the Git root, where it would replace
-      every `.gitignore` in the monorepo. Recorded against #421.
+- [x] Make the Rust libraries reach EAS workers: the `eas-build-pre-install`
+      hook in `apps/mobile/package.json` runs
+      `apps/mobile/modules/skriuw-core/scripts/eas-build-pre-install.sh`, which
+      installs the toolchain and builds them on the worker. A
+      `apps/mobile/.easignore` cannot do it: eas-cli only reads `.easignore` at
+      the Git root, where it would replace every `.gitignore` in the monorepo.
+- [ ] Run the first Android and iOS EAS builds interactively from
+      `apps/mobile/` so EAS generates and stores the signing credentials;
+      `eas-preview` in CI runs `--non-interactive` and cannot create them.
 - [ ] Fill the `submit.production` profile in `apps/mobile/eas.json` with the Apple
       team and ASC app identifiers, and the Play service-account key path.
 - [ ] Run eas-cli **from `apps/mobile/`**, never from the repository root: it drops
