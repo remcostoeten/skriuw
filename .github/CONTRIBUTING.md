@@ -58,6 +58,7 @@ keep their own installs.
 bun install          # from the repository root
 ./bin/dev mobile     # expo start
 ./bin/check mobile   # the mobile product gate
+./bin/eas help       # EAS builds, credentials, devices and store submission
 ```
 
 `./bin/check mobile` is deliberately separate from `./bin/check`.
