@@ -160,7 +160,7 @@ export function MediaLibraryPicker({
       ) : (
         <ul
           aria-label={`${label} assets`}
-          className="grid max-h-[52vh] list-none grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5 overflow-y-auto p-3.5"
+          className="grid max-h-[52dvh] list-none grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5 overflow-y-auto p-3.5"
         >
           {shown.map((item, index) => (
             <li key={item.contentHash}>

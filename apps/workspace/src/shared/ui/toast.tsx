@@ -6,14 +6,20 @@ import { useShortcutBinding } from "@remcostoeten/use-shortcut/react";
 import { KeyCaps } from "@/shared/ui/key-caps";
 
 export type ToastAction = {
+  /** Button text. */
   label: string;
+  /** Called when the action is pressed; the toast then dismisses. */
   run: () => void;
 };
 
 export type ToastRequest = {
+  /** Main line of the toast. */
   message: string;
+  /** Secondary line under the message. */
   description?: string;
+  /** Optional button, e.g. Undo. */
   action?: ToastAction;
+  /** Time before auto-dismiss, in milliseconds; defaults to 7000. */
   durationMs?: number;
 };
 
@@ -95,11 +101,11 @@ export function showToast(request: ToastRequest): void {
 }
 
 type HostProps = {
+  /** Hides the stack without dropping queued toasts. */
   visible?: boolean;
-  reduceMotion?: boolean;
 };
 
-export function ToastHost({ visible = true, reduceMotion = false }: HostProps) {
+export function ToastHost({ visible = true }: HostProps) {
   const [, rerender] = useState(0);
   function undoLatestAction(): void {
     const current = actionableToast;
@@ -136,10 +142,9 @@ export function ToastHost({ visible = true, reduceMotion = false }: HostProps) {
       className="toast-host [&_:is([role=status],[role=alert],[role=alertdialog])>div>div:first-child]:pr-2.5! [&_:is([role=status],[role=alert],[role=alertdialog])>div]:max-w-[min(420px,calc(100vw-32px))]!"
       style={{ display: visible ? undefined : "none" }}
     >
-      {/* The in-app reduce-motion setting is authoritative over the OS
-          heuristic (WebKitGTK reports reduce whenever GTK animations are
-          globally off), mirroring the data-reduce-motion policy in base.css. */}
-      <MotionConfig reducedMotion={reduceMotion ? "always" : "never"}>
+      {/* WebKitGTK reports prefers-reduced-motion whenever GTK animations are
+          globally off, so the OS query is ignored and toasts always animate. */}
+      <MotionConfig reducedMotion="never">
         <Notifier
           position="bottom-center"
           maxVisible={3}

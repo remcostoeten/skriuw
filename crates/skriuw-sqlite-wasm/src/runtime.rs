@@ -280,6 +280,10 @@ where
                     "Sync commands require the sync-capable worker dispatcher.",
                 ))
             }
+            BrowserWorkerCommand::WriteAssetChunk { .. }
+            | BrowserWorkerCommand::ReadAssetChunk { .. } => Err(BrowserStorageError::invalid(
+                "Asset commands require the worker's asset store.",
+            )),
             BrowserWorkerCommand::IntegrityCheck => backend
                 .integrity_check()
                 .map(|report| {
@@ -421,7 +425,7 @@ fn is_sync_command(command: &BrowserWorkerCommand) -> bool {
     )
 }
 
-fn validate_header(request: &BrowserWorkerRequest) -> Result<(), BrowserWorkerResponse> {
+pub(crate) fn validate_header(request: &BrowserWorkerRequest) -> Result<(), BrowserWorkerResponse> {
     if request.protocol_version != WORKER_PROTOCOL_VERSION {
         return Err(BrowserWorkerResponse::failure(
             request.request_id,

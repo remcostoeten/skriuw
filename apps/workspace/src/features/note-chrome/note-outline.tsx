@@ -266,7 +266,7 @@ function mountOutlineController(
       link.addEventListener("click", (event) => {
         event.preventDefault();
         item.element.scrollIntoView({
-          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+          behavior: "smooth",
           block: "start",
         });
       });
@@ -388,16 +388,9 @@ function mountOutlineController(
     updateTarget();
 
     const difference = target - rendered;
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    if (reduced) {
-      rendered = target;
-      velocity = 0;
-    } else {
-      velocity += difference * GEOMETRY.smoothing;
-      velocity *= GEOMETRY.damping;
-      rendered += velocity;
-    }
+    velocity += difference * GEOMETRY.smoothing;
+    velocity *= GEOMETRY.damping;
+    rendered += velocity;
 
     draw();
 

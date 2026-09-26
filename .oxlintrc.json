@@ -105,6 +105,13 @@
         "anti-slop/no-chained-type-assertions": "off",
         "typescript/no-explicit-any": "off"
       }
+    },
+    {
+      "files": ["apps/storybook/**"],
+      "rules": {
+        "import/default": "off",
+        "import/no-duplicates": "off"
+      }
     }
   ],
   "ignorePatterns": [

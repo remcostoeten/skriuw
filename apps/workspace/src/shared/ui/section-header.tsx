@@ -19,7 +19,9 @@ export const sectionHeaderClass =
   "flex h-6 w-full cursor-pointer items-center gap-1.5 px-4 text-left";
 
 type SectionLabelProps = {
+  /** Section name. */
   title: string;
+  /** Item count shown after the title; omitted when undefined. */
   count?: number;
 };
 
@@ -41,10 +43,15 @@ export function SectionLabel({ title, count }: SectionLabelProps) {
 }
 
 type SectionToggleProps = {
+  /** Section name. */
   title: string;
+  /** Whether the section is expanded; drives the chevron and `aria-expanded`. */
   open: boolean;
+  /** Called when the header is clicked or activated by keyboard. */
   onToggle: () => void;
+  /** Id placed on the toggle button. */
   id?: string;
+  /** Applied only when open, e.g. the surface background behind the floating chevron. */
   className?: string;
 };
 

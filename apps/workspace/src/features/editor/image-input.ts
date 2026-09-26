@@ -297,7 +297,7 @@ async function persistImage(
     const bytes = new Uint8Array(await file.arrayBuffer());
     const dimensions = file.type.startsWith("image/") ? await readDimensions(file) : null;
     const stored = await storeNoteImage(bytes);
-    await commitOperations(store, [
+    const committed = commitOperations(store, [
       {
         type: "attach_image",
         image: {
@@ -313,6 +313,7 @@ async function persistImage(
       },
     ]);
     setMediaUploadState(id, null);
+    await committed;
   } catch (error) {
     console.error("media attach rejected", error);
     const failure = describeMediaFailure(error);

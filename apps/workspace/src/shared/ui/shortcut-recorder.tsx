@@ -12,15 +12,19 @@ export type ShortcutRecorderHandle = {
 };
 
 type Props = {
+  /** Current combo, shown as key caps. */
   value: string;
   /** Accepts or rejects a captured combo; returns an error message to show, or null to accept. */
   onRecord: (combo: string) => string | null;
+  /** Restores the default combo; the reset button is hidden without it. */
   onReset?: () => void;
+  /** Hides the reset button when the combo already is the default. */
   isDefault?: boolean;
   /** Reports capture start/stop so a hosting dialog can suppress Escape-driven close mid-capture. */
   onRecordingChange?: (recording: boolean) => void;
   /** Receives an imperative handle so a search flow can open capture directly. */
   handleRef?: Ref<ShortcutRecorderHandle>;
+  /** Accessible name for the recorder button. */
   "aria-label"?: string;
 };
 

@@ -15,13 +15,19 @@ type PullState = {
 const SETTLE_MS = 200;
 
 type Props = {
+  /** Whether the dialog is shown. */
   open: boolean;
+  /** Called with `false` on Escape, backdrop click, the close button or a pull-down on touch. */
   onOpenChange: (open: boolean) => void;
+  /** Heading text and the dialog's accessible name. */
   title: string;
+  /** Dialog body. */
   children: ReactNode;
+  /** Key handler for the dialog element. */
   onKeyDown?: (event: KeyboardEvent) => void;
   /** Lets callers veto the Escape-driven close (call `preventDefault`), e.g. while a child is mid-capture. */
   onCancel?: (event: Event) => void;
+  /** Renders the title bar with its close button. */
   showHeader?: boolean;
   /** Extra class on the dialog element, e.g. for per-dialog sizing. */
   className?: string;

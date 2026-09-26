@@ -1,7 +1,9 @@
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
+  /** One cap per entry, e.g. `["Ctrl", "K"]`. */
   keys: readonly string[];
+  /** Extra class on the wrapper. */
   className?: string;
 };
 

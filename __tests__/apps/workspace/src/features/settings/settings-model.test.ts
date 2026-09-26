@@ -36,7 +36,6 @@ test("default settings project every editable field", () => {
     theme: "midnight",
     compactSidebar: false,
     showTreeGuides: false,
-    reduceMotion: false,
     animatedIcons: true,
     rememberLastNote: true,
     editorFont: "inter",
@@ -110,10 +109,6 @@ test("animated icons stay enabled unless the setting is explicitly false", () =>
   assert.equal(usesAnimatedIcons({ ...DEFAULT_WORKSPACE_SETTINGS, animatedIcons: false }), false);
   const { animatedIcons: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
   assert.equal(usesAnimatedIcons(withoutField as WorkspaceSettings), true);
-});
-
-test("reduce motion does not override an explicit animated-icons opt-in", () => {
-  assert.equal(usesAnimatedIcons({ ...DEFAULT_WORKSPACE_SETTINGS, reduceMotion: true }), true);
 });
 
 test("toasts stay enabled unless the setting is explicitly false", () => {

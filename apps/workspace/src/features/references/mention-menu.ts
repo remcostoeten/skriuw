@@ -90,7 +90,6 @@ export function createMentionMenu(view: EditorView, context: MentionContext): Me
     const rendererState = context.getState();
     const items = mentionMenuItems(rendererState, current.trigger, current.query);
     const selected = normalizedMentionIndex(current.index, items.length);
-    root.classList.toggle("is-reduced-motion", rendererState.settings.reduceMotion === true);
     root.replaceChildren();
     let selectedOption: HTMLElement | null = null;
     if (items.length === 0) {

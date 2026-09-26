@@ -4,14 +4,21 @@ import { cn } from "@/shared/lib/utils";
 type Phase = "idle" | "holding" | "hint";
 
 type Props = {
+  /** Accessible name for the button. */
   ariaLabel: string;
+  /** Called once the hold completes. */
   onConfirm: () => void;
   /** Keyboard activation has no hold gesture, so it hands off to a tap-to-confirm step. */
   onKeyboardActivate: () => void;
+  /** Button content at rest. */
   children: ReactNode;
+  /** Extra class on the button. */
   className?: string;
+  /** Hint shown after a tap that was too short. */
   holdLabel?: string;
+  /** Label shown while the pointer is held. */
   holdingLabel?: string;
+  /** How long the pointer must stay down, in milliseconds. */
   durationMs?: number;
 };
 

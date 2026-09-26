@@ -124,8 +124,8 @@ function ShortcutHelpDialog({ store, onOpenChange }: DialogProps) {
       onOpenChange={onOpenChange}
       title="Keyboard shortcuts"
       className={cn(
-        "w-[min(760px,calc(100vw-48px))] h-[min(680px,calc(100vh-64px))] max-h-[calc(100vh-64px)]",
-        "max-[620px]:h-[calc(100vh-24px)] max-[620px]:w-[calc(100vw-24px)] max-[620px]:max-h-[calc(100vh-24px)]",
+        "w-[min(760px,calc(100vw-48px))] h-[min(680px,calc(100dvh-64px))] max-h-[calc(100dvh-64px)]",
+        "max-[620px]:h-[calc(100dvh-24px)] max-[620px]:w-[calc(100vw-24px)] max-[620px]:max-h-[calc(100dvh-24px)]",
       )}
       onKeyDown={handleKeyDown}
       showHeader={false}

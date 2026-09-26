@@ -190,6 +190,6 @@ Run it with PostgreSQL and the required secrets using the [Docker quickstart](..
 ## Local testing of the apt repo
 
 ```bash
-./scripts/build-apt-repo.sh /tmp/skriuw-apt path/to/Skriuw_0.11.0_amd64.deb "$KEY"
+./tools/scripts/build-apt-repo.sh /tmp/skriuw-apt path/to/Skriuw_0.11.0_amd64.deb "$KEY"
 # inspect /tmp/skriuw-apt/dists/stable/Release and pool/main/
 ```

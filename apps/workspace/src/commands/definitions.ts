@@ -55,6 +55,7 @@ export type ShortcutActionId =
   | "focusSidebar"
   | "collapseAllFolders"
   | "focusEditor"
+  | "focusMainContent"
   | "focusMetadata"
   | "focusPaneLeft"
   | "focusPaneRight"
@@ -566,6 +567,15 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     group: "Navigation",
     worksWhileTyping: true,
     scopes: "notes-route",
+  },
+  {
+    id: "focusMainContent",
+    keys: "g then m",
+    label: "Focus main content",
+    description:
+      "Move keyboard focus into the main content area of the current view: the open note's editor on the notes route, the view itself everywhere else. Plain keys, so it never fires while typing.",
+    group: "Navigation",
+    guards: ["modal"],
   },
   {
     id: "focusPaneLeft",

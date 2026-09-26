@@ -1,14 +1,21 @@
 import { useRef, type ReactNode } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
+  /** Initial text; the input is uncontrolled while editing. */
   defaultValue: string;
+  /** Accessible name for the input. */
   ariaLabel: string;
+  /** Called with the typed value on Enter or blur. */
   onSubmit: (value: string) => void;
+  /** Called on Escape without saving. */
   onCancel: () => void;
+  /** Node rendered before the input, e.g. an icon. */
   leading?: ReactNode;
+  /** Extra class on the wrapper. */
   className?: string;
+  /** Extra class on the input. */
   inputClassName?: string;
 };
 
@@ -23,7 +30,6 @@ export function InlineEdit({
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const settledRef = useRef(false);
-  const reduceMotion = useReducedMotion();
 
   function settle(action: () => void): void {
     if (settledRef.current) {
@@ -48,7 +54,7 @@ export function InlineEdit({
         aria-label={ariaLabel}
         defaultValue={defaultValue}
         autoFocus
-        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.97 }}
+        initial={{ opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
         style={{ transformOrigin: "left center" }}

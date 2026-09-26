@@ -20,7 +20,7 @@ payloads are decoded, and conditional spreads that omit optional fields.
 
 Format and lint every v2 TypeScript and JavaScript source from the repository
 root with oxfmt (`.oxfmtrc.json`, 100 columns) and oxlint (`.oxlintrc.json`).
-Both run in `scripts/build.sh`, so `./bin/check` and CI fail on any
+Both run in `tools/scripts/build.sh`, so `./bin/check` and CI fail on any
 finding. `v1/` keeps its own configuration.
 
 The rule set is:

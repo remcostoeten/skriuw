@@ -7,7 +7,8 @@
     "dev": "next dev --port 5182",
     "build": "next build",
     "typecheck": "tsc --noEmit",
-    "start": "next start --port 5182"
+    "start": "next start --port 5182",
+    "vercel-build": "bash ../../tools/scripts/vercel-build.sh"
   },
   "dependencies": {
     "@skriuw/shared": "workspace:*",

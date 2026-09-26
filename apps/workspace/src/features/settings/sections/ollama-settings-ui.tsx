@@ -1,6 +1,6 @@
 import type { FocusEvent, FormEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import type { LocalAiModel, LocalAiProgress, LocalAiStatus } from "@/contracts/ai";
 import {
   ollamaOwnershipLabel,
@@ -114,7 +114,6 @@ export function OllamaRuntimeCard({
 }: RuntimeCardProps) {
   const percent = ollamaProgressPercent(progress);
   const timing = ollamaProgressTiming(progress, elapsedMs);
-  const reduceMotion = useReducedMotion();
   const pendingAction = pending ?? (status?.state === "starting" ? "start" : null);
   const pendingSeconds = usePendingSeconds(pendingAction);
   return (
@@ -175,10 +174,10 @@ export function OllamaRuntimeCard({
             <motion.div
               key="pending"
               className="overflow-hidden"
-              variants={reduceMotion ? undefined : progressPanelVariants}
-              initial={reduceMotion ? { opacity: 0 } : "hidden"}
-              animate={reduceMotion ? { opacity: 1 } : "shown"}
-              exit={reduceMotion ? { opacity: 0 } : "exit"}
+              variants={progressPanelVariants}
+              initial="hidden"
+              animate="shown"
+              exit="exit"
             >
               <div className="border-t border-border px-3.5 py-3">
                 <IndeterminateBar label={ollamaPendingLabel(pendingAction)} />
@@ -189,14 +188,14 @@ export function OllamaRuntimeCard({
             <motion.div
               key="progress"
               className="overflow-hidden"
-              variants={reduceMotion ? undefined : progressPanelVariants}
-              initial={reduceMotion ? { opacity: 0 } : "hidden"}
-              animate={reduceMotion ? { opacity: 1 } : "shown"}
-              exit={reduceMotion ? { opacity: 0 } : "exit"}
+              variants={progressPanelVariants}
+              initial="hidden"
+              animate="shown"
+              exit="exit"
             >
               <motion.div
                 className="border-t border-border px-3.5 py-2.5"
-                variants={reduceMotion ? undefined : progressContentVariants}
+                variants={progressContentVariants}
               >
                 <div
                   className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground"
@@ -329,19 +328,17 @@ function RuntimeAction({
 }
 
 function PendingSpinner() {
-  const reduceMotion = useReducedMotion();
   return (
     <motion.span
       aria-hidden="true"
       className="size-3 shrink-0 rounded-full border-[1.5px] border-current border-t-transparent opacity-70"
       animate={{ transform: "rotate(360deg)" }}
-      transition={{ duration: reduceMotion ? 1.6 : 0.75, ease: "linear", repeat: Infinity }}
+      transition={{ duration: 0.75, ease: "linear", repeat: Infinity }}
     />
   );
 }
 
 function IndeterminateBar({ label }: { label: string }) {
-  const reduceMotion = useReducedMotion();
   return (
     <div
       role="progressbar"
@@ -351,14 +348,10 @@ function IndeterminateBar({ label }: { label: string }) {
     >
       <motion.div
         className="h-full w-1/3 rounded-full bg-foreground/75"
-        animate={
-          reduceMotion
-            ? { opacity: [0.4, 1, 0.4], transform: "translateX(100%)" }
-            : { transform: ["translateX(-100%)", "translateX(300%)"] }
-        }
+        animate={{ transform: ["translateX(-100%)", "translateX(300%)"] }}
         transition={{
-          duration: reduceMotion ? 1.6 : 1.15,
-          ease: reduceMotion ? "easeInOut" : [0.65, 0, 0.35, 1],
+          duration: 1.15,
+          ease: [0.65, 0, 0.35, 1],
           repeat: Infinity,
         }}
       />

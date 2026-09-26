@@ -8,7 +8,7 @@ import {
   type ComponentType,
   type ReactNode,
 } from "react";
-import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useShortcutBinding } from "@remcostoeten/use-shortcut/react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import {
@@ -1269,7 +1269,6 @@ type MergePanelProps = {
  * the source is deleted afterwards.
  */
 function MergePanel({ kind, source, targets, onMerge, onCancel }: MergePanelProps) {
-  const reduceMotion = useReducedMotion();
   const listId = useId();
   const [query, setQuery] = useState("");
   const [chosenId, setChosenId] = useState<string | null>(null);
@@ -1302,7 +1301,7 @@ function MergePanel({ kind, source, targets, onMerge, onCancel }: MergePanelProp
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: "auto" }}
       exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -1496,7 +1495,6 @@ const formRow: Variants = {
 };
 
 function EntityForm({ kind, submitLabel, onCancel, onSubmit }: EntityFormProps) {
-  const reduceMotion = useReducedMotion();
   const [name, setName] = useState("");
   const [color, setColor] = useState<string | null>(null);
   const [initials, setInitials] = useState("");
@@ -1513,9 +1511,9 @@ function EntityForm({ kind, submitLabel, onCancel, onSubmit }: EntityFormProps) 
     <motion.form
       className="grid gap-3 rounded-lg border border-border bg-theme-hover p-3"
       aria-label={`New ${entityNoun(kind)}`}
-      variants={reduceMotion ? undefined : formShell}
-      initial={reduceMotion ? { opacity: 0 } : "hidden"}
-      animate={reduceMotion ? { opacity: 1 } : "shown"}
+      variants={formShell}
+      initial="hidden"
+      animate="shown"
       onSubmit={(event) => {
         event.preventDefault();
         if (canSubmit) {
@@ -1537,7 +1535,7 @@ function EntityForm({ kind, submitLabel, onCancel, onSubmit }: EntityFormProps) 
           derived={derived}
           color={color}
           note={note}
-          rowVariants={reduceMotion ? undefined : formRow}
+          rowVariants={formRow}
           onNameChange={setName}
           onInitialsChange={setInitials}
           onColorChange={setColor}
@@ -1548,14 +1546,14 @@ function EntityForm({ kind, submitLabel, onCancel, onSubmit }: EntityFormProps) 
           nameRef={nameRef}
           name={name}
           color={color}
-          rowVariants={reduceMotion ? undefined : formRow}
+          rowVariants={formRow}
           onNameChange={setName}
           onColorChange={setColor}
         />
       )}
       <motion.div
         className="flex justify-end gap-2 border-t border-theme-divider pt-2.5"
-        variants={reduceMotion ? undefined : formRow}
+        variants={formRow}
       >
         <Button className={inlinePressClass} onClick={onCancel}>
           Cancel

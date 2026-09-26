@@ -1778,19 +1778,14 @@ async function runWorkflow() {
       "[...document.querySelectorAll('dialog[open] h2')].some((heading) => heading.textContent === 'Settings')",
       "settings dialog",
     );
-    await control('focusLabel("Reduce motion")');
+    await control('focusLabel("Animated icons")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
     await settle();
     current = await state();
     assert(
       checks,
-      "keyboard-reduced-motion-setting",
-      current.settings.reduceMotion === true &&
-        (await evaluate(
-          cdp,
-          sessionId,
-          "document.documentElement.dataset.reduceMotion === 'true'",
-        )),
+      "keyboard-animated-icons-setting",
+      current.settings.animatedIcons === false,
       JSON.stringify(current.settings),
     );
     await control('focusNamed("Shortcuts")');

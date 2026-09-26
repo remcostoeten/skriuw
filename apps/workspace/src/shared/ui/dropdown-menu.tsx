@@ -81,11 +81,14 @@ const DropdownMenuContent = React.forwardRef<
 ));
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 
+type DropdownMenuItemProps = React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & {
+  /** Paints the focused row in the destructive color. */
+  danger?: boolean;
+};
+
 const DropdownMenuItem = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & {
-    danger?: boolean;
-  }
+  DropdownMenuItemProps
 >(({ className, danger, ...props }, ref) => (
   <DropdownMenuPrimitive.Item
     ref={ref}
@@ -147,7 +150,14 @@ DropdownMenuSeparator.displayName = DropdownMenuPrimitive.Separator.displayName;
  * Trailing key hint for a menu row. `keys` is an already formatted combo such
  * as `"Ctrl ,"`; each token renders as its own key cap.
  */
-function DropdownMenuShortcut({ keys, className }: { keys: string; className?: string }) {
+type DropdownMenuShortcutProps = {
+  /** Formatted combo such as `"Ctrl ,"`; each token renders as its own key cap. */
+  keys: string;
+  /** Extra class on the key-cap group. */
+  className?: string;
+};
+
+function DropdownMenuShortcut({ keys, className }: DropdownMenuShortcutProps) {
   return <KeyCaps keys={keys.split(/\s+/)} className={cn("ml-auto", className)} />;
 }
 DropdownMenuShortcut.displayName = "DropdownMenuShortcut";

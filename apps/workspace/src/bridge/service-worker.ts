@@ -2,6 +2,8 @@ import { isBrowserRuntime } from "./runtime";
 
 const SCRIPT_URL = "./sw.js";
 const ACTIVATE_UPDATE = "skriuw:activate-update";
+/** iOS resumes installed PWAs instead of relaunching them, so the browser rarely checks for a new shell on its own. */
+const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 type UpdateHandler = () => void;
 
@@ -37,6 +39,16 @@ export function registerShellWorker(onUpdate: UpdateHandler): () => void {
   }
   let disposed = false;
   let reloading = false;
+  let registered: ServiceWorkerRegistration | null = null;
+  function checkForUpdate(): void {
+    if (document.visibilityState === "visible") {
+      registered
+        ?.update()
+        .catch((error) => console.warn("shell worker update check failed", error));
+    }
+  }
+  const updateTimer = window.setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS);
+  document.addEventListener("visibilitychange", checkForUpdate);
   function onControllerChange(): void {
     if (reloading) {
       return;
@@ -51,6 +63,7 @@ export function registerShellWorker(onUpdate: UpdateHandler): () => void {
       if (disposed) {
         return;
       }
+      registered = registration;
       if (registration.waiting && navigator.serviceWorker.controller) {
         onUpdate();
       }
@@ -62,6 +75,8 @@ export function registerShellWorker(onUpdate: UpdateHandler): () => void {
     });
   return () => {
     disposed = true;
+    window.clearInterval(updateTimer);
+    document.removeEventListener("visibilitychange", checkForUpdate);
     navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
   };
 }

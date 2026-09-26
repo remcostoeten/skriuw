@@ -115,7 +115,7 @@ function splitLede(source: string) {
 
 export async function renderDoc(page: DocPage): Promise<RenderedDoc> {
   "use cache";
-  const absolute = path.join(repoRoot, page.source);
+  const absolute = path.join(/* turbopackIgnore: true */ repoRoot, page.source);
   const source = await readFile(absolute, "utf8");
   const { lede, body } = splitLede(source);
   const headings: DocHeading[] = [];

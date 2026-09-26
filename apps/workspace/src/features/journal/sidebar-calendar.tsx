@@ -20,10 +20,16 @@ const OPEN_STORAGE_KEY = "skriuw.sidebar-calendar-open";
 
 function readOpen(): boolean {
   try {
-    return window.localStorage.getItem(OPEN_STORAGE_KEY) !== "closed";
+    const stored = window.localStorage.getItem(OPEN_STORAGE_KEY);
+    if (stored !== null) return stored === "open";
   } catch {
-    return true;
+    return !isTouchViewport();
   }
+  return !isTouchViewport();
+}
+
+function isTouchViewport(): boolean {
+  return typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
 }
 
 function writeOpen(open: boolean): void {
@@ -62,7 +68,7 @@ export function SidebarCalendar({ store }: Props) {
     >
       <SectionToggle title="Calendar" open={open} onToggle={toggleOpen} className="bg-sidebar/90" />
       {open && (
-        <div className="px-2.5 pb-2 pt-2">
+        <div className="max-h-[35dvh] overflow-y-auto overscroll-contain px-2.5 pb-2 pt-2">
           <JournalCalendar
             month={month}
             selected={null}

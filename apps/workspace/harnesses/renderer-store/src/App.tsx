@@ -93,7 +93,6 @@ export function App({ projection, store }: Props) {
               <span>empty</span>
               <span className="is-error">error</span>
               <span className="is-disabled">disabled</span>
-              <span>reduced motion</span>
               <span className="ledger-key">P95 &lt; 8 ms / max &lt; 16.67 ms</span>
             </div>
           </header>

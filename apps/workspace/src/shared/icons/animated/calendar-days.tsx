@@ -17,9 +17,13 @@ type CalendarDaysIconProps = Omit<
   | "onAnimationEnd"
   | "onAnimationIteration"
 > & {
+  /** Width and height in pixels. */
   size?: number;
+  /** Multiplier on the animation length. */
   duration?: number;
+  /** Plays the motion on hover; set false for a static icon. */
   isAnimated?: boolean;
+  /** CSS color for the icon; strokes follow `currentColor`. */
   color?: string;
 };
 

@@ -70,7 +70,10 @@ export function EntryStarter({ store, noteId, dateKey }: EntryStarterProps) {
   }
 
   return (
-    <div className="journal-entry-starter" data-journal-starter>
+    <div
+      className="absolute inset-x-0 top-[4.75rem] max-[899px]:top-[4.25rem]"
+      data-journal-starter
+    >
       <div className="flex flex-wrap items-center gap-1.5">
         {remembered !== null && (
           <button type="button" onClick={() => apply(remembered.id)} className={starterButtonClass}>

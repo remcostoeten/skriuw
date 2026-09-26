@@ -40,27 +40,12 @@ function useTypedLatency() {
   const [value, setValue] = useState(3.2);
 
   useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let id: ReturnType<typeof setInterval> | undefined;
-
-    function sync() {
-      clearInterval(id);
-
-      if (media.matches) {
-        return;
-      }
-
-      id = setInterval(() => {
-        setValue(() => 2.4 + Math.random() * 1.6);
-      }, 900);
-    }
-
-    sync();
-    media.addEventListener("change", sync);
+    const id = setInterval(() => {
+      setValue(() => 2.4 + Math.random() * 1.6);
+    }, 900);
 
     return () => {
       clearInterval(id);
-      media.removeEventListener("change", sync);
     };
   }, []);
 

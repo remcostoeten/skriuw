@@ -18,147 +18,7 @@
   grid-row: 2;
 }
 
-.shell-compact > .shell-tab-bar {
-  grid-row: 3;
-}
-
-/*
- * The strips sit between the toolbar row and the tab bar so neither row's
- * leftmost or rightmost control loses its edge to the swipe recogniser.
- */
-.shell-edge {
-  position: absolute;
-  inset-block: 44px 56px;
-  width: 20px;
-  z-index: 30;
-  touch-action: none;
-}
-
-.shell-edge-left {
-  left: 0;
-}
-
-.shell-edge-right {
-  right: 0;
-}
-
-/*
- * Safe areas belong to the chrome, not the page: the status bar strip paints
- * in the toolbar colour and the home indicator strip in the tab bar colour,
- * while the content column keeps the page background.
- */
-@media (max-width: 899px) {
-  body {
-    background: hsl(var(--sidebar-background));
-    padding-block-end: 0;
-  }
-
-  #root {
-    background: hsl(var(--background));
-  }
-}
-
-.shell-tab-bar {
-  display: flex;
-  align-items: stretch;
-  height: auto;
-  min-height: 56px;
-  padding-bottom: var(--safe-bottom);
-  border-top: 1px solid hsl(var(--sidebar-border));
-  background: hsl(var(--sidebar-background));
-  color: hsl(var(--sidebar-foreground));
-}
-
-:root[data-keyboard="open"] .shell-tab-bar,
-:root[data-keyboard="open"] .shell-install-banner {
-  display: none;
-}
-
-/* Sits on the tab bar's colours so the two read as one piece of chrome. */
-.shell-install-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding-inline: 14px 6px;
-  border-top: 1px solid hsl(var(--sidebar-border));
-  background: hsl(var(--sidebar-background));
-  color: hsl(var(--sidebar-foreground));
-  font-size: 13px;
-}
-
-.shell-install-banner-text {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.shell-install-banner-install {
-  min-height: 32px;
-  padding-inline: 12px;
-  border: 1px solid hsl(var(--sidebar-border));
-  border-radius: 8px;
-  background: hsl(var(--background));
-  color: inherit;
-  font: inherit;
-  font-weight: 500;
-}
-
-.shell-install-banner-close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  min-height: 40px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: hsl(var(--muted-foreground));
-}
-
-.shell-tab {
-  display: flex;
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: 56px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  color: hsl(var(--sidebar-foreground) / 0.55);
-  text-decoration: none;
-  -webkit-touch-callout: none;
-}
-
-.shell-tab[data-active="true"] {
-  color: hsl(var(--sidebar-foreground));
-}
-
-.shell-tab:active {
-  color: hsl(var(--sidebar-foreground));
-}
-
-.shell-tab-label {
-  font-size: 10px;
-  line-height: 1;
-  font-weight: 500;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.shell-tab-account > * {
-  height: 100%;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/*
+.shell-compact > /*
  * Sized from the visual viewport rather than the layout viewport, so an open
  * keyboard shrinks the sheet above it instead of hiding its lower half.
  */
@@ -195,44 +55,6 @@
   overscroll-behavior: contain;
   transition: transform 260ms var(--sheet-ease);
   will-change: transform;
-}
-
-.mobile-sheet-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex: 0 0 auto;
-  height: 44px;
-  padding-inline: 14px 4px;
-  border-bottom: 1px solid hsl(var(--sidebar-border));
-  font-size: 13px;
-  font-weight: 600;
-  color: hsl(var(--sidebar-foreground) / 0.8);
-}
-
-.mobile-sheet-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  color: hsl(var(--sidebar-foreground) / 0.6);
-}
-
-.mobile-sheet-close:active {
-  color: hsl(var(--sidebar-foreground));
-}
-
-.mobile-sheet-body {
-  min-height: 0;
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.mobile-sheet-body > * {
-  min-height: 0;
-  flex: 1 1 auto;
 }
 
 .mobile-sheet-root[data-side="left"] .mobile-sheet-panel {
@@ -438,14 +260,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .mobile-sheet-panel,
-  .mobile-sheet-scrim,
-  .sidebar-tree-row-settle {
-    transition: none;
-  }
-}
-
 /*
  * Toasts and dialogs are fixed to the layout viewport, which neither the tab
  * bar nor a software keyboard shrinks. The inset lifts toasts over whichever
@@ -457,7 +271,7 @@
 }
 
 dialog.command-palette {
-  inset-block: clamp(24px, 10vh, 96px) auto;
+  inset-block: clamp(24px, 10dvh, 96px) auto;
   margin-block: 0;
   margin-inline: auto;
   max-height: min(30rem, calc(var(--viewport-height) - 48px));
@@ -482,12 +296,48 @@ dialog.command-palette {
 
   dialog.command-palette {
     inset-block-start: 0;
-    margin-top: 12px;
-    max-height: calc(var(--viewport-height) - 24px);
+    margin-top: calc(12px + var(--safe-top));
+    max-height: calc(var(--viewport-height) - var(--safe-top) - 24px);
   }
 
   :root[data-keyboard="open"] dialog.dialog:not(.dialog-fullscreen) {
-    margin-top: 12px;
+    margin-top: calc(12px + var(--safe-top));
     margin-bottom: auto;
   }
 }
+
+/*
+ * On a phone a dialog is a bottom sheet: docked to the edge the thumb reaches,
+ * so the grabber and pull-to-close read as the native gesture they mimic. It
+ * rides above a software keyboard instead of jumping to the top. The palette
+ * stays top-anchored for typing, and fullscreen dialogs keep the whole screen.
+ */
+@media (max-width: 620px) {
+  dialog.dialog:not(.dialog-fullscreen):not(.command-palette) {
+    inset: auto 0 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    max-height: calc(var(--viewport-height) - var(--safe-top) - 12px);
+    padding-bottom: var(--safe-bottom);
+    border-width: 1px 0 0;
+    border-radius: calc(var(--radius) + 10px) calc(var(--radius) + 10px) 0 0;
+  }
+
+  dialog.dialog:not(.dialog-fullscreen):not(.command-palette)[open] {
+    animation: dialog-sheet-in 280ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  :root[data-keyboard="open"] dialog.dialog:not(.dialog-fullscreen):not(.command-palette) {
+    bottom: var(--keyboard-inset);
+    margin: 0;
+    padding-bottom: 0;
+  }
+}
+
+@keyframes dialog-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+

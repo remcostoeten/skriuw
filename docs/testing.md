@@ -58,7 +58,7 @@ products lives in `__tests__/support/`:
 Use the owning app's `@/` alias to import its source from a workspace or mobile
 suite, and use relative paths everywhere else.
 
-`scripts/check-test-layout.sh` runs in both gates. It fails when a suite sits
+`tools/scripts/check-test-layout.sh` runs in both gates. It fails when a suite sits
 outside `__tests__/`, or when no project collects a suite under `__tests__/`.
 When you add a new package, add its project to `vitest.config.ts`.
 

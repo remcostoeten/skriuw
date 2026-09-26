@@ -67,12 +67,6 @@ export function AppearanceSection({ store }: SectionProps) {
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Accessibility</div>
         <SettingToggle
-          label="Reduce motion"
-          detail="Minimize non-essential interface motion."
-          checked={settings.reduceMotion}
-          onChange={(checked) => change("reduceMotion", checked)}
-        />
-        <SettingToggle
           label="Animated icons"
           detail="Play a brief animation when the pointer rests on a rail or toolbar icon."
           checked={settings.animatedIcons}

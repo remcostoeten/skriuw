@@ -31,7 +31,6 @@
         var root = document.documentElement;
         var theme = "midnight";
         var colorScheme = "dark";
-        var reduceMotion = false;
         var tokens = null;
         try {
           var stored = window.localStorage.getItem("skriuw.boot-appearance");
@@ -43,11 +42,9 @@
             colorScheme = parsed.colorScheme;
           }
           tokens = parsed && parsed.tokens && typeof parsed.tokens === "object" ? parsed.tokens : null;
-          reduceMotion = Boolean(parsed && parsed.reduceMotion);
         } catch (error) {
           theme = "midnight";
           colorScheme = "dark";
-          reduceMotion = false;
           tokens = null;
         }
         if (tokens) {
@@ -61,9 +58,6 @@
         }
         root.dataset.theme = theme;
         root.dataset.colorScheme = colorScheme;
-        if (reduceMotion) {
-          root.dataset.reduceMotion = "true";
-        }
       })();
     </script>
   </head>

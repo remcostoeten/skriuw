@@ -7,7 +7,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import type { EditorView } from "prosemirror-view";
 import { ChevronRightIcon, SettingsIcon, SparklesIcon } from "@/shared/icons/static";
 import { useListboxNavigation } from "@/shared/ui/use-listbox-navigation";
@@ -30,7 +30,6 @@ function roomForMenu(anchor: MenuAnchor): number {
 }
 
 const OPEN_TRANSITION = { duration: 0.16, ease: [0.23, 1, 0.32, 1] as const };
-const CLOSE_TRANSITION = { duration: 0.11, ease: [0.23, 1, 0.32, 1] as const };
 const PANE_TRANSITION = { duration: 0.19, ease: [0.23, 1, 0.32, 1] as const };
 
 /**
@@ -119,7 +118,6 @@ export function AiMenu({
   const anchor = useRangeAnchor(getView, from, to);
   const [pending, setPending] = useState<AiEditorAction | null>(initialAction);
   const containerRef = useRef<HTMLDivElement>(null);
-  const reduceMotion = useReducedMotion() === true;
 
   useEffect(() => {
     function onPointerDown(event: PointerEvent): void {
@@ -160,9 +158,9 @@ export function AiMenu({
         role="dialog"
         aria-label="AI actions"
         aria-modal="false"
-        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 4 }}
+        initial={{ opacity: 0, scale: 0.97, y: 4 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={reduceMotion ? CLOSE_TRANSITION : OPEN_TRANSITION}
+        transition={OPEN_TRANSITION}
         style={{ transformOrigin: anchor.below ? "top center" : "bottom center" }}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
@@ -180,9 +178,9 @@ export function AiMenu({
           {pending === null ? (
             <motion.div
               key="list"
-              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -8 }}
+              initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -8 }}
+              exit={{ opacity: 0, x: -8 }}
               transition={PANE_TRANSITION}
             >
               <AiMenuList
@@ -204,9 +202,9 @@ export function AiMenu({
           ) : (
             <motion.div
               key="compose"
-              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 8 }}
+              initial={{ opacity: 0, x: 8 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 8 }}
+              exit={{ opacity: 0, x: 8 }}
               transition={PANE_TRANSITION}
             >
               <AiMenuCompose
@@ -288,7 +286,7 @@ function AiMenuList({
         id={listboxId}
         role="listbox"
         aria-label="AI actions"
-        className="max-h-[max(120px,min(46vh,calc(var(--ai-menu-room,100vh)-96px)))] overflow-y-auto p-[5px] [scrollbar-width:thin]"
+        className="max-h-[max(120px,min(46dvh,calc(var(--ai-menu-room,100dvh)-96px)))] overflow-y-auto p-[5px] [scrollbar-width:thin]"
       >
         {rows.length === 0 ? (
           <p className="px-4 py-[34px] text-center text-[13px] text-muted-foreground">

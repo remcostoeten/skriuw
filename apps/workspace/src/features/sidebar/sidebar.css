@@ -61,13 +61,6 @@ body.sidebar-resizing {
   user-select: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .panel-tracks-settling,
-  .sidebar-resize-handle-settling {
-    transition: none;
-  }
-}
-
 .sidebar-tree-dragging {
   cursor: grabbing;
   user-select: none;

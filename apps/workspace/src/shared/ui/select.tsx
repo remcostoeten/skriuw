@@ -4,7 +4,9 @@ import { CheckIcon, ChevronDownIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 
 export type SelectOption<TValue extends string> = {
+  /** Value passed to `onChange` when chosen. */
   value: TValue;
+  /** Primary text of the row and the trigger. */
   label: string;
   /** Secondary line rendered under the label. */
   detail?: string | null;
@@ -13,18 +15,27 @@ export type SelectOption<TValue extends string> = {
 };
 
 type Props<TValue extends string> = {
+  /** Selected option value; `""` shows the placeholder. */
   value: TValue | "";
+  /** Options in display order; consecutive shared `group` values render under one header. */
   options: readonly SelectOption<TValue>[];
+  /** Called with the chosen option's value. */
   onChange: (value: TValue) => void;
+  /** Accessible name for the trigger and listbox. */
   label: string;
+  /** Dimmed text shown before the selected label on the trigger. */
   prefix?: string;
   /** Shown on the trigger while `value` matches no option. */
   placeholder?: string;
+  /** Blocks opening the menu. */
   disabled?: boolean;
+  /** Extra class on the wrapper. */
   className?: string;
   /** Extra class on the trigger button, e.g. to render as a full-width form field. */
   triggerClassName?: string;
+  /** Extra class on the dropdown list. */
   menuClassName?: string;
+  /** Which trigger edge the menu aligns to. */
   align?: "start" | "end";
 };
 

@@ -1,4 +1,4 @@
-// `scripts/build-browser-wasm.sh` produces this ignored build artifact before
+// `tools/scripts/build-browser-wasm.sh` produces this ignored build artifact before
 // typechecking or bundling the application.
 import initWasm, { dispatch, initialize } from "../../../.build/browser-wasm/skriuw_sqlite_wasm.js";
 

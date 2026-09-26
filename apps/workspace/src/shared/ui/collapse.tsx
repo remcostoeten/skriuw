@@ -2,8 +2,11 @@ import type { ReactNode } from "react";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
+  /** Expands or collapses the content with a height transition. */
   open: boolean;
+  /** Content to reveal. */
   children: ReactNode;
+  /** Extra class on the wrapper. */
   className?: string;
 };
 

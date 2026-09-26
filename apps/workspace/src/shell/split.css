@@ -51,8 +51,3 @@ body.split-resizing-row {
   user-select: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .split-divider {
-    transition: none;
-  }
-}

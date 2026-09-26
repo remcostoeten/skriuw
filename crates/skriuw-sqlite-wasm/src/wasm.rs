@@ -144,6 +144,18 @@ pub fn dispatch(request_json: String) -> String {
         Ok(request) => request,
         Err(response) => return encode_response(&response),
     };
+    if crate::is_asset_command(&request.command) {
+        let response = ASSETS.with(|assets| {
+            let assets = assets.borrow();
+            let store = match assets.as_ref() {
+                Some(Ok(store)) => Ok(store),
+                Some(Err(reason)) => Err(reason.clone()),
+                None => Err("the browser asset store is not initialized".into()),
+            };
+            crate::dispatch_asset_command(request, store)
+        });
+        return encode_response(&response);
+    }
     let response = RUNTIME.with(|runtime| {
         SYNC.with(|sync| {
             ASSETS.with(|assets| {

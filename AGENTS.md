@@ -75,7 +75,7 @@ Read `docs/performance-contract.md` before changing navigation, editor, store su
 - Put v2 architecture decisions in `docs/adr/`, implementation contracts in `docs/specs/`, and measurements in `docs/benchmarks/`.
 - Put published v1 and user documentation in `v1/apps/documentation/content/docs/`.
 - Do not commit agent handoffs, implementation prompts, generated audits, or temporary planning documents.
-- Update `README.md`, `CONTRIBUTING.md`, and affected guides when commands or contributor workflows change.
+- Update `README.md`, `.github/CONTRIBUTING.md`, and affected guides when commands or contributor workflows change.
 
 ## Verification
 

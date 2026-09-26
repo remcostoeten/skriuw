@@ -76,11 +76,14 @@ const ContextMenuContent = React.forwardRef<
 ));
 ContextMenuContent.displayName = ContextMenuPrimitive.Content.displayName;
 
+type ContextMenuItemProps = React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Item> & {
+  /** Indents the row to align with rows that carry a leading indicator. */
+  inset?: boolean;
+};
+
 const ContextMenuItem = React.forwardRef<
   React.ElementRef<typeof ContextMenuPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Item> & {
-    inset?: boolean;
-  }
+  ContextMenuItemProps
 >(({ className, inset, ...props }, ref) => (
   <ContextMenuPrimitive.Item
     ref={ref}
@@ -169,7 +172,14 @@ ContextMenuSeparator.displayName = ContextMenuPrimitive.Separator.displayName;
  * Trailing key hint for a menu row. `keys` is an already formatted combo such
  * as `"Ctrl ,"`; each token renders as its own key cap.
  */
-function ContextMenuShortcut({ keys, className }: { keys: string; className?: string }) {
+type ContextMenuShortcutProps = {
+  /** Formatted combo such as `"Ctrl ,"`; each token renders as its own key cap. */
+  keys: string;
+  /** Extra class on the key-cap group. */
+  className?: string;
+};
+
+function ContextMenuShortcut({ keys, className }: ContextMenuShortcutProps) {
   return (
     <span data-slot="context-menu-shortcut" className={cn("ml-auto pl-4", className)}>
       <KeyCaps keys={keys.split(/\s+/)} />

@@ -154,7 +154,10 @@ export function TasksView({ store }: TasksViewProps) {
                 </ul>
               </section>
             ))}
-            <p id="tasks-keyboard-help" className="tasks-keyboard-help">
+            <p
+              id="tasks-keyboard-help"
+              className="tasks-keyboard-help flex flex-wrap gap-x-[18px] gap-y-3 px-2 pb-5 pt-3 text-[11px] text-theme-secondary"
+            >
               <span>
                 <kbd>↑</kbd> <kbd>↓</kbd> Move
               </span>
@@ -187,12 +190,15 @@ type RowProps = {
 function TaskListRow({ row, index, lastIndex, onToggle, onOpenSource, onFocusRow }: RowProps) {
   const linked = row.noteId !== null && row.blockId !== null;
   return (
-    <li className="task-row" data-completed={row.done}>
-      <label className="task-row-label">
+    <li
+      className="task-row group/row flex min-h-12 items-center gap-3 rounded-[10px] px-2 py-0.5 focus-within:bg-[hsl(var(--foreground)/0.045)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[hsl(var(--foreground)/0.03)]"
+      data-completed={row.done}
+    >
+      <label className="task-row-label group/label flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3">
         <input
           type="checkbox"
           data-task-id={row.id}
-          className="task-checkbox"
+          className="task-checkbox relative m-0 size-5 flex-none cursor-pointer appearance-none rounded-[7px] border-[1.5px] border-solid border-theme-secondary bg-theme-editor outline-none transition-[border-color,background-color] duration-[120ms] ease-[ease] checked:border-success checked:bg-success focus-visible:border-success focus-visible:bg-[hsl(var(--success)/0.14)] checked:focus-visible:bg-success checked:focus-visible:brightness-[1.12] [@media(hover:hover)_and_(pointer:fine)]:group-hover/label:not-checked:border-[hsl(var(--success)/0.7)] [@media(hover:hover)_and_(pointer:fine)]:active:not-focus-visible:scale-[0.94]"
           checked={row.done}
           aria-label={row.title}
           aria-describedby="tasks-keyboard-help"
@@ -217,18 +223,20 @@ function TaskListRow({ row, index, lastIndex, onToggle, onOpenSource, onFocusRow
             }
           }}
         />
-        <span className="task-row-title">{row.title}</span>
+        <span className="task-row-title min-w-0 py-2 text-[14px] leading-[1.5] text-foreground [overflow-wrap:anywhere] group-data-[completed=true]/row:text-theme-secondary group-data-[completed=true]/row:line-through group-data-[completed=true]/row:decoration-[hsl(var(--theme-text-secondary)/0.5)]">
+          {row.title}
+        </span>
       </label>
       {linked ? (
         <button
           type="button"
-          className="task-source"
+          className="task-source inline-flex min-h-8 flex-none cursor-pointer items-center gap-[5px] rounded-[6px] px-2 py-1 text-[11px] text-theme-secondary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[hsl(var(--foreground)/0.75)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
           aria-label={`Open source note for ${row.title}: ${row.noteTitle}`}
           title={`Open ${row.noteTitle}`}
           onClick={onOpenSource}
         >
           <span aria-hidden="true">↗</span>
-          <span className="task-source-label">Open note</span>
+          <span className="task-source-label max-[480px]:hidden">Open note</span>
         </button>
       ) : (
         <span className="shrink-0 px-1.5 text-[11px] text-theme-dim">

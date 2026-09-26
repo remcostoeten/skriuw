@@ -172,8 +172,8 @@ Tauri.
 
 The repository layout, web deployment, and cloud development reference is in
 [docs/development.md](docs/development.md). Contributions start at
-[CONTRIBUTING.md](CONTRIBUTING.md); report security issues through
-[SECURITY.md](SECURITY.md) instead of a public issue.
+[CONTRIBUTING.md](.github/CONTRIBUTING.md); report security issues through
+[SECURITY.md](.github/SECURITY.md) instead of a public issue.
 
 Framework-independent v2 helpers live in [`packages/shared`](packages/shared/README.md).
 

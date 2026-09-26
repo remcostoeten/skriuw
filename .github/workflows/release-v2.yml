@@ -32,7 +32,7 @@ jobs:
 
             - name: Verify production Worker capabilities
               if: ${{ !inputs.skip_cloud_gate }}
-              run: node scripts/verify-cloud-capabilities.mjs https://skriuw-v2-cloud.remcostoeten.workers.dev
+              run: node tools/scripts/verify-cloud-capabilities.mjs https://skriuw-v2-cloud.remcostoeten.workers.dev
 
     # tauri-action's matrix jobs each create a draft when none exists, splitting
     # assets across duplicate releases; creating the draft once up front avoids that
@@ -111,7 +111,7 @@ jobs:
                   wasm-bindgen --version
 
             - name: Build browser WASM bindings
-              run: ./scripts/build-browser-wasm.sh
+              run: ./tools/scripts/build-browser-wasm.sh
 
             - uses: actions/upload-artifact@v4
               with:

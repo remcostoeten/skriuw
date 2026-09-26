@@ -114,13 +114,13 @@ jobs:
                   rm -rf site/.git
                   mkdir -p site/apt
                   DEB="$(ls dist/*.deb | head -n1)"
-                  ./scripts/build-apt-repo.sh "site/apt" "$DEB" "${{ steps.gpg.outputs.key_id }}"
+                  ./tools/scripts/build-apt-repo.sh "site/apt" "$DEB" "${{ steps.gpg.outputs.key_id }}"
 
             - name: Build dnf repo
               run: |
                   mkdir -p site/rpm
                   RPM="$(ls dist/*.rpm | head -n1)"
-                  ./scripts/build-rpm-repo.sh "site/rpm" "$RPM" "${{ steps.gpg.outputs.key_id }}"
+                  ./tools/scripts/build-rpm-repo.sh "site/rpm" "$RPM" "${{ steps.gpg.outputs.key_id }}"
 
             - name: Write landing page
               run: |

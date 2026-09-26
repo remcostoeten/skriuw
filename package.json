@@ -5,6 +5,7 @@
   "workspaces": [
     "apps/workspace",
     "apps/site",
+    "apps/storybook",
     "apps/mobile",
     "packages/*"
   ],
@@ -17,10 +18,10 @@
     "build:site": "bin/build site",
     "build:browser": "bin/build browser",
     "build": "bin/build browser",
-    "tauri": "scripts/tauri.sh",
+    "tauri": "tools/scripts/tauri.sh",
     "tauri:build": "bin/build desktop",
     "test": "vitest run",
-    "typecheck": "scripts/run-in.sh apps/workspace typecheck",
+    "typecheck": "tools/scripts/run-in.sh apps/workspace typecheck",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt --disable-nested-config",

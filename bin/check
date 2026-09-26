@@ -6,9 +6,9 @@ target="${1:-desktop}"
 if [[ $# -gt 0 ]]; then shift; fi
 
 case "$target" in
-  desktop) exec "$repo_dir/scripts/build.sh" check "$@" ;;
-  browser) exec "$repo_dir/scripts/check-wasm.sh" "$@" ;;
-  mobile) exec "$repo_dir/scripts/check-mobile.sh" "$@" ;;
+  desktop) exec "$repo_dir/tools/scripts/build.sh" check "$@" ;;
+  browser) exec "$repo_dir/tools/scripts/check-wasm.sh" "$@" ;;
+  mobile) exec "$repo_dir/tools/scripts/check-mobile.sh" "$@" ;;
   -h|--help|help)
     printf 'Usage: bin/check [desktop|browser|mobile]\nDefault: desktop. The desktop gate includes marketing-site and WASM builds required by verification.\n'
     ;;

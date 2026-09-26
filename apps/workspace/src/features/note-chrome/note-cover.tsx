@@ -1069,7 +1069,7 @@ function CoverMediaPicker({
           No media matches search and filter.
         </p>
       ) : (
-        <ul className="grid max-h-[52vh] list-none grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5 overflow-y-auto p-3.5">
+        <ul className="grid max-h-[52dvh] list-none grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5 overflow-y-auto p-3.5">
           {items.map((item) => (
             <li key={item.contentHash}>
               <button

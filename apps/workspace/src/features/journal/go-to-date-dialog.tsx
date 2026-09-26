@@ -30,7 +30,7 @@ export function JournalGoToDateHost({ selectedKey }: HostProps) {
       onOpenChange={setOpen}
       title="Go to date"
       showHeader={false}
-      className="mx-auto mb-auto mt-[12vh] max-h-[calc(var(--viewport-height)*0.76)] w-[calc(100vw-1.5rem)] max-w-md overflow-hidden"
+      className="mx-auto mb-auto mt-[12dvh] max-h-[calc(var(--viewport-height)*0.76)] w-[calc(100vw-1.5rem)] max-w-md overflow-hidden"
     >
       <GoToDateBody context={selectedKey} />
     </Dialog>
@@ -97,6 +97,9 @@ function GoToDateBody({ context }: BodyProps) {
         <CalendarDaysIcon size={16} aria-hidden="true" />
         <input
           autoFocus
+          autoCapitalize="off"
+          autoCorrect="off"
+          enterKeyHint="go"
           type="text"
           value={query}
           onChange={(event) => {

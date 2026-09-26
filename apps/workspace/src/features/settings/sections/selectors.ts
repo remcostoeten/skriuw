@@ -37,10 +37,6 @@ export function selectBlockDragHandle(state: RendererState): boolean {
   return usesBlockDragHandle(state.settings);
 }
 
-export function selectReduceMotion(state: RendererState): boolean {
-  return state.settings.reduceMotion === true;
-}
-
 export function selectEditorPlaceholder(state: RendererState): string {
   return state.settings.editorPlaceholder;
 }

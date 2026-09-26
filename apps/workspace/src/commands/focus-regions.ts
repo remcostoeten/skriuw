@@ -61,3 +61,11 @@ export function focusEditorPane(index: number): boolean {
   const pane = document.querySelectorAll<HTMLElement>(EDITOR_PANE_SELECTOR)[index];
   return focusElement(pane?.querySelector<HTMLElement>(EDITOR_CONTENT_SELECTOR) ?? null);
 }
+
+/** Focuses the visible `<main>` landmark, the content area of whichever view is showing. */
+export function focusMainContent(): boolean {
+  const main = [...document.querySelectorAll<HTMLElement>("main")].find(
+    (element) => element.getClientRects().length > 0,
+  );
+  return focusElement(main ?? null);
+}

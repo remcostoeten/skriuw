@@ -134,6 +134,7 @@ function getBrowserStorage(): Promise<BrowserStorageWorkerClient> {
       throw error;
     });
   void browserStorage.then(() => browserSyncDriver(syncWorkerPort).resume()).catch(noop);
+  void browserStorage.then(backfillMediaReplica).catch(noop);
   return browserStorage;
 }
 
@@ -230,14 +231,17 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
     ) as Promise<T>;
   }
   if (command === "store_note_image") {
-    return storeBrowserMediaBlob(args as Uint8Array) as Promise<T>;
+    const bytes = args as Uint8Array;
+    const stored = await storeBrowserMediaBlob(bytes);
+    void replicateMediaBlob(stored.contentHash, stored.mimeType, bytes);
+    return stored as T;
   }
   if (command === "download_remote_media") {
     throw new Error("Downloading an image from a web address needs the desktop app.");
   }
   if (command === "read_note_image_blob") {
     const { contentHash, mimeType } = args as { contentHash: string; mimeType: string };
-    return readBrowserMediaBlob(contentHash, mimeType) as Promise<T>;
+    return readMediaBlobWithReplicaFallback(contentHash, mimeType) as Promise<T>;
   }
   if (command === "list_media_blobs") {
     return listBrowserMediaBlobs() as Promise<T>;
@@ -320,6 +324,84 @@ export async function clearBrowserData(): Promise<void> {
   }
   clearSkriuwLocalState();
   globalThis.location.reload();
+}
+
+const ASSET_CHUNK_BYTES = 1024 * 1024;
+
+/**
+ * Copies a locally stored blob into the worker's sync asset store, which is
+ * where pushes read media bytes from. Until it lands, the operation that
+ * references the blob waits as blocked; the refresh requeues it.
+ */
+async function replicateMediaBlob(
+  contentHash: string,
+  mimeType: string,
+  bytes: Uint8Array,
+): Promise<void> {
+  try {
+    for (let offset = 0; offset < bytes.byteLength || offset === 0; offset += ASSET_CHUNK_BYTES) {
+      const result = (await requestExpecting(
+        "write_asset_chunk",
+        {
+          contentHash,
+          mimeType,
+          offset,
+          totalSize: bytes.byteLength,
+          bytes: Array.from(bytes.subarray(offset, offset + ASSET_CHUNK_BYTES)),
+        },
+        "asset_write",
+      )) as { complete: boolean };
+      if (result.complete) break;
+    }
+    await browserSyncDriver(syncWorkerPort).refresh();
+  } catch (error) {
+    console.error("media blob could not be queued for sync", error);
+  }
+}
+
+async function backfillMediaReplica(): Promise<void> {
+  for (const blob of await listBrowserMediaBlobs()) {
+    const bytes = new Uint8Array(await readBrowserMediaBlob(blob.contentHash, blob.mimeType));
+    await replicateMediaBlob(blob.contentHash, blob.mimeType, bytes);
+  }
+}
+
+/**
+ * Media pulled by sync lands in the worker's asset store; the first read
+ * copies it into this device's media directory.
+ */
+async function readMediaBlobWithReplicaFallback(
+  contentHash: string,
+  mimeType: string,
+): Promise<ArrayBuffer> {
+  try {
+    return await readBrowserMediaBlob(contentHash, mimeType);
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === "NotFoundError")) throw error;
+  }
+  const bytes = await readReplicatedMediaBlob(contentHash, mimeType);
+  await storeBrowserMediaBlob(bytes);
+  return bytes.buffer as ArrayBuffer;
+}
+
+async function readReplicatedMediaBlob(contentHash: string, mimeType: string): Promise<Uint8Array> {
+  let bytes: Uint8Array | null = null;
+  let offset = 0;
+  do {
+    const chunk = (await requestExpecting(
+      "read_asset_chunk",
+      { contentHash, mimeType, offset, length: ASSET_CHUNK_BYTES },
+      "asset_chunk",
+    )) as { totalSize: number; bytes: number[] } | null;
+    if (!chunk) {
+      throw new DOMException("This media has not synced to this device yet.", "NotFoundError");
+    }
+    bytes ??= new Uint8Array(chunk.totalSize);
+    bytes.set(chunk.bytes, offset);
+    offset += chunk.bytes.length;
+    if (chunk.bytes.length === 0) break;
+  } while (offset < bytes.byteLength);
+  return bytes ?? new Uint8Array();
 }
 
 async function requestExpecting(

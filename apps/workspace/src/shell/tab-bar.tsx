@@ -34,7 +34,10 @@ function onTabClick(event: MouseEvent<HTMLAnchorElement>, hash: string): void {
  */
 export function TabBar({ route, account }: Props) {
   return (
-    <nav aria-label="Primary" className="shell-tab-bar">
+    <nav
+      aria-label="Primary"
+      className="shell-tab-bar flex min-h-14 items-stretch border-t border-sidebar-border bg-sidebar pb-(--safe-bottom) text-sidebar-foreground keyboard-open:hidden"
+    >
       {RAIL_ITEMS.map((item) => {
         const active = route === item.route;
         const hash = `#/${item.route}`;
@@ -43,17 +46,21 @@ export function TabBar({ route, account }: Props) {
             key={item.actionId}
             href={hash}
             onClick={(event) => onTabClick(event, hash)}
-            className="shell-tab"
+            className="shell-tab flex min-h-14 min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-[3px] text-sidebar-foreground/55 no-underline [-webkit-touch-callout:none] active:text-sidebar-foreground data-[active=true]:text-sidebar-foreground"
             aria-label={item.label}
             aria-current={active ? "page" : undefined}
             data-active={active ? "true" : undefined}
           >
             <AppIcon name={RAIL_ICONS[item.actionId]} size={20} />
-            <span className="shell-tab-label">{item.label}</span>
+            <span className="max-w-full truncate text-[10px] leading-none font-medium">
+              {item.label}
+            </span>
           </a>
         );
       })}
-      <div className="shell-tab shell-tab-account">{account}</div>
+      <div className="shell-tab flex min-h-14 min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-[3px] text-sidebar-foreground/55 no-underline [-webkit-touch-callout:none] active:text-sidebar-foreground data-[active=true]:text-sidebar-foreground *:flex *:size-full *:items-center *:justify-center">
+        {account}
+      </div>
     </nav>
   );
 }

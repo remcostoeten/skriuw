@@ -11,7 +11,7 @@ import { DEFAULT_WORKSPACE_SETTINGS } from "@/features/settings/settings-model";
 function rootStub() {
   const properties = new Map<string, string>();
   return {
-    dataset: {} as { theme?: string; colorScheme?: string; reduceMotion?: string },
+    dataset: {} as { theme?: string; colorScheme?: string },
     properties,
     style: {
       setProperty: (property: string, value: string) => properties.set(property, value),
@@ -22,20 +22,15 @@ function rootStub() {
   };
 }
 
-test("root attributes project the theme and reduce-motion flag", () => {
+test("root attributes project the theme", () => {
   assert.deepEqual(rootSettingsAttributes(DEFAULT_WORKSPACE_SETTINGS), {
     theme: "midnight",
     colorScheme: "dark",
-    reduceMotion: false,
   });
-  assert.deepEqual(
-    rootSettingsAttributes({
-      ...DEFAULT_WORKSPACE_SETTINGS,
-      theme: "paper",
-      reduceMotion: true,
-    }),
-    { theme: "paper", colorScheme: "light", reduceMotion: true },
-  );
+  assert.deepEqual(rootSettingsAttributes({ ...DEFAULT_WORKSPACE_SETTINGS, theme: "paper" }), {
+    theme: "paper",
+    colorScheme: "light",
+  });
 });
 
 test("unsupported themes apply the default palette", () => {
@@ -62,14 +57,6 @@ test("custom themes apply validated tokens and built-ins clear them", () => {
 
   applySettingsToRoot(root, DEFAULT_WORKSPACE_SETTINGS, themes);
   assert.equal(root.properties.has("--background"), false);
-});
-
-test("reduce motion toggles the root marker attribute", () => {
-  const root = rootStub();
-  applySettingsToRoot(root, { ...DEFAULT_WORKSPACE_SETTINGS, reduceMotion: true });
-  assert.equal(root.dataset.reduceMotion, "true");
-  applySettingsToRoot(root, DEFAULT_WORKSPACE_SETTINGS);
-  assert.equal("reduceMotion" in root.dataset, false);
 });
 
 test("placeholder text escapes into a CSS string literal", () => {

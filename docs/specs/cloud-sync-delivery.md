@@ -337,5 +337,5 @@ condition and records the evidence.
   before that Worker is deployed. The browser client deploys automatically from
   `daddy` through Vercel, so the reverse order ships clients against a service
   that cannot answer them. `GET /health` reports what a deployment serves, and
-  `scripts/verify-cloud-capabilities.mjs` is the check; the desktop release
+  `tools/scripts/verify-cloud-capabilities.mjs` is the check; the desktop release
   workflow refuses to publish until it passes.

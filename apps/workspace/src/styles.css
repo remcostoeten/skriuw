@@ -19,3 +19,5 @@
 @import "./features/drawing/drawing.css";
 
 @plugin "tailwindcss-animate";
+
+@custom-variant keyboard-open (:root[data-keyboard="open"] &);

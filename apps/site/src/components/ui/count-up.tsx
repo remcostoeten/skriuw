@@ -24,12 +24,7 @@ export function CountUp({ value, duration = 1200 }: Props) {
     const node = ref.current;
     const match = value.match(numberPattern);
 
-    if (
-      !node ||
-      !match ||
-      typeof IntersectionObserver === "undefined" ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
+    if (!node || !match || typeof IntersectionObserver === "undefined") {
       return;
     }
 

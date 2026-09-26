@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "exports": {
+    "./components/theme-toggle": "./src/components/theme-toggle.tsx",
     "./helpers/clamp": "./src/helpers/clamp.ts",
     "./helpers/cn": "./src/helpers/cn.ts",
     "./helpers/noop": "./src/helpers/noop.ts"
@@ -14,5 +15,11 @@
   },
   "scripts": {
     "test": "bun --cwd=../.. vitest run --project shared"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14"
   }
 }

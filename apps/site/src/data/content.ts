@@ -300,8 +300,8 @@ export const footerColumns = [
     title: "Project",
     links: [
       { label: "Source on GitHub", href: repoUrl },
-      { label: "Contributing", href: `${repoUrl}/blob/daddy/CONTRIBUTING.md` },
-      { label: "Security", href: `${repoUrl}/blob/daddy/SECURITY.md` },
+      { label: "Contributing", href: `${repoUrl}/blob/daddy/.github/CONTRIBUTING.md` },
+      { label: "Security", href: `${repoUrl}/blob/daddy/.github/SECURITY.md` },
       { label: "License", href: `${repoUrl}/blob/daddy/LICENSE` },
     ],
   },

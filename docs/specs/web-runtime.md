@@ -195,7 +195,7 @@ cycle; renderer state itself updates synchronously and never waits on either.
 
 ### Application and build integration
 
-`scripts/build-browser-wasm.sh` builds the crate for
+`tools/scripts/build-browser-wasm.sh` builds the crate for
 `wasm32-unknown-unknown` and uses the exactly matching `wasm-bindgen` CLI to
 create ignored build artifacts. Vite's explicit worker-URL import emits a
 dedicated worker chunk and the `.wasm` asset; the application runtime maps its

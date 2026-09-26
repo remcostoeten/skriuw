@@ -132,6 +132,10 @@ function PaletteBody({ items, onQueryChange, notice, paletteShortcut }: BodyProp
         <SearchIcon size={16} />
         <input
           autoFocus
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="search"
           className="min-w-0 flex-1 border-none bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
           value={query}
           onChange={(event) => updateQuery(event.target.value)}
