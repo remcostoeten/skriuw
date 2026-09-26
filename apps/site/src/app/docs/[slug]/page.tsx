@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: page.description,
     alternates: { canonical: `/docs/${page.slug}/` },
     openGraph: {
-      title: `${page.title} — Skriuw`,
+      title: `${page.title} | Skriuw`,
       description: page.description,
       url: `https://skriuw.com/docs/${page.slug}/`,
       images: [socialImage],
@@ -45,8 +45,6 @@ export default async function DocPage({ params }: Props) {
   }
 
   const { html, headings, lede } = await renderDoc(page);
-  const outline =
-    headings.length > 30 ? headings.filter((heading) => heading.depth === 2) : headings;
   const index = docPages.indexOf(page);
   const previous = docPages[index - 1];
   const next = docPages[index + 1];
@@ -54,21 +52,21 @@ export default async function DocPage({ params }: Props) {
   return (
     <article className="bg-surface">
       <header className="border-b border-border">
-        <Container className="py-16 lg:py-20">
-          <p className="font-mono text-[13px] tracking-[0.08em] text-ink-400 uppercase">
+        <Container className="py-10 lg:py-12">
+          <p className="font-mono text-[12px] tracking-[0.08em] text-ink-400 uppercase">
             <Link href="/docs/" className="hover:text-ink-700">
               Documentation
             </Link>
             <span className="px-2 text-ink-300">/</span>
             {page.kicker}
           </p>
-          <h1 className="mt-5 max-w-[760px] font-serif text-[38px] leading-[44px] font-normal tracking-[-0.8px] text-balance text-ink-900 md:text-[46px] md:leading-[50px]">
+          <h1 className="mt-3 max-w-[760px] font-serif text-[28px] leading-[34px] font-normal tracking-[-0.5px] text-balance text-ink-900 md:text-[32px] md:leading-[38px]">
             {page.title}
           </h1>
-          <p className="mt-6 max-w-[680px] text-[16px] leading-[26px] text-ink-500">
+          <p className="mt-3 max-w-[680px] text-[15px] leading-[24px] text-ink-500">
             {lede || page.description}
           </p>
-          <p className="mt-7 font-mono text-[12px] text-ink-400">
+          <p className="mt-4 font-mono text-[12px] text-ink-400">
             <a
               href={docSourceUrl(page)}
               target="_blank"
@@ -84,7 +82,7 @@ export default async function DocPage({ params }: Props) {
       <Container className="grid gap-12 py-16 lg:grid-cols-[minmax(0,1fr)_220px] lg:py-20">
         <div className="doc-prose min-w-0" dangerouslySetInnerHTML={{ __html: html }} />
 
-        {outline.length > 1 ? (
+        {headings.length > 1 ? (
           <div className="hidden lg:block">
             <div className="sticky top-[89px]">
               <p className="px-[22px] font-mono text-[12px] tracking-[0.06em] text-ink-400 uppercase">
@@ -94,7 +92,7 @@ export default async function DocPage({ params }: Props) {
                 data-outline-scroll
                 className="no-scrollbar mt-4 max-h-[calc(100vh_-_170px)] overflow-y-auto overscroll-contain"
               >
-                <DocOutline headings={outline} />
+                <DocOutline headings={headings} collapse={headings.length > 30} />
               </div>
             </div>
           </div>
