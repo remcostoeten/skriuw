@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { cn } from "@skriuw/shared/helpers/cn";
-import { Apple, Download, Globe, Linux, Windows } from "@/components/ui/icons";
+import { Apple, ArrowRight, Download, Globe, Linux, Windows } from "@/components/ui/icons";
 import { HeroAppPreview } from "@/components/hero-app-preview";
 import { appUrl, releasesUrl } from "@/data/content";
-import { badge, outlineButton, primaryButton } from "@/components/hybrid/control";
+import { outlineButton, primaryButton } from "@/components/hybrid/control";
 
 const platforms = [
   { name: "macOS", Mark: Apple },
@@ -37,14 +37,16 @@ export function HybridHero() {
   return (
     <section className="grid gap-10 overflow-hidden lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:items-center">
       <div className="max-w-[440px]">
-        <p className="caps flex flex-wrap items-center gap-2 text-ink-500">
-          <span className={cn(badge, "bg-accent/15 text-accent")}>
-            <span aria-hidden className="size-1.5 rounded-full bg-accent" />
-            live
+        <Link
+          href="/#speed"
+          className="hy-link inline-flex items-center gap-2 rounded-full border border-line bg-hy-card py-1 pr-2 pl-3 text-xs font-medium text-ink-500 no-underline transition-colors hover:border-ink-400 hover:text-ink-900"
+        >
+          <span>Keystroke to paint</span>
+          <span className="rounded-full bg-ink-900/8 px-2 py-0.5 font-mono text-xs font-medium text-ink-700 tabular-nums">
+            {latency} ms
           </span>
-          <span>keystroke to paint</span>
-          <span className="tabular-nums text-ink-900">{latency} ms</span>
-        </p>
+          <ArrowRight className="size-3" />
+        </Link>
 
         <h1 className="mt-6 font-serif text-[44px] leading-[48px] font-normal tracking-[-1.5px] text-balance text-ink-900">
           Notes that never make you wait
