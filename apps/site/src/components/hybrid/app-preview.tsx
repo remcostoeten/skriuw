@@ -322,7 +322,7 @@ export function HybridAppPreview() {
         </div>
       </div>
 
-      <aside className="hidden w-[180px] shrink-0 flex-col border-l border-border text-[10.5px] md:flex">
+      <aside className="hidden w-[180px] shrink-0 flex-col border-l border-border text-[10.5px] xl:flex">
         <div className="relative border-b border-border py-2 pr-2 pl-4">
           <span aria-hidden className="absolute top-3 bottom-3 left-2 w-px bg-ink-300" />
           {outline.map((item, index) => (
