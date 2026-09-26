@@ -49,7 +49,6 @@ function snapshot(rememberLastNote = true): WorkspaceSnapshot {
       theme: "midnight",
       compactSidebar: false,
       showPageIcons: true,
-      reduceMotion: false,
       rememberLastNote,
       editorFont: "inter",
       editorLineHeight: "comfortable",

@@ -12,6 +12,9 @@
       (function () {
         var light = ["paper", "catppuccin-latte", "rose-pine-dawn"];
         var root = document.documentElement;
+        if (new URLSearchParams(window.location.search).get("preview") === "1") {
+          root.dataset.preview = "true";
+        }
         try {
           var stored = window.localStorage.getItem("skriuw.boot-appearance");
           var parsed = stored ? JSON.parse(stored) : null;
@@ -106,12 +109,47 @@
           transform: translateX(250%);
         }
       }
+      :root[data-paused="true"] h1,
+      :root[data-paused="true"] .track,
+      :root[data-paused="true"] .track::after {
+        animation-play-state: paused;
+      }
+      .preview-control {
+        display: none;
+        position: absolute;
+        bottom: 20px;
+        padding: 6px 12px;
+        border: 1px solid var(--muted);
+        border-radius: 6px;
+        background: var(--bg);
+        color: var(--fg);
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      :root[data-preview="true"] .preview-control {
+        display: block;
+      }
+      .preview-control:focus-visible {
+        outline: 2px solid var(--fg);
+        outline-offset: 3px;
+      }
     </style>
   </head>
   <body>
     <main aria-busy="true" aria-label="Skriuw is starting">
       <h1>skriuw</h1>
       <div class="track" role="presentation"></div>
+      <button class="preview-control" type="button" aria-pressed="false">Pause</button>
     </main>
+    <script nonce="__TAURI_SCRIPT_NONCE__">
+      var previewControl = document.querySelector(".preview-control");
+      previewControl.addEventListener("click", () => {
+        var paused = document.documentElement.dataset.paused !== "true";
+        document.documentElement.dataset.paused = String(paused);
+        previewControl.setAttribute("aria-pressed", String(paused));
+        previewControl.textContent = paused ? "Resume" : "Pause";
+      });
+    </script>
   </body>
 </html>

@@ -43,7 +43,6 @@ const settings: WorkspaceSettings = {
   theme: "dark",
   compactSidebar: true,
   showPageIcons: false,
-  reduceMotion: true,
   rememberLastNote: true,
   editorFont: "sans",
   editorLineHeight: "normal",

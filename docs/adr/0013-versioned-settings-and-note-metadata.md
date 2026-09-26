@@ -20,7 +20,7 @@ One portable `WorkspaceSettings` document replaces per-key setting rows. It carr
 | `theme` | `midnight` | original appearance preferences |
 | `compactSidebar` | `false` | original appearance preferences |
 | `showPageIcons` | `true` | original appearance preferences |
-| `reduceMotion` | `false` | original appearance preferences |
+| `reduceMotion` | `false` | original appearance preferences; retired 2026-09-26, older workspaces keep the key as an extension |
 | `rememberLastNote` | `true` | original continuity default was `rememberLastTab: true`; tabs are out of MVP, so last-note restore is the continuity mechanism |
 | `editorFont` | `inter` | original editor preferences |
 | `editorLineHeight` | `comfortable` | original editor preferences (`cozy`, `comfortable`, `relaxed`) |

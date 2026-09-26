@@ -42,26 +42,23 @@ const CalendarDaysIcon = forwardRef<CalendarDaysIconHandle, CalendarDaysIconProp
     ref,
   ) => {
     const controls = useAnimation();
-    // The "Animated icons" setting is the sole control, so the OS reduced-motion
-    // query is deliberately not consulted here.
-    const reduced = false;
     const isControlled = useRef(false);
 
     useImperativeHandle(ref, () => {
       isControlled.current = true;
       return {
-        startAnimation: () => (reduced ? controls.start("normal") : controls.start("animate")),
+        startAnimation: () => controls.start("animate"),
         stopAnimation: () => controls.start("normal"),
       };
     });
 
     const handleEnter = useCallback(
       (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!isAnimated || reduced) return;
+        if (!isAnimated) return;
         if (!isControlled.current) controls.start("animate");
         else onMouseEnter?.(e);
       },
-      [controls, reduced, isAnimated, onMouseEnter],
+      [controls, isAnimated, onMouseEnter],
     );
 
     const handleLeave = useCallback(

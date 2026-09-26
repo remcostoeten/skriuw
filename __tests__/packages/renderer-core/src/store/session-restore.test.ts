@@ -42,7 +42,6 @@ function snapshot(
       theme: "midnight",
       compactSidebar: false,
       showPageIcons: true,
-      reduceMotion: false,
       rememberLastNote,
       editorFont: "inter",
       editorLineHeight: "comfortable",

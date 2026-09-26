@@ -87,7 +87,6 @@ function snapshot(): WorkspaceSnapshot {
       theme: "system",
       compactSidebar: false,
       showPageIcons: true,
-      reduceMotion: false,
       rememberLastNote: true,
       editorFont: "sans",
       editorLineHeight: "1.6",

@@ -41,6 +41,11 @@ entrypoints: `bun run dev:browser`, `bun run site`, `bun run mobile`,
 The CLI database above is separate from the desktop app's default storage.
 Use `SKRIUW_DB="$PWD/.data/skriuw.db" ./bin/dev desktop` to open it in the app.
 
+To inspect the native splash indefinitely, run `SKRIUW_SPLASH_PREVIEW=1 ./bin/dev desktop`.
+The debug build keeps the main window hidden, loops the splash animation, and
+shows a Pause/Resume button. Stop the dev process to close the preview. The
+flag has no effect in release builds.
+
 Generated contracts in `contracts/generated` are committed and drift-checked
 in CI. `bin/skriuw <snapshot|integrity|export|backup|restore>`
 provides database utilities.
