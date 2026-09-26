@@ -11,7 +11,7 @@ a v1 release cannot replace the current v2 channels.
 | **dnf repo**         | Fedora / RHEL   | GitHub Pages (`gh-pages` branch)            |
 | **AUR `skriuw-bin`** | Arch / Manjaro  | `aur.archlinux.org`                         |
 | **Homebrew cask**    | macOS           | `skriuw/homebrew-tap` (`Casks/skriuw.rb`)   |
-| **Scoop bucket**     | Windows         | `skriuw/homebrew-tap` (`bucket/skriuw.json`) |
+| **Scoop bucket**     | Windows         | `skriuw/scoop-bucket` (`bucket/skriuw.json`) |
 | **AppImage**         | any Linux       | release asset (portable, no repo)           |
 
 The iOS and Android client is a separate channel on its own version line and
@@ -41,8 +41,8 @@ the optional store submissions.
     - downloads the `.deb` + `.rpm`, regenerates the signed apt and dnf repos,
       pushes `gh-pages`;
     - bumps the PKGBUILD `pkgver` and pushes `skriuw-bin` to the AUR;
-    - rewrites `Casks/skriuw.rb` (from the `.dmg`) and `bucket/skriuw.json`
-      (from the `-setup.exe`) in one commit on `skriuw/homebrew-tap`;
+    - rewrites `Casks/skriuw.rb` on `skriuw/homebrew-tap` (from the `.dmg`) and
+      `bucket/skriuw.json` on `skriuw/scoop-bucket` (from the `-setup.exe`);
     - submits a winget version PR only when `WINGET_TOKEN` is configured;
     - repacks the `.deb` as a snap and uploads it only when
       `SNAPCRAFT_STORE_CREDENTIALS` is configured.
@@ -97,14 +97,17 @@ Reuse dora's two AUR secrets. The job clones
 `ssh://aur@aur.archlinux.org/skriuw-bin.git`; the first push creates the
 `skriuw-bin` package on your AUR account, later pushes update it.
 
-### 4. Homebrew + Scoop — `TAP_DEPLOY_KEY`; dnf repo — no secrets
+### 4. Homebrew — `TAP_DEPLOY_KEY`; Scoop — `BUCKET_DEPLOY_KEY`; dnf repo — no secrets
 
-The Homebrew cask (`Casks/skriuw.rb`) and Scoop bucket (`bucket/skriuw.json`)
-live in [`skriuw/homebrew-tap`](https://github.com/skriuw/homebrew-tap). The
-manifests job pushes to it with `TAP_DEPLOY_KEY`, the private half of a
-write-enabled deploy key on that repository. To rotate it, generate a new
-ed25519 pair, replace the deploy key on `skriuw/homebrew-tap`, and
-`gh secret set TAP_DEPLOY_KEY --repo remcostoeten/skriuw < key`. The root
+The Homebrew cask (`Casks/skriuw.rb`) lives in
+[`skriuw/homebrew-tap`](https://github.com/skriuw/homebrew-tap) and the Scoop
+manifest (`bucket/skriuw.json`) in
+[`skriuw/scoop-bucket`](https://github.com/skriuw/scoop-bucket). Deploy keys
+are scoped to one repository, so the manifests job pushes with two secrets:
+`TAP_DEPLOY_KEY` and `BUCKET_DEPLOY_KEY`, each the private half of a
+write-enabled deploy key on its repository. To rotate one, generate a new
+ed25519 pair, replace the deploy key on that repository, and
+`gh secret set <NAME> --repo remcostoeten/skriuw < key`. The root
 `tap_migrations.json` moves users of the old tap-by-URL to `skriuw/tap`. The
 dnf repo reuses the apt repo's `GPG_PRIVATE_KEY` (it signs
 `repodata/repomd.xml` the way apt signs `Release`).
@@ -172,7 +175,7 @@ brew install --cask skriuw/tap/skriuw
 
 ```powershell
 # Scoop is the current v2 package-manager channel.
-scoop bucket add skriuw https://github.com/skriuw/homebrew-tap
+scoop bucket add skriuw https://github.com/skriuw/scoop-bucket
 scoop install skriuw
 ```
 

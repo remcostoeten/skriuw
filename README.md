@@ -103,7 +103,7 @@ brew install --cask skriuw/tap/skriuw
 ### Windows (Scoop)
 
 ```powershell
-scoop bucket add skriuw https://github.com/skriuw/homebrew-tap
+scoop bucket add skriuw https://github.com/skriuw/scoop-bucket
 scoop install skriuw
 ```
 

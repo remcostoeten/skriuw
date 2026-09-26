@@ -30,7 +30,7 @@ const channels = [
     title: "Scoop",
     body: "Add the Skriuw bucket once, then install and update from the terminal.",
     lines: [
-      "> scoop bucket add skriuw https://github.com/skriuw/homebrew-tap",
+      "> scoop bucket add skriuw https://github.com/skriuw/scoop-bucket",
       "> scoop install skriuw",
     ],
   },

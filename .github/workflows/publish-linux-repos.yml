@@ -5,7 +5,7 @@ name: Publish Channels
 #   - dnf repo (Fedora/RHEL)    -> GitHub Pages (gh-pages branch)
 #   - AUR -bin package (Arch)   -> aur.archlinux.org
 #   - Homebrew cask (macOS)     -> Casks/skriuw.rb in skriuw/homebrew-tap
-#   - Scoop bucket (Windows)    -> bucket/skriuw.json in skriuw/homebrew-tap
+#   - Scoop bucket (Windows)    -> bucket/skriuw.json in skriuw/scoop-bucket
 #   - winget (Windows)          -> optional PR to microsoft/winget-pkgs
 #   - Snap Store                -> optional upload to snapcraft.io (repacked from the .deb)
 #
@@ -141,7 +141,7 @@ jobs:
                   <h2>macOS (Homebrew)</h2>
                   <pre>brew install --cask skriuw/tap/skriuw</pre>
                   <h2>Windows (Scoop)</h2>
-                  <pre>scoop bucket add skriuw https://github.com/skriuw/homebrew-tap
+                  <pre>scoop bucket add skriuw https://github.com/skriuw/scoop-bucket
                   scoop install skriuw</pre>
                   <h2>Direct downloads</h2>
                   <p>Download macOS, Windows, Debian/Ubuntu, RPM, or AppImage assets from <a href="https://github.com/remcostoeten/skriuw/releases/latest">GitHub Releases</a>.</p>
@@ -226,13 +226,14 @@ jobs:
               if: ${{ env.AUR_SSH_PRIVATE_KEY == '' || env.AUR_KNOWN_HOSTS == '' }}
               run: echo "AUR_SSH_PRIVATE_KEY or AUR_KNOWN_HOSTS not set; generated .SRCINFO but skipped AUR push."
 
-    # Package manifests in skriuw/homebrew-tap, updated in a single commit:
-    #   - Homebrew cask (Casks/skriuw.rb) from the released .dmg
+    # Package manifests in the skriuw org, one repository each:
+    #   - Homebrew cask (Casks/skriuw.rb in skriuw/homebrew-tap) from the released .dmg
     #     install: brew install --cask skriuw/tap/skriuw
-    #   - Scoop bucket (bucket/skriuw.json) from the released NSIS -setup.exe
-    #     bucket:  scoop bucket add skriuw https://github.com/skriuw/homebrew-tap
+    #   - Scoop bucket (bucket/skriuw.json in skriuw/scoop-bucket) from the released NSIS -setup.exe
+    #     bucket:  scoop bucket add skriuw https://github.com/skriuw/scoop-bucket
     # Missing artifacts (e.g. a Linux-only release) just skip that manifest.
-    # Pushes with TAP_DEPLOY_KEY, a write-enabled deploy key on the tap repo.
+    # Deploy keys are per repository: TAP_DEPLOY_KEY writes the tap,
+    # BUCKET_DEPLOY_KEY writes the bucket.
     manifests:
         needs: resolve
         runs-on: ubuntu-latest
@@ -243,7 +244,15 @@ jobs:
               with:
                   repository: skriuw/homebrew-tap
                   ref: main
+                  path: tap
                   ssh-key: ${{ secrets.TAP_DEPLOY_KEY }}
+
+            - uses: actions/checkout@v7
+              with:
+                  repository: skriuw/scoop-bucket
+                  ref: main
+                  path: scoop
+                  ssh-key: ${{ secrets.BUCKET_DEPLOY_KEY }}
 
             - name: Download .dmg and -setup.exe from release
               env:
@@ -256,6 +265,7 @@ jobs:
                   ls -la dist
 
             - name: Update Homebrew cask
+              working-directory: tap
               run: |
                   set -euo pipefail
                   if [ ! -f Casks/skriuw.rb ]; then
@@ -263,8 +273,8 @@ jobs:
                     exit 0
                   fi
                   VERSION="${{ needs.resolve.outputs.version }}"
-                  ARM_DMG="dist/Skriuw_${VERSION}_aarch64.dmg"
-                  X64_DMG="dist/Skriuw_${VERSION}_x64.dmg"
+                  ARM_DMG="../dist/Skriuw_${VERSION}_aarch64.dmg"
+                  X64_DMG="../dist/Skriuw_${VERSION}_x64.dmg"
                   if [ ! -f "$ARM_DMG" ] || [ ! -f "$X64_DMG" ]; then
                     echo "::warning::missing aarch64/x64 .dmg on this release; skipping cask update"
                     exit 0
@@ -275,13 +285,14 @@ jobs:
                   sed -i -E "s/^  sha256 arm: \".*\", intel: \".*\"/  sha256 arm: \"${ARM_SHA}\", intel: \"${X64_SHA}\"/" Casks/skriuw.rb
 
             - name: Update Scoop bucket
+              working-directory: scoop
               run: |
                   set -euo pipefail
                   if [ ! -f bucket/skriuw.json ]; then
-                    echo "::warning::bucket/skriuw.json missing from skriuw/homebrew-tap; skipping scoop update"
+                    echo "::warning::bucket/skriuw.json missing from skriuw/scoop-bucket; skipping scoop update"
                     exit 0
                   fi
-                  EXE="$(ls dist/*-setup.exe 2>/dev/null | head -n1 || true)"
+                  EXE="$(ls ../dist/*-setup.exe 2>/dev/null | head -n1 || true)"
                   if [ -z "$EXE" ]; then
                     echo "::warning::no -setup.exe on this release; skipping scoop update"
                     exit 0
@@ -296,13 +307,27 @@ jobs:
                     bucket/skriuw.json > bucket/skriuw.json.tmp
                   mv bucket/skriuw.json.tmp bucket/skriuw.json
 
-            - name: Commit manifests
+            - name: Commit Homebrew cask
+              working-directory: tap
               run: |
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
-                  git add Casks/skriuw.rb bucket/skriuw.json
+                  git add Casks/skriuw.rb
                   if git diff --cached --quiet; then
-                    echo "Manifests already up to date."
+                    echo "Cask already up to date."
+                  else
+                    git commit -m "skriuw ${{ needs.resolve.outputs.version }}"
+                    git push origin HEAD:main
+                  fi
+
+            - name: Commit Scoop bucket
+              working-directory: scoop
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git add bucket/skriuw.json
+                  if git diff --cached --quiet; then
+                    echo "Bucket already up to date."
                   else
                     git commit -m "skriuw ${{ needs.resolve.outputs.version }}"
                     git push origin HEAD:main
