@@ -192,8 +192,7 @@ docker pull ghcr.io/remcostoeten/skriuw:0.25.0
 
 Desktop installers for macOS, Windows, and Linux are attached to the
 [`desktop-v0.25.0` release](https://github.com/remcostoeten/skriuw/releases/tag/desktop-v0.25.0).
-The `:latest` container tag still builds from the v1 tree but is rebuilt on
-every v2 release, so pin `0.25.0` if you want the frozen version.
+The container image is no longer rebuilt; `0.25.0` is its final version.
 
 To work on v1 in this repository instead, use `v1-final/` on the current branch, or
 `f74af74f` for the last commit that touched it before the freeze. Setup lives

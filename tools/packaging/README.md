@@ -188,14 +188,14 @@ latest v2 version. Install from [GitHub Releases](https://github.com/remcostoete
 
 ## Docker (v1 self-hosting)
 
-The published web image is separate from the v2 desktop distribution. It is
+The v1 web image is frozen at `0.25.0` and no longer rebuilt. It stays
 available for `linux/amd64` and `linux/arm64`:
 
 ```bash
-docker pull ghcr.io/remcostoeten/skriuw:latest
+docker pull ghcr.io/remcostoeten/skriuw:0.25.0
 ```
 
-Run it with PostgreSQL and the required secrets using the [Docker quickstart](../README.md#self-host-with-docker). v2 is a local-first desktop application and is not distributed as a server container.
+v2 is a local-first desktop application and is not distributed as a server container.
 
 ## Local testing of the apt repo
 

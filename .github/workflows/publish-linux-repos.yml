@@ -154,9 +154,6 @@ jobs:
                   <h2>Direct downloads</h2>
                   <p>Download macOS, Windows, Debian/Ubuntu, RPM, or AppImage assets from <a href="https://github.com/remcostoeten/skriuw/releases/latest">GitHub Releases</a>.</p>
                   <p>Winget and Snap are published only after their respective store submissions succeed. They are intentionally not listed as current install channels here.</p>
-                  <h2>Self-host (Docker)</h2>
-                  <pre>docker pull ghcr.io/remcostoeten/skriuw</pre>
-                  <p>Runs the web app as a server, not the desktop app — see the <a href="https://github.com/remcostoeten/skriuw#self-host-with-docker">Docker quickstart</a> (needs Postgres + two secrets).</p>
                   <p>Latest: v$VERSION</p>
                   </body>
                   HTML
