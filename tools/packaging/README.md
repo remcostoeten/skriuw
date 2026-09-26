@@ -7,11 +7,11 @@ a v1 release cannot replace the current v2 channels.
 
 | Channel              | Audience        | Source                                      |
 | -------------------- | --------------- | ------------------------------------------- |
-| **apt repo**         | Debian / Ubuntu | GitHub Pages (`gh-pages` branch)            |
-| **dnf repo**         | Fedora / RHEL   | GitHub Pages (`gh-pages` branch)            |
+| **apt repo**         | Debian / Ubuntu | `skriuw/packages` (GitHub Pages)            |
+| **dnf repo**         | Fedora / RHEL   | `skriuw/packages` (GitHub Pages)            |
 | **AUR `skriuw-bin`** | Arch / Manjaro  | `aur.archlinux.org`                         |
 | **Homebrew cask**    | macOS           | `skriuw/homebrew-tap` (`Casks/skriuw.rb`)   |
-| **Scoop bucket**     | Windows         | `skriuw/homebrew-tap` (`bucket/skriuw.json`) |
+| **Scoop bucket**     | Windows         | `skriuw/scoop-bucket` (`bucket/skriuw.json`) |
 | **AppImage**         | any Linux       | release asset (portable, no repo)           |
 
 The iOS and Android client is a separate channel on its own version line and
@@ -38,11 +38,12 @@ the optional store submissions.
    macOS, and Windows in parallel and attaches the artifacts.
 3. Review and **publish** the release in the GitHub UI.
 4. Publishing fires `publish-linux-repos.yml`:
-    - downloads the `.deb` + `.rpm`, regenerates the signed apt and dnf repos,
-      pushes `gh-pages`;
+    - downloads the `.deb` + `.rpm`, regenerates the signed apt and dnf repos
+      (keeping the newest three versions), and force-pushes them as a single
+      commit to `skriuw/packages`;
     - bumps the PKGBUILD `pkgver` and pushes `skriuw-bin` to the AUR;
-    - rewrites `Casks/skriuw.rb` (from the `.dmg`) and `bucket/skriuw.json`
-      (from the `-setup.exe`) in one commit on `skriuw/homebrew-tap`;
+    - rewrites `Casks/skriuw.rb` on `skriuw/homebrew-tap` (from the `.dmg`) and
+      `bucket/skriuw.json` on `skriuw/scoop-bucket` (from the `-setup.exe`);
     - submits a winget version PR only when `WINGET_TOKEN` is configured;
     - repacks the `.deb` as a snap and uploads it only when
       `SNAPCRAFT_STORE_CREDENTIALS` is configured.
@@ -67,10 +68,13 @@ same AUR account, so dora's existing credentials are reused as-is.
 > gh secret set GPG_PRIVATE_KEY --repo remcostoeten/skriuw < /path/to/apt_signing_key.asc
 > ```
 
-### 1. GitHub Pages
+### 1. GitHub Pages — `PACKAGES_DEPLOY_KEY`
 
-Settings → Pages → Source: **Deploy from a branch** → branch `gh-pages` / root.
-(The branch is created automatically by the first publish run.)
+[`skriuw/packages`](https://github.com/skriuw/packages) serves the apt and dnf
+repos at `https://skriuw.github.io/packages/` from its `main` branch. The apt
+job pushes to it with `PACKAGES_DEPLOY_KEY`, the private half of a
+write-enabled deploy key on that repository; rotate it like the keys in
+step 4.
 
 ### 2. apt signing key — `GPG_PRIVATE_KEY` (+ optional `GPG_PASSPHRASE`)
 
@@ -97,14 +101,17 @@ Reuse dora's two AUR secrets. The job clones
 `ssh://aur@aur.archlinux.org/skriuw-bin.git`; the first push creates the
 `skriuw-bin` package on your AUR account, later pushes update it.
 
-### 4. Homebrew + Scoop — `TAP_DEPLOY_KEY`; dnf repo — no secrets
+### 4. Homebrew — `TAP_DEPLOY_KEY`; Scoop — `BUCKET_DEPLOY_KEY`; dnf repo — no secrets
 
-The Homebrew cask (`Casks/skriuw.rb`) and Scoop bucket (`bucket/skriuw.json`)
-live in [`skriuw/homebrew-tap`](https://github.com/skriuw/homebrew-tap). The
-manifests job pushes to it with `TAP_DEPLOY_KEY`, the private half of a
-write-enabled deploy key on that repository. To rotate it, generate a new
-ed25519 pair, replace the deploy key on `skriuw/homebrew-tap`, and
-`gh secret set TAP_DEPLOY_KEY --repo remcostoeten/skriuw < key`. The root
+The Homebrew cask (`Casks/skriuw.rb`) lives in
+[`skriuw/homebrew-tap`](https://github.com/skriuw/homebrew-tap) and the Scoop
+manifest (`bucket/skriuw.json`) in
+[`skriuw/scoop-bucket`](https://github.com/skriuw/scoop-bucket). Deploy keys
+are scoped to one repository, so the manifests job pushes with two secrets:
+`TAP_DEPLOY_KEY` and `BUCKET_DEPLOY_KEY`, each the private half of a
+write-enabled deploy key on its repository. To rotate one, generate a new
+ed25519 pair, replace the deploy key on that repository, and
+`gh secret set <NAME> --repo remcostoeten/skriuw < key`. The root
 `tap_migrations.json` moves users of the old tap-by-URL to `skriuw/tap`. The
 dnf repo reuses the apt repo's `GPG_PRIVATE_KEY` (it signs
 `repodata/repomd.xml` the way apt signs `Release`).
@@ -142,9 +149,9 @@ failed `CreateRef` operation.
 ### Debian / Ubuntu
 
 ```bash
-curl -fsSL https://remcostoeten.github.io/skriuw/apt/key.gpg \
+curl -fsSL https://skriuw.github.io/packages/apt/key.gpg \
   | sudo gpg --dearmor -o /usr/share/keyrings/skriuw.gpg
-echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://remcostoeten.github.io/skriuw/apt stable main" \
+echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://skriuw.github.io/packages/apt stable main" \
   | sudo tee /etc/apt/sources.list.d/skriuw.list
 sudo apt update && sudo apt install skriuw
 ```
@@ -152,7 +159,7 @@ sudo apt update && sudo apt install skriuw
 ### Fedora / RHEL / openSUSE
 
 ```bash
-sudo dnf config-manager addrepo --from-repofile=https://remcostoeten.github.io/skriuw/rpm/skriuw.repo
+sudo dnf config-manager addrepo --from-repofile=https://skriuw.github.io/packages/rpm/skriuw.repo
 sudo dnf install skriuw
 ```
 
@@ -172,7 +179,7 @@ brew install --cask skriuw/tap/skriuw
 
 ```powershell
 # Scoop is the current v2 package-manager channel.
-scoop bucket add skriuw https://github.com/skriuw/homebrew-tap
+scoop bucket add skriuw https://github.com/skriuw/scoop-bucket
 scoop install skriuw
 ```
 

@@ -80,9 +80,9 @@ has installers for macOS, Windows, and Linux (`.dmg`, `.exe`/`.msi`, `.deb`,
 ### Debian / Ubuntu (APT)
 
 ```bash
-curl -fsSL https://remcostoeten.github.io/skriuw/apt/key.gpg \
+curl -fsSL https://skriuw.github.io/packages/apt/key.gpg \
   | sudo gpg --dearmor -o /usr/share/keyrings/skriuw.gpg
-echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://remcostoeten.github.io/skriuw/apt stable main" \
+echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://skriuw.github.io/packages/apt stable main" \
   | sudo tee /etc/apt/sources.list.d/skriuw.list
 sudo apt update && sudo apt install skriuw
 ```
@@ -90,7 +90,7 @@ sudo apt update && sudo apt install skriuw
 ### Fedora / RHEL / openSUSE (dnf)
 
 ```bash
-sudo dnf config-manager addrepo --from-repofile=https://remcostoeten.github.io/skriuw/rpm/skriuw.repo
+sudo dnf config-manager addrepo --from-repofile=https://skriuw.github.io/packages/rpm/skriuw.repo
 sudo dnf install skriuw
 ```
 
@@ -103,7 +103,7 @@ brew install --cask skriuw/tap/skriuw
 ### Windows (Scoop)
 
 ```powershell
-scoop bucket add skriuw https://github.com/skriuw/homebrew-tap
+scoop bucket add skriuw https://github.com/skriuw/scoop-bucket
 scoop install skriuw
 ```
 

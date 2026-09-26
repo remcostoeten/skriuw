@@ -15,7 +15,7 @@
 #
 # Env (all optional):
 #   BASE_URL  public URL the repo is served from
-#             (default: https://remcostoeten.github.io/skriuw/rpm)
+#             (default: https://skriuw.github.io/packages/rpm)
 #
 # Requires: createrepo-c, gpg.
 set -euo pipefail
@@ -24,7 +24,7 @@ REPO_DIR="${1:?usage: build-rpm-repo.sh <repo-dir> <rpm-file> [gpg-key-id]}"
 RPM_FILE="${2:?missing <rpm-file>}"
 GPG_KEY_ID="${3:-}"
 
-BASE_URL="${BASE_URL:-https://remcostoeten.github.io/skriuw/rpm}"
+BASE_URL="${BASE_URL:-https://skriuw.github.io/packages/rpm}"
 
 mkdir -p "${REPO_DIR}"
 cp -f "${RPM_FILE}" "${REPO_DIR}/"
