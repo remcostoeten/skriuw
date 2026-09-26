@@ -7,8 +7,8 @@ a v1 release cannot replace the current v2 channels.
 
 | Channel              | Audience        | Source                                      |
 | -------------------- | --------------- | ------------------------------------------- |
-| **apt repo**         | Debian / Ubuntu | GitHub Pages (`gh-pages` branch)            |
-| **dnf repo**         | Fedora / RHEL   | GitHub Pages (`gh-pages` branch)            |
+| **apt repo**         | Debian / Ubuntu | `skriuw/packages` (GitHub Pages)            |
+| **dnf repo**         | Fedora / RHEL   | `skriuw/packages` (GitHub Pages)            |
 | **AUR `skriuw-bin`** | Arch / Manjaro  | `aur.archlinux.org`                         |
 | **Homebrew cask**    | macOS           | `skriuw/homebrew-tap` (`Casks/skriuw.rb`)   |
 | **Scoop bucket**     | Windows         | `skriuw/scoop-bucket` (`bucket/skriuw.json`) |
@@ -38,8 +38,9 @@ the optional store submissions.
    macOS, and Windows in parallel and attaches the artifacts.
 3. Review and **publish** the release in the GitHub UI.
 4. Publishing fires `publish-linux-repos.yml`:
-    - downloads the `.deb` + `.rpm`, regenerates the signed apt and dnf repos,
-      pushes `gh-pages`;
+    - downloads the `.deb` + `.rpm`, regenerates the signed apt and dnf repos
+      (keeping the newest three versions), and force-pushes them as a single
+      commit to `skriuw/packages`;
     - bumps the PKGBUILD `pkgver` and pushes `skriuw-bin` to the AUR;
     - rewrites `Casks/skriuw.rb` on `skriuw/homebrew-tap` (from the `.dmg`) and
       `bucket/skriuw.json` on `skriuw/scoop-bucket` (from the `-setup.exe`);
@@ -67,10 +68,13 @@ same AUR account, so dora's existing credentials are reused as-is.
 > gh secret set GPG_PRIVATE_KEY --repo remcostoeten/skriuw < /path/to/apt_signing_key.asc
 > ```
 
-### 1. GitHub Pages
+### 1. GitHub Pages — `PACKAGES_DEPLOY_KEY`
 
-Settings → Pages → Source: **Deploy from a branch** → branch `gh-pages` / root.
-(The branch is created automatically by the first publish run.)
+[`skriuw/packages`](https://github.com/skriuw/packages) serves the apt and dnf
+repos at `https://skriuw.github.io/packages/` from its `main` branch. The apt
+job pushes to it with `PACKAGES_DEPLOY_KEY`, the private half of a
+write-enabled deploy key on that repository; rotate it like the keys in
+step 4.
 
 ### 2. apt signing key — `GPG_PRIVATE_KEY` (+ optional `GPG_PASSPHRASE`)
 
@@ -145,9 +149,9 @@ failed `CreateRef` operation.
 ### Debian / Ubuntu
 
 ```bash
-curl -fsSL https://remcostoeten.github.io/skriuw/apt/key.gpg \
+curl -fsSL https://skriuw.github.io/packages/apt/key.gpg \
   | sudo gpg --dearmor -o /usr/share/keyrings/skriuw.gpg
-echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://remcostoeten.github.io/skriuw/apt stable main" \
+echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://skriuw.github.io/packages/apt stable main" \
   | sudo tee /etc/apt/sources.list.d/skriuw.list
 sudo apt update && sudo apt install skriuw
 ```
@@ -155,7 +159,7 @@ sudo apt update && sudo apt install skriuw
 ### Fedora / RHEL / openSUSE
 
 ```bash
-sudo dnf config-manager addrepo --from-repofile=https://remcostoeten.github.io/skriuw/rpm/skriuw.repo
+sudo dnf config-manager addrepo --from-repofile=https://skriuw.github.io/packages/rpm/skriuw.repo
 sudo dnf install skriuw
 ```
 
