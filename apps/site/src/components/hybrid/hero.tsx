@@ -1,0 +1,94 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { cn } from "@skriuw/shared/helpers/cn";
+import { Apple, Download, Globe, Linux, Windows } from "@/components/ui/icons";
+import { HeroAppPreview } from "@/components/hero-app-preview";
+import { appUrl, releasesUrl } from "@/data/content";
+import { badge, outlineButton, primaryButton } from "@/components/hybrid/control";
+
+const platforms = [
+  { name: "macOS", Mark: Apple },
+  { name: "Windows", Mark: Windows },
+  { name: "Linux", Mark: Linux },
+  { name: "Browser", Mark: Globe },
+];
+
+function useLatency() {
+  const [value, setValue] = useState(3.2);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setValue(() => 2.4 + Math.random() * 1.6);
+    }, 900);
+
+    return () => {
+      clearInterval(id);
+    };
+  }, []);
+
+  return value.toFixed(1);
+}
+
+export function HybridHero() {
+  const latency = useLatency();
+
+  return (
+    <section className="grid gap-10 overflow-hidden lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:items-center">
+      <div className="max-w-[440px]">
+        <p className="caps flex flex-wrap items-center gap-2 text-ink-500">
+          <span className={cn(badge, "bg-accent/15 text-accent")}>
+            <span aria-hidden className="size-1.5 rounded-full bg-accent" />
+            live
+          </span>
+          <span>keystroke to paint</span>
+          <span className="tabular-nums text-ink-900">{latency} ms</span>
+        </p>
+
+        <h1 className="mt-6 font-serif text-[44px] leading-[48px] font-normal tracking-[-1.5px] text-balance text-ink-900">
+          Notes that never make you wait
+        </h1>
+
+        <p className="mt-5 text-[16px] leading-[24px] text-ink-500">
+          Skriuw is a local-first writing workspace. Your notes live in{" "}
+          <strong className="font-medium text-ink-900">a SQLite database on your own device</strong>{" "}
+          &mdash; on disk on desktop, inside the browser on the web. No spinners, no round-trips, no
+          account.
+        </p>
+
+        <div className="mt-8 flex flex-wrap items-center gap-2">
+          <Link href={appUrl} className={primaryButton}>
+            Open in your browser
+          </Link>
+          <Link href={releasesUrl} className={cn(outlineButton, "h-10 px-4")}>
+            <Download className="size-3.5" />
+            Download the app
+          </Link>
+        </div>
+
+        <ul className="caps mt-8 flex flex-wrap items-center gap-1.5 text-ink-500">
+          <li className="mr-1">Runs offline on</li>
+          {platforms.map(({ name, Mark }) => (
+            <li
+              key={name}
+              className="inline-flex h-6 items-center gap-1.5 rounded-md border border-line bg-hy-card px-2"
+            >
+              <Mark className="size-3" />
+              {name}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="relative lg:w-[760px]">
+        <p className="caps absolute -top-3 left-4 z-10 rounded-full border border-line bg-hy-bg px-2 py-0.5 text-[0.62rem] text-ink-500">
+          app · live preview
+        </p>
+        <div className="animate-hy-enter rounded-[10px] border border-dashed border-line p-2">
+          <HeroAppPreview />
+        </div>
+      </div>
+    </section>
+  );
+}
