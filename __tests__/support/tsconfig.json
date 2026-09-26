@@ -4,5 +4,5 @@
     "typeRoots": ["../../apps/workspace/node_modules/@types"],
     "paths": {}
   },
-  "include": ["*.ts", "../../vitest.config.ts", "../../services/sync/vitest.config.ts"]
+  "include": ["*.ts", "../../vitest.config.ts", "../../apps/sync/vitest.config.ts"]
 }

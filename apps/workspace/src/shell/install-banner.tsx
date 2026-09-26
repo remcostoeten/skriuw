@@ -28,19 +28,23 @@ export function InstallBanner({ compact }: Props) {
     setDismissed(true);
   }
   return (
-    <div role="region" aria-label="Install Skriuw" className="shell-install-banner">
+    <div
+      role="region"
+      aria-label="Install Skriuw"
+      className="shell-install-banner flex min-h-11 items-center gap-2.5 border-t border-sidebar-border bg-sidebar ps-3.5 pe-1.5 text-[13px] text-sidebar-foreground keyboard-open:hidden"
+    >
       <DownloadIcon size={16} className="shrink-0" aria-hidden="true" />
-      <span className="shell-install-banner-text">Add Skriuw to your home screen</span>
+      <span className="min-w-0 flex-auto truncate">Add Skriuw to your home screen</span>
       <button
         type="button"
-        className="shell-install-banner-install"
+        className="min-h-8 rounded-lg border border-sidebar-border bg-background px-3 font-medium text-inherit"
         onClick={() => void promptInstall()}
       >
         Install
       </button>
       <button
         type="button"
-        className="shell-install-banner-close"
+        className="flex min-h-10 w-10 items-center justify-center rounded-lg border-0 bg-transparent text-muted-foreground"
         aria-label="Not now"
         onClick={dismiss}
       >

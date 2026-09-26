@@ -25,7 +25,7 @@ struct FixtureManifest {
 }
 
 fn archives_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/archives")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../__tests__/fixtures/archives")
 }
 
 fn load_manifest() -> FixtureManifest {
@@ -136,24 +136,26 @@ fn catalogue_covers_exactly_the_version_directories() {
             let version = name
                 .strip_prefix('v')
                 .and_then(|suffix| suffix.parse::<u16>().ok())
-                .unwrap_or_else(|| panic!("unexpected directory {name} under fixtures/archives"));
+                .unwrap_or_else(|| {
+                    panic!("unexpected directory {name} under __tests__/fixtures/archives")
+                });
             assert!(
                 supported.contains(&version),
-                "fixtures/archives/{name} exists for unsupported archive version {version}"
+                "__tests__/fixtures/archives/{name} exists for unsupported archive version {version}"
             );
             for file in fs::read_dir(entry.path()).expect("list version directory") {
                 let file = file.expect("read version directory entry");
                 let file_name = file.file_name().into_string().expect("fixture file name");
                 assert!(
                     file.file_type().expect("fixture file type").is_file(),
-                    "fixtures/archives/{name}/{file_name} is not a regular file"
+                    "__tests__/fixtures/archives/{name}/{file_name} is not a regular file"
                 );
                 on_disk_files.insert(format!("{name}/{file_name}"));
             }
         } else {
             assert_eq!(
                 name, "manifest.json",
-                "unexpected file {name} under fixtures/archives"
+                "unexpected file {name} under __tests__/fixtures/archives"
             );
         }
     }

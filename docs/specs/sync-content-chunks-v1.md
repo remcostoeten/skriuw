@@ -115,11 +115,11 @@ record, because that indicates local corruption rather than a missing file.
 - Rust owns the contract: `skriuw-domain::chunk` and `skriuw-domain::sync`.
 - The generated [content manifest schema](../../contracts/generated/content-manifest.schema.json)
   is committed and drift-checked.
-- [`sync-push-v1.json`](../../contracts/fixtures/sync-push-v1.json) is retained
+- [`sync-push-v1.json`](../../__tests__/fixtures/contracts/sync-push-v1.json) is retained
   as the legacy golden request that exercises the Worker upgrade shim.
-  [`sync-push-v2.json`](../../contracts/fixtures/sync-push-v2.json) is the
+  [`sync-push-v2.json`](../../__tests__/fixtures/contracts/sync-push-v2.json) is the
   current golden request and carries one inline and one chunked operation.
-- The Worker mirrors these rules in `services/sync/src/contracts.ts` because it cannot
+- The Worker mirrors these rules in `apps/sync/src/contracts.ts` because it cannot
   execute the Rust validator.
 
 ## Client behavior

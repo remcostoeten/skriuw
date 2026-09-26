@@ -14,7 +14,7 @@ import { joplinSource } from "@/features/transfer/import/sources/joplin";
 import { keepSource } from "@/features/transfer/import/sources/keep";
 import { standardNotesSource } from "@/features/transfer/import/sources/standard-notes";
 
-const fixtures = repositoryPath("fixtures/provider-import");
+const fixtures = repositoryPath("__tests__/fixtures/provider-import");
 
 async function fixtureTree(name: string): Promise<MarkdownTree> {
   const root = resolve(fixtures, name);

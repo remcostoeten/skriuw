@@ -110,6 +110,7 @@ import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/t
 import { resetZoom, zoomIn, zoomOut } from "@/shell/zoom-controller";
 import {
   focusEditorPane,
+  focusMainContent,
   focusRegion,
   focusedPaneIndex,
   sidebarTreeHasFocus,
@@ -160,6 +161,19 @@ function cyclePaneInDirection(store: RendererStore, direction: -1 | 1): void {
   if (index !== null) {
     focusEditorPane(index);
   }
+}
+
+/**
+ * Focuses the editor of the pane that had focus last, or the lone editor.
+ * False when no editor is showing, e.g. off the notes route.
+ */
+function focusActiveEditor(store: RendererStore): boolean {
+  const state = store.getState();
+  const paneIndex = state.panes.findIndex((pane) => pane.paneId === state.focusedPaneId);
+  if (state.panes.length > 1 && paneIndex >= 0 && focusEditorPane(paneIndex)) {
+    return true;
+  }
+  return focusRegion("editor");
 }
 
 /**
@@ -832,12 +846,22 @@ export function createWorkspaceCommands(
       hint: shortcutDefinition("focusEditor").description,
       enabled: (state, ui) => onNotesRoute(state, ui) && state.activeNoteId !== null,
       run: () => {
-        const state = store.getState();
-        const paneIndex = state.panes.findIndex((pane) => pane.paneId === state.focusedPaneId);
-        if (state.panes.length > 1 && paneIndex >= 0 && focusEditorPane(paneIndex)) {
+        focusActiveEditor(store);
+      },
+    },
+    {
+      id: "focus-main-content",
+      label: "Focus main content",
+      group: "Navigation",
+      keywords: ["main", "content", "focus", "view"],
+      icon: <TypeIcon size={15} />,
+      shortcut: "focusMainContent",
+      hint: shortcutDefinition("focusMainContent").description,
+      run: () => {
+        if (focusActiveEditor(store)) {
           return;
         }
-        focusRegion("editor");
+        focusMainContent();
       },
     },
     {

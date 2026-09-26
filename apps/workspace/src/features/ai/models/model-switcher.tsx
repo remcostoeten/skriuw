@@ -1,3 +1,5 @@
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
+import { COARSE_POINTER_QUERY } from "@/shell/panel-layout";
 import { useEffect, useId, useMemo, useState } from "react";
 import { SearchIcon, CheckIcon } from "@/shared/icons/static";
 import { Dialog, useDialogClose } from "@/shared/ui/dialog";
@@ -58,7 +60,7 @@ function ModelSwitcherDialog({ store, onClose, openAiSettings }: DialogProps) {
       onOpenChange={(next) => !next && onClose()}
       title="Switch AI model"
       showHeader={false}
-      className="mx-auto mb-auto mt-[16vh] max-h-[56vh] w-[calc(100vw-1.5rem)] max-w-md overflow-hidden"
+      className="mx-auto mb-auto mt-[16dvh] max-h-[56dvh] w-[calc(100vw-1.5rem)] max-w-md overflow-hidden"
     >
       <ModelSwitcherBody store={store} openAiSettings={openAiSettings} />
     </Dialog>
@@ -87,6 +89,7 @@ type BodyProps = {
 };
 
 function ModelSwitcherBody({ store, openAiSettings }: BodyProps) {
+  const coarse = useMediaQuery(COARSE_POINTER_QUERY);
   const [query, setQuery] = useState("");
   const [inventory, setInventory] = useState<AiModelInventory | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -161,7 +164,11 @@ function ModelSwitcherBody({ store, openAiSettings }: BodyProps) {
       <div className="flex flex-none items-center gap-2.5 border-b border-border px-3.5 py-3 text-muted-foreground">
         <SearchIcon size={16} />
         <input
-          autoFocus
+          autoFocus={!coarse}
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="search"
           className="min-w-0 flex-1 border-none bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
           value={query}
           onChange={(event) => {

@@ -30,6 +30,7 @@ import {
 } from "./zoom-gesture";
 import { cn } from "@/shared/lib/utils";
 import { sectionLabelClass } from "@/shared/ui/section-header";
+import { showToast } from "@/shared/ui/toast";
 
 export type MediaLightboxUsage = {
   id: string;
@@ -75,7 +76,7 @@ export function MediaLightbox({
       onOpenChange={onOpenChange}
       title={title}
       showHeader={false}
-      className="h-dvh max-h-none w-screen max-w-none rounded-none border-0 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)]"
+      className="dialog-fullscreen h-dvh max-h-none w-screen max-w-none rounded-none border-0 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)]"
     >
       <div className="flex h-full min-h-0 flex-col bg-background">
         <MediaLightboxHeader title={title} />
@@ -112,7 +113,7 @@ export function MediaLightbox({
                   "mt-2 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:px-3 pointer-coarse:text-[13px]",
                   touchTargetClass,
                 )}
-                onClick={() => void navigator.clipboard?.writeText(contentHash)}
+                onClick={() => copyFileId(contentHash)}
               >
                 <CopyIcon size={13} />
                 Copy file ID
@@ -562,4 +563,15 @@ function formatMediaDate(value: number): string {
     month: "short",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function copyFileId(contentHash: string): void {
+  if (!navigator.clipboard) {
+    showToast({ message: "Clipboard is not available here" });
+    return;
+  }
+  navigator.clipboard.writeText(contentHash).then(
+    () => showToast({ message: "Copied file ID", durationMs: 2_000 }),
+    () => showToast({ message: "Couldn't copy the file ID" }),
+  );
 }

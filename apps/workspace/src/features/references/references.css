@@ -15,10 +15,6 @@
   transition: opacity 120ms ease;
 }
 
-.mention-menu.is-reduced-motion {
-  transition: none;
-}
-
 .mention-menu-group {
   padding: 6px 10px 2px;
   font-size: 10px;

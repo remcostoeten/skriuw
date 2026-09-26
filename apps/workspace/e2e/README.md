@@ -31,7 +31,7 @@ network. `apps/workspace/performance` uses the same two seams.
 Drives the real debug Tauri binary through `tauri-driver` and WebKitWebDriver.
 Nothing is mocked: the run exercises real file intake and ZIP extraction in
 Rust, the real preview plan, a real SQLite commit, and the UI showing the
-result. The scenario imports `fixtures/import-samples/notion-export.zip` into
+result. The scenario imports `__tests__/fixtures/import-samples/notion-export.zip` into
 a temporary workspace, asserts the preview counts, confirms, asserts the
 sidebar and the completion report, re-imports the same archive in skip mode
 and asserts nothing changes, then closes the app and queries the workspace

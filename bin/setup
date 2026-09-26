@@ -14,7 +14,7 @@ if ! command -v wasm-bindgen >/dev/null 2>&1 || [[ "$(wasm-bindgen --version)" !
 fi
 cargo fetch
 bun install --frozen-lockfile
-(cd "$repo_dir/services/sync" && bun install --frozen-lockfile)
+(cd "$repo_dir/apps/sync" && bun install --frozen-lockfile)
 (cd "$repo_dir/apps/workspace/harnesses/ui-architecture" && bun install --frozen-lockfile)
 (cd "$repo_dir/apps/workspace/harnesses/renderer-store" && bun install --frozen-lockfile)
 ./bin/generate

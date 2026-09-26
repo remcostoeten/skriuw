@@ -18,9 +18,6 @@
           if (parsed && light.indexOf(parsed.theme) !== -1) {
             root.dataset.tone = "light";
           }
-          if (parsed && parsed.reduceMotion) {
-            root.dataset.reduceMotion = "true";
-          }
         } catch (error) {
           root.removeAttribute("data-tone");
         }
@@ -107,31 +104,6 @@
         }
         to {
           transform: translateX(250%);
-        }
-      }
-      @keyframes enter-still {
-        from {
-          opacity: 0;
-        }
-      }
-      :root[data-reduce-motion="true"] h1,
-      :root[data-reduce-motion="true"] .track,
-      :root[data-reduce-motion="true"] .track::after {
-        animation: enter-still 200ms ease both;
-      }
-      :root[data-reduce-motion="true"] .track::after {
-        width: 100%;
-        opacity: 0.6;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        h1,
-        .track,
-        .track::after {
-          animation: enter-still 200ms ease both;
-        }
-        .track::after {
-          width: 100%;
-          opacity: 0.6;
         }
       }
     </style>

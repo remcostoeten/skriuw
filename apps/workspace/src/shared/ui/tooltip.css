@@ -63,26 +63,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .tooltip {
-    --tooltip-slide-x: 0px;
-    --tooltip-slide-y: 0px;
-  }
-
-  .tooltip[data-state="delayed-open"],
-  .tooltip[data-state="closing"] {
-    animation-duration: 1ms;
-  }
-
-  .tooltip[data-state="delayed-open"] {
-    animation-name: tooltip-fade-in;
-  }
-
-  .tooltip[data-state="closing"] {
-    animation-name: tooltip-fade-out;
-  }
-}
-
 @keyframes tooltip-fade-in {
   from {
     opacity: 0;

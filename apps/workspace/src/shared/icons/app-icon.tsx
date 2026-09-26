@@ -5,8 +5,11 @@ import { useAnimatedIcons } from "./animated-icons-context";
 import type { AppIconName } from "./registry";
 
 type Props = {
+  /** Action name from the icon registry, e.g. `"search"`. */
   name: AppIconName;
+  /** Width and height in pixels. */
   size?: number;
+  /** Extra class on the icon. */
   className?: string;
 };
 

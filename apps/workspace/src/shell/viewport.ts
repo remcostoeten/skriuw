@@ -42,12 +42,15 @@ export function keyboardOpen(metrics: ViewportMetrics): boolean {
 export function bindViewport(view: Window, root: HTMLElement): () => void {
   function apply(): void {
     const metrics = viewportMetrics(view);
-    root.style.setProperty(HEIGHT_PROPERTY, `${metrics.height}px`);
     root.style.setProperty(TOP_PROPERTY, `${metrics.top}px`);
     root.style.setProperty(KEYBOARD_PROPERTY, `${metrics.keyboardInset}px`);
     if (keyboardOpen(metrics)) {
+      root.style.setProperty(HEIGHT_PROPERTY, `${metrics.height}px`);
       root.dataset[KEYBOARD_ATTRIBUTE] = "open";
     } else {
+      // iOS standalone PWAs can report a stale, too-small viewport at launch
+      // with no follow-up resize; the stylesheet's 100dvh never goes stale.
+      root.style.removeProperty(HEIGHT_PROPERTY);
       delete root.dataset[KEYBOARD_ATTRIBUTE];
     }
   }
@@ -56,9 +59,13 @@ export function bindViewport(view: Window, root: HTMLElement): () => void {
   visual?.addEventListener("resize", apply);
   visual?.addEventListener("scroll", apply);
   view.addEventListener("orientationchange", apply);
+  view.addEventListener("resize", apply);
+  view.addEventListener("pageshow", apply);
   return () => {
     visual?.removeEventListener("resize", apply);
     visual?.removeEventListener("scroll", apply);
     view.removeEventListener("orientationchange", apply);
+    view.removeEventListener("resize", apply);
+    view.removeEventListener("pageshow", apply);
   };
 }

@@ -4,8 +4,8 @@ name: Publish Channels
 #   - apt repo (Debian/Ubuntu)  -> GitHub Pages (gh-pages branch)
 #   - dnf repo (Fedora/RHEL)    -> GitHub Pages (gh-pages branch)
 #   - AUR -bin package (Arch)   -> aur.archlinux.org
-#   - Homebrew cask (macOS)     -> Casks/skriuw.rb in this repo (tap by URL)
-#   - Scoop bucket (Windows)    -> bucket/skriuw.json in this repo
+#   - Homebrew cask (macOS)     -> Casks/skriuw.rb in skriuw/homebrew-tap
+#   - Scoop bucket (Windows)    -> bucket/skriuw.json in skriuw/homebrew-tap
 #   - winget (Windows)          -> optional PR to microsoft/winget-pkgs
 #   - Snap Store                -> optional upload to snapcraft.io (repacked from the .deb)
 #
@@ -114,13 +114,13 @@ jobs:
                   rm -rf site/.git
                   mkdir -p site/apt
                   DEB="$(ls dist/*.deb | head -n1)"
-                  ./scripts/build-apt-repo.sh "site/apt" "$DEB" "${{ steps.gpg.outputs.key_id }}"
+                  ./tools/scripts/build-apt-repo.sh "site/apt" "$DEB" "${{ steps.gpg.outputs.key_id }}"
 
             - name: Build dnf repo
               run: |
                   mkdir -p site/rpm
                   RPM="$(ls dist/*.rpm | head -n1)"
-                  ./scripts/build-rpm-repo.sh "site/rpm" "$RPM" "${{ steps.gpg.outputs.key_id }}"
+                  ./tools/scripts/build-rpm-repo.sh "site/rpm" "$RPM" "${{ steps.gpg.outputs.key_id }}"
 
             - name: Write landing page
               run: |
@@ -139,10 +139,9 @@ jobs:
                   <h2>Arch (AUR)</h2>
                   <pre>yay -S skriuw-bin   # or: paru -S skriuw-bin</pre>
                   <h2>macOS (Homebrew)</h2>
-                  <pre>brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw
-                  brew install --cask skriuw</pre>
+                  <pre>brew install --cask skriuw/tap/skriuw</pre>
                   <h2>Windows (Scoop)</h2>
-                  <pre>scoop bucket add skriuw https://github.com/remcostoeten/skriuw
+                  <pre>scoop bucket add skriuw https://github.com/skriuw/homebrew-tap
                   scoop install skriuw</pre>
                   <h2>Direct downloads</h2>
                   <p>Download macOS, Windows, Debian/Ubuntu, RPM, or AppImage assets from <a href="https://github.com/remcostoeten/skriuw/releases/latest">GitHub Releases</a>.</p>
@@ -181,15 +180,15 @@ jobs:
                   set -euo pipefail
                   VERSION="${{ needs.resolve.outputs.version }}"
                   TAG="${{ needs.resolve.outputs.tag }}"
-                  sed -i "s/^pkgver=.*/pkgver=${VERSION}/" packaging/aur/skriuw-bin/PKGBUILD
-                  sed -i "s/^pkgrel=.*/pkgrel=1/" packaging/aur/skriuw-bin/PKGBUILD
-                  sed -i "s/^_tag=.*/_tag=${TAG}/" packaging/aur/skriuw-bin/PKGBUILD
+                  sed -i "s/^pkgver=.*/pkgver=${VERSION}/" tools/packaging/aur/skriuw-bin/PKGBUILD
+                  sed -i "s/^pkgrel=.*/pkgrel=1/" tools/packaging/aur/skriuw-bin/PKGBUILD
+                  sed -i "s/^_tag=.*/_tag=${TAG}/" tools/packaging/aur/skriuw-bin/PKGBUILD
 
             - name: Generate .SRCINFO (Arch container)
               run: |
                   set -euo pipefail
                   docker run --rm \
-                    -v "$PWD/packaging/aur/skriuw-bin:/pkg" \
+                    -v "$PWD/tools/packaging/aur/skriuw-bin:/pkg" \
                     -w /pkg \
                     archlinux:latest \
                     bash -c 'pacman -Syu --noconfirm --needed base-devel \
@@ -209,8 +208,8 @@ jobs:
                   export GIT_SSH_COMMAND="ssh -i ~/.ssh/aur -o IdentitiesOnly=yes"
 
                   git clone ssh://aur@aur.archlinux.org/skriuw-bin.git aur-repo
-                  cp packaging/aur/skriuw-bin/PKGBUILD aur-repo/PKGBUILD
-                  cp packaging/aur/skriuw-bin/.SRCINFO aur-repo/.SRCINFO
+                  cp tools/packaging/aur/skriuw-bin/PKGBUILD aur-repo/PKGBUILD
+                  cp tools/packaging/aur/skriuw-bin/.SRCINFO aur-repo/.SRCINFO
 
                   cd aur-repo
                   git config user.name "github-actions[bot]"
@@ -227,23 +226,24 @@ jobs:
               if: ${{ env.AUR_SSH_PRIVATE_KEY == '' || env.AUR_KNOWN_HOSTS == '' }}
               run: echo "AUR_SSH_PRIVATE_KEY or AUR_KNOWN_HOSTS not set; generated .SRCINFO but skipped AUR push."
 
-    # In-repo package manifests, updated in a single commit to daddy:
+    # Package manifests in skriuw/homebrew-tap, updated in a single commit:
     #   - Homebrew cask (Casks/skriuw.rb) from the released .dmg
-    #     tap:    brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw
+    #     install: brew install --cask skriuw/tap/skriuw
     #   - Scoop bucket (bucket/skriuw.json) from the released NSIS -setup.exe
-    #     bucket: scoop bucket add skriuw https://github.com/remcostoeten/skriuw
+    #     bucket:  scoop bucket add skriuw https://github.com/skriuw/homebrew-tap
     # Missing artifacts (e.g. a Linux-only release) just skip that manifest.
-    # Needs no extra secrets.
+    # Pushes with TAP_DEPLOY_KEY, a write-enabled deploy key on the tap repo.
     manifests:
         needs: resolve
         runs-on: ubuntu-latest
         permissions:
-            contents: write
+            contents: read
         steps:
             - uses: actions/checkout@v7
               with:
-                  persist-credentials: false
-                  ref: daddy
+                  repository: skriuw/homebrew-tap
+                  ref: main
+                  ssh-key: ${{ secrets.TAP_DEPLOY_KEY }}
 
             - name: Download .dmg and -setup.exe from release
               env:
@@ -259,7 +259,7 @@ jobs:
               run: |
                   set -euo pipefail
                   if [ ! -f Casks/skriuw.rb ]; then
-                    echo "::warning::Casks/skriuw.rb not on daddy yet; skipping cask update"
+                    echo "::warning::Casks/skriuw.rb missing from skriuw/homebrew-tap; skipping cask update"
                     exit 0
                   fi
                   VERSION="${{ needs.resolve.outputs.version }}"
@@ -278,7 +278,7 @@ jobs:
               run: |
                   set -euo pipefail
                   if [ ! -f bucket/skriuw.json ]; then
-                    echo "::warning::bucket/skriuw.json not on daddy yet; skipping scoop update"
+                    echo "::warning::bucket/skriuw.json missing from skriuw/homebrew-tap; skipping scoop update"
                     exit 0
                   fi
                   EXE="$(ls dist/*-setup.exe 2>/dev/null | head -n1 || true)"
@@ -297,8 +297,6 @@ jobs:
                   mv bucket/skriuw.json.tmp bucket/skriuw.json
 
             - name: Commit manifests
-              env:
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -306,8 +304,8 @@ jobs:
                   if git diff --cached --quiet; then
                     echo "Manifests already up to date."
                   else
-                    git commit -m "chore(manifests): brew + scoop ${{ needs.resolve.outputs.version }}"
-                    git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:daddy
+                    git commit -m "skriuw ${{ needs.resolve.outputs.version }}"
+                    git push origin HEAD:main
                   fi
 
     # Submits a version PR to microsoft/winget-pkgs pointing at the MSI on the
@@ -352,7 +350,7 @@ jobs:
               if: ${{ env.WINGET_TOKEN == '' }}
               run: echo "WINGET_TOKEN not set; skipped winget submission."
 
-    # Repacks the released .deb via packaging/snap/snapcraft.yaml. The build
+    # Repacks the released .deb via tools/packaging/snap/snapcraft.yaml. The build
     # always runs (validates the recipe); the store upload only happens when
     # SNAPCRAFT_STORE_CREDENTIALS is set and the snap name is registered.
     snap:
@@ -371,19 +369,19 @@ jobs:
               run: |
                   gh release download "${{ needs.resolve.outputs.tag }}" \
                     --repo "${{ github.repository }}" \
-                    --pattern "*amd64.deb" --dir packaging/snap
-                  mv packaging/snap/*.deb packaging/snap/skriuw.deb
+                    --pattern "*amd64.deb" --dir tools/packaging/snap
+                  mv tools/packaging/snap/*.deb tools/packaging/snap/skriuw.deb
 
             - name: Set snap version
               run: |
                   sed -i "s/^version: .*/version: \"${{ needs.resolve.outputs.version }}\"/" \
-                    packaging/snap/snapcraft.yaml
+                    tools/packaging/snap/snapcraft.yaml
 
             - name: Build snap
               id: build
               uses: snapcore/action-build@v1
               with:
-                  path: packaging/snap
+                  path: tools/packaging/snap
 
             - name: Publish to Snap Store
               if: ${{ env.SNAPCRAFT_STORE_CREDENTIALS != '' }}

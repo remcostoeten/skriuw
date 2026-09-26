@@ -82,7 +82,7 @@ export function VoiceDictationHost({ store, signal, getView, getNoteId }: VoiceD
       open
       onOpenChange={(next) => !next && setNoteId(null)}
       title="Dictate into note"
-      className="mx-auto mb-auto mt-[10vh] max-h-[80vh] w-[calc(100vw-1.5rem)] max-w-xl overflow-hidden"
+      className="mx-auto mb-auto mt-[10dvh] max-h-[80dvh] w-[calc(100vw-1.5rem)] max-w-xl overflow-hidden"
     >
       <VoiceDictationBody
         store={store}

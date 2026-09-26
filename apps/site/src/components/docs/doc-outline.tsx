@@ -168,8 +168,6 @@ export function DocOutline({ headings, collapse }: Props) {
       return;
     }
 
-    const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
-
     let links = allLinks;
     let targets = allTargets;
     let depths = allDepths;
@@ -345,14 +343,9 @@ export function DocOutline({ headings, collapse }: Props) {
 
       const difference = target - rendered;
 
-      if (reduceMotion.matches) {
-        rendered = target;
-        velocity = 0;
-      } else {
-        velocity += difference * GEOMETRY.smoothing;
-        velocity *= GEOMETRY.damping;
-        rendered += velocity;
-      }
+      velocity += difference * GEOMETRY.smoothing;
+      velocity *= GEOMETRY.damping;
+      rendered += velocity;
 
       draw();
 

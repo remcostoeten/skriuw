@@ -107,7 +107,7 @@ export const platformStories = [
     kicker: "Desktop",
     lead: "The full app,",
     brand: "offline",
-    tail: "on macOS, Windows, and Linux. No account, no network, no sign-up wall.",
+    tail: "on macOS, Windows, Linux, iOS, and Android, or as a PWA. No account, no network, no sign-up wall.",
     stats: [
       { value: "One file", label: "Your whole workspace, on your disk, yours to copy or back up" },
       { value: "Rust", label: "Domain, storage, and history core" },
@@ -205,7 +205,7 @@ export const installChannels = [
     name: "macOS",
     icon: "macos" as const,
     summary: "Universal build for Apple silicon and Intel, signed and notarized.",
-    hint: "`brew tap remcostoeten/skriuw`",
+    hint: "`brew install --cask skriuw/tap/skriuw`",
     cta: "Download for macOS",
     href: releasesUrl,
     ctaVariant: "outline" as const,
@@ -300,8 +300,8 @@ export const footerColumns = [
     title: "Project",
     links: [
       { label: "Source on GitHub", href: repoUrl },
-      { label: "Contributing", href: `${repoUrl}/blob/daddy/CONTRIBUTING.md` },
-      { label: "Security", href: `${repoUrl}/blob/daddy/SECURITY.md` },
+      { label: "Contributing", href: `${repoUrl}/blob/daddy/.github/CONTRIBUTING.md` },
+      { label: "Security", href: `${repoUrl}/blob/daddy/.github/SECURITY.md` },
       { label: "License", href: `${repoUrl}/blob/daddy/LICENSE` },
     ],
   },

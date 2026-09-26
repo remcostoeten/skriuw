@@ -123,7 +123,7 @@ read them. Every other value is derived from the constants the Worker runs on
 `WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION`, and the `SYNC_ROUTE_NAMES` route
 table — so the report cannot claim a capability the code does not have, and a
 test asserts every advertised route is one the router matches. The report
-names no workspace, account, device, or content. `scripts/verify-cloud-capabilities.mjs`
+names no workspace, account, device, or content. `tools/scripts/verify-cloud-capabilities.mjs`
 reads it, and `.github/workflows/release-v2.yml` will not publish a desktop
 release the deployed Worker cannot serve.
 

@@ -21,8 +21,8 @@ on:
             - "__tests__/support/**"
             - "vitest.config.ts"
             - "bin/check"
-            - "scripts/check-mobile.sh"
-            - "scripts/check-test-layout.sh"
+            - "tools/scripts/check-mobile.sh"
+            - "tools/scripts/check-test-layout.sh"
             - ".github/workflows/mobile-*.yml"
             - "!**/*.md"
     pull_request:

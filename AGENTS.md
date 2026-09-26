@@ -7,9 +7,8 @@ These instructions apply to the entire Skriuw repository. Read the nearest produ
 Skriuw contains two independent product lines:
 
 - The repository root is the current (v2) local-first desktop application. Its stack is Rust, React, ProseMirror, SQLite, and Tauri.
-- `apps/` contains the v2 workspace application, mobile application, and marketing site; `services/` contains the v2 sync service; `packages/` contains shared TypeScript packages; and `crates/` remains the flat Rust workspace.
-- `v1/` contains the frozen legacy v1 web, mobile, desktop, collaboration, and self-hosted products.
-- `v1/apps/documentation/content/docs/` is the canonical source for the published documentation site.
+- `apps/` contains the v2 workspace application, mobile application, marketing site, storybook, and sync service; `packages/` contains shared TypeScript packages; and `crates/` remains the flat Rust workspace.
+- `v1-final/` contains the frozen legacy v1 web, mobile, desktop, collaboration, and self-hosted products. Its documentation under `v1-final/apps/documentation/content/docs/` is no longer published.
 
 The default branch is `daddy`. `master` is not the primary integration branch.
 
@@ -19,7 +18,7 @@ The default branch is `daddy`. `master` is not the primary integration branch.
 2. Identify whether the task affects v1, v2, shared infrastructure, or documentation.
 3. Read the product's README and relevant architecture material:
     - v2: `README.md`, `docs/FEATURES.md`, `docs/ARCHITECTURE.md`, and applicable files in `docs/adr/`.
-    - v1: the relevant guide under `v1/apps/documentation/content/docs/` and any instructions generated in `v1/apps/web/AGENTS.md`.
+    - v1: the relevant guide under `v1-final/apps/documentation/content/docs/` and any instructions generated in `v1-final/apps/web/AGENTS.md`.
 4. Search for existing contracts, tests, and conventions before introducing a new module or dependency.
 
 Do not implement from a stale task plan when the repository provides newer code, tests, or architecture decisions.
@@ -73,9 +72,9 @@ Read `docs/performance-contract.md` before changing navigation, editor, store su
 
 - Link to canonical documentation instead of copying it.
 - Put v2 architecture decisions in `docs/adr/`, implementation contracts in `docs/specs/`, and measurements in `docs/benchmarks/`.
-- Put published v1 and user documentation in `v1/apps/documentation/content/docs/`.
+- Published user documentation is the v2 `docs/` markdown rendered by `apps/site` at `/docs`.
 - Do not commit agent handoffs, implementation prompts, generated audits, or temporary planning documents.
-- Update `README.md`, `CONTRIBUTING.md`, and affected guides when commands or contributor workflows change.
+- Update `README.md`, `.github/CONTRIBUTING.md`, and affected guides when commands or contributor workflows change.
 
 ## Verification
 
@@ -92,12 +91,12 @@ Generate changed contracts with `bin/generate`. Performance-sensitive changes re
 For v1:
 
 ```bash
-cd v1
+cd v1-final
 bun lint
 bun typecheck
 bun test
 ```
 
-Run `bun run build` when changing production configuration, routing, or shared build behavior. Run `bun run --cwd apps/documentation build` for documentation navigation or MDX changes. Both are run from `v1/`.
+Run `bun run build` when changing production configuration, routing, or shared build behavior. Run `bun run --cwd apps/documentation build` for documentation navigation or MDX changes. Both are run from `v1-final/`.
 
 Every handoff must state what changed, which checks ran, and any remaining risk. Do not claim tests passed unless they were executed successfully.

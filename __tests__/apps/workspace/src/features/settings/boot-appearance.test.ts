@@ -22,12 +22,10 @@ test("appearance attributes round-trip through the boot storage slot", () => {
   writeBootAppearance(storage, {
     theme: "paper",
     colorScheme: "light",
-    reduceMotion: true,
   });
   assert.deepEqual(JSON.parse(storage.entries.get(BOOT_APPEARANCE_KEY) ?? "null"), {
     theme: "paper",
     colorScheme: "light",
-    reduceMotion: true,
   });
 });
 
@@ -39,7 +37,7 @@ test("a failing storage does not propagate out of the mirror", () => {
           throw new Error("quota exceeded");
         },
       },
-      { theme: "midnight", colorScheme: "dark", reduceMotion: false },
+      { theme: "midnight", colorScheme: "dark" },
     );
   });
 });

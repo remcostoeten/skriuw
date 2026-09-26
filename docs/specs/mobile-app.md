@@ -95,7 +95,7 @@ apps/mobile/src/shell/              toolbar, tab bar, sheets (native)
 apps/mobile/src/editor/             DOM component host and message protocol
 packages/renderer-core/          store, operations, tree, routes (moved from apps/workspace/src)
 packages/theme/                  themes.css, generator, generated tokens.ts
-scripts/check-mobile.sh        product gate implementation (bin/check mobile)
+tools/scripts/check-mobile.sh        product gate implementation (bin/check mobile)
 ```
 
 The repository root is a Bun workspace over `apps/workspace`, `apps/mobile`,
@@ -142,7 +142,7 @@ Issues in the same wave have disjoint owned paths and can run concurrently.
 
 | Wave | Issue | Owns | Depends on |
 | --- | --- | --- | --- |
-| 0 | Mobile 01 Workspace and scaffold | root `package.json`, `apps/mobile/` skeleton, `scripts/check-mobile.sh` | — |
+| 0 | Mobile 01 Workspace and scaffold | root `package.json`, `apps/mobile/` skeleton, `tools/scripts/check-mobile.sh` | — |
 | 1 | Mobile 02 UniFFI facade | `crates/skriuw-mobile` | — |
 | 1 | Mobile 03 Extract renderer core | `shared/renderer-core`, `apps/workspace/src/store` imports | 01 |
 | 1 | Mobile 04 Theme token generator | `shared/theme`, `bin/generate` | 01 |

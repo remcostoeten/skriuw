@@ -49,7 +49,6 @@ export function LiquidMetalButton({ label, children, tabIndex, onRef, onPress, o
   useEffect(() => {
     const host = shaderHostRef.current;
     if (!host) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     let mount: ShaderMount | null = null;
     try {

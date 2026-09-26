@@ -59,13 +59,13 @@ export function SiteFooter() {
         </p>
         <div className="flex items-center gap-4">
           <Link
-            href={`${repoUrl}/blob/daddy/SECURITY.md`}
+            href={`${repoUrl}/blob/daddy/.github/SECURITY.md`}
             className="text-[14px] text-ink-400 transition-colors hover:text-ink-900 focus-visible:text-focus-ink"
           >
             Security
           </Link>
           <Link
-            href={`${repoUrl}/blob/daddy/CODE_OF_CONDUCT.md`}
+            href={`${repoUrl}/blob/daddy/.github/CODE_OF_CONDUCT.md`}
             className="text-[14px] text-ink-400 transition-colors hover:text-ink-900 focus-visible:text-focus-ink"
           >
             Code of conduct

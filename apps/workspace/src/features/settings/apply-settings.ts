@@ -13,12 +13,11 @@ import { writeBootAppearance } from "./boot-appearance";
 export type RootSettingsAttributes = {
   theme: string;
   colorScheme: ThemeColorScheme;
-  reduceMotion: boolean;
   tokens?: ThemeTokens;
 };
 
 type RootElement = {
-  dataset: { theme?: string; colorScheme?: string; reduceMotion?: string };
+  dataset: { theme?: string; colorScheme?: string };
   style: {
     setProperty: (property: string, value: string) => void;
     removeProperty: (property: string) => void;
@@ -27,8 +26,7 @@ type RootElement = {
 
 /**
  * Projects the persisted settings document onto the document-level attributes
- * consumed by CSS: `data-theme` for the palette and `data-reduce-motion` for
- * the motion overrides.
+ * consumed by CSS: `data-theme` and `data-color-scheme` for the palette.
  */
 export function rootSettingsAttributes(
   settings: WorkspaceSettings,
@@ -38,7 +36,6 @@ export function rootSettingsAttributes(
   return {
     theme: theme.id,
     colorScheme: theme.colorScheme,
-    reduceMotion: settings.reduceMotion,
     ...(theme.source === "custom" ? { tokens: theme.tokens } : {}),
   };
 }
@@ -63,11 +60,6 @@ export function applyAttributesToRoot(root: RootElement, attributes: RootSetting
   }
   root.dataset.theme = attributes.theme;
   root.dataset.colorScheme = attributes.colorScheme;
-  if (attributes.reduceMotion) {
-    root.dataset.reduceMotion = "true";
-  } else {
-    delete root.dataset.reduceMotion;
-  }
 }
 
 /**
@@ -88,14 +80,7 @@ export function bindSettingsToRoot(
     }
   }
   apply();
-  const unsubscribeSettings = store.subscribe(
-    (state) => ({
-      theme: state.settings.theme,
-      reduceMotion: state.settings.reduceMotion,
-    }),
-    apply,
-    (left, right) => left.theme === right.theme && left.reduceMotion === right.reduceMotion,
-  );
+  const unsubscribeSettings = store.subscribe((state) => state.settings.theme, apply);
   const unsubscribeThemes = customThemes?.subscribe?.(apply) ?? (() => {});
   return () => {
     unsubscribeSettings();

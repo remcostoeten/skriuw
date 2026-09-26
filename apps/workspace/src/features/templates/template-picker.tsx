@@ -1,3 +1,5 @@
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
+import { COARSE_POINTER_QUERY } from "@/shell/panel-layout";
 import { flushPendingWork } from "@/shell/pending-work";
 import { personalTemplates, removePersonalTemplate } from "./personal-templates";
 import { showToast } from "@/shared/ui/toast";
@@ -82,7 +84,7 @@ function TemplatePickerDialog({ store, onClose, onPick }: DialogProps) {
       onOpenChange={(open) => !open && onClose()}
       title="New note from template"
       showHeader={false}
-      className="mx-auto mb-auto mt-[16vh] max-h-[56vh] w-[calc(100vw-1.5rem)] max-w-md overflow-hidden"
+      className="mx-auto mb-auto mt-[16dvh] max-h-[56dvh] w-[calc(100vw-1.5rem)] max-w-md overflow-hidden"
     >
       <TemplatePickerBody store={store} onPick={onPick} />
     </Dialog>
@@ -95,6 +97,7 @@ type BodyProps = {
 };
 
 function TemplatePickerBody({ store, onPick }: BodyProps) {
+  const coarse = useMediaQuery(COARSE_POINTER_QUERY);
   const [personal, setPersonal] = useState(() => personalTemplates(store.getState()));
   const [query, setQuery] = useState("");
   const listboxId = useId();
@@ -126,7 +129,11 @@ function TemplatePickerBody({ store, onPick }: BodyProps) {
       <div className="flex flex-none items-center gap-2.5 border-b border-border px-3.5 py-3 text-muted-foreground">
         <SearchIcon size={16} />
         <input
-          autoFocus
+          autoFocus={!coarse}
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="search"
           className="min-w-0 flex-1 border-none bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
           value={query}
           onChange={(event) => {

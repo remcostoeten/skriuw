@@ -1,19 +1,27 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/shared/lib/utils";
 
 type Size = "sm" | "md";
 
 type Props = {
+  /** Text of the confirm button once armed. */
   confirmLabel: string;
+  /** Called when the armed confirm button is pressed. */
   onConfirm: () => void;
+  /** Renders the resting control; call `arm` to switch to the confirm step. */
   renderIdle: (arm: () => void) => ReactNode;
+  /** Prompt shown next to the buttons while armed. */
   message?: ReactNode;
+  /** Text of the cancel button. */
   cancelLabel?: string;
+  /** Button density. */
   size?: Size;
+  /** Extra class on the wrapper. */
   className?: string;
   /** Controlled arm state; omit to let the component manage it internally. */
   armed?: boolean;
+  /** Reports arm state changes; pair with `armed` to control it. */
   onArmedChange?: (armed: boolean) => void;
   /** "stacked" puts a long message on its own line above the buttons. */
   messagePlacement?: "inline" | "stacked";
@@ -52,7 +60,6 @@ export function InlineConfirm({
   const [internalArmed, setInternalArmed] = useState(false);
   const armed = armedProp ?? internalArmed;
   const setArmed = onArmedChange ?? setInternalArmed;
-  const reduceMotion = useReducedMotion();
   const confirmRef = useRef<HTMLButtonElement>(null);
   const styles = sizeStyles[size];
 
@@ -62,7 +69,7 @@ export function InlineConfirm({
     }
   }, [armed]);
 
-  const shift = reduceMotion ? 0 : 8;
+  const shift = 8;
 
   return (
     <div className={cn("flex items-center justify-end", styles.container, className)}>

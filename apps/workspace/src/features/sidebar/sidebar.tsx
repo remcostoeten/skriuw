@@ -1,6 +1,6 @@
 import { SavedSearchList } from "./saved-search-list";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   activateNote,
   createFolder,
@@ -225,7 +225,6 @@ function moveWithinSiblings(store: RendererStore, id: string, direction: -1 | 1)
 const HEADER_SHORTCUT_IDS = ["createNote", "createFolder", "toggleCommandPalette"] as const;
 
 const SWAP_TRANSITION = { duration: 0.18, ease: [0.22, 1, 0.36, 1] } as const;
-const REDUCED_SWAP_TRANSITION = { duration: 0.1, ease: "linear" } as const;
 
 export function Sidebar({ store, onOpenCommandPalette }: Props) {
   const visibleIds = useRendererSelector(store, selectVisibleIds);
@@ -233,8 +232,6 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
   const compactSidebar = useRendererSelector(store, selectCompactSidebar);
   const showTreeGuides = useRendererSelector(store, selectShowTreeGuides);
   const shortcutHints = useShortcutHints(store, HEADER_SHORTCUT_IDS);
-  const reduceMotion = useReducedMotion();
-  const searchSwapTransition = reduceMotion ? REDUCED_SWAP_TRANSITION : SWAP_TRANSITION;
   // A single shared context menu serves every row. Rows carry `data-row-key`;
   // right-clicking the list resolves the row under the cursor and points the
   // one menu at it, instead of mounting a Radix ContextMenu per row.
@@ -1437,7 +1434,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
             animate={
               isSearchOpen ? { y: -8, opacity: 0, scale: 0.985 } : { y: 0, opacity: 1, scale: 1 }
             }
-            transition={searchSwapTransition}
+            transition={SWAP_TRANSITION}
             inert={isSearchOpen}
             aria-hidden={isSearchOpen}
             className={`flex w-full min-w-0 items-center justify-between will-change-transform${isSearchOpen ? " pointer-events-none" : ""}`}
@@ -1505,7 +1502,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
                 initial={{ y: 8, opacity: 0, scale: 0.985 }}
                 animate={{ y: 0, opacity: 1, scale: 1 }}
                 exit={{ y: 8, opacity: 0, scale: 0.985 }}
-                transition={searchSwapTransition}
+                transition={SWAP_TRANSITION}
                 className="absolute inset-x-0 top-0 flex h-11 items-center px-3 will-change-transform"
                 onBlur={onSearchAreaBlur}
               >

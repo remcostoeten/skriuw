@@ -47,7 +47,7 @@ export function LockDialogHost({ store }: HostProps) {
       open
       onOpenChange={(open) => !open && close()}
       title={dialogTitle(request)}
-      className="mx-auto mb-auto mt-[14vh] w-[calc(100vw-1.5rem)] max-w-sm"
+      className="mx-auto mb-auto mt-[14dvh] w-[calc(100vw-1.5rem)] max-w-sm"
     >
       {request.kind === "setup" && <SetupLockBody store={store} onDone={request.onReady} />}
       {request.kind === "unlock" && <UnlockBody store={store} onDone={request.onReady} />}

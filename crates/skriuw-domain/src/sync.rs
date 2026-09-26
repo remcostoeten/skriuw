@@ -971,7 +971,7 @@ mod tests {
     #[test]
     fn validates_golden_push_fixture() {
         let request: SyncPushRequest = serde_json::from_str(include_str!(
-            "../../../contracts/fixtures/sync-push-v2.json"
+            "../../../__tests__/fixtures/contracts/sync-push-v2.json"
         ))
         .expect("deserialize golden sync request");
         request.validate().expect("validate golden sync request");

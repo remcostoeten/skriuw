@@ -43,7 +43,7 @@ export function DrawingInkPicker({ x, y, dark, colorId, onSelect, onClose }: Pro
       ref={hostRef}
       role="dialog"
       aria-label="Ink color"
-      className="drawing-ink-picker"
+      className="drawing-ink-picker fixed z-50 flex w-52 flex-col gap-2 rounded-lg border border-[hsl(var(--border)/0.6)] bg-popover p-2 shadow-[0_8px_24px_hsl(var(--scrim)/0.32)]"
       style={{ left, top }}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
@@ -57,7 +57,11 @@ export function DrawingInkPicker({ x, y, dark, colorId, onSelect, onClose }: Pro
         if (!(next instanceof Node) || !event.currentTarget.contains(next)) onClose();
       }}
     >
-      <div role="radiogroup" aria-label="Preset ink" className="drawing-ink-presets">
+      <div
+        role="radiogroup"
+        aria-label="Preset ink"
+        className="drawing-ink-presets grid grid-cols-8 gap-0.5"
+      >
         {DRAWING_INKS.map((ink, index) => (
           <button
             key={ink.id}
@@ -67,21 +71,21 @@ export function DrawingInkPicker({ x, y, dark, colorId, onSelect, onClose }: Pro
             aria-checked={colorId === ink.id}
             aria-label={ink.label}
             title={`${ink.label} (${ink.key})`}
-            className="drawing-ink-preset"
+            className="drawing-ink-preset flex h-[22px] items-center justify-center rounded-[5px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid"
             onClick={() => onSelect(ink.id)}
           >
             <span
-              className="drawing-swatch"
+              className="drawing-swatch pointer-events-none size-3.5 rounded-full shadow-[inset_0_0_0_1px_hsl(var(--scrim)/0.2)] data-[selected=true]:shadow-[inset_0_0_0_2px_hsl(var(--foreground)/0.7)]"
               data-selected={colorId === ink.id ? "true" : undefined}
               style={{ backgroundColor: resolveInk(ink.id, dark) }}
             />
           </button>
         ))}
       </div>
-      <div className="drawing-ink-custom">
+      <div className="drawing-ink-custom flex items-center gap-1">
         <input
           type="text"
-          className="drawing-ink-input"
+          className="drawing-ink-input min-w-0 flex-1 rounded-md border border-border bg-background px-1.5 py-1 font-[family-name:var(--font-mono)] text-[11px] text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid"
           aria-label="Custom color"
           placeholder="#7c3aed"
           spellCheck={false}
@@ -95,7 +99,7 @@ export function DrawingInkPicker({ x, y, dark, colorId, onSelect, onClose }: Pro
         />
         <button
           type="button"
-          className="drawing-ink-apply"
+          className="drawing-ink-apply rounded-md bg-[hsl(var(--foreground)/0.1)] px-2 py-1 text-[11px] text-foreground disabled:cursor-default disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid"
           disabled={!customValid}
           onClick={submitCustom}
         >

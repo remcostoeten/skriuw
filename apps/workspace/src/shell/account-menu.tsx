@@ -255,7 +255,7 @@ export function AccountMenu({
         className={cn(
           "w-[268px]",
           compact &&
-            "max-h-[70vh] w-[calc(100vw-24px)] max-w-[320px] overflow-y-auto overscroll-contain",
+            "max-h-[70dvh] w-[calc(100vw-24px)] max-w-[320px] overflow-y-auto overscroll-contain",
         )}
       >
         {activePanel === "appearance" ? (

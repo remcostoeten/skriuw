@@ -1,6 +1,6 @@
 .prosemirror-host .ProseMirror {
   outline: none;
-  min-height: 60vh;
+  min-height: 60dvh;
   line-height: 1.7;
   white-space: pre-wrap;
   word-wrap: break-word;
@@ -126,18 +126,6 @@
   50%,
   100% {
     opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .prosemirror-host[data-vim-cursor-blink="true"] .ProseMirror:focus .vim-cursor,
-  .prosemirror-host[data-vim-cursor-blink="true"] .ProseMirror:focus .vim-cursor-eol,
-  .prosemirror-host[data-vim-cursor-blink="true"] .ProseMirror:focus .vim-cursor-node,
-  .raw-markdown-root[data-vim-cursor-blink="true"]
-    .cm-editor.cm-focused
-    > .cm-scroller
-    > .cm-cursorLayer {
-    animation: none;
   }
 }
 
@@ -476,13 +464,13 @@
 
 .raw-markdown-surface {
   position: relative;
-  min-height: 60vh;
+  min-height: 60dvh;
 }
 
 /* CodeMirror grows with the note and the pane scrolls, matching the rendered
    editor; its own scroller stays visible so the viewport tracks the pane. */
 .raw-markdown-root .cm-editor {
-  min-height: 60vh;
+  min-height: 60dvh;
   background: transparent;
   color: hsl(var(--foreground));
   outline: none;
@@ -1359,7 +1347,7 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
 .note-video-media {
   display: block;
   width: 100%;
-  max-height: min(68vh, 680px);
+  max-height: min(68dvh, 680px);
   min-height: 10rem;
   background: hsl(var(--scrim) / 0.94);
   object-fit: contain;
@@ -1376,7 +1364,7 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
 
 .note-video-player[data-pip="true"] .note-video-media {
   min-height: 0;
-  max-height: min(42vh, 240px);
+  max-height: min(42dvh, 240px);
 }
 
 .note-video-controls {
@@ -1930,13 +1918,6 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
   white-space: nowrap;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .diagram-toolbar,
-  .diagram-node-port {
-    transition: none;
-  }
-}
-
 .slash-menu-icon.is-emoji {
   font-size: 15px;
   line-height: 1;
@@ -2245,28 +2226,6 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .liquid-metal-shell,
-  .liquid-metal-glow::before,
-  .liquid-metal-glow::after,
-  .liquid-metal-ripple {
-    transition: none;
-    animation: none;
-  }
-
-  .liquid-metal {
-    animation: liquid-metal-fade 180ms ease-out both;
-  }
-
-  .liquid-metal-particles {
-    display: none;
-  }
-
-  .liquid-metal-shader {
-    background: linear-gradient(120deg, #3b2a5c 0%, #b69cf0 45%, #2a1f40 100%);
-  }
-}
-
 .bubble-menu button.is-active {
   background: hsl(var(--editor-link) / 0.18);
   color: hsl(var(--editor-link));
@@ -2280,12 +2239,6 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
 .bubble-menu button.is-active:focus-visible {
   background: hsl(var(--editor-link) / 0.28);
   color: hsl(var(--editor-link));
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bubble-menu button {
-    transition: none;
-  }
 }
 
 .bubble-menu-sep {

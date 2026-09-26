@@ -16,6 +16,8 @@ pub const MAX_QUERY_BYTES: usize = 4 * 1024;
 pub const MAX_LAYOUT_BYTES: usize = 256 * 1024;
 pub const MAX_EXPANDED_FOLDER_IDS: usize = 100_000;
 pub const MAX_DATABASE_NAME_BYTES: usize = 128;
+pub const MAX_ASSET_CHUNK_BYTES: usize = 1024 * 1024;
+pub const MAX_ASSET_BYTES: u64 = 128 * 1024 * 1024;
 pub const MAX_DELTA_IDS_PER_REQUEST: usize = 4_096;
 pub const MAX_RECOVERY_CODE_BYTES: usize = 128;
 pub const RECOVERY_CODE_ENTROPY_BYTES: usize = 20;
@@ -133,6 +135,24 @@ pub enum BrowserWorkerCommand {
         now_ms: i64,
     },
     RelockNoteLock,
+    /// Appends one chunk of a locally added media blob to the sync asset
+    /// store, so the operation that references it can be pushed. Chunks
+    /// arrive in order; the last one is digest-verified before it lands.
+    WriteAssetChunk {
+        content_hash: String,
+        mime_type: String,
+        offset: u64,
+        total_size: u64,
+        bytes: Vec<u8>,
+    },
+    /// Reads one chunk of a replicated media blob so the renderer can copy
+    /// pulled bytes into its own media store.
+    ReadAssetChunk {
+        content_hash: String,
+        mime_type: String,
+        offset: u64,
+        length: u64,
+    },
     ReadLockedDocuments {
         #[serde(default)]
         note_ids: Option<Vec<String>>,
@@ -182,8 +202,23 @@ pub enum BrowserWorkerValue {
     NoteLockState(NoteLockState),
     NoteLockRecoveryCode(String),
     LockedDocuments(Vec<WorkspaceDocument>),
+    AssetWrite(BrowserAssetWrite),
+    AssetChunk(Option<BrowserAssetChunk>),
     Unit,
     Closed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrowserAssetWrite {
+    pub complete: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrowserAssetChunk {
+    pub total_size: u64,
+    pub bytes: Vec<u8>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

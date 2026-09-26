@@ -43,7 +43,7 @@ workspace blob. Nothing about the asset pipeline changes downstream.
 The feature is desktop-only. The browser build has no Rust and cannot fetch
 arbitrary hosts under CORS, so the picker hides the field there rather than
 offering an action that fails on most addresses. Parity needs a proxy route in
-`services/sync/`, which would put the fetch — and its abuse surface and bandwidth — on
+`apps/sync/`, which would put the fetch — and its abuse surface and bandwidth — on
 the server; that is deferred, not designed here.
 
 Downloading is one-shot and explicit. The stored copy never refreshes, and the

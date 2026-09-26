@@ -24,6 +24,7 @@ const buttonVariants = cva(
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> &
   VariantProps<typeof buttonVariants> & {
+    /** Renders the child element with button styling instead of a `button`, e.g. to style a link. */
     asChild?: boolean;
   };
 

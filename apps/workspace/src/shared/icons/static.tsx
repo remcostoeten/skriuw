@@ -2,10 +2,12 @@ import { selectGlyph, type GlyphGrid, type GlyphName } from "@skriuw/icons";
 import type { SVGProps } from "react";
 
 export type IconProps = SVGProps<SVGSVGElement> & {
+  /** Width and height in pixels; also picks the closest Fluent drawing. */
   size?: number;
 };
 
 type GlyphProps = IconProps & {
+  /** Fluent glyph to draw. */
   glyph: GlyphName;
   /** Pins one of Fluent's drawings instead of choosing by size. */
   grid?: GlyphGrid;

@@ -60,7 +60,6 @@ export type SettingsViewModel = {
   theme: string;
   compactSidebar: boolean;
   showTreeGuides: boolean;
-  reduceMotion: boolean;
   animatedIcons: boolean;
   rememberLastNote: boolean;
   editorFont: string;
@@ -95,7 +94,6 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     theme: resolveTheme(settings.theme).id,
     compactSidebar: settings.compactSidebar,
     showTreeGuides: settings.showTreeGuides === true,
-    reduceMotion: settings.reduceMotion,
     animatedIcons: usesAnimatedIcons(settings),
     rememberLastNote: settings.rememberLastNote,
     editorFont: supportedValue(
@@ -186,8 +184,8 @@ export function opensLinksInApp(settings: WorkspaceSettings): boolean {
 /**
  * Workspaces written before this setting existed have no `animatedIcons` key,
  * and animation is the default, so only an explicit `false` turns it off. The
- * toggle is the sole control: neither `reduceMotion` nor the OS
- * `prefers-reduced-motion` query overrides an explicit opt-in.
+ * toggle is the sole control: the OS `prefers-reduced-motion` query does not
+ * override an explicit opt-in.
  */
 export function usesAnimatedIcons(settings: WorkspaceSettings): boolean {
   return settings.animatedIcons !== false;

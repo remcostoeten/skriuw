@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { motion, useReducedMotion, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
 import { Tooltip } from "@/shared/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
 import { ENTITY_COLOR_OPTIONS, type EntityColorOption } from "./entity-manager-model";
@@ -32,7 +32,6 @@ export function ColorSwatchRow({
   onKeyDown,
   ref,
 }: Props) {
-  const reduceMotion = useReducedMotion();
   const options = useMemo(() => [NO_COLOR, ...ENTITY_COLOR_OPTIONS], []);
 
   return (
@@ -54,8 +53,8 @@ export function ColorSwatchRow({
             <motion.button
               type="button"
               className="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md transition-[background-color,box-shadow] duration-[160ms] hover:bg-theme-hover focus-visible:shadow-[0_0_0_2px_hsl(var(--ring))] focus-visible:outline-none"
-              variants={reduceMotion ? undefined : dotVariants}
-              whileTap={reduceMotion ? undefined : { scale: 0.86 }}
+              variants={dotVariants}
+              whileTap={{ scale: 0.86 }}
               aria-label={color === null ? "No color" : option.name}
               aria-pressed={selected}
               onClick={() => onChange(color)}

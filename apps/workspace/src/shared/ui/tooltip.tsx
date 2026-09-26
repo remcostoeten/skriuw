@@ -21,11 +21,17 @@ type TriggerProps = {
 };
 
 type TooltipProps = {
+  /** Tooltip content. */
   label: ReactNode;
+  /** Key hint rendered after the label. */
   shortcut?: ReactNode;
+  /** Preferred side of the trigger; flips when it would collide. */
   side?: TooltipSide;
+  /** Gap between trigger and tooltip, in pixels. */
   sideOffset?: number;
+  /** Minimum distance kept from the viewport edge, in pixels. */
   collisionPadding?: number;
+  /** Single trigger element; it receives pointer, focus and `aria-describedby` props. */
   children: ReactElement<TriggerProps>;
 };
 

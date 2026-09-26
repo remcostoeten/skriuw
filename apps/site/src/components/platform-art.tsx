@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { Apple, Check, Globe, Linux, Lock, Windows } from "@/components/ui/icons";
+import { Android, Apple, Check, Globe, Linux, Lock, Pwa, Windows } from "@/components/ui/icons";
 
 type Props = {
   title: ReactNode;
@@ -32,37 +32,58 @@ const hubTargets = [
   {
     label: "macOS",
     icon: <Apple className="size-4" />,
-    left: "11.76%",
-    top: "18.18%",
-    path: "M138 110 C100 110 110 40 60 40",
+    left: "14.71%",
+    top: "16.67%",
+    path: "M138 120 C100 120 110 40 50 40",
   },
   {
     label: "Windows",
     icon: <Windows className="size-4" />,
-    left: "88.24%",
-    top: "18.18%",
-    path: "M202 110 C240 110 230 40 280 40",
+    left: "14.71%",
+    top: "50%",
+    path: "M138 120 L50 120",
   },
   {
     label: "Linux",
     icon: <Linux className="size-4" />,
-    left: "11.76%",
-    top: "81.82%",
-    path: "M138 110 C100 110 110 180 60 180",
+    left: "14.71%",
+    top: "83.33%",
+    path: "M138 120 C100 120 110 200 50 200",
   },
   {
     label: "Browser",
     icon: <Globe className="size-4" />,
-    left: "88.24%",
-    top: "81.82%",
-    path: "M202 110 C240 110 230 180 280 180",
+    left: "50%",
+    top: "14.58%",
+    path: "M170 88 L170 35",
+  },
+  {
+    label: "PWA",
+    icon: <Pwa className="size-4" />,
+    left: "50%",
+    top: "85.42%",
+    path: "M170 152 L170 205",
+  },
+  {
+    label: "iOS",
+    icon: <Apple className="size-4" />,
+    left: "85.29%",
+    top: "29.17%",
+    path: "M202 120 C240 120 230 70 290 70",
+  },
+  {
+    label: "Android",
+    icon: <Android className="size-4" />,
+    left: "85.29%",
+    top: "70.83%",
+    path: "M202 120 C240 120 230 170 290 170",
   },
 ];
 
 export function DesktopArt() {
   return (
-    <div className="relative aspect-[340/220] w-full max-w-[340px] text-[12px]">
-      <svg viewBox="0 0 340 220" fill="none" className="absolute inset-0 size-full">
+    <div className="relative aspect-[340/240] w-full max-w-[340px] text-[12px]">
+      <svg viewBox="0 0 340 240" fill="none" className="absolute inset-0 size-full">
         {hubTargets.map((target, position) => (
           <g key={target.label} stroke="currentColor" strokeLinecap="round">
             <path d={target.path} strokeOpacity={0.2} />

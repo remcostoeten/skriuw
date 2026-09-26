@@ -199,21 +199,26 @@ function JournalStats({ entries }: { entries: readonly JournalEntry[] }) {
       </div>
       <div>
         <p className={cn("mb-1.5", sectionLabelClass)}>{stripLabel}</p>
-        <ol className="journal-mood-strip" aria-label={stripLabel}>
+        <ol className="m-0 flex h-10 list-none items-end gap-0.5 p-0" aria-label={stripLabel}>
           {trend.days.map((day) => {
             const mood = day.mood === null ? null : MOOD_OPTIONS[day.mood];
             const state = mood ? mood.label : day.hasEntry ? "No mood" : "No entry";
             const height =
               day.mood === null ? undefined : `${Math.round(moodBarLevel(day.mood) * 100)}%`;
             return (
-              <li key={day.dateKey} className={cn("journal-mood-day", mood?.colorClass)}>
+              <li
+                key={day.dateKey}
+                className={cn("flex h-full min-w-0 flex-1 basis-0 items-end", mood?.colorClass)}
+              >
                 <button
                   type="button"
                   className={cn(
-                    "journal-mood-bar",
+                    "min-h-0.5 w-full cursor-pointer rounded-[2px] border-0 bg-current p-0 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
                     mood === null &&
-                      (day.hasEntry ? "journal-mood-bar-unrated" : "journal-mood-bar-empty"),
-                    day.dateKey === today && "journal-mood-bar-today",
+                      (day.hasEntry
+                        ? "h-[40%] bg-[hsl(var(--muted-foreground)/0.35)]"
+                        : "h-0.5 bg-[hsl(var(--muted-foreground)/0.18)]"),
+                    day.dateKey === today && "outline-1 outline-offset-1 outline-foreground",
                   )}
                   style={height === undefined ? undefined : { height }}
                   aria-label={`${formatListDate(day.dateKey)}: ${state}`}

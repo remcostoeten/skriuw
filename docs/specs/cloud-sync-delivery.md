@@ -60,7 +60,7 @@ missing prerequisites.
 ### A. Protocol and replication policy owner
 
 **Owns:** `crates/skriuw-domain/src/sync.rs`, operation classification,
-`contracts/fixtures/`, generated sync schemas, protocol ADR/spec additions.
+`__tests__/fixtures/contracts/`, generated sync schemas, protocol ADR/spec additions.
 
 **Prerequisite:** none.
 **Unblocks:** B, C validation, D, E parity, F convergence.
@@ -121,7 +121,7 @@ allowed), while a local-only workspace produces no sync rows or requests.
 
 ### C. Cloud control and data-plane owner
 
-**Owns:** `services/sync/`, Worker routes, Durable Object schema/RPC, auth and workspace
+**Owns:** `apps/sync/`, Worker routes, Durable Object schema/RPC, auth and workspace
 authorization adapters, R2 chunk/checkpoint transport, cloud tests and runbook.
 **Prerequisite:** internal log exists; public routes require A before exposure.
 **Unblocks:** D, G, F, H.
@@ -337,5 +337,5 @@ condition and records the evidence.
   before that Worker is deployed. The browser client deploys automatically from
   `daddy` through Vercel, so the reverse order ships clients against a service
   that cannot answer them. `GET /health` reports what a deployment serves, and
-  `scripts/verify-cloud-capabilities.mjs` is the check; the desktop release
+  `tools/scripts/verify-cloud-capabilities.mjs` is the check; the desktop release
   workflow refuses to publish until it passes.

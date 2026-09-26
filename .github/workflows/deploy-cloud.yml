@@ -2,14 +2,14 @@ name: Deploy cloud Worker
 
 # The browser client auto-deploys from `daddy` through Vercel, so the Worker
 # has to ship before or together with the client changes that depend on it.
-# Pushes touching `services/sync/` deploy production; a manual run also reaches the
+# Pushes touching `apps/sync/` deploy production; a manual run also reaches the
 # verification-only preview environment.
 on:
     push:
         branches:
             - daddy
         paths:
-            - "services/sync/**"
+            - "apps/sync/**"
     workflow_dispatch:
         inputs:
             environment:
@@ -37,7 +37,7 @@ jobs:
                   persist-credentials: false
 
             # the deploy credentials are optional repository secrets: without
-            # them the Worker is still deployed by hand (services/sync/README.md), and
+            # them the Worker is still deployed by hand (apps/sync/README.md), and
             # this workflow must not fail a push it cannot act on
             - name: Check for Cloudflare deploy credentials
               id: credentials
@@ -49,7 +49,7 @@ jobs:
                       echo "configured=true" >> "$GITHUB_OUTPUT"
                   else
                       echo "configured=false" >> "$GITHUB_OUTPUT"
-                      echo "::notice title=Worker deploy skipped::CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are not configured. Deploy the Worker manually before merging client changes that require it (services/sync/README.md)."
+                      echo "::notice title=Worker deploy skipped::CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are not configured. Deploy the Worker manually before merging client changes that require it (apps/sync/README.md)."
                   fi
 
             - name: Resolve the target deployment
@@ -74,7 +74,7 @@ jobs:
 
             - name: Install Worker dependencies
               if: steps.credentials.outputs.configured == 'true'
-              working-directory: services/sync
+              working-directory: apps/sync
               run: bun install --frozen-lockfile
 
             - name: Deploy the Worker
@@ -83,7 +83,7 @@ jobs:
               with:
                   apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
                   accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-                  workingDirectory: services/sync
+                  workingDirectory: apps/sync
                   packageManager: bun
                   command: ${{ steps.target.outputs.command }}
 
@@ -94,4 +94,4 @@ jobs:
 
             - name: Verify the deployed capabilities
               if: steps.credentials.outputs.configured == 'true'
-              run: node scripts/verify-cloud-capabilities.mjs "${{ steps.target.outputs.url }}"
+              run: node tools/scripts/verify-cloud-capabilities.mjs "${{ steps.target.outputs.url }}"

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const app = join(root, "apps/workspace");
 const binary = join(app, "src-tauri/target/debug/skriuw-app");
-const fixture = join(root, "fixtures/import-samples/notion-export.zip");
+const fixture = join(root, "__tests__/fixtures/import-samples/notion-export.zip");
 const driverBaseUrl = "http://127.0.0.1:4444";
 const skipBuild = process.argv.includes("--skip-build");
 const outputIndex = process.argv.indexOf("--output");

@@ -6,10 +6,10 @@ target="${1:-desktop}"
 if [[ $# -gt 0 ]]; then shift; fi
 
 case "$target" in
-  desktop) exec "$repo_dir/scripts/tauri.sh" dev "$@" ;;
-  browser) exec "$repo_dir/scripts/dev-with-cloud.sh" "$@" ;;
-  site) exec "$repo_dir/scripts/run-in.sh" apps/site dev "$@" ;;
-  mobile) exec "$repo_dir/scripts/run-in.sh" apps/mobile start "$@" ;;
+  desktop) exec "$repo_dir/tools/scripts/tauri.sh" dev "$@" ;;
+  browser) exec "$repo_dir/tools/scripts/dev-with-cloud.sh" "$@" ;;
+  site) exec "$repo_dir/tools/scripts/run-in.sh" apps/site dev "$@" ;;
+  mobile) exec "$repo_dir/tools/scripts/run-in.sh" apps/mobile start "$@" ;;
   -h|--help|help)
     printf 'Usage: bin/dev [desktop|browser|site|mobile] [args...]\nDefault: desktop.\n'
     ;;

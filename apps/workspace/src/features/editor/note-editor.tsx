@@ -12,7 +12,7 @@ import {
 } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { DOMSerializer, type Node as ProseMirrorNode } from "prosemirror-model";
 import {
   AllSelection,
@@ -250,7 +250,6 @@ const EASE_OUT = [0.23, 1, 0.32, 1] as [number, number, number, number];
 const UTILITY_SEARCH_WIDTH = 380;
 const UTILITY_JUMP_WIDTH = 196;
 const UTILITY_MORPH_TRANSITION = { duration: 0.22, ease: EASE_IN_OUT };
-const REDUCED_UTILITY_MORPH_TRANSITION = { duration: 0 };
 /**
  * The outgoing panel leaves faster than the incoming one arrives, and the
  * arrival is held back until the box has started resizing. Without that gap
@@ -267,9 +266,6 @@ const UTILITY_SWAP_EXIT = {
   transition: { duration: 0.1, ease: EASE_OUT },
 };
 const UTILITY_SWAP_INITIAL = { opacity: 0, filter: "blur(6px)" };
-const REDUCED_UTILITY_SWAP_ENTER = { opacity: 1, transition: { duration: 0.12 } };
-const REDUCED_UTILITY_SWAP_EXIT = { opacity: 0, transition: { duration: 0.08 } };
-const REDUCED_UTILITY_SWAP_INITIAL = { opacity: 0 };
 
 type Props = {
   store: RendererStore;
@@ -589,8 +585,6 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const editorSettings = projectSettings(settingsDocument);
   const blockDragHandle = editorSettings.blockDragHandle;
   const linkHints = useShortcutHints(store, LINK_MENU_SHORTCUT_IDS);
-  const prefersReducedMotion = useReducedMotion();
-  const reduceUtilityMotion = editorSettings.reduceMotion || prefersReducedMotion === true;
   const mentionPluginsRef = useRef<Plugin[] | null>(null);
   if (mentionPluginsRef.current === null) {
     const mentionContext: MentionContext = {
@@ -2434,9 +2428,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
                 width: utilityMode === "search" ? UTILITY_SEARCH_WIDTH : UTILITY_JUMP_WIDTH,
                 height: "auto",
               }}
-              transition={
-                reduceUtilityMotion ? REDUCED_UTILITY_MORPH_TRANSITION : UTILITY_MORPH_TRANSITION
-              }
+              transition={UTILITY_MORPH_TRANSITION}
               data-editor-utility-overlay
               data-mode={utilityMode}
               className="@container/editor-search absolute right-3 top-3 z-40 max-w-[calc(100%_-_1.5rem)] origin-top-right overflow-hidden rounded-lg border border-border bg-popover p-1.5 text-[13px] text-foreground shadow-[0_12px_28px_-12px_hsl(var(--scrim)/0.32)]"
@@ -2444,11 +2436,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
               <AnimatePresence initial={false} mode="popLayout">
                 <motion.div
                   key={utilityMode}
-                  initial={
-                    reduceUtilityMotion ? REDUCED_UTILITY_SWAP_INITIAL : UTILITY_SWAP_INITIAL
-                  }
-                  animate={reduceUtilityMotion ? REDUCED_UTILITY_SWAP_ENTER : UTILITY_SWAP_ENTER}
-                  exit={reduceUtilityMotion ? REDUCED_UTILITY_SWAP_EXIT : UTILITY_SWAP_EXIT}
+                  initial={UTILITY_SWAP_INITIAL}
+                  animate={UTILITY_SWAP_ENTER}
+                  exit={UTILITY_SWAP_EXIT}
                   className="w-full"
                 >
                   {utilityMode === "jump" ? (

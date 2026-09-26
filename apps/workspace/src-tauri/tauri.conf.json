@@ -4,9 +4,9 @@
   "version": "0.46.1",
   "identifier": "dev.skriuw.app",
   "build": {
-    "beforeDevCommand": "bash ../../scripts/run-in.sh apps/workspace dev",
+    "beforeDevCommand": "bash ../../tools/scripts/run-in.sh apps/workspace dev",
     "devUrl": "http://localhost:5183",
-    "beforeBuildCommand": "bash ../../scripts/run-in.sh apps/workspace build:frontend",
+    "beforeBuildCommand": "bash ../../tools/scripts/run-in.sh apps/workspace build:frontend",
     "frontendDist": "../dist"
   },
   "app": {

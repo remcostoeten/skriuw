@@ -601,10 +601,6 @@ export function installBenchmark(store: RendererStore, projection: TreeProjectio
         { name: "no-overlay", pass: !document.querySelector("vite-error-overlay") },
         { name: "selected-state", pass: store.getState().activeNoteId !== null },
         { name: "disabled-state", pass: store.getState().disabledIds.size > 0 },
-        {
-          name: "reduced-motion",
-          pass: matchMedia("(prefers-reduced-motion: reduce)").media.length > 0,
-        },
       ];
     },
     destroy() {

@@ -220,9 +220,3 @@
 	}
 }
 
-@media (prefers-reduced-motion: reduce) {
-	.skeleton,
-	.spinner {
-		animation: none;
-	}
-}

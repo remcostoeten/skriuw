@@ -2,6 +2,7 @@
 
 @source "../app";
 @source "../src";
+@source "../../../../packages/shared/src/components";
 
 @theme {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
@@ -633,7 +634,6 @@
   opacity: 0;
 }
 
-@media (prefers-reduced-motion: no-preference) {
   .vg-caret {
     animation: vg-blink 1.1s linear infinite;
   }
@@ -753,44 +753,6 @@
     animation: pa-verify 8s var(--ease-out) infinite backwards;
     animation-delay: calc(var(--i, 0) * 500ms);
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vg-typed {
-    width: auto;
-  }
-
-  .vg-type-caret {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-ticker,
-  .pattern-field {
-    animation: none;
-  }
-
-  .reveal,
-  .reveal-group > * {
-    transform: none;
-    transition-duration: 300ms;
-  }
-
-  .reveal-wipe {
-    clip-path: none;
-    opacity: 0;
-    transition: opacity 300ms var(--ease-out);
-  }
-
-  .reveal-wipe[data-visible] {
-    opacity: 1;
-  }
-
-  html {
-    scroll-behavior: auto;
-  }
-}
 
 .no-scrollbar {
   scrollbar-width: none;

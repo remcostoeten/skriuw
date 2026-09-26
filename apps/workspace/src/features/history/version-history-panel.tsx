@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import { DOMSerializer } from "prosemirror-model";
 import { restoreNoteVersion } from "@/store/actions/workspace";
 import { setHistoryDiffLayout } from "@/store/actions/settings";
@@ -517,7 +517,6 @@ const MODE_OPTIONS: readonly { value: PreviewMode; label: string }[] = [
 ];
 
 function ModeToggle({ mode, onChange }: ModeToggleProps) {
-  const reduceMotion = useReducedMotion();
   return (
     <div
       role="tablist"
@@ -543,9 +542,7 @@ function ModeToggle({ mode, onChange }: ModeToggleProps) {
                 aria-hidden
                 layoutId="history-mode-indicator"
                 className="absolute inset-0 rounded-[calc(var(--radius-md)-2px)] bg-theme-editor shadow-sm"
-                transition={
-                  reduceMotion ? { duration: 0 } : { type: "spring", duration: 0.3, bounce: 0.15 }
-                }
+                transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}
               />
             )}
             <span className="relative">{option.label}</span>

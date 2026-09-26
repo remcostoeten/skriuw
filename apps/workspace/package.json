@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "bash ../../scripts/dev-with-cloud.sh",
+    "dev": "bash ../../tools/scripts/dev-with-cloud.sh",
     "dev:vite": "vite",
     "build": "../../bin/build browser",
     "build:frontend": "tsc --noEmit && vite build",
@@ -18,7 +18,7 @@
     "e2e:mobile": "node e2e/mobile-shell.mjs",
     "e2e:native": "node e2e/run-native.mjs",
     "typecheck": "tsc --noEmit && tsc --noEmit --project ../../__tests__/support",
-    "tauri": "../../scripts/tauri.sh",
+    "tauri": "../../tools/scripts/tauri.sh",
     "tauri:cli": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "../../bin/build desktop",

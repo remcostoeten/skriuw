@@ -167,18 +167,18 @@ export function MobileSheet({ side, open, label, onClose, children }: Props) {
         onPointerUp={(event) => endDrag(event, true)}
         onPointerCancel={(event) => endDrag(event, false)}
       >
-        <div className="mobile-sheet-header">
+        <div className="flex h-11 flex-none items-center justify-between border-b border-sidebar-border ps-3.5 pe-1 text-[13px] font-semibold text-sidebar-foreground/80">
           <span>{label}</span>
           <button
             type="button"
-            className="mobile-sheet-close"
+            className="inline-flex size-11 items-center justify-center text-sidebar-foreground/60 active:text-sidebar-foreground"
             aria-label={`Close ${label}`}
             onClick={onClose}
           >
             <CloseIcon size={18} />
           </button>
         </div>
-        <div className="mobile-sheet-body">{children}</div>
+        <div className="flex min-h-0 flex-auto flex-col *:min-h-0 *:flex-auto">{children}</div>
       </div>
     </div>
   );

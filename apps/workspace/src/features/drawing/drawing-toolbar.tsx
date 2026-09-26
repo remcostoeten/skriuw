@@ -46,6 +46,12 @@ const TOOLS: readonly ToolEntry[] = [
   { tool: "select", label: "Select and move", shortcutId: "drawSelect", icon: PointerIcon },
 ];
 
+const ITEM_CLASS =
+  "drawing-toolbar-item flex size-7 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color] duration-120 ease-[ease] aria-pressed:bg-[hsl(var(--foreground)/0.12)] aria-pressed:text-foreground aria-checked:bg-[hsl(var(--foreground)/0.12)] aria-checked:text-foreground disabled:cursor-default disabled:opacity-40 [@media(hover:hover)_and_(pointer:fine)]:enabled:hover:bg-[hsl(var(--foreground)/0.08)] [@media(hover:hover)_and_(pointer:fine)]:enabled:hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid";
+
+const SWATCH_CLASS =
+  "drawing-swatch pointer-events-none size-3.5 rounded-full shadow-[inset_0_0_0_1px_hsl(var(--scrim)/0.2)] data-[selected=true]:shadow-[inset_0_0_0_2px_hsl(var(--foreground)/0.7)]";
+
 export type DrawingHints = Partial<Record<DrawingShortcutId, string | undefined>>;
 
 type Props = {
@@ -118,7 +124,7 @@ export function DrawingToolbar({
       role="toolbar"
       aria-label="Annotation tools"
       aria-orientation="horizontal"
-      className="drawing-toolbar"
+      className="drawing-toolbar absolute top-3 left-1/2 z-40 flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-[hsl(var(--border)/0.6)] bg-[hsl(var(--popover)/0.92)] p-1 shadow-[0_4px_16px_hsl(var(--scrim)/0.28)] backdrop-blur-[8px]"
       onKeyDown={moveRovingFocus}
       onPointerDown={(event) => event.stopPropagation()}
     >
@@ -133,7 +139,7 @@ export function DrawingToolbar({
             type="button"
             aria-label={entry.label}
             aria-pressed={brush.tool === entry.tool}
-            className="drawing-toolbar-item"
+            className={ITEM_CLASS}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => onSelectTool(entry.tool)}
             {...itemProps()}
@@ -151,7 +157,7 @@ export function DrawingToolbar({
           aria-label="Fill shapes"
           aria-pressed={brush.filled}
           disabled={!fillable}
-          className="drawing-toolbar-item"
+          className={ITEM_CLASS}
           onMouseDown={(event) => event.preventDefault()}
           onClick={onToggleFill}
           {...itemProps()}
@@ -162,7 +168,11 @@ export function DrawingToolbar({
 
       <ToolbarSeparator />
 
-      <div role="radiogroup" aria-label="Ink color" className="drawing-toolbar-group">
+      <div
+        role="radiogroup"
+        aria-label="Ink color"
+        className="drawing-toolbar-group flex items-center gap-0.5"
+      >
         {DRAWING_INKS.map((entry) => (
           <Tooltip key={entry.id} label={entry.label} shortcut={entry.key} side="bottom">
             <button
@@ -171,13 +181,13 @@ export function DrawingToolbar({
               aria-label={entry.label}
               aria-checked={brush.colorId === entry.id}
               disabled={!inkable}
-              className="drawing-toolbar-item"
+              className={ITEM_CLASS}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => onSelectInk(entry.id)}
               {...itemProps()}
             >
               <span
-                className="drawing-swatch"
+                className={SWATCH_CLASS}
                 data-selected={brush.colorId === entry.id ? "true" : undefined}
                 style={{
                   backgroundColor: resolveInk(entry.id, dark),
@@ -192,13 +202,13 @@ export function DrawingToolbar({
             type="button"
             aria-label="Custom color"
             disabled={!inkable}
-            className="drawing-toolbar-item"
+            className={ITEM_CLASS}
             onMouseDown={(event) => event.preventDefault()}
             onClick={onPickCustomInk}
             {...itemProps()}
           >
             <span
-              className="drawing-swatch drawing-swatch-custom"
+              className={`${SWATCH_CLASS} drawing-swatch-custom`}
               data-selected={
                 DRAWING_INKS.every((ink) => ink.id !== brush.colorId) ? "true" : undefined
               }
@@ -215,7 +225,10 @@ export function DrawingToolbar({
         shortcut={`${hints.drawWidthDecrease ?? ""} ${hints.drawWidthIncrease ?? ""}`.trim()}
         side="bottom"
       >
-        <span className="drawing-width" aria-hidden="true">
+        <span
+          className="drawing-width min-w-[22px] px-0.5 text-center text-[11px] text-muted-foreground tabular-nums"
+          aria-hidden="true"
+        >
           {Math.round(brushWidth(brush))}
         </span>
       </Tooltip>
@@ -226,7 +239,7 @@ export function DrawingToolbar({
         <button
           type="button"
           aria-label="Done annotating"
-          className="drawing-toolbar-done"
+          className="drawing-toolbar-done flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition-[background-color,color] duration-120 ease-[ease] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[hsl(var(--foreground)/0.08)] [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid"
           onMouseDown={(event) => event.preventDefault()}
           onClick={onDone}
           {...itemProps()}
@@ -244,7 +257,12 @@ export function DrawingToolbar({
 }
 
 function ToolbarSeparator(): ReactNode {
-  return <span className="drawing-toolbar-separator" aria-hidden="true" />;
+  return (
+    <span
+      className="drawing-toolbar-separator mx-0.5 h-4 w-px bg-[hsl(var(--border)/0.7)]"
+      aria-hidden="true"
+    />
+  );
 }
 
 /** What the live region announces whenever the brush changes. */

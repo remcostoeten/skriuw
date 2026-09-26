@@ -95,15 +95,6 @@ body {
   height: 0;
 }
 
-:root[data-reduce-motion] *,
-:root[data-reduce-motion] *::before,
-:root[data-reduce-motion] *::after,
-:root[data-reduce-motion] *::backdrop {
-  transition-duration: 1ms !important;
-  animation-duration: 1ms !important;
-  animation-iteration-count: 1 !important;
-}
-
 @media (pointer: coarse) {
   :where(button, [role="button"], [role="menuitem"], [role="tab"], [role="option"], [role="treeitem"]) {
     min-block-size: 2.75rem;
@@ -112,6 +103,17 @@ body {
   :where([data-radix-scroll-area-viewport], [data-scrollable]) {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+  }
+
+  /* iOS Safari zooms the viewport when a focused field renders below 16px. */
+  input,
+  textarea,
+  select,
+  [contenteditable=""],
+  [contenteditable="true"],
+  [contenteditable="plaintext-only"],
+  .ProseMirror {
+    font-size: max(16px, 1em) !important;
   }
 }
 

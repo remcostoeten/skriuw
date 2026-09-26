@@ -54,6 +54,7 @@ export default defineConfig({
           ]),
         ),
       }),
+      suite("site", "apps/site", { sourceAlias: "apps/site/src" }),
       suite("renderer-core", "packages/renderer-core"),
       suite("icons", "packages/icons"),
       suite("theme", "packages/theme"),
@@ -64,7 +65,7 @@ export default defineConfig({
       provider: "v8",
       include: ["apps/workspace/src/**/*.{ts,tsx}", "packages/renderer-core/src/**/*.ts"],
       reporter: ["text", "json-summary"],
-      reportsDirectory: "coverage/workspace",
+      reportsDirectory: ".build/coverage/workspace",
     },
   },
 });

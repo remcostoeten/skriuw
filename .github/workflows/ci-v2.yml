@@ -6,10 +6,10 @@ on:
             - daddy
             - master
         paths-ignore:
-            - "v1/**"
+            - "v1-final/**"
     pull_request:
         paths-ignore:
-            - "v1/**"
+            - "v1-final/**"
 
 permissions:
     contents: read
@@ -19,7 +19,7 @@ concurrency:
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # The gate is sharded across parallel jobs; every shard runs a slice of
-# scripts/build.sh so `./bin/check` stays the single local source of truth.
+# tools/scripts/build.sh so `./bin/check` stays the single local source of truth.
 # Release artifacts are only built on pushes: no pull request consumes them.
 env:
     BUN_VERSION: "1.4.2"
@@ -183,11 +183,14 @@ jobs:
             - name: Install frontend deps
               run: |
                   bun install --frozen-lockfile
-                  (cd services/sync && bun install --frozen-lockfile)
+                  (cd apps/sync && bun install --frozen-lockfile)
                   (cd apps/workspace/harnesses/ui-architecture && bun install --frozen-lockfile)
                   (cd apps/workspace/harnesses/renderer-store && bun install --frozen-lockfile)
 
             - name: Entrypoints, browser WASM, formatting, lint, tests and types
+              env:
+                  # the site prerenders the latest release from the GitHub API
+                  GITHUB_TOKEN: ${{ github.token }}
               run: ./bin/build ci:renderer
 
             - name: Upload build logs

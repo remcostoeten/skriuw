@@ -189,12 +189,9 @@ export function createMermaidPreviewSelectionPlugin(): Plugin {
 }
 
 function prefersStaticDiagrams(): boolean {
-  const reducedMotion =
-    typeof globalThis.matchMedia === "function" &&
-    globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const connection = (globalThis.navigator as { connection?: { saveData?: boolean } } | undefined)
     ?.connection;
-  return reducedMotion || connection?.saveData === true;
+  return connection?.saveData === true;
 }
 
 function documentFont(): string {

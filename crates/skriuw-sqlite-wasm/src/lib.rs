@@ -19,7 +19,7 @@ use std::sync::Arc;
 use skriuw_domain::{OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot};
 use skriuw_storage::{StorageError, WorkspaceStorage};
 
-pub use assets::BrowserAssetStore;
+pub use assets::{BrowserAssetStore, dispatch_asset_command, is_asset_command};
 pub use protocol::*;
 pub use runtime::{BrowserWorkerRuntime, WorkerLifecycle, decode_request};
 pub use sync::{

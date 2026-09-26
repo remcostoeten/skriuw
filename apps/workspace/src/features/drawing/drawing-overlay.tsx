@@ -840,7 +840,7 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
       ) : null}
       {active && sizeIndicator ? (
         <span
-          className="drawing-size-indicator"
+          className="drawing-size-indicator pointer-events-none fixed z-45 translate-x-3 -translate-y-1/2 rounded-md border border-[hsl(var(--border)/0.6)] bg-[hsl(var(--popover)/0.95)] px-1.5 py-0.5 text-[11px] text-foreground tabular-nums"
           style={{ left: sizeIndicator.x, top: sizeIndicator.y }}
           aria-hidden="true"
         >
@@ -848,13 +848,19 @@ export function DrawingOverlay({ store, noteId, active, getView, onDone }: Props
         </span>
       ) : null}
       {active && readOnly ? (
-        <p className="drawing-capacity-notice" role="status">
+        <p
+          className="drawing-capacity-notice absolute bottom-4 left-1/2 z-45 m-0 max-w-[32ch] -translate-x-1/2 rounded-lg border border-[hsl(var(--warning)/0.4)] bg-warning-soft px-2.5 py-1.5 text-center text-xs text-warning-foreground"
+          role="status"
+        >
           This note's annotation layer was written by a newer version of Skriuw. It is kept as it
           is, and cannot be edited here.
         </p>
       ) : null}
       {active && atCapacity && !readOnly ? (
-        <p className="drawing-capacity-notice" role="status">
+        <p
+          className="drawing-capacity-notice absolute bottom-4 left-1/2 z-45 m-0 max-w-[32ch] -translate-x-1/2 rounded-lg border border-[hsl(var(--warning)/0.4)] bg-warning-soft px-2.5 py-1.5 text-center text-xs text-warning-foreground"
+          role="status"
+        >
           This note's annotation layer is full. Erase something to keep drawing.
         </p>
       ) : null}

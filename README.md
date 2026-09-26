@@ -97,14 +97,13 @@ sudo dnf install skriuw
 ### macOS (Homebrew)
 
 ```bash
-brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw
-brew install --cask skriuw
+brew install --cask skriuw/tap/skriuw
 ```
 
 ### Windows (Scoop)
 
 ```powershell
-scoop bucket add skriuw https://github.com/remcostoeten/skriuw
+scoop bucket add skriuw https://github.com/skriuw/homebrew-tap
 scoop install skriuw
 ```
 
@@ -126,7 +125,7 @@ locked notes and end-to-end encrypted sync, but it has never been submitted to
 either store and iOS has never been launched on a device. What is built, what
 is measured, and what is still blocking a first TestFlight and Play
 internal-track build are in
-[`packaging/mobile`](packaging/mobile/README.md).
+[`tools/packaging/mobile`](tools/packaging/mobile/README.md).
 
 Until then, [skriuw.com/app](https://skriuw.com/app) installs to a home screen
 from the browser and works offline.
@@ -172,15 +171,15 @@ Tauri.
 
 The repository layout, web deployment, and cloud development reference is in
 [docs/development.md](docs/development.md). Contributions start at
-[CONTRIBUTING.md](CONTRIBUTING.md); report security issues through
-[SECURITY.md](SECURITY.md) instead of a public issue.
+[CONTRIBUTING.md](.github/CONTRIBUTING.md); report security issues through
+[SECURITY.md](.github/SECURITY.md) instead of a public issue.
 
 Framework-independent v2 helpers live in [`packages/shared`](packages/shared/README.md).
 
 ## Using the previous generation
 
 The previous generation of Skriuw (web, mobile, collaboration, self-hosting)
-lives in [`v1/`](v1) and is frozen at `0.25.0`. It is still installable:
+lives in [`v1-final/`](v1-final) and is frozen at `0.25.0`. It is still installable:
 
 ```bash
 # source as it shipped, before the move into v1/
@@ -196,9 +195,9 @@ Desktop installers for macOS, Windows, and Linux are attached to the
 The `:latest` container tag still builds from the v1 tree but is rebuilt on
 every v2 release, so pin `0.25.0` if you want the frozen version.
 
-To work on v1 in this repository instead, use `v1/` on the current branch, or
+To work on v1 in this repository instead, use `v1-final/` on the current branch, or
 `f74af74f` for the last commit that touched it before the freeze. Setup lives
-in [`v1/README.md`](v1/README.md).
+in [`v1-final/README.md`](v1-final/README.md).
 
 ### Thanks
 

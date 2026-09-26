@@ -90,11 +90,7 @@ import { AnimatedIconsProvider } from "@/shared/icons/animated-icons-context";
 import { ToastHost } from "@/shared/ui/toast";
 import { Tooltip } from "@/shared/ui/tooltip";
 import { useNoteNavigation } from "@/shell/use-note-navigation";
-import {
-  selectAnimatedIcons,
-  selectReduceMotion,
-  selectShowToasts,
-} from "@/features/settings/sections/selectors";
+import { selectAnimatedIcons, selectShowToasts } from "@/features/settings/sections/selectors";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { AiOptInGate, aiSettingsCommands, selectAiEnabled } from "@/features/ai/opt-in-gate";
@@ -187,7 +183,6 @@ function WorkspaceShell({ store }: Props) {
   const seenNoteRef = useRef(activeNoteId);
   const swipeRef = useRef<SwipeStart | null>(null);
   const showToasts = useRendererSelector(store, selectShowToasts);
-  const reduceMotion = useRendererSelector(store, selectReduceMotion);
   const animatedIcons = useRendererSelector(store, selectAnimatedIcons);
   const aiEnabled = useRendererSelector(store, selectAiEnabled);
   const [onboardingOverride, setOnboardingOverride] = useState(readOnboardingOverride);
@@ -769,7 +764,7 @@ function WorkspaceShell({ store }: Props) {
         {mode === "compact" && <TabBar route={route} account={accountMenu} />}
         {mode === "compact" && routeHasSidebar(route) && (
           <div
-            className="shell-edge shell-edge-left"
+            className="shell-edge-left absolute top-11 bottom-14 left-0 z-30 w-5 touch-none"
             aria-hidden="true"
             onPointerDown={onShellPointerDown}
             onPointerMove={onShellPointerMove}
@@ -779,7 +774,7 @@ function WorkspaceShell({ store }: Props) {
         )}
         {mode === "compact" && route === "notes" && (
           <div
-            className="shell-edge shell-edge-right"
+            className="absolute top-11 bottom-14 right-0 z-30 w-5 touch-none"
             aria-hidden="true"
             onPointerDown={onShellPointerDown}
             onPointerMove={onShellPointerMove}
@@ -833,7 +828,7 @@ function WorkspaceShell({ store }: Props) {
         open={shortcutHelpOpen}
         onOpenChange={setShortcutHelpOpen}
       />
-      <ToastHost visible={showToasts} reduceMotion={reduceMotion} />
+      <ToastHost visible={showToasts} />
       <TemplatePickerHost store={store} />
       <LockDialogHost store={store} />
       <AiOptInGate store={store}>

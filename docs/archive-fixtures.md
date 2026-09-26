@@ -5,7 +5,7 @@ Golden `WorkspaceArchive` JSON proves that every supported archive version keeps
 ## Layout
 
 ```text
-fixtures/archives/
+__tests__/fixtures/archives/
 ├── manifest.json
 ├── v1/
 │   ├── minimal.json
@@ -45,7 +45,7 @@ Exports always emit the current archive version (`WORKSPACE_ARCHIVE_VERSION`, cu
 ## Adding a new archive version
 
 1. Ship the versioned compatibility/migration code that makes production actually accept the new version.
-2. Create `fixtures/archives/v<version>/` with at least one small, single-purpose golden file exported by that code.
+2. Create `__tests__/fixtures/archives/v<version>/` with at least one small, single-purpose golden file exported by that code.
 3. Add the version and files to `manifest.json`.
 4. Extend both test files where version-specific assertions apply; the catalogue tests fail until manifest, directories, and the production supported set agree.
 5. Keep every still-supported older version's fixtures untouched.
