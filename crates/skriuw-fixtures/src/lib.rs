@@ -468,27 +468,27 @@ mod tests {
         let expected = [
             (
                 "wide-1000",
-                "c4e6ca1b0392cf555fe758cd4b709ff956862661e4337cd26519fa836566481b",
+                "9d5f04f62463a832181e3c05875576bfaa5e7da9174c1a6de7306fd778c34254",
             ),
             (
                 "nested-1000",
-                "1e84b7fd861ee6c70ca55e80aba1b2c3d9ec0dd1e3133074d974f0335d6f960f",
+                "89bf19cb37635c7ead7ff98a7dad7b5d72928d705c090672924a6bdcbd3a1db3",
             ),
             (
                 "mixed-1000",
-                "a8be5c752487179431635a01ca989fbe866118251d836213453efd02bacb24b6",
+                "b0f08c8b59649414f8204a452f607942dfc518fd3f3ae68a291f791e9e680dd2",
             ),
             (
                 "wide-5000",
-                "697fff9952091873cb2f2d2b3fe487e53356e00ac6a763d6cc4980b2d7f1d844",
+                "6cdc246ae8cd6437300d8ad4ffdb93eb31fda99beefdbb9eaed622b38bfa46f3",
             ),
             (
                 "nested-5000",
-                "e41672a02c6102ab1fdd78d7f52c4dae9b840df8332fc4248e4e559d83ee543c",
+                "40c7b15e70d6642376948c13af5631592a58dc5854560720c1a1948649fbed75",
             ),
             (
                 "mixed-5000",
-                "debfb699e59fc51495802fc31501b99345c9abf32fa59cf219ad7e33bfb53e61",
+                "5191574f553ad784d01d9e79a9cad69d71ddccd888a49b34d07a0c972f0e28b9",
             ),
         ];
         for (spec, (name, digest)) in canonical_specs().into_iter().zip(expected) {
