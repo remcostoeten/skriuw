@@ -37,13 +37,6 @@ Docs live in `content/docs`. Every page needs frontmatter with a unique `title` 
 
 `lib/site.ts` owns production domain. Page metadata includes canonical URLs, OpenGraph, Twitter, and `TechArticle` JSON-LD. `app/sitemap.ts` enumerates public Fumadocs pages. `app/robots.ts` allows crawling and points bots to sitemap. Do not add `noindex` unless page must be private.
 
-## Deployment
+## Archive status
 
-Create a Vercel project connected to this repository:
-
-1. Set Root Directory to `apps/documentation`.
-2. Keep configuration from `apps/documentation/vercel.json`.
-3. Add `docs.skriuw.com` as production domain, then create its DNS record in domain provider.
-4. Set production branch to `daddy`.
-
-No runtime environment variables are required. Vercel creates preview deployments for pull requests and production deployments from `daddy`. Its ignored-build rule redeploys only when documentation, migrated source, workspace dependencies, or lockfile change.
+This documentation source is retained for historical reference only. It has no active deployment configuration.

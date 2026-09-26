@@ -104,3 +104,4 @@ release-notes-v2-*.txt
 .claude/skills/react-doctor/
 
 /apps/site/public/app/
+/v1/
