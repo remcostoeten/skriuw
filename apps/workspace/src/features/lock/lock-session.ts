@@ -174,8 +174,9 @@ export function requestSessionUnlock(): void {
 
 type LockSessionDependencies = {
   window: Pick<Window, "addEventListener" | "removeEventListener">;
-  document: Pick<Document, "addEventListener" | "removeEventListener">;
+  document: Pick<Document, "addEventListener" | "removeEventListener" | "visibilityState">;
   timers: Pick<typeof globalThis, "setTimeout" | "clearTimeout">;
+  now: () => number;
   relock: (store: RendererStore) => Promise<void>;
   hydrate: (store: RendererStore) => Promise<void>;
   refresh: (store: RendererStore) => Promise<unknown>;
@@ -187,6 +188,7 @@ function defaultDependencies(overrides: Partial<LockSessionDependencies>): LockS
     window: overrides.window ?? window,
     document: overrides.document ?? document,
     timers: overrides.timers ?? globalThis,
+    now: overrides.now ?? Date.now,
     relock: overrides.relock ?? relockNotes,
     hydrate: overrides.hydrate ?? ((store) => hydrateLockedDocuments(store)),
     refresh: overrides.refresh ?? refreshNoteLock,
@@ -220,7 +222,9 @@ function sameFacts(left: SessionFacts, right: SessionFacts): boolean {
  * Keeps the renderer's view of locked notes in step with the session: opened
  * bodies are fetched whenever sealed placeholders appear while the key is
  * held (after a sync delta or a re-bootstrap), and the key is dropped after
- * the configured idle time or when the window loses focus.
+ * the configured idle time or when the window loses focus or the tab is hidden.
+ * Browsers throttle and freeze timers in hidden tabs, so the idle deadline is
+ * also checked against the wall clock when the tab becomes visible again.
  */
 export function bindLockSession(
   store: RendererStore,
@@ -228,17 +232,29 @@ export function bindLockSession(
 ): () => void {
   const deps = defaultDependencies(overrides);
   let idleTimer: ReturnType<typeof setTimeout> | null = null;
+  let idleDeadline: number | null = null;
   let hydrating = false;
+  let relocking = false;
 
   function clearIdleTimer(): void {
     if (idleTimer !== null) {
       deps.timers.clearTimeout(idleTimer);
       idleTimer = null;
     }
+    idleDeadline = null;
   }
 
   function relock(): void {
-    void deps.relock(store).catch((error) => deps.onError("auto-lock", error));
+    if (relocking) {
+      return;
+    }
+    relocking = true;
+    void deps
+      .relock(store)
+      .catch((error) => deps.onError("auto-lock", error))
+      .finally(() => {
+        relocking = false;
+      });
   }
 
   function armIdleTimer(): void {
@@ -247,7 +263,9 @@ export function bindLockSession(
     if (!facts.unlocked || facts.autoLockMinutes <= 0) {
       return;
     }
-    idleTimer = deps.timers.setTimeout(relock, facts.autoLockMinutes * 60_000);
+    const delay = facts.autoLockMinutes * 60_000;
+    idleDeadline = deps.now() + delay;
+    idleTimer = deps.timers.setTimeout(relock, delay);
   }
 
   function hydrateIfNeeded(): void {
@@ -276,6 +294,16 @@ export function bindLockSession(
     }
   }
 
+  function onVisibilityChange(): void {
+    if (deps.document.visibilityState === "hidden") {
+      onBlur();
+      return;
+    }
+    if (idleDeadline !== null && deps.now() >= idleDeadline) {
+      relock();
+    }
+  }
+
   const unsubscribe = store.subscribe(
     selectSessionFacts,
     () => {
@@ -288,6 +316,7 @@ export function bindLockSession(
     deps.document.addEventListener(event, onActivity, { passive: true });
   }
   deps.window.addEventListener("blur", onBlur);
+  deps.document.addEventListener("visibilitychange", onVisibilityChange);
   void deps.refresh(store).catch((error) => deps.onError("note lock refresh", error));
   hydrateIfNeeded();
   armIdleTimer();
@@ -299,5 +328,6 @@ export function bindLockSession(
       deps.document.removeEventListener(event, onActivity);
     }
     deps.window.removeEventListener("blur", onBlur);
+    deps.document.removeEventListener("visibilitychange", onVisibilityChange);
   };
 }

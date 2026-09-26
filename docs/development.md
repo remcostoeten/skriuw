@@ -97,13 +97,14 @@ with shared state in `state.rs` and one command module per capability under
 
 ## Web deployment
 
-The repository-root Vercel project serves indexable static product pages at
-`https://skriuw.com/`, `/download/`, `/local-first-notes/`,
-`/markdown-notes/`, and `/import/`, plus the browser build at
-`https://skriuw.com/app/`.
+The Vercel project (Root Directory `apps/site`, configured by `apps/site/vercel.json`)
+runs the Next.js marketing site at `https://skriuw.com/`, `/download/`,
+`/local-first-notes/`, `/markdown-notes/`, `/import/`, `/docs/` and `/changelog/`,
+plus the browser build at `https://skriuw.com/app/`.
 Its build runs `tools/scripts/vercel-build.sh`, which compiles the pinned Rust core
-to WASM, builds the renderer with the `/app/` asset base, and stages the site,
-crawl metadata, and application as one static deployment artifact. The
+to WASM, builds the renderer with the `/app/` asset base, copies it into
+`apps/site/public/app/`, and builds the site. A rewrite in `apps/site/next.config.ts`
+serves `/app/` from that copy. The
 `skriuw.vercel.app` and `www.skriuw.com` hosts permanently redirect to the apex
 domain, and the application shell stays out of search results so crawlers land
 on the public product page. The Cloudflare Worker remains the separate

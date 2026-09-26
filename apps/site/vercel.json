@@ -1,12 +1,9 @@
 {
 	"$schema": "https://openapi.vercel.sh/vercel.json",
+	"framework": "nextjs",
 	"bunVersion": "1.3.14",
-	"builds": [
-		{
-			"src": "apps/site/package.json",
-			"use": "@vercel/next"
-		}
-	],
+	"installCommand": "bun install --frozen-lockfile",
+	"buildCommand": "bash ../../tools/scripts/vercel-build.sh",
 	"redirects": [
 		{
 			"source": "/:path*",

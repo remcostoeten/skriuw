@@ -79,13 +79,13 @@ case "$mode" in
 esac
 
 case "$mode" in
-  check) total_steps=18 ;;
-  ci) total_steps=20 ;;
+  check) total_steps=19 ;;
+  ci) total_steps=21 ;;
   ci:rust) total_steps=4 ;;
   ci:desktop) total_steps=1 ;;
-  ci:renderer) total_steps=13 ;;
+  ci:renderer) total_steps=14 ;;
   ci:release) total_steps=3 ;;
-  *) total_steps=18 ;;
+  *) total_steps=20 ;;
 esac
 
 step_index=0
@@ -401,10 +401,11 @@ if gate_includes renderer; then
   print_metric "$(vitest_summary "$last_log")"
   run_step "Shared icon geometry and motion suite" "icon-tests" bun --cwd="$repo_dir/packages/icons" run verify
   print_metric "$(vitest_summary "$last_log")"
-  run_step "Storybook shell installer and props suite" "storybook-shell-tests" bun --cwd="$repo_dir/packages/storybook-shell" run verify
-  print_metric "$(vitest_summary "$last_log")"
   run_step "Shared theme token suite" "theme-tests" bun --cwd="$repo_dir/packages/theme" run test
   print_metric "$(vitest_summary "$last_log")"
+  run_step "Storybook shell types and suite" "storybook-shell-tests" bun --cwd="$repo_dir/packages/storybook-shell" run verify
+  print_metric "$(vitest_summary "$last_log")"
+  run_step "Storybook production bundle" "storybook-build" bun --cwd="$repo_dir/apps/storybook" run build
   run_step "Renderer test suite and coverage" "renderer-tests" bun --cwd="$app_dir" run test
   print_metric "$(renderer_summary "$last_log")"
   run_step "Renderer type safety" "renderer-typecheck" bun --cwd="$app_dir" run typecheck

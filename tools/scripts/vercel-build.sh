@@ -51,10 +51,9 @@ fi
   SKRIUW_WEB_BASE="/app/" bun run build:frontend
 )
 
-site_app_dir="$web_dir/public/app"
-rm -rf "$site_app_dir"
-mkdir -p "$site_app_dir"
-cp -R "$app_dir/dist/." "$site_app_dir/"
+rm -rf "$web_dir/public/app"
+mkdir -p "$web_dir/public/app"
+cp -R "$app_dir/dist/." "$web_dir/public/app/"
 
 (
   cd "$web_dir"

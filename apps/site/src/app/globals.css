@@ -781,6 +781,10 @@
   scroll-margin-top: 96px;
 }
 
+.doc-prose li[id] {
+  scroll-margin-top: 96px;
+}
+
 .doc-prose h2 {
   margin: 3rem 0 1rem;
   padding-top: 2rem;

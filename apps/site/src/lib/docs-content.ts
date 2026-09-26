@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { Marked } from "marked";
+import { Marked, type Tokens } from "marked";
 import { docPages, docBranch, type DocPage } from "@/data/docs";
 import { repoUrl } from "@/data/content";
 
@@ -16,7 +16,14 @@ export type RenderedDoc = {
   lede: string;
 };
 
-const repoRoot = path.resolve(process.cwd(), "../..");
+const docReaders: Record<string, () => Promise<string>> = {
+  "docs/FEATURES.md": () => readFile(path.join(process.cwd(), "../../docs/FEATURES.md"), "utf8"),
+  "docs/ARCHITECTURE.md": () =>
+    readFile(path.join(process.cwd(), "../../docs/ARCHITECTURE.md"), "utf8"),
+  "docs/performance-contract.md": () =>
+    readFile(path.join(process.cwd(), "../../docs/performance-contract.md"), "utf8"),
+  "CHANGELOG.md": () => readFile(path.join(process.cwd(), "../../CHANGELOG.md"), "utf8"),
+};
 
 function slugify(value: string) {
   return value
@@ -51,9 +58,30 @@ function resolveDocHref(href: string, sourceDir: string) {
   return `${repoUrl}/${kind}/${docBranch}/${repoPath}${suffix}`;
 }
 
-function createRenderer(sourceDir: string, headings: DocHeading[]) {
+function findLabel(item: Tokens.ListItem) {
+  const lead = item.tokens[0];
+  const inline = lead?.type === "text" || lead?.type === "paragraph" ? lead.tokens : undefined;
+  const [label, rest] = inline ?? [];
+
+  if (label?.type !== "strong" || rest?.type !== "text" || !rest.raw.startsWith(":")) {
+    return undefined;
+  }
+
+  return label as Tokens.Strong;
+}
+
+function createRenderer(sourceDir: string, headings: DocHeading[], outlineLabels: boolean) {
   const marked = new Marked({ gfm: true });
   const used = new Map<string, number>();
+
+  function uniqueId(text: string) {
+    const base = slugify(text);
+    const seen = used.get(base) ?? 0;
+
+    used.set(base, seen + 1);
+
+    return seen === 0 ? base : `${base}-${seen + 1}`;
+  }
 
   marked.use({
     renderer: {
@@ -73,17 +101,36 @@ function createRenderer(sourceDir: string, headings: DocHeading[]) {
       heading({ tokens, depth }) {
         const html = this.parser.parseInline(tokens);
         const text = stripTags(html);
-        const base = slugify(text);
-        const seen = used.get(base) ?? 0;
-        const id = seen === 0 ? base : `${base}-${seen + 1}`;
-
-        used.set(base, seen + 1);
+        const id = uniqueId(text);
 
         if (depth === 2 || depth === 3) {
           headings.push({ id, text, depth });
         }
 
         return `<h${depth} id="${id}"><a class="doc-anchor" href="#${id}">${html}</a></h${depth}>\n`;
+      },
+      /**
+       * Renders a list item whose text opens with a `**Label**:` as an anchored
+       * `<li>` and records the label as a depth 3 outline entry, when the page
+       * opts in with `outlineLabels`. Every other item falls back to marked's
+       * default rendering.
+       *
+       * @param item - The list item token.
+       * @returns The anchored item markup, or `false` to use the default renderer.
+       */
+      listitem(item) {
+        const label = outlineLabels ? findLabel(item) : undefined;
+
+        if (!label) {
+          return false;
+        }
+
+        const text = stripTags(this.parser.parseInline(label.tokens));
+        const id = uniqueId(text);
+
+        headings.push({ id, text, depth: 3 });
+
+        return `<li id="${id}">${this.parser.parse(item.tokens)}</li>\n`;
       },
       link({ href, title, tokens }) {
         const resolved = resolveDocHref(href, sourceDir);
@@ -115,11 +162,16 @@ function splitLede(source: string) {
 
 export async function renderDoc(page: DocPage): Promise<RenderedDoc> {
   "use cache";
-  const absolute = path.join(/* turbopackIgnore: true */ repoRoot, page.source);
-  const source = await readFile(absolute, "utf8");
+  const read = docReaders[page.source];
+  if (!read) throw new Error(`No docs reader registered for ${page.source}`);
+  const source = await read();
   const { lede, body } = splitLede(source);
   const headings: DocHeading[] = [];
-  const marked = createRenderer(path.posix.dirname(page.source), headings);
+  const marked = createRenderer(
+    path.posix.dirname(page.source),
+    headings,
+    page.outlineLabels ?? false,
+  );
   const html = await marked.parse(body);
 
   return { html, headings, lede };

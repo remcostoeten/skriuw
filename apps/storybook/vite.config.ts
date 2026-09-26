@@ -17,6 +17,27 @@ export default defineConfig({
       "@": workspaceSource,
     },
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        advancedChunks: {
+          groups: [
+            {
+              name: "react-vendor",
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+              priority: 100,
+            },
+            {
+              name: "motion-vendor",
+              test: /[\\/]node_modules[\\/](motion|motion-dom|motion-utils|framer-motion)[\\/]/,
+              priority: 90,
+            },
+            { name: "vendor", test: /[\\/]node_modules[\\/]/, priority: 10 },
+          ],
+        },
+      },
+    },
+  },
   server: {
     port: 5184,
     strictPort: true,

@@ -156,6 +156,10 @@ function copyShellFile(
   return "kept-existing";
 }
 
+function keepsLocalContent(outcome: FileOutcome): boolean {
+  return outcome === "kept-edited" || outcome === "kept-existing";
+}
+
 /** Finds the CSS file that imports Tailwind, searching the whole project except build and dependency folders. */
 export function findTailwindEntry(project: string): string | undefined {
   const queue = [project];
@@ -177,9 +181,14 @@ export function findTailwindEntry(project: string): string | undefined {
   return undefined;
 }
 
-/** True when the stylesheet defines the shell's color tokens itself or already imports the shell's `tokens.css`. */
-export function providesTokens(css: string): boolean {
-  return /--color-background\s*:/.test(css) || /@import\s+["'][^"']*tokens\.css["']/.test(css);
+/** True when the stylesheet defines the shell's color tokens itself. */
+export function definesTokens(css: string): boolean {
+  return /--color-background\s*:/.test(css);
+}
+
+/** True when the stylesheet already imports the shell's `tokens.css`. */
+export function importsTokens(css: string): boolean {
+  return /@import\s+["'][^"']*tokens\.css["']/.test(css);
 }
 
 function importPath(from: string, to: string): string {
@@ -200,7 +209,8 @@ export function install(options: InstallOptions): InstallResult {
     fail(`No ${MANIFEST} in ${target}; run a normal install first`);
 
   const css = findTailwindEntry(project);
-  const needsTokens = !css || !providesTokens(readFileSync(css, "utf8"));
+  const cssSource = css ? readFileSync(css, "utf8") : "";
+  const needsTokens = !definesTokens(cssSource);
   const shellFiles =
     needsTokens || previous?.files[TOKENS] ? [...SHELL_FILES, TOKENS] : SHELL_FILES;
 
@@ -214,8 +224,9 @@ export function install(options: InstallOptions): InstallResult {
       mode,
       previous?.files[file],
     );
-    recorded[file] =
-      files[file] === "kept-edited" ? previous!.files[file]! : hash(readFileSync(destination));
+    recorded[file] = keepsLocalContent(files[file])
+      ? (previous?.files[file] ?? hash(readFileSync(join(sourceDirectory, file))))
+      : hash(readFileSync(destination));
   }
 
   const starter = join(target, STARTER);
@@ -249,7 +260,7 @@ export function install(options: InstallOptions): InstallResult {
     const cssName = relative(project, css);
     if (relative(dirname(css), target).startsWith(".."))
       steps.push(`Add to ${cssName}: @source "${relative(dirname(css), target)}";`);
-    if (needsTokens)
+    if (needsTokens && !importsTokens(cssSource))
       steps.push(
         `Add to ${cssName} after the Tailwind import: @import "${importPath(dirname(css), join(target, TOKENS))}";`,
       );

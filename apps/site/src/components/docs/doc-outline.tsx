@@ -5,6 +5,7 @@ import type { DocHeading } from "@/lib/docs-content";
 
 type Props = {
   headings: DocHeading[];
+  collapse: boolean;
 };
 
 type Point = { x: number; y: number };
@@ -89,6 +90,18 @@ function buildPathPoints(nav: HTMLElement, links: HTMLElement[], depths: number[
   return { points, anchors: anchorIndices };
 }
 
+function sectionStarts(depths: number[]) {
+  let start = 0;
+
+  return depths.map((depth, index) => {
+    if (depth === 0) {
+      start = index;
+    }
+
+    return start;
+  });
+}
+
 function findLengthAtPoint(path: SVGPathElement, pathLength: number, point: Point) {
   if (!pathLength) {
     return 0;
@@ -122,7 +135,7 @@ function findLengthAtPoint(path: SVGPathElement, pathLength: number, point: Poin
   return best;
 }
 
-export function DocOutline({ headings }: Props) {
+export function DocOutline({ headings, collapse }: Props) {
   const navRef = useRef<HTMLElement | null>(null);
   const baseRef = useRef<SVGPathElement | null>(null);
   const activeRef = useRef<SVGPathElement | null>(null);
@@ -130,6 +143,7 @@ export function DocOutline({ headings }: Props) {
   const listRef = useRef<HTMLOListElement | null>(null);
 
   const minDepth = Math.min(...headings.map((heading) => heading.depth));
+  const headingSections = sectionStarts(headings.map((heading) => heading.depth - minDepth));
 
   useEffect(() => {
     const nav = navRef.current;
@@ -142,15 +156,22 @@ export function DocOutline({ headings }: Props) {
       return;
     }
 
-    const links = [...list.querySelectorAll<HTMLAnchorElement>("a")];
-    const targets = links.map((link) =>
+    const allLinks = [...list.querySelectorAll<HTMLAnchorElement>("a")];
+    const allTargets = allLinks.map((link) =>
       document.getElementById(decodeURIComponent(link.hash.slice(1))),
     );
-    const depths = links.map((link) => Number(link.dataset.depth ?? 0));
+    const allDepths = allLinks.map((link) => Number(link.dataset.depth ?? 0));
+    const items = allLinks.map((link) => link.closest("li")!);
+    const sections = sectionStarts(allDepths);
 
-    if (links.length === 0) {
+    if (allLinks.length === 0) {
       return;
     }
+
+    let links = allLinks;
+    let targets = allTargets;
+    let depths = allDepths;
+    let openSection = 0;
 
     let anchors: number[] = [];
     let pathLength = 0;
@@ -162,7 +183,17 @@ export function DocOutline({ headings }: Props) {
     let disposed = false;
     let lastCurrent = -1;
 
+    function collectVisible() {
+      const visible = allLinks.flatMap((_, index) => (items[index]!.hidden ? [] : [index]));
+
+      links = visible.map((index) => allLinks[index]!);
+      targets = visible.map((index) => allTargets[index]!);
+      depths = visible.map((index) => allDepths[index]!);
+    }
+
     function renderGeometry() {
+      collectVisible();
+
       const { points, anchors: anchorIndices } = buildPathPoints(nav!, links, depths);
       const path = roundedPath(points, GEOMETRY.corner);
 
@@ -181,10 +212,44 @@ export function DocOutline({ headings }: Props) {
       dirty = false;
     }
 
-    function getScrollState() {
-      const anchorY =
+    function getAnchorY() {
+      return (
         GEOMETRY.headerOffset +
-        (window.innerHeight - GEOMETRY.headerOffset) * GEOMETRY.anchorFraction;
+        (window.innerHeight - GEOMETRY.headerOffset) * GEOMETRY.anchorFraction
+      );
+    }
+
+    function openCurrentSection() {
+      const anchorY = getAnchorY();
+      let index = 0;
+
+      while (
+        index < allTargets.length - 1 &&
+        (allTargets[index + 1]?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY) <= anchorY
+      ) {
+        index += 1;
+      }
+
+      const section = sections[index]!;
+
+      if (section === openSection) {
+        return;
+      }
+
+      openSection = section;
+      items.forEach((item, itemIndex) => {
+        item.hidden = allDepths[itemIndex]! > 0 && sections[itemIndex] !== section;
+
+        if (item.hidden) {
+          delete allLinks[itemIndex]!.dataset.current;
+          delete allLinks[itemIndex]!.dataset.active;
+        }
+      });
+      renderGeometry();
+    }
+
+    function getScrollState() {
+      const anchorY = getAnchorY();
       const positions = targets.map((element) =>
         element ? element.getBoundingClientRect().top : Number.POSITIVE_INFINITY,
       );
@@ -227,6 +292,10 @@ export function DocOutline({ headings }: Props) {
     }
 
     function updateTarget() {
+      if (collapse) {
+        openCurrentSection();
+      }
+
       if (!pathLength || anchors.length === 0) {
         return;
       }
@@ -317,7 +386,7 @@ export function DocOutline({ headings }: Props) {
       window.removeEventListener("resize", onResize);
       navObserver.disconnect();
     };
-  }, [headings]);
+  }, [headings, collapse]);
 
   return (
     <nav ref={navRef} aria-label="On this page" className="doc-outline relative min-h-0">
@@ -347,8 +416,12 @@ export function DocOutline({ headings }: Props) {
       </svg>
 
       <ol ref={listRef} className="relative z-[1] m-0 grid list-none gap-0.5 p-0">
-        {headings.map((heading) => (
-          <li key={heading.id} className="min-w-0">
+        {headings.map((heading, index) => (
+          <li
+            key={heading.id}
+            hidden={collapse && heading.depth > minDepth && headingSections[index] !== 0}
+            className="min-w-0"
+          >
             <a
               href={`#${heading.id}`}
               data-depth={heading.depth - minDepth}

@@ -277,7 +277,11 @@ export function describeMediaFailure(error: unknown): { title: string; message: 
   if (error instanceof UnsupportedMediaError) {
     return { title: "Unsupported file", message: error.message };
   }
-  return { title: "Couldn’t save media", message: "Something went wrong saving this file." };
+  const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  return {
+    title: "Couldn’t save media",
+    message: `Something went wrong saving this file. (${detail})`,
+  };
 }
 
 async function persistImage(

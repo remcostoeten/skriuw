@@ -6,6 +6,7 @@ export type DocPage = {
   kicker: string;
   description: string;
   source: string;
+  outlineLabels?: boolean;
 };
 
 export const docBranch = "daddy";
@@ -18,6 +19,7 @@ export const docPages: DocPage[] = [
     description:
       "The complete surface of Skriuw: the editor, journal, tasks, search, history, import and export, sync, AI, and the mobile app.",
     source: "docs/FEATURES.md",
+    outlineLabels: true,
   },
   {
     slug: "architecture",

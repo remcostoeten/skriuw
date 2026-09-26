@@ -92,3 +92,15 @@ release-notes-v2-*.txt
 # Local MCP config; holds machine-absolute paths
 /.mcp.json
 
+# Vendored third-party skills; reinstallable from skills-lock.json
+/.agents/skills/building-tauri-with-github-actions/
+/.agents/skills/distributing-tauri-for-windows/
+/.agents/skills/signing-tauri-apps/
+/.agents/skills/tauri-v2/
+/.claude/skills/building-tauri-with-github-actions
+/.claude/skills/distributing-tauri-for-windows
+/.claude/skills/signing-tauri-apps
+/.claude/skills/tauri-v2
+.claude/skills/react-doctor/
+
+/apps/site/public/app/
