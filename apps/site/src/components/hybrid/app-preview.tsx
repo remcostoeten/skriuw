@@ -149,7 +149,7 @@ function SectionLabel({ children, count }: { children: ReactNode; count?: number
 
 export function HybridAppPreview() {
   return (
-    <div className="flex h-[520px] w-full overflow-hidden rounded-xl border border-border bg-surface text-ink-700 shadow-(--preview-shadow)">
+    <div className="flex h-[480px] w-full overflow-hidden rounded-xl border border-border bg-surface text-ink-700 shadow-(--preview-shadow)">
       <nav className="flex w-9 shrink-0 flex-col items-center border-r border-border py-2">
         <Wordmark className="size-4 text-ink-900" />
         <div className="mt-3 flex flex-col gap-1">
@@ -287,33 +287,9 @@ export function HybridAppPreview() {
               </span>
               .
             </p>
-            <p className="pt-1 text-[14px] font-semibold text-ink-900">Where the data lives</p>
-            <table className="w-full border-collapse text-[10.5px]">
-              <thead>
-                <tr className="bg-ink-100 text-left text-ink-900">
-                  <th className="border border-border px-2 py-1 font-medium">Where</th>
-                  <th className="border border-border px-2 py-1 font-medium">What waits</th>
-                </tr>
-              </thead>
-              <tbody className="text-ink-500">
-                <tr>
-                  <td className="border border-border px-2 py-1">
-                    <code className="rounded bg-ink-100 px-1 font-mono text-[10px] text-ink-700">
-                      SQLite
-                    </code>
-                  </td>
-                  <td className="border border-border px-2 py-1">Nothing. It is on your disk.</td>
-                </tr>
-                <tr>
-                  <td className="border border-border px-2 py-1">
-                    <code className="rounded bg-ink-100 px-1 font-mono text-[10px] text-ink-700">
-                      Sync
-                    </code>
-                  </td>
-                  <td className="border border-border px-2 py-1">Only when you opt in.</td>
-                </tr>
-              </tbody>
-            </table>
+            <p className="border-l-2 border-ink-200 pl-3 text-ink-500 italic">
+              Every keystroke paints in the same frame, or it is a bug.
+            </p>
             <p>
               See <Chip sigil="@">The 8 ms budget</Chip> for the measured version of this claim
               and the benchmark that enforces it.
@@ -346,7 +322,7 @@ export function HybridAppPreview() {
         </div>
       </div>
 
-      <aside className="hidden w-[176px] shrink-0 flex-col border-l border-border text-[10.5px] md:flex">
+      <aside className="hidden w-[180px] shrink-0 flex-col border-l border-border text-[10.5px] md:flex">
         <div className="relative border-b border-border py-2 pr-2 pl-4">
           <span aria-hidden className="absolute top-3 bottom-3 left-2 w-px bg-ink-300" />
           {outline.map((item, index) => (

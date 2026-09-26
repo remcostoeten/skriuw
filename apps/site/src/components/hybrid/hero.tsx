@@ -35,7 +35,7 @@ export function HybridHero() {
   const latency = useLatency();
 
   return (
-    <section className="grid gap-10 overflow-hidden lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:items-center">
+    <section className="grid gap-10 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-14 lg:items-center">
       <div className="max-w-[440px]">
         <Link
           href="/#speed"
@@ -83,7 +83,7 @@ export function HybridHero() {
         </ul>
       </div>
 
-      <div className="relative lg:w-[760px]">
+      <div className="relative z-10 lg:w-[820px]">
         <p className="caps absolute -top-3 left-4 z-10 rounded-full border border-line bg-hy-bg px-2 py-0.5 text-[0.62rem] text-ink-500">
           app · live preview
         </p>
