@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+dashboard="https://expo.dev/accounts/remcostoeten/projects/skriuw"
+action="${1:-help}"
+if [[ $# -gt 0 ]]; then shift; fi
+
+# eas-cli writes a stray app.json into whatever directory it runs from, so it
+# always runs from the Expo project.
+cd "$repo_dir/apps/mobile"
+
+run_eas() {
+  if command -v eas >/dev/null 2>&1; then
+    command eas "$@"
+  else
+    bunx eas-cli@latest "$@"
+  fi
+}
+
+open_url() {
+  printf '%s\n' "$1"
+  if command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$1" >/dev/null 2>&1 &
+  elif command -v open >/dev/null 2>&1; then
+    open "$1"
+  fi
+}
+
+platform_arg() {
+  case "${1:-}" in
+    android|ios|all) printf '%s' "$1" ;;
+    *) printf 'Expected a platform: android, ios or all.\n' >&2; exit 2 ;;
+  esac
+}
+
+usage() {
+  cat <<'EOF'
+Usage: bin/eas <command> [args...]
+
+  login                        sign in to expo.dev
+  whoami                       show the signed-in Expo account
+  build <platform> [profile]   cloud build; platform android|ios|all, profile preview (default)|development|production
+  builds                       list the latest builds
+  credentials [platform]       manage signing keys and certificates
+  device                       register an iPhone for internal iOS builds
+  submit <platform>            upload the latest production build to the store
+  simulator                    check EAS Simulator access
+  ci [ref]                     run mobile-ci.yml with the EAS jobs on a branch (default: current)
+  token                        open the access token page and set the EXPO_TOKEN secret
+  dashboard                    open the project on expo.dev
+
+Anything else is passed to eas-cli as is, from apps/mobile.
+EOF
+}
+
+case "$action" in
+  login) run_eas login "$@" ;;
+  whoami) run_eas whoami "$@" ;;
+  build)
+    platform="$(platform_arg "${1:-}")"
+    run_eas build --platform "$platform" --profile "${2:-preview}" "${@:3}"
+    ;;
+  builds) run_eas build:list --limit 10 "$@" ;;
+  credentials)
+    if [[ $# -gt 0 ]]; then
+      platform="$(platform_arg "$1")"
+      run_eas credentials --platform "$platform" "${@:2}"
+    else
+      run_eas credentials
+    fi
+    ;;
+  device) run_eas device:create "$@" ;;
+  submit)
+    platform="$(platform_arg "${1:-}")"
+    run_eas submit --platform "$platform" --profile production --latest "${@:2}"
+    ;;
+  simulator) run_eas simulator:availability "$@" ;;
+  ci)
+    ref="${1:-$(git -C "$repo_dir" branch --show-current)}"
+    gh workflow run mobile-ci.yml --ref "$ref"
+    printf 'Started mobile-ci.yml on %s. Follow it with: gh run watch\n' "$ref"
+    ;;
+  token)
+    open_url "https://expo.dev/accounts/remcostoeten/settings/access-tokens"
+    printf 'Paste the new token below.\n'
+    gh secret set EXPO_TOKEN
+    ;;
+  dashboard) open_url "$dashboard" ;;
+  -h|--help|help) usage ;;
+  *) run_eas "$action" "$@" ;;
+esac

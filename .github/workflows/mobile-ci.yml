@@ -344,8 +344,8 @@ jobs:
                   [[ -n "$EXPO_TOKEN" ]] || missing+=("the EXPO_TOKEN repository secret is not configured")
                   jq -e '.expo.extra.eas.projectId' apps/mobile/app.json >/dev/null \
                       || missing+=("apps/mobile/app.json has no expo.extra.eas.projectId (run eas init)")
-                  jq -e '.scripts["eas-build-post-install"]' apps/mobile/package.json >/dev/null \
-                      || missing+=("apps/mobile/package.json has no eas-build-post-install hook that builds the gitignored Rust core on the EAS worker")
+                  jq -e '.scripts["eas-build-pre-install"]' apps/mobile/package.json >/dev/null \
+                      || missing+=("apps/mobile/package.json has no eas-build-pre-install hook that builds the gitignored Rust core on the EAS worker")
                   if ((${#missing[@]} == 0)); then
                       echo "ready=true" >> "$GITHUB_OUTPUT"
                       exit 0
