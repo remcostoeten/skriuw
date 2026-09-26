@@ -53,10 +53,8 @@ export function HybridHero() {
         </h1>
 
         <p className="mt-5 text-[16px] leading-[24px] text-ink-500">
-          Skriuw is a local-first writing workspace. Your notes live in{" "}
-          <strong className="font-medium text-ink-900">a SQLite database on your own device</strong>{" "}
-          &mdash; on disk on desktop, inside the browser on the web. No spinners, no round-trips, no
-          account.
+          Notes and a journal that live on your own device. Nothing to sign up for, and nothing
+          to wait for.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center gap-2">
