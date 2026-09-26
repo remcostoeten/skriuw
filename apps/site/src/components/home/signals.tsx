@@ -1,6 +1,6 @@
 import { importSources } from "@/data/content";
 
-export function HybridSignals() {
+export function HomeSignals() {
   return (
     <section className="p-0!">
       <div className="grid lg:grid-cols-[auto_minmax(0,1fr)]">
@@ -17,12 +17,8 @@ export function HybridSignals() {
                 <span className="text-[15px] font-medium tracking-[-0.01em] text-ink-900">
                   {source.name}
                 </span>
-                <span className="font-mono text-[11px] text-accent">
-                  {source.format}
-                </span>
-                <span className="mt-1 text-[12px] leading-4 text-ink-400">
-                  {source.keeps}
-                </span>
+                <span className="font-mono text-[11px] text-accent">{source.format}</span>
+                <span className="mt-1 text-[12px] leading-4 text-ink-400">{source.keeps}</span>
               </li>
             ))}
           </ul>

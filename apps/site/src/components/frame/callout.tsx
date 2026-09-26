@@ -20,7 +20,7 @@ type Props = {
  * Mono strip with a hatched ground running the full width behind the text.
  * `tone` picks the line and text colour; `moving` slides the hatch.
  */
-export function HybridCallout({ children, tone = "neutral", moving = true, className }: Props) {
+export function Callout({ children, tone = "neutral", moving = true, className }: Props) {
   return (
     <p
       className={cn(

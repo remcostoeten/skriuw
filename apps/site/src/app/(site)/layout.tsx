@@ -1,17 +1,10 @@
 import type { ReactNode } from "react";
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
+import { SiteFrame } from "@/components/frame/site-frame";
 
 type Props = {
   children: ReactNode;
 };
 
 export default function SiteLayout({ children }: Props) {
-  return (
-    <>
-      <SiteHeader />
-      <main>{children}</main>
-      <SiteFooter />
-    </>
-  );
+  return <SiteFrame>{children}</SiteFrame>;
 }

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { StatusPage } from "@/components/page/status-page";
-import { Action } from "@/components/ui/primitives";
+import Link from "next/link";
+import { cn } from "@skriuw/shared/helpers/cn";
+import { outlineButton, primaryButton } from "@/components/frame/control";
 import { repoUrl, statusSuggestions } from "@/data/content";
 
 export const metadata: Metadata = {
@@ -12,17 +14,18 @@ export const metadata: Metadata = {
 export default function NotFound() {
   return (
     <StatusPage
-      code="404 / Not found"
+      code="404"
+      label="not found"
       title="This page is not here."
       lede="The link is either outdated or mistyped. Nothing was lost on your side: your notes live on your machine, not on this site."
       actions={
         <>
-          <Action href="/" size="lg" arrow="disc">
+          <Link href="/" className={primaryButton}>
             Back to the homepage
-          </Action>
-          <Action href={repoUrl} size="lg" variant="outline">
+          </Link>
+          <a href={`${repoUrl}/issues/new`} className={cn(outlineButton, "h-10 px-4")}>
             Report a broken link
-          </Action>
+          </a>
         </>
       }
       suggestions={statusSuggestions}

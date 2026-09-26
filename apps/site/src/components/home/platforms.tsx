@@ -5,8 +5,8 @@ import { cn } from "@skriuw/shared/helpers/cn";
 import { stagger, useReveal } from "@/components/ui/reveal";
 import { Apple, Globe, Linux, Windows } from "@/components/ui/icons";
 import { installChannels, releasesUrl } from "@/data/content";
-import { badge, outlineButton } from "@/components/hybrid/control";
-import { HybridSectionHead } from "@/components/hybrid/section-head";
+import { badge, outlineButton } from "@/components/frame/control";
+import { SectionHead } from "@/components/frame/section-head";
 import { DesktopArt } from "@/components/platform-art";
 
 const iconMap = {
@@ -47,12 +47,12 @@ const rows = [
   },
 ] as const;
 
-export function HybridPlatforms() {
+export function HomePlatforms() {
   const listRef = useReveal<HTMLDivElement>();
 
   return (
     <section id="platforms">
-      <HybridSectionHead
+      <SectionHead
         index="03"
         label="platforms"
         title="The same Rust core on desktop, in the browser, and in your own files."

@@ -12,8 +12,8 @@ import {
   LockVignette,
   PaletteVignette,
 } from "@/components/bento-vignettes";
-import { badge, card } from "@/components/hybrid/control";
-import { HybridSectionHead } from "@/components/hybrid/section-head";
+import { badge, card } from "@/components/frame/control";
+import { SectionHead } from "@/components/frame/section-head";
 
 const vignetteMap: Record<string, ReactNode> = {
   editor: <EditorVignette />,
@@ -24,12 +24,12 @@ const vignetteMap: Record<string, ReactNode> = {
   palette: <PaletteVignette />,
 };
 
-export function HybridFeatures() {
+export function HomeFeatures() {
   const gridRef = useReveal<HTMLDivElement>();
 
   return (
     <section id="features">
-      <HybridSectionHead
+      <SectionHead
         index="01"
         label="features"
         title="Notes, journal, and tasks. One app, everything links to everything."

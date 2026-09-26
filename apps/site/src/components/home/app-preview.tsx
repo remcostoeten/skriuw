@@ -149,7 +149,7 @@ function SectionLabel({ children, count }: { children: ReactNode; count?: number
   );
 }
 
-export function HybridAppPreview() {
+export function AppPreview() {
   return (
     <div className="flex h-[480px] w-full overflow-hidden rounded-xl border border-border bg-surface text-ink-700 shadow-(--preview-shadow)">
       <nav className="flex w-9 shrink-0 flex-col items-center border-r border-border py-2">

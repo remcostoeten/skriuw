@@ -1,6 +1,6 @@
 import { themes } from "@/data/content";
 
-export function HybridThemes() {
+export function HomeThemes() {
   return (
     <section className="flex flex-wrap items-center justify-between gap-4 py-5!">
       <p className="caps text-ink-400">

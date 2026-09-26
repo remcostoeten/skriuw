@@ -5,9 +5,9 @@ import Link from "next/link";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import { Android, Apple, Download, Globe, Linux, Windows } from "@/components/ui/icons";
-import { HybridAppPreview } from "@/components/hybrid/app-preview";
+import { AppPreview } from "@/components/home/app-preview";
 import { appUrl, releasesUrl } from "@/data/content";
-import { outlineButton, primaryButton } from "@/components/hybrid/control";
+import { outlineButton, primaryButton } from "@/components/frame/control";
 
 const inTheWorks = "In the works";
 
@@ -22,7 +22,7 @@ type Props = {
   badge: ReactNode;
 };
 
-export function HybridHero({ badge }: Props) {
+export function HomeHero({ badge }: Props) {
   return (
     <section className="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-12 lg:items-center">
       <div className="max-w-[480px]">
@@ -87,7 +87,7 @@ export function HybridHero({ badge }: Props) {
           app · live preview
         </p>
         <div className="rounded-[10px] border border-dashed border-line p-2">
-          <HybridAppPreview />
+          <AppPreview />
         </div>
       </div>
     </section>

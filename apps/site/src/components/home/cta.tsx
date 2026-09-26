@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { appUrl, releasesUrl } from "@/data/content";
-import { badge, outlineButton, primaryButton } from "@/components/hybrid/control";
+import { badge, outlineButton, primaryButton } from "@/components/frame/control";
 
-export function HybridCta() {
+export function HomeCta() {
   return (
     <section className="border-b-0!">
       <div className="hy-dots grid place-items-center rounded-[10px] border border-dashed border-line px-6 py-16 text-center">
