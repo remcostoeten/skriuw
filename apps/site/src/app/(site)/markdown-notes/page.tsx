@@ -91,7 +91,8 @@ export default function MarkdownNotesPage() {
       />
 
       <PageHero
-        kicker="03 / Markdown"
+        index="03"
+        label="markdown"
         marks={["Readable source", "Structured editor", "Portable archive"]}
         eyebrow="Rich when writing · raw when precision matters"
         title="Markdown when you want it. A real editor when you don't."
@@ -103,27 +104,26 @@ export default function MarkdownNotesPage() {
       />
 
       <PageSection
+        index="01"
         label="One note, two views"
         lead="The source stays close"
         trail="without sitting between you and every sentence."
         intro="Markdown input rules turn familiar punctuation into structure as you type. Raw mode exposes the underlying text with line numbers, position, counts, and synchronized scrolling."
       >
-        <div className="grid gap-px overflow-hidden rounded-card border border-border bg-border lg:grid-cols-2">
-          <div className="bg-surface p-7">
-            <span className="font-mono text-[12px] tracking-[0.06em] text-ink-400 uppercase">
-              Raw Markdown
-            </span>
-            <pre className="mt-5 overflow-x-auto font-mono text-[13px] leading-[22px] text-ink-700">
+        <div className="grid divide-y divide-dashed divide-line rounded-[10px] border border-line bg-hy-card lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+          <div className="min-w-0 p-6">
+            <span className="caps text-ink-400">Raw Markdown</span>
+            <pre className="mt-5 overflow-x-auto rounded-md border border-line bg-hy-bg p-4 font-mono text-[12.5px] leading-[21px] text-ink-700">
               <code>{rawSample}</code>
             </pre>
           </div>
 
-          <div className="bg-surface p-7">
-            <span className="font-mono text-[12px] tracking-[0.06em] text-ink-400 uppercase">
-              Structured editor
-            </span>
+          <div className="min-w-0 p-6">
+            <span className="caps text-ink-400">Structured editor</span>
             <div className="mt-5">
-              <h3 className="text-[22px] font-medium text-ink-900">Field notes</h3>
+              <h3 className="font-serif text-[26px] leading-[32px] font-normal tracking-[-0.5px] text-ink-900">
+                Field notes
+              </h3>
               <p className="mt-3 text-[15px] leading-[24px] text-ink-500">
                 Folders decide where a note lives. Links decide what it is about.
               </p>
@@ -140,7 +140,7 @@ export default function MarkdownNotesPage() {
                   <span aria-hidden className="mt-2.5 size-1 shrink-0 rounded-full bg-ink-300" />
                   <span>
                     Tag the idea with{" "}
-                    <span className="font-mono text-[13px] text-clay-500">#reference</span>
+                    <span className="font-mono text-[13px] text-accent">#reference</span>
                   </span>
                 </li>
                 <li className="flex gap-3">
@@ -157,15 +157,16 @@ export default function MarkdownNotesPage() {
       </PageSection>
 
       <PageSection
+        index="02"
         label="Writing surface"
         lead="Enough structure for serious notes."
         trail="No schema ceremony before the first line."
-        tinted
       >
         <CardGrid columns={4} items={surface} />
       </PageSection>
 
       <PageSection
+        index="03"
         label="Portability"
         lead="Unsupported does not mean discarded."
         intro="When Skriuw cannot represent Markdown safely in the structured editor, it preserves the exact source in raw mode. Frontmatter and footnotes remain source text until they have a lossless structured representation."

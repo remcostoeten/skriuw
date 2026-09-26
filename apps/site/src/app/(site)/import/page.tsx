@@ -1,5 +1,12 @@
 import type { Metadata } from "next";
-import { CardGrid, PageCta, PageHero, PageSection, Steps } from "@/components/page/page-shell";
+import {
+  CardGrid,
+  PageCta,
+  PageHero,
+  PageSection,
+  Steps,
+  Note,
+} from "@/components/page/page-shell";
 import { JsonLd } from "@/components/page/json-ld";
 import { socialImage } from "@/data/seo";
 import { repoUrl } from "@/data/content";
@@ -121,7 +128,8 @@ export default function ImportPage() {
       />
 
       <PageHero
-        kicker="04 / Import"
+        index="04"
+        label="import"
         marks={["Local source", "Previewed plan", "Atomic commit"]}
         eyebrow="Obsidian · Notion · Bear · Apple Notes · and more"
         title="Bring the archive. Inspect it before it moves."
@@ -133,6 +141,7 @@ export default function ImportPage() {
       />
 
       <PageSection
+        index="01"
         label="The import path"
         lead="A migration should explain itself"
         trail="before it changes the archive."
@@ -142,26 +151,27 @@ export default function ImportPage() {
       </PageSection>
 
       <PageSection
+        index="02"
         label="Supported sources"
         lead="Use the export"
         trail="your current app already gives you."
         intro="Skriuw reads documented export formats and ordinary local files. It does not log in to another notes service or read a private application database."
-        tinted
       >
         <CardGrid columns={4} items={sources} />
       </PageSection>
 
       <PageSection
+        index="03"
         label="Fidelity over guesses"
         lead="Ambiguous content remains"
         trail="visible, portable source."
       >
         <CardGrid columns={4} items={fidelity} />
-        <p className="mt-8 rounded-card border border-clay-300 bg-clay-100 p-6 text-[15px] leading-[24px] text-ink-700">
+        <Note className="mt-4">
           Archives reject absolute paths, parent traversal, symlinks, duplicate case-insensitive
           paths, excessive depth, excessive entry counts, and expanded data beyond bounded safety
           limits.
-        </p>
+        </Note>
       </PageSection>
 
       <PageCta

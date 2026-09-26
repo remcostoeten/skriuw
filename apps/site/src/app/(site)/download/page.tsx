@@ -1,5 +1,12 @@
 import type { Metadata } from "next";
-import { CodeCard, PageCta, PageHero, PageSection, TermGrid } from "@/components/page/page-shell";
+import {
+  CodeCard,
+  PageCta,
+  PageHero,
+  PageSection,
+  TermGrid,
+  Note,
+} from "@/components/page/page-shell";
 import { JsonLd } from "@/components/page/json-ld";
 import { socialImage } from "@/data/seo";
 import { appUrl, releasesUrl } from "@/data/content";
@@ -94,7 +101,8 @@ export default function DownloadPage() {
       />
 
       <PageHero
-        kicker="01 / Download"
+        index="01"
+        label="download"
         marks={["Native shell", "Local database", "Your filesystem"]}
         eyebrow="Free · open source · no account required"
         title="Install it. Keep your data."
@@ -106,6 +114,7 @@ export default function DownloadPage() {
       />
 
       <PageSection
+        index="01"
         label="Install channels"
         lead="Use the package manager"
         trail="already on your machine."
@@ -117,7 +126,7 @@ export default function DownloadPage() {
           ))}
         </div>
 
-        <p className="mt-8 rounded-card border border-clay-300 bg-clay-100 p-6 text-[15px] leading-[24px] text-ink-700">
+        <Note className="mt-4">
           Direct <code className="font-mono text-[13px]">.dmg</code>,{" "}
           <code className="font-mono text-[13px]">.exe</code> /{" "}
           <code className="font-mono text-[13px]">.msi</code>,{" "}
@@ -125,14 +134,14 @@ export default function DownloadPage() {
           <code className="font-mono text-[13px]">.rpm</code>, and AppImage files are attached to
           each GitHub release. The AUR package can lag behind while upstream publication is paused;
           Winget and Snap are not current install channels.
-        </p>
+        </Note>
       </PageSection>
 
       <PageSection
+        index="02"
         label="One product"
         lead="Desktop when you want the filesystem."
         trail="Browser when you want a blank page now."
-        tinted
       >
         <TermGrid terms={surfaces} />
       </PageSection>

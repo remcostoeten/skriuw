@@ -1,7 +1,6 @@
 export const appUrl = "/app/";
 export const repoUrl = "https://github.com/remcostoeten/skriuw";
-export const releasesUrl =
-  "https://github.com/remcostoeten/skriuw/releases/latest";
+export const releasesUrl = "https://github.com/remcostoeten/skriuw/releases/latest";
 
 export const navLinks = [
   { label: "Features", href: "/#features" },
@@ -75,14 +74,6 @@ export const importSources = [
   { name: "ZIP", format: ".zip", keeps: "Scanned before a byte is written" },
 ];
 
-export const tickerStats = [
-  { label: "Letter appears in", value: "8 ms" },
-  { label: "Disk reads when switching notes", value: "0" },
-  { label: "Command palette opens in", value: "8 ms" },
-  { label: "Scrolling 5,000 notes", value: "no stutter" },
-  { label: "Account required", value: "none" },
-];
-
 export const bentoCards = [
   {
     keys: "⌘ /",
@@ -132,49 +123,6 @@ export const bentoCards = [
     body: "Full-text search, tabs, split view, vim mode, and a rebindable shortcut for everything in the app.",
     span: "lg:col-span-12",
     wide: true,
-  },
-];
-
-export const platformStories = [
-  {
-    kicker: "Desktop",
-    lead: "The full app,",
-    brand: "offline",
-    tail: "on macOS, Windows, Linux, iOS, and Android, or as a PWA. No account, no network, no sign-up wall.",
-    stats: [
-      {
-        value: "One file",
-        label: "Your whole workspace, on your disk, yours to copy or back up",
-      },
-      { value: "Rust", label: "Domain, storage, and history core" },
-    ],
-    tone: "dark" as const,
-  },
-  {
-    kicker: "Browser",
-    lead: "The same core, compiled to",
-    brand: "WebAssembly",
-    tail: "so you can try the real app at skriuw.com/app without installing anything.",
-    stats: [
-      { value: "0", label: "Bytes leave the tab until you sign in" },
-      {
-        value: "Offline",
-        label:
-          "Installs to your home screen and keeps working with no connection",
-      },
-    ],
-    tone: "sage" as const,
-  },
-  {
-    kicker: "Your data",
-    lead: "Exportable to",
-    brand: "plain Markdown",
-    tail: "at any moment, plus versioned archives and verified six-hourly backups.",
-    stats: [
-      { value: "6 h", label: "Backup cadence, each one verified" },
-      { value: "MIT", label: "Licensed, and the source is public" },
-    ],
-    tone: "plum" as const,
   },
 ];
 
@@ -256,8 +204,7 @@ export const installChannels = [
   {
     name: "macOS",
     icon: "macos" as const,
-    summary:
-      "Universal build for Apple silicon and Intel, signed and notarized.",
+    summary: "Universal build for Apple silicon and Intel, signed and notarized.",
     hint: "`brew install --cask skriuw/tap/skriuw`",
     cta: "Download for macOS",
     href: releasesUrl,
@@ -283,49 +230,6 @@ export const installChannels = [
     href: releasesUrl,
     ctaVariant: "outline" as const,
     featured: false,
-  },
-];
-
-export const faqItems = [
-  {
-    question: "What is Skriuw?",
-    answer:
-      "Skriuw (Frisian for “to write”) is a local-first workspace for writing, journaling, and connected knowledge. Your notes live in a SQLite database on your own machine. It opens instantly, runs entirely offline, and works without an account.",
-  },
-  {
-    question: "Do I need an account?",
-    answer:
-      "No. The desktop app and the browser build both run fully local with no sign-up. An account only exists so your workspace can sync between devices, and that is strictly opt-in. Turning it off is the default, not a setting you have to find.",
-  },
-  {
-    question: "Where are my notes stored?",
-    answer:
-      "On the device you write on. The desktop app keeps one SQLite database on your disk, alongside a folder of images, a Git history, and your backups; Settings shows the exact path, opens it in your file manager, and can move the whole workspace elsewhere with a verified copy. The browser and mobile builds keep the same SQLite database in the app's own private storage on that device. Only if you opt into sync does a copy also sit in the cloud, end-to-end encrypted, so your other devices can pull it.",
-  },
-  {
-    question: "Can I get my notes back out?",
-    answer:
-      "Any time, without asking us, from the desktop app or the browser build alike. Export a single note or the whole workspace as plain Markdown, or as a versioned JSON archive with golden-fixture tests guaranteeing old archives keep importing. Nothing you need is held only in the cloud, so there is no lock-in to escape.",
-  },
-  {
-    question: "Can I import from Obsidian or Notion?",
-    answer:
-      "Yes: Obsidian, Notion, Bear, Simplenote, Apple Notes, and plain Markdown or text, from folders, single files, ZIPs, or .bear2bk backups. You see the format, destination, counts, and warnings in a preview before anything is written, and the import lands as one atomic commit.",
-  },
-  {
-    question: "How is sync private if it is on a server?",
-    answer:
-      "Sync is end-to-end encrypted. A recovery code shown once derives the content key on your devices and is never sent anywhere; the server stores titles, bodies, tags, people, and media as opaque bytes. Lose the code and you lose only the cloud copy; the notes on your devices are untouched.",
-  },
-  {
-    question: "What does it cost?",
-    answer:
-      "Nothing. Skriuw is free and MIT licensed, on every platform, with no paid tier, no seats, and no feature held back. The source is on GitHub if you would rather build it yourself.",
-  },
-  {
-    question: "Is there an AI assistant in my notes?",
-    answer:
-      "Only if you turn one on. AI is invisible until explicitly enabled, and then it is local-first through Ollama or your own Gemini/Groq key. Output streams into a preview rather than into your note, so declining a suggestion leaves the document byte-for-byte unchanged.",
   },
 ];
 

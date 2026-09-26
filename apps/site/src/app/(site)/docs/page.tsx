@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Container } from "@/components/ui/primitives";
+import { cn } from "@skriuw/shared/helpers/cn";
+import { card } from "@/components/frame/control";
+import { SectionHead } from "@/components/frame/section-head";
 import { PageCta, PageHero } from "@/components/page/page-shell";
 import { docHref, docPages, docSourceUrl } from "@/data/docs";
 import { repoUrl } from "@/data/content";
@@ -24,7 +26,8 @@ export default function DocsIndexPage() {
   return (
     <>
       <PageHero
-        kicker="Documentation"
+        index="05"
+        label="documentation"
         marks={["Written in the repo", "Rendered here", "Always current"]}
         eyebrow="Skriuw documentation"
         title={
@@ -36,41 +39,42 @@ export default function DocsIndexPage() {
         lede="Every page here is generated at build time from the Markdown in the repository, so the site and the source can never drift apart."
         actions={[
           { label: "Every feature", href: "/docs/features/" },
-          { label: "Browse the repository", href: repoUrl, variant: "outline" },
+          { label: "Browse the repository", href: repoUrl },
         ]}
       />
 
-      <section className="border-b border-border bg-surface py-20">
-        <Container>
-          <div className="grid gap-px overflow-hidden rounded-card border border-border bg-border sm:grid-cols-2">
-            {docPages.map((page) => (
-              <article key={page.slug} className="flex flex-col gap-3 bg-surface p-7">
-                <span className="font-mono text-[12px] tracking-[0.06em] text-ink-400 uppercase">
-                  {page.kicker}
-                </span>
-                <h2 className="text-[20px] font-medium text-ink-900">
-                  <Link
-                    href={docHref(page)}
-                    className="hover:text-focus-ink focus-visible:text-focus-ink"
-                  >
-                    {page.title}
-                  </Link>
-                </h2>
-                <p className="text-[15px] leading-[24px] text-ink-500">{page.description}</p>
-                <p className="mt-2 font-mono text-[12px] text-ink-400">
-                  <a
-                    href={docSourceUrl(page)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="hover:text-ink-700"
-                  >
-                    {page.source}
-                  </a>
-                </p>
-              </article>
-            ))}
-          </div>
-        </Container>
+      <section>
+        <SectionHead
+          index="01"
+          label="pages"
+          title="Start with the features, then read the reasoning behind them."
+        />
+        <ul className="mt-8 grid list-none gap-3 p-0 sm:grid-cols-2">
+          {docPages.map((page) => (
+            <li key={page.slug} className={cn(card, "relative flex flex-col p-6")}>
+              <span className="caps text-ink-400">{page.kicker}</span>
+              <h2 className="mt-4 text-[17px] font-medium tracking-[-0.01em] text-ink-900">
+                <Link
+                  href={docHref(page)}
+                  className="outline-none after:absolute after:inset-0 after:rounded-[10px] focus-visible:after:outline-2 focus-visible:after:outline-accent/60"
+                >
+                  {page.title}
+                </Link>
+              </h2>
+              <p className="mt-2 text-[14px] leading-[22px] text-ink-500">{page.description}</p>
+              <p className="relative z-[1] mt-auto pt-5 font-mono text-[11px] text-ink-400">
+                <a
+                  href={docSourceUrl(page)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline decoration-line underline-offset-3 transition-colors hover:text-ink-700"
+                >
+                  {page.source}
+                </a>
+              </p>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <PageCta

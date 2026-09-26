@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { outlineButton } from "@/components/hybrid/control";
+import { outlineButton } from "@/components/frame/control";
 
 type Props = {
   index: string;
@@ -9,7 +9,7 @@ type Props = {
   action?: { label: string; href: string };
 };
 
-export function HybridSectionHead({ index, label, title, action }: Props) {
+export function SectionHead({ index, label, title, action }: Props) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-6">
       <div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useComparison } from "../hooks/use-comparison";
+import { outlineButton } from "@/components/frame/control";
 import styles from "./changelog.module.css";
 
 type Props = {
@@ -16,7 +17,7 @@ export function ReleaseChanges({ id, previous }: Props) {
     <section className={styles.changes}>
       <button
         type="button"
-        className={styles.button}
+        className={outlineButton}
         onClick={toggle}
         disabled={pending}
         aria-expanded={open}
@@ -27,8 +28,16 @@ export function ReleaseChanges({ id, previous }: Props) {
       </button>
 
       <div id={panel} hidden={!open} aria-busy={pending}>
-        {pending && <p role="status">Fetching comparison…</p>}
-        {error && <p role="alert">{error}</p>}
+        {pending && (
+          <p role="status" className={styles.muted}>
+            Fetching comparison…
+          </p>
+        )}
+        {error && (
+          <p role="alert" className={styles.muted}>
+            {error}
+          </p>
+        )}
 
         {data && (
           <div className={styles.comparison}>

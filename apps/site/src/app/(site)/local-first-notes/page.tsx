@@ -89,7 +89,8 @@ export default function LocalFirstNotesPage() {
       />
 
       <PageHero
-        kicker="02 / Local-first"
+        index="02"
+        label="local-first"
         marks={["Write locally", "Recover locally", "Choose the network"]}
         eyebrow="Private by default, explicit by design"
         title="A notes app that starts on your machine."
@@ -101,6 +102,7 @@ export default function LocalFirstNotesPage() {
       />
 
       <PageSection
+        index="01"
         label="What local means"
         lead="The page does not wait for a server"
         trail="to agree that it exists."
@@ -110,11 +112,11 @@ export default function LocalFirstNotesPage() {
       </PageSection>
 
       <PageSection
+        index="02"
         label="The boundary"
         lead="Nothing crosses the network"
         trail="because a setting was easy to miss."
         intro="Skriuw has network features. It does not disguise them as local features. Sync, remote AI, and update checks each have a visible boundary."
-        tinted
       >
         <BoundaryLists
           columns={[
@@ -143,7 +145,12 @@ export default function LocalFirstNotesPage() {
         />
       </PageSection>
 
-      <PageSection label="Durability" lead="Local should not mean" trail="trapped in one database.">
+      <PageSection
+        index="03"
+        label="Durability"
+        lead="Local should not mean"
+        trail="trapped in one database."
+      >
         <TermGrid terms={durability} />
       </PageSection>
 

@@ -4,9 +4,9 @@ import { cn } from "@skriuw/shared/helpers/cn";
 import { CountUp } from "@/components/ui/count-up";
 import { stagger, useReveal } from "@/components/ui/reveal";
 import { engineeringStats } from "@/data/content";
-import { badge } from "@/components/hybrid/control";
-import { HybridCallout } from "@/components/hybrid/callout";
-import { HybridSectionHead } from "@/components/hybrid/section-head";
+import { badge } from "@/components/frame/control";
+import { Callout } from "@/components/frame/callout";
+import { SectionHead } from "@/components/frame/section-head";
 
 const tones = ["ok", "muted", "muted"] as const;
 
@@ -20,12 +20,12 @@ const toneLabel: Record<(typeof tones)[number], string> = {
   muted: "measured",
 };
 
-export function HybridProof() {
+export function HomeProof() {
   const gridRef = useReveal<HTMLDivElement>();
 
   return (
     <section id="speed">
-      <HybridSectionHead
+      <SectionHead
         index="02"
         label="proof"
         title="It's fast. Every number below comes from a test we run on every commit."
@@ -50,9 +50,7 @@ export function HybridProof() {
         ))}
       </div>
 
-      <HybridCallout className="mt-4">
-        switching notes touches neither the disk nor the database
-      </HybridCallout>
+      <Callout className="mt-4">switching notes touches neither the disk nor the database</Callout>
     </section>
   );
 }
