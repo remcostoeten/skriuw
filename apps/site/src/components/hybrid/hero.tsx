@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { Apple, ArrowRight, Download, Globe, Linux, Windows } from "@/components/ui/icons";
-import { HeroAppPreview } from "@/components/hero-app-preview";
+import { HybridAppPreview } from "@/components/hybrid/app-preview";
 import { appUrl, releasesUrl } from "@/data/content";
 import { outlineButton, primaryButton } from "@/components/hybrid/control";
 
@@ -88,7 +88,7 @@ export function HybridHero() {
           app · live preview
         </p>
         <div className="animate-hy-enter rounded-[10px] border border-dashed border-line p-2">
-          <HeroAppPreview />
+          <HybridAppPreview />
         </div>
       </div>
     </section>
