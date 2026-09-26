@@ -1,8 +1,8 @@
 import { env, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
-import goldenPushV2 from "../../../contracts/fixtures/sync-push-v2.json";
-import goldenPushV2Content from "../../../contracts/fixtures/sync-push-v2-content.json";
+import goldenPushV2 from "../../fixtures/contracts/sync-push-v2.json";
+import goldenPushV2Content from "../../fixtures/contracts/sync-push-v2-content.json";
 import {
   type CredentialVerification,
   type CredentialVerifier,

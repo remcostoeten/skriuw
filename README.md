@@ -180,7 +180,7 @@ Framework-independent v2 helpers live in [`packages/shared`](packages/shared/REA
 ## Using the previous generation
 
 The previous generation of Skriuw (web, mobile, collaboration, self-hosting)
-lives in [`v1/`](v1) and is frozen at `0.25.0`. It is still installable:
+lives in [`v1-final/`](v1-final) and is frozen at `0.25.0`. It is still installable:
 
 ```bash
 # source as it shipped, before the move into v1/
@@ -196,9 +196,9 @@ Desktop installers for macOS, Windows, and Linux are attached to the
 The `:latest` container tag still builds from the v1 tree but is rebuilt on
 every v2 release, so pin `0.25.0` if you want the frozen version.
 
-To work on v1 in this repository instead, use `v1/` on the current branch, or
+To work on v1 in this repository instead, use `v1-final/` on the current branch, or
 `f74af74f` for the last commit that touched it before the freeze. Setup lives
-in [`v1/README.md`](v1/README.md).
+in [`v1-final/README.md`](v1-final/README.md).
 
 ### Thanks
 

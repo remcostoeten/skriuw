@@ -115,7 +115,7 @@
     }
   ],
   "ignorePatterns": [
-    "v1/**",
+    "v1-final/**",
     "target/**",
     "**/node_modules/**",
     "**/dist/**",

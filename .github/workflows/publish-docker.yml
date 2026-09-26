@@ -60,8 +60,8 @@ jobs:
             - name: Build and push
               uses: docker/build-push-action@v6
               with:
-                  # The self-host image is the v1 web app, which now lives in v1/.
-                  context: ./v1
+                  # The self-host image is the v1 web app, which now lives in v1-final/.
+                  context: ./v1-final
                   # linux/arm64 lets Apple-silicon and ARM servers pull natively.
                   platforms: linux/amd64,linux/arm64
                   push: true

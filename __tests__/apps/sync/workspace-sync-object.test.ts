@@ -1,9 +1,9 @@
 import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
-import goldenPush from "../../../contracts/fixtures/sync-push-v1.json";
-import goldenPushV2 from "../../../contracts/fixtures/sync-push-v2.json";
-import goldenPushV2Content from "../../../contracts/fixtures/sync-push-v2-content.json";
+import goldenPush from "../../fixtures/contracts/sync-push-v1.json";
+import goldenPushV2 from "../../fixtures/contracts/sync-push-v2.json";
+import goldenPushV2Content from "../../fixtures/contracts/sync-push-v2-content.json";
 import workspaceOperationSchema from "../../../contracts/generated/workspace-operation.schema.json";
 import { WorkspaceContentStore } from "../../../apps/sync/src/content-store";
 import { SYNC_ROUTE_NAMES } from "../../../apps/sync/src/public-api";

@@ -2,8 +2,10 @@ import "server-only";
 
 import type { z } from "zod";
 
+import { repoUrl } from "@/data/content";
+
 export async function github<T>(path: string, schema: z.ZodType<T>): Promise<T> {
-  const repository = process.env.GITHUB_REPO;
+  const repository = process.env.GITHUB_REPO || new URL(repoUrl).pathname.slice(1);
   const token = process.env.GITHUB_TOKEN;
 
   if (!repository || !/^[\w.-]+\/[\w.-]+$/.test(repository)) {

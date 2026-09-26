@@ -7,7 +7,7 @@ Thank you for helping improve Skriuw. Bug fixes, documentation improvements, tes
 Skriuw contains two product lines:
 
 - The repository root is the current (v2) local-first desktop application.
-- `v1/` contains the frozen legacy web, mobile, and self-hosted line.
+- `v1-final/` contains the frozen legacy web, mobile, and self-hosted line.
 
 Check for an existing issue before starting a large change. Open an issue first when a proposal changes persisted data, public contracts, security behavior, or an architectural decision.
 
@@ -51,7 +51,7 @@ in `renderer-core`. See [TypeScript testing](../docs/testing.md) for suite place
 
 `apps/workspace/`, `apps/site/`, `apps/mobile/`, and `packages/*` are Bun workspaces resolved from one root
 lockfile, so `bun install` at the repository root installs them together. `apps/sync/`,
-the harnesses under `apps/workspace/harnesses/` and `v1/` stay outside the workspace and
+the harnesses under `apps/workspace/harnesses/` and `v1-final/` stay outside the workspace and
 keep their own installs.
 
 ```bash
@@ -73,15 +73,15 @@ The client is described by
 Install Bun 1.3 and Node.js 24, then:
 
 ```bash
-cd v1
+cd v1-final
 bun install
 cp .env.example .env.local
 bun dev
 ```
 
-The environment variables required by the web application are documented in [v1/apps/documentation/content/docs/infra/environment-variables.mdx](../v1/apps/documentation/content/docs/infra/environment-variables.mdx).
+The environment variables required by the web application are documented in [v1-final/apps/documentation/content/docs/infra/environment-variables.mdx](../v1-final/apps/documentation/content/docs/infra/environment-variables.mdx).
 
-Common checks, all run from `v1/`:
+Common checks, all run from `v1-final/`:
 
 ```bash
 bun lint

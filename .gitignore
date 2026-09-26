@@ -19,7 +19,7 @@ node_modules
 dist
 dist-ssr
 
-# Rust / Tauri build artifacts (v1/apps/desktop/src-tauri/target ~ 5GB)
+# Rust / Tauri build artifacts (v1-final/apps/desktop/src-tauri/target ~ 5GB)
 target/
 project-management/
 *.local
@@ -54,7 +54,7 @@ test-results/
 react-doctor-reports/
 
 # Prisma generated client (regenerated via `bunx prisma generate`)
-# Output now lives at v1/apps/web/generated; keep unanchored so it's ignored there.
+# Output now lives at v1-final/apps/web/generated; keep unanchored so it's ignored there.
 generated/
 
 # Transport contracts are generated but intentionally committed.
@@ -71,12 +71,12 @@ TODO.*
 .agents/
 .env*
 !.env.example
-!v1/apps/mobile/.env.example
-v1/apps/desktop/skriuw_*_amd64-working-directory/
+!v1-final/apps/mobile/.env.example
+v1-final/apps/desktop/skriuw_*_amd64-working-directory/
 
 next-beats/
 paralelprompts/
-v1/apps/documentation/native/
+v1-final/apps/documentation/native/
 
 # One-shot release-notes files fed to gh release create
 release-notes-v2-*.txt

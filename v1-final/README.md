@@ -43,7 +43,7 @@ prisma/                database schema and migrations
 Requires Bun 1.3 and Node.js 24. Every command below runs from this directory.
 
 ```bash
-cd v1
+cd v1-final
 bun install
 cp .env.example .env.local
 bun dev

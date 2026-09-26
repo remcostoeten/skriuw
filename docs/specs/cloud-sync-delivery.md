@@ -60,7 +60,7 @@ missing prerequisites.
 ### A. Protocol and replication policy owner
 
 **Owns:** `crates/skriuw-domain/src/sync.rs`, operation classification,
-`contracts/fixtures/`, generated sync schemas, protocol ADR/spec additions.
+`__tests__/fixtures/contracts/`, generated sync schemas, protocol ADR/spec additions.
 
 **Prerequisite:** none.
 **Unblocks:** B, C validation, D, E parity, F convergence.

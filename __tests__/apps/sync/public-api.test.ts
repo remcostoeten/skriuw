@@ -1,8 +1,8 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it, vi } from "vitest";
 
-import goldenPush from "../../../contracts/fixtures/sync-push-v1.json";
-import goldenPushV2 from "../../../contracts/fixtures/sync-push-v2.json";
+import goldenPush from "../../fixtures/contracts/sync-push-v1.json";
+import goldenPushV2 from "../../fixtures/contracts/sync-push-v2.json";
 import { WorkspaceContentStore } from "../../../apps/sync/src/content-store";
 import {
   type CredentialVerification,

@@ -28,6 +28,17 @@
 			"permanent": true
 		},
 		{
+			"source": "/:path*",
+			"has": [
+				{
+					"type": "host",
+					"value": "docs.skriuw.com"
+				}
+			],
+			"destination": "https://skriuw.com/docs/",
+			"permanent": true
+		},
+		{
 			"source": "/app",
 			"destination": "/app/",
 			"permanent": true

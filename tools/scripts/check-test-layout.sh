@@ -15,7 +15,7 @@ tracked_files() {
   done
 }
 
-outside="$(tracked_files | grep -E "$suite_pattern" | grep -vE '^(__tests__|v1)/' || true)"
+outside="$(tracked_files | grep -E "$suite_pattern" | grep -vE '^(__tests__|v1-final)/' || true)"
 if [[ -n "$outside" ]]; then
   printf 'These suites are outside __tests__/; move them to __tests__/<path of the code they cover>:\n%s\n' "$outside" >&2
   exit 1

@@ -91,7 +91,7 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
   [Rust sync contracts](../../crates/skriuw-domain/src/sync.rs) and generated
   JSON Schemas.
 - [x] Add a
-  [cross-language golden wire fixture](../../contracts/fixtures/sync-push-v1.json).
+  [cross-language golden wire fixture](../../__tests__/fixtures/contracts/sync-push-v1.json).
 - [x] Classify every `WorkspaceOperation` through the exhaustive
   [sync policy](workspace-operation-sync-policy-v1.md), including protocol-v1
   unsupported operations and Worker rejection behavior.

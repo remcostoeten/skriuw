@@ -6,10 +6,10 @@ on:
             - daddy
             - master
         paths-ignore:
-            - "v1/**"
+            - "v1-final/**"
     pull_request:
         paths-ignore:
-            - "v1/**"
+            - "v1-final/**"
 
 permissions:
     contents: read
