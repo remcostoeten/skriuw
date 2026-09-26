@@ -5,6 +5,7 @@ import { CountUp } from "@/components/ui/count-up";
 import { stagger, useReveal } from "@/components/ui/reveal";
 import { engineeringStats } from "@/data/content";
 import { badge } from "@/components/hybrid/control";
+import { HybridCallout } from "@/components/hybrid/callout";
 import { HybridSectionHead } from "@/components/hybrid/section-head";
 
 const tones = ["ok", "muted", "muted"] as const;
@@ -49,10 +50,9 @@ export function HybridProof() {
         ))}
       </div>
 
-      <div className="caps mt-4 flex items-center gap-3 rounded-md border border-dashed border-line px-3 py-2 text-ink-500">
-        <span aria-hidden className="hy-hatch animate-hy-hatch h-3 w-10 rounded-sm opacity-70" />
+      <HybridCallout className="mt-4">
         switching notes touches neither the disk nor the database
-      </div>
+      </HybridCallout>
     </section>
   );
 }
