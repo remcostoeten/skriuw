@@ -15,6 +15,8 @@ v1 stopped at `0.25.0`. Nothing below requires the v2 toolchain.
 git clone --branch v0.25.0 --single-branch \
     https://github.com/remcostoeten/skriuw.git skriuw-v1
 
+# self-host image, frozen at the last v1 version
+docker pull ghcr.io/remcostoeten/skriuw:0.25.0
 ```
 
 Desktop installers (`.dmg`, `.exe`, `.deb`, `.rpm`, AppImage) are attached to the [`desktop-v0.25.0` release](https://github.com/remcostoeten/skriuw/releases/tag/desktop-v0.25.0), published 2026-07-20. Note that these are the _v1_ desktop builds; the current desktop app is v2 and ships under the `v2-v*` tags.
