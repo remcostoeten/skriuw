@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Skriuw documentation",
     description:
-      "Features, architecture, the performance contract, and the changelog — read here, written in the repository.",
+      "Features, architecture, the performance contract, and the changelog, read here and written in the repository.",
     url: "https://skriuw.com/docs/",
     images: [socialImage],
   },

@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: page.description,
     alternates: { canonical: `/docs/${page.slug}/` },
     openGraph: {
-      title: `${page.title} — Skriuw`,
+      title: `${page.title} | Skriuw`,
       description: page.description,
       url: `https://skriuw.com/docs/${page.slug}/`,
       images: [socialImage],
