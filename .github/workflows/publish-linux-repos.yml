@@ -188,7 +188,7 @@ jobs:
               run: |
                   set -euo pipefail
                   docker run --rm \
-                    -v "$PWD/packaging/aur/skriuw-bin:/pkg" \
+                    -v "$PWD/tools/packaging/aur/skriuw-bin:/pkg" \
                     -w /pkg \
                     archlinux:latest \
                     bash -c 'pacman -Syu --noconfirm --needed base-devel \

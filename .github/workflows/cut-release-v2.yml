@@ -18,6 +18,7 @@ on:
                     - major
 
 permissions:
+    actions: write
     contents: write
 
 jobs:
@@ -82,7 +83,8 @@ jobs:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   VERSION: ${{ steps.bump.outputs.version }}
               # a tag pushed with GITHUB_TOKEN does not trigger workflows, so
-              # release-v2 is dispatched against the tag explicitly
+              # release-v2 and the Docker image are dispatched against the tag
               run: |
                   gh workflow run release-v2.yml --ref "v2-v${VERSION}"
+                  gh workflow run publish-docker.yml --ref "v2-v${VERSION}" -f version="${VERSION}"
                   printf 'cut v2-v%s\n' "$VERSION" >> "$GITHUB_STEP_SUMMARY"

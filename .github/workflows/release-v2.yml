@@ -266,6 +266,7 @@ jobs:
     publish-release:
         needs: [verify-cloud, build-browser-wasm, publish-tauri, native-gate]
         permissions:
+            actions: write
             contents: write
         runs-on: ubuntu-latest
         steps:
@@ -274,3 +275,11 @@ jobs:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   GH_REPO: ${{ github.repository }}
               run: gh release edit "$GITHUB_REF_NAME" --draft=false
+
+            # a release published with GITHUB_TOKEN does not fire `release:
+            # published` for other workflows, so the channels are dispatched
+            - name: Publish the package channels
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GH_REPO: ${{ github.repository }}
+              run: gh workflow run publish-linux-repos.yml --ref daddy -f tag="$GITHUB_REF_NAME"

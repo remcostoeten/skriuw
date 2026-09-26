@@ -188,6 +188,9 @@ jobs:
                   (cd apps/workspace/harnesses/renderer-store && bun install --frozen-lockfile)
 
             - name: Entrypoints, browser WASM, formatting, lint, tests and types
+              env:
+                  # the site prerenders the latest release from the GitHub API
+                  GITHUB_TOKEN: ${{ github.token }}
               run: ./bin/build ci:renderer
 
             - name: Upload build logs
