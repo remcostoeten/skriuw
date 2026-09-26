@@ -35,8 +35,8 @@ export function HybridHero() {
   const latency = useLatency();
 
   return (
-    <section className="grid gap-10 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-14 lg:items-center">
-      <div className="max-w-[440px]">
+    <section className="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-12 lg:items-center">
+      <div className="max-w-[480px]">
         <Link
           href="/#speed"
           className="hy-link inline-flex items-center gap-2 rounded-full border border-line bg-hy-card py-1 pr-2 pl-3 text-xs font-medium text-ink-500 no-underline transition-colors hover:border-ink-400 hover:text-ink-900"
@@ -48,11 +48,11 @@ export function HybridHero() {
           <ArrowRight className="size-3" />
         </Link>
 
-        <h1 className="mt-6 font-serif text-[44px] leading-[48px] font-normal tracking-[-1.5px] text-balance text-ink-900">
+        <h1 className="mt-6 font-serif text-[52px] leading-[54px] font-normal tracking-[-1.8px] text-balance text-ink-900">
           Notes that never make you wait
         </h1>
 
-        <p className="mt-5 text-[16px] leading-[24px] text-ink-500">
+        <p className="mt-6 text-[17px] leading-[26px] text-ink-500">
           Notes and a journal that live on your own device. Nothing to sign up for, and nothing
           to wait for.
         </p>
@@ -81,7 +81,7 @@ export function HybridHero() {
         </ul>
       </div>
 
-      <div className="relative z-10 lg:w-[820px]">
+      <div className="relative z-10 lg:w-[calc(100%+160px)]">
         <p className="caps absolute -top-3 left-4 z-10 rounded-full border border-line bg-hy-bg px-2 py-0.5 text-[0.62rem] text-ink-500">
           app · live preview
         </p>
