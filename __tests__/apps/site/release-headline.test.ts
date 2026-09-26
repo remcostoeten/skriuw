@@ -9,7 +9,7 @@ describe("releaseHeadline", () => {
     expect(releaseHeadline(body)).toBe("One local workspace per cloud account");
   });
 
-  it("falls back to the first non-chore change bullet", () => {
+  it("counts fixes for releases without highlights", () => {
     const body = [
       "## Changes since v2-v0.46.0",
       "",
@@ -18,7 +18,17 @@ describe("releaseHeadline", () => {
       "- fix(lock): relock when the tab is hidden (#471)",
     ].join("\n");
 
-    expect(releaseHeadline(body)).toBe("Keep sync always on while signed in");
+    expect(releaseHeadline(body)).toBe("2 fixes");
+  });
+
+  it("counts changes when a release mixes fixes and features", () => {
+    const body = [
+      "- feat(editor): vim mode (#367)",
+      "- fix(sync): retry (#368)",
+      "- chore: bump",
+    ].join("\n");
+
+    expect(releaseHeadline(body)).toBe("2 changes");
   });
 
   it("shortens long headlines at a word boundary", () => {

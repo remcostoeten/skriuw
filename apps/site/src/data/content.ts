@@ -107,7 +107,7 @@ export const platformStories = [
     kicker: "Desktop",
     lead: "The full app,",
     brand: "offline",
-    tail: "on macOS, Windows, and Linux. No account, no network, no sign-up wall.",
+    tail: "on macOS, Windows, Linux, iOS, and Android, or as a PWA. No account, no network, no sign-up wall.",
     stats: [
       { value: "One file", label: "Your whole workspace, on your disk, yours to copy or back up" },
       { value: "Rust", label: "Domain, storage, and history core" },

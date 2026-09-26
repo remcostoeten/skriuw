@@ -338,6 +338,28 @@ export function Linux(props: IconProps) {
   );
 }
 
+export function Android(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5.5 15.5a6.5 6.5 0 0 1 13 0v.5h-13v-.5Z" />
+      <path d="m7.5 9.5-1.5-2.5M16.5 9.5 18 7" />
+      <path d="M9.5 12.5h.01M14.5 12.5h.01" strokeWidth={2.2} />
+      <path d="M3.5 15.5v3M20.5 15.5v3M9 18.5v2M15 18.5v2" />
+    </svg>
+  );
+}
+
+export function Pwa(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+      <path d="M3 8.5h18" />
+      <path d="M12 11v6" />
+      <path d="m9.5 14.5 2.5 2.5 2.5-2.5" />
+    </svg>
+  );
+}
+
 export function Terminal(props: IconProps) {
   return (
     <svg {...base(props)}>
