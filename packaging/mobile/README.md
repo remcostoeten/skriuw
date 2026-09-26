@@ -62,13 +62,13 @@ here and on #397 rather than changed on this branch.
    Simulator answers `"available": false` for the account; it is waitlisted
    at <https://expo.dev/services/simulators>, so iOS evidence has to come from
    a real EAS build.
-2. **No `EXPO_TOKEN` secret**, so the `eas-preflight` CI job skips and names
-   it. A human has to create the token on expo.dev and add the secret.
-3. **The Rust libraries EAS needs are gitignored** and never reach EAS
-   workers. eas-cli reads `.easignore` only from the Git root, so a file in
-   `apps/mobile/` has no effect; the fix is an `eas-build-post-install` script in
-   `apps/mobile/package.json` that builds them on the worker. Recorded against
-   #421.
+2. **`EXPO_TOKEN` is set** as a repository secret (a robot token of the
+   `remcostoeten` account); the `eas-preflight` CI job checks for it.
+3. **The Rust libraries EAS needs are gitignored**, so they are built on the
+   worker by the `eas-build-pre-install` hook in `apps/mobile/package.json`
+   (see `apps/mobile/modules/skriuw-core/README.md`). eas-cli reads
+   `.easignore` only from the Git root, so a file in `apps/mobile/` would have
+   had no effect. Not yet exercised by a real EAS build.
 4. **No public privacy policy URL.** Both stores require one before a listing
    can be reviewed. `site/` has no privacy page; the text to publish is in
    [`privacy.md`](privacy.md).
