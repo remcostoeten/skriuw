@@ -7,7 +7,7 @@
 //! and recovery proceed without consulting it, and a workspace without an
 //! active sync connection produces no timers and no network work.
 //!
-//! Contract documentation lives in `docs/specs/desktop-sync-coordinator.md`.
+//! Contract documentation lives in `apps/docs/content/v2/specs/desktop-sync-coordinator.md`.
 
 mod backoff;
 mod checkpoint;

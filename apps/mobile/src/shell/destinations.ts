@@ -33,7 +33,7 @@ export type ShellDestination = {
 /**
  * The destinations the compact shell reaches. The subset of `AppRoute` the
  * mobile client ships in 1.0: history, split panes and the prompt playground
- * are desktop-only (`docs/specs/mobile-app.md`, Scope).
+ * are desktop-only (`apps/docs/content/v2/specs/mobile-app.md`, Scope).
  */
 export type ShellRoute = Extract<
   AppRoute,

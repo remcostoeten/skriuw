@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CardGrid, PageCta, PageHero, PageSection, Steps } from "@/components/page/page-shell";
 import { JsonLd } from "@/components/page/json-ld";
 import { socialImage } from "@/data/seo";
-import { repoUrl } from "@/data/content";
+import { docsUrl } from "@/data/content";
 
 export const metadata: Metadata = {
   title: "Import from Obsidian, Notion, Bear and Apple Notes",
@@ -102,7 +102,7 @@ const fidelity = [
   },
 ];
 
-const importGuideUrl = `${repoUrl}/blob/daddy/docs/provider-import.md`;
+const importGuideUrl = `${docsUrl}/provider-import`;
 
 export default function ImportPage() {
   return (

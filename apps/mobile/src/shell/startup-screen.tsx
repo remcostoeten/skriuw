@@ -11,7 +11,7 @@ type Props = {
 
 /**
  * Startup, and the one screen that survives a workspace that will not open
- * (`docs/specs/mobile-app.md`, R-Q1). A recovery-relevant failure stays on
+ * (`apps/docs/content/v2/specs/mobile-app.md`, R-Q1). A recovery-relevant failure stays on
  * screen with its actions rather than falling back to an empty workspace.
  */
 export function StartupScreen({ view }: Props) {

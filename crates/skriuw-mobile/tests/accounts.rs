@@ -1,5 +1,5 @@
 //! Host coverage for sign-in, per-account workspaces and the sync lifecycle
-//! (`docs/specs/mobile-app.md`, R-F6 and R-Q1).
+//! (`apps/docs/content/v2/specs/mobile-app.md`, R-F6 and R-Q1).
 //!
 //! Everything here runs on Linux against the same native SQLite and the same
 //! routing code the Android and iOS builds link, so the account-isolation and

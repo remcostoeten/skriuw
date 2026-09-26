@@ -1,6 +1,6 @@
 /**
  * The message protocol between the native host and the editor webview
- * (docs/specs/mobile-app.md, "Editor protocol"). Every message is plain JSON:
+ * (apps/docs/content/v2/specs/mobile-app.md, "Editor protocol"). Every message is plain JSON:
  * it must survive `JSON.stringify` unchanged, because a webview bridge carries
  * nothing else. This module has no imports so the editor bundle under `apps/workspace/`
  * and the Expo host under `apps/mobile/` compile the same file.

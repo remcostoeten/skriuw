@@ -45,7 +45,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" width="100%" alt="Creating a note in Skriuw: the slash menu, Markdown shortcuts, a #tag, an @note link, raw Markdown mode, then jumping to the linked note from the command palette" />
+  <img src=".github/assets/demo.gif" width="100%" alt="Creating a note in Skriuw: the slash menu, Markdown shortcuts, a #tag, an @note link, raw Markdown mode, then jumping to the linked note from the command palette" />
 </p>
 <p align="center">
   <sub>The browser build at <a href="https://skriuw.com/app">skriuw.com/app</a>, driven from the keyboard, captured in real time and uncut. The desktop app is the same renderer on the same Rust core.</sub>
@@ -67,9 +67,9 @@ browser** at [skriuw.com/app](https://skriuw.com/app).
   or bring your own Gemini/Groq key
 
 Everything else (journal, tabs, split view, flowcharts, properties, trash)
-is in [FEATURES.md](docs/FEATURES.md). How it is built is in
-[ARCHITECTURE.md](docs/ARCHITECTURE.md), and the speed budgets it is held to
-are in [docs/performance-contract.md](docs/performance-contract.md).
+is in [FEATURES.md](apps/docs/content/v2/features.md). How it is built is in
+[ARCHITECTURE.md](apps/docs/content/v2/architecture.md), and the speed budgets it is held to
+are in [apps/docs/content/v2/performance-contract.md](apps/docs/content/v2/performance-contract.md).
 
 ## Installation
 
@@ -151,12 +151,12 @@ and only after a per-provider consent that shows exactly what text is sent.
 Individual notes or folders can be **locked behind a PIN or passphrase**.
 Locked bodies are encrypted on disk and stay out of search, links, and history
 until you unlock them for the session; a one-time recovery code covers a
-forgotten secret ([details](docs/adr/0044-locked-notes.md)).
+forgotten secret ([details](apps/docs/content/v2/adr/0044-locked-notes.md)).
 
 Sync is **end-to-end encrypted**: notes, media, and archives are sealed on
 your devices with a key derived from a recovery code the server never sees, so
 the service only orders and stores opaque bytes
-([details](docs/adr/0043-end-to-end-encrypted-sync.md)).
+([details](apps/docs/content/v2/adr/0043-end-to-end-encrypted-sync.md)).
 
 ## Development
 
@@ -171,7 +171,7 @@ Tauri.
 ```
 
 The repository layout, web deployment, and cloud development reference is in
-[docs/development.md](docs/development.md). Contributions start at
+[apps/docs/content/v2/development.md](apps/docs/content/v2/development.md). Contributions start at
 [CONTRIBUTING.md](CONTRIBUTING.md); report security issues through
 [SECURITY.md](SECURITY.md) instead of a public issue.
 

@@ -2,7 +2,7 @@
 
 The UniFFI facade the native mobile shell calls the shared Skriuw core
 through. Architecture decision: ADR-0048, implementation contract
-`docs/specs/mobile-app.md`, requirements R-A1 and R-A3. Both documents land on
+`apps/docs/content/v2/specs/mobile-app.md`, requirements R-A1 and R-A3. Both documents land on
 `daddy` with the epic's documentation branch; until then they are only on
 `docs/v2-mobile-epic`, which is why neither is linked here.
 

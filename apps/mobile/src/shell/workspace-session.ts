@@ -11,7 +11,7 @@ export type ShellSession = WorkspaceSession & {
 /**
  * Opens the workspace once, at startup. Everything after this is a
  * synchronous store read, so no navigation waits on the bridge
- * (`docs/specs/mobile-app.md`, R-P1).
+ * (`apps/docs/content/v2/specs/mobile-app.md`, R-P1).
  */
 export async function openWorkspaceSession(
   bridge: BridgePort,

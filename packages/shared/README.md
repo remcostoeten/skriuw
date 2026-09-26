@@ -32,5 +32,5 @@ Run this package's tests from the repository root:
 bun run --cwd packages/shared test
 ```
 
-The desktop gate includes these tests. See [TypeScript testing](../../docs/testing.md)
+The desktop gate includes these tests. See [TypeScript testing](../../apps/docs/content/v2/testing.md)
 for the repository's test conventions.

@@ -5,7 +5,7 @@ import { decodeCaptureRecords, encodeCaptureRecord, type CaptureRecord } from ".
  * device's storage before the application is involved at all, and it leaves
  * only once the workspace has acknowledged the write, so a capture made while
  * the workspace is locked, closed or still opening is never dropped
- * (`docs/specs/mobile-app.md`, R-F8).
+ * (`apps/docs/content/v2/specs/mobile-app.md`, R-F8).
  */
 export type CaptureInbox = {
   append: (record: CaptureRecord) => void;

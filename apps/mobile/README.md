@@ -1,8 +1,8 @@
 # Skriuw mobile
 
 The iOS and Android client for the v2 workspace. Architecture decision:
-[ADR-0048](../../docs/adr/0048-native-mobile-shell-over-shared-core.md).
-Implementation contract: [docs/specs/mobile-app.md](../../docs/specs/mobile-app.md).
+[ADR-0048](../../apps/docs/content/v2/adr/0048-native-mobile-shell-over-shared-core.md).
+Implementation contract: [apps/docs/content/v2/specs/mobile-app.md](../../apps/docs/content/v2/specs/mobile-app.md).
 
 This is the scaffold. Routes live in `apps/workspace/`; everything else lives in `src/`.
 The native module, the shared renderer core, the bridge adapter and the editor

@@ -1,7 +1,7 @@
 /**
  * Where the built editor page lives inside the DOM component's own origin.
  *
- * The editor is the desktop bundle, unforked (`docs/specs/mobile-app.md`,
+ * The editor is the desktop bundle, unforked (`apps/docs/content/v2/specs/mobile-app.md`,
  * R-A6): a Vite build of `apps/workspace/src/features/editor-standalone`, not a module
  * Metro can bundle. The DOM component therefore embeds it as a same-origin
  * document and relays protocol messages, exactly as the browser harness in

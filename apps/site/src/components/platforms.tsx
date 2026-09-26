@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Action, CarouselNav, Container, Rail, SectionHeading } from "@/components/ui/primitives";
 import { useReveal } from "@/components/ui/reveal";
 import { BrowserArt, DataArt, DesktopArt } from "@/components/platform-art";
-import { platformStories } from "@/data/content";
+import { docsUrl, platformStories } from "@/data/content";
 import { clamp } from "@skriuw/shared/helpers/clamp";
 import { cn } from "@skriuw/shared/helpers/cn";
 
@@ -69,7 +69,7 @@ export function Platforms() {
               atStart={index === 0}
               atEnd={index === platformStories.length - 1}
             />
-            <Action arrow="inline" href={"/docs/architecture/"}>
+            <Action arrow="inline" href={`${docsUrl}/architecture`}>
               How it is built
             </Action>
           </div>
@@ -113,7 +113,7 @@ export function Platforms() {
                   </div>
 
                   <Link
-                    href={"/docs/features/"}
+                    href={`${docsUrl}/features`}
                     className={cn(
                       "mt-auto pt-8 text-[15px] underline underline-offset-4 opacity-80 transition-colors duration-150 ease-out focus-visible:opacity-100",
                       tone.link,

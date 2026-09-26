@@ -14,7 +14,7 @@ import java.util.UUID
  * shared text is appended to the durable capture inbox before anything else
  * happens, and only then is the application launched to drain it. Killing the
  * process between the two therefore loses nothing — the record is already on
- * disk (`docs/specs/mobile-app.md`, R-F8).
+ * disk (`apps/docs/content/v2/specs/mobile-app.md`, R-F8).
  *
  * The file name, its directory and its one-JSON-object-per-line encoding are
  * the contract with `apps/mobile/src/features/capture/file-inbox.ts`; `filesDir`

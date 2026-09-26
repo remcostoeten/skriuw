@@ -7,7 +7,7 @@ export const DAY_SWIPE_DISTANCE_PX = 64;
  * right reveals the previous day, to the left the next one. Drags that locked
  * to the vertical axis, or stopped short, step nowhere. The numbers and the
  * direction are `apps/workspace/src/features/journal/day-swipe.ts`
- * (`docs/specs/journal-daily.md`, "Stepping days by touch").
+ * (`apps/docs/content/v2/specs/journal-daily.md`, "Stepping days by touch").
  */
 export function daySwipeStep(start: SwipeStart, x: number, y: number): -1 | 0 | 1 {
   if (swipeAxis(start, x, y) !== "x") {

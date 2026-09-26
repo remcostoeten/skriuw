@@ -1,5 +1,5 @@
 import { Action, Container } from "@/components/ui/primitives";
-import { importSources, repoUrl } from "@/data/content";
+import { docsUrl, importSources } from "@/data/content";
 
 export function LogoWall() {
   return (
@@ -16,7 +16,7 @@ export function LogoWall() {
             arrow="inline"
             size="lg"
             className="self-start"
-            href={`${repoUrl}/blob/daddy/docs/provider-import.md`}
+            href={`${docsUrl}/provider-import`}
           >
             Read the import guide
           </Action>

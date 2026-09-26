@@ -42,7 +42,7 @@ export type IconMotion = {
 /**
  * The approved hover animations, ported from the review page's CSS keyframes
  * onto the Fluent glyphs. Durations are in milliseconds at the approved pace.
- * `docs/adr/0049-shared-icon-system.md` lists where a motion was adapted from
+ * `apps/docs/content/v2/adr/0049-shared-icon-system.md` lists where a motion was adapted from
  * the line drawings it was designed on.
  */
 export const ICON_MOTIONS: Record<AnimatedIconId, IconMotion> = {

@@ -1,7 +1,7 @@
 /**
  * What a day recalls, shared word for word with
  * `apps/workspace/src/features/journal/on-this-day.ts` and specified in
- * `docs/specs/journal-daily.md` under "On this day".
+ * `apps/docs/content/v2/specs/journal-daily.md` under "On this day".
  */
 
 import { shiftDay, shiftMonthKeepingDay, type DateKey } from "@skriuw/renderer-core/journal/dates";

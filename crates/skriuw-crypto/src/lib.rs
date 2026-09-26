@@ -13,7 +13,7 @@
 //! reproduces the same ciphertext, two different plaintexts never share a
 //! nonce, and nobody without the key can compute a nonce to confirm a guessed
 //! plaintext. The threat model and what that determinism reveals are
-//! documented in `docs/adr/0043-end-to-end-encrypted-sync.md`.
+//! documented in `apps/docs/content/v2/adr/0043-end-to-end-encrypted-sync.md`.
 
 use argon2::{Algorithm, Argon2, Params, Version};
 use base64::{Engine, engine::general_purpose::STANDARD_NO_PAD};

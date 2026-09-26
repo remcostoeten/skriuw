@@ -1,5 +1,4 @@
 import type { MetadataRoute } from "next";
-import { docPages } from "@/data/docs";
 
 const routes = [
   "/",
@@ -7,8 +6,7 @@ const routes = [
   "/local-first-notes/",
   "/markdown-notes/",
   "/import/",
-  "/docs/",
-  ...docPages.map((page) => `/docs/${page.slug}/`),
+  "/changelog/",
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

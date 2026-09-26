@@ -10,7 +10,7 @@ type Props = {
 
 /**
  * The five moods on one row, as the compact desktop layout arranges them
- * below 900px (`docs/specs/journal-daily.md`). Pressing the current mood
+ * below 900px (`apps/docs/content/v2/specs/journal-daily.md`). Pressing the current mood
  * clears it, so a day can go back to unrated without a second control.
  */
 export function MoodRow({ mood, onChange }: Props) {

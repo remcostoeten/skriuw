@@ -38,7 +38,7 @@ export function idListsEqual(left: readonly string[], right: readonly string[]):
 /**
  * One row's view of the tree. Each row subscribes through its own selector so
  * renaming, pinning or expanding a node re-renders that row alone, not the
- * list (`docs/performance-contract.md`).
+ * list (`apps/docs/content/v2/performance-contract.md`).
  */
 export function treeRowSelector(id: string): Selector<TreeRow | null> {
   return (state) => {

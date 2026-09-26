@@ -7,9 +7,9 @@ These instructions apply to the entire Skriuw repository. Read the nearest produ
 Skriuw contains two independent product lines:
 
 - The repository root is the current (v2) local-first desktop application. Its stack is Rust, React, ProseMirror, SQLite, and Tauri.
-- `apps/` contains the v2 workspace application, mobile application, and marketing site; `services/` contains the v2 sync service; `packages/` contains shared TypeScript packages; and `crates/` remains the flat Rust workspace.
+- `apps/` contains the v2 workspace application, mobile application, marketing site, and documentation site; `services/` contains the v2 sync service; `packages/` contains shared TypeScript packages; and `crates/` remains the flat Rust workspace.
 - `v1/` contains the frozen legacy v1 web, mobile, desktop, collaboration, and self-hosted products.
-- `v1/apps/documentation/content/docs/` is the canonical source for the published documentation site.
+- `apps/docs/` is the documentation site (docs.skriuw.com). `apps/docs/content/v2/` holds the v2 docs, ADRs, specs, and benchmarks; `apps/docs/content/v1/` holds the frozen v1 docs.
 
 The default branch is `daddy`. `master` is not the primary integration branch.
 
@@ -18,8 +18,8 @@ The default branch is `daddy`. `master` is not the primary integration branch.
 1. Inspect `git status --short` and preserve unrelated changes.
 2. Identify whether the task affects v1, v2, shared infrastructure, or documentation.
 3. Read the product's README and relevant architecture material:
-    - v2: `README.md`, `docs/FEATURES.md`, `docs/ARCHITECTURE.md`, and applicable files in `docs/adr/`.
-    - v1: the relevant guide under `v1/apps/documentation/content/docs/` and any instructions generated in `v1/apps/web/AGENTS.md`.
+    - v2: `README.md`, `apps/docs/content/v2/features.md`, `apps/docs/content/v2/architecture.md`, and applicable files in `apps/docs/content/v2/adr/`.
+    - v1: the relevant guide under `apps/docs/content/v1/` and any instructions generated in `v1/apps/web/AGENTS.md`.
 4. Search for existing contracts, tests, and conventions before introducing a new module or dependency.
 
 Do not implement from a stale task plan when the repository provides newer code, tests, or architecture decisions.
@@ -47,7 +47,7 @@ Do not implement from a stale task plan when the repository provides newer code,
 - Recovery-relevant failures must remain visible and testable.
 - Generated Rust/TypeScript contracts are committed and drift-checked.
 
-Read `docs/performance-contract.md` before changing navigation, editor, store subscription, or rendering behavior.
+Read `apps/docs/content/v2/performance-contract.md` before changing navigation, editor, store subscription, or rendering behavior.
 
 ## TypeScript and React
 
@@ -59,7 +59,7 @@ Read `docs/performance-contract.md` before changing navigation, editor, store su
 - Keep transient editor and interaction state out of broad React context.
 - Import from the owning module instead of introducing new barrel exports.
 - Cover behavior through public user or domain interfaces, not implementation details.
-- Put v2 TypeScript suites at `__tests__/<path of the code they cover>` and write them for Vitest; see `docs/testing.md`.
+- Put v2 TypeScript suites at `__tests__/<path of the code they cover>` and write them for Vitest; see `apps/docs/content/v2/testing.md`.
 
 ## Rust and persistence
 
@@ -72,8 +72,8 @@ Read `docs/performance-contract.md` before changing navigation, editor, store su
 ## Documentation
 
 - Link to canonical documentation instead of copying it.
-- Put v2 architecture decisions in `docs/adr/`, implementation contracts in `docs/specs/`, and measurements in `docs/benchmarks/`.
-- Put published v1 and user documentation in `v1/apps/documentation/content/docs/`.
+- Put v2 architecture decisions in `apps/docs/content/v2/adr/`, implementation contracts in `apps/docs/content/v2/specs/`, and measurements in `apps/docs/content/v2/benchmarks/`.
+- Put user guides in `apps/docs/content/v2/` and list new pages in the folder's `meta.json`. Every page needs a `title` in frontmatter. `apps/docs/content/v1/` is frozen.
 - Do not commit agent handoffs, implementation prompts, generated audits, or temporary planning documents.
 - Update `README.md`, `CONTRIBUTING.md`, and affected guides when commands or contributor workflows change.
 
@@ -87,7 +87,7 @@ For v2:
 ./bin/check
 ```
 
-Generate changed contracts with `bin/generate`. Performance-sensitive changes require representative measurements against `docs/performance-contract.md`.
+Run `bun run --cwd apps/docs build` for documentation navigation, frontmatter, or MDX changes. Generate changed contracts with `bin/generate`. Performance-sensitive changes require representative measurements against `apps/docs/content/v2/performance-contract.md`.
 
 For v1:
 
@@ -98,6 +98,6 @@ bun typecheck
 bun test
 ```
 
-Run `bun run build` when changing production configuration, routing, or shared build behavior. Run `bun run --cwd apps/documentation build` for documentation navigation or MDX changes. Both are run from `v1/`.
+Run `bun run build` from `v1/` when changing production configuration, routing, or shared build behavior.
 
 Every handoff must state what changed, which checks ran, and any remaining risk. Do not claim tests passed unless they were executed successfully.

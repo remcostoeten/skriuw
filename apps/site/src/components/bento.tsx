@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { Action, Container, Rail, SectionHeading } from "@/components/ui/primitives";
 import { stagger, useReveal } from "@/components/ui/reveal";
-import { bentoCards } from "@/data/content";
+import { bentoCards, docsUrl } from "@/data/content";
 import {
   EditorVignette,
   HistoryVignette,
@@ -40,7 +40,7 @@ export function Bento() {
               trail="One app. Everything links to everything."
             />
           </Rail>
-          <Action arrow="inline" href={"/docs/features/"}>
+          <Action arrow="inline" href={`${docsUrl}/features`}>
             See every feature
           </Action>
         </div>

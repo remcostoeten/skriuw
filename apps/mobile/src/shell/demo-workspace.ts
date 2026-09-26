@@ -108,7 +108,7 @@ function document(seed: Seed): WorkspaceDocument {
 
 /**
  * The workspace the shell opens against the in-memory adapter until the
- * native module is wired in (`docs/specs/mobile-app.md`, work breakdown:
+ * native module is wired in (`apps/docs/content/v2/specs/mobile-app.md`, work breakdown:
  * Mobile 07 builds against the adapter so interface work never waits for it).
  */
 export function demoSnapshot(): WorkspaceSnapshot {

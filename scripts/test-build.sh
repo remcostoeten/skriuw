@@ -20,6 +20,7 @@ for command in dev build check; do
 done
 bun --cwd=apps/site run build
 node scripts/test-web-seo.mjs
+bun --cwd=apps/docs run build
 grep -Fq '"build": "../../bin/build browser"' apps/workspace/package.json
 grep -Fq '"tauri": "../../scripts/tauri.sh"' apps/workspace/package.json
 grep -Fq '"tauri:build": "../../bin/build desktop"' apps/workspace/package.json

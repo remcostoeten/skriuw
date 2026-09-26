@@ -1,9 +1,9 @@
 # Mobile distribution channel
 
 The iOS and Android client's store metadata and submission record. The product
-contract is [`docs/specs/mobile-app.md`](../../docs/specs/mobile-app.md); the
+contract is [`apps/docs/content/v2/specs/mobile-app.md`](../../apps/docs/content/v2/specs/mobile-app.md); the
 architecture decision is
-[ADR-0048](../../docs/adr/0048-native-mobile-shell-over-shared-core.md).
+[ADR-0048](../../apps/docs/content/v2/adr/0048-native-mobile-shell-over-shared-core.md).
 
 This channel is **not live**. Nothing has been submitted to either store, and
 the blockers below are all outside `apps/mobile/` or outside this repository.

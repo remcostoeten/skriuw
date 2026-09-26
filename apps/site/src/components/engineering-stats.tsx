@@ -5,7 +5,7 @@ import { Action, Container, Rail, SectionHeading } from "@/components/ui/primiti
 import { Activity, Bolt, Gauge } from "@/components/ui/icons";
 import { CountUp } from "@/components/ui/count-up";
 import { stagger, useReveal } from "@/components/ui/reveal";
-import { engineeringStats } from "@/data/content";
+import { docsUrl, engineeringStats } from "@/data/content";
 
 const iconMap: Record<string, ReactNode> = {
   bolt: <Bolt className="size-5" />,
@@ -30,7 +30,7 @@ export function EngineeringStats() {
               trail="Every number below comes from a test we run on every commit."
             />
           </Rail>
-          <Action arrow="inline" href={"/docs/performance-contract/"}>
+          <Action arrow="inline" href={`${docsUrl}/performance-contract`}>
             Read the contract
           </Action>
         </div>

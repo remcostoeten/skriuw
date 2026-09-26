@@ -4,7 +4,6 @@
   "ignorePatterns": [
     "v1/**",
     "contracts/**",
-    "docs/**",
     "fixtures/**",
     "packaging/**",
     "bucket/**",

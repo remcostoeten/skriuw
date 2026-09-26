@@ -22,7 +22,7 @@ type Props = {
   /**
    * Whether the editor is the destination on screen. It is never unmounted:
    * a hidden host keeps its webview warm, so returning to a note costs a
-   * layout pass and no page load (`docs/specs/mobile-app.md`, R-P2).
+   * layout pass and no page load (`apps/docs/content/v2/specs/mobile-app.md`, R-P2).
    */
   visible?: boolean;
 };

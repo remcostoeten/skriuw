@@ -4,7 +4,7 @@ import { boundedFailureDetail, type EditorFailureCode } from "./protocol";
  * The recoverable surface the host shows instead of a blank webview. Every
  * cause is named, because a silent editor is indistinguishable from a lost
  * document and recovery-relevant failures stay visible
- * (`docs/specs/mobile-app.md`, R-Q1).
+ * (`apps/docs/content/v2/specs/mobile-app.md`, R-Q1).
  */
 
 export type EditorHostFailureCode =

@@ -135,7 +135,7 @@ async function serveCommand(bridge: BridgePort, command: string, args: unknown):
 }
 
 /**
- * Drives the one warm editor webview (`docs/specs/mobile-app.md`, R-P2). It
+ * Drives the one warm editor webview (`apps/docs/content/v2/specs/mobile-app.md`, R-P2). It
  * holds no React state: switching notes, publishing references and settling
  * changes are plain store subscriptions and protocol messages, so typing
  * renders nothing outside the webview (R-P3).

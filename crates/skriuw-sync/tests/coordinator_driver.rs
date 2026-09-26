@@ -853,7 +853,7 @@ fn percentile(latencies: &[Duration], percentile: usize) -> Duration {
     latencies[(latencies.len() * percentile / 100).min(latencies.len() - 1)]
 }
 
-/// Representative measurement against `docs/performance-contract.md`,
+/// Representative measurement against `apps/docs/content/v2/performance-contract.md`,
 /// excluded from shared CI because timing there is not deterministic. Run
 /// with: `cargo test -p skriuw-sync --release -- --ignored --nocapture`.
 #[test]

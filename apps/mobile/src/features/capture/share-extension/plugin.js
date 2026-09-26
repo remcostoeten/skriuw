@@ -7,7 +7,7 @@ const {
 } = require("expo/config-plugins");
 
 /**
- * Registers the share-to-Skriuw target (`docs/specs/mobile-app.md`, R-F8).
+ * Registers the share-to-Skriuw target (`apps/docs/content/v2/specs/mobile-app.md`, R-F8).
  *
  * Android only, for now. The activity it installs is a trampoline that writes
  * the shared text into the durable capture inbox and then opens the journal,

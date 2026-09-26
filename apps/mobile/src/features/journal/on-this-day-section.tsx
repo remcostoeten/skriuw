@@ -14,7 +14,7 @@ type Props = {
 /**
  * Earlier entries that share this day, nearest first. Absent when the day
  * recalls nothing, so an untravelled journal shows no empty shelf
- * (`docs/specs/journal-daily.md`, "On this day").
+ * (`apps/docs/content/v2/specs/journal-daily.md`, "On this day").
  */
 export function OnThisDaySection({ anniversaries, excerptOf, onOpenDay }: Props) {
   const theme = useTheme();

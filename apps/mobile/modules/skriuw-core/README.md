@@ -2,8 +2,8 @@
 
 The Expo native module the mobile client reaches the shared Rust core through.
 Architecture decision:
-[ADR-0048](../../../../docs/adr/0048-native-mobile-shell-over-shared-core.md).
-Implementation contract: [docs/specs/mobile-app.md](../../../../docs/specs/mobile-app.md),
+[ADR-0048](../../../../apps/docs/content/v2/adr/0048-native-mobile-shell-over-shared-core.md).
+Implementation contract: [apps/docs/content/v2/specs/mobile-app.md](../../../../apps/docs/content/v2/specs/mobile-app.md),
 requirements R-A1 and R-P3. The Rust side is
 [`crates/skriuw-mobile`](../../../../crates/skriuw-mobile/README.md).
 

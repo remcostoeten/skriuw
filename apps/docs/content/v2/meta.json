@@ -1,0 +1,24 @@
+{
+	"root": true,
+	"title": "Skriuw v2",
+	"description": "The current local-first app",
+	"pages": [
+		"index",
+		"features",
+		"keyboard-shortcuts",
+		"importing",
+		"provider-import",
+		"recovery",
+		"---Engineering---",
+		"architecture",
+		"data-model",
+		"performance-contract",
+		"development",
+		"testing",
+		"fixtures",
+		"archive-fixtures",
+		"adr",
+		"specs",
+		"benchmarks"
+	]
+}

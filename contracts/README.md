@@ -16,5 +16,5 @@ Cloud sync uses the same rule. `sync-*.schema.json` is generated from Rust and
 `workspace-operation-sync-policy-v1.json` is the generated Worker policy.
 `fixtures/sync-push-v1.json` is the first cross-language golden request. Inline
 sync operations are deliberately bounded; larger content requires the chunked
-transport tracked in `docs/specs/cloud-sync-master.md`. See the canonical
-[operation policy](../docs/specs/workspace-operation-sync-policy-v1.md).
+transport tracked in `apps/docs/content/v2/specs/cloud-sync-master.md`. See the canonical
+[operation policy](../apps/docs/content/v2/specs/workspace-operation-sync-policy-v1.md).

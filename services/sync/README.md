@@ -29,7 +29,7 @@ leaves the Worker. It is a secret: install it with
 
 The canonical wire types and bounds live in `skriuw-domain`; committed JSON
 Schemas, the generated
-[`WorkspaceOperation` policy](../../docs/specs/workspace-operation-sync-policy-v1.md),
+[`WorkspaceOperation` policy](../../apps/docs/content/v2/specs/workspace-operation-sync-policy-v1.md),
 and the golden fixture bridge the Rust and Workers implementations.
 
 ## Commands
@@ -87,8 +87,8 @@ bunx wrangler secret put BETTER_AUTH_SECRET --env preview
 bunx wrangler deploy --env preview
 ```
 
-See [the cloud sync master tracker](../../docs/specs/cloud-sync-master.md) for the
+See [the cloud sync master tracker](../../apps/docs/content/v2/specs/cloud-sync-master.md) for the
 architecture, completed work, and remaining delivery sequence. The
-[authentication and authorization contract](../../docs/specs/cloud-sync-authentication.md)
+[authentication and authorization contract](../../apps/docs/content/v2/specs/cloud-sync-authentication.md)
 documents route shapes, roles, stable errors, revocation behavior, and local
 setup.

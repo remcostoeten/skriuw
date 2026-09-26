@@ -45,7 +45,7 @@ person does not rediscover it.
       slot both refuse, so sign-in cannot persist a credential and biometric
       unlock cannot be offered. Owners: #395, #396.
 - [ ] Fix the two touch-target violations and the Android sheet-modality gap
-      from [the accessibility pass](../../docs/benchmarks/2026-09-20-mobile-accessibility.md).
+      from [the accessibility pass](../../apps/docs/content/v2/benchmarks/2026-09-20-mobile-accessibility.md).
       Owners: #388, #393.
 - [ ] Merge Mobile 11's search surface (PR #413) or ship without a search
       route and say so in the listing.
@@ -58,15 +58,15 @@ person does not rediscover it.
 ## 3. Evidence the contract asks for
 
 - [ ] Run the reference-device benchmarks and record them in
-      `docs/benchmarks/`. Currently blocked on host disk; see
-      [the readiness document](../../docs/benchmarks/2026-09-20-mobile-release-readiness.md#not-measured-and-why).
+      `apps/docs/content/v2/benchmarks/`. Currently blocked on host disk; see
+      [the readiness document](../../apps/docs/content/v2/benchmarks/2026-09-20-mobile-release-readiness.md#not-measured-and-why).
 - [ ] Run a VoiceOver pass on iOS and a TalkBack pass on Android over every
       screen, and record the results beside the mechanical audit.
 - [x] Mechanical accessibility audit of every route and overlay — 184
       controls, all named; three defects found.
-      [`2026-09-20-mobile-accessibility.md`](../../docs/benchmarks/2026-09-20-mobile-accessibility.md)
+      [`2026-09-20-mobile-accessibility.md`](../../apps/docs/content/v2/benchmarks/2026-09-20-mobile-accessibility.md)
 - [x] Shared-layer performance evidence at 1,000 and 5,000 notes.
-      [`2026-09-20-mobile-release-readiness.md`](../../docs/benchmarks/2026-09-20-mobile-release-readiness.md)
+      [`2026-09-20-mobile-release-readiness.md`](../../apps/docs/content/v2/benchmarks/2026-09-20-mobile-release-readiness.md)
 
 ## 4. Assets
 
@@ -92,7 +92,7 @@ person does not rediscover it.
       sign in and let a second device converge, share text into the app
       (Android), force-quit and relaunch to confirm nothing was lost.
 - [ ] Record who ran that pass, on which devices and OS versions, and what
-      they found — in `docs/benchmarks/` beside the performance evidence.
+      they found — in `apps/docs/content/v2/benchmarks/` beside the performance evidence.
 
 **Acceptance for #397 is not met until step 5's human smoke test has actually
 happened.** No automated evidence substitutes for it, and this branch does not

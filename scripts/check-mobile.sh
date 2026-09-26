@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Product gate for the mobile client (docs/specs/mobile-app.md, R-Q3).
+# Product gate for the mobile client (apps/docs/content/v2/specs/mobile-app.md, R-Q3).
 # Deliberately separate from bin/check desktop, which owns the desktop tree and
 # packages/renderer-core. This gate owns apps/mobile/, the skriuw-core module, and
 # packages/theme's token generator, whose output only the mobile client consumes.

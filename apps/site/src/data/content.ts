@@ -1,5 +1,6 @@
 export const appUrl = "/app/";
 export const repoUrl = "https://github.com/remcostoeten/skriuw";
+export const docsUrl = "https://docs.skriuw.com/v2";
 export const releasesUrl = "https://github.com/remcostoeten/skriuw/releases/latest";
 
 export const navLinks = [
@@ -7,7 +8,7 @@ export const navLinks = [
   { label: "Local-first", href: "/local-first-notes/" },
   { label: "Markdown", href: "/markdown-notes/" },
   { label: "Import", href: "/import/" },
-  { label: "Docs", href: "/docs/" },
+  { label: "Docs", href: docsUrl },
   { label: "Download", href: "/download/" },
   { label: "Source", href: repoUrl },
 ];
@@ -282,18 +283,18 @@ export const footerColumns = [
     links: [
       { label: "Open the app", href: appUrl },
       { label: "Download", href: releasesUrl },
-      { label: "Features", href: "/docs/features/" },
-      { label: "Changelog", href: "/docs/changelog/" },
+      { label: "Features", href: `${docsUrl}/features` },
+      { label: "Changelog", href: "/changelog/" },
     ],
   },
   {
     title: "Engineering",
     links: [
-      { label: "All documentation", href: "/docs/" },
-      { label: "Architecture", href: "/docs/architecture/" },
-      { label: "Performance contract", href: "/docs/performance-contract/" },
-      { label: "Decision records", href: `${repoUrl}/tree/daddy/docs/adr` },
-      { label: "Benchmarks", href: `${repoUrl}/tree/daddy/docs/benchmarks` },
+      { label: "All documentation", href: docsUrl },
+      { label: "Architecture", href: `${docsUrl}/architecture` },
+      { label: "Performance contract", href: `${docsUrl}/performance-contract` },
+      { label: "Decision records", href: `${docsUrl}/adr` },
+      { label: "Benchmarks", href: `${docsUrl}/benchmarks` },
     ],
   },
   {

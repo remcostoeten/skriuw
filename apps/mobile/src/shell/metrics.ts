@@ -15,7 +15,7 @@ export const TAB_RESTING_ALPHA = 0.55;
 
 export const TOOLBAR_HEIGHT = 44;
 
-/** Smallest control a thumb is asked to hit (`docs/specs/mobile-app.md`, R-Q2). */
+/** Smallest control a thumb is asked to hit (`apps/docs/content/v2/specs/mobile-app.md`, R-Q2). */
 export const MINIMUM_TOUCH_TARGET = 44;
 
 export const TREE_ROW_HEIGHT = 44;

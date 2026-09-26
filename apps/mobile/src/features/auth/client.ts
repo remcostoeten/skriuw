@@ -2,7 +2,7 @@ import type { SessionStore } from "./session";
 
 /**
  * Sign-in against the existing Better Auth Worker
- * (`docs/specs/cloud-sync-authentication.md`).
+ * (`apps/docs/content/v2/specs/cloud-sync-authentication.md`).
  *
  * The Expo-compatible flow is the bearer one, not the cookie one: the Worker
  * is a different origin from the app, React Native has no cookie jar worth

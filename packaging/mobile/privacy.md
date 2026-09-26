@@ -19,7 +19,7 @@ Established from the source rather than from intent:
   Worker over HTTPS. Content is sealed on the device first: Argon2id
   (19 MiB, t = 2) derives a workspace content key from a recovery code, and
   XChaCha20-Poly1305 seals note bodies, titles, tags, people, media, and
-  checkpoints ([ADR-0043](../../docs/adr/0043-end-to-end-encrypted-sync.md)).
+  checkpoints ([ADR-0043](../../apps/docs/content/v2/adr/0043-end-to-end-encrypted-sync.md)).
   The service stores opaque bytes plus what ordering needs: identifiers,
   sequence numbers, sizes, and timestamps. The recovery code is never sent.
 - **The account** is an email address and a password, held by Better Auth on
@@ -27,7 +27,7 @@ Established from the source rather than from intent:
   keystore (`apps/mobile/src/features/auth/keystore.ts`), never to
   JavaScript-reachable storage.
 - **Locked notes** are encrypted at rest on the device with their own key
-  ([ADR-0044](../../docs/adr/0044-locked-notes.md)). Biometric unlock stores
+  ([ADR-0044](../../apps/docs/content/v2/adr/0044-locked-notes.md)). Biometric unlock stores
   the user's PIN — not the key — in a keystore entry the platform releases
   only after a successful biometric prompt.
 - **No analytics, crash reporting, advertising identifier, or telemetry of any

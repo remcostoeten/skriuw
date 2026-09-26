@@ -1,7 +1,7 @@
 /**
  * The Stats strip's projection, shared word for word with
  * `apps/workspace/src/features/journal/mood-trend.ts` and specified in
- * `docs/specs/journal-daily.md` under "Mood trend".
+ * `apps/docs/content/v2/specs/journal-daily.md` under "Mood trend".
  */
 
 import { shiftDay, type DateKey } from "@skriuw/renderer-core/journal/dates";

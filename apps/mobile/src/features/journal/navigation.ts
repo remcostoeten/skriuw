@@ -19,7 +19,7 @@ export type JournalStep =
 
 /**
  * Every destination the desktop step shortcuts reach
- * (`docs/specs/journal-navigation.md`, Step shortcuts). The compact shell has
+ * (`apps/docs/content/v2/specs/journal-navigation.md`, Step shortcuts). The compact shell has
  * no bracket chords to bind, so the same steps are reached by the header
  * controls, the horizontal swipe and the calendar; the arithmetic, including
  * the month and year clamping, is the one below.

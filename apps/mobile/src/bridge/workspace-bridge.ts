@@ -17,7 +17,7 @@ export function describeCoreLoadFailure(error: unknown): Error {
 
 /**
  * The bridge the shell runs against. SQLite is canonical and native
- * (`docs/specs/mobile-app.md`, R-A1), so a native build that cannot reach the
+ * (`apps/docs/content/v2/specs/mobile-app.md`, R-A1), so a native build that cannot reach the
  * core fails startup rather than falling back to data it would later lose.
  *
  * Loading is deferred to call time so the failure arrives as a rejected promise

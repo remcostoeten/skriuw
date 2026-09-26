@@ -1,5 +1,5 @@
 //! The sync half of the mobile facade: sign-in, E2EE replication, recovery,
-//! and the resume strategy (`docs/specs/mobile-app.md`, R-F6 and R-Q1).
+//! and the resume strategy (`apps/docs/content/v2/specs/mobile-app.md`, R-F6 and R-Q1).
 //!
 //! Everything durable stays behind `skriuw-sync`'s coordinator on its own
 //! database connection, exactly as on desktop. What differs is the lifecycle.

@@ -71,7 +71,7 @@ function entryBody(markdown: string): string {
  * The journal on the compact shell: one day at a time, with the calendar, the
  * mood row, the thirty-day trend and what the day recalls under it. Every
  * number on the screen is a projection over the hydrated store, so stepping a
- * day is a same-frame update and waits on no I/O (`docs/specs/mobile-app.md`,
+ * day is a same-frame update and waits on no I/O (`apps/docs/content/v2/specs/mobile-app.md`,
  * R-P1).
  *
  * The entry body is rendered as its Markdown until the editor webview is

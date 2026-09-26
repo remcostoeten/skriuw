@@ -39,13 +39,13 @@ bun run lint          # report findings
 bun run lint:fix      # apply safe automatic fixes
 ```
 
-The rule set and the reasoning behind it are recorded in [ADR-0050](docs/adr/0050-typescript-format-and-lint.md). Fix findings rather than suppressing them; a suppression needs `-- <reason>` on the same line.
+The rule set and the reasoning behind it are recorded in [ADR-0050](apps/docs/content/v2/adr/0050-typescript-format-and-lint.md). Fix findings rather than suppressing them; a suppression needs `-- <reason>` on the same line.
 
-See [docs/development.md](docs/development.md#commands) for the command reference.
+See [apps/docs/content/v2/development.md](apps/docs/content/v2/development.md#commands) for the command reference.
 
 Generic v2 utilities belong in [`packages/shared`](packages/shared/README.md).
 Import helpers directly from `@skriuw/shared/helpers/<name>`; keep product rules
-in `renderer-core`. See [TypeScript testing](docs/testing.md) for suite placement.
+in `renderer-core`. See [TypeScript testing](apps/docs/content/v2/testing.md) for suite placement.
 
 ### v2 mobile
 
@@ -65,8 +65,8 @@ Run it for changes under `apps/mobile/`, `packages/` or `crates/skriuw-mobile`.
 
 Android is the local verification target; iOS artifacts come from EAS builds.
 The client is described by
-[ADR-0048](docs/adr/0048-native-mobile-shell-over-shared-core.md) and
-[docs/specs/mobile-app.md](docs/specs/mobile-app.md).
+[ADR-0048](apps/docs/content/v2/adr/0048-native-mobile-shell-over-shared-core.md) and
+[apps/docs/content/v2/specs/mobile-app.md](apps/docs/content/v2/specs/mobile-app.md).
 
 ### v1
 
@@ -79,7 +79,7 @@ cp .env.example .env.local
 bun dev
 ```
 
-The environment variables required by the web application are documented in [v1/apps/documentation/content/docs/infra/environment-variables.mdx](v1/apps/documentation/content/docs/infra/environment-variables.mdx).
+The environment variables required by the web application are documented in [apps/docs/content/v1/infra/environment-variables.mdx](apps/docs/content/v1/infra/environment-variables.mdx).
 
 Common checks, all run from `v1/`:
 
@@ -101,7 +101,7 @@ bun run build
 - Ensure generated contracts and lockfiles are current when applicable.
 - Run the checks relevant to the files you changed.
 
-Architecture decisions for v2 live in [docs/adr](docs/adr). Changes that contradict an accepted decision should update or supersede the ADR explicitly.
+Architecture decisions for v2 live in [apps/docs/content/v2/adr](apps/docs/content/v2/adr). Changes that contradict an accepted decision should update or supersede the ADR explicitly.
 
 ## Commit and review expectations
 

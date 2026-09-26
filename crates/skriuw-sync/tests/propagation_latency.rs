@@ -1,4 +1,4 @@
-//! In-process propagation measurement for `docs/benchmarks/2026-09-05-sync-propagation.md`.
+//! In-process propagation measurement for `apps/docs/content/v2/benchmarks/2026-09-05-sync-propagation.md`.
 //!
 //! Two real SQLite workspace files, two coordinator threads, one fake server,
 //! and the fake wake channel wired as the service wires it: an accepted push

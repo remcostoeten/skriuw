@@ -1,7 +1,7 @@
 /**
  * The forgiving date grammar behind the journal's "Go to date…" dialog. Pure
  * calendar math over `DateKey` strings with no clock of its own; the grammar is
- * specified in `docs/specs/journal-navigation.md`.
+ * specified in `apps/docs/content/v2/specs/journal-navigation.md`.
  */
 
 import {

@@ -60,7 +60,7 @@ function isPermanent(error: unknown): boolean {
  * workspace operations, then settles exactly the records the workspace
  * acknowledged. A day whose write is rejected keeps its records, so the next
  * launch or the next foreground tries again and nothing is lost
- * (`docs/specs/mobile-app.md`, R-F8).
+ * (`apps/docs/content/v2/specs/mobile-app.md`, R-F8).
  */
 export async function drainCaptureInbox(
   session: WorkspaceSession,

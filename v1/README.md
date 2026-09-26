@@ -1,10 +1,10 @@
 # Skriuw v1 (frozen)
 
-This directory holds the original Skriuw product line: the Next.js web app, the Expo mobile app, the Tauri desktop shell, the collaboration worker, the documentation site, and the shared packages behind them.
+This directory holds the original Skriuw product line: the Next.js web app, the Expo mobile app, the Tauri desktop shell, the collaboration worker, and the shared packages behind them.
 
 **v1 is frozen.** It is no longer hosted at skriuw.com and receives no new features. Active development happens in the repository root. See the [root README](../README.md) for the comparison between the two lines.
 
-It is kept here because the documentation site still builds from `apps/documentation`, and because the self-hosted Docker image is still published from this tree.
+It is kept here because the self-hosted Docker image is still published from this tree. Its documentation lives in the shared documentation site at `apps/docs/content/v1/`.
 
 ## Getting the frozen release
 
@@ -32,7 +32,6 @@ apps/web/              Next.js application
 apps/mobile/           Expo mobile application
 apps/desktop/          Tauri desktop shell
 apps/collab/           Cloudflare collaboration worker
-apps/documentation/    canonical documentation website source
 apps/extension/        Chrome web clipper
 packages/              shared packages
 prisma/                database schema and migrations
@@ -49,7 +48,7 @@ cp .env.example .env.local
 bun dev
 ```
 
-The required environment variables are documented in [apps/documentation/content/docs/infra/environment-variables.mdx](apps/documentation/content/docs/infra/environment-variables.mdx).
+The required environment variables are documented in [apps/docs/content/v1/infra/environment-variables.mdx](../apps/docs/content/v1/infra/environment-variables.mdx).
 
 ## Checks
 
@@ -62,7 +61,7 @@ bun run build
 
 ## Self-hosting
 
-The Docker image is built from this directory. See [apps/documentation/content/docs/infra/self-host-docker.mdx](apps/documentation/content/docs/infra/self-host-docker.mdx).
+The Docker image is built from this directory. See [apps/docs/content/v1/infra/self-host-docker.mdx](../apps/docs/content/v1/infra/self-host-docker.mdx).
 
 ```bash
 docker compose up

@@ -1,6 +1,6 @@
 # Share-to-Skriuw target
 
-The platform half of quick capture (`docs/specs/mobile-app.md`, R-F8). Both
+The platform half of quick capture (`apps/docs/content/v2/specs/mobile-app.md`, R-F8). Both
 platforms write the same record into the same durable inbox that
 `../file-inbox.ts` reads, so the application drains one queue however a
 capture reached it.

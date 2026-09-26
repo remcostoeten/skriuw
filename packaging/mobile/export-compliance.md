@@ -12,8 +12,8 @@ and it should be confirmed before the first submission rather than after.
 
 | Use | Algorithm | Where |
 | --- | --- | --- |
-| Sync payloads (note bodies, titles, tags, people, media, checkpoints) | XChaCha20-Poly1305, key from Argon2id (19 MiB, t = 2) over a recovery code | `crates/skriuw-crypto`, [ADR-0043](../../docs/adr/0043-end-to-end-encrypted-sync.md) |
-| Locked note bodies at rest | XChaCha20-Poly1305, key wrapped under an Argon2id key from the PIN/passphrase and, separately, from a recovery code | `crates/skriuw-crypto`, [ADR-0044](../../docs/adr/0044-locked-notes.md) |
+| Sync payloads (note bodies, titles, tags, people, media, checkpoints) | XChaCha20-Poly1305, key from Argon2id (19 MiB, t = 2) over a recovery code | `crates/skriuw-crypto`, [ADR-0043](../../apps/docs/content/v2/adr/0043-end-to-end-encrypted-sync.md) |
+| Locked note bodies at rest | XChaCha20-Poly1305, key wrapped under an Argon2id key from the PIN/passphrase and, separately, from a recovery code | `crates/skriuw-crypto`, [ADR-0044](../../apps/docs/content/v2/adr/0044-locked-notes.md) |
 | Sign-in credential and the biometric-gated PIN | Platform keystore (Android Keystore, iOS Keychain) | `apps/mobile/src/features/auth/keystore.ts`, `apps/mobile/src/features/lock/biometrics.ts` |
 | Transport | HTTPS/TLS, provided by the platform | — |
 

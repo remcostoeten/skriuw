@@ -2,7 +2,7 @@
  * The document arithmetic behind an append. Quick capture and share-to-Skriuw
  * add a paragraph to an entry without the editor being mounted, so the
  * ProseMirror document and its Markdown are produced here and travel as one
- * ordinary `save_document` (`docs/specs/editor-save-recovery.md`).
+ * ordinary `save_document` (`apps/docs/content/v2/specs/editor-save-recovery.md`).
  */
 
 export type EntryBody = {

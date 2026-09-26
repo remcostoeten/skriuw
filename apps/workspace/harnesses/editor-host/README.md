@@ -2,7 +2,7 @@
 
 Proves the standalone editor bundle (`apps/workspace/src/features/editor-standalone`) against the
 host protocol (`apps/mobile/src/editor/protocol.ts`) in a browser, before any device work
-(Mobile 05, [mobile-app spec](../../../../docs/specs/mobile-app.md), ADR-0048).
+(Mobile 05, [mobile-app spec](../../../../apps/docs/content/v2/specs/mobile-app.md), ADR-0048).
 
 `host.html` plays the native host: it owns eight notes, embeds `editor.html` in an iframe
 and speaks only protocol messages to it. Every `change` is made durable in memory and

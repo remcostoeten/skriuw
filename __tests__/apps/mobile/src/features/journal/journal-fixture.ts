@@ -32,7 +32,7 @@ export type FixtureEntry = {
 };
 
 /**
- * Chosen to exercise every rule in `docs/specs/journal-daily.md`: rated and
+ * Chosen to exercise every rule in `apps/docs/content/v2/specs/journal-daily.md`: rated and
  * unrated days inside the thirty-day window, a day with a mood and no words,
  * a day with words and no mood, a written day that predates the window, and
  * the four anniversaries a day can recall.

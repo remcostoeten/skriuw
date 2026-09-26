@@ -64,7 +64,7 @@ export type NoteLockSecretInput = {
 };
 
 /**
- * The command subset every runtime implements (`docs/specs/mobile-app.md`,
+ * The command subset every runtime implements (`apps/docs/content/v2/specs/mobile-app.md`,
  * Command surface). Signatures match `apps/workspace/src/bridge/commands.ts` so the
  * Tauri, browser-worker and native-module bridges are interchangeable.
  * Documents load through the snapshot and delta reads and save as

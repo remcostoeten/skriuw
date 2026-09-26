@@ -30,7 +30,7 @@ type Props = {
 
 /**
  * "Go to date…" on the compact shell: the same grammar and the same live
- * preview as the desktop dialog (`docs/specs/journal-navigation.md`), reached
+ * preview as the desktop dialog (`apps/docs/content/v2/specs/journal-navigation.md`), reached
  * by a press rather than by `d`. Enter only goes when the expression
  * resolves, and the preview line is a live region so a screen reader hears
  * the destination before committing to it.

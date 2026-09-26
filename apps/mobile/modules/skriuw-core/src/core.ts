@@ -14,7 +14,7 @@ export type SaveDocumentRequest = {
 /**
  * The native surface. Every member returns a promise: the native side runs
  * each call on a background queue, so no call can block the JS thread
- * (docs/specs/mobile-app.md, R-P3).
+ * (apps/docs/content/v2/specs/mobile-app.md, R-P3).
  */
 export type NativeSkriuwCore = {
   protocolVersion(): Promise<NativeResult>;

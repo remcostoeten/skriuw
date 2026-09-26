@@ -33,7 +33,7 @@ function activeNoteTitle(state: RendererState): string | null {
  * The chrome the routes live inside: a 44 pt toolbar, the content column, the
  * tab bar, the two sheets and the toast. It is mounted once by the root
  * layout, so switching destinations swaps the content column alone
- * (`docs/specs/mobile-app.md`, R-P1).
+ * (`apps/docs/content/v2/specs/mobile-app.md`, R-P1).
  */
 export function ShellFrame({ children }: Props) {
   const theme = useTheme();

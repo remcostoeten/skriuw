@@ -94,7 +94,7 @@ function keepingActiveNote(session: WorkspaceSession, create: () => void): void 
 /**
  * The entry note backing `dateKey`, created on first visit. The identifier
  * comes back in the same frame and the batch is submitted behind it, so
- * opening a day never waits on the native core (`docs/specs/mobile-app.md`,
+ * opening a day never waits on the native core (`apps/docs/content/v2/specs/mobile-app.md`,
  * R-P1).
  */
 export function ensureJournalEntry(session: WorkspaceSession, dateKey: DateKey): string {
@@ -200,7 +200,7 @@ async function entryDocument(session: WorkspaceSession, noteId: string): Promise
  * Adds `lines` to the end of a journal entry as one `save_document` at the
  * revision the store holds, retrying once against the reloaded document when
  * another writer got there first — the same shape the desktop template fill
- * uses (`docs/specs/journal-daily.md`, "Starting from a template"). Anything
+ * uses (`apps/docs/content/v2/specs/journal-daily.md`, "Starting from a template"). Anything
  * still rejected after the retry is thrown, so the capture queue keeps the
  * item instead of acknowledging a write that never happened.
  */

@@ -41,7 +41,7 @@ function clampIndex(index: number, count: number): number {
 
 /**
  * The last thirty days as one bar each, oldest on the left, on the rules in
- * `docs/specs/journal-daily.md`: a rated day rises with its mood and takes its
+ * `apps/docs/content/v2/specs/journal-daily.md`: a rated day rises with its mood and takes its
  * colour, a written but unrated day is a short grey bar, and a day without an
  * entry is a hairline so gaps stay visible. Today is outlined.
  *

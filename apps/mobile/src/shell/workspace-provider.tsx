@@ -84,7 +84,7 @@ export function useWorkspace(): ShellSession {
   return session;
 }
 
-/** Subscribes to exactly the slice a view renders (`docs/performance-contract.md`). */
+/** Subscribes to exactly the slice a view renders (`apps/docs/content/v2/performance-contract.md`). */
 export function useWorkspaceSelector<T>(selector: Selector<T>, equality?: Equality<T>): T {
   return useRendererSelector(useWorkspace().store, selector, equality);
 }

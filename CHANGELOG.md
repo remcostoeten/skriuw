@@ -14,11 +14,11 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
 - **End-to-end encrypted sync:** note bodies are sealed on the device before
   they leave it, so the server stores ciphertext it cannot read. Keys derive
   from a recovery code with Argon2id; migration 0026 and
-  [ADR-0043](docs/adr/0043-end-to-end-encrypted-sync.md) cover the scheme.
+  [ADR-0043](apps/docs/content/v2/adr/0043-end-to-end-encrypted-sync.md) cover the scheme.
 - **Full-text content search:** SQLite FTS5 backs search over note bodies, not
   just titles.
 - **Modal Vim editing** in both the rich editor and raw Markdown mode
-  ([ADR-0042](docs/adr/0042-modal-vim-editing.md)), including wrapped-row line
+  ([ADR-0042](apps/docs/content/v2/adr/0042-modal-vim-editing.md)), including wrapped-row line
   jumps.
 - **Installable browser build** with a compact touch shell for phones and
   tablets: phone drawers, tab overflow, and a keyboard-first polish pass.
@@ -38,7 +38,7 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
   timeout or on window blur; wrong attempts back off instead of destroying the
   data. Lock state replicates as `ConfigureNoteLock`, `SetNodeLocked`, and
   `SaveSealedDocument` operations, expanded adapter-side before they apply.
-  Migration 0027 and [ADR-0044](docs/adr/0044-locked-notes.md).
+  Migration 0027 and [ADR-0044](apps/docs/content/v2/adr/0044-locked-notes.md).
 
 ### Fixed
 

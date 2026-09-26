@@ -1,0 +1,6 @@
+{
+	"root": true,
+	"title": "Skriuw v1",
+	"description": "Frozen legacy release",
+	"pages": ["index", "features", "reference", "infra", "development", "builds"]
+}
