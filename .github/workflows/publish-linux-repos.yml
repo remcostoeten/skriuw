@@ -4,8 +4,8 @@ name: Publish Channels
 #   - apt repo (Debian/Ubuntu)  -> GitHub Pages (gh-pages branch)
 #   - dnf repo (Fedora/RHEL)    -> GitHub Pages (gh-pages branch)
 #   - AUR -bin package (Arch)   -> aur.archlinux.org
-#   - Homebrew cask (macOS)     -> Casks/skriuw.rb in this repo (tap by URL)
-#   - Scoop bucket (Windows)    -> bucket/skriuw.json in this repo
+#   - Homebrew cask (macOS)     -> Casks/skriuw.rb in skriuw/homebrew-tap
+#   - Scoop bucket (Windows)    -> bucket/skriuw.json in skriuw/homebrew-tap
 #   - winget (Windows)          -> optional PR to microsoft/winget-pkgs
 #   - Snap Store                -> optional upload to snapcraft.io (repacked from the .deb)
 #
@@ -139,10 +139,9 @@ jobs:
                   <h2>Arch (AUR)</h2>
                   <pre>yay -S skriuw-bin   # or: paru -S skriuw-bin</pre>
                   <h2>macOS (Homebrew)</h2>
-                  <pre>brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw
-                  brew install --cask skriuw</pre>
+                  <pre>brew install --cask skriuw/tap/skriuw</pre>
                   <h2>Windows (Scoop)</h2>
-                  <pre>scoop bucket add skriuw https://github.com/remcostoeten/skriuw
+                  <pre>scoop bucket add skriuw https://github.com/skriuw/homebrew-tap
                   scoop install skriuw</pre>
                   <h2>Direct downloads</h2>
                   <p>Download macOS, Windows, Debian/Ubuntu, RPM, or AppImage assets from <a href="https://github.com/remcostoeten/skriuw/releases/latest">GitHub Releases</a>.</p>
@@ -227,23 +226,24 @@ jobs:
               if: ${{ env.AUR_SSH_PRIVATE_KEY == '' || env.AUR_KNOWN_HOSTS == '' }}
               run: echo "AUR_SSH_PRIVATE_KEY or AUR_KNOWN_HOSTS not set; generated .SRCINFO but skipped AUR push."
 
-    # In-repo package manifests, updated in a single commit to daddy:
+    # Package manifests in skriuw/homebrew-tap, updated in a single commit:
     #   - Homebrew cask (Casks/skriuw.rb) from the released .dmg
-    #     tap:    brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw
+    #     install: brew install --cask skriuw/tap/skriuw
     #   - Scoop bucket (bucket/skriuw.json) from the released NSIS -setup.exe
-    #     bucket: scoop bucket add skriuw https://github.com/remcostoeten/skriuw
+    #     bucket:  scoop bucket add skriuw https://github.com/skriuw/homebrew-tap
     # Missing artifacts (e.g. a Linux-only release) just skip that manifest.
-    # Needs no extra secrets.
+    # Pushes with TAP_DEPLOY_KEY, a write-enabled deploy key on the tap repo.
     manifests:
         needs: resolve
         runs-on: ubuntu-latest
         permissions:
-            contents: write
+            contents: read
         steps:
             - uses: actions/checkout@v7
               with:
-                  persist-credentials: false
-                  ref: daddy
+                  repository: skriuw/homebrew-tap
+                  ref: main
+                  ssh-key: ${{ secrets.TAP_DEPLOY_KEY }}
 
             - name: Download .dmg and -setup.exe from release
               env:
@@ -259,7 +259,7 @@ jobs:
               run: |
                   set -euo pipefail
                   if [ ! -f Casks/skriuw.rb ]; then
-                    echo "::warning::Casks/skriuw.rb not on daddy yet; skipping cask update"
+                    echo "::warning::Casks/skriuw.rb missing from skriuw/homebrew-tap; skipping cask update"
                     exit 0
                   fi
                   VERSION="${{ needs.resolve.outputs.version }}"
@@ -278,7 +278,7 @@ jobs:
               run: |
                   set -euo pipefail
                   if [ ! -f bucket/skriuw.json ]; then
-                    echo "::warning::bucket/skriuw.json not on daddy yet; skipping scoop update"
+                    echo "::warning::bucket/skriuw.json missing from skriuw/homebrew-tap; skipping scoop update"
                     exit 0
                   fi
                   EXE="$(ls dist/*-setup.exe 2>/dev/null | head -n1 || true)"
@@ -297,8 +297,6 @@ jobs:
                   mv bucket/skriuw.json.tmp bucket/skriuw.json
 
             - name: Commit manifests
-              env:
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -306,8 +304,8 @@ jobs:
                   if git diff --cached --quiet; then
                     echo "Manifests already up to date."
                   else
-                    git commit -m "chore(manifests): brew + scoop ${{ needs.resolve.outputs.version }}"
-                    git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:daddy
+                    git commit -m "skriuw ${{ needs.resolve.outputs.version }}"
+                    git push origin HEAD:main
                   fi
 
     # Submits a version PR to microsoft/winget-pkgs pointing at the MSI on the

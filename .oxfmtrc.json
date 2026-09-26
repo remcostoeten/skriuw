@@ -7,8 +7,6 @@
     "docs/**",
     "__tests__/fixtures/**",
     "tools/packaging/**",
-    "bucket/**",
-    "Casks/**",
     "packages/theme/tokens.ts",
     "packages/icons/generated/**",
     "tools/oxlint/anti-slop/**",

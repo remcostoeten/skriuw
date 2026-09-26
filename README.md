@@ -97,14 +97,13 @@ sudo dnf install skriuw
 ### macOS (Homebrew)
 
 ```bash
-brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw
-brew install --cask skriuw
+brew install --cask skriuw/tap/skriuw
 ```
 
 ### Windows (Scoop)
 
 ```powershell
-scoop bucket add skriuw https://github.com/remcostoeten/skriuw
+scoop bucket add skriuw https://github.com/skriuw/homebrew-tap
 scoop install skriuw
 ```
 

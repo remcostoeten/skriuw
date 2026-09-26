@@ -23,17 +23,14 @@ const channels = [
     platform: "macOS",
     title: "Homebrew",
     body: "Install the signed desktop application through a dedicated cask.",
-    lines: [
-      "$ brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw",
-      "$ brew install --cask skriuw",
-    ],
+    lines: ["$ brew install --cask skriuw/tap/skriuw"],
   },
   {
     platform: "Windows",
     title: "Scoop",
     body: "Add the Skriuw bucket once, then install and update from the terminal.",
     lines: [
-      "> scoop bucket add skriuw https://github.com/remcostoeten/skriuw",
+      "> scoop bucket add skriuw https://github.com/skriuw/homebrew-tap",
       "> scoop install skriuw",
     ],
   },

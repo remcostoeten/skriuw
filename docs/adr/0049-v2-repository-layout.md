@@ -19,7 +19,7 @@ Group v2 directories by ownership:
 - `crates/` remains flat, and `contracts/`, `docs/`, and the `bin/` contributor commands remain at the repository root.
 - `tools/` holds build and release infrastructure: `scripts/`, `oxlint/`, and `packaging/`.
 - `__tests__/fixtures/` holds data files shared across products and languages.
-- `Casks/` and `bucket/` stay at the root because Homebrew and Scoop resolve them there when tapped by URL.
+- The Homebrew cask and Scoop manifest live in the `skriuw/homebrew-tap` repository; the root `tap_migrations.json` moves users of the old tap-by-URL there.
 
 Amended 2026-09-26: the sync Worker moved from `services/sync/` to `apps/sync/`, and root `scripts/`, `packaging/`, and `fixtures/` moved under `tools/` and `__tests__/`.
 

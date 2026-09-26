@@ -205,7 +205,7 @@ export const installChannels = [
     name: "macOS",
     icon: "macos" as const,
     summary: "Universal build for Apple silicon and Intel, signed and notarized.",
-    hint: "`brew tap remcostoeten/skriuw`",
+    hint: "`brew install --cask skriuw/tap/skriuw`",
     cta: "Download for macOS",
     href: releasesUrl,
     ctaVariant: "outline" as const,
