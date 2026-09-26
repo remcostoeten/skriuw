@@ -8,8 +8,8 @@ const ROOT = resolve(__dirname, "..");
 const REPOSITORY = resolve(ROOT, "../..");
 const SRC = resolve(ROOT, "src");
 const TESTS = resolve(REPOSITORY, "__tests__/apps/workspace/src");
-const RESULTS = resolve(REPOSITORY, "coverage/workspace/results.json");
-const COVERAGE_SUMMARY = resolve(REPOSITORY, "coverage/workspace/coverage-summary.json");
+const RESULTS = resolve(REPOSITORY, ".build/coverage/workspace/results.json");
+const COVERAGE_SUMMARY = resolve(REPOSITORY, ".build/coverage/workspace/coverage-summary.json");
 
 const PASS = "\x1b[32m✓\x1b[0m";
 const FAIL = "\x1b[31m✗\x1b[0m";

@@ -121,7 +121,7 @@ allowed), while a local-only workspace produces no sync rows or requests.
 
 ### C. Cloud control and data-plane owner
 
-**Owns:** `services/sync/`, Worker routes, Durable Object schema/RPC, auth and workspace
+**Owns:** `apps/sync/`, Worker routes, Durable Object schema/RPC, auth and workspace
 authorization adapters, R2 chunk/checkpoint transport, cloud tests and runbook.
 **Prerequisite:** internal log exists; public routes require A before exposure.
 **Unblocks:** D, G, F, H.

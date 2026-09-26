@@ -76,7 +76,7 @@ crates/skriuw-cli          Database development utility
 apps/workspace             React renderer plus browser and Tauri desktop shells
 apps/mobile                Expo native mobile application
 apps/site                  Marketing site
-services/sync              Cloudflare Worker authentication and sync service
+apps/sync                  Cloudflare Worker authentication and sync service
 packages/renderer-core     Shared renderer contracts, store, and route logic
 packages/shared            Framework-independent helpers with direct subpath imports
 packages/theme             Shared theme token generator and generated tokens
@@ -113,8 +113,8 @@ MIME type, browser bootstrap, OPFS initialization, and browser console.
 
 ## Cloud development
 
-The sync service is a Cloudflare Worker in `services/sync/`; see
-[services/sync/README.md](../services/sync/README.md) for deployment. Development and release
+The sync service is a Cloudflare Worker in `apps/sync/`; see
+[apps/sync/README.md](../apps/sync/README.md) for deployment. Development and release
 builds both use the production Worker by default. To develop against a local
 Worker instead, apply its D1 migrations, create `.dev.vars` from
 `.dev.vars.example`, and opt in when starting Tauri:
@@ -135,14 +135,14 @@ isolated real infrastructure use the `preview` environment, which has its own
 D1/R2/Durable Object storage:
 
 ```bash
-bun --cwd services/sync run check
-bunx wrangler deploy --env preview   # in services/sync/
+bun --cwd apps/sync run check
+bunx wrangler deploy --env preview   # in apps/sync/
 ```
 
 The Worker is deployed before the clients that need it, never after: the
 browser client deploys automatically from `daddy` through Vercel, so a client
 change that depends on a new Worker route must not reach `daddy` first. See
-[the deploy order](../services/sync/README.md#deploy-order). `GET /health` reports the
+[the deploy order](../apps/sync/README.md#deploy-order). `GET /health` reports the
 deployment's supported sync protocol versions, workspace schema version, and
 routes; `node tools/scripts/verify-cloud-capabilities.mjs [base-url]` checks a
 deployment against what current clients require and is the same check the

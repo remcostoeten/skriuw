@@ -1,14 +1,14 @@
 import { env, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
-import { WorkspaceContentStore, contentDigest } from "../../../services/sync/src/content-store";
+import { WorkspaceContentStore, contentDigest } from "../../../apps/sync/src/content-store";
 import {
   WORKSPACE_SYNC_PROTOCOL_VERSION,
   parseSyncPullResponse,
   type SyncPullResult,
   type SyncPushResult,
-} from "../../../services/sync/src/contracts";
-import type { WorkspaceSyncObject } from "../../../services/sync/src/workspace-sync-object";
+} from "../../../apps/sync/src/contracts";
+import type { WorkspaceSyncObject } from "../../../apps/sync/src/workspace-sync-object";
 
 type Workspace = DurableObjectStub<WorkspaceSyncObject>;
 

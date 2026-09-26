@@ -6,12 +6,12 @@ import type {
   SyncAccessConfiguration,
   WorkspaceMembershipLookup,
   WorkspaceMembershipSource,
-} from "../../../services/sync/src/access";
-import type { WorkspaceSyncState } from "../../../services/sync/src/contracts";
+} from "../../../apps/sync/src/access";
+import type { WorkspaceSyncState } from "../../../apps/sync/src/contracts";
 import {
   handleSyncWorkspaceStateRequest,
   provisionInternals,
-} from "../../../services/sync/src/provision";
+} from "../../../apps/sync/src/provision";
 
 const NOW = 1_900_000_000;
 const VALID_TOKEN = "valid-token";

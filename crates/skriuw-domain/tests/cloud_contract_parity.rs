@@ -12,7 +12,7 @@ use skriuw_domain::{
 };
 
 fn service_contracts() -> String {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../services/sync/src/contracts.ts");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../apps/sync/src/contracts.ts");
     fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
 
@@ -21,7 +21,7 @@ fn exported_value<'a>(source: &'a str, name: &str) -> &'a str {
     let line = source
         .lines()
         .find(|line| line.starts_with(&prefix))
-        .unwrap_or_else(|| panic!("services/sync/src/contracts.ts no longer exports {name}"));
+        .unwrap_or_else(|| panic!("apps/sync/src/contracts.ts no longer exports {name}"));
     let (_, value) = line
         .split_once(" = ")
         .unwrap_or_else(|| panic!("{name} is not a simple assignment"));

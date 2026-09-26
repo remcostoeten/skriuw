@@ -1,6 +1,6 @@
 # TypeScript testing
 
-This covers the v2 TypeScript suites for `apps/`, `packages/`, and `services/`.
+This covers the v2 TypeScript suites for `apps/` and `packages/`.
 Rust tests run through `cargo test` inside `bin/check`. The frozen v1 tree still
 uses `bun:test` and is out of scope.
 
@@ -20,16 +20,16 @@ per package:
 | `mobile` | `__tests__/apps/mobile` | mobile |
 | `shared` | `__tests__/packages/shared` | desktop |
 
-`services/sync` is installed separately and runs its suites inside workerd
+`apps/sync` is installed separately and runs its suites inside workerd
 through `@cloudflare/vitest-pool-workers`. It keeps its own Vitest install and
-`services/sync/vitest.config.ts`, which reads `__tests__/services/sync`.
+`apps/sync/vitest.config.ts`, which reads `__tests__/apps/sync`.
 
 ```bash
 bun run test                                  # every project in vitest.config.ts
 bunx vitest run --project mobile              # one project
 bunx vitest run __tests__/apps/mobile/src/features/lock
 bun --cwd apps/workspace run test             # workspace + renderer-core + shared, with coverage and the file report
-bun --cwd services/sync run test              # Worker suites
+bun --cwd apps/sync run test              # Worker suites
 ```
 
 Each package's `test` script delegates to its project, so `bun --cwd <package>

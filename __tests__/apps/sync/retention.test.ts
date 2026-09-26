@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import goldenPushV2 from "../../../contracts/fixtures/sync-push-v2.json";
 import goldenPushV2Content from "../../../contracts/fixtures/sync-push-v2-content.json";
-import { WorkspaceContentStore, contentDigest } from "../../../services/sync/src/content-store";
+import { WorkspaceContentStore, contentDigest } from "../../../apps/sync/src/content-store";
 import {
   MAX_SYNC_PULL_PAGE_BYTES,
   MAX_WORKSPACE_STORAGE_BYTES,
@@ -17,12 +17,12 @@ import {
   type SyncPullResult,
   type SyncPushResult,
   parseSyncPullResponse,
-} from "../../../services/sync/src/contracts";
+} from "../../../apps/sync/src/contracts";
 import {
   SYNC_EVENTS_DEVICE_HEADER,
   SYNC_EVENTS_EXPIRY_HEADER,
-} from "../../../services/sync/src/public-api";
-import type { WorkspaceSyncObject } from "../../../services/sync/src/workspace-sync-object";
+} from "../../../apps/sync/src/public-api";
+import type { WorkspaceSyncObject } from "../../../apps/sync/src/workspace-sync-object";
 
 const NOW = 1_900_000_000;
 const DEVICE_ID = "device-1";

@@ -12,7 +12,7 @@
   "scripts": {
     "types": "wrangler types worker-configuration.d.ts",
     "types:check": "bash scripts/without-dev-vars.sh wrangler types worker-configuration.d.ts --check",
-    "typecheck": "tsc --noEmit && tsc --noEmit --project ../../__tests__/services/sync",
+    "typecheck": "tsc --noEmit && tsc --noEmit --project ../../__tests__/apps/sync",
     "test": "bash scripts/without-dev-vars.sh vitest run",
     "check": "bun run types:check && bun run typecheck && bun run test",
     "deploy:dry": "wrangler deploy --dry-run",

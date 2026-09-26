@@ -45,10 +45,10 @@ Store builds need EAS on top of that, using the profiles in
 profile is declared but empty.
 
 Versioning is separate from the desktop line. Desktop releases are `v2-v*`
-tags driven by `releaser.config.json`; the mobile client versions from
+tags cut by the `Cut v2 release` workflow; the mobile client versions from
 `apps/mobile/app.json` (`expo.version`, currently `0.1.0`) with `eas.json` set to
 `appVersionSource: "remote"`, so EAS owns the build number. **Do not point the
-desktop releaser at `apps/mobile/app.json`** — the two lines ship on their own
+desktop release workflow at `apps/mobile/app.json`** — the two lines ship on their own
 cadence and a shared version number would force one to wait for the other.
 
 ## Blockers before a first submission

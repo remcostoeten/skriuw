@@ -7,7 +7,7 @@ These instructions apply to the entire Skriuw repository. Read the nearest produ
 Skriuw contains two independent product lines:
 
 - The repository root is the current (v2) local-first desktop application. Its stack is Rust, React, ProseMirror, SQLite, and Tauri.
-- `apps/` contains the v2 workspace application, mobile application, and marketing site; `services/` contains the v2 sync service; `packages/` contains shared TypeScript packages; and `crates/` remains the flat Rust workspace.
+- `apps/` contains the v2 workspace application, mobile application, marketing site, storybook, and sync service; `packages/` contains shared TypeScript packages; and `crates/` remains the flat Rust workspace.
 - `v1/` contains the frozen legacy v1 web, mobile, desktop, collaboration, and self-hosted products.
 - `v1/apps/documentation/content/docs/` is the canonical source for the published documentation site.
 

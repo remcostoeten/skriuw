@@ -62,7 +62,7 @@ reach `daddy` before the Worker that serves it. The order is:
 3. tag the desktop release.
 
 `.github/workflows/deploy-cloud.yml` automates step 1 for pushes to `daddy`
-that touch `services/sync/`, but only once the `CLOUDFLARE_API_TOKEN` and
+that touch `apps/sync/`, but only once the `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID` repository secrets exist; until then it skips with a
 notice and the deployment stays manual. `.github/workflows/release-v2.yml`
 refuses to publish a desktop release whose capabilities the deployed Worker

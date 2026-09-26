@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 app_dir="$repo_dir/apps/workspace"
-cloud_dir="$repo_dir/services/sync"
+cloud_dir="$repo_dir/apps/sync"
 mode="${1:-workspace}"
 
 if [[ $# -gt 0 ]]; then

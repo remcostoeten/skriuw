@@ -29,7 +29,7 @@ collected="$(
 expected="$(
   tracked_files __tests__ |
     grep -E "$suite_pattern" |
-    grep -v '^__tests__/services/sync/' |
+    grep -v '^__tests__/apps/sync/' |
     sort
 )"
 uncollected="$(comm -13 <(printf '%s\n' "$collected") <(printf '%s\n' "$expected"))"

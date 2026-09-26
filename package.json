@@ -10,8 +10,7 @@
     "packages/*"
   ],
   "scripts": {
-    "menu": "dev-menu",
-    "dev": "dev-menu",
+    "dev": "bin/dev",
     "dev:desktop": "bin/dev desktop",
     "dev:browser": "bin/dev browser",
     "site": "bin/dev site",
@@ -35,7 +34,6 @@
   },
   "devDependencies": {
     "@oxlint/plugins": "1.85.0",
-    "@remcostoeten/dev-menu": "^0.2.2",
     "@vitest/coverage-v8": "4.1.10",
     "oxfmt": "0.70.0",
     "oxlint": "1.85.0",

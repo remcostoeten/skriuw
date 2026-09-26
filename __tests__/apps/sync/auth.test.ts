@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { authInternals, corsHeaders, handleAuthRequest } from "../../../services/sync/src/auth";
+import { authInternals, corsHeaders, handleAuthRequest } from "../../../apps/sync/src/auth";
 
 describe("v2 auth boundary", () => {
   it("normalizes the exact trusted-origin allowlist", () => {

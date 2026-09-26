@@ -8,8 +8,8 @@ import {
   type CredentialVerifier,
   type WorkspaceMembershipLookup,
   type WorkspaceMembershipSource,
-} from "../../../services/sync/src/access";
-import { WorkspaceContentStore, contentDigest } from "../../../services/sync/src/content-store";
+} from "../../../apps/sync/src/access";
+import { WorkspaceContentStore, contentDigest } from "../../../apps/sync/src/content-store";
 import {
   CANONICAL_CHUNK_BYTES,
   MAX_WORKSPACE_STORAGE_BYTES,
@@ -17,12 +17,12 @@ import {
   type SyncPullResponse,
   type SyncPullResult,
   parseSyncPullResponse,
-} from "../../../services/sync/src/contracts";
+} from "../../../apps/sync/src/contracts";
 import {
   type PublicSyncDependencies,
   type SyncSecurityLogEvent,
   handlePublicSyncRequest,
-} from "../../../services/sync/src/public-api";
+} from "../../../apps/sync/src/public-api";
 
 const NOW = 1_900_000_000;
 const TOKEN = "valid-token";

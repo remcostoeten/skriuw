@@ -15,6 +15,6 @@ export default defineConfig({
   test: {
     name: "sync",
     dir: repositoryDirectory,
-    include: ["__tests__/services/sync/**/*.test.ts"],
+    include: ["__tests__/apps/sync/**/*.test.ts"],
   },
 });

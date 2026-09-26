@@ -5,8 +5,8 @@ import goldenPush from "../../../contracts/fixtures/sync-push-v1.json";
 import goldenPushV2 from "../../../contracts/fixtures/sync-push-v2.json";
 import goldenPushV2Content from "../../../contracts/fixtures/sync-push-v2-content.json";
 import workspaceOperationSchema from "../../../contracts/generated/workspace-operation.schema.json";
-import { WorkspaceContentStore } from "../../../services/sync/src/content-store";
-import { SYNC_ROUTE_NAMES } from "../../../services/sync/src/public-api";
+import { WorkspaceContentStore } from "../../../apps/sync/src/content-store";
+import { SYNC_ROUTE_NAMES } from "../../../apps/sync/src/public-api";
 import {
   WORKSPACE_OPERATION_SYNC_POLICY_V1,
   WORKSPACE_SYNC_PROTOCOL_VERSION,
@@ -17,7 +17,7 @@ import {
   type SyncPullResult,
   type SyncPushResult,
   type SyncPushResponse,
-} from "../../../services/sync/src/contracts";
+} from "../../../apps/sync/src/contracts";
 
 function pulledPage(result: SyncPullResult): unknown {
   if (!result.ok) {

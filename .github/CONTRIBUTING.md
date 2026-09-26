@@ -50,7 +50,7 @@ in `renderer-core`. See [TypeScript testing](../docs/testing.md) for suite place
 ### v2 mobile
 
 `apps/workspace/`, `apps/site/`, `apps/mobile/`, and `packages/*` are Bun workspaces resolved from one root
-lockfile, so `bun install` at the repository root installs them together. `services/sync/`,
+lockfile, so `bun install` at the repository root installs them together. `apps/sync/`,
 the harnesses under `apps/workspace/harnesses/` and `v1/` stay outside the workspace and
 keep their own installs.
 

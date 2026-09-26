@@ -2,19 +2,19 @@ import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 import goldenPush from "../../../contracts/fixtures/sync-push-v1.json";
-import { WorkspaceContentStore } from "../../../services/sync/src/content-store";
+import { WorkspaceContentStore } from "../../../apps/sync/src/content-store";
 import {
   type CredentialVerification,
   type CredentialVerifier,
   type ReadySyncAccessConfiguration,
   type WorkspaceMembershipLookup,
   type WorkspaceMembershipSource,
-} from "../../../services/sync/src/access";
+} from "../../../apps/sync/src/access";
 import {
   type PublicSyncDependencies,
   type SyncSecurityLogEvent,
   handlePublicSyncRequest,
-} from "../../../services/sync/src/public-api";
+} from "../../../apps/sync/src/public-api";
 
 const NOW = 1_900_000_000;
 const VALID_TOKEN = "valid-token";

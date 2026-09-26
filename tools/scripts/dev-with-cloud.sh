@@ -43,7 +43,7 @@ if [[ "$cloud_url" == "$local_cloud_url" ]]; then
     printf '[skriuw] Reusing local auth and sync Worker at %s\n' "$local_cloud_url"
   else
     printf '[skriuw] Starting local auth and sync Worker at %s…\n' "$local_cloud_url"
-    (cd "$repo_dir/services/sync" && ./node_modules/.bin/wrangler dev --port 8787) &
+    (cd "$repo_dir/apps/sync" && ./node_modules/.bin/wrangler dev --port 8787) &
     cloud_pid="$!"
 
     for _ in {1..80}; do

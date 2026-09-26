@@ -183,7 +183,7 @@ jobs:
             - name: Install frontend deps
               run: |
                   bun install --frozen-lockfile
-                  (cd services/sync && bun install --frozen-lockfile)
+                  (cd apps/sync && bun install --frozen-lockfile)
                   (cd apps/workspace/harnesses/ui-architecture && bun install --frozen-lockfile)
                   (cd apps/workspace/harnesses/renderer-store && bun install --frozen-lockfile)
 

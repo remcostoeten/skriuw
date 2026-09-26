@@ -103,10 +103,10 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
 ### Cloud data plane
 
 - [x] Scaffold the
-  [v2-only Worker and SQLite-backed Workspace Durable Object](../../services/sync/src/workspace-sync-object.ts).
+  [v2-only Worker and SQLite-backed Workspace Durable Object](../../apps/sync/src/workspace-sync-object.ts).
 - [x] Implement bounded, idempotent ordered push and cursor pull in that object.
 - [x] Test retries, sequence gaps, conflicting duplicates, and
-  [workspace isolation in the Workers runtime](../../__tests__/services/sync/workspace-sync-object.test.ts).
+  [workspace isolation in the Workers runtime](../../__tests__/apps/sync/workspace-sync-object.test.ts).
 - [x] Add and test the fail-closed
   [provider-independent authentication and authorization boundary](cloud-sync-authentication.md),
   including roles, device binding, generated operation-field validation, safe
@@ -182,7 +182,7 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
   code, with the metadata boundary fixed in
   [ADR-0043](../adr/0043-end-to-end-encrypted-sync.md) and covered by
   [`encrypted_scenarios.rs`](../../crates/skriuw-sync/tests/encrypted_scenarios.rs)
-  and [`sealed-operations.test.ts`](../../__tests__/services/sync/sealed-operations.test.ts).
+  and [`sealed-operations.test.ts`](../../__tests__/apps/sync/sealed-operations.test.ts).
   The service keeps a write-once encryption record per workspace, refuses
   plaintext and foreign-key content with 423 once it exists, and arbitrates
   enable; clients check it before uploading, verify recovery codes against

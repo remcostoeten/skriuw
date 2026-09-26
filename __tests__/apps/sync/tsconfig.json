@@ -1,0 +1,13 @@
+{
+  "extends": "../../../apps/sync/tsconfig.json",
+  "compilerOptions": {
+    "types": [
+      "../../../apps/sync/worker-configuration.d.ts",
+      "../../../apps/sync/node_modules/@cloudflare/vitest-pool-workers/types/cloudflare-test.d.ts"
+    ],
+    "paths": {
+      "vitest": ["../../../apps/sync/node_modules/vitest"]
+    }
+  },
+  "include": ["**/*.ts"]
+}

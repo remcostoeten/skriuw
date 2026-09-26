@@ -14,9 +14,14 @@ Group v2 directories by ownership:
 - `apps/workspace/` contains the desktop and browser application, including `src-tauri/`.
 - `apps/mobile/` contains the Expo mobile application.
 - `apps/site/` contains the marketing site.
-- `services/sync/` contains the Cloudflare authentication and sync Worker.
+- `apps/sync/` contains the Cloudflare authentication and sync Worker.
 - `packages/renderer-core/` and `packages/theme/` contain the shared TypeScript packages.
-- `crates/` remains flat, and root contracts, fixtures, documentation, contributor commands, helpers, and packaging directories remain at the repository root.
+- `crates/` remains flat, and `contracts/`, `docs/`, and the `bin/` contributor commands remain at the repository root.
+- `tools/` holds build and release infrastructure: `scripts/`, `oxlint/`, and `packaging/`.
+- `__tests__/fixtures/` holds data files shared across products and languages.
+- `Casks/` and `bucket/` stay at the root because Homebrew and Scoop resolve them there when tapped by URL.
+
+Amended 2026-09-26: the sync Worker moved from `services/sync/` to `apps/sync/`, and root `scripts/`, `packaging/`, and `fixtures/` moved under `tools/` and `__tests__/`.
 
 The root Bun workspace includes the applications and packages. The sync service keeps its existing independent dependency installation boundary. Package names, application identifiers, public URLs, and deployment identities do not change.
 

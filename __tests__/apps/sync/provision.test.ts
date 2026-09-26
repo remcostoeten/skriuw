@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { provisionInternals } from "../../../services/sync/src/provision";
+import { provisionInternals } from "../../../apps/sync/src/provision";
 
 describe("sync workspace provisioning", () => {
   it("derives one opaque stable workspace identifier per trusted subject", async () => {

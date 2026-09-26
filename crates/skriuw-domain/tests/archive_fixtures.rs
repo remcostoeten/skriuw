@@ -136,7 +136,9 @@ fn catalogue_covers_exactly_the_version_directories() {
             let version = name
                 .strip_prefix('v')
                 .and_then(|suffix| suffix.parse::<u16>().ok())
-                .unwrap_or_else(|| panic!("unexpected directory {name} under __tests__/fixtures/archives"));
+                .unwrap_or_else(|| {
+                    panic!("unexpected directory {name} under __tests__/fixtures/archives")
+                });
             assert!(
                 supported.contains(&version),
                 "__tests__/fixtures/archives/{name} exists for unsupported archive version {version}"
