@@ -146,12 +146,11 @@ pub const MAX_DOCUMENT_DEPTH: usize = 128;
 pub const MAX_OPERATION_GROUP: usize = 100_000;
 pub const MAX_OPERATION_GROUP_BYTES: usize = 512 * 1024 * 1024;
 
-pub const SETTINGS_FIELDS: [&str; 10] = [
+pub const SETTINGS_FIELDS: [&str; 9] = [
     "settingsVersion",
     "theme",
     "compactSidebar",
     "showPageIcons",
-    "reduceMotion",
     "rememberLastNote",
     "editorFont",
     "editorLineHeight",
@@ -318,8 +317,6 @@ pub struct WorkspaceSettings {
     pub compact_sidebar: bool,
     #[serde(default = "default_enabled")]
     pub show_page_icons: bool,
-    #[serde(default)]
-    pub reduce_motion: bool,
     #[serde(default = "default_enabled")]
     pub remember_last_note: bool,
     #[serde(default = "default_editor_font")]
@@ -341,7 +338,6 @@ impl Default for WorkspaceSettings {
             theme: default_theme(),
             compact_sidebar: false,
             show_page_icons: default_enabled(),
-            reduce_motion: false,
             remember_last_note: default_enabled(),
             editor_font: default_editor_font(),
             editor_line_height: default_editor_line_height(),
@@ -2780,6 +2776,17 @@ mod tests {
             serde_json::from_value::<WorkspaceSettings>(round_trip).expect("reparse settings"),
             settings
         );
+    }
+
+    #[test]
+    fn settings_written_with_the_retired_reduce_motion_field_still_load() {
+        let settings = serde_json::from_value::<WorkspaceSettings>(json!({
+            "theme": "paper",
+            "reduceMotion": true
+        }))
+        .expect("legacy document");
+        settings.validate().expect("legacy settings");
+        assert_eq!(settings.extensions["reduceMotion"], json!(true));
     }
 
     #[test]

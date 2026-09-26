@@ -43,7 +43,6 @@ const MEMORY_SETTINGS: WorkspaceSettings = {
   compactSidebar: false,
   showTreeGuides: false,
   showPageIcons: true,
-  reduceMotion: false,
   rememberLastNote: true,
   editorFont: "inter",
   editorLineHeight: "comfortable",

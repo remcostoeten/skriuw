@@ -59,7 +59,7 @@ Diagram nodes are semantic DOM controls. Connectors and arrowheads share one SVG
 layer and are hidden from the accessibility tree. Each node announces its shape
 and outgoing connections; a live region announces creation, deletion, connection,
 layout, source application, and movement. Editing controls have visible focus and
-do not depend on hover. Reduced-motion preferences remove toolbar transitions.
+do not depend on hover.
 
 Node movement never updates React or the workspace store per pointer event. The
 NodeView recalculates connectors locally and ordinary document persistence runs

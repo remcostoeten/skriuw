@@ -41,7 +41,7 @@ type TooltipProps = {
  * only compositor-friendly opacity/transform. Skip-delay is shared across all
  * instances: moving between triggers within a short window opens the next
  * tooltip instantly with no entry animation, so hovering along an icon rail
- * feels continuous. Honors reduced motion via CSS.
+ * feels continuous.
  */
 export function Tooltip({
   label,

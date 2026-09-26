@@ -39,22 +39,14 @@ const FolderOpenIcon = forwardRef<FolderOpenIconHandle, FolderOpenIconProps>(
   ) => {
     const folderControls = useAnimation();
     const paperControls = useAnimation();
-    // The "Animated icons" setting is the sole control, so the OS reduced-motion
-    // query is deliberately not consulted here.
-    const reduced = false;
     const isControlled = useRef(false);
 
     useImperativeHandle(ref, () => {
       isControlled.current = true;
       return {
         startAnimation: () => {
-          if (reduced) {
-            folderControls.start("normal");
-            paperControls.start("normal");
-          } else {
-            folderControls.start("animate");
-            paperControls.start("animate");
-          }
+          folderControls.start("animate");
+          paperControls.start("animate");
         },
         stopAnimation: () => {
           folderControls.start("normal");
@@ -65,7 +57,7 @@ const FolderOpenIcon = forwardRef<FolderOpenIconHandle, FolderOpenIconProps>(
 
     const handleEnter = useCallback(
       (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!isAnimated || reduced) return;
+        if (!isAnimated) return;
         if (!isControlled.current) {
           folderControls.start("animate");
           paperControls.start("animate");
@@ -73,7 +65,7 @@ const FolderOpenIcon = forwardRef<FolderOpenIconHandle, FolderOpenIconProps>(
           onMouseEnter?.(e);
         }
       },
-      [folderControls, paperControls, reduced, onMouseEnter, isAnimated],
+      [folderControls, paperControls, onMouseEnter, isAnimated],
     );
 
     const handleLeave = useCallback(

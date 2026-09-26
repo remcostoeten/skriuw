@@ -2300,10 +2300,6 @@
           "type": "string",
           "default": "Start writing..."
         },
-        "reduceMotion": {
-          "type": "boolean",
-          "default": false
-        },
         "rememberLastNote": {
           "type": "boolean",
           "default": true

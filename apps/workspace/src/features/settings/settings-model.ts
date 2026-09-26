@@ -36,7 +36,6 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   compactSidebar: false,
   showTreeGuides: false,
   showPageIcons: true,
-  reduceMotion: false,
   animatedIcons: true,
   rememberLastNote: true,
   editorFont: "inter",
@@ -183,9 +182,7 @@ export function opensLinksInApp(settings: WorkspaceSettings): boolean {
 
 /**
  * Workspaces written before this setting existed have no `animatedIcons` key,
- * and animation is the default, so only an explicit `false` turns it off. The
- * toggle is the sole control: the OS `prefers-reduced-motion` query does not
- * override an explicit opt-in.
+ * and animation is the default, so only an explicit `false` turns it off.
  */
 export function usesAnimatedIcons(settings: WorkspaceSettings): boolean {
   return settings.animatedIcons !== false;

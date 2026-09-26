@@ -77,7 +77,6 @@ export type WorkspaceSettings = {
   theme: string;
   compactSidebar: boolean;
   showPageIcons: boolean;
-  reduceMotion: boolean;
   rememberLastNote: boolean;
   editorFont: string;
   editorLineHeight: string;

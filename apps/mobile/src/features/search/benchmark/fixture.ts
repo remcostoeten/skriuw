@@ -22,7 +22,6 @@ const SETTINGS: WorkspaceSettings = {
   theme: "midnight",
   compactSidebar: false,
   showPageIcons: true,
-  reduceMotion: false,
   rememberLastNote: true,
   editorFont: "inter",
   editorLineHeight: "comfortable",
