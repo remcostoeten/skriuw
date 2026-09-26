@@ -1017,6 +1017,7 @@
 .hy-page {
   background: var(--hy-bg);
   min-height: 100dvh;
+  overflow-x: clip;
 }
 
 .hy-frame > * {

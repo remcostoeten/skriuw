@@ -47,7 +47,7 @@ type Props = {
 export function HybridFrame({ children }: Props) {
   return (
     <div className="hy-page">
-      <div className="relative mx-auto my-10 w-[min(1040px,calc(100%-32px))] border-x border-dashed border-line max-[620px]:my-4">
+      <div className="relative mx-auto my-10 w-[min(1200px,calc(100%-32px))] border-x border-dashed border-line max-[620px]:my-4">
         <header className={cn(band, "-mb-px flex-wrap justify-between")}>
           <div className="flex min-w-0 items-center gap-4">
             <Link href="/" className="shrink-0 text-ink-900">
