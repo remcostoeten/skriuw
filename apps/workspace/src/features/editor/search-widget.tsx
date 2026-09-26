@@ -13,7 +13,7 @@ import {
   WholeWordIcon,
 } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
-import { Tooltip } from "@/shared/ui/tooltip";
+import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import type { EditorSearchShortcutId } from "./editor-bound-shortcut-ids";
 import type { SearchOptions } from "./search-plugin";
 

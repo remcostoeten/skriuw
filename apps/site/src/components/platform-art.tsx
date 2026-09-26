@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { cn } from "@skriuw/shared/helpers/cn";
 import { Android, Apple, Check, Globe, Linux, Lock, Pwa, Windows } from "@/components/ui/icons";
 
 type Props = {
@@ -70,6 +71,7 @@ const hubTargets = [
     left: "85.29%",
     top: "29.17%",
     path: "M202 120 C240 120 230 70 290 70",
+    pending: true,
   },
   {
     label: "Android",
@@ -77,6 +79,7 @@ const hubTargets = [
     left: "85.29%",
     top: "70.83%",
     path: "M202 120 C240 120 230 170 290 170",
+    pending: true,
   },
 ];
 
@@ -110,7 +113,11 @@ export function DesktopArt() {
         <div
           key={target.label}
           style={{ left: target.left, top: target.top }}
-          className="absolute grid size-10 -translate-1/2 place-items-center rounded-[10px] border border-current/15 bg-black/10 backdrop-blur-[2px]"
+          title={target.pending ? "In the works" : undefined}
+          className={cn(
+            "absolute grid size-10 -translate-1/2 place-items-center rounded-[10px] border border-current/15 bg-black/10 backdrop-blur-[2px]",
+            target.pending && "border-dashed opacity-60",
+          )}
         >
           {target.icon}
           <span className="absolute top-full mt-1 font-mono text-[9px] whitespace-nowrap opacity-60">

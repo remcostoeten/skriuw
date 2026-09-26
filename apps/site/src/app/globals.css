@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@skriuw/shared/ui/tooltip.css";
 
 @source "../app";
 @source "../src";
@@ -957,18 +958,10 @@
   --color-hy-card: var(--hy-card);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
   --animate-hy-hatch: hy-hatch 0.6s linear infinite;
-  --animate-hy-enter: hy-enter 220ms var(--ease-out) both;
 
   @keyframes hy-hatch {
     to {
       background-position: 10px 0;
-    }
-  }
-
-  @keyframes hy-enter {
-    from {
-      opacity: 0;
-      transform: translateY(6px) scale(0.97);
     }
   }
 }
@@ -979,6 +972,11 @@
   --ok: #1fae78;
   --hy-bg: var(--muted);
   --hy-card: var(--surface);
+  --tooltip-bg: var(--ink-900);
+  --tooltip-fg: var(--surface);
+  --tooltip-border: transparent;
+  --tooltip-radius: 6px;
+  --tooltip-shadow: 0 6px 16px -6px rgba(16, 24, 40, 0.35);
 }
 
 :root[data-theme="dark"] {

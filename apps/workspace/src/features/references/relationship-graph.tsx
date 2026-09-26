@@ -1,7 +1,7 @@
 import { activateReference } from "./reference-navigation";
 import type { RelationshipGraph } from "./relationship-model";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
-import { Tooltip } from "@/shared/ui/tooltip";
+import { Tooltip } from "@skriuw/shared/ui/tooltip";
 
 type Props = {
   store: RendererStore;

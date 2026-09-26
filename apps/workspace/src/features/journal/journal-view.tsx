@@ -17,7 +17,7 @@ import {
   SearchIcon,
   Trash2Icon,
 } from "@/shared/icons/static";
-import { Tooltip } from "@/shared/ui/tooltip";
+import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import { toolbarIconButtonClass } from "@/shell/toolbar-styles";
 import { WindowControls } from "@/shell/window-controls";
 import { useShortcutHints } from "@/commands/hints";

@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
-import { Tooltip } from "@/shared/ui/tooltip";
+import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import {
   CheckIcon,
   CircleIcon,

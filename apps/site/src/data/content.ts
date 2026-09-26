@@ -1,6 +1,7 @@
 export const appUrl = "/app/";
 export const repoUrl = "https://github.com/remcostoeten/skriuw";
-export const releasesUrl = "https://github.com/remcostoeten/skriuw/releases/latest";
+export const releasesUrl =
+  "https://github.com/remcostoeten/skriuw/releases/latest";
 
 export const navLinks = [
   { label: "Features", href: "/#features" },
@@ -28,18 +29,50 @@ export const statusSuggestions = [
     href: "/import/",
     hint: "Bring a vault from Obsidian, Notion, Bear, or Apple Notes.",
   },
-  { label: "Download", href: "/download/", hint: "Builds for macOS, Windows, and Linux." },
+  {
+    label: "Download",
+    href: "/download/",
+    hint: "Builds for macOS, Windows, and Linux.",
+  },
 ];
 
 export const importSources = [
-  "Obsidian",
-  "Notion",
-  "Bear",
-  "Apple Notes",
-  "Simplenote",
-  "Markdown",
-  "Plain text",
-  "ZIP",
+  {
+    name: "Obsidian",
+    format: "vault folder",
+    keeps: "Folder tree, frontmatter, wikilinks",
+  },
+  {
+    name: "Notion",
+    format: "Markdown & CSV zip",
+    keeps: "Databases become typed properties",
+  },
+  { name: "Bear", format: ".bear2bk", keeps: "TextBundles, images, tags" },
+  {
+    name: "Apple Notes",
+    format: "exported .md",
+    keeps: "Nothing read from Apple's database",
+  },
+  { name: "Evernote", format: ".enex", keeps: "Checkboxes, code, tables" },
+  {
+    name: "Joplin",
+    format: "RAW folder",
+    keeps: "Nested notebooks, resources",
+  },
+  {
+    name: "Google Keep",
+    format: "Takeout folder",
+    keeps: "Checklists, labels, pin, color",
+  },
+  { name: "Simplenote", format: "notes.json", keeps: "Tags, timestamps, pins" },
+  {
+    name: "Standard Notes",
+    format: "decrypted backup",
+    keeps: "Tags via references",
+  },
+  { name: "Markdown", format: ".md folder", keeps: "Unknown syntax stays raw" },
+  { name: "Plain text", format: ".txt", keeps: "One note per file" },
+  { name: "ZIP", format: ".zip", keeps: "Scanned before a byte is written" },
 ];
 
 export const tickerStats = [
@@ -107,9 +140,12 @@ export const platformStories = [
     kicker: "Desktop",
     lead: "The full app,",
     brand: "offline",
-    tail: "on macOS, Windows, Linux, iOS, and Android, or as a PWA. No account, no network, no sign-up wall.",
+    tail: "on macOS, Windows, and Linux. No account, no network, no sign-up wall.",
     stats: [
-      { value: "One file", label: "Your whole workspace, on your disk, yours to copy or back up" },
+      {
+        value: "One file",
+        label: "Your whole workspace, on your disk, yours to copy or back up",
+      },
       { value: "Rust", label: "Domain, storage, and history core" },
     ],
     tone: "dark" as const,
@@ -123,7 +159,8 @@ export const platformStories = [
       { value: "0", label: "Bytes leave the tab until you sign in" },
       {
         value: "Offline",
-        label: "Installs to your home screen and keeps working with no connection",
+        label:
+          "Installs to your home screen and keeps working with no connection",
       },
     ],
     tone: "sage" as const,
@@ -161,7 +198,12 @@ export const engineeringStats = [
 ];
 
 export const themes = [
-  { name: "Skriuw", bg: "#1d1b1b", ink: "#e8e4df", note: "the default, warm ink on near-black." },
+  {
+    name: "Skriuw",
+    bg: "#1d1b1b",
+    ink: "#e8e4df",
+    note: "the default, warm ink on near-black.",
+  },
   {
     name: "Paper",
     bg: "#efe9df",
@@ -180,14 +222,24 @@ export const themes = [
     ink: "#cba6f7",
     note: "Mocha, matching the rest of your setup.",
   },
-  { name: "Rosé Pine", bg: "#191724", ink: "#ebbcba", note: "muted and soft on the eyes." },
+  {
+    name: "Rosé Pine",
+    bg: "#191724",
+    ink: "#ebbcba",
+    note: "muted and soft on the eyes.",
+  },
   {
     name: "Gruvbox",
     bg: "#282828",
     ink: "#fabd2f",
     note: "retro contrast, straight from your editor.",
   },
-  { name: "Tokyo Night", bg: "#1a1b26", ink: "#7aa2f7", note: "cool blues, the terminal classic." },
+  {
+    name: "Tokyo Night",
+    bg: "#1a1b26",
+    ink: "#7aa2f7",
+    note: "cool blues, the terminal classic.",
+  },
 ];
 
 export const installChannels = [
@@ -204,8 +256,9 @@ export const installChannels = [
   {
     name: "macOS",
     icon: "macos" as const,
-    summary: "Universal build for Apple silicon and Intel, signed and notarized.",
-    hint: "`brew install --cask skriuw/tap/skriuw`",
+    summary:
+      "Universal build for Apple silicon and Intel, signed and notarized.",
+    hint: "`brew tap remcostoeten/skriuw`",
     cta: "Download for macOS",
     href: releasesUrl,
     ctaVariant: "outline" as const,
@@ -300,8 +353,8 @@ export const footerColumns = [
     title: "Project",
     links: [
       { label: "Source on GitHub", href: repoUrl },
-      { label: "Contributing", href: `${repoUrl}/blob/daddy/.github/CONTRIBUTING.md` },
-      { label: "Security", href: `${repoUrl}/blob/daddy/.github/SECURITY.md` },
+      { label: "Contributing", href: `${repoUrl}/blob/daddy/CONTRIBUTING.md` },
+      { label: "Security", href: `${repoUrl}/blob/daddy/SECURITY.md` },
       { label: "License", href: `${repoUrl}/blob/daddy/LICENSE` },
     ],
   },

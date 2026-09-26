@@ -10,7 +10,8 @@ import { appUrl, navLinks, repoUrl } from "@/data/content";
 import { useAccent } from "@/components/hybrid/accent-toggle";
 import { ghostButton, outlineButton, primaryButton } from "@/components/hybrid/control";
 
-const band = "hy-dots flex items-center gap-4 border-y border-dashed border-line bg-hy-bg px-6 py-4 max-[620px]:px-5";
+const band =
+  "hy-dots flex items-center gap-4 border-y border-dashed border-line bg-hy-bg px-6 py-4 max-[620px]:px-5";
 
 function LivePill() {
   return (
@@ -82,7 +83,12 @@ export function HybridFrame({ children }: Props) {
         >
           <p className="m-0">
             <em>skriuw</em> · Frisian · “to write” · engineered by{" "}
-            <a href="https://github.com/remcostoeten" target="_blank" rel="noreferrer" className="hy-link">
+            <a
+              href="https://github.com/remcostoeten"
+              target="_blank"
+              rel="noreferrer"
+              className="hy-link"
+            >
               Remco Stoeten
             </a>
           </p>

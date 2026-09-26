@@ -1,22 +1,33 @@
-import { tickerStats } from "@/data/content";
+import { importSources } from "@/data/content";
 
 export function HybridSignals() {
   return (
     <section className="p-0!">
-      <dl className="grid grid-cols-2 divide-x divide-dashed divide-line sm:grid-cols-3 lg:grid-cols-5">
-        {tickerStats.map((stat, index) => (
-          <div
-            key={stat.label}
-            className="flex flex-col gap-2 px-6 py-5 max-[620px]:px-5 [&:nth-child(2n)]:max-sm:border-l-0 [&:nth-child(n+3)]:max-sm:border-t [&:nth-child(n+3)]:max-sm:border-dashed [&:nth-child(n+3)]:max-sm:border-line"
-            style={{ animationDelay: `${index * 40}ms` }}
-          >
-            <dt className="caps text-[0.62rem] text-ink-400">{stat.label}</dt>
-            <dd className="m-0 font-mono text-[15px] font-medium tracking-[-0.01em] text-ink-900 tabular-nums">
-              {stat.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <div className="grid lg:grid-cols-[auto_minmax(0,1fr)]">
+        <p className="caps m-0 flex items-center px-6 py-5 text-[0.62rem] text-ink-400 max-lg:border-b max-lg:border-dashed max-lg:border-line max-[620px]:px-5 lg:border-r lg:border-dashed lg:border-line">
+          Imports from
+        </p>
+        <div className="overflow-hidden">
+          <ul className="-mt-px -ml-px grid list-none grid-cols-2 p-0 sm:grid-cols-3 lg:grid-cols-6">
+            {importSources.map((source) => (
+              <li
+                key={source.name}
+                className="flex flex-col gap-1 border-t border-l border-dashed border-line px-6 py-5 max-[620px]:px-5"
+              >
+                <span className="text-[15px] font-medium tracking-[-0.01em] text-ink-900">
+                  {source.name}
+                </span>
+                <span className="font-mono text-[11px] text-accent">
+                  {source.format}
+                </span>
+                <span className="mt-1 text-[12px] leading-4 text-ink-400">
+                  {source.keeps}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </section>
   );
 }

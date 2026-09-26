@@ -140,7 +140,9 @@ function Chip({ sigil, children }: ChipProps) {
 function SectionLabel({ children, count }: { children: ReactNode; count?: number }) {
   return (
     <p className="flex items-center gap-1 text-[10px] text-ink-400">
-      <span aria-hidden className="text-[8px]">⌄</span>
+      <span aria-hidden className="text-[8px]">
+        ⌄
+      </span>
       {children}
       {count !== undefined ? <span className="text-ink-300">({count})</span> : null}
     </p>
@@ -263,7 +265,9 @@ export function HybridAppPreview() {
         <div className="min-w-0 flex-1 px-7 py-4">
           <div className="flex items-center justify-between text-[10px] text-ink-400">
             <span className="flex items-center gap-1">
-              <span aria-hidden className="text-[8px]">›</span>
+              <span aria-hidden className="text-[8px]">
+                ›
+              </span>
               Properties <span className="text-ink-300">(3)</span>
             </span>
             <span className="caps text-[0.58rem]">add cover</span>
@@ -291,8 +295,8 @@ export function HybridAppPreview() {
               Every keystroke paints in the same frame, or it is a bug.
             </p>
             <p>
-              See <Chip sigil="@">The 8 ms budget</Chip> for the measured version of this claim
-              and the benchmark that enforces it.
+              See <Chip sigil="@">The 8 ms budget</Chip> for the measured version of this claim and
+              the benchmark that enforces it.
               <span
                 aria-hidden
                 className="vg-caret ml-px inline-block h-3 w-px translate-y-0.5 bg-clay-500"
@@ -368,7 +372,12 @@ export function HybridAppPreview() {
               <line x1="80" y1="45" x2="126" y2="72" />
             </g>
             <circle cx="80" cy="45" r="11" className="fill-ink-800" />
-            <text x="80" y="49" textAnchor="middle" className="fill-surface text-[9px] font-semibold">
+            <text
+              x="80"
+              y="49"
+              textAnchor="middle"
+              className="fill-surface text-[9px] font-semibold"
+            >
               L
             </text>
             {[

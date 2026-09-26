@@ -3,13 +3,13 @@
   z-index: 50;
   max-width: 280px;
   padding: 5px 10px;
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  background: hsl(var(--popover));
-  color: hsl(var(--popover-foreground));
+  border: 1px solid var(--tooltip-border, hsl(var(--border)));
+  border-radius: var(--tooltip-radius, var(--radius));
+  background: var(--tooltip-bg, hsl(var(--popover)));
+  color: var(--tooltip-fg, hsl(var(--popover-foreground)));
   font-size: 12px;
   line-height: 1.4;
-  box-shadow: 0 4px 12px hsl(var(--scrim) / 0.2);
+  box-shadow: var(--tooltip-shadow, 0 4px 12px hsl(var(--scrim) / 0.2));
   pointer-events: none;
   user-select: none;
   will-change: opacity, transform;
@@ -91,13 +91,13 @@
 .tooltip-shortcut {
   flex: none;
   padding: 1px 5px;
-  border: 1px solid hsl(var(--border) / 0.7);
-  border-radius: calc(var(--radius) - 2px);
-  background: hsl(var(--muted) / 0.6);
+  border: 1px solid var(--tooltip-kbd-border, hsl(var(--border) / 0.7));
+  border-radius: calc(var(--tooltip-radius, var(--radius)) - 2px);
+  background: var(--tooltip-kbd-bg, hsl(var(--muted) / 0.6));
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 500;
   line-height: 1.4;
-  color: hsl(var(--muted-foreground));
+  color: var(--tooltip-kbd-fg, hsl(var(--muted-foreground)));
 }
 

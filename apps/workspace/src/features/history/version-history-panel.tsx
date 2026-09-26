@@ -25,7 +25,7 @@ import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/t
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { VersionDiffView, useMarkdownDiff } from "./version-diff-view";
 import type { DiffLayout } from "./split-diff-model";
-import { Tooltip } from "@/shared/ui/tooltip";
+import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import { VersionStats } from "./version-stats";
 import {
   formatVersionClock,
