@@ -29,7 +29,7 @@ import {
 } from "@/shared/ui/context-menu";
 import { Dialog } from "@/shared/ui/dialog";
 import { Select } from "@/shared/ui/select";
-import { Tooltip } from "@/shared/ui/tooltip";
+import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
 import {
   projectCoverMediaPicker,

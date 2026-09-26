@@ -1,6 +1,6 @@
 import type { KeyboardEvent, RefObject } from "react";
 import { CloseIcon } from "@/shared/icons/static";
-import { Tooltip } from "@/shared/ui/tooltip";
+import { Tooltip } from "@skriuw/shared/ui/tooltip";
 
 type Props = {
   fieldId: string;

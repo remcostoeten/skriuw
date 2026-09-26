@@ -23,6 +23,13 @@ callbacks or failures that do not require recovery.
 light/dark(/system) segmented switch. It needs React and Tailwind; add
 `@source` for `packages/shared/src/components` to the app's stylesheet.
 
+`@skriuw/shared/ui/tooltip` is a dependency-free
+tooltip shared by the workspace and the site. Import its stylesheet once
+(`@import "@skriuw/shared/ui/tooltip.css"`) and theme it with the
+`--tooltip-bg`, `--tooltip-fg`, `--tooltip-border`, `--tooltip-radius`,
+`--tooltip-shadow` and `--tooltip-kbd-*` tokens; unset tokens fall back to the
+workspace's HSL theme variables.
+
 Each helper documents its types, behavior, and usage in JSDoc beside its source.
 Tests mirror the source under `__tests__/packages/shared/src/helpers/`.
 

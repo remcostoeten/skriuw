@@ -8,7 +8,7 @@
 @import "../ai/ai-surfaces.css";
 @import "../../shell/mobile.css";
 @import "../references/references.css";
-@import "../../shared/ui/tooltip.css";
+@import "@skriuw/shared/ui/tooltip.css";
 @import "../../shared/icons/app-icon.css";
 
 @plugin "tailwindcss-animate";

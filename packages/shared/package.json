@@ -7,7 +7,10 @@
     "./components/theme-toggle": "./src/components/theme-toggle.tsx",
     "./helpers/clamp": "./src/helpers/clamp.ts",
     "./helpers/cn": "./src/helpers/cn.ts",
-    "./helpers/noop": "./src/helpers/noop.ts"
+    "./helpers/noop": "./src/helpers/noop.ts",
+    "./ui/tooltip": "./src/ui/tooltip.tsx",
+    "./ui/tooltip-model": "./src/ui/tooltip-model.ts",
+    "./ui/tooltip.css": "./src/ui/tooltip.css"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -17,9 +20,11 @@
     "test": "bun --cwd=../.. vitest run --project shared"
   },
   "peerDependencies": {
-    "react": ">=19"
+    "react": ">=19",
+    "react-dom": ">=19"
   },
   "devDependencies": {
-    "@types/react": "19.2.14"
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3"
   }
 }

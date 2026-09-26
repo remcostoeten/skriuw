@@ -81,7 +81,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import { Tooltip } from "@/shared/ui/tooltip";
+import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { cn } from "@/shared/lib/utils";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
