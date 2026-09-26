@@ -48,7 +48,9 @@ export function HybridFeatures() {
               bentoCard.span,
             )}
           >
-            <div className={cn("p-5 pb-0", "wide" in bentoCard && "lg:w-[38%] lg:shrink-0 lg:pb-5")}>
+            <div
+              className={cn("p-5 pb-0", "wide" in bentoCard && "lg:w-[38%] lg:shrink-0 lg:pb-5")}
+            >
               <p className="flex items-center gap-2">
                 <span className={cn(badge, "bg-ink-900/8 text-ink-700")}>{bentoCard.keys}</span>
                 <span className="caps text-[0.62rem] text-ink-400">{bentoCard.hint}</span>

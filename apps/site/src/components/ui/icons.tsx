@@ -387,6 +387,25 @@ export function Moon(props: IconProps) {
   );
 }
 
+export function Android(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M17.5 15.5H6.5V9.2a5.5 5.5 0 0 1 11 0v6.3ZM6.5 16.5h11v3a1.5 1.5 0 0 1-1.5 1.5H8a1.5 1.5 0 0 1-1.5-1.5v-3ZM9.3 4.2 8.3 2.6a.4.4 0 0 1 .7-.4l1 1.7a6.5 6.5 0 0 1 4 0l1-1.7a.4.4 0 0 1 .7.4l-1 1.6a5.6 5.6 0 0 0-5.4 0ZM4 9.5a1 1 0 0 1 1 1v4a1 1 0 0 1-2 0v-4a1 1 0 0 1 1-1Zm16 0a1 1 0 0 1 1 1v4a1 1 0 0 1-2 0v-4a1 1 0 0 1 1-1ZM9.75 7.25a.75.75 0 1 1 0 1.5.75.75 0 0 1 0-1.5Zm4.5 0a.75.75 0 1 1 0 1.5.75.75 0 0 1 0-1.5Z" />
+    </svg>
+  );
+}
+
+export function Pwa(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+      <path d="M3 8.5h18" />
+      <path d="M12 11v6" />
+      <path d="m9.5 14.5 2.5 2.5 2.5-2.5" />
+    </svg>
+  );
+}
+
 export function Monitor(props: IconProps) {
   return (
     <svg {...base(props)}>

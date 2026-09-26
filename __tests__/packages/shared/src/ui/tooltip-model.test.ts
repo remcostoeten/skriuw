@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { computeTooltipPlacement, resolveOpenTiming } from "@/shared/ui/tooltip-model";
+import { computeTooltipPlacement, resolveOpenTiming } from "@skriuw/shared/ui/tooltip-model";
 
 const viewport = { width: 1000, height: 600 };
 

@@ -88,7 +88,7 @@ import { haptic } from "@/shared/lib/haptics";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import { AnimatedIconsProvider } from "@/shared/icons/animated-icons-context";
 import { ToastHost } from "@/shared/ui/toast";
-import { Tooltip } from "@/shared/ui/tooltip";
+import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import { useNoteNavigation } from "@/shell/use-note-navigation";
 import { selectAnimatedIcons, selectShowToasts } from "@/features/settings/sections/selectors";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";

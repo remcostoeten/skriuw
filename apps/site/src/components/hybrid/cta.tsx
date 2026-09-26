@@ -7,7 +7,9 @@ export function HybridCta() {
   return (
     <section className="border-b-0!">
       <div className="hy-dots grid place-items-center rounded-[10px] border border-dashed border-line px-6 py-16 text-center">
-        <span className={cn(badge, "bg-ink-900/8 text-ink-700")}>free · open source · no account</span>
+        <span className={cn(badge, "bg-ink-900/8 text-ink-700")}>
+          free · open source · no account
+        </span>
         <h2 className="mt-6 font-serif text-[40px] leading-[44px] font-normal tracking-[-1.2px] text-balance text-ink-900">
           Open a page. Keep it yours.
         </h2>

@@ -25,12 +25,20 @@ export function LogoWall() {
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {importSources.map((source) => (
             <div
-              key={source}
-              className="grid h-[144px] place-items-center rounded-md border border-border bg-ink-50"
+              key={source.name}
+              className="flex h-[144px] flex-col justify-between rounded-md border border-border bg-ink-50 p-4"
             >
-              <span className="px-3 text-center text-[20px] font-semibold tracking-[-0.03em] text-ink-800">
-                {source}
-              </span>
+              <div>
+                <p className="text-[16px] leading-5 font-semibold tracking-[-0.02em] text-ink-900">
+                  {source.name}
+                </p>
+                <p className="mt-1 font-mono text-[11px] text-clay-500">
+                  {source.format}
+                </p>
+              </div>
+              <p className="text-[13px] leading-[18px] text-ink-500">
+                {source.keeps}
+              </p>
             </div>
           ))}
         </div>
