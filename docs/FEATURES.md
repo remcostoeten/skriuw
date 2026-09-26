@@ -174,7 +174,7 @@ including what is unverified and why, is in
 [the release readiness](benchmarks/2026-09-20-mobile-release-readiness.md) and
 [accessibility](benchmarks/2026-09-20-mobile-accessibility.md) records; store
 metadata and the submission checklist are in
-[`packaging/mobile`](../packaging/mobile).
+[`tools/packaging/mobile`](../tools/packaging/mobile).
 
 ## Built to be trusted
 

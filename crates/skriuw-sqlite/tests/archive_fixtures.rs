@@ -25,7 +25,7 @@ struct FixtureManifest {
 }
 
 fn archives_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/archives")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../__tests__/fixtures/archives")
 }
 
 fn load_manifest() -> FixtureManifest {

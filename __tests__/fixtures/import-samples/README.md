@@ -50,7 +50,7 @@ For generic Markdown folder import, use [`../demo-vault/`](../demo-vault).
 sibling source directories. After editing the sources, rebuild them:
 
 ```bash
-cd fixtures/import-samples
+cd __tests__/fixtures/import-samples
 python3 - <<'PY'
 import zipfile, pathlib
 

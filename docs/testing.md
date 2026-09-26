@@ -45,8 +45,10 @@ apps/mobile/src/features/lock/lock-model.ts
 __tests__/apps/mobile/src/features/lock/lock-model.test.ts
 ```
 
-Helpers and fixtures sit next to the suites that use them. Code shared across
-products lives in `__tests__/support/`:
+Helpers and fixtures sit next to the suites that use them. Data files read by
+more than one product or language (archive goldens, import samples, the demo
+vault) live in `__tests__/fixtures/`. Code shared across products lives in
+`__tests__/support/`:
 
 - `paths.ts` provides `repositoryPath(...)` for suites that read repository
   files. Use it instead of paths relative to the suite.

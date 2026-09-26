@@ -1,7 +1,7 @@
 # Start here
 
 A folder of notes for exercising the v2 editor by hand. Import it with the
-command palette, `Import Markdown…`, and point it at `fixtures/demo-vault`.
+command palette, `Import Markdown…`, and point it at `__tests__/fixtures/demo-vault`.
 Folder structure is preserved, so everything lands under `Editor` and
 `Edge cases`.
 

@@ -11,11 +11,11 @@
 
 ### Golden fixtures are immutable compatibility evidence
 
-Committed, human-reviewable archive JSON lives under `fixtures/archives/v{N}/`, one directory per supported archive version. Each file is a complete valid archive that real production code once accepted. Golden fixture bytes never change after commit; tests may parse and compare them semantically but must never rewrite them during ordinary runs. A fixture change is a compatibility break and requires an explicit decision, not a test-suite convenience edit.
+Committed, human-reviewable archive JSON lives under `__tests__/fixtures/archives/v{N}/`, one directory per supported archive version. Each file is a complete valid archive that real production code once accepted. Golden fixture bytes never change after commit; tests may parse and compare them semantically but must never rewrite them during ordinary runs. A fixture change is a compatibility break and requires an explicit decision, not a test-suite convenience edit.
 
 ### Catalogue coverage
 
-`fixtures/archives/manifest.json` names the supported archive version set and every golden file. Tests fail when:
+`__tests__/fixtures/archives/manifest.json` names the supported archive version set and every golden file. Tests fail when:
 
 - the manifest's supported set differs from the production supported set (`WORKSPACE_ARCHIVE_VERSION` today),
 - a supported version has no fixture,

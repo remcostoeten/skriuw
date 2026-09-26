@@ -181,9 +181,9 @@ jobs:
                   set -euo pipefail
                   VERSION="${{ needs.resolve.outputs.version }}"
                   TAG="${{ needs.resolve.outputs.tag }}"
-                  sed -i "s/^pkgver=.*/pkgver=${VERSION}/" packaging/aur/skriuw-bin/PKGBUILD
-                  sed -i "s/^pkgrel=.*/pkgrel=1/" packaging/aur/skriuw-bin/PKGBUILD
-                  sed -i "s/^_tag=.*/_tag=${TAG}/" packaging/aur/skriuw-bin/PKGBUILD
+                  sed -i "s/^pkgver=.*/pkgver=${VERSION}/" tools/packaging/aur/skriuw-bin/PKGBUILD
+                  sed -i "s/^pkgrel=.*/pkgrel=1/" tools/packaging/aur/skriuw-bin/PKGBUILD
+                  sed -i "s/^_tag=.*/_tag=${TAG}/" tools/packaging/aur/skriuw-bin/PKGBUILD
 
             - name: Generate .SRCINFO (Arch container)
               run: |
@@ -209,8 +209,8 @@ jobs:
                   export GIT_SSH_COMMAND="ssh -i ~/.ssh/aur -o IdentitiesOnly=yes"
 
                   git clone ssh://aur@aur.archlinux.org/skriuw-bin.git aur-repo
-                  cp packaging/aur/skriuw-bin/PKGBUILD aur-repo/PKGBUILD
-                  cp packaging/aur/skriuw-bin/.SRCINFO aur-repo/.SRCINFO
+                  cp tools/packaging/aur/skriuw-bin/PKGBUILD aur-repo/PKGBUILD
+                  cp tools/packaging/aur/skriuw-bin/.SRCINFO aur-repo/.SRCINFO
 
                   cd aur-repo
                   git config user.name "github-actions[bot]"
@@ -352,7 +352,7 @@ jobs:
               if: ${{ env.WINGET_TOKEN == '' }}
               run: echo "WINGET_TOKEN not set; skipped winget submission."
 
-    # Repacks the released .deb via packaging/snap/snapcraft.yaml. The build
+    # Repacks the released .deb via tools/packaging/snap/snapcraft.yaml. The build
     # always runs (validates the recipe); the store upload only happens when
     # SNAPCRAFT_STORE_CREDENTIALS is set and the snap name is registered.
     snap:
@@ -371,19 +371,19 @@ jobs:
               run: |
                   gh release download "${{ needs.resolve.outputs.tag }}" \
                     --repo "${{ github.repository }}" \
-                    --pattern "*amd64.deb" --dir packaging/snap
-                  mv packaging/snap/*.deb packaging/snap/skriuw.deb
+                    --pattern "*amd64.deb" --dir tools/packaging/snap
+                  mv tools/packaging/snap/*.deb tools/packaging/snap/skriuw.deb
 
             - name: Set snap version
               run: |
                   sed -i "s/^version: .*/version: \"${{ needs.resolve.outputs.version }}\"/" \
-                    packaging/snap/snapcraft.yaml
+                    tools/packaging/snap/snapcraft.yaml
 
             - name: Build snap
               id: build
               uses: snapcore/action-build@v1
               with:
-                  path: packaging/snap
+                  path: tools/packaging/snap
 
             - name: Publish to Snap Store
               if: ${{ env.SNAPCRAFT_STORE_CREDENTIALS != '' }}
