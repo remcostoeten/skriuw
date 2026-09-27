@@ -966,3 +966,21 @@
   outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
   outline-offset: 2px;
 }
+
+.shared-note-omitted {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-card);
+  color: var(--color-ink-400);
+  font-size: 0.875em;
+}
+
+.doc-prose h1 {
+  margin: 2.5rem 0 1rem;
+  color: var(--color-ink-900);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 36px;
+  letter-spacing: -0.6px;
+}

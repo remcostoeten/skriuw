@@ -435,6 +435,7 @@ describe("public Worker boundary", () => {
       syncProtocolVersions: [1, 2],
       durableObjectSchemaVersion: 4,
       routes: ["push", "pull", "chunk", "checkpoint", "encryption", "acknowledge", "events"],
+      noteShares: true,
     });
 
     const sync = await exports.default.fetch(

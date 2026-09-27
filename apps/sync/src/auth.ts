@@ -22,7 +22,7 @@ export function corsHeaders(request: Request, env: AuthEnv): Headers | null {
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Allow-Headers":
       "Authorization, Content-Type, X-PoW-Solution, X-Request-Id, X-Visitor-Id",
-    "Access-Control-Allow-Methods": "GET, HEAD, POST, PUT, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, HEAD, POST, PUT, DELETE, OPTIONS",
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Expose-Headers": "set-auth-token, X-PoW-Challenge, X-PoW-Reason",
     Vary: "Origin",
