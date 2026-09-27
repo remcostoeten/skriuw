@@ -1,9 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Container, Rail } from "@/components/ui/primitives";
+import { cn } from "@skriuw/shared/helpers/cn";
+import { card } from "@/components/frame/control";
+import { SiteFrame } from "@/components/frame/site-frame";
 
 type Props = {
   code: string;
+  label: string;
   title: string;
   lede: string;
   actions: ReactNode;
@@ -11,42 +14,34 @@ type Props = {
   suggestions: Array<{ label: string; href: string; hint: string }>;
 };
 
-export function StatusPage({ code, title, lede, actions, note, suggestions }: Props) {
+export function StatusPage({ code, label, title, lede, actions, note, suggestions }: Props) {
   return (
-    <section className="border-b border-border bg-surface">
-      <Container className="flex min-h-[62vh] flex-col justify-center gap-14 py-24">
-        <div>
-          <span className="font-mono text-[13px] tracking-[0.08em] text-ink-400 uppercase">
-            {code}
-          </span>
-          <Rail className="mt-5">
-            <h1 className="max-w-[720px] font-serif text-[36px] leading-[42px] font-normal tracking-[-0.8px] text-balance text-ink-900 md:text-[46px] md:leading-[50px]">
-              {title}
-            </h1>
-          </Rail>
-          <p className="mt-6 max-w-[580px] text-[16px] leading-[26px] text-ink-500">{lede}</p>
-          <div className="mt-9 flex flex-wrap items-center gap-3">{actions}</div>
-          {note ? (
-            <p className="mt-6 font-mono text-[13px] leading-[22px] text-ink-400">{note}</p>
-          ) : null}
-        </div>
+    <SiteFrame>
+      <section className="hy-dots py-20! max-[620px]:py-12!">
+        <p className="caps flex items-center gap-2 text-ink-400">
+          <span className="text-accent tabular-nums">{code}</span>
+          {label}
+        </p>
+        <h1 className="mt-5 max-w-[720px] font-serif text-[40px] leading-[42px] font-normal tracking-[-1.2px] text-balance text-ink-900 md:text-[52px] md:leading-[52px] md:tracking-[-1.8px]">
+          {title}
+        </h1>
+        <p className="mt-6 max-w-[580px] text-[17px] leading-[26px] text-ink-500">{lede}</p>
+        <div className="mt-8 flex flex-wrap items-center gap-2">{actions}</div>
+        {note ? <p className="mt-6 font-mono text-[12px] text-ink-400">{note}</p> : null}
+      </section>
 
-        <nav
-          aria-label="Suggested pages"
-          className="grid gap-px overflow-hidden rounded-card border border-border bg-border sm:grid-cols-2 lg:grid-cols-4"
-        >
+      <nav aria-label="Suggested pages">
+        <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-4">
           {suggestions.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex flex-col gap-2 bg-surface p-6 transition-colors hover:bg-ink-100 focus-visible:bg-focus-tint"
-            >
-              <span className="text-[16px] font-medium text-ink-900">{item.label}</span>
-              <span className="text-[14px] leading-[22px] text-ink-500">{item.hint}</span>
-            </Link>
+            <li key={item.href}>
+              <Link href={item.href} className={cn(card, "flex h-full flex-col gap-2 p-5")}>
+                <span className="text-[15px] font-medium text-ink-900">{item.label}</span>
+                <span className="text-[14px] leading-[21px] text-ink-500">{item.hint}</span>
+              </Link>
+            </li>
           ))}
-        </nav>
-      </Container>
-    </section>
+        </ul>
+      </nav>
+    </SiteFrame>
   );
 }

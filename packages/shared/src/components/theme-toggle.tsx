@@ -94,7 +94,7 @@ export function ThemeToggle({
             className={cn(
               "relative grid place-items-center rounded-full outline-none",
               size === "sm" ? "size-[1.375rem]" : "size-7",
-              "transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-foreground/30",
+              "transition-colors duration-150 ease-out focus-visible:bg-foreground/10 focus-visible:text-foreground",
               checked ? "text-foreground" : "text-muted-foreground hover:text-foreground",
             )}
           >

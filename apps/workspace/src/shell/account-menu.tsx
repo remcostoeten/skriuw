@@ -31,7 +31,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import { Tooltip } from "@/shared/ui/tooltip";
+import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import { installOffered, promptInstall, subscribeInstallOffer } from "@/bridge/install-prompt";
 import { useShortcutHints } from "@/commands/hints";

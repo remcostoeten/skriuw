@@ -11,7 +11,7 @@
 @import "./shell/mobile.css";
 @import "./features/references/references.css";
 @import "./features/history/diff.css";
-@import "./shared/ui/tooltip.css";
+@import "@skriuw/shared/ui/tooltip.css";
 @import "./shared/icons/app-icon.css";
 @import "./shared/ui/shortcut-recorder.css";
 @import "./features/auth/auth-drawer.css";

@@ -2,6 +2,8 @@ import Link from "next/link";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { notFound } from "next/navigation";
+import { cn } from "@skriuw/shared/helpers/cn";
+import { outlineButton } from "@/components/frame/control";
 
 import { getReleases } from "../api/queries/get-releases";
 import { ReleaseChanges } from "./release-changes";
@@ -39,7 +41,7 @@ export async function ReleaseList({ searchParams }: Props) {
   const visible = releases.slice(start, start + size);
 
   if (!visible.length) {
-    return <p>No stable SemVer releases have been published yet.</p>;
+    return <p className={styles.muted}>No stable SemVer releases have been published yet.</p>;
   }
 
   return (
@@ -50,9 +52,9 @@ export async function ReleaseList({ searchParams }: Props) {
 
           return (
             <article key={release.id} className={styles.card}>
-              <header>
+              <header className={styles.header}>
                 <div className={styles.meta}>
-                  <code>{release.tag}</code>
+                  <code className={styles.tag}>{release.tag}</code>
                   {release.date && <time dateTime={release.date}>{release.date.slice(0, 10)}</time>}
                 </div>
 
@@ -61,15 +63,19 @@ export async function ReleaseList({ searchParams }: Props) {
                 </h2>
               </header>
 
-              <div className={styles.notes}>
-                <Markdown remarkPlugins={[remarkGfm]}>{release.body}</Markdown>
-              </div>
+              <div className={styles.body}>
+                <div className={cn("doc-prose", styles.notes)}>
+                  <Markdown remarkPlugins={[remarkGfm]}>{release.body}</Markdown>
+                </div>
 
-              {previous ? (
-                <ReleaseChanges id={release.id} previous={previous.tag} />
-              ) : (
-                <p className={styles.muted}>First published stable release.</p>
-              )}
+                {previous ? (
+                  <ReleaseChanges id={release.id} previous={previous.tag} />
+                ) : (
+                  <p className={cn(styles.muted, styles.changes)}>
+                    First published stable release.
+                  </p>
+                )}
+              </div>
             </article>
           );
         })}
@@ -77,8 +83,8 @@ export async function ReleaseList({ searchParams }: Props) {
 
       <nav className={styles.pagination} aria-label="Release pages">
         {page > 1 ? (
-          <Link href={`/changelog?page=${page - 1}`} prefetch={false}>
-            Newer releases
+          <Link href={`/changelog?page=${page - 1}`} prefetch={false} className={outlineButton}>
+            ← Newer releases
           </Link>
         ) : (
           <span />
@@ -89,8 +95,8 @@ export async function ReleaseList({ searchParams }: Props) {
         </span>
 
         {page < pages ? (
-          <Link href={`/changelog?page=${page + 1}`} prefetch={false}>
-            Older releases
+          <Link href={`/changelog?page=${page + 1}`} prefetch={false} className={outlineButton}>
+            Older releases →
           </Link>
         ) : (
           <span />

@@ -8,7 +8,7 @@ import type {
   WorkspaceAnnotation,
 } from "@skriuw/renderer-core/contracts/workspace";
 import { CheckIcon, PencilIcon, Trash2Icon } from "@/shared/icons/static";
-import { Tooltip } from "@/shared/ui/tooltip";
+import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import { rangeMenuAnchor, type MenuAnchor } from "./menu-anchor";
 import { productSchema } from "./schema";
 

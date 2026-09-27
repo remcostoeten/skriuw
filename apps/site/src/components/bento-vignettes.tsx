@@ -43,7 +43,11 @@ const lineStep = 1.2;
 const sourceLines = [
   { text: "## The 8 ms budget", tone: "syntax", slot: 0 },
   { text: "", tone: "plain" },
-  { text: "Every keystroke paints in the **same frame**.", tone: "plain", slot: 1 },
+  {
+    text: "Every keystroke paints in the **same frame**.",
+    tone: "plain",
+    slot: 1,
+  },
   { text: "- measured on a production build", tone: "syntax", slot: 2 },
   { text: "- [x] tree at 5,000 nodes", tone: "syntax", slot: 3 },
 ];
@@ -102,16 +106,14 @@ export function EditorVignette() {
             <div key={index} className="flex gap-3">
               <span className="w-3 shrink-0 text-right text-ink-300">{index + 1}</span>
               {line.slot !== undefined ? (
-                <span className="flex items-center">
-                  <span
-                    style={vars({
-                      "--chars": line.text.length,
-                      "--delay": `${line.slot * lineStep}s`,
-                    })}
-                    className={cn("vg-typed", tones[line.tone])}
-                  >
-                    {line.text}
-                  </span>
+                <span
+                  style={vars({
+                    "--chars": line.text.length,
+                    "--delay": `${line.slot * lineStep}s`,
+                  })}
+                  className="flex items-center"
+                >
+                  <span className={cn("vg-typed", tones[line.tone])}>{line.text}</span>
                   <span
                     style={slotDelay(line.slot)}
                     className="vg-type-caret h-3.5 w-[1.5px] bg-clay-500"
@@ -178,7 +180,10 @@ export function JournalVignette() {
 }
 
 const references = [
-  { title: "Journal · 12 Sep", snippet: "rewrote the sync section after the call with" },
+  {
+    title: "Journal · 12 Sep",
+    snippet: "rewrote the sync section after the call with",
+  },
   { title: "Reading notes", snippet: "the seven ideals, as laid out by" },
   { title: "Draft: release post", snippet: "credit for the framing goes to" },
 ];
@@ -213,7 +218,12 @@ export function LinksVignette() {
 }
 
 const revisions = [
-  { time: "2 min ago", plus: 42, minus: 3, dot: "vg-ping vg-scrub-from bg-clay-500" },
+  {
+    time: "2 min ago",
+    plus: 42,
+    minus: 3,
+    dot: "vg-ping vg-scrub-from bg-clay-500",
+  },
   { time: "1 h ago", plus: 118, minus: 27, dot: "bg-ink-300" },
   { time: "Yesterday", plus: 9, minus: 61, dot: "vg-scrub-to bg-ink-300" },
 ];
@@ -350,8 +360,14 @@ const commands = [
 ];
 
 const results = [
-  { title: "Local-first, actually", snippet: "…it never waits on something it does not own…" },
-  { title: "Journal · 12 Sep", snippet: "…rewrote the sync section, finally readable…" },
+  {
+    title: "Local-first, actually",
+    snippet: "…it never waits on something it does not own…",
+  },
+  {
+    title: "Journal · 12 Sep",
+    snippet: "…rewrote the sync section, finally readable…",
+  },
 ];
 
 export function PaletteVignette() {
@@ -359,13 +375,8 @@ export function PaletteVignette() {
     <Panel className="lg:border-t-0 lg:rounded-none">
       <div className="flex items-center gap-2.5 border-b border-border px-5 py-3.5">
         <Search className="size-3.5 text-ink-400" />
-        <span className="flex items-center">
-          <span
-            style={vars({ "--chars": 4 })}
-            className="vg-typed vg-typed-short font-mono text-[13px] text-ink-900"
-          >
-            mark
-          </span>
+        <span style={vars({ "--chars": 4 })} className="flex items-center font-mono text-[13px]">
+          <span className="vg-typed vg-typed-short text-ink-900">mark</span>
           <span className="vg-caret h-4 w-[1.5px] bg-clay-500" />
         </span>
         <span className="ml-auto font-mono text-[10px] text-ink-400">esc</span>

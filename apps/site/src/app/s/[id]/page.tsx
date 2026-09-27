@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { Container } from "@/components/ui/primitives";
 import { fetchSharedNote } from "@/lib/shared-note";
 
 type Props = {
@@ -28,7 +27,7 @@ async function SharedNoteBody({ params }: Props) {
   return (
     <>
       <header className="border-b border-border">
-        <Container className="max-w-3xl py-10 lg:py-12">
+        <div className="mx-auto w-full max-w-3xl px-5 py-10 lg:py-12">
           <p className="font-mono text-[12px] tracking-[0.08em] text-ink-400 uppercase">
             Shared note
           </p>
@@ -38,11 +37,11 @@ async function SharedNoteBody({ params }: Props) {
           <p className="mt-3 font-mono text-[12px] text-ink-400">
             Updated {updatedFormat.format(new Date(note.updatedAt * 1_000))}
           </p>
-        </Container>
+        </div>
       </header>
-      <Container className="max-w-3xl py-12 lg:py-16">
+      <div className="mx-auto w-full max-w-3xl px-5 py-12 lg:py-16">
         <div className="doc-prose min-w-0" dangerouslySetInnerHTML={{ __html: note.html }} />
-      </Container>
+      </div>
     </>
   );
 }
@@ -50,12 +49,12 @@ async function SharedNoteBody({ params }: Props) {
 function SharedNoteFallback() {
   return (
     <header className="border-b border-border">
-      <Container className="max-w-3xl py-10 lg:py-12">
+      <div className="mx-auto w-full max-w-3xl px-5 py-10 lg:py-12">
         <p className="font-mono text-[12px] tracking-[0.08em] text-ink-400 uppercase">
           Shared note
         </p>
         <div className="mt-4 h-8 w-2/3 rounded-card bg-ink-100" />
-      </Container>
+      </div>
     </header>
   );
 }

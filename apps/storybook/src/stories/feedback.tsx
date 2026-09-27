@@ -2,11 +2,11 @@ import { useState } from "react";
 import { ICON_NAMES } from "@skriuw/icons";
 import { AppIcon } from "@/shared/icons/app-icon";
 import { showToast } from "@/shared/ui/toast";
-import { Tooltip } from "@/shared/ui/tooltip";
+import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import { KeyCaps } from "@/shared/ui/key-caps";
 import { Collapse } from "@/shared/ui/collapse";
 import { SectionLabel, SectionToggle } from "@/shared/ui/section-header";
-import tooltipSource from "@/shared/ui/tooltip.tsx?raw";
+import tooltipSource from "@skriuw/shared/ui/tooltip?raw";
 import toastSource from "@/shared/ui/toast.tsx?raw";
 import keyCapsSource from "@/shared/ui/key-caps.tsx?raw";
 import sectionSource from "@/shared/ui/section-header.tsx?raw";
@@ -34,7 +34,7 @@ function CollapseDemo() {
 export const feedbackStories: Story[] = [
   {
     id: "tooltip",
-    usage: `import { Tooltip } from "@/shared/ui/tooltip";
+    usage: `import { Tooltip } from "@skriuw/shared/ui/tooltip";
 
 <Tooltip label="Search notes" shortcut="Ctrl K" side="bottom">
   <button type="button" aria-label="Search">…</button>
@@ -44,7 +44,7 @@ export const feedbackStories: Story[] = [
         source: tooltipSource,
         type: "TooltipProps",
         label: "Tooltip",
-        file: "shared/ui/tooltip.tsx",
+        file: "packages/shared/src/ui/tooltip.tsx",
       },
     ],
     group: "Feedback",
