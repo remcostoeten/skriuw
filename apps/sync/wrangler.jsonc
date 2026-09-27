@@ -10,7 +10,8 @@
   },
   "vars": {
     "AUTH_TRUSTED_ORIGINS": "https://skriuw.com,http://localhost:5183,http://tauri.localhost,tauri://localhost,https://dash.better-auth.com",
-    "BETTER_AUTH_URL": "https://skriuw-v2-cloud.remcostoeten.workers.dev"
+    "BETTER_AUTH_URL": "https://skriuw-v2-cloud.remcostoeten.workers.dev",
+    "PUBLIC_SHARE_ORIGIN": "https://skriuw.com"
   },
   "d1_databases": [
     {
@@ -57,7 +58,8 @@
     "preview": {
       "vars": {
         "AUTH_TRUSTED_ORIGINS": "http://localhost:5183,http://tauri.localhost,tauri://localhost",
-        "BETTER_AUTH_URL": "https://skriuw-v2-cloud-preview.remcostoeten.workers.dev"
+        "BETTER_AUTH_URL": "https://skriuw-v2-cloud-preview.remcostoeten.workers.dev",
+        "PUBLIC_SHARE_ORIGIN": "http://localhost:5182"
       },
       "d1_databases": [
         {

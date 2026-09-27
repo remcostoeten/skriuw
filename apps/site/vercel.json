@@ -61,6 +61,19 @@
 			]
 		},
 		{
+			"source": "/s/:path*",
+			"headers": [
+				{
+					"key": "X-Robots-Tag",
+					"value": "noindex, nofollow"
+				},
+				{
+					"key": "Referrer-Policy",
+					"value": "no-referrer"
+				}
+			]
+		},
+		{
 			"source": "/_next/static/:asset*",
 			"headers": [
 				{

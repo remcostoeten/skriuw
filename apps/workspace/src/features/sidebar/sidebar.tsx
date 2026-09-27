@@ -20,6 +20,7 @@ import {
   type FolderStructureFormat,
 } from "@/features/transfer/export/folder-structure";
 import { canShareNotes, shareNoteAsText } from "@/features/transfer/export/share-note";
+import { requestNoteShare } from "@/features/sharing/share-dialog-controller";
 import { haptic } from "@/shared/lib/haptics";
 import { swallowGhostClick } from "@/shared/lib/ghost-click";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
@@ -40,6 +41,7 @@ import {
   CommandIcon,
   CopyIcon,
   DownloadIcon,
+  LinkIcon,
   FilePlusIcon,
   FileTextIcon,
   FolderInputIcon,
@@ -1118,6 +1120,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
         o: () => openNoteInTab(store, id),
         b: () => openBeside(store, id),
         e: () => void exportNoteAsMarkdown(store, id),
+        s: () => requestNoteShare(id),
       });
     }
     return actions;
@@ -1389,6 +1392,11 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
                   Export as Markdown…
                   <ContextMenuShortcut keys="E" />
                 </ContextMenuItem>
+                <ContextMenuItem onClick={() => requestNoteShare(id)} className="gap-2">
+                  <LinkIcon className="w-4 h-4" />
+                  Share as link…
+                  <ContextMenuShortcut keys="S" />
+                </ContextMenuItem>
                 {canShareNotes() && (
                   <ContextMenuItem
                     onClick={() => {
@@ -1400,7 +1408,7 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
                     className="gap-2"
                   >
                     <ShareIcon className="w-4 h-4" />
-                    Share…
+                    Share as text…
                   </ContextMenuItem>
                 )}
               </>

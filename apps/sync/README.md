@@ -27,6 +27,11 @@ attempt with a proof-of-work challenge that the desktop client's
 leaves the Worker. It is a secret: install it with
 `wrangler secret put BETTER_AUTH_API_KEY`, never in `wrangler.jsonc`.
 
+`/v1/shares` publishes, lists, updates, and revokes the signed-in account's
+public note links, and the unauthenticated `GET /shares/:id` serves one to the
+`skriuw.com/s/<id>/` page. Shares live in D1 table `note_share`, apart from the
+sync log; see [ADR-0052](../../docs/adr/0052-public-note-links.md).
+
 The canonical wire types and bounds live in `skriuw-domain`; committed JSON
 Schemas, the generated
 [`WorkspaceOperation` policy](../../docs/specs/workspace-operation-sync-policy-v1.md),

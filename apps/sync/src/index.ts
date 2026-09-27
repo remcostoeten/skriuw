@@ -9,6 +9,7 @@ import {
   WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION,
 } from "./contracts";
 import { handleSyncProvisionRequest, handleSyncWorkspaceStateRequest } from "./provision";
+import { handleNoteShareRequest, handlePublicShareRequest, newShareId } from "./note-shares";
 
 function jsonError(status: number, code: string): Response {
   return Response.json({ error: code }, { status });
@@ -28,6 +29,7 @@ function healthReport() {
     syncProtocolVersions: SUPPORTED_SYNC_PROTOCOL_VERSIONS,
     durableObjectSchemaVersion: WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION,
     routes: SYNC_ROUTE_NAMES,
+    noteShares: true,
   };
 }
 
@@ -36,6 +38,9 @@ export default {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
       return Response.json(healthReport());
+    }
+    if (url.pathname.startsWith("/shares/")) {
+      return handlePublicShareRequest(request, env.AUTH_DB);
     }
     if (url.pathname.startsWith("/api/auth/")) {
       return handleAuthRequest(request, env);
@@ -52,25 +57,33 @@ export default {
         return env.WORKSPACES.getByName(workspaceId);
       }
       const response =
-        url.pathname === "/v1/sync/provision"
-          ? await handleSyncProvisionRequest(request, {
+        url.pathname === "/v1/shares" || url.pathname.startsWith("/v1/shares/")
+          ? await handleNoteShareRequest(request, {
               accessConfiguration,
               database: env.AUTH_DB,
+              publicOrigin: env.PUBLIC_SHARE_ORIGIN,
               nowEpochSeconds,
+              newShareId,
             })
-          : url.pathname === "/v1/sync/state"
-            ? await handleSyncWorkspaceStateRequest(request, {
+          : url.pathname === "/v1/sync/provision"
+            ? await handleSyncProvisionRequest(request, {
                 accessConfiguration,
-                resolveWorkspace,
+                database: env.AUTH_DB,
                 nowEpochSeconds,
               })
-            : await handlePublicSyncRequest(request, {
-                accessConfiguration,
-                resolveWorkspace,
-                contentStore: new WorkspaceContentStore(env.SYNC_CONTENT),
-                log: logSyncSecurityEvent,
-                nowEpochSeconds,
-              });
+            : url.pathname === "/v1/sync/state"
+              ? await handleSyncWorkspaceStateRequest(request, {
+                  accessConfiguration,
+                  resolveWorkspace,
+                  nowEpochSeconds,
+                })
+              : await handlePublicSyncRequest(request, {
+                  accessConfiguration,
+                  resolveWorkspace,
+                  contentStore: new WorkspaceContentStore(env.SYNC_CONTENT),
+                  log: logSyncSecurityEvent,
+                  nowEpochSeconds,
+                });
       if (response.status === 101) {
         return response;
       }
