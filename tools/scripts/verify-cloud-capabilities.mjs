@@ -77,6 +77,10 @@ function verifyCapabilities(report) {
     }
   }
 
+  if (report.noteShares !== true) {
+    missing.push("public note shares are not served");
+  }
+
   if (missing.length > 0) {
     throw new Error(`missing capabilities:\n  - ${missing.join("\n  - ")}`);
   }

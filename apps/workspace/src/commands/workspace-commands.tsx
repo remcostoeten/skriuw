@@ -58,6 +58,7 @@ import { relockNotes, requestSessionUnlock, toggleNodeLock } from "@/features/lo
 import { routeHasSidebar } from "@/shell/panel-layout";
 import { captureRenameReturnFocus } from "@/features/sidebar/rename-focus";
 import { showToast } from "@/shared/ui/toast";
+import { requestNoteShare } from "@/features/sharing/share-dialog-controller";
 import { shortcutDefinition } from "./bindings";
 import { TAB_INDEX_ACTION_IDS } from "./definitions";
 import {
@@ -70,6 +71,7 @@ import {
   CloseIcon,
   CopyIcon,
   DownloadIcon,
+  LinkIcon,
   FileTextIcon,
   FoldVerticalIcon,
   FolderPlusIcon,
@@ -688,6 +690,20 @@ export function createWorkspaceCommands(
         const noteId = store.getState().activeNoteId;
         if (noteId) {
           void exportNoteAsMarkdown(store, noteId);
+        }
+      },
+    },
+    {
+      id: "share-note-link",
+      label: "Share note as a public link…",
+      group: "Actions",
+      keywords: ["share", "publish", "link", "public", "url", "web"],
+      icon: <LinkIcon size={15} />,
+      enabled: (state) => targetNoteId(state) !== null,
+      run: () => {
+        const noteId = targetNoteId(store.getState());
+        if (noteId) {
+          requestNoteShare(noteId);
         }
       },
     },
