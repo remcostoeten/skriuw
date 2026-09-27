@@ -38,17 +38,19 @@
 }
 
 .tooltip[data-state="delayed-open"] {
-  animation: tooltip-in 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: tooltip-in 150ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
 }
 
 .tooltip[data-state="closing"] {
-  animation: tooltip-out 100ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation: tooltip-out 100ms var(--ease-exit, cubic-bezier(0.4, 0, 1, 1))
+    forwards;
 }
 
 @keyframes tooltip-in {
   from {
     opacity: 0;
-    transform: translate(var(--tooltip-slide-x), var(--tooltip-slide-y)) scale(0.96);
+    transform: translate(var(--tooltip-slide-x), var(--tooltip-slide-y))
+      scale(0.96);
   }
   to {
     opacity: 1;
@@ -100,4 +102,3 @@
   line-height: 1.4;
   color: var(--tooltip-kbd-fg, hsl(var(--muted-foreground)));
 }
-

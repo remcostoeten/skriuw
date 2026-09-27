@@ -196,8 +196,9 @@
 .file summary:focus-visible,
 .comparison a:focus-visible,
 .header h2 a:focus-visible {
-	outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
-	outline-offset: 2px;
+	border-radius: 4px;
+	background-color: var(--focus-tint);
+	color: var(--focus-ink);
 }
 
 .skeleton {

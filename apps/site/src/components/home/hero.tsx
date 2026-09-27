@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { Tooltip } from "@skriuw/shared/ui/tooltip";
@@ -15,29 +15,38 @@ const platforms = [
   { name: "macOS", Mark: Apple },
   { name: "Windows", Mark: Windows },
   { name: "Linux", Mark: Linux },
-  { name: "Browser", Mark: Globe },
+  { name: "Web", Mark: Globe },
 ];
 
 type Props = {
   badge: ReactNode;
 };
 
+function heroDelay(step: number): CSSProperties {
+  return { "--hero-delay": `${step * 70}ms` } as CSSProperties;
+}
+
 export function HomeHero({ badge }: Props) {
   return (
     <section className="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-12 lg:items-center">
-      <div className="max-w-[480px]">
-        {badge}
+      <div className="max-w-120">
+        <div className="hy-hero-in" style={heroDelay(0)}>
+          {badge}
+        </div>
 
-        <h1 className="mt-6 font-serif text-[52px] leading-[50px] font-normal tracking-[-1.8px] text-balance text-ink-900">
+        <h1
+          style={heroDelay(1)}
+          className="hy-hero-in mt-6 font-serif text-[52px] leading-[0.95] font-normal tracking-[-1.8px] text-balance text-ink-900"
+        >
           Notes that never make you wait
         </h1>
 
-        <p className="mt-6 text-[17px] leading-[26px] text-ink-500">
+        <p style={heroDelay(2)} className="hy-hero-in mt-6 text-[17px] leading-6.5 text-ink-500">
           Notes and a journal that live on your own device. Nothing to sign up for, and nothing to
           wait for.
         </p>
 
-        <div className="mt-8 flex flex-wrap items-center gap-2">
+        <div style={heroDelay(3)} className="hy-hero-in mt-8 flex flex-wrap items-center gap-2">
           <Link
             href={appUrl}
             className={cn(primaryButton, "bg-ink-800 hover:bg-accent focus-visible:bg-accent")}
@@ -56,7 +65,10 @@ export function HomeHero({ badge }: Props) {
           </Link>
         </div>
 
-        <ul className="caps mt-8 flex flex-wrap items-center gap-1.5 text-ink-500">
+        <ul
+          style={heroDelay(4)}
+          className="hy-hero-in caps mt-8 flex flex-wrap items-center gap-1.5 text-ink-500"
+        >
           {platforms.map(({ name, Mark }) => (
             <li
               key={name}
@@ -82,8 +94,9 @@ export function HomeHero({ badge }: Props) {
         </ul>
       </div>
 
-      <div className="relative z-10 lg:w-[calc(100%+160px)]">
-        <p className="caps absolute -top-3 left-4 z-10 rounded-full border border-line bg-hy-bg px-2 py-0.5 text-[0.62rem] text-ink-500">
+      <div style={heroDelay(2)} className="hy-hero-in relative z-10 lg:w-[calc(100%+160px)]">
+        <p className="caps absolute -top-3 left-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-line bg-hy-bg px-2 py-0.5 text-[0.62rem] text-ink-500">
+          <span aria-hidden className="hy-hero-live size-1.5 rounded-full bg-emerald-500" />
           app · live preview
         </p>
         <div className="rounded-[10px] border border-dashed border-line p-2">
