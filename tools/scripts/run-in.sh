@@ -10,4 +10,4 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 dir="$1"
 shift
-exec bun --cwd="$repo_dir/$dir" run "$@"
+exec bun --cwd="$repo_dir/$dir" run --silent "$@"

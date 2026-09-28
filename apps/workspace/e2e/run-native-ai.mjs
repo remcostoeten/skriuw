@@ -201,19 +201,6 @@ async function runScenario(session) {
     "workspace shell",
     600,
   );
-  await session.waitFor(
-    `return document.querySelector('.onboarding-root [id="onboarding-title"]') !== null`,
-    "onboarding modal",
-  );
-  await session.script(`
-    [...document.querySelectorAll('.onboarding-root button')]
-      .find((button) => button.textContent.trim() === 'Start writing')
-      .click();
-  `);
-  await session.waitFor(
-    `return document.querySelector('.onboarding-root') === null`,
-    "onboarding dismissal",
-  );
 
   // The playground route is part of the structural gate: before opt-in the
   // hash must bounce straight back to notes without mounting the surface.

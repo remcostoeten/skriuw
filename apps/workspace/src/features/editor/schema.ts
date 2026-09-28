@@ -2015,6 +2015,43 @@ function toMediaNode(paragraph: JsonNode): JsonNode | null {
  * other editors still render something useful. Rewrites those paragraphs back
  * into `media` nodes.
  */
+function isImageRow(content: readonly unknown[]): boolean {
+  let images = 0;
+  for (const child of content) {
+    const node = child as JsonNode;
+    if (node.type === "image" || node.type === "image_ref") {
+      images += 1;
+    } else if (
+      node.type !== "hard_break" &&
+      !(node.type === "text" && typeof node.text === "string" && node.text.trim() === "")
+    ) {
+      return false;
+    }
+  }
+  return images > 1;
+}
+
+/**
+ * Soft line breaks parse to `hard_break`, but GitHub renders a break between
+ * images as a space, so a README badge column reads as one wrapping row. A
+ * paragraph holding only images and breaks keeps that row here.
+ */
+function joinImageRows(node: unknown): unknown {
+  if (node === null || typeof node !== "object") return node;
+  const record = node as JsonNode;
+  if (!Array.isArray(record.content)) return record;
+  const content = record.content.map((child) => joinImageRows(child));
+  if (record.type !== "paragraph" || !isImageRow(content)) {
+    return { ...record, content };
+  }
+  return {
+    ...record,
+    content: content.map((child) =>
+      (child as JsonNode).type === "hard_break" ? { type: "text", text: " " } : child,
+    ),
+  };
+}
+
 function upgradeMediaParagraphs(node: unknown): unknown {
   if (node === null || typeof node !== "object") return node;
   const record = node as JsonNode;
@@ -2095,7 +2132,7 @@ function parseMarkdownBody(markdown: string): ProseMirrorNode {
     const parsed = productMarkdownParser.parse(markdown);
     try {
       const [upgraded] = upgradeSpecialLists(parsed.toJSON());
-      return productSchema.nodeFromJSON(upgradeMediaParagraphs(upgraded));
+      return productSchema.nodeFromJSON(upgradeMediaParagraphs(joinImageRows(upgraded)));
     } catch {
       return parsed;
     }

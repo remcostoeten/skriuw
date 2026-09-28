@@ -299,6 +299,7 @@ pub fn extension_for(mime_type: &str) -> &'static str {
         "video/mp4" => "mp4",
         "video/webm" => "webm",
         "video/quicktime" => "mov",
+        "image/svg+xml" => "svg",
         _ => "img",
     }
 }
@@ -314,6 +315,7 @@ pub fn mime_for_extension(extension: &str) -> Option<&'static str> {
         "mp4" => Some("video/mp4"),
         "webm" => Some("video/webm"),
         "mov" => Some("video/quicktime"),
+        "svg" => Some("image/svg+xml"),
         _ => None,
     }
 }
@@ -352,7 +354,88 @@ pub fn sniff_mime(bytes: &[u8]) -> Option<&'static str> {
     if bytes.starts_with(&[0x1a, 0x45, 0xdf, 0xa3]) && contains_webm_doctype(bytes) {
         return Some("video/webm");
     }
+    if is_inert_svg(bytes) {
+        return Some("image/svg+xml");
+    }
     None
+}
+
+const SVG_MAX_BYTES: usize = 2 * 1024 * 1024;
+
+/// Markup that would let an SVG run code, pull in other documents, or expand
+/// entities. Matched against the lowercased source.
+const SVG_ACTIVE_CONTENT: [&str; 12] = [
+    "<script",
+    "<foreignobject",
+    "<iframe",
+    "<embed",
+    "<object",
+    "<!doctype",
+    "<!entity",
+    "<?xml-stylesheet",
+    "javascript:",
+    "@import",
+    "href=\"http",
+    "href='http",
+];
+
+/// An SVG is only admitted as a blob when it is plain vector markup: a UTF-8
+/// document whose root element is `<svg`, with no scripts, event handlers,
+/// embedded documents, entity declarations, or external references. A stored
+/// SVG is then inert wherever it is shown, not only inside an `<img>`.
+/// Must stay in sync with `isInertSvg` in `apps/workspace/src/bridge/inert-svg.ts`.
+fn is_inert_svg(bytes: &[u8]) -> bool {
+    if bytes.len() > SVG_MAX_BYTES {
+        return false;
+    }
+    let Ok(text) = std::str::from_utf8(bytes) else {
+        return false;
+    };
+    let lowered = text.to_ascii_lowercase();
+    let Some(root) = skip_svg_prolog(lowered.trim_start_matches('\u{feff}')) else {
+        return false;
+    };
+    let is_svg_root = root
+        .strip_prefix("<svg")
+        .and_then(|rest| rest.chars().next())
+        .is_some_and(|next| next.is_ascii_whitespace() || next == '>' || next == '/');
+    is_svg_root
+        && !SVG_ACTIVE_CONTENT
+            .iter()
+            .any(|pattern| lowered.contains(pattern))
+        && !has_event_handler_attribute(&lowered)
+}
+
+fn skip_svg_prolog(source: &str) -> Option<&str> {
+    let mut rest = source.trim_start();
+    loop {
+        if rest.starts_with("<?xml") {
+            rest = rest[rest.find("?>")? + 2..].trim_start();
+        } else if rest.starts_with("<!--") {
+            rest = rest[rest.find("-->")? + 3..].trim_start();
+        } else {
+            return Some(rest);
+        }
+    }
+}
+
+/// Finds an attribute such as `onload=` or `onclick =`.
+fn has_event_handler_attribute(lowered: &str) -> bool {
+    let bytes = lowered.as_bytes();
+    lowered.match_indices("on").any(|(start, _)| {
+        if start == 0 || !bytes[start - 1].is_ascii_whitespace() {
+            return false;
+        }
+        let name_end = bytes[start + 2..]
+            .iter()
+            .position(|byte| !byte.is_ascii_lowercase())
+            .map_or(bytes.len(), |offset| start + 2 + offset);
+        name_end > start + 2
+            && bytes[name_end..]
+                .iter()
+                .find(|byte| !byte.is_ascii_whitespace())
+                .is_some_and(|byte| *byte == b'=')
+    })
 }
 
 /// The EBML header shared by WebM and Matroska carries the container name as a
@@ -531,7 +614,39 @@ mod tests {
             sniff_mime(b"\x1a\x45\xdf\xa3\x01\x00\x00\x00\x00\x00\x00\x23\x42\x86matroska"),
             None
         );
-        assert_eq!(sniff_mime(b"<svg></svg>"), None);
+        assert_eq!(sniff_mime(b"<svg></svg>"), Some("image/svg+xml"));
+    }
+
+    #[test]
+    fn admits_plain_svg_badges() {
+        let badge = br##"<?xml version="1.0"?>
+<!-- badge -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="80" height="20" role="img" aria-label="License: MIT"><title>License: MIT</title><linearGradient id="s"><stop offset="0" stop-color="#bbb"/></linearGradient><image x="5" width="14" height="14" xlink:href="data:image/png;base64,AAAA"/><text x="10" y="14">MIT</text></svg>"##;
+        assert_eq!(sniff_mime(badge), Some("image/svg+xml"));
+        assert_eq!(super::extension_for("image/svg+xml"), "svg");
+        assert_eq!(super::mime_for_extension("svg"), Some("image/svg+xml"));
+    }
+
+    #[test]
+    fn rejects_svg_with_active_content() {
+        for source in [
+            "<svg><script>alert(1)</script></svg>",
+            "<svg onload=\"alert(1)\"></svg>",
+            "<svg><rect\n  onclick = 'x()'/></svg>",
+            "<svg><foreignObject><iframe/></foreignObject></svg>",
+            "<!DOCTYPE svg [<!ENTITY a \"b\">]><svg></svg>",
+            "<svg><a href=\"javascript:alert(1)\">x</a></svg>",
+            "<svg><image href=\"https://tracker.example/p.png\"/></svg>",
+            "<svg><style>@import url(x.css);</style></svg>",
+            "<html><svg></svg></html>",
+            "<svgx></svgx>",
+        ] {
+            assert_eq!(sniff_mime(source.as_bytes()), None, "{source}");
+        }
+        assert_eq!(
+            sniff_mime(b"<svg><text>button online</text></svg>"),
+            Some("image/svg+xml")
+        );
     }
 
     #[test]

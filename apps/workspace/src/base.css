@@ -9,7 +9,13 @@
   --safe-left: env(safe-area-inset-left, 0px);
   /* Replaced with a measured pixel height by shell/viewport.ts once the
      bundle runs; the dynamic unit keeps the first paint correct until then. */
-  --viewport-height: 100dvh;
+  --visual-viewport-height: 100dvh;
+  /* Set by shell/zoom-controller.ts to how much the active zoom scales
+     viewport-sized lengths, so the shell keeps fitting the window and only
+     its contents grow or shrink. */
+  --zoom-compensation: 1;
+  --viewport-height: calc(var(--visual-viewport-height) / var(--zoom-compensation));
+  --viewport-width: calc(100vw / var(--zoom-compensation));
   --viewport-top: 0px;
   --keyboard-inset: 0px;
 }

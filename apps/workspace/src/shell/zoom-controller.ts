@@ -7,8 +7,11 @@ import {
   clampZoomPercent,
   parseStoredZoomPercent,
 } from "./zoom-model";
+import { viewportMetrics } from "./viewport";
 
 const STORAGE_KEY = "skriuw:zoom-percent";
+const COMPENSATION_PROPERTY = "--zoom-compensation";
+const COMPENSATION_EPSILON = 0.005;
 const PERSIST_DELAY_MS = 400;
 
 let zoomPercent = ZOOM_DEFAULT_PERCENT;
@@ -16,8 +19,36 @@ let nativeZoomUnavailable = false;
 let applyFrame: number | null = null;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * Measures how much the active zoom inflates a viewport-sized length. CSS zoom
+ * multiplies `dvh`/`vw`, and some webviews do the same under native page zoom,
+ * which pushes a viewport-tall shell past the window; others already report
+ * the zoomed viewport, where this measures 1 and changes nothing.
+ */
+function measureViewportScale(): number {
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:fixed;top:0;left:0;width:0;height:var(--visual-viewport-height);visibility:hidden;pointer-events:none";
+  document.body.append(probe);
+  const rendered = probe.getBoundingClientRect().height;
+  probe.remove();
+  const available = viewportMetrics(window).height;
+  return rendered > 0 && available > 0 ? rendered / available : 1;
+}
+
+function syncZoomCompensation(): void {
+  const root = document.documentElement;
+  const scale = measureViewportScale();
+  if (Math.abs(scale - 1) < COMPENSATION_EPSILON) {
+    root.style.removeProperty(COMPENSATION_PROPERTY);
+    return;
+  }
+  root.style.setProperty(COMPENSATION_PROPERTY, scale.toFixed(4));
+}
+
 function applyCssZoom(factor: number): void {
   document.documentElement.style.setProperty("zoom", String(factor));
+  syncZoomCompensation();
 }
 
 function applyZoomNow(): void {
@@ -28,6 +59,9 @@ function applyZoomNow(): void {
   }
   getCurrentWebview()
     .setZoom(factor)
+    .then(() => {
+      requestAnimationFrame(syncZoomCompensation);
+    })
     .catch(() => {
       nativeZoomUnavailable = true;
       applyCssZoom(factor);
