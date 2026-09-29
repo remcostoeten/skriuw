@@ -37,7 +37,9 @@ import { installOffered, promptInstall, subscribeInstallOffer } from "@/bridge/i
 import { useShortcutHints } from "@/commands/hints";
 import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import { AccountAvatar } from "./account-avatar";
 import {
+  accountAvatarSeed,
   accountDisplayName,
   accountInitials,
   accountMenuPanelTitle,
@@ -47,7 +49,7 @@ import {
   type AccountMenuPanel,
 } from "./account-menu-model";
 import { railActiveClass, railIconButtonClass, railInactiveClass } from "./rail-styles";
-import { selectTheme } from "@/features/settings/sections/selectors";
+import { selectFacehashAvatar, selectTheme } from "@/features/settings/sections/selectors";
 import type { SectionId } from "@/features/settings/sections/sections";
 import { syncSummary, syncTone } from "@/features/settings/sections/sync-status";
 import {
@@ -192,6 +194,7 @@ export function AccountMenu({
   const { user } = useAuth();
   const sync = useWorkspaceSync(SYNC_POLL_AMBIENT_MS);
   const theme = useRendererSelector(store, selectTheme);
+  const facehash = useRendererSelector(store, selectFacehashAvatar);
   const hints = useShortcutHints(store, MENU_SHORTCUT_IDS);
   const compact = useMediaQuery(COMPACT_MENU_QUERY);
   const installable = useSyncExternalStore(subscribeInstallOffer, installOffered, () => false);
@@ -214,7 +217,13 @@ export function AccountMenu({
   }
 
   const name = accountDisplayName(user.name, user.email);
-  const initials = accountInitials(user.name, user.email);
+  const avatar = (
+    <AccountAvatar
+      seed={accountAvatarSeed(user.id, user.email)}
+      initials={accountInitials(user.name, user.email)}
+      facehash={facehash}
+    />
+  );
   const tone = syncTone(sync.status);
   const StatusIcon =
     tone === "offline" ? CloudOffIcon : tone === "syncing" ? RefreshIcon : CloudIcon;
@@ -238,7 +247,7 @@ export function AccountMenu({
           )}
           aria-label={`Account: ${name}`}
         >
-          {initials}
+          {avatar}
           <span
             className={cn(
               "absolute -right-0.5 -bottom-0.5 h-2 w-2 rounded-sm border border-sidebar",
@@ -277,7 +286,7 @@ export function AccountMenu({
                 className={cn(avatarClass, "shrink-0 border-border bg-muted text-foreground")}
                 aria-hidden="true"
               >
-                {initials}
+                {avatar}
               </span>
               <span className="flex min-w-0 flex-col gap-[3px]">
                 <span className="truncate text-[13px] leading-none text-foreground">{name}</span>

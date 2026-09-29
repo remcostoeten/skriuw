@@ -53,6 +53,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   aiEnabled: false,
   autoLockMinutes: DEFAULT_AUTO_LOCK_MINUTES,
   lockOnBlur: false,
+  facehashAvatar: true,
 };
 
 export type SettingsViewModel = {
@@ -76,6 +77,7 @@ export type SettingsViewModel = {
   /** Minutes of inactivity before locked notes close again; zero means never. */
   autoLockMinutes: number;
   lockOnBlur: boolean;
+  facehashAvatar: boolean;
 };
 
 export type EditableSettings = SettingsViewModel;
@@ -117,6 +119,7 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     aiEnabled: settings.aiEnabled === true,
     autoLockMinutes: autoLockMinutes(settings),
     lockOnBlur: locksOnBlur(settings),
+    facehashAvatar: usesFacehashAvatar(settings),
   };
 }
 
@@ -165,6 +168,19 @@ export function autoLockMinutes(settings: WorkspaceSettings): number {
 
 export function locksOnBlur(settings: WorkspaceSettings): boolean {
   return settings.lockOnBlur === true;
+}
+
+/**
+ * @name usesFacehashAvatar
+ * @description Whether the signed-in account shows its generated face instead
+ * of initials. On unless explicitly turned off, so every account starts with a
+ * face.
+ *
+ * @example
+ * const facehash = usesFacehashAvatar(store.getState().settings);
+ */
+export function usesFacehashAvatar(settings: WorkspaceSettings): boolean {
+  return settings.facehashAvatar !== false;
 }
 
 export function showsToasts(settings: WorkspaceSettings): boolean {

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import {
+  accountAvatarSeed,
   accountDisplayName,
   accountInitials,
   accountMenuPanelTitle,
@@ -77,4 +78,21 @@ test("every compact panel names itself so its back row is never blank", () => {
   for (const title of titles) {
     assert.ok(title.length > 0);
   }
+});
+
+test("the face seed follows the account id, not its editable name or email", () => {
+  assert.equal(accountAvatarSeed("user_123", "remco@skriuw.com"), "user_123");
+  assert.equal(
+    accountAvatarSeed("user_123", "remco@skriuw.com"),
+    accountAvatarSeed("user_123", "renamed@skriuw.com"),
+  );
+  assert.notEqual(
+    accountAvatarSeed("user_123", "remco@skriuw.com"),
+    accountAvatarSeed("user_456", "remco@skriuw.com"),
+  );
+});
+
+test("a session without an id seeds the face from the normalized email", () => {
+  assert.equal(accountAvatarSeed(undefined, " Remco@Skriuw.com "), "remco@skriuw.com");
+  assert.equal(accountAvatarSeed("  ", "remco@skriuw.com"), "remco@skriuw.com");
 });

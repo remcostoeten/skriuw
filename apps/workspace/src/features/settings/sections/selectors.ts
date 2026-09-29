@@ -1,6 +1,7 @@
 import {
   showsToasts,
   usesAnimatedIcons,
+  usesFacehashAvatar,
   usesBlockDragHandle,
 } from "@/features/settings/settings-model";
 import { shortcutOverridesFromSettings } from "@/commands/bindings";
@@ -27,6 +28,10 @@ export function selectSettings(state: RendererState) {
 
 export function selectShowToasts(state: RendererState): boolean {
   return showsToasts(state.settings);
+}
+
+export function selectFacehashAvatar(state: RendererState): boolean {
+  return usesFacehashAvatar(state.settings);
 }
 
 export function selectAnimatedIcons(state: RendererState): boolean {

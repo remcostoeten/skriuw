@@ -10,7 +10,11 @@ import {
 import type { BlockedSyncOperation, SyncRecoveryView } from "@skriuw/renderer-core/bridge/port";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
+import { AccountAvatar } from "@/shell/account-avatar";
+import { accountAvatarSeed, accountInitials } from "@/shell/account-menu-model";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import {
+  SettingToggle,
   SettingsHeading,
   settingsButton,
   settingsButtonDanger,
@@ -20,6 +24,7 @@ import {
   settingsRowDescription,
   settingsRowLabel,
   settingsSection,
+  useEditableSettings,
 } from "./settings-shared";
 import { blockedCauseText, blockedItemLabel, blockedItemRetryable } from "./sync-recovery";
 import { syncDescription, syncDetail, syncProgressText, syncProgressVisible } from "./sync-status";
@@ -28,12 +33,14 @@ import { useWorkspaceSync } from "./use-workspace-sync";
 import { shortWorkspaceId, workspaceOwnershipText } from "./workspace-ownership";
 
 type AccountSectionProps = {
+  store: RendererStore;
   /** Closes settings and opens the shell-level sign-in drawer; the drawer cannot render inside this modal dialog. */
   onRequestSignIn: () => void;
 };
 
-export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
+export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) {
   const { user, isPending } = useAuth();
+  const { settings, change } = useEditableSettings(store);
   const sync = useWorkspaceSync();
   const [recovery, setRecovery] = useState<SyncRecoveryView | null>(null);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
@@ -183,6 +190,29 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
           </div>
         ) : null}
       </div>
+      {user ? (
+        <div className={settingsGroup}>
+          <div className={settingsGroupTitle}>Avatar</div>
+          <SettingToggle
+            label="Generated face"
+            detail="Show a face generated from your account. Turn it off to show your initials instead."
+            checked={settings.facehashAvatar}
+            onChange={(checked) => change("facehashAvatar", checked)}
+            visualization={
+              <span
+                className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-muted text-[13px] font-medium text-foreground"
+                aria-hidden="true"
+              >
+                <AccountAvatar
+                  seed={accountAvatarSeed(user.id, user.email)}
+                  initials={accountInitials(user.name, user.email)}
+                  facehash={settings.facehashAvatar}
+                />
+              </span>
+            }
+          />
+        </div>
+      ) : null}
       {signedIn ? <SyncEncryptionPanel status={sync.status} /> : null}
       {user && !browser ? (
         <BlockedChanges

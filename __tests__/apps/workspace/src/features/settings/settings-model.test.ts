@@ -12,6 +12,7 @@ import {
   resetShortcutOverrides,
   opensLinksInApp,
   showsToasts,
+  usesFacehashAvatar,
   usesAnimatedIcons,
   usesBlockDragHandle,
   vimCursorBlinks,
@@ -52,6 +53,7 @@ test("default settings project every editable field", () => {
     aiEnabled: false,
     autoLockMinutes: 5,
     lockOnBlur: false,
+    facehashAvatar: true,
   });
 });
 
@@ -109,6 +111,17 @@ test("animated icons stay enabled unless the setting is explicitly false", () =>
   assert.equal(usesAnimatedIcons({ ...DEFAULT_WORKSPACE_SETTINGS, animatedIcons: false }), false);
   const { animatedIcons: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
   assert.equal(usesAnimatedIcons(withoutField as WorkspaceSettings), true);
+});
+
+test("the generated face stays on unless the setting is explicitly false", () => {
+  assert.equal(usesFacehashAvatar(DEFAULT_WORKSPACE_SETTINGS), true);
+  assert.equal(usesFacehashAvatar({ ...DEFAULT_WORKSPACE_SETTINGS, facehashAvatar: false }), false);
+  const { facehashAvatar: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
+  assert.equal(usesFacehashAvatar(withoutField as WorkspaceSettings), true);
+  assert.equal(
+    projectSettings({ ...DEFAULT_WORKSPACE_SETTINGS, facehashAvatar: false }).facehashAvatar,
+    false,
+  );
 });
 
 test("toasts stay enabled unless the setting is explicitly false", () => {

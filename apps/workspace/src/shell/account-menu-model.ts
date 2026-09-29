@@ -78,3 +78,27 @@ export function accountInitials(name: string | null | undefined, email: string):
   }
   return `${words[0]![0]!}${words[1]![0]!}`.toLocaleUpperCase();
 }
+
+export const FACEHASH_COLORS = [
+  "#e8927c",
+  "#e3b35f",
+  "#8fbf7f",
+  "#6fb3b8",
+  "#7fa3d9",
+  "#a58bd6",
+  "#d98bb3",
+] as const;
+
+/**
+ * @name accountAvatarSeed
+ * @description Seed for the account's generated face. The account id never
+ * changes, so the face stays put when the name or email is edited; the
+ * normalized email covers a session without an id.
+ *
+ * @example
+ * <Facehash name={accountAvatarSeed(user.id, user.email)} />
+ */
+export function accountAvatarSeed(id: string | null | undefined, email: string): string {
+  const trimmed = id?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : email.trim().toLocaleLowerCase();
+}
