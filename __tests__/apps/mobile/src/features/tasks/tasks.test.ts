@@ -257,6 +257,36 @@ test("promotion writes the document and the record as one operation", async () =
   });
 });
 
+test("promotion keeps a dated item's due date and writes the marker before it", async () => {
+  const dated = snapshot([{ text: "Ship the tasks view" }]);
+  const document = dated.documents[0]!;
+  const item = (document.documentJson as { content: { content?: { attrs: object }[] }[] })
+    .content[1]!.content![0]!;
+  item.attrs = { ...item.attrs, dueDate: "2026-10-01" };
+  document.markdown = document.markdown.replace(
+    "Ship the tasks view",
+    "Ship the tasks view \u{1F4C5} 2026-10-01",
+  );
+  const bridge = createMemoryBridge({ snapshot: dated });
+  await withSession(bridge, async (session) => {
+    const result = buildChecklistPromotion(session.store.getState(), {
+      noteId: NOTE_ID,
+      itemIndex: 0,
+      taskId: "task-1",
+      blockId: "block-1",
+      at: AT,
+    });
+    assert.equal(result.status, "ready");
+    const operation = result.operations[0];
+    assert.equal(operation?.type, "promote_checklist_task");
+    assert.equal(operation.task.dueDate, "2026-10-01");
+    assert.match(
+      operation.document.markdown,
+      /- \[ \] Ship the tasks view <!--skriuw-task:task-1:block-1--> \u{1F4C5} 2026-10-01\n/u,
+    );
+  });
+});
+
 test("promotion refuses an item that is already a task, empty, or missing", async () => {
   const bridge = createMemoryBridge({
     snapshot: snapshot([

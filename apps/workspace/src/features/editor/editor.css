@@ -306,6 +306,41 @@
   text-decoration: line-through;
 }
 
+.prosemirror-host .ProseMirror .check-item-due {
+  flex: none;
+  align-self: flex-start;
+  margin-top: calc(0.2em + (1.7em - 20px) / 2);
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 20px;
+  color: hsl(var(--theme-text-secondary));
+  background: hsl(var(--foreground) / 0.05);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.prosemirror-host .ProseMirror .check-item-due[data-due-state="today"] {
+  color: hsl(var(--foreground));
+}
+
+.prosemirror-host .ProseMirror .check-item-due[data-due-state="overdue"] {
+  color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 0.1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .prosemirror-host .ProseMirror .check-item-due:hover {
+    background: hsl(var(--foreground) / 0.09);
+  }
+}
+
+.prosemirror-host .ProseMirror .check-item-due:focus-visible {
+  outline: 2px solid hsl(var(--primary) / 0.75);
+  outline-offset: 2px;
+}
+
 .prosemirror-host .ProseMirror ul.toggle-list {
   list-style: none;
   padding-left: 0.2em;

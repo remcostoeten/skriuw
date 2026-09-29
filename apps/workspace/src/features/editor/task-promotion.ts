@@ -1,6 +1,7 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { type Command, type EditorState, type Transaction } from "prosemirror-state";
 import { wrapInList } from "prosemirror-schema-list";
+import { isDueDate } from "@/features/tasks/due-dates";
 import { productSchema } from "./schema";
 
 export type ChecklistTaskLink = {
@@ -9,6 +10,7 @@ export type ChecklistTaskLink = {
   sourceBlockId: string;
   title: string;
   status: "todo" | "done";
+  dueDate: string | null;
   updatedAt: number;
 };
 
@@ -70,6 +72,11 @@ function checklistTaskTitle(node: ProseMirrorNode): string {
   return node.firstChild?.type.name === "paragraph" ? node.firstChild.textContent.trim() : "";
 }
 
+function checklistDueDate(node: ProseMirrorNode): string | null {
+  const dueDate: unknown = node.attrs.dueDate;
+  return isDueDate(dueDate) ? dueDate : null;
+}
+
 export function promoteSelectedChecklistItem(
   state: EditorState,
   input: PromotionInput,
@@ -103,6 +110,7 @@ export function promoteSelectedChecklistItem(
         sourceBlockId: input.sourceBlockId,
         title,
         status: node.attrs.checked ? "done" : "todo",
+        dueDate: checklistDueDate(node),
         updatedAt: input.at,
       },
       transaction: state.tr.setNodeMarkup(position, undefined, {
@@ -147,6 +155,7 @@ export function promotedChecklistTaskLinks(
       sourceBlockId,
       title,
       status: node.attrs.checked ? "done" : "todo",
+      dueDate: checklistDueDate(node),
       updatedAt: at,
     });
   });

@@ -1,5 +1,5 @@
 import "./tasks.css";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouteFocus } from "@/app-route";
 import { requestBlockReveal } from "@/features/editor/reveal-controller";
 import { activateReference } from "@/features/references/reference-navigation";
@@ -8,9 +8,11 @@ import { cn } from "@/shared/lib/utils";
 import { flushPendingWork } from "@/shell/pending-work";
 import { WindowControls } from "@/shell/window-controls";
 import { commitOperations } from "@/store/actions/workspace";
-import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import { todayKey, type DateKey } from "@skriuw/renderer-core/journal/dates";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import { buildTaskToggle } from "./task-operations";
+import { describeDueDate, dueBucket, formatDueLabel, isDueDate } from "./due-dates";
+import { buildTaskDueDate, buildTaskToggle, type TaskWriteResult } from "./task-operations";
 import { flattenTaskRows, projectTasks, taskGroupsEqual, type TaskRow } from "./tasks-model";
 
 const columnClass = "mx-auto w-[min(100%,720px)] px-[clamp(20px,4vw,40px)]";
@@ -23,8 +25,25 @@ function rowElement(host: HTMLElement | null, taskId: string): HTMLInputElement 
   return host?.querySelector<HTMLInputElement>(`[data-task-id="${CSS.escape(taskId)}"]`) ?? null;
 }
 
+function millisecondsUntilTomorrow(): number {
+  const now = new Date();
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  return midnight.getTime() - now.getTime() + 1000;
+}
+
+function useToday(): DateKey {
+  const [today, setToday] = useState(todayKey);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setToday(todayKey()), millisecondsUntilTomorrow());
+    return () => window.clearTimeout(timer);
+  }, [today]);
+  return today;
+}
+
 export function TasksView({ store }: TasksViewProps) {
-  const groups = useRendererSelector(store, projectTasks, taskGroupsEqual);
+  const today = useToday();
+  const selectGroups = useCallback((state: RendererState) => projectTasks(state, today), [today]);
+  const groups = useRendererSelector(store, selectGroups, taskGroupsEqual);
   const rows = useMemo(() => flattenTaskRows(groups), [groups]);
   const indexById = useMemo(() => new Map(rows.map((row, index) => [row.id, index])), [rows]);
   const focusId = useRouteFocus();
@@ -60,24 +79,38 @@ export function TasksView({ store }: TasksViewProps) {
    * paired write starts from the revision the backend is about to hold rather
    * than one the open editor has already moved past.
    */
-  async function toggle(row: TaskRow): Promise<void> {
+  async function writeTask(row: TaskRow, build: () => TaskWriteResult): Promise<void> {
     try {
       await flushPendingWork();
     } catch (error) {
-      console.error("task toggle could not flush pending saves", error);
+      console.error("task write could not flush pending saves", error);
       setNotice("Changes to the source note are not saved yet, so this task was left alone.");
       return;
     }
-    const result = buildTaskToggle(store.getState(), row.id, Date.now());
+    const result = build();
     if (result.status === "refused") {
       setNotice(result.message);
       return;
     }
     setNotice(null);
     commitOperations(store, result.operations).catch((error: unknown) => {
-      console.error("task toggle rejected", error);
+      console.error("task write rejected", error);
       setNotice("That change could not be saved.");
     });
+    window.requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (active !== null && active !== document.body) return;
+      rowElement(listRef.current, row.id)?.focus();
+    });
+  }
+
+  function toggle(row: TaskRow): Promise<void> {
+    return writeTask(row, () => buildTaskToggle(store.getState(), row.id, Date.now()));
+  }
+
+  function setDueDate(row: TaskRow, dueDate: DateKey | null): Promise<void> {
+    if (dueDate === row.dueDate) return Promise.resolve();
+    return writeTask(row, () => buildTaskDueDate(store.getState(), row.id, dueDate, Date.now()));
   }
 
   function openSource(row: TaskRow): void {
@@ -134,19 +167,26 @@ export function TasksView({ store }: TasksViewProps) {
         >
           <div className={cn(columnClass, "py-2")}>
             {groups.map((group) => (
-              <section key={group.noteId ?? "unsourced"} className="mb-6">
-                <h2 className="flex min-h-9 items-center gap-2 px-2 text-xs font-medium text-theme-secondary">
-                  <span className="truncate">{group.noteTitle}</span>
+              <section key={group.bucket} className="mb-6" data-task-group={group.bucket}>
+                <h2
+                  className={cn(
+                    "flex min-h-9 items-center gap-2 px-2 text-xs font-medium text-theme-secondary",
+                    group.bucket === "overdue" && "text-destructive",
+                  )}
+                >
+                  <span className="truncate">{group.label}</span>
                   <span className="font-mono text-[10px] text-theme-dim">{group.rows.length}</span>
                 </h2>
-                <ul aria-label={group.noteTitle}>
+                <ul aria-label={group.label}>
                   {group.rows.map((row) => (
                     <TaskListRow
                       key={row.id}
                       row={row}
+                      today={today}
                       index={indexById.get(row.id) ?? 0}
                       lastIndex={rows.length - 1}
                       onToggle={() => void toggle(row)}
+                      onSetDueDate={(dueDate) => void setDueDate(row, dueDate)}
                       onOpenSource={() => openSource(row)}
                       onFocusRow={focusRow}
                     />
@@ -168,6 +208,9 @@ export function TasksView({ store }: TasksViewProps) {
                 <kbd>Enter</kbd> Open note
               </span>
               <span>
+                <kbd>D</kbd> Due date
+              </span>
+              <span>
                 <kbd>Tab</kbd> Next control
               </span>
             </p>
@@ -180,15 +223,27 @@ export function TasksView({ store }: TasksViewProps) {
 
 type RowProps = {
   row: TaskRow;
+  today: DateKey;
   index: number;
   lastIndex: number;
   onToggle: () => void;
+  onSetDueDate: (dueDate: DateKey | null) => void;
   onOpenSource: () => void;
   onFocusRow: (index: number) => void;
 };
 
-function TaskListRow({ row, index, lastIndex, onToggle, onOpenSource, onFocusRow }: RowProps) {
+function TaskListRow({
+  row,
+  today,
+  index,
+  lastIndex,
+  onToggle,
+  onSetDueDate,
+  onOpenSource,
+  onFocusRow,
+}: RowProps) {
   const linked = row.noteId !== null && row.blockId !== null;
+  const [editingDate, setEditingDate] = useState(false);
   return (
     <li
       className="task-row group/row flex min-h-12 items-center gap-3 rounded-[10px] px-2 py-0.5 focus-within:bg-[hsl(var(--foreground)/0.045)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[hsl(var(--foreground)/0.03)]"
@@ -205,7 +260,10 @@ function TaskListRow({ row, index, lastIndex, onToggle, onOpenSource, onFocusRow
           onChange={onToggle}
           onKeyDown={(event) => {
             if (event.altKey || event.ctrlKey || event.metaKey) return;
-            if (event.key === "Enter" && linked) {
+            if (event.key === "d" || event.key === "D") {
+              event.preventDefault();
+              setEditingDate(true);
+            } else if (event.key === "Enter" && linked) {
               event.preventDefault();
               onOpenSource();
             } else if (event.key === "Home" || (event.key === "ArrowUp" && event.shiftKey)) {
@@ -227,6 +285,13 @@ function TaskListRow({ row, index, lastIndex, onToggle, onOpenSource, onFocusRow
           {row.title}
         </span>
       </label>
+      <DueDateControl
+        row={row}
+        today={today}
+        editing={editingDate}
+        onEditingChange={setEditingDate}
+        onCommit={onSetDueDate}
+      />
       {linked ? (
         <button
           type="button"
@@ -236,7 +301,9 @@ function TaskListRow({ row, index, lastIndex, onToggle, onOpenSource, onFocusRow
           onClick={onOpenSource}
         >
           <span aria-hidden="true">↗</span>
-          <span className="task-source-label max-[480px]:hidden">Open note</span>
+          <span className="task-source-label max-w-[160px] truncate max-[480px]:hidden">
+            {row.noteTitle}
+          </span>
         </button>
       ) : (
         <span className="shrink-0 px-1.5 text-[11px] text-theme-dim">
@@ -244,5 +311,99 @@ function TaskListRow({ row, index, lastIndex, onToggle, onOpenSource, onFocusRow
         </span>
       )}
     </li>
+  );
+}
+
+type DueDateControlProps = {
+  row: TaskRow;
+  today: DateKey;
+  editing: boolean;
+  onEditingChange: (editing: boolean) => void;
+  onCommit: (dueDate: DateKey | null) => void;
+};
+
+function DueDateControl({ row, today, editing, onEditingChange, onCommit }: DueDateControlProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const settled = useRef(false);
+
+  useEffect(() => {
+    if (!editing) return;
+    settled.current = false;
+    inputRef.current?.focus();
+  }, [editing]);
+
+  function finish(commit: boolean, returnFocus: boolean): void {
+    if (settled.current) return;
+    settled.current = true;
+    const next = inputRef.current?.value.trim() ?? "";
+    const checkbox = inputRef.current
+      ?.closest("li")
+      ?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    onEditingChange(false);
+    if (returnFocus) {
+      window.requestAnimationFrame(() => checkbox?.focus());
+    }
+    if (!commit) return;
+    if (next === "") {
+      onCommit(null);
+    } else if (isDueDate(next)) {
+      onCommit(next);
+    }
+  }
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        type="date"
+        defaultValue={row.dueDate ?? ""}
+        aria-label={`Due date for ${row.title}. Enter saves, Escape cancels, an empty date clears it.`}
+        className="task-due-input min-h-8 flex-none rounded-[6px] border border-border bg-theme-editor px-2 text-[12px] text-foreground"
+        onBlur={() => finish(true, false)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            finish(true, true);
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            finish(false, true);
+          }
+        }}
+      />
+    );
+  }
+
+  const bucket = dueBucket(row.dueDate, row.done, today);
+  return (
+    <button
+      type="button"
+      data-due-state={bucket}
+      className={cn(
+        "task-due inline-flex min-h-8 flex-none cursor-pointer items-center rounded-[6px] px-2 py-1 text-[11px] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[hsl(var(--foreground)/0.75)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted",
+        row.dueDate === null
+          ? "text-theme-dim opacity-0 group-focus-within/row:opacity-100 focus-visible:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:group-hover/row:opacity-100"
+          : bucket === "overdue"
+            ? "text-destructive"
+            : bucket === "today"
+              ? "text-foreground"
+              : "text-theme-secondary",
+      )}
+      aria-label={
+        row.dueDate === null
+          ? `Add a due date to ${row.title}`
+          : `${describeDueDate(row.dueDate, row.done, today)}. Change the due date of ${row.title}, or press Delete to clear it`
+      }
+      title={row.dueDate === null ? "Add due date" : describeDueDate(row.dueDate, row.done, today)}
+      onClick={() => onEditingChange(true)}
+      onKeyDown={(event) => {
+        if (event.key === "Delete" && row.dueDate !== null) {
+          event.preventDefault();
+          onCommit(null);
+        }
+      }}
+    >
+      {row.dueDate === null ? "Add date" : formatDueLabel(row.dueDate, today)}
+    </button>
   );
 }

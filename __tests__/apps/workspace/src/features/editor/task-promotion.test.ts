@@ -45,6 +45,7 @@ test("explicit promotion links one selected checklist item", () => {
     sourceBlockId: "block-1",
     title: "Ship release",
     status: "todo",
+    dueDate: null,
     updatedAt: 42,
   });
   const next = selectedState().apply(promotion.transaction);
@@ -115,6 +116,7 @@ test("synchronization projects only explicitly promoted checklist items", () => 
       sourceBlockId: "block-2",
       title: "Promoted checkbox",
       status: "done",
+      dueDate: null,
       updatedAt: 99,
     },
   ]);

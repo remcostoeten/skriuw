@@ -62,11 +62,12 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 
 ## Tasks
 
-- **Workspace task view**: a `#/tasks` route listing every task in the workspace, grouped by the note it came from. Work with no note to point at (quick-added, detached when its checklist line was deleted, or orphaned by a purged note) collects in a trailing "No source" group instead of disappearing.
+- **Workspace task view**: a `#/tasks` route listing every task in the workspace, grouped by due date: Overdue, Today, Upcoming, and No date. Completed tasks stay in the list, checked and struck through, in their date group; a completed task whose date has passed moves to a trailing "Completed earlier" group instead of counting as overdue. Each row names its source note, and work with no note to point at (quick-added, detached when its checklist line was deleted, or orphaned by a purged note) says so instead of disappearing.
+- **Due dates**: a task's due date lives on its checklist line and is written to Markdown as the Obsidian Tasks signifier, `- [ ] Ship it 📅 2026-10-01`, so it survives export and other editors read it. In the editor, type `due:tomorrow`, `due:fri`, `due:2026-10-01`, or `due:next_friday` followed by a space on a checklist line to set it; the date shows as a chip that Enter or a click turns back into editable text and Delete clears. In the tasks view, press `D` on a row, or activate its date button, to pick a date; Enter saves, Escape cancels, and an empty date or Delete on the button clears it. See [ADR-0053](adr/0053-task-due-dates-live-in-the-checklist-line.md).
 - **Completion is a paired write**: checking a task from the view submits the record and the rewritten source document in one operation, so the checklist item and the task never disagree and the change survives the note's next save. See [ADR-0031](adr/0031-explicit-task-promotion.md).
 - **Refusal over guesswork**: a source note that is not loaded, a checklist item that no longer exists, or a duplicated link is reported in place rather than written over.
 - **Jump to the source line**: a row navigates to its note and reveals the exact checklist item, by block identity rather than position, so it still lands correctly after the note above it is edited. Backspace returns.
-- **Keyboard and screen reader**: real checkboxes named by their task, arrows to move between rows, Space to complete, Enter to open the source, and `Shift`+arrow aliases for the first and last row.
+- **Keyboard and screen reader**: real checkboxes named by their task, arrows to move between rows, Space to complete, Enter to open the source, `D` to set the due date, and `Shift`+arrow aliases for the first and last row. Date buttons announce the full date and whether it is overdue.
 
 ## Journal
 

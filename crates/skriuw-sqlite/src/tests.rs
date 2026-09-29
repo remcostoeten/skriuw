@@ -5127,6 +5127,45 @@ fn the_source_checkbox_owns_task_completion() {
 }
 
 #[test]
+fn the_source_checklist_item_owns_the_due_date() {
+    let storage = promoted_workspace();
+    let mut dated = checklist_document(Some(("task-1", "block-1")), false, "Ship the release");
+    dated["content"][0]["content"][0]["attrs"]["dueDate"] = json!("2026-10-01");
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SaveDocument {
+            note_id: "note-1".into(),
+            document_json: dated,
+            markdown:
+                "- [ ] Ship the release <!--skriuw-task:task-1:block-1--> \u{1F4C5} 2026-10-01"
+                    .into(),
+            word_count: 3,
+            expected_revision: 2,
+            at: 7,
+        })])
+        .expect("date the source item");
+    let task = only_task(&storage);
+    assert_eq!(task.due_date.as_deref(), Some("2026-10-01"));
+    assert_eq!(task.updated_at, 7);
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SaveDocument {
+            note_id: "note-1".into(),
+            document_json: checklist_document(
+                Some(("task-1", "block-1")),
+                false,
+                "Ship the release",
+            ),
+            markdown: "- [ ] Ship the release <!--skriuw-task:task-1:block-1-->".into(),
+            word_count: 3,
+            expected_revision: 3,
+            at: 8,
+        })])
+        .expect("clear the date in the source item");
+    assert_eq!(only_task(&storage).due_date, None);
+}
+
+#[test]
 fn deleting_the_source_block_detaches_the_task_instead_of_losing_it() {
     let storage = promoted_workspace();
 

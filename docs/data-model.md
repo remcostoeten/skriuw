@@ -33,6 +33,8 @@ The table deliberately carries no foreign key to `workspace_nodes`. A cascade wo
 
 Nothing promotes a checklist item implicitly. An ordinary `check_item` without both `taskId` and `blockId` attributes is document-only content and produces no record.
 
+A linked task's due date is owned by its checklist item's `dueDate` attribute, which Markdown spells as a trailing `📅 YYYY-MM-DD` token. Every document save reconciles `due_date` from it, including clearing it. See [ADR-0053](adr/0053-task-due-dates-live-in-the-checklist-line.md).
+
 ## Derived tables
 
 ### `documents_fts`
