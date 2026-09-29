@@ -52,6 +52,7 @@ const controls: CommandUiControls = {
   openSettingsAt: noop,
   toggleSidebar: noop,
   toggleMetadata: noop,
+  toggleFocusMode: noop,
   navigate: noop,
 };
 

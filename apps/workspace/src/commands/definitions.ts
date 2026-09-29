@@ -34,6 +34,8 @@ export type ShortcutActionId =
   | "lockNotesNow"
   | "toggleEditorMode"
   | "toggleVimMode"
+  | "toggleFocusMode"
+  | "toggleTypewriterScrolling"
   | "renameCurrentNote"
   | "trashCurrentNote"
   | "duplicateCurrentNote"
@@ -406,6 +408,25 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Toggle Vim mode",
     description:
       "Modal Vim editing in the rendered editor and in raw Markdown mode. Escape returns to normal mode; i, a, o and friends enter insert mode.",
+    group: "Workspace",
+    worksWhileTyping: true,
+  },
+  {
+    id: "toggleFocusMode",
+    keys: "mod+shift+f",
+    label: "Toggle focus mode",
+    description:
+      "Hide the rail, sidebar, inspector, tab strip, and toolbar so only the note remains. The same keys or Escape bring the workspace back; with Vim on, Escape stays with Vim.",
+    group: "Workspace",
+    worksWhileTyping: true,
+    scopes: "notes-route",
+  },
+  {
+    id: "toggleTypewriterScrolling",
+    keys: "mod+shift+y",
+    label: "Toggle typewriter scrolling",
+    description:
+      "Keep the caret line vertically centred while typing, in the rendered editor and in raw Markdown mode.",
     group: "Workspace",
     worksWhileTyping: true,
   },

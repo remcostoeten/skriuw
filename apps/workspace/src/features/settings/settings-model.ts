@@ -47,6 +47,8 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   vimMode: false,
   vimCursorStyle: "block",
   vimCursorBlink: false,
+  typewriterScrolling: false,
+  focusDimParagraphs: false,
   openNotesInTabs: false,
   showToasts: true,
   openLinksInApp: false,
@@ -69,6 +71,8 @@ export type SettingsViewModel = {
   vimMode: boolean;
   vimCursorStyle: VimCursorStyle;
   vimCursorBlink: boolean;
+  typewriterScrolling: boolean;
+  focusDimParagraphs: boolean;
   openNotesInTabs: boolean;
   showToasts: boolean;
   openLinksInApp: boolean;
@@ -111,6 +115,8 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     vimMode: usesVimMode(settings),
     vimCursorStyle: vimCursorStyle(settings),
     vimCursorBlink: vimCursorBlinks(settings),
+    typewriterScrolling: usesTypewriterScrolling(settings),
+    focusDimParagraphs: dimsFocusParagraphs(settings),
     openNotesInTabs: settings.openNotesInTabs === true,
     showToasts: showsToasts(settings),
     openLinksInApp: opensLinksInApp(settings),
@@ -126,6 +132,30 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
  */
 export function usesVimMode(settings: WorkspaceSettings): boolean {
   return settings.vimMode === true;
+}
+
+/**
+ * @name usesTypewriterScrolling
+ * @description Whether both editors keep the caret line vertically centred
+ * while typing. Off unless explicitly turned on.
+ *
+ * @example
+ * createTypewriterPlugin({ enabled: () => usesTypewriterScrolling(settings), scrollContainer });
+ */
+export function usesTypewriterScrolling(settings: WorkspaceSettings): boolean {
+  return settings["typewriterScrolling"] === true;
+}
+
+/**
+ * @name dimsFocusParagraphs
+ * @description Whether focus mode dims every block except the one holding the
+ * caret. Off unless explicitly turned on.
+ *
+ * @example
+ * createFocusDimPlugin(() => dimsFocusParagraphs(store.getState().settings));
+ */
+export function dimsFocusParagraphs(settings: WorkspaceSettings): boolean {
+  return settings["focusDimParagraphs"] === true;
 }
 
 export function vimCursorStyle(settings: WorkspaceSettings): VimCursorStyle {
