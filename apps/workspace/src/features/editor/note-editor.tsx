@@ -209,12 +209,14 @@ import {
   setAnnotationDecorations,
   type AnnotationDecorationInputs,
 } from "./annotation-decorations";
-import { findAnnotationLocation, findBlockLocation } from "./block-locations";
+import { blockRangePositions, findAnnotationLocation, findBlockLocation } from "./block-locations";
 import {
   registerBlockReveal,
   registerThreadReveal,
   takePendingBlockReveal,
+  takePendingRangeReveal,
   takePendingThreadReveal,
+  type RangeRevealRequest,
 } from "./reveal-controller";
 import { SaveFailureBanner } from "./save-failure-banner";
 import { SaveSequencer } from "./save-sequencer";
@@ -1622,6 +1624,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const noteId = activeIdRef.current;
     const entry = activeEntry();
     if (!view || !entry) return;
+    const range = takePendingRangeReveal(noteId);
+    if (range) {
+      revealRange(entry, range);
+      return;
+    }
     const document = entry.bounded?.fullDocument() ?? entry.state.doc;
     const blockId = takePendingBlockReveal(noteId);
     if (blockId === null) return;
@@ -1644,6 +1651,32 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   }, []);
 
   useEffect(() => registerBlockReveal(revealRequestedBlock), [revealRequestedBlock]);
+
+  function revealRange(entry: CachedNote, request: RangeRevealRequest): void {
+    const bounded = entry.bounded;
+    if (bounded) {
+      bounded.rememberSelection({ blockIndex: request.blockIndex, offset: 0 });
+      bounded.revealBlock(request.blockIndex);
+      installBoundedWindow(entry, true);
+    }
+    const current = viewRef.current;
+    if (!current) return;
+    const range = blockRangePositions(
+      current.state.doc,
+      request.blockIndex - (bounded?.windowStart() ?? 0),
+      request.from,
+      request.to,
+      request.text,
+    );
+    if (range) {
+      current.dispatch(
+        current.state.tr
+          .setSelection(TextSelection.create(current.state.doc, range.from, range.to))
+          .scrollIntoView(),
+      );
+    }
+    current.focus();
+  }
 
   /**
    * Moves the caret into a thread's anchor and opens it. Resolution runs

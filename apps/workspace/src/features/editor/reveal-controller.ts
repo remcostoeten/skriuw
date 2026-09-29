@@ -4,6 +4,7 @@ export type BlockRevealRequest = {
 };
 
 let pending: BlockRevealRequest | null = null;
+let pendingRange: RangeRevealRequest | null = null;
 let listener: (() => void) | null = null;
 
 /**
@@ -14,7 +15,7 @@ let listener: (() => void) | null = null;
  */
 export function registerBlockReveal(handler: () => void): () => void {
   listener = handler;
-  if (pending) {
+  if (pending || pendingRange) {
     handler();
   }
   return () => {
@@ -27,6 +28,7 @@ export function registerBlockReveal(handler: () => void): () => void {
 /** Asks the editor to reveal a block; the caller navigates to the note itself. */
 export function requestBlockReveal(noteId: string, blockId: string): void {
   pending = { noteId, blockId };
+  pendingRange = null;
   listener?.();
 }
 
@@ -37,6 +39,39 @@ export function takePendingBlockReveal(noteId: string | null): string | null {
   const { blockId } = pending;
   pending = null;
   return blockId;
+}
+
+export type RangeRevealRequest = {
+  noteId: string;
+  blockIndex: number;
+  from: number;
+  to: number;
+  text: string;
+};
+
+/**
+ * @name requestRangeReveal
+ * @description Asks the editor to select a text range given relative to a
+ * top-level block. The block reveal handler serves it once the note is shown;
+ * the caller navigates to the note itself.
+ *
+ * @example
+ * requestRangeReveal({ noteId, blockIndex: 2, from: 5, to: 18, text: "Project Alpha" });
+ * activateNote(store, noteId);
+ */
+export function requestRangeReveal(request: RangeRevealRequest): void {
+  pendingRange = request;
+  pending = null;
+  listener?.();
+}
+
+export function takePendingRangeReveal(noteId: string | null): RangeRevealRequest | null {
+  if (noteId === null || pendingRange === null || pendingRange.noteId !== noteId) {
+    return null;
+  }
+  const request = pendingRange;
+  pendingRange = null;
+  return request;
 }
 
 export type ThreadRevealRequest = {

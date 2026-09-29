@@ -72,3 +72,36 @@ export function findAnnotationLocation(
   });
   return found;
 }
+
+/**
+ * @name blockRangePositions
+ * @description Resolves a range given relative to the start of a top-level
+ * block to absolute positions in `document`. Returns null when the block is
+ * missing or the text at that range no longer matches `text`.
+ *
+ * @example
+ * const range = blockRangePositions(view.state.doc, 3, 5, 18, "Project Alpha");
+ */
+export function blockRangePositions(
+  document: ProseMirrorNode,
+  blockIndex: number,
+  from: number,
+  to: number,
+  text: string,
+): { from: number; to: number } | null {
+  if (blockIndex < 0 || blockIndex >= document.childCount) {
+    return null;
+  }
+  let start = 0;
+  for (let index = 0; index < blockIndex; index += 1) {
+    start += document.child(index).nodeSize;
+  }
+  const block = document.child(blockIndex);
+  if (from < 0 || to > block.nodeSize || from >= to) {
+    return null;
+  }
+  const range = { from: start + from, to: start + to };
+  return document.textBetween(range.from, range.to).toLowerCase() === text.toLowerCase()
+    ? range
+    : null;
+}
