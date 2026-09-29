@@ -62,6 +62,8 @@ import {
   type MoodLevel,
 } from "./model";
 import { entriesWithTag, projectJournalTags, tagIdsMatchingQuery, type JournalTag } from "./tags";
+import { selectWordGoalHistory, wordGoalStats, type WordGoalStats } from "./word-goal";
+import { WordGoalControl } from "./word-goal-control";
 
 type Props = {
   store: RendererStore;
@@ -171,7 +173,17 @@ export function currentStreak(
   return streak;
 }
 
-function JournalStats({ entries }: { entries: readonly JournalEntry[] }) {
+function streakLabel(days: number): string {
+  return days === 1 ? "1 day" : `${days} days`;
+}
+
+function JournalStats({
+  entries,
+  goalStats,
+}: {
+  entries: readonly JournalEntry[];
+  goalStats: WordGoalStats | null;
+}) {
   const today = todayKey();
   const totalWords = entries.reduce((sum, entry) => sum + entry.wordCount, 0);
   const entryDates = new Set(entries.map((entry) => entry.dateKey));
@@ -180,11 +192,17 @@ function JournalStats({ entries }: { entries: readonly JournalEntry[] }) {
   const tiles: { label: string; value: string }[] = [
     { label: "Entries", value: `${entries.length}` },
     { label: "Words", value: `${totalWords}` },
-    { label: "Streak", value: streak === 1 ? "1 day" : `${streak} days` },
+    { label: "Streak", value: streakLabel(streak) },
     {
       label: "This month",
       value: `${entries.filter((entry) => entry.dateKey.startsWith(today.slice(0, 7))).length}`,
     },
+    ...(goalStats === null
+      ? []
+      : [
+          { label: "Goal days", value: `${goalStats.metDays}` },
+          { label: "Goal streak", value: streakLabel(goalStats.streak) },
+        ]),
   ];
   const stripLabel = `Mood, last ${MOOD_TREND_SPAN} days`;
   return (
@@ -347,6 +365,7 @@ export function JournalSidebar({ store }: Props) {
   const selectedKey = useSelectedJournalKey();
   const entries = useRendererSelector(store, selectJournalEntries, sameJournalEntries);
   const tagRecords = useRendererSelector(store, selectTagRecords);
+  const goalHistory = useRendererSelector(store, selectWordGoalHistory);
   const [month, setMonth] = useState<MonthKey>(() => monthOfKey(selectedKey));
   const [tab, setTab] = useState<SidebarTab>("calendar");
   const [query, setQuery] = useState("");
@@ -379,6 +398,10 @@ export function JournalSidebar({ store }: Props) {
     return entries.filter((entry) => entry.dateKey.startsWith(prefix));
   }, [entries, month]);
   const tags = useMemo(() => projectJournalTags(tagRecords, entries), [entries, tagRecords]);
+  const goalStats = useMemo(
+    () => (goalHistory.length === 0 ? null : wordGoalStats(entries, goalHistory, todayKey())),
+    [entries, goalHistory],
+  );
   const searchResults = useMemo(() => {
     const trimmed = query.trim().toLowerCase();
     if (!trimmed) {
@@ -500,6 +523,7 @@ export function JournalSidebar({ store }: Props) {
               month={month}
               selected={selectedKey}
               entryDates={entryDates}
+              goalDates={goalStats?.metDates}
               onSelectDay={openJournalDay}
               onMonthChange={setMonth}
             />
@@ -522,7 +546,7 @@ export function JournalSidebar({ store }: Props) {
             )}
           </div>
         )}
-        {tab === "stats" && <JournalStats entries={entries} />}
+        {tab === "stats" && <JournalStats entries={entries} goalStats={goalStats} />}
         {tab === "tags" && (
           <JournalTags
             tags={tags}
@@ -803,6 +827,13 @@ function JournalEntryPane({ store, selectedKey }: { store: RendererStore; select
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-0.5">
+              <WordGoalControl
+                store={store}
+                noteId={noteId}
+                dateKey={selectedKey}
+                today={todayKey()}
+                wordCount={wordCount}
+              />
               <Tooltip label="Previous day" side="bottom" shortcut={dayHints.journalPreviousDay}>
                 <button
                   type="button"

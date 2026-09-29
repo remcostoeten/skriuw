@@ -15,6 +15,12 @@ import type { DiffLayout } from "@/features/history/split-diff-model";
 import type { ShortcutActionId } from "@/commands/definitions";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { commitOperations } from "./workspace";
+import { todayKey } from "@skriuw/renderer-core/journal/dates";
+import {
+  JOURNAL_WORD_GOAL_SETTING,
+  changeWordGoal,
+  wordGoalHistory,
+} from "@/features/journal/word-goal";
 
 const LIFECYCLE_SETTING_KEYS = [
   "noteTemplateIds",
@@ -71,14 +77,22 @@ export function setShortcutOverride(
 
 /**
  * First-run bookkeeping is workspace lifecycle, not a preference, so resetting
- * preferences must not replay onboarding or re-seed the preview notes.
+ * preferences must not replay onboarding or re-seed the preview notes. The
+ * journal word goal turns off from today while earlier days keep theirs.
  */
 export function resetAllSettings(store: RendererStore): void {
   const current = store.getState().settings;
-  updateSettings(store, {
+  const reset = {
     ...DEFAULT_WORKSPACE_SETTINGS,
     ...preservedLifecycle(current),
-  });
+    ...preservedWordGoals(current),
+  };
+  updateSettings(store, changeWordGoal(reset, 0, todayKey()));
+}
+
+function preservedWordGoals(settings: WorkspaceSettings): Partial<WorkspaceSettings> {
+  const history = wordGoalHistory(settings);
+  return history.length === 0 ? {} : { [JOURNAL_WORD_GOAL_SETTING]: history };
 }
 
 function preservedLifecycle(settings: WorkspaceSettings): Partial<WorkspaceSettings> {

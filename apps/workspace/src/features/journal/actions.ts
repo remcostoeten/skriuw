@@ -1,7 +1,9 @@
 import { commitOperations, trashSubtree } from "@/store/actions/workspace";
 import type { NoteProperty, WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
-import type { DateKey } from "@skriuw/renderer-core/journal/dates";
+import { todayKey, type DateKey } from "@skriuw/renderer-core/journal/dates";
+import { updateSettings } from "@/store/actions/settings";
+import { changeWordGoal } from "./word-goal";
 import {
   JOURNAL_DATE_PROPERTY_ID,
   JOURNAL_MOOD_PROPERTY_ID,
@@ -108,4 +110,21 @@ export function setJournalMood(store: RendererStore, noteId: string, mood: MoodL
 
 export function deleteJournalEntry(store: RendererStore, noteId: string): void {
   trashSubtree(store, noteId);
+}
+
+/**
+ * @name setJournalWordGoal
+ * @description Sets the daily word goal from today on; zero turns it off.
+ * Earlier days keep the goal that applied to them, and an unchanged goal
+ * queues no settings write.
+ *
+ * @example
+ * setJournalWordGoal(store, 500);
+ */
+export function setJournalWordGoal(store: RendererStore, words: number): void {
+  const current = store.getState().settings;
+  const settings = changeWordGoal(current, words, todayKey());
+  if (settings !== current) {
+    updateSettings(store, settings);
+  }
 }
