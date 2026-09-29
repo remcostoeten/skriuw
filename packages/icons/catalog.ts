@@ -73,6 +73,7 @@ export const GLYPH_NAMES = [
   "lock_closed",
   "lock_open",
   "mail",
+  "math_formula",
   "maximize",
   "more_horizontal",
   "music_note_2",

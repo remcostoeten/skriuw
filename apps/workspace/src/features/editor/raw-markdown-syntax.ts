@@ -25,6 +25,7 @@ export type RawMarkdownTokenKind =
   | "reference"
   | "tag"
   | "person"
+  | "math"
   | "task-done"
   | "html"
   | "comment";
@@ -55,19 +56,20 @@ const markdownHighlight = HighlightStyle.define([
 
 /**
  * Skriuw-specific source tokens the Markdown grammar does not know: `[[wiki
- * links]]`, `#tag` and `$person` chips, completed task markers, inline HTML,
- * and HTML comments. Matched per line, so a comment spanning lines only colors
+ * links]]`, strict `$inline math$`, `#tag` and `$person` chips, completed task
+ * markers, inline HTML, and HTML comments. Matched per line, so a comment spanning lines only colors
  * its opening line.
  */
 export const RAW_MARKDOWN_PRODUCT_TOKEN_PATTERN =
-  /(\[\[[^\]\n]+\]\])|(?<![\p{L}\p{N}_])([#$])([\p{L}\p{N}_-]{1,64})|(<!--.*?-->)|(<\/?[a-zA-Z][^<>\n]*>)|^\s*(?:[-*+]|\d{1,9}[.)])\s+(\[[xX]\])/gu;
+  /(\[\[[^\]\n]+\]\])|(\$(?:[^\s$\\]|\\.)(?:[^\n\\]|\\.)*?(?<!\s)\$(?!\d))|(?<![\p{L}\p{N}_])([#$])([\p{L}\p{N}_-]{1,64})|(<!--.*?-->)|(<\/?[a-zA-Z][^<>\n]*>)|^\s*(?:[-*+]|\d{1,9}[.)])\s+(\[[xX]\])/gu;
 
 export function rawMarkdownProductTokenKind(
   match: RegExpExecArray,
 ): { kind: RawMarkdownTokenKind; from: number; to: number } | null {
-  const [whole, wikiLink, chipSigil, chipName, comment, html, taskDone] = match;
+  const [whole, wikiLink, inlineMath, chipSigil, chipName, comment, html, taskDone] = match;
   const start = match.index;
   if (wikiLink) return { kind: "reference", from: start, to: start + whole.length };
+  if (inlineMath) return { kind: "math", from: start, to: start + whole.length };
   if (chipSigil && chipName) {
     return {
       kind: chipSigil === "#" ? "tag" : "person",
