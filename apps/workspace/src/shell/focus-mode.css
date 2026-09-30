@@ -1,0 +1,58 @@
+.shell-focus-mode .editor-tab-strip {
+  display: none;
+}
+
+.focus-mode-reveal {
+  position: absolute;
+  top: var(--safe-top);
+  right: 0;
+  left: 0;
+  z-index: 40;
+  display: flex;
+  height: 2rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  padding-inline: 0.5rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease-out;
+}
+
+.focus-mode-reveal[data-revealed="true"],
+.focus-mode-reveal:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (pointer: coarse) {
+  .focus-mode-reveal {
+    left: auto;
+    opacity: 0.6;
+    pointer-events: auto;
+  }
+}
+
+.editor-scroll[data-typewriter="on"] .editor-column {
+  padding-bottom: 50vh;
+}
+
+.shell-focus-mode .prosemirror-host[data-focus-dim="true"] .ProseMirror > * {
+  transition: opacity 150ms ease-out;
+}
+
+.shell-focus-mode .prosemirror-host[data-focus-dim="true"] .ProseMirror > :not(.focus-caret-block) {
+  opacity: 0.35;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-mode-reveal,
+  .shell-focus-mode .prosemirror-host[data-focus-dim="true"] .ProseMirror > * {
+    transition: none;
+  }
+
+  .panel-tracks-settling,
+  .sidebar-pane-settling {
+    transition: none;
+  }
+}

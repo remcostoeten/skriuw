@@ -19,6 +19,8 @@ import {
   vimCursorBlinks,
   vimCursorStyle,
   usesVimMode,
+  usesTypewriterScrolling,
+  dimsFocusParagraphs,
 } from "@/features/settings/settings-model";
 
 function extendedSettings(): WorkspaceSettings {
@@ -48,6 +50,8 @@ test("default settings project every editable field", () => {
     vimMode: false,
     vimCursorStyle: "block",
     vimCursorBlink: false,
+    typewriterScrolling: false,
+    focusDimParagraphs: false,
     openNotesInTabs: false,
     showToasts: true,
     openLinksInApp: false,
@@ -85,6 +89,29 @@ test("Vim mode stays off unless the persisted preference is explicitly true", ()
   assert.equal(usesVimMode({ ...DEFAULT_WORKSPACE_SETTINGS, vimMode: "yes" }), false);
   const { vimMode: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
   assert.equal(projectSettings(withoutField as WorkspaceSettings).vimMode, false);
+});
+
+test("typewriter scrolling and focus dimming stay off unless explicitly true", () => {
+  assert.equal(usesTypewriterScrolling(DEFAULT_WORKSPACE_SETTINGS), false);
+  assert.equal(dimsFocusParagraphs(DEFAULT_WORKSPACE_SETTINGS), false);
+  const {
+    typewriterScrolling: _typewriter,
+    focusDimParagraphs: _dim,
+    ...legacy
+  } = DEFAULT_WORKSPACE_SETTINGS;
+  assert.equal(usesTypewriterScrolling(legacy as WorkspaceSettings), false);
+  assert.equal(dimsFocusParagraphs(legacy as WorkspaceSettings), false);
+  assert.equal(
+    usesTypewriterScrolling({ ...DEFAULT_WORKSPACE_SETTINGS, typewriterScrolling: "on" }),
+    false,
+  );
+  const enabled = projectSettings({
+    ...DEFAULT_WORKSPACE_SETTINGS,
+    typewriterScrolling: true,
+    focusDimParagraphs: true,
+  });
+  assert.equal(enabled.typewriterScrolling, true);
+  assert.equal(enabled.focusDimParagraphs, true);
 });
 
 test("Vim cursor preferences are neutral, solid, and validated", () => {
