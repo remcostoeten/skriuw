@@ -25,6 +25,8 @@ import {
 } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { createCodeBlockNodeView, toggleMermaidSource } from "./code-block-nodeview";
+import { insertInlineMath, insertMathBlock } from "./math-commands";
+import { createMathBlockNodeView, createMathInlineNodeView } from "./math-nodeview";
 import { createDiagramNodeView } from "./diagram-nodeview";
 import { createImageNodeViews, type ImageTouchActions } from "./image-nodeview";
 import {
@@ -1769,6 +1771,14 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         const view = viewRef.current;
         if (view) toggleMermaidSource(view.state, view.dispatch, view);
       },
+      insertInlineMath: () => {
+        const view = viewRef.current;
+        if (view) insertInlineMath(view.state, view.dispatch, view);
+      },
+      insertMathBlock: () => {
+        const view = viewRef.current;
+        if (view) insertMathBlock(view.state, view.dispatch, view);
+      },
     }),
     [jumpToDocumentEdge, toggleJumpToLine, stepThroughAnnotations],
   );
@@ -1818,6 +1828,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         ...referenceViews.nodeViews,
         ...imageViews.nodeViews,
         code_block: (node, view, getPos) => createCodeBlockNodeView(node, view, getPos),
+        math_block: (node, view, getPos) => createMathBlockNodeView(node, view, getPos),
+        math_inline: (node, view, getPos) => createMathInlineNodeView(node, view, getPos),
         diagram: createDiagramNodeView,
         media: (node, currentView, getPos) =>
           createMediaNodeView(

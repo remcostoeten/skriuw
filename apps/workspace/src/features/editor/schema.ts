@@ -69,6 +69,14 @@ import {
   exitMermaidSource,
 } from "./code-block-nodeview";
 import { taskCheckItemAttrs } from "./task-promotion";
+import {
+  createMathEditingPlugin,
+  editSelectedInlineMath,
+  enterAdjacentMathBlock,
+  exitMathBlock,
+  mathBlockFromDollarFence,
+} from "./math-commands";
+import { inlineMathRule, MATH_FENCE, mathBlockRule, mathDollarEscapes } from "./math-markdown";
 
 export type SlashTrigger = "/" | ":";
 
@@ -565,6 +573,45 @@ const codeBlockSpec: NodeSpec = {
   ],
 };
 
+const mathBlockSpec: NodeSpec = {
+  content: "text*",
+  marks: "",
+  group: "block",
+  code: true,
+  defining: true,
+  toDOM: () => ["pre", { class: "math-block", "data-math": "block" }, ["code", 0]],
+  parseDOM: [
+    {
+      tag: "pre[data-math='block']",
+      priority: 60,
+      preserveWhitespace: "full",
+    },
+  ],
+};
+
+const mathInlineSpec: NodeSpec = {
+  inline: true,
+  group: "inline",
+  atom: true,
+  selectable: true,
+  attrs: {
+    tex: { default: "" },
+  },
+  leafText: (node) => `$${String(node.attrs.tex)}$`,
+  toDOM: (node) => [
+    "span",
+    { class: "math-inline", "data-math": "inline", "data-tex": String(node.attrs.tex) },
+    String(node.attrs.tex),
+  ],
+  parseDOM: [
+    {
+      tag: "span[data-math='inline']",
+      priority: 60,
+      getAttrs: (dom) => ({ tex: dom.getAttribute("data-tex") ?? dom.textContent ?? "" }),
+    },
+  ],
+};
+
 const strikethroughSpec: MarkSpec = {
   parseDOM: [
     { tag: "s" },
@@ -685,6 +732,8 @@ const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
   .addToEnd("mention_ref", mentionRefSpec)
   .addToEnd("image_ref", imageRefSpec)
   .addToEnd("media", mediaSpec)
+  .addToEnd("math_block", mathBlockSpec)
+  .addToEnd("math_inline", mathInlineSpec)
   .addToEnd("table", tableSpecs.table)
   .addToEnd("table_row", tableSpecs.table_row)
   .addToEnd("table_cell", tableSpecs.table_cell)
@@ -1278,6 +1327,7 @@ export function createProductPlugins(): Plugin[] {
     createSuggestionPlugin(),
     createCodeHighlightPlugin(),
     createMermaidPreviewSelectionPlugin(),
+    createMathEditingPlugin(),
     createCheckboxTogglePlugin(),
     createToggleListPlugin(),
     inputRules({
@@ -1324,12 +1374,17 @@ export function createProductPlugins(): Plugin[] {
       "Mod-a": selectBlockThenDocument(),
       "Alt-ArrowUp": moveSelectedBlock(-1),
       "Alt-ArrowDown": moveSelectedBlock(1),
-      ArrowDown: exitTerminalCodeBlockOnArrowDown,
+      ArrowDown: chainCommands(enterAdjacentMathBlock("down"), exitTerminalCodeBlockOnArrowDown),
+      ArrowUp: enterAdjacentMathBlock("up"),
+      ArrowLeft: enterAdjacentMathBlock("left"),
+      ArrowRight: enterAdjacentMathBlock("right"),
       "Alt-Enter": toggleItemAtSelection,
       "Alt-Shift-Enter": toggleCheckItemAtSelection,
-      Escape: exitMermaidSource,
+      Escape: chainCommands(exitMermaidSource, exitMathBlock),
       Enter: chainCommands(
         enterMermaidSource,
+        editSelectedInlineMath,
+        mathBlockFromDollarFence,
         splitTaskItem(checkItem),
         splitListItem(toggleItem, { open: true }),
         splitListItem(listItem),
@@ -1521,6 +1576,32 @@ const productMarkdownSerializer = new MarkdownSerializer(
       state.write("```");
       state.closeBlock(node);
     },
+    math_block(state, node) {
+      state.write(`${MATH_FENCE}\n`);
+      state.text(node.textContent, false);
+      state.ensureNewLine();
+      state.write(MATH_FENCE);
+      state.closeBlock(node);
+    },
+    math_inline(state, node) {
+      const tex = String(node.attrs.tex ?? "").trim();
+      if (tex) state.write(`$${tex}$`);
+    },
+    text(state, node, parent, index) {
+      const text = node.text ?? "";
+      const escapes = isPlainAutolinkText(node) ? [] : mathDollarEscapes(parent, index);
+      if (escapes.length === 0) {
+        defaultMarkdownSerializer.nodes.text?.(state, node, parent, index);
+        return;
+      }
+      let cursor = 0;
+      for (const offset of escapes) {
+        state.text(text.slice(cursor, offset));
+        state.write("\\$");
+        cursor = offset + 1;
+      }
+      state.text(text.slice(cursor));
+    },
     raw_markdown(state, node) {
       state.write(node.textContent);
       state.closeBlock(node);
@@ -1560,6 +1641,10 @@ const productMarkdownSerializer = new MarkdownSerializer(
   },
 );
 
+function isPlainAutolinkText(node: ProseMirrorNode): boolean {
+  return node.marks.some((mark) => mark.type.name === "link" && mark.attrs.href === node.text);
+}
+
 export function serializeProductMarkdown(document: ProseMirrorNode): string {
   const body =
     document.childCount === 1 && document.firstChild?.type.name === "raw_markdown"
@@ -1582,7 +1667,10 @@ type MarkdownTokenizer = typeof defaultMarkdownParser.tokenizer;
 type InlineRuleState = Parameters<Parameters<MarkdownTokenizer["inline"]["ruler"]["before"]>[2]>[0];
 type CoreRuleState = Parameters<Parameters<MarkdownTokenizer["core"]["ruler"]["push"]>[1]>[0];
 type MarkdownToken = CoreRuleState["tokens"][number];
-type MarkdownRuler = MarkdownTokenizer["inline"]["ruler"] | MarkdownTokenizer["core"]["ruler"];
+type MarkdownRuler =
+  | MarkdownTokenizer["inline"]["ruler"]
+  | MarkdownTokenizer["block"]["ruler"]
+  | MarkdownTokenizer["core"]["ruler"];
 
 function hasMarkdownRule(ruler: MarkdownRuler, name: string): boolean {
   if (!("__rules" in ruler) || !Array.isArray(ruler.__rules)) return false;
@@ -1692,6 +1780,16 @@ function richFormattingTagRule(state: InlineRuleState, silent: boolean): boolean
   }
   state.pos += highlight[0].length;
   return true;
+}
+
+if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.inline.ruler, "math_inline")) {
+  defaultMarkdownParser.tokenizer.inline.ruler.before("escape", "math_inline", inlineMathRule);
+}
+
+if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.block.ruler, "math_block")) {
+  defaultMarkdownParser.tokenizer.block.ruler.before("fence", "math_block", mathBlockRule, {
+    alt: ["paragraph", "reference", "blockquote", "list"],
+  });
 }
 
 if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.inline.ruler, "skriuw_rich_formatting")) {
@@ -1824,6 +1922,11 @@ const productMarkdownParser = new MarkdownParser(productSchema, defaultMarkdownP
   skriuw_diagram: {
     node: "diagram",
     getAttrs: (tok) => ({ model: tok.meta?.diagramModel ?? createDefaultDiagram() }),
+  },
+  math_block: { block: "math_block", noCloseToken: true },
+  math_inline: {
+    node: "math_inline",
+    getAttrs: (tok) => ({ tex: tok.content }),
   },
   table: { block: "table" },
   thead: { ignore: true },

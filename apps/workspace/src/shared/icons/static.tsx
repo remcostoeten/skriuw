@@ -107,6 +107,7 @@ export const LockOpenIcon = glyphIcon("lock_open");
 export const LogOutIcon = glyphIcon("sign_out");
 export const MailIcon = glyphIcon("mail");
 export const MapPinIcon = glyphIcon("location");
+export const MathFormulaIcon = glyphIcon("math_formula");
 export const MaximizeIcon = glyphIcon("maximize");
 export const MessageSquareIcon = glyphIcon("comment");
 export const MinusIcon = glyphIcon("subtract");

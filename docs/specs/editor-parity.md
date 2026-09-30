@@ -29,6 +29,7 @@ The editor supports:
 - bullet, ordered, check, and collapsible lists;
 - quotes, dividers, and fenced code;
 - images;
+- inline and display math;
 - tables;
 - note links, tags, and people mentions.
 
