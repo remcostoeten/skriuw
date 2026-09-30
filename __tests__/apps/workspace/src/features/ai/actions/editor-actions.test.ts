@@ -68,6 +68,7 @@ test("the catalogue covers the v1-parity selection and note actions", () => {
     "suggest-tags",
     "title",
     "outline",
+    "custom-note",
   ]) {
     assert.ok(note.includes(expected), `missing note action ${expected}`);
   }

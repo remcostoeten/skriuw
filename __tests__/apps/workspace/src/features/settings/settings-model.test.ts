@@ -11,6 +11,8 @@ import {
   resetShortcutOverride,
   resetShortcutOverrides,
   opensLinksInApp,
+  paletteDensity,
+  remoteImportImages,
   showsToasts,
   usesAnimatedIcons,
   usesBlockDragHandle,
@@ -53,6 +55,8 @@ test("default settings project every editable field", () => {
     aiEnabled: false,
     autoLockMinutes: 5,
     lockOnBlur: false,
+    paletteDensity: "normal",
+    remoteImportImages: "ask",
     facehashAvatar: true,
   });
 });
@@ -97,6 +101,33 @@ test("Vim cursor preferences are neutral, solid, and validated", () => {
     "block",
   );
   assert.equal(vimCursorBlinks({ ...DEFAULT_WORKSPACE_SETTINGS, vimCursorBlink: true }), true);
+});
+
+test("palette density defaults to normal and ignores unknown values", () => {
+  assert.equal(paletteDensity(DEFAULT_WORKSPACE_SETTINGS), "normal");
+  const { paletteDensity: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
+  assert.equal(paletteDensity(withoutField as WorkspaceSettings), "normal");
+  assert.equal(
+    paletteDensity({ ...DEFAULT_WORKSPACE_SETTINGS, paletteDensity: "compact" }),
+    "compact",
+  );
+  assert.equal(
+    paletteDensity({ ...DEFAULT_WORKSPACE_SETTINGS, paletteDensity: "roomy" }),
+    "normal",
+  );
+});
+
+test("remote import images ask until a choice is saved and ignore unknown values", () => {
+  const { remoteImportImages: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
+  assert.equal(remoteImportImages(withoutField as WorkspaceSettings), "ask");
+  assert.equal(
+    remoteImportImages({ ...DEFAULT_WORKSPACE_SETTINGS, remoteImportImages: "download" }),
+    "download",
+  );
+  assert.equal(
+    remoteImportImages({ ...DEFAULT_WORKSPACE_SETTINGS, remoteImportImages: "always" }),
+    "ask",
+  );
 });
 
 test("AI stays disabled unless the persisted preference is explicitly true", () => {

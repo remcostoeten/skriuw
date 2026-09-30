@@ -228,3 +228,26 @@ test("plain Markdown images render as blocked placeholders without a src attribu
   assert.equal("src" in (rendered[1] as Record<string, unknown>), false);
   assert.equal(serializeProductMarkdown(document), "![Remote](https://example.com/image.png)");
 });
+
+test("a paragraph of soft-broken images parses as one wrapping row", () => {
+  const document = parseProductMarkdown(
+    [
+      "[![License](https://img.shields.io/a.svg)](https://opensource.org)",
+      "[![npm](https://img.shields.io/b.svg)](https://npmjs.com)",
+      "![Local](./c.png)",
+    ].join("\n"),
+  );
+  const row = document.firstChild;
+  assert.equal(row?.type.name, "paragraph");
+  const types: string[] = [];
+  row?.forEach((child) => types.push(child.isText ? `text:${child.text}` : child.type.name));
+  assert.deepEqual(types, ["image", "text: ", "image", "text: ", "image"]);
+  assert.equal(row?.child(0).marks[0]?.attrs.href, "https://opensource.org");
+});
+
+test("line breaks next to text still render as breaks", () => {
+  const document = parseProductMarkdown("![A](https://a.test/a.png)\nCaption text");
+  const types: string[] = [];
+  document.firstChild?.forEach((child) => types.push(child.type.name));
+  assert.deepEqual(types, ["image", "hard_break", "text"]);
+});

@@ -4,12 +4,24 @@ import {
   usesBlockDragHandle,
   usesFacehashAvatar,
 } from "@/features/settings/settings-model";
-import { shortcutOverridesFromSettings } from "@/commands/bindings";
+import {
+  quitShortcutEnabled,
+  shortcutOverridesFromSettings,
+  storedShortcutOverrides,
+} from "@/commands/bindings";
 import type { ShortcutOverrides } from "@/commands/bindings";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 export function selectShortcutOverrides(state: RendererState): ShortcutOverrides {
   return shortcutOverridesFromSettings(state.settings);
+}
+
+export function selectStoredShortcutOverrides(state: RendererState): ShortcutOverrides {
+  return storedShortcutOverrides(state.settings);
+}
+
+export function selectQuitShortcutEnabled(state: RendererState): boolean {
+  return quitShortcutEnabled(state.settings);
 }
 
 export function sameOverrides(left: ShortcutOverrides, right: ShortcutOverrides): boolean {

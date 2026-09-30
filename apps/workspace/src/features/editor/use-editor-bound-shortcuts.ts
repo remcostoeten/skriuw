@@ -4,6 +4,7 @@ import { useShortcutMap } from "@remcostoeten/use-shortcut/react";
 import type { ShortcutMap } from "@remcostoeten/use-shortcut/react";
 import {
   effectiveShortcutKeys,
+  shortcutShadowedByQuit,
   sameShortcutOverrides,
   shortcutBindsOnPlatform,
   shortcutDefinition,
@@ -84,12 +85,14 @@ export function useEditorBoundShortcuts(
         scopes: definition.scopes,
         ...(claim ? { except: () => !claim.claims(), stopPropagation: true } : {}),
       };
-      map[id] = {
-        keys: effectiveShortcutKeys(definition, overrides),
-        handler,
-        options,
-      };
-      if (definition.secondaryKeys) {
+      const keys = effectiveShortcutKeys(definition, overrides);
+      if (!shortcutShadowedByQuit(definition, keys, overrides)) {
+        map[id] = { keys, handler, options };
+      }
+      if (
+        definition.secondaryKeys &&
+        !shortcutShadowedByQuit(definition, definition.secondaryKeys, overrides)
+      ) {
         map[`${id}:secondary`] = {
           keys: definition.secondaryKeys,
           handler,

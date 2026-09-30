@@ -1,14 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AuthProvider } from "@remcostoeten/auth-drawer";
-import { updateSettings } from "@/store/actions/settings";
+import { AuthProvider, useAuth } from "@remcostoeten/auth-drawer";
 import { authAdapter } from "@/features/auth/adapter";
-import {
-  clearOnboardingOverride,
-  readOnboardingOverride,
-  readOnboardingSkip,
-} from "@/features/onboarding/debug-override";
-import { completeOnboarding, shouldShowOnboarding } from "@/features/onboarding/model";
-import { Onboarding } from "@/features/onboarding/onboarding";
+import { useSignInNudge } from "@/features/auth/use-sign-in-nudge";
+import { isBrowserRuntime } from "@/bridge/runtime";
+import { BrowserStorageNotice } from "@/shell/browser-storage-notice";
 import { AccountMenu } from "@/shell/account-menu";
 import { railActiveClass, railIconButtonClass, railInactiveClass } from "@/shell/rail-styles";
 import type { SectionId } from "@/features/settings/sections/sections";
@@ -61,6 +56,7 @@ import { LockDialogHost } from "@/features/lock/lock-dialogs";
 import { NoteShareHost } from "@/features/sharing/share-dialog";
 import { TransferReportHost } from "@/features/transfer/export/transfer-report-host";
 import { ImportPreviewHost } from "@/features/transfer/import/import-preview-host";
+import { RemoteImagePromptHost } from "@/features/transfer/import/remote-images-prompt-host";
 import { ImportProgressHost } from "@/features/transfer/import/import-progress-host";
 import { WorkspaceShortcuts } from "@/commands/workspace-shortcuts";
 import { useShortcutHints } from "@/commands/hints";
@@ -139,10 +135,6 @@ type Props = {
   store: RendererStore;
 };
 
-function selectNeedsOnboarding(state: RendererState): boolean {
-  return shouldShowOnboarding(state.settings);
-}
-
 function selectActiveNoteId(state: RendererState): string | null {
   return state.activeNoteId;
 }
@@ -163,8 +155,6 @@ function WorkspaceShell({ store }: Props) {
   const [settingsSection, setSettingsSection] = useState<SectionId>("appearance");
   const [signInOpen, setSignInOpen] = useState(false);
   const [signInMounted, setSignInMounted] = useState(false);
-  const [openingOnboardingSignIn, setOpeningOnboardingSignIn] = useState(false);
-  const [onboardingSignInError, setOnboardingSignInError] = useState<string | null>(null);
   const signInReturnsToSettingsRef = useRef(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -186,10 +176,7 @@ function WorkspaceShell({ store }: Props) {
   const showToasts = useRendererSelector(store, selectShowToasts);
   const animatedIcons = useRendererSelector(store, selectAnimatedIcons);
   const aiEnabled = useRendererSelector(store, selectAiEnabled);
-  const [onboardingOverride, setOnboardingOverride] = useState(readOnboardingOverride);
-  const [skipOnboarding] = useState(readOnboardingSkip);
-  const needsOnboardingFromSettings = useRendererSelector(store, selectNeedsOnboarding);
-  const needsOnboarding = !skipOnboarding && (needsOnboardingFromSettings || onboardingOverride);
+  const { user, isPending: authPending } = useAuth();
   const shortcutHints = useShortcutHints(store, TOOLBAR_SHORTCUT_IDS);
   useEffect(() => installBackNavigation(store), [store]);
   useEffect(() => scheduleSearchIndexReconciliation(), []);
@@ -252,6 +239,11 @@ function WorkspaceShell({ store }: Props) {
     setSignInMounted(true);
     setSignInOpen(true);
   }, []);
+  const overlayOpenRef = useRef(false);
+  overlayOpenRef.current = signInOpen || settingsOpen || paletteOpen || shortcutHelpOpen;
+  useSignInNudge(store, isBrowserRuntime() && user === null && !authPending, () => {
+    if (!overlayOpenRef.current) openSignIn(false);
+  });
   // Warm the sign-in chunk as soon as either trigger surface opens, so the
   // drawer appears instantly on click instead of waiting on a lazy import.
   useEffect(() => {
@@ -275,30 +267,6 @@ function WorkspaceShell({ store }: Props) {
       signInReturnsToSettingsRef.current = false;
       setSettingsOpen(true);
     }
-  }, []);
-  const finishOnboarding = useCallback(() => {
-    clearOnboardingOverride();
-    setOnboardingOverride(false);
-    updateSettings(store, completeOnboarding(store.getState().settings));
-  }, [store]);
-  const openOnboardingSignIn = useCallback(() => {
-    if (openingOnboardingSignIn) return;
-    setOpeningOnboardingSignIn(true);
-    setOnboardingSignInError(null);
-    void loadSignInDrawer()
-      .then(() => {
-        finishOnboarding();
-        setSignInMounted(true);
-        setSignInOpen(true);
-      })
-      .catch((error) => {
-        console.error("cloud sign-in UI failed to load", error);
-        setOnboardingSignInError("Sign in couldn't open. Check your connection and try again.");
-      })
-      .finally(() => setOpeningOnboardingSignIn(false));
-  }, [finishOnboarding, openingOnboardingSignIn]);
-  const warmSignInDrawer = useCallback(() => {
-    void loadSignInDrawer().catch(() => undefined);
   }, []);
   const openSettingsAt = useCallback((section: SectionId) => {
     setSettingsSection(section);
@@ -507,8 +475,7 @@ function WorkspaceShell({ store }: Props) {
           settling && mode === "full" ? " panel-tracks-settling" : ""
         }${mode === "compact" ? " shell-compact" : ""}`}
         style={mode === "compact" ? undefined : { gridTemplateColumns }}
-        aria-hidden={needsOnboarding}
-        inert={needsOnboarding || sheetOpen}
+        inert={sheetOpen}
       >
         {mode === "full" && (
           <nav
@@ -707,6 +674,7 @@ function WorkspaceShell({ store }: Props) {
             <div className="min-h-0 flex-1">
               <EditorPanes store={store} />
             </div>
+            <BrowserStorageNotice onSignIn={() => openSignIn(false)} />
           </main>
           {mode === "full" && (
             <div
@@ -842,24 +810,15 @@ function WorkspaceShell({ store }: Props) {
       </AiOptInGate>
       <TransferReportHost />
       <ImportPreviewHost />
+      <RemoteImagePromptHost />
       <ImportProgressHost />
       <WorkspaceShortcuts
         store={store}
         route={route}
-        suspended={settingsOpen || shortcutHelpOpen || needsOnboarding}
+        suspended={settingsOpen || shortcutHelpOpen}
         activeWhileSuspended={settingsOpen ? "openSettings" : undefined}
         actions={shortcutActions}
       />
-      {needsOnboarding ? <WindowControls className="fixed right-0 top-0 z-50" /> : null}
-      {needsOnboarding ? (
-        <Onboarding
-          openingSignIn={openingOnboardingSignIn}
-          signInError={onboardingSignInError}
-          onContinueLocal={finishOnboarding}
-          onSignIn={openOnboardingSignIn}
-          onWarmSignIn={warmSignInDrawer}
-        />
-      ) : null}
     </AnimatedIconsProvider>
   );
 }

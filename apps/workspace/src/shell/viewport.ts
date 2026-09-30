@@ -1,4 +1,4 @@
-const HEIGHT_PROPERTY = "--viewport-height";
+const HEIGHT_PROPERTY = "--visual-viewport-height";
 const TOP_PROPERTY = "--viewport-top";
 const KEYBOARD_PROPERTY = "--keyboard-inset";
 const KEYBOARD_ATTRIBUTE = "keyboard";

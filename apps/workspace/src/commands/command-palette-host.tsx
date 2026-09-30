@@ -16,10 +16,16 @@ import { applySearchPlan, planWorkspaceSearch } from "@skriuw/renderer-core/sear
 import { snippetPlainText, snippetSegments } from "@skriuw/renderer-core/search/snippet";
 import { CircleIcon, FileTextIcon, SearchIcon, WaypointsIcon } from "@/shared/icons/static";
 import { fuzzyMatchScore } from "@/shared/lib/fuzzy-match";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import { paletteDensity } from "@/features/settings/settings-model";
 import { CommandPalette } from "./command-palette";
 import { RECENT_NOTES_GROUP, type CommandPaletteItem } from "./command-palette-model";
 import { compactAge, recentNotes } from "./recent-notes";
-import { effectiveShortcutKeys, shortcutOverridesFromSettings } from "./bindings";
+import {
+  effectiveShortcutKeys,
+  shortcutOverridesFromSettings,
+  shortcutShadowedByQuit,
+} from "./bindings";
 import { useShortcutHints } from "./hints";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type { ShortcutActionId, ShortcutDefinition } from "./definitions";
@@ -132,6 +138,10 @@ type Props = {
   onOpenChange: (open: boolean) => void;
 };
 
+function selectPaletteDensity(state: RendererState) {
+  return paletteDensity(state.settings);
+}
+
 export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [hits, setHits] = useState<readonly SearchHit[]>([]);
@@ -187,7 +197,11 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
     return [
       ...registry.paletteItems(state, ui, (actionId) => {
         const definition = DEFINITION_BY_ID.get(actionId);
-        return definition ? effectiveShortcutKeys(definition, overrides) : "";
+        if (!definition || overrides[actionId] === null) {
+          return "";
+        }
+        const keys = effectiveShortcutKeys(definition, overrides);
+        return shortcutShadowedByQuit(definition, keys, overrides) ? "" : keys;
       }),
       ...selectNoteEntries(state).map((note): CommandPaletteItem => ({
         id: `note:${note.id}`,
@@ -205,6 +219,7 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
   }, [open, registry, ui, hits, plan, store]);
 
   const paletteHints = useShortcutHints(store, PALETTE_SHORTCUT_IDS);
+  const density = useRendererSelector(store, selectPaletteDensity);
 
   const notice = plan.resolution.problems.map(describeSearchFilterProblem).join(" ") || null;
 
@@ -216,6 +231,7 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
       onQueryChange={setSearchQuery}
       notice={notice}
       paletteShortcut={paletteHints.toggleCommandPalette}
+      density={density}
     />
   );
 }

@@ -168,7 +168,7 @@
  */
 @media (max-width: 620px) {
   dialog.dialog-fullscreen {
-    width: 100vw;
+    width: var(--viewport-width);
     max-width: none;
     height: var(--viewport-height);
     max-height: none;

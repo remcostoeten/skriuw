@@ -48,6 +48,6 @@ parts:
       fi
       ORIG_DESKTOP="$(ls usr/share/applications/*.desktop | head -n1)"
       ICON="$(ls usr/share/icons/hicolor/128x128/apps/*.png 2>/dev/null | head -n1 || true)"
-      sed -e 's|^Exec=.*|Exec=skriuw|' \
+      sed -e 's|^Exec=.*|Exec=skriuw %F|' \
           -e "s|^Icon=.*|Icon=\${SNAP}/${ICON}|" \
           "$ORIG_DESKTOP" > usr/share/applications/skriuw.desktop
