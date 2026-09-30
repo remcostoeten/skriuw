@@ -19,6 +19,7 @@ const controls: CommandUiControls = {
   openSignIn: noop,
   toggleSidebar: noop,
   toggleMetadata: noop,
+  toggleFocusMode: noop,
   navigate: noop,
 };
 

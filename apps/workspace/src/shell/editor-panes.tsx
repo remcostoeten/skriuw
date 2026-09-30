@@ -234,7 +234,7 @@ export function EditorPanes({ store }: Props) {
           <ContextMenuTrigger asChild>
             <div
               ref={stripRef}
-              className="flex h-9 shrink-0 items-stretch border-b border-sidebar-border bg-sidebar pointer-coarse:h-11"
+              className="editor-tab-strip flex h-9 shrink-0 items-stretch border-b border-sidebar-border bg-sidebar pointer-coarse:h-11"
               role="tablist"
               aria-label="Open notes"
               onContextMenu={onStripContextMenu}

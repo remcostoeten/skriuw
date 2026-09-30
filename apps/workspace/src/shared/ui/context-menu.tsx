@@ -7,6 +7,8 @@ import { KeyCaps } from "@/shared/ui/key-caps";
 import { overlayContentMotion } from "./overlay-motion";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 
+const MENU_COLLISION_PADDING = 8;
+
 const ContextMenu = ContextMenuPrimitive.Root;
 
 const ContextMenuTrigger = ContextMenuPrimitive.Trigger;
@@ -43,10 +45,11 @@ ContextMenuSubTrigger.displayName = ContextMenuPrimitive.SubTrigger.displayName;
 const ContextMenuSubContent = React.forwardRef<
   React.ElementRef<typeof ContextMenuPrimitive.SubContent>,
   React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.SubContent>
->(({ className, ...props }, ref) => (
+>(({ className, collisionPadding = MENU_COLLISION_PADDING, ...props }, ref) => (
   <ContextMenuPrimitive.Portal>
     <ContextMenuPrimitive.SubContent
       ref={ref}
+      collisionPadding={collisionPadding}
       className={cn(
         "z-50 min-w-32 origin-[--radix-context-menu-content-transform-origin] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-xl",
         overlayContentMotion,
@@ -61,10 +64,11 @@ ContextMenuSubContent.displayName = ContextMenuPrimitive.SubContent.displayName;
 const ContextMenuContent = React.forwardRef<
   React.ElementRef<typeof ContextMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Content>
->(({ className, ...props }, ref) => (
+>(({ className, collisionPadding = MENU_COLLISION_PADDING, ...props }, ref) => (
   <ContextMenuPrimitive.Portal>
     <ContextMenuPrimitive.Content
       ref={ref}
+      collisionPadding={collisionPadding}
       className={cn(
         "z-50 min-w-32 origin-[--radix-context-menu-content-transform-origin] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-xl",
         overlayContentMotion,

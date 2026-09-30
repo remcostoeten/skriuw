@@ -25,6 +25,8 @@ import {
 } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { createCodeBlockNodeView, toggleMermaidSource } from "./code-block-nodeview";
+import { insertInlineMath, insertMathBlock } from "./math-commands";
+import { createMathBlockNodeView, createMathInlineNodeView } from "./math-nodeview";
 import { createDiagramNodeView } from "./diagram-nodeview";
 import { createImageNodeViews, type ImageTouchActions } from "./image-nodeview";
 import {
@@ -78,7 +80,12 @@ import {
   isRevisionConflict,
 } from "@/store/actions/workspace";
 import { cssStringLiteral } from "@/features/settings/apply-settings";
-import { projectSettings, usesVimMode } from "@/features/settings/settings-model";
+import {
+  dimsFocusParagraphs,
+  projectSettings,
+  usesTypewriterScrolling,
+  usesVimMode,
+} from "@/features/settings/settings-model";
 import { opensNotesInTabs } from "@skriuw/renderer-core/settings/open-notes-in-tabs";
 import { closeTab } from "@/store/actions/panes";
 import { noop } from "@skriuw/shared/helpers/noop";
@@ -224,6 +231,8 @@ import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "./editor-working-set
 import { preparedEditorDocuments } from "./prepared-documents";
 import { REMOTE_APPLY_META, buildRemoteTr, mergeDocuments } from "./remote-merge";
 import { saveWithConflictRetry } from "./save-retry";
+import { createTypewriterPlugin } from "./typewriter-scroll";
+import { createFocusDimPlugin, refreshFocusDim } from "./focus-dim";
 import {
   carryVimState,
   createVimPlugin,
@@ -673,6 +682,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       createVimPlugin(vimHost),
       ...mentionPlugins,
       ...createProductPlugins(),
+      createTypewriterPlugin({
+        enabled: () => usesTypewriterScrolling(store.getState().settings),
+        scrollContainer: () => scrollHostRef.current,
+      }),
+      createFocusDimPlugin(() => dimsFocusParagraphs(store.getState().settings)),
     ];
   }
   const editorPlugins = editorPluginsRef.current;
@@ -1775,6 +1789,14 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const view = viewRef.current;
     if (view) setVimEnabled(view, vimEnabled);
   }, [vimEnabled]);
+  const focusDimParagraphs = editorSettings.focusDimParagraphs;
+  const focusDimSeenRef = useRef(focusDimParagraphs);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (focusDimSeenRef.current === focusDimParagraphs || !view) return;
+    focusDimSeenRef.current = focusDimParagraphs;
+    refreshFocusDim(view);
+  }, [focusDimParagraphs]);
   const editorShortcuts = useMemo<EditorBoundHandlersFor<NoteEditorShortcutId>>(
     () => ({
       goToDocumentStart: () => jumpToDocumentEdge("start"),
@@ -1801,6 +1823,14 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       toggleDiagramSource: () => {
         const view = viewRef.current;
         if (view) toggleMermaidSource(view.state, view.dispatch, view);
+      },
+      insertInlineMath: () => {
+        const view = viewRef.current;
+        if (view) insertInlineMath(view.state, view.dispatch, view);
+      },
+      insertMathBlock: () => {
+        const view = viewRef.current;
+        if (view) insertMathBlock(view.state, view.dispatch, view);
       },
     }),
     [jumpToDocumentEdge, toggleJumpToLine, stepThroughAnnotations],
@@ -1851,6 +1881,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         ...referenceViews.nodeViews,
         ...imageViews.nodeViews,
         code_block: (node, view, getPos) => createCodeBlockNodeView(node, view, getPos),
+        math_block: (node, view, getPos) => createMathBlockNodeView(node, view, getPos),
+        math_inline: (node, view, getPos) => createMathInlineNodeView(node, view, getPos),
         diagram: createDiagramNodeView,
         media: (node, currentView, getPos) =>
           createMediaNodeView(
@@ -2522,6 +2554,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         data-editor-line-height={editorSettings.editorLineHeight}
         data-vim-cursor-style={editorSettings.vimCursorStyle}
         data-vim-cursor-blink={editorSettings.vimCursorBlink ? "true" : "false"}
+        data-focus-dim={focusDimParagraphs ? "true" : "false"}
         style={
           {
             "--editor-placeholder": cssStringLiteral(editorSettings.editorPlaceholder),

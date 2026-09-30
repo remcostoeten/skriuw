@@ -6,7 +6,7 @@ import { badge, outlineButton, primaryButton } from "@/components/frame/control"
 export function HomeCta() {
   return (
     <section className="border-b-0!">
-      <div className="hy-dots grid place-items-center rounded-[10px] border border-dashed border-line px-6 py-16 text-center">
+      <div className="hy-dots hy-glow grid place-items-center rounded-[10px] border border-dashed border-line px-6 py-16 text-center">
         <span className={cn(badge, "bg-ink-900/8 text-ink-700")}>
           free · open source · no account
         </span>

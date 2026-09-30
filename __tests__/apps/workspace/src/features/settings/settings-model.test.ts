@@ -11,12 +11,17 @@ import {
   resetShortcutOverride,
   resetShortcutOverrides,
   opensLinksInApp,
+  paletteDensity,
+  remoteImportImages,
   showsToasts,
   usesAnimatedIcons,
   usesBlockDragHandle,
+  usesFacehashAvatar,
   vimCursorBlinks,
   vimCursorStyle,
   usesVimMode,
+  usesTypewriterScrolling,
+  dimsFocusParagraphs,
 } from "@/features/settings/settings-model";
 
 function extendedSettings(): WorkspaceSettings {
@@ -46,12 +51,17 @@ test("default settings project every editable field", () => {
     vimMode: false,
     vimCursorStyle: "block",
     vimCursorBlink: false,
+    typewriterScrolling: false,
+    focusDimParagraphs: false,
     openNotesInTabs: false,
     showToasts: true,
     openLinksInApp: false,
     aiEnabled: false,
     autoLockMinutes: 5,
     lockOnBlur: false,
+    paletteDensity: "normal",
+    remoteImportImages: "ask",
+    facehashAvatar: true,
   });
 });
 
@@ -83,6 +93,29 @@ test("Vim mode stays off unless the persisted preference is explicitly true", ()
   assert.equal(projectSettings(withoutField as WorkspaceSettings).vimMode, false);
 });
 
+test("typewriter scrolling and focus dimming stay off unless explicitly true", () => {
+  assert.equal(usesTypewriterScrolling(DEFAULT_WORKSPACE_SETTINGS), false);
+  assert.equal(dimsFocusParagraphs(DEFAULT_WORKSPACE_SETTINGS), false);
+  const {
+    typewriterScrolling: _typewriter,
+    focusDimParagraphs: _dim,
+    ...legacy
+  } = DEFAULT_WORKSPACE_SETTINGS;
+  assert.equal(usesTypewriterScrolling(legacy as WorkspaceSettings), false);
+  assert.equal(dimsFocusParagraphs(legacy as WorkspaceSettings), false);
+  assert.equal(
+    usesTypewriterScrolling({ ...DEFAULT_WORKSPACE_SETTINGS, typewriterScrolling: "on" }),
+    false,
+  );
+  const enabled = projectSettings({
+    ...DEFAULT_WORKSPACE_SETTINGS,
+    typewriterScrolling: true,
+    focusDimParagraphs: true,
+  });
+  assert.equal(enabled.typewriterScrolling, true);
+  assert.equal(enabled.focusDimParagraphs, true);
+});
+
 test("Vim cursor preferences are neutral, solid, and validated", () => {
   assert.equal(vimCursorStyle(DEFAULT_WORKSPACE_SETTINGS), "block");
   assert.equal(vimCursorBlinks(DEFAULT_WORKSPACE_SETTINGS), false);
@@ -97,6 +130,33 @@ test("Vim cursor preferences are neutral, solid, and validated", () => {
   assert.equal(vimCursorBlinks({ ...DEFAULT_WORKSPACE_SETTINGS, vimCursorBlink: true }), true);
 });
 
+test("palette density defaults to normal and ignores unknown values", () => {
+  assert.equal(paletteDensity(DEFAULT_WORKSPACE_SETTINGS), "normal");
+  const { paletteDensity: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
+  assert.equal(paletteDensity(withoutField as WorkspaceSettings), "normal");
+  assert.equal(
+    paletteDensity({ ...DEFAULT_WORKSPACE_SETTINGS, paletteDensity: "compact" }),
+    "compact",
+  );
+  assert.equal(
+    paletteDensity({ ...DEFAULT_WORKSPACE_SETTINGS, paletteDensity: "roomy" }),
+    "normal",
+  );
+});
+
+test("remote import images ask until a choice is saved and ignore unknown values", () => {
+  const { remoteImportImages: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
+  assert.equal(remoteImportImages(withoutField as WorkspaceSettings), "ask");
+  assert.equal(
+    remoteImportImages({ ...DEFAULT_WORKSPACE_SETTINGS, remoteImportImages: "download" }),
+    "download",
+  );
+  assert.equal(
+    remoteImportImages({ ...DEFAULT_WORKSPACE_SETTINGS, remoteImportImages: "always" }),
+    "ask",
+  );
+});
+
 test("AI stays disabled unless the persisted preference is explicitly true", () => {
   assert.equal(projectSettings(DEFAULT_WORKSPACE_SETTINGS).aiEnabled, false);
   assert.equal(projectSettings({ ...DEFAULT_WORKSPACE_SETTINGS, aiEnabled: true }).aiEnabled, true);
@@ -109,6 +169,17 @@ test("animated icons stay enabled unless the setting is explicitly false", () =>
   assert.equal(usesAnimatedIcons({ ...DEFAULT_WORKSPACE_SETTINGS, animatedIcons: false }), false);
   const { animatedIcons: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
   assert.equal(usesAnimatedIcons(withoutField as WorkspaceSettings), true);
+});
+
+test("the Facehash avatar stays enabled unless the setting is explicitly false", () => {
+  assert.equal(usesFacehashAvatar(DEFAULT_WORKSPACE_SETTINGS), true);
+  assert.equal(usesFacehashAvatar({ ...DEFAULT_WORKSPACE_SETTINGS, facehashAvatar: false }), false);
+  const { facehashAvatar: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
+  assert.equal(usesFacehashAvatar(withoutField as WorkspaceSettings), true);
+  assert.equal(
+    changeSetting(DEFAULT_WORKSPACE_SETTINGS, "facehashAvatar", false).facehashAvatar,
+    false,
+  );
 });
 
 test("toasts stay enabled unless the setting is explicitly false", () => {

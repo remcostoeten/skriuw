@@ -6,6 +6,7 @@ import { cn } from "@/shared/lib/utils";
 import { Dialog, useDialogClose } from "@/shared/ui/dialog";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 import { useListboxNavigation } from "@/shared/ui/use-listbox-navigation";
+import type { PaletteDensity } from "@/features/settings/settings-model";
 import {
   COMMAND_BANGS,
   getCommandPaletteGroups,
@@ -32,6 +33,7 @@ type Props = {
    * formatted. Hosts pass the effective binding so a rebind is reflected here.
    */
   paletteShortcut?: string;
+  density?: PaletteDensity;
   "aria-label"?: string;
 };
 
@@ -52,6 +54,12 @@ function Kbd({ children, ...rest }: ComponentProps<"kbd">) {
   );
 }
 
+const ROW_PADDING: Record<PaletteDensity, string> = {
+  compact: "py-1",
+  normal: "py-2",
+  spacious: "py-3",
+};
+
 export const PALETTE_DIALOG_CLASS =
   "command-palette w-[calc(100vw-1.5rem)] max-w-[46rem] overflow-hidden";
 
@@ -62,6 +70,7 @@ export function CommandPalette({
   onQueryChange,
   notice,
   paletteShortcut,
+  density = "normal",
   ...aria
 }: Props) {
   return (
@@ -77,6 +86,7 @@ export function CommandPalette({
         onQueryChange={onQueryChange}
         notice={notice ?? null}
         paletteShortcut={paletteShortcut ?? formatShortcut("mod+k")}
+        density={density}
       />
     </Dialog>
   );
@@ -87,9 +97,10 @@ type BodyProps = {
   onQueryChange?: (query: string) => void;
   notice: string | null;
   paletteShortcut: string;
+  density: PaletteDensity;
 };
 
-function PaletteBody({ items, onQueryChange, notice, paletteShortcut }: BodyProps) {
+function PaletteBody({ items, onQueryChange, notice, paletteShortcut, density }: BodyProps) {
   const [query, setQuery] = useState("");
   const listboxId = useId();
   const frecency = useMemo(getCommandFrecency, []);
@@ -187,10 +198,10 @@ function PaletteBody({ items, onQueryChange, notice, paletteShortcut }: BodyProp
                     data-index={index}
                     role="option"
                     aria-selected={isActive}
-                    className={`relative flex w-full cursor-pointer items-center gap-2.5 rounded-md border-none bg-transparent px-2.5 py-2 text-left text-[13px] transition-colors before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[2px] before:-translate-y-1/2 before:rounded-full before:bg-foreground/70 before:transition-opacity ${
+                    className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md border-none px-2.5 text-left text-[13px] transition-colors ${ROW_PADDING[density]} ${
                       isActive
-                        ? "bg-foreground/[0.14] text-foreground before:opacity-100"
-                        : "text-sidebar-foreground before:opacity-0 hover:bg-sidebar-accent/50"
+                        ? "bg-foreground/[0.08] text-foreground"
+                        : "bg-transparent text-sidebar-foreground hover:bg-sidebar-accent/50"
                     }`}
                     onMouseMove={() => setActiveIndex(index)}
                     onClick={() => runItem(item)}

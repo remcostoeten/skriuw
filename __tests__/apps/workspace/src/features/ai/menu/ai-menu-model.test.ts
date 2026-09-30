@@ -62,7 +62,7 @@ test("only an action that asks the writer something opens a second step", () => 
   const rows = aiMenuRows(true);
   const needs = rows.filter((row) => aiMenuRowNeedsInstruction(row)).map((row) => row.action.id);
 
-  assert.deepEqual(needs, ["change-tone", "translate", "diagram", "custom"]);
+  assert.deepEqual(needs, ["change-tone", "translate", "diagram", "custom", "custom-note"]);
 });
 
 test("a model is named only when both halves are known", () => {

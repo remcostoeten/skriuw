@@ -168,6 +168,21 @@ export function EditorSection({ store }: SectionProps) {
         />
       </div>
       <div className={settingsGroup}>
+        <div className={settingsGroupTitle}>Focus</div>
+        <SettingToggle
+          label="Typewriter scrolling"
+          detail="Keep the line you are typing on in the middle of the screen, in both editors. Toggle anywhere with mod+shift+y."
+          checked={settings.typewriterScrolling}
+          onChange={(checked) => change("typewriterScrolling", checked)}
+        />
+        <SettingToggle
+          label="Dim other paragraphs in focus mode"
+          detail="Focus mode (mod+shift+f) fades every block except the one holding the caret. Applies to the rendered editor."
+          checked={settings.focusDimParagraphs}
+          onChange={(checked) => change("focusDimParagraphs", checked)}
+        />
+      </div>
+      <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Blocks</div>
         <SettingToggle
           label="Block handle on hover"

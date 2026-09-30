@@ -21,6 +21,8 @@ export const NOTE_EDITOR_SHORTCUT_IDS = [
   "toggleChecklistItem",
   "jumpToLine",
   "toggleDiagramSource",
+  "insertInlineMath",
+  "insertMathBlock",
 ] as const satisfies readonly ShortcutActionId[];
 
 export const RAW_MARKDOWN_EDGE_SHORTCUT_IDS = [

@@ -109,7 +109,7 @@ What shipped, and where it deviates from the sections above:
 
 - **`image_ref` is an inline atom, not a block.** It matches the existing `tag_ref`/`mention_ref` token pattern (same NodeView/selection/keymap machinery), makes paste-at-cursor and Markdown import (`![alt](path)` parses inline) trivial, and CSS still renders images on their own visual line. Attrs are `{ id, alt, width, height }` as specced.
 - **Operation shape.** `WorkspaceOperation::AttachImage { image: WorkspaceImage }` carries the whole metadata record; the blob write stays out of the domain. Detached rows are pruned inside the `SaveDocument` transaction via `document_image_ids`, and `ON DELETE CASCADE` covers purge. Bootstrap snapshots now include `images`, which is how the renderer resolves `id → contentHash/mimeType` without a read-path DB query.
-- **Blob store.** `crates/skriuw-images` — flat `blobs/` directory beside the database, `<sha256>.<ext>`, atomic temp-file+rename writes, magic-byte sniffing (PNG/JPEG/GIF/WebP; SVG deliberately excluded), path-traversal-safe hash validation.
+- **Blob store.** `crates/skriuw-images` — flat `blobs/` directory beside the database, `<sha256>.<ext>`, atomic temp-file+rename writes, magic-byte sniffing (PNG/JPEG/GIF/WebP, plus inert SVG since [ADR-0051](../adr/0051-remote-images-at-import.md)), path-traversal-safe hash validation.
 - **Rendering.** The NodeView reads the blob over IPC once per content hash per session and caches an object URL; CSP gained `img-src 'self' blob:`. No asset-protocol scope was opened.
 - **Sweep.** Runs once per app start on a detached thread, 60 s after launch, off every interaction path. Blobs younger than one hour are never collected, closing the race with an in-flight `AttachImage`. Moving the sweep onto the six-hour rotation timer is a fair follow-up.
 - **Markdown round trip.** Canonical markdown serializes `image_ref` as `![alt](images/<id>)` (no extension — the serializer has no MIME access). Export rewrites paths to `images/<id>.<ext>`, emits per-directory `images/` entries, and the native side copies blobs from the store. Import converts relative-`src` markdown images into stored blobs + `image_ref` nodes. Remote and absolute sources retain their Markdown attributes in blocked placeholder nodes, never receive a live `src`, and are counted in the import report.
@@ -118,7 +118,7 @@ What shipped, and where it deviates from the sections above:
 
 ### Deferred
 
-- **Resize-by-drag, SVG support, editor-side markdown link pasting of local files.**
+- **Resize-by-drag, editor-side markdown link pasting of local files.**
 
 ### Recovery and portability
 

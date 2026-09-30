@@ -10,7 +10,11 @@ import {
 import type { BlockedSyncOperation, SyncRecoveryView } from "@skriuw/renderer-core/bridge/port";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
+import { AccountAvatar } from "@/shell/account-avatar";
+import { accountInitials } from "@/shell/account-menu-model";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import {
+  SettingToggle,
   SettingsHeading,
   settingsButton,
   settingsButtonDanger,
@@ -20,6 +24,7 @@ import {
   settingsRowDescription,
   settingsRowLabel,
   settingsSection,
+  useEditableSettings,
 } from "./settings-shared";
 import { blockedCauseText, blockedItemLabel, blockedItemRetryable } from "./sync-recovery";
 import { syncDescription, syncDetail, syncProgressText, syncProgressVisible } from "./sync-status";
@@ -28,11 +33,12 @@ import { useWorkspaceSync } from "./use-workspace-sync";
 import { shortWorkspaceId, workspaceOwnershipText } from "./workspace-ownership";
 
 type AccountSectionProps = {
+  store: RendererStore;
   /** Closes settings and opens the shell-level sign-in drawer; the drawer cannot render inside this modal dialog. */
   onRequestSignIn: () => void;
 };
 
-export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
+export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) {
   const { user, isPending } = useAuth();
   const sync = useWorkspaceSync();
   const [recovery, setRecovery] = useState<SyncRecoveryView | null>(null);
@@ -183,6 +189,13 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
           </div>
         ) : null}
       </div>
+      {user ? (
+        <AvatarPreference
+          store={store}
+          seed={user.id}
+          initials={accountInitials(user.name, user.email)}
+        />
+      ) : null}
       {signedIn ? <SyncEncryptionPanel status={sync.status} /> : null}
       {user && !browser ? (
         <BlockedChanges
@@ -194,6 +207,35 @@ export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
         />
       ) : null}
     </section>
+  );
+}
+
+type AvatarPreferenceProps = {
+  store: RendererStore;
+  seed: string;
+  initials: string;
+};
+
+function AvatarPreference({ store, seed, initials }: AvatarPreferenceProps) {
+  const { settings, change } = useEditableSettings(store);
+  return (
+    <div className={settingsGroup}>
+      <div className={settingsGroupTitle}>Avatar</div>
+      <SettingToggle
+        label="Facehash avatar"
+        detail="Show the face generated for your account. Turn off to show your initials instead."
+        checked={settings.facehashAvatar}
+        onChange={(checked) => change("facehashAvatar", checked)}
+        visualization={
+          <span
+            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted text-[11px] font-medium tracking-[0.02em] text-foreground"
+            aria-hidden="true"
+          >
+            <AccountAvatar seed={seed} initials={initials} facehash={settings.facehashAvatar} />
+          </span>
+        }
+      />
+    </div>
   );
 }
 

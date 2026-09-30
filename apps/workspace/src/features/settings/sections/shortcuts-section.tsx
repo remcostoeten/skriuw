@@ -4,6 +4,7 @@ import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import {
   clearAllShortcutOverrides,
   clearShortcutOverride,
+  setQuitShortcutEnabled,
   setShortcutOverride,
 } from "@/store/actions/settings";
 import { SearchIcon } from "@/shared/icons/static";
@@ -11,18 +12,27 @@ import { cn } from "@/shared/lib/utils";
 import { ShortcutRecorder } from "@/shared/ui/shortcut-recorder";
 import type { ShortcutRecorderHandle } from "@/shared/ui/shortcut-recorder";
 import {
+  QUIT_ACTION_ID,
   effectiveShortcutKeys,
   findShortcutConflict,
   isDefaultBinding,
+  quitComboError,
   sameCombo,
+  shortcutShadowedByQuit,
 } from "@/commands/bindings";
+import type { ShortcutDefinition } from "@/commands/definitions";
 import {
   filterShortcutSettings,
   shortcutSearchSuggestions,
   shortcutSettingsCount,
 } from "@/commands/settings-search";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import { sameOverrides, selectShortcutOverrides } from "./selectors";
+import {
+  sameOverrides,
+  selectQuitShortcutEnabled,
+  selectShortcutOverrides,
+  selectStoredShortcutOverrides,
+} from "./selectors";
 import {
   SettingsHeading,
   settingsButton,
@@ -30,8 +40,10 @@ import {
   settingsGroup,
   settingsGroupTitle,
   settingsRow,
+  settingsRowDescription,
   settingsRowLabel,
   settingsSection,
+  settingsToggleInput,
 } from "./settings-shared";
 import type { SectionProps } from "./settings-shared";
 
@@ -46,17 +58,19 @@ export function ShortcutsSection({
   recordingCountRef,
 }: SectionProps & { recordingCountRef: MutableRefObject<number> }) {
   const overrides = useRendererSelector(store, selectShortcutOverrides, sameOverrides);
+  const storedOverrides = useRendererSelector(store, selectStoredShortcutOverrides, sameOverrides);
+  const quitEnabled = useRendererSelector(store, selectQuitShortcutEnabled);
   const [query, setQuery] = useState("");
   const [listboxOpen, setListboxOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const recorderHandles = useRef(new Map<string, ShortcutRecorderHandle>());
-  const groups = filterShortcutSettings(overrides, query);
+  const groups = filterShortcutSettings(storedOverrides, query);
   const matchCount = shortcutSettingsCount(groups);
-  const suggestions = shortcutSearchSuggestions(overrides, query);
+  const suggestions = shortcutSearchSuggestions(storedOverrides, query);
   const expanded = listboxOpen && suggestions.length > 0;
   const trimmedQuery = query.trim();
-  const hasOverrides = Object.keys(overrides).length > 0;
+  const hasOverrides = Object.keys(storedOverrides).length > 0;
 
   useEffect(() => {
     function handleWindowKeyDown(event: KeyboardEvent): void {
@@ -73,6 +87,40 @@ export function ShortcutsSection({
     window.addEventListener("keydown", handleWindowKeyDown);
     return () => window.removeEventListener("keydown", handleWindowKeyDown);
   }, [recordingCountRef]);
+
+  function recordShortcut(definition: ShortcutDefinition, combo: string): string | null {
+    if (definition.id === QUIT_ACTION_ID) {
+      const error = quitComboError(combo);
+      if (error) {
+        return error;
+      }
+    } else {
+      const conflict = findShortcutConflict(overrides, definition.id, combo);
+      if (conflict?.actionId === QUIT_ACTION_ID) {
+        return "Reserved for “Quit”";
+      }
+      if (conflict) {
+        return conflict.slot === "secondary"
+          ? `Already an alternate for “${conflict.label}”`
+          : `Already used by “${conflict.label}”`;
+      }
+    }
+    if (sameCombo(combo, effectiveShortcutKeys(definition, storedOverrides))) {
+      return null;
+    }
+    setShortcutOverride(store, definition.id, combo);
+    return null;
+  }
+
+  function rowDescription(definition: ShortcutDefinition): string | null {
+    if (definition.id === QUIT_ACTION_ID) {
+      return "Two or three keys holding Ctrl or Cmd. Quit wins over any other shortcut on the same keys.";
+    }
+    const keys = effectiveShortcutKeys(definition, overrides);
+    return shortcutShadowedByQuit(definition, keys, overrides)
+      ? "Unbound while Quit uses the same keys."
+      : null;
+  }
 
   function closeListbox(): void {
     setListboxOpen(false);
@@ -216,40 +264,48 @@ export function ShortcutsSection({
       {groups.map(({ group, definitions }) => (
         <div key={group} className={settingsGroup}>
           <div className={settingsGroupTitle}>{group}</div>
-          {definitions.map((definition) => (
-            <div key={definition.id} className={settingsRow}>
-              <span className={settingsRowLabel}>{definition.label}</span>
-              <ShortcutRecorder
-                value={effectiveShortcutKeys(definition, overrides)}
-                isDefault={isDefaultBinding(definition, overrides)}
-                aria-label={`Change shortcut for ${definition.label}`}
-                handleRef={(handle) => {
-                  if (handle) {
-                    recorderHandles.current.set(definition.id, handle);
-                  } else {
-                    recorderHandles.current.delete(definition.id);
-                  }
-                }}
-                onRecordingChange={(recording) => {
-                  recordingCountRef.current += recording ? 1 : -1;
-                }}
-                onRecord={(combo) => {
-                  const conflict = findShortcutConflict(overrides, definition.id, combo);
-                  if (conflict) {
-                    return conflict.slot === "secondary"
-                      ? `Already an alternate for “${conflict.label}”`
-                      : `Already used by “${conflict.label}”`;
-                  }
-                  if (sameCombo(combo, effectiveShortcutKeys(definition, overrides))) {
-                    return null;
-                  }
-                  setShortcutOverride(store, definition.id, combo);
-                  return null;
-                }}
-                onReset={() => clearShortcutOverride(store, definition.id)}
-              />
-            </div>
-          ))}
+          {definitions.map((definition) => {
+            const description = rowDescription(definition);
+            return (
+              <div key={definition.id} className={settingsRow}>
+                <span className={settingsRowLabel}>
+                  {definition.label}
+                  {description && <span className={settingsRowDescription}>{description}</span>}
+                </span>
+                <span className="flex items-center gap-2.5">
+                  {definition.id === QUIT_ACTION_ID && (
+                    <input
+                      type="checkbox"
+                      data-directional-focus
+                      className={settingsToggleInput}
+                      checked={quitEnabled}
+                      aria-label="Quit with a keyboard shortcut"
+                      onChange={(event) =>
+                        setQuitShortcutEnabled(store, event.currentTarget.checked)
+                      }
+                    />
+                  )}
+                  <ShortcutRecorder
+                    value={effectiveShortcutKeys(definition, storedOverrides)}
+                    isDefault={isDefaultBinding(definition, storedOverrides)}
+                    aria-label={`Change shortcut for ${definition.label}`}
+                    handleRef={(handle) => {
+                      if (handle) {
+                        recorderHandles.current.set(definition.id, handle);
+                      } else {
+                        recorderHandles.current.delete(definition.id);
+                      }
+                    }}
+                    onRecordingChange={(recording) => {
+                      recordingCountRef.current += recording ? 1 : -1;
+                    }}
+                    onRecord={(combo) => recordShortcut(definition, combo)}
+                    onReset={() => clearShortcutOverride(store, definition.id)}
+                  />
+                </span>
+              </div>
+            );
+          })}
         </div>
       ))}
     </section>

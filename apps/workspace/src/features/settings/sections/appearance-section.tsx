@@ -6,7 +6,9 @@ import { Button } from "@/shared/ui/button";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { Dialog } from "@/shared/ui/dialog";
 import { CompactSidebarDemo, TreeGuidesDemo } from "./appearance-demos";
+import { PALETTE_DENSITY_OPTIONS, type PaletteDensity } from "@/features/settings/settings-model";
 import {
+  SettingCardPicker,
   SettingToggle,
   SettingsHeading,
   settingsGroup,
@@ -21,6 +23,27 @@ import {
 import type { SectionProps } from "./settings-shared";
 
 const BROWSER_RUNTIME = isBrowserRuntime();
+
+const PALETTE_ROW_GAP: Record<PaletteDensity, string> = {
+  compact: "gap-0.5",
+  normal: "gap-1.5",
+  spacious: "gap-2.5",
+};
+
+const PALETTE_DENSITY_PICKER_OPTIONS = PALETTE_DENSITY_OPTIONS.map((option) => ({
+  ...option,
+  preview: <PaletteDensityPreview density={option.value} />,
+}));
+
+function PaletteDensityPreview({ density }: { density: PaletteDensity }) {
+  return (
+    <span className={`flex w-12 flex-col ${PALETTE_ROW_GAP[density]}`} aria-hidden="true">
+      <span className="h-1 rounded-full bg-foreground/60" />
+      <span className="h-1 w-4/5 rounded-full bg-foreground/35" />
+      <span className="h-1 w-3/5 rounded-full bg-foreground/35" />
+    </span>
+  );
+}
 
 export function AppearanceSection({ store }: SectionProps) {
   const { settings, change } = useEditableSettings(store);
@@ -62,6 +85,16 @@ export function AppearanceSection({ store }: SectionProps) {
           checked={settings.showTreeGuides}
           onChange={(checked) => change("showTreeGuides", checked)}
           visualization={<TreeGuidesDemo enabled={settings.showTreeGuides} />}
+        />
+      </div>
+      <div className={settingsGroup}>
+        <div className={settingsGroupTitle}>Command palette</div>
+        <SettingCardPicker
+          label="Row density"
+          detail="How much space each result in the command palette takes."
+          value={settings.paletteDensity}
+          options={PALETTE_DENSITY_PICKER_OPTIONS}
+          onChange={(value) => change("paletteDensity", value)}
         />
       </div>
       <div className={settingsGroup}>

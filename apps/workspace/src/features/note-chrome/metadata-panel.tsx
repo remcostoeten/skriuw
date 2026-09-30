@@ -36,6 +36,7 @@ import { AnnotationList } from "./annotation-list";
 import { RelationshipExplorer } from "@/features/references/relationship-explorer";
 import { projectHasRelationships } from "@/features/references/relationship-model";
 import { noteUnlinkedMentionTerm } from "@/features/references/unlinked-mentions-model";
+import { openedFileOrigin } from "@/features/transfer/import/opened-file-origin";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 
 type Props = {
@@ -574,6 +575,12 @@ function selectActiveNoteMarkdown(state: RendererState): string | null {
     : (state.documents.get(state.activeNoteId)?.markdown ?? null);
 }
 
+function selectActiveNoteOrigin(state: RendererState): string | null {
+  return state.activeNoteId === null
+    ? null
+    : openedFileOrigin(state.importReceipts, state.activeNoteId);
+}
+
 export function MetadataPanel({ store }: Props) {
   const activeNoteId = useRendererSelector(store, selectActiveNoteId);
   const metadata = useRendererSelector(store, selectActiveNoteMetadata);
@@ -581,6 +588,7 @@ export function MetadataPanel({ store }: Props) {
   const versions = useMemo(() => projectVersionList(historyHeaders), [historyHeaders]);
   const createdAt = useRendererSelector(store, selectActiveNoteCreatedAt);
   const markdown = useRendererSelector(store, selectActiveNoteMarkdown);
+  const originPath = useRendererSelector(store, selectActiveNoteOrigin);
   const hasRelationships = useRendererSelector(
     store,
     useCallback(
@@ -711,6 +719,17 @@ export function MetadataPanel({ store }: Props) {
                 </dd>
               </div>
             ))}
+            {originPath !== null && (
+              <div className="flex flex-col gap-1">
+                <dt className="text-[13px] text-muted-foreground">Original path</dt>
+                <dd
+                  className="m-0 select-text break-all font-mono text-[11px] text-foreground/80"
+                  title={originPath}
+                >
+                  {originPath}
+                </dd>
+              </div>
+            )}
           </dl>
         </InspectorSection>
       </div>

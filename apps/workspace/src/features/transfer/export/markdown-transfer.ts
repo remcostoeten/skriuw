@@ -1,6 +1,7 @@
 import { showToast } from "@/shared/ui/toast";
 import { commitOperations } from "@/store/actions/workspace";
 import {
+  downloadRemoteMedia,
   exportMarkdownTree,
   importMarkdownImage,
   cleanupImportSource,
@@ -21,6 +22,7 @@ import {
   buildWorkspaceExportEntries,
   collectImageRefIds,
   collectLocalImageSources,
+  collectRemoteImageSources,
   referenceSafeMarkdown,
   replaceLocalImages,
   resolveImportedImagePath,
@@ -29,6 +31,14 @@ import {
 } from "./markdown-transfer-model";
 import { publishTransferReport } from "./transfer-report";
 import { detectImportSource, importSourceKey } from "@/features/transfer/import/model";
+import { normalizeMdxTree } from "@/features/transfer/import/mdx";
+import {
+  OPENED_FILE_PROVIDER,
+  toOpenedFileReceipts,
+} from "@/features/transfer/import/opened-file-origin";
+import { requestRemoteImageChoice } from "@/features/transfer/import/remote-images-controller";
+import { remoteImportImages } from "@/features/settings/settings-model";
+import { isBrowserRuntime } from "@/bridge/runtime";
 import type { ImportBundle } from "@/features/transfer/import/model";
 import {
   applyImportGrouping,
@@ -38,7 +48,10 @@ import {
 } from "@/features/transfer/import/plan";
 import { importSources } from "@/features/transfer/import/sources";
 import { buildImportPreviewCandidate } from "@/features/transfer/import/preview";
-import { requestImportPreview } from "@/features/transfer/import/preview-controller";
+import {
+  requestImportPreview,
+  type ImportPreviewSelection,
+} from "@/features/transfer/import/preview-controller";
 import {
   beginImportProgress,
   throwIfImportCancelled,
@@ -253,11 +266,128 @@ async function importPlannedImages(
   return { attachOperations, imported, skipped };
 }
 
+type DownloadedImages = ImportedImages & { failed: number };
+
+function downloadableImageSources(documentJson: unknown): string[] {
+  return collectRemoteImageSources(documentJson).filter((source) => /^https:\/\//i.test(source));
+}
+
+function countDownloadableImages(plan: MarkdownImportPlan): number {
+  return plan.contentOperations.reduce(
+    (sum, operation) =>
+      operation.type === "save_document"
+        ? sum + downloadableImageSources(operation.documentJson).length
+        : sum,
+    0,
+  );
+}
+
+function distinctDownloadableImages(plan: MarkdownImportPlan): string[] {
+  return [
+    ...new Set(
+      plan.contentOperations.flatMap((operation) =>
+        operation.type === "save_document" ? downloadableImageSources(operation.documentJson) : [],
+      ),
+    ),
+  ];
+}
+
+/**
+ * Settles whether this import downloads remote images. The first import that
+ * meets one asks, and the answer becomes the workspace setting; dismissing the
+ * prompt keeps them blocked this time and asks again next time.
+ */
+async function allowsRemoteImageDownload(
+  store: RendererStore,
+  sources: readonly string[],
+): Promise<boolean> {
+  if (sources.length === 0 || isBrowserRuntime()) {
+    return false;
+  }
+  const policy = remoteImportImages(store.getState().settings);
+  if (policy !== "ask") {
+    return policy === "download";
+  }
+  const choice = await requestRemoteImageChoice(sources);
+  if (!choice) {
+    return false;
+  }
+  await commitOperations(store, [
+    {
+      type: "update_settings",
+      settings: { ...store.getState().settings, remoteImportImages: choice },
+    },
+  ]);
+  return choice === "download";
+}
+
+async function downloadRemoteImages(
+  plan: MarkdownImportPlan,
+  at: number,
+  signal: AbortSignal,
+  onProgress: (completed: number, total: number) => void,
+): Promise<DownloadedImages> {
+  const downloads = new Map<string, Promise<StoredImagePayload | null>>();
+  const attachOperations: WorkspaceOperation[] = [];
+  let imported = 0;
+  let failed = 0;
+  let completed = 0;
+  const total = countDownloadableImages(plan);
+  for (const operation of plan.contentOperations) {
+    if (operation.type !== "save_document") {
+      continue;
+    }
+    const imageIdBySource = new Map<string, string>();
+    for (const source of downloadableImageSources(operation.documentJson)) {
+      throwIfImportCancelled(signal);
+      let download = downloads.get(source);
+      if (!download) {
+        download = downloadRemoteMedia(source).catch(() => null);
+        downloads.set(source, download);
+      }
+      const stored = await download;
+      completed += 1;
+      onProgress(completed, total);
+      if (!stored) {
+        failed += 1;
+        continue;
+      }
+      const imageId = crypto.randomUUID();
+      imageIdBySource.set(source, imageId);
+      attachOperations.push({
+        type: "attach_image",
+        image: {
+          id: imageId,
+          noteId: operation.noteId,
+          contentHash: stored.contentHash,
+          mimeType: stored.mimeType,
+          byteSize: stored.byteSize,
+          width: null,
+          height: null,
+          createdAt: at,
+        },
+      });
+      imported += 1;
+    }
+    if (imageIdBySource.size > 0) {
+      operation.documentJson = replaceLocalImages(operation.documentJson, imageIdBySource);
+      operation.markdown = serializeProductMarkdown(
+        productSchema.nodeFromJSON(operation.documentJson),
+      );
+    }
+  }
+  return { attachOperations, imported, skipped: 0, failed };
+}
+
 type ImportNotesOptions = {
   /** Destination the preview dialog opens with; null/omitted opens on the root. */
   initialDestinationFolderId?: string | null;
   /** Runs after a successful commit with the notes the import created. */
   onImported?: (result: { createdNoteIds: readonly string[] }) => void;
+  /** Imports into the workspace root with the detected source, without the preview dialog or report. */
+  skipPreview?: boolean;
+  /** Absolute path of a file the operating system opened, recorded as the note's origin. */
+  openedFilePath?: string;
 };
 
 async function importNotesFromPath(
@@ -280,7 +410,7 @@ async function importNotesFromPath(
   try {
     prepared = await prepareImportSources(sourcePaths);
     throwIfImportCancelled(intake.signal);
-    const tree = prepared.tree;
+    const tree = normalizeMdxTree(prepared.tree);
     const detectedSource = detectImportSource(importSources, tree);
     if (!detectedSource) {
       publishTransferReport({
@@ -387,7 +517,7 @@ async function importNotesFromPath(
       candidates.flatMap((candidate) =>
         duplicateModes.map((mode) => candidate.variants[mode].plan),
       ),
-      prepared.rootPath,
+      prepared.assetRoot,
       intake.signal,
       (completed, total) =>
         intake.update({
@@ -409,27 +539,36 @@ async function importNotesFromPath(
       }
     }
     intake.finish();
-    const selection = await requestImportPreview({
-      sourcePath,
-      candidates: candidates.map((candidate) => ({
-        sourceId: candidate.source.id,
-        sourceLabel: candidate.source.label,
-        variants: Object.fromEntries(
-          duplicateModes.map((mode) => [mode, candidate.variants[mode].preview]),
-        ) as Record<ImportDuplicateMode, ReturnType<typeof buildImportPreviewCandidate>>,
-      })),
-      detectedSourceId: detectedSource.id,
-      destinations: [
-        { id: null, label: "Workspace root" },
-        ...state.nodeOrder.flatMap((id) => {
-          const node = state.nodes.get(id);
-          return node?.kind === "folder"
-            ? [{ id, label: `${"  ".repeat(node.depth)}${node.title}` }]
-            : [];
-        }),
-      ],
-      initialDestinationFolderId: options.initialDestinationFolderId ?? null,
-    });
+    const selection: ImportPreviewSelection | null = options.skipPreview
+      ? {
+          sourceId: detectedSource.id,
+          destinationFolderId: null,
+          duplicateMode: "copy",
+          recordSource: false,
+          groupIntoSourceFolder: false,
+          groupByYear: false,
+        }
+      : await requestImportPreview({
+          sourcePath,
+          candidates: candidates.map((candidate) => ({
+            sourceId: candidate.source.id,
+            sourceLabel: candidate.source.label,
+            variants: Object.fromEntries(
+              duplicateModes.map((mode) => [mode, candidate.variants[mode].preview]),
+            ) as Record<ImportDuplicateMode, ReturnType<typeof buildImportPreviewCandidate>>,
+          })),
+          detectedSourceId: detectedSource.id,
+          destinations: [
+            { id: null, label: "Workspace root" },
+            ...state.nodeOrder.flatMap((id) => {
+              const node = state.nodes.get(id);
+              return node?.kind === "folder"
+                ? [{ id, label: `${"  ".repeat(node.depth)}${node.title}` }]
+                : [];
+            }),
+          ],
+          initialDestinationFolderId: options.initialDestinationFolderId ?? null,
+        });
     if (!selection) {
       return;
     }
@@ -456,6 +595,10 @@ async function importNotesFromPath(
       () => crypto.randomUUID(),
     );
     plan.operations.unshift(...groupingOperations);
+    const allowRemoteImages = await allowsRemoteImageDownload(
+      store,
+      distinctDownloadableImages(plan),
+    );
     const commitProgress = beginImportProgress({
       phase: "images",
       completed: 0,
@@ -465,7 +608,7 @@ async function importNotesFromPath(
     finishCommitProgress = commitProgress.finish;
     const images = await importPlannedImages(
       plan,
-      prepared.rootPath,
+      prepared.assetRoot,
       at,
       commitProgress.signal,
       (completed, total) =>
@@ -478,10 +621,24 @@ async function importNotesFromPath(
       imageCache,
     );
     throwIfImportCancelled(commitProgress.signal);
+    const remote = allowRemoteImages
+      ? await downloadRemoteImages(plan, at, commitProgress.signal, (completed, total) =>
+          commitProgress.update({
+            phase: "images",
+            completed,
+            total,
+            cancellable: true,
+          }),
+        )
+      : null;
+    throwIfImportCancelled(commitProgress.signal);
     const operations = [
-      ...plan.operations,
+      ...(options.openedFilePath
+        ? toOpenedFileReceipts(plan.operations, options.openedFilePath)
+        : plan.operations),
       ...(selection.recordSource ? plan.sourcePropertyOperations : []),
       ...images.attachOperations,
+      ...(remote?.attachOperations ?? []),
       ...plan.contentOperations,
     ];
     if (operations.length > 0) {
@@ -499,14 +656,25 @@ async function importNotesFromPath(
         operation.type === "create_note" ? [operation.id] : [],
       ),
     });
+    if (options.skipPreview) {
+      return;
+    }
     publishTransferReport({
       title: `Import complete (${bundle.sourceLabel})`,
       lines: [
         `Imported ${count(plan.createdNotes, "new note")}, updated ${plan.updatedNotes}, skipped ${plan.skippedDuplicates}, and created ${count(plan.folderCount + groupingOperations.length, "folder")} from ${sourcePath}`,
         ...(images.imported > 0 ? [`Imported ${count(images.imported, "image")}`] : []),
         ...(images.skipped > 0 ? [`Skipped ${count(images.skipped, "unreadable image")}`] : []),
-        ...(plan.remoteImages > 0
-          ? [`Blocked ${count(plan.remoteImages, "remote image")} from loading`]
+        ...(remote && remote.imported > 0
+          ? [`Downloaded ${count(remote.imported, "remote image")}`]
+          : []),
+        ...(remote && remote.failed > 0
+          ? [`Could not download ${count(remote.failed, "remote image")}`]
+          : []),
+        ...(plan.remoteImages - (remote?.imported ?? 0) > 0
+          ? [
+              `Blocked ${count(plan.remoteImages - (remote?.imported ?? 0), "remote image")} from loading`,
+            ]
           : []),
         ...(plan.unresolvedReferences > 0
           ? [
@@ -561,7 +729,7 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
   }
 }
 
-const MARKDOWN_FILE_EXTENSIONS = ["md", "markdown", "txt"];
+const MARKDOWN_FILE_EXTENSIONS = ["md", "markdown", "mdx", "txt"];
 
 let markdownFileImportInFlight = false;
 
@@ -604,6 +772,59 @@ export async function importMarkdownFileIntoWorkspace(
     return null;
   } finally {
     markdownFileImportInFlight = false;
+  }
+}
+
+/**
+ * @name openMarkdownFileInWorkspace
+ * @description Opens a Markdown or MDX file the operating system handed to
+ * Skriuw (a double-click in the file manager). The first open imports it as a
+ * new root note through the regular import pipeline without the preview
+ * dialog; opening the same path again returns the note it created before
+ * instead of duplicating it. Returns the note to show, or null when nothing
+ * could be imported.
+ *
+ * @example
+ * const noteId = await openMarkdownFileInWorkspace(store, "/home/me/notes/todo.md");
+ * if (noteId) activateNote(store, noteId);
+ */
+export async function openMarkdownFileInWorkspace(
+  store: RendererStore,
+  filePath: string,
+): Promise<string | null> {
+  try {
+    await flushPendingWork();
+    const sourceKey = await importSourceKey(filePath);
+    const state = store.getState();
+    const previous = state.importReceipts.find(
+      (receipt) => receipt.sourceKey === sourceKey && state.nodes.has(receipt.noteId),
+    );
+    if (previous) {
+      if (previous.provider !== OPENED_FILE_PROVIDER) {
+        await commitOperations(store, [
+          {
+            type: "record_provider_import",
+            receipt: { ...previous, provider: OPENED_FILE_PROVIDER, sourcePath: filePath },
+          },
+        ]);
+      }
+      return previous.noteId;
+    }
+    let createdNoteIds: readonly string[] = [];
+    await importNotesFromPath(store, [filePath], {
+      skipPreview: true,
+      openedFilePath: filePath,
+      onImported: (result) => {
+        createdNoteIds = result.createdNoteIds;
+      },
+    });
+    return createdNoteIds[0] ?? null;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return null;
+    }
+    reportFailure(`Could not open ${filePath}`, error);
+    return null;
   }
 }
 

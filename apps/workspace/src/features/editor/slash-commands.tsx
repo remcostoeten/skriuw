@@ -17,6 +17,7 @@ import {
   ListIcon,
   ListOrderedIcon,
   ListTodoIcon,
+  MathFormulaIcon,
   MinusIcon,
   MusicIcon,
   PaperclipIcon,
@@ -33,6 +34,7 @@ import { mermaidTemplates, type MermaidTemplate } from "./mermaid-render";
 import { emojiEntries } from "./emoji";
 import { productSchema, type MediaKind, type SlashTrigger } from "./schema";
 import { insertTask } from "./task-promotion";
+import { insertInlineMath, insertMathBlock } from "./math-commands";
 
 export type SlashAction = "pick-image" | "pick-video" | "open-emoji";
 
@@ -247,6 +249,24 @@ export const slashCommands: SlashCommand[] = [
     icon: <WaypointsIcon size={16} />,
     command: insertMermaidFence(template),
   })),
+  {
+    id: "math-block",
+    label: "Math block",
+    subtext: "Display equation with a live KaTeX preview",
+    group: "Blocks",
+    aliases: ["math", "equation", "formula", "latex", "tex", "katex"],
+    icon: <MathFormulaIcon size={16} />,
+    command: insertMathBlock,
+  },
+  {
+    id: "inline-math",
+    label: "Inline math",
+    subtext: "Formula inside the line, edited as TeX",
+    group: "Blocks",
+    aliases: ["inlinemath", "math", "equation", "formula", "latex", "tex", "katex"],
+    icon: <MathFormulaIcon size={16} />,
+    command: insertInlineMath,
+  },
   {
     id: "table",
     label: "Table",
@@ -532,7 +552,7 @@ export function applySlashCommand(
   const from = triggerIndex >= 0 ? start + triggerIndex : start;
   view.dispatch(view.state.tr.delete(from, $from.pos));
   if (!command.action) {
-    command.command(view.state, view.dispatch);
+    command.command(view.state, view.dispatch, view);
   }
   view.focus();
   return command.action ?? null;

@@ -45,6 +45,7 @@ const FORMAT_LABELS: Record<string, string> = {
   "image/jpeg": "JPEG",
   "image/gif": "GIF",
   "image/webp": "WebP",
+  "image/svg+xml": "SVG",
   "video/mp4": "MP4",
   "video/webm": "WebM",
 };

@@ -20,16 +20,11 @@ function stateWith(text: string): EditorState {
   });
 }
 
-function fakeHost(): HTMLElement {
-  return { nodeName: "DIV" } as unknown as HTMLElement;
-}
-
 function preview(overrides: Partial<SuggestionPreview> = {}): SuggestionPreview {
   return {
     key: "session",
     from: 1,
     to: 6,
-    host: fakeHost(),
     settled: false,
     onDismiss: () => {},
     ...overrides,
@@ -67,14 +62,11 @@ function rangeClass(found: readonly Found[]): string | null {
   return painted === undefined ? null : String(painted.type.attrs.class);
 }
 
-test("a preview paints the range it would replace and a card after its block", () => {
+test("a preview paints only the range it would replace, never a card in the note", () => {
   const found = decorations(pushed(stateWith("hello world"), preview()));
-  assert.equal(found.length, 2);
-  const painted = found.find((decoration) => decoration.from !== decoration.to);
-  assert.equal(painted?.from, 1);
-  assert.equal(painted?.to, 6);
-  const widget = found.find((decoration) => decoration.from === decoration.to);
-  assert.equal(widget?.from, 13, "the card sits after the paragraph, not inside it");
+  assert.equal(found.length, 1);
+  assert.equal(found[0]?.from, 1);
+  assert.equal(found[0]?.to, 6);
 });
 
 test("the range is only struck through once the run has settled", () => {
@@ -86,9 +78,10 @@ test("the range is only struck through once the run has settled", () => {
   assert.match(String(settled), /--settled/);
 });
 
-test("an empty range shows the card without claiming any text is going away", () => {
+test("an empty range paints nothing, so no text is claimed to be going away", () => {
   const state = pushed(stateWith("hello world"), preview({ from: 6, to: 6 }));
-  assert.equal(decorations(state).length, 1);
+  assert.equal(decorations(state).length, 0);
+  assert.equal(suggestionPluginKey.getState(state)?.preview?.key, "session");
 });
 
 test("editing the note dismisses the preview, because the result no longer fits", () => {

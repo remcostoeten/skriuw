@@ -58,16 +58,11 @@ export async function requestWorkspacePersistence(): Promise<PersistenceState> {
 }
 
 /**
- * The warning a persistence state deserves, or null when nothing is at risk.
- * Kept separate from the request so the wording is testable without a browser.
+ * The warning a persistence state deserves, or null when nothing needs saying.
+ * A best-effort grant is not toasted: the browser storage notice under the
+ * editor already tells a signed-out visitor their notes live in this browser.
  */
 export function describePersistenceRisk(state: PersistenceState): PersistenceRisk | null {
-  if (state.kind === "best-effort") {
-    return {
-      message: "This browser may delete your workspace",
-      description: "Export a backup, or install Skriuw to keep it.",
-    };
-  }
   if (state.kind === "low-space") {
     return {
       message: "This device is almost out of storage",
@@ -78,11 +73,9 @@ export function describePersistenceRisk(state: PersistenceState): PersistenceRis
 }
 
 /**
- * True when this risk has not been reported on this device yet. A browser that
- * refuses persistence refuses it on every launch, and a warning repeated every
- * launch is one the user stops reading, so each distinct risk is said once.
- * Low space is the exception: it is a condition the user can act on and then
- * hit again, so it is reported whenever it returns after a healthy launch.
+ * True when this risk has not been reported on this device yet. A warning
+ * repeated every launch is one the user stops reading, so a risk is said once
+ * and said again only when it returns after a healthy launch.
  */
 export function claimRiskAnnouncement(state: PersistenceState, storage?: Storage): boolean {
   const risk = describePersistenceRisk(state) === null ? "" : state.kind;
