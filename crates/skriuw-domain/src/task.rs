@@ -128,6 +128,7 @@ pub struct DocumentTaskLink {
     pub block_id: String,
     pub title: String,
     pub checked: bool,
+    pub due_date: Option<String>,
 }
 
 impl WorkspaceTask {
@@ -245,7 +246,8 @@ fn validate_task_ids(
 /// Collect every promoted checklist item in a stored document, in document
 /// order. Items without a complete, well-formed link are ordinary checklist
 /// content and are deliberately invisible here: nothing in the document ever
-/// creates a task implicitly.
+/// creates a task implicitly. A malformed `dueDate` attribute reads as no due
+/// date rather than failing the whole document.
 #[must_use]
 pub fn document_task_links(document: &Value) -> Vec<DocumentTaskLink> {
     fn text_content(value: &Value, out: &mut String) {
@@ -302,6 +304,11 @@ pub fn document_task_links(document: &Value) -> Vec<DocumentTaskLink> {
                             .get("checked")
                             .and_then(Value::as_bool)
                             .unwrap_or(false),
+                        due_date: attrs
+                            .get("dueDate")
+                            .and_then(Value::as_str)
+                            .filter(|value| validate_due_date(Some(value)).is_ok())
+                            .map(str::to_string),
                     });
                 }
             }
@@ -441,8 +448,24 @@ mod tests {
                 block_id: "block-1".into(),
                 title: "Ship the release".into(),
                 checked: true,
+                due_date: None,
             }]
         );
+    }
+
+    #[test]
+    fn reads_a_well_formed_due_date_and_ignores_a_malformed_one() {
+        let mut dated = check_item(Some("task-1"), Some("block-1"), false);
+        dated["attrs"]["dueDate"] = json!("2026-10-01");
+        let mut malformed = check_item(Some("task-2"), Some("block-2"), false);
+        malformed["attrs"]["dueDate"] = json!("next friday");
+        let document = json!({
+            "type": "doc",
+            "content": [{ "type": "check_list", "content": [dated, malformed] }],
+        });
+        let links = document_task_links(&document);
+        assert_eq!(links[0].due_date.as_deref(), Some("2026-10-01"));
+        assert_eq!(links[1].due_date, None);
     }
 
     #[test]
@@ -453,12 +476,14 @@ mod tests {
                 block_id: "block-1".into(),
                 title: "One".into(),
                 checked: false,
+                due_date: None,
             },
             DocumentTaskLink {
                 task_id: "task-1".into(),
                 block_id: "block-2".into(),
                 title: "Two".into(),
                 checked: true,
+                due_date: None,
             },
         ];
         assert!(unique_document_task_link(&links, "task-1").is_none());

@@ -185,7 +185,7 @@ export function buildChecklistPromotion(
           title: item.title,
           status: item.checked ? "done" : "todo",
           priority: "medium",
-          dueDate: null,
+          dueDate: item.dueDate,
           description: "",
           tagIds: [],
           assigneeIds: [],

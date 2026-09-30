@@ -44,6 +44,7 @@ import {
 import { isPropertyValidationError } from "../properties/value";
 import { JOURNAL_ROOT_ID } from "../journal/constants";
 import { opensNotesInTabs } from "../settings/open-notes-in-tabs";
+import { reconcileLinkedTasks } from "./linked-tasks";
 import { reduceOperation } from "./operations";
 import {
   DEFAULT_SPLIT_ORIENTATION,
@@ -492,7 +493,8 @@ function withSavedDocument(
     });
     metadata = patched;
   }
-  return { ...current, sourceNodes, documents, metadata, ...projection };
+  const tasks = reconcileLinkedTasks(current.tasks, saved.noteId, saved.documentJson, at);
+  return { ...current, sourceNodes, documents, metadata, tasks, ...projection };
 }
 
 /**

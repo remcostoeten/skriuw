@@ -35,6 +35,7 @@ import {
 } from "./drawing-layer";
 import {
   Schema,
+  type DOMOutputSpec,
   type MarkSpec,
   type MarkType,
   type Node as ProseMirrorNode,
@@ -69,6 +70,8 @@ import {
   exitMermaidSource,
 } from "./code-block-nodeview";
 import { taskCheckItemAttrs } from "./task-promotion";
+import { createDueDateChipPlugin, dueDateChipDom, dueDateInputRule } from "./task-due-date";
+import { DUE_DATE_SIGNIFIER, isDueDate } from "@/features/tasks/due-dates";
 import {
   createMathEditingPlugin,
   editSelectedInlineMath,
@@ -417,9 +420,12 @@ const checkItemSpec: NodeSpec = {
     checked: { default: false },
     taskId: { default: null },
     blockId: { default: null },
+    dueDate: { default: null },
   },
   toDOM: (node) => {
     const contentId = `check-item-content-${++checkboxDomId}`;
+    const dueDate: unknown = node.attrs.dueDate;
+    const content: DOMOutputSpec = ["div", { class: "check-item-content", id: contentId }, 0];
     return [
       "li",
       {
@@ -427,6 +433,7 @@ const checkItemSpec: NodeSpec = {
         "data-checked": node.attrs.checked ? "true" : "false",
         ...(node.attrs.taskId ? { "data-task-id": String(node.attrs.taskId) } : {}),
         ...(node.attrs.blockId ? { "data-block-id": String(node.attrs.blockId) } : {}),
+        ...(isDueDate(dueDate) ? { "data-due-date": dueDate } : {}),
       },
       [
         "span",
@@ -440,18 +447,25 @@ const checkItemSpec: NodeSpec = {
           "aria-keyshortcuts": "Alt+Shift+Enter",
         },
       ],
-      ["div", { class: "check-item-content", id: contentId }, 0],
+      content,
+      ...(isDueDate(dueDate) ? [dueDateChipDom(dueDate, node.attrs.checked === true)] : []),
     ];
   },
   parseDOM: [
     {
       tag: "li[data-checked]",
       priority: 60,
-      getAttrs: (dom) => ({
-        checked: dom.getAttribute("data-checked") === "true",
-        taskId: dom.getAttribute("data-task-id"),
-        blockId: dom.getAttribute("data-block-id"),
-      }),
+      contentElement: (dom) =>
+        dom.querySelector<HTMLElement>(":scope > .check-item-content") ?? dom,
+      getAttrs: (dom) => {
+        const dueDate = dom.getAttribute("data-due-date");
+        return {
+          checked: dom.getAttribute("data-checked") === "true",
+          taskId: dom.getAttribute("data-task-id"),
+          blockId: dom.getAttribute("data-block-id"),
+          dueDate: isDueDate(dueDate) ? dueDate : null,
+        };
+      },
     },
   ],
 };
@@ -1329,6 +1343,7 @@ export function createProductPlugins(): Plugin[] {
     createMermaidPreviewSelectionPlugin(),
     createMathEditingPlugin(),
     createCheckboxTogglePlugin(),
+    createDueDateChipPlugin(),
     createToggleListPlugin(),
     inputRules({
       rules: [
@@ -1338,6 +1353,7 @@ export function createProductPlugins(): Plugin[] {
         taskInputRule(),
         checkListInputRule(),
         toggleListInputRule(),
+        dueDateInputRule(),
         textblockTypeInputRule(/^(#{1,6})\s$/, heading, (match) => ({
           level: match[1]?.length ?? 1,
         })),
@@ -1525,6 +1541,10 @@ const productMarkdownSerializer = new MarkdownSerializer(
             ? `:${node.attrs.blockId}`
             : "";
         state.write(` <!--skriuw-task:${node.attrs.taskId}${blockId}-->`);
+      }
+      if (isDueDate(node.attrs.dueDate)) {
+        const separator = paragraph.childCount > 0 ? " " : "";
+        state.write(`${separator}${DUE_DATE_SIGNIFIER} ${node.attrs.dueDate}`);
       }
       state.closeBlock(paragraph);
       node.forEach((child, _offset, index) => {
@@ -1971,6 +1991,8 @@ const MEDIA_MARKER = /^\s*<!--skriuw-media:(video|audio|file)-->$/;
 const CHECKBOX_PREFIX = /^\[([ xX])\] /;
 const TOGGLE_PREFIX = /^\[([>vV])\] /;
 const TASK_MARKER = /(?:\s*)<!--skriuw-task:([A-Za-z0-9_-]{1,128})(?::([A-Za-z0-9_-]{1,128}))?-->$/;
+// A trailing Obsidian Tasks due date: the calendar emoji and a YYYY-MM-DD day.
+const DUE_TOKEN = /\s*\u{1F4C5}\s*(\d{4}-\d{2}-\d{2})$/u;
 
 function isTaskId(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
@@ -2002,18 +2024,56 @@ function togglePrefix(item: JsonNode): RegExpMatchArray | null {
   return text.text.match(TOGGLE_PREFIX);
 }
 
+type CheckItemTokens = {
+  inline: unknown[];
+  taskId: string | null;
+  blockId: string | null;
+  dueDate: string | null;
+};
+
+/**
+ * The task marker and the due-date token both trail the item's first line, in
+ * either order: Skriuw writes the date last so Obsidian Tasks reads it, while a
+ * line-level rewrite (the mobile task surface) appends the marker after it.
+ */
+function liftCheckItemTokens(inline: unknown[]): CheckItemTokens {
+  const lifted: CheckItemTokens = { inline, taskId: null, blockId: null, dueDate: null };
+  for (let pass = 0; pass < 2; pass += 1) {
+    const last = lifted.inline.at(-1) as JsonNode | undefined;
+    if (last?.type !== "text" || typeof last.text !== "string") break;
+    const due = lifted.dueDate === null ? last.text.match(DUE_TOKEN) : null;
+    const marker = lifted.taskId === null ? last.text.match(TASK_MARKER) : null;
+    let cut: number;
+    if (due && isDueDate(due[1])) {
+      lifted.dueDate = due[1];
+      cut = due.index ?? last.text.length;
+    } else if (marker) {
+      lifted.taskId = marker[1] ?? null;
+      lifted.blockId = marker[2] ?? null;
+      cut = marker.index ?? last.text.length;
+    } else {
+      break;
+    }
+    const remaining = last.text.slice(0, cut).trimEnd();
+    lifted.inline =
+      remaining.length > 0
+        ? [...lifted.inline.slice(0, -1), { ...last, text: remaining }]
+        : lifted.inline.slice(0, -1);
+  }
+  return lifted;
+}
+
 function toCheckItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
   const paragraph = item.content?.[0] as JsonNode;
   const text = paragraph.content?.[0] as JsonNode;
   const stripped = (text.text as string).slice(prefix[0].length);
-  const marker = stripped.match(TASK_MARKER);
-  const visibleText = marker ? stripped.slice(0, marker.index).trimEnd() : stripped;
-  const inline =
-    visibleText.length > 0
-      ? [{ ...text, text: visibleText }, ...(paragraph.content?.slice(1) ?? [])]
-      : (paragraph.content?.slice(1) ?? []);
-  let taskId = marker?.[1] ?? null;
-  let blockId = marker?.[2] ?? null;
+  const lifted = liftCheckItemTokens([
+    ...(stripped.length > 0 ? [{ ...text, text: stripped }] : []),
+    ...(paragraph.content?.slice(1) ?? []),
+  ]);
+  const inline = lifted.inline;
+  let taskId = lifted.taskId;
+  let blockId = lifted.blockId;
   const blocks = (item.content?.slice(1) ?? []).filter((value) => {
     const block = value as JsonNode;
     if (taskId || block.type !== "paragraph" || block.content?.length !== 1) {
@@ -2037,6 +2097,7 @@ function toCheckItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
       checked: prefix[1]?.toLowerCase() === "x",
       taskId,
       blockId: blockId !== taskId ? blockId : null,
+      dueDate: lifted.dueDate,
     },
     content: [{ ...paragraph, content: inline }, ...blocks],
   };

@@ -19,6 +19,8 @@ export type ChecklistItem = {
   taskId: string | null;
   blockId: string | null;
   title: string;
+  /** The `YYYY-MM-DD` day Markdown spells as a trailing `📅` token. */
+  dueDate: string | null;
 };
 
 export type ChecklistAlignment = {
@@ -56,6 +58,11 @@ const FENCE = /^\s*(?:```|~~~)/;
 const TASK_MARKER = /<!--skriuw-task:([A-Za-z0-9_-]{1,128})(?::([A-Za-z0-9_-]{1,128}))?-->/;
 
 const IDENTIFIER = /^[A-Za-z0-9_-]{1,128}$/;
+
+// The Obsidian Tasks due date the desktop serializer writes last on the line.
+const DUE_TOKEN = /\s\u{1F4C5}\s*\d{4}-\d{2}-\d{2}\s*$/u;
+
+const DUE_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function isTaskIdentifier(value: unknown): value is string {
   return typeof value === "string" && IDENTIFIER.test(value);
@@ -96,6 +103,10 @@ function readItem(node: JsonNode, index: number): ChecklistItem {
     taskId: attribute(node, "taskId"),
     blockId: attribute(node, "blockId"),
     title: checkItemTitle(node),
+    dueDate:
+      typeof node.attrs?.dueDate === "string" && DUE_DATE.test(node.attrs.dueDate)
+        ? node.attrs.dueDate
+        : null,
   };
 }
 
@@ -220,10 +231,14 @@ function withCheckbox(line: string, checked: boolean): string | null {
   return `${match[1]}${checked ? "x" : " "}${match[3]}${line.slice(match[0].length)}`;
 }
 
-/** Trailing whitespace is kept where it was so a CRLF note stays a CRLF note. */
+/**
+ * Trailing whitespace is kept where it was so a CRLF note stays a CRLF note,
+ * and the marker goes before a due-date token so the date stays last.
+ */
 function withMarker(line: string, marker: string): string {
-  const body = line.replace(/\s+$/, "");
-  return `${body} ${marker}${line.slice(body.length)}`;
+  const due = line.match(DUE_TOKEN);
+  const end = due?.index ?? line.replace(/\s+$/, "").length;
+  return `${line.slice(0, end)} ${marker}${line.slice(end)}`;
 }
 
 function withoutMarker(line: string, marker: string): string | null {
