@@ -16,6 +16,7 @@ import {
   showsToasts,
   usesAnimatedIcons,
   usesBlockDragHandle,
+  usesFacehashAvatar,
   vimCursorBlinks,
   vimCursorStyle,
   usesVimMode,
@@ -60,6 +61,7 @@ test("default settings project every editable field", () => {
     lockOnBlur: false,
     paletteDensity: "normal",
     remoteImportImages: "ask",
+    facehashAvatar: true,
   });
 });
 
@@ -167,6 +169,17 @@ test("animated icons stay enabled unless the setting is explicitly false", () =>
   assert.equal(usesAnimatedIcons({ ...DEFAULT_WORKSPACE_SETTINGS, animatedIcons: false }), false);
   const { animatedIcons: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
   assert.equal(usesAnimatedIcons(withoutField as WorkspaceSettings), true);
+});
+
+test("the Facehash avatar stays enabled unless the setting is explicitly false", () => {
+  assert.equal(usesFacehashAvatar(DEFAULT_WORKSPACE_SETTINGS), true);
+  assert.equal(usesFacehashAvatar({ ...DEFAULT_WORKSPACE_SETTINGS, facehashAvatar: false }), false);
+  const { facehashAvatar: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
+  assert.equal(usesFacehashAvatar(withoutField as WorkspaceSettings), true);
+  assert.equal(
+    changeSetting(DEFAULT_WORKSPACE_SETTINGS, "facehashAvatar", false).facehashAvatar,
+    false,
+  );
 });
 
 test("toasts stay enabled unless the setting is explicitly false", () => {

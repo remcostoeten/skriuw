@@ -73,6 +73,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   lockOnBlur: false,
   paletteDensity: "normal",
   remoteImportImages: "ask",
+  facehashAvatar: true,
 };
 
 export type SettingsViewModel = {
@@ -100,6 +101,7 @@ export type SettingsViewModel = {
   lockOnBlur: boolean;
   paletteDensity: PaletteDensity;
   remoteImportImages: RemoteImportImages;
+  facehashAvatar: boolean;
 };
 
 export type EditableSettings = SettingsViewModel;
@@ -145,6 +147,7 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     lockOnBlur: locksOnBlur(settings),
     paletteDensity: paletteDensity(settings),
     remoteImportImages: remoteImportImages(settings),
+    facehashAvatar: usesFacehashAvatar(settings),
   };
 }
 
@@ -256,6 +259,15 @@ export function opensLinksInApp(settings: WorkspaceSettings): boolean {
  */
 export function usesAnimatedIcons(settings: WorkspaceSettings): boolean {
   return settings.animatedIcons !== false;
+}
+
+/**
+ * Whether the signed-in account shows a generated Facehash face instead of its
+ * initials. Workspaces written before the setting existed have no key, and the
+ * face is the default, so only an explicit `false` brings the initials back.
+ */
+export function usesFacehashAvatar(settings: WorkspaceSettings): boolean {
+  return settings.facehashAvatar !== false;
 }
 
 /**

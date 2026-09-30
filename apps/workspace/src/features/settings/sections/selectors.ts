@@ -2,6 +2,7 @@ import {
   showsToasts,
   usesAnimatedIcons,
   usesBlockDragHandle,
+  usesFacehashAvatar,
 } from "@/features/settings/settings-model";
 import {
   quitShortcutEnabled,
@@ -43,6 +44,10 @@ export function selectShowToasts(state: RendererState): boolean {
 
 export function selectAnimatedIcons(state: RendererState): boolean {
   return usesAnimatedIcons(state.settings);
+}
+
+export function selectFacehashAvatar(state: RendererState): boolean {
+  return usesFacehashAvatar(state.settings);
 }
 
 export function selectBlockDragHandle(state: RendererState): boolean {
