@@ -928,6 +928,43 @@
   background-size: 16px 16px;
 }
 
+@utility hy-glow {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.hy-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      60% 70% at 50% 42%,
+      color-mix(in srgb, var(--accent) 14%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 5%, transparent) 38%,
+      transparent 72%
+    ),
+    radial-gradient(
+      90% 60% at 50% 110%,
+      color-mix(in srgb, var(--ink-900) 6%, transparent) 0%,
+      transparent 60%
+    );
+}
+
+.hy-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--hy-bg);
+  mask-image: radial-gradient(70% 80% at 50% 45%, transparent 30%, black 100%);
+  opacity: 0.55;
+}
+
 @utility hy-hatch {
   background-image: repeating-linear-gradient(
     -45deg,

@@ -88,7 +88,10 @@ Apple's private Notes database. See [Apple's Notes export guide](https://support
 
 ## Safety and fidelity
 
-- Remote images stay blocked.
+- Remote images stay blocked unless you allow downloads. The first import that
+  links `https` images asks once and saves the answer under Settings, Data.
+  Downloaded images are stored in the workspace; notes never load them from
+  the web ([ADR-0051](adr/0051-remote-images-at-import.md)).
 - Ambiguous links and image basenames stay as source text.
 - Unsupported Markdown uses lossless raw mode.
 - Tags on raw-preserved notes become a typed `Tags` property and workspace

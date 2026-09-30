@@ -19,8 +19,6 @@ export function useMarkdownDiff(versionMarkdown: string, currentMarkdown: string
 
 export function VersionDiffView({ versionMarkdown, currentMarkdown, layout = "unified" }: Props) {
   const diff = useMarkdownDiff(versionMarkdown, currentMarkdown);
-  const [expandedHunks, setExpandedHunks] = useState<ReadonlySet<string>>(() => new Set());
-
   if (diff.hunks.length === 0) {
     return (
       <div className="m-auto flex max-w-[38ch] flex-col items-center px-6 text-center">
@@ -35,33 +33,46 @@ export function VersionDiffView({ versionMarkdown, currentMarkdown, layout = "un
     );
   }
 
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto py-3">
+      {diff.truncated && (
+        <p className="mx-4 mb-3 rounded-[var(--radius-md)] bg-theme-hover px-3 py-2 font-sans text-[11px] leading-[1.5] text-muted-foreground">
+          This revision is too large to align line by line, so every line is shown as replaced.
+        </p>
+      )}
+      <MarkdownDiffHunks diff={diff} layout={layout} />
+    </div>
+  );
+}
+
+type MarkdownDiffHunksProps = {
+  diff: MarkdownDiff;
+  layout?: DiffLayout;
+};
+
+export function MarkdownDiffHunks({ diff, layout = "unified" }: MarkdownDiffHunksProps) {
+  const [expandedHunks, setExpandedHunks] = useState<ReadonlySet<string>>(() => new Set());
+
   function expand(key: string): void {
     setExpandedHunks((previous) => new Set(previous).add(key));
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto py-3">
-      <div className={cn("diff-view", layout === "split" && "diff-split")}>
-        {diff.truncated && (
-          <p className="mx-4 mb-3 rounded-[var(--radius-md)] bg-theme-hover px-3 py-2 font-sans text-[11px] leading-[1.5] text-muted-foreground">
-            This revision is too large to align line by line, so every line is shown as replaced.
-          </p>
-        )}
-        {diff.hunks.map((hunk) => (
-          <div key={hunk.key} className="diff-hunk">
-            {hunk.hiddenBefore.length > 0 &&
-              (expandedHunks.has(hunk.key) ? (
-                <HunkLines lines={hunk.hiddenBefore} layout={layout} />
-              ) : (
-                <button type="button" className="diff-skip" onClick={() => expand(hunk.key)}>
-                  Show {hunk.hiddenBefore.length} unchanged{" "}
-                  {hunk.hiddenBefore.length === 1 ? "line" : "lines"}
-                </button>
-              ))}
-            <HunkLines lines={hunk.lines} layout={layout} />
-          </div>
-        ))}
-      </div>
+    <div className={cn("diff-view", layout === "split" && "diff-split")}>
+      {diff.hunks.map((hunk) => (
+        <div key={hunk.key} className="diff-hunk">
+          {hunk.hiddenBefore.length > 0 &&
+            (expandedHunks.has(hunk.key) ? (
+              <HunkLines lines={hunk.hiddenBefore} layout={layout} />
+            ) : (
+              <button type="button" className="diff-skip" onClick={() => expand(hunk.key)}>
+                Show {hunk.hiddenBefore.length} unchanged{" "}
+                {hunk.hiddenBefore.length === 1 ? "line" : "lines"}
+              </button>
+            ))}
+          <HunkLines lines={hunk.lines} layout={layout} />
+        </div>
+      ))}
     </div>
   );
 }

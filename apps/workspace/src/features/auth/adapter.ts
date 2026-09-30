@@ -67,6 +67,8 @@ function configuredAdapter(baseURL: string): AuthAdapter {
     // challenge. Without this the drawer would surface that as an opaque
     // failure the user cannot act on.
     plugins: [sentinelClient({ autoSolveChallenge: true })],
+    // The redirect plugin follows the adapter's callbackURL "/" mid sign-in, unloading the app before sync connects.
+    disableDefaultFetchPlugins: true,
     fetchOptions: {
       auth: { type: "Bearer", token: currentSessionToken },
       async onSuccess(context) {

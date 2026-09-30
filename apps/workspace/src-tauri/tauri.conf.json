@@ -33,6 +33,24 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown"],
+        "name": "Markdown document",
+        "description": "Markdown document",
+        "mimeType": "text/markdown",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": ["mdx"],
+        "name": "MDX document",
+        "description": "MDX document",
+        "mimeType": "text/mdx",
+        "role": "Editor",
+        "rank": "Alternate"
+      }
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -46,10 +64,16 @@
         "bundleMediaFramework": true
       },
       "deb": {
-        "desktopTemplate": "Skriuw.desktop"
+        "desktopTemplate": "Skriuw.desktop",
+        "files": {
+          "/usr/share/mime/packages/skriuw-mdx.xml": "mime/skriuw-mdx.xml"
+        }
       },
       "rpm": {
-        "desktopTemplate": "Skriuw.desktop"
+        "desktopTemplate": "Skriuw.desktop",
+        "files": {
+          "/usr/share/mime/packages/skriuw-mdx.xml": "mime/skriuw-mdx.xml"
+        }
       }
     }
   },

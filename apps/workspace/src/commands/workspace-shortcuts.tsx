@@ -11,6 +11,7 @@ import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/t
 import { routeHasSidebar } from "@/shell/panel-layout";
 import {
   effectiveShortcutKeys,
+  shortcutShadowedByQuit,
   sameShortcutOverrides,
   sequenceHandlerOptions,
   shortcutExcept,
@@ -170,17 +171,26 @@ export function WorkspaceShortcuts({
       function handler() {
         actionsRef.current[definition.id]();
       }
-      map[definition.id] = {
-        keys: effectiveShortcutKeys(definition, overrides),
-        handler,
-        options: {
-          description: definition.description ?? definition.label,
-          preventDefault: true,
-          except: shortcutExcept(definition, definition.worksWhileTyping === true),
-          scopes: definition.scopes,
-        },
-      };
-      if (definition.secondaryKeys) {
+      const keys = effectiveShortcutKeys(definition, overrides);
+      if (
+        overrides[definition.id] !== null &&
+        !shortcutShadowedByQuit(definition, keys, overrides)
+      ) {
+        map[definition.id] = {
+          keys,
+          handler,
+          options: {
+            description: definition.description ?? definition.label,
+            preventDefault: true,
+            except: shortcutExcept(definition, definition.worksWhileTyping === true),
+            scopes: definition.scopes,
+          },
+        };
+      }
+      if (
+        definition.secondaryKeys &&
+        !shortcutShadowedByQuit(definition, definition.secondaryKeys, overrides)
+      ) {
         map[`${definition.id}:secondary`] = {
           keys: definition.secondaryKeys,
           handler,
@@ -228,9 +238,12 @@ export function WorkspaceShortcuts({
     const activeScopeSet = new Set(activeScopes);
     function handlePhysicalShortcut(event: KeyboardEvent) {
       for (const definition of activeDefinitions) {
+        const keys = effectiveShortcutKeys(definition, overrides);
         if (
+          overrides[definition.id] === null ||
+          shortcutShadowedByQuit(definition, keys, overrides) ||
           !shortcutScopesActive(definition, activeScopeSet) ||
-          !shortcutMatchesPhysicalKey(event, effectiveShortcutKeys(definition, overrides)) ||
+          !shortcutMatchesPhysicalKey(event, keys) ||
           shortcutExcept(definition, definition.worksWhileTyping === true)?.(event)
         ) {
           continue;

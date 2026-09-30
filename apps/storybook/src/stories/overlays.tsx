@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Dialog } from "@/shared/ui/dialog";
-import { Onboarding } from "@/features/onboarding/onboarding";
 import dialogSource from "@/shared/ui/dialog.tsx?raw";
 import { plainButton, Variant, type Story } from "@skriuw/storybook-shell";
 
-type DemoDialog = "confirm" | "input" | "long" | "fullscreen" | "onboarding" | null;
+type DemoDialog = "confirm" | "input" | "long" | "fullscreen" | null;
 
 const PHONE = { width: 390, height: 760 };
 
@@ -26,9 +25,6 @@ function DialogDemo() {
       </button>
       <button type="button" className={plainButton} onClick={() => setOpen("fullscreen")}>
         Fullscreen
-      </button>
-      <button type="button" className={plainButton} onClick={() => setOpen("onboarding")}>
-        Onboarding
       </button>
 
       <Dialog open={open === "confirm"} onOpenChange={close} title="Delete note">
@@ -86,16 +82,6 @@ function DialogDemo() {
           Fullscreen dialogs keep the whole screen on a phone.
         </p>
       </Dialog>
-
-      {open === "onboarding" ? (
-        <Onboarding
-          openingSignIn={false}
-          signInError={null}
-          onContinueLocal={close}
-          onSignIn={close}
-          onWarmSignIn={() => undefined}
-        />
-      ) : null}
     </div>
   );
 }

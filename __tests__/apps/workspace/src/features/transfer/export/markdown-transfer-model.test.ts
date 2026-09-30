@@ -447,6 +447,35 @@ test("import converts local markdown images into image_ref nodes", () => {
   assert.deepEqual(collectLocalImageSources(replaced), []);
 });
 
+test("replacing a linked image keeps its link", () => {
+  const documentJson = productSchema
+    .nodeFromJSON(
+      JSON.parse(
+        JSON.stringify(
+          productSchema
+            .node("doc", null, [
+              productSchema.node("paragraph", null, [
+                productSchema.node(
+                  "image",
+                  { src: "https://img.shields.io/badge/a.svg", alt: "A" },
+                  null,
+                  [productSchema.marks.link.create({ href: "https://example.com" })],
+                ),
+              ]),
+            ])
+            .toJSON(),
+        ),
+      ),
+    )
+    .toJSON();
+  const replaced = productSchema.nodeFromJSON(
+    replaceLocalImages(documentJson, new Map([["https://img.shields.io/badge/a.svg", "image-1"]])),
+  );
+  const image = replaced.firstChild?.firstChild;
+  assert.equal(image?.type.name, "image_ref");
+  assert.equal(image?.marks[0]?.attrs.href, "https://example.com");
+});
+
 test("import resolves unique wiki-link labels to stable imported and existing note ids", () => {
   let nextId = 0;
   const plan = planMarkdownImport(

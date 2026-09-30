@@ -6,12 +6,13 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type RefObject,
 } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { EditorView } from "prosemirror-view";
 import { ChevronRightIcon, SettingsIcon, SparklesIcon } from "@/shared/icons/static";
 import { useListboxNavigation } from "@/shared/ui/use-listbox-navigation";
-import { rangeMenuAnchor, type MenuAnchor } from "@/features/editor/menu-anchor";
+import { placeAiMenu, type AiMenuGeometry, type Box } from "./ai-menu-placement";
 import { aiMenuRows, filterAiMenuRows, type AiMenuRow } from "./ai-menu-model";
 import {
   aiActionInstructionError,
@@ -21,28 +22,25 @@ import {
 
 export const AI_MENU_WIDTH = 380;
 const AI_MENU_CHROME_HEIGHT = 96;
-const AI_MENU_OFFSET = 10;
-const AI_MENU_EDGE_GAP = 12;
-
-function roomForMenu(anchor: MenuAnchor): number {
-  const room = anchor.below ? window.innerHeight - anchor.y : anchor.y;
-  return Math.max(0, room - AI_MENU_OFFSET - AI_MENU_EDGE_GAP);
-}
 
 const OPEN_TRANSITION = { duration: 0.16, ease: [0.23, 1, 0.32, 1] as const };
 const PANE_TRANSITION = { duration: 0.19, ease: [0.23, 1, 0.32, 1] as const };
+
+function toBox(rect: { top: number; bottom: number; left: number; right: number }): Box {
+  return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right };
+}
 
 /**
  * Keeps the menu attached to the range it was opened over while the window
  * moves under it. The range itself cannot change — an edit closes the menu —
  * so only the viewport is worth re-measuring.
  */
-function useRangeAnchor(
+function useRangeGeometry(
   getView: () => EditorView | null,
   from: number,
   to: number,
-): MenuAnchor | null {
-  const [anchor, setAnchor] = useState<MenuAnchor | null>(null);
+): AiMenuGeometry | null {
+  const [geometry, setGeometry] = useState<AiMenuGeometry | null>(null);
 
   useLayoutEffect(() => {
     function measure(): void {
@@ -54,8 +52,24 @@ function useRangeAnchor(
       if (from > size || to > size) {
         return;
       }
-      const naturalHeight = window.innerHeight * 0.46 + AI_MENU_CHROME_HEIGHT;
-      setAnchor(rangeMenuAnchor(view, from, to, AI_MENU_WIDTH, naturalHeight));
+      const viewport = { top: 0, left: 0, bottom: window.innerHeight, right: window.innerWidth };
+      const pane = view.dom.closest<HTMLElement>(".editor-pane")?.getBoundingClientRect();
+      const bounds =
+        pane === undefined
+          ? viewport
+          : {
+              top: Math.max(pane.top, viewport.top),
+              bottom: Math.min(pane.bottom, viewport.bottom),
+              left: Math.max(pane.left, viewport.left),
+              right: Math.min(pane.right, viewport.right),
+            };
+      setGeometry({
+        start: toBox(view.coordsAtPos(from)),
+        end: toBox(view.coordsAtPos(to)),
+        column: toBox(view.dom.getBoundingClientRect()),
+        bounds,
+        viewport,
+      });
     }
     measure();
     window.addEventListener("resize", measure);
@@ -66,7 +80,32 @@ function useRangeAnchor(
     };
   }, [from, getView, to]);
 
-  return anchor;
+  return geometry;
+}
+
+function useElementSize(
+  ref: RefObject<HTMLElement | null>,
+  mounted: boolean,
+): { width: number; height: number } | null {
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (element === null) {
+      return;
+    }
+    function read(): void {
+      if (element !== null) {
+        setSize({ width: element.offsetWidth, height: element.offsetHeight });
+      }
+    }
+    read();
+    const observer = new ResizeObserver(read);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [mounted, ref]);
+
+  return size;
 }
 
 type AiMenuProps = {
@@ -115,9 +154,11 @@ export function AiMenu({
   onOpenPrompts,
   onClose,
 }: AiMenuProps) {
-  const anchor = useRangeAnchor(getView, from, to);
+  const geometry = useRangeGeometry(getView, from, to);
   const [pending, setPending] = useState<AiEditorAction | null>(initialAction);
   const containerRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const measured = useElementSize(frameRef, geometry !== null);
 
   useEffect(() => {
     function onPointerDown(event: PointerEvent): void {
@@ -131,9 +172,16 @@ export function AiMenu({
     return () => window.removeEventListener("pointerdown", onPointerDown, true);
   }, [onClose]);
 
-  if (anchor === null) {
+  if (geometry === null) {
     return null;
   }
+
+  const naturalHeight = window.innerHeight * 0.46 + AI_MENU_CHROME_HEIGHT;
+  const size = measured ?? {
+    width: Math.min(AI_MENU_WIDTH, window.innerWidth - 24),
+    height: naturalHeight,
+  };
+  const placement = placeAiMenu(geometry, hasSelection, size, naturalHeight);
 
   function closeAndFocus(): void {
     onClose();
@@ -142,13 +190,13 @@ export function AiMenu({
 
   return (
     <div
-      className="fixed z-40 -translate-x-1/2 translate-y-[calc(-100%-10px)] data-[below=true]:translate-y-[10px]"
-      data-below={anchor.below ? "true" : undefined}
+      ref={frameRef}
+      className="fixed z-40"
       style={
         {
-          left: anchor.x,
-          top: anchor.y,
-          "--ai-menu-room": `${roomForMenu(anchor)}px`,
+          left: placement.left,
+          top: placement.top,
+          "--ai-menu-room": `${placement.room}px`,
         } as CSSProperties
       }
     >
@@ -161,7 +209,7 @@ export function AiMenu({
         initial={{ opacity: 0, scale: 0.97, y: 4 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={OPEN_TRANSITION}
-        style={{ transformOrigin: anchor.below ? "top center" : "bottom center" }}
+        style={{ transformOrigin: placement.below ? "top center" : "bottom center" }}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.preventDefault();

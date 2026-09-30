@@ -9,7 +9,18 @@ import type {
   ShortcutPlatform,
 } from "./definitions";
 
-export type ShortcutOverrides = Partial<Record<ShortcutActionId, string>>;
+/**
+ * Effective user rebinds keyed by action. `null` means the action is switched
+ * off entirely; only Quit can be, through `quitShortcutEnabled`.
+ */
+export type ShortcutOverrides = Partial<Record<ShortcutActionId, string | null>>;
+
+export const QUIT_ACTION_ID = "quitApp" satisfies ShortcutActionId;
+
+const QUIT_ENABLED_SETTING = "quitShortcutEnabled";
+
+/** Chords Quit may never take, because text fields and the editor need them. */
+const QUIT_RESERVED_COMBOS = ["mod+a", "mod+c", "mod+v", "mod+x", "mod+z", "mod+shift+z", "mod+y"];
 
 const MODAL_SELECTOR = 'dialog[open], [role="dialog"], [data-modal="true"]';
 
@@ -191,7 +202,73 @@ function defaultKeys(definition: ShortcutDefinition): string {
   return Array.isArray(definition.keys) ? (definition.keys[0] ?? "") : definition.keys;
 }
 
-export function shortcutOverridesFromSettings(settings: WorkspaceSettings): ShortcutOverrides {
+/**
+ * @name quitShortcutEnabled
+ * @description Whether the Quit action answers to a keyboard shortcut. On unless
+ * the workspace explicitly switched it off.
+ *
+ * @example
+ * if (!quitShortcutEnabled(state.settings)) {
+ *   return;
+ * }
+ */
+export function quitShortcutEnabled(settings: WorkspaceSettings): boolean {
+  return settings[QUIT_ENABLED_SETTING] !== false;
+}
+
+/**
+ * @name changeQuitShortcutEnabled
+ * @description Returns settings with the Quit shortcut switched on or off. The
+ * stored Quit combo is kept, so switching back on restores the user's rebind.
+ *
+ * @example
+ * updateSettings(store, changeQuitShortcutEnabled(settings, false));
+ */
+export function changeQuitShortcutEnabled(
+  settings: WorkspaceSettings,
+  enabled: boolean,
+): WorkspaceSettings {
+  return { ...settings, [QUIT_ENABLED_SETTING]: enabled };
+}
+
+/**
+ * @name quitComboError
+ * @description Validates a combo for Quit. Quit must be a single chord of two or
+ * three keys that holds Ctrl or Cmd, like `ctrl+q` or `ctrl+shift+w`, and may
+ * not take a clipboard or undo chord. Returns the reason it is refused, or null.
+ *
+ * @example
+ * const error = quitComboError("ctrl+shift+w");
+ */
+export function quitComboError(combo: string): string | null {
+  const trimmed = combo.trim();
+  if (trimmed.length === 0 || isKeySequence(trimmed)) {
+    return "Quit needs a single key combination";
+  }
+  const parsed = parseShortcut(trimmed);
+  if (!parsed.modifiers.ctrl && !parsed.modifiers.meta) {
+    return "Quit needs Ctrl or Cmd in the combination";
+  }
+  const keyCount = Object.values(parsed.modifiers).filter(Boolean).length + 1;
+  if (keyCount > 3) {
+    return "Quit takes two or three keys";
+  }
+  if (QUIT_RESERVED_COMBOS.some((reserved) => sameCombo(reserved, trimmed))) {
+    return "Reserved for editing text";
+  }
+  return null;
+}
+
+/**
+ * @name storedShortcutOverrides
+ * @description The combos the user recorded, including a Quit combo that is
+ * currently switched off. What the shortcuts settings display and edit; runtime
+ * binding reads `shortcutOverridesFromSettings` instead.
+ *
+ * @example
+ * const recorded = storedShortcutOverrides(state.settings);
+ */
+export function storedShortcutOverrides(settings: WorkspaceSettings): ShortcutOverrides {
   const raw = settings["shortcutOverrides"];
   if (typeof raw !== "object" || raw === null) {
     return {};
@@ -199,11 +276,69 @@ export function shortcutOverridesFromSettings(settings: WorkspaceSettings): Shor
   const overrides: ShortcutOverrides = {};
   for (const definition of SHORTCUT_DEFINITIONS) {
     const value = (raw as Record<string, unknown>)[definition.id];
-    if (typeof value === "string" && value.length > 0) {
-      overrides[definition.id] = value;
+    if (typeof value !== "string" || value.length === 0) {
+      continue;
     }
+    if (definition.id === QUIT_ACTION_ID && quitComboError(value) !== null) {
+      continue;
+    }
+    overrides[definition.id] = value;
   }
   return overrides;
+}
+
+/**
+ * @name shortcutOverridesFromSettings
+ * @description The overrides every binder and hint reads: the recorded combos,
+ * with Quit set to `null` while its shortcut is switched off.
+ *
+ * @example
+ * const overrides = shortcutOverridesFromSettings(state.settings);
+ */
+export function shortcutOverridesFromSettings(settings: WorkspaceSettings): ShortcutOverrides {
+  const overrides = storedShortcutOverrides(settings);
+  if (!quitShortcutEnabled(settings)) {
+    overrides[QUIT_ACTION_ID] = null;
+  }
+  return overrides;
+}
+
+/**
+ * @name quitCombo
+ * @description The combo that quits the app, or null while the Quit shortcut is
+ * switched off.
+ *
+ * @example
+ * const combo = quitCombo(overrides);
+ */
+export function quitCombo(overrides: ShortcutOverrides): string | null {
+  if (overrides[QUIT_ACTION_ID] === null) {
+    return null;
+  }
+  return effectiveShortcutKeys(shortcutDefinition(QUIT_ACTION_ID), overrides);
+}
+
+/**
+ * @name shortcutShadowedByQuit
+ * @description Whether one of an action's combos collides with the live Quit
+ * combo. Quit is destructive, so it always wins: the other action stays unbound
+ * on that combo until one of the two is rebound.
+ *
+ * @example
+ * if (shortcutShadowedByQuit(definition, definition.secondaryKeys, overrides)) {
+ *   return;
+ * }
+ */
+export function shortcutShadowedByQuit(
+  definition: ShortcutDefinition,
+  keys: string,
+  overrides: ShortcutOverrides,
+): boolean {
+  if (definition.id === QUIT_ACTION_ID || isKeySequence(keys)) {
+    return false;
+  }
+  const quit = quitCombo(overrides);
+  return quit !== null && sameCombo(keys, quit);
 }
 
 export function sameShortcutOverrides(left: ShortcutOverrides, right: ShortcutOverrides): boolean {
@@ -262,7 +397,11 @@ export function shortcutBindsOnPlatform(
   overrides: ShortcutOverrides,
   platform: ShortcutPlatform,
 ): boolean {
-  if (overrides[definition.id] !== undefined) {
+  const override = overrides[definition.id];
+  if (override === null) {
+    return false;
+  }
+  if (override !== undefined) {
     return true;
   }
   return definition.platforms === undefined || definition.platforms.includes(platform);
@@ -278,15 +417,16 @@ export type ShortcutConflict = {
 /**
  * Every combo an action answers to on `platform`: its effective primary plus
  * its alternate. Sequences are included, so rebinding onto the first chord of a
- * sequence is not mistaken for a free combo.
+ * sequence is not mistaken for a free combo. A switched-off primary is left out.
  */
 export function shortcutCombos(
   definition: ShortcutDefinition,
   overrides: ShortcutOverrides,
 ): readonly { keys: string; slot: "primary" | "secondary" }[] {
-  const combos: { keys: string; slot: "primary" | "secondary" }[] = [
-    { keys: effectiveShortcutKeys(definition, overrides), slot: "primary" },
-  ];
+  const combos: { keys: string; slot: "primary" | "secondary" }[] = [];
+  if (overrides[definition.id] !== null) {
+    combos.push({ keys: effectiveShortcutKeys(definition, overrides), slot: "primary" });
+  }
   if (definition.secondaryKeys) {
     combos.push({ keys: definition.secondaryKeys, slot: "secondary" });
   }
@@ -407,5 +547,7 @@ export function isDefaultBinding(
   overrides: ShortcutOverrides,
 ): boolean {
   const override = overrides[definition.id];
-  return override === undefined || sameCombo(override, defaultKeys(definition));
+  return (
+    override === undefined || override === null || sameCombo(override, defaultKeys(definition))
+  );
 }

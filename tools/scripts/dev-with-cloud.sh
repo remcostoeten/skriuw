@@ -21,6 +21,31 @@ esac
 
 cloud_url="${SKRIUW_CLOUD_URL:-$selected_cloud_url}"
 export VITE_SKRIUW_CLOUD_URL="$cloud_url"
+app_url="http://localhost:5183"
+
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+  bold=$'\e[1m' dim=$'\e[2m' cyan=$'\e[36m' reset=$'\e[0m'
+else
+  bold="" dim="" cyan="" reset=""
+fi
+
+say() {
+  printf '%s[skriuw]%s %s\n' "$dim" "$reset" "$1"
+}
+
+cloud_label() {
+  case "$cloud_url" in
+    "$production_cloud_url") printf 'production' ;;
+    "$local_cloud_url") printf 'local worker' ;;
+    *) printf 'custom' ;;
+  esac
+}
+
+print_banner() {
+  printf '\n  %sskriuw%s %s· dev%s\n\n' "$bold" "$reset" "$dim" "$reset"
+  printf '  %sApp  %s  %s%s%s\n' "$dim" "$reset" "$cyan" "$app_url" "$reset"
+  printf '  %sCloud%s  %s%s%s %s(%s)%s\n\n' "$dim" "$reset" "$cyan" "$cloud_url" "$reset" "$dim" "$(cloud_label)" "$reset"
+}
 
 cloud_is_healthy() {
   # A half-dead Worker still accepts TCP but never answers, so bound the probe;
@@ -30,7 +55,8 @@ cloud_is_healthy() {
 
 cleanup() {
   if [[ -n "$cloud_pid" ]] && kill -0 "$cloud_pid" 2>/dev/null; then
-    printf '\n[skriuw] Stopping local auth and sync Worker.\n'
+    printf '\n'
+    say "Stopping local auth and sync Worker."
     kill "$cloud_pid" 2>/dev/null || true
     wait "$cloud_pid" 2>/dev/null || true
   fi
@@ -40,9 +66,9 @@ trap cleanup EXIT INT TERM
 
 if [[ "$cloud_url" == "$local_cloud_url" ]]; then
   if cloud_is_healthy; then
-    printf '[skriuw] Reusing local auth and sync Worker at %s\n' "$local_cloud_url"
+    say "Reusing local auth and sync Worker at $local_cloud_url"
   else
-    printf '[skriuw] Starting local auth and sync Worker at %s…\n' "$local_cloud_url"
+    say "Starting local auth and sync Worker at $local_cloud_url…"
     (cd "$repo_dir/apps/sync" && ./node_modules/.bin/wrangler dev --port 8787) &
     cloud_pid="$!"
 
@@ -57,15 +83,14 @@ if [[ "$cloud_url" == "$local_cloud_url" ]]; then
     done
 
     if ! cloud_is_healthy; then
-      printf '[skriuw] Local auth Worker did not become ready at %s.\n' "$local_cloud_url" >&2
+      say "Local auth Worker did not become ready at $local_cloud_url." >&2
       exit 1
     fi
   fi
 fi
 
-printf '[skriuw] Auth and sync target: %s\n' "$cloud_url"
-printf '[skriuw] Starting app:            http://localhost:5183\n\n'
+print_banner
 
-bun --cwd="$repo_dir/apps/workspace" run dev:vite -- "$@" &
+bun --cwd="$repo_dir/apps/workspace" run --silent dev:vite -- "$@" &
 vite_pid="$!"
 wait "$vite_pid"

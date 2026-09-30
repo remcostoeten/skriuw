@@ -1,5 +1,6 @@
 import type { MediaBlobPayload } from "./commands";
 import type { StoredImagePayload } from "@skriuw/renderer-core/bridge/port";
+import { isInertSvg } from "./inert-svg";
 import { activeBlobsDirectory } from "./workspace-slot";
 
 /**
@@ -18,6 +19,7 @@ const EXTENSION_BY_MIME: Record<string, string> = {
   "video/mp4": "mp4",
   "video/webm": "webm",
   "video/quicktime": "mov",
+  "image/svg+xml": "svg",
 };
 
 const HEIC_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis"]);
@@ -59,6 +61,9 @@ export function sniffMediaMime(bytes: Uint8Array): string | null {
   }
   if (startsWith(bytes, [0x1a, 0x45, 0xdf, 0xa3]) && containsWebmDoctype(bytes)) {
     return "video/webm";
+  }
+  if (isInertSvg(bytes)) {
+    return "image/svg+xml";
   }
   return null;
 }

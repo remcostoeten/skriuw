@@ -343,6 +343,7 @@ export function readMarkdownTree(sourceDir: string): Promise<MarkdownTreePayload
 
 export type PreparedImportSourcePayload = {
   rootPath: string;
+  assetRoot: string;
   temporary: boolean;
   tree: MarkdownTreePayload;
 };
@@ -357,6 +358,10 @@ export function prepareImportSources(sourcePaths: string[]): Promise<PreparedImp
   return invoke<PreparedImportSourcePayload>("prepare_import_sources", {
     sourcePaths,
   });
+}
+
+export function takeOpenedFiles(): Promise<string[]> {
+  return invoke<string[]>("take_opened_files");
 }
 
 export function cleanupImportSource(rootPath: string): Promise<void> {

@@ -44,6 +44,9 @@ pub struct MarkdownTreePayload {
 #[serde(rename_all = "camelCase")]
 pub struct PreparedImportSource {
     root_path: String,
+    /// Where relative image paths resolve. A lone Markdown file is copied into
+    /// a temporary root on its own, so its images stay beside the original.
+    asset_root: String,
     temporary: bool,
     tree: MarkdownTreePayload,
 }
@@ -169,6 +172,7 @@ fn prepare_import_source_path(source: &Path) -> Result<PreparedImportSource, Str
     if source.is_dir() {
         return Ok(PreparedImportSource {
             root_path: source.display().to_string(),
+            asset_root: source.display().to_string(),
             temporary: false,
             tree: collect_markdown_tree(source)?,
         });
@@ -186,19 +190,24 @@ fn prepare_import_source_path(source: &Path) -> Result<PreparedImportSource, Str
             .and_then(|name| name.to_str())
             .unwrap_or_default()
             .to_lowercase();
+        let mut asset_root = temporary.clone();
         if lowered.ends_with(".zip") || lowered.ends_with(".bear2bk") {
             extract_import_archive(source, &temporary)?;
         } else if has_importable_extension(&lowered) {
+            if let Some(parent) = source.parent().filter(|parent| parent.is_dir()) {
+                asset_root = parent.to_path_buf();
+            }
             let file_name = source
                 .file_name()
                 .ok_or_else(|| "import file has no name".to_string())?;
             fs::copy(source, temporary.join(file_name))
                 .map_err(|error| format!("copy import file {}: {error}", source.display()))?;
         } else {
-            return Err("unsupported import source; choose a folder, ZIP, Bear backup, Markdown, text, JSON, CSV, or Evernote ENEX file".to_string());
+            return Err("unsupported import source; choose a folder, ZIP, Bear backup, Markdown, MDX, text, JSON, CSV, or Evernote ENEX file".to_string());
         }
         Ok(PreparedImportSource {
             root_path: temporary.display().to_string(),
+            asset_root: asset_root.display().to_string(),
             temporary: true,
             tree: collect_markdown_tree(&temporary)?,
         })
@@ -244,7 +253,7 @@ fn prepare_import_source_paths(sources: &[PathBuf]) -> Result<PreparedImportSour
                         .ok_or_else(|| "import file has no name".to_string())?;
                     if !has_importable_extension(&file_name.to_lowercase()) {
                         return Err(format!(
-                            "unsupported import file; choose Markdown, text, JSON, CSV, or ENEX files: {}",
+                            "unsupported import file; choose Markdown, MDX, text, JSON, CSV, or ENEX files: {}",
                             source.display()
                         ));
                     }
@@ -255,6 +264,7 @@ fn prepare_import_source_paths(sources: &[PathBuf]) -> Result<PreparedImportSour
                 }
                 Ok(PreparedImportSource {
                     root_path: temporary.display().to_string(),
+                    asset_root: temporary.display().to_string(),
                     temporary: true,
                     tree: collect_markdown_tree(&temporary)?,
                 })
@@ -331,7 +341,7 @@ fn write_markdown_entries(
 
 fn has_importable_extension(name: &str) -> bool {
     let lowered = name.to_lowercase();
-    ["md", "markdown", "txt", "json", "csv", "enex"]
+    ["md", "markdown", "mdx", "txt", "json", "csv", "enex"]
         .iter()
         .any(|extension| lowered.ends_with(&format!(".{extension}")))
 }
@@ -339,7 +349,7 @@ fn has_importable_extension(name: &str) -> bool {
 /// Must stay in sync with `sniff_mime` in `crates/skriuw-images/src/lib.rs`.
 fn has_asset_extension(name: &str) -> bool {
     let lowered = name.to_lowercase();
-    ["png", "jpg", "jpeg", "gif", "webp"]
+    ["png", "jpg", "jpeg", "gif", "webp", "svg"]
         .iter()
         .any(|extension| lowered.ends_with(&format!(".{extension}")))
 }
@@ -530,6 +540,18 @@ mod markdown_tree_tests {
             .map(|file| file.relative_path.as_str())
             .collect();
         assert_eq!(paths, ["Note (2).md", "Note.md"]);
+        remove_import_temp_dir(Path::new(&prepared.root_path)).expect("cleanup");
+    }
+
+    #[test]
+    fn single_markdown_file_resolves_images_beside_the_original() {
+        let dir = tempdir().expect("tempdir");
+        fs::write(dir.path().join("README.md"), "![Preview](./preview.png)").expect("write");
+
+        let prepared = prepare_import_source_path(&dir.path().join("README.md")).expect("prepare");
+        assert!(prepared.temporary);
+        assert_ne!(prepared.root_path, prepared.asset_root);
+        assert_eq!(prepared.asset_root, dir.path().display().to_string());
         remove_import_temp_dir(Path::new(&prepared.root_path)).expect("cleanup");
     }
 

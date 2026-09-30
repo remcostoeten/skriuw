@@ -3,7 +3,12 @@ import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { sameOverrides, selectShortcutOverrides } from "@/features/settings/sections/selectors";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import { effectiveShortcutKeys, shortcutBindsOnPlatform, shortcutDefinition } from "./bindings";
+import {
+  effectiveShortcutKeys,
+  shortcutBindsOnPlatform,
+  shortcutDefinition,
+  shortcutShadowedByQuit,
+} from "./bindings";
 import type { ShortcutOverrides } from "./bindings";
 import type { ShortcutActionId, ShortcutPlatform } from "./definitions";
 
@@ -11,7 +16,8 @@ import type { ShortcutActionId, ShortcutPlatform } from "./definitions";
  * The combo an icon button should advertise: the action's effective binding,
  * formatted for `platform`, with sequences shown step by step. Returns nothing
  * when the default combo does not bind on this platform and the user has not
- * rebound it, so a tooltip never advertises a dead key.
+ * rebound it, or when Quit claimed the combo, so a tooltip never advertises a
+ * dead key.
  */
 export function shortcutHint(
   id: ShortcutActionId,
@@ -19,10 +25,14 @@ export function shortcutHint(
   platform: ShortcutPlatform,
 ): string | undefined {
   const definition = shortcutDefinition(id);
-  if (!shortcutBindsOnPlatform(definition, overrides, platform)) {
+  const keys = effectiveShortcutKeys(definition, overrides);
+  if (
+    !shortcutBindsOnPlatform(definition, overrides, platform) ||
+    shortcutShadowedByQuit(definition, keys, overrides)
+  ) {
     return undefined;
   }
-  return effectiveShortcutKeys(definition, overrides)
+  return keys
     .split(" then ")
     .map((step) => formatShortcut(step, platform))
     .join(" ");

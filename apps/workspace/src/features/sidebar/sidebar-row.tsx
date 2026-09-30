@@ -5,6 +5,7 @@ import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-se
 import { FolderIcon, FolderOpenIcon, LockIcon } from "@/shared/icons/static";
 import { visualTreeIndent } from "@skriuw/renderer-core/store/tree";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
+import { fileExtension, openedFileOrigin } from "@/features/transfer/import/opened-file-origin";
 import { restoreRenameReturnFocus } from "./rename-focus";
 import type { TreeMetrics } from "./sidebar";
 
@@ -75,7 +76,15 @@ export const SidebarRow = memo(function SidebarRow({
     () => (state: RendererState) => (state.sourceNodes.get(id)?.lockedAt ?? null) !== null,
     [id],
   );
+  const selectExtension = useMemo(
+    () => (state: RendererState) => {
+      const origin = openedFileOrigin(state.importReceipts, id);
+      return origin === null ? null : fileExtension(origin);
+    },
+    [id],
+  );
   const node = useRendererSelector(store, selectNode);
+  const extension = useRendererSelector(store, selectExtension);
   const status = useRendererSelector(store, selectStatus);
   const isLocked = useRendererSelector(store, selectLocked);
   if (!node) {
@@ -145,6 +154,11 @@ export const SidebarRow = memo(function SidebarRow({
         >
           <RowLabel isFolder={isFolder} isExpanded={isExpanded} isNarrow={metrics.isNarrow}>
             <span className="select-none truncate text-left">{node.title}</span>
+            {extension !== null && (
+              <span className="ml-0.5 shrink-0 select-none text-muted-foreground/50">
+                {extension}
+              </span>
+            )}
           </RowLabel>
           {isLocked && (
             <LockIcon
