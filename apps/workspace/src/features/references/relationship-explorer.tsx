@@ -19,6 +19,7 @@ import {
   type RelationshipNote,
 } from "./relationship-model";
 import { RelationshipGraphView } from "./relationship-graph";
+import { UnlinkedMentions } from "./unlinked-mentions";
 
 const ROWS = 5;
 
@@ -237,6 +238,7 @@ export function RelationshipExplorer({ store, noteId }: { store: RendererStore; 
           />
         )}
       />
+      <UnlinkedMentions store={store} noteId={noteId} />
       <RelationshipSection
         title="Links to"
         entries={outgoing}

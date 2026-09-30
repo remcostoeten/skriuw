@@ -31,7 +31,15 @@ export type RelationshipGraph = {
   hiddenCount: number;
 };
 
-function availableNote(state: RendererState, noteId: string): boolean {
+/**
+ * @name availableNote
+ * @description Whether a note exists and neither it nor any ancestor is in the
+ * trash, so a relationship surface can still open it.
+ *
+ * @example
+ * if (availableNote(state, candidateId)) rows.push(candidateId);
+ */
+export function availableNote(state: RendererState, noteId: string): boolean {
   let node = state.sourceNodes.get(noteId);
   const seen = new Set<string>();
   while (node && !seen.has(node.id)) {

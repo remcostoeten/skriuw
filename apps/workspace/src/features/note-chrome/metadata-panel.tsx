@@ -35,6 +35,7 @@ import { NoteOutline } from "./note-outline";
 import { AnnotationList } from "./annotation-list";
 import { RelationshipExplorer } from "@/features/references/relationship-explorer";
 import { projectHasRelationships } from "@/features/references/relationship-model";
+import { noteUnlinkedMentionTerm } from "@/features/references/unlinked-mentions-model";
 import { openedFileOrigin } from "@/features/transfer/import/opened-file-origin";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 
@@ -592,7 +593,9 @@ export function MetadataPanel({ store }: Props) {
     store,
     useCallback(
       (state: RendererState) =>
-        activeNoteId !== null && projectHasRelationships(state, activeNoteId),
+        activeNoteId !== null &&
+        (noteUnlinkedMentionTerm(state, activeNoteId) !== null ||
+          projectHasRelationships(state, activeNoteId)),
       [activeNoteId],
     ),
   );
