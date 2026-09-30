@@ -450,10 +450,18 @@ async function checkTaskKeyboard(cdp, sessionId, checks) {
   await dispatchKey(cdp, sessionId, "Tab", "Tab", 9);
   assert(
     checks,
+    "task-due-tab-focus",
+    await evaluate(cdp, sessionId, "document.activeElement.classList.contains('task-due')"),
+    "Tab reaches due date button",
+  );
+  await dispatchKey(cdp, sessionId, "Tab", "Tab", 9);
+  assert(
+    checks,
     "task-source-tab-focus",
     await evaluate(cdp, sessionId, "document.activeElement.classList.contains('task-source')"),
     "Tab reaches source button",
   );
+  await dispatchKey(cdp, sessionId, "Tab", "Tab", 9, "", 8);
   await dispatchKey(cdp, sessionId, "Tab", "Tab", 9, "", 8);
   await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
   await waitFor(cdp, sessionId, "window.location.hash === '#/notes'", "Enter opens source");
