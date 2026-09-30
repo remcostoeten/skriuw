@@ -25,6 +25,8 @@ import {
 } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { createCodeBlockNodeView, toggleMermaidSource } from "./code-block-nodeview";
+import { insertInlineMath, insertMathBlock } from "./math-commands";
+import { createMathBlockNodeView, createMathInlineNodeView } from "./math-nodeview";
 import { createDiagramNodeView } from "./diagram-nodeview";
 import { createImageNodeViews, type ImageTouchActions } from "./image-nodeview";
 import {
@@ -78,7 +80,12 @@ import {
   isRevisionConflict,
 } from "@/store/actions/workspace";
 import { cssStringLiteral } from "@/features/settings/apply-settings";
-import { projectSettings, usesVimMode } from "@/features/settings/settings-model";
+import {
+  dimsFocusParagraphs,
+  projectSettings,
+  usesTypewriterScrolling,
+  usesVimMode,
+} from "@/features/settings/settings-model";
 import { opensNotesInTabs } from "@skriuw/renderer-core/settings/open-notes-in-tabs";
 import { closeTab } from "@/store/actions/panes";
 import { noop } from "@skriuw/shared/helpers/noop";
@@ -209,12 +216,14 @@ import {
   setAnnotationDecorations,
   type AnnotationDecorationInputs,
 } from "./annotation-decorations";
-import { findAnnotationLocation, findBlockLocation } from "./block-locations";
+import { blockRangePositions, findAnnotationLocation, findBlockLocation } from "./block-locations";
 import {
   registerBlockReveal,
   registerThreadReveal,
   takePendingBlockReveal,
+  takePendingRangeReveal,
   takePendingThreadReveal,
+  type RangeRevealRequest,
 } from "./reveal-controller";
 import { SaveFailureBanner } from "./save-failure-banner";
 import { SaveSequencer } from "./save-sequencer";
@@ -222,6 +231,8 @@ import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "./editor-working-set
 import { preparedEditorDocuments } from "./prepared-documents";
 import { REMOTE_APPLY_META, buildRemoteTr, mergeDocuments } from "./remote-merge";
 import { saveWithConflictRetry } from "./save-retry";
+import { createTypewriterPlugin } from "./typewriter-scroll";
+import { createFocusDimPlugin, refreshFocusDim } from "./focus-dim";
 import {
   carryVimState,
   createVimPlugin,
@@ -671,6 +682,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       createVimPlugin(vimHost),
       ...mentionPlugins,
       ...createProductPlugins(),
+      createTypewriterPlugin({
+        enabled: () => usesTypewriterScrolling(store.getState().settings),
+        scrollContainer: () => scrollHostRef.current,
+      }),
+      createFocusDimPlugin(() => dimsFocusParagraphs(store.getState().settings)),
     ];
   }
   const editorPlugins = editorPluginsRef.current;
@@ -1622,6 +1638,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const noteId = activeIdRef.current;
     const entry = activeEntry();
     if (!view || !entry) return;
+    const range = takePendingRangeReveal(noteId);
+    if (range) {
+      revealRange(entry, range);
+      return;
+    }
     const document = entry.bounded?.fullDocument() ?? entry.state.doc;
     const blockId = takePendingBlockReveal(noteId);
     if (blockId === null) return;
@@ -1644,6 +1665,32 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   }, []);
 
   useEffect(() => registerBlockReveal(revealRequestedBlock), [revealRequestedBlock]);
+
+  function revealRange(entry: CachedNote, request: RangeRevealRequest): void {
+    const bounded = entry.bounded;
+    if (bounded) {
+      bounded.rememberSelection({ blockIndex: request.blockIndex, offset: 0 });
+      bounded.revealBlock(request.blockIndex);
+      installBoundedWindow(entry, true);
+    }
+    const current = viewRef.current;
+    if (!current) return;
+    const range = blockRangePositions(
+      current.state.doc,
+      request.blockIndex - (bounded?.windowStart() ?? 0),
+      request.from,
+      request.to,
+      request.text,
+    );
+    if (range) {
+      current.dispatch(
+        current.state.tr
+          .setSelection(TextSelection.create(current.state.doc, range.from, range.to))
+          .scrollIntoView(),
+      );
+    }
+    current.focus();
+  }
 
   /**
    * Moves the caret into a thread's anchor and opens it. Resolution runs
@@ -1742,6 +1789,14 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const view = viewRef.current;
     if (view) setVimEnabled(view, vimEnabled);
   }, [vimEnabled]);
+  const focusDimParagraphs = editorSettings.focusDimParagraphs;
+  const focusDimSeenRef = useRef(focusDimParagraphs);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (focusDimSeenRef.current === focusDimParagraphs || !view) return;
+    focusDimSeenRef.current = focusDimParagraphs;
+    refreshFocusDim(view);
+  }, [focusDimParagraphs]);
   const editorShortcuts = useMemo<EditorBoundHandlersFor<NoteEditorShortcutId>>(
     () => ({
       goToDocumentStart: () => jumpToDocumentEdge("start"),
@@ -1768,6 +1823,14 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       toggleDiagramSource: () => {
         const view = viewRef.current;
         if (view) toggleMermaidSource(view.state, view.dispatch, view);
+      },
+      insertInlineMath: () => {
+        const view = viewRef.current;
+        if (view) insertInlineMath(view.state, view.dispatch, view);
+      },
+      insertMathBlock: () => {
+        const view = viewRef.current;
+        if (view) insertMathBlock(view.state, view.dispatch, view);
       },
     }),
     [jumpToDocumentEdge, toggleJumpToLine, stepThroughAnnotations],
@@ -1818,6 +1881,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         ...referenceViews.nodeViews,
         ...imageViews.nodeViews,
         code_block: (node, view, getPos) => createCodeBlockNodeView(node, view, getPos),
+        math_block: (node, view, getPos) => createMathBlockNodeView(node, view, getPos),
+        math_inline: (node, view, getPos) => createMathInlineNodeView(node, view, getPos),
         diagram: createDiagramNodeView,
         media: (node, currentView, getPos) =>
           createMediaNodeView(
@@ -2489,6 +2554,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         data-editor-line-height={editorSettings.editorLineHeight}
         data-vim-cursor-style={editorSettings.vimCursorStyle}
         data-vim-cursor-blink={editorSettings.vimCursorBlink ? "true" : "false"}
+        data-focus-dim={focusDimParagraphs ? "true" : "false"}
         style={
           {
             "--editor-placeholder": cssStringLiteral(editorSettings.editorPlaceholder),

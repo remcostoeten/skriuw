@@ -46,8 +46,9 @@ import {
   COMPACT_MENU_QUERY,
   type AccountMenuPanel,
 } from "./account-menu-model";
+import { AccountAvatar } from "./account-avatar";
 import { railActiveClass, railIconButtonClass, railInactiveClass } from "./rail-styles";
-import { selectTheme } from "@/features/settings/sections/selectors";
+import { selectFacehashAvatar, selectTheme } from "@/features/settings/sections/selectors";
 import type { SectionId } from "@/features/settings/sections/sections";
 import { syncSummary, syncTone } from "@/features/settings/sections/sync-status";
 import {
@@ -192,6 +193,7 @@ export function AccountMenu({
   const { user } = useAuth();
   const sync = useWorkspaceSync(SYNC_POLL_AMBIENT_MS);
   const theme = useRendererSelector(store, selectTheme);
+  const facehash = useRendererSelector(store, selectFacehashAvatar);
   const hints = useShortcutHints(store, MENU_SHORTCUT_IDS);
   const compact = useMediaQuery(COMPACT_MENU_QUERY);
   const installable = useSyncExternalStore(subscribeInstallOffer, installOffered, () => false);
@@ -238,7 +240,7 @@ export function AccountMenu({
           )}
           aria-label={`Account: ${name}`}
         >
-          {initials}
+          <AccountAvatar seed={user.id} initials={initials} facehash={facehash} />
           <span
             className={cn(
               "absolute -right-0.5 -bottom-0.5 h-2 w-2 rounded-sm border border-sidebar",
@@ -277,7 +279,7 @@ export function AccountMenu({
                 className={cn(avatarClass, "shrink-0 border-border bg-muted text-foreground")}
                 aria-hidden="true"
               >
-                {initials}
+                <AccountAvatar seed={user.id} initials={initials} facehash={facehash} />
               </span>
               <span className="flex min-w-0 flex-col gap-[3px]">
                 <span className="truncate text-[13px] leading-none text-foreground">{name}</span>

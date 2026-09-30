@@ -77,6 +77,8 @@ export function imageFileExtension(mimeType: string): string {
       return "webm";
     case "video/quicktime":
       return "mov";
+    case "image/svg+xml":
+      return "svg";
     default:
       return "img";
   }
@@ -579,12 +581,13 @@ export function replaceLocalImages(
     const node = value as {
       type?: unknown;
       attrs?: { src?: unknown; alt?: unknown };
+      marks?: unknown;
       content?: unknown;
     };
     if (node.type === "image" && typeof node.attrs?.src === "string") {
       const id = imageIdBySource.get(node.attrs.src);
       if (id) {
-        return {
+        const imageRef: Record<string, unknown> = {
           type: "image_ref",
           attrs: {
             id,
@@ -593,6 +596,10 @@ export function replaceLocalImages(
             height: null,
           },
         };
+        if (Array.isArray(node.marks)) {
+          imageRef.marks = node.marks;
+        }
+        return imageRef;
       }
     }
     const mapped: Record<string, unknown> = { ...node };

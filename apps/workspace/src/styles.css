@@ -9,13 +9,13 @@
 @import "./features/sidebar/sidebar.css";
 @import "./shell/split.css";
 @import "./shell/mobile.css";
+@import "./shell/focus-mode.css";
 @import "./features/references/references.css";
 @import "./features/history/diff.css";
 @import "@skriuw/shared/ui/tooltip.css";
 @import "./shared/icons/app-icon.css";
 @import "./shared/ui/shortcut-recorder.css";
 @import "./features/auth/auth-drawer.css";
-@import "./features/onboarding/onboarding.css";
 @import "./features/drawing/drawing.css";
 
 @plugin "tailwindcss-animate";

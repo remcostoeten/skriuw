@@ -48,3 +48,12 @@ test("open tasks and ordinary list bullets are not marked done", () => {
 test("token classes stay stable for the theme sheet", () => {
   assert.equal(rawMarkdownTokenClass("link-target"), "raw-markdown-token-link-target");
 });
+
+test("strict inline math is its own token and person chips stay people", () => {
+  assert.deepEqual(tokensIn("Area $\\pi r^2$ with $Ada and $Bob"), [
+    { kind: "math", text: "$\\pi r^2$" },
+    { kind: "person", text: "$Ada" },
+    { kind: "person", text: "$Bob" },
+  ]);
+  assert.ok(tokensIn("from $5 to $10").every((token) => token.kind !== "math"));
+});

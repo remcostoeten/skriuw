@@ -99,7 +99,7 @@ export function HomeHero({ badge }: Props) {
           <span aria-hidden className="hy-hero-live size-1.5 rounded-full bg-emerald-500" />
           app · live preview
         </p>
-        <div className="rounded-[10px] border border-dashed border-line p-2">
+        <div className="hy-dots rounded-[10px] border border-dashed border-line p-4 sm:p-6">
           <AppPreview />
         </div>
       </div>

@@ -20,8 +20,7 @@ export type LaunchCapture =
 /**
  * Reads the intent an installed app's manifest shortcut (`?capture=note`,
  * `?capture=journal`) or the system share sheet (`?title=&text=&url=`) put in
- * the launch URL. Unrelated query keys, such as the onboarding debug switches,
- * are ignored.
+ * the launch URL. Unrelated query keys are ignored.
  */
 export function parseLaunchCapture(search: string): LaunchCapture | null {
   const params = new URLSearchParams(search);

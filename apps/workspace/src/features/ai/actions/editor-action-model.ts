@@ -1,4 +1,5 @@
 import type { AiCompletionEvent, AiProviderError, AiRecoveryAction } from "@/contracts/ai";
+import { diffMarkdown, type DiffLine, type MarkdownDiff } from "@/features/history/diff-model";
 import type { AiEditorAction } from "./editor-actions";
 
 /**
@@ -213,4 +214,27 @@ export function applyRefusal(
     return "The note changed while this ran. Run the action again so it works on the current text.";
   }
   return null;
+}
+
+function isKeptLine(line: DiffLine): boolean {
+  return line.kind === "context" && line.segments.some((segment) => segment.text.trim().length > 0);
+}
+
+/**
+ * The line diff a whole-note replacement is reviewed through. Null when the
+ * result keeps no written line of the note, or the note is too large to align:
+ * a diff with every line replaced says less than the result itself.
+ */
+export function noteReplacementDiff(note: string, result: string): MarkdownDiff | null {
+  const diff = diffMarkdown(note, result);
+  if (diff.truncated) {
+    return null;
+  }
+  if (diff.hunks.length === 0) {
+    return diff;
+  }
+  const keepsALine = diff.hunks.some(
+    (hunk) => hunk.hiddenBefore.some(isKeptLine) || hunk.lines.some(isKeptLine),
+  );
+  return keepsALine ? diff : null;
 }

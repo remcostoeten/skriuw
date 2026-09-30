@@ -8,6 +8,7 @@ import { Button } from "@/shared/ui/button";
 import { Checkbox } from "@/shared/ui/checkbox";
 import { KeyCaps } from "@/shared/ui/key-caps";
 import { setSuggestionPreview } from "@/features/editor/suggestion-decorations";
+import { MarkdownDiffHunks } from "@/features/history/version-diff-view";
 import { commitReferenceOperations, renameNode } from "@/store/actions/workspace";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import type { ReferenceOperation } from "@skriuw/renderer-core/references/types";
@@ -30,6 +31,7 @@ import {
 import {
   aiActionStatusLine,
   canRetryRun,
+  noteReplacementDiff,
   runHasResult,
   runIsStreaming,
   type AiActionTarget,
@@ -75,10 +77,22 @@ function applyKeys(): string[] {
 function createHost(): HTMLDivElement {
   const host = document.createElement("div");
   host.className = "skriuw-suggestion";
-  host.contentEditable = "false";
   host.setAttribute("role", "group");
   host.setAttribute("aria-label", "AI run");
   return host;
+}
+
+/**
+ * The card is pinned to the pane rather than written into the note, so it
+ * stays on screen however far the writer scrolls. Until the pane is known it
+ * falls back to the body, where it is still visible.
+ */
+function usePaneHost(host: HTMLElement, getView: () => EditorView | null): void {
+  useLayoutEffect(() => {
+    const pane = getView()?.dom.closest<HTMLElement>(".editor-pane") ?? document.body;
+    pane.append(host);
+    return () => host.remove();
+  }, [getView, host]);
 }
 
 /**
@@ -101,7 +115,7 @@ function useRunClock(active: boolean): number {
 
 /**
  * Every AI run, from the request leaving to the result being accepted, in one
- * card painted over the note. Nothing here writes to the document until the
+ * card pinned over the note. Nothing here writes to the document until the
  * writer says so, so stopping, failing, and discarding are all the same
  * outcome for the note: unchanged.
  */
@@ -141,6 +155,7 @@ export function AiRunCard({
   const hostRef = useRef<HTMLDivElement | null>(null);
   hostRef.current ??= createHost();
   const host = hostRef.current;
+  usePaneHost(host, getView);
   const sessionKey = useMemo(() => crypto.randomUUID(), []);
   const copiedTimerRef = useRef<number | null>(null);
   const closedRef = useRef(false);
@@ -191,8 +206,8 @@ export function AiRunCard({
     onCloseRef.current();
   }
 
-  // The card is painted by the editor, so every change to what it says about
-  // the range has to be pushed back in. Clearing is deliberately not this
+  // The range is painted by the editor, so every change to what the card says
+  // about it has to be pushed back in. Clearing is deliberately not this
   // effect's cleanup: a redraw would then read as a dismissal and end the
   // review the moment the run settled.
   //
@@ -223,7 +238,6 @@ export function AiRunCard({
         key: sessionKey,
         from: strikes ? target.from : target.to,
         to: target.to,
-        host,
         settled,
         onDismiss: () => {
           if (!tearingDownRef.current) {
@@ -247,7 +261,6 @@ export function AiRunCard({
     action.scope,
     getNoteId,
     getView,
-    host,
     isReplacement,
     sessionKey,
     settled,
@@ -433,6 +446,13 @@ export function AiRunCard({
     return diffWords(target.input, run.preview.trim()).after;
   }, [isReplacement, run.preview, showResult, target.input]);
 
+  const noteDiff = useMemo(() => {
+    if (!showResult || !isReplacement || action.scope !== "note") {
+      return null;
+    }
+    return noteReplacementDiff(target.input, run.preview.trim());
+  }, [action.scope, isReplacement, run.preview, showResult, target.input]);
+
   const hasDiagram =
     showResult && diagramResultParts(run.preview).some((part) => part.kind === "diagram");
 
@@ -488,9 +508,11 @@ export function AiRunCard({
             ? `${elapsed ?? ""}${elapsed !== null && run.preview.length > 0 ? " · " : ""}${
                 run.preview.length > 0 ? `${run.preview.length} chars` : ""
               }`
-            : showResult && isReplacement
-              ? `${addedWords >= 0 ? "+" : ""}${addedWords} words`
-              : ""}
+            : noteDiff !== null
+              ? `+${noteDiff.stats.added} −${noteDiff.stats.removed} lines`
+              : showResult && isReplacement
+                ? `${addedWords >= 0 ? "+" : ""}${addedWords} words`
+                : ""}
         </span>
       </div>
 
@@ -513,7 +535,17 @@ export function AiRunCard({
         </div>
       )}
 
-      {(run.preview.length > 0 || (settled && failure === null)) && (
+      {noteDiff !== null && (
+        <div className="skriuw-suggestion-diff" aria-label="Changes to the note">
+          {noteDiff.hunks.length === 0 ? (
+            <p className="skriuw-suggestion-diff-empty">The result matches the note.</p>
+          ) : (
+            <MarkdownDiffHunks diff={noteDiff} />
+          )}
+        </div>
+      )}
+
+      {noteDiff === null && (run.preview.length > 0 || (settled && failure === null)) && (
         <div
           className="skriuw-suggestion-text"
           data-empty={!streaming && run.preview.length === 0 ? "" : undefined}

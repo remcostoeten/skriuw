@@ -1,5 +1,10 @@
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
-import { effectiveShortcutKeys, isKeySequence, shortcutBindsOnPlatform } from "./bindings";
+import {
+  effectiveShortcutKeys,
+  isKeySequence,
+  shortcutBindsOnPlatform,
+  shortcutShadowedByQuit,
+} from "./bindings";
 import type { ShortcutOverrides } from "./bindings";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type {
@@ -113,7 +118,8 @@ function helpCombo(keys: string, platform: ShortcutPlatform): ShortcutHelpCombo 
  * Every combo that actually fires for a definition on `platform`: the effective
  * primary binding plus the alternate when the definition declares one. Returns
  * nothing when the default combo does not bind on this platform and the user has
- * not rebound it, so the overlay never advertises a dead key.
+ * not rebound it, and leaves out a combo Quit claimed, so the overlay never
+ * advertises a dead key.
  */
 export function shortcutHelpCombos(
   definition: ShortcutDefinition,
@@ -123,11 +129,13 @@ export function shortcutHelpCombos(
   if (!shortcutBindsOnPlatform(definition, overrides, platform)) {
     return [];
   }
-  const combos = [helpCombo(effectiveShortcutKeys(definition, overrides), platform)];
+  const keys = [effectiveShortcutKeys(definition, overrides)];
   if (definition.secondaryKeys) {
-    combos.push(helpCombo(definition.secondaryKeys, platform));
+    keys.push(definition.secondaryKeys);
   }
-  return combos;
+  return keys
+    .filter((combo) => !shortcutShadowedByQuit(definition, combo, overrides))
+    .map((combo) => helpCombo(combo, platform));
 }
 
 export function shortcutHelpRow(

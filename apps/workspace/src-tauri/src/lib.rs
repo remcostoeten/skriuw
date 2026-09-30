@@ -6,6 +6,7 @@ mod auth;
 mod commands;
 mod maintenance;
 mod ollama;
+mod opened_files;
 mod remote_media;
 #[cfg(test)]
 mod smoke_tests;
@@ -43,13 +44,18 @@ pub fn run() {
     // backup rotation, and sync outbox. A SKRIUW_DB override points at its own
     // database (e2e harnesses), so it may run beside the real app.
     let builder = if std::env::var_os("SKRIUW_DB").is_none() {
-        builder.plugin(tauri_plugin_single_instance::init(|app, _, _| {
+        builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            opened_files::enqueue(
+                app,
+                opened_files::openable_paths_from_args(&args, std::path::Path::new(&cwd)),
+            );
             focus_main_window(app);
         }))
     } else {
         builder
     };
     builder
+        .manage(opened_files::OpenedFiles::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -60,6 +66,15 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            if let Ok(cwd) = std::env::current_dir() {
+                let args: Vec<String> = std::env::args_os()
+                    .filter_map(|argument| argument.into_string().ok())
+                    .collect();
+                opened_files::enqueue(
+                    app.handle(),
+                    opened_files::openable_paths_from_args(&args, &cwd),
+                );
+            }
             let path = database_path(app.handle())?;
             let app_data_dir = app
                 .path()
@@ -301,7 +316,8 @@ pub fn run() {
             commands::sync::set_workspace_sync_online,
             commands::sync::set_workspace_sync_visibility,
             commands::sync::adopt_workspace_slot,
-            commands::sync::active_workspace_slot
+            commands::sync::active_workspace_slot,
+            opened_files::take_opened_files
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Focused(true) = event
@@ -313,6 +329,10 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("skriuw app must build")
         .run(|app, event| {
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            if let RunEvent::Opened { urls } = &event {
+                opened_files::enqueue(app, opened_files::openable_paths_from_urls(urls));
+            }
             if let RunEvent::Exit = event
                 && let Some(state) = app.try_state::<AppState>()
             {
