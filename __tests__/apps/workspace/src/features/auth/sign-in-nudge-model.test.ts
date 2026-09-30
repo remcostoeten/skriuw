@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import {
+  deferNudge,
   readNudgeProgress,
   recordNudgeAction,
   rememberNudgeProgress,
@@ -32,8 +33,12 @@ function dueActions(count: number): number[] {
   return due;
 }
 
-test("the first nudge comes after five actions, then every fifteen", () => {
-  assert.deepEqual(dueActions(40), [5, 20, 35]);
+test("the first nudge comes after ten actions, then every twenty", () => {
+  assert.deepEqual(dueActions(55), [10, 30, 50]);
+});
+
+test("a nudge from another trigger pushes the next action nudge a full interval away", () => {
+  assert.deepEqual(deferNudge({ actions: 7, nextAt: 10 }), { actions: 7, nextAt: 27 });
 });
 
 test("progress survives a reload", () => {
@@ -45,5 +50,5 @@ test("progress survives a reload", () => {
 test("unreadable progress starts fresh", () => {
   const storage = memoryStorage();
   storage.setItem("skriuw.sign-in-nudge.v1", "garbage");
-  assert.deepEqual(readNudgeProgress(storage), { actions: 0, nextAt: 5 });
+  assert.deepEqual(readNudgeProgress(storage), { actions: 0, nextAt: 10 });
 });
