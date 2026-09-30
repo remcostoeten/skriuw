@@ -32,6 +32,10 @@ import {
 import { publishTransferReport } from "./transfer-report";
 import { detectImportSource, importSourceKey } from "@/features/transfer/import/model";
 import { normalizeMdxTree } from "@/features/transfer/import/mdx";
+import {
+  OPENED_FILE_PROVIDER,
+  toOpenedFileReceipts,
+} from "@/features/transfer/import/opened-file-origin";
 import { requestRemoteImageChoice } from "@/features/transfer/import/remote-images-controller";
 import { remoteImportImages } from "@/features/settings/settings-model";
 import { isBrowserRuntime } from "@/bridge/runtime";
@@ -382,6 +386,8 @@ type ImportNotesOptions = {
   onImported?: (result: { createdNoteIds: readonly string[] }) => void;
   /** Imports into the workspace root with the detected source, without the preview dialog or report. */
   skipPreview?: boolean;
+  /** Absolute path of a file the operating system opened, recorded as the note's origin. */
+  openedFilePath?: string;
 };
 
 async function importNotesFromPath(
@@ -627,7 +633,9 @@ async function importNotesFromPath(
       : null;
     throwIfImportCancelled(commitProgress.signal);
     const operations = [
-      ...plan.operations,
+      ...(options.openedFilePath
+        ? toOpenedFileReceipts(plan.operations, options.openedFilePath)
+        : plan.operations),
       ...(selection.recordSource ? plan.sourcePropertyOperations : []),
       ...images.attachOperations,
       ...(remote?.attachOperations ?? []),
@@ -792,11 +800,20 @@ export async function openMarkdownFileInWorkspace(
       (receipt) => receipt.sourceKey === sourceKey && state.nodes.has(receipt.noteId),
     );
     if (previous) {
+      if (previous.provider !== OPENED_FILE_PROVIDER) {
+        await commitOperations(store, [
+          {
+            type: "record_provider_import",
+            receipt: { ...previous, provider: OPENED_FILE_PROVIDER, sourcePath: filePath },
+          },
+        ]);
+      }
       return previous.noteId;
     }
     let createdNoteIds: readonly string[] = [];
     await importNotesFromPath(store, [filePath], {
       skipPreview: true,
+      openedFilePath: filePath,
       onImported: (result) => {
         createdNoteIds = result.createdNoteIds;
       },
