@@ -47,7 +47,8 @@ import {
 } from "./settings-shared";
 import type { SectionProps } from "./settings-shared";
 
-const ACCEPTED_TYPES = "image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm";
+const ACCEPTED_TYPES =
+  "image/png,image/jpeg,image/gif,image/webp,image/svg+xml,video/mp4,video/webm";
 const PAGE_SIZE = 60;
 
 type MediaStatus =

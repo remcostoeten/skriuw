@@ -12,6 +12,7 @@ import { isNoteSealed } from "@/features/lock/lock-model";
 import { InsertMediaAccessory } from "@/features/editor/insert-media-accessory";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import { COMPACT_SHELL_QUERY } from "./shell-layout";
+import { usesTypewriterScrolling } from "@/features/settings/settings-model";
 
 type Props = {
   store: RendererStore;
@@ -21,6 +22,10 @@ type Props = {
 
 function selectStoreActiveNote(state: RendererState): string | null {
   return state.activeNoteId;
+}
+
+function selectTypewriterScrolling(state: RendererState): boolean {
+  return usesTypewriterScrolling(state.settings);
 }
 
 export function EditorHost({
@@ -70,15 +75,22 @@ export function EditorHost({
   );
   const hasCover = useRendererSelector(store, selectHasCover);
   const isRawMode = useRendererSelector(store, selectRawMode);
+  const typewriter = useRendererSelector(store, selectTypewriterScrolling);
   const compact = useMediaQuery(COMPACT_SHELL_QUERY);
   const hostRef = useRef<HTMLDivElement>(null);
   const hasActiveNote = noteId !== null;
   const showsEditor = hasActiveNote && !isSealed;
   return (
-    <div ref={hostRef} className="editor-scroll h-full min-w-0 overflow-y-auto bg-theme-editor">
+    <div
+      ref={hostRef}
+      className="editor-scroll h-full min-w-0 overflow-y-auto bg-theme-editor"
+      data-typewriter={typewriter ? "on" : "off"}
+    >
       <div className={showsEditor ? "relative w-full" : "hidden"}>
         {showsEditor && <NoteCover store={store} selectNoteId={selectEditableNoteId} />}
-        <div className={`mx-auto w-[calc(100%_-_6rem)] max-w-[72ch]${hasCover ? "" : " pt-8"}`}>
+        <div
+          className={`editor-column mx-auto w-[calc(100%_-_6rem)] max-w-[72ch]${hasCover ? "" : " pt-8"}`}
+        >
           {showsEditor && (
             <NotePropertiesShelf key={noteId} store={store} selectNoteId={selectEditableNoteId} />
           )}

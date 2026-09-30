@@ -19,6 +19,8 @@ export function routeHasSidebar(route: AppRoute): boolean {
   return route === "notes" || route === "journal";
 }
 
+export const FOCUS_GRID_TEMPLATE = "0px 0px minmax(300px, 1fr) 0px";
+
 export function panelGridTemplate(
   route: AppRoute,
   sidebarOpen: boolean,

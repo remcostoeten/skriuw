@@ -32,7 +32,7 @@ import {
   isBrowserRuntime,
   releaseBrowserStorage,
 } from "@/bridge/runtime";
-import { bindInstallPrompt, installOffered, promptInstall } from "@/bridge/install-prompt";
+import { bindInstallPrompt } from "@/bridge/install-prompt";
 import { applyShellUpdate, registerShellWorker } from "@/bridge/service-worker";
 import {
   claimRiskAnnouncement,
@@ -47,6 +47,7 @@ import {
 } from "@/features/sync/live-workspace";
 import { bindPropagationTriggers } from "@/features/sync/propagation-triggers";
 import { createSyncReconciler } from "@/features/sync/reconcile";
+import { bindOpenedFiles } from "@/features/transfer/import/opened-files";
 import { bindWindowClosePersistence } from "@/shell/window-close";
 import { flushPendingWork, registerPendingWork } from "@/shell/pending-work";
 import {
@@ -84,10 +85,9 @@ const BLOCKED_RETRY_INTERVAL_MS = 5_000;
 let revealed = false;
 
 /**
- * Reports how durable this browser is willing to make the workspace. OPFS is
- * the canonical store in the browser, so an evicted origin is lost work rather
- * than a cold cache; a best-effort grant is worth saying out loud while the
- * user can still export.
+ * Asks this browser to keep the workspace and reports when the device is
+ * running out of room. OPFS is the canonical store in the browser, so an
+ * evicted origin is lost work rather than a cold cache.
  */
 async function announcePersistenceRisk(): Promise<void> {
   const state = await requestWorkspacePersistence();
@@ -97,9 +97,6 @@ async function announcePersistenceRisk(): Promise<void> {
       message: warning.message,
       description: warning.description,
       durationMs: 12_000,
-      ...(state.kind === "best-effort" && installOffered()
-        ? { action: { label: "Install", run: () => void promptInstall() } }
-        : {}),
     });
   }
 }
@@ -151,6 +148,7 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
   let unlistenHistory: UnlistenFn | null = null;
   let unlistenSyncWorkspace: UnlistenFn | null = null;
   let unlistenSessionExpiry: UnlistenFn | null = null;
+  let unlistenOpenedFiles: UnlistenFn | null = null;
   try {
     let store: RendererStore | null = null;
     let reconciler: ReturnType<typeof createSyncReconciler> | null = null;
@@ -275,6 +273,7 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
       unlistenHistory?.();
       unlistenSyncWorkspace?.();
       unlistenSessionExpiry?.();
+      unlistenOpenedFiles?.();
       unbindPropagationTriggers();
       unbindWindowClosePersistence();
       unbindLockSession();
@@ -312,6 +311,9 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
         <App store={store} />
       </StrictMode>,
     );
+    if (!isBrowserRuntime()) {
+      unlistenOpenedFiles = await bindOpenedFiles(store);
+    }
     return async () => {
       window.removeEventListener("pagehide", teardownSession);
       await flushPendingWork();
@@ -321,6 +323,7 @@ async function openWorkspace(root: Root): Promise<() => Promise<void>> {
     unlistenHistory?.();
     unlistenSyncWorkspace?.();
     unlistenSessionExpiry?.();
+    unlistenOpenedFiles?.();
     throw error;
   }
 }

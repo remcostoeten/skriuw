@@ -19,6 +19,8 @@ type ListboxNavigation = {
 /**
  * Keyboard model shared by the search-and-pick dialogs: arrow traversal,
  * clamping as the filter narrows, and scrolling the active row into view.
+ * A fresh arrow press past either end wraps around; a held key (auto-repeat)
+ * stops at the boundary so it cannot overshoot into a loop.
  * `shift+arrow` jumps to either end, since the 60% keyboards this is built for
  * have no Home or End keys; both are still honoured where they exist.
  */
@@ -37,6 +39,16 @@ export function useListboxNavigation({ count, onSelect }: Params): ListboxNaviga
     setRequestedIndex(count === 0 ? 0 : Math.max(0, Math.min(target, count - 1)));
   }
 
+  function step(delta: 1 | -1, isRepeat: boolean): void {
+    if (count === 0) return;
+    const target = activeIndex + delta;
+    if (isRepeat || (target >= 0 && target < count)) {
+      move(target);
+      return;
+    }
+    move(target < 0 ? count - 1 : 0);
+  }
+
   function onKeyDown(event: KeyboardEvent): void {
     if (event.key === "Tab") {
       event.preventDefault();
@@ -44,10 +56,12 @@ export function useListboxNavigation({ count, onSelect }: Params): ListboxNaviga
     }
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      move(event.shiftKey ? count - 1 : activeIndex + 1);
+      if (event.shiftKey) move(count - 1);
+      else step(1, event.repeat);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      move(event.shiftKey ? 0 : activeIndex - 1);
+      if (event.shiftKey) move(0);
+      else step(-1, event.repeat);
     } else if (event.key === "Home") {
       event.preventDefault();
       move(0);

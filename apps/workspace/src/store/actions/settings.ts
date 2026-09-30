@@ -10,6 +10,7 @@ import {
 import type { EditableSettings } from "@/features/settings/settings-model";
 import { changeAiModelSelection } from "@/features/ai/models/model-selection";
 import type { AiModelSelection } from "@/features/ai/models/model-selection";
+import { changeQuitShortcutEnabled } from "@/commands/bindings";
 import { SHORTCUT_DEFINITIONS } from "@/commands/definitions";
 import type { DiffLayout } from "@/features/history/split-diff-model";
 import type { ShortcutActionId } from "@/commands/definitions";
@@ -61,6 +62,10 @@ export function setAiModelSelection(
     return;
   }
   updateSettings(store, settings);
+}
+
+export function setQuitShortcutEnabled(store: RendererStore, enabled: boolean): void {
+  updateSettings(store, changeQuitShortcutEnabled(store.getState().settings, enabled));
 }
 
 export function setHistoryDiffLayout(store: RendererStore, layout: DiffLayout): void {

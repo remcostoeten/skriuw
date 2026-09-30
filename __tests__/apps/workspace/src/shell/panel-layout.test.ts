@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { panelGridTemplate, panelTracksWith, routeHasSidebar } from "@/shell/panel-layout";
+import {
+  FOCUS_GRID_TEMPLATE,
+  panelGridTemplate,
+  panelTracksWith,
+  routeHasSidebar,
+} from "@/shell/panel-layout";
 
 test("notes panels use bounded responsive tracks and collapse independently", () => {
   assert.equal(panelGridTemplate("notes", true, true), "56px 260px minmax(300px, 1fr) 240px");
@@ -48,4 +53,11 @@ test("a dragged panel projects onto the settled tracks without disturbing the ot
     sidebarWidth: 200,
     metadataWidth: 240,
   });
+});
+
+test("focus mode collapses every side track of the notes grid so the change animates", () => {
+  const notes = panelGridTemplate("notes", true, true).split(" ");
+  const focus = FOCUS_GRID_TEMPLATE.split(" ");
+  assert.equal(focus.length, notes.length);
+  assert.equal(FOCUS_GRID_TEMPLATE, "0px 0px minmax(300px, 1fr) 0px");
 });

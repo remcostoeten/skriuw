@@ -351,7 +351,7 @@ export function SettingsDialog({
           {activeSection === "appearance" && <AppearanceSection store={store} />}
           {activeSection === "account" && (
             <Suspense fallback={<p className="text-sm text-muted-foreground">Loading account…</p>}>
-              <AccountSection onRequestSignIn={onRequestSignIn} />
+              <AccountSection store={store} onRequestSignIn={onRequestSignIn} />
             </Suspense>
           )}
           {activeSection === "editor" && <EditorSection store={store} />}

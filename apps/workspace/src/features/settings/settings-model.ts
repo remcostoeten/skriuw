@@ -26,6 +26,22 @@ export const VIM_CURSOR_STYLE_OPTIONS = [
   { value: "bar", label: "Bar" },
 ] as const;
 
+export const PALETTE_DENSITY_OPTIONS = [
+  { value: "compact", label: "Compact" },
+  { value: "normal", label: "Normal" },
+  { value: "spacious", label: "Spacious" },
+] as const;
+
+export type PaletteDensity = (typeof PALETTE_DENSITY_OPTIONS)[number]["value"];
+
+export const REMOTE_IMPORT_IMAGE_OPTIONS = [
+  { value: "ask", label: "Ask on next import" },
+  { value: "download", label: "Download during import" },
+  { value: "block", label: "Keep blocked" },
+] as const;
+
+export type RemoteImportImages = (typeof REMOTE_IMPORT_IMAGE_OPTIONS)[number]["value"];
+
 export type VimCursorStyle = (typeof VIM_CURSOR_STYLE_OPTIONS)[number]["value"];
 
 export const DEFAULT_AUTO_LOCK_MINUTES = 5;
@@ -47,12 +63,17 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   vimMode: false,
   vimCursorStyle: "block",
   vimCursorBlink: false,
+  typewriterScrolling: false,
+  focusDimParagraphs: false,
   openNotesInTabs: false,
   showToasts: true,
   openLinksInApp: false,
   aiEnabled: false,
   autoLockMinutes: DEFAULT_AUTO_LOCK_MINUTES,
   lockOnBlur: false,
+  paletteDensity: "normal",
+  remoteImportImages: "ask",
+  facehashAvatar: true,
 };
 
 export type SettingsViewModel = {
@@ -69,6 +90,8 @@ export type SettingsViewModel = {
   vimMode: boolean;
   vimCursorStyle: VimCursorStyle;
   vimCursorBlink: boolean;
+  typewriterScrolling: boolean;
+  focusDimParagraphs: boolean;
   openNotesInTabs: boolean;
   showToasts: boolean;
   openLinksInApp: boolean;
@@ -76,6 +99,9 @@ export type SettingsViewModel = {
   /** Minutes of inactivity before locked notes close again; zero means never. */
   autoLockMinutes: number;
   lockOnBlur: boolean;
+  paletteDensity: PaletteDensity;
+  remoteImportImages: RemoteImportImages;
+  facehashAvatar: boolean;
 };
 
 export type EditableSettings = SettingsViewModel;
@@ -111,12 +137,17 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     vimMode: usesVimMode(settings),
     vimCursorStyle: vimCursorStyle(settings),
     vimCursorBlink: vimCursorBlinks(settings),
+    typewriterScrolling: usesTypewriterScrolling(settings),
+    focusDimParagraphs: dimsFocusParagraphs(settings),
     openNotesInTabs: settings.openNotesInTabs === true,
     showToasts: showsToasts(settings),
     openLinksInApp: opensLinksInApp(settings),
     aiEnabled: settings.aiEnabled === true,
     autoLockMinutes: autoLockMinutes(settings),
     lockOnBlur: locksOnBlur(settings),
+    paletteDensity: paletteDensity(settings),
+    remoteImportImages: remoteImportImages(settings),
+    facehashAvatar: usesFacehashAvatar(settings),
   };
 }
 
@@ -128,11 +159,53 @@ export function usesVimMode(settings: WorkspaceSettings): boolean {
   return settings.vimMode === true;
 }
 
+/**
+ * @name usesTypewriterScrolling
+ * @description Whether both editors keep the caret line vertically centred
+ * while typing. Off unless explicitly turned on.
+ *
+ * @example
+ * createTypewriterPlugin({ enabled: () => usesTypewriterScrolling(settings), scrollContainer });
+ */
+export function usesTypewriterScrolling(settings: WorkspaceSettings): boolean {
+  return settings["typewriterScrolling"] === true;
+}
+
+/**
+ * @name dimsFocusParagraphs
+ * @description Whether focus mode dims every block except the one holding the
+ * caret. Off unless explicitly turned on.
+ *
+ * @example
+ * createFocusDimPlugin(() => dimsFocusParagraphs(store.getState().settings));
+ */
+export function dimsFocusParagraphs(settings: WorkspaceSettings): boolean {
+  return settings["focusDimParagraphs"] === true;
+}
+
 export function vimCursorStyle(settings: WorkspaceSettings): VimCursorStyle {
   const value = settings["vimCursorStyle"];
   return VIM_CURSOR_STYLE_OPTIONS.some((option) => option.value === value)
     ? (value as VimCursorStyle)
     : "block";
+}
+
+export function paletteDensity(settings: WorkspaceSettings): PaletteDensity {
+  const value = settings["paletteDensity"];
+  return PALETTE_DENSITY_OPTIONS.some((option) => option.value === value)
+    ? (value as PaletteDensity)
+    : "normal";
+}
+
+/**
+ * What imports do with remote images in Markdown. Workspaces written before the
+ * setting existed have no key and ask on the next import that contains one.
+ */
+export function remoteImportImages(settings: WorkspaceSettings): RemoteImportImages {
+  const value = settings["remoteImportImages"];
+  return REMOTE_IMPORT_IMAGE_OPTIONS.some((option) => option.value === value)
+    ? (value as RemoteImportImages)
+    : "ask";
 }
 
 export function vimCursorBlinks(settings: WorkspaceSettings): boolean {
@@ -186,6 +259,15 @@ export function opensLinksInApp(settings: WorkspaceSettings): boolean {
  */
 export function usesAnimatedIcons(settings: WorkspaceSettings): boolean {
   return settings.animatedIcons !== false;
+}
+
+/**
+ * Whether the signed-in account shows a generated Facehash face instead of its
+ * initials. Workspaces written before the setting existed have no key, and the
+ * face is the default, so only an explicit `false` brings the initials back.
+ */
+export function usesFacehashAvatar(settings: WorkspaceSettings): boolean {
+  return settings.facehashAvatar !== false;
 }
 
 /**

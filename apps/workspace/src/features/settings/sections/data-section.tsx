@@ -62,8 +62,11 @@ import {
   settingsRowDetail,
   settingsRowLabel,
   settingsSection,
+  useEditableSettings,
 } from "./settings-shared";
 import type { SectionProps } from "./settings-shared";
+import { Select } from "@/shared/ui/select";
+import { REMOTE_IMPORT_IMAGE_OPTIONS } from "@/features/settings/settings-model";
 
 const maintenanceTimeFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -82,6 +85,7 @@ const RUNNING_LABELS: Record<MaintenanceKind, string> = {
 
 export function DataSection({ store }: SectionProps) {
   const browser = isBrowserRuntime();
+  const { settings, change } = useEditableSettings(store);
   const installable = useSyncExternalStore(subscribeInstallOffer, installOffered, () => false);
   const [storagePath, setStoragePath] = useState<string | null>(null);
   const [phase, setPhase] = useState<MaintenancePhase>(IDLE_MAINTENANCE);
@@ -421,6 +425,23 @@ export function DataSection({ store }: SectionProps) {
               <UploadIcon size={15} />
               Choose file…
             </button>
+          </div>
+          <div className={cn(settingsRow, settingsInputRow)}>
+            <span className={settingsRowLabel}>
+              Remote images in imports
+              <span className={settingsRowDescription}>
+                Images that Markdown links from the web, such as README badges. Downloading fetches
+                each one once during import and stores it in the workspace; notes never load them
+                from the web when opened.
+              </span>
+            </span>
+            <Select
+              label="Remote images in imports"
+              align="end"
+              value={settings.remoteImportImages}
+              options={REMOTE_IMPORT_IMAGE_OPTIONS}
+              onChange={(value) => change("remoteImportImages", value)}
+            />
           </div>
         </div>
       )}

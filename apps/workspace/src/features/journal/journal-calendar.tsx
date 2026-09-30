@@ -198,6 +198,7 @@ export function JournalCalendar({
                 onSelectDay(day.key);
               }}
               tabIndex={day.key === tabStop ? 0 : -1}
+              data-date-key={day.key}
               aria-label={dayLabel(day.key, hasEntry, metGoal)}
               aria-current={isToday ? "date" : undefined}
               aria-pressed={isSelected}

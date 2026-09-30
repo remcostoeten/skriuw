@@ -13,7 +13,12 @@ import {
 import { commitOperations } from "@/store/actions/workspace";
 import { setEditorMode } from "@/store/actions/editor-mode";
 import { registerPendingWork } from "@/shell/pending-work";
-import { usesVimMode, vimCursorBlinks, vimCursorStyle } from "@/features/settings/settings-model";
+import {
+  usesTypewriterScrolling,
+  usesVimMode,
+  vimCursorBlinks,
+  vimCursorStyle,
+} from "@/features/settings/settings-model";
 import type { VimCursorStyle } from "@/features/settings/settings-model";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type {
@@ -23,6 +28,7 @@ import type {
 } from "@skriuw/renderer-core/store/types";
 import type { DocumentEdge } from "./document-edges";
 import { JumpToLinePanel } from "./jump-to-line-panel";
+import { sourceTypewriterScrolling } from "./typewriter-scroll";
 import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
 import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
 import type {
@@ -294,6 +300,10 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
           ),
           placeholderCompartmentRef.current.of(
             placeholder(store.getState().settings.editorPlaceholder),
+          ),
+          sourceTypewriterScrolling(
+            () => usesTypewriterScrolling(store.getState().settings),
+            (transaction) => transaction.annotation(externalChange) === true,
           ),
           history(),
           drawSelection(),

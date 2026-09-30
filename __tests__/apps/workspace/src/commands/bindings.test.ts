@@ -944,3 +944,39 @@ test("rebinding onto a journal key names the journal action that owns it", () =>
     "journalNextWeek",
   );
 });
+
+test("focus mode and typewriter scrolling bind free chords on the main block", () => {
+  for (const id of ["toggleFocusMode", "toggleTypewriterScrolling"] as const) {
+    const definition = shortcutDefinitionOf(id);
+    const keys = effectiveShortcutKeys(definition, {});
+    assert.doesNotMatch(keys, /home|end|page|f\d/i, `${id} needs a key a 60% board has`);
+    assert.equal(findShortcutConflict({}, id, keys), null, `${id} collides`);
+    assert.equal(definition.worksWhileTyping, true, `${id} must work from the editor`);
+  }
+  assert.equal(effectiveShortcutKeys(shortcutDefinitionOf("toggleFocusMode"), {}), "mod+shift+f");
+  assert.equal(
+    effectiveShortcutKeys(shortcutDefinitionOf("toggleTypewriterScrolling"), {}),
+    "mod+shift+y",
+  );
+});
+
+test("focus mode is scoped to the notes route while typewriter scrolling works anywhere", () => {
+  assert.equal(shortcutDefinitionOf("toggleFocusMode").scopes, "notes-route");
+  assert.equal(shortcutDefinitionOf("toggleTypewriterScrolling").scopes, undefined);
+});
+
+test("mod+shift+f matches the focus mode binding and a plain shift+f keeps typing", () => {
+  const parsed = parseShortcut("mod+shift+f");
+  const base = { altKey: false, ctrlKey: false, metaKey: false, shiftKey: true, key: "F" };
+  assert.equal(
+    matchesShortcut({ ...base, [`${platformModifier}Key`]: true } as KeyboardEvent, parsed),
+    true,
+  );
+  assert.equal(matchesShortcut(base as KeyboardEvent, parsed), false);
+});
+
+function shortcutDefinitionOf(id: string) {
+  const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === id);
+  assert.ok(definition, id);
+  return definition;
+}
