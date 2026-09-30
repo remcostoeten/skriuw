@@ -25,7 +25,7 @@ export const SECTIONS = [
     label: "Editor",
     description: "Writing experience",
     searchText:
-      "font typography sans serif mono line spacing cozy comfortable relaxed empty note prompt placeholder writing",
+      "font typography sans serif mono line spacing cozy comfortable relaxed empty note prompt placeholder writing journal daily word goal target count streak",
     icon: FileTextIcon,
   },
   {

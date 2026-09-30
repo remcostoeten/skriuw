@@ -20,6 +20,7 @@ type Props = {
   month: MonthKey;
   selected: DateKey | null;
   entryDates: ReadonlySet<DateKey>;
+  goalDates?: ReadonlySet<DateKey>;
   onSelectDay: (key: DateKey) => void;
   onMonthChange: (month: MonthKey) => void;
 };
@@ -55,21 +56,25 @@ function tabStopDay(
   return days.find((day) => day.inMonth)?.key ?? null;
 }
 
-function dayLabel(key: DateKey, hasEntry: boolean): string {
-  return hasEntry ? `${formatLongDate(key)}, has an entry` : formatLongDate(key);
+function dayLabel(key: DateKey, hasEntry: boolean, metGoal: boolean): string {
+  if (!hasEntry) {
+    return formatLongDate(key);
+  }
+  return `${formatLongDate(key)}, has an entry${metGoal ? ", met the word goal" : ""}`;
 }
 
 /**
  * The Monday-first month grid shared by the journal sidebar and the notes
- * sidebar, with a dot under every day that has an entry. The month keeps a
- * single tab stop; arrows move the focused day, Home/End (or shift+left/right)
- * span the week, PageUp/PageDown (or shift+up/down) step a month, and Enter
- * opens the focused day.
+ * sidebar, with a dot under every day that has an entry, stretched to a dash on
+ * days that met the word goal. The month keeps a single tab stop; arrows move
+ * the focused day, Home/End (or shift+left/right) span the week, PageUp/PageDown
+ * (or shift+up/down) step a month, and Enter opens the focused day.
  */
 export function JournalCalendar({
   month,
   selected,
   entryDates,
+  goalDates,
   onSelectDay,
   onMonthChange,
 }: Props) {
@@ -172,6 +177,7 @@ export function JournalCalendar({
           const isSelected = day.key === selected;
           const isToday = day.key === today;
           const hasEntry = entryDates.has(day.key);
+          const metGoal = goalDates?.has(day.key) === true;
           let dayClass = "text-foreground/70 hover:border-border hover:bg-muted";
           if (!day.inMonth) {
             dayClass = "text-muted-foreground/25 hover:border-border hover:bg-muted";
@@ -193,7 +199,7 @@ export function JournalCalendar({
               }}
               tabIndex={day.key === tabStop ? 0 : -1}
               data-date-key={day.key}
-              aria-label={dayLabel(day.key, hasEntry)}
+              aria-label={dayLabel(day.key, hasEntry, metGoal)}
               aria-current={isToday ? "date" : undefined}
               aria-pressed={isSelected}
               className={`relative flex h-7 w-full items-center justify-center rounded-sm border border-transparent text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${dayClass}`}
@@ -202,9 +208,9 @@ export function JournalCalendar({
               {hasEntry && (
                 <span
                   aria-hidden="true"
-                  className={`absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${
-                    isSelected ? "bg-foreground/60" : "bg-primary"
-                  }`}
+                  className={`absolute bottom-0.5 left-1/2 h-1 -translate-x-1/2 rounded-full ${
+                    metGoal ? "w-2.5" : "w-1"
+                  } ${isSelected ? "bg-foreground/60" : "bg-primary"}`}
                 />
               )}
             </button>

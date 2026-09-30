@@ -9,6 +9,17 @@ import {
 } from "@/features/settings/settings-model";
 import type { SettingsViewModel, VimCursorStyle } from "@/features/settings/settings-model";
 import { cn } from "@/shared/lib/utils";
+import { Select, type SelectOption } from "@/shared/ui/select";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import { todayKey } from "@skriuw/renderer-core/journal/dates";
+import { setJournalWordGoal } from "@/features/journal/actions";
+import {
+  MAX_WORD_GOAL,
+  WORD_GOAL_PRESETS,
+  parseWordGoalInput,
+  selectWordGoalHistory,
+  wordGoalOn,
+} from "@/features/journal/word-goal";
 import {
   SettingCardPicker,
   SettingToggle,
@@ -26,6 +37,14 @@ import {
 import type { SectionProps } from "./settings-shared";
 
 const BROWSER_RUNTIME = isBrowserRuntime();
+
+const CUSTOM_GOAL = "custom";
+
+const WORD_GOAL_OPTIONS: readonly SelectOption<string>[] = [
+  { value: "0", label: "Off" },
+  ...WORD_GOAL_PRESETS.map((words) => ({ value: `${words}`, label: `${words} words` })),
+  { value: CUSTOM_GOAL, label: "Custom" },
+];
 
 const FONT_PREVIEW_STYLES: Record<string, CSSProperties> = {
   inter: {},
@@ -200,6 +219,10 @@ export function EditorSection({ store }: SectionProps) {
           onChange={(checked) => change("openNotesInTabs", checked)}
         />
       </div>
+      <div className={settingsGroup}>
+        <div className={settingsGroupTitle}>Journal</div>
+        <WordGoalSetting store={store} />
+      </div>
       {BROWSER_RUNTIME ? null : (
         <div className={settingsGroup}>
           <div className={settingsGroupTitle}>Links</div>
@@ -248,5 +271,76 @@ function PlaceholderField({ store, settings }: Props) {
         }}
       />
     </label>
+  );
+}
+
+function WordGoalSetting({ store }: { store: SectionProps["store"] }) {
+  const history = useRendererSelector(store, selectWordGoalHistory);
+  const goal = wordGoalOn(history, todayKey()) ?? 0;
+  const isPreset = goal === 0 || WORD_GOAL_PRESETS.includes(goal);
+  const [customOpen, setCustomOpen] = useState(!isPreset);
+  const [draft, setDraft] = useState(isPreset ? "" : `${goal}`);
+  const choice = customOpen || !isPreset ? CUSTOM_GOAL : `${goal}`;
+
+  useEffect(() => {
+    if (!isPreset) {
+      setDraft(`${goal}`);
+    }
+  }, [goal, isPreset]);
+
+  function choose(value: string): void {
+    if (value === CUSTOM_GOAL) {
+      setCustomOpen(true);
+      return;
+    }
+    setCustomOpen(false);
+    setJournalWordGoal(store, Number(value));
+  }
+
+  function commitDraft(): void {
+    const words = parseWordGoalInput(draft);
+    if (words !== null) {
+      setJournalWordGoal(store, words);
+    }
+  }
+
+  return (
+    <div className={cn(settingsRow, settingsInputRow)}>
+      <span className={settingsRowLabel}>
+        Daily word goal
+        <span className={settingsRowDescription}>
+          Shows quiet progress in the journal day header and counts goal days in the stats. A change
+          applies from today; earlier days keep the goal they had.
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center gap-2">
+        {choice === CUSTOM_GOAL && (
+          <input
+            type="text"
+            inputMode="numeric"
+            aria-label="Custom daily word goal"
+            data-directional-focus
+            className={cn(settingsTextInput, "w-20 tabular-nums")}
+            value={draft}
+            placeholder={`1 to ${MAX_WORD_GOAL}`}
+            onChange={(event) => setDraft(event.currentTarget.value)}
+            onBlur={commitDraft}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commitDraft();
+              }
+            }}
+          />
+        )}
+        <Select
+          label="Daily word goal"
+          value={choice}
+          options={WORD_GOAL_OPTIONS}
+          onChange={choose}
+          align="end"
+        />
+      </span>
+    </div>
   );
 }
