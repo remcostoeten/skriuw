@@ -21,7 +21,7 @@
 @keyframes skriuw-suggestion-enter {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(6px);
   }
 }
 
@@ -29,18 +29,39 @@
    never say "success" over a failure. */
 .skriuw-suggestion {
   --suggestion-accent: hsl(var(--muted-foreground) / 0.5);
+  position: absolute;
+  z-index: 35;
+  right: 16px;
+  bottom: 56px;
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  max-width: 680px;
+  max-height: calc(100% - 80px);
+  margin-inline: auto;
   animation: skriuw-suggestion-enter 180ms cubic-bezier(0.23, 1, 0.32, 1);
   overflow: hidden;
-  margin: 14px 0;
   border: 1px solid hsl(var(--border) / 0.5);
   border-radius: calc(var(--radius) + 6px);
   background: hsl(var(--card));
   box-shadow:
     inset 0 1px 0 hsl(var(--foreground) / 0.04),
     0 1px 2px hsl(var(--scrim) / 0.12),
-    0 12px 32px -8px hsl(var(--scrim) / 0.22);
+    0 18px 44px -8px hsl(var(--scrim) / 0.36);
   cursor: auto;
   user-select: text;
+}
+
+.skriuw-suggestion > * {
+  flex-shrink: 0;
+}
+
+.skriuw-suggestion > .skriuw-suggestion-text,
+.skriuw-suggestion > .skriuw-suggestion-diff,
+.skriuw-suggestion > .skriuw-run-plan {
+  flex-shrink: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .skriuw-suggestion[data-tone="live"] {
@@ -262,6 +283,20 @@
   line-height: 1.7;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.skriuw-suggestion-diff {
+  max-height: 42dvh;
+  overflow-y: auto;
+  padding: 6px 0 12px;
+}
+
+.skriuw-suggestion-diff-empty {
+  margin: 0;
+  padding: 4px 18px;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-sans);
+  font-size: 12px;
 }
 
 .skriuw-suggestion-text[data-empty] {

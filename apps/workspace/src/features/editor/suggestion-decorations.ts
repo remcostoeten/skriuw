@@ -4,20 +4,15 @@ import { Decoration, DecorationSet } from "prosemirror-view";
 /**
  * A proposed replacement for a document range, painted over the note without
  * touching it. The document is never a draft target: the range keeps its real
- * text and only gains a decoration, and the proposal lives in `host`, a caller
- * owned element the widget adopts. Dismissing therefore restores nothing,
- * because nothing was written.
+ * text and only gains a decoration, and the proposal itself is shown by the
+ * caller outside the document. Dismissing therefore restores nothing, because
+ * nothing was written.
  */
 export type SuggestionPreview = {
   /** Identifies the review session, so redrawing one is not dismissing it. */
   key: string;
   from: number;
   to: number;
-  /**
-   * Rendered as a block widget below the range. The caller keeps the element
-   * identity stable so its own tree survives every editor redraw.
-   */
-  host: HTMLElement;
   /** Held back until the text stops growing, so the range is not struck early. */
   settled: boolean;
   /** Fired once when the preview leaves the editor, however it left. */
@@ -33,47 +28,18 @@ export const suggestionPluginKey = new PluginKey<SuggestionState>("skriuw-sugges
 const PENDING_CLASS = "skriuw-suggestion-range";
 const SETTLED_CLASS = "skriuw-suggestion-range skriuw-suggestion-range--settled";
 
-/**
- * The block boundary after a position, so the widget lands between blocks
- * rather than inside the paragraph it comments on.
- */
-function blockEndAfter(state: EditorState, position: number): number {
-  const resolved = state.doc.resolve(Math.min(position, state.doc.content.size));
-  for (let depth = resolved.depth; depth > 0; depth -= 1) {
-    if (resolved.node(depth).isTextblock) {
-      return resolved.after(depth);
-    }
-  }
-  return state.doc.content.size;
-}
-
 function buildDecorations(state: EditorState, preview: SuggestionPreview | null): DecorationSet {
-  if (preview === null) {
+  if (preview === null || preview.to <= preview.from) {
     return DecorationSet.empty;
   }
-  const size = state.doc.content.size;
-  if (preview.from < 0 || preview.to > size || preview.from > preview.to) {
+  if (preview.from < 0 || preview.to > state.doc.content.size) {
     return DecorationSet.empty;
   }
-  const decorations: Decoration[] = [];
-  if (preview.to > preview.from) {
-    decorations.push(
-      Decoration.inline(preview.from, preview.to, {
-        class: preview.settled ? SETTLED_CLASS : PENDING_CLASS,
-      }),
-    );
-  }
-  decorations.push(
-    Decoration.widget(blockEndAfter(state, preview.to), () => preview.host, {
-      key: "skriuw-suggestion",
-      side: 1,
-      // The card carries its own buttons and text selection. Without this the
-      // editor claims every pointer and key event inside it as an edit.
-      stopEvent: () => true,
-      ignoreSelection: true,
+  return DecorationSet.create(state.doc, [
+    Decoration.inline(preview.from, preview.to, {
+      class: preview.settled ? SETTLED_CLASS : PENDING_CLASS,
     }),
-  );
-  return DecorationSet.create(state.doc, decorations);
+  ]);
 }
 
 /**

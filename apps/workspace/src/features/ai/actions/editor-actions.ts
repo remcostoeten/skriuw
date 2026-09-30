@@ -148,6 +148,19 @@ export const AI_EDITOR_ACTIONS: readonly AiEditorAction[] = [
     keywords: ["ask", "prompt", "instruct", "freeform"],
   },
   {
+    id: "custom-note",
+    promptId: "custom",
+    label: "Custom instruction on note",
+    scope: "note",
+    outcome: "text",
+    instruction: {
+      label: "Instruction",
+      placeholder: "Put every inline code snippet in its own code block…",
+      required: true,
+    },
+    keywords: ["ask", "prompt", "instruct", "freeform", "whole note", "edit note"],
+  },
+  {
     id: "continue",
     promptId: "continue",
     label: "Continue writing",
