@@ -267,5 +267,6 @@ happened, so R-P4 is unverified rather than met. See
 - [ADR-0048: a native mobile shell over the shared Rust core](adr/0048-native-mobile-shell-over-shared-core.md)
 - [ADR-0049: one shared icon system](adr/0049-shared-icon-system.md)
 - [ADR-0053: task due dates live in the checklist line](adr/0053-task-due-dates-live-in-the-checklist-line.md)
+- [ADR-0054: recurring tasks repeat in the document](adr/0054-recurring-tasks-repeat-in-the-document.md)
 
 Personal templates reuse ordinary source notes; saved searches and template membership use bounded workspace preferences. See [ADR-0038](adr/0038-personal-template-and-search-preferences.md). Modal Vim editing is one `vimMode` setting driving CodeMirror's Vim extension in the raw Markdown view and a document-model Vim plugin in the rendered editor; see [ADR-0042](adr/0042-modal-vim-editing.md). Sync refresh retries and candidate-filtered full-text search follow the [refresh and search contract](specs/refresh-and-filtered-search.md).

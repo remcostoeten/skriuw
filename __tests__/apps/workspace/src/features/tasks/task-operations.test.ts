@@ -228,3 +228,53 @@ test("a due date change refuses the same document disagreements as a toggle", ()
 
   assert.equal(result.status === "refused" && result.reason, "block-missing");
 });
+
+test("completing a repeating task writes the next occurrence and creates its task", () => {
+  const repeating = {
+    ...checkItem("block-1", false, "Call Patrick", "2026-08-20"),
+    attrs: {
+      checked: false,
+      taskId: "task-1",
+      blockId: "block-1",
+      dueDate: "2026-08-20",
+      recurrence: "every week",
+    },
+  };
+  const state = stateWith([task()], [record(documentJson(repeating))]);
+  const result = buildTaskToggle(state, "task-1", AT, "2026-09-30");
+
+  assert.equal(result.status, "ready");
+  const operations = result.status === "ready" ? result.operations : [];
+  assert.equal(operations.length, 2);
+  const [update, create] = operations;
+  assert.equal(update?.type, "update_task");
+  assert.equal(create?.type, "create_task");
+  assert.ok(update?.type === "update_task" && update.document);
+  const written = update.document.documentJson as {
+    content: { content: { attrs: Record<string, unknown> }[] }[];
+  };
+  const items = written.content[0]?.content;
+  assert.equal(items?.length, 2);
+  assert.equal(items?.[0]?.attrs.checked, true);
+  assert.equal(items?.[1]?.attrs.checked, false);
+  assert.equal(items?.[1]?.attrs.dueDate, "2026-08-27");
+  assert.match(update.document.markdown, /\u{1F501} every week \u{1F4C5} 2026-08-27/u);
+  if (create?.type !== "create_task") return;
+  assert.equal(create.task.id, items?.[1]?.attrs.taskId);
+  assert.equal(create.task.status, "todo");
+  assert.equal(create.task.dueDate, "2026-08-27");
+  assert.equal(create.task.title, "Call Patrick");
+  assert.deepEqual(create.task.source, { noteId: "note-a", blockId: items?.[1]?.attrs.blockId });
+  assert.equal(create.task.priority, "high");
+});
+
+test("reopening a repeating task does not create another", () => {
+  const repeating = {
+    ...checkItem("block-1", true),
+    attrs: { checked: true, taskId: "task-1", blockId: "block-1", recurrence: "every week" },
+  };
+  const state = stateWith([task({ status: "done" })], [record(documentJson(repeating))]);
+  const result = buildTaskToggle(state, "task-1", AT, "2026-09-30");
+
+  assert.equal(result.status === "ready" && result.operations.length, 1);
+});
