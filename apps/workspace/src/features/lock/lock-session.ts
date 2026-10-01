@@ -139,6 +139,7 @@ export function lockNode(store: RendererStore, id: string): void {
       return;
     }
     void commitOperations(store, [{ type: "set_node_locked", id, locked: true, at: Date.now() }])
+      .then(() => relockNotes(store))
       .then(() => {
         showToast({ message: node.kind === "folder" ? "Folder locked" : "Note locked" });
       })
