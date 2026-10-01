@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { UNSOURCED_GROUP_LABEL, projectTasks, taskGroupsEqual } from "@/features/tasks/tasks-model";
+import { projectTasks, taskGroupsEqual } from "@/features/tasks/tasks-model";
 import type { TaskSource, WorkspaceTask } from "@skriuw/renderer-core/contracts/workspace";
 import type { NodeRecord, RendererState } from "@skriuw/renderer-core/store/types";
 
@@ -49,111 +49,127 @@ function stateWith(
   } as RendererState;
 }
 
-test("tasks group under the title of the note they came from", () => {
+const TODAY = "2026-09-30";
+
+function labels(groups: ReturnType<typeof projectTasks>): string[] {
+  return groups.map((group) => group.label);
+}
+
+function ids(groups: ReturnType<typeof projectTasks>, index: number): string[] {
+  return groups[index]?.rows.map((row) => row.id) ?? [];
+}
+
+test("tasks group by due date in a fixed order", () => {
   const groups = projectTasks(
-    stateWith([task("t1", { source: source("note-a") })], [note("note-a", "Skriuw")]),
+    stateWith([
+      task("none"),
+      task("later", { dueDate: "2026-10-04" }),
+      task("now", { dueDate: TODAY }),
+      task("late", { dueDate: "2026-09-12" }),
+    ]),
+    TODAY,
   );
 
-  assert.equal(groups.length, 1);
-  assert.equal(groups[0]?.noteId, "note-a");
-  assert.equal(groups[0]?.noteTitle, "Skriuw");
+  assert.deepEqual(labels(groups), ["Overdue", "Today", "Upcoming", "No date"]);
   assert.deepEqual(
-    groups[0]?.rows.map((row) => row.id),
-    ["t1"],
+    groups.map((group) => group.rows.map((row) => row.id)),
+    [["late"], ["now"], ["later"], ["none"]],
   );
-  assert.equal(groups[0]?.rows[0]?.blockId, "note-a-block");
-  assert.equal(groups[0]?.rows[0]?.detached, false);
 });
 
-test("two tasks from one note share a group, ordered by creation", () => {
+test("only open work is overdue; completed past work moves to the end", () => {
   const groups = projectTasks(
-    stateWith(
-      [
-        task("late", { source: source("note-a"), createdAt: 20 }),
-        task("early", { source: source("note-a"), createdAt: 10 }),
-      ],
-      [note("note-a", "Skriuw")],
-    ),
+    stateWith([
+      task("open", { dueDate: "2026-09-01" }),
+      task("closed", { dueDate: "2026-09-01", status: "done" }),
+    ]),
+    TODAY,
   );
 
-  assert.equal(groups.length, 1);
-  assert.deepEqual(
-    groups[0]?.rows.map((row) => row.id),
-    ["early", "late"],
-  );
+  assert.deepEqual(labels(groups), ["Overdue", "Completed earlier"]);
+  assert.deepEqual(ids(groups, 1), ["closed"]);
+  assert.equal(groups[1]?.rows[0]?.done, true);
 });
 
-test("a task with no source lands in the trailing no-source group", () => {
+test("completed tasks due today or later keep their date group", () => {
   const groups = projectTasks(
-    stateWith(
-      [task("t1", { source: source("note-a") }), task("loose", { detachedAt: 5 })],
-      [note("note-a", "Skriuw")],
-    ),
+    stateWith([
+      task("today", { dueDate: TODAY, status: "done" }),
+      task("undated", { status: "done" }),
+    ]),
+    TODAY,
   );
 
-  assert.deepEqual(
-    groups.map((group) => group.noteTitle),
-    ["Skriuw", UNSOURCED_GROUP_LABEL],
-  );
-  assert.equal(groups[1]?.rows[0]?.detached, true);
-  assert.equal(groups[1]?.rows[0]?.noteId, null);
-});
-
-test("a task whose source note no longer resolves is kept, not dropped", () => {
-  const groups = projectTasks(stateWith([task("orphan", { source: source("purged") })]));
-
-  assert.equal(groups.length, 1);
-  assert.equal(groups[0]?.noteTitle, UNSOURCED_GROUP_LABEL);
-  assert.deepEqual(
-    groups[0]?.rows.map((row) => row.id),
-    ["orphan"],
-  );
-  assert.equal(groups[0]?.rows[0]?.noteId, null);
-  assert.equal(groups[0]?.rows[0]?.blockId, null);
-  assert.equal(groups[0]?.rows[0]?.detached, false);
-});
-
-test("groups are ordered deterministically across repeated projections", () => {
-  const state = stateWith(
-    [
-      task("t1", { source: source("note-b") }),
-      task("t2", { source: source("note-a") }),
-      task("t3", { source: source("note-c") }),
-    ],
-    [note("note-a", "Alpha"), note("note-b", "Beta"), note("note-c", "Gamma")],
-  );
-
-  assert.deepEqual(
-    projectTasks(state).map((group) => group.noteTitle),
-    ["Alpha", "Beta", "Gamma"],
-  );
-  assert.deepEqual(projectTasks(state), projectTasks(state));
-});
-
-test("completed tasks are marked done and stay in the list", () => {
-  const groups = projectTasks(
-    stateWith(
-      [task("t1", { status: "done", source: source("note-a") })],
-      [note("note-a", "Skriuw")],
-    ),
-  );
-
-  assert.equal(groups[0]?.rows.length, 1);
+  assert.deepEqual(labels(groups), ["Today", "No date"]);
   assert.equal(groups[0]?.rows[0]?.done, true);
 });
 
-test("taskGroupsEqual holds for structurally identical projections and breaks on a status flip", () => {
-  const nodes = [note("note-a", "Skriuw")];
-  const before = projectTasks(stateWith([task("t1", { source: source("note-a") })], nodes));
-  const same = projectTasks(stateWith([task("t1", { source: source("note-a") })], nodes));
-  const after = projectTasks(
-    stateWith([task("t1", { status: "done", source: source("note-a") })], nodes),
+test("the same record moves from Upcoming to Today to Overdue as days pass", () => {
+  const state = stateWith([task("t1", { dueDate: "2026-10-01" })]);
+
+  assert.deepEqual(labels(projectTasks(state, TODAY)), ["Upcoming"]);
+  assert.deepEqual(labels(projectTasks(state, "2026-10-01")), ["Today"]);
+  assert.deepEqual(labels(projectTasks(state, "2026-10-02")), ["Overdue"]);
+});
+
+test("rows run by date, then source note, then creation", () => {
+  const groups = projectTasks(
+    stateWith(
+      [
+        task("beta", { source: source("note-b"), dueDate: "2026-10-03" }),
+        task("alpha-late", { source: source("note-a"), dueDate: "2026-10-03", createdAt: 20 }),
+        task("alpha-early", { source: source("note-a"), dueDate: "2026-10-03", createdAt: 10 }),
+        task("loose", { dueDate: "2026-10-03", detachedAt: 5 }),
+        task("sooner", { source: source("note-b"), dueDate: "2026-10-02" }),
+      ],
+      [note("note-a", "Alpha"), note("note-b", "Beta")],
+    ),
+    TODAY,
   );
 
+  assert.deepEqual(ids(groups, 0), ["sooner", "alpha-early", "alpha-late", "beta", "loose"]);
+});
+
+test("a row keeps its source note for the jump and marks work with none", () => {
+  const groups = projectTasks(
+    stateWith(
+      [
+        task("linked", { source: source("note-a") }),
+        task("loose", { detachedAt: 5 }),
+        task("orphan", { source: source("purged") }),
+      ],
+      [note("note-a", "Skriuw")],
+    ),
+    TODAY,
+  );
+  const rows = new Map(groups[0]?.rows.map((row) => [row.id, row]));
+
+  assert.equal(rows.get("linked")?.noteTitle, "Skriuw");
+  assert.equal(rows.get("linked")?.blockId, "note-a-block");
+  assert.equal(rows.get("loose")?.detached, true);
+  assert.equal(rows.get("loose")?.noteId, null);
+  assert.equal(rows.get("orphan")?.noteId, null);
+  assert.equal(rows.get("orphan")?.detached, false);
+});
+
+test("a malformed stored due date reads as no date", () => {
+  const groups = projectTasks(stateWith([task("t1", { dueDate: "someday" })]), TODAY);
+
+  assert.deepEqual(labels(groups), ["No date"]);
+  assert.equal(groups[0]?.rows[0]?.dueDate, null);
+});
+
+test("taskGroupsEqual holds for identical projections and breaks on a status or date change", () => {
+  const before = projectTasks(stateWith([task("t1")]), TODAY);
+  const same = projectTasks(stateWith([task("t1")]), TODAY);
+  const done = projectTasks(stateWith([task("t1", { status: "done" })]), TODAY);
+  const dated = projectTasks(stateWith([task("t1", { dueDate: "2026-12-01" })]), TODAY);
+
   assert.equal(taskGroupsEqual(before, same), true);
-  assert.equal(taskGroupsEqual(before, after), false);
+  assert.equal(taskGroupsEqual(before, done), false);
+  assert.equal(taskGroupsEqual(before, dated), false);
 });
 
 test("an empty task map projects to no groups", () => {
-  assert.deepEqual(projectTasks(stateWith([])), []);
+  assert.deepEqual(projectTasks(stateWith([]), TODAY), []);
 });

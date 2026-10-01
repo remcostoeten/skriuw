@@ -34,6 +34,8 @@ export type ShortcutActionId =
   | "lockNotesNow"
   | "toggleEditorMode"
   | "toggleVimMode"
+  | "toggleFocusMode"
+  | "toggleTypewriterScrolling"
   | "renameCurrentNote"
   | "trashCurrentNote"
   | "duplicateCurrentNote"
@@ -91,6 +93,8 @@ export type ShortcutActionId =
   | "toggleChecklistItem"
   | "jumpToLine"
   | "toggleDiagramSource"
+  | "insertInlineMath"
+  | "insertMathBlock"
   | "goToDocumentStart"
   | "goToDocumentEnd"
   | "findInNote"
@@ -406,6 +410,25 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Toggle Vim mode",
     description:
       "Modal Vim editing in the rendered editor and in raw Markdown mode. Escape returns to normal mode; i, a, o and friends enter insert mode.",
+    group: "Workspace",
+    worksWhileTyping: true,
+  },
+  {
+    id: "toggleFocusMode",
+    keys: "mod+shift+f",
+    label: "Toggle focus mode",
+    description:
+      "Hide the rail, sidebar, inspector, tab strip, and toolbar so only the note remains. The same keys or Escape bring the workspace back; with Vim on, Escape stays with Vim.",
+    group: "Workspace",
+    worksWhileTyping: true,
+    scopes: "notes-route",
+  },
+  {
+    id: "toggleTypewriterScrolling",
+    keys: "mod+shift+y",
+    label: "Toggle typewriter scrolling",
+    description:
+      "Keep the caret line vertically centred while typing, in the rendered editor and in raw Markdown mode.",
     group: "Workspace",
     worksWhileTyping: true,
   },
@@ -837,6 +860,26 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Toggle diagram source",
     description:
       "Flip the Mermaid code block under the caret between its rendered preview and its source. Enter on a selected preview opens the source; Escape in the source returns to the preview.",
+    group: "Editor",
+    worksWhileTyping: true,
+    boundInEditor: true,
+  },
+  {
+    id: "insertInlineMath",
+    keys: "mod+alt+e",
+    label: "Insert inline math",
+    description:
+      "Turn the selected text into inline math, or insert an empty formula and open its TeX field. On a selected formula it opens the field; Enter, Escape, or Tab return to the text.",
+    group: "Editor",
+    worksWhileTyping: true,
+    boundInEditor: true,
+  },
+  {
+    id: "insertMathBlock",
+    keys: "mod+alt+shift+e",
+    label: "Insert math block",
+    description:
+      "Insert a display math block with a live KaTeX preview, using the selected text as its TeX. Typing $$ on its own line and pressing Enter does the same; Escape returns to the text.",
     group: "Editor",
     worksWhileTyping: true,
     boundInEditor: true,

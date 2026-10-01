@@ -58,7 +58,7 @@ function taskPromotionOperations(
         title: link.title,
         status: link.status,
         priority: "medium" as const,
-        dueDate: null,
+        dueDate: link.dueDate,
         description: "",
         tagIds: [],
         assigneeIds: [],

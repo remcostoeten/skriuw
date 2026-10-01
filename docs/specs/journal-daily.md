@@ -13,6 +13,8 @@ Keyboard navigation and the date grammar are in
 | `apps/workspace/src/features/journal/on-this-day-section.tsx` | The section under the editor. |
 | `apps/workspace/src/features/journal/day-swipe.ts` | The heading swipe recognizer. Pure. |
 | `apps/workspace/src/features/journal/model.ts` | The entry projection both the sidebar and the section read. |
+| `apps/workspace/src/features/journal/word-goal.ts` | The daily word goal history, progress milestones, and goal stats. Pure. |
+| `apps/workspace/src/features/journal/word-goal-control.tsx` | The goal ring and menu in the day header. |
 
 ## Starting from a template
 
@@ -79,6 +81,38 @@ logged yet". Counts per mood follow, listing only the moods that occur.
 
 The trend is a pure function over the projected entry list, so opening the
 tab does no I/O.
+
+## Word goal
+
+`apps/workspace/src/features/journal/word-goal.ts` holds the goal history and
+the goal statistics; `word-goal-control.tsx` is the header control.
+
+The workspace setting `journalWordGoals` is a list of changes, each
+`{ from: DateKey, words: number }`, where zero words turns the goal off. The
+goal of a day is the latest change dated on or before it, so a change made
+today applies from today on and every earlier day keeps the goal that applied
+when it was written. A second change on the same day replaces the first, and
+the list keeps at most 100 changes. Resetting preferences turns the goal off
+from today without rewriting the history.
+
+The history lives in settings rather than on each entry, so meeting a goal
+writes nothing to the entry and typing never queues a property write.
+
+- The header shows a 14px ring and "312 / 500" for a day that has a goal, and
+  a dashed ring alone otherwise. Either opens a menu of Off, 250, 500, 750, and
+  Custom, which turns the ring into a number field (Enter saves, Escape
+  cancels). The menu always sets the goal from today.
+- The count is the entry's saved word count from the store, the same number
+  the footer shows. The goal adds no work to the keystroke path; it updates
+  when the editor saves.
+- A polite status region announces "Halfway to your 500 word goal." and
+  "Word goal reached: 500 words." when a save crosses those points on the open
+  day. Opening a day, switching days, or changing the goal primes the tracker
+  without announcing.
+- The Stats tab adds **Goal days** and **Goal streak** once a goal has ever
+  been set. The streak counts consecutive met days ending today, or yesterday
+  while today is still short. The journal calendar draws a goal day's entry dot
+  as a short dash and names it in the day's label.
 
 ## Stepping days by touch
 

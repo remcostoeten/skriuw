@@ -306,6 +306,41 @@
   text-decoration: line-through;
 }
 
+.prosemirror-host .ProseMirror .check-item-due {
+  flex: none;
+  align-self: flex-start;
+  margin-top: calc(0.2em + (1.7em - 20px) / 2);
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 20px;
+  color: hsl(var(--theme-text-secondary));
+  background: hsl(var(--foreground) / 0.05);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.prosemirror-host .ProseMirror .check-item-due[data-due-state="today"] {
+  color: hsl(var(--foreground));
+}
+
+.prosemirror-host .ProseMirror .check-item-due[data-due-state="overdue"] {
+  color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 0.1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .prosemirror-host .ProseMirror .check-item-due:hover {
+    background: hsl(var(--foreground) / 0.09);
+  }
+}
+
+.prosemirror-host .ProseMirror .check-item-due:focus-visible {
+  outline: 2px solid hsl(var(--primary) / 0.75);
+  outline-offset: 2px;
+}
+
 .prosemirror-host .ProseMirror ul.toggle-list {
   list-style: none;
   padding-left: 0.2em;
@@ -664,6 +699,10 @@
 
 .raw-markdown-token-person {
   color: hsl(var(--project-amber));
+}
+
+.raw-markdown-token-math {
+  color: hsl(var(--project-teal));
 }
 
 .raw-markdown-token-task-done {
@@ -2601,4 +2640,147 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
     background-color: hsl(var(--destructive) / 0.16);
     color: hsl(var(--destructive));
   }
+}
+
+.prosemirror-host .ProseMirror .math-block {
+  position: relative;
+  margin: 0.4em 0;
+  border-radius: calc(var(--radius) + 2px);
+}
+
+.prosemirror-host .ProseMirror .math-block-source {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 0.9em;
+}
+
+.prosemirror-host .ProseMirror .math-block[data-state="empty"] .math-block-source code:empty::before {
+  content: "TeX, e.g. E = mc^2";
+  color: hsl(var(--muted-foreground) / 0.7);
+  pointer-events: none;
+}
+
+/* Clipped rather than hidden so a caret arriving by keyboard still lands in the source. */
+.prosemirror-host .ProseMirror .math-block:not(.is-editing)[data-state="rendered"] .math-block-source {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.prosemirror-host .ProseMirror .math-block-preview {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 4px 12px;
+  color: hsl(var(--foreground));
+  cursor: text;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.prosemirror-host .ProseMirror .math-block-preview:empty,
+.prosemirror-host .ProseMirror .math-block[data-state="pending"] .math-block-preview {
+  display: none;
+}
+
+.prosemirror-host .ProseMirror .math-block-preview .katex-display {
+  margin: 0.25em 0;
+}
+
+.prosemirror-host .ProseMirror .math-block.is-editing .math-block-preview {
+  border-top: 1px dashed hsl(var(--border));
+}
+
+.prosemirror-host .ProseMirror .math-error {
+  display: block;
+  padding: 2px 12px 4px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 16px;
+  color: hsl(var(--destructive) / 0.85);
+  white-space: normal;
+  user-select: none;
+}
+
+.prosemirror-host .ProseMirror .math-error[hidden],
+.prosemirror-host .ProseMirror .math-error:empty {
+  display: none;
+}
+
+.prosemirror-host .ProseMirror .math-inline {
+  position: relative;
+  display: inline-block;
+  padding: 0 2px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.prosemirror-host .ProseMirror .math-inline[data-state="empty"] .math-inline-render::before {
+  content: "\2211";
+  color: hsl(var(--muted-foreground));
+}
+
+.prosemirror-host .ProseMirror .math-inline[data-state="pending"] .math-inline-render,
+.prosemirror-host .ProseMirror .math-inline[data-state="error"] .math-inline-render {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.prosemirror-host .ProseMirror .math-inline[data-state="error"] .math-inline-render {
+  color: hsl(var(--destructive) / 0.85);
+}
+
+.prosemirror-host .ProseMirror .math-inline.ProseMirror-selectednode,
+.prosemirror-host .ProseMirror .math-inline[data-editing="true"] {
+  background: hsl(var(--theme-bg-active) / 0.6);
+  outline: 1px solid hsl(var(--ring) / 0.6);
+}
+
+.prosemirror-host .ProseMirror .math-inline-editor {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) + 2px);
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  box-shadow: 0 6px 20px hsl(0 0% 0% / 0.18);
+  cursor: auto;
+}
+
+.prosemirror-host .ProseMirror .math-inline-input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.prosemirror-host .ProseMirror .math-inline-input:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 0;
+}
+
+.prosemirror-host .ProseMirror .math-inline-editor .math-error {
+  padding: 0 2px;
+}
+
+.prosemirror-host .ProseMirror .math-inline-hint {
+  padding: 0 2px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
 }

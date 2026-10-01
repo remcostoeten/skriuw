@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { buildTaskToggle } from "@/features/tasks/task-operations";
+import { buildTaskDueDate, buildTaskToggle } from "@/features/tasks/task-operations";
 import { countWords, productSchema, serializeProductMarkdown } from "@/features/editor/schema";
 import type { WorkspaceTask } from "@skriuw/renderer-core/contracts/workspace";
 import type { DocumentRecord, RendererState } from "@skriuw/renderer-core/store/types";
@@ -25,10 +25,15 @@ function task(overrides: Partial<WorkspaceTask> = {}): WorkspaceTask {
   };
 }
 
-function checkItem(blockId: string, checked = false, title = "Call Patrick") {
+function checkItem(
+  blockId: string,
+  checked = false,
+  title = "Call Patrick",
+  dueDate: string | null = null,
+) {
   return {
     type: "check_item",
-    attrs: { checked, taskId: "task-1", blockId },
+    attrs: { checked, taskId: "task-1", blockId, dueDate },
     content: [{ type: "paragraph", content: [{ type: "text", text: title }] }],
   };
 }
@@ -168,4 +173,58 @@ test("the source document is left untouched by the rewrite", () => {
   readyToggle(stateWith([task()], [record(json)]));
 
   assert.equal(json.content[0]?.content?.[0]?.attrs.checked, false);
+});
+
+function dueDateWrite(state: RendererState, dueDate: string | null) {
+  const result = buildTaskDueDate(state, "task-1", dueDate, AT);
+  assert.equal(result.status, "ready");
+  const operation = result.status === "ready" ? result.operations[0] : undefined;
+  assert.equal(operation?.type, "update_task");
+  return operation as Extract<typeof operation, { type: "update_task" }>;
+}
+
+test("setting a due date writes the record and the checklist item's Markdown token together", () => {
+  const operation = dueDateWrite(
+    stateWith([task({ dueDate: null })], [record(documentJson(checkItem("block-1")))]),
+    "2026-10-01",
+  );
+
+  assert.equal(operation.task.dueDate, "2026-10-01");
+  assert.equal(operation.task.status, "todo");
+  assert.equal(operation.task.updatedAt, AT);
+  const rewritten = operation.document!.documentJson as ReturnType<typeof documentJson>;
+  assert.equal(rewritten.content[0]?.content?.[0]?.attrs.dueDate, "2026-10-01");
+  assert.match(operation.document!.markdown, /- \[ \] Call Patrick .*\u{1F4C5} 2026-10-01$/mu);
+});
+
+test("clearing a due date removes the token from the source line", () => {
+  const dated = documentJson(checkItem("block-1", false, "Call Patrick", "2026-08-20"));
+  const operation = dueDateWrite(stateWith([task()], [record(dated)]), null);
+
+  assert.equal(operation.task.dueDate, null);
+  assert.doesNotMatch(operation.document!.markdown, /\u{1F4C5}/u);
+});
+
+test("a detached task takes a due date as a lone record write", () => {
+  const operation = dueDateWrite(stateWith([task({ source: null, detachedAt: 9 })]), "2026-10-01");
+
+  assert.equal(operation.document, null);
+  assert.equal(operation.task.dueDate, "2026-10-01");
+});
+
+test("a due date that is not a calendar day is refused", () => {
+  const result = buildTaskDueDate(stateWith([task()]), "task-1", "2026-02-30", AT);
+
+  assert.equal(result.status === "refused" && result.reason, "invalid-date");
+});
+
+test("a due date change refuses the same document disagreements as a toggle", () => {
+  const result = buildTaskDueDate(
+    stateWith([task()], [record(documentJson(checkItem("block-other")))]),
+    "task-1",
+    "2026-10-01",
+    AT,
+  );
+
+  assert.equal(result.status === "refused" && result.reason, "block-missing");
 });

@@ -35,6 +35,7 @@ import {
 } from "./drawing-layer";
 import {
   Schema,
+  type DOMOutputSpec,
   type MarkSpec,
   type MarkType,
   type Node as ProseMirrorNode,
@@ -69,6 +70,16 @@ import {
   exitMermaidSource,
 } from "./code-block-nodeview";
 import { taskCheckItemAttrs } from "./task-promotion";
+import { createDueDateChipPlugin, dueDateChipDom, dueDateInputRule } from "./task-due-date";
+import { DUE_DATE_SIGNIFIER, isDueDate } from "@/features/tasks/due-dates";
+import {
+  createMathEditingPlugin,
+  editSelectedInlineMath,
+  enterAdjacentMathBlock,
+  exitMathBlock,
+  mathBlockFromDollarFence,
+} from "./math-commands";
+import { inlineMathRule, MATH_FENCE, mathBlockRule, mathDollarEscapes } from "./math-markdown";
 
 export type SlashTrigger = "/" | ":";
 
@@ -409,9 +420,12 @@ const checkItemSpec: NodeSpec = {
     checked: { default: false },
     taskId: { default: null },
     blockId: { default: null },
+    dueDate: { default: null },
   },
   toDOM: (node) => {
     const contentId = `check-item-content-${++checkboxDomId}`;
+    const dueDate: unknown = node.attrs.dueDate;
+    const content: DOMOutputSpec = ["div", { class: "check-item-content", id: contentId }, 0];
     return [
       "li",
       {
@@ -419,6 +433,7 @@ const checkItemSpec: NodeSpec = {
         "data-checked": node.attrs.checked ? "true" : "false",
         ...(node.attrs.taskId ? { "data-task-id": String(node.attrs.taskId) } : {}),
         ...(node.attrs.blockId ? { "data-block-id": String(node.attrs.blockId) } : {}),
+        ...(isDueDate(dueDate) ? { "data-due-date": dueDate } : {}),
       },
       [
         "span",
@@ -432,18 +447,25 @@ const checkItemSpec: NodeSpec = {
           "aria-keyshortcuts": "Alt+Shift+Enter",
         },
       ],
-      ["div", { class: "check-item-content", id: contentId }, 0],
+      content,
+      ...(isDueDate(dueDate) ? [dueDateChipDom(dueDate, node.attrs.checked === true)] : []),
     ];
   },
   parseDOM: [
     {
       tag: "li[data-checked]",
       priority: 60,
-      getAttrs: (dom) => ({
-        checked: dom.getAttribute("data-checked") === "true",
-        taskId: dom.getAttribute("data-task-id"),
-        blockId: dom.getAttribute("data-block-id"),
-      }),
+      contentElement: (dom) =>
+        dom.querySelector<HTMLElement>(":scope > .check-item-content") ?? dom,
+      getAttrs: (dom) => {
+        const dueDate = dom.getAttribute("data-due-date");
+        return {
+          checked: dom.getAttribute("data-checked") === "true",
+          taskId: dom.getAttribute("data-task-id"),
+          blockId: dom.getAttribute("data-block-id"),
+          dueDate: isDueDate(dueDate) ? dueDate : null,
+        };
+      },
     },
   ],
 };
@@ -561,6 +583,45 @@ const codeBlockSpec: NodeSpec = {
       tag: "pre",
       preserveWhitespace: "full",
       getAttrs: (dom) => ({ params: codeBlockLanguage(dom) }),
+    },
+  ],
+};
+
+const mathBlockSpec: NodeSpec = {
+  content: "text*",
+  marks: "",
+  group: "block",
+  code: true,
+  defining: true,
+  toDOM: () => ["pre", { class: "math-block", "data-math": "block" }, ["code", 0]],
+  parseDOM: [
+    {
+      tag: "pre[data-math='block']",
+      priority: 60,
+      preserveWhitespace: "full",
+    },
+  ],
+};
+
+const mathInlineSpec: NodeSpec = {
+  inline: true,
+  group: "inline",
+  atom: true,
+  selectable: true,
+  attrs: {
+    tex: { default: "" },
+  },
+  leafText: (node) => `$${String(node.attrs.tex)}$`,
+  toDOM: (node) => [
+    "span",
+    { class: "math-inline", "data-math": "inline", "data-tex": String(node.attrs.tex) },
+    String(node.attrs.tex),
+  ],
+  parseDOM: [
+    {
+      tag: "span[data-math='inline']",
+      priority: 60,
+      getAttrs: (dom) => ({ tex: dom.getAttribute("data-tex") ?? dom.textContent ?? "" }),
     },
   ],
 };
@@ -685,6 +746,8 @@ const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
   .addToEnd("mention_ref", mentionRefSpec)
   .addToEnd("image_ref", imageRefSpec)
   .addToEnd("media", mediaSpec)
+  .addToEnd("math_block", mathBlockSpec)
+  .addToEnd("math_inline", mathInlineSpec)
   .addToEnd("table", tableSpecs.table)
   .addToEnd("table_row", tableSpecs.table_row)
   .addToEnd("table_cell", tableSpecs.table_cell)
@@ -1278,7 +1341,9 @@ export function createProductPlugins(): Plugin[] {
     createSuggestionPlugin(),
     createCodeHighlightPlugin(),
     createMermaidPreviewSelectionPlugin(),
+    createMathEditingPlugin(),
     createCheckboxTogglePlugin(),
+    createDueDateChipPlugin(),
     createToggleListPlugin(),
     inputRules({
       rules: [
@@ -1288,6 +1353,7 @@ export function createProductPlugins(): Plugin[] {
         taskInputRule(),
         checkListInputRule(),
         toggleListInputRule(),
+        dueDateInputRule(),
         textblockTypeInputRule(/^(#{1,6})\s$/, heading, (match) => ({
           level: match[1]?.length ?? 1,
         })),
@@ -1324,12 +1390,17 @@ export function createProductPlugins(): Plugin[] {
       "Mod-a": selectBlockThenDocument(),
       "Alt-ArrowUp": moveSelectedBlock(-1),
       "Alt-ArrowDown": moveSelectedBlock(1),
-      ArrowDown: exitTerminalCodeBlockOnArrowDown,
+      ArrowDown: chainCommands(enterAdjacentMathBlock("down"), exitTerminalCodeBlockOnArrowDown),
+      ArrowUp: enterAdjacentMathBlock("up"),
+      ArrowLeft: enterAdjacentMathBlock("left"),
+      ArrowRight: enterAdjacentMathBlock("right"),
       "Alt-Enter": toggleItemAtSelection,
       "Alt-Shift-Enter": toggleCheckItemAtSelection,
-      Escape: exitMermaidSource,
+      Escape: chainCommands(exitMermaidSource, exitMathBlock),
       Enter: chainCommands(
         enterMermaidSource,
+        editSelectedInlineMath,
+        mathBlockFromDollarFence,
         splitTaskItem(checkItem),
         splitListItem(toggleItem, { open: true }),
         splitListItem(listItem),
@@ -1471,6 +1542,10 @@ const productMarkdownSerializer = new MarkdownSerializer(
             : "";
         state.write(` <!--skriuw-task:${node.attrs.taskId}${blockId}-->`);
       }
+      if (isDueDate(node.attrs.dueDate)) {
+        const separator = paragraph.childCount > 0 ? " " : "";
+        state.write(`${separator}${DUE_DATE_SIGNIFIER} ${node.attrs.dueDate}`);
+      }
       state.closeBlock(paragraph);
       node.forEach((child, _offset, index) => {
         if (index > 0) state.render(child, node, index);
@@ -1521,6 +1596,32 @@ const productMarkdownSerializer = new MarkdownSerializer(
       state.write("```");
       state.closeBlock(node);
     },
+    math_block(state, node) {
+      state.write(`${MATH_FENCE}\n`);
+      state.text(node.textContent, false);
+      state.ensureNewLine();
+      state.write(MATH_FENCE);
+      state.closeBlock(node);
+    },
+    math_inline(state, node) {
+      const tex = String(node.attrs.tex ?? "").trim();
+      if (tex) state.write(`$${tex}$`);
+    },
+    text(state, node, parent, index) {
+      const text = node.text ?? "";
+      const escapes = isPlainAutolinkText(node) ? [] : mathDollarEscapes(parent, index);
+      if (escapes.length === 0) {
+        defaultMarkdownSerializer.nodes.text?.(state, node, parent, index);
+        return;
+      }
+      let cursor = 0;
+      for (const offset of escapes) {
+        state.text(text.slice(cursor, offset));
+        state.write("\\$");
+        cursor = offset + 1;
+      }
+      state.text(text.slice(cursor));
+    },
     raw_markdown(state, node) {
       state.write(node.textContent);
       state.closeBlock(node);
@@ -1560,6 +1661,10 @@ const productMarkdownSerializer = new MarkdownSerializer(
   },
 );
 
+function isPlainAutolinkText(node: ProseMirrorNode): boolean {
+  return node.marks.some((mark) => mark.type.name === "link" && mark.attrs.href === node.text);
+}
+
 export function serializeProductMarkdown(document: ProseMirrorNode): string {
   const body =
     document.childCount === 1 && document.firstChild?.type.name === "raw_markdown"
@@ -1582,7 +1687,10 @@ type MarkdownTokenizer = typeof defaultMarkdownParser.tokenizer;
 type InlineRuleState = Parameters<Parameters<MarkdownTokenizer["inline"]["ruler"]["before"]>[2]>[0];
 type CoreRuleState = Parameters<Parameters<MarkdownTokenizer["core"]["ruler"]["push"]>[1]>[0];
 type MarkdownToken = CoreRuleState["tokens"][number];
-type MarkdownRuler = MarkdownTokenizer["inline"]["ruler"] | MarkdownTokenizer["core"]["ruler"];
+type MarkdownRuler =
+  | MarkdownTokenizer["inline"]["ruler"]
+  | MarkdownTokenizer["block"]["ruler"]
+  | MarkdownTokenizer["core"]["ruler"];
 
 function hasMarkdownRule(ruler: MarkdownRuler, name: string): boolean {
   if (!("__rules" in ruler) || !Array.isArray(ruler.__rules)) return false;
@@ -1692,6 +1800,16 @@ function richFormattingTagRule(state: InlineRuleState, silent: boolean): boolean
   }
   state.pos += highlight[0].length;
   return true;
+}
+
+if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.inline.ruler, "math_inline")) {
+  defaultMarkdownParser.tokenizer.inline.ruler.before("escape", "math_inline", inlineMathRule);
+}
+
+if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.block.ruler, "math_block")) {
+  defaultMarkdownParser.tokenizer.block.ruler.before("fence", "math_block", mathBlockRule, {
+    alt: ["paragraph", "reference", "blockquote", "list"],
+  });
 }
 
 if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.inline.ruler, "skriuw_rich_formatting")) {
@@ -1825,6 +1943,11 @@ const productMarkdownParser = new MarkdownParser(productSchema, defaultMarkdownP
     node: "diagram",
     getAttrs: (tok) => ({ model: tok.meta?.diagramModel ?? createDefaultDiagram() }),
   },
+  math_block: { block: "math_block", noCloseToken: true },
+  math_inline: {
+    node: "math_inline",
+    getAttrs: (tok) => ({ tex: tok.content }),
+  },
   table: { block: "table" },
   thead: { ignore: true },
   tbody: { ignore: true },
@@ -1868,6 +1991,8 @@ const MEDIA_MARKER = /^\s*<!--skriuw-media:(video|audio|file)-->$/;
 const CHECKBOX_PREFIX = /^\[([ xX])\] /;
 const TOGGLE_PREFIX = /^\[([>vV])\] /;
 const TASK_MARKER = /(?:\s*)<!--skriuw-task:([A-Za-z0-9_-]{1,128})(?::([A-Za-z0-9_-]{1,128}))?-->$/;
+// A trailing Obsidian Tasks due date: the calendar emoji and a YYYY-MM-DD day.
+const DUE_TOKEN = /\s*\u{1F4C5}\s*(\d{4}-\d{2}-\d{2})$/u;
 
 function isTaskId(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
@@ -1899,18 +2024,56 @@ function togglePrefix(item: JsonNode): RegExpMatchArray | null {
   return text.text.match(TOGGLE_PREFIX);
 }
 
+type CheckItemTokens = {
+  inline: unknown[];
+  taskId: string | null;
+  blockId: string | null;
+  dueDate: string | null;
+};
+
+/**
+ * The task marker and the due-date token both trail the item's first line, in
+ * either order: Skriuw writes the date last so Obsidian Tasks reads it, while a
+ * line-level rewrite (the mobile task surface) appends the marker after it.
+ */
+function liftCheckItemTokens(inline: unknown[]): CheckItemTokens {
+  const lifted: CheckItemTokens = { inline, taskId: null, blockId: null, dueDate: null };
+  for (let pass = 0; pass < 2; pass += 1) {
+    const last = lifted.inline.at(-1) as JsonNode | undefined;
+    if (last?.type !== "text" || typeof last.text !== "string") break;
+    const due = lifted.dueDate === null ? last.text.match(DUE_TOKEN) : null;
+    const marker = lifted.taskId === null ? last.text.match(TASK_MARKER) : null;
+    let cut: number;
+    if (due && isDueDate(due[1])) {
+      lifted.dueDate = due[1];
+      cut = due.index ?? last.text.length;
+    } else if (marker) {
+      lifted.taskId = marker[1] ?? null;
+      lifted.blockId = marker[2] ?? null;
+      cut = marker.index ?? last.text.length;
+    } else {
+      break;
+    }
+    const remaining = last.text.slice(0, cut).trimEnd();
+    lifted.inline =
+      remaining.length > 0
+        ? [...lifted.inline.slice(0, -1), { ...last, text: remaining }]
+        : lifted.inline.slice(0, -1);
+  }
+  return lifted;
+}
+
 function toCheckItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
   const paragraph = item.content?.[0] as JsonNode;
   const text = paragraph.content?.[0] as JsonNode;
   const stripped = (text.text as string).slice(prefix[0].length);
-  const marker = stripped.match(TASK_MARKER);
-  const visibleText = marker ? stripped.slice(0, marker.index).trimEnd() : stripped;
-  const inline =
-    visibleText.length > 0
-      ? [{ ...text, text: visibleText }, ...(paragraph.content?.slice(1) ?? [])]
-      : (paragraph.content?.slice(1) ?? []);
-  let taskId = marker?.[1] ?? null;
-  let blockId = marker?.[2] ?? null;
+  const lifted = liftCheckItemTokens([
+    ...(stripped.length > 0 ? [{ ...text, text: stripped }] : []),
+    ...(paragraph.content?.slice(1) ?? []),
+  ]);
+  const inline = lifted.inline;
+  let taskId = lifted.taskId;
+  let blockId = lifted.blockId;
   const blocks = (item.content?.slice(1) ?? []).filter((value) => {
     const block = value as JsonNode;
     if (taskId || block.type !== "paragraph" || block.content?.length !== 1) {
@@ -1934,6 +2097,7 @@ function toCheckItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
       checked: prefix[1]?.toLowerCase() === "x",
       taskId,
       blockId: blockId !== taskId ? blockId : null,
+      dueDate: lifted.dueDate,
     },
     content: [{ ...paragraph, content: inline }, ...blocks],
   };

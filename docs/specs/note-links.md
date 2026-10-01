@@ -22,4 +22,12 @@ The inspector exposes stable relationships only:
 - `Links to` lists notes targeted by the active note.
 - `Tags & people` lists the active note's other structured references.
 
-Plain occurrences of another note's title are ordinary prose. They are not projected as a parallel “unlinked mentions” relationship.
+Plain occurrences of another note's title stay ordinary prose. They are never stored or projected as a relationship. The Relationship Explorer can list them as unlinked mentions, a suggestion surface that turns an occurrence into a regular `mention_ref` only when the user asks.
+
+## Unlinked mentions
+
+- The term is the note's title with whitespace collapsed. Titles under three characters, titles without a letter, generic titles such as “Untitled”, and journal entries produce no term. Notes have no aliases.
+- A match is case-insensitive and whole-word; any whitespace run in the text matches a space in the title. Matches inside code blocks, raw Markdown, `code` or `link` marks, bare URLs, and existing note links are skipped, as is the note's own body.
+- Candidates come from the full-text index (`search_workspace`, at most 100 notes) once the section has been visible for 250 ms, and are verified against the in-memory documents. Trashed and locked notes are skipped. At most five mentions per note and fifty in total are listed.
+- Linking re-verifies each mention against the current stored document and saves every changed note with `save_document`, so the link goes through the ordinary operation path by note ID. “Link all” is one commit. The confirmation toast offers Undo, which restores each linked note's previous body unless that note was edited afterwards.
+- Enter opens the source note with the mention selected. `L` on a focused row links it.

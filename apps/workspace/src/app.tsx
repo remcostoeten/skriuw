@@ -34,6 +34,7 @@ import { WindowControls } from "@/shell/window-controls";
 import { useTitleBarDoubleClickMaximize } from "@/shell/title-bar-maximize";
 import { hasTauriRuntime } from "@/bridge/external-links";
 import {
+  FOCUS_GRID_TEMPLATE,
   panelGridTemplate,
   panelTracksWith,
   routeHasSidebar,
@@ -74,6 +75,8 @@ import { RAIL_ICONS } from "@/shell/rail-icons";
 import { TabBar } from "@/shell/tab-bar";
 import { InstallBanner } from "@/shell/install-banner";
 import { MobileSheet } from "@/shell/mobile-sheet";
+import { FocusModeReveal } from "@/shell/focus-mode";
+import { focusModeActive, readFocusMode, writeFocusMode } from "@/shell/focus-mode-model";
 import {
   COMPACT_SHELL_QUERY,
   activationClosesSidebar,
@@ -147,6 +150,7 @@ const TOOLBAR_SHORTCUT_IDS = [
   "nextNote",
   "findInNote",
   "toggleCommandPalette",
+  "toggleFocusMode",
 ] as const;
 
 function WorkspaceShell({ store }: Props) {
@@ -164,11 +168,17 @@ function WorkspaceShell({ store }: Props) {
   const [metadataWidth, setMetadataWidth] = useState(readMetadataWidth);
   const [metadataResizing, setMetadataResizing] = useState(false);
   const [tracksAnimated, setTracksAnimated] = useState(true);
+  const [focusMode, setFocusMode] = useState(readFocusMode);
   const panelResizing = sidebarResizing || metadataResizing;
   const settling = !panelResizing && tracksAnimated;
   const route = useAppRoute();
   const compact = useMediaQuery(COMPACT_SHELL_QUERY);
   const mode = shellMode(compact);
+  const focusActive = focusModeActive(focusMode, route);
+  const focusActiveRef = useRef(focusActive);
+  focusActiveRef.current = focusActive;
+  const shownSidebarOpen = sidebarOpen && !focusActive;
+  const shownMetadataOpen = metadataOpen && !focusActive;
   const activeNoteId = useRendererSelector(store, selectActiveNoteId);
   const fullPanelsRef = useRef({ sidebarOpen: true, metadataOpen: true });
   const seenNoteRef = useRef(activeNoteId);
@@ -181,17 +191,21 @@ function WorkspaceShell({ store }: Props) {
   useEffect(() => installBackNavigation(store), [store]);
   useEffect(() => scheduleSearchIndexReconciliation(), []);
   useTitleBarDoubleClickMaximize();
-  const ui: CommandUiState = { route, sidebarOpen, metadataOpen, settingsOpen };
+  const ui: CommandUiState = {
+    route,
+    sidebarOpen: shownSidebarOpen,
+    metadataOpen: shownMetadataOpen,
+    settingsOpen,
+  };
   const uiRef = useRef(ui);
   uiRef.current = ui;
+  const panelsRef = useRef({ sidebarOpen, metadataOpen });
+  panelsRef.current = { sidebarOpen, metadataOpen };
   // Entering compact parks the desktop panel choices and applies the phone
   // policy; leaving it restores them, so a rotated tablet lands where it was.
   useEffect(() => {
     if (mode === "compact") {
-      fullPanelsRef.current = {
-        sidebarOpen: uiRef.current.sidebarOpen,
-        metadataOpen: uiRef.current.metadataOpen,
-      };
+      fullPanelsRef.current = { ...panelsRef.current };
       const policy = compactPanelPolicy(store.getState().activeNoteId !== null);
       setTracksAnimated(false);
       setSidebarOpen(policy.sidebarOpen);
@@ -223,14 +237,44 @@ function WorkspaceShell({ store }: Props) {
       setSidebarOpen(false);
     }
   }, [activeNoteId, mode]);
-  const toggleSidebar = useCallback((animated: boolean) => {
-    setTracksAnimated(animated);
-    setSidebarOpen((current) => !current);
+  const changeFocusMode = useCallback((enabled: boolean) => {
+    setTracksAnimated(true);
+    setFocusMode(enabled);
+    writeFocusMode(enabled);
   }, []);
-  const toggleMetadata = useCallback((animated: boolean) => {
-    setTracksAnimated(animated);
-    setMetadataOpen((current) => !current);
-  }, []);
+  const toggleFocusMode = useCallback(() => {
+    changeFocusMode(!focusActiveRef.current);
+  }, [changeFocusMode]);
+  const exitFocusMode = useCallback(() => changeFocusMode(false), [changeFocusMode]);
+  useEffect(() => {
+    if (route !== "notes" && focusMode) {
+      changeFocusMode(false);
+    }
+  }, [changeFocusMode, focusMode, route]);
+  const toggleSidebar = useCallback(
+    (animated: boolean) => {
+      setTracksAnimated(animated);
+      if (focusActiveRef.current) {
+        changeFocusMode(false);
+        setSidebarOpen(true);
+        return;
+      }
+      setSidebarOpen((current) => !current);
+    },
+    [changeFocusMode],
+  );
+  const toggleMetadata = useCallback(
+    (animated: boolean) => {
+      setTracksAnimated(animated);
+      if (focusActiveRef.current) {
+        changeFocusMode(false);
+        setMetadataOpen(true);
+        return;
+      }
+      setMetadataOpen((current) => !current);
+    },
+    [changeFocusMode],
+  );
   // The sign-in drawer portals to <body>, which the modal settings <dialog>
   // renders inert and covers via the top layer — so settings must close first.
   const openSignIn = useCallback((returnToSettings: boolean) => {
@@ -288,6 +332,7 @@ function WorkspaceShell({ store }: Props) {
             setSidebarOpen(true);
           },
           toggleMetadata: () => toggleMetadata(false),
+          toggleFocusMode,
           navigate: (target) => {
             window.location.hash = appRouteHash(target);
           },
@@ -302,7 +347,7 @@ function WorkspaceShell({ store }: Props) {
         ...aiEditorActionCommands(aiEnabled),
         ...voiceDictationCommands(aiEnabled),
       ]),
-    [aiEnabled, openSettingsAt, openSignIn, store, toggleMetadata, toggleSidebar],
+    [aiEnabled, openSettingsAt, openSignIn, store, toggleFocusMode, toggleMetadata, toggleSidebar],
   );
   const shortcutActions = useMemo(
     () =>
@@ -329,13 +374,9 @@ function WorkspaceShell({ store }: Props) {
     sidebarWidth,
     metadataWidth,
   };
-  const gridTemplateColumns = panelGridTemplate(
-    route,
-    sidebarOpen,
-    metadataOpen,
-    sidebarWidth,
-    metadataWidth,
-  );
+  const gridTemplateColumns = focusActive
+    ? FOCUS_GRID_TEMPLATE
+    : panelGridTemplate(route, sidebarOpen, metadataOpen, sidebarWidth, metadataWidth);
   const noteNav = useNoteNavigation(store);
   const tracksRef = useRef<HTMLDivElement>(null);
   const sidebarPaneRef = useRef<HTMLDivElement>(null);
@@ -400,8 +441,8 @@ function WorkspaceShell({ store }: Props) {
     setTracksAnimated(true);
     setMetadataOpen(true);
   }, []);
-  const sidebarSheetOpen = mode === "compact" && sidebarOpen && routeHasSidebar(route);
-  const metadataSheetOpen = mode === "compact" && metadataOpen && route === "notes";
+  const sidebarSheetOpen = mode === "compact" && shownSidebarOpen && routeHasSidebar(route);
+  const metadataSheetOpen = mode === "compact" && shownMetadataOpen && route === "notes";
   const sheetOpen = sidebarSheetOpen || metadataSheetOpen;
 
   // The edge strips carry `touch-action: none`, so a touch that starts on one
@@ -473,14 +514,18 @@ function WorkspaceShell({ store }: Props) {
         ref={tracksRef}
         className={`relative grid h-full grid-rows-[minmax(0,1fr)]${
           settling && mode === "full" ? " panel-tracks-settling" : ""
-        }${mode === "compact" ? " shell-compact" : ""}`}
+        }${mode === "compact" ? " shell-compact" : ""}${focusActive ? " shell-focus-mode" : ""}`}
         style={mode === "compact" ? undefined : { gridTemplateColumns }}
         inert={sheetOpen}
       >
         {mode === "full" && (
           <nav
             aria-label="Primary"
-            className="flex w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar"
+            className={`flex w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar${
+              focusActive ? " sidebar-pane-collapsed overflow-hidden" : ""
+            }${settling ? " sidebar-pane-settling" : ""}`}
+            aria-hidden={focusActive}
+            inert={focusActive}
           >
             <div className="flex w-full flex-col items-center">
               <div className="flex h-11 w-full items-center justify-center border-b border-sidebar-border">
@@ -519,7 +564,7 @@ function WorkspaceShell({ store }: Props) {
             </div>
           </nav>
         )}
-        {mode === "full" && routeHasSidebar(route) ? (
+        {mode === "full" && !focusActive && routeHasSidebar(route) ? (
           <PanelResizeHandle
             side="left"
             label="Resize sidebar"
@@ -535,7 +580,7 @@ function WorkspaceShell({ store }: Props) {
             onDragChange={setSidebarResizing}
           />
         ) : null}
-        {mode === "full" && route === "notes" ? (
+        {mode === "full" && !focusActive && route === "notes" ? (
           <PanelResizeHandle
             side="right"
             label="Resize metadata panel"
@@ -554,10 +599,10 @@ function WorkspaceShell({ store }: Props) {
         {mode === "full" && (
           <div
             className={`col-[2] min-h-0 min-w-0 overflow-hidden${
-              sidebarOpen ? "" : " sidebar-pane-collapsed"
+              shownSidebarOpen ? "" : " sidebar-pane-collapsed"
             }${settling ? " sidebar-pane-settling" : ""}`}
-            aria-hidden={!sidebarOpen}
-            inert={!sidebarOpen}
+            aria-hidden={!shownSidebarOpen}
+            inert={!shownSidebarOpen}
             hidden={!routeHasSidebar(route)}
           >
             <div ref={sidebarPaneRef} className="h-full" style={{ width: sidebarWidth }}>
@@ -569,6 +614,7 @@ function WorkspaceShell({ store }: Props) {
           <main className="col-[3] flex min-h-0 min-w-0 flex-col overflow-hidden">
             <div
               data-tauri-drag-region
+              hidden={focusActive}
               className={`grid h-11 items-center border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground ${
                 mode === "compact"
                   ? "grid-cols-[auto_minmax(0,1fr)_auto] px-1"
@@ -679,12 +725,12 @@ function WorkspaceShell({ store }: Props) {
           {mode === "full" && (
             <div
               className={`col-[4] min-h-0 min-w-0 overflow-hidden${
-                metadataOpen ? "" : " sidebar-pane-collapsed"
+                shownMetadataOpen ? "" : " sidebar-pane-collapsed"
               }${settling ? " sidebar-pane-settling" : ""}`}
-              aria-hidden={!metadataOpen}
-              inert={!metadataOpen}
+              aria-hidden={!shownMetadataOpen}
+              inert={!shownMetadataOpen}
             >
-              {metadataOpen ? (
+              {shownMetadataOpen ? (
                 <div
                   ref={metadataPaneRef}
                   className="flex h-full flex-col"
@@ -729,9 +775,9 @@ function WorkspaceShell({ store }: Props) {
         )}
         {route === "tags" && <EntityView store={store} kind="tag" />}
         {route === "people" && <EntityView store={store} kind="person" />}
-        <InstallBanner compact={mode === "compact"} />
-        {mode === "compact" && <TabBar route={route} account={accountMenu} />}
-        {mode === "compact" && routeHasSidebar(route) && (
+        {!focusActive && <InstallBanner compact={mode === "compact"} />}
+        {mode === "compact" && !focusActive && <TabBar route={route} account={accountMenu} />}
+        {mode === "compact" && !focusActive && routeHasSidebar(route) && (
           <div
             className="shell-edge-left absolute top-11 bottom-14 left-0 z-30 w-5 touch-none"
             aria-hidden="true"
@@ -741,7 +787,7 @@ function WorkspaceShell({ store }: Props) {
             onPointerCancel={onShellPointerEnd}
           />
         )}
-        {mode === "compact" && route === "notes" && (
+        {mode === "compact" && !focusActive && route === "notes" && (
           <div
             className="absolute top-11 bottom-14 right-0 z-30 w-5 touch-none"
             aria-hidden="true"
@@ -751,6 +797,12 @@ function WorkspaceShell({ store }: Props) {
             onPointerCancel={onShellPointerEnd}
           />
         )}
+        <FocusModeReveal
+          store={store}
+          active={focusActive}
+          shortcut={shortcutHints.toggleFocusMode}
+          onExit={exitFocusMode}
+        />
       </div>
       {mode === "compact" && (
         <MobileSheet

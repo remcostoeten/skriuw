@@ -1639,8 +1639,8 @@ fn set_node_locked(
 }
 
 /// Bring every task linked to this note back in step with the document that
-/// just landed. The document owns the checklist item, so its text and checkbox
-/// win, and a link the document no longer carries detaches its task instead of
+/// just landed. The document owns the checklist item, so its text, checkbox,
+/// and due date win, and a link the document no longer carries detaches its task instead of
 /// deleting it.
 fn reconcile_note_tasks(
     transaction: &Transaction<'_>,
@@ -1665,15 +1665,26 @@ fn reconcile_note_tasks(
             .as_ref()
             .map(|source| source.block_id.as_str())
             .unwrap_or_default();
-        if status == task.status && link.title == task.title && source_block_id == stored_block_id {
+        if status == task.status
+            && link.title == task.title
+            && link.due_date == task.due_date
+            && source_block_id == stored_block_id
+        {
             continue;
         }
         transaction
             .execute(
                 "UPDATE workspace_tasks \
-                 SET title = ?2, status = ?3, source_block_id = ?4, updated_at = ?5 \
+                 SET title = ?2, status = ?3, due_date = ?4, source_block_id = ?5, updated_at = ?6 \
                  WHERE id = ?1",
-                params![task.id, link.title, status.as_str(), source_block_id, at],
+                params![
+                    task.id,
+                    link.title,
+                    status.as_str(),
+                    link.due_date,
+                    source_block_id,
+                    at
+                ],
             )
             .map_err(backend)?;
     }

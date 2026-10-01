@@ -63,6 +63,8 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   vimMode: false,
   vimCursorStyle: "block",
   vimCursorBlink: false,
+  typewriterScrolling: false,
+  focusDimParagraphs: false,
   openNotesInTabs: false,
   showToasts: true,
   openLinksInApp: false,
@@ -71,6 +73,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   lockOnBlur: false,
   paletteDensity: "normal",
   remoteImportImages: "ask",
+  facehashAvatar: true,
 };
 
 export type SettingsViewModel = {
@@ -87,6 +90,8 @@ export type SettingsViewModel = {
   vimMode: boolean;
   vimCursorStyle: VimCursorStyle;
   vimCursorBlink: boolean;
+  typewriterScrolling: boolean;
+  focusDimParagraphs: boolean;
   openNotesInTabs: boolean;
   showToasts: boolean;
   openLinksInApp: boolean;
@@ -96,6 +101,7 @@ export type SettingsViewModel = {
   lockOnBlur: boolean;
   paletteDensity: PaletteDensity;
   remoteImportImages: RemoteImportImages;
+  facehashAvatar: boolean;
 };
 
 export type EditableSettings = SettingsViewModel;
@@ -131,6 +137,8 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     vimMode: usesVimMode(settings),
     vimCursorStyle: vimCursorStyle(settings),
     vimCursorBlink: vimCursorBlinks(settings),
+    typewriterScrolling: usesTypewriterScrolling(settings),
+    focusDimParagraphs: dimsFocusParagraphs(settings),
     openNotesInTabs: settings.openNotesInTabs === true,
     showToasts: showsToasts(settings),
     openLinksInApp: opensLinksInApp(settings),
@@ -139,6 +147,7 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     lockOnBlur: locksOnBlur(settings),
     paletteDensity: paletteDensity(settings),
     remoteImportImages: remoteImportImages(settings),
+    facehashAvatar: usesFacehashAvatar(settings),
   };
 }
 
@@ -148,6 +157,30 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
  */
 export function usesVimMode(settings: WorkspaceSettings): boolean {
   return settings.vimMode === true;
+}
+
+/**
+ * @name usesTypewriterScrolling
+ * @description Whether both editors keep the caret line vertically centred
+ * while typing. Off unless explicitly turned on.
+ *
+ * @example
+ * createTypewriterPlugin({ enabled: () => usesTypewriterScrolling(settings), scrollContainer });
+ */
+export function usesTypewriterScrolling(settings: WorkspaceSettings): boolean {
+  return settings["typewriterScrolling"] === true;
+}
+
+/**
+ * @name dimsFocusParagraphs
+ * @description Whether focus mode dims every block except the one holding the
+ * caret. Off unless explicitly turned on.
+ *
+ * @example
+ * createFocusDimPlugin(() => dimsFocusParagraphs(store.getState().settings));
+ */
+export function dimsFocusParagraphs(settings: WorkspaceSettings): boolean {
+  return settings["focusDimParagraphs"] === true;
 }
 
 export function vimCursorStyle(settings: WorkspaceSettings): VimCursorStyle {
@@ -226,6 +259,15 @@ export function opensLinksInApp(settings: WorkspaceSettings): boolean {
  */
 export function usesAnimatedIcons(settings: WorkspaceSettings): boolean {
   return settings.animatedIcons !== false;
+}
+
+/**
+ * Whether the signed-in account shows a generated Facehash face instead of its
+ * initials. Workspaces written before the setting existed have no key, and the
+ * face is the default, so only an explicit `false` brings the initials back.
+ */
+export function usesFacehashAvatar(settings: WorkspaceSettings): boolean {
+  return settings.facehashAvatar !== false;
 }
 
 /**

@@ -62,6 +62,7 @@ import { requestNoteShare } from "@/features/sharing/share-dialog-controller";
 import { shortcutDefinition } from "./bindings";
 import { TAB_INDEX_ACTION_IDS } from "./definitions";
 import {
+  AlignCenterIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
   ChevronLeftIcon,
@@ -71,6 +72,7 @@ import {
   CloseIcon,
   CopyIcon,
   DownloadIcon,
+  EnterFullscreenIcon,
   LinkIcon,
   FileTextIcon,
   FoldVerticalIcon,
@@ -84,6 +86,7 @@ import {
   PanelLeftIcon,
   PanelRightIcon,
   PencilIcon,
+  PilcrowIcon,
   PinIcon,
   LockIcon,
   LockOpenIcon,
@@ -103,7 +106,11 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
 } from "@/shared/icons/static";
-import { usesVimMode } from "@/features/settings/settings-model";
+import {
+  dimsFocusParagraphs,
+  usesTypewriterScrolling,
+  usesVimMode,
+} from "@/features/settings/settings-model";
 import { opensNotesInTabs } from "@skriuw/renderer-core/settings/open-notes-in-tabs";
 import { THEME_ENTRIES } from "@/features/settings/themes";
 import type { SectionId } from "@/features/settings/sections/sections";
@@ -131,6 +138,7 @@ export type CommandUiControls = {
   /** Reveals the sidebar without toggling it, for actions that live in the tree. */
   openSidebar: () => void;
   toggleMetadata: () => void;
+  toggleFocusMode: () => void;
   navigate: (route: AppRoute) => void;
 };
 
@@ -518,6 +526,41 @@ export function createWorkspaceCommands(
       shortcut: "toggleVimMode",
       run: () => {
         updateSetting(store, "vimMode", !usesVimMode(store.getState().settings));
+      },
+    },
+    {
+      id: "toggle-focus-mode",
+      label: "Toggle focus mode",
+      group: "Actions",
+      keywords: ["focus", "zen", "distraction", "free", "hide", "chrome", "fullscreen", "writing"],
+      icon: <EnterFullscreenIcon size={15} />,
+      shortcut: "toggleFocusMode",
+      enabled: onNotesRoute,
+      run: controls.toggleFocusMode,
+    },
+    {
+      id: "toggle-typewriter-scrolling",
+      label: "Toggle typewriter scrolling",
+      group: "Actions",
+      keywords: ["typewriter", "centre", "center", "caret", "scroll", "writing"],
+      icon: <AlignCenterIcon size={15} />,
+      shortcut: "toggleTypewriterScrolling",
+      run: () => {
+        updateSetting(
+          store,
+          "typewriterScrolling",
+          !usesTypewriterScrolling(store.getState().settings),
+        );
+      },
+    },
+    {
+      id: "toggle-focus-dim",
+      label: "Toggle dimming other paragraphs in focus mode",
+      group: "Actions",
+      keywords: ["focus", "dim", "fade", "paragraph", "sentence", "writing"],
+      icon: <PilcrowIcon size={15} />,
+      run: () => {
+        updateSetting(store, "focusDimParagraphs", !dimsFocusParagraphs(store.getState().settings));
       },
     },
     {
