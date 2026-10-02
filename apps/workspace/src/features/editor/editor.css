@@ -306,7 +306,8 @@
   text-decoration: line-through;
 }
 
-.prosemirror-host .ProseMirror .check-item-due {
+.prosemirror-host .ProseMirror .check-item-due,
+.prosemirror-host .ProseMirror .check-item-repeat {
   flex: none;
   align-self: flex-start;
   margin-top: calc(0.2em + (1.7em - 20px) / 2);
@@ -331,12 +332,14 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .prosemirror-host .ProseMirror .check-item-due:hover {
+  .prosemirror-host .ProseMirror .check-item-due:hover,
+  .prosemirror-host .ProseMirror .check-item-repeat:hover {
     background: hsl(var(--foreground) / 0.09);
   }
 }
 
-.prosemirror-host .ProseMirror .check-item-due:focus-visible {
+.prosemirror-host .ProseMirror .check-item-due:focus-visible,
+.prosemirror-host .ProseMirror .check-item-repeat:focus-visible {
   outline: 2px solid hsl(var(--primary) / 0.75);
   outline-offset: 2px;
 }

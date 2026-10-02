@@ -35,6 +35,8 @@ Nothing promotes a checklist item implicitly. An ordinary `check_item` without b
 
 A linked task's due date is owned by its checklist item's `dueDate` attribute, which Markdown spells as a trailing `📅 YYYY-MM-DD` token. Every document save reconciles `due_date` from it, including clearing it. See [ADR-0053](adr/0053-task-due-dates-live-in-the-checklist-line.md).
 
+A repeating checklist item carries a `recurrence` attribute, written to Markdown as `🔁 every week` before the due date. It is document content only; the task record does not store it. Completing a repeating linked task creates a new task for the next occurrence. See [ADR-0054](adr/0054-recurring-tasks-repeat-in-the-document.md).
+
 ## Derived tables
 
 ### `documents_fts`

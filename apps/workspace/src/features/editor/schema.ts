@@ -73,6 +73,17 @@ import { taskCheckItemAttrs } from "./task-promotion";
 import { createDueDateChipPlugin, dueDateChipDom, dueDateInputRule } from "./task-due-date";
 import { DUE_DATE_SIGNIFIER, isDueDate } from "@/features/tasks/due-dates";
 import {
+  checkItemToggle,
+  createRecurrenceChipPlugin,
+  recurrenceChipDom,
+  recurrenceInputRule,
+} from "./task-recurrence";
+import {
+  RECURRENCE_SIGNIFIER,
+  isRecurrence,
+  normalizeRecurrence,
+} from "@/features/tasks/recurrence";
+import {
   createMathEditingPlugin,
   editSelectedInlineMath,
   enterAdjacentMathBlock,
@@ -421,10 +432,12 @@ const checkItemSpec: NodeSpec = {
     taskId: { default: null },
     blockId: { default: null },
     dueDate: { default: null },
+    recurrence: { default: null },
   },
   toDOM: (node) => {
     const contentId = `check-item-content-${++checkboxDomId}`;
     const dueDate: unknown = node.attrs.dueDate;
+    const recurrence: unknown = node.attrs.recurrence;
     const content: DOMOutputSpec = ["div", { class: "check-item-content", id: contentId }, 0];
     return [
       "li",
@@ -434,6 +447,7 @@ const checkItemSpec: NodeSpec = {
         ...(node.attrs.taskId ? { "data-task-id": String(node.attrs.taskId) } : {}),
         ...(node.attrs.blockId ? { "data-block-id": String(node.attrs.blockId) } : {}),
         ...(isDueDate(dueDate) ? { "data-due-date": dueDate } : {}),
+        ...(isRecurrence(recurrence) ? { "data-recurrence": recurrence } : {}),
       },
       [
         "span",
@@ -448,6 +462,7 @@ const checkItemSpec: NodeSpec = {
         },
       ],
       content,
+      ...(isRecurrence(recurrence) ? [recurrenceChipDom(recurrence)] : []),
       ...(isDueDate(dueDate) ? [dueDateChipDom(dueDate, node.attrs.checked === true)] : []),
     ];
   },
@@ -459,11 +474,13 @@ const checkItemSpec: NodeSpec = {
         dom.querySelector<HTMLElement>(":scope > .check-item-content") ?? dom,
       getAttrs: (dom) => {
         const dueDate = dom.getAttribute("data-due-date");
+        const recurrence = dom.getAttribute("data-recurrence");
         return {
           checked: dom.getAttribute("data-checked") === "true",
           taskId: dom.getAttribute("data-task-id"),
           blockId: dom.getAttribute("data-block-id"),
           dueDate: isDueDate(dueDate) ? dueDate : null,
+          recurrence: isRecurrence(recurrence) ? recurrence : null,
         };
       },
     },
@@ -1046,12 +1063,7 @@ function checkboxItemAtDom(view: EditorView, target: HTMLElement): boolean {
     if (node.type.name !== "check_item") continue;
     const position = $pos.before(depth);
     const restoreFocus = target.ownerDocument.activeElement === target;
-    view.dispatch(
-      view.state.tr.setNodeMarkup(position, undefined, {
-        ...node.attrs,
-        checked: !node.attrs.checked,
-      }),
-    );
+    view.dispatch(checkItemToggle(view.state, position, node));
     if (restoreFocus) {
       const item = view.nodeDOM(position);
       if (item instanceof HTMLElement) {
@@ -1071,13 +1083,7 @@ export function toggleCheckItemAtSelection(
   for (let depth = $from.depth; depth > 0; depth -= 1) {
     const node = $from.node(depth);
     if (node.type.name !== "check_item") continue;
-    if (dispatch)
-      dispatch(
-        state.tr.setNodeMarkup($from.before(depth), undefined, {
-          ...node.attrs,
-          checked: !node.attrs.checked,
-        }),
-      );
+    if (dispatch) dispatch(checkItemToggle(state, $from.before(depth), node));
     return true;
   }
   return false;
@@ -1344,6 +1350,7 @@ export function createProductPlugins(): Plugin[] {
     createMathEditingPlugin(),
     createCheckboxTogglePlugin(),
     createDueDateChipPlugin(),
+    createRecurrenceChipPlugin(),
     createToggleListPlugin(),
     inputRules({
       rules: [
@@ -1354,6 +1361,7 @@ export function createProductPlugins(): Plugin[] {
         checkListInputRule(),
         toggleListInputRule(),
         dueDateInputRule(),
+        recurrenceInputRule(),
         textblockTypeInputRule(/^(#{1,6})\s$/, heading, (match) => ({
           level: match[1]?.length ?? 1,
         })),
@@ -1542,8 +1550,13 @@ const productMarkdownSerializer = new MarkdownSerializer(
             : "";
         state.write(` <!--skriuw-task:${node.attrs.taskId}${blockId}-->`);
       }
-      if (isDueDate(node.attrs.dueDate)) {
+      if (isRecurrence(node.attrs.recurrence)) {
         const separator = paragraph.childCount > 0 ? " " : "";
+        state.write(`${separator}${RECURRENCE_SIGNIFIER} ${node.attrs.recurrence}`);
+      }
+      if (isDueDate(node.attrs.dueDate)) {
+        const separator =
+          paragraph.childCount > 0 || isRecurrence(node.attrs.recurrence) ? " " : "";
         state.write(`${separator}${DUE_DATE_SIGNIFIER} ${node.attrs.dueDate}`);
       }
       state.closeBlock(paragraph);
@@ -1994,6 +2007,8 @@ const TASK_MARKER = /(?:\s*)<!--skriuw-task:([A-Za-z0-9_-]{1,128})(?::([A-Za-z0-
 // A trailing Obsidian Tasks due date: the calendar emoji and a YYYY-MM-DD day.
 const DUE_TOKEN = /\s*\u{1F4C5}\s*(\d{4}-\d{2}-\d{2})$/u;
 
+const RECURRENCE_TOKEN = /\s*\u{1F501}\s*(every\s[^\u{1F4C5}<]+?)\s*$/iu;
+
 function isTaskId(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 }
@@ -2029,24 +2044,36 @@ type CheckItemTokens = {
   taskId: string | null;
   blockId: string | null;
   dueDate: string | null;
+  recurrence: string | null;
 };
 
 /**
- * The task marker and the due-date token both trail the item's first line, in
+ * The task marker, the recurrence token and the due-date token all trail the item's first line, in
  * either order: Skriuw writes the date last so Obsidian Tasks reads it, while a
  * line-level rewrite (the mobile task surface) appends the marker after it.
  */
 function liftCheckItemTokens(inline: unknown[]): CheckItemTokens {
-  const lifted: CheckItemTokens = { inline, taskId: null, blockId: null, dueDate: null };
-  for (let pass = 0; pass < 2; pass += 1) {
+  const lifted: CheckItemTokens = {
+    inline,
+    taskId: null,
+    blockId: null,
+    dueDate: null,
+    recurrence: null,
+  };
+  for (let pass = 0; pass < 3; pass += 1) {
     const last = lifted.inline.at(-1) as JsonNode | undefined;
     if (last?.type !== "text" || typeof last.text !== "string") break;
     const due = lifted.dueDate === null ? last.text.match(DUE_TOKEN) : null;
+    const repeat = lifted.recurrence === null ? last.text.match(RECURRENCE_TOKEN) : null;
+    const recurrence = repeat ? normalizeRecurrence(repeat[1] ?? "") : null;
     const marker = lifted.taskId === null ? last.text.match(TASK_MARKER) : null;
     let cut: number;
     if (due && isDueDate(due[1])) {
       lifted.dueDate = due[1];
       cut = due.index ?? last.text.length;
+    } else if (repeat && recurrence !== null) {
+      lifted.recurrence = recurrence;
+      cut = repeat.index ?? last.text.length;
     } else if (marker) {
       lifted.taskId = marker[1] ?? null;
       lifted.blockId = marker[2] ?? null;
@@ -2098,6 +2125,7 @@ function toCheckItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
       taskId,
       blockId: blockId !== taskId ? blockId : null,
       dueDate: lifted.dueDate,
+      recurrence: lifted.recurrence,
     },
     content: [{ ...paragraph, content: inline }, ...blocks],
   };
