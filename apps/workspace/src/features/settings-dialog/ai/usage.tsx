@@ -49,7 +49,7 @@ const RUN_STATES: readonly AiRunState[] = ["done", "cancelled", "timed_out", "fa
 const ALL = "all";
 
 const selectClass =
-  "min-h-[28px] rounded-lg border border-border bg-muted px-2 py-[3px] text-xs text-foreground outline-none focus-visible:border-foreground/70";
+  "min-h-[28px] rounded-lg border border-border bg-muted px-2 py-[3px] text-xs text-foreground outline-none transition-[background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-foreground/20 focus-visible:border-foreground/40 focus-visible:bg-background";
 const statTileClass = "rounded-lg border border-border/60 bg-card/30 px-3 py-2";
 const statValueClass = "mt-0.5 block text-[15px] font-[620] tabular-nums text-foreground";
 const statLabelClass = "text-[10.5px] uppercase tracking-[0.04em] text-muted-foreground";

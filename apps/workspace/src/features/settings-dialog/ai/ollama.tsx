@@ -708,7 +708,7 @@ function ModelRow({
         type="button"
         role="radio"
         aria-checked={selected}
-        className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="-mx-1.5 -my-1 min-w-0 flex-1 rounded-md px-1.5 py-1 text-left"
         onClick={() => onSelect(model.name)}
       >
         <span className="flex items-center gap-2 text-[13px] font-medium">

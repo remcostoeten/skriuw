@@ -11,6 +11,7 @@ import {
 } from "@/shared/icons/static";
 import { SHORTCUT_DEFINITIONS } from "@/commands/definitions";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import { SETTINGS_SEARCH_COPY } from "./search-copy.generated";
 
 export type SectionProps = {
   store: RendererStore;
@@ -103,6 +104,7 @@ export type SettingsSection = {
   label: string;
   description: string;
   searchText: string;
+  copy: readonly string[];
   icon: (typeof SECTIONS)[number]["icon"];
   desktopOnly?: boolean;
   placement?: SectionPlacement;
@@ -137,9 +139,9 @@ function isDesktopOnly(section: (typeof SECTIONS)[number]): boolean {
 }
 
 /**
- * Sections visible for the current workspace, with the stored empty-note prompt
- * folded into the Editor haystack: `searchText` is static, so a prompt the user
- * typed themselves would otherwise be unreachable from the search field.
+ * Sections visible for the current workspace, each carrying its rendered copy,
+ * generated from its source so row labels and descriptions stay searchable.
+ * Editor also gets the stored empty-note prompt, which no static text holds.
  */
 export function availableSettingsSections(
   aiEnabled: boolean,
@@ -148,9 +150,11 @@ export function availableSettingsSections(
 ): SettingsSection[] {
   return SECTIONS.filter(
     (section) => (section.id !== "ai" || aiEnabled) && !(browserRuntime && isDesktopOnly(section)),
-  ).map((section) =>
-    section.id === "editor"
-      ? { ...section, searchText: `${section.searchText} ${editorPlaceholder}` }
-      : section,
-  );
+  ).map((section) => ({
+    ...section,
+    copy:
+      section.id === "editor"
+        ? [...SETTINGS_SEARCH_COPY.editor, editorPlaceholder]
+        : SETTINGS_SEARCH_COPY[section.id],
+  }));
 }
