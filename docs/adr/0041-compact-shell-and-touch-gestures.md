@@ -79,7 +79,7 @@ inside the sheets and the single column. Route views that place themselves in
 desktop grid columns are collapsed into column one by the compact stylesheet,
 so a new route needs no mobile-specific placement.
 
-Gesture recognition is pure and unit tested (`shell/edge-swipe.ts`,
+Gesture recognition is pure and unit tested (`shared/touch/swipe.ts`, `shell/compact/edge-swipe.ts`,
 `features/sidebar/touch-gestures.ts`); the DOM wiring around it is covered by
 `apps/workspace/e2e/mobile-shell.mjs`, which drives a 390px touch-emulated Chrome against
 the hermetic harness.

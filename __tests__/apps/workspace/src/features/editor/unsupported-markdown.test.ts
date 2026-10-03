@@ -6,8 +6,8 @@ import {
   requiresLosslessMarkdownSource,
   serializeProductMarkdown,
 } from "@/features/editor/schema";
-import { planMarkdownImport } from "@/features/transfer/export/markdown-transfer-model";
-import { buildRestoreDocument } from "@/features/history/version-model";
+import { planMarkdownImport } from "@/features/transfer/markdown";
+import { buildRestoreDocument } from "@/features/history/restore";
 
 const frontmatter = "---\ntitle: Exact\naliases:\n  - one\n---\n\n# Body\n";
 const footnotes = "Text with a note[^source].\n\n[^source]: Exact source.\n";

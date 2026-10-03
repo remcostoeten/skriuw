@@ -1,10 +1,10 @@
-import type { MarkdownTree } from "@/features/transfer/export/markdown-transfer-model";
+import type { MarkdownTree } from "@/features/transfer/import/parsing/tree";
 import type {
   ImportBundle,
   ImportSourceAdapter,
   ImportedNote,
   ImportWarning,
-} from "@/features/transfer/import/model";
+} from "@/features/transfer/import/parsing/bundle";
 
 const TEXT_BUNDLE_NOTE = /^(.*?)([^/]+)\.textbundle\/text\.(md|markdown)$/i;
 

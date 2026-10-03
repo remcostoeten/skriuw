@@ -30,7 +30,7 @@ that closed under a newer navigation leaves its entry buried, and that entry
 is skipped when a later back lands on it; and an overlay opened while a pop is
 still in flight defers its push until the pop completes, because a push made
 before then would be undone by it. The recogniser is pure and unit tested
-(`shell/overlay-history.ts`); the wiring lives in the sheet and the shared
+(`shared/ui/overlay-history.ts`); the wiring lives in the sheet and the shared
 `<dialog>` primitive and applies only under the compact query, so a desktop
 browser's back keeps meaning navigation.
 

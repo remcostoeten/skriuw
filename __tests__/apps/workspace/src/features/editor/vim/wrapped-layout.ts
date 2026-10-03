@@ -1,6 +1,6 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
-import { allLines, lineOffset } from "@/features/editor/vim/vim-lines";
-import type { RowMeasure } from "@/features/editor/vim/vim-rows";
+import { allLines, lineOffset } from "@/features/editor/vim/lines";
+import type { RowMeasure } from "@/features/editor/vim/rows";
 
 export const CHAR_WIDTH = 10;
 export const ROW_HEIGHT = 20;

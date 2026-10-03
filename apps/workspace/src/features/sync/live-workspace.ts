@@ -1,19 +1,9 @@
 import { listen, type Event, type UnlistenFn } from "@tauri-apps/api/event";
-import { subscribeBrowserWorkspaceChanges } from "@/bridge/browser-sync";
-import { isBrowserRuntime } from "@/bridge/runtime";
+import { subscribeBrowserWorkspaceChanges } from "@/platform/browser/sync-events";
+import { isBrowserRuntime } from "@/platform/runtime/runtime";
+import type { WorkspaceChange } from "./workspace-change";
 
 export const SYNC_WORKSPACE_CHANGED_EVENT = "sync-workspace-changed";
-
-/**
- * What a sync cycle changed in canonical storage. `full` covers hydration and
- * bulk applies where listing note ids would be pointless; `structureChanged`
- * means something other than a document body moved (tree, tags, properties…).
- */
-export type WorkspaceChange = {
-  noteIds: readonly string[];
-  structureChanged: boolean;
-  full: boolean;
-};
 
 type Listen = (
   event: string,
@@ -32,19 +22,6 @@ function normalizeChange(payload: unknown): WorkspaceChange {
       : [],
     structureChanged: change.structureChanged === true,
     full: change.full === true,
-  };
-}
-
-/** Folds two change reports into one, so coalesced reconciles never under-read. */
-export function mergeWorkspaceChanges(
-  left: WorkspaceChange | null,
-  right: WorkspaceChange,
-): WorkspaceChange {
-  if (!left) return right;
-  return {
-    noteIds: [...new Set([...left.noteIds, ...right.noteIds])],
-    structureChanged: left.structureChanged || right.structureChanged,
-    full: left.full || right.full,
   };
 }
 

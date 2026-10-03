@@ -17,8 +17,8 @@
   "aliases": {
     "components": "@/shared",
     "ui": "@/shared/ui",
-    "lib": "@/shared/lib",
-    "utils": "@/shared/lib/utils",
-    "hooks": "@/shared/hooks"
+    "lib": "@/shared/styling",
+    "utils": "@/shared/styling/class-names",
+    "hooks": "@/shared/viewport"
   }
 }

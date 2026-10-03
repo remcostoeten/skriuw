@@ -1,22 +1,20 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { Wordmark } from "@/components/ui/primitives";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { GithubSocial, XSocial } from "@/components/ui/icons";
-import { appUrl, footerColumns, navLinks, repoUrl } from "@/data/content";
-import {
-  controlSelected,
-  ghostButton,
-  outlineButton,
-  primaryButton,
-} from "@/components/frame/control";
+import { footerColumns, navLinks, repoUrl } from "@/data/content";
+import { controlSelected, ghostButton, outlineButton } from "@/components/frame/control";
+import { HeaderAccount } from "@/components/frame/header-account";
+import "./site-frame.css";
 
-const band =
-  "hy-dots flex items-center gap-4 border-y border-dashed border-line bg-hy-bg px-6 py-4 max-[620px]:px-5";
+const bandSurface = "hy-dots border-y border-dashed border-line bg-hy-bg";
+
+const band = `${bandSurface} flex items-center gap-4 px-6 py-4 max-[620px]:px-5`;
 
 const headerLinks = navLinks.filter((link) => link.href.startsWith("/"));
 
@@ -77,42 +75,67 @@ function SiteMap() {
   );
 }
 
+function useStuck() {
+  const sentinelRef = useRef<HTMLSpanElement>(null);
+  const [stuck, setStuck] = useState(false);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      setStuck(entry.boundingClientRect.top < 0);
+    });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+
+  return { sentinelRef, stuck };
+}
+
 type Props = {
   children: ReactNode;
 };
 
 export function SiteFrame({ children }: Props) {
   const pathname = usePathname() ?? "/";
+  const { sentinelRef, stuck } = useStuck();
 
   return (
     <div className="hy-page">
       <div className="relative mx-auto my-10 w-[min(1200px,calc(100%-32px))] border-x border-dashed border-line max-[620px]:my-4">
-        <header className={cn(band, "-mb-px flex-wrap justify-between")}>
-          <div className="flex min-w-0 items-center gap-4">
-            <Link href="/" className="shrink-0 text-ink-900">
-              <Wordmark />
-            </Link>
-            <LivePill />
-          </div>
-
-          <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
-            {headerLinks.map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                aria-current={isCurrent(pathname, link.href) ? "page" : undefined}
-                className={cn(ghostButton, controlSelected)}
-              >
-                {link.label}
+        <span
+          ref={sentinelRef}
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        />
+        <header data-stuck={stuck} className="site-header -mb-px">
+          <span aria-hidden className={cn("site-header-band", bandSurface)} />
+          <span aria-hidden className="site-header-float" />
+          <div className="relative flex flex-wrap items-center justify-between gap-4 px-6 py-4 max-[620px]:px-5 lg:grid lg:grid-cols-[1fr_auto_1fr]">
+            <div className="flex min-w-0 items-center gap-4">
+              <Link href="/" className="shrink-0 text-ink-900">
+                <Wordmark />
               </Link>
-            ))}
-          </nav>
+              <LivePill />
+            </div>
 
-          <div className="flex shrink-0 items-center gap-2">
-            <ThemeToggle />
-            <Link href={appUrl} className={cn(primaryButton, "h-7 px-3")}>
-              Open the app
-            </Link>
+            <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
+              {headerLinks.map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  aria-current={isCurrent(pathname, link.href) ? "page" : undefined}
+                  className={cn(ghostButton, controlSelected)}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="flex shrink-0 items-center gap-2 lg:justify-self-end">
+              <ThemeToggle />
+              <HeaderAccount />
+            </div>
           </div>
         </header>
 

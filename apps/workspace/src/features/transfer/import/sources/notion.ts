@@ -1,13 +1,13 @@
-import type { MarkdownTree } from "@/features/transfer/export/markdown-transfer-model";
+import type { MarkdownTree } from "@/features/transfer/import/parsing/tree";
 import type {
   ImportBundle,
   ImportSourceAdapter,
   ImportedNote,
   ImportedPropertyValue,
   ImportWarning,
-} from "@/features/transfer/import/model";
-import { relativeLinkBetween } from "@/features/transfer/import/model";
-import { sanitizeFileName } from "@/features/transfer/export/markdown-transfer-model";
+} from "@/features/transfer/import/parsing/bundle";
+import { relativeLinkBetween } from "@/features/transfer/import/parsing/bundle";
+import { sanitizeFileName } from "@/features/transfer/export/entries";
 
 const UUID_SUFFIX_PATTERN =
   /\s+(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;

@@ -2,18 +2,18 @@ import "./tasks.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouteFocus } from "@/app-route";
 import { requestBlockReveal } from "@/features/editor/reveal-controller";
-import { activateReference } from "@/features/references/reference-navigation";
+import { activateReference } from "@/features/references/shell";
 import { ListTodoIcon } from "@/shared/icons/static";
-import { cn } from "@/shared/lib/utils";
-import { flushPendingWork } from "@/shell/pending-work";
-import { WindowControls } from "@/shell/window-controls";
-import { commitOperations } from "@/store/actions/workspace";
+import { cn } from "@/shared/styling/class-names";
+import { flushPendingWork } from "@/store/pending-work";
+import { WindowControls } from "@/shell/title-bar";
+import { commitOperations } from "@/store/commit";
 import { todayKey, type DateKey } from "@skriuw/renderer-core/journal/dates";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { describeDueDate, dueBucket, formatDueLabel, isDueDate } from "./due-dates";
-import { buildTaskDueDate, buildTaskToggle, type TaskWriteResult } from "./task-operations";
-import { flattenTaskRows, projectTasks, taskGroupsEqual, type TaskRow } from "./tasks-model";
+import { buildTaskDueDate, buildTaskToggle, type TaskWriteResult } from "./operations";
+import { flattenTaskRows, projectTasks, taskGroupsEqual, type TaskRow } from "./model";
 
 const columnClass = "mx-auto w-[min(100%,720px)] px-[clamp(20px,4vw,40px)]";
 

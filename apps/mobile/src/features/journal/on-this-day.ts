@@ -1,6 +1,6 @@
 /**
  * What a day recalls, shared word for word with
- * `apps/workspace/src/features/journal/on-this-day.ts` and specified in
+ * `apps/workspace/src/features/journal/history/on-this-day.ts` and specified in
  * `docs/specs/journal-daily.md` under "On this day".
  */
 

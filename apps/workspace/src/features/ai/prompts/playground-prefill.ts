@@ -1,4 +1,4 @@
-import type { AiModelSelection } from "@/features/ai/models/model-selection";
+import type { AiModelSelection } from "@/features/ai/models/selection";
 
 type Props = {
   selection: AiModelSelection;

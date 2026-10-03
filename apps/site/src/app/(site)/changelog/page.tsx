@@ -19,7 +19,7 @@ export default function Page({ searchParams }: Props) {
   return (
     <>
       <header className="py-12! max-[620px]:py-8!">
-        <p className="caps flex items-center gap-2 text-ink-400">
+        <p className="caps flex items-center gap-2 text-ink-500">
           <span className="text-accent tabular-nums">06</span>
           changelog
         </p>

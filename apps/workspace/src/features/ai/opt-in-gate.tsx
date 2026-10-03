@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import type { AppCommand } from "@/commands/registry";
-import { requestModelSwitcher } from "@/features/ai/models/model-switcher-controller";
+import { requestModelSwitcher } from "@/features/ai/models/switcher-controller";
 
 const EMPTY_REGISTRATIONS: readonly never[] = [];
 

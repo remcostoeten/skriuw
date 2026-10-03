@@ -114,7 +114,7 @@ detachment.
 
 ### The precedent to copy
 
-`apps/workspace/src/features/references/entity-merge.ts` already rewrites the documents of
+`apps/workspace/src/features/references/prosemirror/entity-merge.ts` already rewrites the documents of
 notes that are not open in any editor, for entity merges. Its
 `buildMergeSaveDocuments` is the exact shape to follow:
 
@@ -217,8 +217,8 @@ testable without a DOM, exactly as `entity-manager-model.ts` and
 `entity-merge.ts` are.
 
 `TasksView` is a full-screen surface, so **it must host `WindowControls`
-itself** — see `apps/workspace/src/shell/window-controls.tsx` and how
-`apps/workspace/src/features/references/entity-view.tsx` imports and places it. There is
+itself** — see `apps/workspace/src/shell/title-bar/window-controls.tsx` and how
+`apps/workspace/src/features/references/entities/view.tsx` imports and places it. There is
 no shared chrome that does this for you.
 
 ### Projection
@@ -316,7 +316,7 @@ the backend's `WorkspaceTask::reconciled_status` deliberately preserves
 `in_progress`, `todo` is correct here; do not replicate the reconciliation
 logic in the renderer.
 
-Submit through `commitOperations` from `@/store/actions/workspace`, as
+Submit through `commitOperations` from `@/store/commit`, as
 `entity-view.tsx` does.
 
 ### The open-editor hazard
@@ -327,7 +327,7 @@ is ahead of the store record, and this write will either be rejected on
 revision mismatch or land and then be overwritten by the editor's next save.
 
 The editor stages its document via `preparedDocuments.stage(...)`
-(`apps/workspace/src/features/editor/prepared-documents.ts:57`) and saves on a debounce
+(`apps/workspace/src/features/editor/document/prepared.ts:57`) and saves on a debounce
 (`note-editor.tsx:546`). Options, in preference order:
 
 1. **Flush first.** Before building the toggle, ask the editor to persist the
@@ -349,7 +349,7 @@ first thing to do in this section, and it may change the shape of the seam.
 Clicking a row's note label, or pressing Enter on a focused row, navigates to
 the source.
 
-Follow `apps/workspace/src/features/references/reference-navigation.ts`, which pushes the
+Follow `apps/workspace/src/features/references/navigation/navigate.ts`, which pushes the
 current location onto a back stack before jumping so `navigateBack` can return
 the reader. Reuse that module rather than writing a second back stack.
 
@@ -423,15 +423,15 @@ note label. Completed rows are de-emphasized.
 | `apps/workspace/src/commands/definitions.ts` | `goToTasks` command |
 | `apps/workspace/src/app.tsx` | Route branch + action mapping |
 | `apps/workspace/src/features/tasks/tasks-view.tsx` *(new)* | The surface; hosts `WindowControls` |
-| `apps/workspace/src/features/tasks/tasks-model.ts` *(new)* | Pure projection + row equality |
-| `apps/workspace/src/features/tasks/task-operations.ts` *(new)* | Paired-write builders |
+| `apps/workspace/src/features/tasks/model.ts` *(new)* | Pure projection + row equality |
+| `apps/workspace/src/features/tasks/operations.ts` *(new)* | Paired-write builders |
 | `apps/workspace/src/features/editor/note-editor.tsx` | Reveal-by-blockId, and `transformPasted` for task identity |
 | `apps/workspace/src/features/editor/reveal-controller.ts` *(new)* | Cross-route reveal request, replayed after the note switch |
-| `apps/workspace/src/features/editor/block-locations.ts` *(new)* | Position and top-level index of a `blockId` |
-| `apps/workspace/src/features/editor/task-paste.ts` *(new)* | Fresh identity for pasted `check_item`s |
+| `apps/workspace/src/features/editor/blocks/locations.ts` *(new)* | Position and top-level index of a `blockId` |
+| `apps/workspace/src/features/editor/tasks/paste.ts` *(new)* | Fresh identity for pasted `check_item`s |
 | `apps/workspace/src/store/store.ts` | Apply a task operation's paired document optimistically |
-| `__tests__/apps/workspace/src/features/tasks/tasks-model.test.ts` *(new)* | Projection, grouping, detached handling |
-| `__tests__/apps/workspace/src/features/tasks/task-operations.test.ts` *(new)* | Paired writes, refusal cases |
+| `__tests__/apps/workspace/src/features/tasks/model.test.ts` *(new)* | Projection, grouping, detached handling |
+| `__tests__/apps/workspace/src/features/tasks/operations.test.ts` *(new)* | Paired writes, refusal cases |
 | `docs/FEATURES.md` | Document the surface |
 
 Do not change anything under `crates/`, `contracts/generated/`, or
@@ -501,7 +501,7 @@ Steps 1–2 are shippable alone as a read-only surface.
 
 ### Regression
 
-- [ ] `__tests__/apps/workspace/src/features/editor/tasks.test.ts`,
+- [ ] `__tests__/apps/workspace/src/features/editor/tasks/linking.test.ts`,
       `task-promotion.test.ts`, and `check-list.test.ts` pass unmodified.
 - [ ] `./bin/check` passes.
 
@@ -532,7 +532,7 @@ Steps 1–2 are shippable alone as a read-only surface.
 ## Resolved questions
 
 1. **The open-editor flush seam.** No new export was needed. `note-editor.tsx`
-   already registers `flushPendingSave` with `@/shell/pending-work`, so the
+   already registers `flushPendingSave` with `@/store/pending-work`, so the
    view awaits `flushPendingWork()` before reading the document — which also
    covers a dirty note that is not the active one. A rejected flush
    (`SaveFlushError`) refuses the toggle and says so rather than writing
@@ -566,7 +566,7 @@ comment. `unique_document_task_link` will not match a duplicated link, so
 `reconcile_note_tasks` stopped reconciling that task and toggling it from here
 hit refusal case 6.
 
-`apps/workspace/src/features/editor/task-paste.ts` now regenerates `taskId`/`blockId` on
+`apps/workspace/src/features/editor/tasks/paste.ts` now regenerates `taskId`/`blockId` on
 every pasted `check_item`. It is wired twice, because the two paste paths do
 not share a slice: as `transformPasted` on the editor view, and inside
 `markdownPasteSlice`, which dispatches its own slice and never reaches

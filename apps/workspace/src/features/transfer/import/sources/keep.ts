@@ -1,16 +1,16 @@
-import type {
-  MarkdownTree,
-  MarkdownTreeFile,
-} from "@/features/transfer/export/markdown-transfer-model";
-import { sanitizeFileName } from "@/features/transfer/export/markdown-transfer-model";
+import type { MarkdownTree, MarkdownTreeFile } from "@/features/transfer/import/parsing/tree";
+import { sanitizeFileName } from "@/features/transfer/export/entries";
 import type {
   ImportBundle,
   ImportSourceAdapter,
   ImportedNote,
   ImportedNoteProperty,
   ImportWarning,
-} from "@/features/transfer/import/model";
-import { noteTitleFromContent, relativeLinkBetween } from "@/features/transfer/import/model";
+} from "@/features/transfer/import/parsing/bundle";
+import {
+  noteTitleFromContent,
+  relativeLinkBetween,
+} from "@/features/transfer/import/parsing/bundle";
 
 type KeepListItem = {
   text?: string;

@@ -5,7 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AnimatedIconsProvider } from "@/shared/icons/animated-icons-context";
 import { AppIcon } from "@/shared/icons/app-icon";
-import { RAIL_ICONS } from "@/shell/rail-icons";
+import { RAIL_ICONS } from "@/shell/rail";
 
 function render(name: (typeof ICON_NAMES)[number], animated: boolean): string {
   return renderToStaticMarkup(

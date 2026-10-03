@@ -7,7 +7,7 @@ import {
   productSchema,
   serializeProductMarkdown,
 } from "@/features/editor/schema";
-import { isRenderableMermaidFence } from "@/features/editor/mermaid-render";
+import { isRenderableMermaidFence } from "@/features/editor/diagrams/mermaid-render";
 
 function codeBlockDocument(params: string, code: string) {
   return productSchema.node("doc", null, [

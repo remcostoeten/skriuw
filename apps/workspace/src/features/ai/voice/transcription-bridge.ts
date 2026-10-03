@@ -1,5 +1,5 @@
 import type { AiTranscriptionModel, AiTranscriptionResult } from "@/contracts/ai";
-import { invoke, requireDesktopRuntime } from "@/bridge/runtime";
+import { invoke, requireDesktopRuntime } from "@/platform/runtime/runtime";
 
 type Props = {
   requestId: string;

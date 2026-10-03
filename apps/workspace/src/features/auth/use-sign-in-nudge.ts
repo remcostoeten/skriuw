@@ -7,7 +7,7 @@ import {
   readNudgeProgress,
   recordNudgeAction,
   rememberNudgeProgress,
-} from "./sign-in-nudge-model";
+} from "./nudge/model";
 
 const NUDGE_IDLE_MS = 2_000;
 

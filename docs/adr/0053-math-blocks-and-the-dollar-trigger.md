@@ -43,7 +43,7 @@ person mentions export unchanged. The full-text index reads the same pattern
 and indexes the TeX without its delimiters.
 
 Rendering uses KaTeX, pinned exactly and wrapped by
-`apps/workspace/src/features/editor/math-render.ts`. KaTeX and its stylesheet
+`apps/workspace/src/features/editor/math/render.ts`. KaTeX and its stylesheet
 are a dynamic import on the first math node a note view meets; its fonts are
 bundled assets, so nothing leaves the device. Renders are memoized by source and
 mode, so a revisited note paints from the cache in the same frame. First renders

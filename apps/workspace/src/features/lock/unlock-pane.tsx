@@ -3,8 +3,8 @@ import { Button } from "@/shared/ui/button";
 import { LockIcon } from "@/shared/icons/static";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import { secretNoun } from "./lock-model";
-import { requestSessionUnlock } from "./lock-session";
+import { secretNoun } from "./state/model";
+import { requestSessionUnlock } from "./session/node-lock";
 
 type Props = {
   store: RendererStore;

@@ -14,6 +14,11 @@ export type CommandUiState = {
 
 export type CommandPredicate = (state: RendererState, ui: CommandUiState) => boolean;
 
+/** Enables a command only while the shell shows `route`. */
+export function onRoute(route: AppRoute): CommandPredicate {
+  return (_state, ui) => ui.route === route;
+}
+
 export type AppCommand = {
   id: string;
   label: string;

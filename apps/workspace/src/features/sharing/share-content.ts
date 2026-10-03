@@ -1,7 +1,7 @@
 import type { RendererState } from "@skriuw/renderer-core/store/types";
-import { extractDrawingFence } from "@/features/editor/drawing-layer";
-import { isNodeLocked, isNoteSealed } from "@/features/lock/lock-model";
-import { referenceSafeMarkdown } from "@/features/transfer/export/markdown-transfer-model";
+import { extractDrawingFence } from "@/features/drawing/layer";
+import { isNodeLocked, isNoteSealed } from "@/features/lock/lock";
+import { referenceSafeMarkdown } from "@/features/transfer/markdown";
 
 export type ShareableNote =
   | { ok: true; title: string; markdown: string }

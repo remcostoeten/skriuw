@@ -2,7 +2,7 @@ import { useId, useMemo, useState, type ComponentProps } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { getCommandFrecency, recordCommandUse } from "./command-frecency";
 import { SearchIcon } from "@/shared/icons/static";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/styling/class-names";
 import { Dialog, useDialogClose } from "@/shared/ui/dialog";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 import { useListboxNavigation } from "@/shared/ui/use-listbox-navigation";

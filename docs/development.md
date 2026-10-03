@@ -95,8 +95,11 @@ scripts                    Internal helpers and deployment automation
 ```
 
 Inside `apps/workspace/src`, product features live under `features/` (editor, journal,
-references, settings, transfer, and so on); `bridge/`, `store/`, `shell/`,
-`commands/`, `shared/`, and `contracts/` are the platform layers beside them.
+references, settings, transfer, and so on); `platform/`, `store/`, `shell/`,
+`commands/`, `shared/`, and `contracts/` are the layers beside them, and
+`app/` holds startup and composition. `platform/` keeps runtime adapters in
+`ports/`, `browser/`, `desktop/`, and `runtime/`, where `runtime/runtime.ts`
+is the one place that detects the runtime and selects an adapter.
 The desktop shell in `apps/workspace/src-tauri` keeps `lib.rs` as command registration,
 with shared state in `state.rs` and one command module per capability under
 `commands/`.

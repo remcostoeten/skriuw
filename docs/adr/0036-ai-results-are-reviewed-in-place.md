@@ -47,7 +47,7 @@ refuse the result at accept time anyway. Clearing says so immediately rather
 than at the end.
 
 The added text is word-diffed against the input with `diffWords`, moved from the
-version-history module to `shared/lib/word-diff` now that two features render
+version-history module to `shared/text/word-diff` now that two features render
 it. The diff is computed only once a run settles: streamed text arrives
 mid-word, and a diff recomputed per frame would show word boundaries that do not
 exist yet.

@@ -3,10 +3,8 @@ import { test } from "vitest";
 import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import {
   DEFAULT_WORKSPACE_SETTINGS,
-  changeHistoryDiffLayout,
   changeSetting,
   changeShortcutOverride,
-  historyDiffLayout,
   projectSettings,
   resetShortcutOverride,
   resetShortcutOverrides,
@@ -63,26 +61,6 @@ test("default settings project every editable field", () => {
     remoteImportImages: "ask",
     facehashAvatar: true,
   });
-});
-
-test("history diff layout is unified unless the workspace explicitly chose split", () => {
-  assert.equal(historyDiffLayout(DEFAULT_WORKSPACE_SETTINGS), "unified");
-  assert.equal(
-    historyDiffLayout({ ...DEFAULT_WORKSPACE_SETTINGS, historyDiffLayout: "split" }),
-    "split",
-  );
-  assert.equal(
-    historyDiffLayout({ ...DEFAULT_WORKSPACE_SETTINGS, historyDiffLayout: "stacked" }),
-    "unified",
-  );
-});
-
-test("changing the history diff layout keeps unrelated settings intact", () => {
-  const changed = changeHistoryDiffLayout(extendedSettings(), "split");
-
-  assert.equal(historyDiffLayout(changed), "split");
-  assert.deepEqual(changed.futureSetting, { nested: ["kept", 3] });
-  assert.deepEqual(changed.shortcutOverrides, extendedSettings().shortcutOverrides);
 });
 
 test("Vim mode stays off unless the persisted preference is explicitly true", () => {

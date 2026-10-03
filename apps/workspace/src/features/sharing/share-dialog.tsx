@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@remcostoeten/auth-drawer";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
-import { openExternalUrl } from "@/bridge/external-links";
+import { openExternalUrl } from "@/platform/runtime/external-links";
 import { CopyIcon, ExternalLinkIcon } from "@/shared/icons/static";
 import { Button } from "@/shared/ui/button";
 import { Checkbox } from "@/shared/ui/checkbox";

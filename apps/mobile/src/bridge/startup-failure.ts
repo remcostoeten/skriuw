@@ -40,7 +40,7 @@ const MAX_CAUSE_DEPTH = 4;
 
 /**
  * Open-path kinds no amount of retrying clears, mirroring
- * `RESETTABLE_STARTUP_CODES` in `apps/workspace/src/shell/startup-failure.ts`.
+ * `RESETTABLE_STARTUP_CODES` in `apps/workspace/src/app/startup-failure.ts`.
  *
  * `unsupported-protocol` is deliberately absent: updating the app fixes it and
  * a reset would destroy writes this build cannot read. `busy` and

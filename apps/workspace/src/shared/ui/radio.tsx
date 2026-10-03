@@ -1,5 +1,5 @@
 import { forwardRef, type InputHTMLAttributes } from "react";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/styling/class-names";
 
 const radioClass = cn(
   "relative m-0 size-4 flex-none cursor-pointer appearance-none rounded-full border-[1.5px] border-theme-secondary bg-background transition-colors duration-[120ms] motion-reduce:duration-[1ms]",

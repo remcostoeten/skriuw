@@ -5,14 +5,11 @@ import { Button } from "@/shared/ui/button";
 import { Dialog, useDialogClose } from "@/shared/ui/dialog";
 import { Radio } from "@/shared/ui/radio";
 import { LockIcon } from "@/shared/icons/static";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/styling/class-names";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import {
-  normalizeRecoveryCodeInput,
-  recoveryCodeLooksComplete,
-} from "@/features/settings/sections/sync-encryption";
-import { registerLockDialog } from "./lock-dialog-controller";
+import { normalizeRecoveryCodeInput, recoveryCodeLooksComplete } from "@/shared/text/recovery-code";
+import { registerLockDialog } from "./session/dialog-requests";
 import {
   formatWait,
   hintRevealsSecret,
@@ -21,9 +18,9 @@ import {
   unlockPresentation,
   validateHint,
   validateSecret,
-} from "./lock-model";
-import type { LockDialogRequest } from "./lock-model";
-import { changeNoteSecret, recoverNotes, setUpNoteLock, unlockNotes } from "./lock-session";
+} from "./state/model";
+import type { LockDialogRequest } from "./state/model";
+import { changeNoteSecret, recoverNotes, setUpNoteLock, unlockNotes } from "./session/backend";
 
 type HostProps = {
   store: RendererStore;

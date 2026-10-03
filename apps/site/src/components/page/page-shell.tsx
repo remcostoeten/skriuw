@@ -8,14 +8,21 @@ const panel = "rounded-[10px] border border-line bg-hy-card";
 
 type PageAction = { label: string; href: string };
 
-function Actions({ actions, className }: { actions: PageAction[]; className?: string }) {
+type ActionsProps = {
+  actions: PageAction[];
+  lead?: ReactNode;
+  className?: string;
+};
+
+function Actions({ actions, lead, className }: ActionsProps) {
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
+      {lead}
       {actions.map((action, index) => (
         <Link
           key={action.href}
           href={action.href}
-          className={index === 0 ? primaryButton : cn(outlineButton, "h-10 px-4")}
+          className={index === 0 && !lead ? primaryButton : cn(outlineButton, "h-10 px-4")}
         >
           {action.label}
         </Link>
@@ -32,9 +39,19 @@ type HeroProps = {
   title: ReactNode;
   lede: string;
   actions: PageAction[];
+  leadAction?: ReactNode;
 };
 
-export function PageHero({ index, label, marks, eyebrow, title, lede, actions }: HeroProps) {
+export function PageHero({
+  index,
+  label,
+  marks,
+  eyebrow,
+  title,
+  lede,
+  actions,
+  leadAction,
+}: HeroProps) {
   return (
     <section className="grid gap-10 py-14! lg:grid-cols-[minmax(0,1fr)_300px] lg:items-end lg:gap-16 max-[620px]:py-10!">
       <div className="max-w-[720px]">
@@ -43,7 +60,7 @@ export function PageHero({ index, label, marks, eyebrow, title, lede, actions }:
           {title}
         </h1>
         <p className="mt-6 max-w-[600px] text-[17px] leading-[26px] text-ink-500">{lede}</p>
-        <Actions actions={actions} className="mt-8" />
+        <Actions actions={actions} lead={leadAction} className="mt-8" />
       </div>
 
       <aside className={cn(panel, "divide-y divide-dashed divide-line")}>
@@ -222,17 +239,22 @@ export function TermGrid({ terms }: TermsProps) {
 }
 
 type CodeCardProps = {
+  id?: string;
   platform: string;
   title: string;
   body: string;
   lines: string[];
+  mark?: ReactNode;
 };
 
-export function CodeCard({ platform, title, body, lines }: CodeCardProps) {
+export function CodeCard({ id, platform, title, body, lines, mark }: CodeCardProps) {
   return (
-    <article className={cn(panel, "flex min-w-0 flex-col")}>
+    <article id={id} className={cn(panel, "flex min-w-0 scroll-mt-24 flex-col")}>
       <p className="caps flex items-center justify-between gap-3 border-b border-dashed border-line px-5 py-3 text-ink-400">
-        {platform}
+        <span className="flex min-w-0 items-center gap-2">
+          {platform}
+          {mark}
+        </span>
         <span className="text-ink-700">{title}</span>
       </p>
       <div className="flex flex-1 flex-col gap-5 p-5">

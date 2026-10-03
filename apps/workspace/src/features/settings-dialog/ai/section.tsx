@@ -1,0 +1,493 @@
+import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
+import { openExternalUrl } from "@/platform/runtime/external-links";
+import type { LocalAiModel, LocalAiProgress, LocalAiStatus } from "@/contracts/ai";
+import {
+  OLLAMA_INSTALL_SOURCE_URL,
+  availableOllamaSelection,
+  deleteOllamaModel,
+  installOllamaRuntime,
+  listOllamaModels,
+  loadOllamaSnapshot,
+  ollamaModelSourceUrl,
+  ollamaRuntimeStatus,
+  pullOllamaModel,
+  readSelectedOllamaModel,
+  startOllamaRuntime,
+  stopOllamaRuntime,
+  writeSelectedOllamaModel,
+  type OllamaRuntimeAction,
+} from "@/features/ai/local-models";
+import {
+  SettingsHeading,
+  settingsButton,
+  settingsRow,
+  settingsRowDescription,
+  settingsRowLabel,
+  settingsSection,
+} from "@/shared/ui/settings-controls";
+import { OllamaModelsPanel, OllamaRuntimeCard } from "./ollama";
+import { RemoteProvidersPanel } from "./remote-providers";
+import { useRemoteAiProviders } from "./use-remote-providers";
+import {
+  aiModelGroups,
+  parseAiModelSelection,
+  selectRawAiModelSetting,
+  setAiModelSelection,
+} from "@/features/ai/models";
+import {
+  duplicatePromptDraft,
+  newPromptDraft,
+  promptDraftError,
+  promptDraftFrom,
+  promptFromDraft,
+  promptLibraryEntries,
+  selectWorkspacePrompts,
+  type PromptDraft,
+  type PromptLibraryEntry,
+  deletePrompt,
+  savePrompt,
+} from "@/features/ai/prompts";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import { DefaultModelPicker } from "./model-picker";
+import { PromptLibraryPanel } from "./prompt-library";
+import { AiUsagePanel } from "./usage";
+import { ChevronRightIcon } from "@/shared/icons/static";
+
+type Props = {
+  store: RendererStore;
+  signal: AbortSignal;
+  onOpenPlayground: () => void;
+};
+
+export function AiSection({ store, signal, onOpenPlayground }: Props) {
+  signal.throwIfAborted();
+  const [status, setStatus] = useState<LocalAiStatus | null>(null);
+  const [models, setModels] = useState<LocalAiModel[]>([]);
+  const [modelName, setModelName] = useState("");
+  const [selectedModel, setSelectedModel] = useState(readSelectedOllamaModel);
+  const [progress, setProgress] = useState<LocalAiProgress | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<OllamaRuntimeAction | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [deleteArmed, setDeleteArmed] = useState<string | null>(null);
+  const [pullingModel, setPullingModel] = useState<string | null>(null);
+  const operationRef = useRef<AbortController | null>(null);
+  const operationStartRef = useRef<number | null>(null);
+  const [, tick] = useReducer((count: number) => count + 1, 0);
+  const remote = useRemoteAiProviders(signal);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [draft, setDraft] = useState<PromptDraft | null>(null);
+  const prompts = useRendererSelector(store, selectWorkspacePrompts);
+  const promptEntries = useMemo(() => promptLibraryEntries(prompts), [prompts]);
+  const rawDefaultModel = useRendererSelector(store, selectRawAiModelSetting);
+  const defaultModel = useMemo(() => parseAiModelSelection(rawDefaultModel), [rawDefaultModel]);
+  const modelGroups = useMemo(
+    () =>
+      aiModelGroups({
+        ollamaStatus: status,
+        ollamaModels: models,
+        remoteProviders: remote.providers,
+        remoteModels: remote.models,
+      }),
+    [status, models, remote.providers, remote.models],
+  );
+
+  useEffect(() => {
+    if (progress?.type !== "progress") return;
+    const id = window.setInterval(tick, 1_000);
+    return () => window.clearInterval(id);
+  }, [progress?.type]);
+
+  const elapsedMs =
+    progress?.type === "progress" && operationStartRef.current !== null
+      ? Date.now() - operationStartRef.current
+      : 0;
+  const sourceUrl =
+    progress?.type === "progress"
+      ? progress.operation === "pull"
+        ? pullingModel
+          ? ollamaModelSourceUrl(pullingModel)
+          : null
+        : OLLAMA_INSTALL_SOURCE_URL
+      : null;
+
+  useEffect(() => {
+    let active = true;
+    function refresh(): void {
+      void loadOllamaSnapshot()
+        .then((snapshot) => {
+          if (!active || signal.aborted) return;
+          setStatus(snapshot.status);
+          setModels(snapshot.models);
+          setSelectedModel((current) => availableOllamaSelection(current, snapshot.models));
+          setError(null);
+        })
+        .catch((reason) => {
+          if (active && !signal.aborted) setError(errorMessage(reason));
+        });
+    }
+    refresh();
+    function abort() {
+      operationRef.current?.abort();
+    }
+    signal.addEventListener("abort", abort, { once: true });
+    const poll = window.setInterval(() => {
+      if (!signal.aborted && operationRef.current === null) {
+        refresh();
+      }
+    }, 3_000);
+    return () => {
+      active = false;
+      window.clearInterval(poll);
+      signal.removeEventListener("abort", abort);
+    };
+  }, [signal]);
+
+  useEffect(() => {
+    writeSelectedOllamaModel(selectedModel);
+  }, [selectedModel]);
+
+  async function refreshRuntime(): Promise<void> {
+    setError(null);
+    try {
+      const next = await ollamaRuntimeStatus();
+      if (signal.aborted) return;
+      setStatus(next);
+      if (next.state === "running") {
+        await refreshModels();
+      } else {
+        setModels([]);
+      }
+    } catch (reason) {
+      if (!signal.aborted) setError(errorMessage(reason));
+    }
+  }
+
+  async function refreshModels(): Promise<void> {
+    try {
+      const next = await listOllamaModels();
+      if (signal.aborted) return;
+      setModels(next);
+      setSelectedModel((current) => availableOllamaSelection(current, next));
+    } catch (reason) {
+      if (!signal.aborted) setError(errorMessage(reason));
+    }
+  }
+
+  async function runInstall(): Promise<void> {
+    setBusy(true);
+    setPendingAction("install");
+    setError(null);
+    setProgress(null);
+    operationStartRef.current = Date.now();
+    const controller = new AbortController();
+    operationRef.current = controller;
+    try {
+      const next = await installOllamaRuntime(setProgress, controller.signal);
+      if (!signal.aborted) {
+        setStatus(next);
+        await refreshModels();
+      }
+    } catch (reason) {
+      if (!signal.aborted && !controller.signal.aborted) setError(errorMessage(reason));
+    } finally {
+      operationRef.current = null;
+      operationStartRef.current = null;
+      setBusy(false);
+      setPendingAction(null);
+      if (controller.signal.aborted) setProgress(null);
+    }
+  }
+
+  async function runStart(): Promise<void> {
+    setBusy(true);
+    setPendingAction("start");
+    setError(null);
+    try {
+      const next = await startOllamaRuntime();
+      if (!signal.aborted) {
+        setStatus(next);
+        await refreshModels();
+      }
+    } catch (reason) {
+      if (!signal.aborted) setError(errorMessage(reason));
+    } finally {
+      setBusy(false);
+      setPendingAction(null);
+    }
+  }
+
+  async function runStop(): Promise<void> {
+    setBusy(true);
+    setPendingAction("stop");
+    setError(null);
+    try {
+      const next = await stopOllamaRuntime();
+      if (!signal.aborted) {
+        setStatus(next);
+        setModels([]);
+      }
+    } catch (reason) {
+      if (!signal.aborted) setError(errorMessage(reason));
+    } finally {
+      setBusy(false);
+      setPendingAction(null);
+    }
+  }
+
+  async function runPull(): Promise<void> {
+    const model = modelName.trim();
+    if (!model) return;
+    setBusy(true);
+    setError(null);
+    setProgress(null);
+    setPullingModel(model);
+    operationStartRef.current = Date.now();
+    const controller = new AbortController();
+    operationRef.current = controller;
+    try {
+      await pullOllamaModel(model, setProgress, controller.signal);
+      if (!signal.aborted) {
+        setModelName("");
+        selectModel(model);
+        await refreshModels();
+      }
+    } catch (reason) {
+      if (!signal.aborted && !controller.signal.aborted) setError(errorMessage(reason));
+    } finally {
+      operationRef.current = null;
+      operationStartRef.current = null;
+      setPullingModel(null);
+      setBusy(false);
+      if (controller.signal.aborted) setProgress(null);
+    }
+  }
+
+  async function removeModel(model: string): Promise<void> {
+    if (deleteArmed !== model) {
+      setDeleteArmed(model);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteOllamaModel(model);
+      if (!signal.aborted) {
+        setDeleteArmed(null);
+        await refreshModels();
+      }
+    } catch (reason) {
+      if (!signal.aborted) setError(errorMessage(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function cancelOperation(): void {
+    operationRef.current?.abort();
+  }
+
+  function selectModel(model: string): void {
+    setSelectedModel(model);
+  }
+
+  function editPrompt(entry: PromptLibraryEntry): void {
+    setEditingKey(entry.key);
+    setDraft(promptDraftFrom(entry, crypto.randomUUID(), Date.now()));
+  }
+
+  function duplicatePrompt(entry: PromptLibraryEntry): void {
+    setEditingKey("new");
+    setDraft(duplicatePromptDraft(entry, crypto.randomUUID(), Date.now()));
+  }
+
+  function createPrompt(): void {
+    setEditingKey("new");
+    setDraft(newPromptDraft(crypto.randomUUID(), Date.now()));
+  }
+
+  function closeEditor(): void {
+    setEditingKey(null);
+    setDraft(null);
+  }
+
+  function savePromptDraft(): void {
+    if (draft === null || promptDraftError(draft) !== null) {
+      return;
+    }
+    savePrompt(store, promptFromDraft(draft, Date.now()));
+    closeEditor();
+  }
+
+  function removePrompt(entry: PromptLibraryEntry): void {
+    const stored = entry.promptId === null ? undefined : prompts.get(entry.promptId);
+    if (stored === undefined) {
+      return;
+    }
+    if (editingKey === entry.key) {
+      closeEditor();
+    }
+    deletePrompt(store, stored);
+  }
+
+  return (
+    <section aria-label="AI settings" className={settingsSection}>
+      <SettingsHeading
+        title="AI"
+        detail="Choose a model for writing tools. Open the other sections only when you need them."
+      />
+      <DefaultModelPicker
+        groups={modelGroups}
+        selection={defaultModel}
+        onSelect={(selection) => setAiModelSelection(store, selection)}
+      />
+      <div className={settingsRow}>
+        <span className={settingsRowLabel}>
+          Try a prompt
+          <span className={settingsRowDescription}>
+            Test the selected model without changing a note.
+          </span>
+        </span>
+        <button type="button" className={settingsButton} onClick={onOpenPlayground}>
+          Open playground
+        </button>
+      </div>
+      <div className="mt-8 overflow-hidden rounded-xl border border-border/70 bg-muted/10">
+        <AiSettingsDisclosure
+          title="Local AI"
+          description="Run private models on this device with Ollama."
+        >
+          <OllamaRuntimeCard
+            status={status}
+            progress={progress}
+            elapsedMs={elapsedMs}
+            sourceUrl={sourceUrl}
+            busy={busy}
+            pending={pendingAction}
+            error={error}
+            onInstall={() => void runInstall()}
+            onStart={() => void runStart()}
+            onStop={() => void runStop()}
+            onOpenInstaller={() => {
+              void openExternalUrl("https://ollama.com/download/windows").catch((reason) => {
+                setError(errorMessage(reason));
+              });
+            }}
+            onRefresh={() => void refreshRuntime()}
+            onCancel={cancelOperation}
+            onOpenSource={() => {
+              if (!sourceUrl) return;
+              void openExternalUrl(sourceUrl).catch((reason) => {
+                setError(errorMessage(reason));
+              });
+            }}
+          />
+          {status?.state === "running" ? (
+            <OllamaModelsPanel
+              models={models}
+              modelName={modelName}
+              selectedModel={selectedModel}
+              deleteArmed={deleteArmed}
+              busy={busy}
+              onModelNameChange={setModelName}
+              onPull={() => void runPull()}
+              onSelect={selectModel}
+              onDelete={(model) => void removeModel(model)}
+              onDeleteBlur={(model) =>
+                setDeleteArmed((current) => (current === model ? null : current))
+              }
+            />
+          ) : null}
+        </AiSettingsDisclosure>
+        {remote.providers.length === 0 ? null : (
+          <AiSettingsDisclosure
+            title="Online providers"
+            description="Bring your own API key for Gemini, Groq, DeepSeek, Kimi, GLM, Qwen, or AI/ML API."
+          >
+            <RemoteProvidersPanel
+              providers={remote.providers}
+              models={remote.models}
+              vault={remote.vault}
+              drafts={remote.drafts}
+              onDraftChange={remote.changeDraft}
+              onAcceptDisclosure={remote.acceptDisclosure}
+              onSaveKey={remote.saveKey}
+              onVerifyKey={remote.verifyKey}
+              onRemoveKey={remote.removeKey}
+              onRevoke={remote.revoke}
+              onRefreshModels={remote.refreshModels}
+            />
+            {remote.error ? (
+              <p role="alert" className="text-xs text-destructive">
+                {remote.error}
+              </p>
+            ) : null}
+          </AiSettingsDisclosure>
+        )}
+        <AiSettingsDisclosure
+          title="Writing prompts"
+          description="Customize the instructions behind each writing action."
+        >
+          <PromptLibraryPanel
+            entries={promptEntries}
+            draft={draft}
+            editingKey={editingKey}
+            onEdit={editPrompt}
+            onDraftChange={(change) =>
+              setDraft((current) => (current === null ? current : { ...current, ...change }))
+            }
+            onSave={savePromptDraft}
+            onCancel={closeEditor}
+            onDuplicate={duplicatePrompt}
+            onReset={removePrompt}
+            onDelete={removePrompt}
+            onCreate={createPrompt}
+          />
+        </AiSettingsDisclosure>
+        <AiSettingsDisclosure
+          title="History and usage"
+          description="Review local run history, token counts, and estimated cost."
+        >
+          <AiUsagePanel signal={signal} />
+        </AiSettingsDisclosure>
+      </div>
+    </section>
+  );
+}
+
+function AiSettingsDisclosure({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <details className="group border-b border-border/60 last:border-b-0">
+      <summary className="flex min-h-[58px] cursor-pointer list-none items-center gap-3 px-4 py-2.5 outline-none marker:hidden focus-visible:bg-accent/35 [&::-webkit-details-marker]:hidden">
+        <ChevronRightIcon
+          size={14}
+          aria-hidden="true"
+          className="shrink-0 text-muted-foreground transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none"
+        />
+        <span className="min-w-0">
+          <span className="block text-[13px] font-medium text-foreground">{title}</span>
+          <span className="mt-1 block text-xs leading-[1.5] text-muted-foreground">
+            {description}
+          </span>
+        </span>
+      </summary>
+      <div className="border-t border-border/50 px-4 pt-4 pb-1">{children}</div>
+    </details>
+  );
+}
+
+function errorMessage(reason: unknown): string {
+  if (typeof reason === "object" && reason !== null && "message" in reason) {
+    return String(reason.message);
+  }
+  return String(reason);
+}

@@ -1,8 +1,9 @@
-import { ICON_REGISTRY, selectGlyph } from "@skriuw/icons";
+import { ICON_REGISTRY, selectGlyph, type IconName } from "@skriuw/icons";
 import { useEffect, useId, useRef } from "react";
-import { AnimatedGlyph, playIconMotion } from "./animated-glyph";
+import { AnimatedGlyph, playIconMotion } from "./animated/glyph";
 import { useAnimatedIcons } from "./animated-icons-context";
-import type { AppIconName } from "./registry";
+
+export type AppIconName = IconName;
 
 type Props = {
   /** Action name from the icon registry, e.g. `"search"`. */

@@ -3,7 +3,7 @@
 ## Status
 
 Accepted, 2026-08-14. Establishes the durable task record behind the existing
-`features/editor/task-promotion.ts` seam.
+`features/editor/tasks/promotion.ts` seam.
 
 ## Context
 

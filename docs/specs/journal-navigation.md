@@ -8,7 +8,7 @@ shortcuts and the "Go to date…" dialog with its date grammar.
 | `packages/renderer-core/src/journal/date-expressions.ts` | The grammar. Pure; takes the viewed day and today as arguments. |
 | `packages/renderer-core/src/journal/dates.ts` | Calendar math over local `YYYY-MM-DD` keys (month/year clamping, Monday-first weeks). |
 | `apps/workspace/src/features/journal/navigation.ts` | Writes the destination into the route hash and carries the open-dialog request. |
-| `apps/workspace/src/features/journal/go-to-date-dialog.tsx` | The dialog, built on the shared `Dialog`. |
+| `apps/workspace/src/features/journal/navigation/go-to-date-dialog.tsx` | The dialog, built on the shared `Dialog`. |
 | `apps/workspace/src/commands/definitions.ts` | Default bindings. |
 
 ## Step shortcuts

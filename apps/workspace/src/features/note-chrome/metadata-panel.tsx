@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/styling/class-names";
 import {
   ChevronDownIcon,
   ChevronRightIcon,
@@ -16,8 +16,8 @@ import {
   ContextMenuTrigger,
 } from "@/shared/ui/context-menu";
 import { showToast } from "@/shared/ui/toast";
-import { readHistoryVersion } from "@/bridge/commands";
-import { restoreNoteVersion } from "@/store/actions/workspace";
+import { readHistoryVersion } from "@/platform/runtime/commands";
+import { restoreNoteVersion } from "@/features/history/restore-version";
 import { SectionToggle, sectionLabelClass } from "@/shared/ui/section-header";
 import { Collapse } from "@/shared/ui/collapse";
 import {
@@ -27,16 +27,18 @@ import {
   projectVersionList,
   type VersionListItem,
   type VersionRow,
-} from "@/features/history/version-model";
+} from "@/features/history/versions";
 import { VersionStats } from "@/features/history/version-stats";
 import { noteHistoryHash } from "@skriuw/renderer-core/route/app-route";
-import { formatRelativeTime } from "@/shared/lib/relative-time";
-import { NoteOutline } from "./note-outline";
-import { AnnotationList } from "./annotation-list";
-import { RelationshipExplorer } from "@/features/references/relationship-explorer";
-import { projectHasRelationships } from "@/features/references/relationship-model";
-import { noteUnlinkedMentionTerm } from "@/features/references/unlinked-mentions-model";
-import { openedFileOrigin } from "@/features/transfer/import/opened-file-origin";
+import { formatRelativeTime } from "@/shared/format/relative-time";
+import { NoteOutline } from "./metadata/outline";
+import { AnnotationList } from "./metadata/annotation-list";
+import {
+  noteUnlinkedMentionTerm,
+  projectHasRelationships,
+  RelationshipExplorer,
+} from "@/features/references/shell";
+import { openedFileOrigin } from "@/features/transfer/opened-file-origin";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 
 type Props = {

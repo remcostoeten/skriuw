@@ -1,7 +1,6 @@
 import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import { BUILTIN_THEMES, builtinThemeLabel, resolveTheme } from "@skriuw/theme";
 import type { ShortcutActionId } from "@/commands/definitions";
-import { isDiffLayout, type DiffLayout } from "@/features/history/split-diff-model";
 
 export const THEME_OPTIONS = BUILTIN_THEMES.map((theme) => ({
   value: theme.id,
@@ -210,22 +209,6 @@ export function remoteImportImages(settings: WorkspaceSettings): RemoteImportIma
 
 export function vimCursorBlinks(settings: WorkspaceSettings): boolean {
   return settings["vimCursorBlink"] === true;
-}
-
-/**
- * How the history view lays out a revision diff. Unified unless the workspace
- * explicitly chose side-by-side, so older workspaces keep the single column.
- */
-export function historyDiffLayout(settings: WorkspaceSettings): DiffLayout {
-  const value = settings["historyDiffLayout"];
-  return isDiffLayout(value) ? value : "unified";
-}
-
-export function changeHistoryDiffLayout(
-  settings: WorkspaceSettings,
-  layout: DiffLayout,
-): WorkspaceSettings {
-  return { ...settings, historyDiffLayout: layout };
 }
 
 export function autoLockMinutes(settings: WorkspaceSettings): number {

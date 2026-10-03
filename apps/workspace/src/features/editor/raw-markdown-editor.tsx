@@ -10,9 +10,9 @@ import {
   keymap,
   placeholder,
 } from "@codemirror/view";
-import { commitOperations } from "@/store/actions/workspace";
-import { setEditorMode } from "@/store/actions/editor-mode";
-import { registerPendingWork } from "@/shell/pending-work";
+import { commitOperations } from "@/store/commit";
+import { setEditorMode } from "@/features/editor/editor-mode";
+import { registerPendingWork } from "@/store/pending-work";
 import {
   usesTypewriterScrolling,
   usesVimMode,
@@ -26,45 +26,45 @@ import type {
   RendererState,
   RendererStore,
 } from "@skriuw/renderer-core/store/types";
-import type { DocumentEdge } from "./document-edges";
-import { JumpToLinePanel } from "./jump-to-line-panel";
-import { sourceTypewriterScrolling } from "./typewriter-scroll";
-import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
-import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
+import type { DocumentEdge } from "./navigation/document-edges";
+import { JumpToLinePanel } from "./navigation/jump-to-line-panel";
+import { sourceTypewriterScrolling } from "./focus/typewriter-scroll";
+import { useEditorBoundShortcuts } from "@/commands/editor-bound-shortcuts";
+import type { EditorBoundHandlersFor } from "@/commands/editor-bound-shortcuts";
 import type {
   RawMarkdownEdgeShortcutId,
   RawMarkdownSurfaceShortcutId,
-} from "./editor-bound-shortcut-ids";
-import { noteImageIds } from "./image-actions";
+} from "./shortcuts/bound-ids";
+import { noteImageIds } from "./media/image-actions";
 import {
   countRawMarkdownWords,
   parseJumpToLineInput,
   rawMarkdownCursorStatus,
   rawMarkdownLineCount,
-} from "./raw-markdown-editor-model";
+} from "./raw-markdown/model";
 import {
   reconcileRawMarkdown,
   updateRawMarkdown,
   type RawMarkdownState,
-} from "./raw-markdown-reconciliation";
-import { rawMarkdownSyntax } from "./raw-markdown-syntax";
+} from "./raw-markdown/reconciliation";
+import { rawMarkdownSyntax } from "./raw-markdown/syntax";
 import {
   bindRawMarkdownVimHandlers,
   observeRawMarkdownVimFeedback,
   observeRawMarkdownVimMode,
   rawMarkdownVim,
   type RawMarkdownVimMode,
-} from "./raw-markdown-vim";
+} from "./raw-markdown/vim";
 import {
   jumpToRawMarkdownRow,
   rawMarkdownRowLayout,
   rawMarkdownRowNumbers,
   rawMarkdownRowStatus,
   type RawMarkdownRowStatus,
-} from "./raw-markdown-rows";
+} from "./raw-markdown/rows";
 import { countWords, parseProductMarkdownWithImages } from "./schema";
-import { SaveFailureBanner } from "./save-failure-banner";
-import { SaveSequencer } from "./save-sequencer";
+import { SaveFailureBanner } from "./persistence/save-failure-banner";
+import { SaveSequencer } from "./persistence/save-sequencer";
 import { toastActionIsAvailable } from "@/shared/ui/toast";
 
 const SAVE_DEBOUNCE_MS = 500;

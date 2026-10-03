@@ -3,7 +3,7 @@ import type { Ref } from "react";
 import { useShortcut } from "@remcostoeten/use-shortcut/react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { RotateCcwIcon } from "@/shared/icons/static";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/styling/class-names";
 import { Tooltip } from "@skriuw/shared/ui/tooltip";
 
 export type ShortcutRecorderHandle = {

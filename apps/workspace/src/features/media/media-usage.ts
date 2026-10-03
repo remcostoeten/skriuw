@@ -5,8 +5,8 @@ import {
   projectMediaLibrary,
   type MediaLibraryEntry,
   type MediaUsage,
-} from "@/features/settings/media-library-model";
-import { activateNote } from "@/store/actions/workspace";
+} from "@/features/media/media-library-model";
+import { activateNote } from "@/features/notes/navigation";
 
 /**
  * The library view of one stored file, built from workspace references alone

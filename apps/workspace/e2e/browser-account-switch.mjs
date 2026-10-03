@@ -36,8 +36,8 @@ const SECOND_NOTE = "Second account note";
 
 const APP_BOOTED = `Boolean(document.querySelector('[role="tree"]')) && !document.querySelector('[role="alert"]')`;
 const TREE_TITLES = `Array.from(document.querySelectorAll('[role="treeitem"]')).map((row) => row.textContent ?? "")`;
-const RUNTIME = `import("/src/bridge/runtime.ts")`;
-const COMMANDS = `import("/src/bridge/commands.ts")`;
+const RUNTIME = `import("/src/platform/runtime/runtime.ts")`;
+const COMMANDS = `import("/src/platform/runtime/commands.ts")`;
 
 function createNoteExpression(id, title) {
   return `${COMMANDS}.then((commands) => commands.applyWorkspaceOperations([{
@@ -178,8 +178,30 @@ try {
     }
   }
 
+  await leaveAccount(cdp, sessionId);
+  await expectTitles(
+    cdp,
+    sessionId,
+    { present: [], absent: [FIRST_NOTE, SECOND_NOTE] },
+    "after signing out",
+  );
+  if ((await evaluate(cdp, sessionId, ACTIVE_SLOT)) !== null) {
+    throw new Error("the signed-out tab still opens an account's workspace");
+  }
+  if ((await evaluate(cdp, sessionId, TREE_TITLES)).length === 0) {
+    throw new Error("the signed-out workspace did not get the starter notes");
+  }
+
+  await switchAccount(cdp, sessionId, SECOND_ACCOUNT, "second account after signing out");
+  await expectTitles(
+    cdp,
+    sessionId,
+    { present: [SECOND_NOTE], absent: [FIRST_NOTE] },
+    "signed back in after signing out",
+  );
+
   process.stdout.write(
-    "browser account switch passed: first sign-in claimed the workspace in place, a second account reopened on its own storage, and both switches back were lossless\n",
+    "browser account switch passed: first sign-in claimed the workspace in place, a second account reopened on its own storage, both switches back were lossless, and signing out left the account's notes behind\n",
   );
 } finally {
   socket?.close();
@@ -219,6 +241,30 @@ async function switchAccount(cdp, sessionId, workspaceId, label) {
     600,
   );
   await waitFor(cdp, sessionId, APP_BOOTED, `boot on the ${label}`, 600);
+}
+
+/**
+ * Sign-out navigates to the site root, which the dev server serves as the
+ * application itself, so the run waits for that navigation and a fresh boot.
+ */
+async function leaveAccount(cdp, sessionId) {
+  await evaluate(cdp, sessionId, "window.__skriuwSwitchMarker = true");
+  await cdp.send(
+    "Runtime.evaluate",
+    {
+      expression: `void ${RUNTIME}.then((runtime) => runtime.invoke("leave_account_workspace"))`,
+      awaitPromise: false,
+    },
+    sessionId,
+  );
+  await waitFor(
+    cdp,
+    sessionId,
+    "window.__skriuwSwitchMarker === undefined",
+    "navigation after signing out",
+    600,
+  );
+  await waitFor(cdp, sessionId, APP_BOOTED, "boot after signing out", 600);
 }
 
 async function expectTitles(cdp, sessionId, { present, absent }, context) {

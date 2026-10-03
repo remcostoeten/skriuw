@@ -26,7 +26,7 @@ builder, drawing, tablet layouts.
   Rust core, serialized and transactional. No second persistence path in
   TypeScript.
 - **R-A2** The mobile client implements the existing bridge seam
-  (`apps/workspace/src/bridge/commands.ts`) for the subset in *Command surface*. It
+  (`apps/workspace/src/platform/runtime/commands.ts`) for the subset in *Command surface*. It
   submits the same versioned `WorkspaceOperation` messages and consumes the
   same generated contracts. No mobile-only operation kinds.
 - **R-A3** `crates/skriuw-mobile` depends on domain, runtime, storage, sqlite,
@@ -76,7 +76,7 @@ builder, drawing, tablet layouts.
 
 - **R-Q1** Recovery-relevant failures (open, migration, sync, lock) stay
   visible and testable; the startup failure flow mirrors
-  `shell/startup-failure.ts`.
+  `app/startup-failure.ts`.
 - **R-Q2** Every screen is operable with VoiceOver and TalkBack; touch targets
   are at least 44 pt.
 - **R-Q3** `bin/check mobile` is the product gate: typecheck, unit

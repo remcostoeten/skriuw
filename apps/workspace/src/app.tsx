@@ -1,116 +1,83 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AuthProvider, useAuth } from "@remcostoeten/auth-drawer";
-import { authAdapter } from "@/features/auth/adapter";
-import { useSignInNudge } from "@/features/auth/use-sign-in-nudge";
-import { isBrowserRuntime } from "@/bridge/runtime";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { hasTauriRuntime } from "@/platform/runtime/runtime";
 import { BrowserStorageNotice } from "@/shell/browser-storage-notice";
-import { AccountMenu } from "@/shell/account-menu";
-import { railActiveClass, railIconButtonClass, railInactiveClass } from "@/shell/rail-styles";
-import type { SectionId } from "@/features/settings/sections/sections";
+import { AccountMenu } from "@/shell/account";
+import { RAIL_ICONS, railActiveClass, railIconButtonClass, railInactiveClass } from "@/shell/rail";
+import type { SectionId } from "@/features/settings-dialog/sections";
 import { Sidebar } from "@/features/sidebar/sidebar";
-import { CommandPaletteHost } from "@/commands/command-palette-host";
+import { CommandPaletteHost } from "@/app/command-palette-host";
 import { EditorPanes } from "@/shell/editor-panes";
-import { NoteBreadcrumbs } from "@/shell/note-breadcrumbs";
+import { NoteBreadcrumbs, WindowControls, useNoteNavigation } from "@/shell/title-bar";
+import { toolbarIconButtonClass } from "@/shared/ui/toolbar-button";
 import { openEditorSearch } from "@/features/editor/search-controller";
 import { MetadataPanel } from "@/features/note-chrome/metadata-panel";
-import { SettingsDialog } from "@/features/settings/settings-dialog";
+import { SettingsDialog } from "@/features/settings-dialog/settings-dialog";
 
-function loadSignInDrawer() {
-  return import("@/features/auth/sign-in-drawer");
-}
-
-const CloudSignInDrawer = lazy(async () => {
-  const module = await loadSignInDrawer();
-  return { default: module.CloudSignInDrawer };
-});
 import { ShortcutHelpOverlay } from "@/commands/shortcut-help-overlay";
 import { TrashView } from "@/features/trash/trash-view";
-import { EntityView } from "@/features/references/entity-view";
+import { EntityView } from "@/features/references/shell";
 import { TasksView } from "@/features/tasks/tasks-view";
 import { MediaLibraryView } from "@/features/media/media-library-view";
 import { HistoryView } from "@/features/history/history-view";
-import { JournalSidebar, JournalView } from "@/features/journal/journal-view";
-import { WindowControls } from "@/shell/window-controls";
-import { useTitleBarDoubleClickMaximize } from "@/shell/title-bar-maximize";
-import { hasTauriRuntime } from "@/bridge/external-links";
+import { JournalSidebar } from "@/features/journal/journal-sidebar";
+import { JournalView } from "@/features/journal/journal-view";
 import {
   FOCUS_GRID_TEMPLATE,
+  METADATA_RESIZE_BOUNDS,
+  PanelResizeHandle,
   panelGridTemplate,
   panelTracksWith,
-  routeHasSidebar,
-  type PanelTracks,
-} from "@/shell/panel-layout";
-import { toolbarIconButtonClass } from "@/shell/toolbar-styles";
-import { PanelResizeHandle } from "@/shell/panel-resize-handle";
-import {
   SIDEBAR_RESIZE_BOUNDS,
-  readSidebarWidth,
-  writeSidebarWidth,
-} from "@/features/sidebar/sidebar-resize";
-import {
-  METADATA_RESIZE_BOUNDS,
   readMetadataWidth,
+  readSidebarWidth,
+  routeHasSidebar,
   writeMetadataWidth,
-} from "@/shell/metadata-resize";
-import { TemplatePickerHost } from "@/features/templates/template-picker";
+  writeSidebarWidth,
+  type PanelTracks,
+} from "@/shell/panels";
+import { TemplatePickerHost } from "@/features/templates/picker";
 import { LockDialogHost } from "@/features/lock/lock-dialogs";
 import { NoteShareHost } from "@/features/sharing/share-dialog";
-import { TransferReportHost } from "@/features/transfer/export/transfer-report-host";
-import { ImportPreviewHost } from "@/features/transfer/import/import-preview-host";
-import { RemoteImagePromptHost } from "@/features/transfer/import/remote-images-prompt-host";
-import { ImportProgressHost } from "@/features/transfer/import/import-progress-host";
+import { TransferDialogs } from "@/features/transfer/transfer-dialogs";
 import { WorkspaceShortcuts } from "@/commands/workspace-shortcuts";
 import { useShortcutHints } from "@/commands/hints";
 import { RAIL_ITEMS, railModShiftKeys, type RailItem } from "@/commands/rail-items";
 import { useAppRoute } from "./app-route";
+import { CloudSignInDrawer, ModelSwitcherHost, PromptPlaygroundView } from "@/app/lazy-surfaces";
+import { AppProviders } from "@/app/providers";
+import { useSignIn } from "@/app/use-sign-in";
+import { useWorkspaceServices } from "@/app/use-workspace-services";
 import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
-import { installBackNavigation } from "@/features/references/reference-navigation";
-import { scheduleSearchIndexReconciliation } from "@/features/search/index-maintenance";
 import { createCommandRegistry, registryShortcutActions } from "@/commands/registry";
 import type { CommandUiState } from "@/commands/registry";
-import { createWorkspaceCommands } from "@/commands/workspace-commands";
+import { createAppCommands } from "./app-commands";
 import { SkriuwLogo } from "@/shared/icons/static";
 import { AppIcon } from "@/shared/icons/app-icon";
-import { RAIL_ICONS } from "@/shell/rail-icons";
-import { TabBar } from "@/shell/tab-bar";
-import { InstallBanner } from "@/shell/install-banner";
-import { MobileSheet } from "@/shell/mobile-sheet";
-import { FocusModeReveal } from "@/shell/focus-mode";
-import { focusModeActive, readFocusMode, writeFocusMode } from "@/shell/focus-mode-model";
 import {
-  COMPACT_SHELL_QUERY,
+  FocusModeReveal,
+  focusModeActive,
+  readFocusMode,
+  writeFocusMode,
+} from "@/shell/focus-mode";
+import {
+  InstallBanner,
+  MobileSheet,
+  TabBar,
   activationClosesSidebar,
   compactPanelPolicy,
+  edgeSwipeOpens,
   shellMode,
-} from "@/shell/shell-layout";
-import { edgeSwipeOpens, swipeAxis, swipeEdgeAt, type SwipeStart } from "@/shell/edge-swipe";
-import { haptic } from "@/shared/lib/haptics";
-import { useMediaQuery } from "@/shared/hooks/use-media-query";
-import { AnimatedIconsProvider } from "@/shared/icons/animated-icons-context";
+} from "@/shell/compact";
+import { swipeAxis, swipeEdgeAt, type SwipeStart } from "@/shared/touch/swipe";
+import { haptic } from "@/shared/touch/haptics";
+import { useMediaQuery } from "@/shared/viewport/use-media-query";
+import { COMPACT_VIEWPORT_QUERY } from "@/shared/viewport/queries";
 import { ToastHost } from "@/shared/ui/toast";
 import { Tooltip } from "@skriuw/shared/ui/tooltip";
-import { useNoteNavigation } from "@/shell/use-note-navigation";
-import { selectAnimatedIcons, selectShowToasts } from "@/features/settings/sections/selectors";
+import { selectShowToasts } from "@/features/settings/selectors";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import { AiOptInGate, aiSettingsCommands, selectAiEnabled } from "@/features/ai/opt-in-gate";
-import { aiEditorActionCommands } from "@/features/ai/actions/editor-action-controller";
-import { registerAiSettings } from "@/features/ai/ai-settings-controller";
-import { voiceDictationCommands } from "@/features/ai/voice/voice-dictation-controller";
-
-const ModelSwitcherHost = lazy(async () => {
-  const module = await import("@/features/ai/models/model-switcher");
-  return { default: module.ModelSwitcherHost };
-});
-
-function loadPromptPlayground() {
-  return import("@/features/ai/prompts/prompt-playground");
-}
-
-const PromptPlaygroundView = lazy(async () => {
-  const module = await loadPromptPlayground();
-  return { default: module.PromptPlaygroundView };
-});
+import { AiOptInGate, selectAiEnabled } from "@/features/ai/opt-in-gate";
 
 type RailNavIconProps = {
   item: RailItem;
@@ -157,9 +124,6 @@ function WorkspaceShell({ store }: Props) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<SectionId>("appearance");
-  const [signInOpen, setSignInOpen] = useState(false);
-  const [signInMounted, setSignInMounted] = useState(false);
-  const signInReturnsToSettingsRef = useRef(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [metadataOpen, setMetadataOpen] = useState(true);
@@ -172,7 +136,7 @@ function WorkspaceShell({ store }: Props) {
   const panelResizing = sidebarResizing || metadataResizing;
   const settling = !panelResizing && tracksAnimated;
   const route = useAppRoute();
-  const compact = useMediaQuery(COMPACT_SHELL_QUERY);
+  const compact = useMediaQuery(COMPACT_VIEWPORT_QUERY);
   const mode = shellMode(compact);
   const focusActive = focusModeActive(focusMode, route);
   const focusActiveRef = useRef(focusActive);
@@ -184,13 +148,8 @@ function WorkspaceShell({ store }: Props) {
   const seenNoteRef = useRef(activeNoteId);
   const swipeRef = useRef<SwipeStart | null>(null);
   const showToasts = useRendererSelector(store, selectShowToasts);
-  const animatedIcons = useRendererSelector(store, selectAnimatedIcons);
   const aiEnabled = useRendererSelector(store, selectAiEnabled);
-  const { user, isPending: authPending } = useAuth();
   const shortcutHints = useShortcutHints(store, TOOLBAR_SHORTCUT_IDS);
-  useEffect(() => installBackNavigation(store), [store]);
-  useEffect(() => scheduleSearchIndexReconciliation(), []);
-  useTitleBarDoubleClickMaximize();
   const ui: CommandUiState = {
     route,
     sidebarOpen: shownSidebarOpen,
@@ -275,78 +234,48 @@ function WorkspaceShell({ store }: Props) {
     },
     [changeFocusMode],
   );
-  // The sign-in drawer portals to <body>, which the modal settings <dialog>
-  // renders inert and covers via the top layer — so settings must close first.
-  const openSignIn = useCallback((returnToSettings: boolean) => {
-    signInReturnsToSettingsRef.current = returnToSettings;
-    setSettingsOpen(false);
-    setSignInMounted(true);
-    setSignInOpen(true);
-  }, []);
-  const overlayOpenRef = useRef(false);
-  overlayOpenRef.current = signInOpen || settingsOpen || paletteOpen || shortcutHelpOpen;
-  useSignInNudge(store, isBrowserRuntime() && user === null && !authPending, () => {
-    if (!overlayOpenRef.current) openSignIn(false);
-  });
-  // Warm the sign-in chunk as soon as either trigger surface opens, so the
-  // drawer appears instantly on click instead of waiting on a lazy import.
-  useEffect(() => {
-    if (settingsOpen || paletteOpen) {
-      void loadSignInDrawer();
-      if (aiEnabled) {
-        void loadPromptPlayground();
-      }
-    }
-  }, [aiEnabled, paletteOpen, settingsOpen]);
-  // The playground route is structurally gated: with AI off it must not exist,
-  // so a stale or hand-typed hash lands back on notes instead of a blank shell.
-  useEffect(() => {
-    if (route === "prompt-playground" && !aiEnabled) {
-      window.location.hash = appRouteHash("notes");
-    }
-  }, [aiEnabled, route]);
-  const handleSignInOpenChange = useCallback((open: boolean) => {
-    setSignInOpen(open);
-    if (!open && signInReturnsToSettingsRef.current) {
-      signInReturnsToSettingsRef.current = false;
-      setSettingsOpen(true);
-    }
-  }, []);
   const openSettingsAt = useCallback((section: SectionId) => {
     setSettingsSection(section);
     setSettingsOpen(true);
   }, []);
-  useEffect(() => registerAiSettings(() => openSettingsAt("ai")), [openSettingsAt]);
+  const openAiSettings = useCallback(() => openSettingsAt("ai"), [openSettingsAt]);
+  const { signInOpen, signInMounted, openSignIn, onSignInOpenChange } = useSignIn(
+    store,
+    setSettingsOpen,
+    settingsOpen || paletteOpen || shortcutHelpOpen,
+  );
+  useWorkspaceServices({
+    store,
+    route,
+    aiEnabled,
+    launcherOpen: settingsOpen || paletteOpen,
+    openAiSettings,
+  });
   const registry = useMemo(
     () =>
-      createCommandRegistry([
-        ...createWorkspaceCommands(store, {
-          togglePalette: () => setPaletteOpen((current) => !current),
-          openSettings: () => setSettingsOpen((current) => !current),
-          openSettingsAt,
-          openSignIn: () => openSignIn(false),
-          showShortcutHelp: () => setShortcutHelpOpen((current) => !current),
-          toggleSidebar: () => toggleSidebar(false),
-          openSidebar: () => {
-            setTracksAnimated(false);
-            setSidebarOpen(true);
+      createCommandRegistry(
+        createAppCommands(
+          store,
+          {
+            togglePalette: () => setPaletteOpen((current) => !current),
+            openSettings: () => setSettingsOpen((current) => !current),
+            openSettingsAt,
+            openSignIn: () => openSignIn(false),
+            showShortcutHelp: () => setShortcutHelpOpen((current) => !current),
+            toggleSidebar: () => toggleSidebar(false),
+            openSidebar: () => {
+              setTracksAnimated(false);
+              setSidebarOpen(true);
+            },
+            toggleMetadata: () => toggleMetadata(false),
+            toggleFocusMode,
+            navigate: (target) => {
+              window.location.hash = appRouteHash(target);
+            },
           },
-          toggleMetadata: () => toggleMetadata(false),
-          toggleFocusMode,
-          navigate: (target) => {
-            window.location.hash = appRouteHash(target);
-          },
-        }),
-        ...aiSettingsCommands(
           aiEnabled,
-          () => openSettingsAt("ai"),
-          () => {
-            window.location.hash = appRouteHash("prompt-playground");
-          },
         ),
-        ...aiEditorActionCommands(aiEnabled),
-        ...voiceDictationCommands(aiEnabled),
-      ]),
+      ),
     [aiEnabled, openSettingsAt, openSignIn, store, toggleFocusMode, toggleMetadata, toggleSidebar],
   );
   const shortcutActions = useMemo(
@@ -509,7 +438,7 @@ function WorkspaceShell({ store }: Props) {
     />
   );
   return (
-    <AnimatedIconsProvider enabled={animatedIcons}>
+    <>
       <div
         ref={tracksRef}
         className={`relative grid h-full grid-rows-[minmax(0,1fr)]${
@@ -841,7 +770,7 @@ function WorkspaceShell({ store }: Props) {
       />
       {signInMounted ? (
         <Suspense fallback={null}>
-          <CloudSignInDrawer open={signInOpen} onOpenChange={handleSignInOpenChange} />
+          <CloudSignInDrawer open={signInOpen} onOpenChange={onSignInOpenChange} />
         </Suspense>
       ) : null}
       <ShortcutHelpOverlay
@@ -856,14 +785,11 @@ function WorkspaceShell({ store }: Props) {
       <AiOptInGate store={store}>
         {() => (
           <Suspense fallback={null}>
-            <ModelSwitcherHost store={store} openAiSettings={() => openSettingsAt("ai")} />
+            <ModelSwitcherHost store={store} openAiSettings={openAiSettings} />
           </Suspense>
         )}
       </AiOptInGate>
-      <TransferReportHost />
-      <ImportPreviewHost />
-      <RemoteImagePromptHost />
-      <ImportProgressHost />
+      <TransferDialogs />
       <WorkspaceShortcuts
         store={store}
         route={route}
@@ -871,18 +797,14 @@ function WorkspaceShell({ store }: Props) {
         activeWhileSuspended={settingsOpen ? "openSettings" : undefined}
         actions={shortcutActions}
       />
-    </AnimatedIconsProvider>
+    </>
   );
 }
 
-/**
- * The cloud session is provided above the whole shell, not just the settings
- * dialog, because the rail account menu reads it while settings is closed.
- */
 export function App({ store }: Props) {
   return (
-    <AuthProvider adapter={authAdapter}>
+    <AppProviders store={store}>
       <WorkspaceShell store={store} />
-    </AuthProvider>
+    </AppProviders>
   );
 }

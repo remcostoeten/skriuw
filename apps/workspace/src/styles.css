@@ -7,9 +7,9 @@
 @import "./features/editor/suggestion.css";
 @import "./features/ai/ai-surfaces.css";
 @import "./features/sidebar/sidebar.css";
-@import "./shell/split.css";
-@import "./shell/mobile.css";
-@import "./shell/focus-mode.css";
+@import "./shell/panes/split.css";
+@import "./shell/compact/mobile.css";
+@import "./shell/focus-mode/layout.css";
 @import "./features/references/references.css";
 @import "./features/history/diff.css";
 @import "@skriuw/shared/ui/tooltip.css";

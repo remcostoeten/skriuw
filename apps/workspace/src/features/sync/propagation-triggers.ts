@@ -2,8 +2,8 @@ import {
   refreshWorkspaceSync,
   setWorkspaceSyncOnline,
   setWorkspaceSyncVisibility,
-} from "@/bridge/commands";
-import { flushPendingWork } from "@/shell/pending-work";
+} from "@/platform/runtime/commands";
+import { flushPendingWork } from "@/store/pending-work";
 
 export const PROPAGATION_FLUSH_DEBOUNCE_MS = 250;
 
