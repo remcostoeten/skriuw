@@ -2,7 +2,7 @@ import "server-only";
 
 import { cacheLife } from "next/cache";
 
-import { commitSchema, comparisonSchema } from "../../types/github";
+import { commitSchema, comparisonSchema } from "../validation";
 import { github } from "../../utilities/github";
 
 async function resolveTag(tag: string) {

@@ -7,6 +7,7 @@
     "./components/theme-toggle": "./src/components/theme-toggle.tsx",
     "./helpers/clamp": "./src/helpers/clamp.ts",
     "./helpers/cn": "./src/helpers/cn.ts",
+    "./helpers/escape-html": "./src/helpers/escape-html.ts",
     "./helpers/noop": "./src/helpers/noop.ts",
     "./ui/tooltip": "./src/ui/tooltip.tsx",
     "./ui/tooltip-model": "./src/ui/tooltip-model.ts",

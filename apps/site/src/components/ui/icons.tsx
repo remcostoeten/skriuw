@@ -10,6 +10,7 @@ function base(props: Props) {
     strokeWidth: 1.6,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
+    "aria-hidden": true,
     ...props,
   };
 }
@@ -155,14 +156,6 @@ export function Lock(props: Props) {
   );
 }
 
-export function Command(props: Props) {
-  return (
-    <svg {...base(props)}>
-      <path d="M9 9V6a2.5 2.5 0 1 0-2.5 2.5H18a2.5 2.5 0 1 0-2.5-2.5v12A2.5 2.5 0 1 0 18 15.5H6a2.5 2.5 0 1 0 2.5 2.5V9" />
-    </svg>
-  );
-}
-
 export function Download(props: Props) {
   return (
     <svg {...base(props)}>
@@ -222,6 +215,85 @@ export function Pwa(props: Props) {
       <path d="M3 8.5h18" />
       <path d="M12 11v6" />
       <path d="m9.5 14.5 2.5 2.5 2.5-2.5" />
+    </svg>
+  );
+}
+
+export function FolderOpen(props: Props) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 18V6a1.5 1.5 0 0 1 1.5-1.5h4l2 2h7A1.5 1.5 0 0 1 19 8v2" />
+      <path d="M3 18.5 5.6 11a1.5 1.5 0 0 1 1.4-1h13.2a1 1 0 0 1 .95 1.3L19 18.5Z" />
+    </svg>
+  );
+}
+
+export function Tag(props: Props) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3.5 12V4.5a1 1 0 0 1 1-1H12l8.5 8.5-8.5 8.5Z" />
+      <circle cx="8" cy="8" r="1.2" />
+    </svg>
+  );
+}
+
+export function Trash(props: Props) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 7h16M9.5 7V4.5h5V7M6 7l1 13h10l1-13" />
+    </svg>
+  );
+}
+
+export function Gear(props: Props) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v2.5m0 13V21M3 12h2.5m13 0H21M5.6 5.6l1.8 1.8m9.2 9.2 1.8 1.8M5.6 18.4l1.8-1.8m9.2-9.2 1.8-1.8" />
+    </svg>
+  );
+}
+
+export function PanelLeft(props: Props) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+      <path d="M9 4.5v15" />
+    </svg>
+  );
+}
+
+export function PanelRight(props: Props) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+      <path d="M15 4.5v15" />
+    </svg>
+  );
+}
+
+export function NotePlus(props: Props) {
+  return (
+    <svg {...base(props)}>
+      <path d="M13 3.5H6.5a1.5 1.5 0 0 0-1.5 1.5v14a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19V9.5Z" />
+      <path d="M12 11v6m-3-3h6" />
+    </svg>
+  );
+}
+
+export function FolderPlus(props: Props) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 18V6a1.5 1.5 0 0 1 1.5-1.5h4l2 2h9A1.5 1.5 0 0 1 21 8v10a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18Z" />
+      <path d="M12 10v6m-3-3h6" />
+    </svg>
+  );
+}
+
+export function Fold(props: Props) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3v6m-3-3 3 3 3-3M12 21v-6m-3 3 3-3 3 3M5 12h14" />
     </svg>
   );
 }

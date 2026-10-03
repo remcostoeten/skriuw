@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { z } from "zod";
+import { cloudUrl } from "@/data/cloud";
 
 export type CloudAccount = {
   name: string;
@@ -13,7 +14,6 @@ export type CloudSession =
   | { status: "signed-in"; account: CloudAccount | null };
 
 const SESSION_STORAGE_KEY = "skriuw.cloud-session.v1";
-const DEFAULT_CLOUD_URL = "https://skriuw-v2-cloud.remcostoeten.workers.dev";
 
 const storedSession = z.object({ version: z.literal(1), token: z.string().min(1) });
 const sessionResponse = z
@@ -21,10 +21,6 @@ const sessionResponse = z
   .nullable();
 
 const signedOut: CloudSession = { status: "signed-out" };
-
-function cloudUrl() {
-  return (process.env.NEXT_PUBLIC_SKRIUW_CLOUD_URL ?? DEFAULT_CLOUD_URL).replace(/\/+$/, "");
-}
 
 function parseToken(raw: string | null) {
   if (raw === null) return null;
@@ -57,11 +53,14 @@ function serverToken() {
 }
 
 async function fetchAccount(token: string, signal: AbortSignal) {
-  const response = await fetch(`${cloudUrl()}/api/auth/get-session`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-    signal,
-  });
+  const response = await fetch(
+    `${cloudUrl(process.env.NEXT_PUBLIC_SKRIUW_CLOUD_URL)}/api/auth/get-session`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal,
+    },
+  );
   if (response.status === 401) return null;
   if (!response.ok) throw new Error(`Session request failed with ${response.status}`);
   const body = sessionResponse.parse(await response.json());
