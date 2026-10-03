@@ -2,8 +2,8 @@ import "server-only";
 
 import { cacheLife } from "next/cache";
 
-import { commitSchema, comparisonSchema } from "../validation";
-import { github } from "../../utilities/github";
+import { commitSchema, comparisonSchema } from "./validation";
+import { github } from "./github";
 
 async function resolveTag(tag: string) {
   "use cache";

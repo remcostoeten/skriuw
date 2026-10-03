@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { renderSharedMarkdown } from "@/lib/shared-note-markdown";
+import { renderSharedMarkdown } from "@/modules/shared-note/render-markdown";
 
 describe("renderSharedMarkdown", () => {
   it("renders ordinary note Markdown", () => {

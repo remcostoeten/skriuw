@@ -4,7 +4,7 @@ import { cn } from "@skriuw/shared/helpers/cn";
 import { card } from "@/components/frame/control";
 import { SectionHead } from "@/components/frame/section-head";
 import { PageCta, PageHero } from "@/components/page/page-shell";
-import { docHref, docPages, docSourceUrl } from "@/data/docs";
+import { docHref, docPages, docSourceUrl } from "@/modules/docs/pages";
 import { repoUrl } from "@/data/content";
 import { socialImage } from "@/data/seo";
 

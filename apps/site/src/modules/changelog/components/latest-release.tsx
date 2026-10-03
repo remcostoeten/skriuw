@@ -1,6 +1,6 @@
-import { getReleases } from "@/modules/changelog/api/queries/get-releases";
-import { ReleasePill } from "@/components/release-pill";
-import { releaseHeadline } from "@/modules/changelog/utilities/release-headline";
+import { getReleases } from "@/modules/changelog/api/get-releases";
+import { ReleasePill } from "@/modules/changelog/components/release-pill";
+import { releaseHeadline } from "@/modules/changelog/release-headline";
 
 async function loadLatest() {
   try {
