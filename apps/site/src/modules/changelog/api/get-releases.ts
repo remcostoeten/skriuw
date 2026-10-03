@@ -4,8 +4,8 @@ import { cacheLife } from "next/cache";
 import semver from "semver";
 import { z } from "zod";
 
-import { releaseSchema } from "../validation";
-import { github } from "../../utilities/github";
+import { releaseSchema } from "./validation";
+import { github } from "./github";
 
 const TAG_PREFIX = "v2-";
 

@@ -1,7 +1,7 @@
 "use server";
 
-import { getComparison } from "../queries/get-comparison";
-import { getReleases } from "../queries/get-releases";
+import { getComparison } from "./get-comparison";
+import { getReleases } from "./get-releases";
 
 export async function loadComparison(id: number) {
   if (!Number.isSafeInteger(id) || id <= 0) {

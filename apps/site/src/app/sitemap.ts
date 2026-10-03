@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { docPages } from "@/data/docs";
+import { docPages } from "@/modules/docs/pages";
 
 const routes = [
   "/",

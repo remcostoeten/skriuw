@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { DocHeading } from "@/lib/docs-content";
+import type { DocHeading } from "@/modules/docs/render-doc";
 import { roundedPath } from "@/components/ui/geometry";
 import type { Point } from "@/components/ui/geometry";
 

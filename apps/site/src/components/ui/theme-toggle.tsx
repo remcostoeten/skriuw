@@ -1,7 +1,7 @@
 "use client";
 
 import { ThemeToggle as SharedThemeToggle } from "@skriuw/shared/components/theme-toggle";
-import { useTheme } from "@/lib/theme";
+import { useTheme } from "@/components/ui/theme";
 
 type Props = {
   className?: string;

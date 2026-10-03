@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { releaseHeadline } from "@/modules/changelog/utilities/release-headline";
+import { releaseHeadline } from "@/modules/changelog/release-headline";
 
 describe("releaseHeadline", () => {
   it("prefers the first bold highlight", () => {
