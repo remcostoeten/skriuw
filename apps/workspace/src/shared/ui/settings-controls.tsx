@@ -17,25 +17,36 @@ export const settingsRowDescription = "text-xs leading-[1.5] text-muted-foregrou
 export const settingsRowDetail =
   "font-mono text-[11px] text-muted-foreground [overflow-wrap:anywhere]";
 
-export const settingsButton =
-  "inline-flex shrink-0 items-center gap-[7px] whitespace-nowrap rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs text-foreground cursor-pointer hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:bg-muted disabled:hover:text-foreground";
+export const settingsTransition =
+  "transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]";
+export const settingsPress = "active:scale-[0.97] motion-reduce:active:scale-100";
+
+export const settingsButton = cn(
+  "inline-flex shrink-0 items-center gap-[7px] whitespace-nowrap rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs text-foreground cursor-pointer hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:bg-muted disabled:hover:text-foreground disabled:active:scale-100",
+  settingsTransition,
+  settingsPress,
+);
 export const settingsButtonDanger =
   "hover:border-destructive/40 hover:bg-destructive/[0.12] hover:text-destructive";
 
-const settingsFieldFocus =
-  "outline-none focus-visible:border-foreground/70 focus-visible:bg-accent/25";
+export const settingsFieldFocus = cn(
+  "outline-none transition-[background-color,border-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
+  "hover:border-foreground/20 focus-visible:border-foreground/40 focus-visible:bg-background",
+);
 export const settingsTextInput = cn(
   "min-h-[30px] w-[min(250px,48%)] rounded-lg border border-border bg-muted px-2.5 py-[5px] text-xs text-foreground max-[620px]:w-full",
   settingsFieldFocus,
 );
 
 export const settingsToggleInput = cn(
-  "h-[17px] w-[30px] flex-none cursor-pointer appearance-none rounded-full border border-border bg-muted transition-colors duration-[120ms] motion-reduce:duration-[1ms]",
-  "checked:border-foreground/45 checked:bg-accent",
-  "after:m-0.5 after:block after:h-[11px] after:w-[11px] after:rounded-full after:bg-muted-foreground after:transition-transform after:duration-[120ms] after:content-[''] motion-reduce:after:duration-[1ms]",
-  "checked:after:translate-x-[13px] checked:after:bg-foreground",
-  "outline-none focus-visible:border-foreground/70",
-  "disabled:cursor-default disabled:opacity-50",
+  "h-[18px] w-8 flex-none cursor-pointer appearance-none rounded-full bg-foreground/[0.14] outline-none",
+  "transition-[background-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
+  "hover:bg-foreground/[0.2] focus-visible:bg-foreground/[0.28]",
+  "checked:bg-foreground checked:hover:bg-foreground/90 checked:focus-visible:bg-foreground/75",
+  "after:m-0.5 after:block after:h-3.5 after:w-3.5 after:rounded-full after:bg-foreground/85 after:shadow-[0_1px_2px_hsl(var(--scrim)/0.25)] after:content-['']",
+  "after:transition-[transform,width,background-color] after:duration-200 after:ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:after:transition-[background-color]",
+  "active:after:w-[17px] checked:after:translate-x-3.5 checked:after:bg-background checked:active:after:translate-x-[11px]",
+  "disabled:cursor-default disabled:opacity-50 disabled:active:after:w-3.5 disabled:checked:active:after:translate-x-3.5",
 );
 
 type ToggleProps = {
@@ -75,6 +86,21 @@ export function SettingToggle({ label, detail, checked, onChange, visualization 
 }
 
 const CARD_PICKER_SELECTION_KEYS = ["ArrowLeft", "ArrowRight"];
+
+/**
+ * @name settingsCardTone
+ * @description Border and fill for a selectable settings card. Focus deepens
+ * the border and the fill instead of drawing a ring, so a focused card reads
+ * as the same card, lit.
+ *
+ * @example
+ * <button className={cn(base, settingsCardTone(active))} />
+ */
+export function settingsCardTone(active: boolean): string {
+  return active
+    ? "border-foreground/60 bg-accent/40 focus-visible:border-foreground/80 focus-visible:[--focus-fill:hsl(var(--accent)/0.45)]"
+    : "border-border/60 bg-card/30 hover:border-border focus-visible:border-foreground/35 focus-visible:[--focus-fill:hsl(var(--accent)/0.3)]";
+}
 
 export type CardPickerOption<TValue extends string> = {
   value: TValue;
@@ -140,12 +166,9 @@ export function SettingCardPicker<TValue extends string>({
               tabIndex={active ? 0 : -1}
               className={cn(
                 "cursor-pointer rounded-lg border p-1.5 text-left",
-                "transition-[border-color,background-color,transform] duration-150 ease-out motion-reduce:transition-none",
-                "active:scale-[0.98] motion-reduce:active:scale-100",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                active
-                  ? "border-foreground/60 bg-accent/40"
-                  : "border-border/60 bg-card/30 hover:border-border",
+                settingsTransition,
+                settingsPress,
+                settingsCardTone(active),
               )}
               onClick={() => onChange(option.value)}
             >

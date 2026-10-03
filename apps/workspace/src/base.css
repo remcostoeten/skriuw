@@ -66,12 +66,26 @@ body {
   outline: none;
 }
 
-:where(button, a, summary, [role="button"], [role="menuitem"], [role="treeitem"], [role="option"], [role="tab"]):focus-visible {
+:where(button, a, summary, [role="button"], [role="menuitem"], [role="treeitem"], [role="option"], [role="tab"]):not(.focus-fill *):focus-visible {
   background-image: linear-gradient(
     hsl(var(--foreground) / 0.18),
     hsl(var(--foreground) / 0.18)
   );
   color: hsl(var(--foreground));
+}
+
+/* A gradient cannot transition, so focus-fill surfaces paint the same fill as an inset shadow. */
+.focus-fill :where(button, a, summary, [role="button"], [role="menuitem"], [role="treeitem"], [role="option"], [role="tab"], [role="radio"]):focus-visible {
+  box-shadow: inset 0 0 0 100vmax var(--focus-fill, hsl(var(--foreground) / 0.1));
+  color: hsl(var(--foreground));
+}
+
+@layer base {
+  .focus-fill :where(button, a, summary, [role="button"], [role="menuitem"], [role="treeitem"], [role="option"], [role="tab"], [role="radio"]) {
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: 150ms;
+    transition-timing-function: ease;
+  }
 }
 
 ::-webkit-scrollbar {
