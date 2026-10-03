@@ -1,4 +1,8 @@
-import type { EditorToHostMessage } from "../../../../mobile/src/editor/protocol.ts";
+import {
+  frameMessageOrigin,
+  isFrameMessageOrigin,
+  type EditorToHostMessage,
+} from "../../../../mobile/src/editor/protocol.ts";
 
 type ReactNativeWebViewBridge = { postMessage: (text: string) => void };
 
@@ -13,26 +17,30 @@ function reactNativeBridge(): ReactNativeWebViewBridge | null {
 }
 
 /**
- * Picks the channel the page was embedded with: the React Native webview
- * bridge when it is injected, otherwise the same-origin parent frame the
- * browser harness uses. Frames from any other origin are never answered.
+ * Picks the channel the page was embedded with: the parent frame when the page
+ * is framed, as the Expo DOM component and the browser harness both do,
+ * otherwise the React Native webview bridge. The native webviews inject their
+ * bridge into every frame, so a framed page must ignore it or it would bypass
+ * the host page. Frames from any other origin are never answered.
  */
 export function windowTransport(): EditorTransport {
-  const native = reactNativeBridge();
+  const framed = window.parent !== window;
+  const native = framed ? null : reactNativeBridge();
+  const href = window.location.href;
   return {
     send: (message) => {
       if (native) {
         native.postMessage(JSON.stringify(message));
         return;
       }
-      if (window.parent !== window) window.parent.postMessage(message, window.location.origin);
+      if (framed) window.parent.postMessage(message, frameMessageOrigin(href));
     },
     listen: (receive) => {
       function onMessage(event: Event): void {
         if (!(event instanceof MessageEvent)) return;
         const fromHost = native
           ? event.source === null || event.source === window
-          : event.source === window.parent && event.origin === window.location.origin;
+          : event.source === window.parent && isFrameMessageOrigin(event.origin, href);
         if (fromHost) receive(event.data);
       }
       window.addEventListener("message", onMessage);

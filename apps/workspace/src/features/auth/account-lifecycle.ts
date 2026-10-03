@@ -5,7 +5,7 @@
  * the shell.
  */
 export type AccountLifecycle = {
-  /** Settles edits in flight before a signed-out tab leaves the account's workspace. */
+  /** Settles edits in flight before a signed-out window leaves the account's workspace. */
   flushPendingWork: () => Promise<void>;
   /** A sign-in or sign-up succeeded and the session credential is stored. */
   signedIn: () => void;

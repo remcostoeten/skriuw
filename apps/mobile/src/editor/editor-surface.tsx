@@ -2,6 +2,7 @@
 
 import { useDOMImperativeHandle, type DOMProps } from "expo/dom";
 import { useEffect, useRef, type Ref } from "react";
+import { frameMessageOrigin, isFrameMessageOrigin } from "./protocol";
 
 /**
  * The persistent editor webview. Expo renders this module as a DOM component,
@@ -26,7 +27,7 @@ export type EditorSurfaceHandle = {
 };
 
 type Props = {
-  /** Same-origin path of the built editor page, from `resolveEditorBundle`. */
+  /** Path of the built editor page beside this one, from `resolveEditorBundle`. */
   source: string;
   /** Painted behind the page so a cold frame never flashes white. */
   background: string;
@@ -56,7 +57,7 @@ export default function EditorSurface({ source, background, onEditorMessage, ref
         if (typeof text !== "string") {
           throw new Error(`the editor host delivers JSON text, not ${typeof text}`);
         }
-        frame.current?.contentWindow?.postMessage(text, window.location.origin);
+        frame.current?.contentWindow?.postMessage(text, frameMessageOrigin(window.location.href));
       },
     }),
     [],
@@ -65,7 +66,7 @@ export default function EditorSurface({ source, background, onEditorMessage, ref
   useEffect(() => {
     function onMessage(event: MessageEvent): void {
       if (event.source !== frame.current?.contentWindow) return;
-      if (event.origin !== window.location.origin) return;
+      if (!isFrameMessageOrigin(event.origin, window.location.href)) return;
       const text = typeof event.data === "string" ? event.data : JSON.stringify(event.data);
       void relay.current(text);
     }

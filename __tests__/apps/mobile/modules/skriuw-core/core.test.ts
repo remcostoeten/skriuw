@@ -24,6 +24,14 @@ function fakeNative(overrides: Partial<NativeSkriuwCore> = {}): NativeSkriuwCore
     submitOperations: () => succeed('{"applied":1}'),
     loadDocument: () => succeed('{"noteId":"note-1"}'),
     saveDocument: () => succeed('{"applied":1}'),
+    noteLockState: () => succeed('{"configured":false}'),
+    configureNoteLock: () => succeed("recovery-code"),
+    unlockNoteLock: () => succeed('{"unlocked":true}'),
+    recoverNoteLock: () => succeed('{"unlocked":true}'),
+    changeNoteLockSecret: () => succeed('{"unlocked":true}'),
+    relockNoteLock: () => succeed('{"unlocked":false}'),
+    readLockedDocuments: () => succeed("[]"),
+    removeNoteLock: () => succeed('{"applied":1}'),
     shutdown: () => succeed(null),
     ...overrides,
   };
@@ -192,4 +200,32 @@ test("failures this build cannot name stay visible as internal", async () => {
     ).kind,
     "internal",
   );
+});
+
+test("lock calls hand the secret to native code and pass its answer through", async () => {
+  const received: unknown[] = [];
+  const core = createSkriuwCore(
+    fakeNative({
+      configureNoteLock: (secret) => {
+        received.push(secret);
+        return succeed("recovery-code");
+      },
+      readLockedDocuments: (noteIds) => {
+        received.push(noteIds);
+        return succeed("[]");
+      },
+      unlockNoteLock: () => fail({ kind: "rejected", message: "Wrong PIN." }),
+    }),
+  );
+
+  assert.equal(
+    await core.configureNoteLock({ kind: "pin", secret: "2468", hint: null }),
+    "recovery-code",
+  );
+  assert.equal(await core.readLockedDocuments(null), "[]");
+  assert.deepEqual(received, [{ kind: "pin", secret: "2468", hint: null }, null]);
+
+  const error = await rejection(core.unlockNoteLock("1111"));
+  assert.equal(error.kind, "rejected");
+  assert.equal(error.message, "Wrong PIN.");
 });

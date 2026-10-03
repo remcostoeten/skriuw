@@ -19,7 +19,9 @@ bun run mobile              # expo start, from the repository root
 ```
 
 From this directory, `bun run android`, `bun run ios` and `bun run web` start
-Expo on a single platform.
+Expo on a single platform. Run `bun run editor:page` once first so notes open
+in the editor; `bun run export:android` and `bun run export:ios` build it
+themselves. See [the editor host](src/editor/README.md#packaging-the-editor-page).
 
 Android is the local verification target. iOS cannot be built or simulated on
 Linux; its evidence comes from EAS builds.

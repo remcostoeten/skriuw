@@ -112,9 +112,11 @@ export function adoptWorkspaceSlot(workspaceId: string): Promise<SlotAdoption> {
 }
 
 /**
- * Browser only. Leaves the signed-out account's local workspace for storage no
- * account owns, then navigates to the site root. The account's notes stay on
- * this device for its next sign-in; the page unloads and nothing after it runs.
+ * Leaves the signed-out account's local workspace for storage no account owns.
+ * The account's notes stay on this device for its next sign-in. The browser
+ * navigates to the site root and the desktop restarts onto the signed-out
+ * storage, so nothing after it runs; when the runtime already shows signed-out
+ * storage the desktop returns without restarting.
  */
 export function leaveAccountWorkspace(): Promise<void> {
   return invoke<void>("leave_account_workspace");

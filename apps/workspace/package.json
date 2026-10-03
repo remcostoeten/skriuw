@@ -8,6 +8,7 @@
     "dev:vite": "vite",
     "build": "../../bin/build browser",
     "build:frontend": "tsc --noEmit && vite build",
+    "build:mobile-editor": "vite build --config harnesses/editor-host/vite.mobile.config.ts",
     "test": "tsx scripts/test-verdict.ts",
     "e2e": "node e2e/run.mjs",
     "e2e:browser-storage": "node e2e/browser-storage.mjs",

@@ -27,25 +27,42 @@ The editor is the desktop bundle, unforked: a Vite build of
 component therefore embeds it as a **same-origin** document and relays protocol
 messages, the same shape the browser harness proved in
 `apps/workspace/harnesses/editor-host`. Same-origin is a requirement: `transport.ts`
-inside the page posts to `window.location.origin` and answers only its own
-origin.
+inside the page answers only its parent frame on its own origin.
 
 ## Wiring it up
 
-`NotesColumn` in `mobile/src/shell/route-views.tsx` mounts `EditorHost` and
-subscribes only to whether a note is open. Switching notes is a `load` into
-the same webview; leaving the notes route unmounts it, because the column
-lives inside the route slot.
+`ShellFrame` in `apps/mobile/src/shell/shell-frame.tsx` mounts `EditorHost`
+once, beside the route slot, and shows it while the notes route has a note
+open. Switching notes is a `load` into the same webview, and leaving the notes
+route hides it without unmounting it. `NotesColumn` only covers the slot while
+no note is open.
 
-Still outside this directory:
+## Packaging the editor page
 
-1. The built editor page must be packaged and served from the DOM component's
-   origin, and `EXPO_PUBLIC_SKRIUW_EDITOR_ENTRY` must point at it. Until then
-   the host shows the note read-only (`read-only-document.tsx`) with the
-   `bundle-missing` notice instead of a blank webview.
-2. Keeping the webview warm across routes (R-P2) needs `shell-frame.tsx` to
-   mount `<EditorHost visible={route === "notes"} />` once beside the route
-   column, and `NotesColumn` to stop mounting its own.
+`bun run editor:page` builds the page with
+`apps/workspace/harnesses/editor-host/vite.mobile.config.ts` into
+`apps/mobile/public/editor/` (gitignored). Expo copies `public/` into
+`www.bundle/`, beside the DOM component's own page, when it embeds a release
+build, and the dev server serves it at its root. `apps/mobile/.env` sets
+`EXPO_PUBLIC_SKRIUW_EDITOR_ENTRY=editor/editor.html`; `bundle-source.ts`
+resolves it relative to the DOM page in release builds and from the root on
+the dev server.
+
+- `bun run export:android` and `bun run export:ios` build the page, then export.
+- EAS builds it in the `eas-build-post-install` hook.
+- Local release builds (`expo run:android --variant release`) and the dev
+  server need `bun run editor:page` once first, or the webview shows a blank
+  frame.
+
+Release builds load DOM pages from `file://`, so the page ships one classic
+deferred script instead of ES modules, and the frame channel matches on
+`event.source` alone there, because a `file://` sender's origin is `"null"`
+(`frameMessageOrigin` in `protocol.ts`). The native webviews inject
+`window.ReactNativeWebView` into every frame, so the framed page ignores it and
+talks to its parent.
+
+Without an entry, the host shows the note read-only (`read-only-document.tsx`)
+with the `bundle-missing` notice instead of a blank webview.
 
 ## Checks
 

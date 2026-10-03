@@ -39,12 +39,13 @@ pub(crate) enum SlotAdoption {
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct Registry {
     /// Cloud workspace id whose directory is currently open, or `None` while
-    /// the installation has never been signed in.
+    /// the installation is signed out.
     #[serde(default)]
     active: Option<String>,
     /// Cloud workspace id to directory, relative to the storage base. The empty
     /// string is the base itself, which is where a pre-registry installation
-    /// already keeps its database.
+    /// already keeps its database. A `workspaces/guest-N` directory is
+    /// signed-out storage that a later first sign-in claimed in place.
     #[serde(default)]
     slots: BTreeMap<String, String>,
 }
@@ -58,6 +59,16 @@ pub(crate) fn is_workspace_id(value: &str) -> bool {
         && value[2..].bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
+/// `guest-1`, `guest-2`, ...: storage opened while signed out once the base
+/// directory belongs to an account.
+fn is_guest_name(value: &str) -> bool {
+    value.strip_prefix("guest-").is_some_and(|index| {
+        !index.is_empty()
+            && !index.starts_with('0')
+            && index.bytes().all(|byte| byte.is_ascii_digit())
+    })
+}
+
 /// A directory read back from the registry file. Rejecting anything the code
 /// below would not have written keeps an edited or corrupted file from
 /// escaping the storage base.
@@ -68,7 +79,7 @@ fn is_known_directory(value: &str) -> bool {
     value
         .strip_prefix(SLOT_PARENT)
         .and_then(|rest| rest.strip_prefix('/'))
-        .is_some_and(is_workspace_id)
+        .is_some_and(|name| is_workspace_id(name) || is_guest_name(name))
 }
 
 fn registry_file(data_dir: &Path) -> PathBuf {
@@ -128,15 +139,52 @@ fn slot_directory(workspace_id: &str) -> String {
     format!("{SLOT_PARENT}/{workspace_id}")
 }
 
-/// Directory holding the workspace this installation should open. Called on
-/// every start, before anything touches the database.
-pub(crate) fn active_directory(data_dir: &Path, base: &Path) -> PathBuf {
-    let registry = read(data_dir);
+/// Directory a signed-out installation opens: the first one no account owns.
+/// Until an account claims the base directory that is the base itself, so
+/// nothing changes for an installation that never signed in.
+fn guest_directory(registry: &Registry) -> String {
+    let owned: Vec<&str> = registry.slots.values().map(String::as_str).collect();
+    if !owned.contains(&"") {
+        return String::new();
+    }
+    (1..)
+        .map(|index| format!("{SLOT_PARENT}/guest-{index}"))
+        .find(|directory| !owned.contains(&directory.as_str()))
+        .unwrap_or_default()
+}
+
+fn directory_of(registry: &Registry) -> String {
     registry
         .active
         .as_ref()
         .and_then(|id| registry.slots.get(id))
-        .map_or_else(|| base.to_path_buf(), |directory| resolve(base, directory))
+        .cloned()
+        .unwrap_or_else(|| guest_directory(registry))
+}
+
+/// An installation predating this registry has no entry but may very much
+/// have an owner, which the open store records as the workspace it synced
+/// with. That owner is recorded against the directory that is open now.
+fn with_linked_owner(mut registry: Registry, linked: Option<&str>) -> Registry {
+    if registry.active.is_some() {
+        return registry;
+    }
+    let Some(owner) = linked.filter(|owner| is_workspace_id(owner)) else {
+        return registry;
+    };
+    if registry.slots.contains_key(owner) {
+        return registry;
+    }
+    let directory = guest_directory(&registry);
+    registry.slots.insert(owner.to_string(), directory);
+    registry.active = Some(owner.to_string());
+    registry
+}
+
+/// Directory holding the workspace this installation should open. Called on
+/// every start, before anything touches the database.
+pub(crate) fn active_directory(data_dir: &Path, base: &Path) -> PathBuf {
+    resolve(base, &directory_of(&read(data_dir)))
 }
 
 /// Cloud workspace that owns the running local store, or `None` while it is
@@ -166,38 +214,51 @@ pub(crate) fn adopt(
     if !is_workspace_id(workspace_id) {
         return Err("the cloud returned an unusable workspace identity".into());
     }
-    let mut registry = read(data_dir);
-    if registry.active.is_none()
-        && let Some(owner) = linked.filter(|owner| is_workspace_id(owner))
-    {
-        registry.slots.insert(owner.to_string(), String::new());
-        registry.active = Some(owner.to_string());
+    let mut registry = with_linked_owner(read(data_dir), linked);
+    if registry.active.as_deref() == Some(workspace_id) {
+        // Recording an owner the store already knew is not a change the
+        // caller has to act on, but it must still be persisted.
+        write(data_dir, &registry)?;
+        return Ok(SlotAdoption::Active);
     }
-    match registry.active.as_deref() {
-        Some(active) if active == workspace_id => {
-            // Recording an owner the store already knew is not a change the
-            // caller has to act on, but it must still be persisted.
-            write(data_dir, &registry)?;
-            Ok(SlotAdoption::Active)
-        }
-        Some(_) => {
-            let directory = registry
-                .slots
-                .entry(workspace_id.to_string())
-                .or_insert_with(|| slot_directory(workspace_id))
-                .clone();
-            fs::create_dir_all(resolve(base, &directory)).map_err(|error| error.to_string())?;
-            registry.active = Some(workspace_id.to_string());
-            write(data_dir, &registry)?;
-            Ok(SlotAdoption::Switched)
-        }
-        None => {
-            registry.slots.insert(workspace_id.to_string(), String::new());
-            registry.active = Some(workspace_id.to_string());
-            write(data_dir, &registry)?;
-            Ok(SlotAdoption::Claimed)
-        }
+    if registry.active.is_none() && !registry.slots.contains_key(workspace_id) {
+        let directory = guest_directory(&registry);
+        registry.slots.insert(workspace_id.to_string(), directory);
+        registry.active = Some(workspace_id.to_string());
+        write(data_dir, &registry)?;
+        return Ok(SlotAdoption::Claimed);
     }
+    let directory = registry
+        .slots
+        .entry(workspace_id.to_string())
+        .or_insert_with(|| slot_directory(workspace_id))
+        .clone();
+    fs::create_dir_all(resolve(base, &directory)).map_err(|error| error.to_string())?;
+    registry.active = Some(workspace_id.to_string());
+    write(data_dir, &registry)?;
+    Ok(SlotAdoption::Switched)
+}
+
+/// Signs the installation out of its account's workspace. The account's
+/// directory is kept for its next sign-in; the installation opens a directory
+/// no account owns, so a signed-out window never shows an account's notes.
+///
+/// Returns whether the directory to open changed, in which case the caller has
+/// to restart onto it. `linked` is the workspace the open store has synced
+/// with, so a store predating this registry is recorded as its owner's before
+/// it is left rather than staying open as signed-out storage.
+pub(crate) fn release(data_dir: &Path, linked: Option<&str>) -> Result<bool, String> {
+    let registry = with_linked_owner(read(data_dir), linked);
+    let previous = directory_of(&registry);
+    if registry.active.is_none() {
+        return Ok(false);
+    }
+    let released = Registry {
+        active: None,
+        slots: registry.slots,
+    };
+    write(data_dir, &released)?;
+    Ok(directory_of(&released) != previous)
 }
 
 #[cfg(test)]
@@ -292,6 +353,108 @@ mod tests {
             SlotAdoption::Claimed,
         );
         assert_eq!(active_directory(dir.path(), dir.path()), dir.path());
+    }
+
+    #[test]
+    fn signing_out_opens_storage_no_account_owns_and_keeps_the_account() {
+        let dir = tempdir().expect("tempdir");
+        let id = format!("w_{}", "a1".repeat(32));
+        adopt(dir.path(), dir.path(), &id, None).expect("claim");
+        let account_note = dir.path().join("skriuw.db");
+        fs::write(&account_note, "account").expect("seed");
+
+        assert!(release(dir.path(), Some(&id)).expect("release"));
+        assert_eq!(active_workspace_id(dir.path()), None);
+        let guest = active_directory(dir.path(), dir.path());
+        assert_eq!(guest, dir.path().join(SLOT_PARENT).join("guest-1"));
+        assert_eq!(fs::read_to_string(&account_note).expect("kept"), "account");
+
+        assert_eq!(
+            adopt(dir.path(), dir.path(), &id, None).expect("sign back in"),
+            SlotAdoption::Switched,
+        );
+        assert_eq!(active_directory(dir.path(), dir.path()), dir.path());
+    }
+
+    #[test]
+    fn signing_out_twice_needs_no_second_restart() {
+        let dir = tempdir().expect("tempdir");
+        let id = format!("w_{}", "a1".repeat(32));
+        adopt(dir.path(), dir.path(), &id, None).expect("claim");
+        assert!(release(dir.path(), Some(&id)).expect("release"));
+        assert!(!release(dir.path(), None).expect("release again"));
+        assert_eq!(
+            active_directory(dir.path(), dir.path()),
+            dir.path().join(SLOT_PARENT).join("guest-1"),
+        );
+    }
+
+    #[test]
+    fn signing_out_of_a_store_that_was_never_signed_in_changes_nothing() {
+        let dir = tempdir().expect("tempdir");
+        assert!(!release(dir.path(), None).expect("release"));
+        assert_eq!(active_directory(dir.path(), dir.path()), dir.path());
+        assert!(!registry_file(dir.path()).exists());
+    }
+
+    #[test]
+    fn signing_out_of_a_store_linked_before_the_registry_existed_leaves_it() {
+        let dir = tempdir().expect("tempdir");
+        let owner = format!("w_{}", "a1".repeat(32));
+        assert!(release(dir.path(), Some(&owner)).expect("release"));
+        assert_ne!(active_directory(dir.path(), dir.path()), dir.path());
+        assert_eq!(
+            adopt(dir.path(), dir.path(), &owner, None).expect("sign back in"),
+            SlotAdoption::Switched,
+        );
+        assert_eq!(active_directory(dir.path(), dir.path()), dir.path());
+    }
+
+    #[test]
+    fn a_new_account_claims_signed_out_storage_in_place() {
+        let dir = tempdir().expect("tempdir");
+        let first = format!("w_{}", "a1".repeat(32));
+        let second = format!("w_{}", "b2".repeat(32));
+        adopt(dir.path(), dir.path(), &first, None).expect("claim");
+        release(dir.path(), None).expect("release");
+        let guest = active_directory(dir.path(), dir.path());
+
+        assert_eq!(
+            adopt(dir.path(), dir.path(), &second, None).expect("claim guest"),
+            SlotAdoption::Claimed,
+        );
+        assert_eq!(active_directory(dir.path(), dir.path()), guest);
+
+        release(dir.path(), None).expect("release second");
+        assert_eq!(
+            active_directory(dir.path(), dir.path()),
+            dir.path().join(SLOT_PARENT).join("guest-2"),
+        );
+    }
+
+    #[test]
+    fn a_restart_after_signing_out_reads_the_released_route_back() {
+        let dir = tempdir().expect("tempdir");
+        let id = format!("w_{}", "a1".repeat(32));
+        adopt(dir.path(), dir.path(), &id, None).expect("claim");
+        release(dir.path(), None).expect("release");
+        let raw = fs::read_to_string(registry_file(dir.path())).expect("registry");
+        let reread: Registry = serde_json::from_str(&raw).expect("parse");
+        assert_eq!(reread.active, None);
+        assert_eq!(reread.slots.get(&id).map(String::as_str), Some(""));
+        assert!(
+            !registry_file(dir.path())
+                .with_extension("json.tmp")
+                .exists()
+        );
+    }
+
+    #[test]
+    fn rejects_a_guest_directory_this_code_would_not_write() {
+        assert!(is_known_directory("workspaces/guest-3"));
+        assert!(!is_known_directory("workspaces/guest-0"));
+        assert!(!is_known_directory("workspaces/guest-"));
+        assert!(!is_known_directory("workspaces/guest-1/../.."));
     }
 
     #[test]

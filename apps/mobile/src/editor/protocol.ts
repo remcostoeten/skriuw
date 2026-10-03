@@ -232,6 +232,34 @@ export function parseHostMessage(raw: unknown): ParsedHostMessage {
   return { ok: true, message: candidate as HostToEditorMessage };
 }
 
+/**
+ * @name frameMessageOrigin
+ * @description The `postMessage` target origin between the host page and the
+ * editor frame it embeds. Release builds serve both from `file://`, whose
+ * origin is opaque and matches nothing, so there the channel relies on the
+ * `event.source` identity check alone.
+ *
+ * @example
+ * frame.contentWindow?.postMessage(text, frameMessageOrigin(window.location.href));
+ */
+export function frameMessageOrigin(href: string): string {
+  const url = new URL(href);
+  return url.protocol === "file:" ? "*" : url.origin;
+}
+
+/**
+ * @name isFrameMessageOrigin
+ * @description Whether a message event's origin is the frame channel's own,
+ * per `frameMessageOrigin`. Callers still check `event.source`.
+ *
+ * @example
+ * if (event.source === window.parent && isFrameMessageOrigin(event.origin, location.href)) receive(event.data);
+ */
+export function isFrameMessageOrigin(origin: string, href: string): boolean {
+  const url = new URL(href);
+  return url.protocol === "file:" || origin === url.origin;
+}
+
 export function boundedFailureDetail(detail: string): string {
   return detail.length > EDITOR_FAILURE_DETAIL_LIMIT
     ? `${detail.slice(0, EDITOR_FAILURE_DETAIL_LIMIT - 1)}…`

@@ -3,7 +3,6 @@ import { createBetterAuthAdapter } from "@remcostoeten/auth-drawer/adapters/bett
 import { sentinelClient } from "@better-auth/infra/client";
 import { createAuthClient } from "better-auth/react";
 import { leaveAccountWorkspace } from "@/platform/runtime/commands";
-import { isBrowserRuntime } from "@/platform/runtime/runtime";
 import { showToast } from "@/shared/ui/toast";
 import { accountLifecycle } from "../account-lifecycle";
 import { authConfiguration } from "../config";
@@ -20,7 +19,7 @@ export const KEYRING_UNAVAILABLE_MESSAGE =
 export const SIGN_OUT_REVOKE_FAILED_MESSAGE =
   "Signed out on this device; the cloud session could not be ended";
 export const SIGN_OUT_UNSAVED_MESSAGE =
-  "Signed out, but recent edits could not be stored; this page keeps them open";
+  "Signed out, but recent edits could not be stored; this window keeps them open";
 
 /**
  * @name signInCallbackPath
@@ -70,11 +69,16 @@ async function revokeRemoteSession(
 }
 
 /**
- * The browser workspace belongs to the account, so a signed-out tab must not
- * keep showing it. Edits still in flight are stored first; when they cannot
- * be, the tab stays on the account's notes rather than dropping them.
+ * @name leaveSignedOutWorkspace
+ * @description Leaves the account's local workspace after sign-out, so a
+ * signed-out window never keeps showing it. Edits still in flight are stored
+ * first; when they cannot be, the window stays on the account's notes rather
+ * than dropping them and `leave` is not called.
+ *
+ * @example
+ * await leaveSignedOutWorkspace(leaveAccountWorkspace);
  */
-async function leaveSignedOutWorkspace(): Promise<void> {
+export async function leaveSignedOutWorkspace(leave: () => Promise<void>): Promise<void> {
   try {
     await accountLifecycle().flushPendingWork();
   } catch (error) {
@@ -82,7 +86,7 @@ async function leaveSignedOutWorkspace(): Promise<void> {
     showToast({ message: SIGN_OUT_UNSAVED_MESSAGE, durationMs: 10_000 });
     return;
   }
-  await leaveAccountWorkspace();
+  await leave();
 }
 
 function configuredAdapter(baseURL: string): AuthAdapter {
@@ -138,7 +142,7 @@ function configuredAdapter(baseURL: string): AuthAdapter {
       if (!revoked) {
         showToast({ message: SIGN_OUT_REVOKE_FAILED_MESSAGE, durationMs: 10_000 });
       }
-      if (isBrowserRuntime()) await leaveSignedOutWorkspace();
+      await leaveSignedOutWorkspace(leaveAccountWorkspace);
       return { success: true };
     },
   };

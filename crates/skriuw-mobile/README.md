@@ -17,9 +17,20 @@ One object and one free function, exported with the UniFFI proc macros:
 | `submit_operations(operations_json)` | `Vec<WorkspaceOperationEnvelope>` JSON in, `OperationAck` JSON out |
 | `load_document(note_id)` | `WorkspaceDocument` JSON |
 | `save_document(request)` | `OperationAck` JSON |
+| `note_lock_state()`, `unlock_note_lock(secret)`, `relock_note_lock()` | `NoteLockState` JSON |
+| `configure_note_lock(NoteLockSecret)` | the recovery code, returned once |
+| `recover_note_lock(code, NoteLockSecret)`, `change_note_lock_secret(NoteLockSecret)` | `NoteLockState` JSON |
+| `read_locked_documents(note_ids)` | `WorkspaceDocument[]` JSON; needs an unlocked session |
+| `remove_note_lock()` | `OperationAck` JSON; needs an unlocked session |
 | `shutdown()` | — |
 | `database_path()` | the workspace file, for the recovery surface |
 | `workspace_protocol_version()` | the protocol the core speaks |
+
+The note-lock calls (ADR-0044) run the existing `NoteLockAccess` use cases on
+the storage thread through `WorkspaceRuntime::note_lock`, as the desktop
+commands do. Key derivation, sealing and the attempt delay stay in
+`skriuw-sqlite`; the facade only gathers the configure entropy from the
+operating system. A wrong secret is `Rejected` carrying the core's own message.
 
 Payloads cross the boundary as the existing generated-contract JSON, so the
 mobile client consumes the same schema the desktop and browser runtimes do and

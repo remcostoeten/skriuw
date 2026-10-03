@@ -26,6 +26,7 @@ project-management/
 .env
 .env.*
 !.env.example
+!apps/mobile/.env
 
 # Cloudflare Workers / wrangler dev secrets (collab PartyServer)
 .dev.vars
@@ -71,6 +72,7 @@ TODO.*
 .agents/
 .env*
 !.env.example
+!apps/mobile/.env
 !v1-final/apps/mobile/.env.example
 v1-final/apps/desktop/skriuw_*_amd64-working-directory/
 

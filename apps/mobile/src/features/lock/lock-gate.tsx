@@ -12,22 +12,32 @@ import { UnlockView } from "./unlock-view";
 import { usePlatformBiometrics } from "./use-platform-biometrics";
 
 /**
- * The one mount point the shell needs for locked notes.
+ * Locked notes need two mounts, because they guard two different extents.
  *
- * It owns three things that have to agree with each other: the lock session's
- * lifecycle, the cover that hides the shell from the app-switcher snapshot,
- * and the unlock screen that stands where the editor would be for a sealed
- * note. Keeping them together is what makes "went to the background, came back
- * locked" one behaviour rather than three that can drift.
+ * `LockGate` sits around the whole shell in the root layout. It owns the lock
+ * session's lifecycle and the cover that hides the shell from the app-switcher
+ * snapshot, so "went to the background, came back locked" is one behaviour
+ * rather than several that can drift. An open sheet is its own native `Modal`
+ * window and stays above the cover; only a bound `ScreenGuard` hides that.
+ *
+ * `SealedNoteGate` sits around the editor. The unlock screen stands where the
+ * note would be and nowhere else, so the toolbar, tab bar and tree stay
+ * usable and a locked note never traps the reader on itself.
  */
 
-type Props = {
-  /** Injected in tests; this device's keystore and sensor otherwise. */
-  biometrics?: BiometricUnlock;
+type LockGateProps = {
   children: ReactNode;
   /** Injected in tests; the platform's `AppState` otherwise. */
   phase?: Observable<AppPhase>;
   screenGuard?: ScreenGuard;
+};
+
+type SealedNoteGateProps = {
+  /** False while the editor is hidden, so the gate takes no space and shows no unlock screen. */
+  active?: boolean;
+  /** Injected in tests; this device's keystore and sensor otherwise. */
+  biometrics?: BiometricUnlock;
+  children: ReactNode;
 };
 
 type SealedNote = { noteId: string | null; title: string };
@@ -46,12 +56,10 @@ function sameSealedNote(left: SealedNote, right: SealedNote): boolean {
   return left.noteId === right.noteId && left.title === right.title;
 }
 
-export function LockGate({ biometrics, children, phase, screenGuard }: Props) {
+export function LockGate({ children, phase, screenGuard }: LockGateProps) {
   const theme = useTheme();
-  const platformBiometrics = usePlatformBiometrics();
   const session = useWorkspace();
   const [concealed, setConcealed] = useState(false);
-  const sealed = useWorkspaceSelector(selectSealedActiveNote, sameSealedNote);
   const source = useMemo(() => phase ?? createAppPhaseSource(), [phase]);
 
   useEffect(
@@ -68,16 +76,6 @@ export function LockGate({ biometrics, children, phase, screenGuard }: Props) {
   return (
     <View style={styles.fill}>
       {children}
-      {sealed.noteId !== null && (
-        <View style={[styles.overlay, { backgroundColor: theme.color("background") }]}>
-          <UnlockView
-            biometrics={biometrics ?? platformBiometrics}
-            /* Nothing to do: hydrating the opened body clears `sealed` itself. */
-            onUnlocked={() => undefined}
-            title={sealed.title.length === 0 ? "This note is locked" : `${sealed.title} is locked`}
-          />
-        </View>
-      )}
       {concealed && (
         <View
           accessibilityElementsHidden
@@ -96,9 +94,42 @@ export function LockGate({ biometrics, children, phase, screenGuard }: Props) {
   );
 }
 
+export function SealedNoteGate({ active = true, biometrics, children }: SealedNoteGateProps) {
+  const theme = useTheme();
+  const platformBiometrics = usePlatformBiometrics();
+  const sealed = useWorkspaceSelector(selectSealedActiveNote, sameSealedNote);
+
+  const covered = active && sealed.noteId !== null;
+
+  return (
+    <View style={active ? styles.fill : styles.hidden}>
+      <View
+        style={styles.fill}
+        accessibilityElementsHidden={covered}
+        importantForAccessibility={covered ? "no-hide-descendants" : "auto"}
+      >
+        {children}
+      </View>
+      {covered && (
+        <View style={[styles.overlay, { backgroundColor: theme.color("background") }]}>
+          <UnlockView
+            biometrics={biometrics ?? platformBiometrics}
+            /* Nothing to do: hydrating the opened body clears `sealed` itself. */
+            onUnlocked={() => undefined}
+            title={sealed.title.length === 0 ? "This note is locked" : `${sealed.title} is locked`}
+          />
+        </View>
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
+  },
+  hidden: {
+    display: "none",
   },
   overlay: {
     position: "absolute",

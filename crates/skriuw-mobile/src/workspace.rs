@@ -175,7 +175,7 @@ impl MobileWorkspace {
 }
 
 impl MobileWorkspace {
-    fn runtime(&self) -> Result<WorkspaceRuntime, MobileError> {
+    pub(crate) fn runtime(&self) -> Result<WorkspaceRuntime, MobileError> {
         let lifecycle = self
             .lifecycle
             .read()
@@ -221,6 +221,6 @@ fn prepare_directory(directory: &str) -> Result<PathBuf, MobileError> {
     Ok(path.to_path_buf())
 }
 
-fn encode<T: Serialize>(value: &T) -> Result<String, MobileError> {
+pub(crate) fn encode<T: Serialize>(value: &T) -> Result<String, MobileError> {
     serde_json::to_string(value).map_err(|error| MobileError::internal(error.to_string()))
 }

@@ -236,3 +236,65 @@ test("close waits for commands already past the open", async () => {
   assert.equal((await reading).documents[0]?.noteId, "note-1");
   assert.ok(fake.calls.lastIndexOf("shutdown") > fake.calls.lastIndexOf("loadDocument"));
 });
+
+test("the note lock is answered by the native core, not refused", async () => {
+  const core = createFakeSkriuwCore();
+  const bridge = createNativeBridge(core);
+  await bridge.applyWorkspaceOperations([envelope(createNote("note-1", "Plans", "launch"))]);
+
+  assert.equal((await bridge.noteLockState()).configured, false);
+  const recoveryCode = await bridge.configureNoteLock({ kind: "pin", secret: "2468", hint: null });
+  assert.ok(recoveryCode.length > 0);
+
+  await bridge.applyWorkspaceOperations([
+    envelope({ type: "set_node_locked", id: "note-1", locked: true, at: 2 }),
+  ]);
+  assert.equal((await bridge.relockNoteLock()).unlocked, false);
+  await assert.rejects(bridge.unlockNoteLock("1111"), hasKind("rejected"));
+  assert.equal((await bridge.noteLockState()).failedAttempts, 1);
+
+  assert.equal((await bridge.unlockNoteLock("2468")).unlocked, true);
+  const opened = await bridge.readLockedDocuments(["note-1"]);
+  assert.deepEqual(
+    opened.map((document) => document.noteId),
+    ["note-1"],
+  );
+
+  const changed = await bridge.changeNoteLockSecret({
+    kind: "passphrase",
+    secret: "correct horse",
+    hint: "a horse",
+  });
+  assert.equal(changed.kind, "passphrase");
+  assert.ok((await bridge.removeNoteLock()).applied >= 1);
+  assert.equal((await bridge.noteLockState()).configured, false);
+  assert.deepEqual(
+    core.calls.filter((call) => call.endsWith("NoteLock") || call === "readLockedDocuments"),
+    [
+      "configureNoteLock",
+      "relockNoteLock",
+      "unlockNoteLock",
+      "unlockNoteLock",
+      "readLockedDocuments",
+      "removeNoteLock",
+    ],
+  );
+});
+
+test("lock commands open the slot first and recover with the recovery code", async () => {
+  const core = createFakeSkriuwCore();
+  const bridge = createNativeBridge(core);
+
+  const recoveryCode = await bridge.configureNoteLock({ kind: "pin", secret: "2468", hint: null });
+  assert.deepEqual(core.calls.slice(0, 3), ["protocolVersion", "open", "configureNoteLock"]);
+  await bridge.relockNoteLock();
+
+  const recovered = await bridge.recoverNoteLock(recoveryCode, {
+    kind: "pin",
+    secret: "1357",
+    hint: null,
+  });
+  assert.equal(recovered.unlocked, true);
+  await bridge.relockNoteLock();
+  assert.equal((await bridge.unlockNoteLock("1357")).unlocked, true);
+});

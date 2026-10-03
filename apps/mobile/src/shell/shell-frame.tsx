@@ -2,11 +2,14 @@ import { router, usePathname, type Href } from "expo-router";
 import { useCallback, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EditorHost } from "../editor/editor-host";
+import { SealedNoteGate } from "../features/lock/lock-gate";
 import { SearchScreen } from "../features/search/search-screen";
 import { AccountPanel } from "./account-panel";
 import { useChrome } from "./chrome";
 import { destinationForRoute, routeForPath } from "./destinations";
 import { EdgeSwipeZones } from "./edge-swipe-zones";
+import { hasOpenNote } from "./route-views";
 import { SideSheet } from "./sheet";
 import { TabBar } from "./tab-bar";
 import { useTheme } from "./theme";
@@ -33,7 +36,9 @@ function activeNoteTitle(state: RendererState): string | null {
  * The chrome the routes live inside: a 44 pt toolbar, the content column, the
  * tab bar, the two sheets and the toast. It is mounted once by the root
  * layout, so switching destinations swaps the content column alone
- * (`docs/specs/mobile-app.md`, R-P1).
+ * (`docs/specs/mobile-app.md`, R-P1). The editor host sits beside the route
+ * slot rather than inside it, so leaving the notes route hides the webview
+ * instead of unmounting it (R-P2).
  */
 export function ShellFrame({ children }: Props) {
   const theme = useTheme();
@@ -43,6 +48,7 @@ export function ShellFrame({ children }: Props) {
   const keyboardVisible = useKeyboardVisible();
   const route = routeForPath(usePathname());
   const noteTitle = useWorkspaceSelector(activeNoteTitle);
+  const editorVisible = useWorkspaceSelector(hasOpenNote) && route === "notes";
   const destination = destinationForRoute(route);
   const openTree = useCallback(() => chrome.openSheet("tree"), [chrome]);
   const openSearch = useCallback(() => chrome.openSheet("search"), [chrome]);
@@ -78,7 +84,10 @@ export function ShellFrame({ children }: Props) {
           },
         ]}
       >
-        {children}
+        <View style={editorVisible ? styles.hidden : styles.slot}>{children}</View>
+        <SealedNoteGate active={editorVisible}>
+          <EditorHost visible={editorVisible} />
+        </SealedNoteGate>
       </View>
       {keyboardVisible ? null : (
         <TabBar route={route} onOpenAccount={() => chrome.openSheet("account")} />
@@ -120,5 +129,12 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     minHeight: 0,
+  },
+  slot: {
+    flex: 1,
+    minHeight: 0,
+  },
+  hidden: {
+    display: "none",
   },
 });

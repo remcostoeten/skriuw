@@ -4181,6 +4181,7 @@ dependencies = [
  "glib",
  "keyring",
  "reqwest",
+ "rustls",
  "serde",
  "serde_json",
  "skriuw-ai",

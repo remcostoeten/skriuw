@@ -13,6 +13,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import uniffi.skriuw_mobile.MobileException
 import uniffi.skriuw_mobile.MobileWorkspace
+import uniffi.skriuw_mobile.NoteLockSecret
 import uniffi.skriuw_mobile.SaveDocumentRequest
 import uniffi.skriuw_mobile.workspaceProtocolVersion
 
@@ -22,6 +23,14 @@ class SaveDocumentArguments : Record {
   @Field var markdown: String = ""
   @Field var expectedRevision: Double = 0.0
   @Field var at: Double = 0.0
+}
+
+class NoteLockSecretArguments : Record {
+  @Field var kind: String = ""
+  @Field var secret: String = ""
+  @Field var hint: String? = null
+
+  fun toSecret() = NoteLockSecret(kind = kind, secret = secret, hint = hint)
 }
 
 private class OpenWorkspace(val slot: String, val handle: MobileWorkspace)
@@ -69,6 +78,38 @@ class SkriuwCoreModule : Module() {
           )
         )
       }
+    }
+
+    AsyncFunction("noteLockState") Coroutine { ->
+      offThread { workspace().noteLockState() }
+    }
+
+    AsyncFunction("configureNoteLock") Coroutine { arguments: NoteLockSecretArguments ->
+      offThread { workspace().configureNoteLock(arguments.toSecret()) }
+    }
+
+    AsyncFunction("unlockNoteLock") Coroutine { secret: String ->
+      offThread { workspace().unlockNoteLock(secret) }
+    }
+
+    AsyncFunction("recoverNoteLock") Coroutine { recoveryCode: String, arguments: NoteLockSecretArguments ->
+      offThread { workspace().recoverNoteLock(recoveryCode, arguments.toSecret()) }
+    }
+
+    AsyncFunction("changeNoteLockSecret") Coroutine { arguments: NoteLockSecretArguments ->
+      offThread { workspace().changeNoteLockSecret(arguments.toSecret()) }
+    }
+
+    AsyncFunction("relockNoteLock") Coroutine { ->
+      offThread { workspace().relockNoteLock() }
+    }
+
+    AsyncFunction("readLockedDocuments") Coroutine { noteIds: List<String>? ->
+      offThread { workspace().readLockedDocuments(noteIds) }
+    }
+
+    AsyncFunction("removeNoteLock") Coroutine { ->
+      offThread { workspace().removeNoteLock() }
     }
 
     AsyncFunction("shutdown") Coroutine { ->
@@ -133,7 +174,7 @@ class SkriuwCoreModule : Module() {
       is MobileException.Workspace -> mapOf("kind" to "workspace", "message" to message)
       is MobileException.Recovery -> mapOf("kind" to "recovery", "message" to message)
       is MobileException.InvalidPayload -> mapOf("kind" to "invalid-payload", "message" to message)
-      is MobileException.Rejected -> mapOf("kind" to "rejected", "message" to message)
+      is MobileException.Rejected -> mapOf("kind" to "rejected", "message" to failure.detail)
       is MobileException.UnsupportedProtocol -> mapOf(
         "kind" to "unsupported-protocol",
         "message" to message,

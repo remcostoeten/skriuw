@@ -62,7 +62,11 @@ export function EditorHost({ visible = true }: Props) {
   const [generation, setGeneration] = useState(0);
   // Metro only inlines `EXPO_PUBLIC_*` reads written out in full.
   const bundle = useMemo(
-    () => resolveEditorBundle(process.env.EXPO_PUBLIC_SKRIUW_EDITOR_ENTRY),
+    () =>
+      resolveEditorBundle(
+        process.env.EXPO_PUBLIC_SKRIUW_EDITOR_ENTRY,
+        process.env.NODE_ENV === "production" ? "embedded" : "dev-server",
+      ),
     [],
   );
 

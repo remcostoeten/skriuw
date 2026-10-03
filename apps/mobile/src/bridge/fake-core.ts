@@ -1,10 +1,12 @@
 import { createMemoryBridge } from "@skriuw/renderer-core/bridge/memory-adapter";
+import type { NoteLockSecretInput } from "@skriuw/renderer-core/bridge/port";
 import {
   WORKSPACE_PROTOCOL_VERSION,
+  type NoteLockKind,
   type WorkspaceOperationEnvelope,
   type WorkspaceSnapshot,
 } from "@skriuw/renderer-core/contracts/workspace";
-import type { SkriuwCore } from "../../modules/skriuw-core/src/core";
+import type { NoteLockSecretArguments, SkriuwCore } from "../../modules/skriuw-core/src/core";
 import { SkriuwCoreError, type SkriuwCoreErrorKind } from "../../modules/skriuw-core/src/errors";
 
 export type FakeCoreCall =
@@ -14,6 +16,14 @@ export type FakeCoreCall =
   | "submitOperations"
   | "loadDocument"
   | "saveDocument"
+  | "noteLockState"
+  | "configureNoteLock"
+  | "unlockNoteLock"
+  | "recoverNoteLock"
+  | "changeNoteLockSecret"
+  | "relockNoteLock"
+  | "readLockedDocuments"
+  | "removeNoteLock"
   | "shutdown";
 
 export type FakeCoreOptions = {
@@ -29,6 +39,13 @@ export type FakeSkriuwCore = SkriuwCore & {
   /** The next `submitOperations` rejects with this kind, once, writing nothing. */
   failNextSubmit: (kind: SkriuwCoreErrorKind, message: string) => void;
 };
+
+function noteLockKind(kind: string): NoteLockKind {
+  if (kind === "pin" || kind === "passphrase") {
+    return kind;
+  }
+  throw new SkriuwCoreError({ kind: "invalid-payload", message: `unknown note lock kind ${kind}` });
+}
 
 function failureKind(message: string): SkriuwCoreErrorKind {
   if (message.startsWith("Revision conflict")) return "conflict";
@@ -55,6 +72,20 @@ export function createFakeSkriuwCore(options: FakeCoreOptions = {}): FakeSkriuwC
     }
   }
 
+  async function native(call: FakeCoreCall, run: () => Promise<string>): Promise<string> {
+    calls.push(call);
+    requireOpen();
+    try {
+      return await run();
+    } catch (cause) {
+      if (cause instanceof SkriuwCoreError) {
+        throw cause;
+      }
+      const message = cause instanceof Error ? cause.message : String(cause);
+      throw new SkriuwCoreError({ kind: failureKind(message), message }, { cause });
+    }
+  }
+
   async function submit(operationsJson: string): Promise<string> {
     requireOpen();
     if (pendingSubmitFailure !== null) {
@@ -69,6 +100,10 @@ export function createFakeSkriuwCore(options: FakeCoreOptions = {}): FakeSkriuwC
       const message = cause instanceof Error ? cause.message : String(cause);
       throw new SkriuwCoreError({ kind: failureKind(message), message }, { cause });
     }
+  }
+
+  function secretInput(secret: NoteLockSecretArguments): NoteLockSecretInput {
+    return { kind: noteLockKind(secret.kind), secret: secret.secret, hint: secret.hint };
   }
 
   return {
@@ -141,6 +176,46 @@ export function createFakeSkriuwCore(options: FakeCoreOptions = {}): FakeSkriuwC
           } satisfies WorkspaceOperationEnvelope,
         ]),
       );
+    },
+
+    noteLockState() {
+      return native("noteLockState", async () => JSON.stringify(await durable.noteLockState()));
+    },
+
+    configureNoteLock(secret) {
+      return native("configureNoteLock", () => durable.configureNoteLock(secretInput(secret)));
+    },
+
+    unlockNoteLock(secret) {
+      return native("unlockNoteLock", async () =>
+        JSON.stringify(await durable.unlockNoteLock(secret)),
+      );
+    },
+
+    recoverNoteLock(recoveryCode, replacement) {
+      return native("recoverNoteLock", async () =>
+        JSON.stringify(await durable.recoverNoteLock(recoveryCode, secretInput(replacement))),
+      );
+    },
+
+    changeNoteLockSecret(replacement) {
+      return native("changeNoteLockSecret", async () =>
+        JSON.stringify(await durable.changeNoteLockSecret(secretInput(replacement))),
+      );
+    },
+
+    relockNoteLock() {
+      return native("relockNoteLock", async () => JSON.stringify(await durable.relockNoteLock()));
+    },
+
+    readLockedDocuments(noteIds) {
+      return native("readLockedDocuments", async () =>
+        JSON.stringify(await durable.readLockedDocuments(noteIds)),
+      );
+    },
+
+    removeNoteLock() {
+      return native("removeNoteLock", async () => JSON.stringify(await durable.removeNoteLock()));
     },
 
     async shutdown() {

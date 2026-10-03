@@ -11,6 +11,13 @@ export type SaveDocumentRequest = {
   at: number;
 };
 
+/** A secret to install, as `NoteLockSecretInput`; `kind` is `"pin"` or `"passphrase"`. */
+export type NoteLockSecretArguments = {
+  kind: string;
+  secret: string;
+  hint: string | null;
+};
+
 /**
  * The native surface. Every member returns a promise: the native side runs
  * each call on a background queue, so no call can block the JS thread
@@ -23,6 +30,17 @@ export type NativeSkriuwCore = {
   submitOperations(operationsJson: string): Promise<NativeResult>;
   loadDocument(noteId: string): Promise<NativeResult>;
   saveDocument(request: SaveDocumentRequest): Promise<NativeResult>;
+  noteLockState(): Promise<NativeResult>;
+  configureNoteLock(secret: NoteLockSecretArguments): Promise<NativeResult>;
+  unlockNoteLock(secret: string): Promise<NativeResult>;
+  recoverNoteLock(
+    recoveryCode: string,
+    replacement: NoteLockSecretArguments,
+  ): Promise<NativeResult>;
+  changeNoteLockSecret(replacement: NoteLockSecretArguments): Promise<NativeResult>;
+  relockNoteLock(): Promise<NativeResult>;
+  readLockedDocuments(noteIds: string[] | null): Promise<NativeResult>;
+  removeNoteLock(): Promise<NativeResult>;
   shutdown(): Promise<NativeResult>;
 };
 
@@ -49,6 +67,22 @@ export type SkriuwCore = {
   loadDocument(noteId: string): Promise<string>;
   /** `OperationAck` JSON. A stale revision fails with kind `conflict`. */
   saveDocument(request: SaveDocumentRequest): Promise<string>;
+  /** `NoteLockState` JSON. */
+  noteLockState(): Promise<string>;
+  /** Installs the lock; resolves with the recovery code, shown once. */
+  configureNoteLock(secret: NoteLockSecretArguments): Promise<string>;
+  /** `NoteLockState` JSON. A wrong secret fails with kind `rejected` and the core's message. */
+  unlockNoteLock(secret: string): Promise<string>;
+  /** `NoteLockState` JSON. */
+  recoverNoteLock(recoveryCode: string, replacement: NoteLockSecretArguments): Promise<string>;
+  /** `NoteLockState` JSON. Needs an unlocked session. */
+  changeNoteLockSecret(replacement: NoteLockSecretArguments): Promise<string>;
+  /** `NoteLockState` JSON. */
+  relockNoteLock(): Promise<string>;
+  /** `WorkspaceDocument[]` JSON, every locked note when `noteIds` is null. */
+  readLockedDocuments(noteIds: string[] | null): Promise<string>;
+  /** `OperationAck` JSON. Needs an unlocked session. */
+  removeNoteLock(): Promise<string>;
   /** Drains the owner thread. Safe to call when nothing is open. */
   shutdown(): Promise<void>;
 };
@@ -133,6 +167,38 @@ export function createSkriuwCore(native: NativeSkriuwCore): SkriuwCore {
 
     saveDocument(request) {
       return settleText(native.saveDocument(request));
+    },
+
+    noteLockState() {
+      return settleText(native.noteLockState());
+    },
+
+    configureNoteLock(secret) {
+      return settleText(native.configureNoteLock(secret));
+    },
+
+    unlockNoteLock(secret) {
+      return settleText(native.unlockNoteLock(secret));
+    },
+
+    recoverNoteLock(recoveryCode, replacement) {
+      return settleText(native.recoverNoteLock(recoveryCode, replacement));
+    },
+
+    changeNoteLockSecret(replacement) {
+      return settleText(native.changeNoteLockSecret(replacement));
+    },
+
+    relockNoteLock() {
+      return settleText(native.relockNoteLock());
+    },
+
+    readLockedDocuments(noteIds) {
+      return settleText(native.readLockedDocuments(noteIds));
+    },
+
+    removeNoteLock() {
+      return settleText(native.removeNoteLock());
     },
 
     async shutdown() {
