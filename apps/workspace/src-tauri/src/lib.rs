@@ -39,6 +39,9 @@ const WINDOW_STATE_FLAGS: tauri_plugin_window_state::StateFlags =
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // reqwest and tungstenite enable both ring and aws-lc-rs, so rustls cannot
+    // pick a process-wide provider on its own and panics on the first handshake.
+    let _ = rustls::crypto::ring::default_provider().install_default();
     let builder = tauri::Builder::default();
     // Two processes on one workspace would race the serialized SQLite writer,
     // backup rotation, and sync outbox. A SKRIUW_DB override points at its own
