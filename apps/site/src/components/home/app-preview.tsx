@@ -52,118 +52,24 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Fold,
+  FolderOpen,
+  FolderPlus,
+  Gear,
   ListTodo,
+  NotePlus,
+  PanelLeft,
+  PanelRight,
   Search,
+  Tag,
+  Trash,
   Users,
 } from "@/components/ui/icons";
+import { WordmarkGlyph } from "@/components/ui/primitives";
+import { roundedPath } from "@/components/ui/geometry";
+import type { Point } from "@/components/ui/geometry";
 
-type GlyphProps = SVGProps<SVGSVGElement>;
-
-function glyph(props: GlyphProps) {
-  return {
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.6,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-    ...props,
-  };
-}
-
-function FolderOpen(props: GlyphProps) {
-  return (
-    <svg {...glyph(props)}>
-      <path d="M3 18V6a1.5 1.5 0 0 1 1.5-1.5h4l2 2h7A1.5 1.5 0 0 1 19 8v2" />
-      <path d="M3 18.5 5.6 11a1.5 1.5 0 0 1 1.4-1h13.2a1 1 0 0 1 .95 1.3L19 18.5Z" />
-    </svg>
-  );
-}
-
-function Tag(props: GlyphProps) {
-  return (
-    <svg {...glyph(props)}>
-      <path d="M3.5 12V4.5a1 1 0 0 1 1-1H12l8.5 8.5-8.5 8.5Z" />
-      <circle cx="8" cy="8" r="1.2" />
-    </svg>
-  );
-}
-
-function Trash(props: GlyphProps) {
-  return (
-    <svg {...glyph(props)}>
-      <path d="M4 7h16M9.5 7V4.5h5V7M6 7l1 13h10l1-13" />
-    </svg>
-  );
-}
-
-function Gear(props: GlyphProps) {
-  return (
-    <svg {...glyph(props)}>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 3v2.5m0 13V21M3 12h2.5m13 0H21M5.6 5.6l1.8 1.8m9.2 9.2 1.8 1.8M5.6 18.4l1.8-1.8m9.2-9.2 1.8-1.8" />
-    </svg>
-  );
-}
-
-function PanelLeft(props: GlyphProps) {
-  return (
-    <svg {...glyph(props)}>
-      <rect x="3" y="4.5" width="18" height="15" rx="2" />
-      <path d="M9 4.5v15" />
-    </svg>
-  );
-}
-
-function PanelRight(props: GlyphProps) {
-  return (
-    <svg {...glyph(props)}>
-      <rect x="3" y="4.5" width="18" height="15" rx="2" />
-      <path d="M15 4.5v15" />
-    </svg>
-  );
-}
-
-function NotePlus(props: GlyphProps) {
-  return (
-    <svg {...glyph(props)}>
-      <path d="M13 3.5H6.5a1.5 1.5 0 0 0-1.5 1.5v14a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19V9.5Z" />
-      <path d="M12 11v6m-3-3h6" />
-    </svg>
-  );
-}
-
-function FolderPlus(props: GlyphProps) {
-  return (
-    <svg {...glyph(props)}>
-      <path d="M3 18V6a1.5 1.5 0 0 1 1.5-1.5h4l2 2h9A1.5 1.5 0 0 1 21 8v10a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18Z" />
-      <path d="M12 10v6m-3-3h6" />
-    </svg>
-  );
-}
-
-function Fold(props: GlyphProps) {
-  return (
-    <svg {...glyph(props)}>
-      <path d="M12 3v6m-3-3 3 3 3-3M12 21v-6m-3 3 3-3 3 3M5 12h14" />
-    </svg>
-  );
-}
-
-function Wordmark(props: GlyphProps) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden {...props}>
-      <g fill="currentColor" transform="translate(0.84 0) skewX(-4)">
-        <rect x="4.3" y="6.4" width="4.7" height="12.4" rx="1" />
-        <rect x="9.7" y="3.6" width="5" height="17.8" rx="1.2" />
-        <rect x="15.4" y="6.4" width="4.7" height="12.4" rx="1" />
-      </g>
-    </svg>
-  );
-}
-
-const viewIcons: Record<View, (props: GlyphProps) => ReactNode> = {
+const viewIcons: Record<View, (props: SVGProps<SVGSVGElement>) => ReactNode> = {
   notes: FolderOpen,
   journal: CalendarRange,
   tasks: ListTodo,
@@ -181,7 +87,7 @@ const iconButton = cn(
   focusRing,
 );
 
-function stagger(index: number): CSSProperties {
+function demoDelay(index: number): CSSProperties {
   return { "--demo-delay": `${index * 45}ms` } as CSSProperties;
 }
 
@@ -211,7 +117,7 @@ function Rail({ view, onSelect }: { view: View; onSelect: (view: View) => void }
     >
       <div className="flex w-full flex-col items-center">
         <div className="flex h-10 w-full items-center justify-center border-b border-line">
-          <Wordmark className="size-[18px] text-ink-900" />
+          <WordmarkGlyph className="size-[18px] text-ink-900" />
         </div>
         <div className="relative mt-3 flex flex-col items-center gap-3">
           <span
@@ -498,7 +404,7 @@ function BlockView({ block, index }: { block: Block; index: number }) {
   if (block.kind === "heading") {
     return (
       <p
-        style={stagger(index)}
+        style={demoDelay(index)}
         className={cn(
           "hy-demo-line font-semibold tracking-[-0.01em] text-ink-900",
           block.level === 1 && "text-[24px] leading-[1.15] tracking-[-0.02em]",
@@ -512,7 +418,7 @@ function BlockView({ block, index }: { block: Block; index: number }) {
   }
   if (block.kind === "item") {
     return (
-      <p style={stagger(index)} className="hy-demo-line flex items-center gap-2 text-ink-700">
+      <p style={demoDelay(index)} className="hy-demo-line flex items-center gap-2 text-ink-700">
         <span
           aria-hidden
           className={cn(
@@ -527,7 +433,7 @@ function BlockView({ block, index }: { block: Block; index: number }) {
     );
   }
   return (
-    <p style={stagger(index)} className="hy-demo-line text-ink-700">
+    <p style={demoDelay(index)} className="hy-demo-line text-ink-700">
       {block.text}
     </p>
   );
@@ -694,7 +600,7 @@ function TasksPane({ tasks, onToggle }: { tasks: Task[]; onToggle: (id: string) 
             {group.items.map((task) => {
               row += 1;
               return (
-                <li key={task.id} className="hy-demo-line" style={stagger(row)}>
+                <li key={task.id} className="hy-demo-line" style={demoDelay(row)}>
                   <TaskRow task={task} onToggle={onToggle} />
                 </li>
               );
@@ -722,7 +628,7 @@ function EntityPane({
     <div className="flex h-full min-h-0">
       <ul className="m-0 w-[42%] max-w-[220px] shrink-0 list-none border-r border-line p-1.5">
         {entities.map((item, index) => (
-          <li key={item.name} className="hy-demo-line" style={stagger(index)}>
+          <li key={item.name} className="hy-demo-line" style={demoDelay(index)}>
             <button
               type="button"
               aria-current={index === selected ? "true" : undefined}
@@ -747,7 +653,7 @@ function EntityPane({
           <p className="hy-demo-line text-[18px] font-semibold tracking-[-0.01em] text-ink-900">
             {entity.name}
           </p>
-          <p className="hy-demo-line mt-1 text-[11px] text-ink-400" style={stagger(1)}>
+          <p className="hy-demo-line mt-1 text-[11px] text-ink-400" style={demoDelay(1)}>
             {entity.count} mentions
           </p>
           <p className="caps mt-4 text-[0.6rem] text-ink-400">Mentioned in</p>
@@ -756,7 +662,7 @@ function EntityPane({
               <li
                 key={label}
                 className="hy-demo-line truncate text-[12.5px] text-ink-700"
-                style={stagger(index + 2)}
+                style={demoDelay(index + 2)}
               >
                 {label}
               </li>
@@ -770,34 +676,10 @@ function EntityPane({
 
 const outlineGeometry = { rowHeight: 22, rowGap: 2, indent: 10, xBase: 6, corner: 6, inset: 18 };
 
-function roundedPath(points: Array<{ x: number; y: number }>, radius: number): string {
-  const [first] = points;
-  if (!first) return "";
-  let path = `M ${first.x} ${first.y}`;
-  for (let index = 1; index < points.length - 1; index += 1) {
-    const previous = points[index - 1];
-    const current = points[index];
-    const next = points[index + 1];
-    if (!previous || !current || !next) continue;
-    const incoming = Math.hypot(current.x - previous.x, current.y - previous.y);
-    const outgoing = Math.hypot(next.x - current.x, next.y - current.y);
-    const local = Math.min(radius, incoming / 2, outgoing / 2);
-    const startRatio = incoming ? local / incoming : 0;
-    const endRatio = outgoing ? local / outgoing : 0;
-    const startX = current.x + (previous.x - current.x) * startRatio;
-    const startY = current.y + (previous.y - current.y) * startRatio;
-    const endX = current.x + (next.x - current.x) * endRatio;
-    const endY = current.y + (next.y - current.y) * endRatio;
-    path += ` L ${startX} ${startY} Q ${current.x} ${current.y} ${endX} ${endY}`;
-  }
-  const last = points.at(-1) ?? first;
-  return `${path} L ${last.x} ${last.y}`;
-}
-
 function outlinePath(outline: OutlineItem[]) {
   const { rowHeight, rowGap, indent, xBase, corner } = outlineGeometry;
   const pitch = rowHeight + rowGap;
-  const points: Array<{ x: number; y: number }> = [];
+  const points: Point[] = [];
   outline.forEach((item, index) => {
     const top = index * pitch;
     const x = xBase + (item.level - 1) * indent;
@@ -846,7 +728,7 @@ function Outline({ outline }: { outline: OutlineItem[] }) {
             style={{
               height: outlineGeometry.rowHeight,
               paddingLeft: outlineGeometry.inset + (item.level - 1) * outlineGeometry.indent,
-              ...stagger(index + 2),
+              ...demoDelay(index + 2),
             }}
             className={cn(
               "hy-demo-line flex items-center truncate pr-1 text-[11.5px]",
@@ -921,7 +803,7 @@ function Inspector({ note, draft, saved }: { note: Note; draft: string; saved: b
             {note.links.map((id, index) => (
               <li
                 key={id}
-                style={stagger(index)}
+                style={demoDelay(index)}
                 className="hy-demo-line truncate text-[11.5px] text-ink-700"
               >
                 {notesById.get(id)?.label}

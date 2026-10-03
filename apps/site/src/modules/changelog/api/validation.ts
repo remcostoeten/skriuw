@@ -5,7 +5,7 @@ export const releaseSchema = z.object({
   tag_name: z.string(),
   name: z.string().nullable(),
   body: z.string().nullable().optional(),
-  html_url: z.string().url(),
+  html_url: z.url(),
   published_at: z.string().nullable(),
   draft: z.boolean(),
   prerelease: z.boolean(),
@@ -16,13 +16,13 @@ export const commitSchema = z.object({
 });
 
 export const comparisonSchema = z.object({
-  html_url: z.string().url(),
+  html_url: z.url(),
   status: z.string(),
   total_commits: z.number(),
   commits: z.array(
     z.object({
       sha: z.string(),
-      html_url: z.string().url(),
+      html_url: z.url(),
       commit: z.object({
         message: z.string(),
       }),
@@ -35,7 +35,7 @@ export const comparisonSchema = z.object({
         status: z.string(),
         additions: z.number(),
         deletions: z.number(),
-        blob_url: z.string().url(),
+        blob_url: z.url(),
         patch: z.string().optional(),
       }),
     )

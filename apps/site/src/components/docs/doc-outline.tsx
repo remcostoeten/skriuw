@@ -2,13 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import type { DocHeading } from "@/lib/docs-content";
+import { roundedPath } from "@/components/ui/geometry";
+import type { Point } from "@/components/ui/geometry";
 
 type Props = {
   headings: DocHeading[];
   collapse: boolean;
 };
-
-type Point = { x: number; y: number };
 
 const GEOMETRY = {
   indent: 14,
@@ -20,44 +20,6 @@ const GEOMETRY = {
   anchorFraction: 0.28,
   headerOffset: 65,
 };
-
-function roundedPath(points: Point[], radius: number) {
-  if (points.length < 2) {
-    return "";
-  }
-
-  let path = `M ${points[0]!.x} ${points[0]!.y}`;
-
-  for (let index = 1; index < points.length - 1; index += 1) {
-    const previous = points[index - 1]!;
-    const current = points[index]!;
-    const next = points[index + 1]!;
-
-    const incoming = Math.hypot(current.x - previous.x, current.y - previous.y);
-    const outgoing = Math.hypot(next.x - current.x, next.y - current.y);
-    const localRadius = Math.min(radius, incoming / 2, outgoing / 2);
-
-    const startRatio = incoming ? localRadius / incoming : 0;
-    const endRatio = outgoing ? localRadius / outgoing : 0;
-
-    const start = {
-      x: current.x + (previous.x - current.x) * startRatio,
-      y: current.y + (previous.y - current.y) * startRatio,
-    };
-    const end = {
-      x: current.x + (next.x - current.x) * endRatio,
-      y: current.y + (next.y - current.y) * endRatio,
-    };
-
-    path += ` L ${start.x} ${start.y}`;
-    path += ` Q ${current.x} ${current.y} ${end.x} ${end.y}`;
-  }
-
-  const last = points.at(-1)!;
-  path += ` L ${last.x} ${last.y}`;
-
-  return path;
-}
 
 function buildPathPoints(nav: HTMLElement, links: HTMLElement[], depths: number[]) {
   const navRect = nav.getBoundingClientRect();

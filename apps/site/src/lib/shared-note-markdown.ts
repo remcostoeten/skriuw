@@ -1,19 +1,11 @@
 import { Marked } from "marked";
+import { escapeHtml } from "@skriuw/shared/helpers/escape-html";
 
 const SAFE_HREF = /^(https?:|mailto:)/i;
 // A whole HTML comment, such as Skriuw's `<!--skriuw-media:kind-->` marker.
 const HTML_COMMENT = /^\s*<!--[\s\S]*?-->\s*$/;
 // A `[[Note title]]` mention of another note, which the reader cannot open.
 const NOTE_MENTION = /\[\[([^\]\n]+)\]\]/g;
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 function placeholder(label: string) {
   return `<span class="shared-note-omitted">${escapeHtml(label)}</span>`;

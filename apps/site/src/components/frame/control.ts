@@ -19,5 +19,8 @@ export const primaryButton =
 /** Mono uppercase pill with a tinted background. */
 export const badge = "caps inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.65rem]";
 
-/** Card recipe: flat, 1px line, 10px radius; `.hy-card` adds the lift and accent wash. */
-export const card = "hy-card rounded-[10px] border border-line bg-hy-card";
+/** Card surface without hover feedback: flat, 1px line, 10px radius. */
+export const cardSurface = "rounded-[10px] border border-line bg-hy-card";
+
+/** Card recipe: the card surface plus `.hy-card`, which adds the lift and accent wash. */
+export const card = `hy-card ${cardSurface}`;
