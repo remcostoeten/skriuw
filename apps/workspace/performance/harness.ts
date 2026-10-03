@@ -3,7 +3,7 @@ import { EditorView } from "prosemirror-view";
 import {
   EDITOR_WORKING_SET_LIMIT,
   EditorWorkingSet,
-} from "../src/features/editor/editor-working-set";
+} from "../src/features/editor/document/working-set";
 import type { ProfilerOnRenderCallback } from "react";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { estimateFrameDuration, nextFrame, summarize } from "./metrics";
@@ -11,7 +11,7 @@ import { readBridgeCalls, resetBridgeCalls } from "./bridge-mock";
 import {
   queryMentionSuggestions,
   queryTagSuggestions,
-} from "../src/features/references/suggestion-index";
+} from "../src/features/references/suggestions/query";
 import type {
   FixtureIdentity,
   LongAnimationFrameSample,

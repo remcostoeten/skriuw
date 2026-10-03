@@ -1,0 +1,457 @@
+import { invoke } from "./runtime";
+import type { ArchiveExportReport, ArchiveImportReport } from "@/platform/ports/archive";
+import type { MediaBlobPayload } from "@/platform/ports/media";
+import type {
+  NoteLockState,
+  OperationAck,
+  SearchHit,
+  SearchIndexStatus,
+  WorkspaceDelta,
+  WorkspaceDocument,
+  WorkspaceOperationEnvelope,
+  WorkspaceSnapshot,
+} from "@skriuw/renderer-core/contracts/workspace";
+import type {
+  NoteLockSecretInput,
+  SlotAdoption,
+  StoredImagePayload,
+  SyncRecoveryView,
+  WorkspaceSyncStatus,
+} from "@skriuw/renderer-core/bridge/port";
+
+export type HistoryVersionContent = {
+  noteId: string;
+  versionId: string;
+  createdAt: number;
+  summary: string;
+  revision: number;
+  markdown: string;
+};
+
+export type BrowserStorageCapabilities = {
+  opfs: boolean;
+  crossOriginIsolated: boolean;
+};
+
+export function browserStorageCapabilities(): Promise<BrowserStorageCapabilities> {
+  return invoke<BrowserStorageCapabilities>("browser_storage_capabilities");
+}
+
+export function bootstrapWorkspace(): Promise<WorkspaceSnapshot> {
+  return invoke<WorkspaceSnapshot>("bootstrap_workspace");
+}
+
+/**
+ * The current bodies and node records for specific notes, for reconciling a
+ * remote change without re-reading the whole workspace.
+ */
+export function readWorkspaceDelta(ids: readonly string[]): Promise<WorkspaceDelta> {
+  return invoke<WorkspaceDelta>("read_workspace_delta", { ids: [...ids] });
+}
+
+export function loadSidebarExpansion(): Promise<string[] | null> {
+  return invoke<string[] | null>("load_sidebar_expansion");
+}
+
+export function saveSidebarExpansion(folderIds: readonly string[]): Promise<void> {
+  return invoke<void>("save_sidebar_expansion", { folderIds });
+}
+
+export function loadPaneLayout(): Promise<string | null> {
+  return invoke<string | null>("load_pane_layout");
+}
+
+export function savePaneLayout(layoutJson: string): Promise<void> {
+  return invoke<void>("save_pane_layout", { layoutJson });
+}
+
+export function applyWorkspaceOperations(
+  operations: WorkspaceOperationEnvelope[],
+): Promise<OperationAck> {
+  return invoke<OperationAck>("apply_workspace_operations", { operations });
+}
+
+/**
+ * Shows the hidden main window and closes the splash in one ordered step, so
+ * there is never a frame with no window on screen.
+ */
+export function revealMainWindow(): Promise<void> {
+  return invoke<void>("reveal_main_window_command");
+}
+
+export function closeWorkspaceWindow(): Promise<void> {
+  return invoke<void>("close_workspace_window");
+}
+
+export function loadAuthToken(): Promise<string | null> {
+  return invoke<string | null>("load_auth_token");
+}
+
+export function storeAuthToken(token: string): Promise<void> {
+  return invoke<void>("store_auth_token", { token });
+}
+
+export function clearAuthToken(): Promise<void> {
+  return invoke<void>("clear_auth_token");
+}
+
+export function workspaceSyncStatus(): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("workspace_sync_status");
+}
+
+/**
+ * Points this installation at the signed-in account's own local workspace
+ * before sync connects, so a second account is routed to its own storage
+ * instead of colliding with the workspace another account already owns.
+ *
+ * `switched` means the runtime is restarting or reloading onto that storage:
+ * the call does not return on the desktop and nothing after it should run.
+ */
+export function adoptWorkspaceSlot(workspaceId: string): Promise<SlotAdoption> {
+  return invoke<SlotAdoption>("adopt_workspace_slot", { workspaceId });
+}
+
+/**
+ * Browser only. Leaves the signed-out account's local workspace for storage no
+ * account owns, then navigates to the site root. The account's notes stay on
+ * this device for its next sign-in; the page unloads and nothing after it runs.
+ */
+export function leaveAccountWorkspace(): Promise<void> {
+  return invoke<void>("leave_account_workspace");
+}
+
+/** Cloud workspace that owns the local store, or null while it is unclaimed. */
+export function activeWorkspaceSlot(): Promise<string | null> {
+  return invoke<string | null>("active_workspace_slot");
+}
+
+export function connectWorkspaceSync(token: string, baseUrl: string): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("connect_workspace_sync", { token, baseUrl });
+}
+
+export function pauseWorkspaceSync(): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("disconnect_workspace_sync");
+}
+
+export function retryWorkspaceSync(): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("retry_workspace_sync");
+}
+
+/** Asks the coordinator for an immediate cycle without touching its configuration. */
+export function refreshWorkspaceSync(): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("refresh_workspace_sync");
+}
+
+export function setWorkspaceSyncOnline(online: boolean): Promise<void> {
+  return invoke<void>("set_workspace_sync_online", { online });
+}
+
+export function setWorkspaceSyncVisibility(visible: boolean, focused: boolean): Promise<void> {
+  return invoke<void>("set_workspace_sync_visibility", { visible, focused });
+}
+
+/**
+ * What the settings surface renders about a workspace's end-to-end
+ * encryption. Key material never crosses this boundary: the recovery code is
+ * returned exactly once, when encryption is first enabled.
+ */
+export type WorkspaceEncryptionState = {
+  enabled: boolean;
+  linked: boolean;
+  keyId: string | null;
+  sealedCheckpointAt: number | null;
+};
+
+export function workspaceEncryptionState(): Promise<WorkspaceEncryptionState> {
+  return invoke<WorkspaceEncryptionState>("workspace_encryption_state");
+}
+
+export function enableWorkspaceEncryption(): Promise<string> {
+  return invoke<string>("enable_workspace_encryption");
+}
+
+export function unlockWorkspaceEncryption(recoveryCode: string): Promise<WorkspaceEncryptionState> {
+  return invoke<WorkspaceEncryptionState>("unlock_workspace_encryption", { recoveryCode });
+}
+
+export function listBlockedSyncOperations(): Promise<SyncRecoveryView> {
+  return invoke<SyncRecoveryView>("list_blocked_sync_operations");
+}
+
+export function retryBlockedSyncOperation(blockedId: string): Promise<SyncRecoveryView> {
+  return invoke<SyncRecoveryView>("retry_blocked_sync_operation", { blockedId });
+}
+
+export function discardBlockedSyncOperation(blockedId: string): Promise<SyncRecoveryView> {
+  return invoke<SyncRecoveryView>("discard_blocked_sync_operation", { blockedId });
+}
+
+export function searchWorkspace(
+  query: string,
+  limit: number,
+  noteIds: readonly string[] | null = null,
+): Promise<SearchHit[]> {
+  return invoke<SearchHit[]>("search_workspace", { query, limit, noteIds });
+}
+
+export function searchIndexStatus(): Promise<SearchIndexStatus> {
+  return invoke<SearchIndexStatus>("search_index_status");
+}
+
+export function rebuildSearchIndex(): Promise<SearchIndexStatus> {
+  return invoke<SearchIndexStatus>("rebuild_search_index");
+}
+
+export function readHistoryVersion(
+  noteId: string,
+  versionId: string,
+): Promise<HistoryVersionContent> {
+  return invoke<HistoryVersionContent>("read_history_version", { noteId, versionId });
+}
+
+export function workspaceStoragePath(): Promise<string> {
+  return invoke<string>("workspace_storage_path");
+}
+
+export function revealWorkspaceStorage(): Promise<void> {
+  return invoke<void>("reveal_workspace_storage");
+}
+
+export function revealWorkspaceImages(): Promise<void> {
+  return invoke<void>("reveal_workspace_images");
+}
+
+export function relocateWorkspaceStorage(targetDir: string): Promise<void> {
+  return invoke<void>("relocate_workspace_storage", { targetDir });
+}
+
+export function clearAllData(): Promise<void> {
+  return invoke<void>("clear_all_data");
+}
+
+export { openExternalUrl } from "./external-links";
+
+export type BackupRotationReport = {
+  status: "created" | "skipped";
+  artifactFileName: string | null;
+  pruned: number;
+  nextDueAt: number | null;
+};
+
+export type RecoveryArtifact = {
+  filename: string;
+  createdAt: number;
+  sizeBytes: number;
+  sha256: string;
+  schemaVersion: number;
+  migrationFingerprint: string;
+  verified: boolean;
+};
+
+export type RecoveryInventory = {
+  manifest: {
+    manifestVersion: number;
+    generatedAt: number;
+    policy: { cadenceMs: number; maxArtifacts: number; maxAgeMs: number };
+    artifacts: RecoveryArtifact[];
+    pendingDeletions: RecoveryArtifact[];
+  } | null;
+  rollbacks: {
+    fileName: string;
+    createdAt: number;
+    sizeBytes: number;
+  }[];
+};
+
+export type DatabaseSwapReport = {
+  status: "replaced" | "rolledBack";
+  snapshot: WorkspaceSnapshot;
+  rollbackFileName: string | null;
+  failure: string | null;
+};
+
+export function exportWorkspaceArchive(): Promise<ArchiveExportReport> {
+  return invoke<ArchiveExportReport>("export_workspace_archive");
+}
+
+export function importWorkspaceArchive(archivePath: string): Promise<ArchiveImportReport> {
+  return invoke<ArchiveImportReport>("import_workspace_archive", { archivePath });
+}
+
+export function createWorkspaceBackup(force: boolean): Promise<BackupRotationReport> {
+  return invoke<BackupRotationReport>("create_workspace_backup", { force });
+}
+
+export function listWorkspaceRecovery(): Promise<RecoveryInventory> {
+  return invoke<RecoveryInventory>("list_workspace_recovery");
+}
+
+export function restoreWorkspaceBackup(artifactFileName: string): Promise<DatabaseSwapReport> {
+  return invoke<DatabaseSwapReport>("restore_workspace_backup", { artifactFileName });
+}
+
+export function cancelWorkspaceMaintenance(): Promise<boolean> {
+  return invoke<boolean>("cancel_workspace_maintenance");
+}
+
+export type MarkdownExportEntryPayload = {
+  relativePath: string;
+  kind: "folder" | "note" | "image";
+  markdown: string | null;
+  contentHash?: string;
+  mimeType?: string;
+};
+
+export type MarkdownTreePayload = {
+  directories: string[];
+  files: { relativePath: string; content: string }[];
+  assets: string[];
+  unsupported: string[];
+  skipped: number;
+};
+
+export function pickDirectory(title: string): Promise<string | null> {
+  return invoke<string | null>("pick_directory", { title });
+}
+
+export function pickImportFile(
+  title: string,
+  extensions?: readonly string[],
+): Promise<string | null> {
+  return invoke<string | null>("pick_import_file", { title, extensions });
+}
+
+export function pickImportFiles(title: string): Promise<string[]> {
+  return invoke<string[]>("pick_import_files", { title });
+}
+
+export function exportMarkdownTree(
+  entries: MarkdownExportEntryPayload[],
+  targetDir: string,
+): Promise<void> {
+  return invoke<void>("export_markdown_tree", { entries, targetDir });
+}
+
+export function readMarkdownTree(sourceDir: string): Promise<MarkdownTreePayload> {
+  return invoke<MarkdownTreePayload>("read_markdown_tree", { sourceDir });
+}
+
+export type PreparedImportSourcePayload = {
+  rootPath: string;
+  assetRoot: string;
+  temporary: boolean;
+  tree: MarkdownTreePayload;
+};
+
+export function prepareImportSource(sourcePath: string): Promise<PreparedImportSourcePayload> {
+  return invoke<PreparedImportSourcePayload>("prepare_import_source", {
+    sourcePath,
+  });
+}
+
+export function prepareImportSources(sourcePaths: string[]): Promise<PreparedImportSourcePayload> {
+  return invoke<PreparedImportSourcePayload>("prepare_import_sources", {
+    sourcePaths,
+  });
+}
+
+export function takeOpenedFiles(): Promise<string[]> {
+  return invoke<string[]>("take_opened_files");
+}
+
+export function cleanupImportSource(rootPath: string): Promise<void> {
+  return invoke<void>("cleanup_import_source", { rootPath });
+}
+
+export function storeNoteImage(bytes: Uint8Array): Promise<StoredImagePayload> {
+  return invoke<StoredImagePayload>("store_note_image", bytes);
+}
+
+/**
+ * Downloads a remote image and stores it as a workspace blob. Only the desktop
+ * shell can do this: the renderer's content policy forbids requests to
+ * arbitrary hosts, and notes never load remote media directly.
+ */
+export function downloadRemoteMedia(url: string): Promise<StoredImagePayload> {
+  return invoke<StoredImagePayload>("download_remote_media", { url });
+}
+
+export function readNoteImageBlob(contentHash: string, mimeType: string): Promise<ArrayBuffer> {
+  return invoke<ArrayBuffer>("read_note_image_blob", { contentHash, mimeType });
+}
+
+export function listMediaBlobs(): Promise<MediaBlobPayload[]> {
+  return invoke<MediaBlobPayload[]>("list_media_blobs");
+}
+
+export function deleteMediaBlob(contentHash: string, mimeType: string): Promise<void> {
+  return invoke<void>("delete_media_blob", { contentHash, mimeType });
+}
+
+/**
+ * Shows one stored file in the desktop file manager. The browser runtime has no
+ * filesystem to reveal, so callers gate this on {@link isBrowserRuntime}.
+ */
+export function revealMediaBlob(contentHash: string, mimeType: string): Promise<void> {
+  return invoke<void>("reveal_media_blob", { contentHash, mimeType });
+}
+
+/**
+ * `liveContentHashes` is only consulted by the browser runtime, which has no
+ * database-side view of attachments; the desktop backend derives the live
+ * set from its own images table and ignores the argument.
+ */
+export function sweepUnusedMediaBlobs(liveContentHashes: readonly string[]): Promise<number> {
+  return invoke<number>("sweep_unused_media_blobs", { liveContentHashes });
+}
+
+export function noteMediaPath(contentHash: string, mimeType: string): Promise<string> {
+  return invoke<string>("note_media_path", { contentHash, mimeType });
+}
+
+export function importMarkdownImage(
+  sourceDir: string,
+  relativePath: string,
+): Promise<StoredImagePayload> {
+  return invoke<StoredImagePayload>("import_markdown_image", { sourceDir, relativePath });
+}
+
+export function noteLockState(): Promise<NoteLockState> {
+  return invoke<NoteLockState>("note_lock_state");
+}
+
+/** Installs the note lock and returns the recovery code, shown exactly once. */
+export function configureNoteLock(input: NoteLockSecretInput): Promise<string> {
+  return invoke<string>("configure_note_lock", input);
+}
+
+export function unlockNoteLock(secret: string): Promise<NoteLockState> {
+  return invoke<NoteLockState>("unlock_note_lock", { secret });
+}
+
+export function recoverNoteLock(
+  recoveryCode: string,
+  input: NoteLockSecretInput,
+): Promise<NoteLockState> {
+  return invoke<NoteLockState>("recover_note_lock", { recoveryCode, ...input });
+}
+
+export function changeNoteLockSecret(input: NoteLockSecretInput): Promise<NoteLockState> {
+  return invoke<NoteLockState>("change_note_lock_secret", input);
+}
+
+export function relockNoteLock(): Promise<NoteLockState> {
+  return invoke<NoteLockState>("relock_note_lock");
+}
+
+export function readLockedDocuments(
+  noteIds: readonly string[] | null = null,
+): Promise<WorkspaceDocument[]> {
+  return invoke<WorkspaceDocument[]>("read_locked_documents", {
+    noteIds: noteIds ? [...noteIds] : null,
+  });
+}
+
+export function removeNoteLock(): Promise<OperationAck> {
+  return invoke<OperationAck>("remove_note_lock");
+}

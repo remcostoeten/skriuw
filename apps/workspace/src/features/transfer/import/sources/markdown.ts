@@ -1,6 +1,6 @@
-import type { MarkdownTree } from "@/features/transfer/export/markdown-transfer-model";
-import type { ImportBundle, ImportSourceAdapter } from "@/features/transfer/import/model";
-import { noteTitleFromPath } from "@/features/transfer/import/model";
+import type { MarkdownTree } from "@/features/transfer/import/parsing/tree";
+import type { ImportBundle, ImportSourceAdapter } from "@/features/transfer/import/parsing/bundle";
+import { noteTitleFromPath } from "@/features/transfer/import/parsing/bundle";
 import { isTextBundleFile } from "./bear";
 
 function isMarkdownFile(relativePath: string): boolean {

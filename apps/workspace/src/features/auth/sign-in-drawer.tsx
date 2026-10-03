@@ -1,5 +1,5 @@
 import { AuthDrawer } from "@remcostoeten/auth-drawer";
-import { authAdapter } from "./adapter";
+import { authAdapter } from "./better-auth/adapter";
 
 type Props = {
   open: boolean;

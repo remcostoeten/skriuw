@@ -181,6 +181,15 @@ module nor the webview. See
 
 Native backup uses SQLite's Online Backup API against a live WAL database. It publishes only a create-new, single-file artifact after integrity, foreign-key, migration, and domain validation. Scheduled rotation enforces a six-hour default cadence and publishes immutable relative-path recovery manifests before checksum-guarded pruning. Restore writes a new verified database rather than replacing the open workspace. See [docs/recovery.md](recovery.md).
 
+### Workspace modules
+
+The workspace renderer in `apps/workspace/src` is split into app, shell,
+feature, commands, store, platform, shared, and contracts layers with a fixed
+dependency direction. A module's root files are its public API and its folders
+are private. `__tests__/apps/workspace/src/module-boundaries.test.ts` enforces
+layers, private folders, and cycles against a shrinking baseline. See
+[ADR-0055](adr/0055-workspace-module-boundaries.md).
+
 ## Data ownership
 
 - `workspace_nodes`: tree metadata.
@@ -268,5 +277,6 @@ happened, so R-P4 is unverified rather than met. See
 - [ADR-0049: one shared icon system](adr/0049-shared-icon-system.md)
 - [ADR-0053: task due dates live in the checklist line](adr/0053-task-due-dates-live-in-the-checklist-line.md)
 - [ADR-0054: recurring tasks repeat in the document](adr/0054-recurring-tasks-repeat-in-the-document.md)
+- [ADR-0055: workspace module boundaries](adr/0055-workspace-module-boundaries.md)
 
 Personal templates reuse ordinary source notes; saved searches and template membership use bounded workspace preferences. See [ADR-0038](adr/0038-personal-template-and-search-preferences.md). Modal Vim editing is one `vimMode` setting driving CodeMirror's Vim extension in the raw Markdown view and a document-model Vim plugin in the rendered editor; see [ADR-0042](adr/0042-modal-vim-editing.md). Sync refresh retries and candidate-filtered full-text search follow the [refresh and search contract](specs/refresh-and-filtered-search.md).

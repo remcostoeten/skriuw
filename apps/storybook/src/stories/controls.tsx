@@ -101,7 +101,7 @@ function InlineEditDemo({ variant, initial }: { variant: RenameVariant; initial:
   );
 }
 
-/** Mirrors the markup of `RenameInput` in features/sidebar/sidebar-row.tsx, which is not exported. */
+/** Mirrors the markup of `RenameInput` in features/sidebar/tree/row.tsx, which is not exported. */
 function SidebarRenameDemo() {
   const [title, setTitle] = useState("Weekly review");
   const [editing, setEditing] = useState(false);
@@ -275,10 +275,10 @@ const OPTIONS: readonly SelectOption<Density>[] = [
       "Enter or blur commits, Escape cancels. Each variant uses the exact classes its caller passes.",
     render: () => (
       <>
-        <Variant label="Entity heading (features/references/entity-view.tsx) — click">
+        <Variant label="Entity heading (features/references/entities/view.tsx) — click">
           <InlineEditDemo variant="entity" initial="Ada Lovelace" />
         </Variant>
-        <Variant label="Reference panel row (features/references/reference-panel.tsx) — click">
+        <Variant label="Reference panel row (features/references/references/panel.tsx) — click">
           <InlineEditDemo variant="reference" initial="project-alpha" />
         </Variant>
         <Variant label="Sidebar tree rename (not InlineEdit: borderless input in a bordered row) — double-click">

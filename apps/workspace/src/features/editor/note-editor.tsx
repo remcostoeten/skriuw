@@ -24,11 +24,11 @@ import {
   type Transaction,
 } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
-import { createCodeBlockNodeView, toggleMermaidSource } from "./code-block-nodeview";
-import { insertInlineMath, insertMathBlock } from "./math-commands";
-import { createMathBlockNodeView, createMathInlineNodeView } from "./math-nodeview";
-import { createDiagramNodeView } from "./diagram-nodeview";
-import { createImageNodeViews, type ImageTouchActions } from "./image-nodeview";
+import { createCodeBlockNodeView, toggleMermaidSource } from "./code-blocks/nodeview";
+import { insertInlineMath, insertMathBlock } from "./math/commands";
+import { createMathBlockNodeView, createMathInlineNodeView } from "./math/nodeview";
+import { createDiagramNodeView } from "./diagrams/nodeview";
+import { createImageNodeViews, type ImageTouchActions } from "./media/image-nodeview";
 import {
   collectImageFiles,
   collectVideoFiles,
@@ -38,17 +38,18 @@ import {
   persistMediaFile,
   pickImageFiles,
   pickVideoFiles,
-} from "./image-input";
-import { noteImageIds, readImageAlt, renameImageNode } from "./image-actions";
-import { pasteMarkdown } from "./markdown-paste";
-import { deriveTitle, STARTER_TITLE } from "./note-title";
-import { registerPendingWork } from "@/shell/pending-work";
-import { openExternalUrl } from "@/bridge/external-links";
-import { defaultLinkTarget, openLinkAt, type LinkTarget } from "./open-link";
+} from "./media/image-input";
+import { noteImageIds, readImageAlt, renameImageNode } from "./media/image-actions";
+import { pasteMarkdown } from "./markdown/paste";
+import { deriveTitle } from "./note-title";
+import { STARTER_TITLE } from "@/features/notes/title";
+import { registerPendingWork } from "@/store/pending-work";
+import { openExternalUrl } from "@/platform/runtime/external-links";
+import { defaultLinkTarget, openLinkAt, type LinkTarget } from "./links/open";
 import { useShortcutHints } from "@/commands/hints";
-import type { MediaBlobPayload } from "@/bridge/commands";
-import { ImageEditDialog, ImageInfoDialog, ImageLightbox } from "./image-menu";
-import { setMediaMetadata } from "@/store/actions/media";
+import type { MediaBlobPayload } from "@/platform/ports/media";
+import { ImageEditDialog, ImageInfoDialog, ImageLightbox } from "./media/image-menu";
+import { setMediaMetadata } from "@/features/media/media-metadata";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -68,17 +69,16 @@ import {
   Trash2Icon,
   ZoomInIcon,
 } from "@/shared/icons/static";
-import { createMentionPlugin, type MentionContext } from "@/features/references/mention-plugin";
-import { createReferenceNodeViews } from "@/features/references/reference-nodeview";
-import { activateReference } from "@/features/references/reference-navigation";
-import { resolveReference } from "@/features/references/reference-resolver";
-import type { ReferenceKind } from "@skriuw/renderer-core/references/types";
 import {
-  commitOperations,
-  commitReferenceOperations,
-  createLinkedNote,
-  isRevisionConflict,
-} from "@/store/actions/workspace";
+  activateReference,
+  createMentionPlugin,
+  createReferenceNodeViews,
+  resolveReference,
+  type MentionContext,
+} from "@/features/references/editor";
+import type { ReferenceKind } from "@skriuw/renderer-core/references/types";
+import { commitOperations, commitReferenceOperations, isRevisionConflict } from "@/store/commit";
+import { createLinkedNote } from "@/features/notes/operations";
 import { cssStringLiteral } from "@/features/settings/apply-settings";
 import {
   dimsFocusParagraphs,
@@ -87,7 +87,7 @@ import {
   usesVimMode,
 } from "@/features/settings/settings-model";
 import { opensNotesInTabs } from "@skriuw/renderer-core/settings/open-notes-in-tabs";
-import { closeTab } from "@/store/actions/panes";
+import { closeTab } from "@/features/workspace-layout/panes";
 import { noop } from "@skriuw/shared/helpers/noop";
 import { toastActionIsAvailable } from "@/shared/ui/toast";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
@@ -98,7 +98,7 @@ import {
   deleteAnnotationComment,
   setAnnotationResolved,
   updateAnnotationComment,
-} from "@/store/actions/annotations";
+} from "./annotations/threads";
 import type {
   DocumentRecord,
   RendererState,
@@ -112,7 +112,7 @@ import {
   topLevelBlockAtPosition,
   topLevelTextPosition,
   type BoundedDocument,
-} from "./bounded-document";
+} from "./document/bounded";
 import {
   countWords,
   createProductPlugins,
@@ -129,45 +129,46 @@ import {
   searchPluginKey,
   setSearch,
   type EditorSearchTarget,
-} from "./search-plugin";
+} from "./search/plugin";
 import {
   applySlashCommand,
   filterSlashItems,
   insertMedia,
   type SlashAction,
   type SlashCommand,
-} from "./slash-commands";
-import { MediaLibraryPicker } from "./media-library-picker";
-import type { LibraryMediaKind } from "./media-library-picker";
-import { createMediaNodeView } from "./media-nodeview";
+} from "./menus/slash-commands";
+import { MediaLibraryPicker } from "./media/library-picker";
+import type { LibraryMediaKind } from "./media/library-picker";
+import { createMediaNodeView } from "./media/nodeview";
 import {
   deleteBlock,
   duplicateBlock,
   insertBlockAfter,
   moveBlock,
   topLevelBlockAt,
-} from "./block-commands";
+} from "./blocks/commands";
 import {
   firstTableCellTextPosition,
   isTableCommandAvailable,
   tableCommands,
   type TableCommand,
-} from "./table-commands";
-import { createDragHandle, type BlockMenuTarget, type DragHandleController } from "./drag-handle";
+} from "./blocks/table-commands";
+import {
+  createDragHandle,
+  type BlockMenuTarget,
+  type DragHandleController,
+} from "./blocks/drag-handle";
 import {
   BubbleMenu,
   bubbleMenuStateEqual,
   closedBubbleMenu,
   computeBubbleMenu,
-} from "./bubble-menu";
+} from "./menus/bubble";
 import { AiOptInGate, selectAiEnabled } from "@/features/ai/opt-in-gate";
-import {
-  clearPendingAiAction,
-  requestAiAction,
-} from "@/features/ai/actions/editor-action-controller";
-import { clearPendingVoiceDictation } from "@/features/ai/voice/voice-dictation-controller";
-import { DrawingOverlay } from "@/features/drawing/drawing-overlay";
-import { closeAnnotateMode } from "@/store/actions/annotate-mode";
+import { clearPendingAiAction, requestAiAction } from "@/features/ai/editor-actions";
+import { clearPendingVoiceDictation } from "@/features/ai/voice-dictation";
+import { DrawingOverlay } from "@/features/drawing/overlay";
+import { closeAnnotateMode } from "@/features/editor/annotate-mode";
 import {
   AnnotationMenu,
   annotationAtCursor,
@@ -175,7 +176,7 @@ import {
   annotationMenuAnchor,
   closedAnnotationMenu,
   type AnnotationRange,
-} from "./annotation-menu";
+} from "./annotations/menu";
 import {
   closedLinkMenu,
   LinkMenu,
@@ -184,39 +185,40 @@ import {
   linkInRange,
   linkMenuAnchor,
   type LinkMenuSource,
-} from "./link-menu";
+} from "./links/menu";
 import {
   documentEdgeSelection,
   documentEdgeWindowStart,
   type DocumentEdge,
-} from "./document-edges";
-import { SearchWidget } from "./search-widget";
-import { JumpToLinePanel } from "./jump-to-line-panel";
+} from "./navigation/document-edges";
+import { SearchWidget } from "./search/widget";
+import { JumpToLinePanel } from "./navigation/jump-to-line-panel";
 import {
   buildDocumentLineIndex,
   documentLineAt,
   documentLineTarget,
   type DocumentLineIndex,
-} from "./document-lines";
+} from "./navigation/document-lines";
 import {
   createDisplayRowLayoutCache,
   displayRowAt,
   displayRowPosition,
   viewDisplayRowLayout,
-} from "./display-rows";
-import { parseJumpToLineInput } from "./raw-markdown-editor-model";
-import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
-import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
-import type { NoteEditorShortcutId } from "./editor-bound-shortcut-ids";
-import { useEditorSearch } from "./use-editor-search";
-import { documentSaveOperations } from "./task-linking";
-import { withFreshPastedTaskIdentities } from "./task-paste";
+} from "./navigation/display-rows";
+import { parseJumpToLineInput } from "./raw-markdown/model";
+import { drawingDocumentFor } from "./drawing-integration";
+import { useEditorBoundShortcuts } from "@/commands/editor-bound-shortcuts";
+import type { EditorBoundHandlersFor } from "@/commands/editor-bound-shortcuts";
+import type { NoteEditorShortcutId } from "./shortcuts/bound-ids";
+import { useEditorSearch } from "./search/use-search";
+import { documentSaveOperations } from "./tasks/linking";
+import { withFreshPastedTaskIdentities } from "./tasks/paste";
 import {
   resolvedThreadIdsForNote,
   setAnnotationDecorations,
   type AnnotationDecorationInputs,
-} from "./annotation-decorations";
-import { blockRangePositions, findAnnotationLocation, findBlockLocation } from "./block-locations";
+} from "./annotations/decorations";
+import { blockRangePositions, findAnnotationLocation, findBlockLocation } from "./blocks/locations";
 import {
   registerBlockReveal,
   registerThreadReveal,
@@ -225,21 +227,21 @@ import {
   takePendingThreadReveal,
   type RangeRevealRequest,
 } from "./reveal-controller";
-import { SaveFailureBanner } from "./save-failure-banner";
-import { SaveSequencer } from "./save-sequencer";
-import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "./editor-working-set";
-import { preparedEditorDocuments } from "./prepared-documents";
-import { REMOTE_APPLY_META, buildRemoteTr, mergeDocuments } from "./remote-merge";
-import { saveWithConflictRetry } from "./save-retry";
-import { createTypewriterPlugin } from "./typewriter-scroll";
-import { createFocusDimPlugin, refreshFocusDim } from "./focus-dim";
+import { SaveFailureBanner } from "./persistence/save-failure-banner";
+import { SaveSequencer } from "./persistence/save-sequencer";
+import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "./document/working-set";
+import { preparedEditorDocuments } from "./document/prepared";
+import { REMOTE_APPLY_META, buildRemoteTr, mergeDocuments } from "./document/remote-merge";
+import { saveWithConflictRetry } from "./persistence/save-retry";
+import { createTypewriterPlugin } from "./focus/typewriter-scroll";
+import { createFocusDimPlugin, refreshFocusDim } from "./focus/dim";
 import {
   carryVimState,
   createVimPlugin,
   isVimVisual,
   setVimEnabled,
   type VimHost,
-} from "./vim/vim-plugin";
+} from "./vim/plugin";
 
 function selectAnnotations(state: RendererState) {
   return state.annotations;
@@ -474,12 +476,12 @@ function fullDocumentHtml(document: ProseMirrorNode): string {
 }
 
 const AiEditorActionHost = lazy(async () => {
-  const module = await import("@/features/ai/actions/editor-action-host");
+  const module = await import("@/features/ai/editor-action-host");
   return { default: module.AiEditorActionHost };
 });
 
 const VoiceDictationHost = lazy(async () => {
-  const module = await import("@/features/ai/voice/voice-dictation-host");
+  const module = await import("@/features/ai/voice-dictation-host");
   return { default: module.VoiceDictationHost };
 });
 
@@ -2478,7 +2480,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
               store={store}
               noteId={activeNoteId}
               active={annotating}
-              getView={() => viewRef.current}
+              getDocument={() => drawingDocumentFor(viewRef.current)}
               onDone={() => closeAnnotateMode(store)}
             />,
             editorPane,

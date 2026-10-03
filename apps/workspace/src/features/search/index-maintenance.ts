@@ -1,4 +1,4 @@
-import { rebuildSearchIndex, searchIndexStatus } from "@/bridge/commands";
+import { rebuildSearchIndex, searchIndexStatus } from "@/platform/runtime/commands";
 import type { SearchIndexStatus } from "@skriuw/renderer-core/contracts/workspace";
 
 /**

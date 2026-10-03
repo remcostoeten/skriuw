@@ -4,8 +4,8 @@ import {
   readMermaidPalette,
   renderMermaidSvg,
   type MermaidRenderResult,
-} from "@/features/editor/mermaid-render";
-import type { RunRepair } from "@/features/ai/run/run-session";
+} from "@/features/editor/diagrams";
+import type { RunRepair } from "@/features/ai/run/session";
 
 export type DiagramCheck = (source: string) => Promise<MermaidRenderResult>;
 

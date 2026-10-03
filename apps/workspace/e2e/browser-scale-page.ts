@@ -4,7 +4,7 @@ import {
   bootstrapWorkspace,
   closeWorkspaceWindow,
   searchWorkspace,
-} from "../src/bridge/commands";
+} from "../src/platform/runtime/commands";
 
 const BATCH_LIMIT = 64;
 const NOTES_PER_FOLDER = 100;

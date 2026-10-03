@@ -16,7 +16,7 @@ export function beginRowGesture(rowId: string, x: number, y: number): RowGesture
 
 /**
  * Advances a touch on a tree row, on the same numbers as
- * `apps/workspace/src/features/sidebar/touch-gestures.ts`. A horizontal pull becomes a
+ * `apps/workspace/src/features/sidebar/touch/gestures.ts`. A horizontal pull becomes a
  * swipe that drags the row toward deletion; a vertical pull is the list
  * scrolling and cancels everything, including the pending long press;
  * anything smaller keeps the long press armed.

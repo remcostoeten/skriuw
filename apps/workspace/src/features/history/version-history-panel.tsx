@@ -2,11 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { motion } from "motion/react";
 import { DOMSerializer } from "prosemirror-model";
-import { restoreNoteVersion } from "@/store/actions/workspace";
-import { setHistoryDiffLayout } from "@/store/actions/settings";
-import { historyDiffLayout } from "@/features/settings/settings-model";
-import type { HistoryVersionContent } from "@/bridge/commands";
-import { readHistoryVersion } from "@/bridge/commands";
+import { restoreNoteVersion } from "@/features/history/restore-version";
+import { setHistoryDiffLayout } from "./diff";
+import { historyDiffLayout } from "./diff/layout-setting";
+import type { HistoryVersionContent } from "@/platform/runtime/commands";
+import { readHistoryVersion } from "@/platform/runtime/commands";
 import { productSchema } from "@/features/editor/schema";
 import {
   CloseIcon,
@@ -15,25 +15,25 @@ import {
   SplitViewIcon,
   SplitViewStackedIcon,
 } from "@/shared/icons/static";
-import { cn } from "@/shared/lib/utils";
-import { HistoryGraphRail } from "./history-graph-rail";
-import { HistoryScrubber } from "./history-scrubber";
+import { cn } from "@/shared/styling/class-names";
+import { HistoryGraphRail } from "./timeline/graph-rail";
+import { HistoryScrubber } from "./timeline/scrubber";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
-import { useMediaQuery } from "@/shared/hooks/use-media-query";
-import { COMPACT_SHELL_QUERY } from "@/shell/shell-layout";
+import { useMediaQuery } from "@/shared/viewport/use-media-query";
+import { COMPACT_VIEWPORT_QUERY } from "@/shared/viewport/queries";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import { VersionDiffView, useMarkdownDiff } from "./version-diff-view";
-import type { DiffLayout } from "./split-diff-model";
+import { VersionDiffView, useMarkdownDiff } from "./diff/view";
+import type { DiffLayout } from "./diff/split-model";
 import { Tooltip } from "@skriuw/shared/ui/tooltip";
-import { VersionStats } from "./version-stats";
+import { VersionStats } from "./versions/stats";
 import {
   formatVersionClock,
   formatVersionTimestamp,
   groupVersionRows,
-  parseHistoryMarkdown,
   type VersionListItem,
-} from "./version-model";
+} from "./versions/model";
+import { parseHistoryMarkdown } from "./restore";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 
 type Props = {
@@ -69,7 +69,7 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
   const [mode, setMode] = useState<PreviewMode>("diff");
   const [revealing, setRevealing] = useState(false);
   const [scrubVersionId, setScrubVersionId] = useState<string | null>(null);
-  const compact = useMediaQuery(COMPACT_SHELL_QUERY);
+  const compact = useMediaQuery(COMPACT_VIEWPORT_QUERY);
   const parentRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
   const appliedRequestRef = useRef<string | null>(null);

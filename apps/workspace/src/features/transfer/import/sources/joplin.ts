@@ -1,12 +1,12 @@
-import type { MarkdownTree } from "@/features/transfer/export/markdown-transfer-model";
-import { sanitizeFileName } from "@/features/transfer/export/markdown-transfer-model";
+import type { MarkdownTree } from "@/features/transfer/import/parsing/tree";
+import { sanitizeFileName } from "@/features/transfer/export/entries";
 import type {
   ImportBundle,
   ImportSourceAdapter,
   ImportedNote,
   ImportWarning,
-} from "@/features/transfer/import/model";
-import { relativeLinkBetween } from "@/features/transfer/import/model";
+} from "@/features/transfer/import/parsing/bundle";
+import { relativeLinkBetween } from "@/features/transfer/import/parsing/bundle";
 
 const RAW_ITEM_FILE = /(^|\/)([0-9a-f]{32})\.md$/i;
 const METADATA_LINE = /^[a-z0-9_]+:( |$)/;

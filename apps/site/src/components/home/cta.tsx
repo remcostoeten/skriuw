@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cn } from "@skriuw/shared/helpers/cn";
-import { appUrl, releasesUrl } from "@/data/content";
+import { DownloadButton } from "@/components/download/download-button";
+import { appUrl } from "@/data/content";
 import { badge, outlineButton, primaryButton } from "@/components/frame/control";
 
 export function HomeCta() {
@@ -21,9 +22,10 @@ export function HomeCta() {
           <Link href={appUrl} className={primaryButton}>
             Open the app
           </Link>
-          <Link href={releasesUrl} className={cn(outlineButton, "h-10 px-4")}>
-            Download for desktop
-          </Link>
+          <DownloadButton
+            className={cn(outlineButton, "h-10 px-4")}
+            fallbackLabel="Download for desktop"
+          />
         </div>
       </div>
     </section>

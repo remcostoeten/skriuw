@@ -2,7 +2,7 @@ import * as React from "react";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 
 import { CheckIcon, ChevronRightIcon } from "@/shared/icons/static";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/styling/class-names";
 import { KeyCaps } from "@/shared/ui/key-caps";
 import { overlayContentMotion } from "./overlay-motion";
 import { sectionLabelClass } from "@/shared/ui/section-header";

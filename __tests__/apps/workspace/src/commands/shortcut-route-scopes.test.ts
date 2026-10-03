@@ -2,14 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import { noop } from "@skriuw/shared/helpers/noop";
 import { createCommandRegistry, type CommandUiState } from "@/commands/registry";
-import { createWorkspaceCommands } from "@/commands/workspace-commands";
-import type { CommandUiControls } from "@/commands/workspace-commands";
+import { createAppCommands, type AppCommandControls } from "@/app-commands";
 import { SHORTCUT_DEFINITIONS } from "@/commands/definitions";
 import { shortcutScopesActive } from "@/commands/bindings";
 import { activeShortcutScopes } from "@/commands/workspace-shortcuts";
 import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import { rememberAiAction } from "@/features/ai/actions/editor-action-controller";
+import { rememberAiAction } from "@/features/ai/actions/controller";
 
 const ROUTES: readonly AppRoute[] = ["notes", "trash", "tags", "people", "history", "journal"];
 
@@ -46,7 +45,7 @@ const permissiveState = {
   settings: { openNotesInTabs: true, aiEnabled: true },
 } as unknown as RendererState;
 
-const controls: CommandUiControls = {
+const controls: AppCommandControls = {
   togglePalette: noop,
   openSettings: noop,
   openSettingsAt: noop,
@@ -78,7 +77,7 @@ function routesScopesAllow(definition: (typeof SHORTCUT_DEFINITIONS)[number]): A
  * everywhere while the command silently refuses it off the notes route.
  */
 test("a binding's scopes never let it through on a route its command refuses", () => {
-  const registry = createCommandRegistry(createWorkspaceCommands(fakeStore(), controls));
+  const registry = createCommandRegistry(createAppCommands(fakeStore(), controls, false));
   for (const definition of SHORTCUT_DEFINITIONS) {
     if (definition.boundInEditor) {
       continue;

@@ -288,7 +288,7 @@ fn validate_content_hash(value: &str) -> Result<(), ImageStoreError> {
 }
 
 /// Maps a MIME type onto the blob file extension. Must stay in sync with the
-/// renderer's `imageFileExtension` in `apps/workspace/src/export/markdown-transfer-model.ts`.
+/// renderer's `imageFileExtension` in `apps/workspace/src/features/transfer/export/entries.ts`.
 #[must_use]
 pub fn extension_for(mime_type: &str) -> &'static str {
     match mime_type {
@@ -322,7 +322,7 @@ pub fn mime_for_extension(extension: &str) -> Option<&'static str> {
 
 /// HEIC/HEIF stills share the ISO-BMFF container with MP4 and QuickTime, so
 /// the major brand decides; stills are unsupported rather than stored as video.
-/// Must stay in sync with `isoBrandMime` in `apps/workspace/src/bridge/browser-media.ts`.
+/// Must stay in sync with `isoBrandMime` in `apps/workspace/src/platform/browser/media.ts`.
 fn iso_brand_mime(brand: &[u8]) -> Option<&'static str> {
     match brand {
         b"heic" | b"heix" | b"hevc" | b"hevx" | b"heim" | b"heis" | b"mif1" | b"msf1" | b"heif" => {
@@ -383,7 +383,7 @@ const SVG_ACTIVE_CONTENT: [&str; 12] = [
 /// document whose root element is `<svg`, with no scripts, event handlers,
 /// embedded documents, entity declarations, or external references. A stored
 /// SVG is then inert wherever it is shown, not only inside an `<img>`.
-/// Must stay in sync with `isInertSvg` in `apps/workspace/src/bridge/inert-svg.ts`.
+/// Must stay in sync with `isInertSvg` in `apps/workspace/src/platform/browser/inert-svg.ts`.
 fn is_inert_svg(bytes: &[u8]) -> bool {
     if bytes.len() > SVG_MAX_BYTES {
         return false;

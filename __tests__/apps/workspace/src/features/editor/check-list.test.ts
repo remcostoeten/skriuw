@@ -6,6 +6,7 @@ import {
   parseProductMarkdown,
   productSchema,
   serializeProductMarkdown,
+  wrapLineInCheckList,
 } from "@/features/editor/schema";
 
 function stateWithText(text: string): EditorState {
@@ -42,6 +43,32 @@ function typeText(state: EditorState, text: string): EditorState {
     current = current.apply(current.tr.insertText(text, from, to));
   }
   return current;
+}
+
+function stateWithLines(lines: readonly string[], cursorLine: number): EditorState {
+  const hardBreak = productSchema.nodes.hard_break;
+  assert.ok(hardBreak);
+  const inline = lines.flatMap((line, index) => [
+    ...(index > 0 ? [hardBreak.create()] : []),
+    ...(line ? [productSchema.text(line)] : []),
+  ]);
+  const doc = productSchema.node("doc", null, [productSchema.node("paragraph", null, inline)]);
+  const state = EditorState.create({ doc, plugins: createProductPlugins() });
+  const cursor =
+    1 + lines.slice(0, cursorLine + 1).reduce((size, line) => size + line.length, 0) + cursorLine;
+  return state.apply(state.tr.setSelection(TextSelection.create(state.doc, cursor)));
+}
+
+function blockSummary(state: EditorState): string[] {
+  const blocks: string[] = [];
+  state.doc.forEach((block) => {
+    let breaks = 0;
+    block.descendants((node) => {
+      if (node.type.name === "hard_break") breaks += 1;
+    });
+    blocks.push(`${block.type.name}:${block.textContent}${breaks ? `:breaks=${breaks}` : ""}`);
+  });
+  return blocks;
 }
 
 function checkDocument(
@@ -122,4 +149,49 @@ test("plain bullet lists are untouched by the checkbox upgrade", () => {
   assert.equal(parsed.childCount, 1);
   assert.equal(parsed.firstChild?.type.name, "bullet_list");
   assert.equal(parsed.firstChild?.childCount, 2);
+});
+
+test("typing [ ] on the line after a break turns only that line into a task (#494)", () => {
+  let state = stateWithLines(["Groceries", ""], 1);
+  for (const character of "[ ] milk") state = typeText(state, character);
+  assert.deepEqual(blockSummary(state), ["paragraph:Groceries", "check_list:milk"]);
+  assert.equal(state.doc.child(1).firstChild?.childCount, 1);
+});
+
+test("typing [ ] right after an inline tag chip stays literal text", () => {
+  const tagRef = productSchema.nodes.tag_ref;
+  assert.ok(tagRef);
+  const doc = productSchema.node("doc", null, [
+    productSchema.node("paragraph", null, [tagRef.create({ id: "tag-1", label: "home" })]),
+  ]);
+  let state = EditorState.create({ doc, plugins: createProductPlugins() });
+  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 2)));
+  for (const character of "[ ] ") state = typeText(state, character);
+  assert.equal(state.doc.firstChild?.type.name, "paragraph");
+  assert.equal(state.doc.firstChild?.textContent, "[ ] ");
+});
+
+test("the check list command wraps only the cursor line of a multi-line paragraph (#494)", () => {
+  let state = stateWithLines(["one", "two", "three"], 1);
+  assert.ok(
+    wrapLineInCheckList(state, (transaction) => {
+      state = state.apply(transaction);
+    }),
+  );
+  state = typeText(state, "!");
+  assert.deepEqual(blockSummary(state), ["paragraph:one", "check_list:two!", "paragraph:three"]);
+});
+
+test("the check list command on an empty trailing line puts typed text beside the checkbox (#494)", () => {
+  let state = stateWithLines(["That's most of it.", ""], 1);
+  assert.ok(
+    wrapLineInCheckList(state, (transaction) => {
+      state = state.apply(transaction);
+    }),
+  );
+  state = typeText(state, "my task");
+  assert.deepEqual(blockSummary(state), ["paragraph:That's most of it.", "check_list:my task"]);
+  const item = state.doc.child(1).firstChild;
+  assert.equal(item?.type.name, "check_item");
+  assert.equal(item?.firstChild?.textContent, "my task");
 });

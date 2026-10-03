@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "../src/app";
-import { bindInstallPrompt } from "../src/bridge/install-prompt";
+import { bindInstallPrompt } from "../src/platform/browser/install-prompt";
 import { bindSettingsToRoot } from "../src/features/settings/apply-settings";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { configureBridge, invoke } from "./bridge-mock";

@@ -12,16 +12,16 @@ const standaloneDirectory = resolve(sourceDirectory, "features/editor-standalone
  * injected at the module boundary instead of through the editor's props: the
  * two bridge modules every editor command funnels through are replaced with
  * protocol-backed stand-ins. Matching on the resolved file covers both the
- * `@/bridge/...` alias and the relative imports inside `bridge/`.
+ * `@/platform/...` alias and the relative imports inside `platform/runtime/`.
  */
 function standaloneEditorBridge(): Plugin {
   const swaps = new Map([
     [
-      resolve(sourceDirectory, "bridge/runtime.ts"),
+      resolve(sourceDirectory, "platform/runtime/runtime.ts"),
       resolve(standaloneDirectory, "port-runtime.ts"),
     ],
     [
-      resolve(sourceDirectory, "bridge/external-links.ts"),
+      resolve(sourceDirectory, "platform/runtime/external-links.ts"),
       resolve(standaloneDirectory, "port-external-links.ts"),
     ],
   ]);

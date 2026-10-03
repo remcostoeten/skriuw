@@ -69,7 +69,7 @@ ordinary OPFS VFS it does not require COOP/COEP. IndexedDB and memory remain
 explicitly excluded as durability fallbacks.
 
 - SQLite WASM must run inside a Web Worker, not the main thread — the same "off the renderer/UI thread" rule that governs the native runtime worker (`skriuw-runtime`) applies identically here, and is more urgent in the browser since the main thread also owns rendering.
-- The worker communicates with the renderer via `postMessage`, mirroring the shape of `skriuw-runtime`'s FIFO request queue and waitable completion handles — the goal is that `apps/workspace/src/bridge/**`'s Tauri-specific implementation and a new browser-worker-specific implementation both satisfy the same renderer-facing bridge contract, so `apps/workspace/src/store/**` and everything above it does not know which adapter is active.
+- The worker communicates with the renderer via `postMessage`, mirroring the shape of `skriuw-runtime`'s FIFO request queue and waitable completion handles — the goal is that `apps/workspace/src/platform/**`'s Tauri-specific implementation and a new browser-worker-specific implementation both satisfy the same renderer-facing bridge contract, so `apps/workspace/src/store/**` and everything above it does not know which adapter is active.
 - Migrations: the same SQL files under `migrations/` must apply unmodified inside the worker (`docs/data-model.md`'s "migration execution remains adapter-owned so a future SQLite-WASM implementation can apply the same SQL files inside its worker" is an explicit design commitment already made — honor it; do not fork the migration files).
 - Git history: native builds materialize history via `skriuw-history-git`. The browser adapter has no filesystem Git available. Per the existing TODO item this spec absorbs ("select local revision or remote history materializer"), the browser adapter needs its own `skriuw-history` implementation — likely a local revision-cache-only mode (no external Git materialization) as the default, with a remote materializer as a later, separate decision requiring its own ADR (it implies a server, which ADR-0001 explicitly scopes as "optional replication, never primary reads").
 
@@ -125,7 +125,7 @@ shared `skriuw-sync` crate runs unchanged inside the worker: `run_sync_cycle`,
 checkpoint hydration and publication, chunked content transfer, and asset
 externalization/resolution execute against the same durable
 `WorkspaceSyncQueue` port the desktop coordinator uses. Only the desktop's
-thread and timer scheduling is replaced: `apps/workspace/src/bridge/browser-sync.ts`
+thread and timer scheduling is replaced: `apps/workspace/src/platform/browser/sync.ts`
 schedules one bounded `sync_cycle` worker request at a time and derives the
 next wake from the reported outcome (`pending` immediately, `retrying`/
 `blocked` at the reported deadline, otherwise a 60-second poll), coalescing

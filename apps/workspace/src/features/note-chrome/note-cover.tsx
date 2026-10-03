@@ -1,12 +1,12 @@
 import { clamp } from "@skriuw/shared/helpers/clamp";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { commitOperations } from "@/store/actions/workspace";
-import { downloadRemoteMedia, listMediaBlobs, storeNoteImage } from "@/bridge/commands";
-import type { MediaBlobPayload } from "@/bridge/commands";
+import { commitOperations } from "@/store/commit";
+import { downloadRemoteMedia, listMediaBlobs, storeNoteImage } from "@/platform/runtime/commands";
+import type { MediaBlobPayload } from "@/platform/ports/media";
 import type { StoredImagePayload } from "@skriuw/renderer-core/bridge/port";
-import { isBrowserRuntime } from "@/bridge/runtime";
-import { pickImageFiles } from "@/features/editor/image-input";
-import { registerPendingWork } from "@/shell/pending-work";
+import { isBrowserRuntime } from "@/platform/runtime/runtime";
+import { pickImageFiles } from "@/features/editor/media";
+import { registerPendingWork } from "@/store/pending-work";
 import {
   CloseIcon,
   DownloadIcon,
@@ -16,7 +16,7 @@ import {
   SearchIcon,
 } from "@/shared/icons/static";
 import { noop } from "@skriuw/shared/helpers/noop";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/styling/class-names";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -30,12 +30,12 @@ import {
 import { Dialog } from "@/shared/ui/dialog";
 import { Select } from "@/shared/ui/select";
 import { Tooltip } from "@skriuw/shared/ui/tooltip";
-import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
+import { resolveImageBlobUrl } from "@/features/media/image-blob-url";
 import {
   projectCoverMediaPicker,
   type CoverMediaPickerFilter,
   type CoverMediaPickerSort,
-} from "@/features/settings/cover-media-picker-model";
+} from "@/features/media/cover-media-picker-model";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import {
@@ -43,8 +43,8 @@ import {
   COVER_FOCAL_PRESETS,
   coverTransformForKey,
   type CoverTransform,
-} from "./cover-transform-model";
-import { COVER_GRADIENTS, coverGradientCss } from "./cover-gradient-model";
+} from "./cover/transform-model";
+import { COVER_GRADIENTS, coverGradientCss } from "./cover/gradient-model";
 
 type Props = {
   store: RendererStore;

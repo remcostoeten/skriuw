@@ -2,9 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useId, useRef } from
 import { createPortal } from "react-dom";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { CloseIcon } from "@/shared/icons/static";
-import { haptic } from "@/shared/lib/haptics";
-import { cn } from "@/shared/lib/utils";
-import { bindOverlayBack } from "@/shell/overlay-history";
+import { haptic } from "@/shared/touch/haptics";
+import { cn } from "@/shared/styling/class-names";
+import { bindOverlayBack } from "./overlay-history";
 import { pullCloses, pullOffset } from "./dialog-pull";
 
 type PullState = {

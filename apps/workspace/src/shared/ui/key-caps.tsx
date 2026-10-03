@@ -1,4 +1,4 @@
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/styling/class-names";
 
 type Props = {
   /** One cap per entry, e.g. `["Ctrl", "K"]`. */

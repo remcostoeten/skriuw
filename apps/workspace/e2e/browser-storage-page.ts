@@ -1,4 +1,4 @@
-import { lastSavedTextFile, rememberPickedFile } from "../src/bridge/browser-files";
+import { lastSavedTextFile, rememberPickedFile } from "../src/platform/browser/files";
 import {
   applyWorkspaceOperations,
   bootstrapWorkspace,
@@ -8,7 +8,7 @@ import {
   rebuildSearchIndex,
   searchIndexStatus,
   searchWorkspace,
-} from "../src/bridge/commands";
+} from "../src/platform/runtime/commands";
 import type { WorkspaceOperationEnvelope } from "@skriuw/renderer-core/contracts/workspace";
 
 declare global {

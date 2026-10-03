@@ -12,7 +12,7 @@ import {
   setSplitRatio,
   togglePinTab,
   toggleSplitOrientation,
-} from "@/store/actions/panes";
+} from "@/features/workspace-layout/panes";
 import {
   ChevronDownIcon,
   CloseIcon,
@@ -38,25 +38,18 @@ import {
 import { PRIMARY_PANE_ID, SECONDARY_PANE_ID } from "@skriuw/renderer-core/store/panes";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import { EditorHost } from "./editor-host";
-import { SplitDivider } from "./split-divider";
-import { splitGridTemplate, splitTrackProperty } from "./split-layout";
-import { MAX_TAB_WIDTH, MIN_TAB_WIDTH, splitTabsForWidth } from "./tab-overflow";
-import { COMPACT_SHELL_QUERY } from "./shell-layout";
-import { useMediaQuery } from "@/shared/hooks/use-media-query";
-import { bindLongPress } from "@/shared/lib/long-press";
-import { swallowGhostClick } from "@/shared/lib/ghost-click";
+import { EditorHost } from "./panes/editor-host";
+import { SplitDivider } from "./panes/split-divider";
+import { splitGridTemplate, splitTrackProperty } from "./panes/split-layout";
+import { TAB_DRAG_MIME, sameTabModels, tabModels, type TabModel } from "./tabs/model";
+import { MAX_TAB_WIDTH, MIN_TAB_WIDTH, splitTabsForWidth } from "./tabs/overflow";
+import { COMPACT_VIEWPORT_QUERY } from "@/shared/viewport/queries";
+import { useMediaQuery } from "@/shared/viewport/use-media-query";
+import { bindLongPress } from "@/shared/touch/long-press";
+import { swallowGhostClick } from "@/shared/touch/ghost-click";
 
 type Props = {
   store: RendererStore;
-};
-
-type TabModel = {
-  id: string;
-  title: string;
-  isActive: boolean;
-  isAvailable: boolean;
-  isPinned: boolean;
 };
 
 function selectPanes(state: RendererState) {
@@ -77,48 +70,15 @@ function selectSecondaryNoteId(state: RendererState): string | null {
   return noteId !== null && state.metadata.has(noteId) ? noteId : null;
 }
 
-function tabModels(state: RendererState): TabModel[] {
-  const primary = state.panes[0];
-  if (!primary) {
-    return [];
-  }
-  return primary.openNoteIds.map((id) => ({
-    id,
-    title: state.sourceNodes.get(id)?.title ?? "Untitled",
-    isActive: primary.activeNoteId === id,
-    isAvailable: state.metadata.has(id),
-    isPinned: primary.pinnedNoteIds.includes(id),
-  }));
-}
-
-function sameTabModels(left: TabModel[], right: TabModel[]): boolean {
-  return (
-    left.length === right.length &&
-    left.every((tab, index) => {
-      const other = right[index];
-      return (
-        other !== undefined &&
-        tab.id === other.id &&
-        tab.title === other.title &&
-        tab.isActive === other.isActive &&
-        tab.isAvailable === other.isAvailable &&
-        tab.isPinned === other.isPinned
-      );
-    })
-  );
-}
-
 type ContextTarget = { kind: "tab"; id: string } | { kind: "strip" };
 
 type DragState = { id: string; before: string | null };
-
-const TAB_DRAG_MIME = "application/x-skriuw-tab";
 
 export function EditorPanes({ store }: Props) {
   const panes = useRendererSelector(store, selectPanes);
   const tabs = useRendererSelector(store, tabModels, sameTabModels);
   const storedOrientation = useRendererSelector(store, selectSplitOrientation);
-  const compact = useMediaQuery(COMPACT_SHELL_QUERY);
+  const compact = useMediaQuery(COMPACT_VIEWPORT_QUERY);
   // Two panes beside each other on a phone leaves neither wide enough to
   // read, so compact always stacks and the stored choice waits for a wider window.
   const orientation = compact ? "horizontal" : storedOrientation;

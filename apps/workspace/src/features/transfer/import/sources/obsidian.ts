@@ -1,5 +1,5 @@
 import { isMap, isScalar, isSeq, parseDocument } from "yaml";
-import type { MarkdownTree } from "@/features/transfer/export/markdown-transfer-model";
+import type { MarkdownTree } from "@/features/transfer/import/parsing/tree";
 import type {
   ImportBundle,
   ImportSourceAdapter,
@@ -7,8 +7,8 @@ import type {
   ImportedNoteProperty,
   ImportedPropertyValue,
   ImportWarning,
-} from "@/features/transfer/import/model";
-import { noteTitleFromPath, relativeLinkBetween } from "@/features/transfer/import/model";
+} from "@/features/transfer/import/parsing/bundle";
+import { noteTitleFromPath, relativeLinkBetween } from "@/features/transfer/import/parsing/bundle";
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
 const EMBED_PATTERN = /!\[\[([^\][\n]+)\]\]/g;

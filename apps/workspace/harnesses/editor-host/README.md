@@ -38,7 +38,7 @@ For manual work: `bunx vite --config harnesses/editor-host/vite.config.ts`, open
 ## How the port is injected
 
 The editor feature is not forked and takes no new props. Everything it reaches outside the
-store funnels through two modules, `@/bridge/runtime` (`invoke`) and `@/bridge/external-links`.
+store funnels through two modules, `@/platform/runtime/runtime` (`invoke`) and `@/platform/runtime/external-links`.
 `vite.config.ts` swaps both for protocol-backed stand-ins at resolve time:
 
 | Editor reaches for | Becomes |

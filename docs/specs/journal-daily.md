@@ -7,14 +7,14 @@ Keyboard navigation and the date grammar are in
 
 | File | Role |
 | --- | --- |
-| `apps/workspace/src/features/journal/journal-template.ts` | Template list, the remembered choice, and the plan that fills an entry. |
-| `apps/workspace/src/features/journal/entry-starter.tsx` | The empty-entry affordance. |
-| `apps/workspace/src/features/journal/on-this-day.ts` | Which earlier entries a day recalls, and their excerpts. Pure. |
-| `apps/workspace/src/features/journal/on-this-day-section.tsx` | The section under the editor. |
-| `apps/workspace/src/features/journal/day-swipe.ts` | The heading swipe recognizer. Pure. |
+| `apps/workspace/src/features/journal/templates/fill-entry.ts` | Template list, the remembered choice, and the plan that fills an entry. |
+| `apps/workspace/src/features/journal/templates/starter.tsx` | The empty-entry affordance. |
+| `apps/workspace/src/features/journal/history/on-this-day.ts` | Which earlier entries a day recalls, and their excerpts. Pure. |
+| `apps/workspace/src/features/journal/history/on-this-day-section.tsx` | The section under the editor. |
+| `apps/workspace/src/features/journal/navigation/day-swipe.ts` | The heading swipe recognizer. Pure. |
 | `apps/workspace/src/features/journal/model.ts` | The entry projection both the sidebar and the section read. |
 | `apps/workspace/src/features/journal/word-goal.ts` | The daily word goal history, progress milestones, and goal stats. Pure. |
-| `apps/workspace/src/features/journal/word-goal-control.tsx` | The goal ring and menu in the day header. |
+| `apps/workspace/src/features/journal/entry/word-goal-control.tsx` | The goal ring and menu in the day header. |
 
 ## Starting from a template
 
@@ -85,7 +85,7 @@ tab does no I/O.
 ## Word goal
 
 `apps/workspace/src/features/journal/word-goal.ts` holds the goal history and
-the goal statistics; `word-goal-control.tsx` is the header control.
+the goal statistics; `entry/word-goal-control.tsx` is the header control.
 
 The workspace setting `journalWordGoals` is a list of changes, each
 `{ from: DateKey, words: number }`, where zero words turns the goal off. The

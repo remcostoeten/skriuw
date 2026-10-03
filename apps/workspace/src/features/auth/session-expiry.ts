@@ -1,6 +1,6 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import * as browserSync from "@/bridge/browser-sync";
-import { isBrowserRuntime } from "@/bridge/runtime";
+import * as browserSync from "@/platform/browser/sync-events";
+import { isBrowserRuntime } from "@/platform/runtime/runtime";
 
 export const SYNC_SESSION_EXPIRED_EVENT = "sync-session-expired";
 

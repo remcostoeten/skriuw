@@ -1276,6 +1276,16 @@
   animation: hy-demo-pop 180ms var(--ease-out, ease-out) both;
 }
 
+.hy-demo-fade {
+  animation: hy-demo-fade 200ms var(--ease-out, ease-out) both;
+}
+
+@keyframes hy-demo-fade {
+  from {
+    opacity: 0;
+  }
+}
+
 .hy-demo-cursor {
   transform: translate(var(--cursor-x), var(--cursor-y))
     scale(var(--cursor-scale, 1));
@@ -1323,6 +1333,7 @@
   .hy-demo-outline-dot,
   .hy-demo-caret,
   .hy-demo-pop,
+  .hy-demo-fade,
   .hy-demo-click,
   .hy-hero-in,
   .hy-hero-live {

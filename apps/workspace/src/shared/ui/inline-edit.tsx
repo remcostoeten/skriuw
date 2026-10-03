@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from "react";
 import { motion } from "motion/react";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/styling/class-names";
 
 type Props = {
   /** Initial text; the input is uncontrolled while editing. */

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { emptyTrash, purgeSubtree, restoreSubtree } from "@/store/actions/workspace";
+import { emptyTrash, purgeSubtree, restoreSubtree } from "@/features/notes/operations";
 import {
   FileTextIcon,
   FolderIcon,
@@ -8,11 +8,11 @@ import {
   Trash2Icon,
   Undo2Icon,
 } from "@/shared/icons/static";
-import { formatRelativeTime } from "@/shared/lib/relative-time";
+import { formatRelativeTime } from "@/shared/format/relative-time";
 import { Button } from "@/shared/ui/button";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { Select, type SelectOption } from "@/shared/ui/select";
-import { WindowControls } from "@/shell/window-controls";
+import { WindowControls } from "@/shell/title-bar";
 import {
   filterTrashRows,
   sortTrashRows,
@@ -22,7 +22,7 @@ import {
 import type { TrashRow, TrashSortKey } from "@skriuw/renderer-core/store/trash";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/styling/class-names";
 
 type Props = {
   store: RendererStore;

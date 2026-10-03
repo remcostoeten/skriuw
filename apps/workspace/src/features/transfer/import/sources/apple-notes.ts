@@ -1,5 +1,5 @@
-import type { ImportBundle, ImportSourceAdapter } from "@/features/transfer/import/model";
-import { noteTitleFromPath } from "@/features/transfer/import/model";
+import type { ImportBundle, ImportSourceAdapter } from "@/features/transfer/import/parsing/bundle";
+import { noteTitleFromPath } from "@/features/transfer/import/parsing/bundle";
 
 function parse(tree: Parameters<ImportSourceAdapter["parse"]>[0]): ImportBundle {
   const notes = tree.files

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useAuth } from "@remcostoeten/auth-drawer";
-import { isBrowserRuntime } from "@/bridge/runtime";
+import { useCloudSession } from "@/features/auth/cloud-session";
+import { isBrowserRuntime } from "@/platform/runtime/runtime";
 import { CloseIcon, CloudOffIcon } from "@/shared/icons/static";
 import {
   browserStorageNoticeVisible,
@@ -23,7 +23,7 @@ const actionClass =
  * the desktop app on disk, or an account in the cloud.
  */
 export function BrowserStorageNotice({ onSignIn }: Props) {
-  const { user, isPending } = useAuth();
+  const { user, isPending } = useCloudSession();
   const [dismissed, setDismissed] = useState(readBrowserStorageNoticeDismissed);
   if (
     !browserStorageNoticeVisible({

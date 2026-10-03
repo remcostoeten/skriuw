@@ -1,4 +1,4 @@
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/styling/class-names";
 import type { Variants } from "motion/react";
 import { LazyMotion, domMin, m, useAnimation } from "motion/react";
 import { forwardRef, useCallback, useImperativeHandle, useRef, type HTMLAttributes } from "react";

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { CheckIcon, ChevronDownIcon } from "@/shared/icons/static";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/styling/class-names";
 
 export type SelectOption<TValue extends string> = {
   /** Value passed to `onChange` when chosen. */

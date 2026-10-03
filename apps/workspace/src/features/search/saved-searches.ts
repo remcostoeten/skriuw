@@ -1,5 +1,5 @@
 import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
-import { commitOperations } from "@/store/actions/workspace";
+import { commitOperations } from "@/store/commit";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 /** Reads bounded, portable sidebar query preferences. */

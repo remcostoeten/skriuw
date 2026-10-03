@@ -1,14 +1,14 @@
-import { commitOperations } from "@/store/actions/workspace";
+import { commitOperations } from "@/store/commit";
 import type { WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
-import { planMarkdownImport } from "@/features/transfer/export/markdown-transfer-model";
+import { planMarkdownImport } from "@/features/transfer/markdown";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   completeSeed,
   isUnseededFreshWorkspace,
   markSeedSpent,
   shouldSeedStarter,
-} from "./starter-model";
-import { loadStarterTree } from "./starter-notes";
+} from "./starter/model";
+import { loadStarterTree } from "./starter/tree";
 
 /**
  * Fills a brand-new workspace with the preview notes. Runs before the first

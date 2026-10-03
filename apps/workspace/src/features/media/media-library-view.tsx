@@ -2,10 +2,10 @@ import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { replaceRouteHash } from "@/app-route";
 import { journalEntryDateKey } from "@/features/journal/model";
 import { openJournalDay } from "@/features/journal/navigation";
-import type { MediaUsage } from "@/features/settings/media-library-model";
-import { MediaSection } from "@/features/settings/sections/media-section";
-import { WindowControls } from "@/shell/window-controls";
-import { activateNote } from "@/store/actions/workspace";
+import type { MediaUsage } from "@/features/media/media-library-model";
+import { MediaSection } from "@/features/media/media-library-section";
+import { WindowControls } from "@/shell/title-bar";
+import { activateNote } from "@/features/notes/navigation";
 
 type Props = {
   store: RendererStore;

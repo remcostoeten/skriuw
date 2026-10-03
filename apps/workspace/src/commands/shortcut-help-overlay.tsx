@@ -4,7 +4,7 @@ import { detectPlatform } from "@remcostoeten/use-shortcut/constants";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { matchesShortcut, parseShortcut } from "@remcostoeten/use-shortcut/parser";
 import { SearchIcon } from "@/shared/icons/static";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/styling/class-names";
 import { Dialog } from "@/shared/ui/dialog";
 import {
   effectiveShortcutKeys,
@@ -19,11 +19,7 @@ import {
   type ShortcutHelpCombo,
   type ShortcutHelpRow,
 } from "./help-model";
-import {
-  settingsGroup,
-  settingsGroupTitle,
-  settingsRow,
-} from "@/features/settings/sections/settings-shared";
+import { settingsGroup, settingsGroupTitle, settingsRow } from "@/shared/ui/settings-controls";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 

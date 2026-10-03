@@ -8,9 +8,9 @@ import type {
   AiModelInventory,
   AiModelOption,
   AiProviderGroup,
-} from "@/features/ai/models/model-options";
-import { aiModelGroups } from "@/features/ai/models/model-options";
-import type { AiModelSelection } from "@/features/ai/models/model-selection";
+} from "@/features/ai/models/options";
+import { aiModelGroups } from "@/features/ai/models/options";
+import type { AiModelSelection } from "@/features/ai/models/selection";
 
 export const MAX_PLAYGROUND_PROMPT_BYTES = 1_048_576;
 export const MIN_OUTPUT_BYTES = 1;

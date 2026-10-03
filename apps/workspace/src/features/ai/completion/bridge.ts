@@ -1,0 +1,61 @@
+import { Channel } from "@tauri-apps/api/core";
+import type { AiCompletionEvent, AiCompletionRequest } from "@/contracts/ai";
+import { invoke, requireDesktopRuntime } from "@/platform/runtime/runtime";
+import { noop } from "@skriuw/shared/helpers/noop";
+
+export type AiCompletionHandle = {
+  cancel: () => Promise<boolean>;
+  dispose: () => void;
+};
+
+/**
+ * The feature that fired this run. It is recorded with the run at the
+ * provider seam, so a new AI surface must pass its own id rather than reuse
+ * the playground's.
+ */
+export const PLAYGROUND_ORIGIN = "playground";
+
+export async function startAiCompletion(
+  request: AiCompletionRequest,
+  origin: string,
+  onEvent: (event: AiCompletionEvent) => void,
+  signal?: AbortSignal,
+): Promise<AiCompletionHandle> {
+  requireDesktopRuntime("AI completion");
+  if (signal?.aborted) {
+    throw new DOMException("AI completion was cancelled.", "AbortError");
+  }
+
+  let active = true;
+  const channel = new Channel<AiCompletionEvent>();
+  channel.onmessage = (event) => {
+    if (active) onEvent(event);
+  };
+
+  function cancel(): Promise<boolean> {
+    return invoke<boolean>("cancel_ai_completion", { requestId: request.requestId });
+  }
+
+  function abort() {
+    active = false;
+    void cancel().catch(noop);
+  }
+  signal?.addEventListener("abort", abort, { once: true });
+
+  try {
+    await invoke<void>("start_ai_completion", { request, origin, onEvent: channel });
+    if (signal?.aborted) await cancel();
+  } catch (error) {
+    signal?.removeEventListener("abort", abort);
+    throw error;
+  }
+
+  return {
+    cancel,
+    dispose(): void {
+      active = false;
+      signal?.removeEventListener("abort", abort);
+      void cancel().catch(noop);
+    },
+  };
+}

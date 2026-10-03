@@ -1,6 +1,6 @@
 /**
  * The Stats strip's projection, shared word for word with
- * `apps/workspace/src/features/journal/mood-trend.ts` and specified in
+ * `apps/workspace/src/features/journal/history/mood-trend.ts` and specified in
  * `docs/specs/journal-daily.md` under "Mood trend".
  */
 

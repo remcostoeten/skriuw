@@ -10,7 +10,7 @@
   /* Replaced with a measured pixel height by shell/viewport.ts once the
      bundle runs; the dynamic unit keeps the first paint correct until then. */
   --visual-viewport-height: 100dvh;
-  /* Set by shell/zoom-controller.ts to how much the active zoom scales
+  /* Set by shell/zoom/controller.ts to how much the active zoom scales
      viewport-sized lengths, so the shell keeps fitting the window and only
      its contents grow or shrink. */
   --zoom-compensation: 1;

@@ -11,7 +11,7 @@ export type WorkspaceSession = {
 };
 
 /**
- * The mobile twin of `commitOperations` in `apps/workspace/src/store/actions/workspace.ts`:
+ * The mobile twin of `commitOperations` in `apps/workspace/src/store/commit.ts`:
  * the store changes synchronously, the batch is submitted to native SQLite,
  * and the acknowledgement reconciles ranks and revisions. A rejection
  * reports, rolls the store back to the durable snapshot, and rethrows the

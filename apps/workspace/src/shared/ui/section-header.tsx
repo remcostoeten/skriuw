@@ -1,5 +1,5 @@
 import { ChevronRightIcon } from "@/shared/icons/static";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/styling/class-names";
 
 /**
  * The single type scale for every small uppercase label that names a group of

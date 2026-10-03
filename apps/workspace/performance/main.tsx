@@ -9,7 +9,7 @@ import { createPerformanceSnapshot } from "./fixture";
 import type { TreeProjection } from "./fixture";
 import { createPerformanceController } from "./harness";
 import type { PerformanceWindow } from "./types";
-import { preparedEditorDocuments } from "../src/features/editor/prepared-documents";
+import { preparedEditorDocuments } from "../src/features/editor/document/prepared";
 import "../src/styles.css";
 import { invoke } from "./bridge-mock";
 

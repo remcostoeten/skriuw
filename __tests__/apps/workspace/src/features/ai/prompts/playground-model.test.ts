@@ -18,7 +18,7 @@ import {
   terminalRun,
   type PlaygroundTiming,
 } from "@/features/ai/prompts/playground-model";
-import type { AiModelInventory } from "@/features/ai/models/model-options";
+import type { AiModelInventory } from "@/features/ai/models/options";
 
 function runningInventory(): AiModelInventory {
   return {

@@ -1,7 +1,7 @@
 /**
  * Refuses a capability that only the desktop runtime has (history, backups,
  * archive swap, provider import, local AI, the external link window). The
- * message matches `requireDesktopRuntime` in `apps/workspace/src/bridge/runtime.ts`, so
+ * message matches `requireDesktopRuntime` in `apps/workspace/src/platform/runtime/runtime.ts`, so
  * shared surfaces show one refusal whichever runtime raised it.
  *
  * @param capability Named in the thrown message, so the refusal is actionable.

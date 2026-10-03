@@ -69,7 +69,7 @@ const imageRefSpec: NodeSpec = {
 Paste/drop handling lives in `apps/workspace/src/features/editor/note-editor.tsx` alongside the existing clipboard handling (`note-editor.tsx:552` already intercepts `clipboardData` for whole-document copy — add a paste-side handler, not a copy-side one, in the same file). On `paste`/`drop`:
 
 1. Read `DataTransfer.files` (drop) or `clipboardData.items` (paste) for `image/*` MIME types.
-2. Hash the bytes client-side is unnecessary — dispatch the raw bytes through the bridge (`apps/workspace/src/bridge/**`) to the native `ImageStore.put`, which hashes and writes.
+2. Hash the bytes client-side is unnecessary — dispatch the raw bytes through the bridge (`apps/workspace/src/platform/**`) to the native `ImageStore.put`, which hashes and writes.
 3. On success, insert an `image_ref` node at the cursor with the returned `id`.
 4. While the write is in flight, insert a placeholder decoration (loading state) so typing isn't blocked — but per the performance contract, this must not block the keystroke path for unrelated typing elsewhere in the note.
 
@@ -77,7 +77,7 @@ Rendering: `image_ref`'s `toDOM`/NodeView resolves `id` to a local `file://`/cus
 
 ## Markdown export/import
 
-`apps/workspace/src/features/transfer/export/markdown-transfer.ts`: an `image_ref` serializes to standard `![alt](relative/path/to/blob)`. Markdown export must copy the referenced blob file alongside the exported `.md` (e.g. into an `images/` sibling directory), not just emit a dangling path — the whole point of Markdown export is portability. Markdown import reads local `![alt](path)` references, hashes the referenced file, and creates the matching `note_images` row + blob (deduplicating if the hash already exists).
+`apps/workspace/src/features/transfer/export-notes.ts`: an `image_ref` serializes to standard `![alt](relative/path/to/blob)`. Markdown export must copy the referenced blob file alongside the exported `.md` (e.g. into an `images/` sibling directory), not just emit a dangling path — the whole point of Markdown export is portability. Markdown import reads local `![alt](path)` references, hashes the referenced file, and creates the matching `note_images` row + blob (deduplicating if the hash already exists).
 
 ## Archive and portability
 

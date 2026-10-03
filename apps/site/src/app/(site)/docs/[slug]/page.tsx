@@ -85,11 +85,11 @@ export default async function DocPage({ params }: Props) {
 
         {headings.length > 1 ? (
           <div className="hidden lg:block">
-            <div className="sticky top-6">
+            <div className="sticky top-20">
               <p className="caps px-[22px] text-ink-400">On this page</p>
               <div
                 data-outline-scroll
-                className="no-scrollbar mt-4 max-h-[calc(100vh_-_140px)] overflow-y-auto overscroll-contain"
+                className="no-scrollbar mt-4 max-h-[calc(100vh_-_196px)] overflow-y-auto overscroll-contain"
               >
                 <DocOutline headings={headings} collapse={headings.length > 30} />
               </div>

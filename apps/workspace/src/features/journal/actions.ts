@@ -1,8 +1,9 @@
-import { commitOperations, trashSubtree } from "@/store/actions/workspace";
+import { commitOperations } from "@/store/commit";
+import { trashSubtree } from "@/features/notes/operations";
 import type { NoteProperty, WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { todayKey, type DateKey } from "@skriuw/renderer-core/journal/dates";
-import { updateSettings } from "@/store/actions/settings";
+import { updateSettings } from "@/store/settings";
 import { changeWordGoal } from "./word-goal";
 import {
   JOURNAL_DATE_PROPERTY_ID,

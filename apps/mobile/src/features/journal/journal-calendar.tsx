@@ -29,7 +29,7 @@ function dayLabel(key: DateKey, hasEntry: boolean): string {
 /**
  * The Monday-first month grid, with a dot under every day that has an entry —
  * the same grid and the same dot rule as the desktop sidebar calendar
- * (`apps/workspace/src/features/journal/journal-calendar.tsx`). The desktop's roving tab
+ * (`apps/workspace/src/features/journal/calendar/month-calendar.tsx`). The desktop's roving tab
  * stop has no counterpart here: every day is its own touch target, so a
  * screen reader walks the month directly.
  */

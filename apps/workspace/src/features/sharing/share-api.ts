@@ -1,5 +1,5 @@
 import { authConfiguration } from "@/features/auth/config";
-import { currentSessionToken } from "@/features/auth/session-token";
+import { currentSessionToken } from "@/features/auth/session";
 
 export type NoteShare = {
   id: string;

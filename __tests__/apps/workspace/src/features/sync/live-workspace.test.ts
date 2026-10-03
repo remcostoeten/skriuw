@@ -3,10 +3,9 @@ import { test } from "vitest";
 import type { Event } from "@tauri-apps/api/event";
 import {
   listenForSyncedWorkspaceChanges,
-  mergeWorkspaceChanges,
   SYNC_WORKSPACE_CHANGED_EVENT,
-  type WorkspaceChange,
 } from "@/features/sync/live-workspace";
+import type { WorkspaceChange } from "@/features/sync/workspace-change";
 
 test("desktop sync events deliver the change payload and tear down", async () => {
   let handler: ((event: Event<WorkspaceChange>) => void) | null = null;
@@ -87,16 +86,4 @@ test("browser sync changes use the in-process worker subscription", async () => 
   assert.deepEqual(received, [{ noteIds: ["n1"], structureChanged: true, full: false }]);
   unlisten();
   assert.equal(handler, null);
-});
-
-test("merged changes union note ids and widen to the broadest scope", () => {
-  const merged = mergeWorkspaceChanges(
-    { noteIds: ["a", "b"], structureChanged: false, full: false },
-    { noteIds: ["b", "c"], structureChanged: true, full: false },
-  );
-  assert.deepEqual(merged, { noteIds: ["a", "b", "c"], structureChanged: true, full: false });
-  assert.deepEqual(
-    mergeWorkspaceChanges(null, { noteIds: [], structureChanged: false, full: true }),
-    { noteIds: [], structureChanged: false, full: true },
-  );
 });

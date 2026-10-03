@@ -5,12 +5,15 @@ import { EditorState, type Transaction } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import { summarize } from "../../../../../../apps/workspace/performance/metrics";
 import { productSchema } from "@/features/editor/schema";
-import { createMentionPlugin, type MentionContext } from "@/features/references/mention-plugin";
+import {
+  createMentionPlugin,
+  type MentionContext,
+} from "@/features/references/prosemirror/mention-plugin";
 import {
   queryMentionSuggestions,
   queryTagSuggestions,
-} from "@/features/references/suggestion-index";
-import { projectBacklinks } from "@/features/references/reference-panel-model";
+} from "@/features/references/suggestions/query";
+import { projectBacklinks } from "@/features/references/references/panel-model";
 import { referenceKey, type StructuredReference } from "@skriuw/renderer-core/references/types";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { largeReferenceFixture, referenceDocumentJson } from "./fixtures";

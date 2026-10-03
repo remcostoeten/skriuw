@@ -9,7 +9,10 @@ import {
 } from "@/components/page/page-shell";
 import { JsonLd } from "@/components/page/json-ld";
 import { socialImage } from "@/data/seo";
+import { DetectedMark, DownloadButton } from "@/components/download/download-button";
+import { primaryButton } from "@/components/frame/control";
 import { appUrl, releasesUrl } from "@/data/content";
+import { packageChannels } from "@/data/downloads";
 
 export const metadata: Metadata = {
   title: "Download for macOS, Windows and Linux",
@@ -24,47 +27,6 @@ export const metadata: Metadata = {
     images: [socialImage],
   },
 };
-
-const channels = [
-  {
-    platform: "macOS",
-    title: "Homebrew",
-    body: "Install the signed desktop application through a dedicated cask.",
-    lines: ["$ brew install --cask skriuw/tap/skriuw"],
-  },
-  {
-    platform: "Windows",
-    title: "Scoop",
-    body: "Add the Skriuw bucket once, then install and update from the terminal.",
-    lines: [
-      "> scoop bucket add skriuw https://github.com/skriuw/scoop-bucket",
-      "> scoop install skriuw",
-    ],
-  },
-  {
-    platform: "Debian / Ubuntu",
-    title: "APT",
-    body: "The repository publishes signed packages for Debian-family systems.",
-    lines: [
-      "$ curl -fsSL https://skriuw.github.io/packages/apt/key.gpg \\",
-      "  | sudo gpg --dearmor -o /usr/share/keyrings/skriuw.gpg",
-      '$ echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] \\',
-      '  https://skriuw.github.io/packages/apt stable main" \\',
-      "  | sudo tee /etc/apt/sources.list.d/skriuw.list",
-      "$ sudo apt update && sudo apt install skriuw",
-    ],
-  },
-  {
-    platform: "Fedora / RHEL",
-    title: "dnf",
-    body: "Use the published RPM repository, or download an RPM directly.",
-    lines: [
-      "$ sudo dnf config-manager addrepo \\",
-      "  --from-repofile=https://skriuw.github.io/packages/rpm/skriuw.repo",
-      "$ sudo dnf install skriuw",
-    ],
-  },
-];
 
 const surfaces = [
   {
@@ -107,10 +69,14 @@ export default function DownloadPage() {
         eyebrow="Free · open source · no account required"
         title="Install it. Keep your data."
         lede="Skriuw runs natively on macOS, Windows, and Linux. The browser build uses the same Rust core and keeps its database in browser-local storage."
-        actions={[
-          { label: "Get the latest desktop build", href: releasesUrl },
-          { label: "Open the browser app", href: appUrl },
-        ]}
+        leadAction={
+          <DownloadButton
+            className={primaryButton}
+            fallbackLabel="Download for desktop"
+            fallbackHref={releasesUrl}
+          />
+        }
+        actions={[{ label: "Open the browser app", href: appUrl }]}
       />
 
       <PageSection
@@ -121,8 +87,13 @@ export default function DownloadPage() {
         intro="Every desktop build stores the workspace locally in SQLite. Package-manager installs and direct release assets run the same application."
       >
         <div className="grid gap-6 lg:grid-cols-2">
-          {channels.map((channel) => (
-            <CodeCard key={channel.title} {...channel} />
+          {packageChannels.map(({ os, anchor, ...channel }) => (
+            <CodeCard
+              key={channel.title}
+              id={anchor}
+              mark={<DetectedMark os={os} />}
+              {...channel}
+            />
           ))}
         </div>
 
