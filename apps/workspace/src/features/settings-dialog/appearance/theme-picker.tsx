@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { CheckIcon, ChevronDownIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/styling/class-names";
+import { settingsCardTone, settingsPress, settingsTransition } from "@/shared/ui/settings-controls";
 import {
   THEME_ENTRIES,
   activeThemeIndex,
@@ -65,14 +66,7 @@ export function ThemePicker({ value, onSelect }: Props) {
   );
 }
 
-const CARD_BASE =
-  "group rounded-lg border p-2 text-left transition-colors focus-visible:border-foreground/60 focus-visible:outline-none";
-
-function cardTone(active: boolean): string {
-  return active
-    ? "border-foreground/60 bg-accent/40"
-    : "border-border/60 bg-card/30 hover:border-border";
-}
+const CARD_BASE = cn("group rounded-lg border p-2 text-left", settingsTransition, settingsPress);
 
 function swatchGradient(from: string, to: string): string {
   return `linear-gradient(135deg, ${from}, ${to})`;
@@ -109,7 +103,7 @@ function ThemeCard({ entry, active, onSelect }: CardProps) {
       role="radio"
       data-theme-id={entry.id}
       aria-checked={active}
-      className={cn(CARD_BASE, cardTone(active))}
+      className={cn(CARD_BASE, settingsCardTone(active))}
       onClick={onSelect}
     >
       <ThemeSwatch from={entry.swatchFrom} to={entry.swatchTo} />
@@ -139,7 +133,7 @@ function ThemeGroupCard({ entry, value, expanded, onToggle, onSelect }: GroupCar
         data-theme-id={entry.id}
         aria-checked={variantActive}
         aria-expanded={expanded}
-        className={cn(CARD_BASE, cardTone(variantActive))}
+        className={cn(CARD_BASE, settingsCardTone(variantActive))}
         onClick={onToggle}
       >
         <ThemeSwatch from={entry.swatchFrom} to={entry.swatchTo} />
@@ -165,8 +159,9 @@ function ThemeGroupCard({ entry, value, expanded, onToggle, onSelect }: GroupCar
               data-theme-id={variant.id}
               aria-checked={value === variant.id}
               className={cn(
-                "flex w-full items-center gap-2 rounded-md border p-1.5 text-left text-xs transition-colors",
-                cardTone(value === variant.id),
+                "flex w-full items-center gap-2 rounded-md border p-1.5 text-left text-xs",
+                settingsTransition,
+                settingsCardTone(value === variant.id),
               )}
               onClick={() => onSelect(variant.id)}
             >

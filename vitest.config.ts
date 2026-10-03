@@ -36,7 +36,9 @@ function suite(name: string, path: string, options: Suite = {}): TestProjectInli
 export default defineConfig({
   test: {
     projects: [
-      suite("workspace", "apps/workspace/{src,performance}", { sourceAlias: "apps/workspace/src" }),
+      suite("workspace", "apps/workspace/{src,performance,scripts}", {
+        sourceAlias: "apps/workspace/src",
+      }),
       suite("ui-architecture", "apps/workspace/harnesses/ui-architecture"),
       suite("renderer-store", "apps/workspace/harnesses/renderer-store"),
       suite("mobile", "apps/mobile", {

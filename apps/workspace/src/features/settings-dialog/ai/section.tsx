@@ -467,7 +467,7 @@ function AiSettingsDisclosure({
 }) {
   return (
     <details className="group border-b border-border/60 last:border-b-0">
-      <summary className="flex min-h-[58px] cursor-pointer list-none items-center gap-3 px-4 py-2.5 outline-none marker:hidden focus-visible:bg-accent/35 [&::-webkit-details-marker]:hidden">
+      <summary className="flex min-h-[58px] cursor-pointer list-none items-center gap-3 px-4 py-2.5 outline-none marker:hidden hover:bg-accent/20 [&::-webkit-details-marker]:hidden">
         <ChevronRightIcon
           size={14}
           aria-hidden="true"

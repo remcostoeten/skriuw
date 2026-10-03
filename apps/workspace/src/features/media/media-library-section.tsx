@@ -45,6 +45,7 @@ import {
   settingsRowLabel,
   settingsSection,
 } from "@/shared/ui/settings-controls";
+import { Checkbox } from "@/shared/ui/checkbox";
 
 const ACCEPTED_TYPES =
   "image/png,image/jpeg,image/gif,image/webp,image/svg+xml,video/mp4,video/webm";
@@ -603,17 +604,17 @@ function MediaCard({
   return (
     <li
       className={cn(
-        "flex flex-col overflow-hidden rounded-lg border",
-        selected ? "border-foreground/60" : "border-border",
+        "flex flex-col overflow-hidden rounded-lg border transition-[border-color,background-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
+        "has-[[data-media-preview]:focus-visible]:border-foreground/70 has-[[data-media-preview]:focus-visible]:bg-accent/30",
+        selected ? "border-foreground/60" : "border-border hover:border-foreground/25",
       )}
     >
       <MediaPreview entry={entry} onOpen={() => onPreview(entry)} />
       <div className="flex flex-1 flex-col gap-1.5 px-2.5 py-2">
         <span className="flex items-start gap-2">
           {selectable && (
-            <input
-              type="checkbox"
-              className="mt-0.5 shrink-0 pointer-coarse:size-5"
+            <Checkbox
+              className="mt-0.5 shrink-0 pointer-coarse:size-5 focus-visible:outline-none focus-visible:border-foreground focus-visible:bg-accent checked:focus-visible:border-success checked:focus-visible:bg-success/80"
               checked={selected}
               disabled={busy}
               aria-label={`Select ${mediaDisplayName(entry)}`}
@@ -725,7 +726,7 @@ type MediaDetailsFormProps = {
 };
 
 const detailsInputClass =
-  "h-7 w-full rounded border border-border bg-background px-2 text-[11px] outline-none placeholder:text-muted-foreground transition-colors focus-visible:border-foreground/45";
+  "h-7 w-full rounded border border-border bg-background px-2 text-[11px] outline-none placeholder:text-muted-foreground transition-[background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-foreground/20 focus-visible:border-foreground/40 focus-visible:bg-muted/40";
 
 function MediaDetailsForm({ entry, onCancel, onSubmit }: MediaDetailsFormProps) {
   const [name, setName] = useState(entry.name);
@@ -841,7 +842,8 @@ function MediaPreviewButton({ entry, url, onOpen, onVideoError }: MediaPreviewBu
   return (
     <button
       type="button"
-      className="block w-full cursor-zoom-in border border-transparent outline-none transition-colors focus-visible:border-foreground/60"
+      data-media-preview
+      className="block w-full cursor-zoom-in outline-none"
       aria-label={isVideoMime(entry.mimeType) ? "Preview video" : "Preview image"}
       onClick={onOpen}
     >

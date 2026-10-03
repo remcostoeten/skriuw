@@ -8,12 +8,14 @@ import { openJournalDay } from "@/features/journal/navigation";
 import { CloseIcon, SearchIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/styling/class-names";
 import { Dialog } from "@/shared/ui/dialog";
+import { settingsPress, settingsTransition } from "@/shared/ui/settings-controls";
 import {
   activeSettingsSection,
   filterSettingsSections,
   moveSettingsSection,
   rovingSettingsSection,
   settingsSearchEscape,
+  settingsSearchSnippet,
 } from "./navigation";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { AboutSection } from "@/features/settings-dialog/about/section";
@@ -53,7 +55,8 @@ const sectionGroupClass = "flex flex-col gap-0.5 max-[620px]:contents";
 
 const sectionTabClass = cn(
   "flex min-h-[38px] items-center gap-2 rounded-lg border-0 bg-transparent px-[9px] py-1.5 text-left text-[13px] text-muted-foreground cursor-pointer hover:bg-muted hover:text-foreground max-[620px]:min-h-[34px] max-[620px]:flex-none",
-  "focus-visible:bg-sidebar-accent focus-visible:text-sidebar-accent-foreground",
+  "focus-visible:[--focus-fill:hsl(var(--foreground)/0.09)] aria-selected:focus-visible:[--focus-fill:hsl(var(--foreground)/0.07)]",
+  settingsTransition,
 );
 
 type Props = {
@@ -140,7 +143,9 @@ export function SettingsDialog({
         <span className="flex min-w-0 flex-1 flex-col gap-[3px] leading-[1.05]">
           <span className="truncate">{entry.label}</span>
           {query && (
-            <span className="truncate text-[10px] text-muted-foreground">{entry.description}</span>
+            <span className="truncate text-[10px] text-muted-foreground">
+              {settingsSearchSnippet(entry, query) ?? entry.description}
+            </span>
           )}
         </span>
       </button>
@@ -227,7 +232,7 @@ export function SettingsDialog({
       title="Settings"
       className={cn(
         "w-[min(896px,calc(100vw-48px))] h-[min(720px,calc(var(--viewport-height)-64px))] max-h-[calc(var(--viewport-height)-64px)]",
-        "dialog-fullscreen",
+        "dialog-fullscreen focus-fill",
       )}
       onKeyDown={handleDialogKeyDown}
       onCancel={handleDialogCancel}
@@ -240,17 +245,17 @@ export function SettingsDialog({
           aria-label="Settings sections"
           onKeyDown={handleNavKeyDown}
         >
-          <div className="relative mx-0.5 mb-3 flex-none max-[620px]:mx-0 max-[620px]:mb-2 max-[620px]:w-full">
+          <div className="group relative mx-0.5 mb-3 flex-none max-[620px]:mx-0 max-[620px]:mb-2 max-[620px]:w-full">
             <SearchIcon
               size={14}
               aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 left-[9px] -translate-y-1/2 text-muted-foreground"
+              className="pointer-events-none absolute top-1/2 left-[9px] -translate-y-1/2 text-muted-foreground transition-colors duration-150 group-focus-within:text-foreground"
             />
             <input
               ref={searchRef}
               type="search"
               value={query}
-              className="h-8 w-full rounded-lg border border-sidebar-border bg-background/[62%] py-[5px] pr-8 pl-[30px] text-xs text-sidebar-foreground outline-0 placeholder:text-muted-foreground/[78%] [&::-webkit-search-cancel-button]:hidden focus-visible:border-foreground/45"
+              className="h-8 w-full rounded-lg border border-sidebar-border bg-background/[62%] py-[5px] pr-8 pl-[30px] text-xs text-sidebar-foreground outline-0 placeholder:text-muted-foreground/[78%] [&::-webkit-search-cancel-button]:hidden transition-[background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-foreground/20 focus-visible:border-foreground/35 focus-visible:bg-background"
               placeholder="Search settings"
               aria-label="Search settings"
               aria-controls="settings-tablist"
@@ -280,7 +285,7 @@ export function SettingsDialog({
               }}
             />
             <kbd
-              className="absolute top-1/2 right-[7px] min-w-[18px] -translate-y-1/2 rounded-md border border-sidebar-border bg-background/[66%] px-[5px] py-px text-center font-mono text-[10px] leading-[1.45] text-muted-foreground"
+              className="absolute top-1/2 right-[7px] min-w-[18px] -translate-y-1/2 rounded-md border border-sidebar-border bg-background/[66%] px-[5px] py-px text-center font-mono text-[10px] leading-[1.45] text-muted-foreground transition-opacity duration-150 group-focus-within:opacity-0"
               aria-hidden="true"
             >
               /
@@ -330,7 +335,7 @@ export function SettingsDialog({
           role="tabpanel"
           aria-label={`${activeMeta.label} settings`}
           tabIndex={0}
-          className="relative min-w-0 flex-1 overflow-y-auto px-10 pt-8 pb-12 focus-visible:bg-[hsl(var(--foreground)/2.5%)] max-[620px]:px-[18px] max-[620px]:pt-6 max-[620px]:pb-9"
+          className="relative min-w-0 flex-1 overflow-y-auto px-10 pt-8 pb-12 transition-[background-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] focus-visible:bg-[hsl(var(--foreground)/3%)] max-[620px]:px-[18px] max-[620px]:pt-6 max-[620px]:pb-9"
           onKeyDown={(event) => {
             if (event.key === "ArrowLeft" && event.target === event.currentTarget) {
               event.preventDefault();
@@ -342,7 +347,11 @@ export function SettingsDialog({
         >
           <button
             type="button"
-            className="absolute top-4 right-4 z-[1] flex h-7 w-7 items-center justify-center rounded-lg border-0 bg-transparent p-0 text-muted-foreground cursor-pointer hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground"
+            className={cn(
+              "absolute top-4 right-4 z-[1] flex h-7 w-7 items-center justify-center rounded-lg border-0 bg-transparent p-0 text-muted-foreground cursor-pointer hover:bg-accent hover:text-foreground",
+              settingsTransition,
+              settingsPress,
+            )}
             aria-label="Close settings"
             onClick={() => onOpenChange(false)}
           >

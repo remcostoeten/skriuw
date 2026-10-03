@@ -38,7 +38,7 @@ const INPUT_SHAPES: readonly { value: PromptInputShape; label: string }[] = [
 
 const fieldLabelClass = "mb-1 block text-[11px] font-medium text-muted-foreground";
 const textareaClass =
-  "min-h-[96px] w-full resize-y rounded-lg border border-border bg-muted px-2.5 py-[6px] font-mono text-[12px] leading-[1.5] text-foreground outline-none focus-visible:border-foreground/70";
+  "min-h-[96px] w-full resize-y rounded-lg border border-border bg-muted px-2.5 py-[6px] font-mono text-[12px] leading-[1.5] text-foreground outline-none transition-[background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-foreground/20 focus-visible:border-foreground/40 focus-visible:bg-background";
 
 function originLabel(origin: PromptLibraryEntry["origin"]): string | null {
   if (origin === "customised") {
