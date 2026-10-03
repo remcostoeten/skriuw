@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Marked, type Tokens } from "marked";
-import { docPages, docBranch, type DocPage } from "@/data/docs";
+import { docPages, docBranch, type DocPage } from "@/modules/docs/pages";
 import { repoUrl } from "@/data/content";
 
 export type DocHeading = {

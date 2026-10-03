@@ -7,7 +7,7 @@ import { Apple, Globe, Linux, Windows } from "@/components/ui/icons";
 import { installChannels, releasesUrl } from "@/data/content";
 import { badge, outlineButton } from "@/components/frame/control";
 import { SectionHead } from "@/components/frame/section-head";
-import { DesktopArt } from "@/components/platform-art";
+import { DesktopArt } from "@/components/home/platform-art";
 
 const iconMap = {
   browser: Globe,

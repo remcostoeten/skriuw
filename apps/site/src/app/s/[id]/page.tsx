@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { fetchSharedNote } from "@/lib/shared-note";
+import { fetchSharedNote } from "@/modules/shared-note/fetch-shared-note";
 
 type Props = {
   params: Promise<{ id: string }>;
