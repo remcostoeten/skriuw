@@ -19,7 +19,6 @@ use std::{
         Arc, Mutex, RwLock,
         atomic::{AtomicBool, Ordering},
     },
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde::Serialize;
@@ -35,7 +34,10 @@ use uuid::Uuid;
 use network::{AssetBridge, NetworkTransport, SharedToken};
 pub use network::{MobileAssetStore, MobileSyncNetwork, SyncRequest, SyncResponse};
 
-use crate::{boundary::guarded, error::MobileError};
+use crate::{
+    boundary::{guarded, now_millis},
+    error::MobileError,
+};
 
 const MAX_TOKEN_BYTES: usize = 4_096;
 const MAX_BASE_URL_BYTES: usize = 2_048;
@@ -598,13 +600,6 @@ fn encode_status(status: &SyncStatus) -> String {
 
 fn encode<T: Serialize>(value: &T) -> Result<String, MobileError> {
     serde_json::to_string(value).map_err(|error| MobileError::internal(error.to_string()))
-}
-
-fn now_millis() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as i64)
-        .unwrap_or(0)
 }
 
 #[cfg(test)]

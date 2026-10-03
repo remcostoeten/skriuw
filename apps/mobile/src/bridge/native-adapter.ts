@@ -29,16 +29,6 @@ export type NativeBridge = BridgePort & {
   close: () => Promise<void>;
 };
 
-const UNCONFIGURED_NOTE_LOCK: NoteLockState = {
-  configured: false,
-  unlocked: false,
-  kind: null,
-  hint: null,
-  failedAttempts: 0,
-  nextAttemptAt: null,
-  lockedNoteCount: 0,
-};
-
 function ignoreOutcome(): void {
   return undefined;
 }
@@ -61,9 +51,12 @@ function parsePayload<T>(json: string, command: string): T {
  * is for startup and for the rollback after a rejected batch only: navigation
  * runs on the hydrated store and never reaches this adapter.
  *
- * `skriuw-core` exposes bootstrap, operations and documents. Search, the note
- * lock, media, sync and workspace slots refuse until the native module carries
- * them; nothing here keeps a second copy of durable state in TypeScript.
+ * `skriuw-core` exposes bootstrap, operations, documents and the note lock.
+ * The lock is answered inside Rust (ADR-0044): the secret is derived and the
+ * content key held on the storage thread, so this adapter only forwards the
+ * secret and parses state, documents and acks. Search, media, sync and
+ * workspace slots refuse until the native module carries them; nothing here
+ * keeps a second copy of durable state in TypeScript.
  * Sidebar expansion has no native home either, so it lasts for the process
  * only: a relaunch reads `null` and the tree falls back to its defaults.
  */
@@ -127,6 +120,10 @@ export function createNativeBridge(
     }
   }
 
+  function lockState(json: string): NoteLockState {
+    return parsePayload<NoteLockState>(json, "the note lock");
+  }
+
   return {
     bootstrapWorkspace: () =>
       whenOpen(async () => parsePayload<WorkspaceSnapshot>(await core.bootstrap(), "bootstrap")),
@@ -155,14 +152,32 @@ export function createNativeBridge(
     searchIndexStatus: async () => refuseMissingNativeCommand("The search index"),
     rebuildSearchIndex: async () => refuseMissingNativeCommand("Rebuilding the search index"),
 
-    noteLockState: async () => UNCONFIGURED_NOTE_LOCK,
-    configureNoteLock: async () => refuseMissingNativeCommand("Locking notes"),
-    unlockNoteLock: async () => refuseMissingNativeCommand("Unlocking notes"),
-    recoverNoteLock: async () => refuseMissingNativeCommand("Recovering the note lock"),
-    changeNoteLockSecret: async () => refuseMissingNativeCommand("Changing the note lock"),
-    relockNoteLock: async () => UNCONFIGURED_NOTE_LOCK,
-    removeNoteLock: async () => refuseMissingNativeCommand("Removing the note lock"),
-    readLockedDocuments: async () => refuseMissingNativeCommand("Reading locked notes"),
+    noteLockState: () => whenOpen(async () => lockState(await core.noteLockState())),
+
+    configureNoteLock: (input) => whenOpen(() => core.configureNoteLock(input)),
+
+    unlockNoteLock: (secret) => whenOpen(async () => lockState(await core.unlockNoteLock(secret))),
+
+    recoverNoteLock: (recoveryCode, input) =>
+      whenOpen(async () => lockState(await core.recoverNoteLock(recoveryCode, input))),
+
+    changeNoteLockSecret: (input) =>
+      whenOpen(async () => lockState(await core.changeNoteLockSecret(input))),
+
+    relockNoteLock: () => whenOpen(async () => lockState(await core.relockNoteLock())),
+
+    removeNoteLock: () =>
+      whenOpen(async () =>
+        parsePayload<OperationAck>(await core.removeNoteLock(), "removeNoteLock"),
+      ),
+
+    readLockedDocuments: (noteIds = null) =>
+      whenOpen(async () =>
+        parsePayload<WorkspaceDocument[]>(
+          await core.readLockedDocuments(noteIds === null ? null : [...noteIds]),
+          "readLockedDocuments",
+        ),
+      ),
 
     storeNoteImage: async () => refuseMissingNativeCommand("Storing media"),
     readNoteImageBlob: async () => refuseMissingNativeCommand("Reading stored media"),

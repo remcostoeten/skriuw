@@ -1,4 +1,7 @@
-use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::{
+    panic::{AssertUnwindSafe, catch_unwind},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use crate::error::{MobileError, panic_detail};
 
@@ -15,6 +18,15 @@ pub(crate) fn guarded<T>(call: impl FnOnce() -> Result<T, MobileError>) -> Resul
         Ok(result) => result,
         Err(payload) => Err(MobileError::internal(panic_detail(payload))),
     }
+}
+
+/// Wall-clock milliseconds, the unit every workspace timestamp and the note
+/// lock's attempt delay are kept in.
+pub(crate) fn now_millis() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as i64)
+        .unwrap_or(0)
 }
 
 #[cfg(test)]

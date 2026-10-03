@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "tailwindcss" source("../..");
 @import "prosemirror-gapcursor/style/gapcursor.css";
 @import "../../themes.css";
 @import "../../base.css";

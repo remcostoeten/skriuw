@@ -1,33 +1,30 @@
 import { StyleSheet, Text, View } from "react-native";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
-import { EditorHost } from "../editor/editor-host";
 import type { ShellRoute } from "./destinations";
 import { useTheme } from "./theme";
 import { useWorkspaceSelector } from "./workspace-provider";
 
-function hasOpenNote(state: RendererState): boolean {
+export function hasOpenNote(state: RendererState): boolean {
   return state.activeNoteId !== null;
 }
 
 /**
- * The notes column. The editor host is mounted once and stays mounted while
- * notes switch, so a switch is a `load` into the warm webview. The column
- * subscribes only to whether a note is open: a keystroke changes the
- * document, never that.
+ * The notes column. The editor host is not mounted here: `ShellFrame` mounts
+ * it once beside the route slot, so neither a note switch nor a route change
+ * remounts the webview (R-P2). The column only covers the slot while no note
+ * is open, and subscribes to nothing else.
  */
 export function NotesColumn() {
   const noteOpen = useWorkspaceSelector(hasOpenNote);
 
+  if (noteOpen) {
+    return null;
+  }
   return (
-    <View style={styles.column}>
-      <EditorHost visible={noteOpen} />
-      {noteOpen ? null : (
-        <RoutePlaceholder
-          route="notes"
-          detail="Open a note from the tree, or create one from the toolbar."
-        />
-      )}
-    </View>
+    <RoutePlaceholder
+      route="notes"
+      detail="Open a note from the tree, or create one from the toolbar."
+    />
   );
 }
 
@@ -60,10 +57,6 @@ function label(route: ShellRoute): string {
 }
 
 const styles = StyleSheet.create({
-  column: {
-    flex: 1,
-    minHeight: 0,
-  },
   placeholder: {
     flex: 1,
     alignItems: "center",

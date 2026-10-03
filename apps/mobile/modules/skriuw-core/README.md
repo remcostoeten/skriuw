@@ -20,6 +20,11 @@ dependency entry: `import { skriuwCore } from "../modules/skriuw-core"`.
 | `submitOperations(operationsJson)` | `OperationAck` JSON |
 | `loadDocument(noteId)` | `WorkspaceDocument` JSON |
 | `saveDocument(request)` | `OperationAck` JSON |
+| `noteLockState()`, `unlockNoteLock(secret)`, `relockNoteLock()` | `NoteLockState` JSON |
+| `configureNoteLock({ kind, secret, hint })` | the recovery code, shown once |
+| `recoverNoteLock(code, secret)`, `changeNoteLockSecret(secret)` | `NoteLockState` JSON |
+| `readLockedDocuments(noteIds \| null)` | `WorkspaceDocument[]` JSON |
+| `removeNoteLock()` | `OperationAck` JSON |
 | `shutdown()` | drains the owner thread; safe when nothing is open |
 
 Payloads stay the generated-contract JSON text the facade produces. The bridge
@@ -36,7 +41,8 @@ TypeScript surface to promises.
 Failures reject with `SkriuwCoreError`; branch on `kind`. The kinds mirror
 `MobileError` in the facade (`recovery`, `conflict` with both revisions,
 `busy`, `unsupported-protocol` with its version, …) plus `invalid-slot` and
-`slot-in-use` from this module. The native side resolves a
+`slot-in-use` from this module. A `rejected` failure carries the core's own
+detail as its message, so the lock screens can show "Wrong PIN." as written. The native side resolves a
 `{ ok, value | error }` envelope rather than rejecting, because a rejected Expo
 promise only carries a code and a decorated message string, and the structured
 fields of a conflict would have to be parsed back out of it.

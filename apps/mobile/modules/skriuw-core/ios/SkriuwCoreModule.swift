@@ -9,6 +9,16 @@ struct SaveDocumentArguments: Record {
   @Field var at: Double = 0
 }
 
+struct NoteLockSecretArguments: Record {
+  @Field var kind: String = ""
+  @Field var secret: String = ""
+  @Field var hint: String? = nil
+
+  func toSecret() -> NoteLockSecret {
+    NoteLockSecret(kind: kind, secret: secret, hint: hint)
+  }
+}
+
 private struct ModuleFailure: Error {
   let kind: String
   let message: String
@@ -65,6 +75,44 @@ public final class SkriuwCoreModule: Module {
           )
         )
       }
+    }
+
+    AsyncFunction("noteLockState") { () -> [String: Any?] in
+      self.settle { try self.workspace().noteLockState() }
+    }
+
+    AsyncFunction("configureNoteLock") { (arguments: NoteLockSecretArguments) -> [String: Any?] in
+      self.settle { try self.workspace().configureNoteLock(secret: arguments.toSecret()) }
+    }
+
+    AsyncFunction("unlockNoteLock") { (secret: String) -> [String: Any?] in
+      self.settle { try self.workspace().unlockNoteLock(secret: secret) }
+    }
+
+    AsyncFunction("recoverNoteLock") {
+      (recoveryCode: String, arguments: NoteLockSecretArguments) -> [String: Any?] in
+      self.settle {
+        try self.workspace().recoverNoteLock(
+          recoveryCode: recoveryCode,
+          replacement: arguments.toSecret()
+        )
+      }
+    }
+
+    AsyncFunction("changeNoteLockSecret") { (arguments: NoteLockSecretArguments) -> [String: Any?] in
+      self.settle { try self.workspace().changeNoteLockSecret(replacement: arguments.toSecret()) }
+    }
+
+    AsyncFunction("relockNoteLock") { () -> [String: Any?] in
+      self.settle { try self.workspace().relockNoteLock() }
+    }
+
+    AsyncFunction("readLockedDocuments") { (noteIds: [String]?) -> [String: Any?] in
+      self.settle { try self.workspace().readLockedDocuments(noteIds: noteIds) }
+    }
+
+    AsyncFunction("removeNoteLock") { () -> [String: Any?] in
+      self.settle { try self.workspace().removeNoteLock() }
     }
 
     AsyncFunction("shutdown") { () -> [String: Any?] in
@@ -147,8 +195,8 @@ public final class SkriuwCoreModule: Module {
       return ["kind": "recovery", "message": message]
     case .InvalidPayload:
       return ["kind": "invalid-payload", "message": message]
-    case .Rejected:
-      return ["kind": "rejected", "message": message]
+    case let .Rejected(detail):
+      return ["kind": "rejected", "message": detail]
     case let .UnsupportedProtocol(version):
       return ["kind": "unsupported-protocol", "message": message, "version": Int(version)]
     case let .Conflict(id, expected, current):

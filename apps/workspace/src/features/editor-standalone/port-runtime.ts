@@ -2,7 +2,7 @@ import { activeEditorSession } from "./active-session";
 
 /**
  * Stands in for `@/platform/runtime/runtime` in the standalone editor bundle (see
- * `standaloneEditorBridge` in `apps/workspace/harnesses/editor-host/vite.config.ts`).
+ * `standaloneEditorBridge` in `apps/workspace/harnesses/editor-host/standalone-editor-bridge.ts`).
  * Every bridge command the editor feature reaches funnels through `invoke`, so
  * replacing this one module routes them all over the editor protocol and keeps
  * the Tauri and storage-worker adapters out of the bundle.

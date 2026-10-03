@@ -39,7 +39,8 @@ For manual work: `bunx vite --config harnesses/editor-host/vite.config.ts`, open
 
 The editor feature is not forked and takes no new props. Everything it reaches outside the
 store funnels through two modules, `@/platform/runtime/runtime` (`invoke`) and `@/platform/runtime/external-links`.
-`vite.config.ts` swaps both for protocol-backed stand-ins at resolve time:
+`standalone-editor-bridge.ts` swaps both for protocol-backed stand-ins at resolve time, in this
+harness (`vite.config.ts`) and in the page the mobile app ships (`vite.mobile.config.ts`):
 
 | Editor reaches for | Becomes |
 | --- | --- |

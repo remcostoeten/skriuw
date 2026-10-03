@@ -148,6 +148,41 @@ pub async fn adopt_workspace_slot(
     app.restart()
 }
 
+/// Leaves the signed-out account's local workspace for a directory no account
+/// owns. The account's directory stays on disk for its next sign-in. The
+/// renderer flushes pending edits before calling this, and shutting the
+/// coordinator down drains every operation it already accepted, so the
+/// restart onto the signed-out directory loses nothing.
+///
+/// A change of directory restarts the process and never returns; when the
+/// installation was already on signed-out storage nothing happens.
+#[tauri::command]
+pub async fn leave_account_workspace(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    if env::var_os("SKRIUW_DB").is_some() {
+        return Ok(());
+    }
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+    let sync = Arc::clone(&state.sync);
+    let changed = tauri::async_runtime::spawn_blocking(move || {
+        let linked = sync.linked_workspace_id()?;
+        workspace_slots::release(&data_dir, linked.as_deref())
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+    if !changed {
+        return Ok(());
+    }
+    state.sync.shutdown();
+    state.maintenance.shutdown();
+    app.restart()
+}
+
 /// Cloud workspace that owns the running local store, or `null` while it is
 /// still unclaimed. Surfaces read it to explain which account's notes are open.
 #[tauri::command]

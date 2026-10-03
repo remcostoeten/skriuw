@@ -4,6 +4,7 @@ import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { LockGate } from "@/features/lock/lock-gate";
 import { ChromeProvider } from "@/shell/chrome";
 import { ShellFrame } from "@/shell/shell-frame";
 import { ThemeProvider, useTheme } from "@/shell/theme";
@@ -19,9 +20,11 @@ export default function RootLayout() {
           <WorkspaceProvider>
             <WorkspaceThemePreference />
             <ChromeProvider>
-              <ShellFrame>
-                <Slot />
-              </ShellFrame>
+              <LockGate>
+                <ShellFrame>
+                  <Slot />
+                </ShellFrame>
+              </LockGate>
             </ChromeProvider>
           </WorkspaceProvider>
         </ThemeProvider>

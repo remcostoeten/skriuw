@@ -5,5 +5,5 @@
       "@/*": ["../../src/*"]
     }
   },
-  "include": ["host.ts", "vite.config.ts"]
+  "include": ["host.ts", "standalone-editor-bridge.ts", "vite.config.ts", "vite.mobile.config.ts"]
 }

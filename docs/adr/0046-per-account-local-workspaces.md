@@ -69,14 +69,19 @@ directions. The desktop restarts and the browser reloads, because every
 component is bound to the store it opened at startup and the storage worker
 holds exclusive OPFS handles.
 
-Signing out in the browser releases the route: the registry stops naming an
-active account and the tab navigates to the site root. A signed-out profile
-opens the first storage no account owns, which is the default storage until an
-account claims it and `guest-N` storage after that. The account's storage is
-not deleted; signing back in reaches it as a `switched` route, and a new
-account signing in from signed-out storage claims it in place as before. The
-desktop keeps its open workspace on sign-out for now, because leaving it would
-cost a restart.
+Signing out releases the route on both runtimes, through the
+`leave_account_workspace` command. Edits in flight are flushed first; when
+they cannot be stored, the window stays on the account's notes instead. The
+registry then stops naming an active account. A signed-out installation opens
+the first storage no account owns, which is the default storage until an
+account claims it and `guest-N` storage after that (`workspaces/guest-N` on
+the desktop). The browser tab navigates to the site root; the desktop shuts
+sync and the storage coordinator down, which drains every operation it already
+accepted, and restarts onto the signed-out directory for the same reason a
+switch does. A desktop already on signed-out storage does not restart. The
+account's storage is not deleted; signing back in reaches it as a `switched`
+route, and a new account signing in from signed-out storage claims it in place
+as before.
 
 Both registries refuse any identity that is not `w_` plus a lowercase SHA-256
 digest, and refuse to read back any directory or name they would not have
@@ -102,7 +107,7 @@ becoming a cross-account write.
 - `SKRIUW_DB` bypasses the registry entirely. A pinned database is a single
   fixed workspace by definition, so tests and packaging runs never restart into
   a different directory.
-- Desktop switching costs a process restart. Making it seamless would mean
-  rebuilding `AppState` and every component bound to the database path at
-  runtime, which buys nothing for an action that happens when an account
-  changes.
+- Desktop switching and signing out cost a process restart. Making them
+  seamless would mean rebuilding `AppState` and every component bound to the
+  database path at runtime, which buys nothing for an action that happens when
+  an account changes.

@@ -24,3 +24,6 @@ expo-env.d.ts
 # Local editor and agent configuration
 .vscode/
 .claude/
+
+# Built by `bun run editor:page`
+/public/editor/

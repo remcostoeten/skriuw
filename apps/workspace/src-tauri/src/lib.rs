@@ -316,6 +316,7 @@ pub fn run() {
             commands::sync::set_workspace_sync_online,
             commands::sync::set_workspace_sync_visibility,
             commands::sync::adopt_workspace_slot,
+            commands::sync::leave_account_workspace,
             commands::sync::active_workspace_slot,
             opened_files::take_opened_files
         ])
