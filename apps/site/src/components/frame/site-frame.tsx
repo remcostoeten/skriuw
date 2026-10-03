@@ -9,7 +9,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { GithubSocial, XSocial } from "@/components/ui/icons";
 import { footerColumns, navLinks, repoUrl } from "@/data/content";
 import { controlSelected, ghostButton, outlineButton } from "@/components/frame/control";
-import { HeaderAccount } from "@/components/frame/header-account";
+import { HeaderAccount } from "@/modules/account/header-account";
 import "./site-frame.css";
 
 const bandSurface = "hy-dots border-y border-dashed border-line bg-hy-bg";

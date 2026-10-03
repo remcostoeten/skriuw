@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { cardSurface, outlineButton } from "@/components/frame/control";
 
-import { getReleases } from "../api/queries/get-releases";
-import { renderReleaseNotes } from "../utilities/release-notes";
+import { getReleases } from "../api/get-releases";
+import { renderReleaseNotes } from "../release-notes";
 import { ReleaseChanges } from "./release-changes";
 
 const meta = "flex flex-wrap items-center justify-between gap-3 font-mono text-[12px] text-ink-500";

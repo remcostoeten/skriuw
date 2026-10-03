@@ -1,6 +1,6 @@
 "use client";
 
-import { useComparison } from "../hooks/use-comparison";
+import { useComparison } from "../use-comparison";
 import { outlineButton } from "@/components/frame/control";
 
 const focusTint = "focus-visible:rounded focus-visible:bg-focus-tint focus-visible:text-focus-ink";

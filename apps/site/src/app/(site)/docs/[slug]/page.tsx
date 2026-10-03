@@ -4,9 +4,9 @@ import { notFound } from "next/navigation";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { card, outlineButton } from "@/components/frame/control";
 import { GithubSocial } from "@/components/ui/icons";
-import { DocOutline } from "@/components/docs/doc-outline";
-import { docHref, docPages, docSourceUrl, findDocPage } from "@/data/docs";
-import { renderDoc } from "@/lib/docs-content";
+import { DocOutline } from "@/modules/docs/doc-outline";
+import { docHref, docPages, docSourceUrl, findDocPage } from "@/modules/docs/pages";
+import { renderDoc } from "@/modules/docs/render-doc";
 import { socialImage } from "@/data/seo";
 
 type Props = {

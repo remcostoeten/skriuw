@@ -11,7 +11,7 @@ import {
   LinksVignette,
   LockVignette,
   PaletteVignette,
-} from "@/components/bento-vignettes";
+} from "@/components/home/bento-vignettes";
 import { badge, card } from "@/components/frame/control";
 import { SectionHead } from "@/components/frame/section-head";
 

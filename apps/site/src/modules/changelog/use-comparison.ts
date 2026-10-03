@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 
-import { loadComparison } from "../api/actions/load-comparison";
-import type { Comparison } from "../api/queries/get-comparison";
+import { loadComparison } from "./api/load-comparison";
+import type { Comparison } from "./api/get-comparison";
 
 export function useComparison(id: number) {
   const [open, setOpen] = useState(false);

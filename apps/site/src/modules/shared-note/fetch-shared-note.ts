@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { cloudUrl } from "@/data/cloud";
-import { renderSharedMarkdown } from "@/lib/shared-note-markdown";
+import { renderSharedMarkdown } from "@/modules/shared-note/render-markdown";
 
 export type SharedNote = {
   title: string;

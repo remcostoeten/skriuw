@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { appUrl } from "@/data/content";
-import { type CloudAccount, useCloudSession } from "@/lib/cloud-session";
+import { type CloudAccount, useCloudSession } from "@/modules/account/use-cloud-session";
 import { controlStates, primaryButton } from "@/components/frame/control";
 
 const openAppButton = cn(primaryButton, "h-7 px-3");
