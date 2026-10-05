@@ -25,7 +25,19 @@ dependency entry: `import { skriuwCore } from "../modules/skriuw-core"`.
 | `recoverNoteLock(code, secret)`, `changeNoteLockSecret(secret)` | `NoteLockState` JSON |
 | `readLockedDocuments(noteIds \| null)` | `WorkspaceDocument[]` JSON |
 | `removeNoteLock()` | `OperationAck` JSON |
+| `syncStatus()`, `connectSync(token, baseUrl)`, `pauseSync()`, `catchUpSync()`, `backgroundRefreshSync()` | `WorkspaceSyncStatus` JSON |
+| `setSyncForeground(bool)`, `setSyncOnline(bool)`, `setWakeChannelConnected(bool)`, `notifyRemoteChange()`, `noteLocalCommit()` | nothing; scheduling signals for the coordinator |
+| `wakeChannelUrl()` | the events URL while connected, otherwise `null` |
+| `syncRecoveryView()`, `retryBlockedSyncOperation(id)`, `discardBlockedSyncOperation(id)` | `SyncRecoveryView` JSON |
+| `adoptWorkspaceSlot(workspaceId)` | `{ adoption, reopenRequired }` (ADR-0046) |
+| `activeWorkspaceSlot()` | the cloud workspace owning the open store, or `null` |
+| `subscribeSync(listener)` | `onSyncEvent` observer events: `status`, `workspaceChanged`, `sessionExpired` |
 | `shutdown()` | drains the owner thread; safe when nothing is open |
+
+Sync requests go out through the platform HTTP client (`HttpURLConnection` on
+Android, `URLSession` on iOS), which implements the facade's
+`MobileSyncNetwork` port, so the core links no TLS stack. The bearer credential
+is handed to `connectSync` once and then lives in the core.
 
 Payloads stay the generated-contract JSON text the facade produces. The bridge
 adapter (`apps/mobile/src/bridge`) owns parsing them into the generated contract
@@ -64,7 +76,10 @@ decision in forty lines of Kotlin and Swift.
 **Workspace location.** Android: `<filesDir>/workspaces/<slot>/skriuw.db`. iOS:
 `Application Support/workspaces/<slot>/skriuw.db`. The slot is validated
 against `^[a-z0-9][a-z0-9-]{0,63}$` in TypeScript and again natively, so no
-path ever comes from JavaScript.
+path ever comes from JavaScript. That directory is also the base of the
+per-account registry (ADR-0046): once a second account signs in, `open` opens
+`<slot>/workspaces/<workspace id>/` instead, as `active_workspace_directory`
+resolves it, and the shell reopens after an `adoptWorkspaceSlot` that switched.
 
 **Backup exclusion: not excluded.** Both locations are covered by Android Auto
 Backup and iCloud device backup by default, and this module leaves that alone:

@@ -7,7 +7,7 @@ import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { SkriuwCoreError } from "../../../../../apps/mobile/modules/skriuw-core/src/errors";
 import { commitOperations } from "@/bridge/commit";
 import { createFakeSkriuwCore } from "@/bridge/fake-core";
-import { createNativeBridge } from "@/bridge/native-adapter";
+import { createNativeBridge, type SyncEvent } from "@/bridge/native-adapter";
 import { refuseDesktopOnly } from "@/bridge/refusals";
 
 async function openWorkspace(bridge: BridgePort): Promise<RendererStore> {
@@ -143,14 +143,72 @@ test("commands outside the native surface refuse with an actionable message", as
   const bridge = createNativeBridge(createFakeSkriuwCore());
   await assert.rejects(bridge.searchWorkspace("harbour", 10), /^Error: Search needs a newer/);
   await assert.rejects(bridge.storeNoteImage(new Uint8Array([1])), /Storing media needs/);
-  await assert.rejects(bridge.connectWorkspaceSync("token", "https://sync.invalid"), /Sync needs/);
-  await assert.rejects(bridge.adoptWorkspaceSlot("workspace-a"), /Per-account workspaces needs/);
   assert.throws(() => refuseDesktopOnly("Version history"), {
     message: "Version history needs the desktop app.",
   });
-  assert.deepEqual(await bridge.workspaceSyncStatus(), { state: "localOnly" });
   assert.equal((await bridge.noteLockState()).configured, false);
+});
+
+test("sync and account routing are answered by the native core, not refused", async () => {
+  const core = createFakeSkriuwCore();
+  const bridge = createNativeBridge(core);
+
+  assert.deepEqual(await bridge.workspaceSyncStatus(), { state: "localOnly" });
+  assert.equal(await bridge.workspaceWakeChannelUrl(), null);
   assert.equal(await bridge.activeWorkspaceSlot(), null);
+
+  assert.equal(await bridge.adoptWorkspaceSlot("workspace-a"), "claimed");
+  assert.equal(await bridge.adoptWorkspaceSlot("workspace-a"), "active");
+  assert.equal(await bridge.activeWorkspaceSlot(), "workspace-a");
+  assert.notDeepEqual(await bridge.connectWorkspaceSync("token", "https://sync.skriuw.app"), {
+    state: "localOnly",
+  });
+  assert.equal(await bridge.workspaceWakeChannelUrl(), "wss://sync.invalid/events");
+  assert.deepEqual(await bridge.pauseWorkspaceSync(), { state: "localOnly" });
+  assert.deepEqual(await bridge.listBlockedSyncOperations(), {
+    viewVersion: 1,
+    blocked: [],
+    discarded: [],
+  });
+
+  assert.equal(await bridge.adoptWorkspaceSlot("workspace-b"), "switched");
+  assert.ok(core.calls.includes("connectSync"));
+  assert.ok(core.calls.includes("adoptWorkspaceSlot"));
+});
+
+test("a durable commit tells the coordinator a push is due", async () => {
+  const core = createFakeSkriuwCore();
+  const bridge = createNativeBridge(core);
+  await bridge.applyWorkspaceOperations([createNote("note-1", "One")].map(envelope));
+  const submitted = core.calls.indexOf("submitOperations");
+  assert.ok(submitted >= 0);
+  assert.equal(core.calls[submitted + 1], "noteLocalCommit");
+});
+
+test("observer events arrive parsed, and a malformed status is dropped", async () => {
+  const core = createFakeSkriuwCore();
+  const bridge = createNativeBridge(core);
+  const seen: SyncEvent[] = [];
+  const unsubscribe = bridge.subscribeSyncEvents((event) => seen.push(event));
+
+  core.emitSync({ kind: "status", payload: '{"state":"upToDate"}' });
+  core.emitSync({ kind: "status", payload: "{not json" });
+  core.emitSync({
+    kind: "workspaceChanged",
+    payload: '{"noteIds":["note-1",7],"structureChanged":false,"full":false}',
+  });
+  core.emitSync({ kind: "sessionExpired", payload: null });
+  unsubscribe();
+  core.emitSync({ kind: "sessionExpired", payload: null });
+
+  assert.deepEqual(seen, [
+    { kind: "status", status: { state: "upToDate" } },
+    {
+      kind: "workspaceChanged",
+      change: { noteIds: ["note-1"], structureChanged: false, full: false },
+    },
+    { kind: "sessionExpired" },
+  ]);
 });
 
 test("a failed rollback still reports the rejection and rethrows it", async () => {

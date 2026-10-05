@@ -26,11 +26,97 @@ private struct ModuleFailure: Error {
 
 private final class OpenWorkspace {
   let slot: String
+  let base: String
   let handle: MobileWorkspace
+  let sync: MobileSync
 
-  init(slot: String, handle: MobileWorkspace) {
+  init(slot: String, base: String, handle: MobileWorkspace, sync: MobileSync) {
     self.slot = slot
+    self.base = base
     self.handle = handle
+    self.sync = sync
+  }
+}
+
+private let syncEvent = "onSyncEvent"
+
+private let maxResponseBytes = 4 * 1024 * 1024
+
+private final class PlatformSyncNetwork: MobileSyncNetwork, @unchecked Sendable {
+  private let session: URLSession = {
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.httpCookieStorage = nil
+    configuration.urlCache = nil
+    return URLSession(configuration: configuration)
+  }()
+
+  func send(request: SyncRequest) throws -> SyncResponse {
+    guard let url = URL(string: request.url) else {
+      return Self.failed("invalid sync URL")
+    }
+    var outbound = URLRequest(url: url)
+    outbound.httpMethod = request.method
+    outbound.timeoutInterval = TimeInterval(request.timeoutMs) / 1000
+    outbound.setValue("Bearer \(request.bearer)", forHTTPHeaderField: "Authorization")
+    outbound.setValue("application/json", forHTTPHeaderField: "Accept")
+    if let contentType = request.contentType {
+      outbound.setValue(contentType, forHTTPHeaderField: "Content-Type")
+    }
+    if request.method == "POST" || request.method == "PUT" {
+      outbound.httpBody = request.body
+    }
+
+    // The core calls this from its own sync thread and expects it to block until the exchange settles.
+    let done = DispatchSemaphore(value: 0)
+    var answer = Self.failed("the request did not complete")
+    let task = session.dataTask(with: outbound) { data, response, error in
+      defer { done.signal() }
+      if let error {
+        answer = Self.failed(error.localizedDescription)
+        return
+      }
+      guard let response = response as? HTTPURLResponse else {
+        answer = Self.failed("the response was not HTTP")
+        return
+      }
+      let retryAfter = (response.value(forHTTPHeaderField: "Retry-After"))
+        .flatMap { Int64($0.trimmingCharacters(in: .whitespaces)) }
+        .map { $0 * 1000 }
+      let body = data ?? Data()
+      answer = SyncResponse(
+        status: UInt16(clamping: response.statusCode),
+        retryAfterMs: retryAfter,
+        body: body.count > maxResponseBytes ? body.prefix(maxResponseBytes + 1) : body,
+        transportError: nil
+      )
+    }
+    task.resume()
+    done.wait()
+    return answer
+  }
+
+  private static func failed(_ detail: String) -> SyncResponse {
+    SyncResponse(status: 0, retryAfterMs: nil, body: Data(), transportError: detail)
+  }
+}
+
+private final class SyncObserver: MobileSyncObserver, @unchecked Sendable {
+  private let emit: (String, String?) -> Void
+
+  init(emit: @escaping (String, String?) -> Void) {
+    self.emit = emit
+  }
+
+  func statusChanged(statusJson: String) {
+    emit("status", statusJson)
+  }
+
+  func workspaceChanged(changesJson: String) {
+    emit("workspaceChanged", changesJson)
+  }
+
+  func sessionExpired() {
+    emit("sessionExpired", nil)
   }
 }
 
@@ -39,6 +125,10 @@ public final class SkriuwCoreModule: Module {
 
   private let lifecycle = NSLock()
   private var current: OpenWorkspace?
+  private let network = PlatformSyncNetwork()
+  private lazy var observer = SyncObserver { [weak self] kind, payload in
+    self?.sendEvent(syncEvent, ["kind": kind, "payload": payload])
+  }
 
   public func definition() -> ModuleDefinition {
     Name("SkriuwCore")
@@ -115,9 +205,75 @@ public final class SkriuwCoreModule: Module {
       self.settle { try self.workspace().removeNoteLock() }
     }
 
+    AsyncFunction("syncStatus") { () -> [String: Any?] in
+      self.settle { try self.sync().status() }
+    }
+
+    AsyncFunction("connectSync") { (token: String, baseUrl: String) -> [String: Any?] in
+      self.settle { try self.sync().connect(token: token, baseUrl: baseUrl) }
+    }
+
+    AsyncFunction("pauseSync") { () -> [String: Any?] in
+      self.settle { try self.sync().pause() }
+    }
+
+    AsyncFunction("catchUpSync") { () -> [String: Any?] in
+      self.settle { try self.sync().catchUp() }
+    }
+
+    AsyncFunction("backgroundRefreshSync") { () -> [String: Any?] in
+      self.settle { try self.sync().backgroundRefresh() }
+    }
+
+    AsyncFunction("setSyncForeground") { (foreground: Bool) -> [String: Any?] in
+      self.settle { try self.sync().setForeground(foreground: foreground) }
+    }
+
+    AsyncFunction("setSyncOnline") { (online: Bool) -> [String: Any?] in
+      self.settle { try self.sync().setOnline(online: online) }
+    }
+
+    AsyncFunction("setWakeChannelConnected") { (connected: Bool) -> [String: Any?] in
+      self.settle { try self.sync().setWakeChannelConnected(connected: connected) }
+    }
+
+    AsyncFunction("notifyRemoteChange") { () -> [String: Any?] in
+      self.settle { try self.sync().notifyRemoteChange() }
+    }
+
+    AsyncFunction("noteLocalCommit") { () -> [String: Any?] in
+      self.settle { try self.sync().noteLocalCommit() }
+    }
+
+    AsyncFunction("wakeChannelUrl") { () -> [String: Any?] in
+      self.settle { try self.sync().wakeChannelUrl() }
+    }
+
+    AsyncFunction("syncRecoveryView") { () -> [String: Any?] in
+      self.settle { try self.sync().recoveryView() }
+    }
+
+    AsyncFunction("retryBlockedSyncOperation") { (blockedId: String) -> [String: Any?] in
+      self.settle { try self.sync().retryBlockedOperation(blockedId: blockedId) }
+    }
+
+    AsyncFunction("discardBlockedSyncOperation") { (blockedId: String) -> [String: Any?] in
+      self.settle { try self.sync().discardBlockedOperation(blockedId: blockedId) }
+    }
+
+    AsyncFunction("adoptWorkspaceSlot") { (workspaceId: String) -> [String: Any?] in
+      self.settle { try self.adopt(workspaceId: workspaceId) }
+    }
+
+    AsyncFunction("activeWorkspaceSlot") { () -> [String: Any?] in
+      self.settle { try activeWorkspaceSlot(baseDirectory: self.opened().base) }
+    }
+
     AsyncFunction("shutdown") { () -> [String: Any?] in
       self.settle { try self.shutdown() }
     }
+
+    Events(syncEvent)
 
     OnDestroy {
       try? self.shutdown()
@@ -159,9 +315,21 @@ public final class SkriuwCoreModule: Module {
       appropriateFor: nil,
       create: true
     )
-    let directory = support.appendingPathComponent("workspaces").appendingPathComponent(slot)
-    let handle = try MobileWorkspace.open(directory: directory.path)
-    current = OpenWorkspace(slot: slot, handle: handle)
+    let base = support.appendingPathComponent("workspaces").appendingPathComponent(slot).path
+    let handle = try MobileWorkspace.open(directory: try activeWorkspaceDirectory(baseDirectory: base))
+    let sync: MobileSync
+    do {
+      sync = try MobileSync.open(
+        databasePath: handle.databasePath(),
+        network: network,
+        assets: nil,
+        observer: observer
+      )
+    } catch {
+      try? handle.shutdown()
+      throw error
+    }
+    current = OpenWorkspace(slot: slot, base: base, handle: handle, sync: sync)
     return handle.databasePath()
   }
 
@@ -172,18 +340,45 @@ public final class SkriuwCoreModule: Module {
     guard let open = current else {
       return
     }
+    open.sync.shutdown()
     try open.handle.shutdown()
     current = nil
   }
 
-  private func workspace() throws -> MobileWorkspace {
+  private func opened() throws -> OpenWorkspace {
     lifecycle.lock()
     defer { lifecycle.unlock() }
 
     guard let open = current else {
       throw ModuleFailure(kind: "closed", message: "workspace is closed")
     }
-    return open.handle
+    return open
+  }
+
+  private func workspace() throws -> MobileWorkspace {
+    try opened().handle
+  }
+
+  private func sync() throws -> MobileSync {
+    try opened().sync
+  }
+
+  private func adopt(workspaceId: String) throws -> String {
+    let open = try opened()
+    let route = try adoptWorkspaceSlot(
+      baseDirectory: open.base,
+      workspaceId: workspaceId,
+      linkedWorkspaceId: try open.sync.linkedWorkspaceId()
+    )
+    let adoption: String
+    switch route.adoption {
+    case .claimed: adoption = "claimed"
+    case .active: adoption = "active"
+    case .switched: adoption = "switched"
+    }
+    let payload: [String: Any] = ["adoption": adoption, "reopenRequired": route.reopenRequired]
+    let data = try JSONSerialization.data(withJSONObject: payload)
+    return String(decoding: data, as: UTF8.self)
   }
 
   private func describe(_ failure: MobileError) -> [String: Any?] {

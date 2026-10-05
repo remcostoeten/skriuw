@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { commitOperations } from "../bridge/commit";
+import { AccountSection } from "../features/auth/account-section";
 import { LockEntryRow } from "../features/lock/lock-entry-row";
 import { MINIMUM_TOUCH_TARGET } from "./metrics";
 import { useTheme } from "./theme";
@@ -43,7 +44,8 @@ export function AccountPanel() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.body}>
+    <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <AccountSection />
       <Text style={[styles.heading, { color: theme.color("sidebar-foreground", 0.5) }]}>
         Appearance
       </Text>
