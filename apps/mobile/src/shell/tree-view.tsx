@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { lockActionOutcome } from "../features/lock/lock-model";
+import { toggleNodeLock } from "../features/lock/lock-session";
 import { useChrome } from "./chrome";
 import { ShellIcon } from "./icons";
 import { MINIMUM_TOUCH_TARGET, TREE_ROW_HEIGHT } from "./metrics";
@@ -29,7 +31,7 @@ type Props = {
 /**
  * The workspace tree as the sheet shows it: virtualized rows that each
  * subscribe to their own node, the create controls, and every row action
- * (rename, move, pin, delete with undo) submitted through the store.
+ * (rename, move, pin, lock, delete with undo) submitted through the store.
  */
 export function TreeView({ onOpenNote }: Props) {
   const theme = useTheme();
@@ -88,6 +90,22 @@ export function TreeView({ onOpenNote }: Props) {
               },
             },
           });
+        })
+        .catch(report);
+    },
+    [chrome, report, session],
+  );
+
+  const onToggleLockRow = useCallback(
+    (row: TreeRowModel) => {
+      setMenuRow(null);
+      toggleNodeLock(session, row.id)
+        .then((action) => {
+          const outcome = lockActionOutcome(action);
+          if (outcome.openSettings) {
+            chrome.openSheet("lock");
+          }
+          chrome.showToast({ message: outcome.message });
         })
         .catch(report);
     },
@@ -174,6 +192,7 @@ export function TreeView({ onOpenNote }: Props) {
           setMenuRow(null);
           setNodePinned(session, row.id, pinned).catch(report);
         }}
+        onToggleLock={onToggleLockRow}
         onDelete={onDeleteRow}
         onCreateNote={(row) => {
           setMenuRow(null);

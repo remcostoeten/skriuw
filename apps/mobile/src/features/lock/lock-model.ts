@@ -1,9 +1,11 @@
 import type {
+  NodeKind,
   NoteLockKind,
   NoteLockState,
   WorkspaceSettings,
 } from "@skriuw/renderer-core/contracts/workspace";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
+import type { LockAction } from "./lock-session";
 
 /**
  * The rules a lock secret is held to, and how one lock state reads.
@@ -223,4 +225,42 @@ export function autoLockMinutes(settings: WorkspaceSettings): number {
     return DEFAULT_AUTO_LOCK_MINUTES;
   }
   return value;
+}
+
+/** One line on where the lock stands, for the account sheet's entry row. */
+export function lockEntryDetail(lock: NoteLockState): string {
+  if (!lock.configured) {
+    return "Not set up";
+  }
+  const count =
+    lock.lockedNoteCount === 1 ? "1 locked note" : `${lock.lockedNoteCount} locked notes`;
+  return `${count}, ${lock.unlocked ? "open" : "closed"}`;
+}
+
+/** The row action's label, worded like the desktop tree menu. */
+export function lockActionLabel(kind: NodeKind, locked: boolean): string {
+  const noun = kind === "folder" ? "folder" : "note";
+  return locked ? `Unlock ${noun}` : `Lock ${noun}…`;
+}
+
+export type LockActionOutcome = {
+  /** True when the lock settings sheet has to come up before the write can happen. */
+  openSettings: boolean;
+  message: string;
+};
+
+/** What the shell shows after a row's lock action, whichever way it went. */
+export function lockActionOutcome(action: LockAction): LockActionOutcome {
+  switch (action.status) {
+    case "committed": {
+      const title = action.title.trim().length === 0 ? "Untitled" : action.title;
+      return { openSettings: false, message: `${action.locked ? "Locked" : "Unlocked"} ${title}` };
+    }
+    case "needsSetup":
+      return { openSettings: true, message: "Set up a PIN or passphrase to lock notes." };
+    case "needsUnlock":
+      return { openSettings: true, message: "Unlock your notes to change what is locked." };
+    case "refused":
+      return { openSettings: false, message: action.message };
+  }
 }

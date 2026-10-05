@@ -15,6 +15,7 @@ import {
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { createEditorHostSession } from "@/editor/host-session";
 import { EDITOR_PROTOCOL_VERSION, type HostToEditorMessage } from "@/editor/protocol";
+import { treeRowAccessibilityLabel, treeRowSelector } from "@/shell/tree-model";
 import { openWorkspaceSession, type ShellSession } from "@/shell/workspace-session";
 import { appPhase, createLockLifecycle } from "@/features/lock/lock-lifecycle";
 import {
@@ -34,6 +35,9 @@ import {
   formatWait,
   isNodeLocked,
   isNoteSealed,
+  lockActionLabel,
+  lockActionOutcome,
+  lockEntryDetail,
   lockErrorMessage,
   normalizeRecoveryCodeInput,
   recoveryCodeLooksComplete,
@@ -517,6 +521,62 @@ test("locking a note needs the lock set up first, then the key", async () => {
     await relockNotes(session);
     assert.deepEqual(await setNodeLocked(session, OPEN_NOTE_ID, true), { status: "needsUnlock" });
   });
+});
+
+test("the tree row shows the lock and offers the opposite action", async () => {
+  const { bridge } = createLockingBridge();
+  await withSession(bridge, async (session) => {
+    await setUpNoteLock(session, PIN);
+    const before = treeRowSelector(NOTE_ID)(session.store.getState());
+    assert.ok(before);
+    assert.equal(before.locked, false);
+    assert.equal(lockActionLabel(before.kind, before.locked), "Lock note…");
+
+    await toggleNodeLock(session, NOTE_ID);
+    const after = treeRowSelector(NOTE_ID)(session.store.getState());
+    assert.ok(after);
+    assert.equal(after.locked, true);
+    assert.equal(lockActionLabel(after.kind, after.locked), "Unlock note");
+    assert.match(treeRowAccessibilityLabel(after), /, locked,/);
+  });
+});
+
+test("a row's lock action either reports the write or raises the lock settings", () => {
+  assert.equal(lockActionLabel("folder", false), "Lock folder…");
+  assert.equal(lockActionLabel("folder", true), "Unlock folder");
+  assert.deepEqual(
+    lockActionOutcome({ status: "committed", kind: "note", title: "Diary", locked: true }),
+    { openSettings: false, message: "Locked Diary" },
+  );
+  assert.deepEqual(
+    lockActionOutcome({ status: "committed", kind: "folder", title: " ", locked: false }),
+    { openSettings: false, message: "Unlocked Untitled" },
+  );
+  assert.equal(lockActionOutcome({ status: "needsSetup" }).openSettings, true);
+  assert.equal(lockActionOutcome({ status: "needsUnlock" }).openSettings, true);
+  assert.deepEqual(lockActionOutcome({ status: "refused", message: "gone" }), {
+    openSettings: false,
+    message: "gone",
+  });
+});
+
+test("the account sheet's entry row says where the lock stands", () => {
+  const off: NoteLockState = {
+    configured: false,
+    unlocked: false,
+    kind: null,
+    hint: null,
+    failedAttempts: 0,
+    nextAttemptAt: null,
+    lockedNoteCount: 0,
+  };
+  assert.equal(lockEntryDetail(off), "Not set up");
+  const on: NoteLockState = { ...off, configured: true, kind: "pin", lockedNoteCount: 1 };
+  assert.equal(lockEntryDetail(on), "1 locked note, closed");
+  assert.equal(
+    lockEntryDetail({ ...on, unlocked: true, lockedNoteCount: 3 }),
+    "3 locked notes, open",
+  );
 });
 
 test("a note that is gone is refused rather than written", async () => {

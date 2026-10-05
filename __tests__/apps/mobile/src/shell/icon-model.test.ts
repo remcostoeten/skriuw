@@ -25,6 +25,7 @@ const SHELL_ICONS: readonly ShellIconName[] = [
   "folder",
   "chevron",
   "pin",
+  "lock",
   "back",
   "forward",
 ];

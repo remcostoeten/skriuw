@@ -4,6 +4,7 @@ import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EditorHost } from "../editor/editor-host";
 import { SealedNoteGate } from "../features/lock/lock-gate";
+import { LockSettingsView } from "../features/lock/lock-settings-view";
 import { SearchScreen } from "../features/search/search-screen";
 import { AccountPanel } from "./account-panel";
 import { useChrome } from "./chrome";
@@ -116,6 +117,14 @@ export function ShellFrame({ children }: Props) {
         onClose={chrome.closeSheet}
       >
         <AccountPanel />
+      </SideSheet>
+      <SideSheet
+        side="right"
+        open={chrome.sheet === "lock"}
+        title="Locked notes"
+        onClose={chrome.closeSheet}
+      >
+        <LockSettingsView />
       </SideSheet>
       <ToastHost />
     </View>

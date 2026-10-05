@@ -11,6 +11,7 @@ export type TreeRow = {
   childCount: number;
   expanded: boolean;
   pinned: boolean;
+  locked: boolean;
   active: boolean;
   setSize: number;
   posInSet: number;
@@ -54,6 +55,7 @@ export function treeRowSelector(id: string): Selector<TreeRow | null> {
       childCount: state.childrenByParent.get(id)?.length ?? 0,
       expanded: state.expandedIds.has(id),
       pinned: state.sourceNodes.get(id)?.pinnedAt != null,
+      locked: state.sourceNodes.get(id)?.lockedAt != null,
       active: state.activeNoteId === id,
       setSize: node.setSize,
       posInSet: node.posInSet,
@@ -73,6 +75,7 @@ export function treeRowsEqual(left: TreeRow | null, right: TreeRow | null): bool
     left.childCount === right.childCount &&
     left.expanded === right.expanded &&
     left.pinned === right.pinned &&
+    left.locked === right.locked &&
     left.active === right.active &&
     left.setSize === right.setSize &&
     left.posInSet === right.posInSet
@@ -120,6 +123,9 @@ export function treeRowAccessibilityLabel(row: TreeRow): string {
   }
   if (row.pinned) {
     parts.push("pinned");
+  }
+  if (row.locked) {
+    parts.push("locked");
   }
   parts.push(`level ${row.depth}`, `${row.posInSet} of ${row.setSize}`);
   return parts.join(", ");
