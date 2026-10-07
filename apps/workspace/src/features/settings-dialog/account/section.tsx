@@ -3,8 +3,10 @@ import { useCloudSession } from "@/features/auth/cloud-session";
 import { authConfiguration } from "@/features/auth/config";
 import {
   activeWorkspaceSlot,
+  clearAllData,
   discardBlockedSyncOperation,
   listBlockedSyncOperations,
+  pauseWorkspaceSync,
   retryBlockedSyncOperation,
 } from "@/platform/runtime/commands";
 import type { BlockedSyncOperation, SyncRecoveryView } from "@skriuw/renderer-core/bridge/port";
@@ -41,7 +43,6 @@ import { SyncEncryptionPanel } from "./encryption-panel";
 import { useWorkspaceSync } from "@/features/sync/use-workspace-sync";
 import { shortWorkspaceId, workspaceOwnershipText } from "./workspace-ownership";
 import { deleteCloudAccount } from "@/features/auth/delete-account";
-import { clearAllData, pauseWorkspaceSync } from "@/platform/runtime/commands";
 import { accountLifecycle } from "@/features/auth/account-lifecycle";
 
 type AccountSectionProps = {
