@@ -142,6 +142,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "note_lock",
         sql: include_str!("../migrations/0027_note_lock.sql"),
     },
+    Migration {
+        version: 28,
+        name: "opened_file_state",
+        sql: include_str!("../migrations/0028_opened_file_state.sql"),
+    },
 ];
 
 pub(crate) struct Migration {
@@ -427,6 +432,10 @@ mod tests {
             (
                 27,
                 "fb6ee0596d1172d0003d7b03c41d21f9ce8292bb606367b0481f09358932d557",
+            ),
+            (
+                28,
+                "bbb5804847ff64ca0b9a6a29741cfd26ca7cd9324e0619d8039e5cf9220c534f",
             ),
         ];
         assert_eq!(MIGRATIONS.len(), SHIPPED.len(), "append new checksums here");

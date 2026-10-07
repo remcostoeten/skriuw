@@ -275,6 +275,13 @@ export type ProviderImportReceipt = {
   sourcePath: string;
   noteId: string;
   importedAt: number;
+  openedFile?: OpenedFileState | null;
+};
+
+export type OpenedFileState = {
+  formatId: string;
+  fileHash: string;
+  noteHash: string;
 };
 
 export type WorkspaceArchive = {

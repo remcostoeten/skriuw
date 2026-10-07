@@ -1,6 +1,3 @@
-import type { MarkdownTree } from "@/features/transfer/import/parsing/tree";
-
-const MDX_FILE = /\.mdx$/i;
 const FENCE_OPEN = /^\s*(`{3,}|~{3,})/;
 const FENCE_ONLY = /^(`{3,}|~{3,})\s*$/;
 const ESM_STATEMENT = /^(?:import|export)\s/;
@@ -8,8 +5,8 @@ const ESM_STATEMENT = /^(?:import|export)\s/;
 const COMPONENT_TAG_LINE = /^<\/?[A-Z][\w.]*(?:\s[^<>]*)?\/?>$/;
 // The first line of a JSX opening tag whose props continue on following lines.
 const COMPONENT_TAG_START = /^<[A-Z][\w.]*(?:\s[^<>]*)?$/;
-const INLINE_COMPONENT_TAG = /<\/?[A-Z][\w.]*(?:\s[^<>]*)?\/?>/g;
-const JSX_COMMENT = /\{\/\*[\s\S]*?\*\/\}/g;
+// An inline JSX tag (`<Kbd>`, `</Kbd>`, `<Badge />`) or a `{expression}`, JSX comments included.
+const INLINE_MDX = /<\/?[A-Z][\w.]*(?:\s[^<>]*)?\/?>|\{[^{}\n]*\}/g;
 const CODE_SPAN = /(`+[^`]*`+)/;
 
 function bracketBalance(line: string): number {
@@ -25,13 +22,21 @@ function leadingWhitespace(line: string): number {
   return line.length - line.trimStart().length;
 }
 
-function stripInlineJsx(line: string): string {
+function longestBacktickRun(text: string): number {
+  return Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
+}
+
+function inlineCode(text: string): string {
+  const ticks = "`".repeat(longestBacktickRun(text) + 1);
+  const padding = text.startsWith("`") || text.endsWith("`") ? " " : "";
+  return `${ticks}${padding}${text}${padding}${ticks}`;
+}
+
+function codeInlineMdx(line: string): string {
   return line
     .split(CODE_SPAN)
     .map((segment, index) =>
-      index % 2 === 1
-        ? segment
-        : segment.replace(JSX_COMMENT, "").replace(INLINE_COMPONENT_TAG, ""),
+      index % 2 === 1 ? segment : segment.replace(INLINE_MDX, (syntax) => inlineCode(syntax)),
     )
     .join("");
 }
@@ -44,21 +49,24 @@ function frontmatterLength(lines: readonly string[]): number {
 
 /**
  * @name mdxToMarkdown
- * @description Lowers an MDX document to the Markdown the editor parses. ESM
- * `import`/`export` statements and JSX comments are dropped, JSX component tags
- * are unwrapped so their Markdown children stay, and the indentation MDX allows
- * inside components is removed so it does not turn into code blocks.
- * Frontmatter and fenced code are kept verbatim.
+ * @description Converts an MDX document to Markdown the editor parses without
+ * losing any of it. ESM `import`/`export` statements and JSX component tags,
+ * props included, become `mdx` code blocks; the Markdown children of a
+ * component stay Markdown with the indentation MDX allows inside components
+ * removed; inline tags and `{expressions}` become inline code. Frontmatter and
+ * fenced code are kept verbatim.
  *
  * @example
- * mdxToMarkdown('import { Callout } from "x"\n\n<Callout>\n  **Note**\n</Callout>\n');
- * // "\n\n**Note**\n\n"
+ * mdxToMarkdown('<Callout type="info">\n  **Note**\n</Callout>\n');
+ * // '```mdx\n<Callout type="info">\n```\n\n**Note**\n\n```mdx\n</Callout>\n```\n'
  */
 export function mdxToMarkdown(source: string): string {
   const lines = source.split(/\r?\n/);
   const header = frontmatterLength(lines);
   const output = lines.slice(0, header);
   const childIndents: (number | null)[] = [];
+  let mdxBlock: string[] = [];
+  let needsGap = false;
   let fence: string | null = null;
   let esmDepth: number | null = null;
   let tagContinues = false;
@@ -71,6 +79,15 @@ export function mdxToMarkdown(source: string): string {
     return line.slice(Math.min(indent, leadingWhitespace(line)));
   }
 
+  function flushMdxBlock(): void {
+    if (mdxBlock.length === 0) return;
+    const ticks = "`".repeat(Math.max(3, longestBacktickRun(mdxBlock.join("\n")) + 1));
+    if (output.length > 0 && output[output.length - 1]?.trim() !== "") output.push("");
+    output.push(`${ticks}mdx`, ...mdxBlock, ticks);
+    mdxBlock = [];
+    needsGap = true;
+  }
+
   for (const line of lines.slice(header)) {
     const trimmed = line.trim();
     if (fence !== null) {
@@ -79,65 +96,47 @@ export function mdxToMarkdown(source: string): string {
       continue;
     }
     if (esmDepth !== null) {
+      mdxBlock.push(line);
       esmDepth += bracketBalance(line);
       if (esmDepth <= 0) esmDepth = null;
       continue;
     }
     if (tagContinues) {
+      mdxBlock.push(dedent(line));
       if (trimmed.endsWith(">")) {
         tagContinues = false;
         if (!trimmed.endsWith("/>")) childIndents.push(null);
-        output.push("");
       }
       continue;
     }
     if (childIndents.length === 0 && ESM_STATEMENT.test(line)) {
+      mdxBlock.push(line);
       const balance = bracketBalance(line);
       esmDepth = balance > 0 ? balance : null;
       continue;
     }
+    if (COMPONENT_TAG_LINE.test(trimmed)) {
+      if (trimmed.startsWith("</")) childIndents.pop();
+      mdxBlock.push(dedent(line));
+      if (!trimmed.startsWith("</") && !trimmed.endsWith("/>")) childIndents.push(null);
+      continue;
+    }
+    if (COMPONENT_TAG_START.test(trimmed)) {
+      mdxBlock.push(dedent(line));
+      tagContinues = true;
+      continue;
+    }
+    flushMdxBlock();
+    if (needsGap && trimmed.length > 0) output.push("");
+    needsGap = false;
     const fenceOpen = FENCE_OPEN.exec(line);
     if (fenceOpen?.[1]) {
       fence = fenceOpen[1];
       output.push(dedent(line));
       continue;
     }
-    if (COMPONENT_TAG_LINE.test(trimmed)) {
-      if (trimmed.startsWith("</")) childIndents.pop();
-      else if (!trimmed.endsWith("/>")) childIndents.push(null);
-      output.push("");
-      continue;
-    }
-    if (COMPONENT_TAG_START.test(trimmed)) {
-      tagContinues = true;
-      continue;
-    }
-    output.push(dedent(stripInlineJsx(line)));
+    output.push(dedent(codeInlineMdx(line)));
   }
+  flushMdxBlock();
   return output.join("\n");
-}
-
-/**
- * @name normalizeMdxTree
- * @description Converts every `.mdx` file in an import tree to Markdown and
- * renames it to `.md`, so every import source reads MDX like any other note.
- *
- * @example
- * const tree = normalizeMdxTree(prepared.tree);
- */
-export function normalizeMdxTree(tree: MarkdownTree): MarkdownTree {
-  if (!tree.files.some((file) => MDX_FILE.test(file.relativePath))) return tree;
-  const taken = new Set(tree.files.map((file) => file.relativePath.toLowerCase()));
-  return {
-    ...tree,
-    files: tree.files.map((file) => {
-      if (!MDX_FILE.test(file.relativePath)) return file;
-      const renamed = file.relativePath.replace(MDX_FILE, ".md");
-      const relativePath = taken.has(renamed.toLowerCase())
-        ? file.relativePath.replace(MDX_FILE, " (mdx).md")
-        : renamed;
-      taken.add(relativePath.toLowerCase());
-      return { ...file, relativePath, content: mdxToMarkdown(file.content) };
-    }),
-  };
 }

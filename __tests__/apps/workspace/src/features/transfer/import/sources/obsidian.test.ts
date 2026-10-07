@@ -49,14 +49,14 @@ test("frontmatter is stripped and mapped to typed properties", () => {
             "aliases:",
             "  - Alt Name",
             "---",
-            "# Body",
+            "Body",
           ].join("\n"),
         },
       ],
     }),
   );
   const note = bundle.notes[0];
-  assert.equal(note.markdown, "# Body");
+  assert.equal(note.markdown, "Body");
   assert.deepEqual(note.properties, [
     { name: "status", value: { type: "text", value: "draft" } },
     { name: "priority", value: { type: "number", value: 3 } },
@@ -192,4 +192,30 @@ test("wikilinks pass through untouched for the planner", () => {
     tree({ files: [{ relativePath: "Note.md", content: "See [[Projects]]" }] }),
   );
   assert.equal(bundle.notes[0].markdown, "See [[Projects]]");
+});
+
+test("the title comes from frontmatter, then a leading heading, then the file name", () => {
+  const bundle = obsidianSource.parse(
+    tree({
+      files: [
+        { relativePath: "a.md", content: "---\ntitle: Launch plan\n---\n# Launch plan\n\nBody" },
+        { relativePath: "b.md", content: "---\ntitle: Launch plan\n---\n# Other\n\nBody" },
+        { relativePath: "c.md", content: "---\nstatus: draft\n---\n# Roadmap\n\nBody" },
+        { relativePath: "d.md", content: "---\nstatus: draft\n---\nIntro\n\n# Later" },
+      ],
+    }),
+  );
+  assert.deepEqual(
+    bundle.notes.map((note) => [note.title, note.markdown]),
+    [
+      ["Launch plan", "Body"],
+      ["Launch plan", "# Other\n\nBody"],
+      ["Roadmap", "Body"],
+      ["d", "Intro\n\n# Later"],
+    ],
+  );
+  assert.equal(
+    bundle.notes[0]?.properties?.some((property) => property.name === "title"),
+    undefined,
+  );
 });

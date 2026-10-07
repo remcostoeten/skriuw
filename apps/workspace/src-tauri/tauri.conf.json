@@ -49,6 +49,14 @@
         "mimeType": "text/mdx",
         "role": "Editor",
         "rank": "Alternate"
+      },
+      {
+        "ext": ["txt"],
+        "name": "Plain text document",
+        "description": "Plain text document",
+        "mimeType": "text/plain",
+        "role": "Editor",
+        "rank": "Alternate"
       }
     ],
     "icon": [

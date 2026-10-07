@@ -8,7 +8,11 @@ import type {
   ImportedPropertyValue,
   ImportWarning,
 } from "@/features/transfer/import/parsing/bundle";
-import { noteTitleFromPath, relativeLinkBetween } from "@/features/transfer/import/parsing/bundle";
+import {
+  noteTitleFromPath,
+  relativeLinkBetween,
+  titleFromLeadingHeading,
+} from "@/features/transfer/import/parsing/bundle";
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
 const EMBED_PATTERN = /!\[\[([^\][\n]+)\]\]/g;
@@ -23,6 +27,7 @@ const MAX_PROPERTY_VALUE_BYTES = 2_000;
 type ParsedFrontmatter = {
   properties: ImportedNoteProperty[];
   tags: string[];
+  title: string | null;
   complexKeys: number;
 };
 
@@ -78,13 +83,14 @@ function scalarPropertyValue(value: unknown): ImportedPropertyValue | null {
 function parseFrontmatterBlock(block: string): ParsedFrontmatter {
   const properties: ImportedNoteProperty[] = [];
   const tags: string[] = [];
+  let title: string | null = null;
   let complexKeys = 0;
   const document = parseDocument(block, {
     schema: "core",
     uniqueKeys: true,
   });
   if (document.errors.length > 0 || !isMap(document.contents)) {
-    return { properties, tags, complexKeys: 1 };
+    return { properties, tags, title, complexKeys: 1 };
   }
   for (const pair of document.contents.items) {
     if (!isScalar(pair.key) || typeof pair.key.value !== "string") {
@@ -114,6 +120,10 @@ function parseFrontmatterBlock(block: string): ParsedFrontmatter {
       complexKeys += 1;
       continue;
     }
+    if (name === "title" && value.type === "text" && value.value.trim().length > 0) {
+      title = value.value.trim();
+      continue;
+    }
     if (name === "tags" || name === "tag") {
       tags.push(...splitTags(value.type === "list" ? value.values : [String(value.value)]));
       continue;
@@ -131,7 +141,7 @@ function parseFrontmatterBlock(block: string): ParsedFrontmatter {
     complexKeys += properties.length - MAX_PROPERTIES_PER_NOTE;
     properties.length = MAX_PROPERTIES_PER_NOTE;
   }
-  return { properties, tags, complexKeys };
+  return { properties, tags, title, complexKeys };
 }
 
 function buildAssetIndex(tree: MarkdownTree): AssetIndex {
@@ -258,10 +268,16 @@ function parse(tree: MarkdownTree): ImportBundle {
     unresolvedImages += conversion.unresolvedImages;
     ambiguousImages += conversion.ambiguousImages;
     noteEmbeds += conversion.noteEmbeds;
+    const titled = preserveFrontmatter
+      ? { title: noteTitleFromPath(file.relativePath), markdown: conversion.markdown }
+      : titleFromLeadingHeading(conversion.markdown, noteTitleFromPath(file.relativePath));
+    const frontmatterTitle = frontmatter?.title ?? null;
+    const headingRepeatsTitle =
+      frontmatterTitle === null || titled.title.toLowerCase() === frontmatterTitle.toLowerCase();
     notes.push({
       relativePath: file.relativePath,
-      title: noteTitleFromPath(file.relativePath),
-      markdown: conversion.markdown,
+      title: frontmatterTitle ?? titled.title,
+      markdown: headingRepeatsTitle ? titled.markdown : conversion.markdown,
       ...(frontmatter && frontmatter.tags.length > 0 ? { tags: frontmatter.tags } : {}),
       ...(frontmatter && frontmatter.properties.length > 0
         ? { properties: frontmatter.properties }

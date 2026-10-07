@@ -1,6 +1,8 @@
 export type MarkdownTreeFile = {
   relativePath: string;
   content: string;
+  createdAt?: number | null;
+  modifiedAt?: number | null;
 };
 
 export type MarkdownTree = {

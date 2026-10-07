@@ -28,6 +28,8 @@ pub struct MarkdownExportEntry {
 pub struct MarkdownFilePayload {
     relative_path: String,
     content: String,
+    created_at: Option<i64>,
+    modified_at: Option<i64>,
 }
 
 #[derive(Serialize)]
@@ -200,8 +202,7 @@ fn prepare_import_source_path(source: &Path) -> Result<PreparedImportSource, Str
             let file_name = source
                 .file_name()
                 .ok_or_else(|| "import file has no name".to_string())?;
-            fs::copy(source, temporary.join(file_name))
-                .map_err(|error| format!("copy import file {}: {error}", source.display()))?;
+            copy_import_file(source, &temporary.join(file_name))?;
         } else {
             return Err("unsupported import source; choose a folder, ZIP, Bear backup, Markdown, MDX, text, JSON, CSV, or Evernote ENEX file".to_string());
         }
@@ -216,6 +217,44 @@ fn prepare_import_source_path(source: &Path) -> Result<PreparedImportSource, Str
         let _ = remove_import_temp_dir(&temporary);
     }
     result
+}
+
+/// Copies a lone import file into the temporary root and carries its modified
+/// time over, so the note keeps the date the file last changed.
+fn copy_import_file(source: &Path, target: &Path) -> Result<(), String> {
+    fs::copy(source, target)
+        .map_err(|error| format!("copy import file {}: {error}", source.display()))?;
+    let modified = fs::metadata(source).and_then(|metadata| metadata.modified());
+    if let Ok(modified) = modified {
+        let times = fs::FileTimes::new().set_modified(modified);
+        if let Err(error) = fs::File::options()
+            .write(true)
+            .open(target)
+            .and_then(|file| file.set_times(times))
+        {
+            eprintln!("keep modified time of {}: {error}", source.display());
+        }
+    }
+    Ok(())
+}
+
+fn unix_millis(time: io::Result<SystemTime>) -> Option<i64> {
+    let elapsed = time.ok()?.duration_since(UNIX_EPOCH).ok()?;
+    i64::try_from(elapsed.as_millis()).ok()
+}
+
+/// Reads when a file was created and last modified. A copied file is born at
+/// copy time, so creation never reads later than the modification.
+fn file_times(path: &Path) -> (Option<i64>, Option<i64>) {
+    let Ok(metadata) = fs::metadata(path) else {
+        return (None, None);
+    };
+    let modified = unix_millis(metadata.modified());
+    let created = match (unix_millis(metadata.created()), modified) {
+        (Some(created), Some(modified)) => Some(created.min(modified)),
+        (created, modified) => created.or(modified),
+    };
+    (created, modified)
 }
 
 fn unique_import_file_name(taken: &mut BTreeSet<String>, name: &str) -> String {
@@ -258,9 +297,7 @@ fn prepare_import_source_paths(sources: &[PathBuf]) -> Result<PreparedImportSour
                         ));
                     }
                     let target = temporary.join(unique_import_file_name(&mut taken, file_name));
-                    fs::copy(source, &target).map_err(|error| {
-                        format!("copy import file {}: {error}", source.display())
-                    })?;
+                    copy_import_file(source, &target)?;
                 }
                 Ok(PreparedImportSource {
                     root_path: temporary.display().to_string(),
@@ -384,10 +421,15 @@ fn walk_markdown_dir(
             continue;
         } else if has_importable_extension(&name) {
             match fs::read_to_string(entry.path()) {
-                Ok(content) => payload.files.push(MarkdownFilePayload {
-                    relative_path: relative,
-                    content,
-                }),
+                Ok(content) => {
+                    let (created_at, modified_at) = file_times(&entry.path());
+                    payload.files.push(MarkdownFilePayload {
+                        relative_path: relative,
+                        content,
+                        created_at,
+                        modified_at,
+                    });
+                }
                 Err(_) => payload.skipped += 1,
             }
         } else if has_asset_extension(&name) {
@@ -496,6 +538,25 @@ mod markdown_tree_tests {
             writer.write_all(content).expect("write zip file");
         }
         writer.finish().expect("finish zip");
+    }
+
+    #[test]
+    fn a_lone_file_keeps_its_modified_time_through_the_temporary_copy() {
+        let dir = tempdir().expect("tempdir");
+        let source = dir.path().join("todo.md");
+        fs::write(&source, "# Todo").expect("write source");
+        let modified = UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        fs::File::options()
+            .write(true)
+            .open(&source)
+            .and_then(|file| file.set_times(fs::FileTimes::new().set_modified(modified)))
+            .expect("set source time");
+
+        let prepared = prepare_import_source_path(&source).expect("prepare");
+        let file = &prepared.tree.files[0];
+        assert_eq!(file.modified_at, Some(1_700_000_000_000));
+        assert_eq!(file.created_at, Some(1_700_000_000_000));
+        remove_import_temp_dir(Path::new(&prepared.root_path)).expect("cleanup");
     }
 
     #[test]

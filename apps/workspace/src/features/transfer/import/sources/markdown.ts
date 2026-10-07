@@ -1,6 +1,9 @@
 import type { MarkdownTree } from "@/features/transfer/import/parsing/tree";
 import type { ImportBundle, ImportSourceAdapter } from "@/features/transfer/import/parsing/bundle";
-import { noteTitleFromPath } from "@/features/transfer/import/parsing/bundle";
+import {
+  noteTitleFromPath,
+  titleFromLeadingHeading,
+} from "@/features/transfer/import/parsing/bundle";
 import { isTextBundleFile } from "./bear";
 
 function isMarkdownFile(relativePath: string): boolean {
@@ -12,8 +15,7 @@ function parse(tree: MarkdownTree): ImportBundle {
     .filter((file) => isMarkdownFile(file.relativePath) && !isTextBundleFile(file.relativePath))
     .map((file) => ({
       relativePath: file.relativePath,
-      title: noteTitleFromPath(file.relativePath),
-      markdown: file.content,
+      ...titleFromLeadingHeading(file.content, noteTitleFromPath(file.relativePath)),
     }));
   return {
     sourceId: markdownSource.id,

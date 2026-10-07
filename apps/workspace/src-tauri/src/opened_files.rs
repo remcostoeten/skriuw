@@ -6,7 +6,10 @@ use std::{
 use tauri::{AppHandle, Emitter, Manager};
 
 pub const OPENED_FILES_EVENT: &str = "opened-files";
-const OPENABLE_EXTENSIONS: [&str; 3] = ["md", "markdown", "mdx"];
+/// Every extension Skriuw opens from the file manager. The renderer maps each
+/// one to a format in `file-formats.ts`, and `tauri.conf.json` registers the
+/// same list as file associations; tests keep all three in step.
+pub const OPENABLE_EXTENSIONS: [&str; 4] = ["md", "markdown", "mdx", "txt"];
 
 /// Files the operating system asked Skriuw to open, held until the renderer
 /// drains them. A launch by double-click delivers its paths before any webview
@@ -61,9 +64,9 @@ fn path_from_argument(argument: &str, cwd: &Path) -> Option<PathBuf> {
     })
 }
 
-/// Keeps the Markdown files among a process's arguments, skipping the binary
-/// itself, flags, and anything that is not an existing `.md`, `.markdown` or
-/// `.mdx` file.
+/// Keeps the openable files among a process's arguments, skipping the binary
+/// itself, flags, and anything that is not an existing file with an
+/// extension in `OPENABLE_EXTENSIONS`.
 pub fn openable_paths_from_args(args: &[String], cwd: &Path) -> Vec<String> {
     args.iter()
         .skip(1)
@@ -113,7 +116,13 @@ mod tests {
     #[test]
     fn keeps_existing_markdown_files_and_drops_everything_else() {
         let dir = tempdir().expect("tempdir");
-        for name in ["note.md", "doc.MDX", "long.markdown", "plain.txt"] {
+        for name in [
+            "note.md",
+            "doc.MDX",
+            "long.markdown",
+            "plain.txt",
+            "sheet.xlsx",
+        ] {
             fs::write(dir.path().join(name), "# hi").expect("write");
         }
         let paths = openable_paths_from_args(
@@ -124,13 +133,14 @@ mod tests {
                 "doc.MDX",
                 "long.markdown",
                 "plain.txt",
+                "sheet.xlsx",
                 "missing.md",
             ]),
             dir.path(),
         );
         assert_eq!(
             paths,
-            ["note.md", "doc.MDX", "long.markdown"].map(|name| dir
+            ["note.md", "doc.MDX", "long.markdown", "plain.txt"].map(|name| dir
                 .path()
                 .join(name)
                 .display()
@@ -149,6 +159,23 @@ mod tests {
             Path::new("/"),
         );
         assert_eq!(paths, [note.display().to_string()]);
+    }
+
+    #[test]
+    fn file_associations_register_every_openable_extension() {
+        let config: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri.conf.json");
+        let mut registered: Vec<String> = config["bundle"]["fileAssociations"]
+            .as_array()
+            .expect("file associations")
+            .iter()
+            .flat_map(|association| association["ext"].as_array().expect("ext").clone())
+            .map(|extension| extension.as_str().expect("extension").to_string())
+            .collect();
+        registered.sort();
+        let mut openable = OPENABLE_EXTENSIONS.map(String::from).to_vec();
+        openable.sort();
+        assert_eq!(registered, openable);
     }
 
     #[test]

@@ -281,16 +281,23 @@ fn apply_operation(
             transaction
                 .execute(
                     "INSERT INTO provider_import_receipts \
-                     (provider, source_key, source_path, note_id, imported_at) \
-                     VALUES (?1, ?2, ?3, ?4, ?5) \
+                     (provider, source_key, source_path, note_id, imported_at, \
+                     opened_format_id, opened_file_hash, opened_note_hash) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) \
                      ON CONFLICT(provider, source_key, source_path) DO UPDATE SET \
-                     note_id = excluded.note_id, imported_at = excluded.imported_at",
+                     note_id = excluded.note_id, imported_at = excluded.imported_at, \
+                     opened_format_id = excluded.opened_format_id, \
+                     opened_file_hash = excluded.opened_file_hash, \
+                     opened_note_hash = excluded.opened_note_hash",
                     params![
                         receipt.provider,
                         receipt.source_key,
                         receipt.source_path,
                         receipt.note_id,
-                        receipt.imported_at
+                        receipt.imported_at,
+                        receipt.opened_file.as_ref().map(|state| &state.format_id),
+                        receipt.opened_file.as_ref().map(|state| &state.file_hash),
+                        receipt.opened_file.as_ref().map(|state| &state.note_hash)
                     ],
                 )
                 .map_err(backend)?;

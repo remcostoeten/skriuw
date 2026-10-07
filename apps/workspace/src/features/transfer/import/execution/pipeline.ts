@@ -5,10 +5,11 @@ import { count, publishTransferReport } from "@/features/transfer/dialogs/report
 import {
   detectImportSource,
   importSourceKey,
+  withFileTimes,
   type ImportBundle,
 } from "@/features/transfer/import/parsing/bundle";
-import { normalizeMdxTree } from "@/features/transfer/import/parsing/mdx";
-import { toOpenedFileReceipts } from "@/features/transfer/opened-file-origin";
+import { convertFormatsToMarkdown } from "@/features/transfer/file-formats";
+import { toOpenedFileReceipts, type OpenedFile } from "@/features/transfer/opened-file-origin";
 import {
   planImportBundle,
   type ImportBundlePlan,
@@ -44,8 +45,11 @@ export type ImportNotesOptions = {
   onImported?: (result: { createdNoteIds: readonly string[] }) => void;
   /** Imports into the workspace root with the detected source, without the preview dialog or report. */
   skipPreview?: boolean;
-  /** Absolute path of a file the operating system opened, recorded as the note's origin. */
-  openedFilePath?: string;
+  /**
+   * A file the operating system opened, recorded as the note's origin. With a
+   * `noteId` the file replaces the body of that note instead of creating one.
+   */
+  openedFile?: OpenedFile & { noteId?: string };
 };
 
 export async function importNotesFromPath(
@@ -69,7 +73,7 @@ export async function importNotesFromPath(
   try {
     prepared = await prepareImportSources(sourcePaths);
     throwIfImportCancelled(intake.signal);
-    const tree = normalizeMdxTree(prepared.tree);
+    const tree = convertFormatsToMarkdown(prepared.tree);
     const detectedSource = detectImportSource(importSources, tree);
     if (!detectedSource) {
       publishTransferReport({
@@ -131,7 +135,17 @@ export async function importNotesFromPath(
     for (const [index, { source }] of scoredSources.entries()) {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       throwIfImportCancelled(intake.signal);
-      const bundle = source.parse(tree);
+      const bundle = withFileTimes(source.parse(tree), tree);
+      const updatedNoteId = options.openedFile?.noteId;
+      const receipts = updatedNoteId
+        ? bundle.notes.map((note) => ({
+            provider: source.id,
+            sourceKey,
+            sourcePath: note.relativePath,
+            noteId: updatedNoteId,
+            importedAt: at,
+          }))
+        : state.importReceipts;
       const variants = Object.fromEntries(
         duplicateModes.map((duplicateMode) => {
           const plan = planImportBundle(
@@ -143,7 +157,7 @@ export async function importNotesFromPath(
             {
               duplicateMode,
               sourceKey,
-              receipts: state.importReceipts,
+              receipts,
               presentNoteIds,
               existingDocuments,
               existingPropertiesByNoteId: state.propertiesByNoteId,
@@ -202,7 +216,7 @@ export async function importNotesFromPath(
       ? {
           sourceId: detectedSource.id,
           destinationFolderId: null,
-          duplicateMode: "copy",
+          duplicateMode: options.openedFile?.noteId ? "update" : "copy",
           recordSource: false,
           groupIntoSourceFolder: false,
           groupByYear: false,
@@ -293,8 +307,8 @@ export async function importNotesFromPath(
       : null;
     throwIfImportCancelled(commitProgress.signal);
     const operations = [
-      ...(options.openedFilePath
-        ? toOpenedFileReceipts(plan.operations, options.openedFilePath)
+      ...(options.openedFile
+        ? await toOpenedFileReceipts(plan.operations, plan.contentOperations, options.openedFile)
         : plan.operations),
       ...(selection.recordSource ? plan.sourcePropertyOperations : []),
       ...images.attachOperations,

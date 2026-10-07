@@ -1,4 +1,5 @@
 import { ImportPreviewHost } from "./dialogs/preview-host";
+import { OpenedFileConflictHost } from "./dialogs/opened-file-conflict-host";
 import { ImportProgressHost } from "./dialogs/progress-host";
 import { RemoteImagePromptHost } from "./dialogs/remote-images-host";
 import { TransferReportHost } from "./dialogs/report-host";
@@ -9,6 +10,7 @@ export function TransferDialogs() {
       <TransferReportHost />
       <ImportPreviewHost />
       <RemoteImagePromptHost />
+      <OpenedFileConflictHost />
       <ImportProgressHost />
     </>
   );

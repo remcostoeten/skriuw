@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { hasLosslessMarkdownDocument, parseProductMarkdown } from "@/features/editor/schema";
-import { mdxToMarkdown, normalizeMdxTree } from "@/features/transfer/import/parsing/mdx";
-import { detectImportSource } from "@/features/transfer/import/parsing/bundle";
-import { importSources } from "@/features/transfer/import/sources/registry";
+import { parseProductMarkdown } from "@/features/editor/schema";
+import { mdxToMarkdown } from "@/features/transfer/import/parsing/mdx";
 
-test("drops ESM statements, including ones spanning several lines", () => {
+test("keeps ESM statements, including ones spanning several lines, in an mdx block", () => {
   const markdown = mdxToMarkdown(
     [
       'import { Callout } from "@/components/callout"',
@@ -16,10 +14,22 @@ test("drops ESM statements, including ones spanning several lines", () => {
       "# Setup",
     ].join("\n"),
   );
-  assert.equal(markdown.trim(), "# Setup");
+  assert.equal(
+    markdown,
+    [
+      "```mdx",
+      'import { Callout } from "@/components/callout"',
+      "export const meta = {",
+      '  title: "Setup",',
+      "}",
+      "```",
+      "",
+      "# Setup",
+    ].join("\n"),
+  );
 });
 
-test("unwraps components and removes the indentation of their children", () => {
+test("keeps component tags with their props and dedents the Markdown children", () => {
   const markdown = mdxToMarkdown(
     [
       '<Callout type="warning">',
@@ -33,24 +43,57 @@ test("unwraps components and removes the indentation of their children", () => {
   );
   assert.equal(
     markdown,
-    ["", "**Careful** with this.", "", "- one", "  - nested", "", "After"].join("\n"),
+    [
+      "```mdx",
+      '<Callout type="warning">',
+      "```",
+      "",
+      "**Careful** with this.",
+      "",
+      "- one",
+      "  - nested",
+      "",
+      "```mdx",
+      "</Callout>",
+      "```",
+      "",
+      "After",
+    ].join("\n"),
   );
 });
 
-test("drops self-closing and multi-line component tags", () => {
+test("keeps self-closing and multi-line component tags in one mdx block", () => {
   const markdown = mdxToMarkdown(
     ["Intro", "", "<Video", '  src="/demo.mp4"', "  autoplay", "/>", "", "Outro"].join("\n"),
   );
-  assert.deepEqual(
-    markdown.split("\n").filter((line) => line.length > 0),
-    ["Intro", "Outro"],
+  assert.equal(
+    markdown,
+    [
+      "Intro",
+      "",
+      "```mdx",
+      "<Video",
+      '  src="/demo.mp4"',
+      "  autoplay",
+      "/>",
+      "```",
+      "",
+      "Outro",
+    ].join("\n"),
   );
 });
 
-test("strips inline components and JSX comments but not code spans", () => {
+test("turns inline components, expressions and JSX comments into inline code", () => {
   assert.equal(
-    mdxToMarkdown("Press <Kbd>Ctrl</Kbd> {/* hint */}to save, see `<Kbd>`."),
-    "Press Ctrl to save, see `<Kbd>`.",
+    mdxToMarkdown("Press <Kbd>Ctrl</Kbd> {/* hint */}to save, see `<Kbd>`. Total {props.count}."),
+    "Press `<Kbd>`Ctrl`</Kbd>` `{/* hint */}`to save, see `<Kbd>`. Total `{props.count}`.",
+  );
+});
+
+test("widens the fence around MDX that contains backticks", () => {
+  assert.equal(
+    mdxToMarkdown('<Code lang="ts" value={`a ``` b`} />'),
+    ["````mdx", '<Code lang="ts" value={`a ``` b`} />', "````"].join("\n"),
   );
 });
 
@@ -67,31 +110,15 @@ test("keeps fenced code and frontmatter verbatim", () => {
   assert.equal(mdxToMarkdown(source), source);
 });
 
-test("converted MDX parses as structured Markdown instead of raw mode", () => {
+test("converted MDX parses as structured Markdown with mdx code blocks", () => {
   const markdown = mdxToMarkdown(
     ['import { Tabs } from "x"', "", "<Tabs>", "  ## Heading", "", "  Body text", "</Tabs>"].join(
       "\n",
     ),
   );
   const document = parseProductMarkdown(markdown).toJSON();
-  assert.equal(hasLosslessMarkdownDocument(document), false);
-  assert.equal(document.content?.[0]?.type, "heading");
-});
-
-test("renames MDX files to Markdown so every source reads them", () => {
-  const tree = normalizeMdxTree({
-    directories: [],
-    files: [
-      { relativePath: "guide.mdx", content: "<Note>\n  Hello\n</Note>" },
-      { relativePath: "readme.md", content: "# Readme" },
-      { relativePath: "readme.mdx", content: "Other" },
-    ],
-    skipped: 0,
-  });
   assert.deepEqual(
-    tree.files.map((file) => file.relativePath),
-    ["guide.md", "readme.md", "readme (mdx).md"],
+    document.content?.map((node) => node.type),
+    ["code_block", "code_block", "heading", "paragraph", "code_block"],
   );
-  assert.equal(tree.files[0]?.content.trim(), "Hello");
-  assert.equal(detectImportSource(importSources, tree)?.id, "markdown");
 });
