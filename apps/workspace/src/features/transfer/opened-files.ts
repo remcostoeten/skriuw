@@ -1,6 +1,6 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { takeOpenedFiles } from "@/features/transfer/files/access";
-import { openMarkdownFileInWorkspace } from "./import/actions";
+import { openFileInWorkspace } from "./import/actions";
 import { activateNote } from "@/features/notes/navigation";
 import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
@@ -13,8 +13,7 @@ type OpenFile = (store: RendererStore, filePath: string) => Promise<string | nul
 
 /**
  * @name bindOpenedFiles
- * @description Opens the Markdown and MDX files the desktop shell was asked to
- * open, both the ones queued at launch and the ones a second launch forwards
+ * @description Opens the files the desktop shell was asked to open, both the ones queued at launch and the ones a second launch forwards
  * later. Files open one at a time in arrival order, each becoming the active
  * note on the notes route.
  *
@@ -25,7 +24,7 @@ export async function bindOpenedFiles(
   store: RendererStore,
   listenToEvent: Listen = listen,
   take: TakeOpenedFiles = takeOpenedFiles,
-  open: OpenFile = openMarkdownFileInWorkspace,
+  open: OpenFile = openFileInWorkspace,
 ): Promise<UnlistenFn> {
   let queue = Promise.resolve();
 

@@ -5,11 +5,12 @@ use serde_json::json;
 use skriuw_domain::{
     AnnotationComment, AnnotationStatus, ClientSyncOperation, HistoryHeader, NodeKind,
     NodePlacement, NoteProperty, NotePropertyColor, NotePropertyField, NotePropertyOption,
-    NotePropertyTemplate, NotePropertyValue, ProviderImportReceipt, ReplicatedWorkspaceOperation,
-    SyncAcceptedOperation, SyncConflictReason, SyncOperationPayload, TaskPriority, TaskSource,
-    TaskSourceDocument, TaskStatus, VersionedNotePropertyValue, WorkspaceAnnotation,
-    WorkspaceCheckpoint, WorkspaceImage, WorkspaceOperation, WorkspaceOperationEnvelope,
-    WorkspacePerson, WorkspacePrompt, WorkspaceSettings, WorkspaceTag, WorkspaceTask,
+    NotePropertyTemplate, NotePropertyValue, OpenedFileState, ProviderImportReceipt,
+    ReplicatedWorkspaceOperation, SyncAcceptedOperation, SyncConflictReason, SyncOperationPayload,
+    TaskPriority, TaskSource, TaskSourceDocument, TaskStatus, VersionedNotePropertyValue,
+    WorkspaceAnnotation, WorkspaceCheckpoint, WorkspaceImage, WorkspaceOperation,
+    WorkspaceOperationEnvelope, WorkspacePerson, WorkspacePrompt, WorkspaceSettings, WorkspaceTag,
+    WorkspaceTask,
 };
 use skriuw_storage::{
     Diagnostic, DiagnosticCategory, DiagnosticContext, HistoryCache, HistoryProvenance,
@@ -3558,6 +3559,7 @@ fn provider_import_receipts_commit_replace_and_cascade_atomically() {
                 source_path: "Folder/Note.md".into(),
                 note_id: note_id.into(),
                 imported_at,
+                opened_file: None,
             },
         })
     };
@@ -3604,6 +3606,51 @@ fn provider_import_receipts_commit_replace_and_cascade_atomically() {
             .expect("bootstrap purge")
             .import_receipts
             .is_empty()
+    );
+}
+
+#[test]
+fn provider_import_receipts_keep_and_replace_opened_file_state() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open");
+    let receipt = |opened_file: Option<OpenedFileState>| {
+        op(WorkspaceOperation::RecordProviderImport {
+            receipt: ProviderImportReceipt {
+                provider: "opened-file".into(),
+                source_key: "source-key".into(),
+                source_path: "/home/me/todo.md".into(),
+                note_id: "note-1".into(),
+                imported_at: 2,
+                opened_file,
+            },
+        })
+    };
+    let state = |file_hash: &str| OpenedFileState {
+        format_id: "markdown".into(),
+        file_hash: file_hash.into(),
+        note_hash: "note-hash".into(),
+    };
+    storage
+        .apply_operations(&[create_note("note-1"), receipt(Some(state("first")))])
+        .expect("record opened file");
+    assert_eq!(
+        storage.bootstrap().expect("bootstrap").import_receipts[0].opened_file,
+        Some(state("first"))
+    );
+
+    storage
+        .apply_operations(&[receipt(Some(state("second")))])
+        .expect("replace opened file");
+    assert_eq!(
+        storage.bootstrap().expect("bootstrap").import_receipts[0].opened_file,
+        Some(state("second"))
+    );
+
+    storage
+        .apply_operations(&[receipt(None)])
+        .expect("clear opened file");
+    assert_eq!(
+        storage.bootstrap().expect("bootstrap").import_receipts[0].opened_file,
+        None
     );
 }
 

@@ -452,6 +452,26 @@
         "properties"
       ]
     },
+    "OpenedFileState": {
+      "description": "What a note and the file the operating system opened it from looked like\nwhen they last matched, so reopening the file can tell which side changed.",
+      "type": "object",
+      "properties": {
+        "fileHash": {
+          "type": "string"
+        },
+        "formatId": {
+          "type": "string"
+        },
+        "noteHash": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "formatId",
+        "fileHash",
+        "noteHash"
+      ]
+    },
     "PromptInputShape": {
       "description": "The material a prompt expects to be filled with. Prompts are\nprovider-agnostic, so this describes the caller's obligation rather than any\nprovider's message format.",
       "oneOf": [
@@ -504,6 +524,16 @@
         },
         "noteId": {
           "type": "string"
+        },
+        "openedFile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpenedFileState"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "provider": {
           "type": "string"

@@ -306,7 +306,12 @@ export type MarkdownExportEntryPayload = {
 
 export type MarkdownTreePayload = {
   directories: string[];
-  files: { relativePath: string; content: string }[];
+  files: {
+    relativePath: string;
+    content: string;
+    createdAt: number | null;
+    modifiedAt: number | null;
+  }[];
   assets: string[];
   unsupported: string[];
   skipped: number;

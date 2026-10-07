@@ -707,6 +707,18 @@ pub struct ProviderImportReceipt {
     pub source_path: String,
     pub note_id: String,
     pub imported_at: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opened_file: Option<OpenedFileState>,
+}
+
+/// What a note and the file the operating system opened it from looked like
+/// when they last matched, so reopening the file can tell which side changed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenedFileState {
+    pub format_id: String,
+    pub file_hash: String,
+    pub note_hash: String,
 }
 
 impl WorkspaceSnapshot {

@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use rusqlite::{Connection, OptionalExtension, Transaction};
 use skriuw_domain::{
     AnnotationComment, AnnotationStatus, HistoryHeader, MediaMetadata, NodeKind, NoteProperty,
-    NotePropertyField, NotePropertyOption, NotePropertyTemplate, PromptInputShape,
+    NotePropertyField, NotePropertyOption, NotePropertyTemplate, OpenedFileState, PromptInputShape,
     PromptParameters, ProviderImportReceipt, TaskPriority, TaskSource, TaskStatus,
     VersionedNotePropertyValue, WORKSPACE_PROTOCOL_VERSION, WorkspaceAnnotation, WorkspaceArchive,
     WorkspaceDocument, WorkspaceImage, WorkspaceNode, WorkspacePerson, WorkspacePrompt,
@@ -57,7 +57,8 @@ pub(crate) fn read_import_receipts(
 ) -> Result<Vec<ProviderImportReceipt>, StorageError> {
     let mut statement = connection
         .prepare(
-            "SELECT provider, source_key, source_path, note_id, imported_at \
+            "SELECT provider, source_key, source_path, note_id, imported_at, \
+             opened_format_id, opened_file_hash, opened_note_hash \
              FROM provider_import_receipts ORDER BY provider, source_key, source_path",
         )
         .map_err(backend)?;
@@ -69,6 +70,14 @@ pub(crate) fn read_import_receipts(
                 source_path: row.get(2)?,
                 note_id: row.get(3)?,
                 imported_at: row.get(4)?,
+                opened_file: match (row.get(5)?, row.get(6)?, row.get(7)?) {
+                    (Some(format_id), Some(file_hash), Some(note_hash)) => Some(OpenedFileState {
+                        format_id,
+                        file_hash,
+                        note_hash,
+                    }),
+                    _ => None,
+                },
             })
         })
         .map_err(backend)?

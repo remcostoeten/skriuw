@@ -18,8 +18,14 @@ intake, preview, or image transfer leaves workspace records unchanged.
 Under **Organize** the preview can place everything in a folder named after the
 detected app and split imported notes into folders by the year they were created.
 Both reuse a folder of that name when one already exists, so importing the same
-export twice does not stack up folders. Notes the export gives no creation date
-land in the current year.
+export twice does not stack up folders. Notes the export gives no dates take the
+created and modified dates of their files.
+
+Markdown and Obsidian notes take their title from a frontmatter `title:`, then a
+leading `# heading`, which is removed from the body so it does not repeat the
+title, then the file name. MDX files convert to Markdown without loss: ESM
+statements and component tags become `mdx` code blocks, and inline tags and
+`{expressions}` become inline code.
 
 Confirmed note, folder, tag, property, image-record, and document changes commit
 together with durable import receipts. Re-import can skip previous matches,
