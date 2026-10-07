@@ -113,6 +113,9 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
    * expiry ride the attachment so they survive eviction.
    */
   override async fetch(request: Request): Promise<Response> {
+    if (new URL(request.url).pathname === "/internal/purge" && request.method === "DELETE") {
+      return this.purgeWorkspace();
+    }
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return Response.json({ error: "upgrade_required" }, { status: 426 });
     }
@@ -134,6 +137,17 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
       headers.set("Sec-WebSocket-Protocol", subprotocol);
     }
     return new Response(null, { status: 101, webSocket: pair[0], headers });
+  }
+
+  private async purgeWorkspace(): Promise<Response> {
+    try {
+      await this.content.deleteWorkspaceChunks(this.workspaceKey);
+      await this.ctx.storage.deleteAll();
+      return Response.json({ deleted: true });
+    } catch (error) {
+      console.error("workspace purge failed", error);
+      return Response.json({ error: "workspace_purge_failed" }, { status: 503 });
+    }
   }
 
   override async webSocketMessage(): Promise<void> {

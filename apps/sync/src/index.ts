@@ -2,13 +2,20 @@ export { WorkspaceSyncObject } from "./workspace-sync-object";
 
 import { productionSyncAccessConfiguration } from "./access";
 import { WorkspaceContentStore } from "./content-store";
-import { corsHeaders, handleAuthRequest, withHeaders } from "./auth";
+import {
+  AUTH_FRESH_SESSION_AGE_SECONDS,
+  createAuth,
+  corsHeaders,
+  handleAuthRequest,
+  withHeaders,
+} from "./auth";
 import { SYNC_ROUTE_NAMES, handlePublicSyncRequest, logSyncSecurityEvent } from "./public-api";
 import {
   SUPPORTED_SYNC_PROTOCOL_VERSIONS,
   WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION,
 } from "./contracts";
 import { handleSyncProvisionRequest, handleSyncWorkspaceStateRequest } from "./provision";
+import { handleAccountDeletionRequest } from "./account-deletion";
 import { handleNoteShareRequest, handlePublicShareRequest, newShareId } from "./note-shares";
 
 function jsonError(status: number, code: string): Response {
@@ -77,13 +84,33 @@ export default {
                   resolveWorkspace,
                   nowEpochSeconds,
                 })
-              : await handlePublicSyncRequest(request, {
-                  accessConfiguration,
-                  resolveWorkspace,
-                  contentStore: new WorkspaceContentStore(env.SYNC_CONTENT),
-                  log: logSyncSecurityEvent,
-                  nowEpochSeconds,
-                });
+              : url.pathname === "/v1/account" && request.method === "DELETE"
+                ? await handleAccountDeletionRequest(request, {
+                    accessConfiguration,
+                    database: env.AUTH_DB,
+                    resolveWorkspace,
+                    nowEpochSeconds,
+                    hasFreshSession: async (headers) => {
+                      const auth = await createAuth(env);
+                      const session = await auth.api.getSession({ headers });
+                      return (
+                        session !== null &&
+                        Date.now() - session.session.createdAt.getTime() <=
+                          AUTH_FRESH_SESSION_AGE_SECONDS * 1_000
+                      );
+                    },
+                    deleteAuthUser: async (headers) => {
+                      const auth = await createAuth(env);
+                      await auth.api.deleteUser({ headers, body: {} });
+                    },
+                  })
+                : await handlePublicSyncRequest(request, {
+                    accessConfiguration,
+                    resolveWorkspace,
+                    contentStore: new WorkspaceContentStore(env.SYNC_CONTENT),
+                    log: logSyncSecurityEvent,
+                    nowEpochSeconds,
+                  });
       if (response.status === 101) {
         return response;
       }

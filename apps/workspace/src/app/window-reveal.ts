@@ -6,10 +6,10 @@ const REVEAL_FRAME_TIMEOUT_MS = 100;
 let revealed = false;
 
 /**
- * Reveals the main window once the first application frame has painted. The
- * window ships hidden behind a native splash so the cold-start webview never
- * shows an empty shell; a Rust-side failsafe reveals it anyway if the renderer
- * never gets here.
+ * Reveals the main window once the first application frame has painted.
+ * `index.html` normally reveals it earlier with its inline splash, so this
+ * covers a page whose inline reveal failed; a Rust-side failsafe reveals it
+ * anyway if neither gets there.
  */
 export function revealWindow(): void {
   if (isBrowserRuntime() || revealed) {

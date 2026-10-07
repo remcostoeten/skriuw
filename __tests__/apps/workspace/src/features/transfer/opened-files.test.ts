@@ -47,7 +47,6 @@ test("opens queued launch files and files forwarded later, in order", async () =
       return null;
     },
   );
-  await flush();
   assert.deepEqual(opened, ["/a.md", "/b.mdx"]);
   wake?.();
   await flush();

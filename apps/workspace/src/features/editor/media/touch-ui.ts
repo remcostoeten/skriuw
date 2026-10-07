@@ -6,7 +6,7 @@ export type TouchAction = {
 };
 
 const BUTTON_CLASS =
-  "inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-3 text-[13px] font-medium text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring";
+  "inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-3 text-[13px] font-medium text-foreground hover:bg-accent";
 
 /** True on devices whose primary pointer cannot hover or right-click reliably. */
 export function prefersTouchActions(): boolean {

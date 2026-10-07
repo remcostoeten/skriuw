@@ -13,7 +13,7 @@ import { snippetPlainText, snippetSegments } from "@skriuw/renderer-core/search/
 import { CircleIcon, FileTextIcon, SearchIcon, WaypointsIcon } from "@/shared/icons/static";
 import { fuzzyMatchScore } from "@/shared/text/fuzzy-match";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import { paletteDensity } from "@/features/settings/settings-model";
+import { paletteDensity, paletteSize } from "@/features/settings/settings-model";
 import { CommandPalette } from "@/commands/command-palette";
 import { RECENT_NOTES_GROUP, type CommandPaletteItem } from "@/commands/command-palette-model";
 import { compactAge, recentNotes } from "@/commands/recent-notes";
@@ -138,6 +138,10 @@ function selectPaletteDensity(state: RendererState) {
   return paletteDensity(state.settings);
 }
 
+function selectPaletteSize(state: RendererState) {
+  return paletteSize(state.settings);
+}
+
 export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [hits, setHits] = useState<readonly SearchHit[]>([]);
@@ -216,6 +220,7 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
 
   const paletteHints = useShortcutHints(store, PALETTE_SHORTCUT_IDS);
   const density = useRendererSelector(store, selectPaletteDensity);
+  const size = useRendererSelector(store, selectPaletteSize);
 
   const notice = plan.resolution.problems.map(describeSearchFilterProblem).join(" ") || null;
 
@@ -228,6 +233,7 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
       notice={notice}
       paletteShortcut={paletteHints.toggleCommandPalette}
       density={density}
+      size={size}
     />
   );
 }

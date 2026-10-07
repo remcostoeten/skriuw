@@ -135,7 +135,7 @@ export function MediaLibraryPicker({
           type="search"
           value={query}
           placeholder={`Search ${label} assets`}
-          className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs outline-none [&::-webkit-search-cancel-button]:hidden placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-11 pointer-coarse:text-base"
+          className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs outline-none [&::-webkit-search-cancel-button]:hidden placeholder:text-muted-foreground transition-colors focus-visible:border-foreground/45 pointer-coarse:h-11 pointer-coarse:text-base"
           onChange={(event) => setQuery(event.currentTarget.value)}
         />
       </label>
@@ -171,7 +171,7 @@ export function MediaLibraryPicker({
                 type="button"
                 tabIndex={index === activeIndex ? 0 : -1}
                 aria-label={`Use ${item.mimeType} asset ${item.contentHash.slice(0, 12)}, ${Math.ceil(item.byteSize / 1024)} KB`}
-                className="group/media block w-full overflow-hidden rounded-md border border-border bg-muted text-left outline-none hover:border-foreground/30 focus-visible:ring-2 focus-visible:ring-ring"
+                className="group/media block w-full overflow-hidden rounded-md border border-border bg-muted text-left outline-none transition-colors hover:border-foreground/30 focus-visible:border-foreground/60"
                 onFocus={() => setActiveIndex(index)}
                 onKeyDown={(event) => handleCardKeyDown(event, index)}
                 onClick={() => onSelect(item)}

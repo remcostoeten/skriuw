@@ -185,7 +185,7 @@ export function JournalSidebar({ store }: Props) {
         <button
           type="button"
           onClick={goToToday}
-          className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium text-sidebar-foreground/58 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium text-sidebar-foreground/58 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:outline-none"
         >
           <CalendarDaysIcon size={12} aria-hidden="true" />
           Today
@@ -213,7 +213,7 @@ export function JournalSidebar({ store }: Props) {
             aria-controls={tabPanelId(entry.id)}
             aria-selected={tab === entry.id}
             aria-label={entry.label}
-            className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors focus-visible:outline-none ${
               tab === entry.id
                 ? "border border-border bg-muted text-foreground/80"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground/75"
@@ -325,7 +325,7 @@ export function JournalSidebar({ store }: Props) {
         <button
           type="button"
           onClick={goToToday}
-          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 py-2 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 py-2 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-muted focus-visible:outline-none"
         >
           <PlusIcon size={12} aria-hidden="true" />
           New entry

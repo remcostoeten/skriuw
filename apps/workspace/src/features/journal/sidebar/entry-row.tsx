@@ -24,7 +24,7 @@ export function EntryRow({
       aria-label={`${formatLongDate(entry.dateKey)}, ${entryListTitle(entry)}${
         mood ? `, ${mood.label}` : ""
       }`}
-      className={`flex w-full items-center gap-1.5 rounded-md border border-transparent px-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      className={`flex w-full items-center gap-1.5 rounded-md border border-transparent px-2 text-left transition-colors focus-visible:outline-none ${
         dense ? "py-1.5" : "py-2"
       } ${selected ? "border-border bg-muted text-foreground" : "hover:border-border hover:bg-muted"}`}
     >

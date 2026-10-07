@@ -10,6 +10,7 @@ import {
   resetShortcutOverrides,
   opensLinksInApp,
   paletteDensity,
+  paletteSize,
   remoteImportImages,
   showsToasts,
   usesAnimatedIcons,
@@ -58,6 +59,7 @@ test("default settings project every editable field", () => {
     autoLockMinutes: 5,
     lockOnBlur: false,
     paletteDensity: "normal",
+    paletteSize: "default",
     remoteImportImages: "ask",
     facehashAvatar: true,
   });
@@ -106,6 +108,12 @@ test("Vim cursor preferences are neutral, solid, and validated", () => {
     "block",
   );
   assert.equal(vimCursorBlinks({ ...DEFAULT_WORKSPACE_SETTINGS, vimCursorBlink: true }), true);
+});
+
+test("palette size defaults to default and ignores unknown values", () => {
+  assert.equal(paletteSize(DEFAULT_WORKSPACE_SETTINGS), "default");
+  assert.equal(paletteSize({ ...DEFAULT_WORKSPACE_SETTINGS, paletteSize: "large" }), "large");
+  assert.equal(paletteSize({ ...DEFAULT_WORKSPACE_SETTINGS, paletteSize: "huge" }), "default");
 });
 
 test("palette density defaults to normal and ignores unknown values", () => {

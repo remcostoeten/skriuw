@@ -92,14 +92,14 @@ export async function openWorkspace(root: Root): Promise<() => Promise<void>> {
     const unbindThemeColor = bindThemeColor(store, document.documentElement);
     void announcePersistenceRisk();
     captureLaunchShare(store);
+    if (!isBrowserRuntime()) {
+      unlistenOpenedFiles = await bindOpenedFiles(store);
+    }
     root.render(
       <StrictMode>
         <App store={store} />
       </StrictMode>,
     );
-    if (!isBrowserRuntime()) {
-      unlistenOpenedFiles = await bindOpenedFiles(store);
-    }
     return async () => {
       window.removeEventListener("pagehide", teardownSession);
       await flushPendingWork();

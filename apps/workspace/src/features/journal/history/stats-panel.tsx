@@ -65,7 +65,7 @@ export function JournalStats({
                 <button
                   type="button"
                   className={cn(
-                    "min-h-0.5 w-full cursor-pointer rounded-[2px] border-0 bg-current p-0 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                    "min-h-0.5 w-full cursor-pointer rounded-[2px] border-0 bg-current p-0",
                     mood === null &&
                       (day.hasEntry
                         ? "h-[40%] bg-[hsl(var(--muted-foreground)/0.35)]"

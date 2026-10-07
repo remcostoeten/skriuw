@@ -295,7 +295,7 @@ function TaskListRow({
       {linked ? (
         <button
           type="button"
-          className="task-source inline-flex min-h-8 flex-none cursor-pointer items-center gap-[5px] rounded-[6px] px-2 py-1 text-[11px] text-theme-secondary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[hsl(var(--foreground)/0.75)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+          className="task-source inline-flex min-h-8 flex-none cursor-pointer items-center gap-[5px] rounded-[6px] px-2 py-1 text-[11px] text-theme-secondary [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
           aria-label={`Open source note for ${row.title}: ${row.noteTitle}`}
           title={`Open ${row.noteTitle}`}
           onClick={onOpenSource}
@@ -380,7 +380,7 @@ function DueDateControl({ row, today, editing, onEditingChange, onCommit }: DueD
       type="button"
       data-due-state={bucket}
       className={cn(
-        "task-due inline-flex min-h-8 flex-none cursor-pointer items-center rounded-[6px] px-2 py-1 text-[11px] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[hsl(var(--foreground)/0.75)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted",
+        "task-due inline-flex min-h-8 flex-none cursor-pointer items-center rounded-[6px] px-2 py-1 text-[11px] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted",
         row.dueDate === null
           ? "text-theme-dim opacity-0 group-focus-within/row:opacity-100 focus-visible:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:group-hover/row:opacity-100"
           : bucket === "overdue"

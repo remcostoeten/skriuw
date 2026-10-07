@@ -72,8 +72,7 @@ export function applyWorkspaceOperations(
 }
 
 /**
- * Shows the hidden main window and closes the splash in one ordered step, so
- * there is never a frame with no window on screen.
+ * Shows and focuses the hidden main window. Does nothing once it is visible.
  */
 export function revealMainWindow(): Promise<void> {
   return invoke<void>("reveal_main_window_command");

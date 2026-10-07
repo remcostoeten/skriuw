@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type ComponentProps } from "react";
+import { useId, useMemo, useState, type ComponentProps, type KeyboardEvent } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { getCommandFrecency, recordCommandUse } from "./command-frecency";
 import { SearchIcon } from "@/shared/icons/static";
@@ -6,10 +6,11 @@ import { cn } from "@/shared/styling/class-names";
 import { Dialog, useDialogClose } from "@/shared/ui/dialog";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 import { useListboxNavigation } from "@/shared/ui/use-listbox-navigation";
-import type { PaletteDensity } from "@/features/settings/settings-model";
+import type { PaletteDensity, PaletteSize } from "@/features/settings/settings-model";
 import {
   COMMAND_BANGS,
   getCommandPaletteGroups,
+  getFamilyGroups,
   parseCommandQuery,
   type CommandPaletteItem,
 } from "./command-palette-model";
@@ -34,6 +35,7 @@ type Props = {
    */
   paletteShortcut?: string;
   density?: PaletteDensity;
+  size?: PaletteSize;
   "aria-label"?: string;
 };
 
@@ -61,7 +63,13 @@ const ROW_PADDING: Record<PaletteDensity, string> = {
 };
 
 export const PALETTE_DIALOG_CLASS =
-  "command-palette w-[calc(100vw-1.5rem)] max-w-[46rem] overflow-hidden";
+  "command-palette w-[calc(100vw-1.5rem)] max-w-(--palette-max-width) overflow-hidden";
+
+const PALETTE_SIZE_CLASS: Record<PaletteSize, string> = {
+  default: "",
+  roomy: "command-palette-roomy",
+  large: "command-palette-large",
+};
 
 export function CommandPalette({
   open,
@@ -71,6 +79,7 @@ export function CommandPalette({
   notice,
   paletteShortcut,
   density = "normal",
+  size = "default",
   ...aria
 }: Props) {
   return (
@@ -79,7 +88,7 @@ export function CommandPalette({
       onOpenChange={onOpenChange}
       title={aria["aria-label"] ?? "Command palette"}
       showHeader={false}
-      className={PALETTE_DIALOG_CLASS}
+      className={cn(PALETTE_DIALOG_CLASS, PALETTE_SIZE_CLASS[size])}
     >
       <PaletteBody
         items={items}
@@ -102,13 +111,17 @@ type BodyProps = {
 
 function PaletteBody({ items, onQueryChange, notice, paletteShortcut, density }: BodyProps) {
   const [query, setQuery] = useState("");
+  const [family, setFamily] = useState<string | null>(null);
   const listboxId = useId();
   const frecency = useMemo(getCommandFrecency, []);
   const closeDialog = useDialogClose();
 
   const groups = useMemo(
-    () => getCommandPaletteGroups(items, query, frecency),
-    [items, query, frecency],
+    () =>
+      family
+        ? getFamilyGroups(items, family, query)
+        : getCommandPaletteGroups(items, query, frecency),
+    [items, family, query, frecency],
   );
   const flatItems = useMemo(() => groups.flatMap((group) => group.items), [groups]);
 
@@ -128,6 +141,38 @@ function PaletteBody({ items, onQueryChange, notice, paletteShortcut, density }:
     onQueryChange?.(parseCommandQuery(next).query);
   }
 
+  function openFamily(item: CommandPaletteItem): void {
+    const target = item.family;
+    if (!target) return;
+    setFamily(target);
+    const members = items.filter((member) => member.family === target);
+    setActiveIndex(
+      Math.max(
+        members.findIndex((member) => member.id === item.id),
+        0,
+      ),
+    );
+  }
+
+  function closeFamily(): void {
+    setFamily(null);
+    setActiveIndex(0);
+  }
+
+  function handleKeyDown(event: KeyboardEvent): void {
+    if (event.key === " " && !family && query === "" && activeItem?.family) {
+      event.preventDefault();
+      openFamily(activeItem);
+      return;
+    }
+    if (event.key === "Backspace" && family && query === "") {
+      event.preventDefault();
+      closeFamily();
+      return;
+    }
+    onKeyDown(event);
+  }
+
   function runItem(item: CommandPaletteItem): void {
     recordCommandUse(item.id);
     closeDialog();
@@ -141,6 +186,17 @@ function PaletteBody({ items, onQueryChange, notice, paletteShortcut, density }:
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex flex-none items-center gap-2.5 border-b border-border px-3.5 py-3 text-muted-foreground">
         <SearchIcon size={16} />
+        {family && (
+          <button
+            type="button"
+            tabIndex={-1}
+            className="flex-none cursor-pointer rounded border border-border bg-muted px-1.5 py-0.5 text-[12px] text-foreground"
+            onClick={closeFamily}
+            aria-label={`Leave ${family}`}
+          >
+            {family}
+          </button>
+        )}
         <input
           autoFocus
           autoCapitalize="off"
@@ -150,8 +206,10 @@ function PaletteBody({ items, onQueryChange, notice, paletteShortcut, density }:
           className="min-w-0 flex-1 border-none bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
           value={query}
           onChange={(event) => updateQuery(event.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder="Search notes or type a command..."
+          onKeyDown={handleKeyDown}
+          placeholder={
+            family ? `Filter ${family.toLowerCase()}...` : "Search notes or type a command..."
+          }
           role="combobox"
           aria-expanded="true"
           aria-controls={listboxId}
@@ -238,6 +296,9 @@ function PaletteBody({ items, onQueryChange, notice, paletteShortcut, density }:
                     )}
                     <span className="ml-auto flex flex-none items-center gap-1.5">
                       {item.shortcut && <Kbd>{formatShortcut(item.shortcut)}</Kbd>}
+                      {isActive && item.family && !family && query === "" && (
+                        <Kbd aria-hidden="true">Space {item.family.toLowerCase()}</Kbd>
+                      )}
                       {isActive && <Kbd aria-hidden="true">↵</Kbd>}
                     </span>
                   </button>

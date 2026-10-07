@@ -6,7 +6,12 @@ import { Button } from "@/shared/ui/button";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { Dialog } from "@/shared/ui/dialog";
 import { CompactSidebarDemo, TreeGuidesDemo } from "./demos";
-import { PALETTE_DENSITY_OPTIONS, type PaletteDensity } from "@/features/settings/settings-model";
+import {
+  PALETTE_DENSITY_OPTIONS,
+  PALETTE_SIZE_OPTIONS,
+  type PaletteDensity,
+  type PaletteSize,
+} from "@/features/settings/settings-model";
 import {
   SettingCardPicker,
   SettingToggle,
@@ -34,6 +39,30 @@ const PALETTE_DENSITY_PICKER_OPTIONS = PALETTE_DENSITY_OPTIONS.map((option) => (
   ...option,
   preview: <PaletteDensityPreview density={option.value} />,
 }));
+
+const PALETTE_PREVIEW_SIZE: Record<PaletteSize, string> = {
+  default: "h-5 w-9",
+  roomy: "h-6 w-11",
+  large: "h-7 w-[3.25rem]",
+};
+
+const PALETTE_SIZE_PICKER_OPTIONS = PALETTE_SIZE_OPTIONS.map((option) => ({
+  ...option,
+  preview: <PaletteSizePreview size={option.value} />,
+}));
+
+function PaletteSizePreview({ size }: { size: PaletteSize }) {
+  return (
+    <span className="flex h-7 w-[3.25rem] items-start justify-center" aria-hidden="true">
+      <span
+        className={`flex flex-col gap-1 rounded-sm border border-foreground/40 p-1 ${PALETTE_PREVIEW_SIZE[size]}`}
+      >
+        <span className="h-0.5 rounded-full bg-foreground/60" />
+        <span className="h-0.5 w-3/4 rounded-full bg-foreground/35" />
+      </span>
+    </span>
+  );
+}
 
 function PaletteDensityPreview({ density }: { density: PaletteDensity }) {
   return (
@@ -135,6 +164,17 @@ export function AppearanceSection({ store }: SectionProps) {
           />
         </div>
       )}
+      <div className={settingsGroup}>
+        <div className={settingsGroupTitle}>Advanced</div>
+        <p className={settingsGroupHint}>Fine-tune the size of workspace surfaces.</p>
+        <SettingCardPicker
+          label="Command palette size"
+          detail="How tall and wide the command palette opens on larger screens."
+          value={settings.paletteSize}
+          options={PALETTE_SIZE_PICKER_OPTIONS}
+          onChange={(value) => change("paletteSize", value)}
+        />
+      </div>
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Preferences</div>
         <div className={settingsRow}>

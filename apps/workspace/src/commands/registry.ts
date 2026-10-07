@@ -26,6 +26,7 @@ export type AppCommand = {
   icon?: ReactNode;
   keywords?: readonly string[];
   hint?: string;
+  family?: string;
   shortcut?: ShortcutActionId;
   enabled?: CommandPredicate;
   visible?: CommandPredicate;
@@ -98,6 +99,7 @@ export function createCommandRegistry(commands: readonly AppCommand[]): CommandR
         icon: command.icon,
         keywords: command.keywords,
         hint: command.hint,
+        family: command.family,
         shortcut: command.shortcut ? shortcutKeys(command.shortcut) : undefined,
         action: command.run,
       });

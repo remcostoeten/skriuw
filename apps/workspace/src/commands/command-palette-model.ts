@@ -24,6 +24,11 @@ export type CommandPaletteItem = {
    * out of the default view.
    */
   searchOnly?: boolean;
+  /**
+   * Items sharing a family form a picker: pressing Space on one narrows the
+   * palette to that family, e.g. every theme from a single "Theme: X" row.
+   */
+  family?: string;
   action: () => void;
 };
 
@@ -299,4 +304,28 @@ export function getCommandPaletteGroups(
   return [...grouped.entries()]
     .sort(([a], [b]) => compareGroups(a, b))
     .map(([group, groupItems]) => ({ group, items: groupItems }));
+}
+
+/**
+ * @name getFamilyGroups
+ * @description Lists the items of one family as a single group, fuzzy-ranked
+ * when a query is typed and in registry order otherwise.
+ * @example getFamilyGroups(items, "Themes", "cat")
+ */
+export function getFamilyGroups(
+  items: readonly CommandPaletteItem[],
+  family: string,
+  query: string,
+): CommandPaletteGroup[] {
+  const members = items.filter((item) => item.family === family);
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return members.length > 0 ? [{ group: family, items: members }] : [];
+  }
+  const ranked = members
+    .map((item) => ({ item, score: getItemMatchScore(item, normalizedQuery) }))
+    .filter((entry): entry is { item: CommandPaletteItem; score: number } => entry.score !== null)
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.item);
+  return ranked.length > 0 ? [{ group: family, items: ranked }] : [];
 }

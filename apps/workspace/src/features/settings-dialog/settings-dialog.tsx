@@ -53,7 +53,7 @@ const sectionGroupClass = "flex flex-col gap-0.5 max-[620px]:contents";
 
 const sectionTabClass = cn(
   "flex min-h-[38px] items-center gap-2 rounded-lg border-0 bg-transparent px-[9px] py-1.5 text-left text-[13px] text-muted-foreground cursor-pointer hover:bg-muted hover:text-foreground max-[620px]:min-h-[34px] max-[620px]:flex-none",
-  "focus-visible:bg-sidebar-accent focus-visible:text-sidebar-accent-foreground focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.2)]",
+  "focus-visible:bg-sidebar-accent focus-visible:text-sidebar-accent-foreground",
 );
 
 type Props = {
@@ -250,7 +250,7 @@ export function SettingsDialog({
               ref={searchRef}
               type="search"
               value={query}
-              className="h-8 w-full rounded-lg border border-sidebar-border bg-background/[62%] py-[5px] pr-8 pl-[30px] text-xs text-sidebar-foreground outline-0 placeholder:text-muted-foreground/[78%] [&::-webkit-search-cancel-button]:hidden focus-visible:border-foreground/45 focus-visible:shadow-[0_0_0_2px_hsl(var(--sidebar-background)),0_0_0_3px_hsl(var(--foreground)/0.25)]"
+              className="h-8 w-full rounded-lg border border-sidebar-border bg-background/[62%] py-[5px] pr-8 pl-[30px] text-xs text-sidebar-foreground outline-0 placeholder:text-muted-foreground/[78%] [&::-webkit-search-cancel-button]:hidden focus-visible:border-foreground/45"
               placeholder="Search settings"
               aria-label="Search settings"
               aria-controls="settings-tablist"
@@ -330,7 +330,7 @@ export function SettingsDialog({
           role="tabpanel"
           aria-label={`${activeMeta.label} settings`}
           tabIndex={0}
-          className="relative min-w-0 flex-1 overflow-y-auto px-10 pt-8 pb-12 focus-visible:bg-[hsl(var(--foreground)/2.5%)] focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.12)] max-[620px]:px-[18px] max-[620px]:pt-6 max-[620px]:pb-9"
+          className="relative min-w-0 flex-1 overflow-y-auto px-10 pt-8 pb-12 focus-visible:bg-[hsl(var(--foreground)/2.5%)] max-[620px]:px-[18px] max-[620px]:pt-6 max-[620px]:pb-9"
           onKeyDown={(event) => {
             if (event.key === "ArrowLeft" && event.target === event.currentTarget) {
               event.preventDefault();

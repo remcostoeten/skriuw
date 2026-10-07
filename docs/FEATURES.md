@@ -61,6 +61,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Saved searches**: save a sidebar query and reopen it from the sidebar. Title text and tag/person operators evaluate against current notes, so results stay live. Saved queries and template membership survive restart, backup, and preference reset; these preferences stay device-local for sync.
 - **Durable layout**: folder expansion, panel state, and the active note survive restarts.
 - **Trash with subtree semantics**: trash, restore, or permanently purge whole branches; nothing is destroyed without a confirmation that shows its scope. The trash view searches and sorts deleted items (recently deleted, deleted first, title) and arms per-row deletion inline instead of behind a dialog.
+- **Empty note cleanup**: "Clean up empty notes" in the command palette, or Settings → Data & recovery, moves every note with no body beyond its title to the trash in one go, with a single undo. Pinned, locked, journal, decorated, property-bearing, commented, and parent notes are never touched.
 
 ## Tasks
 
@@ -108,6 +109,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Quit shortcut**: Ctrl+Shift+Q by default. Settings can switch it off or rebind it to any two or three key chord that holds Ctrl or Cmd, such as Ctrl+Q or Ctrl+Shift+W. Quit always wins a collision: no other action can take its keys, and an action already on them stays unbound until one of the two is rebound.
 - **Animated icons**: every icon is a Fluent Regular glyph shared by desktop and mobile; 28 of them play a short motion on hover (desktop) or press (mobile) and always settle back on the exact static glyph, with a settings toggle to keep them static. See [ADR-0049](adr/0049-shared-icon-system.md).
 - **Settings with a Data & Recovery surface**: export, import, backup-now, restore, and a guarded clear-all-data reset are all in the UI; the CLI is optional, not required.
+- **Account deletion**: Account & sync can permanently delete the cloud account, synced workspace, shared notes, and every Skriuw workspace on this device. Offline copies on other devices remain until cleared there. See [ADR-0056](adr/0056-account-deletion.md).
 - **Storage you can see and move**: settings show every stored image with size and the notes that use it, open the database or blobs folder in the file manager, and can relocate the whole workspace (database, images, history, backups) to a new folder with a verified copy and automatic restart.
 - **Auto-updates**: built-in updater on top of a tag-driven, cross-platform release pipeline.
 - **Current install channels**: APT and dnf repositories, Homebrew, Scoop, and the AUR; macOS, Windows, and Linux release assets are available directly. Winget and Snap publication remain pending.

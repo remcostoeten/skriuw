@@ -229,7 +229,7 @@ export function Select<TValue extends string>({
         className={cn(
           "inline-flex min-h-[30px] cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-muted/55 pl-2.5 pr-2 text-xs text-foreground/[0.86] transition-colors",
           "hover:bg-muted hover:text-foreground",
-          "focus-visible:border-ring focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_hsl(var(--ring)/0.18)]",
+          "focus-visible:border-ring focus-visible:outline-none",
           "data-[open=true]:border-ring data-[open=true]:bg-muted data-[open=true]:text-foreground",
           "disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:bg-muted/55",
           triggerClassName,

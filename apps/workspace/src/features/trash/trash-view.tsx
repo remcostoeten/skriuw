@@ -97,7 +97,7 @@ export function TrashView({ store }: Props) {
             <div
               className={cn(
                 "flex h-[30px] flex-1 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-theme-dim",
-                "focus-within:border-ring focus-within:shadow-[0_0_0_3px_hsl(var(--ring)/0.18)]",
+                "focus-within:border-ring",
               )}
             >
               <SearchIcon size={14} aria-hidden="true" />

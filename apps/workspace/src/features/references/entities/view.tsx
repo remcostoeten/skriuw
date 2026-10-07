@@ -411,7 +411,7 @@ export function EntityView({ store, kind }: Props) {
             <div
               className={cn(
                 "group flex h-[28px] min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-border bg-background px-2 text-theme-dim",
-                "focus-within:border-ring focus-within:shadow-[0_0_0_3px_hsl(var(--ring)/0.18)]",
+                "focus-within:border-ring",
               )}
             >
               <SearchIcon size={13} aria-hidden="true" />
@@ -1318,7 +1318,7 @@ function MergePanel({ kind, source, targets, onMerge, onCancel }: MergePanelProp
         <div
           className={cn(
             "flex h-[28px] items-center gap-1.5 rounded-lg border border-border bg-background px-2 text-theme-dim",
-            "focus-within:border-ring focus-within:shadow-[0_0_0_3px_hsl(var(--ring)/0.18)]",
+            "focus-within:border-ring",
           )}
         >
           <SearchIcon size={13} aria-hidden="true" />

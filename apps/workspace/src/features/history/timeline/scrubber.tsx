@@ -433,8 +433,8 @@ export function HistoryScrubber({ versions, selectedIndex, onScrub }: Props) {
         >
           <span
             className={cn(
-              "block h-6 w-[5px] rounded-full bg-foreground shadow-[0_0_0_3px_hsl(var(--popover))] transition-transform duration-150 motion-reduce:transition-none",
-              "group-focus-visible:ring-2 group-focus-visible:ring-ring group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-popover",
+              "block h-6 w-[5px] rounded-full bg-foreground/75 shadow-[0_0_0_3px_hsl(var(--popover))] transition-[transform,background-color] duration-150 motion-reduce:transition-none",
+              "group-hover:bg-foreground group-focus-visible:bg-foreground",
               gesturing && "scale-y-125",
             )}
           />

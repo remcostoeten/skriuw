@@ -26,7 +26,7 @@ type Props = {
 };
 
 const navButtonClass =
-  "flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground focus-visible:outline-none";
 
 /**
  * Shift+arrow stands in for the Home/End/PageUp/PageDown cluster, which a 60%
@@ -202,7 +202,7 @@ export function JournalCalendar({
               aria-label={dayLabel(day.key, hasEntry, metGoal)}
               aria-current={isToday ? "date" : undefined}
               aria-pressed={isSelected}
-              className={`relative flex h-7 w-full items-center justify-center rounded-sm border border-transparent text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${dayClass}`}
+              className={`relative flex h-7 w-full items-center justify-center rounded-sm border border-transparent text-[11px] transition-colors focus-visible:outline-none ${dayClass}`}
             >
               {day.dayOfMonth}
               {hasEntry && (

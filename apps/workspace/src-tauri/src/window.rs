@@ -1,54 +1,27 @@
 use std::time::Duration;
 
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager};
 
 pub const MAIN_LABEL: &str = "main";
-pub const SPLASH_LABEL: &str = "splash";
-pub fn splash_preview_enabled() -> bool {
-    cfg!(debug_assertions)
-        && std::env::var_os("SKRIUW_SPLASH_PREVIEW").is_some_and(|value| value == "1")
-}
-/// The main window ships hidden and is revealed by the renderer after its
-/// first paint. A renderer that never boots would otherwise leave an
-/// invisible process, so the window is revealed unconditionally after this
-/// delay. Worst case the user sees the empty shell the reveal exists to hide.
+/// The main window ships hidden and is revealed by `index.html` once its
+/// inline splash has painted. A page that never loads would otherwise leave
+/// an invisible process, so the window is revealed unconditionally after this
+/// delay.
 const WINDOW_REVEAL_FAILSAFE: Duration = Duration::from_secs(2);
 
-/// Opens the frameless splash shown while the main webview boots. It is a
-/// static page with no IPC, so it paints well before the application bundle.
-pub fn open_splash_window(app: &AppHandle) {
-    let page = if splash_preview_enabled() {
-        "splash.html?preview=1"
-    } else {
-        "splash.html"
-    };
-    let built = WebviewWindowBuilder::new(app, SPLASH_LABEL, WebviewUrl::App(page.into()))
-        .title("Skriuw")
-        .inner_size(320.0, 200.0)
-        .resizable(false)
-        .maximizable(false)
-        .minimizable(false)
-        .decorations(false)
-        .skip_taskbar(true)
-        .center()
-        .build();
-    if let Err(error) = built {
-        eprintln!("splash window could not be opened: {error}");
-    }
-}
-
-/// Shows and focuses the main window, then closes the splash. Ordered this way
-/// so there is never a moment with no window on screen.
+/// Shows and focuses the main window. The page and the renderer both ask for
+/// it, so a window that is already visible is left alone rather than pulling
+/// focus back from wherever the user went in the meantime.
 pub fn reveal_main_window(app: &AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window(MAIN_LABEL)
         .ok_or_else(|| "main window is not open".to_string())?;
+    if window.is_visible().unwrap_or(false) {
+        return Ok(());
+    }
     fit_to_monitor(&window);
     window.show().map_err(|error| error.to_string())?;
     window.set_focus().map_err(|error| error.to_string())?;
-    if let Some(splash) = app.get_webview_window(SPLASH_LABEL) {
-        splash.close().map_err(|error| error.to_string())?;
-    }
     Ok(())
 }
 
@@ -104,9 +77,6 @@ fn fit_rect(window: (i32, i32, u32, u32), area: (i32, i32, u32, u32)) -> (i32, i
 }
 
 pub fn spawn_reveal_failsafe(app: &AppHandle) {
-    if splash_preview_enabled() {
-        return;
-    }
     let handle = app.clone();
     let _ = std::thread::Builder::new()
         .name("skriuw-window-reveal-failsafe".into())
@@ -127,9 +97,6 @@ pub fn spawn_reveal_failsafe(app: &AppHandle) {
 
 #[tauri::command]
 pub fn reveal_main_window_command(app: AppHandle) -> Result<(), String> {
-    if splash_preview_enabled() {
-        return Ok(());
-    }
     reveal_main_window(&app)
 }
 

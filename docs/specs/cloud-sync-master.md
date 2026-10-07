@@ -194,7 +194,7 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
   truncation in
   [`cycle_scenarios.rs`](../../crates/skriuw-sync/tests/cycle_scenarios.rs).
 - [ ] Test clock skew, reordered delivery, and interrupted large uploads.
-- [ ] Provide account deletion and cloud purge. Connected-workspace portable
+- [x] Provide account deletion and cloud purge. Connected-workspace portable
   export carries canonical state and is no longer gated on sync state.
 
 ## Milestones

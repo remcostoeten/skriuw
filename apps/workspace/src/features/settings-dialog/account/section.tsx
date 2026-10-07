@@ -3,8 +3,10 @@ import { useCloudSession } from "@/features/auth/cloud-session";
 import { authConfiguration } from "@/features/auth/config";
 import {
   activeWorkspaceSlot,
+  clearAllData,
   discardBlockedSyncOperation,
   listBlockedSyncOperations,
+  pauseWorkspaceSync,
   retryBlockedSyncOperation,
 } from "@/platform/runtime/commands";
 import type { BlockedSyncOperation, SyncRecoveryView } from "@skriuw/renderer-core/bridge/port";
@@ -40,6 +42,8 @@ import {
 import { SyncEncryptionPanel } from "./encryption-panel";
 import { useWorkspaceSync } from "@/features/sync/use-workspace-sync";
 import { shortWorkspaceId, workspaceOwnershipText } from "./workspace-ownership";
+import { deleteCloudAccount } from "@/features/auth/delete-account";
+import { accountLifecycle } from "@/features/auth/account-lifecycle";
 
 type AccountSectionProps = {
   store: RendererStore;
@@ -54,6 +58,8 @@ export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) 
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [recoveryBusyId, setRecoveryBusyId] = useState<string | null>(null);
   const [workspaceSlot, setWorkspaceSlot] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const unavailableReason = authConfiguration.available ? null : authConfiguration.reason;
   const browser = sync.browser;
   /** Encryption is a property of a linked workspace, so it waits for sync. */
@@ -110,6 +116,20 @@ export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) 
       setRecoveryError(error instanceof Error ? error.message : String(error));
     } finally {
       setRecoveryBusyId(null);
+    }
+  }
+
+  async function deleteAccountAndData() {
+    setDeleteBusy(true);
+    setDeleteError(null);
+    try {
+      await accountLifecycle().flushPendingWork();
+      await pauseWorkspaceSync();
+      await deleteCloudAccount();
+      await clearAllData();
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : String(error));
+      setDeleteBusy(false);
     }
   }
 
@@ -214,6 +234,42 @@ export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) 
           onRetry={(blockedId) => void resolveBlocked(retryBlockedSyncOperation, blockedId)}
           onDiscard={(blockedId) => void resolveBlocked(discardBlockedSyncOperation, blockedId)}
         />
+      ) : null}
+      {user ? (
+        <div className={settingsGroup}>
+          <div className={settingsGroupTitle}>Delete account</div>
+          <div className={settingsRow}>
+            <span className={settingsRowLabel}>
+              Delete account and all data
+              <span className={settingsRowDescription}>
+                Permanently deletes your cloud account, synced workspace, shared notes, and all
+                Skriuw workspaces and recovery files on this device. This cannot be undone.
+              </span>
+              {deleteError ? (
+                <span className="text-[11px] text-destructive" role="alert">
+                  {deleteError}
+                </span>
+              ) : null}
+            </span>
+            <InlineConfirm
+              className="shrink-0"
+              confirmLabel={deleteBusy ? "Deleting…" : "Delete account"}
+              message="This permanently removes your cloud account and local Skriuw data. Export anything you want to keep first."
+              messagePlacement="stacked"
+              onConfirm={() => void deleteAccountAndData()}
+              renderIdle={(arm) => (
+                <button
+                  type="button"
+                  className={`${settingsButton} ${settingsButtonDanger}`}
+                  disabled={deleteBusy}
+                  onClick={arm}
+                >
+                  Delete…
+                </button>
+              )}
+            />
+          </div>
+        </div>
       ) : null}
     </section>
   );

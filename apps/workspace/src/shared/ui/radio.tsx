@@ -8,7 +8,7 @@ const radioClass = cn(
   "checked:after:opacity-100",
   "enabled:hover:border-ring",
   "disabled:cursor-default disabled:opacity-50",
-  "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground/75",
+  "outline-none focus-visible:border-ring",
   "forced-colors:appearance-auto forced-colors:after:hidden",
 );
 

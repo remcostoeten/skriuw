@@ -67,6 +67,7 @@ import {
   settingsRowLabel,
   settingsSection,
 } from "@/shared/ui/settings-controls";
+import { EmptyNotesRow } from "@/features/settings-dialog/data/empty-notes-row";
 import { useEditableSettings } from "@/features/settings/use-editable-settings";
 import type { SectionProps } from "@/features/settings-dialog/sections";
 import { Select } from "@/shared/ui/select";
@@ -475,6 +476,10 @@ export function DataSection({ store }: SectionProps) {
           onCancel={cancelRunning}
           onForceBackup={() => runBackup(true)}
         />
+      </div>
+      <div className={settingsGroup}>
+        <div className={settingsGroupTitle}>Clean up</div>
+        <EmptyNotesRow store={store} />
       </div>
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Backups & recovery</div>

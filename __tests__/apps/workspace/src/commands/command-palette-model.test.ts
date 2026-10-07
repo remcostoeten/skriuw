@@ -3,6 +3,7 @@ import { test } from "vitest";
 import { noop } from "@skriuw/shared/helpers/noop";
 import {
   getCommandPaletteGroups,
+  getFamilyGroups,
   parseCommandQuery,
   RECENT_NOTES_GROUP,
   type CommandPaletteItem,
@@ -351,4 +352,24 @@ test("a partial recents word stays plain text", () => {
   assert.deepEqual(getCommandPaletteGroups(items, "rec"), [
     { group: "Actions", items: [items[0]] },
   ]);
+});
+
+test("family groups list only that family, in order or ranked by the query", () => {
+  const items: CommandPaletteItem[] = [
+    { id: "theme-dark", label: "Theme: Dark", family: "Themes", action: noop },
+    { id: "new-note", label: "New note", action: noop },
+    { id: "theme-latte", label: "Theme: Catppuccin Latte", family: "Themes", action: noop },
+  ];
+
+  assert.deepEqual(
+    getFamilyGroups(items, "Themes", "").map((group) => group.items.map((item) => item.id)),
+    [["theme-dark", "theme-latte"]],
+  );
+  assert.deepEqual(
+    getFamilyGroups(items, "Themes", "latte").flatMap((group) =>
+      group.items.map((item) => item.id),
+    ),
+    ["theme-latte"],
+  );
+  assert.deepEqual(getFamilyGroups(items, "Themes", "zzz"), []);
 });

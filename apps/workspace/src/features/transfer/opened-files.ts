@@ -15,7 +15,8 @@ type OpenFile = (store: RendererStore, filePath: string) => Promise<string | nul
  * @name bindOpenedFiles
  * @description Opens the files the desktop shell was asked to open, both the ones queued at launch and the ones a second launch forwards
  * later. Files open one at a time in arrival order, each becoming the active
- * note on the notes route.
+ * note on the notes route. Resolves once the files queued at launch are open,
+ * so a caller can render with the opened file already active.
  *
  * @example
  * const unlisten = await bindOpenedFiles(store);
@@ -45,5 +46,6 @@ export async function bindOpenedFiles(
 
   const unlisten = await listenToEvent(OPENED_FILES_EVENT, schedule);
   schedule();
+  await queue;
   return unlisten;
 }

@@ -144,7 +144,7 @@ function MentionRow({
         onKeyDown={handleKeyDown}
         aria-keyshortcuts="L"
         aria-label={`Open ${mention.title} at “${mention.before}${mention.text}${mention.after}”. Press L to link.`}
-        className="min-w-0 flex-1 cursor-pointer rounded px-2 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="min-w-0 flex-1 cursor-pointer rounded px-2 py-1 text-left focus-visible:outline-none"
       >
         <span className="block truncate text-[13px] text-foreground/80">{mention.title}</span>
         <span className="line-clamp-2 text-[11px] leading-snug text-muted-foreground">
@@ -158,7 +158,7 @@ function MentionRow({
         onClick={onLink}
         aria-label={`Link mention in ${mention.title}`}
         title="Link (L)"
-        className="mt-1 shrink-0 cursor-pointer rounded px-1.5 py-0.5 text-[11px] text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/mention:opacity-100 group-focus-within/mention:opacity-100"
+        className="mt-1 shrink-0 cursor-pointer rounded px-1.5 py-0.5 text-[11px] text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none group-hover/mention:opacity-100 group-focus-within/mention:opacity-100"
       >
         Link
       </button>
@@ -247,7 +247,7 @@ export function UnlinkedMentions({ store, noteId }: { store: RendererStore; note
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
-          className="flex h-6 min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded px-2 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-6 min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded px-2 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none"
         >
           <SectionChevron open={open} />
           <SectionLabel title="Unlinked mentions" count={loaded ? mentions.length : undefined} />
@@ -257,7 +257,7 @@ export function UnlinkedMentions({ store, noteId }: { store: RendererStore; note
             type="button"
             onClick={() => link(mentions, 0)}
             aria-label={`Link all ${mentions.length} mentions to ${term}`}
-            className="h-6 shrink-0 cursor-pointer rounded px-2 text-[11px] text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-6 shrink-0 cursor-pointer rounded px-2 text-[11px] text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none"
           >
             Link all
           </button>
