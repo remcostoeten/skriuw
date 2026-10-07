@@ -84,10 +84,10 @@ export default {
                   resolveWorkspace,
                   nowEpochSeconds,
                 })
-            : url.pathname === "/v1/account" && request.method === "DELETE"
-              ? await handleAccountDeletionRequest(request, {
-                  accessConfiguration,
-                  database: env.AUTH_DB,
+              : url.pathname === "/v1/account" && request.method === "DELETE"
+                ? await handleAccountDeletionRequest(request, {
+                    accessConfiguration,
+                    database: env.AUTH_DB,
                     resolveWorkspace,
                     nowEpochSeconds,
                     hasFreshSession: async (headers) => {
@@ -100,17 +100,17 @@ export default {
                       );
                     },
                     deleteAuthUser: async (headers) => {
-                    const auth = await createAuth(env);
-                    await auth.api.deleteUser({ headers, body: {} });
-                  },
-                })
-              : await handlePublicSyncRequest(request, {
-                  accessConfiguration,
-                  resolveWorkspace,
-                  contentStore: new WorkspaceContentStore(env.SYNC_CONTENT),
-                  log: logSyncSecurityEvent,
-                  nowEpochSeconds,
-                });
+                      const auth = await createAuth(env);
+                      await auth.api.deleteUser({ headers, body: {} });
+                    },
+                  })
+                : await handlePublicSyncRequest(request, {
+                    accessConfiguration,
+                    resolveWorkspace,
+                    contentStore: new WorkspaceContentStore(env.SYNC_CONTENT),
+                    log: logSyncSecurityEvent,
+                    nowEpochSeconds,
+                  });
       if (response.status === 101) {
         return response;
       }

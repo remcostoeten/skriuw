@@ -58,7 +58,9 @@ export async function handleAccountDeletionRequest(
   await dependencies.database.batch([
     dependencies.database.prepare("DELETE FROM sync_device WHERE user_id = ?1").bind(userId),
     dependencies.database.prepare("DELETE FROM sync_membership WHERE user_id = ?1").bind(userId),
-    dependencies.database.prepare("DELETE FROM sync_workspace WHERE owner_user_id = ?1").bind(userId),
+    dependencies.database
+      .prepare("DELETE FROM sync_workspace WHERE owner_user_id = ?1")
+      .bind(userId),
     dependencies.database.prepare("DELETE FROM note_share WHERE owner_user_id = ?1").bind(userId),
   ]);
 

@@ -30,7 +30,7 @@ export async function deleteCloudAccount(): Promise<void> {
           ? "Cloud data could not be fully removed. Try again to finish deletion."
           : code === "recent_sign_in_required"
             ? "Sign out and sign back in, then retry account deletion."
-          : code,
+            : code,
     );
   }
 }
