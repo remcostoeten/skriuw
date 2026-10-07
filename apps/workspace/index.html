@@ -119,13 +119,13 @@
   </head>
   <body>
     <div id="root">
-      <main class="boot-splash" aria-busy="true" aria-label="Skriuw is starting">
+      <div class="boot-splash" role="status" aria-busy="true" aria-label="Skriuw is starting">
         <svg viewBox="0 0 40 40" fill="currentColor" aria-hidden="true">
           <rect x="4" y="8" width="8" height="24" rx="1" />
           <rect x="16" y="4" width="8" height="32" rx="1" />
           <rect x="28" y="12" width="8" height="16" rx="1" />
         </svg>
-      </main>
+      </div>
     </div>
     <script nonce="__TAURI_SCRIPT_NONCE__">
       // WebKitGTK may not schedule frames for an unmapped window, so the frame path races a timer.
