@@ -60,9 +60,96 @@
         root.dataset.colorScheme = colorScheme;
       })();
     </script>
+    <style>
+      .boot-splash {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(
+            circle at 50% 50%,
+            hsl(var(--foreground, 0 0% 91%) / 0.07) 0,
+            transparent 38%
+          ),
+          hsl(var(--background, 2 0% 7%));
+        color: hsl(var(--foreground, 0 0% 91%));
+        cursor: default;
+      }
+      .boot-splash svg {
+        width: 96px;
+        height: 96px;
+        animation: boot-splash-enter 420ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+      .boot-splash rect {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: boot-splash-bar 1.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+      }
+      .boot-splash rect:nth-child(2) {
+        animation-delay: 120ms;
+      }
+      .boot-splash rect:nth-child(3) {
+        animation-delay: 240ms;
+      }
+      @keyframes boot-splash-enter {
+        from {
+          opacity: 0;
+          transform: scale(0.92);
+        }
+      }
+      @keyframes boot-splash-bar {
+        0%,
+        100% {
+          transform: scaleY(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scaleY(0.6);
+          opacity: 0.55;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-splash svg,
+        .boot-splash rect {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main class="boot-splash" aria-busy="true" aria-label="Skriuw is starting">
+        <svg viewBox="0 0 40 40" fill="currentColor" aria-hidden="true">
+          <rect x="4" y="8" width="8" height="24" rx="1" />
+          <rect x="16" y="4" width="8" height="32" rx="1" />
+          <rect x="28" y="12" width="8" height="16" rx="1" />
+        </svg>
+      </main>
+    </div>
+    <script nonce="__TAURI_SCRIPT_NONCE__">
+      // WebKitGTK may not schedule frames for an unmapped window, so the frame path races a timer.
+      (function () {
+        var internals = window.__TAURI_INTERNALS__;
+        if (!internals) {
+          return;
+        }
+        var revealed = false;
+        function reveal() {
+          if (revealed) {
+            return;
+          }
+          revealed = true;
+          internals.invoke("reveal_main_window_command").catch(function (error) {
+            console.error("window reveal failed", error);
+          });
+        }
+        requestAnimationFrame(function () {
+          requestAnimationFrame(reveal);
+        });
+        setTimeout(reveal, 50);
+      })();
+    </script>
     <div id="auth-drawer-portal"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

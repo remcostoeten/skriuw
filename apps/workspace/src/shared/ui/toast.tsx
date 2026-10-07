@@ -139,7 +139,7 @@ export function ToastHost({ visible = true }: HostProps) {
 
   return (
     <div
-      className="toast-host [&_:is([role=status],[role=alert],[role=alertdialog])>div>div:first-child]:pr-2.5! [&_:is([role=status],[role=alert],[role=alertdialog])>div]:max-w-[min(420px,calc(100vw-32px))]!"
+      className="toast-host [&>.fixed]:top-auto! [&_:is([role=status],[role=alert],[role=alertdialog])>div>div:first-child]:pr-2.5! [&_:is([role=status],[role=alert],[role=alertdialog])>div]:max-w-[min(420px,calc(100vw-32px))]!"
       style={{ display: visible ? undefined : "none" }}
     >
       {/* WebKitGTK reports prefers-reduced-motion whenever GTK animations are

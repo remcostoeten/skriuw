@@ -143,7 +143,7 @@ function RelationshipSection({
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="flex h-6 w-full cursor-pointer items-center gap-1.5 rounded px-2 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex h-6 w-full cursor-pointer items-center gap-1.5 rounded px-2 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none"
       >
         <SectionChevron open={open} />
         <SectionLabel title={title} count={entries.length} />
@@ -176,7 +176,7 @@ function NoteRow({ entry, onOpen }: { entry: DetailedNote; onOpen: () => void })
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full cursor-pointer items-baseline justify-between gap-3 rounded px-2 py-1 text-left text-[13px] text-foreground/80 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex w-full cursor-pointer items-baseline justify-between gap-3 rounded px-2 py-1 text-left text-[13px] text-foreground/80 transition-colors hover:bg-muted/50 focus-visible:outline-none"
     >
       <span className="min-w-0 flex-1 truncate">{entry.title}</span>
       {entry.detail && (

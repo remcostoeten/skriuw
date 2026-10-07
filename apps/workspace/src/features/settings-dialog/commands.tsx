@@ -41,6 +41,7 @@ function themeCommands(store: RendererStore): AppCommand[] {
     id: `set-theme-${choice.id}`,
     label: `Theme: ${choice.label}`,
     group: "View",
+    family: "Themes",
     keywords: ["theme", "appearance", "color", "switch"],
     icon: (
       <span

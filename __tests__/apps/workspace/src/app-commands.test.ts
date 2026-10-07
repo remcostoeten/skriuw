@@ -119,6 +119,7 @@ const REGISTERED_COMMAND_IDS = [
   "toggle-typewriter-scrolling",
   "toggle-vim-mode",
   "trash-current-note",
+  "trash-empty-notes",
   "unlock-notes",
   "zoom-in",
   "zoom-out",

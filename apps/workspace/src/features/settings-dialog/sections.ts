@@ -22,7 +22,7 @@ export const SECTIONS = [
     label: "General",
     description: "Appearance and workspace preferences",
     searchText:
-      "appearance general color midnight paper embers mocha rose pine catppuccin gruvbox tokyo night compact sidebar tree guides indent animated icons animation hover accessibility remember last note startup notifications toasts workspace reset preferences",
+      "appearance general color midnight paper embers mocha rose pine catppuccin gruvbox tokyo night compact sidebar tree guides indent animated icons animation hover accessibility remember last note startup notifications toasts workspace reset preferences advanced command palette size roomy large spacious",
     icon: SettingsIcon,
   },
   {

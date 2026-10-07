@@ -6,6 +6,8 @@ export type AuthEnv = Env & {
   BETTER_AUTH_URL: string;
 };
 
+export const AUTH_FRESH_SESSION_AGE_SECONDS = 24 * 60 * 60;
+
 function configuredOrigins(raw: string): string[] {
   return raw
     .split(",")
@@ -68,6 +70,8 @@ export async function createAuth(env: AuthEnv) {
     baseURL: env.BETTER_AUTH_URL,
     database: env.AUTH_DB,
     emailAndPassword: { enabled: true },
+    session: { freshAge: AUTH_FRESH_SESSION_AGE_SECONDS },
+    user: { deleteUser: { enabled: true } },
     secret: env.BETTER_AUTH_SECRET,
     trustedOrigins: configuredOrigins(env.AUTH_TRUSTED_ORIGINS),
     plugins: [bearer(), ...(await infraPlugins(env))],

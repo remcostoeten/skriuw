@@ -725,7 +725,7 @@ type MediaDetailsFormProps = {
 };
 
 const detailsInputClass =
-  "h-7 w-full rounded border border-border bg-background px-2 text-[11px] outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring";
+  "h-7 w-full rounded border border-border bg-background px-2 text-[11px] outline-none placeholder:text-muted-foreground transition-colors focus-visible:border-foreground/45";
 
 function MediaDetailsForm({ entry, onCancel, onSubmit }: MediaDetailsFormProps) {
   const [name, setName] = useState(entry.name);
@@ -841,7 +841,7 @@ function MediaPreviewButton({ entry, url, onOpen, onVideoError }: MediaPreviewBu
   return (
     <button
       type="button"
-      className="block w-full cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      className="block w-full cursor-zoom-in border border-transparent outline-none transition-colors focus-visible:border-foreground/60"
       aria-label={isVideoMime(entry.mimeType) ? "Preview video" : "Preview image"}
       onClick={onOpen}
     >

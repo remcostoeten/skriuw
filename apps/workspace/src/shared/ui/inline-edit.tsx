@@ -63,7 +63,7 @@ export function InlineEdit({
           "text-[13px] font-[560] text-foreground outline-none",
           "shadow-[inset_0_0_0_1px_hsl(var(--border))]",
           "transition-[box-shadow,background-color] duration-[130ms] ease-out",
-          "focus:bg-background/60 focus:shadow-[inset_0_0_0_1px_hsl(var(--ring)/0.5),0_0_0_3px_hsl(var(--ring)/0.14)]",
+          "focus:bg-background/60 focus:shadow-[inset_0_0_0_1px_hsl(var(--ring)/0.5)]",
           inputClassName,
         )}
         onFocus={(event) => event.currentTarget.select()}

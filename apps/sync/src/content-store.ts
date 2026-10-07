@@ -139,4 +139,26 @@ export class WorkspaceContentStore {
       cursor = page.cursor;
     }
   }
+
+  /**
+   * @name deleteWorkspaceChunks
+   * @description Deletes every validated content chunk stored for one cloud
+   * workspace, in bounded object-store pages.
+   *
+   * @example
+   * await contentStore.deleteWorkspaceChunks(workspaceId);
+   */
+  async deleteWorkspaceChunks(workspaceId: string): Promise<void> {
+    const prefix = chunkPrefix(workspaceId);
+    let cursor: string | undefined;
+    while (true) {
+      const page = await this.bucket.list({ prefix, cursor });
+      const keys = page.objects
+        .filter((object) => isContentDigest(object.key.slice(prefix.length)))
+        .map((object) => object.key);
+      if (keys.length > 0) await this.bucket.delete(keys);
+      if (!page.truncated) return;
+      cursor = page.cursor;
+    }
+  }
 }

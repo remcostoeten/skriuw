@@ -47,7 +47,7 @@ const TOOLS: readonly ToolEntry[] = [
 ];
 
 const ITEM_CLASS =
-  "drawing-toolbar-item flex size-7 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color] duration-120 ease-[ease] aria-pressed:bg-[hsl(var(--foreground)/0.12)] aria-pressed:text-foreground aria-checked:bg-[hsl(var(--foreground)/0.12)] aria-checked:text-foreground disabled:cursor-default disabled:opacity-40 [@media(hover:hover)_and_(pointer:fine)]:enabled:hover:bg-[hsl(var(--foreground)/0.08)] [@media(hover:hover)_and_(pointer:fine)]:enabled:hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid";
+  "drawing-toolbar-item flex size-7 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color] duration-120 ease-[ease] aria-pressed:bg-[hsl(var(--foreground)/0.12)] aria-pressed:text-foreground aria-checked:bg-[hsl(var(--foreground)/0.12)] aria-checked:text-foreground disabled:cursor-default disabled:opacity-40 [@media(hover:hover)_and_(pointer:fine)]:enabled:hover:bg-[hsl(var(--foreground)/0.08)] [@media(hover:hover)_and_(pointer:fine)]:enabled:hover:text-foreground";
 
 const SWATCH_CLASS =
   "drawing-swatch pointer-events-none size-3.5 rounded-full shadow-[inset_0_0_0_1px_hsl(var(--scrim)/0.2)] data-[selected=true]:shadow-[inset_0_0_0_2px_hsl(var(--foreground)/0.7)]";
@@ -239,7 +239,7 @@ export function DrawingToolbar({
         <button
           type="button"
           aria-label="Done annotating"
-          className="drawing-toolbar-done flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition-[background-color,color] duration-120 ease-[ease] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[hsl(var(--foreground)/0.08)] [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid"
+          className="drawing-toolbar-done flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition-[background-color,color] duration-120 ease-[ease] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[hsl(var(--foreground)/0.08)] [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
           onMouseDown={(event) => event.preventDefault()}
           onClick={onDone}
           {...itemProps()}

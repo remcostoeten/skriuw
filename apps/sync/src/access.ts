@@ -154,6 +154,11 @@ class D1WorkspaceMembershipSource implements WorkspaceMembershipSource {
     trustedSubject: string,
     workspaceId: string,
   ): Promise<WorkspaceMembershipLookup> {
+    const deleted = await this.database
+      .prepare("SELECT 1 FROM deleted_account WHERE user_id = ?1")
+      .bind(trustedSubject)
+      .first();
+    if (deleted) return { state: "denied" };
     const membership = await this.database
       .prepare(
         `SELECT role FROM sync_membership

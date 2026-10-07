@@ -17,9 +17,9 @@ const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"] as const;
 const GRID_CELLS = 42;
 
 const navButtonClass =
-  "inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50";
+  "inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground";
 const footerButtonClass =
-  "flex-1 cursor-pointer rounded-md px-2 py-1 text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50";
+  "flex-1 cursor-pointer rounded-md px-2 py-1 text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground";
 
 function parseIsoDate(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -74,7 +74,7 @@ export function DateValueEditor({ property, value, onUpdate }: Props) {
           aria-haspopup="dialog"
           aria-expanded={open}
           className={cn(
-            "flex min-h-7 w-full min-w-0 cursor-pointer items-center rounded-md bg-transparent px-1 py-0.5 text-left text-[13px] outline-none transition-colors hover:bg-accent/40 focus-visible:bg-accent/70 focus-visible:ring-1 focus-visible:ring-ring/45",
+            "flex min-h-7 w-full min-w-0 cursor-pointer items-center rounded-md bg-transparent px-1 py-0.5 text-left text-[13px] outline-none transition-colors hover:bg-accent/40 focus-visible:bg-accent/70",
             selected ? "text-foreground" : "text-muted-foreground/55",
           )}
         >
@@ -168,7 +168,7 @@ function CalendarPanel({
               aria-pressed={isSelected}
               onClick={() => onPick(day)}
               className={cn(
-                "flex size-8 cursor-pointer items-center justify-center rounded-md text-[12px] tabular-nums outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring/55",
+                "flex size-8 cursor-pointer items-center justify-center rounded-md text-[12px] tabular-nums outline-none transition-colors",
                 isSelected
                   ? "bg-primary font-medium text-primary-foreground"
                   : cn(

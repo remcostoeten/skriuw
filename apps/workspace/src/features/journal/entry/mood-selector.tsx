@@ -61,7 +61,7 @@ export function MoodSelector({
                 buttons.current.set(level, node);
               }}
               onClick={() => onSelect(level)}
-              className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-11 pointer-coarse:px-3 pointer-coarse:text-[13px] max-[899px]:h-12 max-[899px]:flex-col max-[899px]:justify-center max-[899px]:gap-0.5 max-[899px]:px-0 max-[899px]:text-[11px] ${
+              className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] transition-colors focus-visible:outline-none pointer-coarse:h-11 pointer-coarse:px-3 pointer-coarse:text-[13px] max-[899px]:h-12 max-[899px]:flex-col max-[899px]:justify-center max-[899px]:gap-0.5 max-[899px]:px-0 max-[899px]:text-[11px] ${
                 active
                   ? "border-border bg-muted font-medium text-foreground"
                   : "border-transparent text-muted-foreground/54 hover:border-border hover:bg-muted/70 hover:text-muted-foreground"

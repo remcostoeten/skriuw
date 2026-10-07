@@ -33,6 +33,14 @@ export const PALETTE_DENSITY_OPTIONS = [
 
 export type PaletteDensity = (typeof PALETTE_DENSITY_OPTIONS)[number]["value"];
 
+export const PALETTE_SIZE_OPTIONS = [
+  { value: "default", label: "Default" },
+  { value: "roomy", label: "Roomy" },
+  { value: "large", label: "Large" },
+] as const;
+
+export type PaletteSize = (typeof PALETTE_SIZE_OPTIONS)[number]["value"];
+
 export const REMOTE_IMPORT_IMAGE_OPTIONS = [
   { value: "ask", label: "Ask on next import" },
   { value: "download", label: "Download during import" },
@@ -71,6 +79,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   autoLockMinutes: DEFAULT_AUTO_LOCK_MINUTES,
   lockOnBlur: false,
   paletteDensity: "normal",
+  paletteSize: "default",
   remoteImportImages: "ask",
   facehashAvatar: true,
 };
@@ -99,6 +108,7 @@ export type SettingsViewModel = {
   autoLockMinutes: number;
   lockOnBlur: boolean;
   paletteDensity: PaletteDensity;
+  paletteSize: PaletteSize;
   remoteImportImages: RemoteImportImages;
   facehashAvatar: boolean;
 };
@@ -145,6 +155,7 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     autoLockMinutes: autoLockMinutes(settings),
     lockOnBlur: locksOnBlur(settings),
     paletteDensity: paletteDensity(settings),
+    paletteSize: paletteSize(settings),
     remoteImportImages: remoteImportImages(settings),
     facehashAvatar: usesFacehashAvatar(settings),
   };
@@ -194,6 +205,21 @@ export function paletteDensity(settings: WorkspaceSettings): PaletteDensity {
   return PALETTE_DENSITY_OPTIONS.some((option) => option.value === value)
     ? (value as PaletteDensity)
     : "normal";
+}
+
+/**
+ * @name paletteSize
+ * @description How large the command palette opens on wide screens. Unknown or
+ * missing values fall back to the default size.
+ *
+ * @example
+ * <CommandPalette size={paletteSize(state.settings)} />
+ */
+export function paletteSize(settings: WorkspaceSettings): PaletteSize {
+  const value = settings["paletteSize"];
+  return PALETTE_SIZE_OPTIONS.some((option) => option.value === value)
+    ? (value as PaletteSize)
+    : "default";
 }
 
 /**

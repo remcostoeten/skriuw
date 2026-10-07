@@ -174,7 +174,7 @@ export function RelationshipGraphView({ store, graph }: Props) {
                     type="button"
                     aria-label={`Open ${label}`}
                     onClick={() => nodeAction(store, node.id, node.kind)}
-                    className={`flex cursor-pointer items-center justify-center rounded-full text-center font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${labeled ? "size-9 text-[11px]" : "size-7 text-[10px]"} ${graphNodeClass(node.kind)}`}
+                    className={`flex cursor-pointer items-center justify-center rounded-full text-center font-semibold outline-none transition-colors ${labeled ? "size-9 text-[11px]" : "size-7 text-[10px]"} ${graphNodeClass(node.kind)}`}
                   >
                     <span aria-hidden="true">{graphGlyph(node)}</span>
                   </button>

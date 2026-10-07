@@ -17,7 +17,7 @@ type TemplateChoice = Pick<NoteTemplate, "id" | "name">;
 const PICKER_ID = "journal-template-picker";
 
 const starterButtonClass =
-  "flex min-h-8 items-center gap-1.5 rounded-md border border-border/70 px-2.5 text-[12px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11 pointer-coarse:px-3.5 pointer-coarse:text-[14px]";
+  "flex min-h-8 items-center gap-1.5 rounded-md border border-border/70 px-2.5 text-[12px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none pointer-coarse:min-h-11 pointer-coarse:px-3.5 pointer-coarse:text-[14px]";
 
 function sameChoices(left: readonly TemplateChoice[], right: readonly TemplateChoice[]): boolean {
   return (

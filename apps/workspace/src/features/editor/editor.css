@@ -91,8 +91,7 @@
   animation: vim-block-cursor-blink 1.2s step-end infinite;
 }
 
-.prosemirror-host[data-vim-cursor-blink="true"] .ProseMirror:focus .vim-cursor-eol,
-.prosemirror-host[data-vim-cursor-blink="true"] .ProseMirror:focus .vim-cursor-node {
+.prosemirror-host[data-vim-cursor-blink="true"] .ProseMirror:focus .vim-cursor-eol {
   animation: vim-cursor-blink 1.2s step-end infinite;
 }
 
@@ -101,8 +100,9 @@
   .vim-cursor,
 .prosemirror-host[data-vim-cursor-blink="true"][data-vim-cursor-style="bar"]
   .ProseMirror:focus
-  .vim-cursor {
-  animation: vim-cursor-blink 1.2s step-end infinite;
+  .vim-cursor,
+.prosemirror-host[data-vim-cursor-blink="true"] .ProseMirror:focus .vim-cursor-node {
+  animation: vim-cursor-mark-blink 1.2s step-end infinite;
 }
 
 @keyframes vim-block-cursor-blink {
@@ -115,6 +115,15 @@
   100% {
     background: transparent;
     color: inherit;
+  }
+}
+
+/* Fading the element would hide the glyph it wraps, so only the mark blinks. */
+@keyframes vim-cursor-mark-blink {
+  50%,
+  100% {
+    box-shadow: none;
+    outline-color: transparent;
   }
 }
 

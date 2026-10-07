@@ -110,7 +110,7 @@ export function MediaLightbox({
               <button
                 type="button"
                 className={cn(
-                  "mt-2 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:px-3 pointer-coarse:text-[13px]",
+                  "mt-2 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none pointer-coarse:px-3 pointer-coarse:text-[13px]",
                   touchTargetClass,
                 )}
                 onClick={() => copyFileId(contentHash)}
@@ -144,7 +144,7 @@ function MediaLightboxHeader({ title }: { title: string }) {
       <h2 className="m-0 min-w-0 truncate text-sm font-semibold text-foreground">{title}</h2>
       <button
         type="button"
-        className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-[var(--radius)] border-none bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-[var(--radius)] border-none bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none"
         aria-label="Close preview"
         onClick={close}
       >
@@ -179,7 +179,7 @@ export function MediaUsageList({ usages }: { usages: readonly MediaLightboxUsage
             <li key={usage.id}>
               <button
                 type="button"
-                className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
+                className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted focus-visible:outline-none pointer-coarse:min-h-11"
                 onClick={() => {
                   close();
                   usage.onOpen();
@@ -345,15 +345,15 @@ function ZoomableImage({ src, alt }: { src: string; alt: string }) {
 }
 
 const videoControlClass =
-  "grid size-8 pointer-coarse:size-11 shrink-0 place-items-center rounded-full text-white transition-[background,transform] duration-150 hover:bg-white/15 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "grid size-8 pointer-coarse:size-11 shrink-0 place-items-center rounded-full text-white transition-[background,transform] duration-150 hover:bg-white/15 active:scale-95 focus-visible:outline-none";
 
 const videoSliderClass = cn(
   "h-1 cursor-pointer appearance-none rounded-full bg-transparent outline-none",
   "[&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full",
-  "[&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:-translate-y-1 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_rgba(0,0,0,0.4)]",
+  "[&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:-translate-y-1 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/80 focus-visible:[&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_rgba(0,0,0,0.4)]",
   "[&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent",
-  "[&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+  "[&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white/80 focus-visible:[&::-moz-range-thumb]:bg-white",
+  "focus-visible:outline-none",
   "forced-colors:appearance-auto",
 );
 

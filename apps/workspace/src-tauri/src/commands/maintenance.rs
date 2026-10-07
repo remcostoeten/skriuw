@@ -1,7 +1,8 @@
 use crate::maintenance::{
     ArchiveImportReport, BackupRotationReport, DatabaseSwapReport, RecoveryInventoryReport,
 };
-use crate::state::{AppState, now_millis, run_maintenance, storage_pointer_file};
+use crate::state::{AppState, now_millis, run_maintenance, storage_base, storage_pointer_file};
+use crate::workspace_slots;
 use serde::Serialize;
 use std::{env, fs, io::ErrorKind, path::Path, sync::Arc};
 use tauri::{Manager, State};
@@ -208,9 +209,11 @@ pub async fn clear_all_data(
         .path()
         .app_data_dir()
         .map_err(|error| error.to_string())?;
+    let storage_base = storage_base(&data_dir)?;
     tauri::async_runtime::spawn_blocking(move || {
         coordinator.shutdown();
         remove_workspace_data(&storage_path)?;
+        workspace_slots::clear_all(&data_dir, &storage_base)?;
         remove_owned_path(&storage_pointer_file(&data_dir))
     })
     .await

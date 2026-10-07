@@ -55,7 +55,7 @@ export function JournalTags({
                 tag.entryCount === 1 ? "entry" : "entries"
               }`}
               onClick={() => onSelectTag(active ? null : tag.id)}
-              className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] transition-colors focus-visible:outline-none ${
                 active
                   ? "border-border bg-muted font-medium text-foreground"
                   : "border-transparent text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground/75"

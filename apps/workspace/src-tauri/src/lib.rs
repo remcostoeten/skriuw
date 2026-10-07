@@ -65,7 +65,6 @@ pub fn run() {
         .plugin(
             tauri_plugin_window_state::Builder::new()
                 .with_state_flags(WINDOW_STATE_FLAGS)
-                .with_denylist(&[window::SPLASH_LABEL])
                 .build(),
         )
         .setup(|app| {
@@ -159,11 +158,6 @@ pub fn run() {
                 if let Err(error) = granted {
                     eprintln!("microphone permission handler unavailable: {error}");
                 }
-            }
-            // Harnesses point SKRIUW_DB at their own database and drive the one
-            // main window over WebDriver; a second window would confuse them.
-            if std::env::var_os("SKRIUW_DB").is_none() {
-                window::open_splash_window(app.handle());
             }
             window::spawn_reveal_failsafe(app.handle());
             let sync = Arc::new(sync::SyncRuntime::with_observers(

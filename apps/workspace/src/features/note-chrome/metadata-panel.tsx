@@ -413,7 +413,7 @@ function RevisionList({ store, noteId, versions, onOpen }: RevisionListProps) {
   }
 
   return (
-    <div className="space-y-1.5">
+    <div>
       <div
         ref={scrollerRef}
         style={{ maxHeight: fitsAll ? "none" : maxHeight }}
@@ -440,7 +440,7 @@ function RevisionList({ store, noteId, versions, onOpen }: RevisionListProps) {
         aria-valuemin={minRevisionHeight}
         tabIndex={0}
         title="Drag to resize · double-click to show all"
-        className="group/grip -mb-1 flex h-2 cursor-row-resize touch-none items-center justify-center rounded-full outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        className="group/grip mx-2 mt-1.5 flex h-2.5 cursor-row-resize touch-none items-center outline-none"
         onPointerDown={(event) => {
           if (event.button !== 0) {
             return;
@@ -497,9 +497,9 @@ function RevisionList({ store, noteId, versions, onOpen }: RevisionListProps) {
           commitHeight(clampHeight(renderedHeight() + (event.key === "ArrowDown" ? step : -step)));
         }}
       >
-        <span className="h-[3px] w-8 rounded-full bg-border opacity-50 transition-opacity duration-150 group-hover/grip:opacity-100 group-focus-visible/grip:opacity-100 group-active/grip:bg-muted-foreground/60" />
+        <span className="h-px w-full bg-border/60 transition-colors duration-150 group-hover/grip:bg-muted-foreground/40 group-focus-visible/grip:bg-muted-foreground group-active/grip:bg-muted-foreground/60" />
       </div>
-      <div className="flex items-center gap-3 px-2 pt-1">
+      <div className="flex h-6 items-center gap-3 px-2">
         {(moreCount > 0 || expanded) && (
           <button
             type="button"
@@ -520,10 +520,13 @@ function RevisionList({ store, noteId, versions, onOpen }: RevisionListProps) {
         <button
           type="button"
           onClick={() => onOpen()}
-          className={cn(quietActionClass, "ml-auto gap-0.5")}
+          className={cn(quietActionClass, "group/open ml-auto gap-0.5")}
         >
           Open history
-          <ChevronRightIcon size={11} />
+          <ChevronRightIcon
+            size={10}
+            className="-mr-0.5 transition-transform duration-150 group-hover/open:translate-x-0.5 motion-reduce:transition-none"
+          />
         </button>
       </div>
     </div>

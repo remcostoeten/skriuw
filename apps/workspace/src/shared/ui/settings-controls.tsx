@@ -142,7 +142,7 @@ export function SettingCardPicker<TValue extends string>({
                 "cursor-pointer rounded-lg border p-1.5 text-left",
                 "transition-[border-color,background-color,transform] duration-150 ease-out motion-reduce:transition-none",
                 "active:scale-[0.98] motion-reduce:active:scale-100",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "focus-visible:border-foreground/60 focus-visible:outline-none",
                 active
                   ? "border-foreground/60 bg-accent/40"
                   : "border-border/60 bg-card/30 hover:border-border",

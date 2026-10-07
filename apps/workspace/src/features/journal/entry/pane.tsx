@@ -29,10 +29,7 @@ import { WordGoalControl } from "./word-goal-control";
 
 const DAY_STEP_SHORTCUT_IDS = ["journalPreviousDay", "journalNextDay"] as const;
 
-const dayStepButtonClass = cn(
-  toolbarIconButtonClass,
-  "rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-);
+const dayStepButtonClass = cn(toolbarIconButtonClass, "rounded-md focus-visible:outline-none");
 
 export function JournalEntryPane({
   store,
@@ -237,14 +234,14 @@ export function JournalEntryPane({
                       setConfirmingDelete(false);
                     }}
                     aria-label={`Delete the entry for ${formatLongDate(selectedKey)}`}
-                    className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/20 focus-visible:outline-none"
                   >
                     Delete
                   </button>
                   <button
                     type="button"
                     onClick={cancelDelete}
-                    className="rounded-md border border-transparent px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="rounded-md border border-transparent px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-muted focus-visible:outline-none"
                   >
                     Cancel
                   </button>
@@ -255,7 +252,7 @@ export function JournalEntryPane({
                   ref={deleteTriggerRef}
                   onClick={() => setConfirmingDelete(true)}
                   aria-label="Delete this entry"
-                  className="flex items-center gap-1 rounded-md border border-transparent px-2 py-1 text-[11px] text-muted-foreground/40 transition-colors hover:border-border hover:bg-muted hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex items-center gap-1 rounded-md border border-transparent px-2 py-1 text-[11px] text-muted-foreground/40 transition-colors hover:border-border hover:bg-muted hover:text-destructive focus-visible:outline-none"
                 >
                   <Trash2Icon size={12} aria-hidden="true" />
                   Delete

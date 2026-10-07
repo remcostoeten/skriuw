@@ -41,7 +41,7 @@ export function NotePropertiesShelf({ store, selectNoteId }: Props) {
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
         aria-controls={bodyId}
-        className="-ml-1 mb-0.5 inline-flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-1 py-0.5 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-1 focus-visible:ring-ring/50"
+        className="-ml-1 mb-0.5 inline-flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-1 py-0.5 outline-none transition-colors hover:bg-muted/50"
       >
         <SectionChevron open={open} />
         <SectionLabel title="Properties" count={propertyCount} />

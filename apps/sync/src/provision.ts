@@ -28,6 +28,11 @@ export async function handleSyncProvisionRequest(
 
   const body = await readProvisionBody(request);
   if (!body.ok) return errorResponse(body.status, body.code);
+  const deleted = await dependencies.database
+    .prepare("SELECT 1 FROM deleted_account WHERE user_id = ?1")
+    .bind(authentication.identity.subject)
+    .first();
+  if (deleted) return errorResponse(410, "account_deleted");
   const workspaceId = await workspaceIdFor(authentication.identity.subject);
   const now = dependencies.nowEpochSeconds();
   await dependencies.database.batch([

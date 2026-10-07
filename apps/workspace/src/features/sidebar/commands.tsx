@@ -8,10 +8,16 @@ import {
   restoreTrashedNote,
   trashCurrentNote,
 } from "@/features/notes/current-note";
+import {
+  describeEmptyNoteCount,
+  restoreEmptyNotes,
+  trashEmptyNotes,
+} from "@/features/notes/empty-notes";
 import { focusedPaneNoteId } from "@/features/notes/navigation";
 import { renameCurrentNote } from "@/features/sidebar/tree-state";
 import {
   CopyIcon,
+  EraserIcon,
   FolderPlusIcon,
   NewNoteIcon,
   PencilIcon,
@@ -117,6 +123,26 @@ export function sidebarCommands(store: RendererStore, openSidebar: () => void): 
               label: "Undo",
               run: () => restoreTrashedNote(store, trashed.noteId),
             },
+          });
+        });
+      },
+    },
+    {
+      id: "trash-empty-notes",
+      label: "Clean up empty notes",
+      group: "Actions",
+      keywords: ["empty", "blank", "untitled", "cleanup", "trash", "delete", "remove", "bulk"],
+      icon: <EraserIcon size={15} />,
+      hint: "Move every note without content to the trash in one go.",
+      run: () => {
+        void trashEmptyNotes(store).then((cleanup) => {
+          if (cleanup.noteIds.length === 0) {
+            showToast({ message: "No empty notes to clean up" });
+            return;
+          }
+          showToast({
+            message: `Moved ${describeEmptyNoteCount(cleanup.noteIds.length)} to trash`,
+            action: { label: "Undo", run: () => restoreEmptyNotes(store, cleanup) },
           });
         });
       },

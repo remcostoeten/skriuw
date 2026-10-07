@@ -438,7 +438,7 @@ function Shell({
         <span className="truncate text-[13px] font-medium">{title}</span>
       </div>
       {features.search && (
-        <label className="flex h-7 items-center gap-2 rounded-md px-2 text-muted-foreground focus-within:bg-muted/60 focus-within:ring-1 focus-within:ring-ring hover:bg-muted/40">
+        <label className="flex h-7 items-center gap-2 rounded-md px-2 text-muted-foreground focus-within:bg-muted/60 hover:bg-muted/40">
           <SearchIcon size={14} />
           <input
             ref={searchRef}

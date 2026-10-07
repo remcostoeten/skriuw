@@ -271,10 +271,22 @@
 }
 
 dialog.command-palette {
+  --palette-max-height: 30rem;
+  --palette-max-width: 46rem;
   inset-block: clamp(24px, 10dvh, 96px) auto;
   margin-block: 0;
   margin-inline: auto;
-  max-height: min(30rem, calc(var(--viewport-height) - 48px));
+  max-height: min(var(--palette-max-height), calc(var(--viewport-height) - 48px));
+}
+
+dialog.command-palette-roomy {
+  --palette-max-height: 40rem;
+  --palette-max-width: 52rem;
+}
+
+dialog.command-palette-large {
+  --palette-max-height: 52rem;
+  --palette-max-width: 60rem;
 }
 
 @media (max-width: 899px) {

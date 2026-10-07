@@ -71,7 +71,7 @@ export function DrawingInkPicker({ x, y, dark, colorId, onSelect, onClose }: Pro
             aria-checked={colorId === ink.id}
             aria-label={ink.label}
             title={`${ink.label} (${ink.key})`}
-            className="drawing-ink-preset flex h-[22px] items-center justify-center rounded-[5px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid"
+            className="drawing-ink-preset flex h-[22px] items-center justify-center rounded-[5px]"
             onClick={() => onSelect(ink.id)}
           >
             <span
@@ -85,7 +85,7 @@ export function DrawingInkPicker({ x, y, dark, colorId, onSelect, onClose }: Pro
       <div className="drawing-ink-custom flex items-center gap-1">
         <input
           type="text"
-          className="drawing-ink-input min-w-0 flex-1 rounded-md border border-border bg-background px-1.5 py-1 font-[family-name:var(--font-mono)] text-[11px] text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid"
+          className="drawing-ink-input min-w-0 flex-1 rounded-md border border-border bg-background px-1.5 py-1 font-[family-name:var(--font-mono)] text-[11px] text-foreground outline-none transition-colors focus-visible:border-foreground/45"
           aria-label="Custom color"
           placeholder="#7c3aed"
           spellCheck={false}
@@ -99,7 +99,7 @@ export function DrawingInkPicker({ x, y, dark, colorId, onSelect, onClose }: Pro
         />
         <button
           type="button"
-          className="drawing-ink-apply rounded-md bg-[hsl(var(--foreground)/0.1)] px-2 py-1 text-[11px] text-foreground disabled:cursor-default disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring focus-visible:outline-solid"
+          className="drawing-ink-apply rounded-md bg-[hsl(var(--foreground)/0.1)] px-2 py-1 text-[11px] text-foreground disabled:cursor-default disabled:opacity-40"
           disabled={!customValid}
           onClick={submitCustom}
         >

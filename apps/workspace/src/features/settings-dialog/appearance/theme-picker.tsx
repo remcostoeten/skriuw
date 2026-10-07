@@ -66,7 +66,7 @@ export function ThemePicker({ value, onSelect }: Props) {
 }
 
 const CARD_BASE =
-  "group rounded-lg border p-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "group rounded-lg border p-2 text-left transition-colors focus-visible:border-foreground/60 focus-visible:outline-none";
 
 function cardTone(active: boolean): string {
   return active

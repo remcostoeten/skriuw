@@ -648,7 +648,7 @@ export function NoteCover({ store, selectNoteId }: Props) {
         <div className="absolute left-0 right-0 top-8 z-10 mx-auto h-0 w-[calc(100%_-_6rem)] max-w-[72ch]">
           <button
             type="button"
-            className="absolute right-0 top-0 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/55 outline-none transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50 disabled:opacity-50"
+            className="absolute right-0 top-0 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/55 outline-none transition-colors hover:bg-muted/60 hover:text-foreground disabled:opacity-50"
             disabled={busy}
             onClick={openMediaPicker}
           >
@@ -964,7 +964,7 @@ function CoverMediaPicker({
                 aria-pressed={currentGradient === gradient.id}
                 title={gradient.label}
                 className={cn(
-                  "h-8 w-14 rounded border outline-none hover:border-foreground/40 focus-visible:ring-2 focus-visible:ring-ring",
+                  "h-8 w-14 rounded border outline-none transition-colors hover:border-foreground/40 focus-visible:border-foreground",
                   currentGradient === gradient.id ? "border-foreground/60" : "border-border",
                 )}
                 style={{ backgroundImage: gradient.css }}
@@ -986,7 +986,7 @@ function CoverMediaPicker({
               inputMode="url"
               value={remoteUrl}
               placeholder="Paste an image address (https://…)"
-              className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-xs outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-xs outline-none placeholder:text-muted-foreground transition-colors focus-visible:border-foreground/45"
               onChange={(event) => {
                 setRemoteUrl(event.currentTarget.value);
                 setRemoteError(null);
@@ -1021,7 +1021,7 @@ function CoverMediaPicker({
             type="search"
             value={query}
             placeholder="Search media"
-            className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs outline-none [&::-webkit-search-cancel-button]:hidden placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs outline-none [&::-webkit-search-cancel-button]:hidden placeholder:text-muted-foreground transition-colors focus-visible:border-foreground/45"
             onChange={(event) => setQuery(event.currentTarget.value)}
           />
         </label>
@@ -1076,7 +1076,7 @@ function CoverMediaPicker({
                 type="button"
                 aria-pressed={item.isCurrent}
                 className={cn(
-                  "group/media block w-full overflow-hidden rounded-md border bg-muted text-left outline-none hover:border-foreground/30 focus-visible:ring-2 focus-visible:ring-ring",
+                  "group/media block w-full overflow-hidden rounded-md border bg-muted text-left outline-none transition-colors hover:border-foreground/30 focus-visible:border-foreground",
                   item.isCurrent ? "border-foreground/60" : "border-border",
                 )}
                 onClick={() => onSelect(item)}

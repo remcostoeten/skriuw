@@ -64,22 +64,22 @@ type IdFactory = ReturnType<typeof createBrowserPropertyIdFactory>;
 const EMPTY_PROPERTIES: readonly NoteProperty[] = [];
 const EMPTY_TEMPLATES: readonly NotePropertyTemplate[] = [];
 const inputClass =
-  "min-h-7 w-full min-w-0 rounded-md bg-transparent px-1 py-0.5 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/55 focus-visible:bg-accent/70 focus-visible:ring-1 focus-visible:ring-ring/45 disabled:cursor-not-allowed disabled:opacity-45";
+  "min-h-7 w-full min-w-0 rounded-md bg-transparent px-1 py-0.5 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/55 focus-visible:bg-accent/70 disabled:cursor-not-allowed disabled:opacity-45";
 const nameInputClass =
-  "w-full min-w-0 rounded-md bg-transparent px-1 py-0.5 text-[13px] text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:bg-accent/70 focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/45";
+  "w-full min-w-0 rounded-md bg-transparent px-1 py-0.5 text-[13px] text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:bg-accent/70 focus-visible:text-foreground";
 const ghostButtonClass =
-  "flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50";
+  "flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground";
 const menuItemClass =
-  "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50";
+  "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground";
 const menuHeadingClass = cn("px-2 pb-1 pt-1", sectionLabelClass);
 const typeIconButtonClass =
-  "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-70 transition-colors hover:bg-accent hover:text-foreground hover:opacity-100 focus-visible:bg-accent focus-visible:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring/50";
+  "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-70 transition-colors hover:bg-accent hover:text-foreground hover:opacity-100 focus-visible:bg-accent focus-visible:text-foreground focus-visible:opacity-100";
 const compactButtonClass =
-  "inline-flex min-h-7 cursor-pointer items-center justify-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/55 disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex min-h-7 cursor-pointer items-center justify-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40";
 const ghostSelectTriggerClass =
-  "min-h-7 rounded-md border-transparent bg-transparent pl-1 pr-1.5 text-[13px] text-foreground hover:bg-accent/70 focus-visible:border-transparent focus-visible:bg-accent/70 focus-visible:shadow-none focus-visible:ring-1 focus-visible:ring-ring/45 data-[open=true]:border-transparent data-[open=true]:bg-accent/70";
+  "min-h-7 rounded-md border-transparent bg-transparent pl-1 pr-1.5 text-[13px] text-foreground hover:bg-accent/70 focus-visible:border-transparent focus-visible:bg-accent/70 focus-visible:shadow-none data-[open=true]:border-transparent data-[open=true]:bg-accent/70";
 const iconButtonClass =
-  "inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/55 disabled:pointer-events-none disabled:opacity-30";
+  "inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30";
 
 function selectActiveNoteId(state: RendererState): string | null {
   return state.activeNoteId;
@@ -142,7 +142,7 @@ export function NotePropertiesPanel({ store, selectNoteId = selectActiveNoteId }
             type="button"
             aria-label="Dismiss property error"
             onClick={() => setError(null)}
-            className="shrink-0 cursor-pointer rounded-md p-0.5 hover:bg-destructive/10 focus-visible:ring-1 focus-visible:ring-destructive/50"
+            className="shrink-0 cursor-pointer rounded-md p-0.5 hover:bg-destructive/10"
           >
             <CloseIcon size={12} />
           </button>
@@ -276,7 +276,7 @@ function AddPropertyButton({
             value={name}
             placeholder="Property name…"
             onChange={(event) => setName(event.target.value)}
-            className="mb-1 w-full rounded-md bg-accent/70 px-2 py-1.5 text-xs outline-none placeholder:text-muted-foreground/55 focus-visible:ring-1 focus-visible:ring-ring/45"
+            className="mb-1 w-full rounded-md bg-accent/70 px-2 py-1.5 text-xs outline-none transition-colors placeholder:text-muted-foreground/55 focus-visible:bg-accent"
           />
           <p id={headingId} className={menuHeadingClass}>
             Type
@@ -449,7 +449,7 @@ function PropertyRow({ property, people, onCommit, onReorder, idFactory }: RowPr
               onClick={arm}
               aria-label={`Delete ${property.name}`}
               title={`Delete ${property.name} (Alt+↑/↓ reorders)`}
-              className="mt-0.5 cursor-pointer rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring/50 group-hover/row:opacity-100"
+              className="mt-0.5 cursor-pointer rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/row:opacity-100"
             >
               <Trash2Icon size={13} />
             </button>
@@ -504,10 +504,7 @@ function PropertyName({
           event.currentTarget.blur();
         }
       }}
-      className={cn(
-        nameInputClass,
-        invalid && "text-destructive focus-visible:ring-destructive/50",
-      )}
+      className={cn(nameInputClass, invalid && "text-destructive")}
     />
   );
 }
@@ -556,7 +553,7 @@ function ValueEditor({
             type="button"
             aria-label={`${rating} of 5`}
             aria-pressed={(value.value ?? 0) >= rating}
-            className="size-6 cursor-pointer rounded-md text-[15px] text-muted-foreground/60 outline-none transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/55 aria-pressed:text-amber-500"
+            className="size-6 cursor-pointer rounded-md text-[15px] text-muted-foreground/60 outline-none transition-colors hover:text-foreground aria-pressed:text-amber-500"
             onClick={() =>
               onUpdate({
                 ...property,
@@ -720,7 +717,7 @@ function NumberEditor({
       onKeyDown={(event) => {
         if (event.key === "Enter") event.currentTarget.blur();
       }}
-      className={cn(inputClass, invalid && "text-destructive focus-visible:ring-destructive/50")}
+      className={cn(inputClass, invalid && "text-destructive")}
     />
   );
 }
@@ -811,7 +808,7 @@ function OptionEditor({
 
   return (
     <details className="group/options">
-      <summary className="flex h-6 w-fit cursor-pointer list-none select-none items-center gap-1 rounded-md px-1 text-[11px] text-muted-foreground/60 outline-none transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/45 [&::-webkit-details-marker]:hidden">
+      <summary className="flex h-6 w-fit cursor-pointer list-none select-none items-center gap-1 rounded-md px-1 text-[11px] text-muted-foreground/60 outline-none transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
         <ChevronRightIcon
           size={10}
           className="shrink-0 transition-transform duration-150 group-open/options:rotate-90 motion-reduce:transition-none"

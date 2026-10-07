@@ -39,7 +39,7 @@ const RING_RADIUS = 5.5;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 const triggerClass =
-  "flex h-8 items-center gap-1.5 rounded-md px-1.5 text-[11px] tabular-nums text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-muted pointer-coarse:h-11 pointer-coarse:px-2.5";
+  "flex h-8 items-center gap-1.5 rounded-md px-1.5 text-[11px] tabular-nums text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground/80 focus-visible:outline-none data-[state=open]:bg-muted pointer-coarse:h-11 pointer-coarse:px-2.5";
 
 function ProgressRing({ fraction, met }: { fraction: number | null; met: boolean }) {
   return (

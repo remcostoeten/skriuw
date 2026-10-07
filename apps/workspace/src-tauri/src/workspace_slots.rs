@@ -193,6 +193,23 @@ pub(crate) fn active_workspace_id(data_dir: &Path) -> Option<String> {
     read(data_dir).active
 }
 
+pub(crate) fn clear_all(data_dir: &Path, base: &Path) -> Result<(), String> {
+    let workspaces = base.join(SLOT_PARENT);
+    match fs::remove_dir_all(&workspaces) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(format!("delete {}: {error}", workspaces.display())),
+    }
+    for path in [registry_file(data_dir), registry_file(data_dir).with_extension("json.tmp")] {
+        match fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(format!("delete {}: {error}", path.display())),
+        }
+    }
+    Ok(())
+}
+
 /// Points the installation at `workspace_id`.
 ///
 /// An unclaimed workspace is claimed in place, which is what makes a first

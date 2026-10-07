@@ -69,7 +69,7 @@ export function OnThisDaySection({ store, dateKey }: OnThisDayProps) {
               <button
                 type="button"
                 onClick={() => openJournalDay(memory.dateKey)}
-                className="-mx-2 block w-[calc(100%+1rem)] rounded-md border border-transparent px-2 py-2 text-left transition-colors hover:border-border hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:py-3"
+                className="-mx-2 block w-[calc(100%+1rem)] rounded-md border border-transparent px-2 py-2 text-left transition-colors hover:border-border hover:bg-muted focus-visible:outline-none pointer-coarse:py-3"
               >
                 <span className="flex items-baseline gap-2 text-[11px]">
                   <span className="font-medium text-foreground/80">{memory.label}</span>
