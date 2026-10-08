@@ -30,6 +30,7 @@ import {
 } from "./lightbox/zoom-gesture";
 import { cn } from "@/shared/styling/class-names";
 import { sectionLabelClass } from "@/shared/ui/section-header";
+import { settingsPress, settingsTransition } from "@/shared/ui/settings-controls";
 import { showToast } from "@/shared/ui/toast";
 
 export type MediaLightboxUsage = {
@@ -76,7 +77,7 @@ export function MediaLightbox({
       onOpenChange={onOpenChange}
       title={title}
       showHeader={false}
-      className="dialog-fullscreen h-(--viewport-height) max-h-none w-(--viewport-width) max-w-none rounded-none border-0 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)]"
+      className="dialog-fullscreen focus-fill h-(--viewport-height) max-h-none w-(--viewport-width) max-w-none rounded-none border-0 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)]"
     >
       <div className="flex h-full min-h-0 flex-col bg-background">
         <MediaLightboxHeader title={title} />
@@ -110,7 +111,9 @@ export function MediaLightbox({
               <button
                 type="button"
                 className={cn(
-                  "mt-2 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none pointer-coarse:px-3 pointer-coarse:text-[13px]",
+                  "mt-2 -ml-1.5 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:px-3 pointer-coarse:text-[13px]",
+                  settingsTransition,
+                  settingsPress,
                   touchTargetClass,
                 )}
                 onClick={() => copyFileId(contentHash)}
@@ -144,7 +147,11 @@ function MediaLightboxHeader({ title }: { title: string }) {
       <h2 className="m-0 min-w-0 truncate text-sm font-semibold text-foreground">{title}</h2>
       <button
         type="button"
-        className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-[var(--radius)] border-none bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none"
+        className={cn(
+          "grid size-11 shrink-0 cursor-pointer place-items-center rounded-[var(--radius)] border-none bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground",
+          settingsTransition,
+          settingsPress,
+        )}
         aria-label="Close preview"
         onClick={close}
       >
@@ -179,7 +186,7 @@ export function MediaUsageList({ usages }: { usages: readonly MediaLightboxUsage
             <li key={usage.id}>
               <button
                 type="button"
-                className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted focus-visible:outline-none pointer-coarse:min-h-11"
+                className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left hover:bg-muted pointer-coarse:min-h-11"
                 onClick={() => {
                   close();
                   usage.onOpen();
@@ -345,7 +352,7 @@ function ZoomableImage({ src, alt }: { src: string; alt: string }) {
 }
 
 const videoControlClass =
-  "grid size-8 pointer-coarse:size-11 shrink-0 place-items-center rounded-full text-white transition-[background,transform] duration-150 hover:bg-white/15 active:scale-95 focus-visible:outline-none";
+  "grid size-8 pointer-coarse:size-11 shrink-0 place-items-center rounded-full text-white transition-[background-color,box-shadow,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-white/15 focus-visible:text-white focus-visible:[--focus-fill:rgb(255_255_255/0.22)] active:scale-95 motion-reduce:active:scale-100";
 
 const videoSliderClass = cn(
   "h-1 cursor-pointer appearance-none rounded-full bg-transparent outline-none",
@@ -353,7 +360,8 @@ const videoSliderClass = cn(
   "[&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:-translate-y-1 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/80 focus-visible:[&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_rgba(0,0,0,0.4)]",
   "[&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent",
   "[&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white/80 focus-visible:[&::-moz-range-thumb]:bg-white",
-  "focus-visible:outline-none",
+  "[&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:duration-150 focus-visible:[&::-webkit-slider-thumb]:scale-[1.35]",
+  "[&::-moz-range-thumb]:transition-transform [&::-moz-range-thumb]:duration-150 focus-visible:[&::-moz-range-thumb]:scale-[1.35]",
   "forced-colors:appearance-auto",
 );
 

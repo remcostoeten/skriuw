@@ -5,7 +5,10 @@ import {
   availableSettingsSections,
   groupSettingsSections,
 } from "@/features/settings-dialog/sections";
-import { filterSettingsSections } from "@/features/settings-dialog/navigation";
+import {
+  filterSettingsSections,
+  settingsSearchSnippet,
+} from "@/features/settings-dialog/navigation";
 
 test("the sidebar splits into everyday preferences and account, safety, and data", () => {
   const groups = groupSettingsSections(availableSettingsSections(true, false, ""));
@@ -65,4 +68,32 @@ test("the stored empty-note prompt is searchable alongside the static terms", ()
     filterSettingsSections(availableSettingsSections(false, false, "Start writing..."), "vandaag"),
     [],
   );
+});
+
+test("row descriptions find their section, not only the curated keywords", () => {
+  const sections = availableSettingsSections(true, false, "");
+  assert.deepEqual(
+    filterSettingsSections(sections, "no note references").map((section) => section.id),
+    ["media"],
+  );
+  assert.deepEqual(
+    filterSettingsSections(sections, "typewriter scrolling").map((section) => section.id),
+    ["editor", "shortcuts"],
+  );
+  assert.deepEqual(
+    filterSettingsSections(sections, "auto-lock delay").map((section) => section.id),
+    ["lock"],
+  );
+});
+
+test("a search snippet names the row that matched", () => {
+  const media = availableSettingsSections(true, false, "").find(
+    (section) => section.id === "media",
+  );
+  assert.ok(media);
+  assert.equal(
+    settingsSearchSnippet(media, "no note references"),
+    "Deletes every image that no note references. This cannot be undone.",
+  );
+  assert.equal(settingsSearchSnippet(media, "pictures"), undefined);
 });

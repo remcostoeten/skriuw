@@ -183,18 +183,18 @@ export function ShortcutsSection({
         detail="Click a shortcut, then press a new key combination. Enter or clicking elsewhere keeps the current one, Escape cancels."
       />
       <div className="sticky top-0 z-[2] -mx-1 mb-4 bg-background px-1 pt-1.5 pb-2.5">
-        <div className="relative">
+        <div className="group relative">
           <SearchIcon
             size={14}
             aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-[9px] -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute top-1/2 left-[9px] -translate-y-1/2 text-muted-foreground transition-colors duration-150 group-focus-within:text-foreground"
           />
           <input
             ref={searchInputRef}
             type="search"
             role="combobox"
             value={query}
-            className="h-8 w-full rounded-lg border border-border bg-muted py-[5px] pr-2.5 pl-[30px] text-xs text-foreground outline-none placeholder:text-muted-foreground/[78%] [&::-webkit-search-cancel-button]:hidden focus-visible:border-foreground/70 focus-visible:bg-accent/25"
+            className="h-8 w-full rounded-lg border border-border bg-muted py-[5px] pr-2.5 pl-[30px] text-xs text-foreground outline-none placeholder:text-muted-foreground/[78%] [&::-webkit-search-cancel-button]:hidden transition-[background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-foreground/20 focus-visible:border-foreground/40 focus-visible:bg-background"
             placeholder={`Filter shortcuts (${formatShortcut("mod+f")})`}
             aria-label="Filter shortcuts"
             aria-keyshortcuts="Control+F"
