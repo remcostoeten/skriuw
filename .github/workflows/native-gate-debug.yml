@@ -11,14 +11,8 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - variant: daddy
-                      ref: debug/native-gate
-                      patch_visible: "false"
-                    - variant: daddy-always-show
-                      ref: debug/native-gate
-                      patch_visible: "true"
-                    - variant: v0.49.0
-                      ref: v2-v0.49.0
+                    - variant: fix
+                      ref: fix/linux-window-reveal
                       patch_visible: "false"
         name: gate (${{ matrix.variant }})
         runs-on: ubuntu-latest
