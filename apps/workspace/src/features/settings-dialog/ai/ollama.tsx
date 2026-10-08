@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import type { FocusEvent, FormEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
@@ -153,7 +154,7 @@ export function OllamaRuntimeCard({
                   }`
                 : status
                   ? ollamaOwnershipLabel(status)
-                  : "No process or network work runs until this page opens."}
+                  : settingsCopy.ai.noProcessOrNetworkWorkRuns}
             </span>
           </span>
           <RuntimeAction
@@ -391,9 +392,7 @@ export function OllamaModelsPanel({
   return (
     <div className={settingsGroup}>
       <div className={settingsGroupTitle}>Models</div>
-      <p className={settingsGroupHint}>
-        Pull a model from Ollama, then choose which local model future AI actions use.
-      </p>
+      <p className={settingsGroupHint}>{settingsCopy.ai.pullAModelFromOllamaThen}</p>
       <form className="mb-3 flex gap-2 max-[620px]:flex-col" onSubmit={handleSubmit}>
         <input
           className={cn(settingsTextInput, "min-w-0 flex-1 max-[620px]:w-full")}
@@ -414,12 +413,12 @@ export function OllamaModelsPanel({
       </form>
       {models.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-          No local models yet. Enter a model name to pull one.
+          {settingsCopy.ai.noLocalModelsYetEnterA}
         </p>
       ) : (
         <div
           role="radiogroup"
-          aria-label="Local AI model"
+          aria-label={settingsCopy.ai.localAiModel}
           className="divide-y divide-border/60 rounded-xl border border-border"
         >
           {models.map((model) => (

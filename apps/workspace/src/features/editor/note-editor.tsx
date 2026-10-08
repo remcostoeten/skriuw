@@ -27,6 +27,7 @@ import { EditorView } from "prosemirror-view";
 import { createCodeBlockNodeView, toggleMermaidSource } from "./code-blocks/nodeview";
 import { insertInlineMath, insertMathBlock } from "./math/commands";
 import { createMathBlockNodeView, createMathInlineNodeView } from "./math/nodeview";
+import { workspaceMathRendering } from "./math/workspace-render";
 import { createDiagramNodeView } from "./diagrams/nodeview";
 import { createImageNodeViews, type ImageTouchActions } from "./media/image-nodeview";
 import {
@@ -1883,8 +1884,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         ...referenceViews.nodeViews,
         ...imageViews.nodeViews,
         code_block: (node, view, getPos) => createCodeBlockNodeView(node, view, getPos),
-        math_block: (node, view, getPos) => createMathBlockNodeView(node, view, getPos),
-        math_inline: (node, view, getPos) => createMathInlineNodeView(node, view, getPos),
+        math_block: (node, view, getPos) =>
+          createMathBlockNodeView(node, view, getPos, workspaceMathRendering(store)),
+        math_inline: (node, view, getPos) =>
+          createMathInlineNodeView(node, view, getPos, workspaceMathRendering(store)),
         diagram: createDiagramNodeView,
         media: (node, currentView, getPos) =>
           createMediaNodeView(

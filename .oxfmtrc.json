@@ -9,6 +9,7 @@
     "tools/packaging/**",
     "packages/theme/tokens.ts",
     "packages/icons/generated/**",
+    "apps/workspace/src/features/settings-dialog/search-copy.generated.ts",
     "tools/oxlint/anti-slop/**",
     "**/*.{json,jsonc,md,mdx,css,html,yml,yaml,toml,webmanifest}"
   ]

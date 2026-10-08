@@ -232,7 +232,7 @@ export function SettingsDialog({
       title="Settings"
       className={cn(
         "w-[min(896px,calc(100vw-48px))] h-[min(720px,calc(var(--viewport-height)-64px))] max-h-[calc(var(--viewport-height)-64px)]",
-        "dialog-fullscreen focus-fill",
+        "dialog-fullscreen focus-fill settings-dialog",
       )}
       onKeyDown={handleDialogKeyDown}
       onCancel={handleDialogCancel}

@@ -7,3 +7,5 @@ declare module "highlight.js/lib/languages/*" {
 }
 
 declare module "@remcostoeten/notifier/styles";
+
+declare module "katex/contrib/mhchem";

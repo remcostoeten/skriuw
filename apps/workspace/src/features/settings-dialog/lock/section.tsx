@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import { useState } from "react";
 import { Select } from "@/shared/ui/select";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
@@ -36,9 +37,9 @@ function selectNoteLock(state: RendererState) {
 
 function lockStatusText(configured: boolean, unlocked: boolean, count: number): string {
   if (!configured) {
-    return "No lock set up. Lock a note from its context menu or set one up here.";
+    return settingsCopy.lock.noLockSetUpLockA;
   }
-  const notes = count === 1 ? "1 locked note" : `${count} locked notes`;
+  const notes = count === 1 ? settingsCopy.lock.text1LockedNote : `${count} locked notes`;
   return unlocked
     ? `${notes}. Unlocked for this session.`
     : `${notes}. Locked until you enter your secret.`;
@@ -60,10 +61,10 @@ export function LockSection({ store }: SectionProps) {
   }
 
   return (
-    <section aria-label="Privacy and lock preferences" className={settingsSection}>
+    <section aria-label={settingsCopy.lock.privacyAndLockPreferences} className={settingsSection}>
       <SettingsHeading
-        title="Privacy & lock"
-        detail="Lock single notes or whole folders behind one PIN or passphrase. Locked bodies are encrypted on disk and stay out of search, links, tasks, and history until unlocked."
+        title={settingsCopy.lock.privacyLock}
+        detail={settingsCopy.lock.lockSingleNotesOrWholeFolders}
       />
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Note lock</div>
@@ -71,7 +72,7 @@ export function LockSection({ store }: SectionProps) {
           <span className={settingsRowLabel}>
             {lock.configured
               ? `${noun.charAt(0).toUpperCase()}${noun.slice(1)} lock`
-              : "Not set up"}
+              : settingsCopy.lock.notSetUp}
             <span className={settingsRowDescription}>
               {lockStatusText(lock.configured, lock.unlocked, lock.lockedNoteCount)}
             </span>
@@ -86,7 +87,7 @@ export function LockSection({ store }: SectionProps) {
                 className={settingsButton}
                 onClick={() => requestLockDialog({ kind: "setup" })}
               >
-                Set up lock…
+                {settingsCopy.lock.setUpLock}
               </button>
             )}
             {lock.configured && !lock.unlocked && (
@@ -122,9 +123,9 @@ export function LockSection({ store }: SectionProps) {
         <div className={settingsGroupTitle}>Relocking</div>
         <div className={settingsRow}>
           <span className={settingsRowLabel}>
-            Lock again automatically
+            {settingsCopy.lock.lockAgainAutomatically}
             <span className={settingsRowDescription}>
-              After this long without typing, clicking, or scrolling, locked notes close again.
+              {settingsCopy.lock.afterThisLongWithoutTypingClicking}
             </span>
           </span>
           <Select
@@ -136,8 +137,8 @@ export function LockSection({ store }: SectionProps) {
           />
         </div>
         <SettingToggle
-          label="Lock when the window loses focus"
-          detail="Closes locked notes the moment you switch to another app or tab."
+          label={settingsCopy.lock.lockWhenTheWindowLosesFocus}
+          detail={settingsCopy.lock.closesLockedNotesTheMomentYou}
           checked={settings.lockOnBlur}
           onChange={(checked) => change("lockOnBlur", checked)}
         />
@@ -147,14 +148,16 @@ export function LockSection({ store }: SectionProps) {
           <div className={settingsGroupTitle}>Remove</div>
           <div className={settingsRow}>
             <span className={settingsRowLabel}>
-              Remove the lock
+              {settingsCopy.lock.removeTheLock}
               <span className={settingsRowDescription}>
-                Unlocks every locked note for good and forgets the {noun} and recovery code.
+                {settingsCopy.lock.unlocksEveryLockedNoteForGood}
+                {noun}
+                {settingsCopy.lock.andRecoveryCode}
               </span>
             </span>
             <InlineConfirm
               confirmLabel={busy ? "Removing…" : "Remove lock"}
-              message="Every locked note becomes readable again on every device."
+              message={settingsCopy.lock.everyLockedNoteBecomesReadableAgain}
               messagePlacement="stacked"
               renderIdle={(arm) => (
                 <button
@@ -167,7 +170,7 @@ export function LockSection({ store }: SectionProps) {
                 </button>
               )}
               onConfirm={() =>
-                run("Removing the lock", async () => {
+                run(settingsCopy.lock.removingTheLock, async () => {
                   await removeLock(store);
                   showToast({ message: "Lock removed" });
                 })

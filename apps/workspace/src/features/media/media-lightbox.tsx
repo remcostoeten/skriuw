@@ -77,7 +77,7 @@ export function MediaLightbox({
       onOpenChange={onOpenChange}
       title={title}
       showHeader={false}
-      className="dialog-fullscreen focus-fill h-(--viewport-height) max-h-none w-(--viewport-width) max-w-none rounded-none border-0 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)]"
+      className="media-preview-dialog dialog-fullscreen focus-fill h-(--viewport-height) max-h-none w-(--viewport-width) max-w-none rounded-none border-0 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)]"
     >
       <div className="flex h-full min-h-0 flex-col bg-background">
         <MediaLightboxHeader title={title} />

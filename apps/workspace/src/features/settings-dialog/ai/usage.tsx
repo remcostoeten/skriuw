@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import { useEffect, useMemo, useState } from "react";
 import type {
   AiHistorySettings,
@@ -157,10 +158,7 @@ export function AiUsagePanel({ signal }: Props) {
   return (
     <section aria-label="AI usage" className={settingsGroup}>
       <h2 className={settingsGroupTitle}>Usage</h2>
-      <p className={settingsGroupHint}>
-        Every AI run this device made, recorded locally. Nothing here syncs, exports, or leaves the
-        machine.
-      </p>
+      <p className={settingsGroupHint}>{settingsCopy.ai.everyAiRunThisDeviceMade}</p>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Select
@@ -194,8 +192,9 @@ export function AiUsagePanel({ signal }: Props) {
       {totalsNote ? <p className="mb-2 text-[11px] text-muted-foreground">{totalsNote}</p> : null}
       {view?.pricingAsOf ? (
         <p className="mb-3 text-[11px] text-muted-foreground">
-          Cost is calculated from the catalogue priced {view.pricingAsOf}, not from a provider
-          invoice.
+          {settingsCopy.ai.costIsCalculatedFromTheCatalogue}
+          {view.pricingAsOf}
+          {settingsCopy.ai.NotFromAProviderInvoice}
         </p>
       ) : null}
 
@@ -234,7 +233,7 @@ export function AiUsagePanel({ signal }: Props) {
 
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Select
-          label="Filter by provider"
+          label={settingsCopy.ai.filterByProvider}
           prefix="Provider"
           value={providerFilter}
           options={[{ value: ALL, label: "All providers" }, ...options.providers]}
@@ -245,7 +244,7 @@ export function AiUsagePanel({ signal }: Props) {
           align="start"
         />
         <Select
-          label="Filter by model"
+          label={settingsCopy.ai.filterByModel}
           prefix="Model"
           value={modelFilter}
           options={[{ value: ALL, label: "All models" }, ...options.models]}
@@ -253,7 +252,7 @@ export function AiUsagePanel({ signal }: Props) {
           align="start"
         />
         <Select
-          label="Filter by state"
+          label={settingsCopy.ai.filterByState}
           prefix="State"
           value={stateFilter}
           options={[
@@ -269,7 +268,7 @@ export function AiUsagePanel({ signal }: Props) {
         <p className="text-[12px] text-muted-foreground">Loading usage…</p>
       ) : view.runs.length === 0 ? (
         <p className="text-[12px] text-muted-foreground">
-          No runs recorded for this period and filter.
+          {settingsCopy.ai.noRunsRecordedForThisPeriod}
         </p>
       ) : (
         <ul className="m-0 list-none p-0">
@@ -283,7 +282,7 @@ export function AiUsagePanel({ signal }: Props) {
                   {formatRunTimestamp(run.startedAtMs)} · {runStateLabel(run.state)} ·{" "}
                   {formatDuration(run.durationMs)} · {runTokenSummary(run)}
                   {run.costMicros ? ` · ${formatCostMicros(run.costMicros)}` : ""}
-                  {run.prompts ? "" : " · prompt not retained"}
+                  {run.prompts ? "" : settingsCopy.ai.PromptNotRetained}
                 </span>
               </span>
               <button
@@ -311,7 +310,7 @@ export function AiUsagePanel({ signal }: Props) {
           <p className="mt-1 text-[11px] text-muted-foreground">
             {runTokenSummary(openRun)} tokens ·{" "}
             {openRun.costMicros === null || openRun.costMicros === undefined
-              ? "no catalogue price for this model"
+              ? settingsCopy.ai.noCataloguePriceForThisModel
               : formatCostMicros(openRun.costMicros)}
           </p>
           {openRun.tokens.source === "estimated" ? (
@@ -320,7 +319,7 @@ export function AiUsagePanel({ signal }: Props) {
           {openRun.prompts ? (
             <>
               <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-md bg-muted/50 p-2 font-mono text-[11.5px]">
-                {openRun.prompts.systemPrompt || "(no system prompt)"}
+                {openRun.prompts.systemPrompt || settingsCopy.ai.noSystemPrompt}
               </pre>
               <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-md bg-muted/50 p-2 font-mono text-[11.5px]">
                 {openRun.prompts.userPrompt}
@@ -330,12 +329,12 @@ export function AiUsagePanel({ signal }: Props) {
                 className={cn(settingsButton, "mt-2")}
                 onClick={() => rerunInPlayground(openRun)}
               >
-                Rerun in playground
+                {settingsCopy.ai.rerunInPlayground}
               </button>
             </>
           ) : (
             <p className="mt-2 text-[11px] text-muted-foreground">
-              Prompt text was not retained for this run.
+              {settingsCopy.ai.promptTextWasNotRetainedFor}
             </p>
           )}
         </div>
@@ -345,9 +344,9 @@ export function AiUsagePanel({ signal }: Props) {
         <>
           <label className={cn(settingsRow, "mt-3 cursor-pointer")}>
             <span className={settingsRowLabel}>
-              Keep prompt text
+              {settingsCopy.ai.keepPromptText}
               <span className={settingsRowDescription}>
-                Off records only metadata — provider, model, state, timing, tokens, and cost.
+                {settingsCopy.ai.offRecordsOnlyMetadataProviderModel}
               </span>
             </span>
             <input
@@ -368,14 +367,14 @@ export function AiUsagePanel({ signal }: Props) {
             <span className={settingsRowLabel}>
               Retention
               <span className={settingsRowDescription}>
-                Older runs and runs beyond the cap are pruned as new runs are recorded.
+                {settingsCopy.ai.olderRunsAndRunsBeyondThe}
               </span>
             </span>
             <span className="flex items-center gap-2">
               <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 Runs
                 <input
-                  aria-label="Maximum stored runs"
+                  aria-label={settingsCopy.ai.maximumStoredRuns}
                   className={selectClass}
                   inputMode="numeric"
                   size={5}
@@ -396,7 +395,7 @@ export function AiUsagePanel({ signal }: Props) {
               <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 Days
                 <input
-                  aria-label="Maximum run age in days"
+                  aria-label={settingsCopy.ai.maximumRunAgeInDays}
                   className={selectClass}
                   inputMode="numeric"
                   size={5}
@@ -426,7 +425,7 @@ export function AiUsagePanel({ signal }: Props) {
             <span className={settingsRowLabel}>
               Clear history
               <span className={settingsRowDescription}>
-                Deletes every recorded run and its prompt text from this device.
+                {settingsCopy.ai.deletesEveryRecordedRunAndIts}
               </span>
             </span>
             <button
@@ -436,7 +435,7 @@ export function AiUsagePanel({ signal }: Props) {
               onClick={() => void clearHistory()}
               onBlur={() => setClearArmed(false)}
             >
-              {clearArmed ? "Delete every run" : "Clear history"}
+              {clearArmed ? settingsCopy.ai.deleteEveryRun : "Clear history"}
             </button>
           </div>
         </>

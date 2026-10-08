@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import { useEffect, useState } from "react";
 import {
   enableWorkspaceEncryption,
@@ -86,12 +87,12 @@ export function SyncEncryptionPanel({ status }: Props) {
         </span>
         {stage === "off" ? (
           <InlineConfirm
-            confirmLabel={busy ? "Encrypting…" : "Show my recovery code"}
-            message="The code is shown once. Without it, the cloud copy cannot be opened again."
+            confirmLabel={busy ? "Encrypting…" : settingsCopy.account.showMyRecoveryCode}
+            message={settingsCopy.account.theCodeIsShownOnceWithout}
             messagePlacement="stacked"
             renderIdle={(arm) => (
               <button type="button" className={settingsButton} disabled={busy} onClick={arm}>
-                Encrypt this workspace
+                {settingsCopy.account.encryptThisWorkspace}
               </button>
             )}
             onConfirm={() => void enable()}
@@ -104,7 +105,7 @@ export function SyncEncryptionPanel({ status }: Props) {
             Recovery code
             <code className="mt-1 block font-mono text-sm tracking-widest">{recoveryCode}</code>
             <span className={settingsRowDescription}>
-              Losing it means losing the cloud copy. The notes on this device are unaffected.
+              {settingsCopy.account.losingItMeansLosingTheCloud}
             </span>
           </span>
           <button
@@ -114,7 +115,7 @@ export function SyncEncryptionPanel({ status }: Props) {
               setRecoveryCode(null);
             }}
           >
-            I wrote it down
+            {settingsCopy.account.iWroteItDown}
           </button>
         </div>
       ) : null}
@@ -123,7 +124,7 @@ export function SyncEncryptionPanel({ status }: Props) {
           <span className={settingsRowLabel}>
             Recovery code
             <span className={settingsRowDescription}>
-              Enter the code this workspace showed when encryption was turned on.
+              {settingsCopy.account.enterTheCodeThisWorkspaceShowed}
             </span>
           </span>
           <span className="flex items-center gap-1.5">
@@ -132,7 +133,7 @@ export function SyncEncryptionPanel({ status }: Props) {
               value={entered}
               spellCheck={false}
               autoComplete="off"
-              aria-label="Workspace recovery code"
+              aria-label={settingsCopy.account.workspaceRecoveryCode}
               placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
               onChange={(event) => {
                 setEntered(normalizeRecoveryCodeInput(event.target.value));
@@ -156,8 +157,7 @@ export function SyncEncryptionPanel({ status }: Props) {
       ) : null}
       {stage === "on" && state?.sealedCheckpointAt === null ? (
         <div className={settingsGroupHint}>
-          Changes made before encryption was turned on stay in the cloud until the next encrypted
-          checkpoint replaces them. Keep this device online until sync reports it is up to date.
+          {settingsCopy.account.changesMadeBeforeEncryptionWasTurned}
         </div>
       ) : null}
     </div>

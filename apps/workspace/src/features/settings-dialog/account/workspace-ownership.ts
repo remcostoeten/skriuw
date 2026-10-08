@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 /**
  * Explains which cloud account the local workspace on this device belongs to.
  *
@@ -10,12 +11,12 @@
 export function workspaceOwnershipText(slot: string | null, signedIn: boolean): string {
   if (signedIn) {
     return slot === null
-      ? "Shared by every account that signs in on this device."
-      : "Linked to this account. Another account that signs in here opens a workspace of its own, and these notes stay here for you.";
+      ? settingsCopy.account.sharedByEveryAccountThatSigns
+      : settingsCopy.account.linkedToThisAccountAnotherAccount;
   }
   return slot === null
-    ? "Not linked to an account yet. The first account to sign in keeps these notes."
-    : "Linked to a cloud account. Sign back into it to keep working on these notes; a different account opens a workspace of its own.";
+    ? settingsCopy.account.notLinkedToAnAccountYet
+    : settingsCopy.account.linkedToACloudAccountSign;
 }
 
 /** Short form of a workspace id for the settings row: `w_a1b2c3d4…`. */

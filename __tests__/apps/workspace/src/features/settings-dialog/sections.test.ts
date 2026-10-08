@@ -97,3 +97,40 @@ test("a search snippet names the row that matched", () => {
   );
   assert.equal(settingsSearchSnippet(media, "pictures"), undefined);
 });
+
+test("settings search finds media actions through their explanatory warning", () => {
+  const sections = availableSettingsSections(false, false, "");
+  assert.ok(
+    filterSettingsSections(sections, "no note references").some(
+      (section) => section.id === "media",
+    ),
+  );
+  assert.ok(
+    filterSettingsSections(sections, "CANNOT be UNDONE").some((section) => section.id === "media"),
+  );
+  assert.equal(
+    filterSettingsSections(availableSettingsSections(false, true, ""), "no note references").some(
+      (section) => section.id === "media",
+    ),
+    false,
+  );
+});
+
+test("settings search includes descriptive paragraphs across sections", () => {
+  const sections = availableSettingsSections(true, false, "");
+  for (const [query, id] of [
+    ["tighter spacing", "appearance"],
+    ["before a note has content", "editor"],
+    ["Pinned locked journal", "data"],
+    ["without typing clicking scrolling", "lock"],
+    ["local workspace remains available", "account"],
+    ["open pull requests", "about"],
+    ["own copy", "ai"],
+    ["drop the lock key", "shortcuts"],
+  ]) {
+    assert.ok(
+      filterSettingsSections(sections, query).some((section) => section.id === id),
+      `${id} should match its explanatory text: ${query}`,
+    );
+  }
+});

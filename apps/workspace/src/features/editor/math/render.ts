@@ -1,3 +1,5 @@
+import { EMPTY_MATH_MACROS, type MathMacros } from "./macros";
+
 export type MathRenderResult = { ok: true; html: string } | { ok: false; message: string };
 
 export type MathRenderer = (tex: string, displayMode: boolean) => Promise<MathRenderResult>;
@@ -12,6 +14,7 @@ type KatexOptions = {
   strict: "ignore";
   maxSize: number;
   maxExpand: number;
+  macros: MathMacros;
 };
 
 const RENDER_CACHE_LIMIT = 256;
@@ -19,10 +22,17 @@ const MAX_SIZE_EM = 20;
 const MAX_EXPAND = 500;
 
 const renderCache = new Map<string, MathRenderResult>();
+const macroVersions = new WeakMap<MathMacros, number>();
+let macroVersionSequence = 0;
 let katexPromise: Promise<KatexRender> | null = null;
 
-function cacheKey(tex: string, displayMode: boolean): string {
-  return `${displayMode ? "display" : "inline"}\u0000${tex}`;
+function cacheKey(tex: string, displayMode: boolean, macros: MathMacros): string {
+  let version = macroVersions.get(macros);
+  if (version === undefined) {
+    version = ++macroVersionSequence;
+    macroVersions.set(macros, version);
+  }
+  return `${version}\u0000${displayMode ? "display" : "inline"}\u0000${tex}`;
 }
 
 function remember(key: string, result: MathRenderResult): MathRenderResult {
@@ -35,9 +45,11 @@ function remember(key: string, result: MathRenderResult): MathRenderResult {
 }
 
 function loadKatex(): Promise<KatexRender> {
-  katexPromise ??= Promise.all([import("katex"), import("katex/dist/katex.min.css")]).then(
-    ([module]) => module.default.renderToString,
-  );
+  katexPromise ??= Promise.all([
+    import("katex"),
+    import("katex/dist/katex.min.css"),
+    import("katex/contrib/mhchem"),
+  ]).then(([module]) => module.default.renderToString);
   return katexPromise;
 }
 
@@ -69,8 +81,12 @@ export function mathErrorMessage(error: unknown): string {
  * const hit = cachedMathRender("x^2", false);
  * if (hit?.ok) element.innerHTML = hit.html;
  */
-export function cachedMathRender(tex: string, displayMode: boolean): MathRenderResult | null {
-  return renderCache.get(cacheKey(tex, displayMode)) ?? null;
+export function cachedMathRender(
+  tex: string,
+  displayMode: boolean,
+  macros: MathMacros = EMPTY_MATH_MACROS,
+): MathRenderResult | null {
+  return renderCache.get(cacheKey(tex, displayMode, macros)) ?? null;
 }
 
 export function clearMathRenderCache(): void {
@@ -91,8 +107,9 @@ export async function renderMath(
   tex: string,
   displayMode: boolean,
   render: KatexRender | null = null,
+  macros: MathMacros = EMPTY_MATH_MACROS,
 ): Promise<MathRenderResult> {
-  const key = cacheKey(tex, displayMode);
+  const key = cacheKey(tex, displayMode, macros);
   const cached = renderCache.get(key);
   if (cached) return cached;
   try {
@@ -105,9 +122,29 @@ export async function renderMath(
       strict: "ignore",
       maxSize: MAX_SIZE_EM,
       maxExpand: MAX_EXPAND,
+      macros: { ...macros },
     });
     return remember(key, { ok: true, html });
   } catch (error) {
     return remember(key, { ok: false, message: mathErrorMessage(error) });
   }
+}
+
+/**
+ * @name validateMathMacros
+ * @description Expands each macro with sample arguments before settings are saved.
+ * @example
+ * await validateMathMacros({ "\\R": "\\mathbb{R}" });
+ */
+export async function validateMathMacros(macros: MathMacros): Promise<string | null> {
+  for (const [name, definition] of Object.entries(macros)) {
+    const argumentCount = Math.max(
+      0,
+      ...Array.from(definition.matchAll(/#([1-9])/g), (match) => Number(match[1])),
+    );
+    const result = await renderMath(name + "{x}".repeat(argumentCount), false, null, macros);
+    if (!result.ok)
+      return `${name}: ${result.message}. Check its TeX definition and referenced commands.`;
+  }
+  return null;
 }

@@ -15,7 +15,7 @@ use crate::lock::{
     self, discard_pending_history, expand_operation, scrub_note_projections, seal_document,
     subtree_nodes, write_sealed_body,
 };
-use crate::queries::{read_stored_active_note, read_task, read_tasks_where};
+use crate::queries::{read_settings, read_stored_active_note, read_task, read_tasks_where};
 
 pub(crate) const NODE_RANK_GAP: i64 = 1024;
 
@@ -799,11 +799,37 @@ fn apply_operation(
                 .map_err(backend)?;
         }
         WorkspaceOperation::UpdateSettings { settings } => {
+            let mut settings = settings.clone();
+            let stored = read_settings(transaction)?;
+            match stored.extensions.get("mathMacros") {
+                Some(macros) => {
+                    settings
+                        .extensions
+                        .insert("mathMacros".into(), macros.clone());
+                }
+                None => {
+                    settings.extensions.remove("mathMacros");
+                }
+            }
             transaction
                 .execute(
                     "INSERT INTO app_state(key, value_json) VALUES ('settings', ?1) \
                      ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json",
-                    [serde_json::to_string(settings).map_err(json_backend)?],
+                    [serde_json::to_string(&settings).map_err(json_backend)?],
+                )
+                .map_err(backend)?;
+        }
+        WorkspaceOperation::SetMathMacros { macros } => {
+            let mut settings = read_settings(transaction)?;
+            settings.extensions.insert(
+                "mathMacros".into(),
+                serde_json::to_value(macros).map_err(json_backend)?,
+            );
+            transaction
+                .execute(
+                    "INSERT INTO app_state(key, value_json) VALUES ('settings', ?1) \
+                     ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json",
+                    [serde_json::to_string(&settings).map_err(json_backend)?],
                 )
                 .map_err(backend)?;
         }

@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import type { ArchiveExportReport, ArchiveImportReport } from "@/platform/ports/archive";
 import type {
   BackupRotationReport,
@@ -152,16 +153,16 @@ export function confirmationCopy(confirmation: MaintenanceConfirmation): {
 } {
   if (confirmation.kind === "import") {
     return {
-      title: "Replace workspace from archive",
-      body: "Importing replaces every note, folder, and setting in this workspace with the archive contents. A safety backup of the current database is created first.",
+      title: settingsCopy.data.replaceWorkspaceFromArchive,
+      body: settingsCopy.data.importingReplacesEveryNoteFolderAnd,
       confirmLabel: "Replace workspace",
     };
   }
   if (confirmation.kind === "relocate") {
     return {
-      title: "Move workspace storage",
+      title: settingsCopy.data.moveWorkspaceStorage,
       body: `The database, images, history, and backups are copied to ${confirmation.targetDir}, then the app restarts using the new location. The current folder is kept untouched as a fallback.`,
-      confirmLabel: "Move and restart",
+      confirmLabel: settingsCopy.data.moveAndRestart,
     };
   }
   return {

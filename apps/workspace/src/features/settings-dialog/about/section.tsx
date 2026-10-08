@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import { useEffect, useRef, useState } from "react";
 import { openExternalUrl } from "@/platform/runtime/commands";
 import { cn } from "@/shared/styling/class-names";
@@ -55,7 +56,7 @@ export function AboutSection() {
 
   return (
     <section aria-label="About" className={settingsSection}>
-      <SettingsHeading title="About" detail="Version details, updates, and where to go for help." />
+      <SettingsHeading title="About" detail={settingsCopy.about.versionDetailsUpdatesAndWhereTo} />
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Version</div>
         <div className={settingsRow}>
@@ -71,7 +72,7 @@ export function AboutSection() {
             disabled={checking}
             onClick={runUpdateCheck}
           >
-            {checking ? "Checking…" : "Check for updates"}
+            {checking ? "Checking…" : settingsCopy.about.checkForUpdates}
           </button>
         </div>
         {updateStatus && (
@@ -94,7 +95,7 @@ export function AboutSection() {
                 className={settingsButton}
                 onClick={() => {
                   openExternalUrl(link.url).catch((error) => {
-                    console.error("open external url rejected", error);
+                    console.error(settingsCopy.about.openExternalUrlRejected, error);
                   });
                 }}
               >

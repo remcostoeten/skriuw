@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { openExternalUrl } from "@/platform/runtime/external-links";
 import type { LocalAiModel, LocalAiProgress, LocalAiStatus } from "@/contracts/ai";
@@ -333,10 +334,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
 
   return (
     <section aria-label="AI settings" className={settingsSection}>
-      <SettingsHeading
-        title="AI"
-        detail="Choose a model for writing tools. Open the other sections only when you need them."
-      />
+      <SettingsHeading title="AI" detail={settingsCopy.ai.chooseAModelForWritingTools} />
       <DefaultModelPicker
         groups={modelGroups}
         selection={defaultModel}
@@ -344,9 +342,9 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
       />
       <div className={settingsRow}>
         <span className={settingsRowLabel}>
-          Try a prompt
+          {settingsCopy.ai.tryAPrompt}
           <span className={settingsRowDescription}>
-            Test the selected model without changing a note.
+            {settingsCopy.ai.testTheSelectedModelWithoutChanging}
           </span>
         </span>
         <button type="button" className={settingsButton} onClick={onOpenPlayground}>
@@ -356,7 +354,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
       <div className="mt-8 overflow-hidden rounded-xl border border-border/70 bg-muted/10">
         <AiSettingsDisclosure
           title="Local AI"
-          description="Run private models on this device with Ollama."
+          description={settingsCopy.ai.runPrivateModelsOnThisDevice}
         >
           <OllamaRuntimeCard
             status={status}
@@ -403,7 +401,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
         {remote.providers.length === 0 ? null : (
           <AiSettingsDisclosure
             title="Online providers"
-            description="Bring your own API key for Gemini, Groq, DeepSeek, Kimi, GLM, Qwen, or AI/ML API."
+            description={settingsCopy.ai.bringYourOwnApiKeyFor}
           >
             <RemoteProvidersPanel
               providers={remote.providers}
@@ -427,7 +425,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
         )}
         <AiSettingsDisclosure
           title="Writing prompts"
-          description="Customize the instructions behind each writing action."
+          description={settingsCopy.ai.customizeTheInstructionsBehindEachWriting}
         >
           <PromptLibraryPanel
             entries={promptEntries}
@@ -446,8 +444,8 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
           />
         </AiSettingsDisclosure>
         <AiSettingsDisclosure
-          title="History and usage"
-          description="Review local run history, token counts, and estimated cost."
+          title={settingsCopy.ai.historyAndUsage}
+          description={settingsCopy.ai.reviewLocalRunHistoryTokenCounts}
         >
           <AiUsagePanel signal={signal} />
         </AiSettingsDisclosure>

@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import type { PromptInputShape } from "@skriuw/renderer-core/contracts/workspace";
 import {
   MAX_PROMPT_SYSTEM_BYTES,
@@ -33,7 +34,7 @@ type Props = {
 const INPUT_SHAPES: readonly { value: PromptInputShape; label: string }[] = [
   { value: "selection", label: "Selected text" },
   { value: "note", label: "Whole note" },
-  { value: "freeform", label: "Anything you type" },
+  { value: "freeform", label: settingsCopy.ai.anythingYouType },
 ];
 
 const fieldLabelClass = "mb-1 block text-[11px] font-medium text-muted-foreground";
@@ -63,11 +64,7 @@ export function PromptLibraryPanel({
   return (
     <div className={settingsGroup}>
       <div className={settingsGroupTitle}>Prompts</div>
-      <p className={settingsGroupHint}>
-        The instructions behind each writing action. Edit a built-in to make your own copy of it;
-        reset puts the shipped one back. Prompts hold no keys and sync with the rest of your
-        workspace.
-      </p>
+      <p className={settingsGroupHint}>{settingsCopy.ai.theInstructionsBehindEachWritingAction}</p>
       <ul className="flex list-none flex-col gap-1.5 p-0">
         {entries.map((entry) => (
           <li key={entry.key}>
@@ -186,7 +183,7 @@ function PromptEditor({ draft, onDraftChange, onSave, onCancel }: EditorProps) {
           rows={5}
           value={draft.systemPrompt}
           maxLength={MAX_PROMPT_SYSTEM_BYTES}
-          placeholder="Tell the model what to do with the text."
+          placeholder={settingsCopy.ai.tellTheModelWhatToDo}
           onChange={(event) => onDraftChange({ systemPrompt: event.target.value })}
         />
       </label>
@@ -213,9 +210,9 @@ function PromptEditor({ draft, onDraftChange, onSave, onCancel }: EditorProps) {
           />
         </label>
         <label className="flex flex-col">
-          <span className={fieldLabelClass}>Max output bytes</span>
+          <span className={fieldLabelClass}>{settingsCopy.ai.maxOutputBytes}</span>
           <input
-            aria-label="Max output bytes"
+            aria-label={settingsCopy.ai.maxOutputBytes}
             className={cn(settingsTextInput, "w-[130px]")}
             inputMode="numeric"
             value={draft.maxOutputBytes}

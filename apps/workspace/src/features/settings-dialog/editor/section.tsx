@@ -1,3 +1,5 @@
+import { MathMacrosSettings } from "@/features/settings-dialog/editor/math-macros";
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import { useEffect, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { isBrowserRuntime } from "@/platform/runtime/runtime";
@@ -48,7 +50,7 @@ const WORD_GOAL_OPTIONS: readonly SelectOption<string>[] = [
 
 const FONT_PREVIEW_STYLES: Record<string, CSSProperties> = {
   inter: {},
-  serif: { fontFamily: 'Georgia, "Times New Roman", serif' },
+  serif: { fontFamily: settingsCopy.editor.georgiaTimesNewRomanSerif },
   mono: { fontFamily: "var(--font-mono)" },
 };
 
@@ -138,20 +140,21 @@ export function EditorSection({ store }: SectionProps) {
     <section aria-label="Editor preferences" className={settingsSection} onKeyDown={handleKeyDown}>
       <SettingsHeading
         title="Editor"
-        detail="Tune the writing surface without changing note content."
+        detail={settingsCopy.editor.tuneTheWritingSurfaceWithoutChanging}
       />
+      <MathMacrosSettings store={store} />
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Typography</div>
         <SettingCardPicker
           label="Editor font"
-          detail="Used for note content in the rendered editor."
+          detail={settingsCopy.editor.usedForNoteContentInThe}
           value={settings.editorFont}
           options={FONT_PICKER_OPTIONS}
           onChange={(value) => change("editorFont", value)}
         />
         <SettingCardPicker
           label="Line spacing"
-          detail="How much room each line of text gets."
+          detail={settingsCopy.editor.howMuchRoomEachLineOf}
           value={settings.editorLineHeight}
           options={LINE_HEIGHT_PICKER_OPTIONS}
           onChange={(value) => change("editorLineHeight", value)}
@@ -161,27 +164,27 @@ export function EditorSection({ store }: SectionProps) {
         <div className={settingsGroupTitle}>Writing</div>
         <PlaceholderField store={store} settings={settings} />
         <SettingToggle
-          label="Default to raw Markdown"
-          detail="New notes open in the raw Markdown editor. Toggle any note with mod+m."
+          label={settingsCopy.editor.defaultToRawMarkdown}
+          detail={settingsCopy.editor.newNotesOpenInTheRaw}
           checked={settings.editorDefaultRawMode}
           onChange={(checked) => change("editorDefaultRawMode", checked)}
         />
         <SettingToggle
           label="Vim keybindings"
-          detail="Modal editing in both editors: normal, insert, and visual modes with counts, operators, text objects, registers, dot repeat, and : commands. Toggle anywhere with mod+alt+i."
+          detail={settingsCopy.editor.modalEditingInBothEditorsNormal}
           checked={settings.vimMode}
           onChange={(checked) => change("vimMode", checked)}
         />
         <SettingCardPicker
           label="Vim cursor"
-          detail="The cursor shape used in normal and visual modes."
+          detail={settingsCopy.editor.theCursorShapeUsedInNormal}
           value={settings.vimCursorStyle}
           options={VIM_CURSOR_PICKER_OPTIONS}
           onChange={(value) => change("vimCursorStyle", value)}
         />
         <SettingToggle
-          label="Blink Vim cursor"
-          detail="Blink the normal-mode cursor in both rendered and raw Markdown editors."
+          label={settingsCopy.editor.blinkVimCursor}
+          detail={settingsCopy.editor.blinkTheNormalmodeCursorInBoth}
           checked={settings.vimCursorBlink}
           onChange={(checked) => change("vimCursorBlink", checked)}
         />
@@ -190,13 +193,13 @@ export function EditorSection({ store }: SectionProps) {
         <div className={settingsGroupTitle}>Focus</div>
         <SettingToggle
           label="Typewriter scrolling"
-          detail="Keep the line you are typing on in the middle of the screen, in both editors. Toggle anywhere with mod+shift+y."
+          detail={settingsCopy.editor.keepTheLineYouAreTyping}
           checked={settings.typewriterScrolling}
           onChange={(checked) => change("typewriterScrolling", checked)}
         />
         <SettingToggle
-          label="Dim other paragraphs in focus mode"
-          detail="Focus mode (mod+shift+f) fades every block except the one holding the caret. Applies to the rendered editor."
+          label={settingsCopy.editor.dimOtherParagraphsInFocusMode}
+          detail={settingsCopy.editor.focusModeModshiftfFadesEveryBlock}
           checked={settings.focusDimParagraphs}
           onChange={(checked) => change("focusDimParagraphs", checked)}
         />
@@ -204,8 +207,8 @@ export function EditorSection({ store }: SectionProps) {
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Blocks</div>
         <SettingToggle
-          label="Block handle on hover"
-          detail="Hovering a block shows a gutter to drag it somewhere else, insert below it, or open its actions. Alt+Arrow and the slash menu keep working when this is off."
+          label={settingsCopy.editor.blockHandleOnHover}
+          detail={settingsCopy.editor.hoveringABlockShowsAGutter}
           checked={settings.blockDragHandle}
           onChange={(checked) => change("blockDragHandle", checked)}
         />
@@ -213,8 +216,8 @@ export function EditorSection({ store }: SectionProps) {
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Tabs</div>
         <SettingToggle
-          label="Open notes in tabs"
-          detail="Every note you open gets its own tab. When off, opening a note replaces the current tab."
+          label={settingsCopy.editor.openNotesInTabs}
+          detail={settingsCopy.editor.everyNoteYouOpenGetsIts}
           checked={settings.openNotesInTabs}
           onChange={(checked) => change("openNotesInTabs", checked)}
         />
@@ -227,8 +230,8 @@ export function EditorSection({ store }: SectionProps) {
         <div className={settingsGroup}>
           <div className={settingsGroupTitle}>Links</div>
           <SettingToggle
-            label="Open links in Skriuw"
-            detail="Links open in a Skriuw browser window instead of your system browser. The link menu always offers the other one too."
+            label={settingsCopy.editor.openLinksInSkriuw}
+            detail={settingsCopy.editor.linksOpenInASkriuwBrowser}
             checked={settings.openLinksInApp}
             onChange={(checked) => change("openLinksInApp", checked)}
           />
@@ -253,8 +256,10 @@ function PlaceholderField({ store, settings }: Props) {
   return (
     <label className={cn(settingsRow, settingsInputRow)} htmlFor="settings-placeholder">
       <span className={settingsRowLabel}>
-        Empty note prompt
-        <span className={settingsRowDescription}>Shown before a note has content.</span>
+        {settingsCopy.editor.emptyNotePrompt}
+        <span className={settingsRowDescription}>
+          {settingsCopy.editor.shownBeforeANoteHasContent}
+        </span>
       </span>
       <input
         id="settings-placeholder"
@@ -307,10 +312,9 @@ function WordGoalSetting({ store }: { store: SectionProps["store"] }) {
   return (
     <div className={cn(settingsRow, settingsInputRow)}>
       <span className={settingsRowLabel}>
-        Daily word goal
+        {settingsCopy.editor.dailyWordGoal}
         <span className={settingsRowDescription}>
-          Shows quiet progress in the journal day header and counts goal days in the stats. A change
-          applies from today; earlier days keep the goal they had.
+          {settingsCopy.editor.showsQuietProgressInTheJournal}
         </span>
       </span>
       <span className="flex shrink-0 items-center gap-2">
@@ -318,7 +322,7 @@ function WordGoalSetting({ store }: { store: SectionProps["store"] }) {
           <input
             type="text"
             inputMode="numeric"
-            aria-label="Custom daily word goal"
+            aria-label={settingsCopy.editor.customDailyWordGoal}
             data-directional-focus
             className={cn(settingsTextInput, "w-20 tabular-nums")}
             value={draft}
@@ -334,7 +338,7 @@ function WordGoalSetting({ store }: { store: SectionProps["store"] }) {
           />
         )}
         <Select
-          label="Daily word goal"
+          label={settingsCopy.editor.dailyWordGoal}
           value={choice}
           options={WORD_GOAL_OPTIONS}
           onChange={choose}

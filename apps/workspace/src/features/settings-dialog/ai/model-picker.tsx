@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import type { AiModelSelection, AiProviderGroup } from "@/features/ai/models";
 import { aiModelOptionFor } from "@/features/ai/models";
 import { cn } from "@/shared/styling/class-names";
@@ -35,14 +36,18 @@ export function DefaultModelPicker({ groups, selection, onSelect }: Props) {
   return (
     <div className={settingsGroup}>
       <h2 className={settingsGroupTitle}>Default model</h2>
-      <p className={settingsGroupHint}>The model Skriuw uses for writing tools.</p>
+      <p className={settingsGroupHint}>{settingsCopy.ai.theModelSkriuwUsesForWriting}</p>
       <Select
-        label="Default AI model"
+        label={settingsCopy.ai.defaultAiModel}
         align="start"
         className="w-full"
         triggerClassName={cn(settingsTextInput, "w-full justify-between text-left")}
         disabled={availableOptions.length === 0}
-        placeholder={availableOptions.length === 0 ? "Set up a model below" : "Choose a model"}
+        placeholder={
+          availableOptions.length === 0
+            ? settingsCopy.ai.setUpAModelBelow
+            : settingsCopy.ai.chooseAModel
+        }
         value={selectedValue}
         options={selectOptions}
         onChange={(value) => {
@@ -57,8 +62,8 @@ export function DefaultModelPicker({ groups, selection, onSelect }: Props) {
       <p className="mt-2 text-[11px] text-muted-foreground">
         {selectedOption?.detail ??
           (availableOptions.length === 0
-            ? "Open Local AI or Online providers to get started."
-            : "Choose the model you want to use.")}
+            ? settingsCopy.ai.openLocalAiOrOnlineProviders
+            : settingsCopy.ai.chooseTheModelYouWantTo)}
       </p>
     </div>
   );

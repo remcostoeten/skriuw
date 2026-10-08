@@ -10,6 +10,9 @@ import {
   serializeProductMarkdown,
 } from "@/features/editor/schema";
 import { planMarkdownImport } from "@/features/transfer/markdown";
+import { planStarterWorkspace } from "@/features/onboarding/starter/plan";
+import { promotedChecklistTaskLinks } from "@/features/editor/tasks";
+import { dateKeyOf, shiftDay } from "@skriuw/renderer-core/journal/dates";
 
 const root = repositoryPath("apps/workspace/src/features/onboarding/starter/content");
 
@@ -28,8 +31,68 @@ const files = walk(root)
   }));
 
 test("the starter vault ships notes in nested folders", () => {
-  assert.equal(files.length, 5);
+  assert.equal(files.length, 7);
   assert.ok(files.some((file) => file.relativePath.includes("/")));
+});
+
+test("fresh starter tasks link to their source and use today's calendar", () => {
+  const at = new Date(2026, 11, 31, 23, 30).getTime();
+  let id = 0;
+  const plan = planStarterWorkspace(
+    { directories: [], files, skipped: 0 },
+    at,
+    () => `seed-${++id}`,
+  );
+  const source = plan.contentOperations.find(
+    (operation) => operation.type === "promote_checklist_task",
+  );
+  assert.ok(source?.type === "promote_checklist_task");
+  const tasks = plan.contentOperations.flatMap((operation) =>
+    operation.type === "promote_checklist_task" || operation.type === "create_task"
+      ? [operation.task]
+      : [],
+  );
+  assert.equal(tasks.length, 4);
+  assert.deepEqual(
+    tasks.map((task) => task.dueDate),
+    [null, dateKeyOf(new Date(at)), shiftDay(dateKeyOf(new Date(at)), 1), null],
+  );
+  assert.equal(tasks[0]?.status, "done");
+  assert.equal(tasks[1]?.status, "todo");
+  const document = parseProductMarkdown(source.document.markdown);
+  const links = promotedChecklistTaskLinks(document, source.document.noteId, at);
+  assert.deepEqual(
+    links.map((link) => link.taskId),
+    tasks.map((task) => task.id),
+  );
+  assert.deepEqual(
+    links.map((link) => link.dueDate),
+    tasks.map((task) => task.dueDate),
+  );
+  assert.ok(!source.document.markdown.includes("{{"));
+  assert.equal(plan.unresolvedReferences, 0);
+  const ordinary = plan.contentOperations.filter((operation) => operation.type === "save_document");
+  for (const operation of ordinary) {
+    assert.equal(
+      promotedChecklistTaskLinks(parseProductMarkdown(operation.markdown), operation.noteId, at)
+        .length,
+      0,
+    );
+  }
+});
+
+test("starter math includes portable inline and display equations", () => {
+  const math = files.find((file) => file.relativePath === "Guides/Math.md");
+  assert.ok(math);
+  const document = parseProductMarkdown(math.content);
+  let inline = 0;
+  let blocks = 0;
+  document.descendants((node) => {
+    if (node.type.name === "math_inline") inline += 1;
+    if (node.type.name === "math_block") blocks += 1;
+  });
+  assert.equal(inline, 3);
+  assert.equal(blocks, 3);
 });
 
 test("every starter note parses into rich blocks", () => {

@@ -1849,6 +1849,12 @@ fn initial_sync_operations(
             task: Box::new(task),
         })
     }));
+    if let Some(value) = snapshot.settings.extensions.get("mathMacros") {
+        let macros = serde_json::from_value(value.clone()).map_err(json_backend)?;
+        operations.push(WorkspaceOperationEnvelope::v1(
+            WorkspaceOperation::SetMathMacros { macros },
+        ));
+    }
     operations.extend(snapshot.prompts.into_iter().map(|prompt| {
         WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetPrompt {
             prompt: Box::new(prompt),
@@ -3028,6 +3034,13 @@ fn remote_target_state(
                 state.target_exists = true;
                 state.state_equivalent = name == metadata.name.trim() && alt == metadata.alt.trim();
             }
+        }
+        WorkspaceOperation::SetMathMacros { macros } => {
+            state.target_exists = true;
+            state.state_equivalent = crate::queries::read_settings(transaction)?
+                .extensions
+                .get("mathMacros")
+                == Some(&serde_json::to_value(macros).map_err(json_backend)?);
         }
         WorkspaceOperation::SetActiveNote { .. }
         | WorkspaceOperation::UpdateSettings { .. }

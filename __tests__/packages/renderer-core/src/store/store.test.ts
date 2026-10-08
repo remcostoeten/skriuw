@@ -796,3 +796,17 @@ test("thread operations against an unknown thread leave state untouched", () => 
 
   assert.equal(store.getState().annotations, initial.annotations);
 });
+
+test("workspace math macros update synchronously and survive stale local settings", () => {
+  const store = createRendererStore(snapshot());
+  const staleSettings = store.getState().settings;
+  store.applyOperations([{ type: "set_math_macros", macros: { "\\R": "\\mathbb{R}" } }]);
+  assert.deepEqual(store.getState().settings.mathMacros, { "\\R": "\\mathbb{R}" });
+  store.applyOperations([
+    { type: "update_settings", settings: { ...staleSettings, theme: "paper" } },
+  ]);
+  assert.equal(store.getState().settings.theme, "paper");
+  assert.deepEqual(store.getState().settings.mathMacros, { "\\R": "\\mathbb{R}" });
+  store.applyOperations([{ type: "set_math_macros", macros: {} }]);
+  assert.deepEqual(store.getState().settings.mathMacros, {});
+});

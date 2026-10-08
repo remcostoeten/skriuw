@@ -388,6 +388,11 @@ impl WorkspaceSettings {
                     }
                 }
             }
+            if key == "mathMacros" {
+                let macros = serde_json::from_value::<BTreeMap<String, String>>(value.clone())
+                    .map_err(|_| OperationValidationError::InvalidDocument)?;
+                validate_math_macros(&macros)?;
+            }
             validate_setting_key(key)?;
             if SETTINGS_FIELDS.contains(&key.as_str()) {
                 return Err(OperationValidationError::SettingFieldCollision { key: key.clone() });
@@ -395,6 +400,26 @@ impl WorkspaceSettings {
         }
         Ok(())
     }
+}
+
+fn validate_math_macros(macros: &BTreeMap<String, String>) -> Result<(), OperationValidationError> {
+    if macros.len() > 64 {
+        return Err(OperationValidationError::TooLong {
+            field: "math macros",
+            maximum: 64,
+        });
+    }
+    for (name, definition) in macros {
+        if name.len() < 2
+            || name.len() > 64
+            || !name.starts_with('\\')
+            || !name[1..].bytes().all(|byte| byte.is_ascii_alphabetic())
+        {
+            return Err(OperationValidationError::InvalidDocument);
+        }
+        validate_bounded_text("math macro definition", definition, 4096)?;
+    }
+    Ok(())
 }
 
 fn default_settings_version() -> u16 {
@@ -1669,6 +1694,9 @@ pub enum WorkspaceOperation {
     UpdateSettings {
         settings: WorkspaceSettings,
     },
+    SetMathMacros {
+        macros: BTreeMap<String, String>,
+    },
     AttachImage {
         image: WorkspaceImage,
     },
@@ -1907,6 +1935,7 @@ impl WorkspaceOperation {
             }
             Self::SetActiveNote { note_id } => validate_optional_id("note id", note_id),
             Self::UpdateSettings { settings } => settings.validate(),
+            Self::SetMathMacros { macros } => validate_math_macros(macros),
             Self::AttachImage { image } => image.validate(),
             Self::SetMediaMetadata { metadata } => metadata.validate(),
             Self::SetNoteProperty { property, at } => {

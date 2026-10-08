@@ -2,6 +2,7 @@ import { Slice } from "prosemirror-model";
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import { parseProductMarkdownWithImages } from "../schema";
+import { normalizePastedMath, restorePastedMath } from "../math/paste";
 import { withFreshPastedTaskIdentities } from "../tasks/paste";
 
 const MARKDOWN_BLOCK_PATTERN =
@@ -52,11 +53,16 @@ export function markdownPasteSlice(
 ): Slice | null {
   if (text.trim().length === 0) return null;
   if (state.selection.$from.parent.type.spec.code) return null;
-  if (!looksLikeMarkdown(text)) return null;
-  const parsed = parseProductMarkdownWithImages(text, knownImageIds);
+  const math = normalizePastedMath(text);
+  if (!math.hasMath && !looksLikeMarkdown(text)) return null;
+  const normalized = parseProductMarkdownWithImages(math.source, knownImageIds);
+  const parsed =
+    normalized.firstChild?.type.name === "raw_markdown"
+      ? parseProductMarkdownWithImages(text, knownImageIds)
+      : restorePastedMath(normalized, math.inline);
   if (parsed.childCount === 0) return null;
   const onlyParagraph = parsed.childCount === 1 && parsed.firstChild?.type.name === "paragraph";
-  if (onlyParagraph && parsed.textContent === text.trim()) return null;
+  if (!math.hasMath && onlyParagraph && parsed.textContent === text.trim()) return null;
   return withFreshPastedTaskIdentities(
     new Slice(parsed.content, onlyParagraph ? 1 : 0, onlyParagraph ? 1 : 0),
   );

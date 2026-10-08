@@ -8,9 +8,11 @@ import {
   isUnseededFreshWorkspace,
   markSeedSpent,
   reclaimableNoteIds,
+  reclaimableTaskIds,
   seededNoteIds,
   shouldSeedStarter,
 } from "@/features/onboarding/starter/model";
+import type { WorkspaceTask } from "@skriuw/renderer-core/contracts/workspace";
 
 const SEEDED_AT = 1_000;
 
@@ -76,4 +78,44 @@ test("reclaiming clears the note list but keeps the seed spent", () => {
 
 test("a workspace that never seeded has nothing to reclaim", () => {
   assert.deepEqual(reclaimableNoteIds(DEFAULT_WORKSPACE_SETTINGS, [{ id: "a", updatedAt: 1 }]), []);
+});
+
+test("reclaiming removes untouched example tasks and preserves adopted or edited work", () => {
+  function task(id: string, noteId: string | null, updatedAt = SEEDED_AT): WorkspaceTask {
+    return {
+      id,
+      title: id,
+      status: "todo",
+      priority: "medium",
+      dueDate: null,
+      description: "",
+      tagIds: [],
+      assigneeIds: [],
+      source: noteId === null ? null : { noteId, blockId: `block-${id}` },
+      detachedAt: noteId === null ? updatedAt : null,
+      createdAt: SEEDED_AT,
+      updatedAt,
+    };
+  }
+  const tasks = [
+    task("preview", "a"),
+    task("edited", "a", SEEDED_AT + 1),
+    task("kept-note", "b"),
+    task("detached", null),
+    task("mine", "mine"),
+  ];
+  assert.deepEqual(reclaimableTaskIds(seeded(), tasks, ["a"]), ["preview"]);
+  assert.deepEqual(reclaimableTaskIds(DEFAULT_WORKSPACE_SETTINGS, tasks, ["a"]), []);
+  assert.deepEqual(reclaimableTaskIds(forgetSeededNotes(seeded()), tasks, []), []);
+  assert.deepEqual(
+    reclaimableNoteIds(
+      seeded(),
+      [
+        { id: "a", updatedAt: SEEDED_AT },
+        { id: "b", updatedAt: SEEDED_AT },
+      ],
+      tasks,
+    ),
+    ["b"],
+  );
 });

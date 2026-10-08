@@ -1,14 +1,14 @@
 # Welcome
 
-This is your workspace. Five notes, three folders, and nothing you have to keep.
+This is your workspace. Seven notes, three folders, and nothing you have to keep.
 
-Delete all of it once you have had a look around — everything here is an ordinary note, and nothing breaks when it's gone.
+Delete any examples once you have had a look around. Everything here is editable. Example tasks can be deleted from Tasks.
 
 ## Where things are
 
 | Folder | What's inside |
 | --- | --- |
-| `Guides` | How the editor and the linking work |
+| `Guides` | Writing, linking, equations, and tasks |
 | `Projects` | A worked example that uses both |
 | `Ideas` | Somewhere to be untidy |
 
@@ -22,6 +22,6 @@ Delete all of it once you have had a look around — everything here is an ordin
 
 Press `/` on an empty line to see what a block can be. Type `#` followed by a word to tag something. Type `@` to link to another note.
 
-That's most of it. The rest is in [[Writing]] and [[Linking]] — and there's a worked example in [[Launch checklist]] if you'd rather see it than read about it.
+Start with [[Writing]] and [[Linking]], then explore rendered equations in [[Math]] and linked tasks with due dates in [[Tasks]]. [[Launch checklist]] shows an ordinary project checklist.
 
 > The best note is the one you actually wrote down.

@@ -688,7 +688,16 @@ function reduceState(current: RendererState, operation: WorkspaceOperation): Ren
     };
   }
   if (operation.type === "update_settings") {
-    return { ...current, settings: operation.settings };
+    const settings = { ...operation.settings };
+    if (current.settings.mathMacros === undefined) {
+      delete settings.mathMacros;
+    } else {
+      settings.mathMacros = current.settings.mathMacros;
+    }
+    return { ...current, settings };
+  }
+  if (operation.type === "set_math_macros") {
+    return { ...current, settings: { ...current.settings, mathMacros: operation.macros } };
   }
   if (operation.type === "attach_image") {
     if (current.images.has(operation.image.id)) {

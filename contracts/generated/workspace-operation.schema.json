@@ -1477,6 +1477,25 @@
         {
           "type": "object",
           "properties": {
+            "macros": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "type": {
+              "type": "string",
+              "const": "set_math_macros"
+            }
+          },
+          "required": [
+            "type",
+            "macros"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
             "image": {
               "$ref": "#/$defs/WorkspaceImage"
             },
