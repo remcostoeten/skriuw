@@ -59,9 +59,11 @@ jobs:
                   ENVIRONMENT: ${{ github.event.inputs.environment || 'production' }}
               run: |
                   if [[ "$ENVIRONMENT" == "preview" ]]; then
+                      echo "migrate=d1 migrations apply skriuw-v2-auth-preview --remote --env preview" >> "$GITHUB_OUTPUT"
                       echo "command=deploy --env preview" >> "$GITHUB_OUTPUT"
                       echo "url=https://skriuw-v2-cloud-preview.remcostoeten.workers.dev" >> "$GITHUB_OUTPUT"
                   else
+                      echo "migrate=d1 migrations apply skriuw-v2-auth --remote" >> "$GITHUB_OUTPUT"
                       echo "command=deploy" >> "$GITHUB_OUTPUT"
                       echo "url=https://skriuw-v2-cloud.remcostoeten.workers.dev" >> "$GITHUB_OUTPUT"
                   fi
@@ -76,6 +78,17 @@ jobs:
               if: steps.credentials.outputs.configured == 'true'
               working-directory: apps/sync
               run: bun install --frozen-lockfile
+
+            # the Worker queries tables its migrations create, so they land first
+            - name: Apply D1 migrations
+              if: steps.credentials.outputs.configured == 'true'
+              uses: cloudflare/wrangler-action@v3
+              with:
+                  apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+                  workingDirectory: apps/sync
+                  packageManager: bun
+                  command: ${{ steps.target.outputs.migrate }}
 
             - name: Deploy the Worker
               if: steps.credentials.outputs.configured == 'true'

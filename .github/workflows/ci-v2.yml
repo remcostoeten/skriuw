@@ -148,6 +148,75 @@ jobs:
                   if-no-files-found: warn
                   path: .build/logs
 
+    # the release gate: the packaged debug app starts under WebDriver and commits
+    # a real import, which unit and bridge tests cannot see
+    native-gate:
+        runs-on: ubuntu-latest
+        timeout-minutes: 40
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            - name: Install Tauri and WebDriver system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev webkit2gtk-driver xvfb
+
+            - name: Install declared Rust toolchain
+              run: rustup show active-toolchain
+
+            - name: Cache Cargo
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: |
+                      . -> target
+                      apps/workspace/src-tauri -> target
+                  save-if: ${{ github.ref == 'refs/heads/daddy' }}
+
+            - name: Cache tauri-driver
+              id: driver-cache
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cargo/bin/tauri-driver
+                  key: tauri-driver-${{ runner.os }}-v1
+
+            - name: Install tauri-driver
+              if: steps.driver-cache.outputs.cache-hit != 'true'
+              run: cargo install tauri-driver --locked
+
+            - name: Install wasm-bindgen-cli
+              run: |
+                  curl --location --silent --show-error --fail "$WASM_BINDGEN_URL" \
+                      | tar --extract --gzip --strip-components=1 --directory="$HOME/.cargo/bin" \
+                            wasm-bindgen-0.2.126-x86_64-unknown-linux-musl/wasm-bindgen
+                  wasm-bindgen --version
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+
+            - name: Install frontend deps
+              run: bun install --frozen-lockfile
+
+            - name: Build browser WASM bindings
+              run: ./tools/scripts/build-browser-wasm.sh
+
+            - name: Native import boot gate
+              run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" node apps/workspace/e2e/run-native.mjs
+
+            - name: Upload native evidence
+              if: always()
+              uses: actions/upload-artifact@v5
+              with:
+                  name: native-e2e-evidence
+                  if-no-files-found: warn
+                  path: apps/workspace/e2e/results/native-latest.json
+
     renderer:
         runs-on: ubuntu-latest
         timeout-minutes: 15

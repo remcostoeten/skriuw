@@ -36,7 +36,7 @@ jobs:
               run: |
                   sha="$(git rev-parse HEAD)"
                   state="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${sha}/check-runs" \
-                      --jq '[.check_runs[] | select(.name | test("^(rust|desktop|renderer|portable-wasm|release-build)$")) | .conclusion] | join(",")')"
+                      --jq '[.check_runs[] | select(.name | test("^(rust|desktop|native-gate|renderer|portable-wasm|release-build)$")) | .conclusion] | join(",")')"
                   printf 'gate conclusions: %s\n' "$state"
                   case "$state" in
                       *failure*|*cancelled*|*timed_out*) echo "::error::the CI v2 gate is not green on daddy" && exit 1 ;;
