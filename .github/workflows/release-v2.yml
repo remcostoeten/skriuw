@@ -249,8 +249,9 @@ jobs:
                   name: browser-wasm
                   path: .build/browser-wasm
 
+            # xvfb-run's default 640x480 screen makes the window fit below the 900px wide shell
             - name: Native import boot gate
-              run: xvfb-run --auto-servernum node apps/workspace/e2e/run-native.mjs
+              run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" node apps/workspace/e2e/run-native.mjs
 
             - name: Upload native evidence
               if: always()
