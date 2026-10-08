@@ -318,12 +318,12 @@ async function assertCommittedDatabase(checks, workspaceDirectory) {
     { capture: true },
   );
   const [notes, folders, properties, receipts] = query.stdout.trim().split("|").map(Number);
-  // Six imported notes in one folder, on top of the five seeded preview notes
+  // Six imported notes in one folder, on top of the seven seeded preview notes
   // across their three folders.
   assert(
     checks,
     "sqlite-file-holds-seeded-preview-and-committed-import",
-    notes === 11 && folders === 4 && properties > 0 && receipts === 6,
+    notes === 13 && folders === 4 && properties > 0 && receipts === 6,
     JSON.stringify({ notes, folders, properties, receipts }),
   );
 }
