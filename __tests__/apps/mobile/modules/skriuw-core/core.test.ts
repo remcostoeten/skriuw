@@ -5,6 +5,7 @@ import {
   createSkriuwCore,
   type NativeResult,
   type NativeSkriuwCore,
+  type NativeSyncEvent,
 } from "../../../../../apps/mobile/modules/skriuw-core/src/core";
 import { SkriuwCoreError } from "../../../../../apps/mobile/modules/skriuw-core/src/errors";
 
@@ -32,7 +33,24 @@ function fakeNative(overrides: Partial<NativeSkriuwCore> = {}): NativeSkriuwCore
     relockNoteLock: () => succeed('{"unlocked":false}'),
     readLockedDocuments: () => succeed("[]"),
     removeNoteLock: () => succeed('{"applied":1}'),
+    syncStatus: () => succeed('{"state":"localOnly"}'),
+    connectSync: () => succeed('{"state":"connecting"}'),
+    pauseSync: () => succeed('{"state":"localOnly"}'),
+    catchUpSync: () => succeed('{"state":"upToDate"}'),
+    backgroundRefreshSync: () => succeed('{"state":"upToDate"}'),
+    setSyncForeground: () => succeed(null),
+    setSyncOnline: () => succeed(null),
+    setWakeChannelConnected: () => succeed(null),
+    notifyRemoteChange: () => succeed(null),
+    noteLocalCommit: () => succeed(null),
+    wakeChannelUrl: () => succeed(null),
+    syncRecoveryView: () => succeed('{"viewVersion":1,"blocked":[],"discarded":[]}'),
+    retryBlockedSyncOperation: () => succeed('{"viewVersion":1,"blocked":[],"discarded":[]}'),
+    discardBlockedSyncOperation: () => succeed('{"viewVersion":1,"blocked":[],"discarded":[]}'),
+    adoptWorkspaceSlot: () => succeed('{"adoption":"claimed","reopenRequired":false}'),
+    activeWorkspaceSlot: () => succeed(null),
     shutdown: () => succeed(null),
+    addListener: () => ({ remove: () => undefined }),
     ...overrides,
   };
 }
@@ -228,4 +246,62 @@ test("lock calls hand the secret to native code and pass its answer through", as
   const error = await rejection(core.unlockNoteLock("1111"));
   assert.equal(error.kind, "rejected");
   assert.equal(error.message, "Wrong PIN.");
+});
+
+test("sync calls pass the credential and cloud through and parse the slot route", async () => {
+  const received: unknown[] = [];
+  const core = createSkriuwCore(
+    fakeNative({
+      connectSync: (token, baseUrl) => {
+        received.push([token, baseUrl]);
+        return succeed('{"state":"connecting"}');
+      },
+      adoptWorkspaceSlot: (workspaceId) => {
+        received.push(workspaceId);
+        return succeed('{"adoption":"switched","reopenRequired":true}');
+      },
+      wakeChannelUrl: () => succeed("https://sync.skriuw.app/v1/workspaces/w_1/events"),
+      activeWorkspaceSlot: () => succeed("w_1"),
+    }),
+  );
+
+  assert.equal(
+    await core.connectSync("token", "https://sync.skriuw.app"),
+    '{"state":"connecting"}',
+  );
+  assert.deepEqual(await core.adoptWorkspaceSlot("w_1"), {
+    adoption: "switched",
+    reopenRequired: true,
+  });
+  assert.deepEqual(received, [["token", "https://sync.skriuw.app"], "w_1"]);
+  assert.equal(await core.wakeChannelUrl(), "https://sync.skriuw.app/v1/workspaces/w_1/events");
+  assert.equal(await core.activeWorkspaceSlot(), "w_1");
+  assert.equal(await createSkriuwCore(fakeNative()).activeWorkspaceSlot(), null);
+});
+
+test("a slot route the core cannot name is refused rather than guessed", async () => {
+  const core = createSkriuwCore(
+    fakeNative({ adoptWorkspaceSlot: () => succeed('{"adoption":"merged"}') }),
+  );
+  assert.equal((await rejection(core.adoptWorkspaceSlot("w_1"))).kind, "invalid-payload");
+});
+
+test("sync events are delivered until the subscription is removed", () => {
+  const removed: string[] = [];
+  const listeners: ((event: NativeSyncEvent) => void)[] = [];
+  const core = createSkriuwCore(
+    fakeNative({
+      addListener: (eventName, listener) => {
+        listeners.push(listener);
+        return { remove: () => removed.push(eventName) };
+      },
+    }),
+  );
+  const seen: string[] = [];
+  const unsubscribe = core.subscribeSync((event) => seen.push(event.kind));
+  for (const listener of listeners) listener({ kind: "sessionExpired", payload: null });
+  unsubscribe();
+
+  assert.deepEqual(seen, ["sessionExpired"]);
+  assert.deepEqual(removed, ["onSyncEvent"]);
 });

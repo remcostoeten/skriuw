@@ -6,7 +6,11 @@ import {
   type WorkspaceOperationEnvelope,
   type WorkspaceSnapshot,
 } from "@skriuw/renderer-core/contracts/workspace";
-import type { NoteLockSecretArguments, SkriuwCore } from "../../modules/skriuw-core/src/core";
+import type {
+  NativeSyncEvent,
+  NoteLockSecretArguments,
+  SkriuwCore,
+} from "../../modules/skriuw-core/src/core";
 import { SkriuwCoreError, type SkriuwCoreErrorKind } from "../../modules/skriuw-core/src/errors";
 
 export type FakeCoreCall =
@@ -24,6 +28,22 @@ export type FakeCoreCall =
   | "relockNoteLock"
   | "readLockedDocuments"
   | "removeNoteLock"
+  | "syncStatus"
+  | "connectSync"
+  | "pauseSync"
+  | "catchUpSync"
+  | "backgroundRefreshSync"
+  | "setSyncForeground"
+  | "setSyncOnline"
+  | "setWakeChannelConnected"
+  | "notifyRemoteChange"
+  | "noteLocalCommit"
+  | "wakeChannelUrl"
+  | "syncRecoveryView"
+  | "retryBlockedSyncOperation"
+  | "discardBlockedSyncOperation"
+  | "adoptWorkspaceSlot"
+  | "activeWorkspaceSlot"
   | "shutdown";
 
 export type FakeCoreOptions = {
@@ -38,6 +58,8 @@ export type FakeSkriuwCore = SkriuwCore & {
   failNextOpen: (kind: SkriuwCoreErrorKind, message: string) => void;
   /** The next `submitOperations` rejects with this kind, once, writing nothing. */
   failNextSubmit: (kind: SkriuwCoreErrorKind, message: string) => void;
+  /** Delivers an observer event the way the native sync thread would. */
+  emitSync: (event: NativeSyncEvent) => void;
 };
 
 function noteLockKind(kind: string): NoteLockKind {
@@ -65,6 +87,7 @@ export function createFakeSkriuwCore(options: FakeCoreOptions = {}): FakeSkriuwC
   let open = false;
   let pendingOpenFailure: SkriuwCoreError | null = null;
   let pendingSubmitFailure: SkriuwCoreError | null = null;
+  const listeners = new Set<(event: NativeSyncEvent) => void>();
 
   function requireOpen(): void {
     if (!open) {
@@ -72,7 +95,7 @@ export function createFakeSkriuwCore(options: FakeCoreOptions = {}): FakeSkriuwC
     }
   }
 
-  async function native(call: FakeCoreCall, run: () => Promise<string>): Promise<string> {
+  async function native<T>(call: FakeCoreCall, run: () => Promise<T>): Promise<T> {
     calls.push(call);
     requireOpen();
     try {
@@ -216,6 +239,104 @@ export function createFakeSkriuwCore(options: FakeCoreOptions = {}): FakeSkriuwC
 
     removeNoteLock() {
       return native("removeNoteLock", async () => JSON.stringify(await durable.removeNoteLock()));
+    },
+
+    syncStatus() {
+      return native("syncStatus", async () => JSON.stringify(await durable.workspaceSyncStatus()));
+    },
+
+    connectSync(token, baseUrl) {
+      return native("connectSync", async () =>
+        JSON.stringify(await durable.connectWorkspaceSync(token, baseUrl)),
+      );
+    },
+
+    pauseSync() {
+      return native("pauseSync", async () => JSON.stringify(await durable.pauseWorkspaceSync()));
+    },
+
+    catchUpSync() {
+      return native("catchUpSync", async () =>
+        JSON.stringify(await durable.refreshWorkspaceSync()),
+      );
+    },
+
+    backgroundRefreshSync() {
+      return native("backgroundRefreshSync", async () =>
+        JSON.stringify(await durable.refreshWorkspaceSync()),
+      );
+    },
+
+    async setSyncForeground(foreground) {
+      await native("setSyncForeground", async () => {
+        await durable.setWorkspaceSyncVisibility(foreground, foreground);
+      });
+    },
+
+    async setSyncOnline(online) {
+      await native("setSyncOnline", async () => {
+        await durable.setWorkspaceSyncOnline(online);
+      });
+    },
+
+    async setWakeChannelConnected() {
+      await native("setWakeChannelConnected", async () => undefined);
+    },
+
+    async notifyRemoteChange() {
+      await native("notifyRemoteChange", async () => undefined);
+    },
+
+    async noteLocalCommit() {
+      await native("noteLocalCommit", async () => undefined);
+    },
+
+    async wakeChannelUrl() {
+      const status = await native("wakeChannelUrl", async () =>
+        JSON.stringify(await durable.workspaceSyncStatus()),
+      );
+      return status.includes('"localOnly"') ? null : "wss://sync.invalid/events";
+    },
+
+    syncRecoveryView() {
+      return native("syncRecoveryView", async () =>
+        JSON.stringify(await durable.listBlockedSyncOperations()),
+      );
+    },
+
+    retryBlockedSyncOperation(blockedId) {
+      return native("retryBlockedSyncOperation", async () =>
+        JSON.stringify(await durable.retryBlockedSyncOperation(blockedId)),
+      );
+    },
+
+    discardBlockedSyncOperation(blockedId) {
+      return native("discardBlockedSyncOperation", async () =>
+        JSON.stringify(await durable.discardBlockedSyncOperation(blockedId)),
+      );
+    },
+
+    async adoptWorkspaceSlot(workspaceId) {
+      const adoption = await native("adoptWorkspaceSlot", () =>
+        durable.adoptWorkspaceSlot(workspaceId),
+      );
+      return { adoption, reopenRequired: adoption === "switched" };
+    },
+
+    async activeWorkspaceSlot() {
+      const slot = await native("activeWorkspaceSlot", async () =>
+        JSON.stringify(await durable.activeWorkspaceSlot()),
+      );
+      return JSON.parse(slot) as string | null;
+    },
+
+    subscribeSync(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+
+    emitSync(event) {
+      for (const listener of listeners) listener(event);
     },
 
     async shutdown() {

@@ -41,7 +41,44 @@ export type NativeSkriuwCore = {
   relockNoteLock(): Promise<NativeResult>;
   readLockedDocuments(noteIds: string[] | null): Promise<NativeResult>;
   removeNoteLock(): Promise<NativeResult>;
+  syncStatus(): Promise<NativeResult>;
+  connectSync(token: string, baseUrl: string): Promise<NativeResult>;
+  pauseSync(): Promise<NativeResult>;
+  catchUpSync(): Promise<NativeResult>;
+  backgroundRefreshSync(): Promise<NativeResult>;
+  setSyncForeground(foreground: boolean): Promise<NativeResult>;
+  setSyncOnline(online: boolean): Promise<NativeResult>;
+  setWakeChannelConnected(connected: boolean): Promise<NativeResult>;
+  notifyRemoteChange(): Promise<NativeResult>;
+  noteLocalCommit(): Promise<NativeResult>;
+  wakeChannelUrl(): Promise<NativeResult>;
+  syncRecoveryView(): Promise<NativeResult>;
+  retryBlockedSyncOperation(blockedId: string): Promise<NativeResult>;
+  discardBlockedSyncOperation(blockedId: string): Promise<NativeResult>;
+  adoptWorkspaceSlot(workspaceId: string): Promise<NativeResult>;
+  activeWorkspaceSlot(): Promise<NativeResult>;
   shutdown(): Promise<NativeResult>;
+  addListener(
+    eventName: typeof SYNC_EVENT,
+    listener: (event: NativeSyncEvent) => void,
+  ): { remove(): void };
+};
+
+export const SYNC_EVENT = "onSyncEvent";
+
+/** What the sync observer in `crates/skriuw-mobile` reports without being asked. */
+export type NativeSyncEvent =
+  | { kind: "status"; payload: string }
+  | { kind: "workspaceChanged"; payload: string }
+  | { kind: "sessionExpired"; payload: null };
+
+export type SlotAdoptionKind = "claimed" | "active" | "switched";
+
+/** Where the shell opens the workspace after routing an account (ADR-0046). */
+export type WorkspaceRoute = {
+  adoption: SlotAdoptionKind;
+  /** The open handle is bound to the previous directory, so close and reopen. */
+  reopenRequired: boolean;
 };
 
 export type OpenedWorkspace = {
@@ -83,6 +120,36 @@ export type SkriuwCore = {
   readLockedDocuments(noteIds: string[] | null): Promise<string>;
   /** `OperationAck` JSON. Needs an unlocked session. */
   removeNoteLock(): Promise<string>;
+  /** `WorkspaceSyncStatus` JSON. Local only until `connectSync` succeeds. */
+  syncStatus(): Promise<string>;
+  /** Provisions this device and starts replication; `WorkspaceSyncStatus` JSON. */
+  connectSync(token: string, baseUrl: string): Promise<string>;
+  /** Stops replication and keeps everything local; `WorkspaceSyncStatus` JSON. */
+  pauseSync(): Promise<string>;
+  /** The resume path: clears retry delays and runs a cycle now. */
+  catchUpSync(): Promise<string>;
+  /** Best-effort cycle for a background task; `WorkspaceSyncStatus` JSON. */
+  backgroundRefreshSync(): Promise<string>;
+  setSyncForeground(foreground: boolean): Promise<void>;
+  setSyncOnline(online: boolean): Promise<void>;
+  setWakeChannelConnected(connected: boolean): Promise<void>;
+  notifyRemoteChange(): Promise<void>;
+  /** A local commit landed, so a push is due. A no-op while sync is off. */
+  noteLocalCommit(): Promise<void>;
+  /** The foreground wake channel URL, or `null` while nothing is connected. */
+  wakeChannelUrl(): Promise<string | null>;
+  /** `SyncRecoveryView` JSON. */
+  syncRecoveryView(): Promise<string>;
+  /** `SyncRecoveryView` JSON. */
+  retryBlockedSyncOperation(blockedId: string): Promise<string>;
+  /** `SyncRecoveryView` JSON. */
+  discardBlockedSyncOperation(blockedId: string): Promise<string>;
+  /** Routes the installation to the account's own storage. */
+  adoptWorkspaceSlot(workspaceId: string): Promise<WorkspaceRoute>;
+  /** Cloud workspace owning the open store, or `null` while unclaimed. */
+  activeWorkspaceSlot(): Promise<string | null>;
+  /** Returns an unsubscribe. */
+  subscribeSync(listener: (event: NativeSyncEvent) => void): () => void;
   /** Drains the owner thread. Safe to call when nothing is open. */
   shutdown(): Promise<void>;
 };
@@ -116,6 +183,49 @@ async function settle(call: Promise<NativeResult>): Promise<unknown> {
     throw toSkriuwCoreError(result.error);
   }
   return result.value;
+}
+
+async function settleNothing(call: Promise<NativeResult>): Promise<void> {
+  await settle(call);
+}
+
+async function settleOptionalText(call: Promise<NativeResult>): Promise<string | null> {
+  const value = await settle(call);
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    throw new SkriuwCoreError({
+      kind: "internal",
+      message: "native core answered without a text value",
+    });
+  }
+  return value;
+}
+
+const ADOPTIONS: readonly SlotAdoptionKind[] = ["claimed", "active", "switched"];
+
+function parseRoute(json: string): WorkspaceRoute {
+  let parsed: { adoption?: unknown; reopenRequired?: unknown };
+  try {
+    parsed = JSON.parse(json) as { adoption?: unknown; reopenRequired?: unknown };
+  } catch (cause) {
+    throw new SkriuwCoreError(
+      {
+        kind: "invalid-payload",
+        message: "native core answered the slot route with malformed JSON",
+      },
+      { cause },
+    );
+  }
+  const adoption = ADOPTIONS.find((kind) => kind === parsed.adoption);
+  if (adoption === undefined) {
+    throw new SkriuwCoreError({
+      kind: "invalid-payload",
+      message: "native core answered the slot route without an adoption",
+    });
+  }
+  return { adoption, reopenRequired: parsed.reopenRequired === true };
 }
 
 async function settleText(call: Promise<NativeResult>): Promise<string> {
@@ -199,6 +309,48 @@ export function createSkriuwCore(native: NativeSkriuwCore): SkriuwCore {
 
     removeNoteLock() {
       return settleText(native.removeNoteLock());
+    },
+
+    syncStatus: () => settleText(native.syncStatus()),
+
+    connectSync: (token, baseUrl) => settleText(native.connectSync(token, baseUrl)),
+
+    pauseSync: () => settleText(native.pauseSync()),
+
+    catchUpSync: () => settleText(native.catchUpSync()),
+
+    backgroundRefreshSync: () => settleText(native.backgroundRefreshSync()),
+
+    setSyncForeground: (foreground) => settleNothing(native.setSyncForeground(foreground)),
+
+    setSyncOnline: (online) => settleNothing(native.setSyncOnline(online)),
+
+    setWakeChannelConnected: (connected) =>
+      settleNothing(native.setWakeChannelConnected(connected)),
+
+    notifyRemoteChange: () => settleNothing(native.notifyRemoteChange()),
+
+    noteLocalCommit: () => settleNothing(native.noteLocalCommit()),
+
+    wakeChannelUrl: () => settleOptionalText(native.wakeChannelUrl()),
+
+    syncRecoveryView: () => settleText(native.syncRecoveryView()),
+
+    retryBlockedSyncOperation: (blockedId) =>
+      settleText(native.retryBlockedSyncOperation(blockedId)),
+
+    discardBlockedSyncOperation: (blockedId) =>
+      settleText(native.discardBlockedSyncOperation(blockedId)),
+
+    async adoptWorkspaceSlot(workspaceId) {
+      return parseRoute(await settleText(native.adoptWorkspaceSlot(workspaceId)));
+    },
+
+    activeWorkspaceSlot: () => settleOptionalText(native.activeWorkspaceSlot()),
+
+    subscribeSync(listener) {
+      const subscription = native.addListener(SYNC_EVENT, listener);
+      return () => subscription.remove();
     },
 
     async shutdown() {

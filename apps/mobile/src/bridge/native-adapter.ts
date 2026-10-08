@@ -1,4 +1,8 @@
-import type { BridgePort } from "@skriuw/renderer-core/bridge/port";
+import type {
+  BridgePort,
+  SyncRecoveryView,
+  WorkspaceSyncStatus,
+} from "@skriuw/renderer-core/bridge/port";
 import {
   WORKSPACE_PROTOCOL_VERSION,
   type NoteLockState,
@@ -8,29 +12,79 @@ import {
 } from "@skriuw/renderer-core/contracts/workspace";
 import {
   DEFAULT_SLOT,
+  type NativeSyncEvent,
   type OpenedWorkspace,
   type SkriuwCore,
 } from "../../modules/skriuw-core/src/core";
 import { SkriuwCoreError } from "../../modules/skriuw-core/src/errors";
+import type { MobileSyncPort } from "../features/sync/port";
 import { refuseMissingNativeCommand } from "./refusals";
 
 export type NativeBridgeOptions = {
   slot?: string;
 };
 
-export type NativeBridge = BridgePort & {
-  /**
-   * Drains the native owner thread once any open and any command already in
-   * flight has settled, so nothing is left open behind a resolved close and no
-   * command is answered `closed` halfway through. The next command
-   * reopens the slot, and one issued while the drain is in flight waits for it
-   * instead of re-attaching to the workspace being closed.
-   */
-  close: () => Promise<void>;
+/** What a sync cycle changed in canonical storage, as `RemoteChangeSet` reports it. */
+export type RemoteWorkspaceChange = {
+  noteIds: readonly string[];
+  structureChanged: boolean;
+  full: boolean;
 };
+
+export type SyncEvent =
+  | { kind: "status"; status: WorkspaceSyncStatus }
+  | { kind: "workspaceChanged"; change: RemoteWorkspaceChange }
+  | { kind: "sessionExpired" };
+
+export type NativeBridge = BridgePort &
+  MobileSyncPort & {
+    /** Observer events from the native sync thread. Returns an unsubscribe. */
+    subscribeSyncEvents: (listener: (event: SyncEvent) => void) => () => void;
+    /**
+     * Drains the native owner thread once any open and any command already in
+     * flight has settled, so nothing is left open behind a resolved close and no
+     * command is answered `closed` halfway through. The next command
+     * reopens the slot, and one issued while the drain is in flight waits for it
+     * instead of re-attaching to the workspace being closed.
+     */
+    close: () => Promise<void>;
+  };
 
 function ignoreOutcome(): void {
   return undefined;
+}
+
+function readChange(json: string): RemoteWorkspaceChange {
+  let parsed: { noteIds?: unknown; structureChanged?: unknown; full?: unknown };
+  try {
+    parsed = JSON.parse(json) as typeof parsed;
+  } catch {
+    return { noteIds: [], structureChanged: true, full: true };
+  }
+  return {
+    noteIds: Array.isArray(parsed.noteIds)
+      ? parsed.noteIds.filter((id): id is string => typeof id === "string")
+      : [],
+    structureChanged: parsed.structureChanged === true,
+    full: parsed.full === true,
+  };
+}
+
+function readSyncEvent(event: NativeSyncEvent): SyncEvent | null {
+  switch (event.kind) {
+    case "status":
+      try {
+        return { kind: "status", status: JSON.parse(event.payload) as WorkspaceSyncStatus };
+      } catch {
+        return null;
+      }
+    case "workspaceChanged":
+      return { kind: "workspaceChanged", change: readChange(event.payload) };
+    case "sessionExpired":
+      return { kind: "sessionExpired" };
+    default:
+      return null;
+  }
 }
 
 function parsePayload<T>(json: string, command: string): T {
@@ -54,9 +108,11 @@ function parsePayload<T>(json: string, command: string): T {
  * `skriuw-core` exposes bootstrap, operations, documents and the note lock.
  * The lock is answered inside Rust (ADR-0044): the secret is derived and the
  * content key held on the storage thread, so this adapter only forwards the
- * secret and parses state, documents and acks. Search, media, sync and
- * workspace slots refuse until the native module carries them; nothing here
- * keeps a second copy of durable state in TypeScript.
+ * secret and parses state, documents and acks. Sync and per-account workspace
+ * routing (ADR-0046) are answered by the core too; the network calls they make
+ * go through the platform HTTP client in the native module. Search and media
+ * refuse until the native module carries them; nothing here keeps a second
+ * copy of durable state in TypeScript.
  * Sidebar expansion has no native home either, so it lasts for the process
  * only: a relaunch reads `null` and the tree falls back to its defaults.
  */
@@ -124,6 +180,14 @@ export function createNativeBridge(
     return parsePayload<NoteLockState>(json, "the note lock");
   }
 
+  function syncStatus(json: string): WorkspaceSyncStatus {
+    return parsePayload<WorkspaceSyncStatus>(json, "sync status");
+  }
+
+  function recoveryView(json: string): SyncRecoveryView {
+    return parsePayload<SyncRecoveryView>(json, "the sync recovery view");
+  }
+
   return {
     bootstrapWorkspace: () =>
       whenOpen(async () => parsePayload<WorkspaceSnapshot>(await core.bootstrap(), "bootstrap")),
@@ -135,12 +199,14 @@ export function createNativeBridge(
       }),
 
     applyWorkspaceOperations: (operations) =>
-      whenOpen(async () =>
-        parsePayload<OperationAck>(
+      whenOpen(async () => {
+        const ack = parsePayload<OperationAck>(
           await core.submitOperations(JSON.stringify(operations)),
           "submitOperations",
-        ),
-      ),
+        );
+        core.noteLocalCommit().catch(ignoreOutcome);
+        return ack;
+      }),
 
     loadSidebarExpansion: async () => (expandedFolderIds === null ? null : [...expandedFolderIds]),
 
@@ -182,23 +248,53 @@ export function createNativeBridge(
     storeNoteImage: async () => refuseMissingNativeCommand("Storing media"),
     readNoteImageBlob: async () => refuseMissingNativeCommand("Reading stored media"),
 
-    workspaceSyncStatus: async () => ({ state: "localOnly" }),
-    connectWorkspaceSync: async () => refuseMissingNativeCommand("Sync"),
-    pauseWorkspaceSync: async () => ({ state: "localOnly" }),
-    retryWorkspaceSync: async () => refuseMissingNativeCommand("Sync"),
-    refreshWorkspaceSync: async () => refuseMissingNativeCommand("Sync"),
-    setWorkspaceSyncOnline: async () => undefined,
-    setWorkspaceSyncVisibility: async () => undefined,
-    listBlockedSyncOperations: async () => ({ viewVersion: 1, blocked: [], discarded: [] }),
-    retryBlockedSyncOperation: async (blockedId) => {
-      throw new Error(`No blocked sync operation ${blockedId}.`);
-    },
-    discardBlockedSyncOperation: async (blockedId) => {
-      throw new Error(`No blocked sync operation ${blockedId}.`);
-    },
+    workspaceSyncStatus: () => whenOpen(async () => syncStatus(await core.syncStatus())),
 
-    adoptWorkspaceSlot: async () => refuseMissingNativeCommand("Per-account workspaces"),
-    activeWorkspaceSlot: async () => (slot === DEFAULT_SLOT ? null : slot),
+    connectWorkspaceSync: (token, baseUrl) =>
+      whenOpen(async () => syncStatus(await core.connectSync(token, baseUrl))),
+
+    pauseWorkspaceSync: () => whenOpen(async () => syncStatus(await core.pauseSync())),
+
+    retryWorkspaceSync: () => whenOpen(async () => syncStatus(await core.catchUpSync())),
+
+    refreshWorkspaceSync: () => whenOpen(async () => syncStatus(await core.catchUpSync())),
+
+    catchUpWorkspaceSync: () => whenOpen(async () => syncStatus(await core.catchUpSync())),
+
+    backgroundRefreshWorkspaceSync: () =>
+      whenOpen(async () => syncStatus(await core.backgroundRefreshSync())),
+
+    setWorkspaceSyncOnline: (online) => whenOpen(() => core.setSyncOnline(online)),
+
+    setWorkspaceSyncVisibility: (visible) => whenOpen(() => core.setSyncForeground(visible)),
+
+    setWakeChannelConnected: (connected) => whenOpen(() => core.setWakeChannelConnected(connected)),
+
+    notifyRemoteChange: () => whenOpen(() => core.notifyRemoteChange()),
+
+    workspaceWakeChannelUrl: () => whenOpen(() => core.wakeChannelUrl()),
+
+    listBlockedSyncOperations: () =>
+      whenOpen(async () => recoveryView(await core.syncRecoveryView())),
+
+    retryBlockedSyncOperation: (blockedId) =>
+      whenOpen(async () => recoveryView(await core.retryBlockedSyncOperation(blockedId))),
+
+    discardBlockedSyncOperation: (blockedId) =>
+      whenOpen(async () => recoveryView(await core.discardBlockedSyncOperation(blockedId))),
+
+    adoptWorkspaceSlot: (workspaceId) =>
+      whenOpen(async () => (await core.adoptWorkspaceSlot(workspaceId)).adoption),
+
+    activeWorkspaceSlot: () => whenOpen(() => core.activeWorkspaceSlot()),
+
+    subscribeSyncEvents: (listener) =>
+      core.subscribeSync((event) => {
+        const parsed = readSyncEvent(event);
+        if (parsed !== null) {
+          listener(parsed);
+        }
+      }),
 
     close: () => {
       const pendingOpen = opening;
