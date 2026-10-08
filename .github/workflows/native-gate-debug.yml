@@ -1,0 +1,101 @@
+name: native gate debug
+
+on:
+    pull_request:
+        paths:
+            - .github/workflows/native-gate-debug.yml
+
+jobs:
+    gate:
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - variant: daddy
+                      ref: debug/native-gate
+                      patch_visible: "false"
+                    - variant: daddy-always-show
+                      ref: debug/native-gate
+                      patch_visible: "true"
+                    - variant: v0.49.0
+                      ref: v2-v0.49.0
+                      patch_visible: "false"
+        name: gate (${{ matrix.variant }})
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  ref: ${{ matrix.ref }}
+                  persist-credentials: false
+
+            - name: Install Tauri and WebDriver system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev webkit2gtk-driver xvfb sqlite3
+                  dpkg -l libwebkit2gtk-4.1-0 webkit2gtk-driver | tail -2
+
+            - uses: dtolnay/rust-toolchain@master
+              with:
+                  toolchain: 1.95.0
+                  targets: wasm32-unknown-unknown
+
+            - uses: Swatinem/rust-cache@v2
+              with:
+                  key: ${{ matrix.variant }}
+                  workspaces: |
+                      . -> target
+                      apps/workspace/src-tauri -> target
+
+            - name: Install tauri-driver and wasm-bindgen
+              run: |
+                  cargo install tauri-driver --locked
+                  curl --location --silent --show-error --fail \
+                      https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.126/wasm-bindgen-0.2.126-x86_64-unknown-linux-musl.tar.gz \
+                      | tar --extract --gzip --strip-components=1 --directory="$HOME/.cargo/bin" \
+                            wasm-bindgen-0.2.126-x86_64-unknown-linux-musl/wasm-bindgen
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: "24"
+
+            - run: bun install --frozen-lockfile
+
+            - run: ./tools/scripts/build-browser-wasm.sh
+
+            - name: Drop the already-visible early return
+              if: matrix.patch_visible == 'true'
+              run: |
+                  python3 - <<'PY'
+                  p = "apps/workspace/src-tauri/src/window.rs"
+                  s = open(p).read()
+                  old = "    if window.is_visible().unwrap_or(false) {\n        return Ok(());\n    }\n"
+                  assert old in s
+                  open(p, "w").write(s.replace(old, ""))
+                  PY
+
+            - name: Log window state when the wide wait fails
+              run: |
+                  python3 - <<'PY'
+                  p = "apps/workspace/e2e/run-native.mjs"
+                  s = open(p).read()
+                  old = '    await waitFor("return window.innerWidth >= 900", "a wide window", 50);'
+                  new = '''    try {
+                        await waitFor("return window.innerWidth >= 900", "a wide window", 50);
+                      } catch (error) {
+                        const page = await script("return { innerWidth, innerHeight, outerWidth, outerHeight, screenWidth: screen.width, screenHeight: screen.height, visibility: document.visibilityState, ready: document.readyState, body: document.body ? document.body.className : null, splash: !!document.getElementById('splash') }");
+                        const rect = await driverRequest("GET", `/session/${sessionId}/window/rect`);
+                        console.error("WIDE-WAIT-DIAGNOSTIC", JSON.stringify({ page, rect }));
+                        throw error;
+                      }
+                      console.error("WIDE-WAIT-OK", JSON.stringify(await script("return { innerWidth, innerHeight, visibility: document.visibilityState }")));'''
+                  assert old in s
+                  open(p, "w").write(s.replace(old, new))
+                  PY
+
+            - name: Native import boot gate
+              run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" node apps/workspace/e2e/run-native.mjs
