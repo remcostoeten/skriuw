@@ -114,6 +114,7 @@ define_workspace_operation_sync_policy! {
     PurgeSubtree => ("purge_subtree", ReplicatedWorkspaceContent),
     SetActiveNote => ("set_active_note", DeviceLocal),
     UpdateSettings => ("update_settings", DeviceLocal),
+    SetMathMacros => ("set_math_macros", ReplicatedWorkspaceContent),
     AttachImage => ("attach_image", ReplicatedWorkspaceContent),
     SetMediaMetadata => ("set_media_metadata", ReplicatedWorkspaceContent),
     SetNoteProperty => ("set_note_property", ReplicatedWorkspaceContent),
@@ -391,7 +392,8 @@ impl WorkspaceOperation {
             | Self::UpdateTask { task, .. }
             | Self::PromoteChecklistTask { task, .. } => Some(&task.id),
             Self::DeleteTask { id, .. } | Self::DetachTask { id, .. } => Some(id),
-            Self::UpdateSettings { .. }
+            Self::SetMathMacros { .. }
+            | Self::UpdateSettings { .. }
             | Self::ReorderNotePropertyTemplates { .. }
             | Self::ConfigureNoteLock { .. }
             | Self::RemoveNoteLock { .. }
@@ -999,7 +1001,7 @@ mod tests {
             operation_types.len(),
             WORKSPACE_OPERATION_SYNC_POLICY_V1.len()
         );
-        assert_eq!(WORKSPACE_OPERATION_SYNC_POLICY_V1.len(), 50);
+        assert_eq!(WORKSPACE_OPERATION_SYNC_POLICY_V1.len(), 51);
         assert_eq!(
             operation_types,
             serde_json::from_str::<serde_json::Value>(include_str!(

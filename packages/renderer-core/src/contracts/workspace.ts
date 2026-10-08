@@ -398,6 +398,7 @@ export type WorkspaceOperation =
   | { type: "purge_subtree"; rootId: string; trashedBefore: number }
   | { type: "set_active_note"; noteId: string | null }
   | { type: "update_settings"; settings: WorkspaceSettings }
+  | { type: "set_math_macros"; macros: { [name: string]: string } }
   | { type: "attach_image"; image: WorkspaceImage }
   | { type: "set_media_metadata"; metadata: MediaMetadata }
   | { type: "set_note_property"; property: NoteProperty; at: number }

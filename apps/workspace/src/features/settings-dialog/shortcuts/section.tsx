@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import { useEffect, useRef, useState } from "react";
 import type { MutableRefObject, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
@@ -97,7 +98,7 @@ export function ShortcutsSection({
     } else {
       const conflict = findShortcutConflict(overrides, definition.id, combo);
       if (conflict?.actionId === QUIT_ACTION_ID) {
-        return "Reserved for “Quit”";
+        return settingsCopy.shortcuts.reservedForQuit;
       }
       if (conflict) {
         return conflict.slot === "secondary"
@@ -114,11 +115,11 @@ export function ShortcutsSection({
 
   function rowDescription(definition: ShortcutDefinition): string | null {
     if (definition.id === QUIT_ACTION_ID) {
-      return "Two or three keys holding Ctrl or Cmd. Quit wins over any other shortcut on the same keys.";
+      return settingsCopy.shortcuts.twoOrThreeKeysHoldingCtrl;
     }
     const keys = effectiveShortcutKeys(definition, overrides);
     return shortcutShadowedByQuit(definition, keys, overrides)
-      ? "Unbound while Quit uses the same keys."
+      ? settingsCopy.shortcuts.unboundWhileQuitUsesTheSame
       : null;
   }
 
@@ -178,10 +179,7 @@ export function ShortcutsSection({
 
   return (
     <section aria-label="Keyboard shortcuts" className={settingsSection}>
-      <SettingsHeading
-        title="Shortcuts"
-        detail="Click a shortcut, then press a new key combination. Enter or clicking elsewhere keeps the current one, Escape cancels."
-      />
+      <SettingsHeading title="Shortcuts" detail={settingsCopy.shortcuts.clickAShortcutThenPressA} />
       <div className="sticky top-0 z-[2] -mx-1 mb-4 bg-background px-1 pt-1.5 pb-2.5">
         <div className="group relative">
           <SearchIcon
@@ -250,7 +248,7 @@ export function ShortcutsSection({
             <button
               type="button"
               className={cn(settingsButton, settingsButtonDanger, "px-2 py-0.5 text-[11px]")}
-              aria-label="Reset all shortcuts to defaults"
+              aria-label={settingsCopy.shortcuts.resetAllShortcutsToDefaults}
               onClick={() => clearAllShortcutOverrides(store)}
             >
               Reset all
@@ -259,7 +257,10 @@ export function ShortcutsSection({
         </div>
       </div>
       {trimmedQuery.length > 0 && matchCount === 0 && (
-        <p className="text-sm text-muted-foreground">No shortcuts match “{trimmedQuery}”.</p>
+        <p className="text-sm text-muted-foreground">
+          {settingsCopy.shortcuts.noShortcutsMatch}
+          {trimmedQuery}”.
+        </p>
       )}
       {groups.map(({ group, definitions }) => (
         <div key={group} className={settingsGroup}>
@@ -279,7 +280,7 @@ export function ShortcutsSection({
                       data-directional-focus
                       className={settingsToggleInput}
                       checked={quitEnabled}
-                      aria-label="Quit with a keyboard shortcut"
+                      aria-label={settingsCopy.shortcuts.quitWithAKeyboardShortcut}
                       onChange={(event) =>
                         setQuitShortcutEnabled(store, event.currentTarget.checked)
                       }

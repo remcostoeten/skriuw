@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   deleteMediaBlob,
@@ -282,7 +283,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
           kind: "info",
           message:
             removed === 0
-              ? "Nothing removed. Images added in the last minute are kept as a safety margin."
+              ? settingsCopy.media.nothingRemovedImagesAddedInThe
               : `Removed ${removed} unused ${noun}.`,
         });
       })
@@ -293,18 +294,15 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
 
   return (
     <section aria-label="Media" className={settingsSection}>
-      <SettingsHeading
-        title="Media"
-        detail="Every image stored in this workspace, with the notes that use it. Unused images stay until you delete them."
-      />
+      <SettingsHeading title="Media" detail={settingsCopy.media.everyImageStoredInThisWorkspace} />
       <div className={settingsGroup}>
         <div className={settingsRow}>
           <span className={settingsRowLabel}>
             Library
             <span className={settingsRowDescription}>
               {entries.length === 1 ? "1 file" : `${entries.length} files`}
-              {unusedCount > 0 ? ` · ${unusedCount} unused` : ""}. Stored once per unique file in
-              the blobs folder next to the database.
+              {unusedCount > 0 ? ` · ${unusedCount} unused` : ""}
+              {settingsCopy.media.StoredOncePerUniqueFile}
             </span>
           </span>
           <span className="flex shrink-0 items-center gap-2">
@@ -334,12 +332,12 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
                 className={settingsButton}
                 onClick={() => {
                   revealWorkspaceImages().catch((error) => {
-                    console.error("reveal images rejected", error);
+                    console.error(settingsCopy.media.revealImagesRejected, error);
                   });
                 }}
               >
                 <FolderOpenIcon size={15} />
-                Show in file manager
+                {settingsCopy.media.showInFileManager}
               </button>
             )}
           </span>
@@ -347,9 +345,9 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
         {unusedCount > 0 && (
           <div className={settingsRow}>
             <span className={settingsRowLabel}>
-              Remove all unused
+              {settingsCopy.media.removeAllUnused}
               <span className={settingsRowDescription}>
-                Deletes every image that no note references. This cannot be undone.
+                {settingsCopy.media.deletesEveryImageThatNoNote}
               </span>
             </span>
             <InlineConfirm
@@ -368,7 +366,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
               }}
               renderIdle={(arm) => (
                 <Button variant="danger" disabled={busy} onClick={arm}>
-                  Remove all unused
+                  {settingsCopy.media.removeAllUnused}
                 </Button>
               )}
             />
@@ -418,7 +416,8 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
             disabled={busy || selected.size === selectableHashes.length}
             onClick={selectAllShown}
           >
-            Select all deletable ({selectableHashes.length})
+            {settingsCopy.media.selectAllDeletable}
+            {selectableHashes.length})
           </button>
           {selected.size > 0 && (
             <>
@@ -433,7 +432,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
               <InlineConfirm
                 size="sm"
                 confirmLabel={`Delete ${selected.size}`}
-                message="This cannot be undone."
+                message={settingsCopy.media.thisCannotBeUndone}
                 onConfirm={deleteSelected}
                 renderIdle={(arm) => (
                   <button
@@ -458,8 +457,8 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
         busy={busy}
         emptyMessage={
           entries.length === 0
-            ? "No images stored yet. Paste or drop an image into a note, or use “Add images…”."
-            : "No media matches this filter."
+            ? settingsCopy.media.noImagesStoredYetPasteOr
+            : settingsCopy.media.noMediaMatchesThisFilter
         }
         onRetry={refresh}
         onOpenReference={onOpenReference}
@@ -527,7 +526,7 @@ function MediaGrid({
   if (failed) {
     return (
       <div className={cn(settingsRow, "text-destructive")} role="alert">
-        <span className={settingsRowLabel}>The media library could not be listed.</span>
+        <span className={settingsRowLabel}>{settingsCopy.media.theMediaLibraryCouldNotBe}</span>
         <button type="button" className={settingsButton} onClick={onRetry}>
           Retry
         </button>
@@ -627,7 +626,11 @@ function MediaCard({
           <button
             type="button"
             className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:-my-2.5 pointer-coarse:grid pointer-coarse:size-11 pointer-coarse:place-items-center"
-            aria-label={entry.name === "" ? "Name this file" : "Rename this file"}
+            aria-label={
+              entry.name === ""
+                ? settingsCopy.media.nameThisFile
+                : settingsCopy.media.renameThisFile
+            }
             aria-expanded={editing}
             onClick={() => setEditing((open) => !open)}
           >
@@ -659,7 +662,7 @@ function MediaCard({
         )}
         <span className="font-mono text-[11px] text-muted-foreground">
           {imageFormatLabel(entry.mimeType)} · {formatSizeBytes(entry.byteSize)} · {dimensions}
-          {entry.missingBlob ? " · file missing" : ""}
+          {entry.missingBlob ? settingsCopy.media.FileMissing : ""}
         </span>
         <span
           className="truncate font-mono text-[10px] text-muted-foreground/70"
@@ -765,7 +768,7 @@ function MediaDetailsForm({ entry, onCancel, onSubmit }: MediaDetailsFormProps) 
           type="text"
           value={alt}
           maxLength={MEDIA_ALT_MAX_BYTES}
-          placeholder="Alt text for screen readers"
+          placeholder={settingsCopy.media.altTextForScreenReaders}
           className={detailsInputClass}
           onChange={(event) => setAlt(event.currentTarget.value)}
         />

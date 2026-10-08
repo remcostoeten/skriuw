@@ -82,3 +82,42 @@ message and never throw.
   full-text index once.
 - The KaTeX chunk and fonts load on first use only; the main bundle does not
   grow beyond the node views and commands.
+
+## Follow-up: copied math, workspace macros, and chemistry
+
+Plain text paste accepts `\(...\)` and `\[...\]`, normalizing them to
+inline dollar math and display fences. It also accepts strict dollar spans and
+`$$...$$` within prose. Code spans, fenced and indented code, escaped delimiters,
+and paste into code blocks stay literal. Rich HTML keeps the existing clipboard
+precedence.
+
+Workspace macro definitions use a bounded `mathMacros` settings extension: at
+most 64 backslash commands consisting of ASCII letters, each name at most 64
+bytes and each nonempty definition at most 4096 bytes. The settings field uses
+one `\name = definition` per line and supports `#1` through `#9` arguments.
+Submitting the field lazily loads KaTeX and expands every command with sample
+arguments before saving, surfacing malformed definitions and expansion loops
+in settings.
+
+`set_math_macros` is a distinct replicated workspace operation. It persists the
+settings extension in canonical SQLite and applies optimistically in the
+renderer. Existing `update_settings` operations remain device-local and preserve
+the canonical macros, so a stale appearance-settings document cannot overwrite
+workspace content. Workspace archives carry the definitions with settings.
+
+The render cache includes the macro definition version. Its version is computed
+once per immutable macro set; cached note navigation does not serialize the
+settings again. Each math view subscribes only to the macro extension, refreshes
+through its idle render pipeline when it changes, and unsubscribes on destruction.
+KaTeX receives a fresh macro object so TeX expansion cannot mutate workspace
+settings.
+
+Markdown exports retain the user's macro commands without expansion. Definitions
+are Skriuw workspace data and are absent from individual Markdown files. Other
+editors need equivalent macro definitions configured to render those files.
+This preserves editable TeX and avoids running a typesetter during export.
+
+`katex/contrib/mhchem` loads alongside KaTeX in the same first-use lazy boundary.
+Both inline and display nodes accept `\ce{}` and `\pu{}`. All extension code,
+styles, and fonts are bundled locally. Equation numbering and cross-block
+references remain outside this change.

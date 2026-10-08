@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import { getVersion } from "@tauri-apps/api/app";
 
 export type AboutLink = {
@@ -11,19 +12,19 @@ export const ABOUT_LINKS: readonly AboutLink[] = [
   {
     id: "repository",
     label: "Source repository",
-    description: "Browse the code and open pull requests.",
+    description: settingsCopy.about.browseTheCodeAndOpenPull,
     url: "https://github.com/remcostoeten/skriuw",
   },
   {
     id: "changelog",
     label: "Changelog",
-    description: "See what changed in each release.",
+    description: settingsCopy.about.seeWhatChangedInEachRelease,
     url: "https://github.com/remcostoeten/skriuw/releases",
   },
   {
     id: "issues",
-    label: "Report an issue",
-    description: "File a bug or request a feature.",
+    label: settingsCopy.about.reportAnIssue,
+    description: settingsCopy.about.fileABugOrRequestA,
     url: "https://github.com/remcostoeten/skriuw/issues/new",
   },
 ];
@@ -53,10 +54,10 @@ export function checkForUpdate(): Promise<UpdateOutcome> {
 
 export function describeUpdateOutcome(outcome: UpdateOutcome): string {
   if (outcome.status === "unconfigured") {
-    return "Automatic updates aren’t set up for this build yet.";
+    return settingsCopy.about.automaticUpdatesArentSetUpFor;
   }
   if (outcome.status === "upToDate") {
-    return "You’re on the latest version.";
+    return settingsCopy.about.youreOnTheLatestVersion;
   }
   if (outcome.status === "available") {
     return `Version ${outcome.version} is available.`;

@@ -9,6 +9,7 @@ import {
   StarIcon,
   UserIcon,
 } from "@/shared/icons/static";
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import { SHORTCUT_DEFINITIONS } from "@/commands/definitions";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { SETTINGS_SEARCH_COPY } from "./search-copy.generated";
@@ -47,7 +48,7 @@ export const SECTIONS = [
     id: "shortcuts",
     label: "Shortcuts",
     description: "Keyboard bindings",
-    searchText: `keys hotkeys remap commands ${SHORTCUT_DEFINITIONS.map((definition) => `${definition.label} ${definition.group}`).join(" ")}`,
+    searchText: `keys hotkeys remap commands ${SHORTCUT_DEFINITIONS.map((definition) => `${definition.label} ${definition.group} ${definition.description ?? ""}`).join(" ")}`,
     icon: KeyboardIcon,
   },
   {
@@ -152,9 +153,10 @@ export function availableSettingsSections(
     (section) => (section.id !== "ai" || aiEnabled) && !(browserRuntime && isDesktopOnly(section)),
   ).map((section) => ({
     ...section,
-    copy:
-      section.id === "editor"
-        ? [...SETTINGS_SEARCH_COPY.editor, editorPlaceholder]
-        : SETTINGS_SEARCH_COPY[section.id],
+    copy: [
+      ...SETTINGS_SEARCH_COPY[section.id],
+      ...Object.values(settingsCopy[section.id]),
+      ...(section.id === "editor" ? [editorPlaceholder] : []),
+    ],
   }));
 }

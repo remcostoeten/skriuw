@@ -1,4 +1,4 @@
-import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
+import type { WorkspaceSettings, WorkspaceTask } from "@skriuw/renderer-core/contracts/workspace";
 
 export const STARTER_SEED_VERSION = 1;
 
@@ -70,19 +70,50 @@ export type SeededNoteState = {
 };
 
 /**
- * Preview notes stop being reclaimable the moment the visitor edits one — an
- * edited note is theirs, per the same rule that makes deletion permanent.
- * Editing bumps `updatedAt`, so the seed timestamp is the whole test and no
- * document body has to be loaded to apply it.
+ * @name reclaimableNoteIds
+ * @description Finds untouched preview notes, preserving notes whose linked tasks the visitor edited.
+ * @example
+ * const ids = reclaimableNoteIds(settings, notes, tasks);
  */
 export function reclaimableNoteIds(
   settings: WorkspaceSettings,
   present: readonly SeededNoteState[],
+  tasks: readonly WorkspaceTask[] = [],
 ): string[] {
   const plantedAt = seededAt(settings);
   if (plantedAt === null) return [];
   const seeded = new Set(seededNoteIds(settings));
+  const editedTaskSources = new Set(
+    tasks
+      .filter((task) => task.source !== null && task.updatedAt > plantedAt)
+      .map((task) => task.source?.noteId),
+  );
   return present
-    .filter((note) => seeded.has(note.id) && note.updatedAt <= plantedAt)
+    .filter(
+      (note) =>
+        seeded.has(note.id) && note.updatedAt <= plantedAt && !editedTaskSources.has(note.id),
+    )
     .map((note) => note.id);
+}
+
+/**
+ * @name reclaimableTaskIds
+ * @description Finds untouched preview tasks whose source notes are being reclaimed on sign-in.
+ * @example
+ * const ids = reclaimableTaskIds(settings, tasks, discardableNoteIds);
+ */
+export function reclaimableTaskIds(
+  settings: WorkspaceSettings,
+  tasks: readonly WorkspaceTask[],
+  discardableNoteIds: readonly string[],
+): string[] {
+  const plantedAt = seededAt(settings);
+  if (plantedAt === null) return [];
+  const discarded = new Set(discardableNoteIds);
+  return tasks
+    .filter(
+      (task) =>
+        task.source !== null && discarded.has(task.source.noteId) && task.updatedAt <= plantedAt,
+    )
+    .map((task) => task.id);
 }

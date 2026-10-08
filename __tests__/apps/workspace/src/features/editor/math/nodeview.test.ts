@@ -406,3 +406,42 @@ test("clicking the rendering moves the caret into the source", async () => {
   assert.equal(state().selection.$from.parent.type.name, "math_block");
   assert.equal(state().selection.$from.parentOffset, 1);
 });
+
+test("macro changes refresh mounted inline and block views and destruction unsubscribes", async () => {
+  for (const block of [false, true]) {
+    const document = block
+      ? productSchema.node("doc", null, [
+          productSchema.node("math_block", null, [productSchema.text("\\R")]),
+        ])
+      : inlineDocument("\\R");
+    const context = harness(document);
+    function ignoreRepaint(): void {}
+    let repaint = ignoreRepaint;
+    let unsubscribed = false;
+    let version = "real";
+    const deps = {
+      ...syncDeps({}),
+      render: async () => ({ ok: true, html: `<math>${version}</math>` }) as const,
+      subscribe: (callback: () => void) => {
+        repaint = callback;
+        return () => {
+          unsubscribed = true;
+        };
+      },
+    };
+    const node = block ? document.firstChild! : document.firstChild!.child(1);
+    const nodeView = block
+      ? createMathBlockNodeView(node, context.view, () => 0, deps)
+      : createMathInlineNodeView(node, context.view, () => 2, deps);
+    await settle();
+    const dom = nodeView.dom as unknown as FakeElement;
+    const preview = dom.children[block ? 1 : 0]!;
+    assert.equal(preview.innerHTML, "<math>real</math>");
+    version = "complex";
+    repaint();
+    await settle();
+    assert.equal(preview.innerHTML, "<math>complex</math>");
+    nodeView.destroy?.();
+    assert.equal(unsubscribed, true);
+  }
+});

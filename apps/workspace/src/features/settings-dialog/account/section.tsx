@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import { useEffect, useState } from "react";
 import { useCloudSession } from "@/features/auth/cloud-session";
 import { authConfiguration } from "@/features/auth/config";
@@ -72,7 +73,7 @@ export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) 
         if (mounted) setWorkspaceSlot(slot);
       },
       (error: unknown) => {
-        console.error("could not read the active workspace", error);
+        console.error(settingsCopy.account.couldNotReadTheActiveWorkspace, error);
       },
     );
     return () => {
@@ -137,17 +138,17 @@ export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) 
     <section aria-label="Account" className={settingsSection}>
       <SettingsHeading
         title="Account"
-        detail="Sign in for cloud capabilities. Your local workspace remains available without an account."
+        detail={settingsCopy.account.signInForCloudCapabilitiesYour}
       />
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Skriuw cloud</div>
         <div className={settingsRow}>
           <span className={settingsRowLabel}>
-            {user ? user.name || user.email : "Not signed in"}
+            {user ? user.name || user.email : settingsCopy.account.notSignedIn}
             <span className={settingsRowDescription}>
               {user
                 ? user.email
-                : (unavailableReason ?? "Use email and password to sign in or create an account.")}
+                : (unavailableReason ?? settingsCopy.account.useEmailAndPasswordToSign)}
             </span>
           </span>
           {user ? (
@@ -167,7 +168,7 @@ export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) 
         </div>
         <div className={settingsRow}>
           <span className={settingsRowLabel}>
-            Notes on this device
+            {settingsCopy.account.notesOnThisDevice}
             <span className={settingsRowDescription}>
               {workspaceOwnershipText(workspaceSlot, user !== null)}
             </span>
@@ -240,10 +241,9 @@ export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) 
           <div className={settingsGroupTitle}>Delete account</div>
           <div className={settingsRow}>
             <span className={settingsRowLabel}>
-              Delete account and all data
+              {settingsCopy.account.deleteAccountAndAllData}
               <span className={settingsRowDescription}>
-                Permanently deletes your cloud account, synced workspace, shared notes, and all
-                Skriuw workspaces and recovery files on this device. This cannot be undone.
+                {settingsCopy.account.permanentlyDeletesYourCloudAccountSynced}
               </span>
               {deleteError ? (
                 <span className="text-[11px] text-destructive" role="alert">
@@ -254,7 +254,7 @@ export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) 
             <InlineConfirm
               className="shrink-0"
               confirmLabel={deleteBusy ? "Deleting…" : "Delete account"}
-              message="This permanently removes your cloud account and local Skriuw data. Export anything you want to keep first."
+              message={settingsCopy.account.thisPermanentlyRemovesYourCloudAccount}
               messagePlacement="stacked"
               onConfirm={() => void deleteAccountAndData()}
               renderIdle={(arm) => (
@@ -288,7 +288,7 @@ function AvatarPreference({ store, seed, initials }: AvatarPreferenceProps) {
       <div className={settingsGroupTitle}>Avatar</div>
       <SettingToggle
         label="Facehash avatar"
-        detail="Show the face generated for your account. Turn off to show your initials instead."
+        detail={settingsCopy.account.showTheFaceGeneratedForYour}
         checked={settings.facehashAvatar}
         onChange={(checked) => change("facehashAvatar", checked)}
         visualization={
@@ -319,7 +319,11 @@ function BlockedChanges({ recovery, error, busyId, onRetry, onDiscard }: Blocked
   return (
     <>
       {error || blocked.length > 0 ? (
-        <div className={settingsGroup} role="region" aria-label="Blocked sync changes">
+        <div
+          className={settingsGroup}
+          role="region"
+          aria-label={settingsCopy.account.blockedSyncChanges}
+        >
           <div className={settingsGroupTitle}>Blocked changes</div>
           {error ? (
             <p role="alert" className="m-0 py-1.5 text-[11px] text-destructive">
@@ -340,7 +344,11 @@ function BlockedChanges({ recovery, error, busyId, onRetry, onDiscard }: Blocked
         </div>
       ) : null}
       {discarded.length > 0 ? (
-        <div className={settingsGroup} role="region" aria-label="Discarded sync changes">
+        <div
+          className={settingsGroup}
+          role="region"
+          aria-label={settingsCopy.account.discardedSyncChanges}
+        >
           <div className={settingsGroupTitle}>Discarded changes</div>
           <ul className="m-0 list-none p-0">
             {discarded.map((item) => (
@@ -348,8 +356,8 @@ function BlockedChanges({ recovery, error, busyId, onRetry, onDiscard }: Blocked
                 <span className={settingsRowLabel}>
                   {blockedItemLabel(item)}
                   <span className={settingsRowDescription}>
-                    Discarded {formatRelativeTime(item.discardedAt)}; it never uploaded and other
-                    devices will not receive it.
+                    Discarded {formatRelativeTime(item.discardedAt)}
+                    {settingsCopy.account.ItNeverUploadedAndOther}
                   </span>
                 </span>
               </li>
@@ -391,7 +399,7 @@ function BlockedChangeRow({ item, busyId, onRetry, onDiscard }: BlockedChangeRow
         <InlineConfirm
           size="sm"
           confirmLabel="Discard change"
-          message="It will never reach your other devices."
+          message={settingsCopy.account.itWillNeverReachYourOther}
           onConfirm={() => onDiscard(item.blockedId)}
           renderIdle={(arm) => (
             <button

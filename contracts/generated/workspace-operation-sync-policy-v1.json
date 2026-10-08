@@ -108,6 +108,10 @@
     "replicationClass": "device_local"
   },
   {
+    "operationType": "set_math_macros",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
     "operationType": "attach_image",
     "replicationClass": "replicated_workspace_content"
   },

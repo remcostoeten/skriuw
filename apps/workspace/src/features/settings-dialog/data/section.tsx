@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   cancelWorkspaceMaintenance,
@@ -127,7 +128,7 @@ export function DataSection({ store }: SectionProps) {
           }
         })
         .catch((error) => {
-          console.error("storage path lookup rejected", error);
+          console.error(settingsCopy.data.storagePathLookupRejected, error);
         });
       refreshInventory();
     }
@@ -226,19 +227,19 @@ export function DataSection({ store }: SectionProps) {
   }
 
   function chooseArchiveFile(): void {
-    pickImportFile("Choose a workspace archive")
+    pickImportFile(settingsCopy.data.chooseAWorkspaceArchive)
       .then((picked) => {
         if (picked && mountedRef.current) {
           setImportPath(picked);
         }
       })
       .catch((error) => {
-        console.error("archive pick rejected", error);
+        console.error(settingsCopy.data.archivePickRejected, error);
       });
   }
 
   function chooseStorageLocation(): void {
-    pickDirectory("Choose a new storage folder")
+    pickDirectory(settingsCopy.data.chooseANewStorageFolder)
       .then((picked) => {
         if (!picked) {
           return;
@@ -252,7 +253,7 @@ export function DataSection({ store }: SectionProps) {
         }
       })
       .catch((error) => {
-        console.error("storage folder pick rejected", error);
+        console.error(settingsCopy.data.storageFolderPickRejected, error);
       });
   }
 
@@ -285,10 +286,10 @@ export function DataSection({ store }: SectionProps) {
   const backingUp = running === "backup";
 
   return (
-    <section aria-label="Data and recovery" className={settingsSection}>
+    <section aria-label={settingsCopy.data.dataAndRecovery} className={settingsSection}>
       <SettingsHeading
-        title="Data & recovery"
-        detail="Imports, storage, portable archives, backups, and recovery for this workspace."
+        title={settingsCopy.data.dataRecovery}
+        detail={settingsCopy.data.importsStoragePortableArchivesBackupsAnd}
       />
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Storage</div>
@@ -297,9 +298,7 @@ export function DataSection({ store }: SectionProps) {
             <span className={settingsRowLabel}>
               Workspace database
               <span className={settingsRowDescription}>
-                Stored durably in this browser&rsquo;s private site storage (OPFS) on this device.
-                Clearing site data for this origin deletes it, so keep a recent exported archive
-                outside the browser.
+                {settingsCopy.data.storedDurablyInThisBrowsersPrivate}
               </span>
             </span>
           </div>
@@ -309,8 +308,7 @@ export function DataSection({ store }: SectionProps) {
             <span className={settingsRowLabel}>
               Install Skriuw
               <span className={settingsRowDescription}>
-                Adds Skriuw to your home screen or app list with its own window, and tells the
-                browser this storage is worth keeping.
+                {settingsCopy.data.addsSkriuwToYourHomeScreen}
               </span>
             </span>
             <button
@@ -336,12 +334,12 @@ export function DataSection({ store }: SectionProps) {
               className={settingsButton}
               onClick={() => {
                 revealWorkspaceStorage().catch((error) => {
-                  console.error("reveal storage rejected", error);
+                  console.error(settingsCopy.data.revealStorageRejected, error);
                 });
               }}
             >
               <FolderOpenIcon size={15} />
-              Show in file manager
+              {settingsCopy.data.showInFileManager}
             </button>
           </div>
         )}
@@ -350,14 +348,15 @@ export function DataSection({ store }: SectionProps) {
             <span className={settingsRowLabel}>
               Move workspace
               <span className={settingsRowDescription}>
-                Copies the database, images, history, and backups to a new folder, then restarts the
-                app using it.
+                {settingsCopy.data.copiesTheDatabaseImagesHistoryAnd}
               </span>
             </span>
             <InlineConfirm
               className="shrink-0"
               confirmLabel={
-                confirmation?.kind === "relocate" && copy ? copy.confirmLabel : "Move and restart"
+                confirmation?.kind === "relocate" && copy
+                  ? copy.confirmLabel
+                  : settingsCopy.data.moveAndRestart
               }
               message={confirmation?.kind === "relocate" && copy ? copy.body : null}
               messagePlacement="stacked"
@@ -390,13 +389,12 @@ export function DataSection({ store }: SectionProps) {
       </div>
       {!browser && (
         <div className={settingsGroup}>
-          <div className={settingsGroupTitle}>Import & export</div>
+          <div className={settingsGroupTitle}>{settingsCopy.data.importExport}</div>
           <div className={settingsRow}>
             <span className={settingsRowLabel}>
-              Import notes from a folder
+              {settingsCopy.data.importNotesFromAFolder}
               <span className={settingsRowDescription}>
-                Markdown, text, Obsidian vaults, extracted Notion exports, or TextBundles. Shows a
-                preview before anything changes.
+                {settingsCopy.data.markdownTextObsidianVaultsExtractedNotion}
               </span>
             </span>
             <button
@@ -413,10 +411,9 @@ export function DataSection({ store }: SectionProps) {
           </div>
           <div className={settingsRow}>
             <span className={settingsRowLabel}>
-              Import a provider export
+              {settingsCopy.data.importAProviderExport}
               <span className={settingsRowDescription}>
-                ZIP, Evernote ENEX, Joplin, Google Keep, Standard Notes, Bear .bear2bk, Simplenote
-                JSON, Notion CSV, Markdown, or text files. Shows a preview before anything changes.
+                {settingsCopy.data.zipEvernoteEnexJoplinGoogleKeep}
               </span>
             </span>
             <button
@@ -433,15 +430,13 @@ export function DataSection({ store }: SectionProps) {
           </div>
           <div className={cn(settingsRow, settingsInputRow)}>
             <span className={settingsRowLabel}>
-              Remote images in imports
+              {settingsCopy.data.remoteImagesInImports}
               <span className={settingsRowDescription}>
-                Images that Markdown links from the web, such as README badges. Downloading fetches
-                each one once during import and stores it in the workspace; notes never load them
-                from the web when opened.
+                {settingsCopy.data.imagesThatMarkdownLinksFromThe}
               </span>
             </span>
             <Select
-              label="Remote images in imports"
+              label={settingsCopy.data.remoteImagesInImports}
               align="end"
               value={settings.remoteImportImages}
               options={REMOTE_IMPORT_IMAGE_OPTIONS}
@@ -456,8 +451,8 @@ export function DataSection({ store }: SectionProps) {
             Export workspace
             <span className={settingsRowDescription}>
               {browser
-                ? "Downloads a portable JSON archive of this workspace."
-                : "Writes a portable JSON archive into the exports folder next to the database."}
+                ? settingsCopy.data.downloadsAPortableJsonArchiveOf
+                : settingsCopy.data.writesAPortableJsonArchiveInto}
             </span>
           </span>
           <button
@@ -482,11 +477,10 @@ export function DataSection({ store }: SectionProps) {
         <EmptyNotesRow store={store} />
       </div>
       <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Backups & recovery</div>
+        <div className={settingsGroupTitle}>{settingsCopy.data.backupsRecovery}</div>
         {browser && (
           <p className={settingsRowDetail} role="note">
-            Verified scheduled backups run in the desktop app. In the browser, an exported archive
-            is the backup: download one regularly and keep it outside this browser.
+            {settingsCopy.data.verifiedScheduledBackupsRunInThe}
           </p>
         )}
         {!browser && (
@@ -494,7 +488,7 @@ export function DataSection({ store }: SectionProps) {
             <span className={settingsRowLabel}>
               Scheduled backups
               <span className={settingsRowDescription}>
-                The desktop app takes a verified backup every six hours while it runs.
+                {settingsCopy.data.theDesktopAppTakesAVerified}
               </span>
             </span>
             <button
@@ -504,7 +498,7 @@ export function DataSection({ store }: SectionProps) {
               aria-busy={backingUp}
               onClick={() => runBackup(false)}
             >
-              {backingUp ? "Backing up…" : "Back up now"}
+              {backingUp ? "Backing up…" : settingsCopy.data.backUpNow}
             </button>
           </div>
         )}
@@ -546,11 +540,10 @@ export function DataSection({ store }: SectionProps) {
         <div className={cn(settingsGroupTitle, "text-destructive/80")}>Danger zone</div>
         <div className={cn(settingsRow, settingsInputRow)}>
           <span className={settingsRowLabel}>
-            Replace workspace from archive
+            {settingsCopy.data.replaceWorkspaceFromArchive}
             <span className={settingsRowDescription}>
-              Replaces every note in this workspace with the contents of a previously exported
-              archive file.
-              {browser ? " A safety copy of the current workspace is downloaded first." : ""}
+              {settingsCopy.data.replacesEveryNoteInThisWorkspace}
+              {browser ? settingsCopy.data.aSafetyCopyOfTheCurrent : ""}
             </span>
             {importPath !== "" && <span className={settingsRowDetail}>{importPath}</span>}
           </span>
@@ -605,26 +598,27 @@ export function DataSection({ store }: SectionProps) {
         />
         <div className={cn(settingsRow, settingsInputRow)}>
           <span className={settingsRowLabel}>
-            Clear all data
+            {settingsCopy.data.clearAllData}
             <span className={settingsRowDescription}>
-              Permanently deletes notes, settings, and{" "}
+              {settingsCopy.data.permanentlyDeletesNotesSettingsAnd}{" "}
               {browser
-                ? "browser-owned SQLite and media storage"
-                : "SQLite data, Markdown history, media, backups, and generated exports"}{" "}
-              from this device, then
-              {browser ? " reloads with" : " restarts into"} a fresh workspace. You will also be
-              signed out.
+                ? settingsCopy.data.browserownedSqliteAndMediaStorage
+                : settingsCopy.data.sqliteDataMarkdownHistoryMediaBackups}{" "}
+              {settingsCopy.data.fromThisDeviceThen}
+              {browser ? " reloads with" : " restarts into"}
+              {settingsCopy.data.aFreshWorkspaceYouWillAlso}
             </span>
             {clearError ? (
               <span className="text-[11px] text-destructive" role="alert">
-                Could not clear all data: {clearError}
+                {settingsCopy.data.couldNotClearAllData}
+                {clearError}
               </span>
             ) : null}
           </span>
           <InlineConfirm
             className="shrink-0"
             confirmLabel="Delete everything"
-            message="This cannot be undone. Export anything you want to keep first."
+            message={settingsCopy.data.thisCannotBeUndoneExportAnything}
             messagePlacement="stacked"
             onConfirm={runClearAllData}
             renderIdle={(arm) => (
@@ -634,7 +628,7 @@ export function DataSection({ store }: SectionProps) {
                 disabled={busy}
                 onClick={arm}
               >
-                Clear all data…
+                {settingsCopy.data.clearAllData2}
               </button>
             )}
           />
@@ -681,7 +675,7 @@ function BackupInventory({
   if (failed) {
     return (
       <div className={cn(settingsRow, "text-destructive")} role="alert">
-        <span className={settingsRowLabel}>Backups could not be listed.</span>
+        <span className={settingsRowLabel}>{settingsCopy.data.backupsCouldNotBeListed}</span>
         <button type="button" className={settingsButton} onClick={onRetry}>
           Retry
         </button>
@@ -698,7 +692,7 @@ function BackupInventory({
   if (inventory.empty) {
     return (
       <p className={settingsRowDetail} role="status">
-        No backups yet. Use “Back up now” or wait for the next scheduled backup.
+        {settingsCopy.data.noBackupsYetUseBackUp}
       </p>
     );
   }
@@ -766,7 +760,7 @@ function BackupInventory({
       </ul>
       {inventory.rollbacks.length > 0 && (
         <>
-          <div className={settingsGroupTitle}>Kept after restores</div>
+          <div className={settingsGroupTitle}>{settingsCopy.data.keptAfterRestores}</div>
           <ul className={backupListClass} aria-label="Rollback databases">
             {inventory.rollbacks.map((entry) => (
               <li key={entry.fileName} className={backupItemClass}>
@@ -825,7 +819,8 @@ function MaintenanceStatus({ phase, kinds, onCancel, onForceBackup }: Maintenanc
   if (phase.phase === "cancelled") {
     return (
       <p className={maintenanceStatusClass} role="status">
-        {RUNNING_LABELS[phase.kind].replace("…", "")} was cancelled. Nothing changed.
+        {RUNNING_LABELS[phase.kind].replace("…", "")}
+        {settingsCopy.data.wasCancelledNothingChanged}
       </p>
     );
   }
@@ -833,11 +828,11 @@ function MaintenanceStatus({ phase, kinds, onCancel, onForceBackup }: Maintenanc
     return (
       <div className={maintenanceStatusClass} role="status">
         <span>
-          Backup not due yet. Next scheduled backup{" "}
+          {settingsCopy.data.backupNotDueYetNextScheduled}{" "}
           {maintenanceTimeFormatter.format(new Date(phase.nextDueAt))}.
         </span>
         <button type="button" className={settingsButton} onClick={onForceBackup}>
-          Back up anyway
+          {settingsCopy.data.backUpAnyway}
         </button>
       </div>
     );

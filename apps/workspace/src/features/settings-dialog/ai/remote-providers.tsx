@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import type { FormEvent } from "react";
 import type {
   CredentialVaultDetection,
@@ -79,10 +80,7 @@ export function RemoteProvidersPanel({
   return (
     <div className={settingsGroup}>
       <div className={settingsGroupTitle}>Providers</div>
-      <p className={settingsGroupHint}>
-        Bring your own key. Keys go straight to this device's credential store and are never
-        readable from Skriuw again.
-      </p>
+      <p className={settingsGroupHint}>{settingsCopy.ai.bringYourOwnKeyKeysGo}</p>
       {vaultNote ? (
         <p className="mb-3 rounded-lg border border-border bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground">
           {vaultNote}
@@ -176,8 +174,8 @@ function RemoteProviderCard({
             onClick={() => onAcceptDisclosure(provider.providerId)}
           >
             {provider.acceptedDisclosureVersion == null
-              ? "Accept and continue"
-              : "Review and accept"}
+              ? settingsCopy.ai.acceptAndContinue
+              : settingsCopy.ai.reviewAndAccept}
           </button>
         </div>
       )}
@@ -191,7 +189,9 @@ function RemoteProviderCard({
               autoComplete="off"
               spellCheck={false}
               aria-label={`${provider.label} API key`}
-              placeholder={provider.keyTier ? "Replace stored key" : "Paste API key"}
+              placeholder={
+                provider.keyTier ? settingsCopy.ai.replaceStoredKey : settingsCopy.ai.pasteApiKey
+              }
               value={draft.key}
               disabled={draft.busy}
               onChange={(event) =>
@@ -237,7 +237,7 @@ function RemoteProviderCard({
             </div>
           ) : (
             <p className="mt-3 text-[11px] text-muted-foreground">
-              No models are listed for this provider in the catalog.
+              {settingsCopy.ai.noModelsAreListedForThis}
             </p>
           )}
 
@@ -324,7 +324,7 @@ function KeyTierChoice({
           disabled={disabled}
           onChange={() => onDraftChange(providerId, { tier: "session-only" })}
         />
-        This session only
+        {settingsCopy.ai.thisSessionOnly}
       </label>
     </>
   );

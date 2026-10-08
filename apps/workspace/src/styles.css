@@ -12,6 +12,7 @@
 @import "./shell/focus-mode/layout.css";
 @import "./features/references/references.css";
 @import "./features/history/diff.css";
+@import "./features/settings-dialog/settings-dialog.css";
 @import "@skriuw/shared/ui/tooltip.css";
 @import "./shared/icons/app-icon.css";
 @import "./shared/ui/shortcut-recorder.css";

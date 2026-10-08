@@ -12,6 +12,7 @@ export type MathNodeViewDeps = {
   cached: (tex: string, displayMode: boolean) => MathRenderResult | null;
   schedule: (callback: () => void) => void;
   debounceMs: number;
+  subscribe?: (repaint: () => void) => () => void;
 };
 
 function idleSchedule(callback: () => void): void {
@@ -103,8 +104,9 @@ export function createMathBlockNodeView(
   initialNode: ProseMirrorNode,
   view: EditorView,
   getPos: () => number | undefined,
-  deps: MathNodeViewDeps = blockDeps,
+  overrides: Partial<MathNodeViewDeps> = {},
 ): NodeView {
+  const deps = { ...blockDeps, ...overrides };
   let node = initialNode;
   const dom = document.createElement("div");
   dom.className = "math-block";
@@ -171,6 +173,7 @@ export function createMathBlockNodeView(
   });
 
   paint(true);
+  const unsubscribe = deps.subscribe?.(() => paint(true));
 
   return {
     dom,
@@ -186,6 +189,7 @@ export function createMathBlockNodeView(
     ignoreMutation: (mutation) =>
       mutation.target !== contentDOM && !contentDOM.contains(mutation.target),
     destroy() {
+      unsubscribe?.();
       pipeline.destroy();
     },
   };
@@ -207,8 +211,9 @@ export function createMathInlineNodeView(
   initialNode: ProseMirrorNode,
   view: EditorView,
   getPos: () => number | undefined,
-  deps: MathNodeViewDeps = inlineDeps,
+  overrides: Partial<MathNodeViewDeps> = {},
 ): NodeView {
+  const deps = { ...inlineDeps, ...overrides };
   let node = initialNode;
   const dom = document.createElement("span");
   dom.className = "math-inline";
@@ -363,6 +368,7 @@ export function createMathInlineNodeView(
   dom.addEventListener(MATH_EDIT_EVENT, open);
 
   paint(tex(), true);
+  const unsubscribe = deps.subscribe?.(() => paint(input?.value ?? tex(), true));
 
   return {
     dom,
@@ -377,6 +383,7 @@ export function createMathInlineNodeView(
       event.target instanceof Node && popover !== null && popover.contains(event.target),
     ignoreMutation: () => true,
     destroy() {
+      unsubscribe?.();
       pipeline.destroy();
       dom.removeEventListener("click", selectAndOpen);
       dom.removeEventListener(MATH_EDIT_EVENT, open);

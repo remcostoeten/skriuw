@@ -1,6 +1,5 @@
 import { commitOperations } from "@/store/commit";
 import type { WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
-import { planMarkdownImport } from "@/features/transfer/markdown";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   completeSeed,
@@ -9,6 +8,7 @@ import {
   shouldSeedStarter,
 } from "./starter/model";
 import { loadStarterTree } from "./starter/tree";
+import { planStarterWorkspace } from "./starter/plan";
 
 /**
  * Fills a brand-new workspace with the preview notes. Runs before the first
@@ -35,7 +35,7 @@ export async function seedStarterWorkspace(
   }
   const tree = await loadStarterTree();
   const at = Date.now();
-  const plan = planMarkdownImport(tree, at, () => crypto.randomUUID());
+  const plan = planStarterWorkspace(tree, at, () => crypto.randomUUID());
   const operations: WorkspaceOperation[] = [
     ...plan.operations,
     ...plan.contentOperations,

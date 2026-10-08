@@ -1,7 +1,12 @@
 import { commitOperations } from "@/store/commit";
 import type { WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
-import { forgetSeededNotes, reclaimableNoteIds, seededNoteIds } from "./starter/model";
+import {
+  forgetSeededNotes,
+  reclaimableNoteIds,
+  reclaimableTaskIds,
+  seededNoteIds,
+} from "./starter/model";
 
 let boundStore: RendererStore | null = null;
 
@@ -52,13 +57,18 @@ export async function reclaimStarterPreview(store: RendererStore): Promise<void>
   const present = [...state.sourceNodes.values()]
     .filter((node) => node.kind === "note" && node.deletedAt === null)
     .map((node) => ({ id: node.id, updatedAt: node.updatedAt }));
-  const discardable = reclaimableNoteIds(state.settings, present);
+  const tasks = [...state.tasks.values()];
+  const discardable = reclaimableNoteIds(state.settings, present, tasks);
   const at = Date.now();
-  const operations: WorkspaceOperation[] = discardable.map((rootId) => ({
-    type: "trash_subtree",
-    rootId,
-    at,
-  }));
+  const operations: WorkspaceOperation[] = [
+    ...reclaimableTaskIds(state.settings, tasks, discardable).map((id) => ({
+      type: "delete_task" as const,
+      id,
+      document: null,
+      at,
+    })),
+    ...discardable.map((rootId) => ({ type: "trash_subtree" as const, rootId, at })),
+  ];
   operations.push({
     type: "update_settings",
     settings: forgetSeededNotes(store.getState().settings),

@@ -1,3 +1,4 @@
+import { settingsCopy } from "@/shared/ui/settings-copy";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import {
@@ -43,7 +44,7 @@ export function EmptyNotesRow({ store }: Props) {
         Empty notes
         <span className={settingsRowDescription}>
           {count === 0
-            ? "No notes without content. Pinned, locked and journal notes are never touched."
+            ? settingsCopy.data.noNotesWithoutContentPinnedLocked
             : `Moves ${describeEmptyNoteCount(count)} to the trash. Pinned, locked and journal notes are left alone.`}
         </span>
       </span>
