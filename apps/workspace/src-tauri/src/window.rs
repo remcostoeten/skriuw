@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use tauri::{AppHandle, Manager};
@@ -9,18 +10,24 @@ pub const MAIN_LABEL: &str = "main";
 /// delay.
 const WINDOW_REVEAL_FAILSAFE: Duration = Duration::from_secs(2);
 
-/// Shows and focuses the main window. The page and the renderer both ask for
-/// it, so a window that is already visible is left alone rather than pulling
-/// focus back from wherever the user went in the meantime.
+// WebKitGTK reports the hidden main window as visible, so reveals are tracked here instead.
+static REVEALED: AtomicBool = AtomicBool::new(false);
+
+/// Shows and focuses the main window once. The page, the renderer and the
+/// failsafe all ask for it, so later calls leave the window alone rather than
+/// pulling focus back from wherever the user went in the meantime.
 pub fn reveal_main_window(app: &AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window(MAIN_LABEL)
         .ok_or_else(|| "main window is not open".to_string())?;
-    if window.is_visible().unwrap_or(false) {
+    if REVEALED.swap(true, Ordering::SeqCst) {
         return Ok(());
     }
     fit_to_monitor(&window);
-    window.show().map_err(|error| error.to_string())?;
+    if let Err(error) = window.show() {
+        REVEALED.store(false, Ordering::SeqCst);
+        return Err(error.to_string());
+    }
     window.set_focus().map_err(|error| error.to_string())?;
     Ok(())
 }
@@ -82,10 +89,7 @@ pub fn spawn_reveal_failsafe(app: &AppHandle) {
         .name("skriuw-window-reveal-failsafe".into())
         .spawn(move || {
             std::thread::sleep(WINDOW_REVEAL_FAILSAFE);
-            let Some(window) = handle.get_webview_window(MAIN_LABEL) else {
-                return;
-            };
-            if window.is_visible().unwrap_or(false) {
+            if REVEALED.load(Ordering::SeqCst) {
                 return;
             }
             eprintln!("renderer did not reveal the main window; revealing it directly");
