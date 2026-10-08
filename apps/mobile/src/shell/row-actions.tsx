@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { lockActionLabel } from "../features/lock/lock-model";
 import { MINIMUM_TOUCH_TARGET } from "./metrics";
 import { useTheme } from "./theme";
 import { treeIndent, type TreeRow } from "./tree-model";
@@ -18,6 +19,7 @@ type RowActionsProps = {
   onRename: (row: TreeRow, title: string) => void;
   onMove: (row: TreeRow, parentId: string | null) => void;
   onPin: (row: TreeRow, pinned: boolean) => void;
+  onToggleLock: (row: TreeRow) => void;
   onDelete: (row: TreeRow) => void;
   onCreateNote: (row: TreeRow) => void;
   onCreateFolder: (row: TreeRow) => void;
@@ -37,6 +39,7 @@ export function RowActions({
   onRename,
   onMove,
   onPin,
+  onToggleLock,
   onDelete,
   onCreateNote,
   onCreateFolder,
@@ -85,6 +88,10 @@ export function RowActions({
               <ActionRow
                 label={row.pinned ? "Unpin" : "Pin"}
                 onPress={() => onPin(row, !row.pinned)}
+              />
+              <ActionRow
+                label={lockActionLabel(row.kind, row.locked)}
+                onPress={() => onToggleLock(row)}
               />
               {row.kind === "folder" ? (
                 <View>

@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { commitOperations } from "../bridge/commit";
+import { LockEntryRow } from "../features/lock/lock-entry-row";
 import { MINIMUM_TOUCH_TARGET } from "./metrics";
 import { useTheme } from "./theme";
 import { THEME_OPTIONS, type ThemePreference } from "./theme-model";
@@ -82,6 +83,7 @@ export function AccountPanel() {
           );
         })}
       </View>
+      <LockEntryRow />
     </ScrollView>
   );
 }

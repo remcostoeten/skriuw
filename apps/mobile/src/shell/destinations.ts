@@ -18,6 +18,7 @@ export type ShellIconName = Extract<
   | "folder"
   | "chevron"
   | "pin"
+  | "lock"
   | "back"
   | "forward"
 >;

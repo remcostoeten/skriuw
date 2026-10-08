@@ -164,6 +164,9 @@ export function TreeRow({ id, onPress, onLongPress, onDelete }: Props) {
         <Text numberOfLines={1} style={[styles.title, { color: foreground }]}>
           {row.title}
         </Text>
+        {row.locked ? (
+          <ShellIcon name="lock" size={14} color={theme.color("sidebar-foreground", 0.55)} />
+        ) : null}
         {row.pinned ? <ShellIcon name="pin" size={14} color={theme.color("favorite")} /> : null}
         {row.kind === "folder" ? (
           <Text style={[styles.count, { color: theme.color("sidebar-foreground", 0.45) }]}>
