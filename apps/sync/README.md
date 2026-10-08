@@ -49,11 +49,13 @@ bun run deploy:dry
 Production deployment:
 
 ```bash
-bunx wrangler d1 migrations apply skriuw-v2-auth --remote
 bunx wrangler secret put BETTER_AUTH_SECRET
-bunx wrangler deploy
+bun run deploy
 node ../../tools/scripts/verify-cloud-capabilities.mjs
 ```
+
+`bun run deploy` applies the D1 migrations before deploying, because the Worker
+queries the tables they create. Do not run `wrangler deploy` on its own.
 
 ## Deploy order
 
@@ -88,9 +90,8 @@ workspaces. Production trusts `https://skriuw.com`, the Tauri origins, and
 command takes `--env preview`:
 
 ```bash
-bunx wrangler d1 migrations apply skriuw-v2-auth-preview --remote --env preview
 bunx wrangler secret put BETTER_AUTH_SECRET --env preview
-bunx wrangler deploy --env preview
+bun run deploy:preview
 ```
 
 See [the cloud sync master tracker](../../docs/specs/cloud-sync-master.md) for the

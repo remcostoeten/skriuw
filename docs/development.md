@@ -141,7 +141,7 @@ D1/R2/Durable Object storage:
 
 ```bash
 bun --cwd apps/sync run check
-bunx wrangler deploy --env preview   # in apps/sync/
+bun --cwd apps/sync run deploy:preview
 ```
 
 The Worker is deployed before the clients that need it, never after: the

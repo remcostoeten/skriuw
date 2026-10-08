@@ -17,7 +17,8 @@
     "test": "bash scripts/without-dev-vars.sh vitest run",
     "check": "bun run types:check && bun run typecheck && bun run test",
     "deploy:dry": "wrangler deploy --dry-run",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler d1 migrations apply skriuw-v2-auth --remote && wrangler deploy",
+    "deploy:preview": "wrangler d1 migrations apply skriuw-v2-auth-preview --remote --env preview && wrangler deploy --env preview"
   },
   "type": "module",
   "dependencies": {
