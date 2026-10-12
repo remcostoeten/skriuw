@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { DocHeading } from "@/modules/docs/render-doc";
+import type { DocHeading } from "@/modules/docs/heading-ids";
 import { roundedPath } from "@/components/ui/geometry";
 import type { Point } from "@/components/ui/geometry";
 
@@ -130,6 +130,7 @@ export function DocOutline({ headings, collapse }: Props) {
       return;
     }
 
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let links = allLinks;
     let targets = allTargets;
     let depths = allDepths;
@@ -303,11 +304,14 @@ export function DocOutline({ headings, collapse }: Props) {
 
       updateTarget();
 
-      const difference = target - rendered;
-
-      velocity += difference * GEOMETRY.smoothing;
-      velocity *= GEOMETRY.damping;
-      rendered += velocity;
+      if (reducedMotion.matches) {
+        rendered = target;
+        velocity = 0;
+      } else {
+        velocity += (target - rendered) * GEOMETRY.smoothing;
+        velocity *= GEOMETRY.damping;
+        rendered += velocity;
+      }
 
       draw();
 

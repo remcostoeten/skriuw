@@ -7,7 +7,7 @@ describe("renderSharedMarkdown", () => {
     const html = renderSharedMarkdown(
       "# Trip\n\n- [x] Book **train**\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\n`code`",
     );
-    expect(html).toContain("<h1>Trip</h1>");
+    expect(html).toContain('<h1 id="trip"><a class="doc-anchor" href="#trip">Trip</a></h1>');
     expect(html).toContain("<strong>train</strong>");
     expect(html).toContain("<table>");
     expect(html).toContain("<code>code</code>");
