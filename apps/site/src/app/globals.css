@@ -702,12 +702,16 @@
 .doc-prose a {
   color: var(--color-ink-900);
   text-decoration: underline;
-  text-decoration-color: var(--color-ink-300);
+  text-decoration-color: color-mix(in oklab, var(--accent) 70%, transparent);
+  text-decoration-thickness: 1.5px;
   text-underline-offset: 3px;
-  transition: color 150ms var(--ease-out);
+  transition:
+    color 150ms var(--ease-out),
+    text-decoration-color 150ms var(--ease-out);
 }
 
 .doc-prose a:hover {
+  color: var(--accent);
   text-decoration-color: var(--accent);
 }
 
