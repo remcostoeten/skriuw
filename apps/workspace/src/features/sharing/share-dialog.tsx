@@ -18,6 +18,7 @@ import {
   rememberNoteShare,
   useNoteShares,
 } from "./share-registry";
+import { startTrashedShareRevoker } from "./trashed-shares";
 
 type HostProps = {
   store: RendererStore;
@@ -31,7 +32,8 @@ const updatedFormat = new Intl.DateTimeFormat(undefined, {
 
 /**
  * Owns public note links for the signed-in account: loads the account's
- * shares, keeps live ones current, and mounts the share dialog on request.
+ * shares, keeps live ones current, stops sharing notes moved to the trash,
+ * and mounts the share dialog on request.
  */
 export function NoteShareHost({ store, onRequestSignIn }: HostProps) {
   const { user } = useAuth();
@@ -46,7 +48,12 @@ export function NoteShareHost({ store, onRequestSignIn }: HostProps) {
       return;
     }
     void loadNoteShares();
-    return startLiveSharePublisher(store);
+    const stopRevoker = startTrashedShareRevoker(store, { accountId: userId });
+    const stopPublisher = startLiveSharePublisher(store);
+    return () => {
+      stopPublisher();
+      stopRevoker();
+    };
   }, [store, userId]);
 
   return (
