@@ -11,10 +11,12 @@ import { startLiveSharePublisher } from "./live-shares";
 import { registerNoteShareDialog } from "./share-dialog-controller";
 import { publishNoteShare, revokeNoteShare, type NoteShare } from "./share-api";
 import { shareableNote } from "./share-content";
+import { sendWithShareImages } from "./share-images";
 import {
   clearNoteShares,
   forgetNoteShare,
   loadNoteShares,
+  noteSharesState,
   rememberNoteShare,
   useNoteShares,
 } from "./share-registry";
@@ -158,8 +160,12 @@ function useShareAction() {
 async function publishCurrent(store: RendererStore, noteId: string, live: boolean) {
   const note = shareableNote(store.getState(), noteId);
   if (!note.ok) throw new Error(note.reason);
+  const shares = noteSharesState();
+  const existing = shares.status === "ready" ? shares.shares.get(noteId) : undefined;
   rememberNoteShare(
-    await publishNoteShare({ noteId, title: note.title, markdown: note.markdown, live }),
+    await sendWithShareImages(note.images, new Set(existing?.imageIds), (images) =>
+      publishNoteShare({ noteId, title: note.title, markdown: note.markdown, live, images }),
+    ),
   );
 }
 
@@ -169,9 +175,9 @@ function UnsharedState({ store, noteId }: StateProps) {
   return (
     <div className="flex flex-col gap-4 px-4 py-4 text-sm">
       <p className="text-muted-foreground">
-        Anyone with the link can read this note on skriuw.com. Its text is stored on Skriuw's server
-        without end-to-end encryption, even when sync is encrypted. Images and drawings are left
-        out.
+        Anyone with the link can read this note on skriuw.com. Its text and images are stored on
+        Skriuw's server without end-to-end encryption, even when sync is encrypted. Drawings,
+        videos, and images over 4 MB are left out.
       </p>
       <label className="flex items-center gap-2.5">
         <Checkbox checked={live} onChange={(event) => setLive(event.target.checked)} />

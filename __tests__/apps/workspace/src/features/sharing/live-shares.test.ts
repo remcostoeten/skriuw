@@ -24,7 +24,7 @@ function share(noteId: string, live: boolean): NoteShare {
 function recordingUpdate() {
   const calls: { shareId: string; title: string; markdown: string }[] = [];
   async function update(shareId: string, content: { title: string; markdown: string }) {
-    calls.push({ shareId, ...content });
+    calls.push({ shareId, title: content.title, markdown: content.markdown });
     const noteId = shareId.replace("share-", "");
     return share(noteId, true);
   }

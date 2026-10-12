@@ -4,16 +4,27 @@ import {
   authenticateSyncRequest,
 } from "./access";
 import { readBoundedBytes } from "./bounded-body";
+import {
+  MAX_SHARED_IMAGE_REQUEST_BYTES,
+  type SharedImageInput,
+  isSharedImageId,
+  listSharedImageIds,
+  parseSharedImages,
+  pruneSharedImages,
+  readSharedImage,
+  storeSharedImages,
+} from "./note-share-images";
 
 export const MAX_SHARED_MARKDOWN_BYTES = 512 * 1_024;
 export const MAX_SHARED_TITLE_LENGTH = 500;
 export const MAX_SHARES_PER_ACCOUNT = 500;
-const MAX_SHARE_BODY_BYTES = MAX_SHARED_MARKDOWN_BYTES + 8 * 1_024;
+const MAX_SHARE_BODY_BYTES = MAX_SHARED_MARKDOWN_BYTES + MAX_SHARED_IMAGE_REQUEST_BYTES + 8 * 1_024;
 const PUBLIC_CACHE_SECONDS = 30;
 
 type ShareDependencies = {
   accessConfiguration: SyncAccessConfiguration;
   database: D1Database;
+  images: R2Bucket;
   publicOrigin: string;
   nowEpochSeconds(): number;
   newShareId(): string;
@@ -24,6 +35,7 @@ type ShareContent = {
   title: string;
   markdown: string;
   live: boolean;
+  images: SharedImageInput[];
 };
 
 type ShareRow = {
@@ -40,7 +52,8 @@ type ShareBodyResult<Content> =
   | { ok: true; content: Content }
   | { ok: false; status: number; code: string };
 
-type ShareUpdate = Pick<ShareContent, "title" | "markdown">;
+type ShareUpdate = Pick<ShareContent, "title" | "markdown" | "images">;
+type ShareSummaryRow = Pick<ShareRow, "id" | "note_id" | "live" | "updated_at">;
 
 /**
  * Owner routes for public note links. A share is a plaintext snapshot the
@@ -75,25 +88,40 @@ export async function handleNoteShareRequest(
 }
 
 /**
- * Unauthenticated read of one share. It returns only what the owner
- * published: no owner, account, or workspace identifier leaves the Worker.
+ * Unauthenticated read of one share and of the images it publishes. It
+ * returns only what the owner published: no owner, account, or workspace
+ * identifier leaves the Worker.
  */
 export async function handlePublicShareRequest(
   request: Request,
   database: D1Database,
+  images: R2Bucket,
 ): Promise<Response> {
   if (request.method !== "GET" && request.method !== "HEAD") {
     return errorResponse(405, "method_not_allowed");
   }
-  const shareId = new URL(request.url).pathname.slice("/shares/".length);
+  const [shareId = "", segment, imageId, ...rest] = new URL(request.url).pathname
+    .slice("/shares/".length)
+    .split("/");
   if (!isShareId(shareId)) return errorResponse(404, "share_not_found");
+  if (segment !== undefined) {
+    if (segment !== "images" || imageId === undefined || rest.length > 0) {
+      return errorResponse(404, "not_found");
+    }
+    return publicShareImage(request, shareId, imageId, database, images);
+  }
   const row = await database
     .prepare(`SELECT title, markdown, updated_at FROM note_share WHERE id = ?1`)
     .bind(shareId)
     .first<Pick<ShareRow, "title" | "markdown" | "updated_at">>();
   if (!row) return errorResponse(404, "share_not_found");
   return Response.json(
-    { title: row.title, markdown: row.markdown, updatedAt: row.updated_at },
+    {
+      title: row.title,
+      markdown: row.markdown,
+      updatedAt: row.updated_at,
+      images: await listSharedImageIds(images, shareId),
+    },
     {
       headers: {
         "Access-Control-Allow-Origin": "*",
@@ -104,6 +132,25 @@ export async function handlePublicShareRequest(
   );
 }
 
+async function publicShareImage(
+  request: Request,
+  shareId: string,
+  imageId: string,
+  database: D1Database,
+  images: R2Bucket,
+): Promise<Response> {
+  if (!isSharedImageId(imageId)) return errorResponse(404, "image_not_found");
+  const share = await database
+    .prepare(`SELECT 1 AS present FROM note_share WHERE id = ?1`)
+    .bind(shareId)
+    .first<{ present: number }>();
+  if (!share) return errorResponse(404, "share_not_found");
+  return (
+    (await readSharedImage(images, shareId, imageId, request.method)) ??
+    errorResponse(404, "image_not_found")
+  );
+}
+
 async function listShares(owner: string, dependencies: ShareDependencies): Promise<Response> {
   const rows = await dependencies.database
     .prepare(
@@ -111,7 +158,7 @@ async function listShares(owner: string, dependencies: ShareDependencies): Promi
        WHERE owner_user_id = ?1 ORDER BY updated_at DESC`,
     )
     .bind(owner)
-    .all<Pick<ShareRow, "id" | "note_id" | "live" | "updated_at">>();
+    .all<ShareSummaryRow>();
   return Response.json(
     { shares: rows.results.map((row) => shareSummary(row, dependencies.publicOrigin)) },
     { headers: { "Cache-Control": "no-store" } },
@@ -140,6 +187,9 @@ async function publishShare(
       return errorResponse(409, "share_limit_reached");
     }
   }
+  const shareId = existing?.id ?? dependencies.newShareId();
+  const stored = await storeSharedImages(dependencies.images, shareId, content.images);
+  if (!stored.ok) return errorResponse(stored.status, stored.code);
   const now = dependencies.nowEpochSeconds();
   const row = await database
     .prepare(
@@ -154,7 +204,7 @@ async function publishShare(
        RETURNING id, note_id, live, updated_at`,
     )
     .bind(
-      dependencies.newShareId(),
+      shareId,
       owner,
       content.noteId,
       content.title,
@@ -162,12 +212,24 @@ async function publishShare(
       content.live ? 1 : 0,
       now,
     )
-    .first<Pick<ShareRow, "id" | "note_id" | "live" | "updated_at">>();
-  if (!row) return errorResponse(503, "share_service_unavailable");
-  return Response.json(shareSummary(row, dependencies.publicOrigin), {
-    status: existing ? 200 : 201,
-    headers: { "Cache-Control": "no-store" },
-  });
+    .first<ShareSummaryRow>();
+  if (!row) {
+    await pruneSharedImages(dependencies.images, shareId, new Set());
+    return errorResponse(503, "share_service_unavailable");
+  }
+  if (row.id !== shareId) {
+    await pruneSharedImages(dependencies.images, shareId, new Set());
+    const restored = await storeSharedImages(dependencies.images, row.id, content.images);
+    if (!restored.ok) return errorResponse(restored.status, restored.code);
+  }
+  await pruneSharedImages(dependencies.images, row.id, new Set(stored.imageIds));
+  return Response.json(
+    { ...shareSummary(row, dependencies.publicOrigin), imageIds: stored.imageIds },
+    {
+      status: existing ? 200 : 201,
+      headers: { "Cache-Control": "no-store" },
+    },
+  );
 }
 
 /**
@@ -182,6 +244,13 @@ async function updateShare(
 ): Promise<Response> {
   const body = await readShareBody(request, "update");
   if (!body.ok) return errorResponse(body.status, body.code);
+  const owned = await dependencies.database
+    .prepare(`SELECT id FROM note_share WHERE id = ?1 AND owner_user_id = ?2`)
+    .bind(shareId, owner)
+    .first<{ id: string }>();
+  if (!owned) return errorResponse(404, "share_not_found");
+  const stored = await storeSharedImages(dependencies.images, shareId, body.content.images);
+  if (!stored.ok) return errorResponse(stored.status, stored.code);
   const row = await dependencies.database
     .prepare(
       `UPDATE note_share SET title = ?1, markdown = ?2, updated_at = ?3
@@ -189,11 +258,18 @@ async function updateShare(
        RETURNING id, note_id, live, updated_at`,
     )
     .bind(body.content.title, body.content.markdown, dependencies.nowEpochSeconds(), shareId, owner)
-    .first<Pick<ShareRow, "id" | "note_id" | "live" | "updated_at">>();
-  if (!row) return errorResponse(404, "share_not_found");
-  return Response.json(shareSummary(row, dependencies.publicOrigin), {
-    headers: { "Cache-Control": "no-store" },
-  });
+    .first<ShareSummaryRow>();
+  if (!row) {
+    await pruneSharedImages(dependencies.images, shareId, new Set());
+    return errorResponse(404, "share_not_found");
+  }
+  await pruneSharedImages(dependencies.images, shareId, new Set(stored.imageIds));
+  return Response.json(
+    { ...shareSummary(row, dependencies.publicOrigin), imageIds: stored.imageIds },
+    {
+      headers: { "Cache-Control": "no-store" },
+    },
+  );
 }
 
 async function revokeShare(
@@ -206,13 +282,11 @@ async function revokeShare(
     .bind(shareId, owner)
     .run();
   if (result.meta.changes === 0) return errorResponse(404, "share_not_found");
+  await pruneSharedImages(dependencies.images, shareId, new Set());
   return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
 }
 
-function shareSummary(
-  row: Pick<ShareRow, "id" | "note_id" | "live" | "updated_at">,
-  publicOrigin: string,
-) {
+function shareSummary(row: ShareSummaryRow, publicOrigin: string) {
   return {
     id: row.id,
     noteId: row.note_id,
@@ -243,11 +317,11 @@ async function readShareBody(
   } catch {
     return { ok: false, status: 400, code: "invalid_request" };
   }
-  const expectedKeys = kind === "publish" ? 4 : 2;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return { ok: false, status: 400, code: "invalid_request" };
+  }
+  const expectedKeys = (kind === "publish" ? 4 : 2) + ("images" in value ? 1 : 0);
   if (
-    typeof value !== "object" ||
-    value === null ||
-    Array.isArray(value) ||
     Object.keys(value).length !== expectedKeys ||
     !("title" in value) ||
     !("markdown" in value) ||
@@ -260,8 +334,13 @@ async function readShareBody(
   if (new TextEncoder().encode(value.markdown).byteLength > MAX_SHARED_MARKDOWN_BYTES) {
     return { ok: false, status: 413, code: "note_too_large" };
   }
+  const images = parseSharedImages("images" in value ? value.images : undefined);
+  if (!images.ok) return images;
   if (kind === "update") {
-    return { ok: true, content: { title: value.title, markdown: value.markdown } };
+    return {
+      ok: true,
+      content: { title: value.title, markdown: value.markdown, images: images.images },
+    };
   }
   if (
     !("noteId" in value) ||
@@ -279,6 +358,7 @@ async function readShareBody(
       title: value.title,
       markdown: value.markdown,
       live: value.live,
+      images: images.images,
     },
   };
 }

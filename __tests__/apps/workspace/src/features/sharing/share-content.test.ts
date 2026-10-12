@@ -8,6 +8,7 @@ describe("shareableNote", () => {
       ok: true,
       title: "open title",
       markdown: "open body",
+      images: [],
     });
   });
 
