@@ -1,4 +1,5 @@
-import { Marked } from "marked";
+import { Marked, type TokenizerAndRendererExtension, type Tokens } from "marked";
+import { findBareDomain, matchBareDomain } from "@skriuw/shared/helpers/bare-domain";
 import { escapeHtml } from "@skriuw/shared/helpers/escape-html";
 import { createHeadingIds, headingText, type DocHeading } from "@/modules/docs/heading-ids";
 
@@ -18,6 +19,29 @@ function placeholder(label: string) {
   return `<span class="shared-note-omitted">${escapeHtml(label)}</span>`;
 }
 
+const bareDomainLinks: TokenizerAndRendererExtension = {
+  name: "bareDomainLink",
+  level: "inline",
+  start(src) {
+    return findBareDomain(src)?.start;
+  },
+  tokenizer(src, tokens): Tokens.Link | undefined {
+    if (this.lexer.state.inLink) return undefined;
+    const before = tokens.at(-1)?.raw.slice(-1) ?? "";
+    const end = matchBareDomain(before + src, before.length) - before.length;
+    if (end <= 0) return undefined;
+    const text = src.slice(0, end);
+    return {
+      type: "link",
+      raw: text,
+      href: `https://${text}`,
+      title: null,
+      text,
+      tokens: [{ type: "text", raw: text, text, escaped: false }],
+    };
+  },
+};
+
 function sameText(left: string, right: string) {
   return left.replace(/\s+/g, " ").trim() === right.replace(/\s+/g, " ").trim();
 }
@@ -29,6 +53,7 @@ function createRenderer(
 ) {
   const marked = new Marked({ gfm: true });
   const nextId = createHeadingIds();
+  marked.use({ extensions: [bareDomainLinks] });
   marked.use({
     hooks: {
       processAllTokens(tokens) {
@@ -88,7 +113,8 @@ function createRenderer(
  * @description Turns an owner's shared Markdown into HTML for skriuw.com plus
  * the h2 and h3 outline for its table of contents. Shared notes are untrusted
  * input on a first-party origin, so raw HTML is escaped, links are limited to
- * http(s) and mailto, and drawings and any local image missing from `images`
+ * http(s) and mailto, bare domains such as `skriuw.com/docs` link to
+ * their https address, and drawings and any local image missing from `images`
  * (image id to published URL) become placeholders.
  * Headings get unique slug ids, and a leading `# Title` equal to the note
  * title is dropped because the page already shows it.
