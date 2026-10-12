@@ -3,12 +3,7 @@ import path from "node:path";
 import { Marked, type Tokens } from "marked";
 import { docPages, docBranch, type DocPage } from "@/modules/docs/pages";
 import { repoUrl } from "@/data/content";
-
-export type DocHeading = {
-  id: string;
-  text: string;
-  depth: 2 | 3;
-};
+import { createHeadingIds, headingText, type DocHeading } from "@/modules/docs/heading-ids";
 
 export type RenderedDoc = {
   html: string;
@@ -24,16 +19,6 @@ const docReaders: Record<string, () => Promise<string>> = {
     readFile(path.join(process.cwd(), "../../docs/performance-contract.md"), "utf8"),
   "CHANGELOG.md": () => readFile(path.join(process.cwd(), "../../CHANGELOG.md"), "utf8"),
 };
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/<[^>]+>/g, "")
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 function stripTags(value: string) {
   return value.replace(/<[^>]+>/g, "").trim();
@@ -72,16 +57,7 @@ function findLabel(item: Tokens.ListItem) {
 
 function createRenderer(sourceDir: string, headings: DocHeading[], outlineLabels: boolean) {
   const marked = new Marked({ gfm: true });
-  const used = new Map<string, number>();
-
-  function uniqueId(text: string) {
-    const base = slugify(text);
-    const seen = used.get(base) ?? 0;
-
-    used.set(base, seen + 1);
-
-    return seen === 0 ? base : `${base}-${seen + 1}`;
-  }
+  const uniqueId = createHeadingIds();
 
   marked.use({
     renderer: {
@@ -100,7 +76,7 @@ function createRenderer(sourceDir: string, headings: DocHeading[], outlineLabels
        */
       heading({ tokens, depth }) {
         const html = this.parser.parseInline(tokens);
-        const text = stripTags(html);
+        const text = headingText(html);
         const id = uniqueId(text);
 
         if (depth === 2 || depth === 3) {
@@ -125,7 +101,7 @@ function createRenderer(sourceDir: string, headings: DocHeading[], outlineLabels
           return false;
         }
 
-        const text = stripTags(this.parser.parseInline(label.tokens));
+        const text = headingText(this.parser.parseInline(label.tokens));
         const id = uniqueId(text);
 
         headings.push({ id, text, depth: 3 });

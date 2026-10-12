@@ -1,11 +1,13 @@
 import "server-only";
 import { z } from "zod";
 import { cloudUrl } from "@/data/cloud";
-import { renderSharedMarkdown } from "@/modules/shared-note/render-markdown";
+import type { DocHeading } from "@/modules/docs/heading-ids";
+import { renderSharedNote } from "@/modules/shared-note/render-markdown";
 
 export type SharedNote = {
   title: string;
   html: string;
+  headings: DocHeading[];
   updatedAt: number;
 };
 
@@ -29,12 +31,10 @@ export async function fetchSharedNote(id: string): Promise<SharedNote | null> {
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Shared note request failed with ${response.status}`);
   const body = sharedNoteResponse.parse(await response.json());
-  return {
-    title: body.title,
-    html: renderSharedMarkdown(
-      body.markdown,
-      new Map(body.images.map((imageId) => [imageId, `${shareUrl}/images/${imageId}`])),
-    ),
-    updatedAt: body.updatedAt,
-  };
+  const { html, headings } = renderSharedNote(
+    body.markdown,
+    body.title,
+    new Map(body.images.map((imageId) => [imageId, `${shareUrl}/images/${imageId}`])),
+  );
+  return { title: body.title, html, headings, updatedAt: body.updatedAt };
 }
