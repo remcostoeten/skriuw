@@ -261,13 +261,20 @@
 }
 
 /*
- * Toasts and dialogs are fixed to the layout viewport, which neither the tab
- * bar nor a software keyboard shrinks. The inset lifts toasts over whichever
- * of the two currently owns the bottom edge, and dialogs size themselves to
- * the visual viewport so a keyboard-driven dialog is never clipped.
+ * Fixed elements resolve `bottom` against the layout viewport, which browser
+ * chrome, zoom compensation and a software keyboard can all push past the
+ * visible edge. Toasts therefore hang from the measured visual viewport, the
+ * inset lifts them over the tab bar, and dialogs size themselves to the visual
+ * viewport so a keyboard-driven dialog is never clipped.
  */
 :root {
   --toast-inset: 0px;
+}
+
+.toast-host > .fixed {
+  top: calc(var(--viewport-top) + var(--viewport-height) - var(--toast-inset) - 16px) !important;
+  bottom: auto !important;
+  transform: translate(-50%, -100%) !important;
 }
 
 dialog.command-palette {
@@ -295,11 +302,7 @@ dialog.command-palette-large {
   }
 
   :root[data-keyboard="open"] {
-    --toast-inset: var(--keyboard-inset);
-  }
-
-  .toast-host > .fixed {
-    margin-bottom: var(--toast-inset);
+    --toast-inset: 0px;
   }
 
   dialog.dialog:not(.dialog-fullscreen) {
