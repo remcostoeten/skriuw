@@ -26,7 +26,14 @@ import {
   defaultMarkdownSerializer,
   MarkdownParser,
   MarkdownSerializer,
+  type MarkdownSerializerState,
 } from "prosemirror-markdown";
+import {
+  findBareDomain,
+  isBareDomain,
+  matchBareDomain,
+  trimUrlPunctuation,
+} from "@skriuw/shared/helpers/bare-domain";
 import {
   drawingFence,
   extractDrawingFence,
@@ -36,6 +43,7 @@ import {
 import {
   Schema,
   type DOMOutputSpec,
+  type Mark,
   type MarkSpec,
   type MarkType,
   type Node as ProseMirrorNode,
@@ -1072,22 +1080,34 @@ function linkInputRule(): InputRule {
   });
 }
 
-const AUTOLINK_PATTERN = /(?:^|[\s(])((?:https?:\/\/|www\.)[^\s<>]*[^\s<>.,;:!?)])(\s)$/;
+// The last word before the typed whitespace, without the parentheses that open it.
+const AUTOLINK_PATTERN = /(?:^|[\s(])\(*([^\s<>(][^\s<>]*)(\s)$/;
+const SCHEME_URL = /^https?:\/\//i;
+const PASTED_URL_PATTERN = /^(?:https?:\/\/|www\.)[^\s<>]+$/;
+
+function autolinkTarget(word: string): string | null {
+  const url = trimUrlPunctuation(word);
+  if (SCHEME_URL.test(url)) return url.replace(SCHEME_URL, "") ? url : null;
+  return isBareDomain(url) ? url : null;
+}
 
 /**
- * Links a bare URL once the word is closed by whitespace. Input rules run
- * before the trigger character reaches the document, so the whitespace has to
- * be re-inserted here or typing it would be swallowed.
+ * Links a URL or bare domain once the word is closed by whitespace. Input
+ * rules run before the trigger character reaches the document, so the
+ * whitespace has to be re-inserted here or typing it would be swallowed.
  */
 function autolinkInputRule(): InputRule {
   return new InputRule(AUTOLINK_PATTERN, (state, match, start, end) => {
     const link = productSchema.marks.link;
-    const url = match[1] ?? "";
+    const word = match[1] ?? "";
     const trailing = match[2] ?? "";
+    const url = autolinkTarget(word);
     if (!link || !url) return null;
-    const from = start + match[0].indexOf(url);
+    const from = start + match[0].indexOf(word);
     const to = from + url.length;
     if (state.doc.rangeHasMark(from, to, link)) return null;
+    const codeMark = productSchema.marks.code;
+    if (codeMark && state.doc.rangeHasMark(from, to, codeMark)) return null;
     const tr = state.tr.addMark(from, to, link.create({ href: normalizeAutolink(url) }));
     tr.removeStoredMark(link);
     tr.insertText(trailing, end);
@@ -1097,14 +1117,12 @@ function autolinkInputRule(): InputRule {
 }
 
 export function normalizeAutolink(url: string): string {
-  return url.startsWith("www.") ? `https://${url}` : url;
+  return SCHEME_URL.test(url) ? url : `https://${url}`;
 }
 
-const PASTED_URL_PATTERN = /^(?:https?:\/\/|www\.)[^\s<>]+$/;
-
 /**
- * Links the selected text when the pasted clipboard content is a bare URL,
- * rather than replacing the selection with the URL. Returns false when the
+ * Links the selected text when the pasted clipboard content is a bare URL or
+ * domain, rather than replacing the selection with it. Returns false when the
  * paste should fall through to the default handling.
  */
 export function linkPastedText(view: EditorView, text: string): boolean {
@@ -1112,7 +1130,7 @@ export function linkPastedText(view: EditorView, text: string): boolean {
   const { selection } = view.state;
   const trimmed = text.trim();
   if (!link || selection.empty || !(selection instanceof TextSelection)) return false;
-  if (!PASTED_URL_PATTERN.test(trimmed)) return false;
+  if (!PASTED_URL_PATTERN.test(trimmed) && !isBareDomain(trimmed)) return false;
   if (selection.$from.parent.type.spec.code) return false;
   view.dispatch(
     view.state.tr
@@ -1552,6 +1570,38 @@ function textAlignmentMarker(node: ProseMirrorNode): string {
   return textAlign === "left" ? "" : `<!--skriuw-align:${textAlign}-->`;
 }
 
+function defaultLinkDelimiter(
+  side: "open" | "close",
+  state: MarkdownSerializerState,
+  mark: Mark,
+  parent: ProseMirrorNode,
+  index: number,
+): string {
+  const delimiter = defaultMarkdownSerializer.marks.link?.[side] ?? "";
+  return typeof delimiter === "string" ? delimiter : delimiter(state, mark, parent, index);
+}
+
+const bareDomainLinkStates = new WeakSet<MarkdownSerializerState>();
+
+function adjacentText(parent: ProseMirrorNode, index: number): string {
+  if (index < 0 || index >= parent.childCount) return "";
+  return parent.child(index).text ?? "";
+}
+
+function isBareDomainLink(mark: Mark, parent: ProseMirrorNode, index: number): boolean {
+  const node = parent.child(index);
+  const text = node.text ?? "";
+  if (!node.isText || mark.attrs.title || mark.attrs.href !== `https://${text}`) return false;
+  if (node.marks.at(-1) !== mark) return false;
+  const next = index + 1 < parent.childCount ? parent.child(index + 1) : null;
+  if (next && mark.isInSet(next.marks)) return false;
+  const before = adjacentText(parent, index - 1).slice(-1);
+  const context = before + text + adjacentText(parent, index + 1);
+  return (
+    isBareDomain(text) && matchBareDomain(context, before.length) === before.length + text.length
+  );
+}
+
 const productMarkdownSerializer = new MarkdownSerializer(
   {
     ...defaultMarkdownSerializer.nodes,
@@ -1688,6 +1738,10 @@ const productMarkdownSerializer = new MarkdownSerializer(
     },
     text(state, node, parent, index) {
       const text = node.text ?? "";
+      if (bareDomainLinkStates.has(state)) {
+        state.text(text, false);
+        return;
+      }
       const escapes = isPlainAutolinkText(node) ? [] : mathDollarEscapes(parent, index);
       if (escapes.length === 0) {
         defaultMarkdownSerializer.nodes.text?.(state, node, parent, index);
@@ -1716,6 +1770,20 @@ const productMarkdownSerializer = new MarkdownSerializer(
   },
   {
     ...defaultMarkdownSerializer.marks,
+    link: {
+      ...defaultMarkdownSerializer.marks.link,
+      open(state, mark, parent, index) {
+        if (!isBareDomainLink(mark, parent, index)) {
+          return defaultLinkDelimiter("open", state, mark, parent, index);
+        }
+        bareDomainLinkStates.add(state);
+        return "";
+      },
+      close(state, mark, parent, index) {
+        if (bareDomainLinkStates.delete(state)) return "";
+        return defaultLinkDelimiter("close", state, mark, parent, index);
+      },
+    },
     strikethrough: {
       open: "~~",
       close: "~~",
@@ -1741,7 +1809,11 @@ const productMarkdownSerializer = new MarkdownSerializer(
 );
 
 function isPlainAutolinkText(node: ProseMirrorNode): boolean {
-  return node.marks.some((mark) => mark.type.name === "link" && mark.attrs.href === node.text);
+  return node.marks.some(
+    (mark) =>
+      mark.type.name === "link" &&
+      (mark.attrs.href === node.text || mark.attrs.href === `https://${node.text}`),
+  );
 }
 
 export function serializeProductMarkdown(document: ProseMirrorNode): string {
@@ -1906,7 +1978,8 @@ if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.inline.ruler, "skriuw_rich_
  *
  * Fuzzy linkification stays off deliberately: it turns any bare `word.word`
  * into a link, which fires on ordinary prose (filenames, abbreviations) far
- * more often than on real URLs. Only scheme-prefixed and `www.` URLs link.
+ * more often than on real URLs. Bare domains link through
+ * `linkifyBareDomains` instead, which only accepts known top-level domains.
  */
 /**
  * markdown-it emits a bare `inline` token inside `th`/`td`, but `table_cell`
@@ -1984,6 +2057,63 @@ function convertDiagramFences(state: CoreRuleState): boolean {
 
 if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.core.ruler, "skriuw_diagram_fences")) {
   defaultMarkdownParser.tokenizer.core.ruler.push("skriuw_diagram_fences", convertDiagramFences);
+}
+
+function bareDomainTokens(state: CoreRuleState, text: string, before: string): MarkdownToken[] {
+  const tokens: MarkdownToken[] = [];
+  let cursor = 0;
+  const context = before + text;
+  for (
+    let found = findBareDomain(context, before.length);
+    found;
+    found = findBareDomain(context, found.end)
+  ) {
+    const start = found.start - before.length;
+    const domain = context.slice(found.start, found.end);
+    if (start > cursor) tokens.push(textToken(state, text.slice(cursor, start)));
+    const open = new state.Token("link_open", "a", 1);
+    open.attrs = [["href", normalizeAutolink(domain)]];
+    open.markup = "linkify";
+    open.info = "auto";
+    tokens.push(open, textToken(state, domain), new state.Token("link_close", "a", -1));
+    cursor = found.end - before.length;
+  }
+  if (tokens.length > 0 && cursor < text.length) tokens.push(textToken(state, text.slice(cursor)));
+  return tokens;
+}
+
+function textToken(state: CoreRuleState, content: string): MarkdownToken {
+  const token = new state.Token("text", "", 0);
+  token.content = content;
+  return token;
+}
+
+function linkifyBareDomains(state: CoreRuleState): boolean {
+  for (const block of state.tokens) {
+    if (block.type !== "inline" || !block.children) continue;
+    const children: MarkdownToken[] = [];
+    let linkDepth = 0;
+    let previous: MarkdownToken | null = null;
+    for (const token of block.children) {
+      if (token.type === "link_open") linkDepth += 1;
+      if (token.type === "link_close") linkDepth -= 1;
+      if (token.type === "html_inline" && /^<a[\s>]/i.test(token.content)) linkDepth += 1;
+      if (token.type === "html_inline" && /^<\/a\s*>/i.test(token.content)) linkDepth -= 1;
+      const before = previous?.type === "text" ? previous.content.slice(-1) : "";
+      const linked =
+        token.type === "text" && linkDepth === 0
+          ? bareDomainTokens(state, token.content, before)
+          : [];
+      children.push(...(linked.length > 0 ? linked : [token]));
+      previous = token;
+    }
+    block.children = children;
+  }
+  return true;
+}
+
+if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.core.ruler, "skriuw_bare_domains")) {
+  defaultMarkdownParser.tokenizer.core.ruler.push("skriuw_bare_domains", linkifyBareDomains);
 }
 
 defaultMarkdownParser.tokenizer.enable(["strikethrough", "linkify", "table"], true);

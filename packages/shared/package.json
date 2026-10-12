@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./components/theme-toggle": "./src/components/theme-toggle.tsx",
+    "./helpers/bare-domain": "./src/helpers/bare-domain.ts",
     "./helpers/clamp": "./src/helpers/clamp.ts",
     "./helpers/cn": "./src/helpers/cn.ts",
     "./helpers/escape-html": "./src/helpers/escape-html.ts",

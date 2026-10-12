@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { renderSharedNote, showsOutline } from "@/modules/shared-note/render-markdown";
+import {
+  renderSharedMarkdown,
+  renderSharedNote,
+  showsOutline,
+} from "@/modules/shared-note/render-markdown";
 
 describe("renderSharedNote headings", () => {
   it("anchors every heading with a unique slug id", () => {
@@ -55,5 +59,49 @@ describe("showsOutline", () => {
     const three = renderSharedNote("## A\n\n### B\n\n## C").headings;
     expect(showsOutline(two)).toBe(false);
     expect(showsOutline(three)).toBe(true);
+  });
+});
+
+const LINK_ATTRIBUTES = 'rel="noreferrer nofollow ugc" target="_blank"';
+
+describe("bare domains in shared notes", () => {
+  it("links bare domains to their https address", () => {
+    const html = renderSharedMarkdown(
+      "Docs at skriuw.com/docs and storybook.regeljelease.dev today.",
+    );
+    expect(html).toContain(
+      `<a href="https://skriuw.com/docs" ${LINK_ATTRIBUTES}>skriuw.com/docs</a> and`,
+    );
+    expect(html).toContain(
+      `<a href="https://storybook.regeljelease.dev" ${LINK_ATTRIBUTES}>storybook.regeljelease.dev</a> today.`,
+    );
+  });
+
+  it("leaves trailing punctuation outside the link", () => {
+    const html = renderSharedMarkdown("(see skriuw.com), then skriuw.com: done");
+    expect(html).toContain(`>skriuw.com</a>), then`);
+    expect(html).toContain(`>skriuw.com</a>: done`);
+  });
+
+  it("leaves filenames, versions, and abbreviations plain", () => {
+    const html = renderSharedMarkdown(
+      "Run gen-css.mjs, edit package.json on Node.js v1.2.3, e.g. README.md in src/skriuw.com",
+    );
+    expect(html).not.toContain("<a ");
+  });
+
+  it("does not link inside code, existing links, or emails", () => {
+    const html = renderSharedMarkdown(
+      "`skriuw.com` [the site](https://example.com/skriuw.com) bob@skriuw.com\n\n```\nskriuw.com\n```",
+    );
+    expect(html).toContain("<code>skriuw.com</code>");
+    expect(html).toContain('href="https://example.com/skriuw.com"');
+    expect(html).not.toContain('href="https://skriuw.com"');
+    expect(html).toContain('href="mailto:bob@skriuw.com"');
+    expect(html).toContain("<pre><code>skriuw.com</code></pre>");
+  });
+
+  it("keeps note mentions plain", () => {
+    expect(renderSharedMarkdown("See [[skriuw.com]].")).toContain("See skriuw.com.");
   });
 });
