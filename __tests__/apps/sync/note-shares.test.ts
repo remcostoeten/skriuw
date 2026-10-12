@@ -11,6 +11,10 @@ import {
   handlePublicShareRequest,
   newShareId,
 } from "../../../apps/sync/src/note-shares";
+import {
+  MAX_SHARED_IMAGES,
+  MAX_SHARED_IMAGE_BYTES,
+} from "../../../apps/sync/src/note-share-images";
 
 const NOW = 1_800_000_000;
 const ORIGIN = "https://skriuw.test";
@@ -57,6 +61,7 @@ function ownerRoute(
     {
       accessConfiguration,
       database: env.AUTH_DB,
+      images: env.SYNC_CONTENT,
       publicOrigin: ORIGIN,
       nowEpochSeconds: () => NOW,
       newShareId() {
@@ -69,7 +74,35 @@ function ownerRoute(
 }
 
 function publicRead(id: string): Promise<Response> {
-  return handlePublicShareRequest(new Request(`https://cloud.test/shares/${id}`), env.AUTH_DB);
+  return handlePublicShareRequest(
+    new Request(`https://cloud.test/shares/${id}`),
+    env.AUTH_DB,
+    env.SYNC_CONTENT,
+  );
+}
+
+function publicImage(id: string, imageId: string): Promise<Response> {
+  return handlePublicShareRequest(
+    new Request(`https://cloud.test/shares/${id}/images/${imageId}`),
+    env.AUTH_DB,
+    env.SYNC_CONTENT,
+  );
+}
+
+const PNG_BYTES = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3];
+const JPEG_BYTES = [0xff, 0xd8, 0xff, 0xe0, 4, 5, 6];
+
+function base64(bytes: readonly number[]): string {
+  return btoa(String.fromCharCode(...bytes));
+}
+
+function upload(id: string, bytes: readonly number[] = PNG_BYTES, mimeType = "image/png") {
+  return { id, mimeType, data: base64(bytes) };
+}
+
+async function storedImageKeys(): Promise<string[]> {
+  const listed = await env.SYNC_CONTENT.list({ prefix: "note-shares/" });
+  return listed.objects.map((object) => object.key).sort();
 }
 
 function note(
@@ -90,6 +123,8 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   issuedIds = [];
+  const keys = await storedImageKeys();
+  if (keys.length > 0) await env.SYNC_CONTENT.delete(keys);
   await env.AUTH_DB.batch([
     env.AUTH_DB.prepare("DELETE FROM note_share"),
     env.AUTH_DB.prepare(`DELETE FROM "user"`),
@@ -122,6 +157,7 @@ describe("public note shares", () => {
       title: "Trip plan",
       markdown: "# Trip plan\n\nPack light.",
       updatedAt: NOW,
+      images: [],
     });
     expect(JSON.stringify(body)).not.toContain("user-owner");
   });
@@ -227,8 +263,127 @@ describe("public note shares", () => {
     expect(issuedIds).toEqual([]);
   });
 
+  it("publishes images and serves them with a safe content type and long cache", async () => {
+    const created = await ownerRoute("/v1/shares", {
+      method: "POST",
+      token: OWNER_TOKEN,
+      body: {
+        ...note({ markdown: "![Beach](images/img-1)" }),
+        images: [upload("img-1"), upload("img-2", JPEG_BYTES, "image/jpeg")],
+      },
+    });
+    expect(created.status).toBe(201);
+    const share = await created.json<{ id: string; imageIds: string[] }>();
+    expect(share.imageIds).toEqual(["img-1", "img-2"]);
+
+    const read = await (await publicRead(share.id)).json<{ images: string[] }>();
+    expect(read.images.sort()).toEqual(["img-1", "img-2"]);
+
+    const image = await publicImage(share.id, "img-1");
+    expect(image.status).toBe(200);
+    expect(image.headers.get("Content-Type")).toBe("image/png");
+    expect(image.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(image.headers.get("Cache-Control")).toContain("max-age=31536000");
+    expect([...new Uint8Array(await image.arrayBuffer())]).toEqual(PNG_BYTES);
+    expect((await publicImage(share.id, "img-3")).status).toBe(404);
+    expect((await publicImage(share.id, "..%2Fx")).status).toBe(404);
+  });
+
+  it("keeps images referenced by id, drops omitted ones, and refuses unknown references", async () => {
+    const share = await (
+      await ownerRoute("/v1/shares", {
+        method: "POST",
+        token: OWNER_TOKEN,
+        body: { ...note({ live: true }), images: [upload("img-1"), upload("img-2")] },
+      })
+    ).json<{ id: string }>();
+
+    const kept = await ownerRoute(`/v1/shares/${share.id}`, {
+      method: "PUT",
+      token: OWNER_TOKEN,
+      body: { title: "Trip", markdown: "![a](images/img-1)", images: [{ id: "img-1" }] },
+    });
+    expect(kept.status).toBe(200);
+    expect(await kept.json()).toMatchObject({ imageIds: ["img-1"] });
+    expect(await storedImageKeys()).toEqual([`note-shares/${share.id}/images/img-1`]);
+
+    const missing = await ownerRoute(`/v1/shares/${share.id}`, {
+      method: "PUT",
+      token: OWNER_TOKEN,
+      body: { title: "Trip", markdown: "x", images: [{ id: "img-2" }] },
+    });
+    expect(missing.status).toBe(409);
+    expect(await missing.json()).toEqual({ error: "share_image_missing" });
+
+    const withoutImages = await ownerRoute(`/v1/shares/${share.id}`, {
+      method: "PUT",
+      token: OWNER_TOKEN,
+      body: { title: "Trip", markdown: "no pictures" },
+    });
+    expect(withoutImages.status).toBe(200);
+    expect(await storedImageKeys()).toEqual([]);
+  });
+
+  it("deletes a share's images when it is revoked", async () => {
+    const share = await (
+      await ownerRoute("/v1/shares", {
+        method: "POST",
+        token: OWNER_TOKEN,
+        body: { ...note(), images: [upload("img-1")] },
+      })
+    ).json<{ id: string }>();
+    expect(await storedImageKeys()).toHaveLength(1);
+
+    await ownerRoute(`/v1/shares/${share.id}`, { method: "DELETE", token: OWNER_TOKEN });
+    expect(await storedImageKeys()).toEqual([]);
+    expect((await publicImage(share.id, "img-1")).status).toBe(404);
+  });
+
+  it("refuses unsafe, mislabeled, oversized, and excess images without storing any", async () => {
+    async function publishImages(images: object[]) {
+      return ownerRoute("/v1/shares", {
+        method: "POST",
+        token: OWNER_TOKEN,
+        body: { ...note(), images },
+      });
+    }
+    const svg = await publishImages([
+      upload("img-1", [...new TextEncoder().encode("<svg onload=alert(1)>")], "image/svg+xml"),
+    ]);
+    expect(svg.status).toBe(400);
+    const mislabeled = await publishImages([upload("img-1", JPEG_BYTES, "image/png")]);
+    expect(mislabeled.status).toBe(400);
+    expect(await mislabeled.json()).toEqual({ error: "invalid_image" });
+    expect((await publishImages([upload("../escape")])).status).toBe(400);
+    expect((await publishImages([upload("img-1"), upload("img-1")])).status).toBe(400);
+    expect(
+      (await publishImages([{ id: "img-1", mimeType: "image/png", data: "%%%%" }])).status,
+    ).toBe(400);
+    expect((await publishImages([{ ...upload("img-1"), extra: true }])).status).toBe(400);
+    const excess = await publishImages(
+      Array.from({ length: MAX_SHARED_IMAGES + 1 }, (_, index) => upload(`img-${index}`)),
+    );
+    expect(excess.status).toBe(413);
+    const oversized = new Uint8Array(MAX_SHARED_IMAGE_BYTES + 1);
+    oversized.set(PNG_BYTES);
+    const huge = await publishImages([
+      { id: "img-1", mimeType: "image/png", data: bytesToBase64(oversized) },
+    ]);
+    expect(huge.status).toBe(413);
+    expect(await storedImageKeys()).toEqual([]);
+    expect(issuedIds).toEqual([]);
+  });
+
   it("answers malformed share ids without touching storage", async () => {
     expect((await publicRead("short")).status).toBe(404);
     expect((await publicRead("x".repeat(22))).status).toBe(404);
   });
 });
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 8_192) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + 8_192));
+  }
+  return btoa(binary);
+}

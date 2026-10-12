@@ -1,9 +1,11 @@
 import { type SyncAccessConfiguration, authenticateSyncRequest } from "./access";
+import { pruneSharedImages } from "./note-share-images";
 import { provisionInternals } from "./provision";
 
 type AccountDeletionDependencies = {
   accessConfiguration: SyncAccessConfiguration;
   database: D1Database;
+  shareImages: R2Bucket;
   resolveWorkspace(workspaceId: string): {
     fetch(request: Request): Promise<Response>;
   };
@@ -14,8 +16,9 @@ type AccountDeletionDependencies = {
 
 /**
  * @name handleAccountDeletionRequest
- * @description Blocks account sync, purges its cloud workspace, then removes
- * its account record so partially completed deletion can be retried safely.
+ * @description Blocks account sync, purges its cloud workspace and shared note
+ * images, then removes its account record so partially completed deletion
+ * can be retried safely.
  *
  * @example
  * await handleAccountDeletionRequest(request, dependencies);
@@ -53,6 +56,14 @@ export async function handleAccountDeletionRequest(
     .fetch(new Request("https://workspace.internal/internal/purge", { method: "DELETE" }));
   if (!purgeResponse.ok) {
     return Response.json({ error: "workspace_purge_failed" }, { status: 503 });
+  }
+
+  const shares = await dependencies.database
+    .prepare("SELECT id FROM note_share WHERE owner_user_id = ?1")
+    .bind(userId)
+    .all<{ id: string }>();
+  for (const share of shares.results) {
+    await pruneSharedImages(dependencies.shareImages, share.id, new Set());
   }
 
   await dependencies.database.batch([

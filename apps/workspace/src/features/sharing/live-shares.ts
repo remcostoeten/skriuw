@@ -2,6 +2,7 @@ import type { DocumentRecord, RendererStore } from "@skriuw/renderer-core/store/
 import { showToast } from "@/shared/ui/toast";
 import { ShareRequestError, updateNoteShare } from "./share-api";
 import { shareableNote } from "./share-content";
+import { sendWithShareImages } from "./share-images";
 import {
   forgetNoteShare,
   noteSharesState,
@@ -74,7 +75,9 @@ export function startLiveSharePublisher(store: RendererStore, options: Options =
     if (!note.ok || !share) return;
     inFlight.add(noteId);
     try {
-      const updated = await update(share.id, { title: note.title, markdown: note.markdown });
+      const updated = await sendWithShareImages(note.images, new Set(share.imageIds), (images) =>
+        update(share.id, { title: note.title, markdown: note.markdown, images }),
+      );
       if (liveShare(noteId)?.id === updated.id) rememberNoteShare(updated);
       failedOnce.delete(noteId);
     } catch (error) {

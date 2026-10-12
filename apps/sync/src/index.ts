@@ -47,7 +47,7 @@ export default {
       return Response.json(healthReport());
     }
     if (url.pathname.startsWith("/shares/")) {
-      return handlePublicShareRequest(request, env.AUTH_DB);
+      return handlePublicShareRequest(request, env.AUTH_DB, env.SYNC_CONTENT);
     }
     if (url.pathname.startsWith("/api/auth/")) {
       return handleAuthRequest(request, env);
@@ -68,6 +68,7 @@ export default {
           ? await handleNoteShareRequest(request, {
               accessConfiguration,
               database: env.AUTH_DB,
+              images: env.SYNC_CONTENT,
               publicOrigin: env.PUBLIC_SHARE_ORIGIN,
               nowEpochSeconds,
               newShareId,
@@ -88,6 +89,7 @@ export default {
                 ? await handleAccountDeletionRequest(request, {
                     accessConfiguration,
                     database: env.AUTH_DB,
+                    shareImages: env.SYNC_CONTENT,
                     resolveWorkspace,
                     nowEpochSeconds,
                     hasFreshSession: async (headers) => {

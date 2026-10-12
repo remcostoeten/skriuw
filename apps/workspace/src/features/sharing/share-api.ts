@@ -1,5 +1,6 @@
 import { authConfiguration } from "@/features/auth/config";
 import { currentSessionToken } from "@/features/auth/session";
+import type { ShareImageUpload } from "./share-images";
 
 export type NoteShare = {
   id: string;
@@ -7,6 +8,7 @@ export type NoteShare = {
   url: string;
   live: boolean;
   updatedAt: number;
+  imageIds?: string[];
 };
 
 export type PublishNoteShare = {
@@ -14,6 +16,7 @@ export type PublishNoteShare = {
   title: string;
   markdown: string;
   live: boolean;
+  images: ShareImageUpload[];
 };
 
 export class ShareRequestError extends Error {
@@ -34,6 +37,12 @@ const SHARE_ERROR_MESSAGES: Record<string, string> = {
   note_too_large: "This note is too large to share. Shared notes are limited to 512 KB of text.",
   share_limit_reached: "You have reached the limit of 500 shared notes. Stop sharing one first.",
   share_not_found: "This link no longer exists.",
+  images_too_large:
+    "This note's images are too large to share. Shared images are limited to 12 MB.",
+  too_many_images: "This note has too many images to share. Shared notes hold up to 20 images.",
+  image_too_large:
+    "One of this note's images is too large to share. Each image is limited to 4 MB.",
+  invalid_image: "One of this note's images could not be read as an image.",
 };
 
 async function shareRequest(path: string, init: RequestInit = {}): Promise<Response> {
@@ -88,13 +97,17 @@ function parseShare(value: unknown): NoteShare {
     typeof value.live === "boolean" &&
     typeof value.updatedAt === "number"
   ) {
-    return {
+    const share: NoteShare = {
       id: value.id,
       noteId: value.noteId,
       url: value.url,
       live: value.live,
       updatedAt: value.updatedAt,
     };
+    if ("imageIds" in value && Array.isArray(value.imageIds)) {
+      share.imageIds = value.imageIds.filter((id): id is string => typeof id === "string");
+    }
+    return share;
   }
   throw new ShareRequestError("invalid_response", "The server sent an unexpected share response.");
 }
@@ -124,7 +137,7 @@ export async function publishNoteShare(content: PublishNoteShare): Promise<NoteS
 /** Replaces the text behind an existing link; a revoked link stays revoked. */
 export async function updateNoteShare(
   shareId: string,
-  content: Pick<PublishNoteShare, "title" | "markdown">,
+  content: Pick<PublishNoteShare, "title" | "markdown" | "images">,
 ): Promise<NoteShare> {
   const response = await shareRequest(`/v1/shares/${encodeURIComponent(shareId)}`, {
     method: "PUT",

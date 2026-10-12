@@ -1,16 +1,19 @@
+import type { WorkspaceImage } from "@skriuw/renderer-core/contracts/workspace";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { extractDrawingFence } from "@/features/drawing/layer";
 import { isNodeLocked, isNoteSealed } from "@/features/lock/lock";
 import { referenceSafeMarkdown } from "@/features/transfer/markdown";
+import { shareableImages } from "./share-images";
 
 export type ShareableNote =
-  | { ok: true; title: string; markdown: string }
+  | { ok: true; title: string; markdown: string; images: WorkspaceImage[] }
   | { ok: false; reason: string };
 
 /**
- * The text a public link publishes for one note: its Markdown without the
- * drawing layer, which the public page cannot show. Locked notes never leave
- * the device in plaintext, so they are refused even while unlocked.
+ * What a public link publishes for one note: its Markdown without the drawing
+ * layer, which the public page cannot show, and the images it references
+ * that fit the shared image budget. Locked notes never leave the device in
+ * plaintext, so they are refused even while unlocked.
  */
 export function shareableNote(state: RendererState, noteId: string): ShareableNote {
   const node = state.nodes.get(noteId);
@@ -22,5 +25,11 @@ export function shareableNote(state: RendererState, noteId: string): ShareableNo
   }
   const record = state.documents.get(noteId);
   const markdown = referenceSafeMarkdown(record?.documentJson, record?.markdown ?? "", state.nodes);
-  return { ok: true, title: node.title, markdown: extractDrawingFence(markdown).markdown };
+  const published = extractDrawingFence(markdown).markdown;
+  return {
+    ok: true,
+    title: node.title,
+    markdown: published,
+    images: shareableImages(state.images, published),
+  };
 }

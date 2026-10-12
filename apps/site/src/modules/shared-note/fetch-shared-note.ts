@@ -14,11 +14,16 @@ const sharedNoteResponse = z.object({
   title: z.string(),
   markdown: z.string(),
   updatedAt: z.number().int(),
+  images: z
+    .array(z.string().regex(/^[A-Za-z0-9_-]{1,128}$/))
+    .max(20)
+    .default([]),
 });
 
 export async function fetchSharedNote(id: string): Promise<SharedNote | null> {
   if (!SHARE_ID.test(id)) return null;
-  const response = await fetch(`${cloudUrl(process.env.SKRIUW_CLOUD_URL)}/shares/${id}`, {
+  const shareUrl = `${cloudUrl(process.env.SKRIUW_CLOUD_URL)}/shares/${id}`;
+  const response = await fetch(shareUrl, {
     cache: "no-store",
   });
   if (response.status === 404) return null;
@@ -26,7 +31,10 @@ export async function fetchSharedNote(id: string): Promise<SharedNote | null> {
   const body = sharedNoteResponse.parse(await response.json());
   return {
     title: body.title,
-    html: renderSharedMarkdown(body.markdown),
+    html: renderSharedMarkdown(
+      body.markdown,
+      new Map(body.images.map((imageId) => [imageId, `${shareUrl}/images/${imageId}`])),
+    ),
     updatedAt: body.updatedAt,
   };
 }

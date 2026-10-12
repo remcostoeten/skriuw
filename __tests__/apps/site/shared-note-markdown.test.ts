@@ -50,6 +50,21 @@ describe("renderSharedMarkdown", () => {
     expect(html).not.toContain("elements");
   });
 
+  it("points published images at their URL and keeps a placeholder for the rest", () => {
+    const images = new Map([["img-1", "https://cloud.test/shares/abc/images/img-1"]]);
+    const html = renderSharedMarkdown(
+      '![Beach "sunset"](images/img-1)\n\n![Dunes](images/img-2)\n\n![Remote](https://evil.test/x.png)\n\n[Clip](images/img-1)<!--skriuw-media:video-->',
+      images,
+    );
+    expect(html).toContain(
+      '<img src="https://cloud.test/shares/abc/images/img-1" alt="Beach &quot;sunset&quot;" loading="lazy" decoding="async">',
+    );
+    expect(html).toContain("Image not included: Dunes");
+    expect(html).toContain("Image not included: Remote");
+    expect(html).not.toContain("evil.test");
+    expect(html).not.toContain('href="https://cloud.test');
+  });
+
   it("shows note mentions as plain text but leaves code untouched", () => {
     const html = renderSharedMarkdown("See [[Packing list]].\n\n```\n[[literal]] <b>\n```");
     expect(html).toContain("See Packing list.");
