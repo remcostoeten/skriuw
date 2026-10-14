@@ -54,6 +54,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@skriuw/shared": "workspace:*",
+        "@spoar/sdk": "2.1.0",
         "marked": "^18.0.13",
         "next": "16.3.5",
         "react": "19.2.7",
@@ -931,6 +932,8 @@
     "@skriuw/storybook-shell": ["@skriuw/storybook-shell@workspace:packages/storybook-shell"],
 
     "@skriuw/theme": ["@skriuw/theme@workspace:packages/theme"],
+
+    "@spoar/sdk": ["@spoar/sdk@2.1.0", "", { "dependencies": { "web-vitals": "6.2.2" }, "peerDependencies": { "@types/react": ">=19", "next": ">=15", "react": ">=19" }, "optionalPeers": ["@types/react", "next", "react"] }, "sha512-uELiyYV2NFWoz1d6CVxRq9cysUJI1M2bHx72zmD+zHfWuiBW5PU9BQHD51Lr3yn7WEtH7J1qIHsBYTC1Zy5msw=="],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
@@ -1999,6 +2002,8 @@
     "warn-once": ["warn-once@0.1.1", "", {}, "sha512-VkQZJbO8zVImzYFteBXvBOZEl1qL175WH8VmZcxF2fZAoudNhNDvHi+doCaAEdU2l2vtcIwa2zn0QK5+I1HQ3Q=="],
 
     "wcwidth": ["wcwidth@1.0.1", "", { "dependencies": { "defaults": "^1.0.3" } }, "sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg=="],
+
+    "web-vitals": ["web-vitals@6.2.2", "", {}, "sha512-oto5x6dLEgrRqfcWed+pZEUb2q6ikbFmqF54CRDhI/QGbn+qxC49b4C4OkbH+kb9C3a8shpFD3SgR9kRcs80ZQ=="],
 
     "webidl-conversions": ["webidl-conversions@3.0.1", "", {}, "sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ=="],
 
