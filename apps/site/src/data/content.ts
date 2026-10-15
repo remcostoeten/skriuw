@@ -80,7 +80,7 @@ export const bentoCards = [
     hint: "toggle source",
     vignette: "editor" as const,
     title: "A rich editor that speaks Markdown",
-    body: "Type `# `, `- `, or `**bold**` and it just works. Drop into raw Markdown whenever you want the source back.",
+    body: "Type `# `, `- `, or `**bold**` and it just works. Switch to the plain text underneath whenever you want it.",
     span: "lg:col-span-8",
   },
   {
@@ -96,23 +96,23 @@ export const bentoCards = [
     hint: "reference anything",
     vignette: "links" as const,
     title: "Tags, people, and note links",
-    body: "#tags, $people, and @note links resolve to real entities. Rename one and every reference follows.",
+    body: "#tags, $people, and @note links point at real things, not just words. Rename one and every mention follows.",
     span: "lg:col-span-4",
   },
   {
     keys: "auto",
     hint: "on every save",
     vignette: "history" as const,
-    title: "Git history you never set up",
-    body: "Every save is versioned in the background, off the editing path. Diff any revision, restore any version.",
+    title: "Every version, kept for you",
+    body: "Each save is stored in the background without slowing your typing. Compare any two versions and bring back any of them.",
     span: "lg:col-span-4",
   },
   {
     keys: "⌘ ⇧ L",
     hint: "lock folder",
     vignette: "lock" as const,
-    title: "Locked notes and sealed sync",
-    body: "Lock a note or a folder behind a PIN. Turn on sync and the server only ever holds bytes it cannot read.",
+    title: "Locked notes and private sync",
+    body: "Lock a note or a folder behind a PIN. Turn on sync and our server only stores scrambled data it cannot read.",
     span: "lg:col-span-4",
   },
   {
@@ -120,30 +120,32 @@ export const bentoCards = [
     hint: "command palette",
     vignette: "palette" as const,
     title: "Every action is one keystroke away",
-    body: "Full-text search, tabs, split view, vim mode, and a rebindable shortcut for everything in the app.",
+    body: "Search every note, open tabs, split the view, and change the shortcut for anything in the app.",
     span: "lg:col-span-12",
     wide: true,
   },
 ];
 
-export const engineeringStats = [
+export const proofPoints = [
   {
-    icon: "bolt" as const,
-    value: "8 ms",
-    label:
-      "from key press to letter on screen, 95 times out of 100. A screen refreshes every 16 ms, so you never see the wait.",
+    label: "typing",
+    title: "Letters appear as you press the keys",
+    body: "Faster than your screen can redraw, so there is never a stutter or a pause while you write.",
   },
   {
-    icon: "activity" as const,
-    value: "1,300+",
-    label: "automated tests that run before anything ships",
+    label: "opening notes",
+    title: "A note opens the moment you click it",
+    body: "It is already there. Nothing is read from your disk or fetched from the internet first.",
   },
   {
-    icon: "gauge" as const,
-    value: "51",
-    label: "design decisions written down, each with the trade-off it cost",
+    label: "every release",
+    title: "Checked before it reaches you",
+    body: "More than a thousand automatic checks have to pass before a new version goes out.",
   },
 ];
+
+export const proofMeasure =
+  "measured on every change: 8 ms from key press to screen, 95 times out of 100";
 
 export const themes = [
   {
@@ -240,7 +242,7 @@ export const footerColumns = [
       { label: "Open the app", href: appUrl },
       { label: "Download", href: releasesUrl },
       { label: "Features", href: "/docs/features/" },
-      { label: "Changelog", href: "/docs/changelog/" },
+      { label: "Changelog", href: "/changelog/" },
     ],
   },
   {
@@ -249,7 +251,7 @@ export const footerColumns = [
       { label: "All documentation", href: "/docs/" },
       { label: "Architecture", href: "/docs/architecture/" },
       { label: "Performance contract", href: "/docs/performance-contract/" },
-      { label: "Decision records", href: `${repoUrl}/tree/daddy/docs/adr` },
+      { label: "Decision records", href: "/docs/adr/" },
       { label: "Benchmarks", href: `${repoUrl}/tree/daddy/docs/benchmarks` },
     ],
   },

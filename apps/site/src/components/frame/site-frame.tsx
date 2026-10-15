@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { Wordmark } from "@/components/ui/primitives";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { GithubSocial, XSocial } from "@/components/ui/icons";
+import { SiteLink } from "@/components/ui/site-link";
+import { GithubSocial } from "@/components/ui/icons";
 import { appUrl, footerColumns, navLinks, repoUrl } from "@/data/content";
 import { OpenAppLink } from "@/modules/analytics/open-app-link";
 import { controlSelected, ghostButton, outlineButton } from "@/components/frame/control";
@@ -49,9 +50,6 @@ function SiteMap() {
           <a href={repoUrl} aria-label="GitHub" className={ghostButton}>
             <GithubSocial className="size-3.5" />
           </a>
-          <a href="https://x.com/remcostoeten" aria-label="X" className={ghostButton}>
-            <XSocial className="size-3.5" />
-          </a>
         </p>
       </div>
 
@@ -67,9 +65,9 @@ function SiteMap() {
                       {link.label}
                     </OpenAppLink>
                   ) : (
-                    <Link href={link.href} className={footerLink}>
+                    <SiteLink href={link.href} className={footerLink}>
                       {link.label}
-                    </Link>
+                    </SiteLink>
                   )}
                 </li>
               ))}

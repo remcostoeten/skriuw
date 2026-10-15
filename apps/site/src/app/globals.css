@@ -86,7 +86,7 @@
   --ink-200: #efeded;
   --ink-300: #e5e7eb;
   --ink-400: #99a1af;
-  --ink-500: #6a7282;
+  --ink-500: #626a7a;
   --ink-700: #4d4444;
   --ink-800: #352f2f;
   --ink-900: #101828;
@@ -428,16 +428,6 @@
   }
 }
 
-@keyframes pa-flow {
-  0% {
-    stroke-dashoffset: 0.15;
-  }
-  60%,
-  100% {
-    stroke-dashoffset: -1;
-  }
-}
-
 .vg-panel {
   position: relative;
   isolation: isolate;
@@ -494,11 +484,6 @@
 .vg-scrub-from,
 .vg-scrub-to {
   transition: background-color 200ms var(--ease-hover);
-}
-
-.pa-flow {
-  stroke-dasharray: 0.15 1;
-  opacity: 0;
 }
 
 @media (hover: hover) {
@@ -617,16 +602,6 @@
   .vg-card:hover .vg-swap > :last-child {
     transform: translate3d(0, 0, 0);
   }
-}
-
-.pa-flow {
-  opacity: 0.9;
-  animation: pa-flow 3.2s var(--ease-in-out) infinite backwards;
-  animation-delay: calc(var(--i, 0) * 600ms);
-}
-
-.pa-pulse {
-  animation: pa-pulse 2.4s var(--ease-in-out) infinite;
 }
 
 .no-scrollbar {
@@ -960,6 +935,38 @@
   text-decoration-color: var(--accent);
 }
 
+.hy-shimmer {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.hy-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    color-mix(in srgb, var(--accent) 45%, transparent) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: hy-shimmer 5.2s var(--ease-in-out) 1.2s infinite;
+}
+
+@keyframes hy-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  28%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 .hy-card {
   transition:
     transform 180ms var(--ease-out),
@@ -1189,6 +1196,22 @@
   animation-delay: var(--hero-delay, 0ms);
 }
 
+@keyframes hy-chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.hy-chip-in {
+  animation: hy-chip-in 220ms var(--ease-out) both;
+  animation-delay: var(--chip-delay, 0ms);
+}
+
 .hy-hero-live {
   animation: hy-hero-live 2.4s ease-in-out infinite;
 }
@@ -1269,8 +1292,13 @@
   .hy-demo-fade,
   .hy-demo-click,
   .hy-hero-in,
-  .hy-hero-live {
+  .hy-hero-live,
+  .hy-shimmer::after {
     animation: none;
+  }
+  .hy-chip-in {
+    animation: hy-demo-fade 200ms ease both;
+    animation-delay: 0ms;
   }
   .hy-demo-outline-trace {
     stroke-dashoffset: 0;

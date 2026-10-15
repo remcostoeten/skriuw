@@ -1,35 +1,13 @@
-import type { CSSProperties, ReactNode } from "react";
 import { Check, Lock, Search } from "@/components/ui/icons";
 import { cn } from "@skriuw/shared/helpers/cn";
+import { Panel, vars } from "@/components/home/vignette-panel";
 
-type PanelProps = {
-  children: ReactNode;
-  className?: string;
-};
-
-function vars(values: Record<string, string | number>) {
-  return values as CSSProperties;
-}
-
-function Panel({ children, className }: PanelProps) {
-  return (
-    <div
-      className={cn(
-        "vg-panel h-full w-full rounded-tl-[10px] border-t border-l border-border bg-muted",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-type SigilProps = {
+type Props = {
   sigil: string;
   label: string;
 };
 
-function Sigil({ sigil, label }: SigilProps) {
+function Sigil({ sigil, label }: Props) {
   return (
     <span className="inline-flex items-center gap-0.5 rounded bg-clay-100 px-1 py-px text-clay-500">
       <span className="opacity-60">{sigil}</span>
@@ -41,15 +19,15 @@ function Sigil({ sigil, label }: SigilProps) {
 const lineStep = 1.2;
 
 const sourceLines = [
-  { text: "## The 8 ms budget", tone: "syntax", slot: 0 },
+  { text: "## Garden plan", tone: "syntax", slot: 0 },
   { text: "", tone: "plain" },
   {
-    text: "Every keystroke paints in the **same frame**.",
+    text: "Tulip bulbs go in **before the first frost**.",
     tone: "plain",
     slot: 1,
   },
-  { text: "- measured on a production build", tone: "syntax", slot: 2 },
-  { text: "- [x] tree at 5,000 nodes", tone: "syntax", slot: 3 },
+  { text: "- order compost for the beds", tone: "syntax", slot: 2 },
+  { text: "- [x] rake the leaves", tone: "syntax", slot: 3 },
 ];
 
 const tones: Record<string, string> = {
@@ -71,18 +49,18 @@ export function EditorVignette() {
             style={slotDelay(0)}
             className="vg-appear text-[17px] font-semibold tracking-[-0.01em] text-ink-900"
           >
-            The 8 ms budget
+            Garden plan
           </p>
           <p style={slotDelay(1)} className="vg-appear text-[13px] leading-5 text-ink-500">
-            Every keystroke paints in the{" "}
-            <span className="font-semibold text-ink-900">same frame</span>.
+            Tulip bulbs go in{" "}
+            <span className="font-semibold text-ink-900">before the first frost</span>.
           </p>
           <p
             style={slotDelay(2)}
             className="vg-appear flex items-center gap-2 text-[13px] text-ink-500"
           >
             <span aria-hidden className="size-1 rounded-full bg-ink-400" />
-            measured on a production build
+            order compost for the beds
           </p>
           <p
             style={slotDelay(3)}
@@ -91,7 +69,7 @@ export function EditorVignette() {
             <span className="grid size-3.5 place-items-center rounded-[3px] bg-clay-500 text-surface">
               <Check className="size-2.5" />
             </span>
-            <span className="line-through">tree at 5,000 nodes</span>
+            <span className="line-through">rake the leaves</span>
           </p>
         </div>
       </div>
@@ -99,7 +77,7 @@ export function EditorVignette() {
       <div className="border-t border-border p-5 md:border-t-0 md:border-l">
         <p className="flex justify-between font-mono text-[10px] tracking-[0.08em] text-ink-400 uppercase">
           Raw Markdown
-          <span className="normal-case">budget.md</span>
+          <span className="normal-case">garden-plan.md</span>
         </p>
         <pre className="mt-4 overflow-hidden pb-5 font-mono text-[12px] leading-[22px]">
           {sourceLines.map((line, index) => (
@@ -193,7 +171,7 @@ export function LinksVignette() {
     <Panel>
       <p className="p-5 pb-4 text-[13px] leading-6 text-ink-700">
         Call with <Sigil sigil="$" label="Martin Kleppmann" /> about{" "}
-        <Sigil sigil="#" label="local-first" />, see <Sigil sigil="@" label="The 8 ms budget" />.
+        <Sigil sigil="#" label="local-first" />, see <Sigil sigil="@" label="Garden plan" />.
       </p>
 
       <p className="border-t border-border px-5 pt-3 font-mono text-[10px] tracking-[0.08em] text-ink-400 uppercase">
@@ -268,8 +246,8 @@ export function HistoryVignette() {
 
       <pre className="vg-swap -ml-5 mt-4 border-t border-border py-3 pl-5 font-mono text-[11px] leading-5">
         <div>
-          <div className="text-ink-400 line-through">− the UI waits for the server</div>
-          <div className="text-clay-500">+ the UI never waits on the network</div>
+          <div className="text-ink-400 line-through">− the app waits for the server</div>
+          <div className="text-clay-500">+ the app never waits on the internet</div>
         </div>
         <div>
           <div className="text-ink-400 line-through">− syncing… please wait</div>

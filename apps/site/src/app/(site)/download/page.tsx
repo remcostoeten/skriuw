@@ -20,6 +20,7 @@ export const metadata: Metadata = {
     "Install Skriuw with Homebrew, Scoop, APT, or dnf, or download a release asset directly. Free, open source, and usable without an account.",
   alternates: { canonical: "/download/" },
   openGraph: {
+    siteName: "Skriuw",
     title: "Install it. Keep your data.",
     description:
       "Native desktop builds for macOS, Windows, and Linux, plus a browser build running the same Rust core.",

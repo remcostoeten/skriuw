@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import Link from "next/link";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { appUrl } from "@/data/content";
+import { SiteLink } from "@/components/ui/site-link";
 import { type CloudAccount, useCloudSession } from "@/modules/account/use-cloud-session";
 import { controlStates, primaryButton } from "@/components/frame/control";
 
@@ -102,7 +102,7 @@ function AccountMenu({ account }: Props) {
           )}
         </div>
         <div className="p-1">
-          <Link
+          <SiteLink
             href={appUrl}
             onClick={() => setOpen(false)}
             className={cn(
@@ -111,7 +111,7 @@ function AccountMenu({ account }: Props) {
             )}
           >
             Open app
-          </Link>
+          </SiteLink>
         </div>
       </div>
     </div>
@@ -123,18 +123,18 @@ export function HeaderAccount() {
 
   if (session.status === "signed-out") {
     return (
-      <Link href={appUrl} className={openAppButton}>
+      <SiteLink href={appUrl} className={openAppButton}>
         Open the app
-      </Link>
+      </SiteLink>
     );
   }
 
   return (
     <>
       <AccountMenu account={session.account} />
-      <Link href={appUrl} className={openAppButton}>
+      <SiteLink href={appUrl} className={openAppButton}>
         Open app
-      </Link>
+      </SiteLink>
     </>
   );
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { SiteLink } from "@/components/ui/site-link";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { badge, outlineButton, primaryButton } from "@/components/frame/control";
 import { SectionHead } from "@/components/frame/section-head";
@@ -19,13 +19,13 @@ function Actions({ actions, lead, className }: ActionsProps) {
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
       {lead}
       {actions.map((action, index) => (
-        <Link
+        <SiteLink
           key={action.href}
           href={action.href}
           className={index === 0 && !lead ? primaryButton : cn(outlineButton, "h-10 px-4")}
         >
           {action.label}
-        </Link>
+        </SiteLink>
       ))}
     </div>
   );

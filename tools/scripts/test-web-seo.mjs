@@ -38,21 +38,37 @@ const marketingRoutes = [
   },
 ];
 
-const [siteHtml, appHtml, robots, sitemap, vercelConfigSource, ...routeHtml] = await Promise.all([
+const adrPath = "/docs/adr/0001-standalone-local-first/";
+const [
+  siteHtml,
+  appHtml,
+  robots,
+  sitemap,
+  changelogHtml,
+  docHtml,
+  adrIndexHtml,
+  adrHtml,
+  ...routeHtml
+] = await Promise.all([
   readRoute("/"),
   readFile(new URL("../../apps/workspace/index.html", import.meta.url), "utf8"),
   readRoute("/robots.txt"),
   readRoute("/sitemap.xml"),
-  readFile(new URL("vercel.json", siteRoot), "utf8"),
+  readRoute("/changelog/"),
+  readRoute("/docs/features/"),
+  readRoute("/docs/adr/"),
+  readRoute(adrPath),
   ...marketingRoutes.map((route) => readRoute(route.path)),
 ]);
 const socialImage = await readFile(new URL("public/og-image.png", siteRoot));
-const vercelConfig = JSON.parse(vercelConfigSource);
+const { default: nextConfig } = await import(new URL("next.config.ts", siteRoot));
+const [redirects, headers] = await Promise.all([nextConfig.redirects(), nextConfig.headers()]);
 
-assert.match(siteHtml, /<title>Skriuw: Fast, Private, Local-First Notes<\/title>/u);
+assert.match(siteHtml, /<title>Skriuw: Fast, Private, Local-First Notes App<\/title>/u);
 assert.match(siteHtml, /<meta\s+name="description"/u);
 assert.equal(canonicalUrl(siteHtml), "https://skriuw.com/");
-assert.match(siteHtml, /<h1[^>]*>Notes that never[\s\S]*?make you wait/u);
+assert.match(siteHtml, /<h1[^>]*>A notes app that never[\s\S]*?makes you wait/u);
+assert.doesNotMatch(siteHtml, /href="\/app\/\?_rsc=/u);
 
 const schema = JSON.parse(structuredData(siteHtml));
 const website = schema["@graph"].find((entry) => entry["@type"] === "WebSite");
@@ -80,6 +96,12 @@ for (const [index, route] of marketingRoutes.entries()) {
   assert.match(html, /<meta\s+name="twitter:card"\s+content="summary_large_image"\s*\/>/u);
   const routeSchema = JSON.parse(structuredData(html));
   assert.equal(routeSchema.url, `https://skriuw.com${route.path}`);
+  assert.match(html, /<meta\s+property="og:site_name"\s+content="Skriuw"\s*\/>/u);
+  assert.equal(
+    twitterTitle(html),
+    openGraphTitle(html),
+    `${route.path} must tweet with its own title, not the homepage title`,
+  );
   pageTitles.add(pageTitle(html));
   pageDescriptions.add(pageDescription(html));
   assert.match(siteHtml, new RegExp(`href="${escapePattern(route.path)}"`, "u"));
@@ -95,28 +117,69 @@ assert.equal(
   "marketing page descriptions must be unique",
 );
 
+assert.equal(canonicalUrl(changelogHtml), "https://skriuw.com/changelog/");
+assert.match(sitemap, /<loc>https:\/\/skriuw\.com\/changelog\/<\/loc>/u);
+assert.doesNotMatch(sitemap, /<loc>https:\/\/skriuw\.com\/docs\/changelog\/<\/loc>/u);
+assert.doesNotMatch(sitemap, /<lastmod>/u);
+assert.equal(canonicalUrl(docHtml), "https://skriuw.com/docs/features/");
+const docSchema = JSON.parse(structuredData(docHtml));
+assert.ok(docSchema["@graph"].some((entry) => entry["@type"] === "BreadcrumbList"));
+assert.ok(docSchema["@graph"].some((entry) => entry["@type"] === "TechArticle"));
+
+assert.equal(canonicalUrl(adrIndexHtml), "https://skriuw.com/docs/adr/");
+assert.match(sitemap, /<loc>https:\/\/skriuw\.com\/docs\/adr\/<\/loc>/u);
+assert.match(sitemap, new RegExp(`<loc>https://skriuw\\.com${escapePattern(adrPath)}</loc>`, "u"));
+assert.equal(canonicalUrl(adrHtml), `https://skriuw.com${adrPath}`);
+assert.match(adrHtml, /<title>Standalone local-first product \(ADR-0001\) \| Skriuw<\/title>/u);
+const adrSchema = JSON.parse(structuredData(adrHtml));
+const adrArticle = adrSchema["@graph"].find((entry) => entry["@type"] === "TechArticle");
+assert.equal(adrArticle.datePublished, "2026-07-20");
+const adrCrumbs = adrSchema["@graph"].find((entry) => entry["@type"] === "BreadcrumbList");
+assert.equal(adrCrumbs.itemListElement.length, 4, "ADR breadcrumbs must pass through the index");
+assert.match(adrHtml, /href="\/docs\/adr\/"/u);
+
 assert.equal(canonicalUrl(appHtml), "https://skriuw.com/app/");
 assert.match(appHtml, /<meta name="robots" content="noindex, follow" \/>/u);
 assert.match(robots, /^User-agent: \*$/imu);
+assert.doesNotMatch(
+  robots,
+  /^Disallow: \/s\//mu,
+  "noindex on /s/ only works when it stays crawlable",
+);
 assert.match(robots, /^Sitemap: https:\/\/skriuw\.com\/sitemap\.xml$/mu);
 assert.match(sitemap, /<loc>https:\/\/skriuw\.com\/<\/loc>/u);
 assert.doesNotMatch(sitemap, /vercel\.app/u);
 assert.doesNotMatch(sitemap, /<loc>https:\/\/skriuw\.com\/app\//u);
 
-assertHostRedirect(vercelConfig, "skriuw.vercel.app");
-assertHostRedirect(vercelConfig, "www.skriuw.com");
+assertHostRedirect(redirects, "skriuw.vercel.app");
+assertHostRedirect(redirects, "www.skriuw.com");
+assertHostRedirect(redirects, "docs.skriuw.com");
+assert.ok(
+  redirects.some(
+    (entry) =>
+      entry.source === "/docs/changelog" && entry.destination === "/changelog/" && entry.permanent,
+  ),
+  "/docs/changelog/ must redirect to the canonical changelog",
+);
 
-const vercelNoIndex = vercelConfig.headers.find((entry) =>
+const aliasNoIndex = headers.find((entry) =>
   entry.has?.some(
     (condition) => condition.type === "host" && condition.value === "skriuw.vercel.app",
   ),
 );
-assert.ok(vercelNoIndex, "skriuw.vercel.app must set an indexing header");
+assert.ok(aliasNoIndex, "skriuw.vercel.app must set an indexing header");
 assert.ok(
-  vercelNoIndex.headers.some(
+  aliasNoIndex.headers.some(
     (header) => header.key === "X-Robots-Tag" && header.value === "noindex",
   ),
   "skriuw.vercel.app must set X-Robots-Tag: noindex",
+);
+const sharedNoIndex = headers.find((entry) => entry.source === "/s/:path*");
+assert.ok(
+  sharedNoIndex?.headers.some(
+    (header) => header.key === "X-Robots-Tag" && header.value === "noindex, nofollow",
+  ),
+  "shared notes must set X-Robots-Tag: noindex, nofollow",
 );
 
 process.stdout.write("web SEO configuration passed\n");
@@ -181,6 +244,18 @@ function pageTitle(html) {
   return title;
 }
 
+function twitterTitle(html) {
+  const title = html.match(/<meta\s+name="twitter:title"\s+content="([^"]+)"\s*\/>/u)?.[1];
+  assert.ok(title, "each marketing page must declare a twitter title");
+  return title;
+}
+
+function openGraphTitle(html) {
+  const title = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"\s*\/>/u)?.[1];
+  assert.ok(title, "each marketing page must declare an Open Graph title");
+  return title;
+}
+
 function pageDescription(html) {
   const description = html.match(/<meta\s+name="description"\s+content="([^"]+)"\s*\/>/u)?.[1];
   assert.ok(description, "each marketing page must declare a description");
@@ -191,11 +266,13 @@ function escapePattern(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
-function assertHostRedirect(config, hostname) {
-  const redirect = config.redirects.find((entry) =>
-    entry.has?.some((condition) => condition.type === "host" && condition.value === hostname),
+function assertHostRedirect(redirects, hostname) {
+  const redirect = redirects.find(
+    (entry) =>
+      entry.source === "/:path*" &&
+      entry.has?.some((condition) => condition.type === "host" && condition.value === hostname),
   );
   assert.ok(redirect, `${hostname} must redirect to the canonical host`);
   assert.equal(redirect.permanent, true, `${hostname} redirect must be permanent`);
-  assert.equal(redirect.destination, "https://skriuw.com/:path*");
+  assert.equal(redirect.destination, "https://skriuw.com/:path*/");
 }

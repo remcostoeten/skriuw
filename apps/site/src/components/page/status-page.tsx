@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { SiteLink } from "@/components/ui/site-link";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { card } from "@/components/frame/control";
 import { SiteFrame } from "@/components/frame/site-frame";
@@ -34,10 +34,10 @@ export function StatusPage({ code, label, title, lede, actions, note, suggestion
         <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-4">
           {suggestions.map((item) => (
             <li key={item.href}>
-              <Link href={item.href} className={cn(card, "flex h-full flex-col gap-2 p-5")}>
+              <SiteLink href={item.href} className={cn(card, "flex h-full flex-col gap-2 p-5")}>
                 <span className="text-[15px] font-medium text-ink-900">{item.label}</span>
                 <span className="text-[14px] leading-[21px] text-ink-500">{item.hint}</span>
-              </Link>
+              </SiteLink>
             </li>
           ))}
         </ul>

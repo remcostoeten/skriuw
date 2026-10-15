@@ -14,7 +14,7 @@ export function ReleasePill({ version, headline }: Props) {
     >
       <span className="shrink-0">{version ? "New in" : "What's new"}</span>
       {version && (
-        <span className="shrink-0 rounded-full bg-ink-900/8 px-2 py-0.5 font-mono text-xs font-medium text-ink-700 tabular-nums">
+        <span className="hy-shimmer shrink-0 rounded-full bg-ink-900/8 px-2 py-0.5 font-mono text-xs font-medium text-ink-700 tabular-nums">
           {version}
         </span>
       )}

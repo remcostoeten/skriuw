@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Geist_Mono, Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { socialImage } from "@/data/seo";
 import { cn } from "@skriuw/shared/helpers/cn";
 import "./globals.css";
@@ -22,29 +23,22 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://skriuw.com"),
   title: {
-    default: "Skriuw: Fast, Private, Local-First Notes",
+    default: "Skriuw: Fast, Private, Local-First Notes App",
     template: "%s | Skriuw",
   },
   description:
-    "Skriuw is a local-first workspace for writing, journaling, and connected knowledge. Your notes are a SQLite file on your machine. No spinners, no round-trips, no account. macOS, Windows, Linux, and the browser.",
-  alternates: { canonical: "/" },
+    "Skriuw is a local-first notes app for writing, journaling, and connected knowledge. Your notes are a SQLite file on your machine, with no account and no spinners.",
   openGraph: {
     type: "website",
     siteName: "Skriuw",
     url: "https://skriuw.com/",
-    title: "Skriuw: Fast, Private, Local-First Notes",
+    title: "Skriuw: Fast, Private, Local-First Notes App",
     description:
-      "A writing workspace that stays fast, keeps your notes local, and puts sync in your hands.",
+      "A local-first notes app that stays fast, keeps your notes on your machine, and puts sync in your hands.",
     images: [socialImage],
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "Skriuw: Fast, Private, Local-First Notes",
-    description:
-      "A writing workspace that stays fast, keeps your notes local, and puts sync in your hands.",
-    images: [socialImage],
-  },
-  icons: { icon: "/favicon.ico" },
+  twitter: { card: "summary_large_image", images: [socialImage] },
+  icons: { icon: "/favicon.ico", apple: "/app-icon.png" },
 };
 
 export const viewport: Viewport = {
@@ -65,7 +59,10 @@ export default function RootLayout({ children }: Props) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }

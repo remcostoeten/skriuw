@@ -15,7 +15,7 @@ export function HomeCta() {
         </h2>
         <p className="mt-4 max-w-[440px] text-[15px] leading-[23px] text-ink-500">
           The full app runs in your browser right now, with no install and no sign-up. The desktop
-          build is the same renderer on the same Rust core.
+          app is the same app, with your notes in a file on your own disk.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
           <OpenAppLink placement="cta" className={primaryButton}>

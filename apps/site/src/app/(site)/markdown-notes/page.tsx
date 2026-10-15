@@ -10,6 +10,7 @@ export const metadata: Metadata = {
     "Write in a structured editor or drop into raw Markdown. Skriuw keeps readable source, portable exports, and wikilinks that survive renames.",
   alternates: { canonical: "/markdown-notes/" },
   openGraph: {
+    siteName: "Skriuw",
     title: "Markdown when you want it. A real editor when you don't.",
     description:
       "Markdown input rules while you type, raw source when precision matters, and exports that stay readable elsewhere.",

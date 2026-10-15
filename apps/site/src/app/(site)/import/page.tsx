@@ -17,6 +17,7 @@ export const metadata: Metadata = {
     "Skriuw scans local exports and previews every note, folder, property, image, and warning before anything enters your workspace.",
   alternates: { canonical: "/import/" },
   openGraph: {
+    siteName: "Skriuw",
     title: "Bring the archive. Inspect it before it moves.",
     description:
       "A preview-plan-apply import for Obsidian, Notion, Bear, Apple Notes, Evernote, Joplin, Simplenote, and plain files.",

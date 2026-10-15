@@ -4,6 +4,7 @@ import { Marked, type Tokens } from "marked";
 import { docPages, docBranch, type DocPage } from "@/modules/docs/pages";
 import { repoUrl } from "@/data/content";
 import { createHeadingIds, headingText, type DocHeading } from "@/modules/docs/heading-ids";
+import { readAdrSource, stripAdrMeta } from "@/modules/docs/adr";
 
 export type RenderedDoc = {
   html: string;
@@ -20,8 +21,20 @@ const docReaders: Record<string, () => Promise<string>> = {
   "CHANGELOG.md": () => readFile(path.join(process.cwd(), "../../CHANGELOG.md"), "utf8"),
 };
 
-function stripTags(value: string) {
-  return value.replace(/<[^>]+>/g, "").trim();
+function readDocSource(source: string) {
+  const adr = source.match(/^docs\/adr\/([\w-]+\.md)$/)?.[1];
+
+  if (adr) {
+    return readAdrSource(adr);
+  }
+
+  const read = docReaders[source];
+
+  if (!read) {
+    throw new Error(`No docs reader registered for ${source}`);
+  }
+
+  return read();
 }
 
 function resolveDocHref(href: string, sourceDir: string) {
@@ -35,6 +48,12 @@ function resolveDocHref(href: string, sourceDir: string) {
 
   if (internal) {
     return hash ? `/docs/${internal.slug}/#${hash}` : `/docs/${internal.slug}/`;
+  }
+
+  const adr = repoPath.match(/^docs\/adr\/([\w-]+)\.md$/)?.[1];
+
+  if (adr) {
+    return hash ? `/docs/adr/${adr}/#${hash}` : `/docs/adr/${adr}/`;
   }
 
   const kind = repoPath.endsWith(".md") ? "blob" : "tree";
@@ -131,16 +150,15 @@ function splitLede(source: string) {
   }
 
   return {
-    lede: stripTags(match[1]).replace(/\*\*/g, ""),
+    lede: headingText(match[1]).replace(/\*\*/g, ""),
     body: withoutTitle.slice(match[0].length),
   };
 }
 
 export async function renderDoc(page: DocPage): Promise<RenderedDoc> {
   "use cache";
-  const read = docReaders[page.source];
-  if (!read) throw new Error(`No docs reader registered for ${page.source}`);
-  const source = await read();
+  const raw = await readDocSource(page.source);
+  const source = page.source.startsWith("docs/adr/") ? stripAdrMeta(raw) : raw;
   const { lede, body } = splitLede(source);
   const headings: DocHeading[] = [];
   const marked = createRenderer(

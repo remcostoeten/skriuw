@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { ReleaseList } from "@/modules/changelog/components/release-list";
 import Loading from "./loading";
+import { socialImage } from "@/data/seo";
 
 type Props = {
   searchParams: Promise<{
@@ -11,8 +12,17 @@ type Props = {
 };
 
 export const metadata: Metadata = {
-  title: "Changelog",
-  description: "Releases, improvements, and code changes.",
+  title: "Changelog: every Skriuw release",
+  description:
+    "Every Skriuw release with what it added, what it fixed, and the code changes behind it, straight from GitHub.",
+  alternates: { canonical: "/changelog/" },
+  openGraph: {
+    siteName: "Skriuw",
+    title: "Skriuw changelog",
+    description: "Every release, what it added, what it fixed, and the code changes behind it.",
+    url: "https://skriuw.com/changelog/",
+    images: [socialImage],
+  },
 };
 
 export default function Page({ searchParams }: Props) {

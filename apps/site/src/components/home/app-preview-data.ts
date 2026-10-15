@@ -220,7 +220,7 @@ export const journalEntries: Record<number, JournalEntry> = {
       { kind: "heading", level: 1, text: "Thursday, October 1" },
       {
         kind: "paragraph",
-        text: "CI was flaky all afternoon. Sharded the gate and it dropped to four minutes.",
+        text: "The test run kept failing all afternoon. Split it up and it now takes four minutes.",
       },
     ],
   },
@@ -286,4 +286,4 @@ export const people: Entity[] = [
   { name: "$Sanne", count: 1, recent: ["Reading list"] },
 ];
 
-export const draftSentence = "Everything here lands in the same frame you type it.";
+export const draftSentence = "Everything here shows up the moment you type it.";

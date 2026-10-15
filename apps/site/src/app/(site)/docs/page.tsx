@@ -4,25 +4,30 @@ import { cn } from "@skriuw/shared/helpers/cn";
 import { card } from "@/components/frame/control";
 import { SectionHead } from "@/components/frame/section-head";
 import { PageCta, PageHero } from "@/components/page/page-shell";
+import { listAdrs } from "@/modules/docs/adr";
 import { docHref, docPages, docSourceUrl } from "@/modules/docs/pages";
 import { repoUrl } from "@/data/content";
 import { socialImage } from "@/data/seo";
 
 export const metadata: Metadata = {
-  title: "Documentation",
+  title: "Documentation: features, architecture, performance contract and decision records",
   description:
-    "The Skriuw documentation: every feature, the architecture behind it, the performance contract it is held to, and the changelog.",
+    "The Skriuw documentation: every feature of the local-first notes app, the architecture behind it, the performance contract it is held to, and the decision records.",
   alternates: { canonical: "/docs/" },
   openGraph: {
+    siteName: "Skriuw",
     title: "Skriuw documentation",
     description:
-      "Features, architecture, the performance contract, and the changelog, read here and written in the repository.",
+      "Features, architecture, and the performance contract, read here and written in the repository.",
     url: "https://skriuw.com/docs/",
     images: [socialImage],
   },
 };
 
-export default function DocsIndexPage() {
+export default async function DocsIndexPage() {
+  const records = await listAdrs();
+  const latest = records.slice(0, 4);
+
   return (
     <>
       <PageHero
@@ -77,11 +82,39 @@ export default function DocsIndexPage() {
         </ul>
       </section>
 
+      <section>
+        <SectionHead
+          index="02"
+          label="decision records"
+          title="Why it is built this way, one decision at a time."
+          action={{ label: `All ${records.length} records`, href: "/docs/adr/" }}
+        />
+        <ul className="mt-8 grid list-none gap-3 p-0 sm:grid-cols-2">
+          {latest.map((record) => (
+            <li key={record.slug} className={cn(card, "relative flex flex-col p-6")}>
+              <span className="caps flex items-center gap-2 text-ink-400">
+                <span className="text-accent tabular-nums">{record.kicker}</span>
+                {record.date}
+              </span>
+              <h2 className="mt-4 text-[17px] font-medium tracking-[-0.01em] text-ink-900">
+                <Link
+                  href={docHref(record)}
+                  className="outline-none after:absolute after:inset-0 after:rounded-[10px] focus-visible:after:outline-2 focus-visible:after:outline-accent/60"
+                >
+                  {record.title}
+                </Link>
+              </h2>
+              <p className="mt-2 text-[14px] leading-[22px] text-ink-500">{record.description}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <PageCta
         title="Documentation is nice. Writing in it is better."
         body="Open the browser build and try the editor these pages describe. Nothing to install, no account."
         actions={[
-          { label: "Open the app", href: "/app/" },
+          { label: "Changelog", href: "/changelog/" },
           { label: "Download", href: "/download/" },
         ]}
       />
