@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { SpoarAnalytics } from "@/components/analytics/spoar-analytics";
+import { SiteAnalytics } from "@/modules/analytics/provider";
 import { SiteFrame } from "@/components/frame/site-frame";
 
 type Props = {
@@ -8,9 +8,8 @@ type Props = {
 
 export default function SiteLayout({ children }: Props) {
   return (
-    <SiteFrame>
-      <SpoarAnalytics />
-      {children}
-    </SiteFrame>
+    <SiteAnalytics>
+      <SiteFrame>{children}</SiteFrame>
+    </SiteAnalytics>
   );
 }

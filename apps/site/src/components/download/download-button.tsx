@@ -3,10 +3,12 @@
 import { useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { useAnalytics } from "@spoar/sdk/react";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { noop } from "@skriuw/shared/helpers/noop";
 import { Apple, Download, Linux, Windows } from "@/components/ui/icons";
 import { allPlatformsHref, desktopOrder, desktopPlatforms, detectOs } from "@/data/downloads";
+import type { Events } from "@/modules/analytics/client";
 import type { DesktopOs, DetectedOs } from "@/data/downloads";
 
 const marks: Record<DetectedOs, (props: { className?: string }) => ReactNode> = {
@@ -50,9 +52,15 @@ export function DownloadButton({
   fallbackHref = allPlatformsHref,
 }: Props) {
   const os = useDetectedOs();
+  const analytics = useAnalytics<Events>();
   const href = os === "unknown" ? fallbackHref : desktopPlatforms[os].href;
   return (
-    <Link href={href} data-os={os} className={className}>
+    <Link
+      href={href}
+      data-os={os}
+      className={className}
+      onClick={() => analytics.track("download", { os })}
+    >
       {/* Every label shares one grid cell so swapping in the detected OS never changes the width. */}
       <span className="grid">
         {options.map((option) => {

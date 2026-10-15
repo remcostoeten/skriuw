@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { DownloadButton } from "@/components/download/download-button";
-import { appUrl } from "@/data/content";
+import { OpenAppLink } from "@/modules/analytics/open-app-link";
 import { badge, outlineButton, primaryButton } from "@/components/frame/control";
 
 export function HomeCta() {
@@ -19,9 +18,9 @@ export function HomeCta() {
           build is the same renderer on the same Rust core.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
-          <Link href={appUrl} className={primaryButton}>
+          <OpenAppLink placement="cta" className={primaryButton}>
             Open the app
-          </Link>
+          </OpenAppLink>
           <DownloadButton
             className={cn(outlineButton, "h-10 px-4")}
             fallbackLabel="Download for desktop"

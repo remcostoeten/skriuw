@@ -7,7 +7,8 @@ import { cn } from "@skriuw/shared/helpers/cn";
 import { Wordmark } from "@/components/ui/primitives";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { GithubSocial, XSocial } from "@/components/ui/icons";
-import { footerColumns, navLinks, repoUrl } from "@/data/content";
+import { appUrl, footerColumns, navLinks, repoUrl } from "@/data/content";
+import { OpenAppLink } from "@/modules/analytics/open-app-link";
 import { controlSelected, ghostButton, outlineButton } from "@/components/frame/control";
 import { HeaderAccount } from "@/modules/account/header-account";
 import "./site-frame.css";
@@ -17,6 +18,8 @@ const bandSurface = "hy-dots border-y border-dashed border-line bg-hy-bg";
 const band = `${bandSurface} flex items-center gap-4 px-6 py-4 max-[620px]:px-5`;
 
 const headerLinks = navLinks.filter((link) => link.href.startsWith("/"));
+const footerLink =
+  "text-[14px] text-ink-500 transition-colors hover:text-ink-900 focus-visible:text-ink-900";
 
 function LivePill() {
   return (
@@ -59,12 +62,15 @@ function SiteMap() {
             <ul className="mt-4 grid list-none gap-2.5 p-0">
               {column.links.map((link) => (
                 <li key={link.label}>
-                  <Link
-                    href={link.href}
-                    className="text-[14px] text-ink-500 transition-colors hover:text-ink-900 focus-visible:text-ink-900"
-                  >
-                    {link.label}
-                  </Link>
+                  {link.href === appUrl ? (
+                    <OpenAppLink placement="footer" className={footerLink}>
+                      {link.label}
+                    </OpenAppLink>
+                  ) : (
+                    <Link href={link.href} className={footerLink}>
+                      {link.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>

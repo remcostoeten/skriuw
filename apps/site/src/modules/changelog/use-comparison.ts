@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useAnalytics } from "@spoar/sdk/react";
+import type { Events } from "@/modules/analytics/client";
 
 import { loadComparison } from "./api/load-comparison";
 import type { Comparison } from "./api/get-comparison";
@@ -10,6 +12,7 @@ export function useComparison(id: number) {
   const [data, setData] = useState<Comparison | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const analytics = useAnalytics<Events>();
 
   function toggle() {
     if (pending) {
@@ -22,6 +25,7 @@ export function useComparison(id: number) {
     }
 
     setOpen(true);
+    analytics.track("changelog_compare", { release: id });
 
     if (data) {
       return;
