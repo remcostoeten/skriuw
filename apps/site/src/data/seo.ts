@@ -1,3 +1,5 @@
+import type { DocPage } from "@/modules/docs/pages";
+
 export const siteUrl = "https://skriuw.com";
 
 export const socialImage = {
@@ -28,9 +30,54 @@ export const homeSchema = {
       "@type": "SoftwareApplication",
       name: "Skriuw",
       url: `${siteUrl}/`,
+      description: "A local-first notes app for writing, journaling, and connected knowledge.",
+      image: socialImage.url,
       applicationCategory: "Productivity",
       operatingSystem: "macOS, Windows, Linux, Web",
+      downloadUrl: `${siteUrl}/download/`,
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     },
   ],
 };
+
+export type DocSchemaOptions = {
+  section?: { name: string; path: string };
+  datePublished?: string;
+};
+
+export function docSchema(page: DocPage, options: DocSchemaOptions = {}) {
+  const url = `${siteUrl}/docs/${page.slug}/`;
+  const crumbs = [
+    { name: "Skriuw", item: `${siteUrl}/` },
+    { name: "Documentation", item: `${siteUrl}/docs/` },
+    ...(options.section
+      ? [{ name: options.section.name, item: `${siteUrl}${options.section.path}` }]
+      : []),
+    { name: page.title, item: url },
+  ];
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "TechArticle",
+        "@id": `${url}#article`,
+        headline: page.title,
+        description: page.description,
+        url,
+        image: socialImage.url,
+        ...(options.datePublished ? { datePublished: options.datePublished } : {}),
+        publisher: { "@id": `${siteUrl}/#organization` },
+        isPartOf: { "@id": `${siteUrl}/#website` },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: crumbs.map((crumb, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          ...crumb,
+        })),
+      },
+    ],
+  };
+}

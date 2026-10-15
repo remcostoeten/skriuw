@@ -3,6 +3,7 @@ import { repoUrl } from "@/data/content";
 export type DocPage = {
   slug: string;
   title: string;
+  metaTitle: string;
   kicker: string;
   description: string;
   source: string;
@@ -15,6 +16,7 @@ export const docPages: DocPage[] = [
   {
     slug: "features",
     title: "Features",
+    metaTitle: "Features: local-first notes, journal, tasks, search and sync",
     kicker: "Every feature",
     description:
       "The complete surface of Skriuw: the editor, journal, tasks, search, history, import and export, sync, AI, and the mobile app.",
@@ -24,6 +26,7 @@ export const docPages: DocPage[] = [
   {
     slug: "architecture",
     title: "Architecture",
+    metaTitle: "Architecture: Rust core, SQLite storage and the operation pipeline",
     kicker: "How it is built",
     description:
       "The Rust domain layer, SQLite as canonical storage, the operation pipeline, and the boundaries that keep navigation off the disk.",
@@ -32,18 +35,11 @@ export const docPages: DocPage[] = [
   {
     slug: "performance-contract",
     title: "Performance contract",
+    metaTitle: "Performance contract: the interaction budgets Skriuw is held to",
     kicker: "What we promise",
     description:
       "The interaction budgets Skriuw is held to, how each one is measured, and what happens to a change that breaks them.",
     source: "docs/performance-contract.md",
-  },
-  {
-    slug: "changelog",
-    title: "Changelog",
-    kicker: "What changed",
-    description:
-      "Every released version of Skriuw, what it added, what it fixed, and where the v1 line ended and v2 picked it up.",
-    source: "CHANGELOG.md",
   },
 ];
 

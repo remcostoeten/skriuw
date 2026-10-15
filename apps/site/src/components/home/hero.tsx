@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import Link from "next/link";
+import { SiteLink } from "@/components/ui/site-link";
 import { cn } from "@skriuw/shared/helpers/cn";
 import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import { Android, Apple, Globe, Linux, Windows } from "@/components/ui/icons";
@@ -48,14 +48,14 @@ export function HomeHero({ badge }: Props) {
             style={heroDelay(1)}
             className="hy-hero-in mt-6 font-serif text-[52px] leading-[0.95] font-normal tracking-[-1.8px] text-balance text-ink-900 lg:text-[64px] lg:tracking-[-2.4px]"
           >
-            Notes that never make you wait
+            A notes app that never makes you wait
           </h1>
         </div>
 
         <div className="min-w-0">
           <p style={heroDelay(2)} className="hy-hero-in text-[17px] leading-6.5 text-ink-500">
-            Notes and a journal that live on your own device. Nothing to sign up for, and nothing to
-            wait for.
+            A local-first notes app and journal that live on your own device. Nothing to sign up
+            for, and nothing to wait for.
           </p>
 
           <div style={heroDelay(3)} className="hy-hero-in mt-6 flex flex-wrap items-center gap-2">
@@ -79,7 +79,7 @@ export function HomeHero({ badge }: Props) {
           >
             {platforms.map(({ name, href, Mark }) => (
               <li key={name}>
-                <Link
+                <SiteLink
                   href={href}
                   className={cn(
                     chip,
@@ -88,7 +88,7 @@ export function HomeHero({ badge }: Props) {
                 >
                   <Mark className="size-3" />
                   {name}
-                </Link>
+                </SiteLink>
               </li>
             ))}
             <Tooltip label={inTheWorks}>

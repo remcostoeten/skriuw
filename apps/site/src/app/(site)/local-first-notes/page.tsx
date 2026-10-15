@@ -17,18 +17,12 @@ export const metadata: Metadata = {
     "Skriuw is a private, local-first notes app with SQLite storage, no required account, no telemetry, portable Markdown, and opt-in sync.",
   alternates: { canonical: "/local-first-notes/" },
   openGraph: {
+    siteName: "Skriuw",
     title: "A private, local-first notes app",
     description:
       "Write without an account. Keep your workspace in local SQLite. Turn on sync only when you choose.",
     url: "https://skriuw.com/local-first-notes/",
     images: [socialImage],
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: [socialImage],
-    title: "Skriuw: private, local-first notes",
-    description:
-      "No required account, no telemetry, local SQLite storage, and sync that stays off until you choose it.",
   },
 };
 

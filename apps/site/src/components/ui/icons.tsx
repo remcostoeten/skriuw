@@ -112,14 +112,6 @@ export function Google(props: Props) {
   );
 }
 
-export function XSocial(props: Props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
-      <path d="M17.5 3h3.1l-6.8 7.8L21.8 21h-6.2l-4.9-6.4L5 21H1.9l7.3-8.3L2.4 3h6.4l4.4 5.8L17.5 3Zm-1.1 16.1h1.7L7.7 4.8H5.9l10.5 14.3Z" />
-    </svg>
-  );
-}
-
 export function GithubSocial(props: Props) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" {...props}>

@@ -30,8 +30,6 @@ export function HomeFeatures() {
   return (
     <section id="features">
       <SectionHead
-        index="01"
-        label="features"
         title="Notes, journal, and tasks. One app, everything links to everything."
         action={{ label: "Every feature", href: "/docs/features/" }}
       />
