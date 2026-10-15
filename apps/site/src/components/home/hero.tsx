@@ -7,6 +7,7 @@ import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import { Android, Apple, Globe, Linux, Windows } from "@/components/ui/icons";
 import { AppPreview } from "@/components/home/app-preview";
 import { DownloadButton } from "@/components/download/download-button";
+import { OpenAppLink } from "@/modules/analytics/open-app-link";
 import { appUrl } from "@/data/content";
 import { allPlatformsHref, desktopOrder, desktopPlatforms } from "@/data/downloads";
 import { outlineButton, primaryButton } from "@/components/frame/control";
@@ -58,12 +59,12 @@ export function HomeHero({ badge }: Props) {
           </p>
 
           <div style={heroDelay(3)} className="hy-hero-in mt-6 flex flex-wrap items-center gap-2">
-            <Link
-              href={appUrl}
+            <OpenAppLink
+              placement="hero"
               className={cn(primaryButton, "bg-ink-800 hover:bg-accent focus-visible:bg-accent")}
             >
               Open in your browser
-            </Link>
+            </OpenAppLink>
             <DownloadButton
               className={cn(
                 outlineButton,
