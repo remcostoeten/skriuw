@@ -9,8 +9,8 @@ import { Dialog } from "@/shared/ui/dialog";
 import {
   effectiveShortcutKeys,
   sameShortcutOverrides,
+  selectShortcutOverrides,
   shortcutDefinition,
-  shortcutOverridesFromSettings,
 } from "./bindings";
 import type { ShortcutPlatform } from "./definitions";
 import {
@@ -94,11 +94,7 @@ type DialogProps = {
 
 function ShortcutHelpDialog({ store, onOpenChange }: DialogProps) {
   const [query, setQuery] = useState("");
-  const overrides = useRendererSelector(
-    store,
-    (state) => shortcutOverridesFromSettings(state.settings),
-    sameShortcutOverrides,
-  );
+  const overrides = useRendererSelector(store, selectShortcutOverrides, sameShortcutOverrides);
   const platform = detectPlatform() as ShortcutPlatform;
   const toggleKeys = effectiveShortcutKeys(shortcutDefinition("showShortcutHelp"), overrides);
   const groups = useMemo(

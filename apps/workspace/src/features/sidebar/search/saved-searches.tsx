@@ -1,5 +1,5 @@
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { savedSearches, setSearchSaved } from "@/features/search/saved-searches";
 import { showToast } from "@/shared/ui/toast";
 
@@ -9,8 +9,12 @@ type Props = {
   onSelect: (query: string) => void;
 };
 
+function selectSavedSearches(state: RendererState) {
+  return state.settings.savedSearches;
+}
+
 export function SavedSearchList({ store, query, onSelect }: Props) {
-  const value = useRendererSelector(store, (state) => state.settings.savedSearches);
+  const value = useRendererSelector(store, selectSavedSearches);
   const searches = savedSearches({
     ...store.getState().settings,
     savedSearches: value,

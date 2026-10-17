@@ -98,6 +98,22 @@ pub struct SyncRuntime {
     push_listener: Mutex<Option<PushListener>>,
     workspace_observer: Option<SyncWorkspaceObserver>,
     session_expired: Option<SessionExpiredObserver>,
+    maintenance: RwLock<u32>,
+}
+
+pub struct MaintenanceSuspension<'a> {
+    runtime: &'a SyncRuntime,
+}
+
+impl Drop for MaintenanceSuspension<'_> {
+    fn drop(&mut self) {
+        let mut suspended = self
+            .runtime
+            .maintenance
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        *suspended = suspended.saturating_sub(1);
+    }
 }
 
 impl SyncRuntime {
@@ -110,6 +126,7 @@ impl SyncRuntime {
             push_listener: Mutex::new(None),
             workspace_observer: None,
             session_expired: None,
+            maintenance: RwLock::new(0),
         }
     }
 
@@ -162,6 +179,12 @@ impl SyncRuntime {
             return Err("a valid account session is required to enable sync".into());
         }
         let base_url = trusted_cloud_base_url(&base_url)?;
+        let maintenance = self.maintenance.read();
+        if !matches!(maintenance.as_deref(), Ok(0)) {
+            return Err(
+                "sync is paused while a backup is restored or an archive is imported".into(),
+            );
+        }
         self.stop_coordinator();
 
         let queue = Arc::new(
@@ -253,6 +276,7 @@ impl SyncRuntime {
         if let Ok(mut push_listener) = self.push_listener.lock() {
             *push_listener = Some(listener);
         }
+        drop(maintenance);
         Ok(status)
     }
 
@@ -377,7 +401,37 @@ impl SyncRuntime {
         self.stop_coordinator();
     }
 
+    /// Stops sync and refuses `connect` until the returned guard drops. Waits
+    /// for an in-flight `connect` to store its coordinator first, so call it
+    /// from a blocking thread.
+    #[must_use]
+    pub fn suspend_for_maintenance(&self) -> MaintenanceSuspension<'_> {
+        {
+            let mut suspended = self
+                .maintenance
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            *suspended = suspended.saturating_add(1);
+        }
+        self.stop_coordinator();
+        MaintenanceSuspension { runtime: self }
+    }
+
+    /// Stops sync but waits at most `limit` for the worker, so quitting never
+    /// hangs on an in-flight request. Returns false when the worker was left
+    /// for process exit to reclaim.
+    pub fn shutdown_within(&self, limit: Duration) -> bool {
+        self.take_coordinator()
+            .is_none_or(|coordinator| coordinator.shutdown_within(limit))
+    }
+
     fn stop_coordinator(&self) {
+        if let Some(coordinator) = self.take_coordinator() {
+            coordinator.shutdown();
+        }
+    }
+
+    fn take_coordinator(&self) -> Option<Arc<SyncCoordinator>> {
         let listener = self
             .push_listener
             .lock()
@@ -386,14 +440,10 @@ impl SyncRuntime {
         if let Some(listener) = listener {
             listener.stop();
         }
-        let coordinator = self
-            .coordinator
+        self.coordinator
             .lock()
             .ok()
-            .and_then(|mut coordinator| coordinator.take());
-        if let Some(coordinator) = coordinator {
-            coordinator.shutdown();
-        }
+            .and_then(|mut coordinator| coordinator.take())
     }
 
     fn with_coordinator(&self, action: impl Fn(&SyncCoordinator)) {
@@ -1097,6 +1147,30 @@ mod tests {
         );
         runtime.shutdown();
         assert_eq!(runtime.status(), SyncStatus::LocalOnly);
+    }
+
+    #[test]
+    fn connect_is_refused_while_suspended_for_maintenance() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database_path = directory.path().join("workspace.db");
+        let runtime = SyncRuntime::new(database_path.clone());
+
+        let suspension = runtime.suspend_for_maintenance();
+        let rejected = runtime.suspend_for_maintenance();
+        drop(rejected);
+        let refused = runtime
+            .connect("token".into(), PRODUCTION_CLOUD_URL.into())
+            .expect_err("connect during maintenance");
+        assert!(refused.contains("paused"), "{refused}");
+        assert!(!database_path.exists());
+        assert_eq!(runtime.status(), SyncStatus::LocalOnly);
+
+        drop(suspension);
+        let untrusted = runtime
+            .connect("token".into(), "https://evil.example".into())
+            .expect_err("untrusted origin");
+        assert!(!untrusted.contains("paused"), "{untrusted}");
+        assert!(!database_path.exists());
     }
 
     #[test]

@@ -1,10 +1,11 @@
 import { detectPlatform } from "@remcostoeten/use-shortcut/constants";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
-import { sameOverrides, selectShortcutOverrides } from "@/features/settings/selectors";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import {
   effectiveShortcutKeys,
+  sameShortcutOverrides,
+  selectShortcutOverrides,
   shortcutBindsOnPlatform,
   shortcutDefinition,
   shortcutShadowedByQuit,
@@ -46,7 +47,7 @@ export function useShortcutHints<Id extends ShortcutActionId>(
   store: RendererStore,
   ids: readonly Id[],
 ): Record<Id, string | undefined> {
-  const overrides = useRendererSelector(store, selectShortcutOverrides, sameOverrides);
+  const overrides = useRendererSelector(store, selectShortcutOverrides, sameShortcutOverrides);
   const platform = detectPlatform() as ShortcutPlatform;
   const hints = {} as Record<Id, string | undefined>;
   for (const id of ids) {

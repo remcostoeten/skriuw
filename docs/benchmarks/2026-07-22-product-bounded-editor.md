@@ -29,7 +29,7 @@ Scroll and arrow-key movement use overlapping windows. Selection, focus, per-not
 Command:
 
 ```bash
-node app/performance/run.mjs --output docs/benchmarks/raw/2026-07-22-product-renderer-c2.json
+node apps/workspace/performance/run.mjs --output docs/benchmarks/raw/2026-07-22-product-renderer-c2.json
 ```
 
 The runner built the production profiling entry and used fresh Google Chrome contexts with trusted keyboard input. Raw samples, fixture digests, correctness assertions, revision, and machine metadata are committed in `docs/benchmarks/raw/2026-07-22-product-renderer-c2.json`.

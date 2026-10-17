@@ -14,9 +14,10 @@ import xml from "highlight.js/lib/languages/xml";
 import yaml from "highlight.js/lib/languages/yaml";
 import { createLowlight } from "lowlight";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
-import { Plugin, PluginKey } from "prosemirror-state";
+import { Plugin, PluginKey, type Transaction } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import { noop } from "@skriuw/shared/helpers/noop";
+import { changedRanges } from "../changed-ranges";
 
 export type CodeToken = {
   from: number;
@@ -216,19 +217,54 @@ export function codeBlockTokens(node: ProseMirrorNode): readonly CodeToken[] {
   return tokens;
 }
 
+function blockDecorations(node: ProseMirrorNode, pos: number): Decoration[] {
+  const start = pos + 1;
+  return codeBlockTokens(node).map((token) =>
+    Decoration.inline(start + token.from, start + token.to, { class: token.className }),
+  );
+}
+
 export function codeHighlightDecorations(doc: ProseMirrorNode): Decoration[] {
   const decorations: Decoration[] = [];
   doc.descendants((node, pos) => {
     if (node.type.name !== "code_block") return node.isBlock;
-    const start = pos + 1;
-    for (const token of codeBlockTokens(node)) {
-      decorations.push(
-        Decoration.inline(start + token.from, start + token.to, { class: token.className }),
-      );
-    }
+    for (const decoration of blockDecorations(node, pos)) decorations.push(decoration);
     return false;
   });
   return decorations;
+}
+
+/**
+ * @name nextCodeHighlight
+ * @description Advances the code highlight decoration set across a
+ * transaction: the previous set is mapped, and only the textblocks the
+ * transaction touched are re-decorated, so an edit costs the blocks it changed
+ * rather than every code block in the note. Returns `previous` itself when the
+ * document did not change.
+ *
+ * @example
+ * apply: (transaction, previous) => nextCodeHighlight(previous, transaction)
+ */
+export function nextCodeHighlight(
+  previous: DecorationSet,
+  transaction: Transaction,
+): DecorationSet {
+  if (!transaction.docChanged) return previous;
+  const { doc } = transaction;
+  const size = doc.content.size;
+  const handled = new Set<number>();
+  let set = previous.map(transaction.mapping, doc);
+  for (const range of changedRanges(transaction)) {
+    doc.nodesBetween(Math.max(0, range.from - 1), Math.min(size, range.to + 1), (node, pos) => {
+      if (!node.isTextblock) return node.isBlock;
+      if (handled.has(pos)) return false;
+      handled.add(pos);
+      set = set.remove(set.find(pos + 1, pos + node.nodeSize - 1));
+      if (node.type.name === "code_block") set = set.add(doc, blockDecorations(node, pos));
+      return false;
+    });
+  }
+  return set;
 }
 
 export const codeHighlightKey = new PluginKey<DecorationSet>("skriuw-code-highlight");
@@ -239,10 +275,7 @@ export function createCodeHighlightPlugin(): Plugin<DecorationSet> {
     state: {
       init: (_config, state) =>
         DecorationSet.create(state.doc, codeHighlightDecorations(state.doc)),
-      apply: (transaction, previous) =>
-        transaction.docChanged
-          ? DecorationSet.create(transaction.doc, codeHighlightDecorations(transaction.doc))
-          : previous,
+      apply: (transaction, previous) => nextCodeHighlight(previous, transaction),
     },
     props: {
       decorations: (state) => codeHighlightKey.getState(state) ?? DecorationSet.empty,

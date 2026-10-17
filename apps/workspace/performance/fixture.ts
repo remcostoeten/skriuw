@@ -51,12 +51,21 @@ const settings: WorkspaceSettings = {
 };
 
 function paragraph(block: number, note: number): unknown {
+  const text = {
+    type: "text",
+    text: `Block ${block + 1} in measured note ${note + 1} carries deterministic product text.`,
+  };
+  if (block !== 0) {
+    return { type: "paragraph", content: [text] };
+  }
   return {
     type: "paragraph",
     content: [
+      text,
       {
         type: "text",
-        text: `Block ${block + 1} in measured note ${note + 1} carries deterministic product text.`,
+        text: "linked words",
+        marks: [{ type: "link", attrs: { href: "https://example.com" } }],
       },
     ],
   };

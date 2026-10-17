@@ -39,7 +39,7 @@ document, one folder per 50 notes), 50 rounds each, with `nodes` and
 `documents` selector subscriptions attached. Keystroke P95 under a concurrent
 remote apply was therefore not measured in a browser; what is measured is the
 main-thread cost the store adds per reconcile. Script:
-`app/performance/remote-reconcile-bench.ts` (`bun --cwd=app x tsx
+`apps/workspace/performance/remote-reconcile-bench.ts` (`bun --cwd=apps/workspace x tsx
 performance/remote-reconcile-bench.ts <notes> <rounds>`). Hardware: Intel Core
 i7-10700F, Linux 7.1, Node 24 (tsx), unloaded machine, no warm-up discarded.
 

@@ -143,10 +143,9 @@ test("restoreNoteVersion retries once at the fresh revision after a conflict", a
       }
       return { applied: 1, revisions: [{ id: "a", revision: 3 }], rankChanges: [] };
     }
-    if (command === "bootstrap_workspace") {
+    if (command === "read_workspace_delta") {
+      assert.deepEqual(args.ids, ["a"]);
       return {
-        protocolVersion: 1,
-        activeNoteId: "a",
         nodes: [noteNode("a", 1)],
         documents: [
           {
@@ -157,8 +156,6 @@ test("restoreNoteVersion retries once at the fresh revision after a conflict", a
             wordCount: 1,
           },
         ],
-        historyHeaders: [],
-        settings: NOTE_SETTINGS,
       };
     }
     throw new Error(`unexpected command: ${command}`);

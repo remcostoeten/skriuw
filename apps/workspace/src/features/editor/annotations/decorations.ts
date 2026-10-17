@@ -1,5 +1,6 @@
-import type { Node as ProseMirrorNode } from "prosemirror-model";
+import type { MarkType, Node as ProseMirrorNode } from "prosemirror-model";
 import { Plugin, PluginKey, type EditorState, type Transaction } from "prosemirror-state";
+import { AddMarkStep, RemoveMarkStep } from "prosemirror-transform";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import { annotationRangesInDoc } from "./menu";
 
@@ -43,6 +44,44 @@ function buildDecorations(doc: ProseMirrorNode, inputs: AnnotationDecorationInpu
   return DecorationSet.create(doc, decorations);
 }
 
+function carriesAnnotation(
+  doc: ProseMirrorNode,
+  from: number,
+  to: number,
+  annotation: MarkType,
+): boolean {
+  const size = doc.content.size;
+  let found = false;
+  doc.nodesBetween(Math.max(0, from - 1), Math.min(size, to + 1), (node) => {
+    if (found) return false;
+    if (node.isText && annotation.isInSet(node.marks)) found = true;
+    return !found;
+  });
+  return found;
+}
+
+function touchesAnnotations(tr: Transaction, annotation: MarkType): boolean {
+  return tr.steps.some((step, index) => {
+    if (
+      (step instanceof AddMarkStep || step instanceof RemoveMarkStep) &&
+      step.mark.type === annotation
+    ) {
+      return true;
+    }
+    const before = tr.docs[index];
+    const after = tr.docs[index + 1] ?? tr.doc;
+    if (!before) return true;
+    let touched = false;
+    step.getMap().forEach((oldStart, oldEnd, newStart, newEnd) => {
+      if (touched) return;
+      touched =
+        carriesAnnotation(before, oldStart, oldEnd, annotation) ||
+        carriesAnnotation(after, newStart, newEnd, annotation);
+    });
+    return touched;
+  });
+}
+
 function sameInputs(left: AnnotationDecorationInputs, right: AnnotationDecorationInputs): boolean {
   if (left.activeThreadId !== right.activeThreadId) return false;
   if (left.resolvedThreadIds.size !== right.resolvedThreadIds.size) return false;
@@ -71,16 +110,19 @@ export function createAnnotationDecorationPlugin(): Plugin<AnnotationDecorationS
           const next = { ...previous, ...meta };
           return { ...next, decorations: buildDecorations(newState.doc, next) };
         }
+        if (!tr.docChanged) return previous;
         /**
-         * Ranges are rebuilt rather than mapped through `tr.mapping`, because a
-         * transaction can add or remove an anchor without saying so — undo
-         * restores a deleted mark, and a paste can carry anchors in. Mapping
-         * alone would leave those unpainted until the next explicit push.
+         * Ranges are rebuilt whenever a step replaces text next to an anchor or
+         * adds or removes an anchor mark, because undo can restore a deleted mark
+         * and a paste can carry anchors in. Every other edit only maps them.
          */
-        if (tr.docChanged) {
+        const annotation = newState.schema.marks.annotation;
+        if (annotation && touchesAnnotations(tr, annotation)) {
           return { ...previous, decorations: buildDecorations(newState.doc, previous) };
         }
-        return previous;
+        const decorations = previous.decorations.map(tr.mapping, tr.doc);
+        if (decorations === previous.decorations) return previous;
+        return { ...previous, decorations };
       },
     },
     props: {

@@ -12,6 +12,7 @@ import {
   replaceRangeTransaction,
 } from "@/features/ai/actions/apply";
 import type { AiActionTarget } from "@/features/ai/actions/model";
+import { createBoundedDocument } from "@/features/editor/document/bounded";
 
 function paragraphs(...texts: readonly string[]): EditorState {
   return EditorState.create({
@@ -139,4 +140,14 @@ test("a confirmed tag plan appends reference chips carrying the tag identities",
   });
   assert.deepEqual(chips, ["tag-1:recipes", "tag-2:home-cooking"]);
   assert.equal(appendTagPlanTransaction(state, []), null);
+});
+
+test("a bounded note's window holds only part of the note it belongs to", () => {
+  const bounded = createBoundedDocument(
+    paragraphs(...Array.from({ length: 250 }, (_, index) => `Block ${index + 1}`)).doc,
+  );
+  const windowState = EditorState.create({ doc: bounded.windowDocument() });
+
+  assert.match(actionInputText(windowState, "note"), /Block 1\b/);
+  assert.doesNotMatch(actionInputText(windowState, "note"), /Block 250/);
 });

@@ -30,10 +30,21 @@ export type PhaseResult = {
     reactCommit: TimingSummary;
   };
   droppedFrames: number;
+  frameMisses: {
+    at60Hz: number;
+    at120Hz: number;
+  };
   longTasks: number[];
   longAnimationFrames: LongAnimationFrameSample[];
   reactCommits: number;
   bridgeCalls: string[];
+};
+
+export type LinkCaretResult = PhaseResult & {
+  expected: number;
+  handled: number;
+  moved: number;
+  menuOpen: boolean;
 };
 
 export type FixtureIdentity = {
@@ -58,6 +69,12 @@ export type WorkingSetResult = {
   bridgeCalls: string[];
 };
 
+export type NavigationTailResult = {
+  windowMs: number;
+  reactCommits: number;
+  bridgeCalls: string[];
+};
+
 export type CorrectnessCheck = {
   name: string;
   pass: boolean;
@@ -78,6 +95,7 @@ export type ProductRendererResult = {
     expected: number;
     handled: number;
   };
+  linkCaret: LinkCaretResult;
   referenceSuggestions: {
     samplesMs: number[];
     p95Ms: number;
@@ -122,9 +140,12 @@ export type PerformanceController = {
   finishKeyboard: () => Promise<
     PhaseResult & { expected: number; handled: number; selections: number }
   >;
+  settleNavigation: () => Promise<NavigationTailResult>;
   prepareTyping: () => Promise<{ expected: number }>;
   confirmTyping: () => void;
   finishTyping: () => Promise<PhaseResult & { expected: number; handled: number }>;
+  prepareLinkCaret: () => Promise<{ expected: number }>;
+  finishLinkCaret: () => Promise<LinkCaretResult>;
   runReferenceSuggestions: () => {
     samplesMs: number[];
     p95Ms: number;
@@ -139,6 +160,7 @@ export type PerformanceController = {
     workingSet: WorkingSetResult,
     keyboardSwitches: PhaseResult & { expected: number; handled: number; selections: number },
     typing: PhaseResult & { expected: number; handled: number },
+    linkCaret: LinkCaretResult,
     referenceSuggestions: {
       samplesMs: number[];
       p95Ms: number;

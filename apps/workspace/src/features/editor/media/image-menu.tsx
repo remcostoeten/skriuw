@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import type { WorkspaceImage } from "@skriuw/renderer-core/contracts/workspace";
-import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import {
   mediaEntryForContentHash,
@@ -45,11 +45,27 @@ function toLightboxUsages(
   }));
 }
 
+function selectImages(state: RendererState) {
+  return state.images;
+}
+
+function selectNodes(state: RendererState) {
+  return state.nodes;
+}
+
+function selectDocuments(state: RendererState) {
+  return state.documents;
+}
+
+function selectMediaMetadata(state: RendererState) {
+  return state.mediaMetadata;
+}
+
 function useImageLibraryEntry(store: RendererStore, contentHash: string) {
-  const images = useRendererSelector(store, (state) => state.images);
-  const nodes = useRendererSelector(store, (state) => state.nodes);
-  const documents = useRendererSelector(store, (state) => state.documents);
-  const mediaMetadata = useRendererSelector(store, (state) => state.mediaMetadata);
+  const images = useRendererSelector(store, selectImages);
+  const nodes = useRendererSelector(store, selectNodes);
+  const documents = useRendererSelector(store, selectDocuments);
+  const mediaMetadata = useRendererSelector(store, selectMediaMetadata);
   return useMemo(
     () => mediaEntryForContentHash({ images, nodes, documents, mediaMetadata }, contentHash),
     [images, nodes, documents, mediaMetadata, contentHash],

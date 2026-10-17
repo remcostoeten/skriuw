@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { EditorState } from "prosemirror-state";
-import type { DecorationSet } from "prosemirror-view";
+import { history, undo } from "prosemirror-history";
+import { Fragment, Slice, type Node as ProseMirrorNode } from "prosemirror-model";
+import { EditorState, TextSelection } from "prosemirror-state";
+import { DecorationSet } from "prosemirror-view";
 import {
   annotationDecorationPluginKey,
   createAnnotationDecorationPlugin,
@@ -32,8 +34,45 @@ function stateWith(doc: ReturnType<typeof productSchema.node>): EditorState {
   return EditorState.create({
     schema: productSchema,
     doc,
-    plugins: [createAnnotationDecorationPlugin()],
+    plugins: [createAnnotationDecorationPlugin(), history()],
   });
+}
+
+function anchored(text: string, threadId: string): ProseMirrorNode {
+  return productSchema.text(text, [requiredAnnotation().create({ threadId })]);
+}
+
+function paragraphOf(...content: ProseMirrorNode[]): ProseMirrorNode {
+  return productSchema.node("paragraph", null, content);
+}
+
+function docOf(...paragraphs: ProseMirrorNode[]): ProseMirrorNode {
+  return productSchema.node("doc", null, paragraphs);
+}
+
+const PUSHED_INPUTS: AnnotationDecorationInputs = {
+  activeThreadId: "unrelated-thread",
+  resolvedThreadIds: new Set<string>(),
+};
+
+function decorationsOf(state: EditorState): DecorationSet {
+  const decorations = annotationDecorationPluginKey.getState(state)?.decorations;
+  assert.ok(decorations);
+  return decorations;
+}
+
+function paintedRanges(state: EditorState): [number, number][] {
+  return decorationsOf(state)
+    .find()
+    .map((decoration): [number, number] => [decoration.from, decoration.to])
+    .sort((left, right) => left[0] - right[0] || left[1] - right[1]);
+}
+
+function assertMatchesRebuild(state: EditorState): void {
+  assert.deepEqual(
+    paintedRanges(state),
+    paintedRanges(pushed(stateWith(state.doc), PUSHED_INPUTS)),
+  );
 }
 
 /** Mirrors the editor's dispatch loop closely enough to drive the plugin. */
@@ -54,11 +93,7 @@ function pushed(state: EditorState, inputs: AnnotationDecorationInputs): EditorS
 }
 
 function classesOf(state: EditorState): string[] {
-  const decorations = annotationDecorationPluginKey.getState(state)?.decorations as
-    | DecorationSet
-    | undefined;
-  assert.ok(decorations);
-  return decorations
+  return decorationsOf(state)
     .find()
     .map((decoration) =>
       String((decoration as { type: { attrs?: { class?: string } } }).type.attrs?.class ?? ""),
@@ -152,6 +187,76 @@ test("an anchor restored by undo is repainted without a fresh push", () => {
     stripped.tr.addMark(1, stripped.doc.content.size - 1, annotation.create({ threadId: "only" })),
   );
   assert.equal(classesOf(restored).length, 1);
+});
+
+test("typing in a note without anchors keeps the empty decoration set", () => {
+  const state = pushed(
+    stateWith(docOf(paragraphOf(productSchema.text("plain text")))),
+    PUSHED_INPUTS,
+  );
+  assert.equal(decorationsOf(state), DecorationSet.empty);
+
+  const next = state.apply(state.tr.insertText("x", 3));
+  assert.equal(decorationsOf(next), DecorationSet.empty);
+});
+
+test("typing in a paragraph without anchors paints the same anchors as a rebuild", () => {
+  const state = pushed(
+    stateWith(
+      docOf(
+        paragraphOf(anchored("first", "t1"), productSchema.text(" tail")),
+        paragraphOf(productSchema.text("plain middle")),
+        paragraphOf(anchored("last", "t2")),
+      ),
+    ),
+    PUSHED_INPUTS,
+  );
+  const middle = state.doc.child(0).nodeSize + 3;
+  const next = state.apply(state.tr.insertText("typed ", middle));
+
+  assert.equal(paintedRanges(next).length, 2);
+  assertMatchesRebuild(next);
+});
+
+test("undo restoring a deleted anchor paints it again", () => {
+  let state = pushed(
+    stateWith(docOf(paragraphOf(productSchema.text("keep "), anchored("note", "t1")))),
+    PUSHED_INPUTS,
+  );
+  state = state.apply(state.tr.delete(6, 10));
+  assert.equal(paintedRanges(state).length, 0);
+
+  assert.ok(
+    undo(state, (transaction) => {
+      state = state.apply(transaction);
+    }),
+  );
+  assert.deepEqual(paintedRanges(state), [[6, 10]]);
+});
+
+test("pasting a slice that carries an anchor paints the new anchor", () => {
+  const state = pushed(stateWith(docOf(paragraphOf(productSchema.text("plain")))), PUSHED_INPUTS);
+  const slice = new Slice(Fragment.from(anchored("pasted", "t1")), 0, 0);
+  const next = state.apply(
+    state.tr.setSelection(TextSelection.create(state.doc, 3)).replaceSelection(slice),
+  );
+
+  assert.deepEqual(paintedRanges(next), [[3, 9]]);
+  assertMatchesRebuild(next);
+});
+
+test("deleting the text between two runs of one thread paints the joined run", () => {
+  const state = pushed(
+    stateWith(
+      docOf(paragraphOf(anchored("one", "t1"), productSchema.text(" gap "), anchored("two", "t1"))),
+    ),
+    PUSHED_INPUTS,
+  );
+  assert.equal(paintedRanges(state).length, 2);
+
+  const next = state.apply(state.tr.delete(4, 9));
+  assert.deepEqual(paintedRanges(next), [[1, 7]]);
+  assertMatchesRebuild(next);
 });
 
 test("resolved ids are scoped to the note being edited", () => {

@@ -4,6 +4,7 @@ import { noop } from "@skriuw/shared/helpers/noop";
 import {
   getCommandPaletteGroups,
   getFamilyGroups,
+  PALETTE_GROUP_LIMIT,
   parseCommandQuery,
   RECENT_NOTES_GROUP,
   type CommandPaletteItem,
@@ -372,4 +373,73 @@ test("family groups list only that family, in order or ranked by the query", () 
     ["theme-latte"],
   );
   assert.deepEqual(getFamilyGroups(items, "Themes", "zzz"), []);
+});
+
+function noteItems(count: number, label: (index: number) => string): CommandPaletteItem[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `note:${index}`,
+    label: label(index),
+    group: "Notes",
+    action: noop,
+  }));
+}
+
+test("an idle palette caps each group and keeps input order", () => {
+  const items = noteItems(120, (index) => `Note ${index}`);
+
+  const [notes] = getCommandPaletteGroups(items, "");
+
+  assert.equal(PALETTE_GROUP_LIMIT, 50);
+  assert.equal(notes?.group, "Notes");
+  assert.deepEqual(notes?.items, items.slice(0, 50));
+  assert.equal(notes?.hiddenCount, 70);
+});
+
+function matchOffset(index: number): number {
+  return (index * 7) % 30;
+}
+
+test("a query caps each group after ranking by score", () => {
+  const items = noteItems(120, (index) =>
+    index % 2 === 0 ? `${"x".repeat(matchOffset(index))}zebra ${index}` : `Plain ${index}`,
+  );
+  const ranked = items
+    .map((item, index) => ({ item, index }))
+    .filter(({ index }) => index % 2 === 0)
+    .sort((a, b) => matchOffset(a.index) - matchOffset(b.index))
+    .map(({ item }) => item);
+
+  const [notes] = getCommandPaletteGroups(items, "zebra");
+
+  assert.deepEqual(notes?.items, ranked.slice(0, 50));
+  assert.equal(notes?.hiddenCount, 10);
+});
+
+test("a group under the cap carries no hidden count", () => {
+  const items = noteItems(3, (index) => `Note ${index}`);
+
+  const [notes] = getCommandPaletteGroups(items, "");
+
+  assert.equal(notes?.items.length, 3);
+  assert.equal("hiddenCount" in (notes ?? {}), false);
+});
+
+test("listbox indices stay inside the rendered rows when groups are capped", () => {
+  const items: CommandPaletteItem[] = [
+    { id: "action", label: "Create note", group: "Actions", action: noop },
+    ...noteItems(120, (index) => `Note ${index}`),
+  ];
+
+  const groups = getCommandPaletteGroups(items, "");
+  const rendered = groups.flatMap((group) => group.items);
+
+  assert.deepEqual(
+    groups.map((group) => [group.group, group.items.length, group.hiddenCount]),
+    [
+      ["Actions", 1, undefined],
+      ["Notes", 50, 70],
+    ],
+  );
+  assert.equal(rendered.length, 51);
+  assert.equal(rendered.at(-1)?.id, "note:49");
 });

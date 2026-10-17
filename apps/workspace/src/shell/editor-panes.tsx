@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
   activateTab,
   closeAllTabs,
@@ -74,7 +74,7 @@ type ContextTarget = { kind: "tab"; id: string } | { kind: "strip" };
 
 type DragState = { id: string; before: string | null };
 
-export function EditorPanes({ store }: Props) {
+export const EditorPanes = memo(function EditorPanes({ store }: Props) {
   const panes = useRendererSelector(store, selectPanes);
   const tabs = useRendererSelector(store, tabModels, sameTabModels);
   const storedOrientation = useRendererSelector(store, selectSplitOrientation);
@@ -431,4 +431,4 @@ export function EditorPanes({ store }: Props) {
       </div>
     </div>
   );
-}
+});

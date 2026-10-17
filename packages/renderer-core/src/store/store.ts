@@ -1534,10 +1534,15 @@ export function createRendererStore(initialState: RendererState): RendererStore 
     select: (selector) => selector(state),
     subscribe,
     createBinding<T>(selector: Selector<T>, equality: Equality<T> = strictEqual) {
+      let selectedState = state;
       let selected = selector(state);
       return {
         getSnapshot: () => {
+          if (selectedState === state) {
+            return selected;
+          }
           const next = selector(state);
+          selectedState = state;
           if (!equality(selected, next)) {
             selected = next;
           }

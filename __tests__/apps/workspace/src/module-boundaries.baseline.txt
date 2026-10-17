@@ -4,7 +4,6 @@ file-cycle features/editor/schema.ts -> features/editor/annotations/decorations.
 file-cycle features/editor/schema.ts -> features/editor/tasks/promotion.ts
 file-cycle features/editor/tasks/promotion.ts -> features/editor/schema.ts
 layer commands/command-palette.tsx -> features/settings/settings-model.ts
-layer commands/hints.ts -> features/settings/selectors.ts
 layer commands/workspace-shortcuts.tsx -> shell/panels.ts
 layer features/ai/prompts/playground.tsx -> shell/title-bar.ts
 layer features/history/history-view.tsx -> app-route.ts

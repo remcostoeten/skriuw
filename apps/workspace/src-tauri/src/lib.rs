@@ -336,7 +336,7 @@ pub fn run() {
             {
                 state.ai.shutdown();
                 state.ollama.shutdown();
-                state.sync.shutdown();
+                state.sync.shutdown_within(Duration::from_secs(2));
                 state.rotation.shutdown();
                 state.maintenance.shutdown();
             }

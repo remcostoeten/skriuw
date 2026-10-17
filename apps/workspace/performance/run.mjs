@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { cpus, freemem, hostname, platform, release, tmpdir, totalmem } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { budgetStatus, failedBudgets } from "./budgets.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const app = join(root, "apps/workspace");
@@ -14,6 +15,7 @@ const output = resolve(
   outputIndex >= 0 ? (process.argv[outputIndex + 1] ?? defaultOutput) : defaultOutput,
 );
 const chromeBinary = process.env.CHROME_BINARY ?? "google-chrome-stable";
+const headed = process.argv.includes("--headed");
 const baseUrl = "http://127.0.0.1:4191";
 const contexts = [
   { fixture: "wide-1000", blocks: 50 },
@@ -28,7 +30,7 @@ function sleep(milliseconds) {
 function run(command, arguments_, options = {}) {
   return new Promise((resolveRun, reject) => {
     const child = spawn(command, arguments_, {
-      cwd: root,
+      cwd: options.cwd ?? root,
       stdio: options.capture ? ["ignore", "pipe", "pipe"] : "inherit",
       env: process.env,
     });
@@ -70,7 +72,7 @@ function launchChrome(profileDirectory) {
     const child = spawn(
       chromeBinary,
       [
-        "--headless=new",
+        ...(headed ? [] : ["--headless=new"]),
         "--remote-debugging-port=0",
         `--user-data-dir=${profileDirectory}`,
         "--window-size=1440,1000",
@@ -325,6 +327,11 @@ async function runContext(context) {
       sessionId,
       "window.__SKRIUW_PRODUCT_PERFORMANCE__.finishKeyboard()",
     );
+    const navigationTail = await evaluate(
+      cdp,
+      sessionId,
+      "window.__SKRIUW_PRODUCT_PERFORMANCE__.settleNavigation()",
+    );
     const typingPreparation = await evaluate(
       cdp,
       sessionId,
@@ -341,6 +348,22 @@ async function runContext(context) {
       sessionId,
       "window.__SKRIUW_PRODUCT_PERFORMANCE__.finishTyping()",
     );
+    const linkCaretPreparation = await evaluate(
+      cdp,
+      sessionId,
+      "window.__SKRIUW_PRODUCT_PERFORMANCE__.prepareLinkCaret()",
+    );
+    for (let index = 0; index < linkCaretPreparation.expected; index += 1) {
+      await evaluate(cdp, sessionId, "window.__SKRIUW_PRODUCT_PERFORMANCE__.alignFrame()");
+      await sleep(9);
+      await dispatchKey(cdp, sessionId, "ArrowRight", "ArrowRight", 39);
+      await evaluate(cdp, sessionId, "window.__SKRIUW_PRODUCT_PERFORMANCE__.alignFrame()");
+    }
+    const linkCaret = await evaluate(
+      cdp,
+      sessionId,
+      "window.__SKRIUW_PRODUCT_PERFORMANCE__.finishLinkCaret()",
+    );
     const referenceSuggestions = await evaluate(
       cdp,
       sessionId,
@@ -354,7 +377,7 @@ async function runContext(context) {
     const result = await evaluate(
       cdp,
       sessionId,
-      `window.__SKRIUW_PRODUCT_PERFORMANCE__.finish(${JSON.stringify(selection)}, ${JSON.stringify(workingSet)}, ${JSON.stringify(keyboardSwitches)}, ${JSON.stringify(typing)}, ${JSON.stringify(referenceSuggestions)})`,
+      `window.__SKRIUW_PRODUCT_PERFORMANCE__.finish(${JSON.stringify(selection)}, ${JSON.stringify(workingSet)}, ${JSON.stringify(keyboardSwitches)}, ${JSON.stringify(typing)}, ${JSON.stringify(linkCaret)}, ${JSON.stringify(referenceSuggestions)})`,
     );
     result.correctness.push(
       {
@@ -383,6 +406,7 @@ async function runContext(context) {
     cdp.close();
     return {
       ...result,
+      navigationTail,
       trace,
       browser: browser.product,
       consoleErrors,
@@ -412,31 +436,6 @@ async function removeDirectoryWithRetry(directory) {
   }
 }
 
-function budgetStatus(record) {
-  function below(summary, p95, maximum) {
-    return summary.p95Ms < p95 && summary.maxMs < maximum;
-  }
-  return {
-    cachedEditorSwap: below(record.selection.summary.editorInstallation, 8, 16.67),
-    boundedEditorWorkingSet:
-      record.workingSet.maximumObservedSize <= record.workingSet.configuredLimit &&
-      record.workingSet.finalObservedSize <= record.workingSet.configuredLimit &&
-      record.workingSet.evictions > 0 &&
-      record.workingSet.coldRevisitWasEvicted === true &&
-      record.workingSet.bridgeCalls.length === 0,
-    coldEditorRevisit:
-      record.workingSet.coldRevisitWasEvicted === true &&
-      record.workingSet.coldRevisitDispatchMs < 8,
-    selectionDispatch: record.selection.summary.dispatch.p95Ms < 8,
-    keystrokeToPaint: below(record.typing.summary.nextPaint, 8, 16.67),
-    hundredSwitchesDroppedNoFrames: record.keyboardSwitches.droppedFrames === 0,
-    referenceSuggestions:
-      record.referenceSuggestions.p95Ms < 8 &&
-      record.referenceSuggestions.maxMs < 16.67 &&
-      record.referenceSuggestions.bridgeCalls.length === 0,
-  };
-}
-
 await mkdir(fixtures, { recursive: true });
 await run("cargo", [
   "run",
@@ -449,23 +448,18 @@ await run("cargo", [
   "--",
   fixtures,
 ]);
-await run("pnpm", ["--dir", app, "exec", "tsc", "--noEmit", "-p", "performance/tsconfig.json"]);
-await run("pnpm", [
-  "--dir",
-  app,
-  "exec",
-  "vite",
-  "build",
-  "--config",
-  "performance/vite.config.ts",
-  "--mode",
-  "production",
-]);
+await run("bun", ["x", "tsc", "--noEmit", "-p", "performance/tsconfig.json"], { cwd: app });
+await run(
+  "bun",
+  ["x", "vite", "build", "--config", "performance/vite.config.ts", "--mode", "production"],
+  { cwd: app },
+);
 const preview = spawn(
   join(app, "node_modules/.bin/vite"),
   ["preview", "--config", join(app, "performance/vite.config.ts")],
   { cwd: root, stdio: "ignore", env: process.env },
 );
+let budgetFailures = [];
 try {
   await waitForServer();
   const records = [];
@@ -477,6 +471,14 @@ try {
     process.stdout.write(
       `${context.fixture}/${context.blocks}: swap P95=${swap.p95Ms.toFixed(2)} ms max=${swap.maxMs.toFixed(2)} ms, dropped=${record.keyboardSwitches.droppedFrames}\n`,
     );
+    for (const [name, passed] of Object.entries(record.budgets)) {
+      const verdict = passed === null ? "N/A" : passed ? "PASS" : "FAIL";
+      process.stdout.write(`  ${verdict} ${name}\n`);
+    }
+    const tail = record.navigationTail;
+    process.stdout.write(
+      `  INFO navigationTail: ${tail.reactCommits} React commits, ${tail.bridgeCalls.length} bridge calls (${tail.bridgeCalls.join(", ") || "none"}) in ${tail.windowMs.toFixed(0)} ms\n`,
+    );
   }
   const git = await run("git", ["rev-parse", "HEAD"], { capture: true });
   const cpu = cpus()[0];
@@ -484,7 +486,7 @@ try {
     schemaVersion: 1,
     measuredAt: new Date().toISOString(),
     revision: git.stdout.trim(),
-    command: `node apps/workspace/performance/run.mjs --output ${output}`,
+    command: `node apps/workspace/performance/run.mjs${headed ? " --headed" : ""} --output ${output}`,
     machine: {
       hostname: hostname(),
       platform: platform(),
@@ -501,6 +503,11 @@ try {
   await mkdir(dirname(output), { recursive: true });
   await writeFile(output, `${JSON.stringify(result, null, 2)}\n`);
   process.stdout.write(`raw product renderer samples: ${output}\n`);
+  budgetFailures = records.flatMap((record, index) =>
+    failedBudgets(record.budgets).map(
+      (name) => `${contexts[index].fixture}/${contexts[index].blocks}: ${name}`,
+    ),
+  );
 } finally {
   if (preview.exitCode === null && preview.signalCode === null) {
     const exited = new Promise((resolveExit) => preview.once("exit", resolveExit));
@@ -510,5 +517,9 @@ try {
       preview.kill("SIGKILL");
     }
   }
+}
+if (budgetFailures.length > 0) {
+  process.stdout.write(`budget failures:\n${budgetFailures.join("\n")}\n`);
+  process.exit(1);
 }
 process.exit(0);

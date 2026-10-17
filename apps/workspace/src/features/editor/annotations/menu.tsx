@@ -38,6 +38,32 @@ export const closedAnnotationMenu: AnnotationMenuState = {
   below: false,
 };
 
+/**
+ * @name annotationMenuStateEqual
+ * @description Compares every field of two annotation menu states, so an
+ * update that would render the same menu can be dropped.
+ *
+ * @example
+ * if (!annotationMenuStateEqual(current, next)) menus.set("annotation", next);
+ */
+export function annotationMenuStateEqual(
+  left: AnnotationMenuState,
+  right: AnnotationMenuState,
+): boolean {
+  return (
+    left.open === right.open &&
+    left.composing === right.composing &&
+    left.focusComposer === right.focusComposer &&
+    left.source === right.source &&
+    left.threadId === right.threadId &&
+    left.from === right.from &&
+    left.to === right.to &&
+    left.x === right.x &&
+    left.y === right.y &&
+    left.below === right.below
+  );
+}
+
 const ANNOTATION_MENU_WIDTH = 320;
 
 export type AnnotationRange = {

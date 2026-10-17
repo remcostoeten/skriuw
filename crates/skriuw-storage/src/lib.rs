@@ -566,6 +566,10 @@ pub trait WorkspaceSyncQueue: Send + Sync {
     /// when nothing is waiting on a retry delay.
     fn next_sync_attempt_at(&self) -> Result<Option<i64>, StorageError>;
 
+    /// The earliest `claimed_at` among claimed outbox rows, or `None` when
+    /// nothing is claimed. A claim becomes reclaimable one lease after it.
+    fn earliest_sync_claim_at(&self) -> Result<Option<i64>, StorageError>;
+
     /// Clears the retry delay of every unclaimed outbox row scheduled after
     /// `now_ms`, so an explicit refresh pushes immediately. Returns how many
     /// rows were rescheduled.
@@ -878,6 +882,10 @@ where
 
     fn next_sync_attempt_at(&self) -> Result<Option<i64>, StorageError> {
         self.as_ref().next_sync_attempt_at()
+    }
+
+    fn earliest_sync_claim_at(&self) -> Result<Option<i64>, StorageError> {
+        self.as_ref().earliest_sync_claim_at()
     }
 
     fn reset_sync_retry_times(&self, now_ms: i64) -> Result<usize, StorageError> {

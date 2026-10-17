@@ -17,7 +17,7 @@ import {
   shortcutExcept,
   shortcutMatchesPhysicalKey,
   scopeSeparatedConflicts,
-  shortcutOverridesFromSettings,
+  selectShortcutOverrides,
   shortcutScopesActive,
 } from "./bindings";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
@@ -156,11 +156,7 @@ export function WorkspaceShortcuts({
 }: Props) {
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
-  const overrides = useRendererSelector(
-    store,
-    (state) => shortcutOverridesFromSettings(state.settings),
-    sameShortcutOverrides,
-  );
+  const overrides = useRendererSelector(store, selectShortcutOverrides, sameShortcutOverrides);
 
   const shortcutMap = useMemo(() => {
     const map: ShortcutMap = {};

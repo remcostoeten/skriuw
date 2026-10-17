@@ -1,6 +1,11 @@
 import { JOURNAL_ROOT_ID, journalEntryDateKey } from "@/features/journal/model";
+import { formatListDate } from "@skriuw/renderer-core/journal/dates";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
-import { projectBacklinks, projectOutgoingNotes } from "../references/panel-model";
+import {
+  projectBacklinks,
+  projectOutgoingNotes,
+  type BacklinkEntry,
+} from "../references/panel-model";
 import { referenceKey, type ReferenceKind } from "@skriuw/renderer-core/references/types";
 
 export type RelationshipNote = {
@@ -29,6 +34,16 @@ export type RelationshipGraph = {
   nodes: readonly GraphNode[];
   edges: readonly GraphEdge[];
   hiddenCount: number;
+};
+
+export type DetailedNote = {
+  noteId: string;
+  title: string;
+  detail: string;
+};
+
+export type JournalRow = DetailedNote & {
+  dateKey: string;
 };
 
 /**
@@ -237,10 +252,10 @@ export function projectHasRelationships(state: RendererState, noteId: string): b
     relationshipCandidates(state, noteId).length > 0 ||
     projectBacklinks(state, noteId).length > 0 ||
     projectOutgoingNotes(state, noteId).length > 0 ||
+    projectCoVisitedNotes(state, noteId).length > 0 ||
     projectSharedEntities(state, noteId, "person").length > 0 ||
     projectSharedEntities(state, noteId, "tag").length > 0 ||
-    projectRelatedJournalEntries(state, noteId).length > 0 ||
-    projectCoVisitedNotes(state, noteId).length > 0
+    projectRelatedJournalEntries(state, noteId).length > 0
   );
 }
 
@@ -259,4 +274,180 @@ export function projectRelationshipGraph(state: RendererState, noteId: string): 
     edges: drawn.map(({ from, to }) => ({ from, to })),
     hiddenCount: candidates.length - drawn.length,
   };
+}
+
+function entityLabels(
+  state: RendererState,
+  ids: readonly string[],
+  kind: "person" | "tag",
+): string {
+  const prefix = kind === "person" ? "$" : "#";
+  return ids
+    .map((id) => (kind === "person" ? state.people.get(id)?.name : state.tags.get(id)?.name))
+    .filter((name): name is string => name !== undefined)
+    .map((name) => `${prefix}${name}`)
+    .join(" · ");
+}
+
+function projectSharedEntityRows(
+  state: RendererState,
+  noteId: string,
+  kind: "person" | "tag",
+): DetailedNote[] {
+  return projectSharedEntities(state, noteId, kind).map((entry) => ({
+    noteId: entry.noteId,
+    title: entry.title,
+    detail: entityLabels(state, entry.sharedEntityIds, kind),
+  }));
+}
+
+function journalDetail(state: RendererState, entry: RelatedJournalEntry): string {
+  if (entry.directIncoming) {
+    return "Mentioned this note";
+  }
+  if (entry.directOutgoing) {
+    return "Linked from this note";
+  }
+  return [
+    entityLabels(state, entry.sharedPersonIds, "person"),
+    entityLabels(state, entry.sharedTagIds, "tag"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function projectJournalRows(state: RendererState, noteId: string): JournalRow[] {
+  return projectRelatedJournalEntries(state, noteId).map((entry) => ({
+    noteId: entry.noteId,
+    title: formatListDate(entry.dateKey),
+    detail: journalDetail(state, entry),
+    dateKey: entry.dateKey,
+  }));
+}
+
+function toRows(entries: readonly (BacklinkEntry | RelationshipNote)[]): DetailedNote[] {
+  return entries.map((entry) => ({ noteId: entry.noteId, title: entry.title, detail: "" }));
+}
+
+const RELATIONSHIP_INPUTS = [
+  "sourceNodes",
+  "nodes",
+  "childrenByParent",
+  "metadata",
+  "incomingReferences",
+  "outgoingReferences",
+  "tags",
+  "people",
+  "coVisits",
+  "propertiesByNoteId",
+] as const satisfies readonly (keyof RendererState)[];
+
+function cachedPerNote<T>(project: (state: RendererState, noteId: string) => T) {
+  let last: { state: RendererState; noteId: string; value: T } | null = null;
+  return (state: RendererState, noteId: string): T => {
+    const previous = last;
+    if (
+      previous !== null &&
+      previous.noteId === noteId &&
+      RELATIONSHIP_INPUTS.every((input) => previous.state[input] === state[input])
+    ) {
+      return previous.value;
+    }
+    const value = project(state, noteId);
+    last = { state, noteId, value };
+    return value;
+  };
+}
+
+/**
+ * @name selectHasRelationships
+ * @description Whether a note has any relationship worth listing. The last
+ * answer is reused while the state slices the projections read keep their
+ * identity, so tree focus and other unrelated updates skip the projections.
+ *
+ * @example
+ * const hasRelationships = selectHasRelationships(state, noteId);
+ */
+export const selectHasRelationships = cachedPerNote(projectHasRelationships);
+
+/**
+ * @name selectBacklinkRows
+ * @description Rows for the notes that link to a note, reused while the
+ * relationship inputs keep their identity.
+ *
+ * @example
+ * const rows = selectBacklinkRows(state, noteId);
+ */
+export const selectBacklinkRows = cachedPerNote((state, noteId) =>
+  toRows(projectBacklinks(state, noteId)),
+);
+
+/**
+ * @name selectOutgoingRows
+ * @description Rows for the notes a note links to, reused while the
+ * relationship inputs keep their identity.
+ *
+ * @example
+ * const rows = selectOutgoingRows(state, noteId);
+ */
+export const selectOutgoingRows = cachedPerNote((state, noteId) =>
+  toRows(projectOutgoingNotes(state, noteId)),
+);
+
+/**
+ * @name selectSharedPersonRows
+ * @description Rows for the notes that mention a person this note mentions,
+ * labelled with the shared people, reused while the relationship inputs keep
+ * their identity.
+ *
+ * @example
+ * const rows = selectSharedPersonRows(state, noteId);
+ */
+export const selectSharedPersonRows = cachedPerNote((state, noteId) =>
+  projectSharedEntityRows(state, noteId, "person"),
+);
+
+/**
+ * @name selectSharedTagRows
+ * @description Rows for the notes that carry a tag this note carries, labelled
+ * with the shared tags, reused while the relationship inputs keep their
+ * identity.
+ *
+ * @example
+ * const rows = selectSharedTagRows(state, noteId);
+ */
+export const selectSharedTagRows = cachedPerNote((state, noteId) =>
+  projectSharedEntityRows(state, noteId, "tag"),
+);
+
+/**
+ * @name selectJournalRows
+ * @description Rows for the journal entries related to a note, titled by
+ * date, reused while the relationship inputs keep their identity.
+ *
+ * @example
+ * const rows = selectJournalRows(state, noteId);
+ */
+export const selectJournalRows = cachedPerNote(projectJournalRows);
+
+/**
+ * @name selectRelationshipGraph
+ * @description The bounded local graph around a note, reused while the
+ * relationship inputs keep their identity.
+ *
+ * @example
+ * const graph = selectRelationshipGraph(state, noteId);
+ */
+export const selectRelationshipGraph = cachedPerNote(projectRelationshipGraph);
+
+/**
+ * @name projectCoVisitedRows
+ * @description Rows for the notes viewed together with a note. Not cached,
+ * because the ranking decays with the current time.
+ *
+ * @example
+ * const rows = projectCoVisitedRows(state, noteId);
+ */
+export function projectCoVisitedRows(state: RendererState, noteId: string): DetailedNote[] {
+  return toRows(projectCoVisitedNotes(state, noteId));
 }

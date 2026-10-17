@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { SECONDARY_PANE_ID } from "@skriuw/renderer-core/store/panes";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
+import { GEOMETRY, lengthAtY, pathPoints, roundedPath } from "./outline-geometry";
 
 type Props = {
   store: RendererStore;
@@ -15,25 +16,12 @@ type OutlineItem = {
   element: HTMLElement;
 };
 
-type Point = { x: number; y: number };
-
 type EditorHostRefs = {
   scrollHost: HTMLElement;
   proseHost: HTMLElement;
 };
 
 const HEADING_SELECTOR = "h1, h2, h3, h4";
-
-const GEOMETRY = {
-  indent: 14,
-  rowHeight: 30,
-  rowGap: 2,
-  lineWidth: 1.5,
-  corner: 8,
-  smoothing: 0.18,
-  damping: 0.76,
-  anchorFraction: 0.28,
-};
 
 function slugify(text: string, index: number): string {
   const base = text
@@ -72,117 +60,34 @@ function locateEditorHost(paneIndex: number): EditorHostRefs | null {
   return { scrollHost, proseHost };
 }
 
-function roundedPath(points: Point[], radius: number): string {
-  if (points.length < 2) {
-    return "";
-  }
-
-  let path = `M ${points[0]!.x} ${points[0]!.y}`;
-
-  for (let index = 1; index < points.length - 1; index += 1) {
-    const previous = points[index - 1]!;
-    const current = points[index]!;
-    const next = points[index + 1]!;
-
-    const incoming = Math.hypot(current.x - previous.x, current.y - previous.y);
-    const outgoing = Math.hypot(next.x - current.x, next.y - current.y);
-    const localRadius = Math.min(radius, incoming / 2, outgoing / 2);
-
-    const startRatio = incoming ? localRadius / incoming : 0;
-    const endRatio = outgoing ? localRadius / outgoing : 0;
-
-    const start = {
-      x: current.x + (previous.x - current.x) * startRatio,
-      y: current.y + (previous.y - current.y) * startRatio,
-    };
-    const end = {
-      x: current.x + (next.x - current.x) * endRatio,
-      y: current.y + (next.y - current.y) * endRatio,
-    };
-
-    path += ` L ${start.x} ${start.y}`;
-    path += ` Q ${current.x} ${current.y} ${end.x} ${end.y}`;
-  }
-
-  const last = points.at(-1)!;
-  path += ` L ${last.x} ${last.y}`;
-  return path;
-}
-
-function buildPathPoints(
-  nav: HTMLElement,
-  links: HTMLElement[],
-  items: OutlineItem[],
-): {
-  points: Point[];
-  anchors: number[];
-} {
-  const navRect = nav.getBoundingClientRect();
-  const points: Point[] = [];
-  const anchorIndices: number[] = [];
-  const xBase = 7;
-
-  links.forEach((link, index) => {
-    const rect = link.getBoundingClientRect();
-    const x = xBase + items[index]!.depth * GEOMETRY.indent;
-    const y = rect.top - navRect.top + rect.height / 2;
-
-    if (points.length === 0) {
-      points.push({ x, y: Math.max(2, rect.top - navRect.top + 2) });
-    }
-
-    const previous = points.at(-1)!;
-
-    if (Math.abs(previous.x - x) > 0.01) {
-      const direction = x > previous.x ? 1 : -1;
-      const bridgeY = Math.max(previous.y + 8, y - rect.height * 0.58);
-      points.push({ x: previous.x, y: bridgeY });
-      points.push({ x: x - direction * Math.min(2, GEOMETRY.corner * 0.18), y: bridgeY });
-    }
-
-    points.push({ x, y });
-    anchorIndices.push(points.length - 1);
-  });
-
-  return { points, anchors: anchorIndices };
-}
-
-function findLengthAtPoint(path: SVGPathElement, pathLength: number, point: Point): number {
-  if (!pathLength) {
-    return 0;
-  }
-
-  let low = 0;
-  let high = pathLength;
-  let best = 0;
-  let bestDistance = Infinity;
-
-  for (let pass = 0; pass < 4; pass += 1) {
-    const steps = 36;
-    const span = high - low;
-
-    for (let index = 0; index <= steps; index += 1) {
-      const length = low + (span * index) / steps;
-      const sample = path.getPointAtLength(length);
-      const distance = Math.hypot(sample.x - point.x, sample.y - point.y);
-
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = length;
-      }
-    }
-
-    const radius = span / steps;
-    low = Math.max(0, best - radius);
-    high = Math.min(pathLength, best + radius);
-  }
-
-  return best;
-}
-
 type OutlineController = {
+  restart: () => void;
   destroy: () => void;
 };
+
+function containsHeading(nodes: NodeList): boolean {
+  for (const node of nodes) {
+    if (
+      node instanceof Element &&
+      (node.matches(HEADING_SELECTOR) || node.querySelector(HEADING_SELECTOR) !== null)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function touchesHeading(record: MutationRecord, proseHost: HTMLElement): boolean {
+  const target = record.target instanceof Element ? record.target : record.target.parentElement;
+  const heading = target?.closest(HEADING_SELECTOR);
+  if (heading && proseHost.contains(heading)) {
+    return true;
+  }
+  if (record.type !== "childList") {
+    return false;
+  }
+  return containsHeading(record.addedNodes) || containsHeading(record.removedNodes);
+}
 
 function mountOutlineController(
   nav: HTMLElement,
@@ -205,6 +110,7 @@ function mountOutlineController(
   const dot = svg.querySelector("circle")!;
   const list = nav.querySelector("ol")!;
   const emptyState = nav.querySelector<HTMLElement>("[data-empty-state]")!;
+  const viewport = nav.closest<HTMLElement>("[data-outline-scroll]");
 
   let items: OutlineItem[] = [];
   let links: HTMLElement[] = [];
@@ -214,8 +120,11 @@ function mountOutlineController(
   let target = 0;
   let velocity = 0;
   let frame = 0;
+  let mutationFrame = 0;
   let dirty = true;
   let disposed = false;
+  let visible = true;
+  let rebuildPending = false;
   let lastCurrent = -1;
 
   const itemObserver = new ResizeObserver(() => {
@@ -250,6 +159,7 @@ function mountOutlineController(
     }
 
     items = nextItems;
+    lastCurrent = -1;
     list.innerHTML = "";
     itemObserver.disconnect();
 
@@ -289,7 +199,12 @@ function mountOutlineController(
       return;
     }
 
-    const { points, anchors: anchorIndices } = buildPathPoints(nav, links, items);
+    const navRect = nav.getBoundingClientRect();
+    const rows = links.map((link, index) => {
+      const rect = link.getBoundingClientRect();
+      return { depth: items[index]!.depth, top: rect.top - navRect.top, height: rect.height };
+    });
+    const { points, anchors: anchorIndices } = pathPoints(rows);
     const path = roundedPath(points, GEOMETRY.corner);
 
     basePath.setAttribute("d", path);
@@ -299,7 +214,7 @@ function mountOutlineController(
     activePath.style.strokeDasharray = `${pathLength}`;
 
     anchors = anchorIndices.map((index) =>
-      findLengthAtPoint(activePath, pathLength, points[index]!),
+      lengthAtY((length) => activePath.getPointAtLength(length), pathLength, points[index]!.y),
     );
 
     rendered = Math.min(rendered, pathLength);
@@ -327,6 +242,37 @@ function mountOutlineController(
     return { index, progress: Math.max(0, Math.min(1, raw)) };
   }
 
+  function measureReveal(link: HTMLElement | undefined): number {
+    if (!link || !viewport || viewport.scrollHeight <= viewport.clientHeight) {
+      return 0;
+    }
+
+    const linkRect = link.getBoundingClientRect();
+    const viewportRect = viewport.getBoundingClientRect();
+    const margin = GEOMETRY.rowHeight;
+
+    if (linkRect.top < viewportRect.top + margin) {
+      return linkRect.top - (viewportRect.top + margin);
+    }
+    if (linkRect.bottom > viewportRect.bottom - margin) {
+      return linkRect.bottom - (viewportRect.bottom - margin);
+    }
+    return 0;
+  }
+
+  function writeLinkStates(index: number): void {
+    const from = lastCurrent < 0 ? 0 : Math.min(lastCurrent, index);
+    const to = lastCurrent < 0 ? links.length - 1 : Math.max(lastCurrent, index);
+    for (let position = from; position <= to; position += 1) {
+      const link = links[position];
+      if (link) {
+        link.dataset.active = String(position < index);
+        link.dataset.current = String(position === index);
+      }
+    }
+    lastCurrent = index;
+  }
+
   function updateTarget(): void {
     if (!pathLength || anchors.length === 0) {
       return;
@@ -337,34 +283,14 @@ function mountOutlineController(
     const end = anchors[state.index + 1] ?? pathLength;
     target = start + (end - start) * state.progress;
 
-    links.forEach((link, index) => {
-      const active = index === state.index;
-      link.dataset.active = String(index < state.index);
-      link.dataset.current = String(active);
-    });
-
-    if (state.index !== lastCurrent) {
-      lastCurrent = state.index;
-      revealCurrent(links[state.index]);
-    }
-  }
-
-  function revealCurrent(link: HTMLElement | undefined): void {
-    const viewport = nav.closest<HTMLElement>("[data-outline-scroll]");
-    if (!link || !viewport || viewport.scrollHeight <= viewport.clientHeight) {
+    if (state.index === lastCurrent) {
       return;
     }
 
-    const linkRect = link.getBoundingClientRect();
-    const viewportRect = viewport.getBoundingClientRect();
-    const margin = GEOMETRY.rowHeight;
-
-    if (linkRect.top < viewportRect.top + margin) {
-      viewport.scrollTop -= viewportRect.top + margin - linkRect.top;
-      return;
-    }
-    if (linkRect.bottom > viewportRect.bottom - margin) {
-      viewport.scrollTop += linkRect.bottom - (viewportRect.bottom - margin);
+    const scrollOffset = measureReveal(links[state.index]);
+    writeLinkStates(state.index);
+    if (viewport && scrollOffset !== 0) {
+      viewport.scrollTop += scrollOffset;
     }
   }
 
@@ -395,13 +321,13 @@ function mountOutlineController(
     draw();
 
     const moving = Math.abs(target - rendered) > 0.04 || Math.abs(velocity) > 0.04;
-    if ((moving || dirty) && !disposed) {
+    if ((moving || dirty) && !disposed && visible) {
       frame = requestAnimationFrame(step);
     }
   }
 
   function startLoop(): void {
-    if (!frame && !disposed) {
+    if (!frame && !disposed && visible) {
       frame = requestAnimationFrame(step);
     }
   }
@@ -415,15 +341,19 @@ function mountOutlineController(
     startLoop();
   }
 
-  let mutationScheduled = false;
-  function onMutate(): void {
-    if (mutationScheduled) {
+  function onMutate(records: MutationRecord[]): void {
+    if (!rebuildPending && records.some((record) => touchesHeading(record, refs.proseHost))) {
+      rebuildPending = true;
+    }
+    if (mutationFrame) {
       return;
     }
-    mutationScheduled = true;
-    requestAnimationFrame(() => {
-      mutationScheduled = false;
-      rebuildList();
+    mutationFrame = requestAnimationFrame(() => {
+      mutationFrame = 0;
+      if (rebuildPending) {
+        rebuildPending = false;
+        rebuildList();
+      }
       startLoop();
     });
   }
@@ -434,19 +364,40 @@ function mountOutlineController(
   const navResizeObserver = new ResizeObserver(onResize);
   navResizeObserver.observe(nav);
 
-  const mutationObserver = new MutationObserver(onMutate);
+  const visibilityObserver = new IntersectionObserver((entries) => {
+    const entry = entries.at(-1);
+    if (!entry) {
+      return;
+    }
+    visible = entry.isIntersecting;
+    if (visible) {
+      dirty = true;
+      startLoop();
+    }
+  });
+  visibilityObserver.observe(nav);
+
+  const mutationObserver = new MutationObserver((records) => onMutate(records));
   mutationObserver.observe(refs.proseHost, { childList: true, subtree: true, characterData: true });
 
   rebuildList();
   startLoop();
 
   return {
+    restart(): void {
+      rendered = 0;
+      velocity = 0;
+      dirty = true;
+      startLoop();
+    },
     destroy(): void {
       disposed = true;
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(mutationFrame);
       refs.scrollHost.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
       navResizeObserver.disconnect();
+      visibilityObserver.disconnect();
       itemObserver.disconnect();
       mutationObserver.disconnect();
       nav.innerHTML = "";
@@ -466,11 +417,13 @@ export function NoteOutline({ store, onCountChange }: Props) {
   const activeNoteId = useRendererSelector(store, selectActiveNoteId);
   const focusedPaneId = useRendererSelector(store, selectFocusedPaneId);
   const navRef = useRef<HTMLElement | null>(null);
+  const noteChangedRef = useRef<(() => void) | null>(null);
   const [, setEmpty] = useState(true);
+  const hasActiveNote = activeNoteId !== null;
 
   useEffect(() => {
     const nav = navRef.current;
-    if (!nav || activeNoteId === null) {
+    if (!nav || !hasActiveNote) {
       setEmpty(true);
       return;
     }
@@ -478,32 +431,59 @@ export function NoteOutline({ store, onCountChange }: Props) {
     const paneIndex = focusedPaneId === SECONDARY_PANE_ID ? 1 : 0;
     let disposed = false;
     let attempts = 0;
+    let retryFrame = 0;
     let controller: OutlineController | null = null;
+    let mountedHost: HTMLElement | null = null;
 
     function tryMount(): void {
+      retryFrame = 0;
       if (disposed) {
         return;
       }
       const refs = locateEditorHost(paneIndex);
       if (!refs) {
         if (attempts++ < 60) {
-          requestAnimationFrame(tryMount);
+          retryFrame = requestAnimationFrame(tryMount);
         }
         return;
       }
+      mountedHost = refs.proseHost;
       controller = mountOutlineController(nav!, refs, (count) => {
         setEmpty(count === 0);
         onCountChange?.(count);
       });
     }
 
+    function onNoteChanged(): void {
+      if (disposed) {
+        return;
+      }
+      if (controller && mountedHost === locateEditorHost(paneIndex)?.proseHost) {
+        controller.restart();
+        return;
+      }
+      controller?.destroy();
+      controller = null;
+      mountedHost = null;
+      cancelAnimationFrame(retryFrame);
+      attempts = 0;
+      tryMount();
+    }
+
+    noteChangedRef.current = onNoteChanged;
     tryMount();
 
     return () => {
       disposed = true;
+      noteChangedRef.current = null;
+      cancelAnimationFrame(retryFrame);
       controller?.destroy();
     };
-  }, [activeNoteId, focusedPaneId, onCountChange]);
+  }, [hasActiveNote, focusedPaneId, onCountChange]);
+
+  useEffect(() => {
+    noteChangedRef.current?.();
+  }, [activeNoteId]);
 
   return <nav ref={navRef} aria-label="Note outline" className="relative min-h-0" />;
 }

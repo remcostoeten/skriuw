@@ -9,7 +9,9 @@ import {
   isKeySequence,
   normalizeRegistryCombo,
   sameCombo,
+  sameShortcutOverrides,
   scopeSeparatedConflicts,
+  selectShortcutOverrides,
   sequenceHandlerOptions,
   shortcutBindsOnPlatform,
   shortcutExcept,
@@ -23,6 +25,7 @@ import type { ShortcutGuard } from "@/commands/definitions";
 import { RAIL_ITEMS } from "@/commands/rail-items";
 import { activeShortcutScopes } from "@/commands/workspace-shortcuts";
 import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 
 const APP_ROUTES: readonly AppRoute[] = ["notes", "trash", "tags", "people", "history", "journal"];
 
@@ -62,6 +65,36 @@ test("overrides from settings keep known actions and drop junk", () => {
   );
   assert.deepEqual(overrides, { createNote: "mod+alt+n" });
   assert.deepEqual(shortcutOverridesFromSettings(settingsWith(null)), {});
+});
+
+test("overrides from the same settings object are one shared reference", () => {
+  const settings = settingsWith({ createNote: "mod+alt+n" });
+  assert.equal(shortcutOverridesFromSettings(settings), shortcutOverridesFromSettings(settings));
+});
+
+test("overrides from new settings with the same content are equal but their own object", () => {
+  const first = shortcutOverridesFromSettings(settingsWith({ createNote: "mod+alt+n" }));
+  const second = shortcutOverridesFromSettings(settingsWith({ createNote: "mod+alt+n" }));
+  assert.deepEqual(second, first);
+  assert.notEqual(second, first);
+});
+
+test("the overrides selector reads the store settings", () => {
+  const state: Pick<RendererState, "settings"> = {
+    settings: settingsWith({ createNote: "mod+alt+n" }),
+  };
+  assert.equal(selectShortcutOverrides(state).createNote, "mod+alt+n");
+  assert.equal(selectShortcutOverrides(state), selectShortcutOverrides(state));
+});
+
+test("sameShortcutOverrides compares overrides by entry", () => {
+  const overrides = { createNote: "mod+alt+n" };
+  assert.equal(sameShortcutOverrides(overrides, { createNote: "mod+alt+n" }), true);
+  assert.equal(sameShortcutOverrides(overrides, { createNote: "mod+shift+n" }), false);
+  assert.equal(
+    sameShortcutOverrides(overrides, { createNote: "mod+alt+n", createFolder: "mod+alt+f" }),
+    false,
+  );
 });
 
 test("effective keys prefer the override and fall back to the definition", () => {

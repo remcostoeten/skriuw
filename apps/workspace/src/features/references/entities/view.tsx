@@ -53,8 +53,12 @@ import {
   WaypointsIcon,
 } from "@/shared/icons/static";
 import { formatRelativeTime } from "@/shared/format/relative-time";
-import { effectiveShortcutKeys, shortcutDefinition } from "@/commands/bindings";
-import { sameOverrides, selectShortcutOverrides } from "@/features/settings/selectors";
+import {
+  effectiveShortcutKeys,
+  sameShortcutOverrides,
+  selectShortcutOverrides,
+  shortcutDefinition,
+} from "@/commands/bindings";
 import { Button, buttonVariants } from "@/shared/ui/button";
 import { HoldToConfirm } from "@/shared/ui/hold-to-confirm";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
@@ -276,7 +280,11 @@ export function EntityView({ store, kind }: Props) {
     window.location.hash = entityFocusHash(entry.kind, entry.id);
   }
 
-  const shortcutOverrides = useRendererSelector(store, selectShortcutOverrides, sameOverrides);
+  const shortcutOverrides = useRendererSelector(
+    store,
+    selectShortcutOverrides,
+    sameShortcutOverrides,
+  );
   const createCombo = effectiveShortcutKeys(shortcutDefinition("createNote"), shortcutOverrides);
 
   /**

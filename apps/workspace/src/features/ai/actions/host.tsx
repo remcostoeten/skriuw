@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
+import type { NoteTarget } from "@/features/editor/note-target";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { showToast } from "@/shared/ui/toast";
@@ -38,6 +39,7 @@ const LOCAL_PROVIDER_IDS: readonly string[] = [OLLAMA_PROVIDER_ID, "fake"];
 type EditorCapture = {
   noteId: string;
   state: EditorState;
+  note: EditorState;
 };
 
 type Stage =
@@ -50,6 +52,7 @@ type EditorActionHostProps = {
   selectNoteId: (state: RendererState) => string | null;
   getView: () => EditorView | null;
   getNoteId: () => string | null;
+  getNoteTarget: () => NoteTarget | null;
 };
 
 function selectToastsOn(state: RendererState): boolean {
@@ -72,6 +75,7 @@ export function AiEditorActionHost({
   selectNoteId,
   getView,
   getNoteId,
+  getNoteTarget,
 }: EditorActionHostProps) {
   const [stage, setStage] = useState<Stage>({ kind: "closed" });
   const [blocked, setBlocked] = useState<string | null>(null);
@@ -95,7 +99,7 @@ export function AiEditorActionHost({
     const selection = actionInputText(stage.capture.state, "selection");
     return {
       selection,
-      note: actionInputText(stage.capture.state, "note"),
+      note: actionInputText(stage.capture.note, "note"),
       hasSelection: selection.trim().length > 0,
     };
   }, [stage]);
@@ -103,7 +107,10 @@ export function AiEditorActionHost({
   function captureEditor(): EditorCapture | null {
     const view = getView();
     const noteId = getNoteId();
-    return view === null || noteId === null ? null : { noteId, state: view.state };
+    if (view === null || noteId === null) {
+      return null;
+    }
+    return { noteId, state: view.state, note: getNoteTarget()?.state ?? view.state };
   }
 
   function openMenu(actionId: string | null): void {
@@ -148,7 +155,8 @@ export function AiEditorActionHost({
    * blocked action never opens a run card that has nothing to show.
    */
   function startRun(capture: EditorCapture, action: AiEditorAction, instruction: string): boolean {
-    const input = actionInputText(capture.state, action.scope);
+    const source = action.scope === "note" ? capture.note : capture.state;
+    const input = actionInputText(source, action.scope);
     const failure =
       aiActionInputError(action, input) ??
       aiActionInstructionError(action, instruction) ??
@@ -164,7 +172,7 @@ export function AiEditorActionHost({
       setBlocked("That prompt is missing from the library.");
       return false;
     }
-    const range = actionInputRange(capture.state, action.scope);
+    const range = actionInputRange(source, action.scope);
     const request = buildAiActionRequest({
       action,
       selection: model,
@@ -254,6 +262,7 @@ export function AiEditorActionHost({
           modelLabel={registered.modelLabel}
           getView={getView}
           getNoteId={getNoteId}
+          getNoteTarget={getNoteTarget}
           onLiveChange={setRunLive}
           onClose={() => endAiRun(registered.target.noteId, registered)}
         />

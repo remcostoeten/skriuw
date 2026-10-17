@@ -5,7 +5,7 @@ Date: 2026-08-02
 Command:
 
 ```bash
-node app/performance/run.mjs \
+node apps/workspace/performance/run.mjs \
   --output /tmp/skriuw-v2-working-set-performance.json
 ```
 
