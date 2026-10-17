@@ -4,7 +4,7 @@ mod support;
 use std::{
     sync::{
         Arc, Mutex, RwLock,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         mpsc,
     },
     thread,
@@ -187,6 +187,7 @@ impl SyncTransport for ConcurrencyProbeTransport {
 
 struct BlockingTransport {
     push_started: mpsc::Sender<()>,
+    ignore_cancellation: Arc<AtomicBool>,
 }
 
 impl SyncTransport for BlockingTransport {
@@ -272,6 +273,10 @@ impl SyncTransport for BlockingTransport {
         cancellation: &SyncCancellation,
     ) -> Result<SyncPushResponse, TransportError> {
         let _ = self.push_started.send(());
+        let held_until = Instant::now() + Duration::from_secs(5);
+        while self.ignore_cancellation.load(Ordering::SeqCst) && Instant::now() < held_until {
+            thread::sleep(Duration::from_millis(1));
+        }
         while !cancellation.is_cancelled() {
             thread::sleep(Duration::from_millis(1));
         }
@@ -499,7 +504,10 @@ fn shutdown_cancels_inflight_work_without_losing_durable_state() {
     let (push_started, started) = mpsc::channel();
     let coordinator = spawn_coordinator(
         Arc::clone(&storage),
-        Arc::new(BlockingTransport { push_started }),
+        Arc::new(BlockingTransport {
+            push_started,
+            ignore_cancellation: Arc::default(),
+        }),
     );
     coordinator.notify_startup();
     started
@@ -520,6 +528,53 @@ fn shutdown_cancels_inflight_work_without_losing_durable_state() {
 
     assert_eq!(server.log_len(), 1);
     recovered.shutdown();
+}
+
+#[test]
+fn bounded_shutdown_gives_up_on_a_request_that_ignores_cancellation() {
+    let storage = Arc::new(SqliteWorkspace::open_in_memory().expect("open database"));
+    connect(&storage, "device-a");
+    storage
+        .apply_operations(&[create_note("note-1", "Pending", 1)])
+        .expect("apply operation");
+
+    let ignore_cancellation = Arc::new(AtomicBool::new(true));
+    let (push_started, started) = mpsc::channel();
+    let coordinator = spawn_coordinator(
+        Arc::clone(&storage),
+        Arc::new(BlockingTransport {
+            push_started,
+            ignore_cancellation: Arc::clone(&ignore_cancellation),
+        }),
+    );
+    coordinator.notify_startup();
+    started
+        .recv_timeout(Duration::from_secs(10))
+        .expect("push started");
+
+    let shutdown_started = Instant::now();
+    let finished = coordinator.shutdown_within(Duration::from_millis(200));
+    let elapsed = shutdown_started.elapsed();
+    ignore_cancellation.store(false, Ordering::SeqCst);
+
+    assert!(
+        !finished,
+        "the blocked worker cannot finish within the limit"
+    );
+    assert!(
+        elapsed < Duration::from_secs(1),
+        "bounded shutdown took {elapsed:?}"
+    );
+}
+
+#[test]
+fn bounded_shutdown_joins_an_idle_worker() {
+    let server = FakeServer::new(WORKSPACE);
+    let storage = Arc::new(SqliteWorkspace::open_in_memory().expect("open database"));
+    let transport = FakeTransport::new(&server, "device-a");
+    let coordinator = spawn_coordinator(storage, transport as Arc<dyn SyncTransport>);
+
+    assert!(coordinator.shutdown_within(Duration::from_secs(2)));
 }
 
 #[test]
@@ -806,7 +861,10 @@ fn local_commits_complete_while_the_transport_is_blocked() {
     let (push_started, started) = mpsc::channel();
     let coordinator = spawn_coordinator(
         Arc::clone(&coordinator_storage),
-        Arc::new(BlockingTransport { push_started }),
+        Arc::new(BlockingTransport {
+            push_started,
+            ignore_cancellation: Arc::default(),
+        }),
     );
     coordinator.notify_startup();
     started

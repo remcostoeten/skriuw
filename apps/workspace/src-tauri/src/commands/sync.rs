@@ -31,8 +31,13 @@ pub fn set_workspace_sync_visibility(visible: bool, focused: bool, state: State<
 }
 
 #[tauri::command]
-pub fn disconnect_workspace_sync(state: State<'_, AppState>) -> skriuw_sync::SyncStatus {
-    state.sync.pause_for_logout()
+pub async fn disconnect_workspace_sync(
+    state: State<'_, AppState>,
+) -> Result<skriuw_sync::SyncStatus, String> {
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || sync.pause_for_logout())
+        .await
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -143,7 +148,10 @@ pub async fn adopt_workspace_slot(
     if adoption != SlotAdoption::Switched {
         return Ok(adoption);
     }
-    state.sync.shutdown();
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || sync.shutdown())
+        .await
+        .map_err(|error| error.to_string())?;
     state.maintenance.shutdown();
     app.restart()
 }
@@ -178,7 +186,10 @@ pub async fn leave_account_workspace(
     if !changed {
         return Ok(());
     }
-    state.sync.shutdown();
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || sync.shutdown())
+        .await
+        .map_err(|error| error.to_string())?;
     state.maintenance.shutdown();
     app.restart()
 }

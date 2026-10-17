@@ -21,7 +21,7 @@ import {
 } from "../prosemirror/unlinked-mentions";
 
 const ROWS = 5;
-const SEARCH_DELAY_MS = 250;
+export const SEARCH_DELAY_MS = 250;
 const NO_MENTIONS: readonly UnlinkedMention[] = [];
 
 type Candidates = {

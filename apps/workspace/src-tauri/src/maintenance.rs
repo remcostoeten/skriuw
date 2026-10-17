@@ -1181,8 +1181,9 @@ mod tests {
 
     use serde_json::json;
     use skriuw_domain::{
-        NodePlacement, WorkspaceArchive, WorkspaceImage, WorkspaceOperation,
-        WorkspaceOperationEnvelope,
+        AiCompletionParameters, AiCompletionRequest, AiRunFilter, AiRunRecorder, AiRunStatus,
+        AiRunSummary, AiRunTokens, AiTokenSource, NodePlacement, WorkspaceArchive, WorkspaceImage,
+        WorkspaceOperation, WorkspaceOperationEnvelope,
     };
     use skriuw_images::ImageStore;
     use skriuw_lifecycle::DatabaseSwapStage;
@@ -1581,6 +1582,82 @@ mod tests {
         assert_eq!(fixture.note_ids(), ["original-note"]);
         fixture.apply(create_note("post-swap-note"));
         assert_eq!(fixture.note_ids().len(), 2);
+    }
+
+    #[test]
+    fn restore_after_ai_history_use_succeeds_once_quiesced() {
+        let fixture = fixture();
+        let created = fixture
+            .coordinator
+            .rotate_backups(true)
+            .expect("create backup");
+        let artifact = created.artifact_file_name.expect("artifact file name");
+        fixture.apply(create_note("post-backup-note"));
+        let recorder =
+            crate::ai_history::AiHistoryRecorder::new(&fixture.database_path(), test_now);
+        recorder
+            .view(&AiRunFilter::default(), 0, None)
+            .expect("view");
+        let wal = fixture.database_path().with_file_name("workspace.db-wal");
+        assert!(wal.exists(), "the recorder holds a live connection");
+
+        let unquiesced = fixture
+            .coordinator
+            .restore_backup(&artifact)
+            .expect("restore with the recorder open");
+        assert_eq!(unquiesced.status, "rolledBack");
+        let failure = unquiesced.failure.expect("failure diagnostic");
+        assert!(failure.contains("database replacement failed"), "{failure}");
+        fixture.assert_no_leaked_paths(&failure);
+        assert_eq!(fixture.note_ids().len(), 2);
+
+        recorder.quiesce();
+        let report = fixture
+            .coordinator
+            .restore_backup(&artifact)
+            .expect("restore");
+
+        assert_eq!(report.status, "replaced");
+        assert_eq!(fixture.note_ids(), ["original-note"]);
+        recorder.record(
+            AiRunSummary {
+                run_id: "post-restore-run".into(),
+                started_at_ms: test_now(),
+                origin: "playground".into(),
+                provider_id: "fake".into(),
+                model_id: "fake".into(),
+                status: AiRunStatus::Done,
+                duration_ms: 1,
+                tokens: AiRunTokens {
+                    input_tokens: 1,
+                    output_tokens: 1,
+                    source: AiTokenSource::Estimated,
+                },
+                cost_micros: None,
+            },
+            &AiCompletionRequest {
+                request_id: "post-restore-run".into(),
+                provider_id: "fake".into(),
+                model_id: "fake".into(),
+                system_prompt: String::new(),
+                user_prompt: String::new(),
+                prior_messages: Vec::new(),
+                parameters: AiCompletionParameters::default(),
+            },
+        );
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while recorder
+            .view(&AiRunFilter::default(), 0, None)
+            .expect("view after restore")
+            .runs
+            .is_empty()
+        {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the recorder never wrote to the restored database"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
     }
 
     #[test]

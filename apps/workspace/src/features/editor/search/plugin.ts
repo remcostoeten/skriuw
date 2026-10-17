@@ -2,6 +2,7 @@ import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { Plugin, PluginKey, type EditorState, type Transaction } from "prosemirror-state";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
 import { noop } from "@skriuw/shared/helpers/noop";
+import { changedRanges } from "../changed-ranges";
 
 export type SearchOptions = {
   caseSensitive: boolean;
@@ -112,16 +113,82 @@ function buildDecorations(
 
 function recompute(state: SearchState, doc: ProseMirrorNode): SearchState {
   const regex = buildRegex(state.term, state.options);
-  const matches = findSearchMatches(doc, regex);
-  let current = state.current;
-  if (current >= matches.length) current = matches.length > 0 ? matches.length - 1 : 0;
-  if (current < 0) current = 0;
+  return withMatches(state, doc, findSearchMatches(doc, regex));
+}
+
+function clampCurrent(current: number, count: number): number {
+  if (current >= count) return count > 0 ? count - 1 : 0;
+  return Math.max(current, 0);
+}
+
+function withMatches(
+  state: SearchState,
+  doc: ProseMirrorNode,
+  matches: SearchMatch[],
+): SearchState {
+  const current = clampCurrent(state.current, matches.length);
   return {
     ...state,
     matches,
     current,
     decorations: buildDecorations(doc, matches, current),
   };
+}
+
+function canSearchIncrementally(state: SearchState): boolean {
+  return !state.options.regex && !state.term.includes(SEPARATOR);
+}
+
+function searchTextblock(node: ProseMirrorNode, pos: number, regex: RegExp): SearchMatch[] {
+  return findSearchMatches(node, regex).map((match) => ({
+    from: match.from + pos + 1,
+    to: match.to + pos + 1,
+  }));
+}
+
+type Textblock = { node: ProseMirrorNode; pos: number };
+
+function touchedTextblocks(tr: Transaction): Textblock[] {
+  const { doc } = tr;
+  const size = doc.content.size;
+  const seen = new Set<number>();
+  const blocks: Textblock[] = [];
+  for (const range of changedRanges(tr)) {
+    doc.nodesBetween(Math.max(0, range.from - 1), Math.min(size, range.to + 1), (node, pos) => {
+      if (!node.isTextblock) return node.isBlock;
+      if (!seen.has(pos)) {
+        seen.add(pos);
+        blocks.push({ node, pos });
+      }
+      return false;
+    });
+  }
+  return blocks;
+}
+
+function mapMatches(matches: readonly SearchMatch[], tr: Transaction): SearchMatch[] {
+  const mapped: SearchMatch[] = [];
+  for (const match of matches) {
+    const from = tr.mapping.mapResult(match.from, 1);
+    const to = tr.mapping.mapResult(match.to, -1);
+    if (from.deleted || to.deleted || from.pos >= to.pos) continue;
+    mapped.push({ from: from.pos, to: to.pos });
+  }
+  return mapped;
+}
+
+function rescanChanged(state: SearchState, tr: Transaction): SearchState {
+  const regex = buildRegex(state.term, state.options);
+  if (!regex) return withMatches(state, tr.doc, []);
+  const blocks = touchedTextblocks(tr);
+  const matches = mapMatches(state.matches, tr).filter(
+    (match) => !blocks.some(({ node, pos }) => match.from < pos + node.nodeSize && match.to > pos),
+  );
+  for (const { node, pos } of blocks) {
+    matches.push(...searchTextblock(node, pos, regex));
+  }
+  matches.sort((left, right) => left.from - right.from);
+  return withMatches(state, tr.doc, matches);
 }
 
 export function createSearchPlugin(): Plugin<SearchState> {
@@ -143,7 +210,9 @@ export function createSearchPlugin(): Plugin<SearchState> {
           return recompute({ ...prev, ...meta }, newState.doc);
         }
         if (tr.docChanged && prev.term) {
-          return recompute(prev, newState.doc);
+          return canSearchIncrementally(prev)
+            ? rescanChanged(prev, tr)
+            : recompute(prev, newState.doc);
         }
         return prev;
       },

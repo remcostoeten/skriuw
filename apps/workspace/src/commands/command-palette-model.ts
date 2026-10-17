@@ -35,7 +35,10 @@ export type CommandPaletteItem = {
 export type CommandPaletteGroup = {
   group: string;
   items: CommandPaletteItem[];
+  hiddenCount?: number;
 };
+
+export const PALETTE_GROUP_LIMIT = 50;
 
 const DEFAULT_GROUP = "Actions";
 const RECENT_GROUP = "Recent";
@@ -303,7 +306,18 @@ export function getCommandPaletteGroups(
 
   return [...grouped.entries()]
     .sort(([a], [b]) => compareGroups(a, b))
-    .map(([group, groupItems]) => ({ group, items: groupItems }));
+    .map(([group, groupItems]) => capGroup(group, groupItems));
+}
+
+function capGroup(group: string, items: CommandPaletteItem[]): CommandPaletteGroup {
+  if (items.length <= PALETTE_GROUP_LIMIT) {
+    return { group, items };
+  }
+  return {
+    group,
+    items: items.slice(0, PALETTE_GROUP_LIMIT),
+    hiddenCount: items.length - PALETTE_GROUP_LIMIT,
+  };
 }
 
 /**

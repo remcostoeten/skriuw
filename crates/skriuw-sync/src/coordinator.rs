@@ -1,7 +1,7 @@
 use std::{
     sync::{Arc, Condvar, Mutex, RwLock},
     thread::{self, JoinHandle},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use skriuw_storage::{WorkspaceMaintenance, WorkspaceSyncQueue};
@@ -267,6 +267,29 @@ impl SyncCoordinator {
         if let Some(handle) = handle {
             let _ = handle.join();
         }
+    }
+
+    /// Signals shutdown and waits at most `limit` for the worker to finish.
+    /// Returns false when the worker was still running at the deadline; the
+    /// caller then lets process exit reclaim it.
+    pub fn shutdown_within(&self, limit: Duration) -> bool {
+        if let Ok(mut control) = self.shared.control.lock() {
+            control.shutdown = true;
+        }
+        self.shared.cancellation.shutdown();
+        self.shared.wake.notify_all();
+        let Some(handle) = self.worker.lock().ok().and_then(|mut worker| worker.take()) else {
+            return true;
+        };
+        let deadline = Instant::now() + limit;
+        while !handle.is_finished() {
+            if Instant::now() >= deadline {
+                return false;
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        let _ = handle.join();
+        true
     }
 
     fn request_wake(&self) {

@@ -1,10 +1,10 @@
 use std::{
     path::{Path, PathBuf},
     sync::{
-        Arc, Mutex, OnceLock,
+        Arc, Mutex,
         mpsc::{SyncSender, sync_channel},
     },
-    thread,
+    thread::{self, JoinHandle},
 };
 
 use skriuw_domain::{
@@ -25,8 +25,8 @@ const RECORD_QUEUE_DEPTH: usize = 64;
 /// it.
 pub(crate) struct AiHistoryRecorder {
     database_path: PathBuf,
-    storage: OnceLock<Arc<SqliteWorkspace>>,
-    writer: Mutex<Option<SyncSender<AiRunRecord>>>,
+    storage: Mutex<Option<Arc<SqliteWorkspace>>>,
+    writer: Mutex<Option<(SyncSender<AiRunRecord>, JoinHandle<()>)>>,
     now_millis: fn() -> i64,
 }
 
@@ -34,25 +34,26 @@ impl AiHistoryRecorder {
     pub(crate) fn new(database_path: &Path, now_millis: fn() -> i64) -> Self {
         Self {
             database_path: database_path.to_path_buf(),
-            storage: OnceLock::new(),
+            storage: Mutex::new(None),
             writer: Mutex::new(None),
             now_millis,
         }
     }
 
     fn storage(&self) -> Result<Arc<SqliteWorkspace>, String> {
-        if let Some(storage) = self.storage.get() {
+        let mut guard = self
+            .storage
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(storage) = guard.as_ref() {
             return Ok(Arc::clone(storage));
         }
         let opened = Arc::new(
             SqliteWorkspace::open(&self.database_path)
                 .map_err(|error| format!("open {}: {error}", self.database_path.display()))?,
         );
-        let _ = self.storage.set(opened);
-        self.storage
-            .get()
-            .cloned()
-            .ok_or_else(|| "AI history storage is unavailable".to_owned())
+        *guard = Some(Arc::clone(&opened));
+        Ok(opened)
     }
 
     fn writer(&self) -> Result<SyncSender<AiRunRecord>, String> {
@@ -60,13 +61,13 @@ impl AiHistoryRecorder {
             .writer
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        if let Some(sender) = guard.as_ref() {
+        if let Some((sender, _)) = guard.as_ref() {
             return Ok(sender.clone());
         }
         let storage = self.storage()?;
         let now_millis = self.now_millis;
         let (sender, receiver) = sync_channel::<AiRunRecord>(RECORD_QUEUE_DEPTH);
-        thread::Builder::new()
+        let handle = thread::Builder::new()
             .name("skriuw-ai-history".into())
             .spawn(move || {
                 for record in receiver {
@@ -76,8 +77,26 @@ impl AiHistoryRecorder {
                 }
             })
             .map_err(|error| error.to_string())?;
-        *guard = Some(sender.clone());
+        *guard = Some((sender.clone(), handle));
         Ok(sender)
+    }
+
+    /// Closes the history connection so the database file can be swapped.
+    /// Queued records are written first; the next record or read reopens it.
+    pub(crate) fn quiesce(&self) {
+        let writer = self
+            .writer
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take();
+        if let Some((sender, handle)) = writer {
+            drop(sender);
+            let _ = handle.join();
+        }
+        self.storage
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take();
     }
 
     pub(crate) fn settings(&self) -> Result<AiHistorySettings, String> {
@@ -275,6 +294,40 @@ mod tests {
                 expected_prompt,
                 "retain_prompts = {retain_prompts}"
             );
+        }
+    }
+
+    #[test]
+    fn quiesce_closes_the_connection_and_reopens_on_demand() {
+        let directory = tempdir().expect("tempdir");
+        let path = directory.path().join("skriuw.db");
+        let recorder = AiHistoryRecorder::new(&path, clock);
+
+        recorder.record(summary("run-1", AiRunStatus::Done), &request());
+        await_runs(&recorder, 1);
+        recorder.quiesce();
+
+        assert!(!path.with_file_name("skriuw.db-wal").exists());
+        assert!(!path.with_file_name("skriuw.db-shm").exists());
+
+        recorder.record(summary("run-2", AiRunStatus::Done), &request());
+        await_runs(&recorder, 2);
+    }
+
+    fn await_runs(recorder: &AiHistoryRecorder, expected: usize) {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while recorder
+            .view(&AiRunFilter::default(), 0, None)
+            .expect("view")
+            .runs
+            .len()
+            != expected
+        {
+            assert!(
+                Instant::now() < deadline,
+                "expected {expected} recorded runs"
+            );
+            thread::sleep(Duration::from_millis(10));
         }
     }
 

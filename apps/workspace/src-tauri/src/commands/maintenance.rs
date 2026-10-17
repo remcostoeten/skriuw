@@ -49,12 +49,18 @@ pub async fn import_workspace_archive(
     archive_path: String,
     state: State<'_, AppState>,
 ) -> Result<ArchiveImportReport, String> {
-    state.sync.shutdown();
+    let sync = Arc::clone(&state.sync);
+    let history = Arc::clone(state.ai.history());
     let coordinator = Arc::clone(&state.maintenance);
-    run_maintenance(coordinator, move |maintenance| {
-        maintenance.import_archive(Path::new(&archive_path))
+    tauri::async_runtime::spawn_blocking(move || {
+        let _suspension = sync.suspend_for_maintenance();
+        history.quiesce();
+        coordinator
+            .import_archive(Path::new(&archive_path))
+            .map_err(|error| error.to_string())
     })
     .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -85,12 +91,18 @@ pub async fn restore_workspace_backup(
     artifact_file_name: String,
     state: State<'_, AppState>,
 ) -> Result<DatabaseSwapReport, String> {
-    state.sync.shutdown();
+    let sync = Arc::clone(&state.sync);
+    let history = Arc::clone(state.ai.history());
     let coordinator = Arc::clone(&state.maintenance);
-    run_maintenance(coordinator, move |maintenance| {
-        maintenance.restore_backup(&artifact_file_name)
+    tauri::async_runtime::spawn_blocking(move || {
+        let _suspension = sync.suspend_for_maintenance();
+        history.quiesce();
+        coordinator
+            .restore_backup(&artifact_file_name)
+            .map_err(|error| error.to_string())
     })
     .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -181,7 +193,10 @@ pub async fn relocate_workspace_storage(
         .app_data_dir()
         .map_err(|error| error.to_string())?;
     let pointer = storage_pointer_file(&data_dir);
-    state.sync.shutdown();
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || sync.shutdown())
+        .await
+        .map_err(|error| error.to_string())?;
     let coordinator = Arc::clone(&state.maintenance);
     let target = target_dir.clone();
     run_maintenance(coordinator, move |maintenance| {
@@ -202,7 +217,10 @@ pub async fn clear_all_data(
         .await
         .map_err(|error| error.to_string())??;
     state.rotation.shutdown();
-    state.sync.shutdown();
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || sync.shutdown())
+        .await
+        .map_err(|error| error.to_string())?;
     let coordinator = Arc::clone(&state.maintenance);
     let storage_path = state.storage_path.clone();
     let data_dir = app

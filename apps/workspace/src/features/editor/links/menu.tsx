@@ -41,6 +41,28 @@ export const closedLinkMenu: LinkMenuState = {
   below: false,
 };
 
+/**
+ * @name linkMenuStateEqual
+ * @description Compares every field of two link menu states, so an update
+ * that would render the same menu can be dropped.
+ *
+ * @example
+ * if (!linkMenuStateEqual(current, next)) menus.set("link", next);
+ */
+export function linkMenuStateEqual(left: LinkMenuState, right: LinkMenuState): boolean {
+  return (
+    left.open === right.open &&
+    left.editing === right.editing &&
+    left.source === right.source &&
+    left.href === right.href &&
+    left.from === right.from &&
+    left.to === right.to &&
+    left.x === right.x &&
+    left.y === right.y &&
+    left.below === right.below
+  );
+}
+
 const LINK_MENU_WIDTH = 300;
 
 type LinkRange = {

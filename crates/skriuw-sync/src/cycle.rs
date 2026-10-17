@@ -619,12 +619,14 @@ impl Cycle<'_> {
                 .clock
                 .now_ms()
                 .saturating_add(self.state.backoff.next_delay_ms(None));
-            self.release_claim(
+            if let Err(error) = self.release_claim(
                 operation_ids,
                 retry_at,
                 DiagnosticCategory::InvalidInput,
                 &detail,
-            );
+            ) {
+                return self.storage_failure(&error);
+            }
             return SyncCycleOutcome::retry(
                 SyncStatus::Retrying {
                     next_attempt_at: retry_at,
@@ -643,21 +645,25 @@ impl Cycle<'_> {
         let now = self.clock.now_ms();
         match error {
             TransportError::Cancelled => {
-                self.release_claim(
+                if let Err(error) = self.release_claim(
                     operation_ids,
                     now,
                     DiagnosticCategory::Unavailable,
                     "sync push was cancelled",
-                );
+                ) {
+                    return PushFailure::Return(self.storage_failure(&error));
+                }
                 PushFailure::Return(SyncCycleOutcome::retry(SyncStatus::Pending, now))
             }
             TransportError::AuthenticationRequired => {
-                self.release_claim(
+                if let Err(error) = self.release_claim(
                     operation_ids,
                     now,
                     DiagnosticCategory::Unavailable,
                     "sync session expired during push",
-                );
+                ) {
+                    return PushFailure::Return(self.storage_failure(&error));
+                }
                 PushFailure::Return(SyncCycleOutcome::settled(
                     SyncStatus::AuthenticationRequired,
                 ))
@@ -714,12 +720,14 @@ impl Cycle<'_> {
             | TransportError::ResponseTooLarge => {
                 let retry_at =
                     now.saturating_add(self.state.backoff.next_delay_ms(error.retry_hint_ms()));
-                self.release_claim(
+                if let Err(error) = self.release_claim(
                     operation_ids,
                     retry_at,
                     DiagnosticCategory::Unavailable,
                     &error.to_string(),
-                );
+                ) {
+                    return PushFailure::Return(self.storage_failure(&error));
+                }
                 PushFailure::Defer(SyncCycleOutcome::retry(
                     SyncStatus::Retrying {
                         next_attempt_at: retry_at,
@@ -731,7 +739,7 @@ impl Cycle<'_> {
     }
 
     fn release_blocked(
-        &self,
+        &mut self,
         operation_ids: &[String],
         reason: &str,
         detail: &str,
@@ -740,12 +748,14 @@ impl Cycle<'_> {
             .clock
             .now_ms()
             .saturating_add(self.config.blocked_retry_delay_ms);
-        self.release_claim(
+        if let Err(error) = self.release_claim(
             operation_ids,
             retry_at,
             DiagnosticCategory::InvalidInput,
             detail,
-        );
+        ) {
+            return self.storage_failure(&error);
+        }
         SyncCycleOutcome::retry(SyncStatus::blocked(reason, detail), retry_at)
     }
 
@@ -755,17 +765,17 @@ impl Cycle<'_> {
         retry_at_ms: i64,
         category: DiagnosticCategory,
         message: &str,
-    ) {
+    ) -> Result<(), StorageError> {
         if operation_ids.is_empty() {
-            return;
+            return Ok(());
         }
         let diagnostic = Diagnostic::new(DiagnosticContext::Sync, category, message);
-        let _ = self.queue.release_sync_operations(
+        self.queue.release_sync_operations(
             &self.config.worker_id,
             operation_ids,
             retry_at_ms.max(0),
             &diagnostic,
-        );
+        )
     }
 
     fn pull_phase(&mut self) -> Result<bool, SyncCycleOutcome> {
@@ -1067,7 +1077,15 @@ impl Cycle<'_> {
     fn parked_status(&mut self) -> SyncCycleOutcome {
         match self.queue.blocked_sync_operations() {
             Ok(blocked) if blocked.is_empty() => {
-                SyncCycleOutcome::retry(SyncStatus::Pending, self.clock.now_ms())
+                let now = self.clock.now_ms();
+                let retry_at = match self.queue.earliest_sync_claim_at() {
+                    Ok(Some(claimed_at)) => claimed_at
+                        .saturating_add(self.config.lease_ms)
+                        .max(now.saturating_add(1)),
+                    Ok(None) => now.saturating_add(self.state.backoff.next_delay_ms(None)),
+                    Err(error) => return self.storage_failure(&error),
+                };
+                SyncCycleOutcome::retry(SyncStatus::Pending, retry_at)
             }
             Ok(blocked) => {
                 let shared_reason = blocked

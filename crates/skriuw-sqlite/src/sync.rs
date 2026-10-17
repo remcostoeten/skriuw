@@ -89,6 +89,9 @@ pub(crate) fn enqueue_sync_operations(
                 };
                 match operation.validate_queued(WORKSPACE_SYNC_PROTOCOL_VERSION) {
                     Ok(()) => {
+                        if coalesce_unsent_tail_save(transaction, envelope)? {
+                            continue;
+                        }
                         let client_sequence = sql_sequence(operation.client_sequence)?;
                         let base_server_sequence = sql_sequence(operation.base_server_sequence)?;
                         transaction
@@ -138,6 +141,36 @@ pub(crate) fn enqueue_sync_operations(
         )
         .map_err(backend)?;
     Ok(())
+}
+
+/// Folds a plain document save into the newest outbox row when that row is a
+/// save of the same note that has never been handed to the network. Only the
+/// tail qualifies, so no later operation can be overtaken by the newer body,
+/// and the row keeps its identity, sequences and creation time.
+fn coalesce_unsent_tail_save(
+    transaction: &Transaction<'_>,
+    envelope: &WorkspaceOperationEnvelope,
+) -> Result<bool, StorageError> {
+    let WorkspaceOperation::SaveDocument { note_id, .. } = &envelope.operation else {
+        return Ok(false);
+    };
+    let coalesced = transaction
+        .execute(
+            "UPDATE sync_outbox SET operation_json = ?2 \
+             WHERE operation_id = (\
+                 SELECT operation_id FROM sync_outbox \
+                 ORDER BY client_sequence DESC LIMIT 1\
+             ) \
+             AND target_note_id = ?1 \
+             AND json_extract(operation_json, '$.operation.type') = 'save_document' \
+             AND claimed_by IS NULL AND attempts = 0",
+            params![
+                note_id,
+                serde_json::to_string(envelope).map_err(json_backend)?
+            ],
+        )
+        .map_err(backend)?;
+    Ok(coalesced > 0)
 }
 
 fn insert_blocked_operation(
@@ -1106,6 +1139,17 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
         connection
             .query_row(
                 "SELECT MIN(next_attempt_at) FROM sync_outbox WHERE claimed_by IS NULL",
+                [],
+                |row| row.get::<_, Option<i64>>(0),
+            )
+            .map_err(backend)
+    }
+
+    fn earliest_sync_claim_at(&self) -> Result<Option<i64>, StorageError> {
+        let connection = self.lock()?;
+        connection
+            .query_row(
+                "SELECT MIN(claimed_at) FROM sync_outbox WHERE claimed_by IS NOT NULL",
                 [],
                 |row| row.get::<_, Option<i64>>(0),
             )
@@ -2593,11 +2637,9 @@ fn local_document_write_pending(
     transaction
         .query_row(
             "SELECT EXISTS(\
-                SELECT 1 FROM sync_outbox WHERE \
-                (json_extract(operation_json, '$.operation.type') = 'save_document' \
-                 AND json_extract(operation_json, '$.operation.noteId') = ?1) \
-                OR (json_extract(operation_json, '$.operation.type') = 'create_note' \
-                 AND json_extract(operation_json, '$.operation.id') = ?1)\
+                SELECT 1 FROM sync_outbox WHERE target_note_id = ?1 \
+                AND json_extract(operation_json, '$.operation.type') \
+                    IN ('save_document', 'create_note')\
              ) OR EXISTS(\
                 SELECT 1 FROM sync_blocked_operations WHERE resolved_at IS NULL AND (\
                 (json_extract(operation_json, '$.operation.type') = 'save_document' \

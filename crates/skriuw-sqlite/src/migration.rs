@@ -147,6 +147,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "opened_file_state",
         sql: include_str!("../migrations/0028_opened_file_state.sql"),
     },
+    Migration {
+        version: 29,
+        name: "sync_outbox_target_note",
+        sql: include_str!("../migrations/0029_sync_outbox_target_note.sql"),
+    },
 ];
 
 pub(crate) struct Migration {
@@ -436,6 +441,10 @@ mod tests {
             (
                 28,
                 "bbb5804847ff64ca0b9a6a29741cfd26ca7cd9324e0619d8039e5cf9220c534f",
+            ),
+            (
+                29,
+                "72697002e04ce9096b3d565aa6969c7cd9021d9968fba7d7452ca3aad86428f0",
             ),
         ];
         assert_eq!(MIGRATIONS.len(), SHIPPED.len(), "append new checksums here");

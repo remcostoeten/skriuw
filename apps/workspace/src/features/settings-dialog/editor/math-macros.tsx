@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { commitOperations } from "@/store/commit";
 import {
   mathMacrosFromSettings,
@@ -15,8 +16,12 @@ import {
   settingsTextInput,
 } from "@/shared/ui/settings-controls";
 
+function selectMathMacros(state: RendererState) {
+  return mathMacrosFromSettings(state.settings);
+}
+
 export function MathMacrosSettings({ store }: SectionProps) {
-  const macros = useRendererSelector(store, (state) => mathMacrosFromSettings(state.settings));
+  const macros = useRendererSelector(store, selectMathMacros);
   const source = Object.entries(macros)
     .map(([name, definition]) => `${name} = ${definition}`)
     .join("\n");

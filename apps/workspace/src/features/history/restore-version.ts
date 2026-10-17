@@ -27,7 +27,7 @@ export async function restoreNoteVersion(
     await restoreAt(record.revision);
   } catch (error) {
     // A save landing between the flush and the commit fails the revision
-    // check; the rejected commit re-bootstrapped the store, so one retry at
+    // check; the rejected commit refreshed the note, so one retry at
     // the fresh revision restores over it. The overtaken content stays
     // recoverable in version history.
     const fresh = store.getState().documents.get(noteId);

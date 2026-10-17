@@ -1,4 +1,12 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { cn } from "@/shared/styling/class-names";
 import {
@@ -35,8 +43,8 @@ import { NoteOutline } from "./metadata/outline";
 import { AnnotationList } from "./metadata/annotation-list";
 import {
   noteUnlinkedMentionTerm,
-  projectHasRelationships,
   RelationshipExplorer,
+  selectHasRelationships,
 } from "@/features/references/shell";
 import { openedFileOrigin } from "@/features/transfer/opened-file-origin";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
@@ -580,13 +588,27 @@ function selectActiveNoteMarkdown(state: RendererState): string | null {
     : (state.documents.get(state.activeNoteId)?.markdown ?? null);
 }
 
+const annotationCounts = new WeakMap<RendererState["annotations"], Map<string, number>>();
+
+function annotationCountFor(state: RendererState, noteId: string): number {
+  let counts = annotationCounts.get(state.annotations);
+  if (!counts) {
+    counts = new Map();
+    for (const annotation of state.annotations.values()) {
+      counts.set(annotation.noteId, (counts.get(annotation.noteId) ?? 0) + 1);
+    }
+    annotationCounts.set(state.annotations, counts);
+  }
+  return counts.get(noteId) ?? 0;
+}
+
 function selectActiveNoteOrigin(state: RendererState): string | null {
   return state.activeNoteId === null
     ? null
     : openedFileOrigin(state.importReceipts, state.activeNoteId);
 }
 
-export function MetadataPanel({ store }: Props) {
+export const MetadataPanel = memo(function MetadataPanel({ store }: Props) {
   const activeNoteId = useRendererSelector(store, selectActiveNoteId);
   const metadata = useRendererSelector(store, selectActiveNoteMetadata);
   const historyHeaders = useRendererSelector(store, selectActiveNoteHistory);
@@ -600,7 +622,7 @@ export function MetadataPanel({ store }: Props) {
       (state: RendererState) =>
         activeNoteId !== null &&
         (noteUnlinkedMentionTerm(state, activeNoteId) !== null ||
-          projectHasRelationships(state, activeNoteId)),
+          selectHasRelationships(state, activeNoteId)),
       [activeNoteId],
     ),
   );
@@ -608,11 +630,7 @@ export function MetadataPanel({ store }: Props) {
     store,
     useCallback(
       (state: RendererState) =>
-        activeNoteId === null
-          ? 0
-          : [...state.annotations.values()].filter(
-              (annotation) => annotation.noteId === activeNoteId,
-            ).length,
+        activeNoteId === null ? 0 : annotationCountFor(state, activeNoteId),
       [activeNoteId],
     ),
   );
@@ -659,11 +677,7 @@ export function MetadataPanel({ store }: Props) {
             keepMounted
           >
             <div data-outline-scroll className="max-h-[38dvh] overflow-y-auto overscroll-contain">
-              <NoteOutline
-                key={activeNoteId}
-                store={store}
-                onCountChange={handleOutlineCountChange}
-              />
+              <NoteOutline store={store} onCountChange={handleOutlineCountChange} />
             </div>
           </InspectorSection>
         )}
@@ -740,4 +754,4 @@ export function MetadataPanel({ store }: Props) {
       </div>
     </aside>
   );
-}
+});

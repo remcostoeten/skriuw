@@ -7,7 +7,7 @@ Revision: `c82ad88c0afd0bde397d4987695cac88e6e0df71`.
 Command:
 
 ```bash
-node app/performance/run.mjs \
+node apps/workspace/performance/run.mjs \
   --output docs/benchmarks/2026-07-24-reference-production-raw.json
 ```
 

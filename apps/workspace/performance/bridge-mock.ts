@@ -16,6 +16,18 @@ export function invoke<T>(command: string): Promise<T> {
   if (command === "plugin:event|listen" || command === "plugin:event|unlisten") {
     return Promise.resolve(0 as T);
   }
+  if (command === "search_index_status") {
+    return Promise.resolve({
+      indexVersion: 1,
+      currentVersion: 1,
+      indexedNotes: 0,
+      noteCount: 0,
+      needsRebuild: false,
+    } as T);
+  }
+  if (command === "search_workspace") {
+    return Promise.resolve([] as T);
+  }
   if (command === "apply_workspace_operations") {
     return Promise.resolve({ applied: 1, revisions: [], rankChanges: [] } as T);
   }

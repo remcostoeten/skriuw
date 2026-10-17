@@ -3,8 +3,8 @@ import { useShortcut } from "@remcostoeten/use-shortcut/react";
 import {
   effectiveShortcutKeys,
   sameShortcutOverrides,
+  selectShortcutOverrides,
   shortcutDefinition,
-  shortcutOverridesFromSettings,
 } from "@/commands/bindings";
 import { useShortcutHints } from "@/commands/hints";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
@@ -62,10 +62,11 @@ export function useEditorSearch(
     const view = getView();
     if (!view) return;
     const state = getSearchState(view);
-    setMatchInfo({
-      current: state?.current ?? 0,
-      total: state?.matches.length ?? 0,
-    });
+    const current = state?.current ?? 0;
+    const total = state?.matches.length ?? 0;
+    setMatchInfo((previous) =>
+      previous.current === current && previous.total === total ? previous : { current, total },
+    );
   }, [getView]);
 
   const performSearch = useCallback(
@@ -198,11 +199,7 @@ export function useEditorSearch(
     [toggleSearch, showSearchAndReplace],
   );
 
-  const overrides = useRendererSelector(
-    store,
-    (state) => shortcutOverridesFromSettings(state.settings),
-    sameShortcutOverrides,
-  );
+  const overrides = useRendererSelector(store, selectShortcutOverrides, sameShortcutOverrides);
   const optionHints = useShortcutHints(store, EDITOR_SEARCH_SHORTCUT_IDS);
 
   useEffect(() => {

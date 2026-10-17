@@ -576,6 +576,319 @@ fn connected_transaction_enqueues_only_replicated_operations_in_order() {
     );
 }
 
+#[derive(Debug)]
+struct OutboxRow {
+    operation_id: String,
+    client_sequence: i64,
+    operation_type: String,
+    target_note_id: Option<String>,
+    operation_json: String,
+}
+
+fn outbox_rows(storage: &SqliteWorkspace) -> Vec<OutboxRow> {
+    let connection = storage.lock().expect("database lock");
+    let mut statement = connection
+        .prepare(
+            "SELECT operation_id, client_sequence, \
+             json_extract(operation_json, '$.operation.type'), target_note_id, operation_json \
+             FROM sync_outbox ORDER BY client_sequence",
+        )
+        .expect("prepare outbox query");
+    statement
+        .query_map([], |row| {
+            Ok(OutboxRow {
+                operation_id: row.get(0)?,
+                client_sequence: row.get(1)?,
+                operation_type: row.get(2)?,
+                target_note_id: row.get(3)?,
+                operation_json: row.get(4)?,
+            })
+        })
+        .expect("query outbox rows")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect outbox rows")
+}
+
+fn outbox_types(storage: &SqliteWorkspace) -> Vec<String> {
+    outbox_rows(storage)
+        .into_iter()
+        .map(|row| row.operation_type)
+        .collect()
+}
+
+fn next_client_sequence(storage: &SqliteWorkspace) -> u64 {
+    storage
+        .sync_connection()
+        .expect("connection")
+        .expect("active connection")
+        .next_client_sequence
+}
+
+fn apply_one(storage: &SqliteWorkspace, envelope: WorkspaceOperationEnvelope) {
+    storage
+        .apply_operations(&[envelope])
+        .expect("apply local operation");
+}
+
+fn offline_diagnostic() -> Diagnostic {
+    Diagnostic::new(
+        DiagnosticContext::Sync,
+        DiagnosticCategory::Unavailable,
+        "offline",
+    )
+}
+
+#[test]
+fn consecutive_unsent_saves_coalesce_into_one_row() {
+    let storage = connected_fresh();
+    let start = next_client_sequence(&storage);
+    apply_one(&storage, create_note("note-typing"));
+    apply_one(&storage, save_document("note-typing", 1, "first draft", 20));
+    let first_save = outbox_rows(&storage).pop().expect("first save row");
+    apply_one(
+        &storage,
+        save_document("note-typing", 2, "second draft", 21),
+    );
+    apply_one(&storage, save_document("note-typing", 3, "third draft", 22));
+
+    let rows = outbox_rows(&storage);
+    assert_eq!(rows.len(), 2, "create plus one save");
+    assert_eq!(rows[0].operation_type, "create_note");
+    assert_eq!(rows[1].operation_type, "save_document");
+    assert_eq!(rows[1].operation_id, first_save.operation_id);
+    assert_eq!(rows[1].client_sequence, first_save.client_sequence);
+    assert_eq!(rows[1].client_sequence, rows[0].client_sequence + 1);
+    assert!(rows[1].operation_json.contains("third draft"));
+    assert_eq!(rows[1].target_note_id.as_deref(), Some("note-typing"));
+    assert_eq!(next_client_sequence(&storage), start + 2);
+
+    let batch = storage
+        .claim_sync_operations("sync-worker", 100, 30_000, 64)
+        .expect("claim")
+        .expect("pending batch");
+    let WorkspaceOperation::SaveDocument {
+        markdown,
+        expected_revision,
+        ..
+    } = &envelope_of(&batch.request.operations[1]).operation
+    else {
+        panic!("second queued operation is the save");
+    };
+    assert_eq!(markdown, "third draft");
+    assert_eq!(*expected_revision, 3);
+}
+
+#[test]
+fn claimed_saves_are_never_coalesced() {
+    let storage = connected_fresh();
+    apply_one(&storage, create_note("note-claimed"));
+    apply_one(
+        &storage,
+        save_document("note-claimed", 1, "first draft", 20),
+    );
+    storage
+        .claim_sync_operations("w", 100, 30_000, 64)
+        .expect("claim")
+        .expect("pending batch");
+    apply_one(
+        &storage,
+        save_document("note-claimed", 2, "second draft", 21),
+    );
+
+    assert_eq!(
+        outbox_types(&storage),
+        vec!["create_note", "save_document", "save_document"]
+    );
+}
+
+#[test]
+fn released_saves_are_never_coalesced() {
+    let storage = connected_fresh();
+    apply_one(&storage, create_note("note-released"));
+    apply_one(
+        &storage,
+        save_document("note-released", 1, "first draft", 20),
+    );
+    let first_json = outbox_rows(&storage)
+        .pop()
+        .expect("save row")
+        .operation_json;
+    let batch = storage
+        .claim_sync_operations("w", 100, 30_000, 64)
+        .expect("claim")
+        .expect("pending batch");
+    let ids = batch
+        .request
+        .operations
+        .iter()
+        .map(|operation| operation.operation_id.clone())
+        .collect::<Vec<_>>();
+    storage
+        .release_sync_operations("w", &ids, 200, &offline_diagnostic())
+        .expect("release for retry");
+    apply_one(
+        &storage,
+        save_document("note-released", 2, "second draft", 21),
+    );
+
+    let rows = outbox_rows(&storage);
+    assert_eq!(rows.len(), 3);
+    assert_eq!(rows[1].operation_json, first_json);
+    assert!(rows[2].operation_json.contains("second draft"));
+}
+
+#[test]
+fn saves_of_different_notes_do_not_coalesce() {
+    let storage = connected_fresh();
+    apply_one(&storage, create_note("note-a"));
+    apply_one(&storage, create_note("note-b"));
+    apply_one(&storage, save_document("note-a", 1, "a one", 20));
+    apply_one(&storage, save_document("note-b", 1, "b one", 21));
+    apply_one(&storage, save_document("note-a", 2, "a two", 22));
+
+    let saves = outbox_rows(&storage)
+        .into_iter()
+        .filter(|row| row.operation_type == "save_document")
+        .map(|row| row.target_note_id.expect("save target"))
+        .collect::<Vec<_>>();
+    assert_eq!(saves, vec!["note-a", "note-b", "note-a"]);
+}
+
+#[test]
+fn a_save_after_another_operation_appends() {
+    let storage = connected_fresh();
+    apply_one(&storage, create_note("note-a"));
+    apply_one(&storage, save_document("note-a", 1, "a one", 20));
+    apply_one(
+        &storage,
+        op(WorkspaceOperation::RenameNode {
+            id: "note-a".into(),
+            title: "Renamed".into(),
+            at: 21,
+        }),
+    );
+    apply_one(&storage, save_document("note-a", 2, "a two", 22));
+
+    let rows = outbox_rows(&storage);
+    assert_eq!(
+        rows.iter()
+            .map(|row| row.operation_type.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            "create_note",
+            "save_document",
+            "rename_node",
+            "save_document"
+        ]
+    );
+    assert!(
+        rows.windows(2)
+            .all(|pair| pair[1].client_sequence == pair[0].client_sequence + 1)
+    );
+    assert!(rows[1].operation_json.contains("a one"));
+    assert!(rows[3].operation_json.contains("a two"));
+}
+
+#[test]
+fn coalesced_save_keeps_local_write_pending() {
+    let storage = connected_fresh();
+    apply_one(&storage, create_note("note-pending"));
+    let pushed_through = push_all(&storage, 1);
+    apply_one(
+        &storage,
+        save_document("note-pending", 1, "local first", 20),
+    );
+    apply_one(
+        &storage,
+        save_document("note-pending", 2, "local second", 21),
+    );
+    assert_eq!(outbox_types(&storage), vec!["save_document"]);
+
+    let outcomes = storage
+        .apply_remote_operations(
+            &[remote(
+                "remote-save",
+                "device-remote",
+                1,
+                pushed_through + 1,
+                WorkspaceOperation::SaveDocument {
+                    note_id: "note-pending".into(),
+                    document_json: json!({"type": "doc", "content": []}),
+                    markdown: "remote body".into(),
+                    word_count: 2,
+                    expected_revision: 1,
+                    at: 30,
+                },
+            )],
+            40,
+        )
+        .expect("apply remote save");
+    assert_eq!(
+        outcomes,
+        vec![superseded(SyncConflictReason::ConcurrentDocumentVersion)]
+    );
+    assert_eq!(
+        superseded_rows(&storage),
+        vec![("remote-save".into(), "concurrent_document_version".into())]
+    );
+    assert_eq!(
+        document_of(&storage, "note-pending").markdown,
+        "local second"
+    );
+}
+
+#[test]
+fn failed_batch_rolls_back_a_coalesced_save() {
+    let storage = connected_fresh();
+    apply_one(&storage, create_note("note-rollback"));
+    apply_one(
+        &storage,
+        save_document("note-rollback", 1, "kept draft", 20),
+    );
+    let before = outbox_rows(&storage)
+        .pop()
+        .expect("save row")
+        .operation_json;
+    let sequence_before = next_client_sequence(&storage);
+
+    storage
+        .apply_operations(&[
+            save_document("note-rollback", 2, "discarded draft", 21),
+            save_document("note-rollback", 2, "stale revision", 22),
+        ])
+        .expect_err("stale revision fails the batch");
+
+    let rows = outbox_rows(&storage);
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[1].operation_json, before);
+    assert_eq!(next_client_sequence(&storage), sequence_before);
+}
+
+#[test]
+fn coalescing_continues_after_restart() {
+    let directory = tempdir().expect("tempdir");
+    let path = directory.path().join("coalesce-restart.db");
+    {
+        let storage = SqliteWorkspace::open(&path).expect("open database");
+        connect_at_cursor(&storage, 0);
+        apply_one(&storage, create_note("note-restart"));
+        apply_one(
+            &storage,
+            save_document("note-restart", 1, "before restart", 20),
+        );
+    }
+
+    let storage = SqliteWorkspace::open(&path).expect("reopen database");
+    apply_one(
+        &storage,
+        save_document("note-restart", 2, "after restart", 21),
+    );
+
+    let rows = outbox_rows(&storage);
+    assert_eq!(rows.len(), 2);
+    assert!(rows[1].operation_json.contains("after restart"));
+}
+
 #[test]
 fn fresh_connect_purges_sync_state_left_by_an_incomplete_teardown() {
     let storage = SqliteWorkspace::open_in_memory().expect("open database");
@@ -6422,6 +6735,94 @@ fn migration_0023_rewrites_open_conflicts_as_superseded_rows() {
             [],
         )
         .expect("cloud_rejected is an accepted reason");
+}
+
+#[test]
+fn migration_0029_indexes_the_note_of_pending_outbox_rows() {
+    let mut connection = Connection::open_in_memory().expect("open database");
+    SqliteWorkspace::configure(&connection).expect("configure database");
+    connection
+        .execute_batch(
+            "CREATE TABLE schema_migrations (\
+                 version INTEGER PRIMARY KEY,\
+                 name TEXT NOT NULL,\
+                 checksum TEXT NOT NULL,\
+                 applied_at INTEGER NOT NULL\
+             ) STRICT;",
+        )
+        .expect("create ledger");
+    for migration in MIGRATIONS.iter().filter(|migration| migration.version < 29) {
+        connection
+            .execute_batch(migration.sql)
+            .expect("apply pre-0029 migration");
+        connection
+            .execute(
+                "INSERT INTO schema_migrations(version, name, checksum, applied_at) \
+                 VALUES (?1, ?2, ?3, 1)",
+                rusqlite::params![migration.version, migration.name, checksum(migration.sql)],
+            )
+            .expect("record migration");
+    }
+    let pending = [
+        serde_json::to_string(&create_note("note-created")).expect("create json"),
+        serde_json::to_string(&save_document("note-saved", 1, "body", 2)).expect("save json"),
+        r#"{"protocolVersion":1,"operation":{"type":"save_sealed_document","noteId":"note-sealed"}}"#
+            .to_owned(),
+        serde_json::to_string(&op(WorkspaceOperation::RenameNode {
+            id: "note-saved".into(),
+            title: "Renamed".into(),
+            at: 3,
+        }))
+        .expect("rename json"),
+    ];
+    for (index, operation_json) in pending.iter().enumerate() {
+        connection
+            .execute(
+                "INSERT INTO sync_outbox(operation_id, client_sequence, base_server_sequence, \
+                 operation_json, created_at) VALUES (?1, ?2, 0, ?3, 1)",
+                rusqlite::params![format!("pending-{index}"), index as i64 + 1, operation_json],
+            )
+            .expect("seed pending outbox row");
+    }
+
+    SqliteWorkspace::migrate(&mut connection).expect("upgrade database");
+
+    let mut statement = connection
+        .prepare("SELECT target_note_id FROM sync_outbox ORDER BY client_sequence")
+        .expect("prepare target query");
+    let targets = statement
+        .query_map([], |row| row.get::<_, Option<String>>(0))
+        .expect("query targets")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect targets");
+    drop(statement);
+    assert_eq!(
+        targets,
+        vec![
+            Some("note-created".to_owned()),
+            Some("note-saved".to_owned()),
+            Some("note-sealed".to_owned()),
+            None,
+        ]
+    );
+    let mut plan = connection
+        .prepare(
+            "EXPLAIN QUERY PLAN SELECT 1 FROM sync_outbox WHERE target_note_id = ?1 \
+             AND json_extract(operation_json, '$.operation.type') \
+                 IN ('save_document', 'create_note')",
+        )
+        .expect("prepare query plan");
+    let details = plan
+        .query_map(["note-saved"], |row| row.get::<_, String>(3))
+        .expect("query plan")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect query plan");
+    assert!(
+        details
+            .iter()
+            .any(|detail| detail.contains("INDEX sync_outbox_target_note")),
+        "pending-write lookup scans the outbox: {details:?}"
+    );
 }
 
 #[test]

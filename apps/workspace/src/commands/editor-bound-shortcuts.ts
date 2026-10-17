@@ -7,20 +7,12 @@ import {
   shortcutShadowedByQuit,
   sameShortcutOverrides,
   shortcutBindsOnPlatform,
+  selectShortcutOverrides,
   shortcutDefinition,
-  shortcutOverridesFromSettings,
 } from "@/commands/bindings";
 import type { ShortcutActionId, ShortcutPlatform } from "@/commands/definitions";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-
-// Module-level so every render reuses one store binding. An inline selector
-// makes useRendererSelector build a fresh binding per render, whose snapshot
-// is a new object; that defeats React's same-state render bailout for every
-// component using this hook and lets ref-callback setState cycles run forever.
-function selectShortcutOverrides(state: RendererState) {
-  return shortcutOverridesFromSettings(state.settings);
-}
+import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 /**
  * A handler that shares its combo with a global binding. `claims` decides, per

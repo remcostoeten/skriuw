@@ -7,15 +7,16 @@ use skriuw_domain::{
     AI_RUN_ORIGIN_PLAYGROUND, AiCompletionEvent, AiCompletionRequest, AiHistorySettings,
     AiHistoryView, AiProviderError, AiProviderErrorCategory, AiRecoveryAction, AiRunFilter,
     AiTranscriptionModel, AiTranscriptionRequest, AiTranscriptionResult, AiTranscriptionTerminal,
-    CredentialVaultDetection, LocalAiError, LocalAiModel, LocalAiProgress, LocalAiStatus,
-    MAX_AI_IDENTIFIER_BYTES, RemoteAiCatalog, RemoteAiKeyTier, RemoteAiModelDirectory,
-    RemoteAiProviderState,
+    CredentialVaultDetection, CredentialVaultState, LocalAiError, LocalAiModel, LocalAiProgress,
+    LocalAiStatus, MAX_AI_IDENTIFIER_BYTES, RemoteAiCatalog, RemoteAiKeyTier,
+    RemoteAiModelDirectory, RemoteAiProviderState,
 };
 use tauri::{
-    State,
+    AppHandle, Manager, State,
     ipc::{Channel, InvokeBody, Request},
 };
 
+use crate::ai_credentials::AiCredentialStore;
 use crate::state::AppState;
 
 /// `origin` is the feature that fired the request — the prompt playground
@@ -249,13 +250,22 @@ pub async fn delete_ollama_model(
 }
 
 #[tauri::command]
-pub fn remote_ai_providers(state: State<'_, AppState>) -> Vec<RemoteAiProviderState> {
-    state.ai_credentials.provider_states()
+pub async fn remote_ai_providers(app: AppHandle) -> Vec<RemoteAiProviderState> {
+    let credentials = Arc::clone(&app.state::<AppState>().ai_credentials);
+    tauri::async_runtime::spawn_blocking(move || credentials.provider_states())
+        .await
+        .unwrap_or_default()
 }
 
 #[tauri::command]
-pub fn credential_vault_state(state: State<'_, AppState>) -> CredentialVaultDetection {
-    state.ai_credentials.detect_vault()
+pub async fn credential_vault_state(app: AppHandle) -> CredentialVaultDetection {
+    let credentials = Arc::clone(&app.state::<AppState>().ai_credentials);
+    tauri::async_runtime::spawn_blocking(move || credentials.detect_vault())
+        .await
+        .unwrap_or_else(|_| CredentialVaultDetection {
+            state: CredentialVaultState::VaultLocked,
+            detail: Some("Skriuw could not read your keyring's lock state.".to_owned()),
+        })
 }
 
 /// The catalog is a repository-owned document, so refreshing it re-reads the
@@ -322,45 +332,61 @@ pub async fn refresh_remote_ai_models(
 }
 
 #[tauri::command]
-pub fn save_remote_ai_key(
+pub async fn save_remote_ai_key(
     provider_id: String,
     key: String,
     tier: RemoteAiKeyTier,
     state: State<'_, AppState>,
 ) -> Result<Vec<RemoteAiProviderState>, AiProviderError> {
     let kind = provider_kind(&provider_id)?;
-    state.ai_credentials.save_key(kind, &key, tier)?;
-    Ok(state.ai_credentials.provider_states())
+    update_remote_credentials(
+        kind,
+        Arc::clone(&state.ai_credentials),
+        move |credentials| credentials.save_key(kind, &key, tier),
+    )
+    .await
 }
 
 #[tauri::command]
-pub fn remove_remote_ai_key(
+pub async fn remove_remote_ai_key(
     provider_id: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<RemoteAiProviderState>, AiProviderError> {
     let kind = provider_kind(&provider_id)?;
-    state.ai_credentials.remove_key(kind)?;
-    Ok(state.ai_credentials.provider_states())
+    update_remote_credentials(
+        kind,
+        Arc::clone(&state.ai_credentials),
+        move |credentials| credentials.remove_key(kind),
+    )
+    .await
 }
 
 #[tauri::command]
-pub fn accept_remote_ai_disclosure(
+pub async fn accept_remote_ai_disclosure(
     provider_id: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<RemoteAiProviderState>, AiProviderError> {
     let kind = provider_kind(&provider_id)?;
-    state.ai_credentials.grant_consent(kind)?;
-    Ok(state.ai_credentials.provider_states())
+    update_remote_credentials(
+        kind,
+        Arc::clone(&state.ai_credentials),
+        move |credentials| credentials.grant_consent(kind),
+    )
+    .await
 }
 
 #[tauri::command]
-pub fn revoke_remote_ai_provider(
+pub async fn revoke_remote_ai_provider(
     provider_id: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<RemoteAiProviderState>, AiProviderError> {
     let kind = provider_kind(&provider_id)?;
-    state.ai_credentials.revoke_consent(kind)?;
-    Ok(state.ai_credentials.provider_states())
+    update_remote_credentials(
+        kind,
+        Arc::clone(&state.ai_credentials),
+        move |credentials| credentials.revoke_consent(kind),
+    )
+    .await
 }
 
 /// Spends one key on the smallest metered request the provider offers. This
@@ -410,6 +436,26 @@ fn provider_kind(provider_id: &str) -> Result<RemoteProviderKind, AiProviderErro
             AiRecoveryAction::None,
         )
     })
+}
+
+async fn update_remote_credentials(
+    kind: RemoteProviderKind,
+    credentials: Arc<AiCredentialStore>,
+    update: impl FnOnce(&AiCredentialStore) -> Result<(), AiProviderError> + Send + 'static,
+) -> Result<Vec<RemoteAiProviderState>, AiProviderError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        update(&credentials)?;
+        Ok(credentials.provider_states())
+    })
+    .await
+    .map_err(|error| {
+        AiProviderError::new(
+            kind.id(),
+            AiProviderErrorCategory::InternalFailure,
+            &error.to_string(),
+            AiRecoveryAction::Retry,
+        )
+    })?
 }
 
 async fn run<T: Send + 'static>(

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import {
   BarChartIcon,
@@ -74,7 +74,7 @@ function selectTagRecords(state: RendererState) {
   return state.tags;
 }
 
-export function JournalSidebar({ store }: Props) {
+export const JournalSidebar = memo(function JournalSidebar({ store }: Props) {
   const selectedKey = useSelectedJournalKey();
   const entries = useRendererSelector(store, selectJournalEntries, sameJournalEntries);
   const tagRecords = useRendererSelector(store, selectTagRecords);
@@ -333,4 +333,4 @@ export function JournalSidebar({ store }: Props) {
       </div>
     </aside>
   );
-}
+});

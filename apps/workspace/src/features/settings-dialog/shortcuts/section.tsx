@@ -19,6 +19,8 @@ import {
   isDefaultBinding,
   quitComboError,
   sameCombo,
+  sameShortcutOverrides,
+  selectShortcutOverrides,
   shortcutShadowedByQuit,
 } from "@/commands/bindings";
 import type { ShortcutDefinition } from "@/commands/definitions";
@@ -29,9 +31,7 @@ import {
 } from "@/commands/settings-search";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import {
-  sameOverrides,
   selectQuitShortcutEnabled,
-  selectShortcutOverrides,
   selectStoredShortcutOverrides,
 } from "@/features/settings/selectors";
 import {
@@ -58,8 +58,12 @@ export function ShortcutsSection({
   store,
   recordingCountRef,
 }: SectionProps & { recordingCountRef: MutableRefObject<number> }) {
-  const overrides = useRendererSelector(store, selectShortcutOverrides, sameOverrides);
-  const storedOverrides = useRendererSelector(store, selectStoredShortcutOverrides, sameOverrides);
+  const overrides = useRendererSelector(store, selectShortcutOverrides, sameShortcutOverrides);
+  const storedOverrides = useRendererSelector(
+    store,
+    selectStoredShortcutOverrides,
+    sameShortcutOverrides,
+  );
   const quitEnabled = useRendererSelector(store, selectQuitShortcutEnabled);
   const [query, setQuery] = useState("");
   const [listboxOpen, setListboxOpen] = useState(false);

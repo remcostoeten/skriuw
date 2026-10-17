@@ -7,7 +7,7 @@ import type { SectionId } from "@/features/settings-dialog/sections";
 import { Sidebar } from "@/features/sidebar/sidebar";
 import { CommandPaletteHost } from "@/app/command-palette-host";
 import { EditorPanes } from "@/shell/editor-panes";
-import { NoteBreadcrumbs, WindowControls, useNoteNavigation } from "@/shell/title-bar";
+import { NoteBreadcrumbs, NoteNavigationButtons, WindowControls } from "@/shell/title-bar";
 import { toolbarIconButtonClass } from "@/shared/ui/toolbar-button";
 import { openEditorSearch } from "@/features/editor/search-controller";
 import { MetadataPanel } from "@/features/note-chrome/metadata-panel";
@@ -109,6 +109,10 @@ function selectActiveNoteId(state: RendererState): string | null {
   return state.activeNoteId;
 }
 
+function selectHasActiveNote(state: RendererState): boolean {
+  return state.activeNoteId !== null;
+}
+
 const TOOLBAR_SHORTCUT_IDS = [
   "openSettings",
   "toggleSidebar",
@@ -143,9 +147,9 @@ function WorkspaceShell({ store }: Props) {
   focusActiveRef.current = focusActive;
   const shownSidebarOpen = sidebarOpen && !focusActive;
   const shownMetadataOpen = metadataOpen && !focusActive;
-  const activeNoteId = useRendererSelector(store, selectActiveNoteId);
+  const hasActiveNote = useRendererSelector(store, selectHasActiveNote);
   const fullPanelsRef = useRef({ sidebarOpen: true, metadataOpen: true });
-  const seenNoteRef = useRef(activeNoteId);
+  const seenNoteRef = useRef(store.getState().activeNoteId);
   const swipeRef = useRef<SwipeStart | null>(null);
   const showToasts = useRendererSelector(store, selectShowToasts);
   const aiEnabled = useRendererSelector(store, selectAiEnabled);
@@ -189,13 +193,19 @@ function WorkspaceShell({ store }: Props) {
   }, [mode, route, sidebarOpen]);
   // Picking a note from the overlaying tree is the end of that errand: the
   // sheet gets out of the way so the note is readable without a second tap.
-  useEffect(() => {
-    const previous = seenNoteRef.current;
-    seenNoteRef.current = activeNoteId;
-    if (activationClosesSidebar(mode, uiRef.current.sidebarOpen, previous, activeNoteId)) {
-      setSidebarOpen(false);
-    }
-  }, [activeNoteId, mode]);
+  useEffect(
+    () =>
+      store.subscribe(selectActiveNoteId, () => {
+        const previous = seenNoteRef.current;
+        const next = store.getState().activeNoteId;
+        seenNoteRef.current = next;
+        if (activationClosesSidebar(mode, uiRef.current.sidebarOpen, previous, next)) {
+          setSidebarOpen(false);
+        }
+      }),
+    [mode, store],
+  );
+  const openPalette = useCallback(() => setPaletteOpen(true), []);
   const changeFocusMode = useCallback((enabled: boolean) => {
     setTracksAnimated(true);
     setFocusMode(enabled);
@@ -306,7 +316,6 @@ function WorkspaceShell({ store }: Props) {
   const gridTemplateColumns = focusActive
     ? FOCUS_GRID_TEMPLATE
     : panelGridTemplate(route, sidebarOpen, metadataOpen, sidebarWidth, metadataWidth);
-  const noteNav = useNoteNavigation(store);
   const tracksRef = useRef<HTMLDivElement>(null);
   const sidebarPaneRef = useRef<HTMLDivElement>(null);
   const metadataPaneRef = useRef<HTMLDivElement>(null);
@@ -419,7 +428,7 @@ function WorkspaceShell({ store }: Props) {
   const sidebarContent = (
     <>
       <div className="h-full" hidden={route !== "notes"}>
-        <Sidebar store={store} onOpenCommandPalette={() => setPaletteOpen(true)} />
+        <Sidebar store={store} onOpenCommandPalette={openPalette} />
       </div>
       <div className="h-full" hidden={route !== "journal"}>
         <JournalSidebar store={store} />
@@ -574,7 +583,7 @@ function WorkspaceShell({ store }: Props) {
                   >
                     <button
                       type="button"
-                      onClick={() => setPaletteOpen(true)}
+                      onClick={openPalette}
                       className={toolbarIconButtonClass}
                       aria-label="Search"
                     >
@@ -583,34 +592,11 @@ function WorkspaceShell({ store }: Props) {
                   </Tooltip>
                 )}
                 {mode === "full" && (
-                  <>
-                    <Tooltip
-                      label="Previous note"
-                      side="bottom"
-                      shortcut={shortcutHints.previousNote}
-                    >
-                      <button
-                        type="button"
-                        onClick={noteNav.navigatePrev}
-                        disabled={!noteNav.canNavigatePrev}
-                        className={toolbarIconButtonClass}
-                        aria-label="Previous note"
-                      >
-                        <AppIcon name="previous-note" size={16} />
-                      </button>
-                    </Tooltip>
-                    <Tooltip label="Next note" side="bottom" shortcut={shortcutHints.nextNote}>
-                      <button
-                        type="button"
-                        onClick={noteNav.navigateNext}
-                        disabled={!noteNav.canNavigateNext}
-                        className={toolbarIconButtonClass}
-                        aria-label="Next note"
-                      >
-                        <AppIcon name="next-note" size={16} />
-                      </button>
-                    </Tooltip>
-                  </>
+                  <NoteNavigationButtons
+                    store={store}
+                    previousHint={shortcutHints.previousNote}
+                    nextHint={shortcutHints.nextNote}
+                  />
                 )}
               </div>
               <div data-tauri-drag-region className="flex min-w-0 justify-center px-2">
@@ -621,7 +607,7 @@ function WorkspaceShell({ store }: Props) {
                   <button
                     type="button"
                     onClick={openEditorSearch}
-                    disabled={!noteNav.noteId}
+                    disabled={!hasActiveNote}
                     className={toolbarIconButtonClass}
                     aria-label="Find in note"
                   >
@@ -687,7 +673,7 @@ function WorkspaceShell({ store }: Props) {
             store={store}
             sidebarOpen={sidebarOpen}
             onToggleSidebar={() => toggleSidebar(true)}
-            onOpenCommandPalette={mode === "compact" ? () => setPaletteOpen(true) : undefined}
+            onOpenCommandPalette={mode === "compact" ? openPalette : undefined}
           />
         )}
         {route === "tasks" && <TasksView store={store} />}

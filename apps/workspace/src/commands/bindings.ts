@@ -1,6 +1,7 @@
 import { matchesShortcut, parseShortcut } from "@remcostoeten/use-shortcut/parser";
 import { SIDEBAR_TREE_SELECTOR } from "./focus-regions";
 import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
+import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type {
   ShortcutActionId,
@@ -287,20 +288,41 @@ export function storedShortcutOverrides(settings: WorkspaceSettings): ShortcutOv
   return overrides;
 }
 
+const overridesBySettings = new WeakMap<WorkspaceSettings, ShortcutOverrides>();
+
 /**
  * @name shortcutOverridesFromSettings
  * @description The overrides every binder and hint reads: the recorded combos,
- * with Quit set to `null` while its shortcut is switched off.
+ * with Quit set to `null` while its shortcut is switched off. The result is
+ * shared per settings object, so callers must not mutate it.
  *
  * @example
  * const overrides = shortcutOverridesFromSettings(state.settings);
  */
 export function shortcutOverridesFromSettings(settings: WorkspaceSettings): ShortcutOverrides {
+  const cached = overridesBySettings.get(settings);
+  if (cached) {
+    return cached;
+  }
   const overrides = storedShortcutOverrides(settings);
   if (!quitShortcutEnabled(settings)) {
     overrides[QUIT_ACTION_ID] = null;
   }
+  overridesBySettings.set(settings, overrides);
   return overrides;
+}
+
+/**
+ * @name selectShortcutOverrides
+ * @description Store selector for the effective shortcut overrides. Pair it
+ * with `sameShortcutOverrides` so a settings save that leaves the rebinds
+ * alone does not re-render the subscriber.
+ *
+ * @example
+ * const overrides = useRendererSelector(store, selectShortcutOverrides, sameShortcutOverrides);
+ */
+export function selectShortcutOverrides(state: Pick<RendererState, "settings">): ShortcutOverrides {
+  return shortcutOverridesFromSettings(state.settings);
 }
 
 /**
@@ -341,6 +363,13 @@ export function shortcutShadowedByQuit(
   return quit !== null && sameCombo(keys, quit);
 }
 
+/**
+ * @name sameShortcutOverrides
+ * @description Whether two override maps bind every action to the same combo.
+ *
+ * @example
+ * sameShortcutOverrides({ createNote: "mod+alt+n" }, { createNote: "mod+alt+n" }); // true
+ */
 export function sameShortcutOverrides(left: ShortcutOverrides, right: ShortcutOverrides): boolean {
   const leftKeys = Object.keys(left) as (keyof ShortcutOverrides)[];
   return (

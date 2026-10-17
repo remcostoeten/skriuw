@@ -322,6 +322,33 @@ fn acknowledgement_loss_retries_the_same_operation_identity() {
 }
 
 #[test]
+fn stale_claims_wait_for_their_lease_instead_of_spinning() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut device = Device::open(&server, "device-a", &clock);
+    device.connect("device-a");
+    device.apply(vec![create_note("note-1", "Claimed before a crash", 1)]);
+
+    let stale = device
+        .storage
+        .claim_sync_operations("sync-coordinator", 1_000, 30_000, 64)
+        .expect("claim");
+    assert!(stale.is_some());
+
+    device.clock.advance(5_000);
+    let outcome = device.cycle();
+
+    assert_eq!(outcome.status, SyncStatus::Pending);
+    assert_eq!(outcome.retry_at_ms, Some(31_000));
+
+    device.advance_past(&outcome);
+    let outcome = device.cycle();
+
+    assert_eq!(outcome.status, SyncStatus::UpToDate);
+    assert_eq!(server.log_len(), 1);
+}
+
+#[test]
 fn lost_acknowledgement_resolves_through_local_echo_without_reapplying() {
     let clock = FakeClock::at(1_000);
     let server = FakeServer::new(WORKSPACE);

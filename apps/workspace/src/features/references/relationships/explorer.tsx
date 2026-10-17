@@ -1,37 +1,24 @@
 import { useCallback, useState } from "react";
-import { formatListDate } from "@skriuw/renderer-core/journal/dates";
 import { openJournalDay } from "@/features/journal/navigation";
 import { activateNote } from "@/features/notes/navigation";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { SectionChevron, SectionLabel } from "@/shared/ui/section-header";
 import {
-  projectBacklinks,
-  projectOutgoingNotes,
-  type BacklinkEntry,
-} from "../references/panel-model";
-import {
-  projectCoVisitedNotes,
-  projectRelatedJournalEntries,
-  projectRelationshipGraph,
-  projectSharedEntities,
+  projectCoVisitedRows,
+  selectBacklinkRows,
+  selectJournalRows,
+  selectOutgoingRows,
+  selectRelationshipGraph,
+  selectSharedPersonRows,
+  selectSharedTagRows,
+  type DetailedNote,
   type RelationshipGraph,
-  type RelationshipNote,
 } from "./model";
 import { RelationshipGraphView } from "./graph";
 import { UnlinkedMentions } from "../mentions/unlinked";
 
 const ROWS = 5;
-
-type DetailedNote = {
-  noteId: string;
-  title: string;
-  detail: string;
-};
-
-type JournalRow = DetailedNote & {
-  dateKey: string;
-};
 
 function sameRows<T extends { noteId: string; title: string; detail?: string }>(
   left: readonly T[],
@@ -64,62 +51,6 @@ function sameGraph(left: RelationshipGraph, right: RelationshipGraph): boolean {
       return edge.from === other.from && edge.to === other.to;
     })
   );
-}
-
-function entityLabels(
-  state: RendererState,
-  ids: readonly string[],
-  kind: "person" | "tag",
-): string {
-  const prefix = kind === "person" ? "$" : "#";
-  return ids
-    .map((id) => (kind === "person" ? state.people.get(id)?.name : state.tags.get(id)?.name))
-    .filter((name): name is string => name !== undefined)
-    .map((name) => `${prefix}${name}`)
-    .join(" · ");
-}
-
-function projectSharedEntityRows(
-  state: RendererState,
-  noteId: string,
-  kind: "person" | "tag",
-): DetailedNote[] {
-  return projectSharedEntities(state, noteId, kind).map((entry) => ({
-    noteId: entry.noteId,
-    title: entry.title,
-    detail: entityLabels(state, entry.sharedEntityIds, kind),
-  }));
-}
-
-function journalDetail(
-  state: RendererState,
-  entry: ReturnType<typeof projectRelatedJournalEntries>[number],
-): string {
-  if (entry.directIncoming) {
-    return "Mentioned this note";
-  }
-  if (entry.directOutgoing) {
-    return "Linked from this note";
-  }
-  return [
-    entityLabels(state, entry.sharedPersonIds, "person"),
-    entityLabels(state, entry.sharedTagIds, "tag"),
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
-
-function projectJournalRows(state: RendererState, noteId: string): JournalRow[] {
-  return projectRelatedJournalEntries(state, noteId).map((entry) => ({
-    noteId: entry.noteId,
-    title: formatListDate(entry.dateKey),
-    detail: journalDetail(state, entry),
-    dateKey: entry.dateKey,
-  }));
-}
-
-function toRows(entries: readonly (BacklinkEntry | RelationshipNote)[]): DetailedNote[] {
-  return entries.map((entry) => ({ noteId: entry.noteId, title: entry.title, detail: "" }));
 }
 
 function RelationshipSection({
@@ -189,40 +120,37 @@ function NoteRow({ entry, onOpen }: { entry: DetailedNote; onOpen: () => void })
 export function RelationshipExplorer({ store, noteId }: { store: RendererStore; noteId: string }) {
   const backlinks = useRendererSelector(
     store,
-    useCallback((state: RendererState) => toRows(projectBacklinks(state, noteId)), [noteId]),
+    useCallback((state: RendererState) => selectBacklinkRows(state, noteId), [noteId]),
     sameRows,
   );
   const outgoing = useRendererSelector(
     store,
-    useCallback((state: RendererState) => toRows(projectOutgoingNotes(state, noteId)), [noteId]),
+    useCallback((state: RendererState) => selectOutgoingRows(state, noteId), [noteId]),
     sameRows,
   );
   const people = useRendererSelector(
     store,
-    useCallback(
-      (state: RendererState) => projectSharedEntityRows(state, noteId, "person"),
-      [noteId],
-    ),
+    useCallback((state: RendererState) => selectSharedPersonRows(state, noteId), [noteId]),
     sameRows,
   );
   const tags = useRendererSelector(
     store,
-    useCallback((state: RendererState) => projectSharedEntityRows(state, noteId, "tag"), [noteId]),
+    useCallback((state: RendererState) => selectSharedTagRows(state, noteId), [noteId]),
     sameRows,
   );
   const journal = useRendererSelector(
     store,
-    useCallback((state: RendererState) => projectJournalRows(state, noteId), [noteId]),
+    useCallback((state: RendererState) => selectJournalRows(state, noteId), [noteId]),
     sameRows,
   );
   const coVisited = useRendererSelector(
     store,
-    useCallback((state: RendererState) => toRows(projectCoVisitedNotes(state, noteId)), [noteId]),
+    useCallback((state: RendererState) => projectCoVisitedRows(state, noteId), [noteId]),
     sameRows,
   );
   const graph = useRendererSelector(
     store,
-    useCallback((state: RendererState) => projectRelationshipGraph(state, noteId), [noteId]),
+    useCallback((state: RendererState) => selectRelationshipGraph(state, noteId), [noteId]),
     sameGraph,
   );
 

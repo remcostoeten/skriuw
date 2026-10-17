@@ -4,17 +4,9 @@ import {
   usesBlockDragHandle,
   usesFacehashAvatar,
 } from "@/features/settings/settings-model";
-import {
-  quitShortcutEnabled,
-  shortcutOverridesFromSettings,
-  storedShortcutOverrides,
-} from "@/commands/bindings";
+import { quitShortcutEnabled, storedShortcutOverrides } from "@/commands/bindings";
 import type { ShortcutOverrides } from "@/commands/bindings";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
-
-export function selectShortcutOverrides(state: RendererState): ShortcutOverrides {
-  return shortcutOverridesFromSettings(state.settings);
-}
 
 export function selectStoredShortcutOverrides(state: RendererState): ShortcutOverrides {
   return storedShortcutOverrides(state.settings);
@@ -22,16 +14,6 @@ export function selectStoredShortcutOverrides(state: RendererState): ShortcutOve
 
 export function selectQuitShortcutEnabled(state: RendererState): boolean {
   return quitShortcutEnabled(state.settings);
-}
-
-export function sameOverrides(left: ShortcutOverrides, right: ShortcutOverrides): boolean {
-  const leftKeys = Object.keys(left);
-  return (
-    leftKeys.length === Object.keys(right).length &&
-    leftKeys.every(
-      (key) => left[key as keyof ShortcutOverrides] === right[key as keyof ShortcutOverrides],
-    )
-  );
 }
 
 export function selectSettings(state: RendererState) {

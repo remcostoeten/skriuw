@@ -241,7 +241,14 @@ function PaletteBody({ items, onQueryChange, notice, paletteShortcut, density }:
         ) : (
           groups.map((group) => (
             <div key={group.group}>
-              <div className={cn("px-2.5 pb-1 pt-2", sectionLabelClass)}>{group.group}</div>
+              <div className={cn("px-2.5 pb-1 pt-2", sectionLabelClass)}>
+                {group.group}
+                {group.hiddenCount ? (
+                  <span className="text-muted-foreground">
+                    {` · ${group.items.length} of ${group.items.length + group.hiddenCount}`}
+                  </span>
+                ) : null}
+              </div>
               {group.items.map((item) => {
                 runningIndex += 1;
                 const index = runningIndex;
@@ -261,7 +268,9 @@ function PaletteBody({ items, onQueryChange, notice, paletteShortcut, density }:
                         ? "bg-foreground/[0.08] text-foreground"
                         : "bg-transparent text-sidebar-foreground hover:bg-sidebar-accent/50"
                     }`}
-                    onMouseMove={() => setActiveIndex(index)}
+                    onMouseMove={() => {
+                      if (index !== activeIndex) setActiveIndex(index);
+                    }}
                     onClick={() => runItem(item)}
                   >
                     <span

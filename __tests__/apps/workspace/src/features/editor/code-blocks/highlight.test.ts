@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { EditorState } from "prosemirror-state";
-import type { Node as ProseMirrorNode } from "prosemirror-model";
+import { history, undo } from "prosemirror-history";
+import { Fragment, Slice, type Node as ProseMirrorNode } from "prosemirror-model";
+import { type Decoration, DecorationSet } from "prosemirror-view";
 import {
   codeBlockTokens,
   codeHighlightDecorations,
@@ -19,6 +21,24 @@ function codeBlock(params: string, code: string): ProseMirrorNode {
 
 function document(...blocks: ProseMirrorNode[]): ProseMirrorNode {
   return productSchema.node("doc", null, blocks);
+}
+
+function paragraph(text: string): ProseMirrorNode {
+  return productSchema.node("paragraph", null, [productSchema.text(text)]);
+}
+
+function highlightedState(doc: ProseMirrorNode): EditorState {
+  return EditorState.create({ doc, plugins: [createCodeHighlightPlugin(), history()] });
+}
+
+function byPosition(decorations: readonly Decoration[]): Decoration[] {
+  return [...decorations].sort((left, right) => left.from - right.from || left.to - right.to);
+}
+
+function assertMatchesRebuild(state: EditorState): void {
+  const rebuilt = DecorationSet.create(state.doc, codeHighlightDecorations(state.doc)).find();
+  const incremental = codeHighlightKey.getState(state)?.find() ?? [];
+  assert.deepEqual(byPosition(incremental), byPosition(rebuilt));
 }
 
 test("a registered language produces highlight tokens inside the highlighted text", () => {
@@ -119,4 +139,104 @@ test("a language label falls back to the raw params when unrecognised", () => {
   assert.equal(codeLanguageLabel("ts"), "TypeScript");
   assert.equal(codeLanguageLabel(""), "Plain text");
   assert.equal(codeLanguageLabel("Brainfuck"), "brainfuck");
+});
+
+test("typing in a paragraph before two code blocks keeps the code decorations equivalent", () => {
+  const state = highlightedState(
+    document(paragraph("intro"), codeBlock("ts", "const a = 1;"), codeBlock("rust", "let b = 2;")),
+  );
+  const next = state.apply(state.tr.insertText("x", 3));
+  assert.ok((codeHighlightKey.getState(next)?.find().length ?? 0) > 0);
+  assertMatchesRebuild(next);
+});
+
+test("typing inside a code block shifts the later block and stays equivalent", () => {
+  const state = highlightedState(
+    document(paragraph("intro"), codeBlock("ts", "const a = 1;"), codeBlock("ts", "let b = 2;")),
+  );
+  const next = state.apply(state.tr.insertText(" const c = 'x';", 7 + 1 + 12));
+  assertMatchesRebuild(next);
+});
+
+test("changing a code block's language re-highlights it", () => {
+  const state = highlightedState(
+    document(paragraph("intro"), codeBlock("ts", "fn main() { let x = 1; }")),
+  );
+  const next = state.apply(state.tr.setNodeMarkup(7, undefined, { params: "rust" }));
+  assertMatchesRebuild(next);
+});
+
+test("setting a code block's language attribute directly re-highlights it", () => {
+  const state = highlightedState(document(paragraph("intro"), codeBlock("", "const a = 1;")));
+  assert.equal(codeHighlightKey.getState(state)?.find().length, 0);
+  const next = state.apply(state.tr.setNodeAttribute(7, "params", "ts"));
+  assert.ok((codeHighlightKey.getState(next)?.find().length ?? 0) > 0);
+  assertMatchesRebuild(next);
+});
+
+test("converting a paragraph to a code block and back stays equivalent", () => {
+  const codeBlockType = productSchema.nodes.code_block;
+  const paragraphType = productSchema.nodes.paragraph;
+  assert.ok(codeBlockType && paragraphType);
+  const state = highlightedState(
+    document(paragraph("const x = 1;"), codeBlock("ts", "const a = 1;")),
+  );
+  const converted = state.apply(state.tr.setBlockType(1, 1, codeBlockType, { params: "ts" }));
+  assert.equal(converted.doc.child(0).type.name, "code_block");
+  assertMatchesRebuild(converted);
+  const restored = converted.apply(converted.tr.setBlockType(1, 1, paragraphType));
+  assert.equal(restored.doc.child(0).type.name, "paragraph");
+  assertMatchesRebuild(restored);
+});
+
+test("deleting across the end of a code block into the next paragraph stays equivalent", () => {
+  const state = highlightedState(
+    document(codeBlock("ts", "const a = 1;"), paragraph("between"), codeBlock("json", '{"b": 2}')),
+  );
+  const next = state.apply(state.tr.delete(1 + 6, 14 + 1 + 3));
+  assertMatchesRebuild(next);
+});
+
+test("replacing the whole document with pasted code blocks stays equivalent", () => {
+  const state = highlightedState(document(paragraph("intro"), codeBlock("ts", "const a = 1;")));
+  const pasted = new Slice(
+    Fragment.from([
+      codeBlock("python", "def main():\n    return 1"),
+      codeBlock("go", "func f() {}"),
+    ]),
+    0,
+    0,
+  );
+  const next = state.apply(state.tr.replace(0, state.doc.content.size, pasted));
+  assert.ok((codeHighlightKey.getState(next)?.find().length ?? 0) > 0);
+  assertMatchesRebuild(next);
+});
+
+test("undoing a paste restores equivalent decorations", () => {
+  const state = highlightedState(document(paragraph("intro"), codeBlock("ts", "const a = 1;")));
+  const pasted = state.apply(
+    state.tr.replace(
+      0,
+      state.doc.content.size,
+      new Slice(Fragment.from(codeBlock("rust", "fn main() {}")), 0, 0),
+    ),
+  );
+  let undone = pasted;
+  assert.ok(undo(pasted, (transaction) => (undone = pasted.apply(transaction))));
+  assert.ok(undone.doc.eq(state.doc));
+  assertMatchesRebuild(undone);
+});
+
+test("a code block nested in a list item stays equivalent", () => {
+  const item = productSchema.node("list_item", null, [
+    paragraph("item"),
+    codeBlock("ts", "const nested = 1;"),
+  ]);
+  const state = highlightedState(
+    document(productSchema.node("bullet_list", null, [item]), codeBlock("rust", "let tail = 2;")),
+  );
+  const codeStart = 1 + 1 + paragraph("item").nodeSize + 1;
+  const next = state.apply(state.tr.insertText(" const more = 2;", codeStart + 17));
+  assert.ok((codeHighlightKey.getState(next)?.find().length ?? 0) > 0);
+  assertMatchesRebuild(next);
 });

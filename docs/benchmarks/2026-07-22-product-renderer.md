@@ -21,7 +21,7 @@ All three contexts completed exact trusted-input counts, retained one editor hos
 Run the complete production fixture and write raw evidence with:
 
 ```bash
-node app/performance/run.mjs --output .build/product-renderer/latest.json
+node apps/workspace/performance/run.mjs --output .build/product-renderer/latest.json
 ```
 
 The command generates the canonical Rust tree projections, type-checks the harness, builds a production profiling renderer, starts an isolated preview, and launches a fresh headless Chrome profile for each context. Correctness failures exit nonzero. Timing results are recorded but do not gate shared CI.

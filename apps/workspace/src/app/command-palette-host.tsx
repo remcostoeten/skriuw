@@ -41,7 +41,28 @@ type NoteEntry = {
   title: string;
 };
 
+const NOTE_ENTRY_INPUTS = [
+  "nodeOrder",
+  "nodes",
+] as const satisfies readonly (keyof RendererState)[];
+
+const NOTE_ICON = <FileTextIcon size={15} />;
+
+let projectedNotes: { state: RendererState; entries: NoteEntry[] } | null = null;
+
 function selectNoteEntries(state: RendererState): NoteEntry[] {
+  if (
+    projectedNotes !== null &&
+    NOTE_ENTRY_INPUTS.every((input) => projectedNotes!.state[input] === state[input])
+  ) {
+    return projectedNotes.entries;
+  }
+  const entries = projectNoteEntries(state);
+  projectedNotes = { state, entries };
+  return entries;
+}
+
+function projectNoteEntries(state: RendererState): NoteEntry[] {
   const notes: NoteEntry[] = [];
   for (const id of state.nodeOrder) {
     const node = state.nodes.get(id);
@@ -143,6 +164,7 @@ function selectPaletteSize(state: RendererState) {
 }
 
 export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: Props) {
+  const { route, sidebarOpen, metadataOpen, settingsOpen } = ui;
   const [searchQuery, setSearchQuery] = useState("");
   const [hits, setHits] = useState<readonly SearchHit[]>([]);
   const requestRef = useRef(0);
@@ -187,36 +209,64 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
     return () => window.clearTimeout(timer);
   }, [plan]);
 
-  const items = useMemo<CommandPaletteItem[]>(() => {
+  const commandItems = useMemo<CommandPaletteItem[]>(() => {
     if (!open) {
       return [];
     }
     const state = store.getState();
-    const results = applySearchPlan(state, plan, hits, SEARCH_LIMIT);
     const overrides = shortcutOverridesFromSettings(state.settings);
-    return [
-      ...registry.paletteItems(state, ui, (actionId) => {
+    return registry.paletteItems(
+      state,
+      { route, sidebarOpen, metadataOpen, settingsOpen },
+      (actionId) => {
         const definition = DEFINITION_BY_ID.get(actionId);
         if (!definition || overrides[actionId] === null) {
           return "";
         }
         const keys = effectiveShortcutKeys(definition, overrides);
         return shortcutShadowedByQuit(definition, keys, overrides) ? "" : keys;
-      }),
-      ...selectNoteEntries(state).map((note): CommandPaletteItem => ({
-        id: `note:${note.id}`,
-        label: note.title,
-        keywords: ["open"],
-        group: "Notes",
-        icon: <FileTextIcon size={15} />,
-        action: () => activateNote(store, note.id),
-      })),
+      },
+    );
+  }, [open, registry, store, route, sidebarOpen, metadataOpen, settingsOpen]);
+
+  const noteItems = useMemo<CommandPaletteItem[]>(() => {
+    if (!open) {
+      return [];
+    }
+    return selectNoteEntries(store.getState()).map((note) => ({
+      id: `note:${note.id}`,
+      label: note.title,
+      keywords: ["open"],
+      group: "Notes",
+      icon: NOTE_ICON,
+      action: () => activateNote(store, note.id),
+    }));
+  }, [open, store]);
+
+  const browseItems = useMemo<CommandPaletteItem[]>(() => {
+    if (!open) {
+      return [];
+    }
+    const state = store.getState();
+    return [
       ...recentNoteItems(store, state),
       ...entityItems(projectEntities(state, "tag"), "tag"),
       ...entityItems(projectEntities(state, "person"), "person"),
-      ...contentItems(store, results, plan.text, plan.allowedNoteIds === null),
     ];
-  }, [open, registry, ui, hits, plan, store]);
+  }, [open, store]);
+
+  const contentItemsForQuery = useMemo<CommandPaletteItem[]>(() => {
+    if (!open) {
+      return [];
+    }
+    const results = applySearchPlan(store.getState(), plan, hits, SEARCH_LIMIT);
+    return contentItems(store, results, plan.text, plan.allowedNoteIds === null);
+  }, [open, store, plan, hits]);
+
+  const items = useMemo(
+    () => [...commandItems, ...noteItems, ...browseItems, ...contentItemsForQuery],
+    [commandItems, noteItems, browseItems, contentItemsForQuery],
+  );
 
   const paletteHints = useShortcutHints(store, PALETTE_SHORTCUT_IDS);
   const density = useRendererSelector(store, selectPaletteDensity);

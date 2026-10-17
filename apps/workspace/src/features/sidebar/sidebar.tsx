@@ -1,10 +1,10 @@
-import { useRef } from "react";
+import { memo, useRef } from "react";
 import { useMediaQuery } from "@/shared/viewport/use-media-query";
 import { SidebarCalendar } from "@/features/journal/calendar";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import { pinnedNodeIds } from "@skriuw/renderer-core/store/tree";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { TreeContextMenu } from "./context-menu/tree-menu";
+import { selectPinnedIds } from "./pinned-ids";
 import { MoveBanner } from "./drag/move-banner";
 import { useMoveMode } from "./drag/move-mode";
 import { HeaderActions } from "./header/actions";
@@ -30,12 +30,11 @@ function selectVisibleIds(state: RendererState) {
   return state.visibleIds;
 }
 
-function selectPinnedIds(state: RendererState) {
-  return pinnedNodeIds([...state.sourceNodes.values()]);
-}
-
 function sameIdList(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((id, index) => id === right[index]);
+  return (
+    left === right ||
+    (left.length === right.length && left.every((id, index) => id === right[index]))
+  );
 }
 
 function selectCompactSidebar(state: RendererState) {
@@ -46,8 +45,8 @@ function selectShowTreeGuides(state: RendererState) {
   return state.settings["showTreeGuides"] === true;
 }
 
-export function Sidebar({ store, onOpenCommandPalette }: Props) {
-  const visibleIds = useRendererSelector(store, selectVisibleIds);
+export const Sidebar = memo(function Sidebar({ store, onOpenCommandPalette }: Props) {
+  const visibleIds = useRendererSelector(store, selectVisibleIds, sameIdList);
   const pinnedIds = useRendererSelector(store, selectPinnedIds, sameIdList);
   const compactSidebar = useRendererSelector(store, selectCompactSidebar);
   const showTreeGuides = useRendererSelector(store, selectShowTreeGuides);
@@ -156,4 +155,4 @@ export function Sidebar({ store, onOpenCommandPalette }: Props) {
       )}
     </aside>
   );
-}
+});

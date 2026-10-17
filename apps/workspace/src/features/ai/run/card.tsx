@@ -8,6 +8,7 @@ import { Button } from "@/shared/ui/button";
 import { Checkbox } from "@/shared/ui/checkbox";
 import { KeyCaps } from "@/shared/ui/key-caps";
 import { setSuggestionPreview } from "@/features/editor/suggestions";
+import type { NoteTarget } from "@/features/editor/note-target";
 import { MarkdownDiffHunks } from "@/features/history/diff-hunks";
 import { commitReferenceOperations } from "@/store/commit";
 import { renameNode } from "@/features/notes/operations";
@@ -58,6 +59,7 @@ type Props = {
   modelLabel: string | null;
   getView: () => EditorView | null;
   getNoteId: () => string | null;
+  getNoteTarget: () => NoteTarget | null;
   /** Reports whether the provider is still working, for the launcher's label. */
   onLiveChange: (live: boolean) => void;
   onClose: () => void;
@@ -128,20 +130,28 @@ export function AiRunCard({
   modelLabel,
   getView,
   getNoteId,
+  getNoteTarget,
   onLiveChange,
   onClose,
 }: Props) {
   const run = useRunSession(session);
   const { retry, cancel } = session;
+
+  function liveTarget(): NoteTarget | null {
+    return action.scope === "note" ? getNoteTarget() : getView();
+  }
+
   // A card can mount onto a run that started before the writer left the note.
   // What the run would apply to is checked on the way back in, so a range that
   // moved meanwhile is refused where the writer can read it, not on accept.
   const [applyError, setApplyError] = useState<string | null>(() => {
-    const view = getView();
-    if (view === null || getNoteId() !== target.noteId) {
+    if (getNoteId() !== target.noteId) {
       return null;
     }
-    return liveEditorRefusal(view.state, target, action.scope, getNoteId());
+    const editor = liveTarget();
+    return editor === null
+      ? null
+      : liveEditorRefusal(editor.state, target, action.scope, getNoteId());
   });
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(() => new Set());
   const [copied, setCopied] = useState(false);
@@ -294,13 +304,13 @@ export function AiRunCard({
    * Everything that writes to the document goes through here so a stale result
    * is refused in exactly one place, whatever the writer pressed.
    */
-  function withLiveEditor(apply: (view: EditorView) => string | null): void {
-    const view = getView();
-    if (view === null) {
+  function withLiveEditor(apply: (editor: NoteTarget) => string | null): void {
+    const editor = liveTarget();
+    if (editor === null) {
       setApplyError("The editor is not available. Run the action again.");
       return;
     }
-    const refusal = liveEditorRefusal(view.state, target, action.scope, getNoteId());
+    const refusal = liveEditorRefusal(editor.state, target, action.scope, getNoteId());
     if (refusal !== null) {
       setApplyError(refusal);
       return;
@@ -308,35 +318,40 @@ export function AiRunCard({
     // The preview is torn down only once the change has actually landed. An
     // apply that refuses itself — an empty title, a plan that cannot be built —
     // has to leave the card standing, or the writer never reads why.
-    const failure = apply(view);
+    const failure = apply(editor);
     if (failure !== null) {
       setApplyError(failure);
       return;
     }
-    setSuggestionPreview(view, null);
+    const view = getView();
+    if (view !== null) {
+      setSuggestionPreview(view, null);
+    }
     close();
-    view.focus();
+    view?.focus();
   }
 
   function accept(): void {
-    withLiveEditor((view) => {
-      view.dispatch(
-        replaceRangeTransaction(view.state, target.from, target.to, run.preview.trim()),
+    withLiveEditor((editor) => {
+      editor.dispatch(
+        replaceRangeTransaction(editor.state, target.from, target.to, run.preview.trim()),
       );
       return null;
     });
   }
 
   function insertBelow(): void {
-    withLiveEditor((view) => {
-      view.dispatch(insertBelowTransaction(view.state, target.to, run.preview.trim()));
+    withLiveEditor((editor) => {
+      editor.dispatch(insertBelowTransaction(editor.state, target.to, run.preview.trim()));
       return null;
     });
   }
 
   function insertDiagram(): void {
-    withLiveEditor((view) => {
-      view.dispatch(insertBelowTransaction(view.state, target.to, diagramResultText(run.preview)));
+    withLiveEditor((editor) => {
+      editor.dispatch(
+        insertBelowTransaction(editor.state, target.to, diagramResultText(run.preview)),
+      );
       return null;
     });
   }
@@ -359,12 +374,12 @@ export function AiRunCard({
       setApplyError(failure);
       return;
     }
-    withLiveEditor((view) => {
-      const transaction = appendTaskPlanTransaction(view.state, chosen);
+    withLiveEditor((editor) => {
+      const transaction = appendTaskPlanTransaction(editor.state, chosen);
       if (transaction === null) {
         return "Those tasks could not be added to this note.";
       }
-      view.dispatch(transaction);
+      editor.dispatch(transaction);
       return null;
     });
   }
@@ -402,15 +417,15 @@ export function AiRunCard({
       });
       references.push({ id, name: item.text });
     }
-    withLiveEditor((view) => {
-      const transaction = appendTagPlanTransaction(view.state, references);
+    withLiveEditor((editor) => {
+      const transaction = appendTagPlanTransaction(editor.state, references);
       if (transaction === null) {
         return "Those tags could not be added to this note.";
       }
       if (creations.length > 0) {
         commitReferenceOperations(store, creations);
       }
-      view.dispatch(transaction);
+      editor.dispatch(transaction);
       return null;
     });
   }

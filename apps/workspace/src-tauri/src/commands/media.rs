@@ -20,16 +20,18 @@ pub struct StoredImagePayload {
 }
 
 #[tauri::command]
-pub fn store_note_image(
+pub async fn store_note_image(
     request: Request<'_>,
     state: State<'_, AppState>,
 ) -> Result<StoredImagePayload, String> {
     let InvokeBody::Raw(bytes) = request.body() else {
         return Err("image payload must be raw bytes".into());
     };
-    let stored = state
-        .image_store
-        .put(bytes)
+    let bytes = bytes.clone();
+    let image_store = Arc::clone(&state.image_store);
+    let stored = tauri::async_runtime::spawn_blocking(move || image_store.put(&bytes))
+        .await
+        .map_err(|error| error.to_string())?
         .map_err(|error| error.to_string())?;
     Ok(StoredImagePayload {
         content_hash: stored.content_hash,
@@ -57,16 +59,20 @@ pub fn note_media_path(
 }
 
 #[tauri::command]
-pub fn read_note_image_blob(
+pub async fn read_note_image_blob(
     content_hash: String,
     mime_type: String,
     state: State<'_, AppState>,
 ) -> Result<Response, String> {
-    state
-        .image_store
-        .read(&content_hash, &mime_type)
-        .map(Response::new)
-        .map_err(|error| error.to_string())
+    let image_store = Arc::clone(&state.image_store);
+    tauri::async_runtime::spawn_blocking(move || {
+        image_store
+            .read(&content_hash, &mime_type)
+            .map(Response::new)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]

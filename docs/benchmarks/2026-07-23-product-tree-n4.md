@@ -7,7 +7,7 @@ Revision: `1e426ba335fe75d545c77ac03dba560582f9762c`
 Command:
 
 ```bash
-node app/performance/run.mjs \
+node apps/workspace/performance/run.mjs \
   --output docs/benchmarks/raw/2026-07-23-product-tree-n4.json
 ```
 

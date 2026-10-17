@@ -289,6 +289,8 @@ export function createCodeBlockNodeView(
   const scheduleIdle = idleScheduler();
 
   const items: HTMLButtonElement[] = [];
+  let paintedParams: string | null = null;
+  let paintedOpen: boolean | null = null;
 
   function currentLanguage(): string {
     return String(node.attrs.params ?? "");
@@ -304,12 +306,16 @@ export function createCodeBlockNodeView(
 
   function paint(): void {
     const params = currentLanguage();
-    dom.dataset.language = params;
-    trigger.textContent = codeLanguageLabel(params);
-    trigger.setAttribute("aria-expanded", open ? "true" : "false");
-    toolbar.dataset.open = open ? "true" : "false";
-    for (const item of items) {
-      item.setAttribute("aria-selected", item.dataset.language === params ? "true" : "false");
+    if (params !== paintedParams || open !== paintedOpen) {
+      dom.dataset.language = params;
+      trigger.textContent = codeLanguageLabel(params);
+      trigger.setAttribute("aria-expanded", open ? "true" : "false");
+      toolbar.dataset.open = open ? "true" : "false";
+      for (const item of items) {
+        item.setAttribute("aria-selected", item.dataset.language === params ? "true" : "false");
+      }
+      paintedParams = params;
+      paintedOpen = open;
     }
     paintMermaid();
   }

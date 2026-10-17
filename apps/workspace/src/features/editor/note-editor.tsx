@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
+import type { ComponentProps, CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { DOMSerializer, type Node as ProseMirrorNode } from "prosemirror-model";
@@ -159,12 +159,13 @@ import {
   type BlockMenuTarget,
   type DragHandleController,
 } from "./blocks/drag-handle";
+import { BubbleMenu, closedBubbleMenu, computeBubbleMenu } from "./menus/bubble";
 import {
-  BubbleMenu,
-  bubbleMenuStateEqual,
-  closedBubbleMenu,
-  computeBubbleMenu,
-} from "./menus/bubble";
+  createEditorMenuStore,
+  useEditorMenu,
+  useEditorMenuValue,
+  type EditorMenuStore,
+} from "./menus/menu-store";
 import { AiOptInGate, selectAiEnabled } from "@/features/ai/opt-in-gate";
 import { clearPendingAiAction, requestAiAction } from "@/features/ai/editor-actions";
 import { clearPendingVoiceDictation } from "@/features/ai/voice-dictation";
@@ -176,6 +177,7 @@ import {
   annotationRanges,
   annotationMenuAnchor,
   closedAnnotationMenu,
+  type AnnotationMenuState,
   type AnnotationRange,
 } from "./annotations/menu";
 import {
@@ -232,6 +234,7 @@ import { SaveFailureBanner } from "./persistence/save-failure-banner";
 import { SaveSequencer } from "./persistence/save-sequencer";
 import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "./document/working-set";
 import { preparedEditorDocuments } from "./document/prepared";
+import { boundedNoteTarget, type NoteTarget } from "./note-target";
 import { REMOTE_APPLY_META, buildRemoteTr, mergeDocuments } from "./document/remote-merge";
 import { saveWithConflictRetry } from "./persistence/save-retry";
 import { createTypewriterPlugin } from "./focus/typewriter-scroll";
@@ -249,6 +252,7 @@ function selectAnnotations(state: RendererState) {
 }
 
 const SAVE_DEBOUNCE_MS = 500;
+const BOUNDED_SEARCH_REFRESH_MS = 150;
 /**
  * A save that loses the revision race merges against the winner and tries
  * again; after this many losses the sequencer records the failure so the user
@@ -323,6 +327,18 @@ const closedSlashMenu: SlashMenu = {
   y: 0,
   openUp: false,
 };
+
+function slashMenuEqual(left: SlashMenu, right: SlashMenu): boolean {
+  return (
+    left.open === right.open &&
+    left.trigger === right.trigger &&
+    left.query === right.query &&
+    left.index === right.index &&
+    left.x === right.x &&
+    left.y === right.y &&
+    left.openUp === right.openUp
+  );
+}
 
 const SLASH_MENU_WIDTH = 264;
 const SLASH_MENU_MAX_HEIGHT = 324;
@@ -486,6 +502,42 @@ const VoiceDictationHost = lazy(async () => {
   return { default: module.VoiceDictationHost };
 });
 
+function activeThreadOf(menu: AnnotationMenuState): string {
+  return menu.open ? menu.threadId : "";
+}
+
+type ConnectedBubbleMenuProps = Omit<ComponentProps<typeof BubbleMenu>, "state"> & {
+  menus: EditorMenuStore;
+};
+
+function ConnectedBubbleMenu({ menus, ...props }: ConnectedBubbleMenuProps) {
+  const state = useEditorMenu(menus, "bubble");
+  return <BubbleMenu state={state} {...props} />;
+}
+
+type ConnectedLinkMenuProps = Omit<ComponentProps<typeof LinkMenu>, "state"> & {
+  menus: EditorMenuStore;
+};
+
+function ConnectedLinkMenu({ menus, ...props }: ConnectedLinkMenuProps) {
+  const state = useEditorMenu(menus, "link");
+  return <LinkMenu state={state} {...props} />;
+}
+
+type ConnectedAnnotationMenuProps = Omit<
+  ComponentProps<typeof AnnotationMenu>,
+  "state" | "thread"
+> & {
+  menus: EditorMenuStore;
+  annotations: RendererState["annotations"];
+};
+
+function ConnectedAnnotationMenu({ menus, annotations, ...props }: ConnectedAnnotationMenuProps) {
+  const state = useEditorMenu(menus, "annotation");
+  const thread = state.threadId ? (annotations.get(state.threadId) ?? null) : null;
+  return <AnnotationMenu state={state} thread={thread} {...props} />;
+}
+
 export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const imageTouchActionsRef = useRef<ImageTouchActions | null>(null);
@@ -507,6 +559,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const dirtyNoteIdsRef = useRef(new Set<string>());
   const activeIdRef = useRef<string | null>(null);
   const saveTimerRef = useRef<number | null>(null);
+  const boundedSearchTimerRef = useRef<number | null>(null);
   const [failedSaveNoteIds, setFailedSaveNoteIds] = useState<ReadonlySet<string>>(new Set());
   const saveSequencerRef = useRef<SaveSequencer | null>(null);
   if (saveSequencerRef.current === null) {
@@ -534,9 +587,17 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const slashMenuRef = useRef(slashMenu);
   slashMenuRef.current = slashMenu;
   const slashDismissedRef = useRef(false);
-  const [bubbleMenu, setBubbleMenu] = useState(closedBubbleMenu);
-  const bubbleMenuRef = useRef(bubbleMenu);
-  bubbleMenuRef.current = bubbleMenu;
+  const slashSelectedRef = useRef<HTMLButtonElement | null>(null);
+  const attachSlashSelected = useCallback((node: HTMLButtonElement | null) => {
+    slashSelectedRef.current = node;
+  }, []);
+  useLayoutEffect(() => {
+    if (slashMenu.open) slashSelectedRef.current?.scrollIntoView({ block: "nearest" });
+  }, [slashMenu.open, slashMenu.index, slashMenu.query]);
+  const menusRef = useRef<EditorMenuStore | null>(null);
+  if (menusRef.current === null) menusRef.current = createEditorMenuStore();
+  const menus = menusRef.current;
+  const bubbleFrameRef = useRef<number | null>(null);
   const bubbleMenuHostRef = useRef<HTMLDivElement>(null);
   const bubbleDismissedRef = useRef<{ from: number; to: number } | null>(null);
   const aiEnabled = useRendererSelector(store, selectAiEnabled);
@@ -551,14 +612,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       clearPendingVoiceDictation();
     }
   }, [aiEnabled]);
-  const [linkMenu, setLinkMenu] = useState(closedLinkMenu);
-  const linkMenuRef = useRef(linkMenu);
-  linkMenuRef.current = linkMenu;
   const linkMenuHostRef = useRef<HTMLDivElement>(null);
   const linkHoverCloseTimerRef = useRef<number | null>(null);
-  const [annotationMenu, setAnnotationMenu] = useState(closedAnnotationMenu);
-  const annotationMenuRef = useRef(annotationMenu);
-  annotationMenuRef.current = annotationMenu;
   const annotationMenuHostRef = useRef<HTMLDivElement>(null);
   const annotationHoverCloseTimerRef = useRef<number | null>(null);
   const annotations = useRendererSelector(store, selectAnnotations);
@@ -577,6 +632,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     [selectNoteId],
   );
   const annotating = useRendererSelector(store, selectAnnotating);
+  const activeAnnotationThreadId = useEditorMenuValue(menus, "annotation", activeThreadOf);
   /**
    * Anchor appearance is derived here rather than inside the plugin so the walk
    * runs on store and popover changes only. An editor keystroke re-paints
@@ -584,10 +640,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
    */
   const annotationDecorationInputs = useMemo<AnnotationDecorationInputs>(
     () => ({
-      activeThreadId: annotationMenu.open ? annotationMenu.threadId : "",
+      activeThreadId: activeAnnotationThreadId,
       resolvedThreadIds: resolvedThreadIdsForNote(annotations, activeNoteId),
     }),
-    [annotations, activeNoteId, annotationMenu.open, annotationMenu.threadId],
+    [annotations, activeNoteId, activeAnnotationThreadId],
   );
   const annotationDecorationInputsRef = useRef(annotationDecorationInputs);
   annotationDecorationInputsRef.current = annotationDecorationInputs;
@@ -1037,6 +1093,56 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     }, SAVE_DEBOUNCE_MS);
   }
 
+  function cancelBoundedSearchRefresh(): void {
+    if (boundedSearchTimerRef.current === null) return;
+    window.clearTimeout(boundedSearchTimerRef.current);
+    boundedSearchTimerRef.current = null;
+  }
+
+  function scheduleBoundedSearchRefresh(): void {
+    cancelBoundedSearchRefresh();
+    boundedSearchTimerRef.current = window.setTimeout(() => {
+      boundedSearchTimerRef.current = null;
+      const entry = activeEntry();
+      if (!searchRef.current.searchOpen || !entry?.bounded) return;
+      rebuildBoundedSearchState(entry);
+      searchRef.current.syncMatchInfo();
+    }, BOUNDED_SEARCH_REFRESH_MS);
+  }
+
+  function cancelBubbleMeasure(): void {
+    if (bubbleFrameRef.current === null) return;
+    window.cancelAnimationFrame(bubbleFrameRef.current);
+    bubbleFrameRef.current = null;
+  }
+
+  function closeBubbleMenu(): void {
+    cancelBubbleMeasure();
+    menus.set("bubble", closedBubbleMenu);
+  }
+
+  function bubbleMenuSuppressed(state: EditorState): boolean {
+    return (
+      state.selection.empty ||
+      menus.get("link").editing ||
+      bubbleDismissedRef.current !== null ||
+      isVimVisual(state, vimHost.enabled())
+    );
+  }
+
+  function scheduleBubbleMeasure(): void {
+    if (bubbleFrameRef.current !== null) return;
+    bubbleFrameRef.current = window.requestAnimationFrame(() => {
+      bubbleFrameRef.current = null;
+      const view = viewRef.current;
+      if (!view) return;
+      menus.set(
+        "bubble",
+        bubbleMenuSuppressed(view.state) ? closedBubbleMenu : computeBubbleMenu(view),
+      );
+    });
+  }
+
   function dispatchTransaction(transaction: Transaction): void {
     const view = viewRef.current;
     const entry = activeEntry();
@@ -1058,13 +1164,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           entry.bounded.replaceWindow(next.doc, Date.now());
         }
         entry.wholeSelected = false;
-        if (searchRef.current.searchOpen) rebuildBoundedSearchState(entry);
+        if (searchRef.current.searchOpen) scheduleBoundedSearchRefresh();
         else entry.searchState = null;
         syncBoundedSurface(entry);
       }
     }
     if (transaction.docChanged && !remote) schedulePendingSave();
-    if (transaction.docChanged && searchRef.current.searchOpen) {
+    if (transaction.docChanged && searchRef.current.searchOpen && (remote || !entry.bounded)) {
       searchRef.current.syncMatchInfo();
     }
     if (transaction.docChanged) dragHandleRef.current?.hide();
@@ -1075,22 +1181,16 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     ) {
       bubbleDismissedRef.current = null;
     }
-    const nextBubbleMenu =
-      linkMenuRef.current.editing ||
-      bubbleDismissedRef.current !== null ||
-      isVimVisual(next, vimHost.enabled())
-        ? closedBubbleMenu
-        : computeBubbleMenu(view);
-    if (!bubbleMenuStateEqual(bubbleMenuRef.current, nextBubbleMenu)) {
-      setBubbleMenu(nextBubbleMenu);
-    }
-    if (!linkMenuRef.current.editing) {
+    if (bubbleMenuSuppressed(next)) closeBubbleMenu();
+    else scheduleBubbleMeasure();
+    const linkMenu = menus.get("link");
+    if (!linkMenu.editing) {
       const cursorLink = linkAtCursor(next);
       if (cursorLink) {
         cancelLinkHoverClose();
         showLinkMenu(view, cursorLink, "caret");
-      } else if (linkMenuRef.current.open && linkMenuRef.current.source !== "hover") {
-        setLinkMenu(closedLinkMenu);
+      } else if (linkMenu.open && linkMenu.source !== "hover") {
+        menus.set("link", closedLinkMenu);
       }
     }
     if (transaction.selectionSet) syncAnnotationMenuToSelection(next);
@@ -1103,16 +1203,19 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     if (slashDismissedRef.current) return;
     const coords = view.coordsAtPos(next.selection.from);
     const openUp = coords.bottom + 4 + SLASH_MENU_MAX_HEIGHT > window.innerHeight;
-    setSlashMenu((previous) => ({
-      open: true,
-      trigger: menu.trigger,
-      query: menu.query,
-      index:
-        previous.query === menu.query && previous.trigger === menu.trigger ? previous.index : 0,
-      x: Math.max(12, Math.min(coords.left, window.innerWidth - SLASH_MENU_WIDTH - 12)),
-      y: openUp ? coords.top - 4 : coords.bottom + 4,
-      openUp,
-    }));
+    setSlashMenu((previous) => {
+      const nextSlashMenu: SlashMenu = {
+        open: true,
+        trigger: menu.trigger,
+        query: menu.query,
+        index:
+          previous.query === menu.query && previous.trigger === menu.trigger ? previous.index : 0,
+        x: Math.max(12, Math.min(coords.left, window.innerWidth - SLASH_MENU_WIDTH - 12)),
+        y: openUp ? coords.top - 4 : coords.bottom + 4,
+        openUp,
+      };
+      return slashMenuEqual(previous, nextSlashMenu) ? previous : nextSlashMenu;
+    });
   }
 
   function runSlashAction(view: EditorView, action: SlashAction | null): void {
@@ -1182,7 +1285,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   function cancelBubbleMenu(view: EditorView): void {
     const { from, to } = view.state.selection;
     bubbleDismissedRef.current = { from, to };
-    setBubbleMenu(closedBubbleMenu);
+    closeBubbleMenu();
     view.focus();
   }
 
@@ -1234,9 +1337,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const view = viewRef.current;
     const range = linkEditorRange();
     if (!view || !range) return;
-    setBubbleMenu(closedBubbleMenu);
+    closeBubbleMenu();
     cancelLinkHoverClose();
-    setLinkMenu({
+    menus.set("link", {
       open: true,
       editing: true,
       source: "caret",
@@ -1278,7 +1381,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     range: { href: string; from: number; to: number },
     source: LinkMenuSource,
   ): void {
-    setLinkMenu({
+    menus.set("link", {
       open: true,
       editing: false,
       source,
@@ -1304,7 +1407,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     cancelLinkHoverClose();
     linkHoverCloseTimerRef.current = window.setTimeout(() => {
       linkHoverCloseTimerRef.current = null;
-      const menu = linkMenuRef.current;
+      const menu = menus.get("link");
       if (!menu.open || menu.editing || menu.source !== "hover") return;
       if (linkMenuHostRef.current?.contains(document.activeElement)) return;
       const view = viewRef.current;
@@ -1312,7 +1415,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       if (view && caretLink) {
         showLinkMenu(view, caretLink, "caret");
       } else {
-        setLinkMenu(closedLinkMenu);
+        menus.set("link", closedLinkMenu);
       }
     }, LINK_HOVER_CLOSE_MS);
   }
@@ -1324,7 +1427,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   ): void {
     const view = viewRef.current;
     if (!view) return;
-    const current = annotationMenuRef.current;
+    const current = menus.get("annotation");
     if (
       current.open &&
       !current.composing &&
@@ -1336,9 +1439,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     ) {
       return;
     }
-    setBubbleMenu(closedBubbleMenu);
-    setLinkMenu(closedLinkMenu);
-    setAnnotationMenu({
+    closeBubbleMenu();
+    menus.set("link", closedLinkMenu);
+    menus.set("annotation", {
       open: true,
       composing: false,
       focusComposer,
@@ -1357,8 +1460,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       showAnnotationThread(range, "caret", false);
       return;
     }
-    if (annotationMenuRef.current.source !== "hover") {
-      setAnnotationMenu(closedAnnotationMenu);
+    if (menus.get("annotation").source !== "hover") {
+      menus.set("annotation", closedAnnotationMenu);
     }
   }
 
@@ -1366,32 +1469,32 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     cancelAnnotationHoverClose();
     annotationHoverCloseTimerRef.current = window.setTimeout(() => {
       annotationHoverCloseTimerRef.current = null;
-      const menu = annotationMenuRef.current;
+      const menu = menus.get("annotation");
       if (!menu.open || menu.source !== "hover") return;
       const view = viewRef.current;
       const caretRange = view ? annotationAtCursor(view.state) : null;
       if (caretRange?.threadId === menu.threadId) {
         showAnnotationThread(caretRange, "caret", false);
       } else {
-        setAnnotationMenu(closedAnnotationMenu);
+        menus.set("annotation", closedAnnotationMenu);
       }
     }, ANNOTATION_HOVER_CLOSE_MS);
   }
 
   function interactWithAnnotationMenu(): void {
     cancelAnnotationHoverClose();
-    const current = annotationMenuRef.current;
+    const current = menus.get("annotation");
     if (!current.open || current.source === "intent") return;
-    setAnnotationMenu({ ...current, focusComposer: false, source: "intent" });
+    menus.set("annotation", { ...current, focusComposer: false, source: "intent" });
   }
 
   function openAnnotationMenu(): void {
     const view = viewRef.current;
     const range = annotationEditorRange();
     if (!view || !range) return;
-    setBubbleMenu(closedBubbleMenu);
-    setLinkMenu(closedLinkMenu);
-    setAnnotationMenu({
+    closeBubbleMenu();
+    menus.set("link", closedLinkMenu);
+    menus.set("annotation", {
       open: true,
       composing: range.threadId === "",
       focusComposer: true,
@@ -1411,7 +1514,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   function commitNewAnnotation(body: string): void {
     const view = viewRef.current;
     const noteId = activeIdRef.current;
-    const range = annotationMenuRef.current;
+    const range = menus.get("annotation");
     const annotationMark = productSchema.marks.annotation;
     if (!view || !noteId || !annotationMark) return;
     const threadId = crypto.randomUUID();
@@ -1443,7 +1546,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
    */
   function removeAnnotationThread(): void {
     const view = viewRef.current;
-    const { threadId, from, to } = annotationMenuRef.current;
+    const { threadId, from, to } = menus.get("annotation");
     const thread = store.getState().annotations.get(threadId);
     const annotationMark = productSchema.marks.annotation;
     if (!thread) return;
@@ -1471,7 +1574,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const view = viewRef.current;
     const entry = activeEntry();
     if (!view || !entry?.bounded) return view;
-    if (!entry.searchState) rebuildBoundedSearchState(entry);
+    if (!entry.searchState || boundedSearchTimerRef.current !== null) {
+      cancelBoundedSearchRefresh();
+      rebuildBoundedSearchState(entry);
+    }
     if (!entry.searchState) return view;
     return {
       get state() {
@@ -1503,6 +1609,20 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     };
   }
 
+  function noteTarget(): NoteTarget | null {
+    const view = viewRef.current;
+    const entry = activeEntry();
+    if (!view || !entry) return null;
+    if (!entry.bounded) return view;
+    return boundedNoteTarget(entry.bounded, () => {
+      entry.wholeSelected = false;
+      installBoundedWindow(entry, true);
+      if (searchRef.current.searchOpen) scheduleBoundedSearchRefresh();
+      else entry.searchState = null;
+      schedulePendingSave();
+    });
+  }
+
   const dismissJumpToLine = useCallback(() => {
     setJumpOpen(false);
   }, []);
@@ -1531,6 +1651,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   }, [dismissJumpToLine]);
 
   const getEditorSearchTarget = useCallback(() => getSearchTarget(), []);
+  const getNoteTarget = useCallback(() => noteTarget(), []);
   const search = useEditorSearch(store, getEditorSearchTarget, {
     onBeforeOpen: dismissJumpToLine,
   });
@@ -2016,8 +2137,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           !mod &&
           !event.shiftKey &&
           event.key === "Tab" &&
-          annotationMenuRef.current.open &&
-          !annotationMenuRef.current.composing
+          menus.get("annotation").open &&
+          !menus.get("annotation").composing
         ) {
           const input = annotationMenuHostRef.current?.querySelector(
             ".annotation-menu-composer textarea",
@@ -2032,8 +2153,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           !mod &&
           !event.shiftKey &&
           event.key === "Tab" &&
-          linkMenuRef.current.open &&
-          !linkMenuRef.current.editing &&
+          menus.get("link").open &&
+          !menus.get("link").editing &&
           !slashMenuRef.current.open
         ) {
           const first = linkMenuHostRef.current?.querySelector("button");
@@ -2048,7 +2169,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           !mod &&
           !event.shiftKey &&
           event.key === "Tab" &&
-          bubbleMenuRef.current.open &&
+          menus.get("bubble").open &&
           !slashMenuRef.current.open
         ) {
           const first = bubbleMenuHostRef.current?.querySelector("button");
@@ -2073,7 +2194,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
             }
           }
         }
-        if (event.key === "Escape" && bubbleMenuRef.current.open) {
+        if (event.key === "Escape" && menus.get("bubble").open) {
           event.preventDefault();
           cancelBubbleMenu(currentView);
           return true;
@@ -2108,8 +2229,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const scrollHost = host.closest<HTMLElement>(".editor-scroll");
     scrollHostRef.current = scrollHost;
     function handleScroll() {
-      setBubbleMenu((previous) => (previous.open ? closedBubbleMenu : previous));
-      setLinkMenu((previous) => (previous.open && !previous.editing ? closedLinkMenu : previous));
+      closeBubbleMenu();
+      menus.set("link", (previous) =>
+        previous.open && !previous.editing ? closedLinkMenu : previous,
+      );
       dragHandleRef.current?.hide();
       const entry = activeEntry();
       if (!entry?.bounded || !scrollHost) return;
@@ -2165,11 +2288,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       if (!(target instanceof Element)) return;
       const anchor = target.closest<HTMLElement>("a[href]");
       if (!anchor || !view.dom.contains(anchor)) return;
-      if (linkMenuRef.current.editing || annotationMenuRef.current.open) return;
+      if (menus.get("link").editing || menus.get("annotation").open) return;
       const range = linkAtPos(view.state, view.posAtDOM(anchor, 0));
       if (!range) return;
       cancelLinkHoverClose();
-      const menu = linkMenuRef.current;
+      const menu = menus.get("link");
       if (menu.open && menu.from === range.from && menu.to === range.to) return;
       showLinkMenu(view, range, "hover");
     }
@@ -2187,17 +2310,15 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       const focused = event.relatedTarget;
       const intoBubbleMenu =
         focused instanceof HTMLElement && focused.closest(".bubble-menu") !== null;
-      if (!intoBubbleMenu) {
-        setBubbleMenu((previous) => (previous.open ? closedBubbleMenu : previous));
-      }
+      if (!intoBubbleMenu) closeBubbleMenu();
       const next = event.relatedTarget;
       if (!(next instanceof HTMLElement) || !next.closest(".link-menu")) {
-        setLinkMenu((previous) => (previous.open ? closedLinkMenu : previous));
+        menus.set("link", closedLinkMenu);
       }
       const intoAnnotationMenu =
         next instanceof HTMLElement && next.closest(".annotation-menu") !== null;
-      if (!intoAnnotationMenu && annotationMenuRef.current.source !== "hover") {
-        setAnnotationMenu(closedAnnotationMenu);
+      if (!intoAnnotationMenu && menus.get("annotation").source !== "hover") {
+        menus.set("annotation", closedAnnotationMenu);
       }
     }
     function handleCopy(event: ClipboardEvent) {
@@ -2237,6 +2358,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       // still waits for it instead of reading a pre-save revision.
       const finalSave = flushPendingSave().catch(reportBackgroundSaveFailure);
       void finalSave.finally(unregisterPendingSave);
+      cancelBoundedSearchRefresh();
+      cancelBubbleMeasure();
       scrollHost?.removeEventListener("scroll", handleScroll);
       view.dom.removeEventListener("compositionstart", handleCompositionStart);
       view.dom.removeEventListener("compositionend", handleCompositionEnd);
@@ -2289,15 +2412,17 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     searchRef.current.resetSearch();
     void flushPendingSave().catch(reportBackgroundSaveFailure);
     const previous = activeEntry();
+    if (previous && boundedSearchTimerRef.current !== null) previous.searchState = null;
+    cancelBoundedSearchRefresh();
     if (previous?.bounded && view.hasFocus()) {
       previous.bounded.rememberSelection(readSelection(view.state, previous.bounded.windowStart()));
     }
     if (previous && scrollHostRef.current) previous.scrollTop = scrollHostRef.current.scrollTop;
     activeIdRef.current = activeNoteId;
     setSlashMenu(closedSlashMenu);
-    setBubbleMenu(closedBubbleMenu);
-    setLinkMenu(closedLinkMenu);
-    setAnnotationMenu(closedAnnotationMenu);
+    closeBubbleMenu();
+    menus.set("link", closedLinkMenu);
+    menus.set("annotation", closedAnnotationMenu);
     dragHandleRef.current?.hide();
     if (activeNoteId === null) {
       view.updateState(createEditorState(emptyDocument(), editorPlugins));
@@ -2594,6 +2719,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
               selectNoteId={selectNoteId}
               getView={getActiveView}
               getNoteId={getActiveNoteId}
+              getNoteTarget={getNoteTarget}
             />
             <VoiceDictationHost
               store={store}
@@ -2604,66 +2730,66 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           </Suspense>
         )}
       </AiOptInGate>
-      <BubbleMenu
-        state={bubbleMenu}
+      <ConnectedBubbleMenu
+        menus={menus}
         getView={() => viewRef.current}
         onLink={openLinkEditor}
         onComment={openAnnotationMenu}
         onAskAi={aiEnabled ? askAi : null}
-        onDismiss={() => setBubbleMenu(closedBubbleMenu)}
+        onDismiss={closeBubbleMenu}
         onCancel={() => {
           const view = viewRef.current;
           if (view) cancelBubbleMenu(view);
         }}
         containerRef={bubbleMenuHostRef}
       />
-      <AnnotationMenu
-        state={annotationMenu}
-        thread={annotationMenu.threadId ? (annotations.get(annotationMenu.threadId) ?? null) : null}
+      <ConnectedAnnotationMenu
+        menus={menus}
+        annotations={annotations}
         containerRef={annotationMenuHostRef}
         getView={() => viewRef.current}
         onCreate={(body) => commitNewAnnotation(body)}
         onReply={(body) => {
           const at = Date.now();
-          addAnnotationComment(store, annotationMenuRef.current.threadId, body, at);
+          addAnnotationComment(store, menus.get("annotation").threadId, body, at);
         }}
         onEditComment={(commentId, body) =>
           updateAnnotationComment(
             store,
-            annotationMenuRef.current.threadId,
+            menus.get("annotation").threadId,
             commentId,
             body,
             Date.now(),
           )
         }
         onDeleteComment={(commentId) =>
-          deleteAnnotationComment(store, annotationMenuRef.current.threadId, commentId)
+          deleteAnnotationComment(store, menus.get("annotation").threadId, commentId)
         }
         onResolve={() =>
-          setAnnotationResolved(store, annotationMenuRef.current.threadId, true, Date.now())
+          setAnnotationResolved(store, menus.get("annotation").threadId, true, Date.now())
         }
         onReopen={() =>
-          setAnnotationResolved(store, annotationMenuRef.current.threadId, false, Date.now())
+          setAnnotationResolved(store, menus.get("annotation").threadId, false, Date.now())
         }
         onDelete={() => removeAnnotationThread()}
-        onClose={() => setAnnotationMenu(closedAnnotationMenu)}
+        onClose={() => menus.set("annotation", closedAnnotationMenu)}
         onHoverStart={cancelAnnotationHoverClose}
         onHoverEnd={scheduleAnnotationHoverClose}
         onInteract={interactWithAnnotationMenu}
       />
-      <LinkMenu
-        state={linkMenu}
+      <ConnectedLinkMenu
+        menus={menus}
         getView={() => viewRef.current}
         defaultTarget={defaultLinkTarget(settingsDocument)}
         openShortcut={linkHints.openLink}
         onOpen={openLink}
         onClose={() => {
           cancelLinkHoverClose();
-          setLinkMenu(closedLinkMenu);
+          menus.set("link", closedLinkMenu);
         }}
         onEdit={() => {
           cancelLinkHoverClose();
-          setLinkMenu((previous) => ({ ...previous, editing: true }));
+          menus.set("link", (previous) => ({ ...previous, editing: true }));
         }}
         onHoverStart={cancelLinkHoverClose}
         onHoverEnd={scheduleLinkHoverClose}
@@ -2683,7 +2809,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
               <div key={command.id}>
                 {groupStart && <div className="slash-menu-group">{command.group}</div>}
                 <button
-                  ref={selected ? (node) => node?.scrollIntoView({ block: "nearest" }) : undefined}
+                  ref={selected ? attachSlashSelected : undefined}
                   type="button"
                   role="option"
                   aria-selected={selected}

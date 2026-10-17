@@ -1,4 +1,5 @@
 import { flushSync } from "react-dom";
+import { TextSelection } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import {
   EDITOR_WORKING_SET_LIMIT,
@@ -7,14 +8,18 @@ import {
 import type { ProfilerOnRenderCallback } from "react";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { estimateFrameDuration, nextFrame, summarize } from "./metrics";
+import { framesOver } from "./budgets.ts";
 import { readBridgeCalls, resetBridgeCalls } from "./bridge-mock";
 import {
   queryMentionSuggestions,
   queryTagSuggestions,
 } from "../src/features/references/suggestions/query";
+import { SEARCH_DELAY_MS as UNLINKED_MENTION_SEARCH_DELAY_MS } from "../src/features/references/mentions/unlinked";
 import type {
   FixtureIdentity,
+  LinkCaretResult,
   LongAnimationFrameSample,
+  NavigationTailResult,
   PerformanceController,
   PhaseResult,
   ProductRendererResult,
@@ -24,9 +29,11 @@ import type {
 
 const SELECTION_COUNT = 100;
 const TYPING_COUNT = 30;
+const LINK_CARET_MOVES = 6;
+const NAVIGATION_SETTLE_MARGIN_MS = 100;
 
 type Phase = {
-  name: "selection" | "working-set" | "keyboard" | "typing";
+  name: "selection" | "working-set" | "keyboard" | "typing" | "link-caret";
   startedAt: number;
   dispatchMs: number[];
   editorInstallationMs: number[];
@@ -122,6 +129,10 @@ async function stopPhase(phase: Phase, estimatedFrameMs: number): Promise<PhaseR
       reactCommit: summarize(phase.reactCommitMs),
     },
     droppedFrames: phase.frameGapsMs.filter((sample) => sample > estimatedFrameMs * 1.5).length,
+    frameMisses: {
+      at60Hz: framesOver(phase.frameGapsMs, 16.67),
+      at120Hz: framesOver(phase.frameGapsMs, 8.33),
+    },
     longTasks: phase.longTasks,
     longAnimationFrames: relevantLongFrames,
     reactCommits: phase.reactCommitMs.length,
@@ -129,16 +140,31 @@ async function stopPhase(phase: Phase, estimatedFrameMs: number): Promise<PhaseR
   };
 }
 
-function instrumentEditor(onInstallation: (duration: number) => void): () => void {
+function instrumentEditor(
+  onInstallation: (view: EditorView, duration: number) => void,
+): () => void {
   const original = EditorView.prototype.updateState;
   EditorView.prototype.updateState = function updateState(state) {
     const started = performance.now();
     original.call(this, state);
-    onInstallation(performance.now() - started);
+    onInstallation(this, performance.now() - started);
   };
   return () => {
     EditorView.prototype.updateState = original;
   };
+}
+
+function firstLinkPosition(view: EditorView): number | null {
+  const linkMark = view.state.schema.marks.link;
+  const found: number[] = [];
+  view.state.doc.descendants((node, position) => {
+    if (found.length > 0) return false;
+    if (node.isText && node.marks.some((mark) => mark.type === linkMark)) {
+      found.push(position + 1);
+    }
+    return found.length === 0;
+  });
+  return found[0] ?? null;
 }
 
 function instrumentWorkingSet(
@@ -165,6 +191,10 @@ export async function createPerformanceController(
   let keyboardHandled = 0;
   let keyboardSelections = 0;
   let typingHandled = 0;
+  let linkCaretHandled = 0;
+  let linkCaretStart = 0;
+  const editorViews = new Set<EditorView>();
+  let navigationTailCommits: number | null = null;
   let typingPreviousText = "";
   let editorHosts = 0;
   let prosemirrorViews = 0;
@@ -176,7 +206,8 @@ export async function createPerformanceController(
   const resourceBaseline = new Set(
     performance.getEntriesByType("resource").map((entry) => entry.name),
   );
-  const restoreEditor = instrumentEditor((duration) => {
+  const restoreEditor = instrumentEditor((view, duration) => {
+    editorViews.add(view);
     phase?.editorInstallationMs.push(duration);
   });
   const restoreWorkingSet = instrumentWorkingSet((size, evictedIds) => {
@@ -204,6 +235,9 @@ export async function createPerformanceController(
 
   const onRender: ProfilerOnRenderCallback = (_id, _phase, actualDuration) => {
     phase?.reactCommitMs.push(actualDuration);
+    if (navigationTailCommits !== null) {
+      navigationTailCommits += 1;
+    }
   };
 
   function onKeyDown(event: KeyboardEvent) {
@@ -218,6 +252,11 @@ export async function createPerformanceController(
     if (phase.name === "typing" && event.key.length === 1) {
       const started = event.timeStamp;
       typingHandled += 1;
+      requestAnimationFrame((paintedAt) => phase?.nextPaintMs.push(paintedAt - started));
+    }
+    if (phase.name === "link-caret" && event.key === "ArrowRight") {
+      const started = event.timeStamp;
+      linkCaretHandled += 1;
       requestAnimationFrame((paintedAt) => phase?.nextPaintMs.push(paintedAt - started));
     }
   }
@@ -343,6 +382,28 @@ export async function createPerformanceController(
     };
   }
 
+  async function settleNavigation(): Promise<NavigationTailResult> {
+    if (phase) {
+      throw new Error("performance phase already active");
+    }
+    resetBridgeCalls();
+    navigationTailCommits = 0;
+    const startedAt = performance.now();
+    await new Promise((resolveDelay) =>
+      setTimeout(resolveDelay, UNLINKED_MENTION_SEARCH_DELAY_MS + NAVIGATION_SETTLE_MARGIN_MS),
+    );
+    await new Promise((resolveIdle) => requestIdleCallback(resolveIdle, { timeout: 1_000 }));
+    await nextFrame();
+    await nextFrame();
+    const reactCommits = navigationTailCommits;
+    navigationTailCommits = null;
+    return {
+      windowMs: performance.now() - startedAt,
+      reactCommits,
+      bridgeCalls: readBridgeCalls(),
+    };
+  }
+
   async function prepareTyping(): Promise<{ expected: number }> {
     if (phase) {
       throw new Error("performance phase already active");
@@ -381,6 +442,52 @@ export async function createPerformanceController(
     };
   }
 
+  function activeEditorView(): EditorView {
+    const dom = document.querySelector(".ProseMirror");
+    for (const view of editorViews) {
+      if (view.dom === dom) return view;
+    }
+    throw new Error("no editor view owns the mounted editor");
+  }
+
+  async function prepareLinkCaret(): Promise<{ expected: number }> {
+    if (phase) {
+      throw new Error("performance phase already active");
+    }
+    linkCaretHandled = 0;
+    const view = activeEditorView();
+    const target = firstLinkPosition(view);
+    if (target === null) {
+      throw new Error("the measured note has no link in the mounted window");
+    }
+    view.focus();
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, target)));
+    await nextFrame();
+    await nextFrame();
+    if (!document.querySelector(".link-menu")) {
+      throw new Error("a caret inside the link did not open the link menu");
+    }
+    linkCaretStart = view.state.selection.from;
+    phase = startPhase("link-caret");
+    return { expected: LINK_CARET_MOVES };
+  }
+
+  async function finishLinkCaret() {
+    if (phase?.name !== "link-caret") {
+      throw new Error("link caret phase is not active");
+    }
+    const completed = phase;
+    phase = null;
+    const view = activeEditorView();
+    return {
+      ...(await stopPhase(completed, estimatedFrameMs)),
+      expected: LINK_CARET_MOVES,
+      handled: linkCaretHandled,
+      moved: view.state.selection.from - linkCaretStart,
+      menuOpen: document.querySelector(".link-menu") !== null,
+    };
+  }
+
   function runReferenceSuggestions() {
     resetBridgeCalls();
     const samplesMs: number[] = [];
@@ -414,6 +521,7 @@ export async function createPerformanceController(
     workingSet: WorkingSetResult,
     keyboardSwitches: PhaseResult & { expected: number; handled: number; selections: number },
     typing: PhaseResult & { expected: number; handled: number },
+    linkCaret: LinkCaretResult,
     referenceSuggestions: {
       samplesMs: number[];
       p95Ms: number;
@@ -481,6 +589,15 @@ export async function createPerformanceController(
         detail: `${typing.reactCommits} React commits`,
       },
       {
+        name: "link-caret-moves-skip-react",
+        pass:
+          linkCaret.reactCommits <= 1 &&
+          linkCaret.handled === LINK_CARET_MOVES &&
+          linkCaret.moved === LINK_CARET_MOVES &&
+          linkCaret.menuOpen,
+        detail: `${linkCaret.reactCommits} React commits, ${linkCaret.handled}/${LINK_CARET_MOVES} keys, moved ${linkCaret.moved}, menu ${linkCaret.menuOpen ? "open" : "closed"}`,
+      },
+      {
         name: "trusted-keystroke-count-is-exact",
         pass: typing.handled === TYPING_COUNT,
         detail: `${typing.handled}/${TYPING_COUNT}`,
@@ -524,6 +641,7 @@ export async function createPerformanceController(
       workingSet,
       keyboardSwitches,
       typing,
+      linkCaret,
       referenceSuggestions,
       mounts,
       dom: {
@@ -549,9 +667,12 @@ export async function createPerformanceController(
     positionKeyboard,
     confirmKeyboard,
     finishKeyboard,
+    settleNavigation,
     prepareTyping,
     confirmTyping,
     finishTyping,
+    prepareLinkCaret,
+    finishLinkCaret,
     runReferenceSuggestions,
     finish,
     destroy: () => {
