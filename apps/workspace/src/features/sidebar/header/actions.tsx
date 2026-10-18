@@ -31,7 +31,7 @@ export function HeaderActions({
   onOpenCommandPalette,
 }: Props) {
   const shortcutHints = useShortcutHints(store, HEADER_SHORTCUT_IDS);
-  const headerActionClass = `${headerActionBaseClass} ${isNarrow ? "h-6 w-6" : "h-7 w-7"}`;
+  const headerActionClass = `${headerActionBaseClass} ${isNarrow ? "h-6 w-6" : "h-7 w-7"} pointer-coarse:w-11`;
   return (
     <motion.div
       animate={isSearchOpen ? { y: -8, opacity: 0, scale: 0.985 } : { y: 0, opacity: 1, scale: 1 }}

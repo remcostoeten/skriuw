@@ -539,7 +539,7 @@ try {
     sessionId,
     `({
       tabs: document.querySelectorAll('.shell-tab').length,
-      rail: Boolean(document.querySelector('nav[aria-label="Primary"].flex')),
+      rail: Boolean(document.querySelector('nav[aria-label="Primary"]:not(.shell-tab-bar)')),
       overflow: document.documentElement.scrollWidth > window.innerWidth,
       coarse: matchMedia('(pointer: coarse)').matches,
       toolbar: Array.from(document.querySelectorAll('main button[aria-label]')).map((b) => b.getAttribute('aria-label')),

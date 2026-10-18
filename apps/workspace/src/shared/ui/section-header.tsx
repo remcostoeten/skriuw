@@ -73,7 +73,7 @@ export function SectionToggle({ title, open, onToggle, id, className }: SectionT
       aria-label={open ? `Collapse ${title}` : undefined}
       className={cn(
         open
-          ? "absolute right-1.5 top-1.5 z-[1] flex cursor-pointer items-center rounded-[var(--radius)] bg-background/90 p-1 opacity-0 transition-opacity duration-150 focus-visible:opacity-100 group-hover:opacity-100 motion-reduce:transition-none"
+          ? "absolute right-1.5 top-1.5 z-[1] flex cursor-pointer items-center rounded-[var(--radius)] bg-background/90 p-1 opacity-0 transition-opacity duration-150 focus-visible:opacity-100 group-hover:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100 pointer-coarse:size-11 pointer-coarse:justify-center pointer-coarse:right-0 pointer-coarse:top-0"
           : sectionHeaderClass,
         open && className,
       )}

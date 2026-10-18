@@ -185,7 +185,7 @@ export const JournalSidebar = memo(function JournalSidebar({ store }: Props) {
         <button
           type="button"
           onClick={goToToday}
-          className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium text-sidebar-foreground/58 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:outline-none"
+          className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] pointer-coarse:h-11 pointer-coarse:px-3 pointer-coarse:text-xs font-medium text-sidebar-foreground/58 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:outline-none"
         >
           <CalendarDaysIcon size={12} aria-hidden="true" />
           Today
@@ -200,7 +200,7 @@ export const JournalSidebar = memo(function JournalSidebar({ store }: Props) {
         role="tablist"
         aria-label="Journal sidebar views"
         onKeyDown={handleTabKeyDown}
-        className="flex h-10 shrink-0 items-center gap-1 border-b border-sidebar-border px-2"
+        className="flex h-10 shrink-0 items-center gap-1 border-b pointer-coarse:h-13 border-sidebar-border px-2"
       >
         {SIDEBAR_TABS.map((entry) => (
           <button
@@ -213,7 +213,7 @@ export const JournalSidebar = memo(function JournalSidebar({ store }: Props) {
             aria-controls={tabPanelId(entry.id)}
             aria-selected={tab === entry.id}
             aria-label={entry.label}
-            className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors focus-visible:outline-none ${
+            className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors pointer-coarse:size-11 focus-visible:outline-none ${
               tab === entry.id
                 ? "border border-border bg-muted text-foreground/80"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground/75"
@@ -285,7 +285,7 @@ export const JournalSidebar = memo(function JournalSidebar({ store }: Props) {
                 placeholder="Search entries..."
                 aria-label="Search journal entries"
                 aria-describedby="journal-search-hint"
-                className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-2.5 text-[11px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/40 focus:bg-muted"
+                className="w-full rounded-md border border-border bg-background py-1.5 pointer-coarse:py-2.5 pl-8 pr-2.5 text-[11px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/40 focus:bg-muted"
               />
             </div>
             <p id="journal-search-hint" className="sr-only">

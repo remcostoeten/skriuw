@@ -44,6 +44,12 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
 
 - Brand icon resolution, a roomier command palette, and an inline empty-trash
   confirmation.
+- **Phone and tablet web app:** the compact shell's tab bar and toolbar are back
+  in place, the home indicator inset is no longer applied twice, hover-only
+  controls (section collapse, tag and trash row actions, cover controls) show
+  on touch, small icon buttons meet 44px touch targets, and settings rows wrap
+  on narrow screens. The installed app precaches every build chunk, so screens
+  never opened online still open offline.
 
 ## [0.44.0] — 2026-09-09
 
