@@ -62,23 +62,35 @@ export default defineConfig({
  * byte, so each build stamps a digest of its emitted file names into the
  * worker's cache name. Hashed asset names change with their content, which
  * makes the stamp change exactly when the shipped shell does.
+ *
+ * The same pass writes the emitted asset list into the worker so it can
+ * precache every chunk at install. Lazy surfaces (settings, import, history)
+ * then open offline even when this browser never loaded them online.
  */
 function stampShellWorker(): Plugin {
   let digest = "";
+  let assets: string[] = [];
   return {
     name: "skriuw:stamp-shell-worker",
     apply: "build",
     generateBundle(_options, bundle) {
-      const names = Object.keys(bundle).sort().join("\n");
-      digest = createHash("sha256").update(names).digest("hex").slice(0, 12);
+      const names = Object.keys(bundle).sort();
+      digest = createHash("sha256").update(names.join("\n")).digest("hex").slice(0, 12);
+      assets = names.filter(
+        (name) => name.startsWith("assets/") && !/\.(map|ttf|woff)$/.test(name),
+      );
     },
     async writeBundle(options) {
       const workerPath = join(options.dir ?? "dist", "sw.js");
       const source = await readFile(workerPath, "utf8");
-      const stamped = source.replace('"skriuw-shell-v1"', `"skriuw-shell-${digest}"`);
-      if (stamped === source) {
-        throw new Error(`sw.js cache name placeholder not found in ${workerPath}`);
+      const cacheName = '"skriuw-shell-v1"';
+      const precache = "const PRECACHE_ASSETS = [];";
+      if (!source.includes(cacheName) || !source.includes(precache)) {
+        throw new Error(`sw.js placeholders not found in ${workerPath}`);
       }
+      const stamped = source
+        .replace(cacheName, `"skriuw-shell-${digest}"`)
+        .replace(precache, `const PRECACHE_ASSETS = ${JSON.stringify(assets)};`);
       await writeFile(workerPath, stamped);
     },
   };

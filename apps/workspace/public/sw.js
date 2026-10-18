@@ -4,7 +4,8 @@
  * The renderer owns its own data: SQLite runs in a worker over OPFS and cloud
  * sync talks to another origin, so the worker never sees a durable write. It
  * only makes the shell start without a network:
- *   1. hashed build assets are served cache-first, immutable by contract,
+ *   1. hashed build assets are precached at install and served cache-first,
+ *      immutable by contract, so a lazy chunk never first loads offline,
  *   2. the shell document is served stale-while-revalidate so a cold launch
  *      paints from disk and picks up a new build in the background,
  *   3. everything else, including every request outside the registration
@@ -16,6 +17,8 @@
  */
 const CACHE_NAME = "skriuw-shell-v1";
 const SHELL_URL = new URL("./", self.registration.scope).pathname;
+// Replaced at build time with every emitted file under assets/.
+const PRECACHE_ASSETS = [];
 
 function isAsset(pathname) {
   return pathname.startsWith(`${SHELL_URL}assets/`);
@@ -28,7 +31,12 @@ function inScope(url) {
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.add(new Request(SHELL_URL, { cache: "reload" }));
+      const requests = [SHELL_URL, ...PRECACHE_ASSETS.map((asset) => `${SHELL_URL}${asset}`)].map(
+        (url) => {
+          return new Request(url, { cache: "reload" });
+        },
+      );
+      return cache.addAll(requests);
     }),
   );
 });

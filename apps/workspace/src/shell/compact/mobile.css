@@ -18,7 +18,31 @@
   grid-row: 2;
 }
 
-.shell-compact > /*
+.shell-compact > .shell-tab-bar {
+  grid-row: 3;
+}
+
+/*
+ * Safe areas belong to the chrome, not the page: the status bar strip paints
+ * in the toolbar colour and the tab bar carries the home indicator inset
+ * itself, so the body must not add it a second time.
+ */
+@media (max-width: 899px) {
+  body {
+    background: hsl(var(--sidebar-background));
+    padding-block-end: 0;
+  }
+
+  #root {
+    background: hsl(var(--background));
+  }
+
+  .shell-compact.shell-focus-mode {
+    padding-block-end: max(0px, calc(var(--safe-bottom) - var(--keyboard-inset)));
+  }
+}
+
+/*
  * Sized from the visual viewport rather than the layout viewport, so an open
  * keyboard shrinks the sheet above it instead of hiding its lower half.
  */
@@ -101,6 +125,14 @@
 
 .mobile-sheet-root[data-state="closed"][data-side="right"] .mobile-sheet-panel {
   transform: translateX(100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-sheet-panel,
+  .mobile-sheet-scrim,
+  .sidebar-tree-row-settle {
+    transition: none;
+  }
 }
 
 /*

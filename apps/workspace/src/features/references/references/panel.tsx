@@ -198,11 +198,11 @@ function ReferenceDetailRow({ store, entry }: DetailRowProps) {
             onConfirm={() => commit(buildDeleteReferenceOperation(entry))}
             className="shrink-0"
             renderIdle={(arm) => (
-              <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-100 focus-within:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 group-focus-within:transition-none">
+              <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-100 focus-within:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 group-focus-within:transition-none pointer-coarse:opacity-100">
                 <button
                   type="button"
                   aria-label={`Rename ${noun.toLowerCase()} ${entry.name}`}
-                  className="flex size-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                  className="flex size-5 items-center justify-center rounded text-muted-foreground hover:text-foreground pointer-coarse:size-11"
                   onClick={() => setRenaming(true)}
                 >
                   <PencilIcon size={12} />
@@ -210,7 +210,7 @@ function ReferenceDetailRow({ store, entry }: DetailRowProps) {
                 <button
                   type="button"
                   aria-label={`Delete ${noun.toLowerCase()} ${entry.name}`}
-                  className="flex size-5 items-center justify-center rounded text-muted-foreground hover:text-destructive"
+                  className="flex size-5 items-center justify-center rounded text-muted-foreground hover:text-destructive pointer-coarse:size-11"
                   onClick={arm}
                 >
                   <Trash2Icon size={12} />

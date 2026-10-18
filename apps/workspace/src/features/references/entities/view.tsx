@@ -418,7 +418,7 @@ export function EntityView({ store, kind }: Props) {
           <div className="flex items-center gap-1.5 border-b border-theme-divider px-2.5 py-2">
             <div
               className={cn(
-                "group flex h-[28px] min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-border bg-background px-2 text-theme-dim",
+                "group flex h-[28px] min-w-0 flex-1 items-center gap-1.5 rounded-lg pointer-coarse:h-11 border border-border bg-background px-2 text-theme-dim",
                 "focus-within:border-ring",
               )}
             >
@@ -426,7 +426,7 @@ export function EntityView({ store, kind }: Props) {
               <input
                 ref={filterRef}
                 type="search"
-                className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none [&::-webkit-search-cancel-button]:hidden"
+                className="min-w-0 flex-1 self-stretch bg-transparent text-xs text-foreground outline-none [&::-webkit-search-cancel-button]:hidden"
                 placeholder="Filter"
                 value={filter}
                 onChange={(event) => setFilter(event.target.value)}
@@ -846,7 +846,7 @@ function EntityListRow({
               <Tooltip label="Actions" side="top">
                 <DropdownMenuTrigger
                   className={cn(
-                    "inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent text-muted-foreground opacity-0 transition-opacity hover:border-border hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:border-border data-[state=open]:bg-muted data-[state=open]:text-foreground data-[state=open]:opacity-100",
+                    "inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent text-muted-foreground opacity-0 transition-opacity hover:border-border hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:size-11 pointer-coarse:opacity-100 data-[state=open]:border-border data-[state=open]:bg-muted data-[state=open]:text-foreground data-[state=open]:opacity-100",
                     focusRingClass,
                   )}
                   aria-label={`Actions for ${row.name}`}
@@ -1339,7 +1339,7 @@ function MergePanel({ kind, source, targets, onMerge, onCancel }: MergePanelProp
             aria-activedescendant={
               candidates.length > 0 ? `${listId}-${navigation.activeIndex}` : undefined
             }
-            className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none [&::-webkit-search-cancel-button]:hidden"
+            className="min-w-0 flex-1 self-stretch bg-transparent text-xs text-foreground outline-none [&::-webkit-search-cancel-button]:hidden"
             placeholder={`Find a ${noun}`}
             value={query}
             onChange={(event) => setQuery(event.target.value)}

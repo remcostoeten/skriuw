@@ -26,7 +26,7 @@ type Props = {
 };
 
 const navButtonClass =
-  "flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground focus-visible:outline-none";
+  "flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground focus-visible:outline-none pointer-coarse:size-11";
 
 /**
  * Shift+arrow stands in for the Home/End/PageUp/PageDown cluster, which a 60%

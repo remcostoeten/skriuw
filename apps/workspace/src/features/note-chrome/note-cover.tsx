@@ -582,7 +582,7 @@ export function NoteCover({ store, selectNoteId }: Props) {
               )}
               style={{ backgroundImage: gradientCss }}
             >
-              <div className="absolute bottom-2.5 right-2.5 flex items-center rounded-md border border-border/50 bg-background/90 p-0.5 opacity-0 shadow-sm transition-opacity duration-150 ease-out group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none">
+              <div className="absolute bottom-2.5 right-2.5 flex items-center rounded-md border border-border/50 bg-background/90 p-0.5 opacity-0 shadow-sm transition-opacity duration-150 ease-out group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100">
                 <button
                   type="button"
                   className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted disabled:opacity-50"
@@ -794,7 +794,7 @@ export function NoteCover({ store, selectNoteId }: Props) {
               </>
             ) : (
               <div
-                className="absolute bottom-2.5 right-2.5 flex items-center rounded-md border border-border/50 bg-background/90 p-0.5 opacity-0 shadow-sm transition-opacity duration-150 ease-out group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none"
+                className="absolute bottom-2.5 right-2.5 flex items-center rounded-md border border-border/50 bg-background/90 p-0.5 opacity-0 shadow-sm transition-opacity duration-150 ease-out group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100"
                 onPointerDown={(event) => event.stopPropagation()}
               >
                 <button

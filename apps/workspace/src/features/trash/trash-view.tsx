@@ -260,7 +260,7 @@ function TrashRowItem({ row, onRestore, onPurge }: TrashRowItemProps) {
       <span className="relative flex h-7 w-[210px] shrink-0 items-center justify-end">
         <time
           data-hidden={armed}
-          className="whitespace-nowrap font-mono text-[10px] text-theme-dim transition-opacity group-hover:opacity-0 group-focus-within:opacity-0 data-[hidden=true]:opacity-0"
+          className="whitespace-nowrap font-mono text-[10px] text-theme-dim transition-opacity group-hover:opacity-0 group-focus-within:opacity-0 data-[hidden=true]:opacity-0 pointer-coarse:hidden"
           dateTime={new Date(row.deletedAt).toISOString()}
           title={deletedAtFormatter.format(new Date(row.deletedAt))}
         >
@@ -268,7 +268,7 @@ function TrashRowItem({ row, onRestore, onPurge }: TrashRowItemProps) {
         </time>
         <span
           data-shown={armed}
-          className="pointer-events-none absolute right-0 flex items-center gap-1.5 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 data-[shown=true]:pointer-events-auto data-[shown=true]:opacity-100"
+          className="pointer-events-none absolute right-0 flex items-center gap-1.5 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 data-[shown=true]:pointer-events-auto data-[shown=true]:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:opacity-100"
         >
           {!armed && (
             <Button

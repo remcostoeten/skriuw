@@ -10,9 +10,10 @@ export const settingsGroupTitle = cn("mb-2.5", sectionLabelClass);
 export const settingsGroupHint = "mb-3 text-xs text-muted-foreground/80";
 
 export const settingsRow =
-  "flex min-h-[52px] items-center justify-between gap-6 border-b border-[hsl(var(--border)/0.58)] py-3 text-[13px] last:border-b-0";
+  "flex min-h-[52px] items-center justify-between gap-6 border-b max-[620px]:flex-wrap max-[620px]:gap-y-3 border-[hsl(var(--border)/0.58)] py-3 text-[13px] last:border-b-0";
 export const settingsInputRow = "max-[620px]:flex-col max-[620px]:items-start";
-export const settingsRowLabel = "flex min-w-0 max-w-[460px] flex-col gap-1";
+export const settingsRowLabel =
+  "flex min-w-0 max-w-[460px] flex-col gap-1 max-[620px]:flex-[1_1_220px]";
 export const settingsRowDescription = "text-xs leading-[1.5] text-muted-foreground";
 export const settingsRowDetail =
   "font-mono text-[11px] text-muted-foreground [overflow-wrap:anywhere]";

@@ -30,7 +30,9 @@ inside the application's scope.
 
 The worker caches exactly two things: hashed build assets, which are immutable
 by contract and already served with an immutable `Cache-Control`, and the shell
-document, served stale-while-revalidate. Every other request, including all
+document, served stale-while-revalidate. The build writes its asset list into
+the worker, which precaches all of it at install, so a lazily loaded surface
+opens offline even if this browser never fetched it online. Every other request, including all
 non-GET traffic, all cross-origin traffic, and everything outside the
 registration scope, passes through untouched. The worker never sees a workspace
 read or a durable write, so it cannot become a second source of truth.

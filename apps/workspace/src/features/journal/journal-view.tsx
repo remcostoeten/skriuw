@@ -59,8 +59,8 @@ export function JournalView({
             </button>
           </Tooltip>
         )}
-        <div className="pointer-events-none flex flex-1 items-center justify-center gap-3 text-sm">
-          <span className="text-sidebar-foreground/58">Journal</span>
+        <div className="pointer-events-none flex min-w-0 flex-1 items-center justify-center gap-3 text-sm">
+          <span className="shrink-0 text-sidebar-foreground/58">Journal</span>
           <span className="max-w-[28rem] truncate font-medium text-sidebar-foreground/80">
             {formatLongDate(selectedKey)}
           </span>
