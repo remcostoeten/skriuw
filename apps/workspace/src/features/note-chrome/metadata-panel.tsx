@@ -548,18 +548,37 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
+const DATE_FORMAT = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
+const TIME_FORMAT = new Intl.DateTimeFormat(undefined, {
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 function formatDateTime(timestamp: number): string {
   const date = new Date(timestamp);
-  const datePart = date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-  const timePart = date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  return `${datePart}, ${timePart}`;
+  return `${DATE_FORMAT.format(date)}, ${TIME_FORMAT.format(date)}`;
+}
+
+function utf8ByteLength(text: string): number {
+  let bytes = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index);
+    if (code < 0x80) bytes += 1;
+    else if (code < 0x800) bytes += 2;
+    else if (code >= 0xd800 && code <= 0xdbff && index + 1 < text.length) {
+      const next = text.charCodeAt(index + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        bytes += 4;
+        index += 1;
+      } else bytes += 3;
+    } else bytes += 3;
+  }
+  return bytes;
 }
 
 function selectActiveNoteId(state: RendererState): string | null {
@@ -658,7 +677,7 @@ export const MetadataPanel = memo(function MetadataPanel({ store }: Props) {
     { label: "Characters", value: charCount.toLocaleString() },
     { label: "Read time", value: `${readTimeMinutes}m` },
     ...(markdown !== null
-      ? [{ label: "File size", value: formatFileSize(new Blob([markdown]).size) }]
+      ? [{ label: "File size", value: formatFileSize(utf8ByteLength(markdown)) }]
       : []),
     ...(createdAt !== null ? [{ label: "Created", value: formatDateTime(createdAt) }] : []),
     { label: "Updated", value: formatDateTime(metadata.updatedAt) },

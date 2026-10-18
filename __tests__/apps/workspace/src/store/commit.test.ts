@@ -325,3 +325,38 @@ test("a rejected reference update reports the original error after a failed refr
     { action: "reference update", error: rejected },
   ]);
 });
+
+test("a rejection refresh never clobbers a save committed while it held the gate", async () => {
+  const store = storeWith();
+  let disk: NoteState = original;
+  const firstRead = deferred<WorkspaceSnapshot>();
+  let reads = 0;
+  const { committer, log } = setup(
+    async (envelopes) => {
+      const operation = envelopes[0]?.operation;
+      if (operation?.type !== "save_document") throw new Error("expected a save");
+      if (operation.markdown === "typed") throw new Error("disk full");
+      disk = { ...disk, markdown: operation.markdown, revision: disk.revision + 1 };
+      return ack("n1", disk.revision);
+    },
+    {
+      bootstrap: () => {
+        reads += 1;
+        return reads === 1 ? firstRead.promise : Promise.resolve(snapshot([disk]));
+      },
+    },
+  );
+  const rejected = rejection(committer.commitOperations(store, [save(store, "n1", "typed")]));
+  await flush();
+  assert.deepEqual(log, ["apply:n1", "bootstrap"]);
+  const newer = committer.commitOperations(store, [save(store, "n1", "newer")]);
+  firstRead.resolve(snapshot([original]));
+  await flush();
+  assert.equal(store.getState().documents.get("n1")?.markdown, "newer");
+  await newer;
+  await rejected;
+  assert.deepEqual(log, ["apply:n1", "bootstrap", "apply:n1", "bootstrap"]);
+  const saved = store.getState().documents.get("n1");
+  assert.equal(saved?.markdown, "newer");
+  assert.equal(saved?.revision, 2);
+});

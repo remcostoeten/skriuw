@@ -1,7 +1,6 @@
 use crate::state::{AppState, now_millis, wait_for, workspace_runtime};
 use skriuw_domain::{
-    NOTE_LOCK_CONFIGURE_ENTROPY_BYTES, NoteLockKind, NoteLockState, OperationAck,
-    WorkspaceDocument,
+    NOTE_LOCK_CONFIGURE_ENTROPY_BYTES, NoteLockKind, NoteLockState, OperationAck, WorkspaceDocument,
 };
 use skriuw_storage::{ConfigureNoteLockRequest, ReplaceNoteLockSecretRequest};
 use tauri::State;

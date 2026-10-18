@@ -56,7 +56,9 @@ struct Registry {
 pub(crate) fn is_workspace_id(value: &str) -> bool {
     value.len() == 66
         && value.starts_with("w_")
-        && value[2..].bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        && value[2..]
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
 /// `guest-1`, `guest-2`, ...: storage opened while signed out once the base
@@ -110,7 +112,9 @@ fn read(data_dir: &Path) -> Registry {
         .as_ref()
         .is_some_and(|id| !registry.slots.contains_key(id))
     {
-        eprintln!("the workspace registry named an unknown workspace; opening the default workspace");
+        eprintln!(
+            "the workspace registry named an unknown workspace; opening the default workspace"
+        );
         return Registry::default();
     }
     registry
@@ -119,8 +123,7 @@ fn read(data_dir: &Path) -> Registry {
 /// Replaces the registry atomically, so an interrupted write can never leave
 /// the installation pointing at half a file.
 fn write(data_dir: &Path, registry: &Registry) -> Result<(), String> {
-    let serialized =
-        serde_json::to_string_pretty(registry).map_err(|error| error.to_string())?;
+    let serialized = serde_json::to_string_pretty(registry).map_err(|error| error.to_string())?;
     let target = registry_file(data_dir);
     let temporary = target.with_extension("json.tmp");
     fs::write(&temporary, serialized).map_err(|error| error.to_string())?;
@@ -200,7 +203,10 @@ pub(crate) fn clear_all(data_dir: &Path, base: &Path) -> Result<(), String> {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => return Err(format!("delete {}: {error}", workspaces.display())),
     }
-    for path in [registry_file(data_dir), registry_file(data_dir).with_extension("json.tmp")] {
+    for path in [
+        registry_file(data_dir),
+        registry_file(data_dir).with_extension("json.tmp"),
+    ] {
         match fs::remove_file(&path) {
             Ok(()) => {}
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -309,7 +315,10 @@ mod tests {
             SlotAdoption::Claimed,
         );
         assert_eq!(active_directory(dir.path(), dir.path()), dir.path());
-        assert_eq!(active_workspace_id(dir.path()).as_deref(), Some(id.as_str()));
+        assert_eq!(
+            active_workspace_id(dir.path()).as_deref(),
+            Some(id.as_str())
+        );
         assert_eq!(
             adopt(dir.path(), dir.path(), &id, None).expect("re-adopt"),
             SlotAdoption::Active,

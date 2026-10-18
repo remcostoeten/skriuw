@@ -230,15 +230,20 @@ export function WorkspaceShortcuts({
   });
 
   useEffect(() => {
-    const activeDefinitions = shortcutDefinitionsForState(suspended, activeWhileSuspended);
     const activeScopeSet = new Set(activeScopes);
-    function handlePhysicalShortcut(event: KeyboardEvent) {
-      for (const definition of activeDefinitions) {
+    const candidates = shortcutDefinitionsForState(suspended, activeWhileSuspended).flatMap(
+      (definition) => {
         const keys = effectiveShortcutKeys(definition, overrides);
-        if (
-          overrides[definition.id] === null ||
+        return overrides[definition.id] === null ||
           shortcutShadowedByQuit(definition, keys, overrides) ||
-          !shortcutScopesActive(definition, activeScopeSet) ||
+          !shortcutScopesActive(definition, activeScopeSet)
+          ? []
+          : [{ definition, keys }];
+      },
+    );
+    function handlePhysicalShortcut(event: KeyboardEvent) {
+      for (const { definition, keys } of candidates) {
+        if (
           !shortcutMatchesPhysicalKey(event, keys) ||
           shortcutExcept(definition, definition.worksWhileTyping === true)?.(event)
         ) {

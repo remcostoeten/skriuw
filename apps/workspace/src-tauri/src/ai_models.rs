@@ -248,9 +248,11 @@ mod tests {
         let directory = tempdir().expect("tempdir");
         let path = directory.path().join("ai-models.json");
         std::fs::write(&path, "{ not json").expect("write");
-        assert!(FetchedModelStore::new(directory.path())
-            .fetched_models()
-            .is_empty());
+        assert!(
+            FetchedModelStore::new(directory.path())
+                .fetched_models()
+                .is_empty()
+        );
 
         let traversal = serde_json::json!({
             "version": 1,
@@ -271,9 +273,11 @@ mod tests {
         });
         std::fs::write(&path, traversal.to_string()).expect("write");
 
-        assert!(FetchedModelStore::new(directory.path())
-            .fetched_models()
-            .is_empty());
+        assert!(
+            FetchedModelStore::new(directory.path())
+                .fetched_models()
+                .is_empty()
+        );
     }
 
     #[test]
@@ -283,7 +287,10 @@ mod tests {
         store
             .replace(
                 "groq",
-                vec![listing("groq", "openai/gpt-oss-20b"), listing("groq", "brand-new-model")],
+                vec![
+                    listing("groq", "openai/gpt-oss-20b"),
+                    listing("groq", "brand-new-model"),
+                ],
                 1_000,
             )
             .expect("replace");

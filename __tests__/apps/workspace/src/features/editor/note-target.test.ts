@@ -49,10 +49,10 @@ test("a note action's range spans the full document", () => {
   });
 });
 
-test("appended tasks land after the last block, outside the mounted window", () => {
+test("appended tasks land after the last block and the window moves to show them", () => {
   const bounded = largeNote();
   const { target, calls } = countingTarget(bounded);
-  const windowBefore = bounded.windowDocument();
+  assert.ok(bounded.windowEnd() < 251);
   const transaction = appendTaskPlanTransaction(target.state, [
     { key: "a", text: "Book the venue" },
   ]);
@@ -66,8 +66,22 @@ test("appended tasks land after the last block, outside the mounted window", () 
   assert.equal(full.lastChild?.type.name, "check_list");
   assert.equal(full.lastChild?.textContent, "Book the venue");
   assert.match(serializeProductMarkdown(full), /Block 250[\s\S]*Book the venue/);
-  assert.ok(bounded.windowDocument().eq(windowBefore));
+  assert.equal(bounded.windowEnd(), 251);
+  assert.equal(bounded.windowDocument().lastChild?.textContent, "Book the venue");
   assert.equal(calls.replaced, 1);
+});
+
+test("a change inside the mounted window leaves the window where it is", () => {
+  const bounded = largeNote();
+  const { target } = countingTarget(bounded);
+  const start = bounded.windowStart();
+  const end = bounded.windowEnd();
+
+  target.dispatch(target.state.tr.insertText("!", 3));
+
+  assert.equal(bounded.windowStart(), start);
+  assert.equal(bounded.windowEnd(), end);
+  assert.equal(bounded.fullDocument().child(0).textContent, "Bl!ock 1");
 });
 
 test("replacing the whole note records one bounded undo entry that restores it", () => {

@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { editorModeForNote } from "@/features/editor/editor-mode";
+import { rendersRawEditor } from "@/features/editor/editor-mode";
 import { NoteEditor } from "@/features/editor/note-editor";
 import { RawMarkdownEditor } from "@/features/editor/raw-markdown-editor";
 import { NotePropertiesShelf } from "@/features/note-chrome/note-properties-shelf";
@@ -39,10 +39,7 @@ export function EditorHost({
       if (noteId === null) {
         return false;
       }
-      return (
-        editorModeForNote(state, noteId) === "raw" ||
-        state.documents.get(noteId)?.hasLosslessMarkdown === true
-      );
+      return rendersRawEditor(state, noteId);
     },
     [selectNoteId],
   );

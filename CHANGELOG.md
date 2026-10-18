@@ -9,6 +9,8 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
 
 ## [Unreleased]
 
+## [0.52.0] — 2026-10-19
+
 ### Added
 
 - **Database views:** open a folder, or every note, as a table or board over
@@ -16,6 +18,26 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
   and board grouping by a select or checkbox property
   ([ADR-0057](docs/adr/0057-database-views.md)). Layouts are stored per folder
   in a device-local settings extension (#545).
+- **Mobile:** reference and trash screens replace the people, tags and trash
+  placeholders, and trashed notes can be restored from the trash screen (#547).
+
+### Changed
+
+- **Interaction performance:** the shell, sidebar, metadata panel, journal
+  sidebar and editor panes no longer re-render on a note switch or title edit.
+  Code highlighting, annotation anchors and find-in-note rescan only the
+  touched ranges, floating editor menus read from their own store, the outline
+  skips edits outside headings, and the command palette caps each group at 50
+  rows. A note switch settles in one React commit without forcing layout twice
+  (#544).
+- Desktop image, keyring and sign-out commands run off the main thread, and
+  quitting waits at most two seconds for sync to stop. Unsent tail saves for
+  the same note coalesce in the outbox (migration 0029, #544).
+- The performance harness fails on any missed budget and counts dropped frames
+  at 60 and 120 Hz. A release baseline lives in `docs/benchmarks` (#544).
+- The AI menu overlaps a tall range when neither side has room, instead of
+  shrinking to a scrolling sliver, and editor paragraphs lose their vertical
+  margin (#547).
 
 ### Fixed
 
@@ -25,6 +47,16 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
   on touch, small icon buttons meet 44px touch targets, and settings rows wrap
   on narrow screens. The installed app precaches every build chunk, so screens
   never opened online still open offline (#546).
+- The browser app moves from the Vercel deployment alias to skriuw.com (#547).
+- Unsent sealed saves count as pending local document writes, so a locked
+  note's edits are not mistaken for synced.
+- Desktop sync connects are serialized, stale claims are released on start,
+  and sync workspace access and AI history are gated while a backup restores.
+- A rejection refresh keeps newer optimistic commits instead of reverting them.
+- The outline rebinds when a note swaps between raw and rich mode, and AI
+  output that lands outside the bounded editor window is revealed.
+- Whole-note AI actions in large notes read and replace the full document, and
+  a rejected commit reconciles under the commit gate (#544).
 
 ## [0.51.0] — 2026-10-12
 

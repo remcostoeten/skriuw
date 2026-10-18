@@ -1,7 +1,7 @@
 use std::{
     path::{Path, PathBuf},
     sync::{
-        Arc, Mutex,
+        Arc, Mutex, RwLock,
         mpsc::{SyncSender, sync_channel},
     },
     thread::{self, JoinHandle},
@@ -19,6 +19,8 @@ use skriuw_storage::AiRunHistory;
 /// preferable to holding up a completion worker.
 const RECORD_QUEUE_DEPTH: usize = 64;
 
+const RESTORE_IN_PROGRESS: &str = "AI history is unavailable while a backup is restored or an archive is imported; try again when it finishes";
+
 /// Local-only AI run accounting. The connection is opened on the first record
 /// or the first read, never on startup, and every durable write happens on a
 /// dedicated thread so no completion, renderer, or navigation path waits for
@@ -27,7 +29,43 @@ pub(crate) struct AiHistoryRecorder {
     database_path: PathBuf,
     storage: Mutex<Option<Arc<SqliteWorkspace>>>,
     writer: Mutex<Option<(SyncSender<AiRunRecord>, JoinHandle<()>)>>,
+    quiesced: RwLock<u32>,
+    deferred: Mutex<Vec<AiRunRecord>>,
     now_millis: fn() -> i64,
+}
+
+/// Keeps the history connection closed until it drops, then writes the runs
+/// that finished in the meantime.
+#[must_use]
+pub(crate) struct AiHistoryQuiescence<'a> {
+    recorder: &'a AiHistoryRecorder,
+}
+
+impl Drop for AiHistoryQuiescence<'_> {
+    fn drop(&mut self) {
+        let resumed = {
+            let mut quiesced = self
+                .recorder
+                .quiesced
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            *quiesced = quiesced.saturating_sub(1);
+            *quiesced == 0
+        };
+        if !resumed {
+            return;
+        }
+        let deferred = std::mem::take(
+            &mut *self
+                .recorder
+                .deferred
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+        );
+        for record in deferred {
+            self.recorder.enqueue(record);
+        }
+    }
 }
 
 impl AiHistoryRecorder {
@@ -36,6 +74,8 @@ impl AiHistoryRecorder {
             database_path: database_path.to_path_buf(),
             storage: Mutex::new(None),
             writer: Mutex::new(None),
+            quiesced: RwLock::new(0),
+            deferred: Mutex::new(Vec::new()),
             now_millis,
         }
     }
@@ -81,9 +121,32 @@ impl AiHistoryRecorder {
         Ok(sender)
     }
 
-    /// Closes the history connection so the database file can be swapped.
-    /// Queued records are written first; the next record or read reopens it.
-    pub(crate) fn quiesce(&self) {
+    fn with_storage<T>(
+        &self,
+        action: impl FnOnce(&SqliteWorkspace) -> Result<T, String>,
+    ) -> Result<T, String> {
+        let quiesced = self
+            .quiesced
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if *quiesced != 0 {
+            return Err(RESTORE_IN_PROGRESS.into());
+        }
+        action(&*self.storage()?)
+    }
+
+    /// Closes the history connection so the database file can be swapped and
+    /// keeps it closed until the returned guard drops. Queued records are
+    /// written first; reads in flight finish before it returns, later reads
+    /// are refused, and runs that finish meanwhile are recorded on release.
+    pub(crate) fn quiesce(&self) -> AiHistoryQuiescence<'_> {
+        {
+            let mut quiesced = self
+                .quiesced
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            *quiesced = quiesced.saturating_add(1);
+        }
         let writer = self
             .writer
             .lock()
@@ -97,26 +160,30 @@ impl AiHistoryRecorder {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .take();
+        AiHistoryQuiescence { recorder: self }
     }
 
     pub(crate) fn settings(&self) -> Result<AiHistorySettings, String> {
-        self.storage()?
-            .ai_history_settings()
-            .map_err(|error| error.to_string())
+        self.with_storage(|storage| {
+            storage
+                .ai_history_settings()
+                .map_err(|error| error.to_string())
+        })
     }
 
     pub(crate) fn set_settings(
         &self,
         settings: AiHistorySettings,
     ) -> Result<AiHistorySettings, String> {
-        let storage = self.storage()?;
-        let applied = storage
-            .set_ai_history_settings(settings)
-            .map_err(|error| error.to_string())?;
-        storage
-            .prune_ai_runs((self.now_millis)())
-            .map_err(|error| error.to_string())?;
-        Ok(applied)
+        self.with_storage(|storage| {
+            let applied = storage
+                .set_ai_history_settings(settings)
+                .map_err(|error| error.to_string())?;
+            storage
+                .prune_ai_runs((self.now_millis)())
+                .map_err(|error| error.to_string())?;
+            Ok(applied)
+        })
     }
 
     pub(crate) fn view(
@@ -125,31 +192,30 @@ impl AiHistoryRecorder {
         since_ms: i64,
         pricing_as_of: Option<String>,
     ) -> Result<AiHistoryView, String> {
-        let storage = self.storage()?;
-        let settings = storage
-            .ai_history_settings()
-            .map_err(|error| error.to_string())?;
-        // Runs are read before the aggregates so a run that lands between the
-        // two queries can only make the totals larger than the visible list,
-        // never smaller than it.
-        let runs = storage
-            .list_ai_runs(filter)
-            .map_err(|error| error.to_string())?;
-        let aggregates: Vec<AiUsageAggregate> = storage
-            .aggregate_ai_usage(since_ms)
-            .map_err(|error| error.to_string())?;
-        Ok(AiHistoryView {
-            settings,
-            pricing_as_of,
-            aggregates,
-            runs,
+        self.with_storage(|storage| {
+            let settings = storage
+                .ai_history_settings()
+                .map_err(|error| error.to_string())?;
+            // Runs are read before the aggregates so a run that lands between the
+            // two queries can only make the totals larger than the visible list,
+            // never smaller than it.
+            let runs = storage
+                .list_ai_runs(filter)
+                .map_err(|error| error.to_string())?;
+            let aggregates: Vec<AiUsageAggregate> = storage
+                .aggregate_ai_usage(since_ms)
+                .map_err(|error| error.to_string())?;
+            Ok(AiHistoryView {
+                settings,
+                pricing_as_of,
+                aggregates,
+                runs,
+            })
         })
     }
 
     pub(crate) fn clear(&self) -> Result<u32, String> {
-        self.storage()?
-            .clear_ai_runs()
-            .map_err(|error| error.to_string())
+        self.with_storage(|storage| storage.clear_ai_runs().map_err(|error| error.to_string()))
     }
 }
 
@@ -166,6 +232,22 @@ impl AiRunRecorder for AiHistoryRecorder {
 
 impl AiHistoryRecorder {
     fn enqueue(&self, record: AiRunRecord) {
+        let quiesced = self
+            .quiesced
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if *quiesced != 0 {
+            let mut deferred = self
+                .deferred
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            if deferred.len() < RECORD_QUEUE_DEPTH {
+                deferred.push(record);
+            } else {
+                eprintln!("AI run history skipped a record while a restore is in progress");
+            }
+            return;
+        }
         match self.writer() {
             Ok(sender) => {
                 if let Err(error) = sender.try_send(record) {
@@ -305,13 +387,49 @@ mod tests {
 
         recorder.record(summary("run-1", AiRunStatus::Done), &request());
         await_runs(&recorder, 1);
-        recorder.quiesce();
+        drop(recorder.quiesce());
 
         assert!(!path.with_file_name("skriuw.db-wal").exists());
         assert!(!path.with_file_name("skriuw.db-shm").exists());
 
         recorder.record(summary("run-2", AiRunStatus::Done), &request());
         await_runs(&recorder, 2);
+    }
+
+    #[test]
+    fn quiesced_history_refuses_reads_and_defers_finished_runs() {
+        let directory = tempdir().expect("tempdir");
+        let path = directory.path().join("skriuw.db");
+        let recorder = AiHistoryRecorder::new(&path, clock);
+        recorder.record(summary("run-1", AiRunStatus::Done), &request());
+        await_runs(&recorder, 1);
+
+        let quiescence = recorder.quiesce();
+        let nested = recorder.quiesce();
+        recorder.record(summary("run-2", AiRunStatus::Done), &request());
+        drop(nested);
+        recorder.record(summary("run-3", AiRunStatus::Done), &request());
+        let refusals = [
+            recorder.settings().map(|_| ()),
+            recorder
+                .set_settings(AiHistorySettings {
+                    retain_prompts: false,
+                    retention: AiHistoryRetention::default(),
+                })
+                .map(|_| ()),
+            recorder.view(&AiRunFilter::default(), 0, None).map(|_| ()),
+            recorder.clear().map(|_| ()),
+        ];
+        for refusal in refusals {
+            let error = refusal.expect_err("refused while quiesced");
+            assert!(error.contains("restored"), "{error}");
+        }
+        thread::sleep(Duration::from_millis(50));
+        assert!(!path.with_file_name("skriuw.db-wal").exists());
+        assert!(!path.with_file_name("skriuw.db-shm").exists());
+
+        drop(quiescence);
+        await_runs(&recorder, 3);
     }
 
     fn await_runs(recorder: &AiHistoryRecorder, expected: usize) {

@@ -534,6 +534,16 @@ pub trait WorkspaceSyncQueue: Send + Sync {
         diagnostic: &Diagnostic,
     ) -> Result<(), StorageError>;
 
+    /// Releases claims this worker id holds from before `claimed_before_ms`
+    /// without touching attempts or retry times. A relaunched process uses the
+    /// same worker id, so its predecessor's claims would otherwise wait out
+    /// the lease. Returns how many rows were released.
+    fn release_sync_claims_before(
+        &self,
+        worker_id: &str,
+        claimed_before_ms: i64,
+    ) -> Result<usize, StorageError>;
+
     fn blocked_sync_operations(&self) -> Result<Vec<BlockedSyncOperation>, StorageError>;
 
     /// Moves operations out of the currently leased batch into the visible
@@ -860,6 +870,15 @@ where
     ) -> Result<(), StorageError> {
         self.as_ref()
             .release_sync_operations(worker_id, operation_ids, retry_at_ms, diagnostic)
+    }
+
+    fn release_sync_claims_before(
+        &self,
+        worker_id: &str,
+        claimed_before_ms: i64,
+    ) -> Result<usize, StorageError> {
+        self.as_ref()
+            .release_sync_claims_before(worker_id, claimed_before_ms)
     }
 
     fn blocked_sync_operations(&self) -> Result<Vec<BlockedSyncOperation>, StorageError> {

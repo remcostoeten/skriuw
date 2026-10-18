@@ -1389,7 +1389,7 @@ mod tests {
             &fs::read(&archive_path).expect("read archive"),
         )
         .expect("parse desktop archive");
-        assert_eq!(desktop.images, [image.clone()]);
+        assert_eq!(desktop.images, std::slice::from_ref(&image));
         assert_eq!(desktop.image_blobs.len(), 1);
 
         let destination = fixture();
@@ -1405,7 +1405,7 @@ mod tests {
             .expect("bootstrap")
             .wait()
             .expect("snapshot");
-        assert_eq!(snapshot.images, [image.clone()]);
+        assert_eq!(snapshot.images, std::slice::from_ref(&image));
         assert_eq!(
             snapshot.nodes[0].cover_image_id.as_deref(),
             Some(image.id.as_str())
@@ -1611,50 +1611,56 @@ mod tests {
         fixture.assert_no_leaked_paths(&failure);
         assert_eq!(fixture.note_ids().len(), 2);
 
-        recorder.quiesce();
+        let record_run = |run_id: &str| {
+            recorder.record(
+                AiRunSummary {
+                    run_id: run_id.into(),
+                    started_at_ms: test_now(),
+                    origin: "playground".into(),
+                    provider_id: "fake".into(),
+                    model_id: "fake".into(),
+                    status: AiRunStatus::Done,
+                    duration_ms: 1,
+                    tokens: AiRunTokens {
+                        input_tokens: 1,
+                        output_tokens: 1,
+                        source: AiTokenSource::Estimated,
+                    },
+                    cost_micros: None,
+                },
+                &AiCompletionRequest {
+                    request_id: run_id.into(),
+                    provider_id: "fake".into(),
+                    model_id: "fake".into(),
+                    system_prompt: String::new(),
+                    user_prompt: String::new(),
+                    prior_messages: Vec::new(),
+                    parameters: AiCompletionParameters::default(),
+                },
+            );
+        };
+        let quiescence = recorder.quiesce();
+        record_run("mid-restore-run");
         let report = fixture
             .coordinator
             .restore_backup(&artifact)
             .expect("restore");
+        drop(quiescence);
 
-        assert_eq!(report.status, "replaced");
+        assert_eq!(report.status, "replaced", "{:?}", report.failure);
         assert_eq!(fixture.note_ids(), ["original-note"]);
-        recorder.record(
-            AiRunSummary {
-                run_id: "post-restore-run".into(),
-                started_at_ms: test_now(),
-                origin: "playground".into(),
-                provider_id: "fake".into(),
-                model_id: "fake".into(),
-                status: AiRunStatus::Done,
-                duration_ms: 1,
-                tokens: AiRunTokens {
-                    input_tokens: 1,
-                    output_tokens: 1,
-                    source: AiTokenSource::Estimated,
-                },
-                cost_micros: None,
-            },
-            &AiCompletionRequest {
-                request_id: "post-restore-run".into(),
-                provider_id: "fake".into(),
-                model_id: "fake".into(),
-                system_prompt: String::new(),
-                user_prompt: String::new(),
-                prior_messages: Vec::new(),
-                parameters: AiCompletionParameters::default(),
-            },
-        );
+        record_run("post-restore-run");
         let deadline = std::time::Instant::now() + Duration::from_secs(2);
         while recorder
             .view(&AiRunFilter::default(), 0, None)
             .expect("view after restore")
             .runs
-            .is_empty()
+            .len()
+            != 2
         {
             assert!(
                 std::time::Instant::now() < deadline,
-                "the recorder never wrote to the restored database"
+                "the recorder never wrote both runs to the restored database"
             );
             std::thread::sleep(Duration::from_millis(10));
         }

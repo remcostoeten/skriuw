@@ -68,7 +68,13 @@ import {
   splitListItem,
   wrapRangeInList,
 } from "prosemirror-schema-list";
-import { columnResizing, goToNextCell, tableEditing, tableNodes } from "prosemirror-tables";
+import {
+  TableView,
+  columnResizing,
+  goToNextCell,
+  tableEditing,
+  tableNodes,
+} from "prosemirror-tables";
 import { createCodeHighlightPlugin } from "./code-blocks/highlight";
 import { createAnnotationDecorationPlugin } from "./annotations/decorations";
 import { createSuggestionPlugin } from "./suggestions/decorations";
@@ -1391,6 +1397,19 @@ function exitTerminalCodeBlockOnArrowDown(
   return exitCode(state, dispatch);
 }
 
+const TABLE_DEFAULT_CELL_MIN_WIDTH = 100;
+
+// columnResizing re-creates its table node view per state init, so every state swap redrew the editor.
+function tableNodeViewPlugin(): Plugin {
+  return new Plugin({
+    props: {
+      nodeViews: {
+        table: (node) => new TableView(node, TABLE_DEFAULT_CELL_MIN_WIDTH),
+      },
+    },
+  });
+}
+
 export function createProductPlugins(): Plugin[] {
   const blockquote = productSchema.nodes.blockquote;
   const codeBlock = productSchema.nodes.code_block;
@@ -1521,7 +1540,8 @@ export function createProductPlugins(): Plugin[] {
       ),
     }),
     keymap(baseKeymap),
-    columnResizing(),
+    tableNodeViewPlugin(),
+    columnResizing({ defaultCellMinWidth: TABLE_DEFAULT_CELL_MIN_WIDTH, View: null }),
     tableEditing(),
     dropCursor({ color: "hsl(var(--primary))", width: 2 }),
     gapCursor(),

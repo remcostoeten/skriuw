@@ -1,7 +1,7 @@
 import "./entry.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, TouchEvent } from "react";
-import { editorModeForNote } from "@/features/editor/editor-mode";
+import { rendersRawEditor } from "@/features/editor/editor-mode";
 import { NoteEditor } from "@/features/editor/note-editor";
 import { RawMarkdownEditor } from "@/features/editor/raw-markdown-editor";
 import { ChevronLeftIcon, ChevronRightIcon, Trash2Icon } from "@/shared/icons/static";
@@ -51,10 +51,7 @@ export function JournalEntryPane({
       if (noteId === null) {
         return false;
       }
-      return (
-        editorModeForNote(state, noteId) === "raw" ||
-        state.documents.get(noteId)?.hasLosslessMarkdown === true
-      );
+      return rendersRawEditor(state, noteId);
     },
     [selectNoteId],
   );
