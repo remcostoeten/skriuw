@@ -18,7 +18,7 @@ export type AiMenuGeometry = {
 export type AiMenuPlacement = {
   left: number;
   top: number;
-  /** Height the menu may grow into without covering the range. */
+  /** Height the menu may grow into; it covers the range only when neither side fits. */
   room: number;
   below: boolean;
 };
@@ -32,6 +32,8 @@ function clamp(value: number, min: number, max: number): number {
  * @description Places the AI menu next to its range while keeping it inside the
  * visible editor pane. A range scrolled out of view pins the menu to the nearest
  * pane edge, and without a single-line selection it centers on the text column.
+ * When neither side of a tall range has room for the whole menu, it overlaps the
+ * range instead of shrinking to a scrolling sliver.
  * `naturalHeight` decides the side so the choice does not depend on the rendered
  * height, which itself depends on the room this returns.
  * @example
@@ -59,7 +61,8 @@ export function placeAiMenu(
 
   const rangeVisible = start.top >= bounds.top && end.bottom <= bounds.bottom;
   const full = bounds.bottom - bounds.top - gap * 2;
-  const room = rangeVisible ? Math.max(0, below ? spaceBelow : spaceAbove) : Math.max(0, full);
+  const side = Math.max(0, below ? spaceBelow : spaceAbove);
+  const room = rangeVisible ? Math.max(side, Math.min(naturalHeight, full)) : Math.max(0, full);
 
   return { left, top, room, below };
 }

@@ -137,9 +137,10 @@ and turn it on, on desktop and in the browser alike. Until then your notes
 never leave the machine they were written on: the desktop app keeps them in
 local SQLite, and the browser app keeps them in your browser's own storage.
 
-A fresh install performs no network requests, and there is no analytics or
-telemetry of any kind. The only network code in the app is the sync Worker,
-which runs only while you are signed in, and the updater's version check.
+The standalone app does not send workspace content or telemetry. The marketing
+site uses Vercel Web Analytics and Spoar for page views and a few click events.
+The desktop app's network code is limited to the sync Worker, which runs only
+while you are signed in, and the updater's version check.
 
 The AI features follow the same rule. They are **off and invisible until you
 enable them in settings**, and default to a local Ollama model, so prompts

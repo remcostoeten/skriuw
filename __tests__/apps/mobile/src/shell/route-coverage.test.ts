@@ -7,13 +7,7 @@ import { SHELL_DESTINATIONS, type ShellRoute } from "@/shell/destinations";
 
 const appDir = repositoryPath("apps/mobile/app");
 
-/**
- * The destinations whose surface is genuinely not built yet. A view that ships
- * without being taken off this list is a view nobody can reach — which is how
- * the tasks surface sat finished behind a placeholder for the length of the
- * mobile epic.
- */
-const PLACEHOLDER_ROUTES: readonly ShellRoute[] = ["tags", "people", "trash"];
+const PLACEHOLDER_ROUTES: readonly ShellRoute[] = [];
 
 function routeFile(route: ShellRoute): string {
   const destination = SHELL_DESTINATIONS.find((candidate) => candidate.route === route);

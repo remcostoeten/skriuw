@@ -182,7 +182,7 @@
 /* Tailwind preflight flattens headings/lists to inherit; restore document
    typography inside the editor surface. */
 .prosemirror-host .ProseMirror p {
-  margin: 0.2em 0;
+  margin: 0;
 }
 
 .prosemirror-host .ProseMirror h1,

@@ -156,6 +156,7 @@
         "yaml": "^2.8.1",
       },
       "devDependencies": {
+        "@remcostoeten/kreasz": "0.3.1",
         "@tailwindcss/vite": "^4.3.3",
         "@tauri-apps/cli": "2.9.6",
         "@types/node": "26.1.1",
@@ -881,6 +882,8 @@
     "@react-native/virtualized-lists": ["@react-native/virtualized-lists@0.86.3", "", { "dependencies": { "invariant": "^2.2.4", "nullthrows": "^1.1.1" }, "peerDependencies": { "@types/react": "^19.2.0", "react": "*", "react-native": "0.86.3" }, "optionalPeers": ["@types/react"] }, "sha512-1j44NEyNn05Ut40vHAmoSWbsIcybFkMAOBTwQt1PrESyfSS+qBoyU1LGIogNva0VIa0rQyEC5PzbA7R4/7Nhyw=="],
 
     "@remcostoeten/auth-drawer": ["@remcostoeten/auth-drawer@0.4.0", "", { "dependencies": { "clsx": "^2.1.1", "tailwind-merge": "^2.6.0" }, "peerDependencies": { "framer-motion": "^12.0.0", "lucide-react": "^0.400.0", "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" } }, "sha512-XTVLRgXuFtRItZSh2WxTuw0F3kKJ1TZFjpXAHi55zpa+9eIUD3PmdeT+Hbuv6gWfOEmVMiDRum5Ox6PK6LSPMg=="],
+
+    "@remcostoeten/kreasz": ["@remcostoeten/kreasz@0.3.1", "", { "peerDependencies": { "react": ">=19" }, "optionalPeers": ["react"] }, "sha512-IKZQW4RTER/0scJsEYMWyFhdJP72/8AATz6Um5ywW1GSkfw28xqMQlI4glei24Tu/J/rYD/aaJORjpp9CsyjuA=="],
 
     "@remcostoeten/notifier": ["@remcostoeten/notifier@1.1.0", "", { "peerDependencies": { "motion": ">=12.0.0", "react": ">=18.0.0", "react-dom": ">=18.0.0" } }, "sha512-eE1QkF27gxJATV/wlvI4h/LlEM1Lj7+gYRKG4BRdreZZshFUqKwDj3zUpJU7ldU7oXJb2JkZ+/OBm3txP70vnw=="],
 

@@ -11,14 +11,21 @@
     "newArchEnabled": true,
     "ios": {
       "bundleIdentifier": "dev.skriuw.app",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "dev.skriuw.app",
       "adaptiveIcon": {
         "backgroundColor": "#0B0B0D",
         "foregroundImage": "./assets/adaptive-icon.png"
-      }
+      },
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
     },
     "web": {
       "bundler": "metro",
