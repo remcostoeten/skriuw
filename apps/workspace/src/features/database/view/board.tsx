@@ -325,7 +325,8 @@ function CardField({ name, display }: { name: string; display: CellDisplay }) {
   switch (display.kind) {
     case "options":
       return (
-        <span className="flex flex-wrap gap-1" aria-label={name}>
+        <span className="flex flex-wrap gap-1">
+          <span className="sr-only">{name}: </span>
           {display.options.map((option, index) => (
             <OptionPill
               key={`${option.label}:${index}`}

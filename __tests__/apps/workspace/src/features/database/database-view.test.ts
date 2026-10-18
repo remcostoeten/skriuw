@@ -58,6 +58,21 @@ test("a saved board layout renders one section per status option", () => {
   assert.doesNotMatch(html, /role="grid"/);
 });
 
+test("board cards read each field's name with its value", () => {
+  const state = databaseState();
+  const settings = withDatabaseView(
+    state.settings,
+    "projects",
+    { ...defaultDatabaseView("projects"), layout: "board", groupBy: "p:shipped", updatedAt: 1 },
+    () => true,
+  );
+  const html = render("projects", { ...state, settings });
+  const card = /<button[^>]*data-note-id="alpha"[^>]*>(.*?)<\/button>/.exec(html)?.[1] ?? "";
+  const text = card.replace(/<[^>]+>/g, "");
+  assert.match(text, /Status: Doing/);
+  assert.match(text, /Priority: 2/);
+});
+
 test("a layout saved by a newer version is reported instead of overwritten", () => {
   const state = databaseState();
   const settings = { ...state.settings, [DATABASE_VIEWS_KEY]: { version: 99, views: {} } };
