@@ -7,6 +7,7 @@ type Props = {
   children: (api: { close: () => void }) => ReactNode;
   align?: "start" | "end";
   className?: string;
+  panelClassName?: string;
 };
 
 const MENU_ITEM_SELECTOR = '[role^="menuitem"]:not([aria-disabled="true"]):not(:disabled)';
@@ -38,7 +39,13 @@ function initialFocusTarget(panel: HTMLElement): HTMLElement | null {
  * controls (text inputs, confirm buttons) keep native Tab order and close via
  * blur once focus leaves the root.
  */
-export function PropertyPopover({ renderTrigger, children, align = "start", className }: Props) {
+export function PropertyPopover({
+  renderTrigger,
+  children,
+  align = "start",
+  className,
+  panelClassName,
+}: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -136,6 +143,7 @@ export function PropertyPopover({ renderTrigger, children, align = "start", clas
               : align === "end"
                 ? "origin-bottom-right"
                 : "origin-bottom-left",
+            panelClassName,
           )}
         >
           {children({ close: closeAndRestoreFocus })}

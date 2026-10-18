@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import {
   appRouteHash,
+  databaseHash,
   entityFocusHash,
   journalDayHash,
   noteHistoryHash,
@@ -73,4 +74,15 @@ test("the media library has its own full-screen route", () => {
   assert.equal(resolveAppRoute("#/media"), "media");
   assert.equal(appRouteHash("media"), "#/media");
   assert.equal(resolveRouteFocus("#/media"), null);
+});
+
+test("database routes carry an optional folder id", () => {
+  assert.equal(databaseHash(null), "#/database");
+  assert.equal(resolveAppRoute("#/database"), "database");
+  assert.equal(resolveRouteFocus("#/database"), null);
+  const hash = databaseHash("folder/1");
+  assert.equal(hash, "#/database/folder%2F1");
+  assert.equal(resolveAppRoute(hash), "database");
+  assert.equal(resolveRouteFocus(hash), "folder/1");
+  assert.equal(appRouteHash("database"), "#/database");
 });

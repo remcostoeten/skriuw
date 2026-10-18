@@ -4,6 +4,8 @@ import {
   type FolderStructureFormat,
 } from "@/features/transfer/folder-structure";
 import { showToast } from "@/shared/ui/toast";
+import { JOURNAL_ROOT_ID } from "@skriuw/renderer-core/journal/constants";
+import { databaseHash } from "@skriuw/renderer-core/route/app-route";
 import { ancestorIds, flattenVisible, selectedTreeRoots } from "@skriuw/renderer-core/store/tree";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { nextFolderExpansion } from "./expansion";
@@ -25,6 +27,16 @@ export {
   FOLDER_STRUCTURE_DEPTHS,
   type FolderStructureFormat,
 } from "@/features/transfer/folder-structure";
+
+/** Whether a folder row offers "Open as database"; the journal is organized by date instead. */
+export function canOpenAsDatabase(id: string): boolean {
+  return id !== JOURNAL_ROOT_ID;
+}
+
+/** Shows a folder's notes, or every note when `folderId` is null, as a database. */
+export function openAsDatabase(folderId: string | null): void {
+  window.location.hash = databaseHash(folderId);
+}
 
 export function toggleAllFolders(store: RendererStore): void {
   const state = store.getState();

@@ -25,6 +25,11 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
 - **History scrubber:** a bottom-center revision scrubber driven by drag,
   pinch, wheel, or keyboard.
 - **Cover gradients and per-asset reveal** in the media library.
+- **Database views:** open a folder, or every note, as a table or board over
+  note properties, with in-place editing, filters, sorts, column visibility,
+  and board grouping by a select or checkbox property
+  ([ADR-0057](docs/adr/0057-database-views.md)). Layouts are stored per folder
+  in a device-local settings extension.
 
 ### In progress (working tree, not yet released)
 

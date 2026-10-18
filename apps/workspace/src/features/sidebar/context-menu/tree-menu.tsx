@@ -20,6 +20,7 @@ import {
   PinIcon,
   PinOffIcon,
   ShareIcon,
+  TableIcon,
   Trash2Icon,
   UnfoldVerticalIcon,
 } from "@/shared/icons/static";
@@ -38,6 +39,7 @@ import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import type { RowGestures } from "../touch/row-gestures";
 import {
   FOLDER_STRUCTURE_DEPTHS,
+  canOpenAsDatabase,
   canShareNotes,
   copyFolderStructure,
   createFolder,
@@ -45,6 +47,7 @@ import {
   exportNoteAsMarkdown,
   moveNode,
   moveTargetFolders,
+  openAsDatabase,
   openBeside,
   openNoteInTab,
   setAllFoldersExpanded,
@@ -180,6 +183,12 @@ function RootEntries({ store }: StoreProps) {
         Collapse all folders
         <ContextMenuShortcut keys="C" />
       </ContextMenuItem>
+      <ContextMenuSeparator />
+      <ContextMenuItem onClick={() => openAsDatabase(null)} className="gap-2">
+        <TableIcon size={14} className="h-3.5 w-3.5" />
+        Open all notes as database
+        <ContextMenuShortcut keys="O" />
+      </ContextMenuItem>
     </>
   );
 }
@@ -296,6 +305,13 @@ function ItemEntries({ store, id }: NodeProps) {
                 New folder inside
                 <ContextMenuShortcut keys="F" />
               </ContextMenuItem>
+              {canOpenAsDatabase(id) && (
+                <ContextMenuItem onClick={() => openAsDatabase(id)} className="gap-2">
+                  <TableIcon className="w-4 h-4" />
+                  Open as database
+                  <ContextMenuShortcut keys="O" />
+                </ContextMenuItem>
+              )}
               <CopyStructureSubmenu store={store} id={id} />
             </>
           )}

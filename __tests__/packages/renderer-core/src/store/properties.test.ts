@@ -185,6 +185,23 @@ test("property operations replace only the owning note projection", () => {
   );
 });
 
+test("property edits move the note's updated time like the backend does", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  const otherNode = store.getState().sourceNodes.get("note_2");
+
+  store.applyOperations([
+    { type: "set_note_property", property: { ...textProperty, name: "Overview" }, at: 20 },
+  ]);
+  assert.equal(store.getState().sourceNodes.get("note_1")?.updatedAt, 20);
+  assert.equal(store.getState().metadata.get("note_1")?.updatedAt, 20);
+  assert.equal(store.getState().sourceNodes.get("note_2"), otherNode);
+
+  store.applyOperations([
+    { type: "remove_note_property", noteId: "note_1", propertyId: "status", at: 30 },
+  ]);
+  assert.equal(store.getState().metadata.get("note_1")?.updatedAt, 30);
+});
+
 test("invalid and foreign property operations preserve state identity", () => {
   const store = createRendererStore(createInitialState(snapshot()));
   const before = store.getState();

@@ -449,6 +449,32 @@ type SavedDocument = {
  * the stored revision, and the untouched local document silently reverts the
  * change on the note's next save.
  */
+/**
+ * Mirrors the backend's `touch_note` for property edits, so a note's updated
+ * time moves when its properties change instead of only after a restart.
+ */
+function touchedNote(
+  current: RendererState,
+  noteId: string,
+  at: number,
+): Pick<RendererState, "sourceNodes" | "metadata"> {
+  const sourceNode = current.sourceNodes.get(noteId);
+  const noteMetadata = current.metadata.get(noteId);
+  let sourceNodes = current.sourceNodes;
+  let metadata = current.metadata;
+  if (sourceNode && sourceNode.updatedAt !== at) {
+    const patched = new Map(current.sourceNodes);
+    patched.set(noteId, { ...sourceNode, updatedAt: at });
+    sourceNodes = patched;
+  }
+  if (noteMetadata && noteMetadata.updatedAt !== at) {
+    const patched = new Map(current.metadata);
+    patched.set(noteId, { ...noteMetadata, updatedAt: at });
+    metadata = patched;
+  }
+  return { sourceNodes, metadata };
+}
+
 function withSavedDocument(
   current: RendererState,
   saved: SavedDocument | null,
@@ -721,7 +747,11 @@ function reduceState(current: RendererState, operation: WorkspaceOperation): Ren
       });
       const propertiesByNoteId = new Map(current.propertiesByNoteId);
       propertiesByNoteId.set(operation.property.noteId, nextProperties);
-      return { ...current, propertiesByNoteId };
+      return {
+        ...current,
+        ...touchedNote(current, operation.property.noteId, operation.at),
+        propertiesByNoteId,
+      };
     } catch (error) {
       if (isPropertyValidationError(error)) return current;
       throw error;
@@ -735,7 +765,11 @@ function reduceState(current: RendererState, operation: WorkspaceOperation): Ren
       const propertiesByNoteId = new Map(current.propertiesByNoteId);
       if (nextProperties.length === 0) propertiesByNoteId.delete(operation.noteId);
       else propertiesByNoteId.set(operation.noteId, nextProperties);
-      return { ...current, propertiesByNoteId };
+      return {
+        ...current,
+        ...touchedNote(current, operation.noteId, operation.at),
+        propertiesByNoteId,
+      };
     } catch (error) {
       if (isPropertyValidationError(error)) return current;
       throw error;
@@ -748,7 +782,11 @@ function reduceState(current: RendererState, operation: WorkspaceOperation): Ren
       const nextProperties = reorderNoteProperties(currentProperties, operation.orderedPropertyIds);
       const propertiesByNoteId = new Map(current.propertiesByNoteId);
       propertiesByNoteId.set(operation.noteId, nextProperties);
-      return { ...current, propertiesByNoteId };
+      return {
+        ...current,
+        ...touchedNote(current, operation.noteId, operation.at),
+        propertiesByNoteId,
+      };
     } catch (error) {
       if (isPropertyValidationError(error)) return current;
       throw error;

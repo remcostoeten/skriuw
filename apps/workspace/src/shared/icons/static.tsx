@@ -79,6 +79,7 @@ export const EraserIcon = glyphIcon("eraser");
 export const ExitFullscreenIcon = glyphIcon("full_screen_minimize");
 export const ExternalLinkIcon = glyphIcon("open");
 export const FileTextIcon = glyphIcon("document_text");
+export const FilterIcon = glyphIcon("filter");
 export const FilePlusIcon = glyphIcon("document_add");
 export const FolderIcon = glyphIcon("folder");
 export const FolderInputIcon = glyphIcon("folder_arrow_right");

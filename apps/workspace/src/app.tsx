@@ -17,6 +17,7 @@ import { ShortcutHelpOverlay } from "@/commands/shortcut-help-overlay";
 import { TrashView } from "@/features/trash/trash-view";
 import { EntityView } from "@/features/references/shell";
 import { TasksView } from "@/features/tasks/tasks-view";
+import { DatabaseView } from "@/features/database/database-view";
 import { MediaLibraryView } from "@/features/media/media-library-view";
 import { HistoryView } from "@/features/history/history-view";
 import { JournalSidebar } from "@/features/journal/journal-sidebar";
@@ -42,7 +43,7 @@ import { TransferDialogs } from "@/features/transfer/transfer-dialogs";
 import { WorkspaceShortcuts } from "@/commands/workspace-shortcuts";
 import { useShortcutHints } from "@/commands/hints";
 import { RAIL_ITEMS, railModShiftKeys, type RailItem } from "@/commands/rail-items";
-import { useAppRoute } from "./app-route";
+import { useAppRoute, useRouteFocus } from "./app-route";
 import { CloudSignInDrawer, ModelSwitcherHost, PromptPlaygroundView } from "@/app/lazy-surfaces";
 import { AppProviders } from "@/app/providers";
 import { useSignIn } from "@/app/use-sign-in";
@@ -107,6 +108,19 @@ type Props = {
 
 function selectActiveNoteId(state: RendererState): string | null {
   return state.activeNoteId;
+}
+
+/** The database route, keyed by its folder so switching folders starts a fresh view. */
+function DatabaseRoute({ store }: Props) {
+  const folderId = useRouteFocus();
+  return (
+    <DatabaseView
+      key={folderId ?? ""}
+      store={store}
+      folderId={folderId}
+      windowControls={<WindowControls className="absolute right-0 top-0" />}
+    />
+  );
 }
 
 function selectHasActiveNote(state: RendererState): boolean {
@@ -677,6 +691,7 @@ function WorkspaceShell({ store }: Props) {
           />
         )}
         {route === "tasks" && <TasksView store={store} />}
+        {route === "database" && <DatabaseRoute store={store} />}
         {route === "trash" && <TrashView store={store} />}
         {route === "media" && <MediaLibraryView store={store} />}
         {route === "prompt-playground" && (

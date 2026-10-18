@@ -12,6 +12,7 @@ import {
 const LIFECYCLE_SETTING_KEYS = [
   "noteTemplateIds",
   "savedSearches",
+  "databaseViews",
   "onboardingVersion",
   "starterSeedVersion",
   "starterSeedNoteIds",
