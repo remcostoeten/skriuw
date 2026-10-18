@@ -82,6 +82,7 @@
     "yaml": "^2.8.1"
   },
   "devDependencies": {
+    "@remcostoeten/kreasz": "0.3.1",
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "2.9.6",
     "@types/node": "26.1.1",

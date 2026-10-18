@@ -11,50 +11,263 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
 
 ### Added
 
-- **End-to-end encrypted sync:** note bodies are sealed on the device before
-  they leave it, so the server stores ciphertext it cannot read. Keys derive
-  from a recovery code with Argon2id; migration 0026 and
-  [ADR-0043](docs/adr/0043-end-to-end-encrypted-sync.md) cover the scheme.
-- **Full-text content search:** SQLite FTS5 backs search over note bodies, not
-  just titles.
-- **Modal Vim editing** in both the rich editor and raw Markdown mode
-  ([ADR-0042](docs/adr/0042-modal-vim-editing.md)), including wrapped-row line
-  jumps.
-- **Installable browser build** with a compact touch shell for phones and
-  tablets: phone drawers, tab overflow, and a keyboard-first polish pass.
-- **History scrubber:** a bottom-center revision scrubber driven by drag,
-  pinch, wheel, or keyboard.
-- **Cover gradients and per-asset reveal** in the media library.
 - **Database views:** open a folder, or every note, as a table or board over
   note properties, with in-place editing, filters, sorts, column visibility,
   and board grouping by a select or checkbox property
   ([ADR-0057](docs/adr/0057-database-views.md)). Layouts are stored per folder
-  in a device-local settings extension.
-
-### In progress (working tree, not yet released)
-
-- **Locked notes and folders:** lock a note, or a folder and everything under
-  it, behind one workspace PIN or passphrase (context menu, palette, or
-  `mod+shift+l`). Bodies are encrypted at rest with XChaCha20-Poly1305 under a
-  session-scoped key derived from the secret — or from a one-time recovery
-  code — with Argon2id. Locked bodies leave the full-text index, backlinks,
-  tasks, and new history capture until unlocked, and are excluded from
-  archives, checkpoints, and deltas. Notes relock after a configurable idle
-  timeout or on window blur; wrong attempts back off instead of destroying the
-  data. Lock state replicates as `ConfigureNoteLock`, `SetNodeLocked`, and
-  `SaveSealedDocument` operations, expanded adapter-side before they apply.
-  Migration 0027 and [ADR-0044](docs/adr/0044-locked-notes.md).
+  in a device-local settings extension (#545).
 
 ### Fixed
 
-- Brand icon resolution, a roomier command palette, and an inline empty-trash
-  confirmation.
 - **Phone and tablet web app:** the compact shell's tab bar and toolbar are back
   in place, the home indicator inset is no longer applied twice, hover-only
   controls (section collapse, tag and trash row actions, cover controls) show
   on touch, small icon buttons meet 44px touch targets, and settings rows wrap
   on narrow screens. The installed app precaches every build chunk, so screens
-  never opened online still open offline.
+  never opened online still open offline (#546).
+
+## [0.51.0] — 2026-10-12
+
+### Added
+
+- Images are published with shared notes, and shared notes and docs get heading
+  anchors and a table of contents (#537, #536).
+- The editor links bare domains with a known top-level domain (#538).
+- **Math paste and macros:** pasting plain text turns `\(...\)`, `\[...\]`,
+  `$...$` and `$$...$$` into math while leaving code literal. Workspace math
+  macros live in settings and replicate through a `set_math_macros` operation.
+  KaTeX loads mhchem for chemistry (#533).
+- **Math and Tasks starter guides** show KaTeX and due dates to new users, and
+  Welcome links to them (#533).
+
+### Changed
+
+- Settings copy lives in one module, so search still finds moved strings.
+  Settings and the media preview draw a focus outline in forced-colors mode
+  (#533).
+- Sync Worker deploys apply D1 migrations, and the native gate runs on every
+  pull request (#531, #532).
+
+### Fixed
+
+- Notes moved to the trash are no longer shared (#535).
+- Links in shared notes and docs are visibly links (#534).
+- The toast stack anchors to the visual viewport (#539).
+
+## [0.50.0] — 2026-10-08
+
+### Added
+
+- **Opened files stay in sync:** opening a Markdown, MDX or text file again
+  updates its note. A changed file updates an untouched note, a changed note
+  is kept, and when both changed a dialog offers keep note, use file, or keep
+  both. Moved files are recognised by their contents. `.txt` opens too, titles
+  come from frontmatter, a leading heading or the file name, and MDX imports
+  without loss (#524).
+- **Account deletion** under Settings, Account & sync removes the cloud
+  account, its synced workspace, shared notes and every local workspace on the
+  device ([ADR-0056](docs/adr/0056-account-deletion.md), #525).
+- **Clean up empty notes** moves every note with no body to the trash with one
+  undo. Pinned, locked, journal, commented and parent notes are never touched
+  (#525).
+- A single theme picker in the palette (Space on a "Theme:" row) and a
+  Command palette size setting: Default, Roomy or Large (#525).
+- **Mobile:** sign in from the account sheet and sync through the native core,
+  with the credential in the platform keystore (#527). Lock settings open from
+  the account sheet, and tree rows gain Lock/Unlock (#526).
+
+### Changed
+
+- Settings search matches every row's text and shows the matching row.
+  Keyboard focus is a soft fill instead of an outline, and the switch has a
+  filled track (#523).
+- Desktop: the splash is part of the main window, and a file opened from the
+  file manager is the active note on the first frame (#525).
+- The site code is reorganised into flat modules, and changelog release notes
+  render with `marked` (#519, #521).
+
+### Fixed
+
+- Linux: the main window shows on launch, where WebKitGTK reported it visible
+  while hidden (#530).
+
+## [0.49.0] — 2026-10-03
+
+### Added
+
+- **Due dates and recurring tasks:** `due:` and `every:` on a checklist line
+  set a date or a repeat rule, shown as chips. Checking off a repeating item
+  adds the next one below it. The Tasks view groups by Overdue, Today,
+  Upcoming, No date and Completed earlier. Markdown uses the Obsidian Tasks
+  signifiers ([ADR-0054](docs/adr/0054-recurring-tasks-repeat-in-the-document.md),
+  #499, #507).
+- **Math** rendered with KaTeX, inline and as blocks, via `/math`, shortcuts or
+  `$$` fences. KaTeX loads only when a note has math, and formulas are
+  searchable (#503).
+- **Focus mode** (`mod+shift+f`) and **typewriter scrolling**
+  (`mod+shift+y`) in both editors (#504).
+- **Unlinked mentions** in the Relationship Explorer, with `L` to link one or
+  Link all (#500).
+- **Daily journal word goal** with header progress, calendar marks and goal
+  stats (#501).
+- **Facehash avatars** for signed-in accounts (#505).
+
+### Changed
+
+- Signing in keeps you on the current page, and signing out leaves the
+  account's workspace in the browser and on desktop (#478, #480).
+- The workspace app is split into layered modules with enforced public APIs
+  ([ADR-0055](docs/adr/0055-workspace-module-boundaries.md), #510).
+- Site: the header shows the user menu and floats on scroll, the download
+  button picks the visitor's OS, and the hero and changelog contrast are new
+  (#477, #479, #481, #482, #483).
+
+### Fixed
+
+- Locking a note or folder closes it immediately (#508).
+- Desktop: a saved window larger than the screen is fitted to the monitor, and
+  the sync push thread no longer panics on a missing rustls CryptoProvider
+  (#511).
+- A task's checkbox and text stay on one line (#494), and a task ending in
+  formatted text keeps its link after reopening (#499).
+
+## [0.48.0] — 2026-09-30
+
+### Added
+
+- **Open Markdown files from the file manager:** Skriuw registers for `.md`,
+  `.markdown` and `.mdx`. Opening a file imports it as a root note, and
+  opening it again goes to that note (#502).
+- **Whole-note AI edits** via "Custom instruction on note", reviewed as a line
+  diff. The AI run card stays pinned while scrolling (#502).
+- **Remote images on import** with an ask, download or block setting
+  ([ADR-0051](docs/adr/0051-remote-images-at-import.md), #502).
+- Quit can be switched off or rebound, the palette has a row density setting,
+  and list arrow keys wrap (#502).
+- Right-click the journal calendar for day, today, month and collapse actions
+  (#502).
+- Safe SVG files import as images (#502).
+
+### Changed
+
+- Signed-out browser visitors see a dismissible "Saved in this browser only"
+  strip instead of the storage warning toast, and the sign-in reminder waits
+  for a pause in typing (#502).
+- Every page on skriuw.com uses the framed homepage design (#490).
+
+### Removed
+
+- The first-run onboarding screen. New workspaces open straight into the
+  editor (#502).
+
+### Fixed
+
+- Image-only paragraphs, such as README badge rows, stay on one row.
+- Sign-in no longer reloads the app before sync connects.
+
+## [0.47.0] — 2026-09-27
+
+### Added
+
+- **Public note links:** share a note as a read-only page at
+  `skriuw.com/s/<id>/`, as a frozen snapshot or following your edits. Sharing
+  needs an account but not sync, and shared text is not end-to-end encrypted
+  ([ADR-0052](docs/adr/0052-public-note-links.md), #496).
+
+### Changed
+
+- Scoop, apt and dnf channels moved to the `skriuw` GitHub organization. apt
+  and dnf users switch to `https://skriuw.github.io/packages/` (#489).
+- skriuw.com is a Next.js site with a changelog page, a nested feature outline
+  and condensed AI docs (#475, #476, #488).
+
+### Removed
+
+- The reduce-motion setting, which no longer had any effect (#492).
+
+## [0.46.1] — 2026-09-25
+
+### Added
+
+- **Shared Fluent icon system** with the approved animations (#438).
+- Vim cursor style, blink and action feedback (#430).
+- One theme registry shared across desktop, web and mobile (#429).
+- The Expo mobile app: native shell, editor host, tasks, search, journal,
+  locked notes with biometric unlock, sync, and the UniFFI bridge to the Rust
+  core (#399 to #437).
+
+### Changed
+
+- The repository is reorganized into apps, packages and services, TypeScript
+  is gated by Oxlint and oxfmt, and Vitest runs from one root `__tests__`
+  mirror (#439, #440, #470).
+- Releases are cut by a workflow with generated notes and a native boot gate
+  (#465, #466).
+
+### Fixed
+
+- Sync stays on while signed in (#474), accepts current archive versions in
+  cloud checkpoints (#469), and reports the service's rejection code (#467).
+- Locked notes relock when the tab is hidden and after a frozen idle timer
+  (#471, #464).
+- PWA media works on iPhone, including older iOS Safari (#468, #473).
+- Sidebar focus, palette position and two-line toasts (#431), and React is
+  pinned into one vendor chunk (#427).
+
+## [0.46.0] — 2026-09-19
+
+### Added
+
+- **One local workspace per cloud account:** a second account on the same
+  install opens its own workspace, and switching back is lossless
+  ([ADR-0046](docs/adr/0046-per-account-local-workspaces.md), #378).
+- **Phone shell behaves like an app:** the back gesture closes the top sheet
+  or dialog, dialogs stay above the keyboard and pull down to close, toasts
+  swipe away, and an install strip sits above the tab bar
+  ([ADR-0047](docs/adr/0047-compact-shell-owns-back-and-install.md), #380, #381).
+- **Journal quick capture:** home-screen shortcuts and a share target in the
+  installed browser build, plus a 30-day mood trend strip (#379).
+
+### Changed
+
+- The settings sidebar is grouped into sections (#377).
+- Touch targets grow to 44px across the toolbar, search, toasts and dialogs
+  (#379).
+
+## [0.45.0] — 2026-09-18
+
+### Added
+
+- **End-to-end encrypted sync:** titles, bodies, tags, properties, tasks,
+  media and operation types are sealed on the device. Keys derive from a
+  recovery code shown once
+  ([ADR-0043](docs/adr/0043-end-to-end-encrypted-sync.md), #363).
+- **Locked notes** behind a workspace PIN or passphrase with a one-time
+  recovery code, encrypted at rest and kept out of search, tasks, references,
+  history and archives. Migration 0027
+  ([ADR-0044](docs/adr/0044-locked-notes.md), #373).
+- **Modal Vim editing** in the rendered and raw Markdown editors, with
+  jump-to-line counting wrapped rows
+  ([ADR-0042](docs/adr/0042-modal-vim-editing.md), #367, #372).
+- **Rendered Mermaid fences** for sequence, state, class and ER diagrams
+  ([ADR-0045](docs/adr/0045-rendered-mermaid-fences.md), #374), and an **AI
+  Diagram** action (#375).
+- **Full-text content search** over prose with SQLite FTS5, ranked and
+  highlighted ([ADR-0041](docs/adr/0041-full-text-search-index.md), #362).
+- **Installable browser build** with a compact touch shell, edge drawers and
+  tab overflow ([ADR-0040](docs/adr/0040-installable-browser-shell.md), #366,
+  #368).
+- **Journal:** daily templates, On this day, a phone day view, week, month and
+  year steps, and a Go to date dialog (#370, #376).
+- **History:** side-by-side diff (#371) and a revision scrubber (#368).
+- Cover gradients and per-asset reveal in the media library (#361).
+- A splash until first paint and single-instance launch (#368).
+
+### Fixed
+
+- The shortcut recorder commits new bindings (#371).
+- Brand icon resolution, a roomier command palette and an inline empty-trash
+  confirmation (#360).
 
 ## [0.44.0] — 2026-09-09
 

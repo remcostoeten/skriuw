@@ -12,6 +12,7 @@ import {
   purgeNode,
   renameNode,
   restoreNode,
+  restoreTrashedNode,
   setNodePinned,
   trashNode,
 } from "@/shell/tree-actions";
@@ -157,6 +158,19 @@ test("undo after the original parent is gone restores to the top level", async (
     await restoreNode(session, trashed);
 
     assert.equal(session.store.getState().nodes.get("note-uniffi")?.parentId, null);
+  });
+});
+
+test("the trash surface restores a deleted note into its surviving parent", async () => {
+  await withSession(async (session) => {
+    await trashNode(session, "note-native-shell");
+    await restoreTrashedNode(session, "note-native-shell");
+
+    assert.equal(
+      session.store.getState().nodes.get("note-native-shell")?.parentId,
+      "folder-field-notes",
+    );
+    assert.equal(session.store.getState().activeNoteId, "note-native-shell");
   });
 });
 

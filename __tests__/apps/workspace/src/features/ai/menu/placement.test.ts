@@ -50,3 +50,15 @@ test("a selection taller than the pane keeps the menu on screen", () => {
   assert.ok(placement.top >= PANE.top + 12);
   assert.ok(placement.top + SIZE.height <= PANE.bottom - 12);
 });
+
+test("a tall selection with no room on either side lets the menu overlap it at full height", () => {
+  const placement = placeAiMenu(geometry(caret(410, 120), caret(500, 760)), true, SIZE, NATURAL);
+  assert.equal(placement.below, true);
+  assert.equal(placement.room, NATURAL);
+});
+
+test("a range with room on its side keeps the menu clear of it", () => {
+  const placement = placeAiMenu(geometry(caret(500, 800)), false, SIZE, NATURAL);
+  assert.equal(placement.below, false);
+  assert.equal(placement.room, 800 - PANE.top - 10 - 12);
+});

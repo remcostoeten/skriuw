@@ -142,6 +142,23 @@ export async function restoreNode(session: WorkspaceSession, trashed: TrashedNod
   await commitOperations(session, operations);
 }
 
+export async function restoreTrashedNode(session: WorkspaceSession, id: string): Promise<void> {
+  const node = session.store.getState().sourceNodes.get(id);
+  if (!node || node.deletedAt === null) {
+    return;
+  }
+  const parent =
+    node.parentId === null ? null : session.store.getState().sourceNodes.get(node.parentId);
+  await restoreNode(session, {
+    id,
+    title: node.title,
+    placement: {
+      parentId: parent?.deletedAt === null ? parent.id : null,
+      position: { type: "last" },
+    },
+  });
+}
+
 export async function purgeNode(session: WorkspaceSession, id: string): Promise<void> {
   await commitOperations(session, [
     { type: "purge_subtree", rootId: id, trashedBefore: Date.now() },
