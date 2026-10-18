@@ -54,6 +54,7 @@ export const GLYPH_NAMES = [
   "edit",
   "emoji",
   "eraser",
+  "filter",
   "flowchart",
   "folder",
   "folder_add",

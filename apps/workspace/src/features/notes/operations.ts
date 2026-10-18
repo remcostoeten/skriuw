@@ -8,13 +8,17 @@ function reportRejection(action: string) {
   };
 }
 
-function initialNoteDocument(title: string) {
+/** A note body that opens with `title` as its heading, so the derived title stays put. */
+export function titledNoteDocument(title: string): { documentJson: unknown; markdown: string } {
   return {
-    type: "doc",
-    content: [
-      { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: title }] },
-      { type: "paragraph" },
-    ],
+    documentJson: {
+      type: "doc",
+      content: [
+        { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: title }] },
+        { type: "paragraph" },
+      ],
+    },
+    markdown: `# ${title}\n\n`,
   };
 }
 
@@ -45,8 +49,7 @@ export function createLinkedNote(store: RendererStore, id: string, title: string
       id,
       title,
       placement: { parentId: null, position: { type: "last" } },
-      documentJson: initialNoteDocument(title),
-      markdown: `# ${title}\n\n`,
+      ...titledNoteDocument(title),
       at: Date.now(),
     },
     { type: "set_active_note", noteId: previousActive },

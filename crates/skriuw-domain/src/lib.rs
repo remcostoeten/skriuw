@@ -119,6 +119,10 @@ pub const MAX_ENTITY_ID_BYTES: usize = 128;
 pub const MAX_TITLE_BYTES: usize = 512;
 pub const MAX_SETTING_KEY_BYTES: usize = 128;
 pub const MAX_SETTING_TEXT_BYTES: usize = 512;
+/// Serialized size cap for the device-local `databaseViews` settings extension.
+/// The renderer evicts its oldest layouts to stay under this, so the cap is a
+/// contract every version keeps rather than a limit a newer build may raise.
+pub const MAX_DATABASE_VIEWS_BYTES: usize = 256 * 1024;
 pub const MAX_REFERENCE_NAME_BYTES: usize = 512;
 pub const MAX_REFERENCE_COLOR_BYTES: usize = 64;
 pub const MAX_IMAGE_MIME_BYTES: usize = 128;
@@ -393,6 +397,9 @@ impl WorkspaceSettings {
                     .map_err(|_| OperationValidationError::InvalidDocument)?;
                 validate_math_macros(&macros)?;
             }
+            if key == "databaseViews" {
+                validate_database_views(value)?;
+            }
             validate_setting_key(key)?;
             if SETTINGS_FIELDS.contains(&key.as_str()) {
                 return Err(OperationValidationError::SettingFieldCollision { key: key.clone() });
@@ -400,6 +407,22 @@ impl WorkspaceSettings {
         }
         Ok(())
     }
+}
+
+fn validate_database_views(value: &Value) -> Result<(), OperationValidationError> {
+    if !value.is_object() {
+        return Err(OperationValidationError::InvalidDocument);
+    }
+    let size = serde_json::to_vec(value)
+        .map_err(|_| OperationValidationError::InvalidDocument)?
+        .len();
+    if size > MAX_DATABASE_VIEWS_BYTES {
+        return Err(OperationValidationError::TooLong {
+            field: "database layouts",
+            maximum: MAX_DATABASE_VIEWS_BYTES,
+        });
+    }
+    Ok(())
 }
 
 fn validate_math_macros(macros: &BTreeMap<String, String>) -> Result<(), OperationValidationError> {
@@ -2401,13 +2424,14 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ArchiveValidationError, DocumentLimits, MAX_OPERATION_GROUP_BYTES, NodeKind, NodePlacement,
-        NoteProperty, NotePropertyColor, NotePropertyField, NotePropertyOption,
-        NotePropertyTemplate, NotePropertyValue, OperationValidationError, SETTINGS_FIELDS,
-        VersionedNotePropertyValue, WORKSPACE_ARCHIVE_VERSION, WORKSPACE_PROTOCOL_VERSION,
-        WORKSPACE_SETTINGS_VERSION, WorkspaceArchive, WorkspaceDocument, WorkspaceNode,
-        WorkspaceOperation, WorkspaceOperationEnvelope, WorkspaceSettings, WorkspaceTag,
-        validate_document_with_limits, validate_operation_group_with_limits,
+        ArchiveValidationError, DocumentLimits, MAX_DATABASE_VIEWS_BYTES,
+        MAX_OPERATION_GROUP_BYTES, NodeKind, NodePlacement, NoteProperty, NotePropertyColor,
+        NotePropertyField, NotePropertyOption, NotePropertyTemplate, NotePropertyValue,
+        OperationValidationError, SETTINGS_FIELDS, VersionedNotePropertyValue,
+        WORKSPACE_ARCHIVE_VERSION, WORKSPACE_PROTOCOL_VERSION, WORKSPACE_SETTINGS_VERSION,
+        WorkspaceArchive, WorkspaceDocument, WorkspaceNode, WorkspaceOperation,
+        WorkspaceOperationEnvelope, WorkspaceSettings, WorkspaceTag, validate_document_with_limits,
+        validate_operation_group_with_limits,
     };
 
     #[test]
@@ -2876,6 +2900,45 @@ mod tests {
             empty_key.validate(),
             Err(OperationValidationError::Empty { .. })
         ));
+    }
+
+    #[test]
+    fn database_layouts_must_be_an_object_within_the_size_cap() {
+        let with_views = |value: serde_json::Value| WorkspaceSettings {
+            extensions: BTreeMap::from([("databaseViews".to_string(), value)]),
+            ..WorkspaceSettings::default()
+        };
+        let saved = json!({
+            "version": 1,
+            "views": {
+                "@workspace": {
+                    "layout": "board",
+                    "subfolders": true,
+                    "order": [],
+                    "hidden": ["created"],
+                    "sorts": [],
+                    "filters": [],
+                    "groupBy": "p:status",
+                    "updatedAt": 1
+                }
+            }
+        });
+        assert_eq!(with_views(saved).validate(), Ok(()));
+        assert_eq!(
+            with_views(json!(["board"])).validate(),
+            Err(OperationValidationError::InvalidDocument)
+        );
+        let oversized = json!({
+            "version": 1,
+            "views": { "@workspace": { "order": ["x".repeat(MAX_DATABASE_VIEWS_BYTES)] } }
+        });
+        assert_eq!(
+            with_views(oversized).validate(),
+            Err(OperationValidationError::TooLong {
+                field: "database layouts",
+                maximum: MAX_DATABASE_VIEWS_BYTES,
+            })
+        );
     }
 
     #[test]

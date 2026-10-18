@@ -10,7 +10,8 @@ import {
 const MAX_ID_BYTES = 128;
 const MAX_NAME_BYTES = 80;
 const MAX_VALUE_BYTES = 2_000;
-const MAX_OPTIONS = 64;
+export const MAX_PROPERTY_OPTIONS = 64;
+export const MAX_NOTE_PROPERTIES = 64;
 const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const PROPERTY_TYPE_SET = new Set<string>(NOTE_PROPERTY_TYPES);
 const PROPERTY_COLOR_SET = new Set<string>(NOTE_PROPERTY_COLORS);
@@ -153,7 +154,9 @@ export function normalizeNotePropertyFields(
   context: PropertyValidationContext = {},
 ): NotePropertyField[] {
   if (!Array.isArray(input)) throw propertyValidationError(["properties must be an array"]);
-  if (input.length > 64) throw propertyValidationError(["properties exceed 64 entries"]);
+  if (input.length > MAX_NOTE_PROPERTIES) {
+    throw propertyValidationError([`properties exceed ${MAX_NOTE_PROPERTIES} entries`]);
+  }
   const fields = input.map((field) => normalizeNotePropertyField(field, context));
   assertUnique(
     fields.map((field) => field.id),
@@ -175,7 +178,8 @@ function normalizeOptions(input: unknown, issues: string[]): NotePropertyOption[
     issues.push("property options must be an array");
     return [];
   }
-  if (input.length > MAX_OPTIONS) issues.push(`property options exceed ${MAX_OPTIONS} entries`);
+  if (input.length > MAX_PROPERTY_OPTIONS)
+    issues.push(`property options exceed ${MAX_PROPERTY_OPTIONS} entries`);
   const options = input.flatMap((entry, index) => {
     if (!isRecord(entry)) {
       issues.push(`property option ${index} must be an object`);
@@ -202,7 +206,8 @@ function validateIdList(value: unknown, label: string, issues: string[]): void {
     issues.push(`${label} value must be an array`);
     return;
   }
-  if (value.length > MAX_OPTIONS) issues.push(`${label} value exceeds ${MAX_OPTIONS} entries`);
+  if (value.length > MAX_PROPERTY_OPTIONS)
+    issues.push(`${label} value exceeds ${MAX_PROPERTY_OPTIONS} entries`);
   const ids: string[] = [];
   value.forEach((id, index) => {
     if (!isValidId(id)) issues.push(`${label} value ${index} is not a valid ID`);

@@ -4,12 +4,14 @@ import { requestTemplatePicker } from "@/features/templates/picker";
 import { toggleNodeLock } from "@/features/lock/lock";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import {
+  canOpenAsDatabase,
   createFolder,
   createNote,
   exportNoteAsMarkdown,
   openBeside,
   openNoteInTab,
   selectedRootsFor,
+  openAsDatabase,
   setAllFoldersExpanded,
   setNodePinned,
   trashSelectedNodes,
@@ -41,6 +43,7 @@ export function itemMenuShortcuts(
       t: () => requestTemplatePicker(id),
       f: () => createFolder(store, id),
     });
+    if (canOpenAsDatabase(id)) actions.o = () => openAsDatabase(id);
   } else {
     Object.assign(actions, {
       o: () => openNoteInTab(store, id),
@@ -59,6 +62,7 @@ export function rootMenuShortcuts(store: RendererStore): MenuShortcuts {
     f: () => createFolder(store, null),
     e: () => setAllFoldersExpanded(store, true),
     c: () => setAllFoldersExpanded(store, false),
+    o: () => openAsDatabase(null),
   };
 }
 

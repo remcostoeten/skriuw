@@ -6,6 +6,7 @@ export type AppRoute =
   | "history"
   | "journal"
   | "tasks"
+  | "database"
   | "media"
   | "prompt-playground";
 
@@ -34,11 +35,16 @@ export function resolveAppRoute(hash: string): AppRoute {
   if (hash === "#/tasks" || hash.startsWith("#/tasks/")) {
     return "tasks";
   }
+  if (hash === "#/database" || hash.startsWith("#/database/")) {
+    return "database";
+  }
   return "notes";
 }
 
 export function resolveRouteFocus(hash: string): string | null {
-  const match = /^#\/(?:tags|people|history|journal|tasks)\/([^/]+)(?:\/[^/]*)?$/.exec(hash);
+  const match = /^#\/(?:tags|people|history|journal|tasks|database)\/([^/]+)(?:\/[^/]*)?$/.exec(
+    hash,
+  );
   if (!match) {
     return null;
   }
@@ -69,6 +75,9 @@ export function appRouteHash(route: AppRoute): string {
   if (route === "tasks") {
     return "#/tasks";
   }
+  if (route === "database") {
+    return "#/database";
+  }
   if (route === "prompt-playground") {
     return "#/prompt-playground";
   }
@@ -80,6 +89,11 @@ export function appRouteHash(route: AppRoute): string {
 
 export function taskFocusHash(taskId: string): string {
   return `#/tasks/${encodeURIComponent(taskId)}`;
+}
+
+/** The database route over one folder, or over every note when `folderId` is null. */
+export function databaseHash(folderId: string | null): string {
+  return folderId === null ? "#/database" : `#/database/${encodeURIComponent(folderId)}`;
 }
 
 export function journalDayHash(dateKey: string): string {

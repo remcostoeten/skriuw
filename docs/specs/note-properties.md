@@ -90,7 +90,7 @@ The dense metadata information architecture remains intact. Property editing doe
 
 ## Non-goals
 
-- database/table views over properties;
+- database/table views over properties (since delivered as a route; see [ADR-0057](../adr/0057-database-views.md));
 - formulas and computed properties;
 - network-backed person lookup;
 - sharing or collaborative property state;

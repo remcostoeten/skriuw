@@ -4,6 +4,7 @@ import { commandPaletteCommand, shortcutHelpCommand } from "@/commands/palette-c
 import type { AppCommand } from "@/commands/registry";
 import { aiCommands } from "@/features/ai/commands";
 import { authCommands } from "@/features/auth/commands";
+import { databaseCommands } from "@/features/database/commands";
 import { editorCommands } from "@/features/editor/commands";
 import { journalCommands } from "@/features/journal/commands";
 import { lockCommands } from "@/features/lock/commands";
@@ -54,6 +55,7 @@ export function createAppCommands(
     ...authCommands(controls.openSignIn),
     shortcutHelpCommand(controls.showShortcutHelp),
     ...shellCommands(store, controls),
+    ...databaseCommands(store),
     ...journalCommands(controls.openSidebar),
     ...aiCommands(
       aiEnabled,
