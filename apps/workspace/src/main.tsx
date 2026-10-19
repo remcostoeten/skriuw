@@ -19,18 +19,6 @@ function main(): void {
     throw new Error("missing root container");
   }
   startWorkspace(createRoot(container));
-  mountDevelopmentTools();
-}
-
-function mountDevelopmentTools(): void {
-  if (!import.meta.env.DEV) return;
-  void import("@remcostoeten/kreasz")
-    .then(({ mountKreasz }) => {
-      mountKreasz({ storagePrefix: "skriuw-kreasz" });
-    })
-    .catch((error: unknown) => {
-      console.error("failed to load kreasz development tools", error);
-    });
 }
 
 main();
