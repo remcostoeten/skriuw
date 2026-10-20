@@ -58,7 +58,7 @@ export function HomeHero({ badge }: Props) {
             for, and nothing to wait for.
           </p>
 
-          <div style={heroDelay(3)} className="hy-hero-in mt-6 flex flex-wrap items-center gap-2">
+          <div style={heroDelay(3)} className="hy-hero-in mt-6 grid gap-2 sm:w-fit sm:grid-cols-2">
             <OpenAppLink
               placement="hero"
               className={cn(primaryButton, "bg-ink-800 hover:bg-accent focus-visible:bg-accent")}

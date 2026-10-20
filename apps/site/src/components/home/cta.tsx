@@ -17,7 +17,7 @@ export function HomeCta() {
           The full app runs in your browser right now, with no install and no sign-up. The desktop
           app is the same app, with your notes in a file on your own disk.
         </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+        <div className="mt-8 grid gap-2 sm:grid-cols-2">
           <OpenAppLink placement="cta" className={primaryButton}>
             Open the app
           </OpenAppLink>

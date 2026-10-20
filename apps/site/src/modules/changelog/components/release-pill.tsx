@@ -10,7 +10,7 @@ export function ReleasePill({ version, headline }: Props) {
   return (
     <Link
       href="/changelog/"
-      className="hy-link inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-hy-card py-1 pr-2 pl-3 text-xs font-medium text-ink-500 no-underline transition-colors hover:border-ink-400 hover:text-ink-900"
+      className="inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-hy-card py-1 pr-2 pl-3 text-xs font-medium text-ink-500 no-underline transition-colors hover:border-ink-400 hover:text-ink-900"
     >
       <span className="shrink-0">{version ? "New in" : "What's new"}</span>
       {version && (

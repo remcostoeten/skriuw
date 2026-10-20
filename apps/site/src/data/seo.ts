@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { DocPage } from "@/modules/docs/pages";
 
 export const siteUrl = "https://skriuw.com";
@@ -39,6 +40,31 @@ export const homeSchema = {
     },
   ],
 };
+
+/**
+ * @name docMetadata
+ * @description Builds the metadata for a page rendered from a repository
+ * document: its title, description, canonical path and Open Graph card.
+ *
+ * @example
+ * export const metadata = docMetadata(featuresPage);
+ */
+export function docMetadata(page: DocPage): Metadata {
+  const path = `/docs/${page.slug}/`;
+
+  return {
+    title: page.metaTitle,
+    description: page.description,
+    alternates: { canonical: path },
+    openGraph: {
+      siteName: "Skriuw",
+      title: `${page.title} | Skriuw`,
+      description: page.description,
+      url: `${siteUrl}${path}`,
+      images: [socialImage],
+    },
+  };
+}
 
 export type DocSchemaOptions = {
   section?: { name: string; path: string };

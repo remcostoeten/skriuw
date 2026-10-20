@@ -86,7 +86,7 @@ export default async function DocsIndexPage() {
         <SectionHead
           index="02"
           label="decision records"
-          title="Why it is built this way, one decision at a time."
+          title="Recent architecture decisions."
           action={{ label: `All ${records.length} records`, href: "/docs/adr/" }}
         />
         <ul className="mt-8 grid list-none gap-3 p-0 sm:grid-cols-2">
