@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { listAdrs } from "@/modules/docs/adr";
-import { docPages } from "@/modules/docs/pages";
+import { docHref, docPages } from "@/modules/docs/pages";
 
 const routes = [
   "/",
@@ -10,7 +10,7 @@ const routes = [
   "/import/",
   "/changelog/",
   "/docs/",
-  ...docPages.map((page) => `/docs/${page.slug}/`),
+  ...docPages.flatMap((page) => (page.detail ? [page, page.detail] : [page]).map(docHref)),
   "/docs/adr/",
 ];
 

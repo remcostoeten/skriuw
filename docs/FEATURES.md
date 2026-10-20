@@ -4,21 +4,9 @@
 
 Skriuw is a desktop knowledge base built around one promise: every interaction gives same-frame feedback. No spinners, no sync dialogs, no "loading your notes". Your entire workspace lives on your machine, opens instantly, and stays yours: plain SQLite on disk, portable archives you can carry anywhere, and an asynchronous Git history that quietly versions everything you write.
 
-## Tech stack
-
-| Layer         | Technology                                                                          |
-| ------------- | ----------------------------------------------------------------------------------- |
-| Backend       | Rust: domain, storage, runtime, and history crates with no I/O in the domain layer |
-| Storage       | SQLite as canonical storage, ordered SQL migrations, rebuildable FTS5 search index  |
-| History       | Native Git materializer running fully off the editing path                          |
-| Desktop shell | Tauri 2                                                                             |
-| Renderer      | React 19 + TypeScript, Vite, Tailwind CSS 4                                         |
-| Editor        | ProseMirror with a custom bounded-window architecture                               |
-| Contracts     | JSON Schema generated from Rust domain types, drift-checked in CI                   |
-
-The renderer navigates a fully hydrated in-memory workspace: switching notes performs zero IPC, zero database reads, zero parsing. The performance contract (cached note swap and keystroke-to-paint both under 8 ms at P95, zero dropped frames across hundreds of rapid switches) is enforced by a production benchmark suite, not aspiration.
-
 ## Writing
+
+A rich text editor that saves plain Markdown, with a raw source view, Vim mode, comments, ink, and blocks for media, diagrams, and math.
 
 - **Rich text editor**: six heading levels, bullet, numbered, checklist, and collapsible lists (including toggles with a real heading as their summary, so they still feed the note outline), quotes, code, tables, alignment, underline, and restrained highlight colors with Markdown-style input rules, so `# `, `- `, and `**bold**` just work as you type. Code blocks expose language and copy controls; table actions add or remove rows and columns, toggle headers, or remove the table.
 - **Tasks and checkboxes**: `[] ` creates a document-local checkbox. Start a bullet and then type `[] ` or `[ ] ` to create a workspace task linked to that checklist item; it remains ordinary portable Markdown outside Skriuw while the private marker preserves the link. Pasting a task, through either clipboard flavour, mints a new identity, so a copy is its own task rather than a second line claiming the original.
@@ -47,6 +35,8 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 
 ## Organizing
 
+A nested tree of notes and folders, with tabs, split view, search, pins, locks, public links, and a trash.
+
 - **Nested workspace tree**: arbitrary depth, clamped indentation so deep trees stay readable, virtualized to stay smooth at 5,000+ nodes.
 - **Locked notes and folders**: lock any note, or a folder and everything in it, behind one PIN or passphrase (context menu, palette, or `mod+shift+l`). Locked bodies are encrypted on disk with a key only your secret or a one-time recovery code can open, and they leave search, backlinks, tasks, and new history until unlocked. Locking a note closes it right away, along with every other locked note. Unlock once per session; notes relock after a configurable idle time or when the window loses focus. Wrong attempts slow down instead of locking you out for good. See [ADR-0044](adr/0044-locked-notes.md).
 - **Public links**: share a note as a read-only page at `skriuw.com/s/<id>/` from the palette or the note's context menu (`S`). Choose a frozen snapshot you update by hand or a link that follows your edits a few seconds after you stop typing. Shared text and images are stored on Skriuw's server without end-to-end encryption; PNG, JPEG, GIF, and WebP images up to 4 MB each (20 images, 12 MB per note) are published with the note, while drawings, videos, and larger images are left out. Locked notes cannot be shared, and "Stop sharing" or moving the note (or its folder) to the trash removes the page and its images. Restoring a note from the trash does not share it again. Every heading on the page has a linkable anchor, and notes with three or more sections get a table of contents. Needs a Skriuw account, not sync. See [ADR-0052](adr/0052-public-note-links.md).
@@ -66,6 +56,8 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 
 ## Tasks
 
+Checklist items in any note can become tasks with due dates and repeats, gathered in one view and written back to the note.
+
 - **Workspace task view**: a `#/tasks` route listing every task in the workspace, grouped by due date: Overdue, Today, Upcoming, and No date. Completed tasks stay in the list, checked and struck through, in their date group; a completed task whose date has passed moves to a trailing "Completed earlier" group instead of counting as overdue. Each row names its source note, and work with no note to point at (quick-added, detached when its checklist line was deleted, or orphaned by a purged note) says so instead of disappearing.
 - **Due dates**: a task's due date lives on its checklist line and is written to Markdown as the Obsidian Tasks signifier, `- [ ] Ship it 📅 2026-10-01`, so it survives export and other editors read it. In the editor, type `due:tomorrow`, `due:fri`, `due:2026-10-01`, or `due:next_friday` followed by a space on a checklist line to set it; the date shows as a chip that Enter or a click turns back into editable text and Delete clears. In the tasks view, press `D` on a row, or activate its date button, to pick a date; Enter saves, Escape cancels, and an empty date or Delete on the button clears it. See [ADR-0053](adr/0053-task-due-dates-live-in-the-checklist-line.md).
 - **Completion is a paired write**: checking a task from the view submits the record and the rewritten source document in one operation, so the checklist item and the task never disagree and the change survives the note's next save. See [ADR-0031](adr/0031-explicit-task-promotion.md).
@@ -75,6 +67,8 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Keyboard and screen reader**: real checkboxes named by their task, arrows to move between rows, Space to complete, Enter to open the source, `D` to set the due date, and `Shift`+arrow aliases for the first and last row. Date buttons announce the full date and whether it is overdue.
 
 ## Journal
+
+One entry per day, written in the same editor as notes, with a mood, a calendar, templates, and an optional word goal.
 
 - **Daily journal**: a dedicated `#/journal` route with one entry per calendar day, written in the exact same ProseMirror editor as notes: tags, people mentions, note links, slash commands, raw Markdown mode, and version history all work, and entities created in the journal are the same entities the notes workspace uses.
 - **Mood per day**: a five-level mood selector (Great, Good, Neutral, Low, Rough) stored as a typed note property, so it travels with archives, exports, and backups.
@@ -88,6 +82,8 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 
 ## History and safety
 
+Every save goes into a Git history in the background. Backups are verified, and the whole workspace imports and exports as Markdown or an archive.
+
 - **Automatic Git history**: every save is materialized into Git in the background; editing and navigation never wait on it.
 - **Live history panel**: a note's history updates in-session the moment materialization completes; versions open with a diff view (unified or side by side, remembered per workspace), and any prior version can be restored. A timeline scrubber under the preview steps through revisions by dragging its handle, arrow keys, or the scroll wheel; pinch (or ctrl+scroll) zooms the timeline for precise picks, and on phones it replaces the revision list.
 - **Verified backups**: scheduled every six hours with cadence/retention rotation, each backup verified before it counts.
@@ -99,6 +95,8 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Copy folder structure**: right-click a folder → Copy structure to put it on the clipboard as JSON (nested folders and notes with their Markdown) or as a `tree`-style listing, either for all levels or capped at 1–3 levels deep. Folders cut off by the cap are marked `truncated` in JSON and with `…` in the tree.
 
 ## Desktop experience
+
+The desktop app around the editor: first run, encrypted sync, the command palette, shortcuts, settings, storage, and updates.
 
 - **Calm first-run choice**: a fresh install reveals its window only after the first real paint, opening on a seeded preview workspace you can type into immediately, with one keyboard-accessible choice: continue entirely locally with no account, or sign in and enable multi-device sync. An untouched preview is reclaimed at sign-in, existing workspaces are never interrupted, and sync remains available later from Account & sync.
 - **End-to-end encrypted sync**: Account & sync can seal what this workspace uploads. A recovery code is shown once; it derives the workspace content key on this device and on any other device where you type it, and it is never sent anywhere. From then on the sync service stores note titles, bodies, tags, people, media, and whole workspace checkpoints as opaque bytes, keeping only what it needs to order and account for them: identifiers, sequences, sizes, and timing. A device without the key stops and says so instead of guessing, and never uploads its queued changes unencrypted; a wrong code is refused before anything is stored, the cloud accepts only one key per workspace, and altered, forged, or downgraded content fails with the reason rather than corrupting anything. Backups never contain the key, so a restored device asks for the code again. Losing the code loses the cloud copy only; the notes on your devices are untouched. See [ADR-0043](adr/0043-end-to-end-encrypted-sync.md).
@@ -128,6 +126,8 @@ Every AI feature is off until you enable it, and nothing leaves the device witho
 
 ## Phone and tablet
 
+The browser build installs on a phone or tablet and switches to a touch layout below 900px.
+
 - **Installable browser build**: the web build at `/app/` installs to a home screen with its own icon and the palette you chose, starts from disk when offline, and asks the browser for persistent storage so the workspace is not evicted; a denied request is said out loud while an export is still possible. The installed icon offers "New journal entry" and "New note" shortcuts, and the app appears in the system share sheet: shared text or a link becomes a new note with the page title as its heading. See [ADR-0040](adr/0040-installable-browser-shell.md).
 - **Compact shell**: below 900px the rail becomes a bottom tab bar and the tree and inspector become edge sheets over the note, opened from the toolbar or a pull from either screen edge, closed by a tap outside, their own close control, Escape, a pull back toward the edge, or simply picking a note. The page behind a sheet is inert, the split view stacks, and everything is sized from the visual viewport so an open keyboard shrinks the shell instead of hiding it. See [ADR-0041](adr/0041-compact-shell-and-touch-gestures.md).
 - **Touch gestures**: hold a note or folder for its menu (rename, pin, move, share, delete), pull it left to move it to trash with an undo, and scroll freely in between; rows, menu items, and tabs grow to 44px, and the platform vibration API ticks at each threshold where one exists.
@@ -137,8 +137,9 @@ Every AI feature is off until you enable it, and nothing leaves the device witho
 
 ## Mobile app (iOS and Android)
 
-A native client for the same workspace, built as an Expo application over the
-same Rust core: `crates/skriuw-mobile` exposes the use cases over UniFFI, an
+A native iOS and Android client for the same workspace. It has not shipped yet.
+
+It is an Expo application over the same Rust core: `crates/skriuw-mobile` exposes the use cases over UniFFI, an
 Expo native module wraps the bindings, and SQLite stays canonical and on the
 device. Navigation, toolbar, tab bar, sheets and lists are React Native views
 over the same store the desktop renderer uses; the editor is the desktop
@@ -147,8 +148,8 @@ documents by message and is never remounted. See
 [ADR-0048](adr/0048-native-mobile-shell-over-shared-core.md) and the
 [mobile app contract](specs/mobile-app.md).
 
-**It has not shipped.** No store build exists on either platform; iOS has never
-been launched anywhere. What the matrix records is what is built, and what
+No store build exists on either platform, and iOS has never been launched
+anywhere. What the matrix records is what is built, and what
 evidence stands behind it.
 
 | Capability | Desktop | Browser | Mobile |
@@ -193,7 +194,25 @@ including what is unverified and why, is in
 metadata and the submission checklist are in
 [`tools/packaging/mobile`](../tools/packaging/mobile).
 
+## Tech stack
+
+A Rust core over SQLite, a React and ProseMirror renderer, and a Tauri desktop shell.
+
+| Layer         | Technology                                                                          |
+| ------------- | ----------------------------------------------------------------------------------- |
+| Backend       | Rust: domain, storage, runtime, and history crates with no I/O in the domain layer |
+| Storage       | SQLite as canonical storage, ordered SQL migrations, rebuildable FTS5 search index  |
+| History       | Native Git materializer running fully off the editing path                          |
+| Desktop shell | Tauri 2                                                                             |
+| Renderer      | React 19 + TypeScript, Vite, Tailwind CSS 4                                         |
+| Editor        | ProseMirror with a custom bounded-window architecture                               |
+| Contracts     | JSON Schema generated from Rust domain types, drift-checked in CI                   |
+
+The renderer navigates a fully hydrated in-memory workspace: switching notes performs zero IPC, zero database reads, zero parsing. The performance contract (cached note swap and keystroke-to-paint both under 8 ms at P95, zero dropped frames across hundreds of rapid switches) is enforced by a production benchmark suite, not aspiration.
+
 ## Built to be trusted
+
+The tests, decision records, and benchmarks behind these features.
 
 - 1,300+ tests across backend, desktop, renderer, store, and UI-architecture layers, plus a keyboard-driven end-to-end suite covering the complete workflow with zero tolerated console errors.
 - Fifty-one architecture decision records in [docs/adr](adr) document why the system is shaped the way it is.

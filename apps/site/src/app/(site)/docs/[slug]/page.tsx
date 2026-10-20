@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { DocArticle } from "@/modules/docs/doc-article";
 import { docHref, docPages, findDocPage } from "@/modules/docs/pages";
 import { renderDoc } from "@/modules/docs/render-doc";
-import { docSchema, socialImage } from "@/data/seo";
+import { docMetadata, docSchema } from "@/data/seo";
 import { JsonLd } from "@/components/page/json-ld";
 
 type Props = {
@@ -11,29 +11,14 @@ type Props = {
 };
 
 export function generateStaticParams() {
-  return docPages.map((page) => ({ slug: page.slug }));
+  return docPages.filter((page) => !page.detail).map((page) => ({ slug: page.slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const page = findDocPage(slug);
 
-  if (!page) {
-    return {};
-  }
-
-  return {
-    title: page.metaTitle,
-    description: page.description,
-    alternates: { canonical: `/docs/${page.slug}/` },
-    openGraph: {
-      siteName: "Skriuw",
-      title: `${page.title} | Skriuw`,
-      description: page.description,
-      url: `https://skriuw.com/docs/${page.slug}/`,
-      images: [socialImage],
-    },
-  };
+  return page ? docMetadata(page) : {};
 }
 
 export default async function DocPage({ params }: Props) {

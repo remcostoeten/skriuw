@@ -1,14 +1,22 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { Marked, type Tokens } from "marked";
-import { docPages, docBranch, type DocPage } from "@/modules/docs/pages";
+import { Marked, type Token, type Tokens } from "marked";
+import { docBranch, docHref, docPages, type DocPage } from "@/modules/docs/pages";
 import { repoUrl } from "@/data/content";
 import { createHeadingIds, headingText, type DocHeading } from "@/modules/docs/heading-ids";
 import { readAdrSource, stripAdrMeta } from "@/modules/docs/adr";
 
+export type DocSection = {
+  id: string;
+  title: string;
+  intro: string;
+  items: DocHeading[];
+};
+
 export type RenderedDoc = {
   html: string;
   headings: DocHeading[];
+  sections: DocSection[];
   lede: string;
 };
 
@@ -47,7 +55,7 @@ function resolveDocHref(href: string, sourceDir: string) {
   const internal = docPages.find((page) => page.source === repoPath);
 
   if (internal) {
-    return hash ? `/docs/${internal.slug}/#${hash}` : `/docs/${internal.slug}/`;
+    return hash ? `${docHref(internal.detail ?? internal)}#${hash}` : docHref(internal);
   }
 
   const adr = repoPath.match(/^docs\/adr\/([\w-]+)\.md$/)?.[1];
@@ -155,6 +163,37 @@ function splitLede(source: string) {
   };
 }
 
+function sectionIntros(marked: Marked, tokens: Token[]) {
+  return tokens.flatMap((token, index) => {
+    if (token.type !== "heading" || token.depth !== 2) {
+      return [];
+    }
+
+    const next = tokens.slice(index + 1).find((candidate) => candidate.type !== "space");
+
+    return [next?.type === "paragraph" ? headingText(marked.parser([next])) : ""];
+  });
+}
+
+function groupSections(headings: DocHeading[], intros: string[]) {
+  const sections: DocSection[] = [];
+
+  for (const heading of headings) {
+    if (heading.depth === 2) {
+      sections.push({
+        id: heading.id,
+        title: heading.text,
+        intro: intros[sections.length] ?? "",
+        items: [],
+      });
+    } else {
+      sections.at(-1)?.items.push(heading);
+    }
+  }
+
+  return sections;
+}
+
 export async function renderDoc(page: DocPage): Promise<RenderedDoc> {
   "use cache";
   const raw = await readDocSource(page.source);
@@ -166,7 +205,9 @@ export async function renderDoc(page: DocPage): Promise<RenderedDoc> {
     headings,
     page.outlineLabels ?? false,
   );
-  const html = await marked.parse(body);
+  const tokens = marked.lexer(body);
+  const intros = sectionIntros(marked, tokens);
+  const html = marked.parser(tokens);
 
-  return { html, headings, lede };
+  return { html, headings, sections: groupSections(headings, intros), lede };
 }

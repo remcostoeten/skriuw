@@ -10,51 +10,87 @@ import type { RenderedDoc } from "@/modules/docs/render-doc";
 type Crumb = { label: string; href: string };
 type Neighbour = { title: string; href: string };
 
-type Props = {
+type HeaderProps = {
   page: DocPage;
-  rendered: RenderedDoc;
+  lede: string;
   crumbs: Crumb[];
   meta?: ReactNode;
+  actions?: ReactNode;
+};
+
+type NeighbourProps = {
   previous?: Neighbour;
   next?: Neighbour;
 };
 
-export function DocArticle({ page, rendered, crumbs, meta, previous, next }: Props) {
+type ArticleProps = NeighbourProps & {
+  page: DocPage;
+  rendered: RenderedDoc;
+  crumbs: Crumb[];
+  meta?: ReactNode;
+};
+
+export function DocHeader({ page, lede, crumbs, meta, actions }: HeaderProps) {
+  return (
+    <header className="py-12! max-[620px]:py-8!">
+      <p className="caps flex flex-wrap items-center gap-2 text-ink-400">
+        {crumbs.map((crumb) => (
+          <span key={crumb.href} className="contents">
+            <Link href={crumb.href} className="transition-colors hover:text-ink-900">
+              {crumb.label}
+            </Link>
+            <span aria-hidden className="text-ink-300">
+              /
+            </span>
+          </span>
+        ))}
+        <span className="text-accent">{page.kicker}</span>
+      </p>
+      <h1 className="mt-4 max-w-[760px] font-serif text-[34px] leading-[40px] font-normal tracking-[-1px] text-balance text-ink-900 md:text-[42px] md:leading-[46px] md:tracking-[-1.4px]">
+        {page.title}
+      </h1>
+      <p className="mt-4 max-w-[680px] text-[16px] leading-[25px] text-ink-500">
+        {lede || page.description}
+      </p>
+      {meta}
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        {actions}
+        <a href={docSourceUrl(page)} target="_blank" rel="noreferrer" className={outlineButton}>
+          <GithubSocial className="size-3" />
+          {page.source}
+        </a>
+      </div>
+    </header>
+  );
+}
+
+export function DocNeighbours({ previous, next }: NeighbourProps) {
+  return (
+    <nav aria-label="More documentation" className="grid gap-3 sm:grid-cols-2">
+      {previous ? (
+        <Link href={previous.href} className={cn(card, "flex flex-col gap-2 p-5")}>
+          <span className="caps text-ink-400">← Previous</span>
+          <span className="text-[16px] font-medium text-ink-900">{previous.title}</span>
+        </Link>
+      ) : (
+        <span />
+      )}
+      {next ? (
+        <Link href={next.href} className={cn(card, "flex flex-col gap-2 p-5 text-right")}>
+          <span className="caps text-ink-400">Next →</span>
+          <span className="text-[16px] font-medium text-ink-900">{next.title}</span>
+        </Link>
+      ) : null}
+    </nav>
+  );
+}
+
+export function DocArticle({ page, rendered, crumbs, meta, previous, next }: ArticleProps) {
   const { html, headings, lede } = rendered;
 
   return (
     <>
-      <header className="py-12! max-[620px]:py-8!">
-        <p className="caps flex flex-wrap items-center gap-2 text-ink-400">
-          {crumbs.map((crumb) => (
-            <span key={crumb.href} className="contents">
-              <Link href={crumb.href} className="transition-colors hover:text-ink-900">
-                {crumb.label}
-              </Link>
-              <span aria-hidden className="text-ink-300">
-                /
-              </span>
-            </span>
-          ))}
-          <span className="text-accent">{page.kicker}</span>
-        </p>
-        <h1 className="mt-4 max-w-[760px] font-serif text-[34px] leading-[40px] font-normal tracking-[-1px] text-balance text-ink-900 md:text-[42px] md:leading-[46px] md:tracking-[-1.4px]">
-          {page.title}
-        </h1>
-        <p className="mt-4 max-w-[680px] text-[16px] leading-[25px] text-ink-500">
-          {lede || page.description}
-        </p>
-        {meta}
-        <a
-          href={docSourceUrl(page)}
-          target="_blank"
-          rel="noreferrer"
-          className={cn(outlineButton, "mt-6")}
-        >
-          <GithubSocial className="size-3" />
-          {page.source}
-        </a>
-      </header>
+      <DocHeader page={page} lede={lede} crumbs={crumbs} meta={meta} />
 
       <section className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_220px]">
         <div className="doc-prose min-w-0" dangerouslySetInnerHTML={{ __html: html }} />
@@ -74,22 +110,7 @@ export function DocArticle({ page, rendered, crumbs, meta, previous, next }: Pro
         ) : null}
       </section>
 
-      <nav aria-label="More documentation" className="grid gap-3 sm:grid-cols-2">
-        {previous ? (
-          <Link href={previous.href} className={cn(card, "flex flex-col gap-2 p-5")}>
-            <span className="caps text-ink-400">← Previous</span>
-            <span className="text-[16px] font-medium text-ink-900">{previous.title}</span>
-          </Link>
-        ) : (
-          <span />
-        )}
-        {next ? (
-          <Link href={next.href} className={cn(card, "flex flex-col gap-2 p-5 text-right")}>
-            <span className="caps text-ink-400">Next →</span>
-            <span className="text-[16px] font-medium text-ink-900">{next.title}</span>
-          </Link>
-        ) : null}
-      </nav>
+      <DocNeighbours previous={previous} next={next} />
     </>
   );
 }

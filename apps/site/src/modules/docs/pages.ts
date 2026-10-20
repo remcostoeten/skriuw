@@ -8,21 +8,36 @@ export type DocPage = {
   description: string;
   source: string;
   outlineLabels?: boolean;
+  detail?: DocPage;
 };
 
 export const docBranch = "daddy";
 
+export const featureDetailPage: DocPage = {
+  slug: "features/all",
+  title: "Every feature in detail",
+  metaTitle: "Every Skriuw feature in detail: editor, journal, tasks, sync and AI",
+  kicker: "In detail",
+  description:
+    "Each Skriuw feature written out in full: how it works, its shortcuts, what it stores, and the decision records behind it.",
+  source: "docs/FEATURES.md",
+  outlineLabels: true,
+};
+
+export const featuresPage: DocPage = {
+  slug: "features",
+  title: "Features",
+  metaTitle: "Features: local-first notes, journal, tasks, search and sync",
+  kicker: "Every feature",
+  description:
+    "The complete surface of Skriuw: the editor, journal, tasks, search, history, import and export, sync, AI, and the mobile app.",
+  source: "docs/FEATURES.md",
+  outlineLabels: true,
+  detail: featureDetailPage,
+};
+
 export const docPages: DocPage[] = [
-  {
-    slug: "features",
-    title: "Features",
-    metaTitle: "Features: local-first notes, journal, tasks, search and sync",
-    kicker: "Every feature",
-    description:
-      "The complete surface of Skriuw: the editor, journal, tasks, search, history, import and export, sync, AI, and the mobile app.",
-    source: "docs/FEATURES.md",
-    outlineLabels: true,
-  },
+  featuresPage,
   {
     slug: "architecture",
     title: "Architecture",
