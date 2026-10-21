@@ -14,6 +14,7 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
 - **Starter database:** a fresh signed-out workspace includes a `Books` folder
   whose notes carry status, author, genre, and rating properties and open as a
   board grouped by status, so new visitors can try database views at once.
+  In the browser, a first visit opens straight on that board.
 
 ### Changed
 
