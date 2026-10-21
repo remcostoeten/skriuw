@@ -307,64 +307,169 @@ function firstPersonName(
   return id === undefined ? "" : (people.get(id)?.name ?? "");
 }
 
+type DecoratedRow = { row: DatabaseRow; values: readonly CellValue[] };
+
+function decorateRow(row: DatabaseRow, sorts: readonly PreparedSort[]): DecoratedRow {
+  return { row, values: sorts.map((sort) => cellValue(row, sort.column)) };
+}
+
+function compareDecorated(
+  left: DecoratedRow,
+  right: DecoratedRow,
+  sorts: readonly PreparedSort[],
+  people: ReadonlyMap<string, PersonRecord>,
+): number {
+  for (let index = 0; index < sorts.length; index += 1) {
+    const sort = sorts[index]!;
+    const leftValue = left.values[index]!;
+    const rightValue = right.values[index]!;
+    const leftEmpty = sort.emptiesSort && isEmptyValue(leftValue);
+    const rightEmpty = sort.emptiesSort && isEmptyValue(rightValue);
+    if (leftEmpty !== rightEmpty) return leftEmpty ? 1 : -1;
+    if (leftEmpty) continue;
+    const compared = compareValues(leftValue, rightValue, sort, people);
+    if (compared !== 0) return sort.descending ? -compared : compared;
+  }
+  return left.row.treeIndex - right.row.treeIndex;
+}
+
 function sortRows(
   rows: readonly DatabaseRow[],
   sorts: readonly PreparedSort[],
   people: ReadonlyMap<string, PersonRecord>,
 ): DatabaseRow[] {
-  const decorated = rows.map((row) => ({
-    row,
-    values: sorts.map((sort) => cellValue(row, sort.column)),
-  }));
-  decorated.sort((left, right) => {
-    for (let index = 0; index < sorts.length; index += 1) {
-      const sort = sorts[index]!;
-      const leftValue = left.values[index]!;
-      const rightValue = right.values[index]!;
-      const leftEmpty = sort.emptiesSort && isEmptyValue(leftValue);
-      const rightEmpty = sort.emptiesSort && isEmptyValue(rightValue);
-      if (leftEmpty !== rightEmpty) return leftEmpty ? 1 : -1;
-      if (leftEmpty) continue;
-      const compared = compareValues(leftValue, rightValue, sort, people);
-      if (compared !== 0) return sort.descending ? -compared : compared;
-    }
-    return left.row.treeIndex - right.row.treeIndex;
-  });
+  const decorated = rows.map((row) => decorateRow(row, sorts));
+  decorated.sort((left, right) => compareDecorated(left, right, sorts, people));
   return decorated.map((entry) => entry.row);
 }
 
-/** Groups for a board, in option order, with empty groups kept as drop targets. */
-export function groupRows(rows: readonly DatabaseRow[], column: PropertyColumn): DatabaseGroup[] {
-  if (column.type === "checkbox") {
-    const checked: DatabaseRow[] = [];
-    const unchecked: DatabaseRow[] = [];
-    for (const row of rows) {
-      const value = cellValue(row, column);
-      (value.kind === "checkbox" && value.value ? checked : unchecked).push(row);
+/** Where `row` belongs in `sorted`, which is already in arranged order. */
+function insertionIndex(
+  sorted: readonly DatabaseRow[],
+  row: DatabaseRow,
+  sorts: readonly PreparedSort[],
+  people: ReadonlyMap<string, PersonRecord>,
+): number {
+  const target = decorateRow(row, sorts);
+  let low = 0;
+  let high = sorted.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (compareDecorated(decorateRow(sorted[middle]!, sorts), target, sorts, people) < 0) {
+      low = middle + 1;
+    } else {
+      high = middle;
     }
+  }
+  return low;
+}
+
+const CHECKED_KEY = "checked";
+const UNCHECKED_KEY = "unchecked";
+
+/** The group key a row lands in; null is the no-value group. */
+function groupKeyOf(
+  row: DatabaseRow,
+  column: PropertyColumn,
+  knownKeys: ReadonlySet<string>,
+): string | null {
+  const value = cellValue(row, column);
+  if (column.type === "checkbox") {
+    return value.kind === "checkbox" && value.value ? CHECKED_KEY : UNCHECKED_KEY;
+  }
+  const key = value.kind === "options" ? value.keys[0] : undefined;
+  return key !== undefined && knownKeys.has(key) ? key : null;
+}
+
+function groupKeys(column: PropertyColumn): ReadonlySet<string> {
+  return new Set(column.options.map((option) => option.key));
+}
+
+function groupShells(column: PropertyColumn): Omit<DatabaseGroup, "rows">[] {
+  if (column.type === "checkbox") {
     return [
-      { key: "unchecked", label: `Not ${column.name.toLowerCase()}`, color: null, rows: unchecked },
-      { key: "checked", label: column.name, color: null, rows: checked },
+      { key: UNCHECKED_KEY, label: `Not ${column.name.toLowerCase()}`, color: null },
+      { key: CHECKED_KEY, label: column.name, color: null },
     ];
   }
-  const buckets = new Map<string, DatabaseRow[]>(column.options.map((option) => [option.key, []]));
-  const none: DatabaseRow[] = [];
-  for (const row of rows) {
-    const value = cellValue(row, column);
-    const key = value.kind === "options" ? value.keys[0] : undefined;
-    const bucket = key === undefined ? undefined : buckets.get(key);
-    if (bucket) bucket.push(row);
-    else none.push(row);
-  }
   return [
-    { key: null, label: `No ${column.name}`, color: null, rows: none },
+    { key: null, label: `No ${column.name}`, color: null },
     ...column.options.map((option) => ({
       key: option.key,
       label: option.label,
       color: option.color,
-      rows: buckets.get(option.key) ?? [],
     })),
   ];
+}
+
+/** Groups for a board, in option order, with empty groups kept as drop targets. */
+export function groupRows(rows: readonly DatabaseRow[], column: PropertyColumn): DatabaseGroup[] {
+  const known = groupKeys(column);
+  const buckets = new Map<string | null, DatabaseRow[]>();
+  for (const row of rows) {
+    const key = groupKeyOf(row, column, known);
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(row);
+    else buckets.set(key, [row]);
+  }
+  return groupShells(column).map((shell) => ({ ...shell, rows: buckets.get(shell.key) ?? [] }));
+}
+
+type Arrangement = {
+  activeFilters: { column: DatabaseColumn; filter: DatabaseFilter }[];
+  inactiveFilters: DatabaseFilter[];
+  needle: string;
+  sorts: PreparedSort[];
+  groupColumn: PropertyColumn | null;
+};
+
+function prepareArrangement(
+  columns: readonly DatabaseColumn[],
+  view: DatabaseView,
+  search: string,
+): Arrangement {
+  const byKey = new Map(columns.map((column) => [column.key, column]));
+  const inactiveFilters: DatabaseFilter[] = [];
+  const activeFilters: { column: DatabaseColumn; filter: DatabaseFilter }[] = [];
+  for (const filter of view.filters) {
+    const column = byKey.get(filter.column);
+    if (column === undefined || !filterOperators(column).includes(filter.operator)) {
+      inactiveFilters.push(filter);
+    } else {
+      activeFilters.push({ column, filter });
+    }
+  }
+  const sorts = view.sorts.flatMap((sort): PreparedSort[] => {
+    const column = byKey.get(sort.column);
+    if (column === undefined) return [];
+    return [
+      {
+        column,
+        descending: sort.direction === "desc",
+        emptiesSort: columnValueKind(column) !== "checkbox",
+        ranks: new Map(column.options.map((option, index) => [option.key, index])),
+      },
+    ];
+  });
+  const groupColumn = view.groupBy === null ? undefined : byKey.get(view.groupBy);
+  return {
+    activeFilters,
+    inactiveFilters,
+    needle: normalizeEntityName(search),
+    sorts,
+    groupColumn:
+      view.layout === "board" && groupColumn !== undefined && isGroupableColumn(groupColumn)
+        ? groupColumn
+        : null,
+  };
+}
+
+function rowPasses(arrangement: Arrangement, row: DatabaseRow): boolean {
+  return (
+    (arrangement.needle.length === 0 ||
+      normalizeEntityName(row.title).includes(arrangement.needle)) &&
+    arrangement.activeFilters.every(({ column, filter }) => matchesFilter(row, column, filter))
+  );
 }
 
 /**
@@ -378,42 +483,110 @@ export function arrangeDatabase(
   search: string,
   people: ReadonlyMap<string, PersonRecord>,
 ): ArrangedDatabase {
-  const byKey = new Map(columns.map((column) => [column.key, column]));
-  const inactiveFilters: DatabaseFilter[] = [];
-  const activeFilters: { column: DatabaseColumn; filter: DatabaseFilter }[] = [];
-  for (const filter of view.filters) {
-    const column = byKey.get(filter.column);
-    if (column === undefined || !filterOperators(column).includes(filter.operator)) {
-      inactiveFilters.push(filter);
-    } else {
-      activeFilters.push({ column, filter });
-    }
+  const arrangement = prepareArrangement(columns, view, search);
+  let arranged = rows.filter((row) => rowPasses(arrangement, row));
+  if (arrangement.sorts.length > 0) arranged = sortRows(arranged, arrangement.sorts, people);
+  return {
+    rows: arranged,
+    groups: arrangement.groupColumn === null ? null : groupRows(arranged, arrangement.groupColumn),
+    inactiveFilters: arrangement.inactiveFilters,
+  };
+}
+
+/** What a finished arrangement was computed from, kept to update it in place. */
+export type ArrangedSnapshot = {
+  rows: readonly DatabaseRow[];
+  columns: readonly DatabaseColumn[];
+  view: DatabaseView;
+  search: string;
+  people: ReadonlyMap<string, PersonRecord>;
+  arranged: ArrangedDatabase;
+};
+
+const INCREMENTAL_ROW_LIMIT = 32;
+
+function withoutRows(
+  rows: readonly DatabaseRow[],
+  removed: ReadonlySet<DatabaseRow>,
+): DatabaseRow[] {
+  return rows.filter((row) => !removed.has(row));
+}
+
+function insertRows(
+  sorted: DatabaseRow[],
+  inserted: readonly DatabaseRow[],
+  arrangement: Arrangement,
+  people: ReadonlyMap<string, PersonRecord>,
+): void {
+  for (const row of inserted) {
+    sorted.splice(insertionIndex(sorted, row, arrangement.sorts, people), 0, row);
   }
-  const needle = normalizeEntityName(search);
-  let arranged = rows.filter(
-    (row) =>
-      (needle.length === 0 || normalizeEntityName(row.title).includes(needle)) &&
-      activeFilters.every(({ column, filter }) => matchesFilter(row, column, filter)),
-  );
-  const sorts = view.sorts.flatMap((sort): PreparedSort[] => {
-    const column = byKey.get(sort.column);
-    if (column === undefined) return [];
-    return [
-      {
-        column,
-        descending: sort.direction === "desc",
-        emptiesSort: columnValueKind(column) !== "checkbox",
-        ranks: new Map(column.options.map((option, index) => [option.key, index])),
-      },
-    ];
-  });
-  if (sorts.length > 0) arranged = sortRows(arranged, sorts, people);
-  const groupColumn = view.groupBy === null ? undefined : byKey.get(view.groupBy);
-  const groups =
-    view.layout === "board" && groupColumn !== undefined && isGroupableColumn(groupColumn)
-      ? groupRows(arranged, groupColumn)
-      : null;
-  return { rows: arranged, groups, inactiveFilters };
+}
+
+/**
+ * The result of `arrangeDatabase` for `rows`, derived from a previous result
+ * when only a few rows changed in place (same notes, same order, same columns,
+ * view, search and people). Only the changed rows are refiltered and
+ * reinserted, so a cell edit does not refilter and resort every note. Anything
+ * else falls back to a full arrange.
+ */
+export function rearrangeDatabase(
+  previous: ArrangedSnapshot,
+  rows: readonly DatabaseRow[],
+  columns: readonly DatabaseColumn[],
+  view: DatabaseView,
+  search: string,
+  people: ReadonlyMap<string, PersonRecord>,
+): ArrangedDatabase {
+  if (
+    previous.columns !== columns ||
+    previous.view !== view ||
+    previous.search !== search ||
+    previous.people !== people ||
+    previous.rows.length !== rows.length
+  ) {
+    return arrangeDatabase(rows, columns, view, search, people);
+  }
+  const removed = new Set<DatabaseRow>();
+  const changed: DatabaseRow[] = [];
+  for (let index = 0; index < rows.length; index += 1) {
+    const before = previous.rows[index]!;
+    const after = rows[index]!;
+    if (before === after) continue;
+    if (before.noteId !== after.noteId || changed.length >= INCREMENTAL_ROW_LIMIT) {
+      return arrangeDatabase(rows, columns, view, search, people);
+    }
+    removed.add(before);
+    changed.push(after);
+  }
+  if (changed.length === 0) return previous.arranged;
+
+  const arrangement = prepareArrangement(columns, view, search);
+  const passing = changed.filter((row) => rowPasses(arrangement, row));
+  const arrangedRows = withoutRows(previous.arranged.rows, removed);
+  insertRows(arrangedRows, passing, arrangement, people);
+
+  let groups: readonly DatabaseGroup[] | null = null;
+  const { groupColumn } = arrangement;
+  if (groupColumn !== null && previous.arranged.groups !== null) {
+    const known = groupKeys(groupColumn);
+    const arrivals = new Map<string | null, DatabaseRow[]>();
+    for (const row of passing) {
+      const key = groupKeyOf(row, groupColumn, known);
+      const bucket = arrivals.get(key);
+      if (bucket) bucket.push(row);
+      else arrivals.set(key, [row]);
+    }
+    groups = previous.arranged.groups.map((group) => {
+      const arriving = arrivals.get(group.key) ?? [];
+      const leaving = group.rows.some((row) => removed.has(row));
+      if (!leaving && arriving.length === 0) return group;
+      const grouped = withoutRows(group.rows, removed);
+      insertRows(grouped, arriving, arrangement, people);
+      return { ...group, rows: grouped };
+    });
+  }
+  return { rows: arrangedRows, groups, inactiveFilters: previous.arranged.inactiveFilters };
 }
 
 /** The first column a board can group by, preferring one named like a status. */

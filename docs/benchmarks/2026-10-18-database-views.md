@@ -47,6 +47,20 @@ changed removed it from the edit path.
 
 ## Follow-up
 
-Make the row projection incremental for property-only changes before
-treating the all-notes scope at 5,000 notes as within budget on reference
-hardware.
+Row projection and arrangement are now incremental for property-only changes
+(2026-10-21). While the tree is untouched, the row selector rebuilds only the
+rows whose own inputs changed, and `rearrangeDatabase` refilters and
+reinserts only those rows into the sorted and grouped result.
+
+Same generated workspace at 5,000 notes with 50 folders, the all-notes scope,
+one filter and one sort, measured as the renderer work after one cell edit
+(project rows, then arrange; column discovery is already skipped), median and
+P95 of 35 edits on the same container:
+
+| | Median | P95 |
+| --- | ---: | ---: |
+| Full reproject and arrange | 4.2 ms | 6.0 ms |
+| Incremental | 0.5 ms | 0.8 ms |
+
+A change that touches the tree, the columns, the view, the search or more than
+32 rows still takes the full path.

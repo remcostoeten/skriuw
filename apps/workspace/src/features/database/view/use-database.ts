@@ -4,7 +4,9 @@ import {
   arrangeDatabase,
   defaultGroupColumn,
   isGroupableColumn,
+  rearrangeDatabase,
   type ArrangedDatabase,
+  type ArrangedSnapshot,
 } from "@skriuw/renderer-core/database/arrange";
 import {
   discoverColumns,
@@ -150,10 +152,16 @@ export function useDatabase(store: RendererStore, folderId: string | null): Data
 
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
-  const arranged = useMemo(
-    () => arrangeDatabase(rows, columns, view, search, people),
-    [rows, columns, view, search, people],
-  );
+  const arrangement = useRef<ArrangedSnapshot | null>(null);
+  const arranged = useMemo(() => {
+    const previous = arrangement.current;
+    const result =
+      previous === null
+        ? arrangeDatabase(rows, columns, view, search, people)
+        : rearrangeDatabase(previous, rows, columns, view, search, people);
+    arrangement.current = { rows, columns, view, search, people, arranged: result };
+    return result;
+  }, [rows, columns, view, search, people]);
   const idFactory = useMemo(createBrowserPropertyIdFactory, []);
 
   const commit = useCallback(
