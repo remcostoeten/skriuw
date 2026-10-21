@@ -147,15 +147,15 @@ jobs:
                   key: mobile-gradle-${{ hashFiles('bun.lock') }}
                   restore-keys: mobile-gradle-
 
-            # Gradle downloads the NDK itself and one truncated archive fails the
-            # whole job, so fetch it here with a retry.
-            - name: Install the Gradle NDK
+            # Gradle and the emulator action each download SDK packages without a
+            # retry, and one truncated archive fails the whole job.
+            - name: Install the NDK and emulator
               run: |
                   for attempt in 1 2 3; do
-                      if "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION"; then
+                      if "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION" emulator; then
                           exit 0
                       fi
-                      rm -rf "$ANDROID_HOME/ndk/$NDK_VERSION"
+                      rm -rf "$ANDROID_HOME/ndk/$NDK_VERSION" "$ANDROID_HOME/emulator"
                       sleep 15
                   done
                   exit 1
@@ -259,8 +259,8 @@ jobs:
             - name: Install workspace deps
               run: bun install --frozen-lockfile
 
-            # Gradle downloads the NDK itself and one truncated archive fails the
-            # whole job, so fetch it here with a retry.
+            # Gradle downloads the NDK without a retry, and one truncated archive
+            # fails the whole job.
             - name: Install the Gradle NDK
               run: |
                   for attempt in 1 2 3; do
