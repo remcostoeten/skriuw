@@ -37,7 +37,8 @@ export type Committer = {
  * @description Builds the renderer's commit path over an injected gate and
  * backend: operations apply optimistically, commit through the gate, and on
  * rejection the store is refreshed from canonical storage before the error
- * surfaces.
+ * surfaces. A refresh read that overlaps a newer optimistic commit is
+ * discarded and repeated after that commit lands, so it never clobbers it.
  *
  * @example
  * const committer = createCommitter({
@@ -52,9 +53,18 @@ export type Committer = {
 export function createCommitter(dependencies: CommitDependencies): Committer {
   const { gate, apply, bootstrap, readDelta, reportRejection } = dependencies;
 
-  async function refreshAfterRejection(refresh: () => Promise<void>): Promise<void> {
+  async function refreshAfterRejection(read: () => Promise<() => void>): Promise<void> {
     try {
-      await gate.holdForReconcile(refresh);
+      let current = false;
+      while (!current) {
+        current = await gate.holdForReconcile(async () => {
+          const sequenceBefore = gate.commitSequence();
+          const adopt = await read();
+          if (gate.commitSequence() !== sequenceBefore) return false;
+          adopt();
+          return true;
+        });
+      }
     } catch (refreshError) {
       reportRejection("rejection refresh", refreshError);
     }
@@ -72,7 +82,8 @@ export function createCommitter(dependencies: CommitDependencies): Committer {
       .enterCommit(() => apply(operations.map((operation) => envelope(operation))))
       .catch(async (error) => {
         await refreshAfterRejection(async () => {
-          store.replaceFromSnapshot(await bootstrap());
+          const snapshot = await bootstrap();
+          return () => store.replaceFromSnapshot(snapshot);
         });
         throw error;
       })
@@ -92,10 +103,11 @@ export function createCommitter(dependencies: CommitDependencies): Committer {
       await refreshAfterRejection(async () => {
         const savedNoteIds = saveOnlyNoteIds(operations);
         if (savedNoteIds && isRevisionConflict(error)) {
-          store.applyRemoteDocuments(await readDelta(savedNoteIds));
-        } else {
-          store.replaceFromSnapshot(await bootstrap());
+          const fresh = await readDelta(savedNoteIds);
+          return () => store.applyRemoteDocuments(fresh);
         }
+        const snapshot = await bootstrap();
+        return () => store.replaceFromSnapshot(snapshot);
       });
       throw error;
     }

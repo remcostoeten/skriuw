@@ -54,7 +54,7 @@ pub async fn import_workspace_archive(
     let coordinator = Arc::clone(&state.maintenance);
     tauri::async_runtime::spawn_blocking(move || {
         let _suspension = sync.suspend_for_maintenance();
-        history.quiesce();
+        let _history = history.quiesce();
         coordinator
             .import_archive(Path::new(&archive_path))
             .map_err(|error| error.to_string())
@@ -96,7 +96,7 @@ pub async fn restore_workspace_backup(
     let coordinator = Arc::clone(&state.maintenance);
     tauri::async_runtime::spawn_blocking(move || {
         let _suspension = sync.suspend_for_maintenance();
-        history.quiesce();
+        let _history = history.quiesce();
         coordinator
             .restore_backup(&artifact_file_name)
             .map_err(|error| error.to_string())

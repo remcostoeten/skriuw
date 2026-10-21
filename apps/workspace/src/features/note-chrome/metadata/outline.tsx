@@ -3,6 +3,7 @@ import { SECONDARY_PANE_ID } from "@skriuw/renderer-core/store/panes";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { GEOMETRY, lengthAtY, pathPoints, roundedPath } from "./outline-geometry";
+import { planOutlineRebind, selectOutlineSource } from "./outline-source";
 
 type Props = {
   store: RendererStore;
@@ -405,8 +406,8 @@ function mountOutlineController(
   };
 }
 
-function selectActiveNoteId(state: RendererState): string | null {
-  return state.activeNoteId;
+function selectHasActiveNote(state: RendererState): boolean {
+  return state.activeNoteId !== null;
 }
 
 function selectFocusedPaneId(state: RendererState): string {
@@ -414,12 +415,12 @@ function selectFocusedPaneId(state: RendererState): string {
 }
 
 export function NoteOutline({ store, onCountChange }: Props) {
-  const activeNoteId = useRendererSelector(store, selectActiveNoteId);
+  const hasActiveNote = useRendererSelector(store, selectHasActiveNote);
+  const source = useRendererSelector(store, selectOutlineSource);
   const focusedPaneId = useRendererSelector(store, selectFocusedPaneId);
   const navRef = useRef<HTMLElement | null>(null);
-  const noteChangedRef = useRef<(() => void) | null>(null);
+  const sourceChangedRef = useRef<(() => void) | null>(null);
   const [, setEmpty] = useState(true);
-  const hasActiveNote = activeNoteId !== null;
 
   useEffect(() => {
     const nav = navRef.current;
@@ -454,15 +455,20 @@ export function NoteOutline({ store, onCountChange }: Props) {
       });
     }
 
-    function onNoteChanged(): void {
+    function onSourceChanged(): void {
       if (disposed) {
         return;
       }
-      if (controller && mountedHost === locateEditorHost(paneIndex)?.proseHost) {
+      const currentHost = locateEditorHost(paneIndex)?.proseHost ?? null;
+      if (controller && planOutlineRebind(mountedHost, currentHost) === "restart") {
         controller.restart();
         return;
       }
-      controller?.destroy();
+      if (controller) {
+        controller.destroy();
+        setEmpty(true);
+        onCountChange?.(0);
+      }
       controller = null;
       mountedHost = null;
       cancelAnimationFrame(retryFrame);
@@ -470,20 +476,20 @@ export function NoteOutline({ store, onCountChange }: Props) {
       tryMount();
     }
 
-    noteChangedRef.current = onNoteChanged;
+    sourceChangedRef.current = onSourceChanged;
     tryMount();
 
     return () => {
       disposed = true;
-      noteChangedRef.current = null;
+      sourceChangedRef.current = null;
       cancelAnimationFrame(retryFrame);
       controller?.destroy();
     };
   }, [hasActiveNote, focusedPaneId, onCountChange]);
 
   useEffect(() => {
-    noteChangedRef.current?.();
-  }, [activeNoteId]);
+    sourceChangedRef.current?.();
+  }, [source]);
 
   return <nav ref={navRef} aria-label="Note outline" className="relative min-h-0" />;
 }

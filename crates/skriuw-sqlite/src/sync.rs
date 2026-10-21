@@ -1001,6 +1001,22 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
         transaction.commit().map_err(backend)
     }
 
+    fn release_sync_claims_before(
+        &self,
+        worker_id: &str,
+        claimed_before_ms: i64,
+    ) -> Result<usize, StorageError> {
+        require_worker(worker_id)?;
+        let connection = self.lock()?;
+        connection
+            .execute(
+                "UPDATE sync_outbox SET claimed_by = NULL, claimed_at = NULL \
+                 WHERE claimed_by = ?1 AND claimed_at < ?2",
+                params![worker_id, claimed_before_ms],
+            )
+            .map_err(backend)
+    }
+
     fn blocked_sync_operations(&self) -> Result<Vec<BlockedSyncOperation>, StorageError> {
         let connection = self.lock()?;
         let mut statement = connection
@@ -2259,10 +2275,12 @@ fn refine_apply_error(operation: &WorkspaceOperation, error: &StorageError) -> S
     }
 }
 
-/// Record an operation this device did not take. A losing document body is
-/// preserved as a history revision when the note still exists, and a body
-/// that lost purely on ordering moves the document head so the note's
-/// incorporated sequence stays the greatest one seen.
+/// Record an operation this device did not take. A losing plaintext body is
+/// preserved as a history revision when the note still exists and is not
+/// sealed here, since a locked note keeps no history. A sealed body is never
+/// written to history; its ciphertext stays in the received operation. A
+/// document write that lost purely on ordering moves the document head so the
+/// note's incorporated sequence stays the greatest one seen.
 fn record_superseded(
     transaction: &Transaction<'_>,
     operation: &ReplicatedWorkspaceOperation,
@@ -2283,14 +2301,18 @@ fn record_superseded(
         received_at,
     )?;
     let envelope = replicated_envelope(operation)?;
-    let (note_id, markdown) = match &envelope.operation {
+    let (note_id, losing_markdown) = match &envelope.operation {
         WorkspaceOperation::SaveDocument {
             note_id, markdown, ..
-        } => (note_id, markdown),
-        WorkspaceOperation::CreateNote { id, markdown, .. } => (id, markdown),
+        } => (note_id, Some(markdown)),
+        WorkspaceOperation::CreateNote { id, markdown, .. } => (id, Some(markdown)),
+        WorkspaceOperation::SaveSealedDocument { note_id, .. } => (note_id, None),
         _ => return Ok(()),
     };
-    if current_document_revision(transaction, note_id)?.is_some() {
+    if let Some(markdown) = losing_markdown
+        && current_document_revision(transaction, note_id)?.is_some()
+        && crate::lock::sealed_row(transaction, note_id)?.is_none()
+    {
         preserve_document_version(transaction, note_id, markdown, received_at)?;
     }
     if reason == SyncConflictReason::ConcurrentDocumentVersion {
@@ -2639,10 +2661,11 @@ fn local_document_write_pending(
             "SELECT EXISTS(\
                 SELECT 1 FROM sync_outbox WHERE target_note_id = ?1 \
                 AND json_extract(operation_json, '$.operation.type') \
-                    IN ('save_document', 'create_note')\
+                    IN ('save_document', 'save_sealed_document', 'create_note')\
              ) OR EXISTS(\
                 SELECT 1 FROM sync_blocked_operations WHERE resolved_at IS NULL AND (\
-                (json_extract(operation_json, '$.operation.type') = 'save_document' \
+                (json_extract(operation_json, '$.operation.type') \
+                    IN ('save_document', 'save_sealed_document') \
                  AND json_extract(operation_json, '$.operation.noteId') = ?1) \
                 OR (json_extract(operation_json, '$.operation.type') = 'create_note' \
                  AND json_extract(operation_json, '$.operation.id') = ?1))\

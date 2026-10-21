@@ -10,6 +10,22 @@ export function editorModeForNote(state: RendererState, noteId: string): EditorM
   );
 }
 
+/**
+ * @name rendersRawEditor
+ * @description Whether the note is shown in the raw Markdown editor instead of
+ * the rich ProseMirror editor, either by its editor mode or because its
+ * document only round-trips losslessly as Markdown.
+ *
+ * @example
+ * const isRaw = rendersRawEditor(store.getState(), noteId);
+ */
+export function rendersRawEditor(state: RendererState, noteId: string): boolean {
+  return (
+    editorModeForNote(state, noteId) === "raw" ||
+    state.documents.get(noteId)?.hasLosslessMarkdown === true
+  );
+}
+
 export function setEditorMode(store: RendererStore, noteId: string, mode: EditorMode): void {
   store.update((current) => {
     if (editorModeForNote(current, noteId) === mode) {

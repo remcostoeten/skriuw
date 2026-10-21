@@ -3,20 +3,20 @@ use std::{path::PathBuf, time::Instant};
 use rusqlite::Connection;
 use serde_json::json;
 use skriuw_domain::{
-    AnnotationComment, AnnotationStatus, ClientSyncOperation, HistoryHeader, NodeKind,
-    NodePlacement, NoteProperty, NotePropertyColor, NotePropertyField, NotePropertyOption,
-    NotePropertyTemplate, NotePropertyValue, OpenedFileState, ProviderImportReceipt,
-    ReplicatedWorkspaceOperation, SyncAcceptedOperation, SyncConflictReason, SyncOperationPayload,
-    TaskPriority, TaskSource, TaskSourceDocument, TaskStatus, VersionedNotePropertyValue,
-    WorkspaceAnnotation, WorkspaceCheckpoint, WorkspaceImage, WorkspaceOperation,
-    WorkspaceOperationEnvelope, WorkspacePerson, WorkspacePrompt, WorkspaceSettings, WorkspaceTag,
-    WorkspaceTask,
+    AnnotationComment, AnnotationStatus, ClientSyncOperation, HistoryHeader,
+    NOTE_LOCK_CONFIGURE_ENTROPY_BYTES, NodeKind, NodePlacement, NoteLockKind, NoteProperty,
+    NotePropertyColor, NotePropertyField, NotePropertyOption, NotePropertyTemplate,
+    NotePropertyValue, OpenedFileState, ProviderImportReceipt, ReplicatedWorkspaceOperation,
+    SyncAcceptedOperation, SyncConflictReason, SyncOperationPayload, TaskPriority, TaskSource,
+    TaskSourceDocument, TaskStatus, VersionedNotePropertyValue, WorkspaceAnnotation,
+    WorkspaceCheckpoint, WorkspaceImage, WorkspaceOperation, WorkspaceOperationEnvelope,
+    WorkspacePerson, WorkspacePrompt, WorkspaceSettings, WorkspaceTag, WorkspaceTask,
 };
 use skriuw_storage::{
-    Diagnostic, DiagnosticCategory, DiagnosticContext, HistoryCache, HistoryProvenance,
-    HistoryQueue, MAX_DIAGNOSTIC_MESSAGE_BYTES, NewSyncConnection, RemoteSyncApplyOutcome,
-    SearchIndexMaintenance, StorageError, SyncRecovery, WorkspaceMaintenance, WorkspaceStorage,
-    WorkspaceSyncQueue,
+    ConfigureNoteLockRequest, Diagnostic, DiagnosticCategory, DiagnosticContext, HistoryCache,
+    HistoryProvenance, HistoryQueue, MAX_DIAGNOSTIC_MESSAGE_BYTES, NewSyncConnection,
+    NoteLockAccess, RemoteSyncApplyOutcome, SearchIndexMaintenance, StorageError, SyncRecovery,
+    WorkspaceMaintenance, WorkspaceStorage, WorkspaceSyncQueue,
 };
 use tempfile::tempdir;
 
@@ -386,6 +386,57 @@ fn first_connection_seeds_pre_existing_images_after_their_notes() {
     assert!(
         batch.request.operations[2].payload.assets().is_empty(),
         "queued image operations stay asset-less until push time"
+    );
+}
+
+#[test]
+fn release_sync_claims_before_frees_only_old_claims_of_the_worker() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    connect(&storage);
+    storage
+        .apply_operations(&[op(WorkspaceOperation::CreateFolder {
+            id: "folder-1".into(),
+            title: "First".into(),
+            placement: NodePlacement::last(None),
+            at: 11,
+        })])
+        .expect("queue one operation");
+    assert!(
+        storage
+            .claim_sync_operations("w", 100, 30_000, 64)
+            .expect("claim")
+            .is_some()
+    );
+    assert!(
+        storage
+            .claim_sync_operations("w", 201, 30_000, 64)
+            .expect("claim within lease")
+            .is_none()
+    );
+
+    assert_eq!(
+        storage
+            .release_sync_claims_before("other", 200)
+            .expect("release another worker"),
+        0
+    );
+    assert_eq!(
+        storage
+            .release_sync_claims_before("w", 100)
+            .expect("release newer claims"),
+        0
+    );
+    assert_eq!(
+        storage
+            .release_sync_claims_before("w", 200)
+            .expect("release old claims"),
+        1
+    );
+    assert!(
+        storage
+            .claim_sync_operations("w", 201, 30_000, 64)
+            .expect("reclaim")
+            .is_some()
     );
 }
 
@@ -4291,6 +4342,235 @@ fn a_blocked_local_document_write_counts_as_pending() {
     assert_eq!(
         document_of(&storage, "note-parked").markdown,
         "parked local body"
+    );
+}
+
+fn sealed_payload_of(storage: &SqliteWorkspace, note_id: &str) -> skriuw_domain::SealedPayload {
+    let connection = storage.lock().expect("database lock");
+    crate::lock::sealed_row(&connection, note_id)
+        .expect("read sealed row")
+        .expect("note is sealed")
+        .sealed
+}
+
+fn document_head_of(storage: &SqliteWorkspace, note_id: &str) -> Option<i64> {
+    let connection = storage.lock().expect("database lock");
+    connection
+        .query_row(
+            "SELECT server_sequence FROM sync_document_heads WHERE note_id = ?1",
+            [note_id],
+            |row| row.get(0),
+        )
+        .ok()
+}
+
+fn opened_markdown(storage: &SqliteWorkspace, note_id: &str) -> String {
+    storage
+        .read_locked_documents(Some(&[note_id.to_owned()]))
+        .expect("read locked documents")
+        .pop()
+        .expect("locked document")
+        .markdown
+}
+
+fn synced_locked_note(
+    storage: &SqliteWorkspace,
+    note_id: &str,
+) -> (skriuw_domain::SealedPayload, u64) {
+    storage
+        .apply_operations(&[create_note(note_id)])
+        .expect("local note");
+    storage
+        .configure_note_lock(
+            ConfigureNoteLockRequest {
+                kind: NoteLockKind::Pin,
+                secret: "2468".into(),
+                hint: None,
+                entropy: vec![7; NOTE_LOCK_CONFIGURE_ENTROPY_BYTES],
+            },
+            10,
+        )
+        .expect("configure note lock");
+    connect_at_cursor(storage, 0);
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SetNodeLocked {
+            id: note_id.into(),
+            locked: true,
+            at: 20,
+        })])
+        .expect("lock note");
+    let pushed_through = push_all(storage, 1);
+    (sealed_payload_of(storage, note_id), pushed_through)
+}
+
+fn remote_sealed_save(
+    operation_id: &str,
+    server_sequence: u64,
+    note_id: &str,
+    sealed: skriuw_domain::SealedPayload,
+) -> ReplicatedWorkspaceOperation {
+    remote(
+        operation_id,
+        "device-remote",
+        server_sequence,
+        server_sequence,
+        WorkspaceOperation::SaveSealedDocument {
+            note_id: note_id.into(),
+            sealed,
+            expected_revision: 1,
+            at: 25,
+        },
+    )
+}
+
+#[test]
+fn an_unsent_sealed_save_supersedes_a_remote_sealed_save() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    let (acknowledged, pushed_through) = synced_locked_note(&storage, "note-sealed");
+    storage
+        .apply_operations(&[save_document("note-sealed", 2, "revised secret plans", 30)])
+        .expect("save while unlocked");
+    assert_ne!(sealed_payload_of(&storage, "note-sealed"), acknowledged);
+
+    let incoming = pushed_through + 1;
+    let outcomes = storage
+        .apply_remote_operations(
+            &[remote_sealed_save(
+                "remote-sealed",
+                incoming,
+                "note-sealed",
+                acknowledged,
+            )],
+            40,
+        )
+        .expect("remote sealed save against an unsent local one");
+    assert_eq!(
+        outcomes,
+        vec![superseded(SyncConflictReason::ConcurrentDocumentVersion)]
+    );
+    assert_eq!(
+        opened_markdown(&storage, "note-sealed"),
+        "revised secret plans"
+    );
+    assert_eq!(
+        superseded_rows(&storage),
+        vec![("remote-sealed".into(), "concurrent_document_version".into())]
+    );
+    assert!(
+        history_rows(&storage, "note-sealed").is_empty(),
+        "a sealed body never reaches history"
+    );
+    assert_eq!(
+        document_head_of(&storage, "note-sealed"),
+        Some(incoming as i64)
+    );
+}
+
+#[test]
+fn an_unsent_sealed_save_supersedes_a_remote_plaintext_save_without_history() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    let (_, pushed_through) = synced_locked_note(&storage, "note-sealed");
+    storage
+        .apply_operations(&[save_document("note-sealed", 2, "revised secret plans", 30)])
+        .expect("save while unlocked");
+
+    let outcomes = storage
+        .apply_remote_operations(
+            &[remote_save(
+                "remote-plaintext",
+                pushed_through + 1,
+                "note-sealed",
+                1,
+                "remote plaintext body",
+            )],
+            40,
+        )
+        .expect("remote plaintext save against an unsent sealed one");
+    assert_eq!(
+        outcomes,
+        vec![superseded(SyncConflictReason::ConcurrentDocumentVersion)]
+    );
+    assert_eq!(
+        opened_markdown(&storage, "note-sealed"),
+        "revised secret plans"
+    );
+    assert!(
+        history_rows(&storage, "note-sealed").is_empty(),
+        "a locked note keeps no plaintext history"
+    );
+}
+
+#[test]
+fn a_blocked_sealed_save_counts_as_pending() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    let (acknowledged, pushed_through) = synced_locked_note(&storage, "note-sealed");
+    storage
+        .apply_operations(&[save_document("note-sealed", 2, "parked secret body", 30)])
+        .expect("save while unlocked");
+    let batch = storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("pending sealed save");
+    storage
+        .block_claimed_sync_operations(
+            "sync-worker",
+            &[batch.request.operations[0].operation_id.clone()],
+            "cloud_rejected",
+        )
+        .expect("park the sealed save");
+
+    let outcomes = storage
+        .apply_remote_operations(
+            &[remote_sealed_save(
+                "remote-vs-parked",
+                pushed_through + 1,
+                "note-sealed",
+                acknowledged,
+            )],
+            40,
+        )
+        .expect("remote sealed save against a parked one");
+    assert_eq!(
+        outcomes,
+        vec![superseded(SyncConflictReason::ConcurrentDocumentVersion)]
+    );
+    assert_eq!(
+        opened_markdown(&storage, "note-sealed"),
+        "parked secret body"
+    );
+}
+
+#[test]
+fn an_acknowledged_sealed_save_yields_to_a_newer_remote_sealed_save() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    let (first, locked_through) = synced_locked_note(&storage, "note-sealed");
+    let original = opened_markdown(&storage, "note-sealed");
+    storage
+        .apply_operations(&[save_document("note-sealed", 2, "revised secret plans", 30)])
+        .expect("save while unlocked");
+    let pushed_through = push_all(&storage, locked_through + 1);
+    assert_eq!(
+        document_head_of(&storage, "note-sealed"),
+        Some(pushed_through as i64)
+    );
+
+    let outcomes = storage
+        .apply_remote_operations(
+            &[remote_sealed_save(
+                "remote-newer-sealed",
+                pushed_through + 1,
+                "note-sealed",
+                first,
+            )],
+            40,
+        )
+        .expect("newer remote sealed save");
+    assert!(matches!(outcomes[0], RemoteSyncApplyOutcome::Applied(_)));
+    assert_eq!(opened_markdown(&storage, "note-sealed"), original);
+    assert!(superseded_rows(&storage).is_empty());
+    assert_eq!(
+        document_head_of(&storage, "note-sealed"),
+        Some(pushed_through as i64 + 1)
     );
 }
 

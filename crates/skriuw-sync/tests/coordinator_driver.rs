@@ -17,8 +17,8 @@ use skriuw_storage::{
     NewSyncConnection, WorkspaceMaintenance, WorkspaceStorage, WorkspaceSyncQueue,
 };
 use skriuw_sync::{
-    SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncPollIntervals, SyncStatus,
-    SyncTransport, TransportError,
+    SyncCancellation, SyncClock, SyncCoordinator, SyncCoordinatorConfig, SyncPollIntervals,
+    SyncStatus, SyncTransport, TransportError,
 };
 use support::{FakeServer, FakeTransport, PushFault, create_note};
 
@@ -528,6 +528,31 @@ fn shutdown_cancels_inflight_work_without_losing_durable_state() {
 
     assert_eq!(server.log_len(), 1);
     recovered.shutdown();
+}
+
+#[test]
+fn start_releases_claims_a_previous_process_left_behind() {
+    let storage = Arc::new(SqliteWorkspace::open_in_memory().expect("open database"));
+    connect(&storage, "device-a");
+    storage
+        .apply_operations(&[create_note("note-1", "Claimed before a crash", 1)])
+        .expect("apply operation");
+    let claimed_at = skriuw_sync::SystemClock.now_ms() - 1;
+    let worker_id = SyncCoordinatorConfig::default().cycle.worker_id;
+    assert!(
+        storage
+            .claim_sync_operations(&worker_id, claimed_at, 30_000, 64)
+            .expect("claim")
+            .is_some()
+    );
+
+    let server = FakeServer::new(WORKSPACE);
+    let transport = FakeTransport::new(&server, "device-a");
+    let coordinator = spawn_coordinator(Arc::clone(&storage), transport as Arc<dyn SyncTransport>);
+    wait_for_status(&coordinator, |status| *status == SyncStatus::UpToDate);
+
+    assert_eq!(server.log_len(), 1);
+    coordinator.shutdown();
 }
 
 #[test]

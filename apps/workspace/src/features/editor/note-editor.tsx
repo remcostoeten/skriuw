@@ -581,6 +581,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const pendingWindowRef = useRef<number | null>(null);
   const pendingRemoteRef = useRef<string | null>(null);
   const scrollHostRef = useRef<HTMLElement | null>(null);
+  const scrollTopRef = useRef(0);
   const boundedSurfaceKeyRef = useRef("");
   const [slashMenu, setSlashMenu] = useState<SlashMenu>(closedSlashMenu);
   const [mediaLibraryKind, setMediaLibraryKind] = useState<LibraryMediaKind | null>(null);
@@ -754,6 +755,14 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     preparedDocumentsRef.current = preparedEditorDocuments(store);
   }
   const preparedDocuments = preparedDocumentsRef.current;
+
+  function restoreScrollTop(scrollTop: number): void {
+    const scrollHost = scrollHostRef.current;
+    // Writing scrollTop forces a synchronous layout, so an unchanged offset is not written.
+    if (!scrollHost || scrollTop === scrollTopRef.current) return;
+    scrollHost.scrollTop = scrollTop;
+    scrollTopRef.current = scrollHost.scrollTop;
+  }
 
   function activeEntry(): CachedNote | null {
     const noteId = activeIdRef.current;
@@ -2228,7 +2237,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     viewRef.current = view;
     const scrollHost = host.closest<HTMLElement>(".editor-scroll");
     scrollHostRef.current = scrollHost;
+    scrollTopRef.current = scrollHost?.scrollTop ?? 0;
     function handleScroll() {
+      if (scrollHost) scrollTopRef.current = scrollHost.scrollTop;
       closeBubbleMenu();
       menus.set("link", (previous) =>
         previous.open && !previous.editing ? closedLinkMenu : previous,
@@ -2417,9 +2428,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     if (previous?.bounded && view.hasFocus()) {
       previous.bounded.rememberSelection(readSelection(view.state, previous.bounded.windowStart()));
     }
-    if (previous && scrollHostRef.current) previous.scrollTop = scrollHostRef.current.scrollTop;
+    if (previous && scrollHostRef.current) previous.scrollTop = scrollTopRef.current;
     activeIdRef.current = activeNoteId;
-    setSlashMenu(closedSlashMenu);
+    if (slashMenuRef.current !== closedSlashMenu) setSlashMenu(closedSlashMenu);
     closeBubbleMenu();
     menus.set("link", closedLinkMenu);
     menus.set("annotation", closedAnnotationMenu);
@@ -2461,7 +2472,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       syncBoundedSurface(entry);
       selectStarterTitle(view, entry);
     }
-    if (scrollHostRef.current) scrollHostRef.current.scrollTop = entry.scrollTop;
+    restoreScrollTop(entry.scrollTop);
     view.focus();
     revealRequestedBlock();
   }, [activeNoteId, revealRequestedBlock, store]);

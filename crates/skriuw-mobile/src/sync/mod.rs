@@ -89,6 +89,7 @@ pub struct MobileSync {
     network: Arc<dyn MobileSyncNetwork>,
     assets: Arc<AssetBridge>,
     observer: Option<Arc<dyn MobileSyncObserver>>,
+    connect_gate: Mutex<()>,
     coordinator: Mutex<Option<Arc<SyncCoordinator>>>,
     session: Mutex<Option<SharedToken>>,
     transport: Mutex<Option<Arc<NetworkTransport>>>,
@@ -117,6 +118,7 @@ impl MobileSync {
                 network,
                 assets: Arc::new(AssetBridge::new(assets)),
                 observer,
+                connect_gate: Mutex::new(()),
                 coordinator: Mutex::new(None),
                 session: Mutex::new(None),
                 transport: Mutex::new(None),
@@ -157,6 +159,10 @@ impl MobileSync {
         guarded(|| {
             let token = trusted_token(token)?;
             let base_url = trusted_cloud_base_url(&base_url)?;
+            let _connecting = self
+                .connect_gate
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             self.stop_replication();
 
             let queue = Arc::new(

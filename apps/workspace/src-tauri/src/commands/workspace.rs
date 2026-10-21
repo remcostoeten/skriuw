@@ -85,9 +85,7 @@ pub async fn search_workspace(
 }
 
 #[tauri::command]
-pub async fn search_index_status(
-    state: State<'_, AppState>,
-) -> Result<SearchIndexStatus, String> {
+pub async fn search_index_status(state: State<'_, AppState>) -> Result<SearchIndexStatus, String> {
     let completion = workspace_runtime(&state)?
         .search_index_status()
         .map_err(|error| error.to_string())?;
@@ -95,9 +93,7 @@ pub async fn search_index_status(
 }
 
 #[tauri::command]
-pub async fn rebuild_search_index(
-    state: State<'_, AppState>,
-) -> Result<SearchIndexStatus, String> {
+pub async fn rebuild_search_index(state: State<'_, AppState>) -> Result<SearchIndexStatus, String> {
     let completion = workspace_runtime(&state)?
         .rebuild_search_index()
         .map_err(|error| error.to_string())?;

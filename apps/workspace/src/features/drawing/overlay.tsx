@@ -104,6 +104,8 @@ const BRUSH_BY_NOTE = new Map<string, DrawingBrush>();
 
 const SIZE_INDICATOR_MS = 700;
 
+const NO_SELECTION: readonly string[] = [];
+
 /** The stored layer payload, read straight off the document root. */
 function documentDrawingAttribute(state: RendererState, noteId: string): unknown {
   const record = state.documents.get(noteId);
@@ -147,7 +149,7 @@ export function DrawingOverlay({ store, noteId, active, getDocument, onDone }: P
   const liveShapeRef = useRef<LiveShape | null>(null);
   const eraseRef = useRef<EraseGesture | null>(null);
   const selectRef = useRef<SelectGesture | null>(null);
-  const [selection, setSelection] = useState<readonly string[]>([]);
+  const [selection, setSelection] = useState<readonly string[]>(NO_SELECTION);
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
   const [accent, setAccent] = useState("#7aa2f7");
@@ -315,7 +317,6 @@ export function DrawingOverlay({ store, noteId, active, getDocument, onDone }: P
     if (!host) return;
     const scrollHost = host.parentElement?.querySelector<HTMLElement>(".editor-scroll") ?? null;
     scrollHostRef.current = scrollHost;
-    applySurfaceTokens();
     schedulePaint();
     function onScroll() {
       schedulePaint();
@@ -335,8 +336,8 @@ export function DrawingOverlay({ store, noteId, active, getDocument, onDone }: P
   }, [host, schedulePaint, applySurfaceTokens]);
 
   useEffect(() => {
-    applySurfaceTokens();
-  }, [theme, applySurfaceTokens]);
+    if (host) applySurfaceTokens();
+  }, [host, theme, applySurfaceTokens]);
 
   useEffect(() => {
     currentLayer();
@@ -358,7 +359,7 @@ export function DrawingOverlay({ store, noteId, active, getDocument, onDone }: P
 
   useEffect(() => {
     if (!isShapeTool(brush.tool)) setPlacement(null);
-    if (brush.tool !== "select") setSelection([]);
+    if (brush.tool !== "select") setSelection(NO_SELECTION);
   }, [brush.tool]);
 
   useEffect(() => {
@@ -480,7 +481,7 @@ export function DrawingOverlay({ store, noteId, active, getDocument, onDone }: P
           ? selectionRef.current
           : [target.id]
         : [];
-      if (!target) setSelection([]);
+      if (!target) setSelection(NO_SELECTION);
       else if (chosen !== selectionRef.current) setSelection(chosen);
       selectRef.current = {
         pointerId: event.pointerId,

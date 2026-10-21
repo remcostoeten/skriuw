@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
+import { EditorState } from "prosemirror-state";
 import {
+  createProductPlugins,
   parseProductMarkdown,
   productSchema,
   serializeProductMarkdown,
@@ -97,4 +99,23 @@ test("table markdown keeps working alongside check lists", () => {
   assert.equal(doc.child(0).type.name, "check_list");
   assert.equal(doc.child(1).type.name, "table");
   assert.equal(serializeProductMarkdown(doc), source);
+});
+
+function tableNodeView(state: EditorState): unknown {
+  for (const plugin of state.plugins) {
+    const view = plugin.props.nodeViews?.table;
+    if (view) return view;
+  }
+  return undefined;
+}
+
+test("a new editor state keeps the table node view a swapped-in state already uses", () => {
+  const plugins = createProductPlugins();
+  const first = EditorState.create({ doc: parseProductMarkdown(PIPE_TABLE), plugins });
+  const before = tableNodeView(first);
+  const second = EditorState.create({ doc: parseProductMarkdown("Plain note\n"), plugins });
+
+  assert.equal(typeof before, "function");
+  assert.equal(tableNodeView(second), before);
+  assert.equal(tableNodeView(first), before);
 });

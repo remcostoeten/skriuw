@@ -3,8 +3,8 @@ use std::{
     net::TcpStream,
     path::PathBuf,
     sync::{
-        Arc, Mutex, RwLock, Weak,
-        atomic::{AtomicBool, Ordering},
+        Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, Weak,
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -78,6 +78,7 @@ impl SyncAssetStore for ImageAssetStore {
     }
 }
 
+const MAINTENANCE_IN_PROGRESS: &str = "sync is paused while a backup is restored or an archive is imported; try again when it finishes";
 const PRODUCTION_CLOUD_URL: &str = "https://skriuw-v2-cloud.remcostoeten.workers.dev";
 const LOCAL_CLOUD_URL: &str = "http://localhost:8787";
 const MAX_RESPONSE_BYTES: u64 = 4 * 1024 * 1024;
@@ -91,9 +92,27 @@ struct ProvisionedWorkspace {
     device_id: String,
 }
 
+/// The coordinator a successful `connect` started, with the session it was
+/// started for so an overlapping `connect` for the same session can reuse it.
+struct ActiveSync {
+    coordinator: Arc<SyncCoordinator>,
+    base_url: String,
+    token: SharedToken,
+}
+
+impl ActiveSync {
+    fn serves(&self, token: &str, base_url: &str) -> bool {
+        self.base_url == base_url
+            && self.token.read().is_ok_and(|current| *current == token)
+            && self.coordinator.status() != SyncStatus::AuthenticationRequired
+    }
+}
+
 pub struct SyncRuntime {
     database_path: PathBuf,
-    coordinator: Mutex<Option<Arc<SyncCoordinator>>>,
+    connect_gate: Mutex<()>,
+    stop_epoch: AtomicU64,
+    active: Mutex<Option<ActiveSync>>,
     transport: Mutex<Option<Arc<HttpSyncTransport>>>,
     push_listener: Mutex<Option<PushListener>>,
     workspace_observer: Option<SyncWorkspaceObserver>,
@@ -121,7 +140,9 @@ impl SyncRuntime {
     pub fn new(database_path: PathBuf) -> Self {
         Self {
             database_path,
-            coordinator: Mutex::new(None),
+            connect_gate: Mutex::new(()),
+            stop_epoch: AtomicU64::new(0),
+            active: Mutex::new(None),
             transport: Mutex::new(None),
             push_listener: Mutex::new(None),
             workspace_observer: None,
@@ -144,10 +165,10 @@ impl SyncRuntime {
 
     #[must_use]
     pub fn status(&self) -> SyncStatus {
-        self.coordinator
+        self.active
             .lock()
             .ok()
-            .and_then(|coordinator| coordinator.as_ref().map(|coordinator| coordinator.status()))
+            .and_then(|active| active.as_ref().map(|active| active.coordinator.status()))
             .unwrap_or(SyncStatus::LocalOnly)
     }
 
@@ -174,18 +195,26 @@ impl SyncRuntime {
     /// Opens (or reopens) the authenticated session. The renderer names the
     /// cloud origin; it is validated here so a compromised renderer message
     /// cannot point the bearer token at an arbitrary host.
+    ///
+    /// Connects run one at a time, so the startup resume and a renderer
+    /// connect can never start two coordinators. A connect that waited for an
+    /// identical session reuses its coordinator, and one overtaken by a pause
+    /// or shutdown stops without starting sync.
     pub fn connect(&self, token: String, base_url: String) -> Result<SyncStatus, String> {
         if token.trim().is_empty() || token.len() > 4_096 || token.chars().any(char::is_control) {
             return Err("a valid account session is required to enable sync".into());
         }
         let base_url = trusted_cloud_base_url(&base_url)?;
-        let maintenance = self.maintenance.read();
-        if !matches!(maintenance.as_deref(), Ok(0)) {
-            return Err(
-                "sync is paused while a backup is restored or an archive is imported".into(),
-            );
+        let _connecting = self
+            .connect_gate
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let maintenance = self.maintenance_gate()?;
+        if let Some(status) = self.reusable_status(&token, &base_url) {
+            return Ok(status);
         }
         self.stop_coordinator();
+        let epoch = self.stop_epoch.load(Ordering::SeqCst);
 
         let queue = Arc::new(
             SqliteWorkspace::open(&self.database_path)
@@ -241,6 +270,10 @@ impl SyncRuntime {
                     session_expired();
                 }
             });
+        let mut active = self.lock_active()?;
+        if self.stop_epoch.load(Ordering::SeqCst) != epoch {
+            return Ok(SyncStatus::LocalOnly);
+        }
         if let Ok(mut cloud_transport) = self.transport.lock() {
             *cloud_transport = Some(Arc::clone(&transport));
         }
@@ -263,86 +296,126 @@ impl SyncRuntime {
         let status = coordinator.status();
         let listener = PushListener::spawn(
             SyncHttpEndpoints::new(&base_url),
-            session_token,
+            Arc::clone(&session_token),
             listener_workspace_id,
             listener_device_id,
             Arc::downgrade(&coordinator),
             listener_stop,
         );
-        *self
-            .coordinator
-            .lock()
-            .map_err(|_| "sync runtime lock is unavailable".to_string())? = Some(coordinator);
         if let Ok(mut push_listener) = self.push_listener.lock() {
             *push_listener = Some(listener);
         }
+        *active = Some(ActiveSync {
+            coordinator,
+            base_url,
+            token: session_token,
+        });
+        drop(active);
         drop(maintenance);
         Ok(status)
     }
 
-    fn open_workspace(&self) -> Result<SqliteWorkspace, String> {
-        SqliteWorkspace::open(&self.database_path)
-            .map_err(|error| format!("could not open the local sync queue: {error}"))
+    fn reusable_status(&self, token: &str, base_url: &str) -> Option<SyncStatus> {
+        let active = self.active.lock().ok()?;
+        let active = active
+            .as_ref()
+            .filter(|active| active.serves(token, base_url))?;
+        Some(active.coordinator.status())
+    }
+
+    fn lock_active(&self) -> Result<MutexGuard<'_, Option<ActiveSync>>, String> {
+        self.active
+            .lock()
+            .map_err(|_| "sync runtime lock is unavailable".to_string())
+    }
+
+    fn maintenance_gate(&self) -> Result<RwLockReadGuard<'_, u32>, String> {
+        let maintenance = self
+            .maintenance
+            .read()
+            .map_err(|_| "sync runtime lock is unavailable".to_string())?;
+        if *maintenance != 0 {
+            return Err(MAINTENANCE_IN_PROGRESS.into());
+        }
+        Ok(maintenance)
+    }
+
+    /// Runs `action` on a short-lived connection while holding the maintenance
+    /// gate, so a restore or import waits for it and it refuses during one.
+    fn with_workspace<T>(
+        &self,
+        action: impl FnOnce(&SqliteWorkspace) -> Result<T, String>,
+    ) -> Result<T, String> {
+        let _maintenance = self.maintenance_gate()?;
+        let workspace = SqliteWorkspace::open(&self.database_path)
+            .map_err(|error| format!("could not open the local sync queue: {error}"))?;
+        action(&workspace)
     }
 
     /// Cloud workspace this local store has already been linked to, if any.
     /// Read before routing an account so a store that predates the workspace
     /// registry is recognised as belonging to the account that linked it.
     pub fn linked_workspace_id(&self) -> Result<Option<String>, String> {
-        Ok(self
-            .open_workspace()?
-            .sync_connection()
-            .map_err(|error| format!("could not read the local sync connection: {error}"))?
-            .map(|connection| connection.workspace_id))
+        self.with_workspace(|workspace| {
+            Ok(workspace
+                .sync_connection()
+                .map_err(|error| format!("could not read the local sync connection: {error}"))?
+                .map(|connection| connection.workspace_id))
+        })
     }
 
     /// Lists the blocked sync queue for the settings surface. This opens its
     /// own short-lived database connection on the caller's blocking thread,
     /// never on editing or navigation paths.
     pub fn recovery_view(&self) -> Result<SyncRecoveryView, String> {
-        self.open_workspace()?
-            .sync_recovery_view()
-            .map_err(|error| format!("could not read the blocked sync queue: {error}"))
+        self.with_workspace(|workspace| {
+            workspace
+                .sync_recovery_view()
+                .map_err(|error| format!("could not read the blocked sync queue: {error}"))
+        })
     }
 
     pub fn retry_blocked_operation(&self, blocked_id: &str) -> Result<SyncRecoveryView, String> {
-        let workspace = self.open_workspace()?;
-        workspace
-            .retry_blocked_sync_operation(blocked_id, now_millis())
-            .map_err(|error| format!("could not retry the blocked change: {error}"))?;
-        self.request_refresh();
-        workspace
-            .sync_recovery_view()
-            .map_err(|error| format!("could not read the blocked sync queue: {error}"))
+        self.with_workspace(|workspace| {
+            workspace
+                .retry_blocked_sync_operation(blocked_id, now_millis())
+                .map_err(|error| format!("could not retry the blocked change: {error}"))?;
+            self.request_refresh();
+            workspace
+                .sync_recovery_view()
+                .map_err(|error| format!("could not read the blocked sync queue: {error}"))
+        })
     }
 
     pub fn discard_blocked_operation(&self, blocked_id: &str) -> Result<SyncRecoveryView, String> {
-        let workspace = self.open_workspace()?;
-        workspace
-            .discard_blocked_sync_operation(blocked_id, now_millis())
-            .map_err(|error| format!("could not discard the blocked change: {error}"))?;
-        self.request_refresh();
-        workspace
-            .sync_recovery_view()
-            .map_err(|error| format!("could not read the blocked sync queue: {error}"))
+        self.with_workspace(|workspace| {
+            workspace
+                .discard_blocked_sync_operation(blocked_id, now_millis())
+                .map_err(|error| format!("could not discard the blocked change: {error}"))?;
+            self.request_refresh();
+            workspace
+                .sync_recovery_view()
+                .map_err(|error| format!("could not read the blocked sync queue: {error}"))
+        })
     }
 
     /// What the settings surface needs to describe this workspace's
     /// encryption without ever handling key material.
     pub fn encryption_state(&self) -> Result<WorkspaceEncryptionState, String> {
-        let workspace = self.open_workspace()?;
-        let seal = workspace
-            .workspace_seal()
-            .map_err(|error| format!("could not read the workspace encryption state: {error}"))?;
-        let linked = workspace
-            .sync_connection()
-            .map_err(|error| format!("could not read the local sync connection: {error}"))?
-            .is_some();
-        Ok(WorkspaceEncryptionState {
-            enabled: seal.is_some(),
-            linked,
-            key_id: seal.as_ref().map(|seal| seal.key_id.clone()),
-            sealed_checkpoint_at: seal.as_ref().and_then(|seal| seal.sealed_checkpoint_at),
+        self.with_workspace(|workspace| {
+            let seal = workspace.workspace_seal().map_err(|error| {
+                format!("could not read the workspace encryption state: {error}")
+            })?;
+            let linked = workspace
+                .sync_connection()
+                .map_err(|error| format!("could not read the local sync connection: {error}"))?
+                .is_some();
+            Ok(WorkspaceEncryptionState {
+                enabled: seal.is_some(),
+                linked,
+                key_id: seal.as_ref().map(|seal| seal.key_id.clone()),
+                sealed_checkpoint_at: seal.as_ref().and_then(|seal| seal.sealed_checkpoint_at),
+            })
         })
     }
 
@@ -350,19 +423,20 @@ impl SyncRuntime {
     /// code is never stored: only the key it derives is, so a lost code is
     /// unrecoverable by design and the cloud copy dies with it.
     pub fn enable_encryption(&self) -> Result<String, String> {
-        let workspace = self.open_workspace()?;
         let transport = self.cloud_transport()?;
         let mut entropy = zeroize::Zeroizing::new([0_u8; 20]);
         getrandom::fill(entropy.as_mut_slice()).map_err(|error| {
             format!("could not gather randomness for the recovery code: {error}")
         })?;
-        let recovery_code = enable_workspace_encryption(
-            &workspace,
-            transport.as_ref(),
-            &SyncCancellation::new(),
-            entropy.as_slice(),
-            now_millis(),
-        )?;
+        let recovery_code = self.with_workspace(|workspace| {
+            enable_workspace_encryption(
+                workspace,
+                transport.as_ref(),
+                &SyncCancellation::new(),
+                entropy.as_slice(),
+                now_millis(),
+            )
+        })?;
         self.request_refresh();
         Ok(recovery_code)
     }
@@ -370,15 +444,16 @@ impl SyncRuntime {
     /// Joins an already-encrypted workspace from a second device. The code is
     /// checked against the key the cloud recorded before anything is stored.
     pub fn unlock_encryption(&self, recovery_code: &str) -> Result<(), String> {
-        let workspace = self.open_workspace()?;
         let transport = self.cloud_transport()?;
-        unlock_workspace_encryption(
-            &workspace,
-            transport.as_ref(),
-            &SyncCancellation::new(),
-            recovery_code,
-            now_millis(),
-        )?;
+        self.with_workspace(|workspace| {
+            unlock_workspace_encryption(
+                workspace,
+                transport.as_ref(),
+                &SyncCancellation::new(),
+                recovery_code,
+                now_millis(),
+            )
+        })?;
         self.request_refresh();
         Ok(())
     }
@@ -432,6 +507,11 @@ impl SyncRuntime {
     }
 
     fn take_coordinator(&self) -> Option<Arc<SyncCoordinator>> {
+        let mut active = self
+            .active
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        self.stop_epoch.fetch_add(1, Ordering::SeqCst);
         let listener = self
             .push_listener
             .lock()
@@ -440,17 +520,14 @@ impl SyncRuntime {
         if let Some(listener) = listener {
             listener.stop();
         }
-        self.coordinator
-            .lock()
-            .ok()
-            .and_then(|mut coordinator| coordinator.take())
+        active.take().map(|active| active.coordinator)
     }
 
     fn with_coordinator(&self, action: impl Fn(&SyncCoordinator)) {
-        if let Ok(coordinator) = self.coordinator.lock()
-            && let Some(coordinator) = coordinator.as_ref()
+        if let Ok(active) = self.active.lock()
+            && let Some(active) = active.as_ref()
         {
-            action(coordinator.as_ref());
+            action(active.coordinator.as_ref());
         }
     }
 }
@@ -1110,10 +1187,164 @@ fn now_millis() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        LOCAL_CLOUD_URL, PRODUCTION_CLOUD_URL, SyncRuntime, development_cloud_base_url,
-        is_local_development_origin, is_trusted_https_origin,
+        HttpSyncTransport, LOCAL_CLOUD_URL, PRODUCTION_CLOUD_URL, SyncRuntime,
+        development_cloud_base_url, is_local_development_origin, is_trusted_https_origin,
     };
     use skriuw_sync::SyncStatus;
+    use std::{
+        io::{BufRead, BufReader, Read, Write},
+        net::{TcpListener, TcpStream},
+        sync::{
+            Arc, RwLock,
+            atomic::{AtomicBool, AtomicUsize, Ordering},
+        },
+        thread,
+        time::{Duration, Instant},
+    };
+
+    struct FakeCloud {
+        base_url: String,
+        provisions: Arc<AtomicUsize>,
+        hold_provisioning: Arc<AtomicBool>,
+    }
+
+    impl FakeCloud {
+        fn start() -> Self {
+            let listener = TcpListener::bind("127.0.0.1:0").expect("bind fake cloud");
+            let base_url = format!(
+                "http://localhost:{}",
+                listener.local_addr().expect("fake cloud address").port()
+            );
+            let provisions = Arc::new(AtomicUsize::new(0));
+            let hold_provisioning = Arc::new(AtomicBool::new(true));
+            let counter = Arc::clone(&provisions);
+            let hold = Arc::clone(&hold_provisioning);
+            thread::spawn(move || {
+                for stream in listener.incoming().flatten() {
+                    let counter = Arc::clone(&counter);
+                    let hold = Arc::clone(&hold);
+                    thread::spawn(move || answer(stream, &counter, &hold));
+                }
+            });
+            Self {
+                base_url,
+                provisions,
+                hold_provisioning,
+            }
+        }
+
+        fn provisions(&self) -> usize {
+            self.provisions.load(Ordering::SeqCst)
+        }
+
+        fn release_provisioning(&self) {
+            self.hold_provisioning.store(false, Ordering::SeqCst);
+        }
+
+        fn wait_for_provisions(&self, expected: usize) {
+            let deadline = Instant::now() + Duration::from_secs(10);
+            while self.provisions() < expected {
+                assert!(Instant::now() < deadline, "provisioning never started");
+                thread::sleep(Duration::from_millis(5));
+            }
+        }
+    }
+
+    fn answer(stream: TcpStream, provisions: &AtomicUsize, hold: &AtomicBool) {
+        let mut reader = BufReader::new(stream);
+        let mut request_line = String::new();
+        if reader.read_line(&mut request_line).is_err() {
+            return;
+        }
+        let mut content_length = 0;
+        loop {
+            let mut header = String::new();
+            if reader.read_line(&mut header).is_err() || header.trim().is_empty() {
+                break;
+            }
+            if let Some((name, value)) = header.split_once(':')
+                && name.eq_ignore_ascii_case("content-length")
+            {
+                content_length = value.trim().parse().unwrap_or(0);
+            }
+        }
+        let mut body = vec![0; content_length];
+        if reader.read_exact(&mut body).is_err() {
+            return;
+        }
+        let response = if request_line.contains("/v1/sync/provision") {
+            provisions.fetch_add(1, Ordering::SeqCst);
+            while hold.load(Ordering::SeqCst) {
+                thread::sleep(Duration::from_millis(5));
+            }
+            let request: serde_json::Value =
+                serde_json::from_slice(&body).unwrap_or(serde_json::Value::Null);
+            let payload = serde_json::json!({
+                "workspaceId": "workspace-1",
+                "deviceId": request["deviceId"],
+            })
+            .to_string();
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
+                payload.len()
+            )
+        } else {
+            "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                .to_string()
+        };
+        let _ = reader.get_mut().write_all(response.as_bytes());
+    }
+
+    #[test]
+    fn overlapping_connects_for_one_session_start_one_coordinator() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let runtime = SyncRuntime::new(directory.path().join("workspace.db"));
+        let cloud = FakeCloud::start();
+
+        let (resume, renderer) = thread::scope(|scope| {
+            let resume = scope.spawn(|| runtime.connect("token".into(), cloud.base_url.clone()));
+            cloud.wait_for_provisions(1);
+            let renderer = scope.spawn(|| runtime.connect("token".into(), cloud.base_url.clone()));
+            thread::sleep(Duration::from_millis(200));
+            cloud.release_provisioning();
+            (
+                resume.join().expect("resume connect"),
+                renderer.join().expect("renderer connect"),
+            )
+        });
+
+        assert!(resume.is_ok(), "{resume:?}");
+        assert!(renderer.is_ok(), "{renderer:?}");
+        assert_eq!(cloud.provisions(), 1);
+        assert_ne!(runtime.status(), SyncStatus::LocalOnly);
+
+        runtime
+            .connect("rotated-token".into(), cloud.base_url.clone())
+            .expect("connect with a new session");
+        assert_eq!(cloud.provisions(), 2);
+        runtime.shutdown();
+        assert_eq!(runtime.status(), SyncStatus::LocalOnly);
+    }
+
+    #[test]
+    fn pausing_during_connect_keeps_sync_stopped() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let runtime = SyncRuntime::new(directory.path().join("workspace.db"));
+        let cloud = FakeCloud::start();
+
+        let connected = thread::scope(|scope| {
+            let connecting =
+                scope.spawn(|| runtime.connect("token".into(), cloud.base_url.clone()));
+            cloud.wait_for_provisions(1);
+            assert_eq!(runtime.pause_for_logout(), SyncStatus::LocalOnly);
+            cloud.release_provisioning();
+            connecting.join().expect("connect")
+        });
+
+        assert_eq!(connected, Ok(SyncStatus::LocalOnly));
+        assert_eq!(runtime.status(), SyncStatus::LocalOnly);
+        assert!(runtime.cloud_transport().is_err());
+    }
 
     #[test]
     fn only_skriuw_origins_are_trusted_with_the_session_token() {
@@ -1171,6 +1402,86 @@ mod tests {
             .expect_err("untrusted origin");
         assert!(!untrusted.contains("paused"), "{untrusted}");
         assert!(!database_path.exists());
+    }
+
+    #[test]
+    fn workspace_reads_and_writes_are_refused_while_suspended_for_maintenance() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database_path = directory.path().join("workspace.db");
+        let runtime = SyncRuntime::new(database_path.clone());
+        *runtime.transport.lock().expect("transport lock") = Some(Arc::new(
+            HttpSyncTransport::new(Arc::new(RwLock::new("token".into())), PRODUCTION_CLOUD_URL)
+                .expect("transport"),
+        ));
+
+        let suspension = runtime.suspend_for_maintenance();
+        let refusals = [
+            runtime.linked_workspace_id().map(|_| ()),
+            runtime.recovery_view().map(|_| ()),
+            runtime.retry_blocked_operation("blocked").map(|_| ()),
+            runtime.discard_blocked_operation("blocked").map(|_| ()),
+            runtime.encryption_state().map(|_| ()),
+            runtime.enable_encryption().map(|_| ()),
+            runtime.unlock_encryption("code").map(|_| ()),
+        ];
+        for refusal in refusals {
+            let error = refusal.expect_err("refused during maintenance");
+            assert!(error.contains("paused"), "{error}");
+        }
+        assert!(!database_path.exists());
+
+        drop(suspension);
+        assert_eq!(runtime.linked_workspace_id().expect("linked id"), None);
+        assert!(
+            runtime
+                .recovery_view()
+                .expect("recovery view")
+                .blocked
+                .is_empty()
+        );
+        assert!(!runtime.encryption_state().expect("encryption").enabled);
+        assert!(database_path.exists());
+    }
+
+    #[test]
+    fn suspension_waits_for_an_open_workspace_connection_to_close() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let runtime = Arc::new(SyncRuntime::new(directory.path().join("workspace.db")));
+        let (opened_sender, opened) = std::sync::mpsc::channel();
+        let (release, released) = std::sync::mpsc::channel::<()>();
+        let closed = Arc::new(AtomicBool::new(false));
+
+        let reader = {
+            let runtime = Arc::clone(&runtime);
+            let closed = Arc::clone(&closed);
+            std::thread::spawn(move || {
+                runtime
+                    .with_workspace(|_| {
+                        opened_sender.send(()).expect("signal opened");
+                        released.recv().expect("release");
+                        closed.store(true, Ordering::SeqCst);
+                        Ok(())
+                    })
+                    .expect("reader");
+            })
+        };
+        opened.recv().expect("reader opened");
+        let suspender = {
+            let runtime = Arc::clone(&runtime);
+            let closed = Arc::clone(&closed);
+            std::thread::spawn(move || {
+                let _suspension = runtime.suspend_for_maintenance();
+                closed.load(Ordering::SeqCst)
+            })
+        };
+        std::thread::sleep(Duration::from_millis(50));
+        assert!(
+            !suspender.is_finished(),
+            "suspension skipped the open connection"
+        );
+        release.send(()).expect("release reader");
+        reader.join().expect("reader thread");
+        assert!(suspender.join().expect("suspender thread"));
     }
 
     #[test]

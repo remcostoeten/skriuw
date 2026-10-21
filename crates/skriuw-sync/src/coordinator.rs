@@ -334,6 +334,8 @@ fn run(
     let mut state = SyncCycleState::new(config.backoff);
     let mut checkpoint_state = CheckpointPublicationState::new();
     let mut deadline_ms: Option<i64> = None;
+    // Best effort: a failure only means the old claims wait out their lease.
+    let _ = queue.release_sync_claims_before(&config.cycle.worker_id, clock.now_ms());
     loop {
         let snapshot = {
             let mut control = match shared.control.lock() {

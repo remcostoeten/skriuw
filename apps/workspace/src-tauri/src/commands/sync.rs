@@ -148,11 +148,7 @@ pub async fn adopt_workspace_slot(
     if adoption != SlotAdoption::Switched {
         return Ok(adoption);
     }
-    let sync = Arc::clone(&state.sync);
-    tauri::async_runtime::spawn_blocking(move || sync.shutdown())
-        .await
-        .map_err(|error| error.to_string())?;
-    state.maintenance.shutdown();
+    shut_down_for_restart(&state).await?;
     app.restart()
 }
 
@@ -186,12 +182,19 @@ pub async fn leave_account_workspace(
     if !changed {
         return Ok(());
     }
-    let sync = Arc::clone(&state.sync);
-    tauri::async_runtime::spawn_blocking(move || sync.shutdown())
-        .await
-        .map_err(|error| error.to_string())?;
-    state.maintenance.shutdown();
+    shut_down_for_restart(&state).await?;
     app.restart()
+}
+
+async fn shut_down_for_restart(state: &AppState) -> Result<(), String> {
+    let sync = Arc::clone(&state.sync);
+    let maintenance = Arc::clone(&state.maintenance);
+    tauri::async_runtime::spawn_blocking(move || {
+        sync.shutdown();
+        maintenance.shutdown();
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 /// Cloud workspace that owns the running local store, or `null` while it is
