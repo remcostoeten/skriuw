@@ -9,6 +9,12 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
 
 ## [Unreleased]
 
+### Added
+
+- **Starter database:** a fresh signed-out workspace includes a `Books` folder
+  whose notes carry status, author, genre, and rating properties and open as a
+  board grouped by status, so new visitors can try database views at once.
+
 ### Changed
 
 - **Database views:** a property edit now updates the rows, filter, sort and
