@@ -9,23 +9,14 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
 
 ## [Unreleased]
 
+## [0.52.0] — 2026-10-21
+
 ### Added
 
 - **Starter database:** a fresh signed-out workspace includes a `Books` folder
   whose notes carry status, author, genre, and rating properties and open as a
   board grouped by status, so new visitors can try database views at once.
   In the browser, a first visit opens straight on that board.
-
-### Changed
-
-- **Database views:** a property edit now updates the rows, filter, sort and
-  board groups of the affected notes only, cutting the work after a cell edit
-  in a 5,000-note view from about 4 ms to 0.5 ms.
-
-## [0.52.0] — 2026-10-19
-
-### Added
-
 - **Database views:** open a folder, or every note, as a table or board over
   note properties, with in-place editing, filters, sorts, column visibility,
   and board grouping by a select or checkbox property
@@ -36,6 +27,11 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
 
 ### Changed
 
+- **Database views:** a property edit now updates the rows, filter, sort and
+  board groups of the affected notes only, cutting the work after a cell edit
+  in a 5,000-note view from about 4 ms to 0.5 ms.
+- **Typography:** the app bundles the Inter Variable font instead of relying on
+  the system UI font, so text looks the same on every platform.
 - **Interaction performance:** the shell, sidebar, metadata panel, journal
   sidebar and editor panes no longer re-render on a note switch or title edit.
   Code highlighting, annotation anchors and find-in-note rescan only the
