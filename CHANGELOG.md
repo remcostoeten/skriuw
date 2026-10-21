@@ -9,6 +9,12 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
 
 ## [Unreleased]
 
+### Changed
+
+- **Database views:** a property edit now updates the rows, filter, sort and
+  board groups of the affected notes only, cutting the work after a cell edit
+  in a 5,000-note view from about 4 ms to 0.5 ms.
+
 ## [0.52.0] — 2026-10-19
 
 ### Added
