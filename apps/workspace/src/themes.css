@@ -4,7 +4,7 @@
 /* Tailwind token map ported verbatim from skriuw apps/web/src/app/globals.css
    so utility classes like bg-popover and text-muted-foreground resolve. */
 @theme {
-	--font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	--font-sans: "Inter Variable", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 	--font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 
 	--color-border: hsl(var(--border));
