@@ -44,6 +44,7 @@ defaults:
 
 env:
     MODULE_DIR: apps/mobile/modules/skriuw-core
+    NDK_VERSION: 27.1.12297006
 
 jobs:
     gate:
@@ -146,6 +147,19 @@ jobs:
                   key: mobile-gradle-${{ hashFiles('bun.lock') }}
                   restore-keys: mobile-gradle-
 
+            # Gradle downloads the NDK itself and one truncated archive fails the
+            # whole job, so fetch it here with a retry.
+            - name: Install the Gradle NDK
+              run: |
+                  for attempt in 1 2 3; do
+                      if "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION"; then
+                          exit 0
+                      fi
+                      rm -rf "$ANDROID_HOME/ndk/$NDK_VERSION"
+                      sleep 15
+                  done
+                  exit 1
+
             - name: Build the Rust core for Android
               run: ${{ env.MODULE_DIR }}/scripts/build-android.sh
 
@@ -244,6 +258,19 @@ jobs:
 
             - name: Install workspace deps
               run: bun install --frozen-lockfile
+
+            # Gradle downloads the NDK itself and one truncated archive fails the
+            # whole job, so fetch it here with a retry.
+            - name: Install the Gradle NDK
+              run: |
+                  for attempt in 1 2 3; do
+                      if "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION"; then
+                          exit 0
+                      fi
+                      rm -rf "$ANDROID_HOME/ndk/$NDK_VERSION"
+                      sleep 15
+                  done
+                  exit 1
 
             - name: Build the Rust core for Android
               run: ${{ env.MODULE_DIR }}/scripts/build-android.sh
