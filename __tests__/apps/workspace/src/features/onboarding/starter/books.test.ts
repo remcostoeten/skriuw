@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "vitest";
 import { repositoryPath } from "../../../../../../support/paths";
 import { planStarterWorkspace } from "@/features/onboarding/starter/plan";
-import { withBooksBoard } from "@/features/onboarding/starter/books";
+import { booksLandingHash, withBooksBoard } from "@/features/onboarding/starter/books";
 import { normalizeNotePropertyField } from "@skriuw/renderer-core/properties/value";
 import { propertyColumnKey } from "@skriuw/renderer-core/database/columns";
 import { readDatabaseView } from "@skriuw/renderer-core/database/config";
@@ -57,4 +57,11 @@ test("the starter Books folder opens as a board grouped by status", () => {
   assert.equal(read.problem, null);
   assert.equal(read.view.layout, "board");
   assert.equal(read.view.groupBy, propertyColumnKey("Status"));
+});
+
+test("a fresh visitor lands on the Books board unless they asked for another route", () => {
+  assert.equal(booksLandingHash("", "folder-1"), "#/database/folder-1");
+  assert.equal(booksLandingHash("#/", "folder-1"), "#/database/folder-1");
+  assert.equal(booksLandingHash("#/tasks", "folder-1"), null);
+  assert.equal(booksLandingHash("#/database/other", "folder-1"), null);
 });
