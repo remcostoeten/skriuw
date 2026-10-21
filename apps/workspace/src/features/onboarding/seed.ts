@@ -7,6 +7,7 @@ import {
   markSeedSpent,
   shouldSeedStarter,
 } from "./starter/model";
+import { withBooksBoard } from "./starter/books";
 import { loadStarterTree } from "./starter/tree";
 import { planStarterWorkspace } from "./starter/plan";
 
@@ -36,16 +37,19 @@ export async function seedStarterWorkspace(
   const tree = await loadStarterTree();
   const at = Date.now();
   const plan = planStarterWorkspace(tree, at, () => crypto.randomUUID());
+  const settings = completeSeed(
+    store.getState().settings,
+    plan.notes.map((note) => note.id),
+    at,
+  );
   const operations: WorkspaceOperation[] = [
     ...plan.operations,
     ...plan.contentOperations,
+    ...plan.propertyOperations,
     {
       type: "update_settings",
-      settings: completeSeed(
-        store.getState().settings,
-        plan.notes.map((note) => note.id),
-        at,
-      ),
+      settings:
+        plan.booksFolderId === null ? settings : withBooksBoard(settings, plan.booksFolderId, at),
     },
   ];
   await commitOperations(store, operations);

@@ -31,7 +31,7 @@ const files = walk(root)
   }));
 
 test("the starter vault ships notes in nested folders", () => {
-  assert.equal(files.length, 7);
+  assert.equal(files.length, 13);
   assert.ok(files.some((file) => file.relativePath.includes("/")));
 });
 
@@ -128,7 +128,7 @@ test("every wikilink between starter notes resolves", () => {
   let id = 0;
   const plan = planMarkdownImport(
     {
-      directories: ["Guides", "Ideas", "Projects"],
+      directories: ["Books", "Guides", "Ideas", "Projects"],
       files,
       skipped: 0,
     },
