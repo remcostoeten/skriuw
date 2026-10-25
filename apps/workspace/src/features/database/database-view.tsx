@@ -14,6 +14,7 @@ type Props = {
   store: RendererStore;
   folderId: string | null;
   windowControls: ReactNode;
+  sidebarToggle: ReactNode;
 };
 
 const UNAVAILABLE: Readonly<Record<Exclude<DatabaseScopeStatus, "ready">, string>> = {
@@ -32,7 +33,7 @@ const keyHintClass =
  * edit is an ordinary note or property operation, so the view adds nothing to
  * navigation or startup.
  */
-export function DatabaseView({ store, folderId, windowControls }: Props) {
+export function DatabaseView({ store, folderId, windowControls, sidebarToggle }: Props) {
   const model = useDatabase(store, folderId);
   const openNote = useCallback(
     (noteId: string) => activateReference(store, "note", noteId),
@@ -53,10 +54,11 @@ export function DatabaseView({ store, folderId, windowControls }: Props) {
 
   return (
     <main
-      className="relative col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] bg-theme-editor"
+      className="relative col-[3/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] bg-theme-editor"
       aria-labelledby="database-title"
     >
       {windowControls}
+      <div className="absolute left-2 top-1.5 flex">{sidebarToggle}</div>
       <header className="px-[clamp(20px,4vw,40px)] pb-3 pt-[38px]">
         <div className="flex min-w-0 items-center gap-2">
           <DatabaseIcon size={18} className="shrink-0 text-theme-dim" />

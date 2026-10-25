@@ -15,7 +15,7 @@ import { databaseState } from "../../../../../packages/renderer-core/src/databas
 function render(folderId: string | null, state: RendererState = databaseState()): string {
   const store = createRendererStore(state);
   return renderToStaticMarkup(
-    createElement(DatabaseView, { store, folderId, windowControls: null }),
+    createElement(DatabaseView, { store, folderId, windowControls: null, sidebarToggle: null }),
   );
 }
 
@@ -50,7 +50,7 @@ test("a saved board layout renders one section per status option", () => {
     () => true,
   );
   const html = render("projects", { ...state, settings });
-  const headings = [...html.matchAll(/<h2 id="database-group-\d+"[^>]*>([^<]+)</g)].map(
+  const headings = [...html.matchAll(/<h2 id="[^"]*-group-\d+"[^>]*>([^<]+)</g)].map(
     (match) => match[1],
   );
   assert.deepEqual(headings, ["No Status", "Todo", "Doing", "Done"]);

@@ -4,6 +4,8 @@
 - Date: 2026-10-18
 - Supersedes: the "database/table views over properties" non-goal in
   [note properties](../specs/note-properties.md)
+- Superseded in part by: [ADR-0058](0058-database-board-blocks.md), which adds
+  an embedded board block
 
 ## Context
 

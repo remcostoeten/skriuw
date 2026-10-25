@@ -2796,3 +2796,20 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
   font-size: 11px;
   color: hsl(var(--muted-foreground));
 }
+
+/* The database block is app UI: undo document typography so its own utilities apply. */
+.prosemirror-host .ProseMirror .skriuw-database-block {
+  white-space: normal;
+  cursor: default;
+}
+
+.prosemirror-host .ProseMirror .skriuw-database-block :is(h1, h2, h3, h4, h5, h6, ul, ol, li, p, a) {
+  font-size: revert-layer;
+  font-weight: revert-layer;
+  line-height: revert-layer;
+  margin: revert-layer;
+  padding: revert-layer;
+  list-style: revert-layer;
+  color: revert-layer;
+  text-decoration: revert-layer;
+}

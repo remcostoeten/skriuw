@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent } from "react";
 import type { DatabaseGroup } from "@skriuw/renderer-core/database/arrange";
 import type { DatabaseColumn } from "@skriuw/renderer-core/database/columns";
@@ -16,6 +16,7 @@ import { cellDisplay, type CellDisplay } from "./values";
 type Props = {
   model: DatabaseModel;
   onOpenNote: (noteId: string) => void;
+  embedded?: boolean;
 };
 
 type CardActions = {
@@ -45,9 +46,16 @@ function groupId(group: DatabaseGroup): string {
  * the view's sort order, and moves by drag and drop or Alt with the arrow
  * keys. A move writes the grouping property on the note.
  */
-export function DatabaseBoard({ model, onOpenNote }: Props) {
+export function DatabaseBoard({ model, onOpenNote, embedded = false }: Props) {
+  const idPrefix = useId();
   const { arranged, groupColumn, visible, people } = model;
-  const groups = arranged.groups;
+  const groups = useMemo(
+    () =>
+      embedded
+        ? (arranged.groups?.filter((group) => group.key !== null || group.rows.length > 0) ?? null)
+        : arranged.groups,
+    [arranged.groups, embedded],
+  );
   const boardRef = useRef<HTMLDivElement>(null);
   const focusNoteId = useRef<string | null>(null);
   const [limits, setLimits] = useState<Readonly<Record<string, number>>>({});
@@ -183,19 +191,28 @@ export function DatabaseBoard({ model, onOpenNote }: Props) {
   }
 
   return (
-    <div ref={boardRef} className="min-h-0 overflow-auto" aria-describedby="database-keyboard-help">
-      <div className="flex min-h-full w-max items-start gap-3 px-[clamp(20px,4vw,40px)] pb-6 pt-1">
+    <div
+      ref={boardRef}
+      className={embedded ? "overflow-x-auto" : "min-h-0 overflow-auto"}
+      aria-describedby={embedded ? undefined : "database-keyboard-help"}
+    >
+      <div
+        className={cn(
+          "flex w-max items-start gap-4",
+          embedded ? "pb-1" : "min-h-full px-[clamp(20px,4vw,40px)] pb-8 pt-2",
+        )}
+      >
         {groups.map((group, groupIndex) => {
           const id = groupId(group);
           const cards = shown[groupIndex] ?? [];
           const remaining = group.rows.length - cards.length;
-          const headingId = `database-group-${groupIndex}`;
+          const headingId = `${idPrefix}-group-${groupIndex}`;
           return (
             <section
               key={id}
               aria-labelledby={headingId}
               data-drop-target={dropTarget === id || undefined}
-              className="flex w-[272px] shrink-0 flex-col rounded-lg bg-[hsl(var(--foreground)/0.025)] outline-offset-[-1px] data-[drop-target]:outline data-[drop-target]:outline-1 data-[drop-target]:outline-foreground/30"
+              className="flex w-[264px] shrink-0 flex-col rounded-xl bg-[hsl(var(--foreground)/0.03)] outline-offset-[-1px] data-[drop-target]:outline data-[drop-target]:outline-1 data-[drop-target]:outline-foreground/30"
               onDragOver={(event) => onDragOver(event, group)}
               onDragLeave={(event) => {
                 if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
@@ -204,7 +221,7 @@ export function DatabaseBoard({ model, onOpenNote }: Props) {
               }}
               onDrop={(event) => onDrop(event, group)}
             >
-              <header className="flex h-9 items-center gap-2 pl-2.5 pr-1">
+              <header className="flex h-10 items-center gap-2 pl-3 pr-1.5">
                 {group.key === null ? null : <OptionDot color={group.color} />}
                 <h2
                   id={headingId}
@@ -224,7 +241,7 @@ export function DatabaseBoard({ model, onOpenNote }: Props) {
                   <PlusIcon size={12} />
                 </button>
               </header>
-              <ul aria-labelledby={headingId} className="flex flex-col gap-1.5 px-1.5 pb-1.5">
+              <ul aria-labelledby={headingId} className="flex flex-col gap-2 px-2 pb-2">
                 {cards.map((row, index) => (
                   <li key={row.noteId}>
                     <BoardCard
@@ -243,7 +260,7 @@ export function DatabaseBoard({ model, onOpenNote }: Props) {
               {remaining > 0 && (
                 <button
                   type="button"
-                  className="mx-1.5 mb-1.5 h-7 cursor-pointer rounded-md text-[12px] text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground"
+                  className="mx-2 mb-2 h-7 cursor-pointer rounded-md text-[12px] text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground"
                   onClick={() =>
                     setLimits((current) => ({ ...current, [id]: cards.length + PAGE_SIZE }))
                   }
@@ -300,7 +317,7 @@ const BoardCard = memo(function BoardCard({
       data-note-id={row.noteId}
       tabIndex={tabStop ? 0 : -1}
       data-dragging={dragging || undefined}
-      className="flex w-full cursor-pointer flex-col gap-1.5 rounded-md border border-border/70 bg-theme-editor px-2.5 py-2 text-left outline-none transition-[border-color,opacity] hover:border-foreground/25 focus-visible:border-foreground/40 focus-visible:shadow-[0_0_0_1px_hsl(var(--foreground)/0.35)] data-[dragging]:opacity-50"
+      className="flex w-full cursor-pointer flex-col gap-2 rounded-lg border border-border/70 bg-theme-editor px-3 py-2.5 text-left outline-none transition-[border-color,opacity] hover:border-foreground/25 focus-visible:border-foreground/40 focus-visible:shadow-[0_0_0_1px_hsl(var(--foreground)/0.35)] data-[dragging]:opacity-50"
       onClick={() => actions.open(row.noteId)}
       onKeyDown={(event) => actions.keyDown(event, row, groupIndex, index)}
       onFocus={() => actions.focus(row.noteId)}
@@ -311,7 +328,7 @@ const BoardCard = memo(function BoardCard({
         {row.title.trim() || "Untitled"}
       </span>
       {values.length > 0 && (
-        <span className="flex flex-col gap-1">
+        <span className="flex flex-col gap-1.5">
           {values.map(({ column, display }) => (
             <CardField key={column.key} name={column.name} display={display} />
           ))}
@@ -377,7 +394,7 @@ function NewCard({
 
   return (
     <form
-      className="mx-1.5 mb-1.5"
+      className="mx-2 mb-2"
       onSubmit={(event) => {
         event.preventDefault();
         if (onCreate(draft)) setDraft("");

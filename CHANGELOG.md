@@ -9,6 +9,25 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
 
 ## [Unreleased]
 
+### Added
+
+- **Database board blocks:** a fenced `database` block naming a folder's path
+  shows that folder's notes as a live board inside a note
+  ([ADR-0058](docs/adr/0058-database-board-blocks.md)).
+
+### Changed
+
+- **Starter workspace:** a first visit opens on the Welcome note, which now
+  explains the app and embeds the Books board, instead of on the Books
+  database page.
+- **Database views:** the database page keeps the notes sidebar, and board
+  columns and cards have more room.
+
+### Fixed
+
+- **References:** a note that mentions the same note, tag, or person twice no
+  longer fails to save with "storage backend failed".
+
 ## [0.52.0] — 2026-10-21
 
 ### Added

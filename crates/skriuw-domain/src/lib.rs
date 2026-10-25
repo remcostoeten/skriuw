@@ -1382,6 +1382,9 @@ fn validate_person(person: &WorkspacePerson) -> Result<(), OperationValidationEr
     validate_reference_name(&person.name)
 }
 
+/// Every distinct tag, person, and note a document mentions, in first-mention
+/// order. A target mentioned twice is listed once, matching the one row per
+/// target that reference storage keeps.
 pub fn document_references(value: &Value) -> Vec<DocumentReference> {
     fn visit(value: &Value, targets: &mut Vec<DocumentReference>) {
         let Some(object) = value.as_object() else {
@@ -1407,6 +1410,9 @@ pub fn document_references(value: &Value) -> Vec<DocumentReference> {
                 .and_then(Value::as_object)
                 .and_then(|attrs| attrs.get("id"))
                 .and_then(Value::as_str)
+            && !targets
+                .iter()
+                .any(|target| target.kind == kind && target.target_id == id)
         {
             targets.push(DocumentReference {
                 kind,
@@ -2433,6 +2439,41 @@ mod tests {
         WorkspaceOperationEnvelope, WorkspaceSettings, WorkspaceTag, validate_document_with_limits,
         validate_operation_group_with_limits,
     };
+
+    #[test]
+    fn document_references_lists_each_target_once() {
+        let document = serde_json::json!({
+            "type": "doc",
+            "content": [
+                { "type": "paragraph", "content": [
+                    { "type": "mention_ref", "attrs": { "kind": "note", "id": "writing" } },
+                    { "type": "tag_ref", "attrs": { "id": "idea" } },
+                    { "type": "mention_ref", "attrs": { "kind": "note", "id": "writing" } }
+                ] },
+                { "type": "paragraph", "content": [
+                    { "type": "mention_ref", "attrs": { "kind": "note", "id": "linking" } },
+                    { "type": "tag_ref", "attrs": { "id": "idea" } }
+                ] }
+            ]
+        });
+        assert_eq!(
+            super::document_references(&document),
+            vec![
+                super::DocumentReference {
+                    kind: super::ReferenceKind::Note,
+                    target_id: "writing".into()
+                },
+                super::DocumentReference {
+                    kind: super::ReferenceKind::Tag,
+                    target_id: "idea".into()
+                },
+                super::DocumentReference {
+                    kind: super::ReferenceKind::Note,
+                    target_id: "linking".into()
+                },
+            ]
+        );
+    }
 
     #[test]
     fn operation_wire_format_is_stable() {

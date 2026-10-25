@@ -34,7 +34,9 @@ function slugify(text: string, index: number): string {
 }
 
 function collectOutlineItems(proseHost: HTMLElement): OutlineItem[] {
-  const elements = [...proseHost.querySelectorAll<HTMLElement>(HEADING_SELECTOR)];
+  const elements = [...proseHost.querySelectorAll<HTMLElement>(HEADING_SELECTOR)].filter(
+    (element) => element.closest('[contenteditable="false"]:not(.ProseMirror)') === null,
+  );
   if (elements.length === 0) {
     return [];
   }

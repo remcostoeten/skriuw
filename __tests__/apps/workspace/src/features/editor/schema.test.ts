@@ -16,6 +16,23 @@ test("countWords counts text descendant tokens", () => {
   assert.equal(countWords(doc), 6);
 });
 
+test("database fences become board blocks that round-trip their folder path", () => {
+  const document = parseProductMarkdown("Intro\n\n```database\n\n  Projects/Books  \n```\n\nOutro");
+  const block = document.child(1);
+  assert.equal(block.type.name, "database_view");
+  assert.equal(block.attrs.folder, "Projects/Books");
+  assert.equal(
+    serializeProductMarkdown(document),
+    "Intro\n\n```database\nProjects/Books\n```\n\nOutro",
+  );
+});
+
+test("an empty database fence keeps its block until a folder is chosen", () => {
+  const block = parseProductMarkdown("```database\n```\n").firstChild;
+  assert.equal(block?.type.name, "database_view");
+  assert.equal(block?.attrs.folder, "");
+});
+
 test("Mermaid flowchart fences become durable diagram blocks", () => {
   const markdown = `Before
 
