@@ -9,6 +9,8 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
 
 ## [Unreleased]
 
+## [0.53.0] — 2026-10-25
+
 ### Added
 
 - **Database board blocks:** a fenced `database` block naming a folder's path
