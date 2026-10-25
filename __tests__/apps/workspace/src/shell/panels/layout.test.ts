@@ -19,6 +19,7 @@ test("journal shares the sidebar track and drops the metadata track", () => {
   assert.equal(panelGridTemplate("journal", false, true, 320), "56px 0px minmax(300px, 1fr)");
   assert.ok(routeHasSidebar("notes"));
   assert.ok(routeHasSidebar("journal"));
+  assert.ok(routeHasSidebar("database"));
   assert.ok(!routeHasSidebar("trash"));
 });
 

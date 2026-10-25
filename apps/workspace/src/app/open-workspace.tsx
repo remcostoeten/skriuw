@@ -16,6 +16,8 @@ import {
 } from "@/features/capture/launch-capture";
 import { bindLockSession } from "@/features/lock/lock";
 import { seedRelationshipFixture } from "@/features/onboarding/debug-seed";
+import { createDatabaseNodeView } from "@/features/database/embed";
+import { provideBlockView } from "@/features/editor/block-views";
 import { bindStarterReclaim } from "@/features/onboarding/reclaim";
 import { seedStarterWorkspace } from "@/features/onboarding/seed";
 import { bindSettingsToRoot } from "@/features/settings/apply-settings";
@@ -95,6 +97,7 @@ export async function openWorkspace(root: Root): Promise<() => Promise<void>> {
     if (!isBrowserRuntime()) {
       unlistenOpenedFiles = await bindOpenedFiles(store);
     }
+    provideBlockView("database_view", createDatabaseNodeView);
     root.render(
       <StrictMode>
         <App store={store} />

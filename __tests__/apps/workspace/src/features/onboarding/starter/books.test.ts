@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "vitest";
 import { repositoryPath } from "../../../../../../support/paths";
 import { planStarterWorkspace } from "@/features/onboarding/starter/plan";
-import { booksLandingHash, withBooksBoard } from "@/features/onboarding/starter/books";
+import { withBooksBoard } from "@/features/onboarding/starter/books";
 import { normalizeNotePropertyField } from "@skriuw/renderer-core/properties/value";
 import { propertyColumnKey } from "@skriuw/renderer-core/database/columns";
 import { readDatabaseView } from "@skriuw/renderer-core/database/config";
@@ -59,9 +59,24 @@ test("the starter Books folder opens as a board grouped by status", () => {
   assert.equal(read.view.groupBy, propertyColumnKey("Status"));
 });
 
-test("a fresh visitor lands on the Books board unless they asked for another route", () => {
-  assert.equal(booksLandingHash("", "folder-1"), "#/database/folder-1");
-  assert.equal(booksLandingHash("#/", "folder-1"), "#/database/folder-1");
-  assert.equal(booksLandingHash("#/tasks", "folder-1"), null);
-  assert.equal(booksLandingHash("#/database/other", "folder-1"), null);
+test("a fresh visitor opens on the Welcome note, which embeds the Books board", () => {
+  const welcome = readFileSync(join(root, "Welcome.md"), "utf8");
+  let id = 0;
+  const plan = planStarterWorkspace(
+    {
+      directories: ["Books"],
+      files: [{ relativePath: "Welcome.md", content: welcome }, ...files],
+      skipped: 0,
+    },
+    1_000,
+    () => `seed-${++id}`,
+  );
+  const welcomeNote = plan.notes.find((note) => note.relativePath === "Welcome.md");
+  assert.ok(welcomeNote);
+  assert.equal(plan.welcomeNoteId, welcomeNote.id);
+  const saved = plan.contentOperations.find(
+    (operation) => operation.type === "save_document" && operation.noteId === welcomeNote.id,
+  );
+  assert.ok(saved?.type === "save_document");
+  assert.match(saved.markdown, /```database\nBooks\n```/);
 });

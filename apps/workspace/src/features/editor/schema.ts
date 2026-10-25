@@ -596,6 +596,48 @@ const diagramSpec: NodeSpec = {
   ],
 };
 
+export const DATABASE_FENCE_LANGUAGE = "database";
+
+function databaseFolderFromSource(source: string): string {
+  return (
+    source
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line !== "") ?? ""
+  );
+}
+
+const databaseViewSpec: NodeSpec = {
+  group: "block",
+  atom: true,
+  isolating: true,
+  draggable: true,
+  selectable: true,
+  attrs: {
+    folder: { default: "" },
+  },
+  toDOM: (node) => [
+    "pre",
+    { "data-skriuw-database": "true" },
+    ["code", { class: `language-${DATABASE_FENCE_LANGUAGE}` }, String(node.attrs.folder)],
+  ],
+  parseDOM: [
+    {
+      tag: "pre",
+      priority: 75,
+      preserveWhitespace: "full",
+      getAttrs: (dom) => {
+        const code = dom.querySelector("code");
+        const language = dom.hasAttribute("data-skriuw-database")
+          ? DATABASE_FENCE_LANGUAGE
+          : code?.className.match(LANGUAGE_CLASS)?.[1]?.toLowerCase();
+        if (language !== DATABASE_FENCE_LANGUAGE) return false;
+        return { folder: databaseFolderFromSource(code?.textContent ?? dom.textContent ?? "") };
+      },
+    },
+  ],
+};
+
 function codeBlockLanguage(dom: HTMLElement): string {
   const declared = dom.getAttribute("data-language");
   if (declared) return declared;
@@ -776,6 +818,7 @@ const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
   .update("code_block", codeBlockSpec)
   .addToEnd("raw_markdown", rawMarkdownSpec)
   .addToEnd("diagram", diagramSpec)
+  .addToEnd("database_view", databaseViewSpec)
   .addToEnd("check_list", checkListSpec)
   .addToEnd("check_item", checkItemSpec)
   .addToEnd("toggle_list", toggleListSpec)
@@ -1745,6 +1788,13 @@ const productMarkdownSerializer = new MarkdownSerializer(
       state.write("```");
       state.closeBlock(node);
     },
+    database_view(state, node) {
+      state.write(`\`\`\`${DATABASE_FENCE_LANGUAGE}\n`);
+      state.text(String(node.attrs.folder), false);
+      state.ensureNewLine();
+      state.write("```");
+      state.closeBlock(node);
+    },
     math_block(state, node) {
       state.write(`${MATH_FENCE}\n`);
       state.text(node.textContent, false);
@@ -2079,6 +2129,26 @@ if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.core.ruler, "skriuw_diagram
   defaultMarkdownParser.tokenizer.core.ruler.push("skriuw_diagram_fences", convertDiagramFences);
 }
 
+function convertDatabaseFences(state: CoreRuleState): boolean {
+  for (const token of state.tokens) {
+    if (token.type !== "fence") continue;
+    const language = String(token.info ?? "")
+      .trim()
+      .toLowerCase();
+    if (language !== DATABASE_FENCE_LANGUAGE) continue;
+    token.type = "skriuw_database";
+    token.meta = {
+      ...token.meta,
+      databaseFolder: databaseFolderFromSource(String(token.content ?? "")),
+    };
+  }
+  return true;
+}
+
+if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.core.ruler, "skriuw_database_fences")) {
+  defaultMarkdownParser.tokenizer.core.ruler.push("skriuw_database_fences", convertDatabaseFences);
+}
+
 function bareDomainTokens(state: CoreRuleState, text: string, before: string): MarkdownToken[] {
   const tokens: MarkdownToken[] = [];
   let cursor = 0;
@@ -2171,6 +2241,10 @@ const productMarkdownParser = new MarkdownParser(productSchema, defaultMarkdownP
   skriuw_diagram: {
     node: "diagram",
     getAttrs: (tok) => ({ model: tok.meta?.diagramModel ?? createDefaultDiagram() }),
+  },
+  skriuw_database: {
+    node: "database_view",
+    getAttrs: (tok) => ({ folder: tok.meta?.databaseFolder ?? "" }),
   },
   math_block: { block: "math_block", noCloseToken: true },
   math_inline: {

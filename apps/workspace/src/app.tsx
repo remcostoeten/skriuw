@@ -52,7 +52,7 @@ import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import { createCommandRegistry, registryShortcutActions } from "@/commands/registry";
 import type { CommandUiState } from "@/commands/registry";
 import { createAppCommands } from "./app-commands";
-import { SkriuwLogo } from "@/shared/icons/static";
+import { PanelLeftIcon, SkriuwLogo } from "@/shared/icons/static";
 import { AppIcon } from "@/shared/icons/app-icon";
 import {
   FocusModeReveal,
@@ -110,18 +110,49 @@ function selectActiveNoteId(state: RendererState): string | null {
   return state.activeNoteId;
 }
 
-/** The database route, keyed by its folder so switching folders starts a fresh view. */
-function DatabaseRoute({ store }: Props) {
+type DatabaseRouteProps = Props & {
+  sidebarOpen: boolean;
+  onToggleSidebar: () => void;
+};
+
+/**
+ * The database route, keyed by its folder so switching folders starts a fresh
+ * view. Opening a note from the sidebar leaves the board for that note.
+ */
+function DatabaseRoute({ store, sidebarOpen, onToggleSidebar }: DatabaseRouteProps) {
   const folderId = useRouteFocus();
+  const toggleHint = useShortcutHints(store, DATABASE_SHORTCUT_IDS).toggleSidebar;
+  useEffect(
+    () =>
+      store.subscribe(selectActiveNoteId, () => {
+        if (store.getState().activeNoteId !== null) window.location.hash = appRouteHash("notes");
+      }),
+    [store],
+  );
   return (
     <DatabaseView
       key={folderId ?? ""}
       store={store}
       folderId={folderId}
       windowControls={<WindowControls className="absolute right-0 top-0" />}
+      sidebarToggle={
+        <Tooltip label="Toggle sidebar" side="bottom" shortcut={toggleHint}>
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className={toolbarIconButtonClass}
+            aria-label="Toggle sidebar"
+            aria-expanded={sidebarOpen}
+          >
+            <PanelLeftIcon size={16} />
+          </button>
+        </Tooltip>
+      }
     />
   );
 }
+
+const DATABASE_SHORTCUT_IDS = ["toggleSidebar"] as const;
 
 function selectHasActiveNote(state: RendererState): boolean {
   return state.activeNoteId !== null;
@@ -441,7 +472,7 @@ function WorkspaceShell({ store }: Props) {
 
   const sidebarContent = (
     <>
-      <div className="h-full" hidden={route !== "notes"}>
+      <div className="h-full" hidden={route !== "notes" && route !== "database"}>
         <Sidebar store={store} onOpenCommandPalette={openPalette} />
       </div>
       <div className="h-full" hidden={route !== "journal"}>
@@ -691,7 +722,13 @@ function WorkspaceShell({ store }: Props) {
           />
         )}
         {route === "tasks" && <TasksView store={store} />}
-        {route === "database" && <DatabaseRoute store={store} />}
+        {route === "database" && (
+          <DatabaseRoute
+            store={store}
+            sidebarOpen={shownSidebarOpen}
+            onToggleSidebar={() => toggleSidebar(true)}
+          />
+        )}
         {route === "trash" && <TrashView store={store} />}
         {route === "media" && <MediaLibraryView store={store} />}
         {route === "prompt-playground" && (

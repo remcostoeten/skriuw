@@ -5,9 +5,11 @@ import { documentSaveOperations } from "@/features/editor/tasks";
 import { planMarkdownImport, type MarkdownTree } from "@/features/transfer/markdown";
 import { BOOKS_FOLDER, starterBookOperations } from "./books";
 
+export const WELCOME_NOTE_PATH = "Welcome.md";
+
 /**
  * @name planStarterWorkspace
- * @description Plans fresh preview notes, example book properties, and explicitly linked example tasks with dates on the device's calendar.
+ * @description Plans fresh preview notes, example book properties, and explicitly linked example tasks with dates on the device's calendar, and names the Welcome note a first visit opens on.
  * @example
  * const plan = planStarterWorkspace(tree, Date.now(), () => crypto.randomUUID());
  */
@@ -29,6 +31,7 @@ export function planStarterWorkspace(tree: MarkdownTree, at: number, makeId: () 
   );
   return {
     ...plan,
+    welcomeNoteId: plan.notes.find((note) => note.relativePath === WELCOME_NOTE_PATH)?.id ?? null,
     booksFolderId: booksFolder?.type === "create_folder" ? booksFolder.id : null,
     propertyOperations: starterBookOperations(plan.notes, at, makeId),
     contentOperations: plan.contentOperations.flatMap((operation) => {

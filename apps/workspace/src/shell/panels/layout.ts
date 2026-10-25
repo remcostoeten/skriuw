@@ -14,7 +14,7 @@ export type PanelTracks = {
  * collapse state and resize handle across them, only its content swaps.
  */
 export function routeHasSidebar(route: AppRoute): boolean {
-  return route === "notes" || route === "journal";
+  return route === "notes" || route === "journal" || route === "database";
 }
 
 export const FOCUS_GRID_TEMPLATE = "0px 0px minmax(300px, 1fr) 0px";

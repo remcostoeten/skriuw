@@ -13,7 +13,9 @@ Implemented, 2026-10-18. The decision and its trade-offs are in
   note's folder) and **Open all notes as database**.
 - Routes: `#/database` and `#/database/<folderId>`. A trashed, missing, or
   non-folder scope, and the journal root, render an explanation instead of a
-  grid.
+  grid. The route keeps the notes sidebar.
+- A board block inside a note: a fenced `database` block whose first line is
+  the folder's path, inserted with **Database board** in the `/` menu ([ADR-0058](../adr/0058-database-board-blocks.md)).
 
 ## Model
 

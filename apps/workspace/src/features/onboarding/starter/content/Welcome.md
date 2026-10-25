@@ -1,30 +1,39 @@
 # Welcome
 
-This is your workspace. Thirteen notes, four folders, and nothing you have to keep.
+Skriuw is a notes app that keeps your notes on this device. You write in markdown, links and tags work as you type, and a folder of notes can become a board or a table.
 
-Delete any examples once you have had a look around. Everything here is editable. Example tasks can be deleted from Tasks.
+Everything here is an example. Edit it, move it, or delete it.
 
-## Where things are
+## Writing
 
-| Folder | What's inside |
+Markdown turns into formatting as you type. `**two stars**` becomes **bold**, a `#` and a space starts a heading, and a `-` starts a list. Press `/` on an empty line to see every kind of block.
+
+Type `#` followed by a word to tag something. Type `@` to link to another note, the way this paragraph links to [[Writing]] and [[Linking]].
+
+## A folder as a board
+
+The board below is the `Books` folder. Each card is an ordinary note, and Status, Author, Genre, and Rating are properties on that note. Drag a card to another column to change its status, or click it to open the book.
+
+```database
+Books
+```
+
+To show another folder like this, press `/` on an empty line, choose **Database board**, then choose the folder. Right-click a folder in the sidebar and choose **Open as database** for the full view, with a table, filters, and sorting.
+
+## Where to look next
+
+| Note | What it shows |
 | --- | --- |
-| `Guides` | Writing, linking, equations, and tasks |
-| `Projects` | A worked example that uses both |
-| `Books` | A reading list with properties, ready to open as a database |
-| `Ideas` | Somewhere to be untidy |
+| [[Writing]] | Formatting, lists, code, and tables |
+| [[Linking]] | Links between notes, backlinks, and tags |
+| [[Math]] | Rendered equations |
+| [[Tasks]] | Tasks with due dates, collected in Tasks |
+| [[Launch checklist]] | An ordinary project checklist |
+| [[Reading list]] | An untidy note in `Ideas` |
 
-## Three things worth knowing
+## Worth knowing
 
-1. **It's yours, on this machine.** Notes live in a local database, not on someone's server. Opening the app doesn't wait on a network.
-2. **It's markdown underneath.** What you type is stored as text you could read in any editor, and you can take it out whenever you like.
-3. **It's fast on purpose.** Switching notes doesn't wait for disk, network, or anything else.
-
-## Start here
-
-Press `/` on an empty line to see what a block can be. Type `#` followed by a word to tag something. Type `@` to link to another note.
-
-Start with [[Writing]] and [[Linking]], then explore rendered equations in [[Math]] and linked tasks with due dates in [[Tasks]]. [[Launch checklist]] shows an ordinary project checklist.
-
-Right-click `Books` in the sidebar and choose **Open as database** to see those notes as a board grouped by status. Switch to the table to edit authors, genres, and ratings in place.
+1. **Your notes stay here.** They live in a local database on this device. Opening a note never waits on a network.
+2. **It's markdown underneath.** What you type is stored as text you can read in any editor, and you can export it whenever you like.
 
 > The best note is the one you actually wrote down.

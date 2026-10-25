@@ -7,6 +7,7 @@ import { findWrapping } from "prosemirror-transform";
 import type { EditorView } from "prosemirror-view";
 import {
   ChevronRightIcon,
+  DatabaseIcon,
   Heading1Icon,
   Heading2Icon,
   Heading3Icon,
@@ -250,6 +251,15 @@ export const slashCommands: SlashCommand[] = [
     command: insertMermaidFence(template),
   })),
   {
+    id: "database-board",
+    label: "Database board",
+    subtext: "Show a folder's notes as a board",
+    group: "Blocks",
+    aliases: ["database", "board", "kanban", "folder", "properties"],
+    icon: <DatabaseIcon size={16} />,
+    command: insertBlockNode(() => requiredNode("database_view").create()),
+  },
+  {
     id: "math-block",
     label: "Math block",
     subtext: "Display equation with a live KaTeX preview",
@@ -395,17 +405,20 @@ function insertHorizontalRule(
 }
 
 function insertDiagram(createModel: () => DiagramModel): Command {
-  return function insertDiagramCommand(state, dispatch) {
-    const diagram = requiredNode("diagram");
+  return insertBlockNode(() => requiredNode("diagram").create({ model: createModel() }));
+}
+
+function insertBlockNode(createNode: () => ProseMirrorNode): Command {
+  return function insertBlockNodeCommand(state, dispatch) {
     const paragraph = requiredNode("paragraph");
     if (dispatch) {
-      const node = diagram.create({ model: createModel() });
+      const node = createNode();
       const transaction = state.tr.replaceSelectionWith(node);
       const insertedAt = findNodePosition(transaction.doc, node);
       if (insertedAt !== null) {
-        const afterDiagram = insertedAt + node.nodeSize;
-        if (!transaction.doc.resolve(afterDiagram).nodeAfter) {
-          transaction.insert(afterDiagram, paragraph.create());
+        const afterNode = insertedAt + node.nodeSize;
+        if (!transaction.doc.resolve(afterNode).nodeAfter) {
+          transaction.insert(afterNode, paragraph.create());
         }
         transaction.setSelection(NodeSelection.create(transaction.doc, insertedAt));
       }

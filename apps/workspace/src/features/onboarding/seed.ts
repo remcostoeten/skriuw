@@ -7,8 +7,7 @@ import {
   markSeedSpent,
   shouldSeedStarter,
 } from "./starter/model";
-import { isBrowserRuntime } from "@/platform/runtime/runtime";
-import { booksLandingHash, withBooksBoard } from "./starter/books";
+import { withBooksBoard } from "./starter/books";
 import { loadStarterTree } from "./starter/tree";
 import { planStarterWorkspace } from "./starter/plan";
 
@@ -54,10 +53,7 @@ export async function seedStarterWorkspace(
     },
   ];
   await commitOperations(store, operations);
-  if (plan.booksFolderId !== null && isBrowserRuntime()) {
-    const landing = booksLandingHash(window.location.hash, plan.booksFolderId);
-    if (landing !== null) {
-      window.history.replaceState(null, "", landing);
-    }
+  if (plan.welcomeNoteId !== null && store.getState().activeNoteId === null) {
+    store.setActiveNote(plan.welcomeNoteId);
   }
 }

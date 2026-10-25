@@ -29,6 +29,7 @@ import { insertInlineMath, insertMathBlock } from "./math/commands";
 import { createMathBlockNodeView, createMathInlineNodeView } from "./math/nodeview";
 import { workspaceMathRendering } from "./math/workspace-render";
 import { createDiagramNodeView } from "./diagrams/nodeview";
+import { providedBlockViews } from "./block-views";
 import { createImageNodeViews, type ImageTouchActions } from "./media/image-nodeview";
 import {
   collectImageFiles,
@@ -2011,6 +2012,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       state: createEditorState(emptyDocument(), editorPlugins),
       editable: () => activeIdRef.current !== null,
       nodeViews: {
+        ...providedBlockViews(store),
         ...referenceViews.nodeViews,
         ...imageViews.nodeViews,
         code_block: (node, view, getPos) => createCodeBlockNodeView(node, view, getPos),

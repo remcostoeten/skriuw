@@ -82,12 +82,21 @@ function selectStoredViews(state: RendererState): unknown {
 /**
  * Everything one database screen reads and writes. Rows come from a narrow
  * memoized selector; columns are rediscovered only when rows change and kept
- * when they come out the same, so a value edit re-renders one row.
+ * when they come out the same, so a value edit re-renders one row. A `layout`
+ * shows the scope in that layout without changing the stored one.
  */
-export function useDatabase(store: RendererStore, folderId: string | null): DatabaseModel {
+export function useDatabase(
+  store: RendererStore,
+  folderId: string | null,
+  layout?: DatabaseView["layout"],
+): DatabaseModel {
   const storedViews = useRendererSelector(store, selectStoredViews);
   const read = useMemo(() => readDatabaseView(storedViews, folderId), [storedViews, folderId]);
-  const storedView = read.view;
+  const storedView = useMemo(
+    () =>
+      layout === undefined || read.view.layout === layout ? read.view : { ...read.view, layout },
+    [read.view, layout],
+  );
   const selectStatus = useCallback(
     (state: RendererState) => databaseScopeStatus(state, folderId),
     [folderId],

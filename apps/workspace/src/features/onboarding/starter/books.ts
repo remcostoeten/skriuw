@@ -7,7 +7,6 @@ import type {
 } from "@skriuw/renderer-core/contracts/workspace";
 import { propertyColumnKey } from "@skriuw/renderer-core/database/columns";
 import { defaultDatabaseView, withDatabaseView } from "@skriuw/renderer-core/database/config";
-import { databaseHash } from "@skriuw/renderer-core/route/app-route";
 
 export const BOOKS_FOLDER = "Books";
 
@@ -177,16 +176,4 @@ export function withBooksBoard(
     },
     (id) => id === folderId,
   );
-}
-
-/**
- * @name booksLandingHash
- * @description Returns the route hash that lands a fresh visitor on the Books board, or null when the visitor already asked for another route.
- * @example
- * const hash = booksLandingHash(window.location.hash, booksFolderId);
- */
-export function booksLandingHash(currentHash: string, folderId: string): string | null {
-  return currentHash === "" || currentHash === "#" || currentHash === "#/"
-    ? databaseHash(folderId)
-    : null;
 }
