@@ -33,9 +33,16 @@ person does not rediscover it.
       installs the toolchain and builds them on the worker. A
       `apps/mobile/.easignore` cannot do it: eas-cli only reads `.easignore` at
       the Git root, where it would replace every `.gitignore` in the monorepo.
-- [ ] Run the first Android and iOS EAS builds interactively from
-      `apps/mobile/` so EAS generates and stores the signing credentials;
-      `eas-preview` in CI runs `--non-interactive` and cannot create them.
+- [x] Run the first Android EAS build interactively from `apps/mobile/` so EAS
+      generates and stores the keystore: preview build `56b4f6ac`, 2026-09-26.
+- [x] Run an iOS build on EAS to prove the pipeline: `development-simulator`
+      build `3a73aeb1`, 2026-10-30, finished in 11 minutes.
+- [ ] Run the first iOS device build interactively (`./bin/eas build ios
+      development`) once an Apple team is linked, so EAS creates the signing
+      credentials; `eas-preview` in CI runs `--non-interactive` and cannot.
+- [ ] Register the test iPhone with `./bin/eas device` and install the
+      `development` build on it; the steps are in
+      [`docs/mobile-builds.md`](../../../docs/mobile-builds.md#testing-on-an-iphone).
 - [ ] Fill the `submit.production` profile in `apps/mobile/eas.json` with the Apple
       team and ASC app identifiers, and the Play service-account key path.
 - [ ] Run eas-cli **from `apps/mobile/`**, never from the repository root: it drops
@@ -43,19 +50,18 @@ person does not rediscover it.
 
 ## 2. Close the product blockers
 
-- [ ] Add `expo-secure-store`. Without it the keystore port and the biometric
-      slot both refuse, so sign-in cannot persist a credential and biometric
-      unlock cannot be offered. Owners: #395, #396.
-- [ ] Fix the two touch-target violations and the Android sheet-modality gap
-      from [the accessibility pass](../../docs/benchmarks/2026-09-20-mobile-accessibility.md).
-      Owners: #388, #393.
-- [ ] Merge Mobile 11's search surface (PR #413) or ship without a search
-      route and say so in the listing.
+- [x] Add `expo-secure-store` so the keystore port and the biometric slot work
+      on device. #420.
+- [x] Fix the two touch-target violations and the Android sheet-modality gap
+      from [the accessibility pass](../../../docs/benchmarks/2026-09-20-mobile-accessibility.md).
+      #422.
+- [x] Merge Mobile 11's search surface. PR #413, routed by #419.
 - [ ] Decide whether 1.0 ships without an iOS share extension — the Android
       intent filter has no iOS counterpart, and the iOS share sheet was the
       motivating gap in ADR-0048.
-- [ ] Wire [`PrivacyInfo.xcprivacy`](PrivacyInfo.xcprivacy) into the iOS
-      target, and add `ITSAppUsesNonExemptEncryption` to `ios.infoPlist`.
+- [x] Wire the iOS privacy manifest into the build and set
+      `ITSAppUsesNonExemptEncryption`: both live in `apps/mobile/app.json`
+      (`ios.privacyManifests`, `ios.infoPlist`).
 
 ## 3. Evidence the contract asks for
 

@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  type TextInputInstance,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -39,7 +40,7 @@ export function GoToDateSheet({ open, context, today, onClose, onGo }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [input, setInput] = useState("");
-  const field = useRef<TextInput>(null);
+  const field = useRef<TextInputInstance>(null);
   const resolution: JournalDateResolution | null =
     input.trim().length === 0 ? null : resolveJournalDateExpression(input, context, today);
 

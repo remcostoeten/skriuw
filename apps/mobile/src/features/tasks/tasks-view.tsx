@@ -168,7 +168,7 @@ export function TasksView() {
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
-          promotion === null ? null : (
+          promotion === null ? undefined : (
             <PromotionSection
               source={promotion}
               theme={theme}

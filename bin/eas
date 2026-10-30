@@ -40,7 +40,7 @@ Usage: bin/eas <command> [args...]
 
   login                        sign in to expo.dev
   whoami                       show the signed-in Expo account
-  build <platform> [profile]   cloud build; platform android|ios|all, profile preview (default)|development|production
+  build <platform> [profile]   cloud build; platform android|ios|all, profile preview (default)|development|development-simulator|production
   builds                       list the latest builds
   credentials [platform]       manage signing keys and certificates
   device                       register an iPhone for internal iOS builds

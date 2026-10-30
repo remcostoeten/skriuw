@@ -1,7 +1,9 @@
 # Mobile app
 
-Status: accepted. Only the workspace and the Expo scaffold (Mobile 01) exist;
-everything else in this spec is unimplemented. Architecture decision:
+Status: accepted. The Mobile app milestone (`Mobile 01` to `Mobile 16`) and the
+Mobile integration milestone that assembled it are complete; what remains
+before a store release is in
+`tools/packaging/mobile/submission-checklist.md`. Architecture decision:
 [ADR-0048](../adr/0048-native-mobile-shell-over-shared-core.md). Work is tracked
 in the **Mobile app** GitHub milestone as issues `Mobile 01` to `Mobile 16`;
 each issue carries its own outcome, contract and acceptance and refers back to
@@ -88,7 +90,7 @@ builder, drawing, tablet layouts.
 
 ```text
 crates/skriuw-mobile/          UniFFI facade over skriuw-runtime (host-testable)
-apps/mobile/                        Expo app: apps/workspace/ routes only, src/ everything else
+apps/mobile/                        Expo app: app/ routes only, src/ everything else
 apps/mobile/modules/skriuw-core/    Expo module: generated bindings, jniLibs, xcframework
 apps/mobile/src/bridge/             third implementation of the command surface + fake
 apps/mobile/src/shell/              toolbar, tab bar, sheets (native)

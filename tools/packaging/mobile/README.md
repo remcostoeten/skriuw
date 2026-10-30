@@ -23,7 +23,6 @@ Desktop channels are separate and unaffected; see [`../README.md`](../README.md)
 | [`listing/play-store.md`](listing/play-store.md) | Play Console listing fields, ready to paste |
 | [`privacy.md`](privacy.md) | Apple App Privacy and Play Data Safety answers, plus the privacy policy text both stores require a public URL for |
 | [`export-compliance.md`](export-compliance.md) | Encryption export answers for the E2EE sync and locked-note cryptography |
-| [`PrivacyInfo.xcprivacy`](PrivacyInfo.xcprivacy) | The iOS privacy manifest, authored here and **not yet wired into the build** |
 | [`submission-checklist.md`](submission-checklist.md) | The ordered human steps for a first TestFlight and Play internal-track release |
 
 ## How builds are produced
@@ -36,8 +35,8 @@ Builds already exist as CI outputs;
   `bin/check mobile`, the native module surface tests, the facade host
   tests and an Android emulator end-to-end pass, and compiles
   `SkriuwMobile.xcframework` on a macOS runner.
-- A `mobile-v*` tag additionally produces an Android APK and an iOS simulator
-  application as workflow artifacts.
+- A `mobile-v*` tag additionally produces an Android APK, an iOS simulator
+  application and an unsigned iOS device app as workflow artifacts.
 
 Store builds need EAS on top of that, using the profiles in
 [`apps/mobile/eas.json`](../../apps/mobile/eas.json): `preview` for an internal APK,
@@ -68,7 +67,8 @@ here and on #397 rather than changed on this branch.
    worker by the `eas-build-pre-install` hook in `apps/mobile/package.json`
    (see `apps/mobile/modules/skriuw-core/README.md`). eas-cli reads
    `.easignore` only from the Git root, so a file in `apps/mobile/` would have
-   had no effect. Not yet exercised by a real EAS build.
+   had no effect. Exercised by the Android preview build of 2026-09-26 and the
+   iOS simulator build `3a73aeb1` of 2026-10-30.
 4. **No public privacy policy URL.** Both stores require one before a listing
    can be reviewed. `site/` has no privacy page; the text to publish is in
    [`privacy.md`](privacy.md).
@@ -77,15 +77,7 @@ here and on #397 rather than changed on this branch.
    verified accounts with their own lead time (Apple's D-U-N-S check for an
    organisation, Google's 14-day closed test requirement for a new personal
    developer account before production access).
-6. **`expo-secure-store` is not a dependency.** `apps/mobile/src/features/auth/keystore.ts`
-   and the biometric slot in `apps/mobile/src/features/lock/biometrics.ts` both
-   refuse without it, so a build from this tree cannot store a sign-in
-   credential or offer biometric unlock. Owner: Mobile 14 (#395) and Mobile 15
-   (#396).
-7. **The iOS privacy manifest is not in the build.** `PrivacyInfo.xcprivacy`
-   has to reach the application target, which means an Expo config plugin or
-   an entry in `apps/mobile/app.json` — both outside this issue's paths.
-8. **No iOS share extension.** `apps/mobile/src/features/capture/share-extension/`
+6. **No iOS share extension.** `apps/mobile/src/features/capture/share-extension/`
    ships an Android intent filter only, so "share to Skriuw" is Android-only.
    The iOS share sheet was the motivating gap in ADR-0048's Context; shipping
    1.0 without it is a product decision that should be explicit.

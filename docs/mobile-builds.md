@@ -18,7 +18,7 @@ directory it runs from. It uses a global `eas` when one is installed and
 | --- | --- |
 | `./bin/eas login` | Sign in to expo.dev |
 | `./bin/eas whoami` | Show the signed-in Expo account |
-| `./bin/eas build <platform> [profile]` | Cloud build; platform `android`, `ios` or `all`; profile `preview` (default), `development` or `production` |
+| `./bin/eas build <platform> [profile]` | Cloud build; platform `android`, `ios` or `all`; profile `preview` (default), `development`, `development-simulator` or `production` |
 | `./bin/eas builds` | List the ten latest builds |
 | `./bin/eas credentials [platform]` | Manage signing keys and certificates |
 | `./bin/eas device` | Register an iPhone for internal iOS builds |
@@ -36,7 +36,8 @@ The profiles live in `apps/mobile/eas.json`.
 
 | Profile | Output | For |
 | --- | --- | --- |
-| `development` | Debug APK; iOS simulator build | A development client that loads JavaScript from Metro |
+| `development` | Debug APK; iOS device build | A development client that loads JavaScript from Metro, installed on your own phones |
+| `development-simulator` | iOS simulator build | The same client for a simulator, and the iOS pipeline check that needs no Apple team |
 | `preview` | Release APK; internal iOS build | Installing on your own devices |
 | `production` | Play app bundle; App Store build | Store submission |
 
@@ -81,6 +82,55 @@ they cannot do it.
 ```
 
 Once the credentials exist, builds can run unattended.
+
+## Testing on an iPhone
+
+iOS cannot be built on Linux, so the phone runs a development client that EAS
+builds, and Metro on this machine serves the JavaScript. A native change (a
+new SDK, a native module, a config plugin) needs a new client; everything else
+is a reload.
+
+1. Join the Apple Developer Program. Ad hoc distribution, which is what
+   installs a build outside the App Store, needs a team; a free Apple ID
+   cannot sign for a device through EAS. No team is linked yet:
+   `./bin/eas device` answers "No Apple teams found".
+2. Register the phone with `./bin/eas device`. It prints a link; open it on
+   the iPhone and install the profile, which records the UDID with Apple.
+3. Build the client with `./bin/eas build ios development`. The first run is
+   interactive: it signs in to the team, creates the ad hoc provisioning
+   profile for the registered phones and stores it on EAS. Later runs are
+   unattended.
+4. Install it from the build page: the QR code the command prints, or the
+   link from `./bin/eas builds`, opened on the phone.
+5. Serve the JavaScript: `bun run editor:page` once from `apps/mobile`, then
+   `bun run mobile` from the repository root. Scan the QR code from the
+   development client with the phone on the same network, or start Metro
+   with `./bin/dev mobile --tunnel` when it is not.
+
+Without a team, `./bin/eas build ios development-simulator` still proves the
+iOS half of the pipeline: the Rust core, the Swift module and the pods compile
+on a macOS worker and produce a simulator app. The first such build on SDK 58
+is `3a73aeb1` (2026-10-30, 11 minutes), listed by `./bin/eas builds`.
+
+## Without an Apple team: sideloading
+
+A free Apple ID can sign an app for personal use: the signature lasts 7 days
+and three such apps can be installed at once. Apple does that signing in
+Xcode, so from Linux the build and the signing are split:
+
+1. Run `mobile-ci.yml` (`./bin/eas ci`, or a `mobile-v*` tag). Its
+   `ios-device-unsigned` job builds a release app for a real iPhone with code
+   signing turned off and uploads `skriuw-ios-unsigned-ipa`. The JavaScript
+   and the editor page are embedded, so the app runs without Metro.
+2. Sign and install the `.ipa` with your Apple ID: Sideloadly or AltServer on
+   any borrowed Windows or Mac machine, or SideStore on the phone itself,
+   which re-signs over Wi-Fi after a one-time pairing file made on Linux
+   with `idevicepair`.
+3. Re-sign before the 7 days run out, or the app stops opening until you do.
+
+A free Apple ID gets no App Groups, so an iOS share extension would not work
+there; the capture inbox already falls back to the app's own documents
+directory. Face ID, the keychain and locked notes work as in a signed build.
 
 ## CI
 

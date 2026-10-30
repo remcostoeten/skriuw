@@ -16,6 +16,14 @@
         "gradleCommand": ":app:assembleDebug"
       },
       "ios": {
+        "buildConfiguration": "Debug"
+      }
+    },
+    "development-simulator": {
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
         "buildConfiguration": "Debug",
         "simulator": true
       }

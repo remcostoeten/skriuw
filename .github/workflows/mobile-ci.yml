@@ -259,6 +259,15 @@ jobs:
             - name: Install workspace deps
               run: bun install --frozen-lockfile
 
+            - name: Cache Gradle
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.gradle/caches
+                      ~/.gradle/wrapper
+                  key: mobile-gradle-${{ hashFiles('bun.lock') }}
+                  restore-keys: mobile-gradle-
+
             # Gradle downloads the NDK without a retry, and one truncated archive
             # fails the whole job.
             - name: Install the Gradle NDK
@@ -345,6 +354,75 @@ jobs:
               with:
                   name: skriuw-ios-preview-simulator
                   path: ${{ runner.temp }}/skriuw-ios-simulator.zip
+                  if-no-files-found: error
+                  retention-days: 30
+
+    # A device build with signing turned off. It installs on an iPhone after a
+    # free Apple ID signs it with Sideloadly, AltStore or SideStore, which is
+    # the route when no Apple Developer team exists; signed device builds
+    # need one and go through `eas-preview`.
+    ios-device-unsigned:
+        name: iOS device build (unsigned)
+        if: startsWith(github.ref, 'refs/tags/mobile-v') || github.event_name == 'workflow_dispatch'
+        needs: [gate, xcframework]
+        runs-on: macos-latest
+        timeout-minutes: 75
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  persist-credentials: false
+
+            - uses: actions/download-artifact@v5
+              with:
+                  name: skriuw-core-ios
+                  path: ${{ env.MODULE_DIR }}/ios
+
+            - name: Install bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+
+            - name: Install Node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: "24"
+
+            - name: Install workspace deps
+              run: bun install --frozen-lockfile
+
+            # A release build embeds the JavaScript and the editor page, so the
+            # app runs on the phone without Metro.
+            - name: Build the editor page
+              working-directory: apps/mobile
+              run: bun run editor:page
+
+            - name: Build the unsigned device app
+              working-directory: apps/mobile
+              run: |
+                  bunx expo prebuild --platform ios
+                  workspace="$(find ios -maxdepth 1 -name '*.xcworkspace' | head -n 1)"
+                  [[ -n "$workspace" ]] || { echo "::error::expo prebuild produced no Xcode workspace"; exit 1; }
+                  scheme="$(basename "$workspace" .xcworkspace)"
+                  xcodebuild \
+                      -workspace "$workspace" \
+                      -scheme "$scheme" \
+                      -configuration Release \
+                      -sdk iphoneos \
+                      -destination 'generic/platform=iOS' \
+                      -derivedDataPath build \
+                      CODE_SIGNING_ALLOWED=NO \
+                      CODE_SIGNING_REQUIRED=NO \
+                      CODE_SIGN_IDENTITY=""
+                  app="$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' | head -n 1)"
+                  [[ -n "$app" ]] || { echo "::error::xcodebuild produced no .app"; exit 1; }
+                  mkdir -p "$RUNNER_TEMP/ipa/Payload"
+                  cp -R "$app" "$RUNNER_TEMP/ipa/Payload/"
+                  (cd "$RUNNER_TEMP/ipa" && zip -qry "$RUNNER_TEMP/skriuw-ios-unsigned.ipa" Payload)
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: skriuw-ios-unsigned-ipa
+                  path: ${{ runner.temp }}/skriuw-ios-unsigned.ipa
                   if-no-files-found: error
                   retention-days: 30
 

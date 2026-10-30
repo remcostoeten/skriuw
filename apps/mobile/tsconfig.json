@@ -12,8 +12,8 @@
     "noUncheckedIndexedAccess": true
   },
   "include": [
-    "apps/workspace/**/*.ts",
-    "apps/workspace/**/*.tsx",
+    "app/**/*.ts",
+    "app/**/*.tsx",
     "src/**/*.ts",
     "src/**/*.tsx",
     ".expo/types/**/*.ts",

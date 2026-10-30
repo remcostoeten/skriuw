@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  type TextInputInstance,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -30,7 +31,7 @@ export function QuickCapture({ open, dayLabel, onClose, onCapture }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [text, setText] = useState("");
-  const field = useRef<TextInput>(null);
+  const field = useRef<TextInputInstance>(null);
 
   useEffect(() => {
     if (!open) {
