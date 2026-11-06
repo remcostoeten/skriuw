@@ -148,6 +148,8 @@ If a step fails after the move, it restores and reopens the original when possib
 
 `skriuw-sqlite` owns schema migrations, transactions, optimistic revision checks, FTS projections, and the durable history outbox. An optimistic revision check means a write names the revision it expects to replace, and the write is refused if the stored revision is different.
 
+The adapter makes no sync product decisions. It reads rows, passes the facts to the pure functions in `skriuw-domain` (`reconcile` for remote operations, `sync_policy` for what the local queue admits, coalesces, parks, requeues and records as superseded), and writes the result in the same transaction.
+
 ### Sync coordination
 
 `skriuw-sync` owns the optional background sync lifecycle. It consists of:

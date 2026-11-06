@@ -2,13 +2,16 @@ use std::collections::BTreeMap;
 
 use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
 use skriuw_domain::{
-    AnnotationStatus, BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,
-    NodeKind, NodePlacement, NodePosition, OperationAck, RemoteOperationDecision,
-    RemoteTargetState, ReplicatedWorkspaceOperation, SYNC_RECOVERY_VIEW_VERSION,
-    SyncConflictReason, SyncOperationPayload, SyncRecoveryView, SyncReplicationClass,
-    SyncValidationError, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceAnnotation, WorkspaceArchive,
-    WorkspaceOperation, WorkspaceOperationEnvelope, classify_apply_failure,
-    reconcile_remote_operation, validate_sync_identifier, validate_sync_sequence,
+    BlockedSyncReason, CanonicalDocument, ClientSyncOperation, InitialSyncError, NodePlacement,
+    NodePosition, OperationAck, OutboxAdmission, OutboxTail, ParkedSyncOperation,
+    RemoteApplyErrorKind, RemoteApplyFailure, RemoteOperationDecision, RemoteTargetState,
+    ReplicatedWorkspaceOperation, SYNC_RECOVERY_VIEW_VERSION, SupersededNoteState,
+    SyncConflictReason, SyncOperationPayload, SyncRecoveryView, SyncValidationError,
+    WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceOperation,
+    WorkspaceOperationEnvelope, blocked_reason_is_retryable, blocking_requires_release,
+    coalesces_into_tail, document_write_target, documents_equivalent, initial_sync_operations,
+    outbox_admission, reconcile_remote_operation, remote_apply_failure, requeued_operation,
+    superseded_document_plan, validate_sync_identifier, validate_sync_sequence,
 };
 use skriuw_storage::{
     BlockedSyncOperation, Diagnostic, DiagnosticContext, HistoryProvenance, ImportSummary,
@@ -68,69 +71,53 @@ pub(crate) fn enqueue_sync_operations(
         .map_err(backend)?;
 
     for envelope in operations {
-        let policy = envelope.operation.sync_policy();
-        match policy.replication_class {
-            SyncReplicationClass::DeviceLocal => continue,
-            SyncReplicationClass::UnsupportedSyncProtocolV1 => {
+        let admission = outbox_admission(
+            envelope,
+            Uuid::new_v4().to_string(),
+            next_client_sequence,
+            base_server_sequence,
+        )
+        .map_err(sync_validation)?;
+        let operation = match admission {
+            OutboxAdmission::Skip => continue,
+            OutboxAdmission::Block {
+                operation_type,
+                reason,
+            } => {
                 insert_blocked_operation(
                     transaction,
                     envelope,
-                    policy.operation_type,
-                    "unsupported_operation",
+                    operation_type,
+                    reason,
                     created_at,
                 )?;
+                continue;
             }
-            SyncReplicationClass::ReplicatedWorkspaceContent => {
-                let operation = ClientSyncOperation {
-                    operation_id: Uuid::new_v4().to_string(),
-                    client_sequence: next_client_sequence,
-                    base_server_sequence,
-                    payload: SyncOperationPayload::inline(envelope.clone()),
-                };
-                match operation.validate_queued(WORKSPACE_SYNC_PROTOCOL_VERSION) {
-                    Ok(()) => {
-                        if coalesce_unsent_tail_save(transaction, envelope)? {
-                            continue;
-                        }
-                        let client_sequence = sql_sequence(operation.client_sequence)?;
-                        let base_server_sequence = sql_sequence(operation.base_server_sequence)?;
-                        transaction
-                            .execute(
-                                "INSERT INTO sync_outbox(\
-                                    operation_id, client_sequence, base_server_sequence, \
-                                    operation_json, created_at\
-                                 ) VALUES (?1, ?2, ?3, ?4, ?5)",
-                                params![
-                                    operation.operation_id,
-                                    client_sequence,
-                                    base_server_sequence,
-                                    serde_json::to_string(&envelope).map_err(json_backend)?,
-                                    created_at
-                                ],
-                            )
-                            .map_err(backend)?;
-                        next_client_sequence =
-                            next_client_sequence.checked_add(1).ok_or_else(|| {
-                                StorageError::InvalidOperation(
-                                    "sync client sequence exhausted".into(),
-                                )
-                            })?;
-                        validate_sync_sequence("next client sequence", next_client_sequence, false)
-                            .map_err(sync_validation)?;
-                    }
-                    Err(SyncValidationError::OperationTooLarge { .. }) => {
-                        insert_blocked_operation(
-                            transaction,
-                            envelope,
-                            policy.operation_type,
-                            "operation_too_large",
-                            created_at,
-                        )?;
-                    }
-                    Err(error) => return Err(sync_validation(error)),
-                }
-            }
+            OutboxAdmission::Queue(operation) => operation,
+        };
+        if coalesce_unsent_tail_save(transaction, envelope)? {
+            continue;
         }
+        transaction
+            .execute(
+                "INSERT INTO sync_outbox(\
+                    operation_id, client_sequence, base_server_sequence, \
+                    operation_json, created_at\
+                 ) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    operation.operation_id,
+                    sql_sequence(operation.client_sequence)?,
+                    sql_sequence(operation.base_server_sequence)?,
+                    serde_json::to_string(&envelope).map_err(json_backend)?,
+                    created_at
+                ],
+            )
+            .map_err(backend)?;
+        next_client_sequence = next_client_sequence.checked_add(1).ok_or_else(|| {
+            StorageError::InvalidOperation("sync client sequence exhausted".into())
+        })?;
+        validate_sync_sequence("next client sequence", next_client_sequence, false)
+            .map_err(sync_validation)?;
     }
 
     let next_client_sequence = sql_sequence(next_client_sequence)?;
@@ -143,41 +130,60 @@ pub(crate) fn enqueue_sync_operations(
     Ok(())
 }
 
-/// Folds a plain document save into the newest outbox row when that row is a
-/// save of the same note that has never been handed to the network. Only the
-/// tail qualifies, so no later operation can be overtaken by the newer body,
-/// and the row keeps its identity, sequences and creation time.
 fn coalesce_unsent_tail_save(
     transaction: &Transaction<'_>,
     envelope: &WorkspaceOperationEnvelope,
 ) -> Result<bool, StorageError> {
-    let WorkspaceOperation::SaveDocument { note_id, .. } = &envelope.operation else {
+    if !matches!(envelope.operation, WorkspaceOperation::SaveDocument { .. }) {
+        return Ok(false);
+    }
+    let tail = transaction
+        .query_row(
+            "SELECT operation_id, json_extract(operation_json, '$.operation.type'), \
+             target_note_id, claimed_by IS NOT NULL, attempts \
+             FROM sync_outbox ORDER BY client_sequence DESC LIMIT 1",
+            [],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, bool>(3)?,
+                    row.get::<_, i64>(4)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(backend)?;
+    let Some((operation_id, operation_type, target_note_id, claimed, attempts)) = tail else {
         return Ok(false);
     };
-    let coalesced = transaction
+    let tail = OutboxTail {
+        operation_type: &operation_type,
+        target_note_id: target_note_id.as_deref(),
+        claimed,
+        attempts,
+    };
+    if !coalesces_into_tail(&envelope.operation, &tail) {
+        return Ok(false);
+    }
+    transaction
         .execute(
-            "UPDATE sync_outbox SET operation_json = ?2 \
-             WHERE operation_id = (\
-                 SELECT operation_id FROM sync_outbox \
-                 ORDER BY client_sequence DESC LIMIT 1\
-             ) \
-             AND target_note_id = ?1 \
-             AND json_extract(operation_json, '$.operation.type') = 'save_document' \
-             AND claimed_by IS NULL AND attempts = 0",
+            "UPDATE sync_outbox SET operation_json = ?2 WHERE operation_id = ?1",
             params![
-                note_id,
+                operation_id,
                 serde_json::to_string(envelope).map_err(json_backend)?
             ],
         )
         .map_err(backend)?;
-    Ok(coalesced > 0)
+    Ok(true)
 }
 
 fn insert_blocked_operation(
     transaction: &Transaction<'_>,
     envelope: &WorkspaceOperationEnvelope,
     operation_type: &str,
-    reason_code: &str,
+    reason: BlockedSyncReason,
     created_at: i64,
 ) -> Result<(), StorageError> {
     transaction
@@ -189,7 +195,7 @@ fn insert_blocked_operation(
                 Uuid::new_v4().to_string(),
                 operation_type,
                 serde_json::to_string(envelope).map_err(json_backend)?,
-                reason_code,
+                reason.code(),
                 created_at
             ],
         )
@@ -197,15 +203,7 @@ fn insert_blocked_operation(
     Ok(())
 }
 
-struct BlockedRow {
-    id: String,
-    operation_type: String,
-    reason_code: String,
-    envelope: WorkspaceOperationEnvelope,
-    created_at: i64,
-}
-
-fn read_blocked_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<BlockedRow> {
+fn read_blocked_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ParkedSyncOperation> {
     let operation_json = row.get::<_, String>(3)?;
     let envelope = serde_json::from_str(&operation_json).map_err(|error| {
         rusqlite::Error::FromSqlConversionFailure(
@@ -214,7 +212,7 @@ fn read_blocked_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<BlockedRow> {
             Box::new(error),
         )
     })?;
-    Ok(BlockedRow {
+    Ok(ParkedSyncOperation {
         id: row.get(0)?,
         operation_type: row.get(1)?,
         reason_code: row.get(2)?,
@@ -226,7 +224,7 @@ fn read_blocked_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<BlockedRow> {
 fn unresolved_blocked_rows(
     connection: &rusqlite::Connection,
     reason_code: Option<&str>,
-) -> Result<Vec<BlockedRow>, StorageError> {
+) -> Result<Vec<ParkedSyncOperation>, StorageError> {
     let mut statement = connection
         .prepare(
             "SELECT id, operation_type, reason_code, operation_json, created_at \
@@ -245,7 +243,7 @@ fn unresolved_blocked_rows(
 fn unresolved_blocked_row(
     connection: &rusqlite::Connection,
     blocked_id: &str,
-) -> Result<Option<BlockedRow>, StorageError> {
+) -> Result<Option<ParkedSyncOperation>, StorageError> {
     connection
         .query_row(
             "SELECT id, operation_type, reason_code, operation_json, created_at \
@@ -279,13 +277,10 @@ fn resolve_blocked_row(
 
 /// Moves one blocked operation back into the pending outbox at the tail of
 /// the queue and resolves its blocked record as retried, in the caller's
-/// transaction, so a crash can never lose or duplicate the operation. A parked
-/// document write whose body no longer matches the canonical document is
-/// requeued as a write of the canonical body, so the stale parked version can
-/// never overtake later local edits on other devices.
+/// transaction, so a crash can never lose or duplicate the operation.
 fn requeue_blocked_row(
     transaction: &Transaction<'_>,
-    row: &BlockedRow,
+    row: &ParkedSyncOperation,
     now_ms: i64,
 ) -> Result<(), StorageError> {
     let active = read_active_connection(transaction)?.ok_or_else(|| {
@@ -293,7 +288,11 @@ fn requeue_blocked_row(
             "retrying a blocked change requires an active sync connection".into(),
         )
     })?;
-    let envelope = canonical_document_write(transaction, &row.envelope, now_ms)?;
+    let canonical = match document_write_target(&row.envelope.operation) {
+        Some(note_id) => canonical_document(transaction, note_id)?,
+        None => None,
+    };
+    let envelope = requeued_operation(&row.envelope, canonical, now_ms).map_err(json_backend)?;
     let operation = ClientSyncOperation {
         operation_id: Uuid::new_v4().to_string(),
         client_sequence: active.next_client_sequence,
@@ -332,15 +331,11 @@ fn requeue_blocked_row(
     resolve_blocked_row(transaction, &row.id, "retried", now_ms)
 }
 
-fn canonical_document_write(
+fn canonical_document(
     transaction: &Transaction<'_>,
-    envelope: &WorkspaceOperationEnvelope,
-    at: i64,
-) -> Result<WorkspaceOperationEnvelope, StorageError> {
-    let Some(note_id) = document_write_target(&envelope.operation) else {
-        return Ok(envelope.clone());
-    };
-    let canonical = transaction
+    note_id: &str,
+) -> Result<Option<CanonicalDocument>, StorageError> {
+    let stored = transaction
         .query_row(
             "SELECT document_json, markdown, revision, word_count FROM documents \
              WHERE note_id = ?1",
@@ -356,88 +351,38 @@ fn canonical_document_write(
         )
         .optional()
         .map_err(backend)?;
-    let Some((stored_json, stored_markdown, revision, word_count)) = canonical else {
-        return Ok(envelope.clone());
+    let Some((document_json, markdown, revision, word_count)) = stored else {
+        return Ok(None);
     };
     if let Some(sealed) = crate::lock::sealed_row(transaction, note_id)? {
-        let same = matches!(
-            &envelope.operation,
-            WorkspaceOperation::SaveSealedDocument { sealed: parked, .. } if *parked == sealed.sealed
-        );
-        if same {
-            return Ok(envelope.clone());
-        }
-        let mut fresh = envelope.clone();
-        fresh.operation = WorkspaceOperation::SaveSealedDocument {
-            note_id: note_id.to_owned(),
+        return Ok(Some(CanonicalDocument::Sealed {
             sealed: sealed.sealed,
-            expected_revision: revision,
-            at: at.max(0),
-        };
-        return Ok(fresh);
+            revision,
+        }));
     }
-    let (parked_json, parked_markdown) = match &envelope.operation {
-        WorkspaceOperation::SaveDocument {
-            document_json,
-            markdown,
-            ..
-        }
-        | WorkspaceOperation::CreateNote {
-            document_json,
-            markdown,
-            ..
-        } => (document_json, markdown),
-        _ => return Ok(envelope.clone()),
-    };
-    if documents_equivalent(&stored_json, &stored_markdown, parked_json, parked_markdown) {
-        return Ok(envelope.clone());
-    }
-    let document_json = serde_json::from_str(&stored_json).map_err(json_backend)?;
-    let mut fresh = envelope.clone();
-    fresh.operation = match &envelope.operation {
-        WorkspaceOperation::CreateNote {
-            id,
-            title,
-            placement,
-            at,
-            ..
-        } => WorkspaceOperation::CreateNote {
-            id: id.clone(),
-            title: title.clone(),
-            placement: placement.clone(),
-            document_json,
-            markdown: stored_markdown,
-            at: *at,
-        },
-        _ => WorkspaceOperation::SaveDocument {
-            note_id: note_id.to_owned(),
-            document_json,
-            markdown: stored_markdown,
-            word_count,
-            expected_revision: revision,
-            at: at.max(0),
-        },
-    };
-    Ok(fresh)
+    Ok(Some(CanonicalDocument::Plain {
+        document_json,
+        markdown,
+        revision,
+        word_count,
+    }))
 }
 
-fn blocked_target(
+fn node_title(
     connection: &rusqlite::Connection,
-    envelope: &WorkspaceOperationEnvelope,
-) -> Result<(Option<String>, Option<String>), StorageError> {
-    let target_id = envelope.operation.target_entity_id().map(str::to_owned);
-    let target_title = match target_id.as_deref() {
-        Some(id) => connection
-            .query_row(
-                "SELECT title FROM workspace_nodes WHERE id = ?1",
-                [id],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()
-            .map_err(backend)?,
-        None => None,
+    id: Option<&str>,
+) -> Result<Option<String>, StorageError> {
+    let Some(id) = id else {
+        return Ok(None);
     };
-    Ok((target_id, target_title))
+    connection
+        .query_row(
+            "SELECT title FROM workspace_nodes WHERE id = ?1",
+            [id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(backend)
 }
 
 impl SyncRecovery for SqliteWorkspace {
@@ -445,28 +390,8 @@ impl SyncRecovery for SqliteWorkspace {
         let connection = self.lock()?;
         let mut blocked = Vec::new();
         for row in unresolved_blocked_rows(&connection, None)? {
-            let (target_id, target_title) = blocked_target(&connection, &row.envelope)?;
-            let (asset_content_hash, asset_mime_type) = row
-                .envelope
-                .operation
-                .required_asset_content()
-                .map(|required| {
-                    (
-                        required.content_hash.to_owned(),
-                        required.mime_type.to_owned(),
-                    )
-                })
-                .unzip();
-            blocked.push(BlockedSyncOperationView {
-                blocked_id: row.id,
-                operation_type: row.operation_type,
-                reason_code: row.reason_code,
-                target_id,
-                target_title,
-                asset_content_hash,
-                asset_mime_type,
-                first_blocked_at: row.created_at,
-            });
+            let target_title = node_title(&connection, row.target_id())?;
+            blocked.push(row.blocked_view(target_title));
         }
 
         let mut statement = connection
@@ -486,16 +411,8 @@ impl SyncRecovery for SqliteWorkspace {
             .map_err(backend)?;
         let mut discarded = Vec::new();
         for (row, discarded_at) in discarded_rows {
-            let (target_id, target_title) = blocked_target(&connection, &row.envelope)?;
-            discarded.push(DiscardedSyncOperationView {
-                blocked_id: row.id,
-                operation_type: row.operation_type,
-                reason_code: row.reason_code,
-                target_id,
-                target_title,
-                first_blocked_at: row.created_at,
-                discarded_at,
-            });
+            let target_title = node_title(&connection, row.target_id())?;
+            discarded.push(row.discarded_view(target_title, discarded_at));
         }
 
         Ok(SyncRecoveryView {
@@ -522,10 +439,7 @@ impl SyncRecovery for SqliteWorkspace {
             .map_err(backend)?;
         let row = unresolved_blocked_row(&transaction, blocked_id)?
             .ok_or_else(|| StorageError::NotFound(blocked_id.to_owned()))?;
-        if matches!(
-            row.reason_code.as_str(),
-            "operation_too_large" | "unsupported_operation"
-        ) {
+        if !blocked_reason_is_retryable(&row.reason_code) {
             return Err(StorageError::InvalidOperation(
                 "this change can never upload under the current sync protocol; \
                  discard it to clear the record"
@@ -692,7 +606,11 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                     ],
                 )
                 .map_err(backend)?;
-            let initial_operations = initial_sync_operations(&transaction)?;
+            let initial_operations = initial_sync_operations(read_snapshot(&transaction)?)
+                .map_err(|error| match error {
+                    InitialSyncError::InvalidMathMacros(error) => json_backend(error),
+                    error => StorageError::Backend(error.to_string()),
+                })?;
             enqueue_sync_operations(&transaction, &initial_operations)?;
         }
         let connected = read_active_connection(&transaction)?
@@ -1052,17 +970,9 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                 "sync block requires at least one operation".into(),
             ));
         }
-        if !matches!(
-            reason_code,
-            "operation_too_large"
-                | "unsupported_operation"
-                | "asset_content_missing"
-                | "cloud_rejected"
-        ) {
-            return Err(StorageError::InvalidOperation(format!(
-                "unknown sync block reason {reason_code}"
-            )));
-        }
+        let reason = BlockedSyncReason::from_code(reason_code).ok_or_else(|| {
+            StorageError::InvalidOperation(format!("unknown sync block reason {reason_code}"))
+        })?;
         let mut connection = self.lock()?;
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -1075,7 +985,7 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                 |row| row.get::<_, i64>(0),
             )
             .map_err(backend)?;
-        if most_attempts > 1 && reason_code != "cloud_rejected" {
+        if blocking_requires_release(reason, most_attempts) {
             return Err(StorageError::ReleaseRequired(
                 "a row in the claimed batch was pushed before and may be server-visible; \
                  renumbering it could collide with an accepted client sequence"
@@ -1117,7 +1027,7 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                 &transaction,
                 &outbox.operation,
                 operation_type,
-                reason_code,
+                reason,
                 created_at,
             )?;
             transaction
@@ -1205,7 +1115,10 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
         if read_active_connection(&transaction)?.is_none() {
             return Ok(0);
         }
-        let rows = unresolved_blocked_rows(&transaction, Some("asset_content_missing"))?;
+        let rows = unresolved_blocked_rows(
+            &transaction,
+            Some(BlockedSyncReason::AssetContentMissing.code()),
+        )?;
         let mut requeued = 0;
         for row in rows {
             let available = row
@@ -1392,11 +1305,13 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                             cursor = operation.server_sequence;
                             outcomes.push(RemoteSyncApplyOutcome::Applied(acknowledgement));
                         }
-                        Err(error @ (StorageError::Backend(_) | StorageError::Busy(_))) => {
-                            return Err(error);
-                        }
                         Err(error) => {
-                            let reason = refine_apply_error(&envelope.operation, &error);
+                            let RemoteApplyFailure::Supersede(reason) = remote_apply_failure(
+                                &envelope.operation,
+                                remote_apply_error_kind(&error),
+                            ) else {
+                                return Err(error);
+                            };
                             record_superseded(
                                 &transaction,
                                 operation,
@@ -1762,204 +1677,6 @@ fn read_history_cache_rows(
         .map_err(backend)
 }
 
-fn initial_sync_operations(
-    transaction: &Transaction<'_>,
-) -> Result<Vec<WorkspaceOperationEnvelope>, StorageError> {
-    let snapshot = read_snapshot(transaction)?;
-    let mut operations = Vec::new();
-
-    operations.extend(
-        snapshot
-            .tags
-            .into_iter()
-            .map(|tag| WorkspaceOperationEnvelope::v1(WorkspaceOperation::CreateTag { tag })),
-    );
-    operations.extend(
-        snapshot.people.into_iter().map(|person| {
-            WorkspaceOperationEnvelope::v1(WorkspaceOperation::CreatePerson { person })
-        }),
-    );
-
-    let documents = snapshot
-        .documents
-        .into_iter()
-        .map(|document| (document.note_id.clone(), document))
-        .collect::<std::collections::BTreeMap<_, _>>();
-    let deleted_ids = snapshot
-        .nodes
-        .iter()
-        .filter(|node| node.deleted_at.is_some())
-        .map(|node| node.id.as_str())
-        .collect::<std::collections::BTreeSet<_>>();
-    let mut pending = snapshot.nodes.iter().collect::<Vec<_>>();
-    let mut emitted = std::collections::BTreeSet::new();
-    while !pending.is_empty() {
-        let before = pending.len();
-        let mut next = Vec::new();
-        for node in pending {
-            if node
-                .parent_id
-                .as_ref()
-                .is_some_and(|parent_id| !emitted.contains(parent_id))
-            {
-                next.push(node);
-                continue;
-            }
-            let placement = NodePlacement::last(node.parent_id.clone());
-            let operation = match node.kind {
-                NodeKind::Folder => WorkspaceOperation::CreateFolder {
-                    id: node.id.clone(),
-                    title: node.title.clone(),
-                    placement,
-                    at: node.created_at,
-                },
-                NodeKind::Note => {
-                    let document = documents.get(&node.id).ok_or_else(|| {
-                        StorageError::Backend(format!(
-                            "note {} has no document for initial sync",
-                            node.id
-                        ))
-                    })?;
-                    WorkspaceOperation::CreateNote {
-                        id: node.id.clone(),
-                        title: node.title.clone(),
-                        placement,
-                        document_json: document.document_json.clone(),
-                        markdown: document.markdown.clone(),
-                        at: node.created_at,
-                    }
-                }
-            };
-            operations.push(WorkspaceOperationEnvelope::v1(operation));
-            if let Some(pinned_at) = node.pinned_at {
-                operations.push(WorkspaceOperationEnvelope::v1(
-                    WorkspaceOperation::SetNodePinned {
-                        id: node.id.clone(),
-                        pinned: true,
-                        at: pinned_at,
-                    },
-                ));
-            }
-            emitted.insert(node.id.clone());
-        }
-        if next.len() == before {
-            return Err(StorageError::Backend(
-                "workspace hierarchy could not be ordered for initial sync".into(),
-            ));
-        }
-        pending = next;
-    }
-
-    operations.extend(
-        snapshot
-            .images
-            .into_iter()
-            .map(|image| WorkspaceOperationEnvelope::v1(WorkspaceOperation::AttachImage { image })),
-    );
-    operations.extend(snapshot.media_metadata.into_iter().map(|metadata| {
-        WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetMediaMetadata { metadata })
-    }));
-    operations.extend(snapshot.nodes.iter().flat_map(|node| {
-        let mut cover: Vec<WorkspaceOperation> = Vec::new();
-        if let Some(image_id) = node.cover_image_id.clone() {
-            cover.push(WorkspaceOperation::SetNoteCover {
-                note_id: node.id.clone(),
-                image_id: Some(image_id),
-                at: node.updated_at,
-            });
-            cover.push(WorkspaceOperation::SetNoteCoverTransform {
-                note_id: node.id.clone(),
-                position_x: node.cover_position_x,
-                position_y: node.cover_position_y,
-                zoom: node.cover_zoom,
-                at: node.updated_at,
-            });
-        } else if let Some(gradient) = node.cover_gradient.clone() {
-            cover.push(WorkspaceOperation::SetNoteCoverGradient {
-                note_id: node.id.clone(),
-                gradient: Some(gradient),
-                at: node.updated_at,
-            });
-        }
-        if !cover.is_empty() {
-            cover.push(WorkspaceOperation::SetNoteCoverFullWidth {
-                note_id: node.id.clone(),
-                full_width: node.cover_full_width,
-                at: node.updated_at,
-            });
-        }
-        cover.into_iter().map(WorkspaceOperationEnvelope::v1)
-    }));
-
-    operations.extend(snapshot.properties.into_iter().map(|property| {
-        WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetNoteProperty {
-            at: snapshot
-                .nodes
-                .iter()
-                .find(|node| node.id == property.note_id)
-                .map_or(0, |node| node.updated_at),
-            property,
-        })
-    }));
-    operations.extend(snapshot.property_templates.into_iter().map(|template| {
-        WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetNotePropertyTemplate { template })
-    }));
-    operations.extend(snapshot.tasks.into_iter().map(|task| {
-        WorkspaceOperationEnvelope::v1(WorkspaceOperation::CreateTask {
-            task: Box::new(task),
-        })
-    }));
-    if let Some(value) = snapshot.settings.extensions.get("mathMacros") {
-        let macros = serde_json::from_value(value.clone()).map_err(json_backend)?;
-        operations.push(WorkspaceOperationEnvelope::v1(
-            WorkspaceOperation::SetMathMacros { macros },
-        ));
-    }
-    operations.extend(snapshot.prompts.into_iter().map(|prompt| {
-        WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetPrompt {
-            prompt: Box::new(prompt),
-        })
-    }));
-    /* A thread is always created open, so an already-resolved one replays as
-    a create followed by the resolve that produced its current state. */
-    operations.extend(snapshot.annotations.into_iter().flat_map(|annotation| {
-        let resolved = annotation
-            .resolved_at
-            .map(|at| (annotation.id.clone(), at))
-            .filter(|_| annotation.status == AnnotationStatus::Resolved);
-        let created = WorkspaceAnnotation {
-            status: AnnotationStatus::Open,
-            resolved_at: None,
-            ..annotation
-        };
-        std::iter::once(WorkspaceOperationEnvelope::v1(
-            WorkspaceOperation::CreateAnnotation {
-                annotation: Box::new(created),
-            },
-        ))
-        .chain(resolved.map(|(id, at)| {
-            WorkspaceOperationEnvelope::v1(WorkspaceOperation::ResolveAnnotation { id, at })
-        }))
-    }));
-    operations.extend(snapshot.nodes.iter().filter_map(|node| {
-        let deleted_at = node.deleted_at?;
-        if node
-            .parent_id
-            .as_deref()
-            .is_some_and(|parent_id| deleted_ids.contains(parent_id))
-        {
-            return None;
-        }
-        Some(WorkspaceOperationEnvelope::v1(
-            WorkspaceOperation::TrashSubtree {
-                root_id: node.id.clone(),
-                at: deleted_at,
-            },
-        ))
-    }));
-    Ok(operations)
-}
-
 fn validate_connection(connection: &NewSyncConnection) -> Result<(), StorageError> {
     validate_sync_identifier("sync workspace id", &connection.workspace_id)
         .map_err(sync_validation)?;
@@ -2259,28 +1976,20 @@ fn insert_received_operation(
     Ok(())
 }
 
-/// Classify a domain/storage failure raised while applying a
-/// reconciliation-approved remote operation. Backend and busy failures never
-/// reach this mapping.
-fn refine_apply_error(operation: &WorkspaceOperation, error: &StorageError) -> SyncConflictReason {
+fn remote_apply_error_kind(error: &StorageError) -> RemoteApplyErrorKind {
     match error {
-        StorageError::RevisionConflict { .. } => SyncConflictReason::ConcurrentDocumentVersion,
-        StorageError::NotFound(_) => SyncConflictReason::MissingDependency,
-        StorageError::AlreadyExists(_) => SyncConflictReason::IdentityConflict,
+        StorageError::RevisionConflict { .. } => RemoteApplyErrorKind::RevisionConflict,
+        StorageError::NotFound(_) => RemoteApplyErrorKind::NotFound,
+        StorageError::AlreadyExists(_) => RemoteApplyErrorKind::AlreadyExists,
+        StorageError::Backend(_) | StorageError::Busy(_) => RemoteApplyErrorKind::Transient,
         StorageError::InvalidOperation(_)
         | StorageError::UnsupportedProtocol(_)
-        | StorageError::Backend(_)
-        | StorageError::Busy(_)
-        | StorageError::ReleaseRequired(_) => classify_apply_failure(operation),
+        | StorageError::ReleaseRequired(_) => RemoteApplyErrorKind::Rejected,
     }
 }
 
-/// Record an operation this device did not take. A losing plaintext body is
-/// preserved as a history revision when the note still exists and is not
-/// sealed here, since a locked note keeps no history. A sealed body is never
-/// written to history; its ciphertext stays in the received operation. A
-/// document write that lost purely on ordering moves the document head so the
-/// note's incorporated sequence stays the greatest one seen.
+/// Record an operation this device did not take and apply the document
+/// effects `superseded_document_plan` decides for it.
 fn record_superseded(
     transaction: &Transaction<'_>,
     operation: &ReplicatedWorkspaceOperation,
@@ -2301,22 +2010,22 @@ fn record_superseded(
         received_at,
     )?;
     let envelope = replicated_envelope(operation)?;
-    let (note_id, losing_markdown) = match &envelope.operation {
-        WorkspaceOperation::SaveDocument {
-            note_id, markdown, ..
-        } => (note_id, Some(markdown)),
-        WorkspaceOperation::CreateNote { id, markdown, .. } => (id, Some(markdown)),
-        WorkspaceOperation::SaveSealedDocument { note_id, .. } => (note_id, None),
-        _ => return Ok(()),
+    let Some(note_id) = document_write_target(&envelope.operation) else {
+        return Ok(());
     };
-    if let Some(markdown) = losing_markdown
-        && current_document_revision(transaction, note_id)?.is_some()
-        && crate::lock::sealed_row(transaction, note_id)?.is_none()
-    {
-        preserve_document_version(transaction, note_id, markdown, received_at)?;
+    let exists = current_document_revision(transaction, note_id)?.is_some();
+    let note = SupersededNoteState {
+        exists,
+        sealed: exists && crate::lock::sealed_row(transaction, note_id)?.is_some(),
+    };
+    let Some(plan) = superseded_document_plan(&envelope.operation, reason, note) else {
+        return Ok(());
+    };
+    if let Some(markdown) = plan.preserved_markdown {
+        preserve_document_version(transaction, plan.note_id, markdown, received_at)?;
     }
-    if reason == SyncConflictReason::ConcurrentDocumentVersion {
-        advance_document_head_for_note(transaction, note_id, operation.server_sequence)?;
+    if plan.advances_head {
+        advance_document_head_for_note(transaction, plan.note_id, operation.server_sequence)?;
     }
     Ok(())
 }
@@ -2476,28 +2185,6 @@ fn person_references_tombstoned(
         }
     }
     Ok(false)
-}
-
-fn documents_equivalent(
-    stored_json: &str,
-    stored_markdown: &str,
-    document_json: &serde_json::Value,
-    markdown: &str,
-) -> bool {
-    stored_markdown == markdown
-        && serde_json::from_str::<serde_json::Value>(stored_json)
-            .is_ok_and(|stored| &stored == document_json)
-}
-
-/// The note whose canonical document an operation writes, or `None` for the
-/// operations that leave document bodies alone.
-fn document_write_target(operation: &WorkspaceOperation) -> Option<&str> {
-    match operation {
-        WorkspaceOperation::SaveDocument { note_id, .. }
-        | WorkspaceOperation::SaveSealedDocument { note_id, .. } => Some(note_id),
-        WorkspaceOperation::CreateNote { id, .. } => Some(id),
-        _ => None,
-    }
 }
 
 /// The server sequence of the newest document write this device has already
