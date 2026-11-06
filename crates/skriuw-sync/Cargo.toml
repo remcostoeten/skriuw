@@ -13,6 +13,9 @@ skriuw-domain = { path = "../skriuw-domain" }
 skriuw-storage = { path = "../skriuw-storage" }
 thiserror.workspace = true
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+uuid.workspace = true
+
 [dev-dependencies]
 serde_json.workspace = true
 skriuw-sqlite = { path = "../skriuw-sqlite" }

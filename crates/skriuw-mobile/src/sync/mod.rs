@@ -1,8 +1,8 @@
 //! The sync half of the mobile facade: sign-in, E2EE replication, recovery,
 //! and the resume strategy (`docs/specs/mobile-app.md`, R-F6 and R-Q1).
 //!
-//! Everything durable stays behind `skriuw-sync`'s coordinator on its own
-//! database connection, exactly as on desktop. What differs is the lifecycle.
+//! The session lifecycle is `skriuw-sync`'s shared runtime, the same one the
+//! desktop shell drives (ADR-0059). What differs is the lifecycle around it.
 //! A phone's process is suspended rather than closed, so the correctness path
 //! is the catch-up the shell runs when the application returns to the
 //! foreground; the wake channel is a foreground-only latency optimization the
@@ -16,42 +16,24 @@ mod network;
 use std::{
     path::PathBuf,
     sync::{
-        Arc, Mutex, RwLock,
+        Arc,
         atomic::{AtomicBool, Ordering},
     },
 };
 
 use serde::Serialize;
 use skriuw_sqlite::SqliteWorkspace;
-use skriuw_storage::{NewSyncConnection, SyncRecovery, WorkspaceSyncQueue};
 use skriuw_sync::{
-    RemoteChangeSet, SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncHttpEndpoints,
-    SyncStatus, SyncStatusObserver, SyncTransport, SyncWorkspaceObserver, SystemClock,
-    enable_workspace_encryption, unlock_workspace_encryption,
+    CloudOriginPolicy, ProvisionFailure, RemoteChangeSet, SyncCloud, SyncHttpEndpoints,
+    SyncRuntime, SyncRuntimeConfig, SyncRuntimeError, SyncSessionToken, SyncStatus,
+    SyncStatusObserver, SyncWorkspaceObserver, SystemClock, TrustedCloudOrigin, WakeConnector,
+    WakeListenerConfig, is_well_formed_session_token,
 };
-use uuid::Uuid;
 
-use network::{AssetBridge, NetworkTransport, SharedToken};
+use network::{AssetBridge, NetworkTransport};
 pub use network::{MobileAssetStore, MobileSyncNetwork, SyncRequest, SyncResponse};
 
-use crate::{
-    boundary::{guarded, now_millis},
-    error::MobileError,
-};
-
-const MAX_TOKEN_BYTES: usize = 4_096;
-const MAX_BASE_URL_BYTES: usize = 2_048;
-
-/// The encryption facts the recovery surface renders. Key material is
-/// deliberately absent: the shell never needs it and must never hold it.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct WorkspaceEncryptionState {
-    enabled: bool,
-    linked: bool,
-    key_id: Option<String>,
-    sealed_checkpoint_at: Option<i64>,
-}
+use crate::{boundary::guarded, error::MobileError};
 
 /// What the shell is told about sync without asking.
 ///
@@ -70,12 +52,31 @@ pub trait MobileSyncObserver: Send + Sync {
     fn session_expired(&self);
 }
 
-/// What a connected session established, kept so the shell can address its
-/// own wake channel without reassembling a cloud URL.
-struct Connection {
-    endpoints: SyncHttpEndpoints,
-    workspace_id: String,
-    device_id: String,
+/// The phone's way to the cloud: the platform's own HTTP client behind
+/// [`MobileSyncNetwork`]. The shell runs the wake channel itself, so the
+/// runtime starts no listener.
+struct MobileCloud {
+    network: Arc<dyn MobileSyncNetwork>,
+}
+
+impl SyncCloud for MobileCloud {
+    type Transport = NetworkTransport;
+
+    fn open_transport(
+        &self,
+        session: SyncSessionToken,
+        endpoints: SyncHttpEndpoints,
+    ) -> Result<NetworkTransport, String> {
+        Ok(NetworkTransport::new(
+            Arc::clone(&self.network),
+            session,
+            endpoints,
+        ))
+    }
+
+    fn wake_connector(&self) -> Option<Arc<dyn WakeConnector>> {
+        None
+    }
 }
 
 /// Sync for one workspace database.
@@ -85,15 +86,7 @@ struct Connection {
 /// shell's own calls are in flight, exactly as the desktop runtime does.
 #[derive(uniffi::Object)]
 pub struct MobileSync {
-    database_path: PathBuf,
-    network: Arc<dyn MobileSyncNetwork>,
-    assets: Arc<AssetBridge>,
-    observer: Option<Arc<dyn MobileSyncObserver>>,
-    connect_gate: Mutex<()>,
-    coordinator: Mutex<Option<Arc<SyncCoordinator>>>,
-    session: Mutex<Option<SharedToken>>,
-    transport: Mutex<Option<Arc<NetworkTransport>>>,
-    connection: Mutex<Option<Connection>>,
+    runtime: SyncRuntime<SqliteWorkspace, MobileCloud>,
     foreground: AtomicBool,
 }
 
@@ -113,16 +106,19 @@ impl MobileSync {
             if database_path.trim().is_empty() {
                 return Err(MobileError::workspace("workspace database path is empty"));
             }
+            let database_path = PathBuf::from(database_path);
             Ok(Arc::new(Self {
-                database_path: PathBuf::from(database_path),
-                network,
-                assets: Arc::new(AssetBridge::new(assets)),
-                observer,
-                connect_gate: Mutex::new(()),
-                coordinator: Mutex::new(None),
-                session: Mutex::new(None),
-                transport: Mutex::new(None),
-                connection: Mutex::new(None),
+                runtime: SyncRuntime::new(
+                    Box::new(move || SqliteWorkspace::open(&database_path)),
+                    MobileCloud { network },
+                    SyncRuntimeConfig {
+                        clock: Arc::new(SystemClock),
+                        assets: Arc::new(AssetBridge::new(assets)),
+                        status_observer: observer.clone().map(status_forwarder),
+                        workspace_observer: observer.map(workspace_forwarder),
+                        wake: WakeListenerConfig::default(),
+                    },
+                ),
                 foreground: AtomicBool::new(true),
             }))
         })
@@ -131,20 +127,14 @@ impl MobileSync {
     /// `WorkspaceSyncStatus` JSON. Cheap enough for the shell to read whenever
     /// it renders the account surface.
     pub fn status(&self) -> String {
-        encode_status(&self.current_status())
+        encode_status(&self.runtime.status())
     }
 
     /// Where the shell's foreground wake channel connects, or `None` while
-    /// nothing is connected. Built here so the endpoint shape keeps one owner
-    /// and the shell never assembles a cloud URL of its own.
+    /// nothing is connected. Built in the core so the endpoint shape keeps one
+    /// owner and the shell never assembles a cloud URL of its own.
     pub fn wake_channel_url(&self) -> Option<String> {
-        let connection = self.connection.lock().ok()?;
-        let connection = connection.as_ref()?;
-        Some(
-            connection
-                .endpoints
-                .events(&connection.workspace_id, &connection.device_id),
-        )
+        self.runtime.wake_channel_url()
     }
 
     /// Opens (or reopens) the authenticated session and starts replication.
@@ -152,90 +142,17 @@ impl MobileSync {
     /// The shell names the cloud origin; it is validated here so a compromised
     /// JavaScript layer cannot point the bearer credential at an arbitrary
     /// host. Routing to this account's own workspace happens before this call
-    /// ([`crate::adopt_workspace_slot`], ADR-0046), so the workspace guard
-    /// below should be unreachable — it stays as the backstop that keeps a
-    /// routing bug from becoming a cross-account write.
+    /// ([`crate::adopt_workspace_slot`], ADR-0046), so the workspace guard in
+    /// the runtime should be unreachable. It stays as the backstop that keeps
+    /// a routing bug from becoming a cross-account write.
     pub fn connect(&self, token: String, base_url: String) -> Result<String, MobileError> {
         guarded(|| {
             let token = trusted_token(token)?;
-            let base_url = trusted_cloud_base_url(&base_url)?;
-            let _connecting = self
-                .connect_gate
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
-            self.stop_replication();
-
-            let queue = Arc::new(
-                SqliteWorkspace::open(&self.database_path)
-                    .map_err(|error| MobileError::recovery(error.to_string()))?,
-            );
-            let existing = queue
-                .sync_connection()
-                .map_err(|error| MobileError::sync(error.to_string()))?;
-            let device_id = existing
-                .as_ref()
-                .map(|connection| connection.device_id.clone())
-                .unwrap_or_else(|| Uuid::new_v4().simple().to_string());
-            let session: SharedToken = Arc::new(RwLock::new(token));
-            let transport = Arc::new(NetworkTransport::new(
-                Arc::clone(&self.network),
-                Arc::clone(&session),
-                &base_url,
-            ));
-            let provisioned = transport.provision(&device_id)?;
-            if provisioned.device_id != device_id {
-                return Err(MobileError::sync(
-                    "cloud provisioning returned a different device identity",
-                ));
-            }
-            if let Some(linked) = existing
-                .as_ref()
-                .map(|connection| connection.workspace_id.as_str())
-                && linked != provisioned.workspace_id
-            {
-                return Err(MobileError::WorkspaceMismatch {
-                    linked: linked.to_owned(),
-                    account: provisioned.workspace_id,
-                });
-            }
-            queue
-                .connect_sync(&NewSyncConnection {
-                    workspace_id: provisioned.workspace_id.clone(),
-                    device_id: device_id.clone(),
-                    connected_at: now_millis(),
-                    observed_server_sequence: existing
-                        .map_or(0, |connection| connection.observed_server_sequence),
-                })
-                .map_err(|error| MobileError::sync(error.to_string()))?;
-
-            let foreground = self.foreground.load(Ordering::Relaxed);
-            let coordinator = Arc::new(SyncCoordinator::spawn(
-                Arc::clone(&queue) as Arc<dyn WorkspaceSyncQueue>,
-                queue,
-                Arc::clone(&transport) as Arc<dyn SyncTransport>,
-                Arc::clone(&self.assets) as Arc<dyn skriuw_sync::SyncAssetStore>,
-                Arc::new(SystemClock),
-                SyncCoordinatorConfig {
-                    status_observer: self.status_observer(),
-                    workspace_observer: self.workspace_observer(),
-                    session_token: Some(Arc::clone(&session)),
-                    ..SyncCoordinatorConfig::default()
-                },
-            ));
-            coordinator.set_visibility(foreground, foreground);
-            let status = coordinator.status();
-            self.store(
-                &self.connection,
-                Some(Connection {
-                    endpoints: SyncHttpEndpoints::new(&base_url),
-                    workspace_id: provisioned.workspace_id,
-                    device_id,
-                }),
-            )?;
-            self.store(&self.transport, Some(transport))?;
-            self.store(&self.session, Some(session))?;
-            self.store(&self.coordinator, Some(coordinator))?;
-            Ok(encode_status(&status))
+            let origin = trusted_cloud_base_url(&base_url)?;
+            self.runtime
+                .connect(token, origin)
+                .map(|status| encode_status(&status))
+                .map_err(mobile_error)
         })
     }
 
@@ -245,11 +162,10 @@ impl MobileSync {
     pub fn refresh_session(&self, token: String) -> Result<String, MobileError> {
         guarded(|| {
             let token = trusted_token(token)?;
-            let coordinator = self
-                .coordinator()?
-                .ok_or_else(|| MobileError::sync("sync is not connected"))?;
-            coordinator.resume_with_session(&token);
-            Ok(encode_status(&coordinator.status()))
+            self.runtime
+                .refresh_session(&token)
+                .map(|status| encode_status(&status))
+                .map_err(mobile_error)
         })
     }
 
@@ -258,10 +174,10 @@ impl MobileSync {
     /// is a [`MobileSync::connect`].
     pub fn pause(&self) -> String {
         let _ = guarded(|| {
-            self.stop_replication();
+            self.runtime.pause();
             Ok(())
         });
-        encode_status(&self.current_status())
+        self.status()
     }
 
     /// The correctness path. Called when the application returns to the
@@ -269,21 +185,21 @@ impl MobileSync {
     /// than waiting for a poll or for a wake that a suspended process never
     /// received.
     pub fn catch_up(&self) -> String {
-        self.with_coordinator(|coordinator| {
-            coordinator.set_visibility(true, true);
-            coordinator.request_refresh();
+        self.signal(|runtime| {
+            runtime.set_visibility(true, true);
+            runtime.request_refresh();
         })
     }
 
     /// Best-effort: a silent push or a scheduled background task asked for a
     /// cycle. It requests one and returns. The platform may suspend the
     /// process mid-cycle and iOS gives no guarantee the task runs at all, so
-    /// nothing depends on it having completed — [`MobileSync::catch_up`]
+    /// nothing depends on it having completed; [`MobileSync::catch_up`]
     /// repeats the work on resume.
     pub fn background_refresh(&self) -> String {
-        self.with_coordinator(|coordinator| {
-            coordinator.set_visibility(false, false);
-            coordinator.request_refresh();
+        self.signal(|runtime| {
+            runtime.set_visibility(false, false);
+            runtime.request_refresh();
         })
     }
 
@@ -292,10 +208,10 @@ impl MobileSync {
     /// suspends sockets behind it and iOS will not restore one.
     pub fn set_foreground(&self, foreground: bool) {
         let previous = self.foreground.swap(foreground, Ordering::Relaxed);
-        self.with_coordinator(|coordinator| {
-            coordinator.set_visibility(foreground, foreground);
+        self.signal(|runtime| {
+            runtime.set_visibility(foreground, foreground);
             if foreground && !previous {
-                coordinator.request_refresh();
+                runtime.request_refresh();
             }
         });
     }
@@ -303,79 +219,58 @@ impl MobileSync {
     /// The shell's wake channel is up or down. It only changes the fallback
     /// poll cadence; sync is correct with the channel permanently down.
     pub fn set_wake_channel_connected(&self, connected: bool) {
-        self.with_coordinator(|coordinator| coordinator.set_wake_channel_connected(connected));
+        self.signal(|runtime| runtime.set_wake_channel_connected(connected));
     }
 
     /// The wake channel reported that another device changed the workspace.
     pub fn notify_remote_change(&self) {
-        self.with_coordinator(SyncCoordinator::notify_remote_change);
+        self.signal(SyncRuntime::notify_remote_change);
     }
 
     /// The shell's own reachability hint. Offline is scheduling advice rather
     /// than a gate: the coordinator keeps probing and any wake clears it.
     pub fn set_online(&self, online: bool) {
-        self.with_coordinator(|coordinator| coordinator.set_online(online));
+        self.signal(|runtime| runtime.set_online(online));
     }
 
     /// A local commit landed, so a push is due. Never called on the editing
     /// path itself: the shell batches first and calls this afterwards.
     pub fn note_local_commit(&self) {
-        self.with_coordinator(SyncCoordinator::notify_local_commit);
+        self.signal(SyncRuntime::notify_local_commit);
     }
 
     /// Cloud workspace this local store is linked to, if any. Read before
     /// routing an account so a store that predates the registry is recognised
     /// as belonging to the account that linked it (ADR-0046).
     pub fn linked_workspace_id(&self) -> Result<Option<String>, MobileError> {
-        guarded(|| {
-            Ok(self
-                .workspace()?
-                .sync_connection()
-                .map_err(|error| MobileError::sync(error.to_string()))?
-                .map(|connection| connection.workspace_id))
-        })
+        guarded(|| self.runtime.linked_workspace_id().map_err(mobile_error))
     }
 
     /// `SyncRecoveryView` JSON: the changes sync refused and the ones already
     /// discarded. Opens its own short-lived connection on the caller's thread
     /// and is never on an editing or navigation path.
     pub fn recovery_view(&self) -> Result<String, MobileError> {
-        guarded(|| {
-            encode(
-                &self
-                    .workspace()?
-                    .sync_recovery_view()
-                    .map_err(|error| MobileError::sync(error.to_string()))?,
-            )
-        })
+        guarded(|| encode(&self.runtime.recovery_view().map_err(mobile_error)?))
     }
 
     pub fn retry_blocked_operation(&self, blocked_id: String) -> Result<String, MobileError> {
         guarded(|| {
-            let workspace = self.workspace()?;
-            workspace
-                .retry_blocked_sync_operation(&blocked_id, now_millis())
-                .map_err(|error| MobileError::sync(error.to_string()))?;
-            let _ = self.with_coordinator(SyncCoordinator::request_refresh);
             encode(
-                &workspace
-                    .sync_recovery_view()
-                    .map_err(|error| MobileError::sync(error.to_string()))?,
+                &self
+                    .runtime
+                    .retry_blocked_operation(&blocked_id)
+                    .map_err(mobile_error)?,
             )
         })
     }
 
     pub fn discard_blocked_operation(&self, blocked_id: String) -> Result<String, MobileError> {
         guarded(|| {
-            let workspace = self.workspace()?;
-            workspace
-                .discard_blocked_sync_operation(&blocked_id, now_millis())
-                .map_err(|error| MobileError::sync(error.to_string()))?;
-            let _ = self.with_coordinator(SyncCoordinator::request_refresh);
             encode(
-                &workspace
-                    .sync_recovery_view()
-                    .map_err(|error| MobileError::sync(error.to_string()))?,
+                &self
+                    .runtime
+                    .discard_blocked_operation(&blocked_id)
+                    .map_err(mobile_error)?,
             )
         })
     }
@@ -383,22 +278,7 @@ impl MobileSync {
     /// What the recovery surface needs to describe this workspace's encryption
     /// without ever handling key material.
     pub fn encryption_state(&self) -> Result<String, MobileError> {
-        guarded(|| {
-            let workspace = self.workspace()?;
-            let seal = workspace
-                .workspace_seal()
-                .map_err(|error| MobileError::sync(error.to_string()))?;
-            let linked = workspace
-                .sync_connection()
-                .map_err(|error| MobileError::sync(error.to_string()))?
-                .is_some();
-            encode(&WorkspaceEncryptionState {
-                enabled: seal.is_some(),
-                linked,
-                key_id: seal.as_ref().map(|seal| seal.key_id.clone()),
-                sealed_checkpoint_at: seal.as_ref().and_then(|seal| seal.sealed_checkpoint_at),
-            })
-        })
+        guarded(|| encode(&self.runtime.encryption_state().map_err(mobile_error)?))
     }
 
     /// Turns encryption on and returns the recovery code exactly once. The
@@ -407,24 +287,15 @@ impl MobileSync {
     /// shows it and must not write it anywhere.
     pub fn enable_encryption(&self) -> Result<String, MobileError> {
         guarded(|| {
-            let workspace = self.workspace()?;
-            let transport = self.cloud_transport()?;
             let mut entropy = zeroize::Zeroizing::new([0_u8; 20]);
             getrandom::fill(entropy.as_mut_slice()).map_err(|error| {
                 MobileError::internal(format!(
                     "could not gather randomness for the recovery code: {error}"
                 ))
             })?;
-            let recovery_code = enable_workspace_encryption(
-                &workspace,
-                transport.as_ref(),
-                &SyncCancellation::new(),
-                entropy.as_slice(),
-                now_millis(),
-            )
-            .map_err(MobileError::sync)?;
-            let _ = self.with_coordinator(SyncCoordinator::request_refresh);
-            Ok(recovery_code)
+            self.runtime
+                .enable_encryption(entropy.as_slice())
+                .map_err(mobile_error)
         })
     }
 
@@ -432,18 +303,9 @@ impl MobileSync {
     /// checked against the key the cloud recorded before anything is stored.
     pub fn unlock_encryption(&self, recovery_code: String) -> Result<(), MobileError> {
         guarded(|| {
-            let workspace = self.workspace()?;
-            let transport = self.cloud_transport()?;
-            unlock_workspace_encryption(
-                &workspace,
-                transport.as_ref(),
-                &SyncCancellation::new(),
-                &recovery_code,
-                now_millis(),
-            )
-            .map_err(MobileError::sync)?;
-            let _ = self.with_coordinator(SyncCoordinator::request_refresh);
-            Ok(())
+            self.runtime
+                .unlock_encryption(&recovery_code)
+                .map_err(mobile_error)
         })
     }
 
@@ -451,110 +313,62 @@ impl MobileSync {
     /// safe to call when nothing was ever connected.
     pub fn shutdown(&self) {
         let _ = guarded(|| {
-            self.stop_replication();
+            self.runtime.shutdown();
             Ok(())
         });
     }
 }
 
 impl MobileSync {
-    fn status_observer(&self) -> Option<SyncStatusObserver> {
-        let observer = self.observer.clone()?;
-        let forward: SyncStatusObserver = Arc::new(move |status: &SyncStatus| {
-            observer.status_changed(encode_status(status));
-            if *status == SyncStatus::AuthenticationRequired {
-                observer.session_expired();
-            }
-        });
-        Some(forward)
-    }
-
-    fn workspace_observer(&self) -> Option<SyncWorkspaceObserver> {
-        let observer = self.observer.clone()?;
-        let forward: SyncWorkspaceObserver = Arc::new(move |changes: &RemoteChangeSet| {
-            if let Ok(payload) = serde_json::to_string(changes) {
-                observer.workspace_changed(payload);
-            }
-        });
-        Some(forward)
-    }
-
-    fn workspace(&self) -> Result<SqliteWorkspace, MobileError> {
-        SqliteWorkspace::open(&self.database_path)
-            .map_err(|error| MobileError::recovery(error.to_string()))
-    }
-
-    fn coordinator(&self) -> Result<Option<Arc<SyncCoordinator>>, MobileError> {
-        Ok(self
-            .coordinator
-            .lock()
-            .map_err(|_| MobileError::internal("sync handle is poisoned"))?
-            .clone())
-    }
-
-    fn current_status(&self) -> SyncStatus {
-        self.coordinator
-            .lock()
-            .ok()
-            .and_then(|coordinator| coordinator.as_ref().map(|coordinator| coordinator.status()))
-            .unwrap_or(SyncStatus::LocalOnly)
-    }
-
-    /// Runs `action` against the live coordinator, if there is one, and
-    /// answers with the resulting status. Every lifecycle signal is a no-op on
-    /// a workspace that has never connected, which is what keeps a local-only
-    /// installation free of timers and network work.
-    fn with_coordinator(&self, action: impl Fn(&SyncCoordinator)) -> String {
+    /// Runs a lifecycle signal and answers with the resulting status. Every
+    /// signal is a no-op on a workspace that has never connected, which is
+    /// what keeps a local-only installation free of timers and network work.
+    fn signal(&self, action: impl FnOnce(&SyncRuntime<SqliteWorkspace, MobileCloud>)) -> String {
         let _ = guarded(|| {
-            if let Some(coordinator) = self.coordinator()? {
-                action(coordinator.as_ref());
-            }
+            action(&self.runtime);
             Ok(())
         });
-        encode_status(&self.current_status())
-    }
-
-    fn cloud_transport(&self) -> Result<Arc<NetworkTransport>, MobileError> {
-        self.transport
-            .lock()
-            .map_err(|_| MobileError::internal("sync handle is poisoned"))?
-            .clone()
-            .ok_or_else(|| MobileError::sync("sign in to Skriuw cloud before changing encryption"))
-    }
-
-    fn store<T>(&self, slot: &Mutex<Option<T>>, value: Option<T>) -> Result<(), MobileError> {
-        *slot
-            .lock()
-            .map_err(|_| MobileError::internal("sync handle is poisoned"))? = value;
-        Ok(())
-    }
-
-    fn stop_replication(&self) {
-        let coordinator = self
-            .coordinator
-            .lock()
-            .ok()
-            .and_then(|mut coordinator| coordinator.take());
-        if let Some(coordinator) = coordinator {
-            coordinator.shutdown();
-        }
-        let _ = self.store(&self.transport, None);
-        let _ = self.store(&self.session, None);
-        let _ = self.store(&self.connection, None);
+        self.status()
     }
 }
 
-impl Drop for MobileSync {
-    fn drop(&mut self) {
-        self.stop_replication();
+fn status_forwarder(observer: Arc<dyn MobileSyncObserver>) -> SyncStatusObserver {
+    Arc::new(move |status: &SyncStatus| {
+        observer.status_changed(encode_status(status));
+        if *status == SyncStatus::AuthenticationRequired {
+            observer.session_expired();
+        }
+    })
+}
+
+fn workspace_forwarder(observer: Arc<dyn MobileSyncObserver>) -> SyncWorkspaceObserver {
+    Arc::new(move |changes: &RemoteChangeSet| {
+        if let Ok(payload) = serde_json::to_string(changes) {
+            observer.workspace_changed(payload);
+        }
+    })
+}
+
+/// Recovery-relevant failures keep their own variant: an unopenable database
+/// is `Recovery`, a refused credential is `SessionExpired`, and a store linked
+/// to another account is `WorkspaceMismatch`.
+fn mobile_error(error: SyncRuntimeError) -> MobileError {
+    match error {
+        SyncRuntimeError::OpenWorkspace(source) => MobileError::recovery(source.to_string()),
+        SyncRuntimeError::Storage { source, .. } => MobileError::sync(source.to_string()),
+        SyncRuntimeError::Provision(ProvisionFailure::SessionExpired) => {
+            MobileError::SessionExpired
+        }
+        SyncRuntimeError::WorkspaceMismatch { linked, account } => {
+            MobileError::WorkspaceMismatch { linked, account }
+        }
+        SyncRuntimeError::Unavailable => MobileError::internal("sync handle is poisoned"),
+        other => MobileError::sync(other.to_string()),
     }
 }
 
 fn trusted_token(token: String) -> Result<String, MobileError> {
-    if token.trim().is_empty()
-        || token.len() > MAX_TOKEN_BYTES
-        || token.chars().any(char::is_control)
-    {
+    if !is_well_formed_session_token(&token) {
         return Err(MobileError::sync(
             "a valid account session is required to enable sync",
         ));
@@ -564,38 +378,16 @@ fn trusted_token(token: String) -> Result<String, MobileError> {
 
 /// Accepts only the cloud origins this build trusts with the bearer
 /// credential: `https` under a Skriuw-controlled suffix, or a development host
-/// in debug builds. `10.0.2.2` is the Android emulator's route to the host
-/// machine, which is how a local Worker is reached from an emulator during the
-/// two-device convergence test.
-fn trusted_cloud_base_url(base_url: &str) -> Result<String, MobileError> {
-    let trimmed = base_url.trim().trim_end_matches('/');
-    let trusted = trimmed.len() <= MAX_BASE_URL_BYTES
-        && !trimmed.contains(['?', '#', '@', ' '])
-        && (is_trusted_https_origin(trimmed)
-            || (cfg!(debug_assertions) && is_local_development_origin(trimmed)));
-    if trusted {
-        Ok(trimmed.to_string())
+/// in debug builds, including the Android emulator's route to the host
+/// machine, which is how a local Worker is reached during the two-device
+/// convergence test.
+fn trusted_cloud_base_url(base_url: &str) -> Result<TrustedCloudOrigin, MobileError> {
+    let policy = if cfg!(debug_assertions) {
+        CloudOriginPolicy::MOBILE_DEVELOPMENT
     } else {
-        Err(MobileError::UntrustedCloud)
-    }
-}
-
-fn is_trusted_https_origin(base_url: &str) -> bool {
-    let Some(rest) = base_url.strip_prefix("https://") else {
-        return false;
+        CloudOriginPolicy::RELEASE
     };
-    let host = rest.split(['/', ':']).next().unwrap_or_default();
-    !host.is_empty() && (host.ends_with(".skriuw.app") || host.ends_with(".workers.dev"))
-}
-
-fn is_local_development_origin(base_url: &str) -> bool {
-    ["http://localhost", "http://127.0.0.1", "http://10.0.2.2"]
-        .iter()
-        .any(|prefix| {
-            base_url.strip_prefix(prefix).is_some_and(|rest| {
-                rest.is_empty() || rest.starts_with(':') || rest.starts_with('/')
-            })
-        })
+    skriuw_sync::trusted_cloud_base_url(base_url, policy).map_err(|_| MobileError::UntrustedCloud)
 }
 
 fn encode_status(status: &SyncStatus) -> String {
@@ -611,9 +403,9 @@ fn encode<T: Serialize>(value: &T) -> Result<String, MobileError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        MobileSync, MobileSyncObserver, encode_status, is_local_development_origin,
-        is_trusted_https_origin, network::SyncResponse, network::tests::RecordingNetwork,
-        trusted_cloud_base_url, trusted_token,
+        MobileSync, MobileSyncObserver, encode_status, network::SyncResponse,
+        network::tests::RecordingNetwork, status_forwarder, trusted_cloud_base_url, trusted_token,
+        workspace_forwarder,
     };
     use crate::error::MobileError;
     use skriuw_sync::SyncStatus;
@@ -656,19 +448,17 @@ mod tests {
 
     #[test]
     fn only_skriuw_origins_are_trusted_with_the_session_credential() {
-        assert!(is_trusted_https_origin(
-            "https://skriuw-v2-cloud.remcostoeten.workers.dev"
-        ));
-        assert!(is_trusted_https_origin("https://sync.skriuw.app"));
-        assert!(!is_trusted_https_origin("https://evil.example"));
-        assert!(!is_trusted_https_origin("https://skriuw.app.evil.example"));
-        assert!(!is_trusted_https_origin("http://sync.skriuw.app"));
-        assert!(is_local_development_origin("http://localhost:8787"));
-        assert!(is_local_development_origin("http://10.0.2.2:8787"));
-        assert!(!is_local_development_origin(
-            "http://localhost.evil.example"
-        ));
-        assert!(!is_local_development_origin("http://10.0.2.20:8787"));
+        assert!(trusted_cloud_base_url("https://skriuw-v2-cloud.remcostoeten.workers.dev").is_ok());
+        assert!(trusted_cloud_base_url("https://sync.skriuw.app").is_ok());
+        assert!(trusted_cloud_base_url("https://evil.example").is_err());
+        assert!(trusted_cloud_base_url("https://skriuw.app.evil.example").is_err());
+        assert!(trusted_cloud_base_url("http://sync.skriuw.app").is_err());
+        assert_eq!(
+            trusted_cloud_base_url("http://10.0.2.2:8787").is_ok(),
+            cfg!(debug_assertions)
+        );
+        assert!(trusted_cloud_base_url("http://localhost.evil.example").is_err());
+        assert!(trusted_cloud_base_url("http://10.0.2.20:8787").is_err());
     }
 
     #[test]
@@ -678,7 +468,9 @@ mod tests {
             Err(MobileError::UntrustedCloud),
         ));
         assert_eq!(
-            trusted_cloud_base_url("https://sync.skriuw.app/").expect("trusted"),
+            trusted_cloud_base_url("https://sync.skriuw.app/")
+                .expect("trusted")
+                .as_str(),
             "https://sync.skriuw.app",
         );
     }
@@ -855,19 +647,7 @@ mod tests {
     #[test]
     fn an_observer_is_told_about_expiry_once_per_status_change() {
         let observer = Arc::new(RecordingObserver::default());
-        let directory = tempdir().expect("tempdir");
-        let sync = MobileSync::open(
-            directory
-                .path()
-                .join("skriuw.db")
-                .to_string_lossy()
-                .into_owned(),
-            RecordingNetwork::new(Vec::new()),
-            None,
-            Some(Arc::clone(&observer) as Arc<dyn MobileSyncObserver>),
-        )
-        .expect("sync handle");
-        let forward = sync.status_observer().expect("observer installed");
+        let forward = status_forwarder(Arc::clone(&observer) as Arc<dyn MobileSyncObserver>);
 
         forward(&SyncStatus::Pending);
         forward(&SyncStatus::AuthenticationRequired);
@@ -885,19 +665,7 @@ mod tests {
     #[test]
     fn remote_changes_reach_the_shell_as_the_change_set_the_store_reconciles() {
         let observer = Arc::new(RecordingObserver::default());
-        let directory = tempdir().expect("tempdir");
-        let sync = MobileSync::open(
-            directory
-                .path()
-                .join("skriuw.db")
-                .to_string_lossy()
-                .into_owned(),
-            RecordingNetwork::new(Vec::new()),
-            None,
-            Some(Arc::clone(&observer) as Arc<dyn MobileSyncObserver>),
-        )
-        .expect("sync handle");
-        let forward = sync.workspace_observer().expect("observer installed");
+        let forward = workspace_forwarder(Arc::clone(&observer) as Arc<dyn MobileSyncObserver>);
 
         forward(&skriuw_sync::RemoteChangeSet {
             note_ids: vec!["note-1".into()],

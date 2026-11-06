@@ -6,9 +6,9 @@ use skriuw_domain::{
 use skriuw_sync::{RemoteChangeSet, SyncStatus};
 
 pub const WORKER_PROTOCOL_VERSION: u16 = 1;
-pub const MAX_SYNC_TOKEN_BYTES: usize = 4_096;
+pub const MAX_SYNC_TOKEN_BYTES: usize = skriuw_sync::MAX_SESSION_TOKEN_BYTES;
 pub const MAX_SYNC_IDENTIFIER_BYTES: usize = 128;
-pub const MAX_SYNC_BASE_URL_BYTES: usize = 2_048;
+pub const MAX_SYNC_BASE_URL_BYTES: usize = skriuw_sync::MAX_CLOUD_BASE_URL_BYTES;
 pub const MAX_REQUEST_BYTES: usize = 16 * 1024 * 1024;
 pub const MAX_OPERATIONS_PER_REQUEST: usize = 64;
 pub const MAX_BATCHES_PER_REQUEST: usize = 64;

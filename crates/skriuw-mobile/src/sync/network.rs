@@ -14,16 +14,17 @@
 //! system trust store, proxy configuration and connection reuse, and this
 //! module adapts that one call into the whole [`SyncTransport`] surface.
 
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use skriuw_domain::{
     SyncPullResponse, SyncPushRequest, SyncPushResponse, WorkspaceCheckpoint,
     WorkspaceEncryptionMarker,
 };
 use skriuw_sync::{
-    SyncCancellation, SyncHttpEndpoints, SyncTransport, TransportError, classify_http_failure,
-    classify_optional_route_failure, classify_rejected_response, rejected_error_code,
-    request_timeout_ms,
+    ProvisionFailure, ProvisionedWorkspace, SyncCancellation, SyncHttpEndpoints, SyncProvisioner,
+    SyncSessionToken, SyncTransport, TransportError, classify_http_failure,
+    classify_optional_route_failure, classify_provision_status, classify_rejected_response,
+    decode_provisioned_workspace, rejected_error_code, request_timeout_ms,
 };
 
 use crate::error::MobileError;
@@ -116,25 +117,23 @@ pub trait MobileAssetStore: Send + Sync {
     ) -> Result<(), MobileError>;
 }
 
-pub(crate) type SharedToken = Arc<RwLock<String>>;
-
 /// Adapts the single foreign call into the sync transport contract.
 pub(crate) struct NetworkTransport {
     network: Arc<dyn MobileSyncNetwork>,
-    token: SharedToken,
+    token: SyncSessionToken,
     endpoints: SyncHttpEndpoints,
 }
 
 impl NetworkTransport {
     pub(crate) fn new(
         network: Arc<dyn MobileSyncNetwork>,
-        token: SharedToken,
-        base_url: &str,
+        token: SyncSessionToken,
+        endpoints: SyncHttpEndpoints,
     ) -> Self {
         Self {
             network,
             token,
-            endpoints: SyncHttpEndpoints::new(base_url),
+            endpoints,
         }
     }
 
@@ -192,31 +191,6 @@ impl NetworkTransport {
         })
     }
 
-    /// Runs one request whose only acceptable outcome is a success body.
-    pub(crate) fn provision(&self, device_id: &str) -> Result<ProvisionedWorkspace, MobileError> {
-        let body = serde_json::json!({ "deviceId": device_id })
-            .to_string()
-            .into_bytes();
-        let request = self.request("POST", self.endpoints.provision(), body, true);
-        let response = self.network.send(request)?;
-        if let Some(detail) = response.transport_error {
-            return Err(MobileError::sync(format!(
-                "cloud provisioning failed: {detail}"
-            )));
-        }
-        if !(200..300).contains(&response.status) {
-            return Err(provision_error(response.status));
-        }
-        if response.body.len() > MAX_RESPONSE_BYTES {
-            return Err(MobileError::sync(
-                "cloud provisioning response was too large",
-            ));
-        }
-        serde_json::from_slice(&response.body).map_err(|error| {
-            MobileError::sync(format!("cloud provisioning response was invalid: {error}"))
-        })
-    }
-
     fn decode<T: serde::de::DeserializeOwned>(
         &self,
         request: SyncRequest,
@@ -270,6 +244,29 @@ impl NetworkTransport {
             ));
         }
         Ok(Some(response.body))
+    }
+}
+
+impl SyncProvisioner for NetworkTransport {
+    fn provision(&self, device_id: &str) -> Result<ProvisionedWorkspace, ProvisionFailure> {
+        let body = serde_json::json!({ "deviceId": device_id })
+            .to_string()
+            .into_bytes();
+        let request = self.request("POST", self.endpoints.provision(), body, true);
+        let response = self
+            .network
+            .send(request)
+            .map_err(|error| ProvisionFailure::Unreachable(error.to_string()))?;
+        if let Some(detail) = response.transport_error {
+            return Err(ProvisionFailure::Unreachable(detail));
+        }
+        if !is_success(response.status) {
+            return Err(classify_provision_status(response.status));
+        }
+        if response.body.len() > MAX_RESPONSE_BYTES {
+            return Err(ProvisionFailure::ResponseTooLarge);
+        }
+        decode_provisioned_workspace(&response.body)
     }
 }
 
@@ -469,34 +466,21 @@ impl skriuw_sync::SyncAssetStore for AssetBridge {
     }
 }
 
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct ProvisionedWorkspace {
-    pub(crate) workspace_id: String,
-    pub(crate) device_id: String,
-}
-
 fn is_success(status: u16) -> bool {
     (200..300).contains(&status)
-}
-
-fn provision_error(status: u16) -> MobileError {
-    match status {
-        401 => MobileError::SessionExpired,
-        403 => MobileError::sync("this device is not allowed to use cloud sync"),
-        500..=599 => MobileError::sync("Skriuw cloud is temporarily unavailable"),
-        _ => MobileError::sync("Skriuw cloud rejected the sync setup request"),
-    }
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
     use super::{
         AssetBridge, MobileAssetStore, MobileSyncNetwork, NetworkTransport, SyncRequest,
-        SyncResponse, provision_error,
+        SyncResponse,
     };
     use crate::error::MobileError;
-    use skriuw_sync::{SyncAssetStore, SyncCancellation, SyncTransport, TransportError};
+    use skriuw_sync::{
+        ProvisionFailure, SyncAssetStore, SyncCancellation, SyncHttpEndpoints, SyncProvisioner,
+        SyncTransport, TransportError,
+    };
     use std::sync::{Arc, Mutex, RwLock};
 
     /// Records what the core asked the platform to send and answers with
@@ -530,7 +514,7 @@ pub(crate) mod tests {
         NetworkTransport::new(
             network,
             Arc::new(RwLock::new("session-token".to_owned())),
-            "https://cloud.workers.dev/",
+            SyncHttpEndpoints::new("https://cloud.workers.dev/"),
         )
     }
 
@@ -558,12 +542,10 @@ pub(crate) mod tests {
     #[test]
     fn a_refused_credential_is_reported_as_expiry_rather_than_a_retryable_failure() {
         let network = RecordingNetwork::new(vec![Ok(SyncResponse::completed(401, Vec::new()))]);
-        assert!(matches!(
+        assert_eq!(
             transport(network).provision("device-1"),
-            Err(MobileError::SessionExpired),
-        ));
-        assert!(matches!(provision_error(403), MobileError::Sync { .. }));
-        assert!(matches!(provision_error(503), MobileError::Sync { .. }));
+            Err(ProvisionFailure::SessionExpired),
+        );
     }
 
     #[test]
