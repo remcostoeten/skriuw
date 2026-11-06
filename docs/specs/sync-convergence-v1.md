@@ -1,6 +1,7 @@
 # Sync convergence v1
 
 Status: normative product contract, implemented in `skriuw-domain::reconcile`,
+`skriuw-domain::sync_policy`,
 the SQLite inbound adapter, `skriuw-sync`, and the browser worker runtime.
 [ADR-0037](../adr/0037-automatic-sync-convergence.md) records the decision.
 
