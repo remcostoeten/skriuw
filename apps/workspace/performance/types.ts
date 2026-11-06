@@ -18,6 +18,7 @@ export type PhaseResult = {
   samples: {
     dispatchMs: number[];
     editorInstallationMs: number[];
+    windowGrowthMs: number[];
     nextPaintMs: number[];
     frameGapsMs: number[];
     reactCommitMs: number[];
@@ -25,6 +26,7 @@ export type PhaseResult = {
   summary: {
     dispatch: TimingSummary;
     editorInstallation: TimingSummary;
+    windowGrowth: TimingSummary;
     nextPaint: TimingSummary;
     frameGaps: TimingSummary;
     reactCommit: TimingSummary;

@@ -64,7 +64,9 @@ Each subsystem has typed errors. They are turned into bounded diagnostics only a
 
 ### Editor
 
-The product uses one persistent direct ProseMirror view. It is created once and reused for every note. Documents with up to 192 top-level blocks are rendered whole. A larger document keeps one canonical structured document in memory and renders a 192-block window of it.
+The product uses one persistent direct ProseMirror view. It is created once and reused for every note. Documents with up to 192 top-level blocks are rendered whole. A larger document keeps one canonical structured document in memory and renders a window of at most 192 blocks of it.
+
+That window is rendered progressively ([ADR-0060](adr/0060-progressive-bounded-editor-window.md)). Opening a large note renders only the blocks that fill the viewport, starting at the block that was at the top of the viewport when the note was last scrolled. Idle callbacks then add up to 32 blocks at a time, below the window first and then above it, until the full window is rendered. Growth is not an edit: it records no undo step, schedules no save, renders no React, pauses during IME composition, and corrects the scroll position for blocks added above the viewport. The window always tracks the blocks the editor renders, so edits that add or remove blocks keep the editor and the canonical document aligned.
 
 These stay inside the renderer, without calling the backend:
 

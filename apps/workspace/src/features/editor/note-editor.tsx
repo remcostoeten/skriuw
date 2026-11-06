@@ -109,6 +109,7 @@ import {
   topLevelTextPosition,
   type BoundedDocument,
 } from "./document/bounded";
+import { captureViewport, createWindowGrowth, restoreViewport } from "./document/window-growth";
 import {
   countWords,
   createProductPlugins,
@@ -364,8 +365,10 @@ function createCachedNote(
   record: DocumentRecord,
   document: ProseMirrorNode,
   extraPlugins: readonly Plugin[],
+  viewportHeight: number,
 ): CachedNote {
   const bounded = shouldUseBoundedEditor(document) ? createBoundedDocument(document) : null;
+  bounded?.narrowWindow(0, viewportHeight);
   return {
     state: createEditorState(bounded?.windowDocument() ?? document, extraPlugins),
     revision: record.revision,
@@ -543,6 +546,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const pendingRemoteRef = useRef<string | null>(null);
   const scrollHostRef = useRef<HTMLElement | null>(null);
   const scrollTopRef = useRef(0);
+  const viewportHeightRef = useRef(0);
   const boundedSurfaceKeyRef = useRef("");
   const [slashMenu, setSlashMenu] = useState<SlashMenu>(closedSlashMenu);
   const [mediaLibraryKind, setMediaLibraryKind] = useState<LibraryMediaKind | null>(null);
@@ -668,6 +672,14 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         const entry = activeEntry();
         const bounded = entry?.bounded;
         if (!entry || !bounded) return false;
+        const growing =
+          direction === 1
+            ? bounded.windowEnd() < bounded.targetEnd()
+            : bounded.windowStart() > bounded.targetStart();
+        if (growing) {
+          windowGrowth.flush();
+          return true;
+        }
         const canShift =
           direction === 1 ? bounded.windowEnd() < bounded.blockCount() : bounded.windowStart() > 0;
         if (!canShift) return false;
@@ -703,6 +715,25 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     preparedDocumentsRef.current = preparedEditorDocuments(store);
   }
   const preparedDocuments = preparedDocumentsRef.current;
+  const windowGrowthRef = useRef<ReturnType<typeof createWindowGrowth> | null>(null);
+  if (windowGrowthRef.current === null) {
+    windowGrowthRef.current = createWindowGrowth({
+      view: () => viewRef.current,
+      bounded: () => activeEntry()?.bounded ?? null,
+      scrollHost: () => scrollHostRef.current,
+      paused: () =>
+        composingRef.current ||
+        (viewRef.current?.composing ?? false) ||
+        dragHandleRef.current?.isDragging() === true,
+      installed: (state) => {
+        const entry = activeEntry();
+        if (!entry) return;
+        entry.state = state;
+        syncBoundedSurface(entry);
+      },
+    });
+  }
+  const windowGrowth = windowGrowthRef.current;
 
   function restoreScrollTop(scrollTop: number): void {
     const scrollHost = scrollHostRef.current;
@@ -755,7 +786,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     );
     view.dom.setAttribute(
       "aria-label",
-      `Note editor, blocks ${bounded.windowStart() + 1} through ${bounded.windowEnd()} of ${bounded.blockCount()}. Tab to read the full note.`,
+      `Note editor, blocks ${bounded.targetStart() + 1} through ${bounded.targetEnd()} of ${bounded.blockCount()}. Tab to read the full note.`,
     );
   }
 
@@ -841,6 +872,31 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     if (bounded.moveWindow(requestedStart)) {
       installBoundedWindow(entry, view?.hasFocus() ?? false);
     }
+  }
+
+  /**
+   * Shows a bounded note from the block at the top of its remembered viewport,
+   * rendering only what fills the screen and growing the rest when idle
+   * (ADR-0060).
+   */
+  function presentBoundedNote(entry: CachedNote, bounded: BoundedDocument): void {
+    const view = viewRef.current;
+    const scrollHost = scrollHostRef.current;
+    if (!view) return;
+    const viewport = bounded.viewport();
+    const selection = bounded.selection();
+    const narrowed = bounded.narrowWindow(
+      viewport?.blockIndex ?? bounded.targetStart(),
+      viewportHeightRef.current,
+    );
+    installBoundedWindow(entry, false, narrowed);
+    const restored =
+      viewport !== null &&
+      scrollHost !== null &&
+      restoreViewport(view, scrollHost, viewport, bounded.windowStart());
+    if (restored && scrollHost) scrollTopRef.current = scrollHost.scrollTop;
+    else restoreScrollTop(entry.scrollTop);
+    windowGrowth.start(selection);
   }
 
   async function persistOnce(noteId: string): Promise<number | null> {
@@ -1116,7 +1172,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       }
       if (transaction.docChanged && !remote) {
         if (replaceWholeDocument) {
-          entry.bounded.replaceFullDocument(next.doc, Date.now());
+          entry.bounded.replaceWholeWindow(next.doc, Date.now());
         } else {
           entry.bounded.replaceWindow(next.doc, Date.now());
         }
@@ -1958,6 +2014,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const view = new EditorView(host, {
       state: createEditorState(emptyDocument(), editorPlugins),
       editable: () => activeIdRef.current !== null,
+      attributes: navigator.vendor.startsWith("Apple") ? { "data-native-caret-lingers": "" } : {},
       nodeViews: {
         ...providedViews.nodeViews,
         ...imageViews.nodeViews,
@@ -2082,6 +2139,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
             event.key === "ArrowUp" &&
             bounded.windowStart() > 0 &&
             selection.blockIndex <= bounded.windowStart();
+          const growing =
+            (atEnd && bounded.windowEnd() < bounded.targetEnd()) ||
+            (atStart && bounded.windowStart() > bounded.targetStart());
+          if (growing) {
+            windowGrowth.flush();
+            return false;
+          }
           if (atEnd || atStart) {
             moveBoundedWindow(
               entry,
@@ -2188,8 +2252,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       if (!entry?.bounded || !scrollHost) return;
       if (dragHandleRef.current?.isDragging() === true) return;
       entry.scrollTop = scrollHost.scrollTop;
+      entry.bounded.rememberViewport(
+        captureViewport(view, scrollHost, entry.bounded.windowStart()),
+      );
       const target = Math.floor(scrollHost.scrollTop / VIRTUAL_BLOCK_HEIGHT) - WINDOW_SHIFT;
-      if (Math.abs(target - entry.bounded.windowStart()) >= WINDOW_SHIFT) {
+      if (Math.abs(target - entry.bounded.targetStart()) >= WINDOW_SHIFT) {
         moveBoundedWindow(entry, target);
       }
     }
@@ -2292,6 +2359,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       openTableMenu(view, found.pos, event.clientX, event.clientY);
     }
     scrollHost?.addEventListener("scroll", handleScroll, { passive: true });
+    if (scrollHost) viewportHeightRef.current = scrollHost.clientHeight;
+    const viewportObserver = new ResizeObserver(([entry]) => {
+      if (entry) viewportHeightRef.current = entry.contentRect.height;
+    });
+    if (scrollHost) viewportObserver.observe(scrollHost);
     view.dom.addEventListener("compositionstart", handleCompositionStart);
     view.dom.addEventListener("compositionend", handleCompositionEnd);
     view.dom.addEventListener("mouseover", handleAnnotationMouseOver);
@@ -2310,6 +2382,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       void finalSave.finally(unregisterPendingSave);
       cancelBoundedSearchRefresh();
       cancelBubbleMeasure();
+      windowGrowth.cancel();
+      viewportObserver.disconnect();
       scrollHost?.removeEventListener("scroll", handleScroll);
       view.dom.removeEventListener("compositionstart", handleCompositionStart);
       view.dom.removeEventListener("compositionend", handleCompositionEnd);
@@ -2360,6 +2434,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const view = viewRef.current;
     if (!view) return;
     searchRef.current.resetSearch();
+    windowGrowth.cancel();
     void flushPendingSave().catch(reportBackgroundSaveFailure);
     const previous = activeEntry();
     if (previous && boundedSearchTimerRef.current !== null) previous.searchState = null;
@@ -2400,18 +2475,23 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       entry = cacheRef.current.get(activeNoteId);
     }
     if (!entry) {
-      entry = createCachedNote(record, preparedDocuments.documentFor(record), editorPlugins);
+      entry = createCachedNote(
+        record,
+        preparedDocuments.documentFor(record),
+        editorPlugins,
+        viewportHeightRef.current,
+      );
       cacheRef.current.set(activeNoteId, entry);
       pruneEditorWorkingSet();
     }
     if (entry.bounded) {
-      installBoundedWindow(entry, false, false);
+      presentBoundedNote(entry, entry.bounded);
     } else {
       view.updateState(entry.state);
       syncBoundedSurface(entry);
       selectStarterTitle(view, entry);
+      restoreScrollTop(entry.scrollTop);
     }
-    restoreScrollTop(entry.scrollTop);
     view.focus();
     revealRequestedBlock();
   }, [activeNoteId, revealRequestedBlock, store]);

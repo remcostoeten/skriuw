@@ -8,8 +8,10 @@
 
 /* WebKitGTK keeps painting the native insertion-point caret after DOM blur
    (e.g. moving focus to the sidebar with mod+e); gating caret-color on
-   :focus forces it to actually hide instead of lingering. */
-.prosemirror-host .ProseMirror:not(:focus) {
+   :focus forces it to actually hide instead of lingering. caret-color is
+   inherited, so every focus change restyles each rendered block; the editor
+   sets the attribute only on WebKit engines, which are the ones that need it. */
+.prosemirror-host .ProseMirror[data-native-caret-lingers]:not(:focus) {
   caret-color: transparent;
 }
 

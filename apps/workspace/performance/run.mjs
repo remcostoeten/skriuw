@@ -215,13 +215,16 @@ async function dispatchKey(cdp, sessionId, key, code, virtualKeyCode, text) {
 }
 
 function traceSummary(events, eventType) {
+  return summarizeTraceEvents(
+    events.filter(
+      (event) => event.name === "EventDispatch" && event.args?.data?.type === eventType,
+    ),
+  );
+}
+
+function summarizeTraceEvents(events) {
   const samples = events
-    .filter(
-      (event) =>
-        event.name === "EventDispatch" &&
-        event.args?.data?.type === eventType &&
-        typeof event.dur === "number",
-    )
+    .filter((event) => typeof event.dur === "number")
     .map((event) => event.dur / 1_000);
   const sorted = [...samples].sort((left, right) => left - right);
   function at(fraction) {
@@ -397,6 +400,9 @@ async function runContext(context) {
     }
     const trace = {
       keyboard: traceSummary(traceEvents, "keydown"),
+      idleCallbacks: summarizeTraceEvents(
+        traceEvents.filter((event) => event.name === "FireIdleCallback"),
+      ),
       input: traceSummary(traceEvents, "input"),
     };
     if (trace.keyboard.count < 130) {
@@ -475,6 +481,11 @@ try {
       const verdict = passed === null ? "N/A" : passed ? "PASS" : "FAIL";
       process.stdout.write(`  ${verdict} ${name}\n`);
     }
+    const idle = record.trace.idleCallbacks;
+    const growth = record.selection.summary.windowGrowth;
+    process.stdout.write(
+      `  INFO idle callbacks: ${idle.count}, max ${idle.maxMs.toFixed(2)} ms; window growth updateState P95 ${growth.p95Ms.toFixed(2)} ms, max ${growth.maxMs.toFixed(2)} ms\n`,
+    );
     const tail = record.navigationTail;
     process.stdout.write(
       `  INFO navigationTail: ${tail.reactCommits} React commits, ${tail.bridgeCalls.length} bridge calls (${tail.bridgeCalls.join(", ") || "none"}) in ${tail.windowMs.toFixed(0)} ms\n`,

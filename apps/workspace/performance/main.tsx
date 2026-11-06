@@ -1,3 +1,4 @@
+import "./disable-react-performance-tracks";
 import { Profiler, StrictMode } from "react";
 import type { ProfilerOnRenderCallback } from "react";
 import { flushSync } from "react-dom";
