@@ -10,12 +10,13 @@
 use std::sync::{Arc, Mutex};
 
 use skriuw_domain::{SyncPullResponse, SyncPushRequest, SyncPushResponse, WorkspaceCheckpoint};
-use skriuw_storage::{NewSyncConnection, WorkspaceMaintenance, WorkspaceSyncQueue};
+use skriuw_storage::{WorkspaceMaintenance, WorkspaceSyncQueue};
 use skriuw_sync::{
     CheckpointPublication, CheckpointPublicationConfig, CheckpointPublicationState,
     SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig, SyncCycleOutcome,
-    SyncCycleState, SyncStatus, SyncTransport, TransportError, enable_workspace_encryption,
-    run_checkpoint_publication, run_sync_cycle, unlock_workspace_encryption,
+    SyncCycleState, SyncLinkError, SyncStatus, SyncTransport, TransportError,
+    enable_workspace_encryption, plan_sync_link, run_checkpoint_publication, run_sync_cycle,
+    unlock_workspace_encryption,
 };
 
 use crate::protocol::{
@@ -107,29 +108,25 @@ impl BrowserSyncRuntime {
         device_id: &str,
     ) -> Result<SyncStatus, BrowserStorageError> {
         let existing = queue.sync_connection().map_err(map_storage_error)?;
-        if let Some(existing) = &existing {
-            if existing.workspace_id != workspace_id {
-                return Err(BrowserStorageError::invalid(
-                    "This workspace is linked to another cloud workspace. Sign back into its original account and cloud environment, or open a fresh local workspace before linking a different account.",
-                ));
-            }
-            if existing.device_id != device_id {
-                return Err(BrowserStorageError::invalid(
-                    "This workspace already has a different device identity.",
-                ));
-            }
-        }
+        let link = plan_sync_link(
+            existing.as_ref(),
+            workspace_id,
+            device_id,
+            environment.clock.now_ms(),
+        )
+        .map_err(|error| {
+            BrowserStorageError::invalid(match error {
+                SyncLinkError::WorkspaceMismatch { .. } => {
+                    "This workspace is linked to another cloud workspace. Sign back into its original account and cloud environment, or open a fresh local workspace before linking a different account."
+                }
+                SyncLinkError::DeviceMismatch => {
+                    "This workspace already has a different device identity."
+                }
+            })
+        })?;
         self.disconnect_session();
         let transport = (environment.transport_factory)(token, base_url)?;
-        queue
-            .connect_sync(&NewSyncConnection {
-                workspace_id: workspace_id.into(),
-                device_id: device_id.into(),
-                connected_at: environment.clock.now_ms(),
-                observed_server_sequence: existing
-                    .map_or(0, |connection| connection.observed_server_sequence),
-            })
-            .map_err(map_storage_error)?;
+        queue.connect_sync(&link).map_err(map_storage_error)?;
         self.session = Some(BrowserSyncSession {
             transport,
             state: SyncCycleState::new(SyncBackoffConfig::default()),

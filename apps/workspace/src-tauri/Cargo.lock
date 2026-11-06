@@ -4320,6 +4320,7 @@ dependencies = [
  "skriuw-domain",
  "skriuw-storage",
  "thiserror 2.0.19",
+ "uuid",
 ]
 
 [[package]]

@@ -11,13 +11,13 @@ use crate::protocol::{
     BrowserWorkerValue, MAX_BATCHES_PER_REQUEST, MAX_DATABASE_NAME_BYTES,
     MAX_DELTA_IDS_PER_REQUEST, MAX_EXPANDED_FOLDER_IDS, MAX_LAYOUT_BYTES,
     MAX_OPERATIONS_PER_REQUEST, MAX_QUERY_BYTES, MAX_RECOVERY_CODE_BYTES, MAX_REQUEST_BYTES,
-    MAX_SYNC_BASE_URL_BYTES, MAX_SYNC_IDENTIFIER_BYTES, MAX_SYNC_TOKEN_BYTES,
-    RECOVERY_CODE_ENTROPY_BYTES, WORKER_PROTOCOL_VERSION,
+    MAX_SYNC_IDENTIFIER_BYTES, RECOVERY_CODE_ENTROPY_BYTES, WORKER_PROTOCOL_VERSION,
 };
 use crate::sync::{BrowserSyncEnvironment, BrowserSyncRuntime};
 use skriuw_domain::{
     MAX_NOTE_LOCK_HINT_CHARS, MAX_NOTE_LOCK_SECRET_BYTES, NOTE_LOCK_CONFIGURE_ENTROPY_BYTES,
 };
+use skriuw_sync::CloudOriginPolicy;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WorkerLifecycle {
@@ -616,7 +616,7 @@ fn validate_command(command: &BrowserWorkerCommand) -> Result<(), BrowserStorage
             workspace_id,
             device_id,
         } => {
-            if token.trim().is_empty() || token.len() > MAX_SYNC_TOKEN_BYTES {
+            if !skriuw_sync::is_well_formed_session_token(token) {
                 return Err(BrowserStorageError::invalid(
                     "A valid account session is required to enable sync.",
                 ));
@@ -645,33 +645,15 @@ fn validate_sync_identifier(value: &str, role: &str) -> Result<(), BrowserStorag
 
 /// The worker re-checks the renderer's trust rules for the cloud origin so a
 /// compromised renderer message cannot point the authenticated transport at
-/// an arbitrary host.
+/// an arbitrary host. The URL is passed on unchanged, so only one that is
+/// already in normalized form is accepted.
 fn validate_sync_base_url(base_url: &str) -> Result<(), BrowserStorageError> {
-    let trusted = base_url.len() <= MAX_SYNC_BASE_URL_BYTES
-        && !base_url.contains(['?', '#', '@'])
-        && (is_trusted_https_origin(base_url) || is_local_development_origin(base_url));
-    if trusted {
-        Ok(())
-    } else {
-        Err(BrowserStorageError::invalid(
+    match skriuw_sync::trusted_cloud_base_url(base_url, CloudOriginPolicy::LOCALHOST) {
+        Ok(origin) if origin.as_str() == base_url.trim_end_matches('/') => Ok(()),
+        _ => Err(BrowserStorageError::invalid(
             "The configured cloud sync URL is not trusted.",
-        ))
+        )),
     }
-}
-
-fn is_trusted_https_origin(base_url: &str) -> bool {
-    let Some(host) = base_url.strip_prefix("https://") else {
-        return false;
-    };
-    let host = host.split(['/', ':']).next().unwrap_or_default();
-    !host.is_empty() && (host.ends_with(".skriuw.app") || host.ends_with(".workers.dev"))
-}
-
-fn is_local_development_origin(base_url: &str) -> bool {
-    let Some(rest) = base_url.strip_prefix("http://localhost") else {
-        return false;
-    };
-    rest.is_empty() || rest.starts_with(':') || rest.starts_with('/')
 }
 
 pub(crate) fn validate_database_name(name: &str) -> Result<(), BrowserStorageError> {

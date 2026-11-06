@@ -160,6 +160,8 @@ The adapter makes no sync product decisions. It reads rows, passes the facts to 
 
 It never holds a SQLite transaction open during network work, and it never runs on interaction or recovery paths. See `specs/desktop-sync-coordinator.md`.
 
+`skriuw-sync` also owns the session around the coordinator, so desktop and mobile drive sync the same way. `SyncRuntime` checks the cloud origin and credential, provisions and links the workspace, starts and stops the coordinator and the wake listener, suspends sync while a backup is restored or an archive imported, and serves the recovery and encryption use cases. Each platform supplies only its IO: an HTTP transport, an optional wake socket, an asset store and a way to open the database. The desktop shell supplies `reqwest`, `tungstenite` and the image blob store; the mobile facade supplies foreign network and asset ports and runs its own wake channel. The browser worker shares the origin, credential and link rules, while its loop stays in JavaScript. See [ADR-0059](adr/0059-shared-native-sync-runtime.md).
+
 Convergence is automatic and deterministic: every device that reads the same ordered log reaches the same canonical state, without any user action. The rules:
 
 - Document writes are ordered by server sequence. A local write that is still pending wins until the server gives it a sequence.
@@ -303,5 +305,6 @@ Each architecture decision record (ADR) explains why one part of the system work
 - [ADR-0053: task due dates live in the checklist line](adr/0053-task-due-dates-live-in-the-checklist-line.md)
 - [ADR-0054: recurring tasks repeat in the document](adr/0054-recurring-tasks-repeat-in-the-document.md)
 - [ADR-0055: workspace module boundaries](adr/0055-workspace-module-boundaries.md)
+- [ADR-0059: one native sync runtime, platforms supply the IO](adr/0059-shared-native-sync-runtime.md)
 
 Personal templates are ordinary notes used as sources. Saved searches, and which notes count as templates, are stored in bounded workspace preferences. See [ADR-0038](adr/0038-personal-template-and-search-preferences.md). Modal Vim editing is one `vimMode` setting. It turns on CodeMirror's Vim extension in the raw Markdown view and a Vim plugin built on the document model in the rendered editor; see [ADR-0042](adr/0042-modal-vim-editing.md). Sync refresh retries and full-text search filtered to a set of candidate notes follow the [refresh and search contract](specs/refresh-and-filtered-search.md).

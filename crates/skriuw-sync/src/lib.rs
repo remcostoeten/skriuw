@@ -1,4 +1,5 @@
-//! Background sync coordination for the native desktop runtime.
+//! Background sync coordination shared by the desktop, mobile and browser
+//! runtimes.
 //!
 //! This crate owns the lifecycle between the durable SQLite sync queue
 //! (`skriuw_storage::WorkspaceSyncQueue`) and an authenticated workspace sync
@@ -16,8 +17,14 @@ mod content;
 mod coordinator;
 mod cycle;
 mod http;
+mod link;
+mod origin;
+#[cfg(not(target_arch = "wasm32"))]
+mod runtime;
 mod seal;
 mod transport;
+#[cfg(not(target_arch = "wasm32"))]
+mod wake;
 
 pub use backoff::{SyncBackoff, SyncBackoffConfig};
 pub use checkpoint::{
@@ -52,6 +59,19 @@ pub use http::{
     VALIDATION_DETAIL_WORKSPACE_ENCRYPTED, classify_http_failure, classify_optional_route_failure,
     classify_rejected_response, rejected_error_code, request_timeout_ms,
 };
+pub use link::{
+    ProvisionFailure, ProvisionedWorkspace, SyncLinkError, SyncProvisioner,
+    classify_provision_status, decode_provisioned_workspace, plan_sync_link,
+};
+pub use origin::{
+    CloudOriginPolicy, MAX_CLOUD_BASE_URL_BYTES, MAX_SESSION_TOKEN_BYTES, TrustedCloudOrigin,
+    UntrustedCloudOrigin, is_well_formed_session_token, trusted_cloud_base_url,
+};
+#[cfg(not(target_arch = "wasm32"))]
+pub use runtime::{
+    MaintenanceSuspension, SyncCloud, SyncRuntime, SyncRuntimeConfig, SyncRuntimeError,
+    SyncSessionToken, SyncWorkspace, SyncWorkspaceOpener, WorkspaceEncryptionState,
+};
 pub use seal::{
     WorkspaceSealer, derive_workspace_seal, enable_workspace_encryption, new_recovery_code,
     sealed_ciphertext_base64, unlock_workspace_encryption,
@@ -59,3 +79,8 @@ pub use seal::{
 #[cfg(not(target_arch = "wasm32"))]
 pub use transport::SystemClock;
 pub use transport::{SyncCancellation, SyncClock, SyncTransport, TransportError};
+#[cfg(not(target_arch = "wasm32"))]
+pub use wake::{
+    WakeConnectError, WakeConnector, WakeFrame, WakeListener, WakeListenerConfig, WakeSocket,
+    WakeTarget, is_workspace_changed_message, run_wake_listener, websocket_url,
+};

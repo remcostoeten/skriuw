@@ -1952,6 +1952,7 @@ dependencies = [
  "skriuw-storage",
  "tempfile",
  "thiserror",
+ "uuid",
 ]
 
 [[package]]

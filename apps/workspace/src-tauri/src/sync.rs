@@ -2,44 +2,31 @@ use std::{
     io::Read,
     net::TcpStream,
     path::PathBuf,
-    sync::{
-        Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, Weak,
-        atomic::{AtomicBool, AtomicU64, Ordering},
-    },
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    sync::Arc,
+    time::Duration,
 };
 
 use reqwest::{Method, StatusCode, blocking::Client};
-use serde::Deserialize;
 use skriuw_domain::{
     SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView, WorkspaceCheckpoint,
     WorkspaceEncryptionMarker,
 };
 use skriuw_images::ImageStore;
 use skriuw_sqlite::SqliteWorkspace;
-use skriuw_storage::{NewSyncConnection, SyncRecovery, WorkspaceSyncQueue};
 use skriuw_sync::{
-    SyncAssetStore, SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncHttpEndpoints,
-    SyncStatus, SyncTransport, SyncWorkspaceObserver, SystemClock, TransportError,
-    classify_http_failure, classify_optional_route_failure, classify_rejected_response,
-    enable_workspace_encryption, rejected_error_code, request_timeout_ms,
-    unlock_workspace_encryption,
+    CloudOriginPolicy, MaintenanceSuspension, ProvisionFailure, ProvisionedWorkspace,
+    SyncAssetStore, SyncCancellation, SyncCloud, SyncHttpEndpoints, SyncProvisioner,
+    SyncRuntimeConfig, SyncRuntimeError, SyncSessionToken, SyncStatus, SyncStatusObserver,
+    SyncTransport, SyncWorkspaceObserver, SystemClock, TransportError, TrustedCloudOrigin,
+    WakeConnectError, WakeConnector, WakeFrame, WakeListenerConfig, WakeSocket,
+    classify_http_failure, classify_optional_route_failure, classify_provision_status,
+    classify_rejected_response, decode_provisioned_workspace, is_well_formed_session_token,
+    rejected_error_code, request_timeout_ms,
 };
-use uuid::Uuid;
 
-/// The encryption facts the settings surface renders. Key material is
-/// deliberately absent: the renderer never needs it and must never hold it.
-#[derive(Debug, Clone, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorkspaceEncryptionState {
-    pub enabled: bool,
-    pub linked: bool,
-    pub key_id: Option<String>,
-    pub sealed_checkpoint_at: Option<i64>,
-}
+pub use skriuw_sync::WorkspaceEncryptionState;
 
 pub type SessionExpiredObserver = Arc<dyn Fn() + Send + Sync>;
-type SharedToken = Arc<RwLock<String>>;
 
 /// Bridges the sync coordinator to the workspace image blob store. Reads and
 /// writes stay off interaction paths because the coordinator only calls this
@@ -78,77 +65,45 @@ impl SyncAssetStore for ImageAssetStore {
     }
 }
 
-const MAINTENANCE_IN_PROGRESS: &str = "sync is paused while a backup is restored or an archive is imported; try again when it finishes";
 const PRODUCTION_CLOUD_URL: &str = "https://skriuw-v2-cloud.remcostoeten.workers.dev";
 const LOCAL_CLOUD_URL: &str = "http://localhost:8787";
 const MAX_RESPONSE_BYTES: u64 = 4 * 1024 * 1024;
-const MAX_BASE_URL_BYTES: usize = 2_048;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+const PUSH_LISTENER_READ_TIMEOUT: Duration = Duration::from_secs(30);
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ProvisionedWorkspace {
-    workspace_id: String,
-    device_id: String,
-}
+/// The desktop's way to the cloud: a blocking `reqwest` client and a
+/// `tungstenite` wake socket.
+struct DesktopCloud;
 
-/// The coordinator a successful `connect` started, with the session it was
-/// started for so an overlapping `connect` for the same session can reuse it.
-struct ActiveSync {
-    coordinator: Arc<SyncCoordinator>,
-    base_url: String,
-    token: SharedToken,
-}
+impl SyncCloud for DesktopCloud {
+    type Transport = HttpSyncTransport;
 
-impl ActiveSync {
-    fn serves(&self, token: &str, base_url: &str) -> bool {
-        self.base_url == base_url
-            && self.token.read().is_ok_and(|current| *current == token)
-            && self.coordinator.status() != SyncStatus::AuthenticationRequired
+    fn open_transport(
+        &self,
+        session: SyncSessionToken,
+        endpoints: SyncHttpEndpoints,
+    ) -> Result<HttpSyncTransport, String> {
+        HttpSyncTransport::new(session, endpoints)
+    }
+
+    fn wake_connector(&self) -> Option<Arc<dyn WakeConnector>> {
+        Some(Arc::new(TungsteniteWake))
     }
 }
 
+/// The desktop shell's handle on the shared [`skriuw_sync::SyncRuntime`]. It
+/// adds only what is desktop-specific: the image blob store, the HTTP and
+/// WebSocket clients, the debug cloud override and string errors for Tauri
+/// commands.
 pub struct SyncRuntime {
-    database_path: PathBuf,
-    connect_gate: Mutex<()>,
-    stop_epoch: AtomicU64,
-    active: Mutex<Option<ActiveSync>>,
-    transport: Mutex<Option<Arc<HttpSyncTransport>>>,
-    push_listener: Mutex<Option<PushListener>>,
-    workspace_observer: Option<SyncWorkspaceObserver>,
-    session_expired: Option<SessionExpiredObserver>,
-    maintenance: RwLock<u32>,
-}
-
-pub struct MaintenanceSuspension<'a> {
-    runtime: &'a SyncRuntime,
-}
-
-impl Drop for MaintenanceSuspension<'_> {
-    fn drop(&mut self) {
-        let mut suspended = self
-            .runtime
-            .maintenance
-            .write()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        *suspended = suspended.saturating_sub(1);
-    }
+    inner: skriuw_sync::SyncRuntime<SqliteWorkspace, DesktopCloud>,
 }
 
 impl SyncRuntime {
+    #[cfg(test)]
     #[must_use]
     pub fn new(database_path: PathBuf) -> Self {
-        Self {
-            database_path,
-            connect_gate: Mutex::new(()),
-            stop_epoch: AtomicU64::new(0),
-            active: Mutex::new(None),
-            transport: Mutex::new(None),
-            push_listener: Mutex::new(None),
-            workspace_observer: None,
-            session_expired: None,
-            maintenance: RwLock::new(0),
-        }
+        Self::build(database_path, None, None)
     }
 
     #[must_use]
@@ -157,323 +112,126 @@ impl SyncRuntime {
         workspace_observer: SyncWorkspaceObserver,
         session_expired: SessionExpiredObserver,
     ) -> Self {
-        let mut runtime = Self::new(database_path);
-        runtime.workspace_observer = Some(workspace_observer);
-        runtime.session_expired = Some(session_expired);
-        runtime
+        let status_observer: SyncStatusObserver = Arc::new(move |status: &SyncStatus| {
+            if *status == SyncStatus::AuthenticationRequired {
+                session_expired();
+            }
+        });
+        Self::build(
+            database_path,
+            Some(workspace_observer),
+            Some(status_observer),
+        )
+    }
+
+    fn build(
+        database_path: PathBuf,
+        workspace_observer: Option<SyncWorkspaceObserver>,
+        status_observer: Option<SyncStatusObserver>,
+    ) -> Self {
+        let blob_directory = crate::image_blob_path(&database_path);
+        Self {
+            inner: skriuw_sync::SyncRuntime::new(
+                Box::new(move || SqliteWorkspace::open(&database_path)),
+                DesktopCloud,
+                SyncRuntimeConfig {
+                    clock: Arc::new(SystemClock),
+                    assets: Arc::new(ImageAssetStore { blob_directory }),
+                    status_observer,
+                    workspace_observer,
+                    wake: WakeListenerConfig::default(),
+                },
+            ),
+        }
     }
 
     #[must_use]
     pub fn status(&self) -> SyncStatus {
-        self.active
-            .lock()
-            .ok()
-            .and_then(|active| active.as_ref().map(|active| active.coordinator.status()))
-            .unwrap_or(SyncStatus::LocalOnly)
+        self.inner.status()
     }
 
     pub fn notify_local_commit(&self) {
-        self.with_coordinator(SyncCoordinator::notify_local_commit);
+        self.inner.notify_local_commit();
     }
 
     pub fn notify_focus(&self) {
-        self.with_coordinator(SyncCoordinator::notify_focus);
+        self.inner.notify_focus();
     }
 
     pub fn request_refresh(&self) {
-        self.with_coordinator(SyncCoordinator::request_refresh);
+        self.inner.request_refresh();
     }
 
     pub fn set_online(&self, online: bool) {
-        self.with_coordinator(|coordinator| coordinator.set_online(online));
+        self.inner.set_online(online);
     }
 
     pub fn set_visibility(&self, visible: bool, focused: bool) {
-        self.with_coordinator(|coordinator| coordinator.set_visibility(visible, focused));
+        self.inner.set_visibility(visible, focused);
     }
 
     /// Opens (or reopens) the authenticated session. The renderer names the
     /// cloud origin; it is validated here so a compromised renderer message
     /// cannot point the bearer token at an arbitrary host.
-    ///
-    /// Connects run one at a time, so the startup resume and a renderer
-    /// connect can never start two coordinators. A connect that waited for an
-    /// identical session reuses its coordinator, and one overtaken by a pause
-    /// or shutdown stops without starting sync.
     pub fn connect(&self, token: String, base_url: String) -> Result<SyncStatus, String> {
-        if token.trim().is_empty() || token.len() > 4_096 || token.chars().any(char::is_control) {
-            return Err("a valid account session is required to enable sync".into());
+        if !is_well_formed_session_token(&token) {
+            return Err(SyncRuntimeError::InvalidSession.to_string());
         }
-        let base_url = trusted_cloud_base_url(&base_url)?;
-        let _connecting = self
-            .connect_gate
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let maintenance = self.maintenance_gate()?;
-        if let Some(status) = self.reusable_status(&token, &base_url) {
-            return Ok(status);
-        }
-        self.stop_coordinator();
-        let epoch = self.stop_epoch.load(Ordering::SeqCst);
-
-        let queue = Arc::new(
-            SqliteWorkspace::open(&self.database_path)
-                .map_err(|error| format!("could not open the local sync queue: {error}"))?,
-        );
-        let existing = queue
-            .sync_connection()
-            .map_err(|error| format!("could not read the local sync connection: {error}"))?;
-        let device_id = existing
-            .as_ref()
-            .map(|connection| connection.device_id.clone())
-            .unwrap_or_else(|| Uuid::new_v4().simple().to_string());
-        let session_token: SharedToken = Arc::new(RwLock::new(token));
-        let transport = Arc::new(HttpSyncTransport::new(
-            Arc::clone(&session_token),
-            &base_url,
-        )?);
-        let provisioned = transport.provision(&device_id)?;
-        if provisioned.device_id != device_id {
-            return Err("cloud provisioning returned a different device identity".into());
-        }
-        if existing
-            .as_ref()
-            .is_some_and(|connection| connection.workspace_id != provisioned.workspace_id)
-        {
-            return Err(
-                "This local workspace is linked to another cloud workspace. Sign back into its original account and cloud environment, or open a fresh local workspace before linking a different account."
-                    .into(),
-            );
-        }
-        let listener_workspace_id = provisioned.workspace_id.clone();
-        let listener_device_id = device_id.clone();
-        queue
-            .connect_sync(&NewSyncConnection {
-                workspace_id: provisioned.workspace_id,
-                device_id,
-                connected_at: now_millis(),
-                observed_server_sequence: existing
-                    .map_or(0, |connection| connection.observed_server_sequence),
-            })
-            .map_err(|error| format!("could not persist the sync connection: {error}"))?;
-
-        let listener_stop = Arc::new(AtomicBool::new(false));
-        let session_expired = self.session_expired.clone();
-        let expiry_stop = Arc::clone(&listener_stop);
-        let status_observer: skriuw_sync::SyncStatusObserver =
-            Arc::new(move |status: &SyncStatus| {
-                if *status != SyncStatus::AuthenticationRequired {
-                    return;
-                }
-                expiry_stop.store(true, Ordering::Relaxed);
-                if let Some(session_expired) = &session_expired {
-                    session_expired();
-                }
-            });
-        let mut active = self.lock_active()?;
-        if self.stop_epoch.load(Ordering::SeqCst) != epoch {
-            return Ok(SyncStatus::LocalOnly);
-        }
-        if let Ok(mut cloud_transport) = self.transport.lock() {
-            *cloud_transport = Some(Arc::clone(&transport));
-        }
-        let workspace = Arc::clone(&queue);
-        let coordinator = Arc::new(SyncCoordinator::spawn(
-            queue,
-            workspace,
-            transport,
-            Arc::new(ImageAssetStore {
-                blob_directory: crate::image_blob_path(&self.database_path),
-            }),
-            Arc::new(SystemClock),
-            SyncCoordinatorConfig {
-                workspace_observer: self.workspace_observer.clone(),
-                status_observer: Some(status_observer),
-                session_token: Some(Arc::clone(&session_token)),
-                ..SyncCoordinatorConfig::default()
-            },
-        ));
-        let status = coordinator.status();
-        let listener = PushListener::spawn(
-            SyncHttpEndpoints::new(&base_url),
-            Arc::clone(&session_token),
-            listener_workspace_id,
-            listener_device_id,
-            Arc::downgrade(&coordinator),
-            listener_stop,
-        );
-        if let Ok(mut push_listener) = self.push_listener.lock() {
-            *push_listener = Some(listener);
-        }
-        *active = Some(ActiveSync {
-            coordinator,
-            base_url,
-            token: session_token,
-        });
-        drop(active);
-        drop(maintenance);
-        Ok(status)
-    }
-
-    fn reusable_status(&self, token: &str, base_url: &str) -> Option<SyncStatus> {
-        let active = self.active.lock().ok()?;
-        let active = active
-            .as_ref()
-            .filter(|active| active.serves(token, base_url))?;
-        Some(active.coordinator.status())
-    }
-
-    fn lock_active(&self) -> Result<MutexGuard<'_, Option<ActiveSync>>, String> {
-        self.active
-            .lock()
-            .map_err(|_| "sync runtime lock is unavailable".to_string())
-    }
-
-    fn maintenance_gate(&self) -> Result<RwLockReadGuard<'_, u32>, String> {
-        let maintenance = self
-            .maintenance
-            .read()
-            .map_err(|_| "sync runtime lock is unavailable".to_string())?;
-        if *maintenance != 0 {
-            return Err(MAINTENANCE_IN_PROGRESS.into());
-        }
-        Ok(maintenance)
-    }
-
-    /// Runs `action` on a short-lived connection while holding the maintenance
-    /// gate, so a restore or import waits for it and it refuses during one.
-    fn with_workspace<T>(
-        &self,
-        action: impl FnOnce(&SqliteWorkspace) -> Result<T, String>,
-    ) -> Result<T, String> {
-        let _maintenance = self.maintenance_gate()?;
-        let workspace = SqliteWorkspace::open(&self.database_path)
-            .map_err(|error| format!("could not open the local sync queue: {error}"))?;
-        action(&workspace)
+        let origin = trusted_cloud_base_url(&base_url)?;
+        self.inner.connect(token, origin).map_err(describe)
     }
 
     /// Cloud workspace this local store has already been linked to, if any.
     /// Read before routing an account so a store that predates the workspace
     /// registry is recognised as belonging to the account that linked it.
     pub fn linked_workspace_id(&self) -> Result<Option<String>, String> {
-        self.with_workspace(|workspace| {
-            Ok(workspace
-                .sync_connection()
-                .map_err(|error| format!("could not read the local sync connection: {error}"))?
-                .map(|connection| connection.workspace_id))
-        })
+        self.inner.linked_workspace_id().map_err(describe)
     }
 
-    /// Lists the blocked sync queue for the settings surface. This opens its
-    /// own short-lived database connection on the caller's blocking thread,
-    /// never on editing or navigation paths.
     pub fn recovery_view(&self) -> Result<SyncRecoveryView, String> {
-        self.with_workspace(|workspace| {
-            workspace
-                .sync_recovery_view()
-                .map_err(|error| format!("could not read the blocked sync queue: {error}"))
-        })
+        self.inner.recovery_view().map_err(describe)
     }
 
     pub fn retry_blocked_operation(&self, blocked_id: &str) -> Result<SyncRecoveryView, String> {
-        self.with_workspace(|workspace| {
-            workspace
-                .retry_blocked_sync_operation(blocked_id, now_millis())
-                .map_err(|error| format!("could not retry the blocked change: {error}"))?;
-            self.request_refresh();
-            workspace
-                .sync_recovery_view()
-                .map_err(|error| format!("could not read the blocked sync queue: {error}"))
-        })
+        self.inner
+            .retry_blocked_operation(blocked_id)
+            .map_err(describe)
     }
 
     pub fn discard_blocked_operation(&self, blocked_id: &str) -> Result<SyncRecoveryView, String> {
-        self.with_workspace(|workspace| {
-            workspace
-                .discard_blocked_sync_operation(blocked_id, now_millis())
-                .map_err(|error| format!("could not discard the blocked change: {error}"))?;
-            self.request_refresh();
-            workspace
-                .sync_recovery_view()
-                .map_err(|error| format!("could not read the blocked sync queue: {error}"))
-        })
+        self.inner
+            .discard_blocked_operation(blocked_id)
+            .map_err(describe)
     }
 
-    /// What the settings surface needs to describe this workspace's
-    /// encryption without ever handling key material.
     pub fn encryption_state(&self) -> Result<WorkspaceEncryptionState, String> {
-        self.with_workspace(|workspace| {
-            let seal = workspace.workspace_seal().map_err(|error| {
-                format!("could not read the workspace encryption state: {error}")
-            })?;
-            let linked = workspace
-                .sync_connection()
-                .map_err(|error| format!("could not read the local sync connection: {error}"))?
-                .is_some();
-            Ok(WorkspaceEncryptionState {
-                enabled: seal.is_some(),
-                linked,
-                key_id: seal.as_ref().map(|seal| seal.key_id.clone()),
-                sealed_checkpoint_at: seal.as_ref().and_then(|seal| seal.sealed_checkpoint_at),
-            })
-        })
+        self.inner.encryption_state().map_err(describe)
     }
 
-    /// Turns encryption on and returns the recovery code exactly once. The
-    /// code is never stored: only the key it derives is, so a lost code is
-    /// unrecoverable by design and the cloud copy dies with it.
+    /// Turns encryption on and returns the recovery code exactly once.
     pub fn enable_encryption(&self) -> Result<String, String> {
-        let transport = self.cloud_transport()?;
         let mut entropy = zeroize::Zeroizing::new([0_u8; 20]);
         getrandom::fill(entropy.as_mut_slice()).map_err(|error| {
             format!("could not gather randomness for the recovery code: {error}")
         })?;
-        let recovery_code = self.with_workspace(|workspace| {
-            enable_workspace_encryption(
-                workspace,
-                transport.as_ref(),
-                &SyncCancellation::new(),
-                entropy.as_slice(),
-                now_millis(),
-            )
-        })?;
-        self.request_refresh();
-        Ok(recovery_code)
+        self.inner
+            .enable_encryption(entropy.as_slice())
+            .map_err(describe)
     }
 
-    /// Joins an already-encrypted workspace from a second device. The code is
-    /// checked against the key the cloud recorded before anything is stored.
     pub fn unlock_encryption(&self, recovery_code: &str) -> Result<(), String> {
-        let transport = self.cloud_transport()?;
-        self.with_workspace(|workspace| {
-            unlock_workspace_encryption(
-                workspace,
-                transport.as_ref(),
-                &SyncCancellation::new(),
-                recovery_code,
-                now_millis(),
-            )
-        })?;
-        self.request_refresh();
-        Ok(())
-    }
-
-    fn cloud_transport(&self) -> Result<Arc<HttpSyncTransport>, String> {
-        self.transport
-            .lock()
-            .map_err(|_| "sync runtime lock is unavailable".to_string())?
-            .clone()
-            .ok_or_else(|| "sign in to Skriuw cloud before changing encryption".to_string())
+        self.inner
+            .unlock_encryption(recovery_code)
+            .map_err(describe)
     }
 
     /// Pause network access without discarding the durable connection or outbox.
     pub fn pause_for_logout(&self) -> SyncStatus {
-        self.stop_coordinator();
-        self.status()
+        self.inner.pause()
     }
 
     pub fn shutdown(&self) {
-        self.stop_coordinator();
+        self.inner.shutdown();
     }
 
     /// Stops sync and refuses `connect` until the returned guard drops. Waits
@@ -481,274 +239,92 @@ impl SyncRuntime {
     /// from a blocking thread.
     #[must_use]
     pub fn suspend_for_maintenance(&self) -> MaintenanceSuspension<'_> {
-        {
-            let mut suspended = self
-                .maintenance
-                .write()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
-            *suspended = suspended.saturating_add(1);
-        }
-        self.stop_coordinator();
-        MaintenanceSuspension { runtime: self }
+        self.inner.suspend_for_maintenance()
     }
 
     /// Stops sync but waits at most `limit` for the worker, so quitting never
-    /// hangs on an in-flight request. Returns false when the worker was left
-    /// for process exit to reclaim.
+    /// hangs on an in-flight request.
     pub fn shutdown_within(&self, limit: Duration) -> bool {
-        self.take_coordinator()
-            .is_none_or(|coordinator| coordinator.shutdown_within(limit))
-    }
-
-    fn stop_coordinator(&self) {
-        if let Some(coordinator) = self.take_coordinator() {
-            coordinator.shutdown();
-        }
-    }
-
-    fn take_coordinator(&self) -> Option<Arc<SyncCoordinator>> {
-        let mut active = self
-            .active
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        self.stop_epoch.fetch_add(1, Ordering::SeqCst);
-        let listener = self
-            .push_listener
-            .lock()
-            .ok()
-            .and_then(|mut listener| listener.take());
-        if let Some(listener) = listener {
-            listener.stop();
-        }
-        active.take().map(|active| active.coordinator)
-    }
-
-    fn with_coordinator(&self, action: impl Fn(&SyncCoordinator)) {
-        if let Ok(active) = self.active.lock()
-            && let Some(active) = active.as_ref()
-        {
-            action(active.coordinator.as_ref());
-        }
+        self.inner.shutdown_within(limit)
     }
 }
 
-const PUSH_LISTENER_READ_TIMEOUT: Duration = Duration::from_secs(30);
-const PUSH_LISTENER_MIN_BACKOFF_MS: u64 = 1_000;
-const PUSH_LISTENER_MAX_BACKOFF_MS: u64 = 60_000;
-const PUSH_LISTENER_STOP_POLL: Duration = Duration::from_millis(250);
-
-/// Long-lived WebSocket that wakes the coordinator when another device changes
-/// the workspace. It is a latency optimization only: every failure path falls
-/// back to the coordinator's own poll interval, so the listener never surfaces
-/// in sync status and never blocks teardown — it holds the coordinator weakly
-/// and exits once the coordinator is gone or the stop flag is set.
-struct PushListener {
-    stop: Arc<AtomicBool>,
+fn describe(error: SyncRuntimeError) -> String {
+    error.to_string()
 }
 
-impl PushListener {
-    fn spawn(
-        endpoints: SyncHttpEndpoints,
-        token: SharedToken,
-        workspace_id: String,
-        device_id: String,
-        coordinator: Weak<SyncCoordinator>,
-        stop: Arc<AtomicBool>,
-    ) -> Self {
-        let listener_stop = Arc::clone(&stop);
-        let spawned = std::thread::Builder::new()
-            .name("skriuw-sync-push".into())
-            .spawn(move || {
-                run_push_listener(
-                    &endpoints,
-                    &token,
-                    &workspace_id,
-                    &device_id,
-                    &coordinator,
-                    &listener_stop,
-                );
-            });
-        if let Err(error) = spawned {
-            eprintln!("sync push listener could not start: {error}");
-        }
-        Self { stop }
-    }
+struct TungsteniteWake;
 
-    fn stop(&self) {
-        self.stop.store(true, Ordering::Relaxed);
-    }
-}
+impl WakeConnector for TungsteniteWake {
+    fn connect(&self, url: &str, token: &str) -> Result<Box<dyn WakeSocket>, WakeConnectError> {
+        use tungstenite::client::IntoClientRequest;
 
-enum ListenerSession {
-    Reconnect,
-    Exit,
-}
-
-fn run_push_listener(
-    endpoints: &SyncHttpEndpoints,
-    token: &SharedToken,
-    workspace_id: &str,
-    device_id: &str,
-    coordinator: &Weak<SyncCoordinator>,
-    stop: &AtomicBool,
-) {
-    let mut backoff_ms = PUSH_LISTENER_MIN_BACKOFF_MS;
-    loop {
-        if stop.load(Ordering::Relaxed) || coordinator.strong_count() == 0 {
-            return;
-        }
-        let current_token = token.read().map(|token| token.clone()).unwrap_or_default();
-        match connect_events_socket(endpoints, &current_token, workspace_id, device_id) {
-            Ok(mut socket) => {
-                backoff_ms = PUSH_LISTENER_MIN_BACKOFF_MS;
-                report_channel(coordinator, true);
-                let session = listen_for_wakes(&mut socket, coordinator, stop);
-                report_channel(coordinator, false);
-                if let ListenerSession::Exit = session {
-                    return;
+        let mut request = url.into_client_request().map_err(|error| {
+            WakeConnectError::Failed(format!("events request was invalid: {error}"))
+        })?;
+        request.headers_mut().insert(
+            "Authorization",
+            format!("Bearer {token}").parse().map_err(|_| {
+                WakeConnectError::Failed("session token cannot be sent as a header".into())
+            })?,
+        );
+        let (mut socket, _response) =
+            tungstenite::connect(request).map_err(|error| match error {
+                tungstenite::Error::Http(response)
+                    if matches!(response.status().as_u16(), 401 | 403) =>
+                {
+                    WakeConnectError::Rejected(response.status().as_u16())
                 }
-            }
-            Err(ListenerConnectError::Rejected(status)) => {
-                eprintln!("sync push listener was rejected ({status}); waiting for a new session");
-                return;
-            }
-            Err(ListenerConnectError::Failed(error)) => {
-                eprintln!("sync push listener connection failed: {error}");
-            }
+                error => WakeConnectError::Failed(format!("events connect failed: {error}")),
+            })?;
+        let stream = match socket.get_mut() {
+            tungstenite::stream::MaybeTlsStream::Plain(stream) => Some(stream),
+            tungstenite::stream::MaybeTlsStream::Rustls(stream) => Some(stream.get_mut()),
+            _ => None,
+        };
+        if let Some(stream) = stream {
+            let _ = stream.set_read_timeout(Some(PUSH_LISTENER_READ_TIMEOUT));
         }
-        let mut waited = Duration::ZERO;
-        while waited < Duration::from_millis(backoff_ms) {
-            if stop.load(Ordering::Relaxed) || coordinator.strong_count() == 0 {
-                return;
-            }
-            std::thread::sleep(PUSH_LISTENER_STOP_POLL);
-            waited += PUSH_LISTENER_STOP_POLL;
-        }
-        backoff_ms = (backoff_ms * 2).min(PUSH_LISTENER_MAX_BACKOFF_MS);
+        Ok(Box::new(TungsteniteSocket(socket)))
     }
 }
 
-fn report_channel(coordinator: &Weak<SyncCoordinator>, connected: bool) {
-    if let Some(coordinator) = coordinator.upgrade() {
-        coordinator.set_wake_channel_connected(connected);
-    }
-}
+struct TungsteniteSocket(tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<TcpStream>>);
 
-enum ListenerConnectError {
-    /// The service refused the session at the handshake; retrying with the
-    /// same token cannot succeed.
-    Rejected(u16),
-    Failed(String),
-}
-
-fn connect_events_socket(
-    endpoints: &SyncHttpEndpoints,
-    token: &str,
-    workspace_id: &str,
-    device_id: &str,
-) -> Result<
-    tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<TcpStream>>,
-    ListenerConnectError,
-> {
-    use tungstenite::client::IntoClientRequest;
-
-    let url = websocket_url(&endpoints.events(workspace_id, device_id))
-        .map_err(ListenerConnectError::Failed)?;
-    let mut request = url.into_client_request().map_err(|error| {
-        ListenerConnectError::Failed(format!("events request was invalid: {error}"))
-    })?;
-    request.headers_mut().insert(
-        "Authorization",
-        format!("Bearer {token}").parse().map_err(|_| {
-            ListenerConnectError::Failed("session token cannot be sent as a header".into())
-        })?,
-    );
-    let (mut socket, _response) = tungstenite::connect(request).map_err(|error| match error {
-        tungstenite::Error::Http(response) if matches!(response.status().as_u16(), 401 | 403) => {
-            ListenerConnectError::Rejected(response.status().as_u16())
-        }
-        error => ListenerConnectError::Failed(format!("events connect failed: {error}")),
-    })?;
-    let stream = match socket.get_mut() {
-        tungstenite::stream::MaybeTlsStream::Plain(stream) => Some(stream),
-        tungstenite::stream::MaybeTlsStream::Rustls(stream) => Some(stream.get_mut()),
-        _ => None,
-    };
-    if let Some(stream) = stream {
-        let _ = stream.set_read_timeout(Some(PUSH_LISTENER_READ_TIMEOUT));
-    }
-    Ok(socket)
-}
-
-fn listen_for_wakes(
-    socket: &mut tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<TcpStream>>,
-    coordinator: &Weak<SyncCoordinator>,
-    stop: &AtomicBool,
-) -> ListenerSession {
-    loop {
-        if stop.load(Ordering::Relaxed) {
-            let _ = socket.close(None);
-            return ListenerSession::Exit;
-        }
-        match socket.read() {
-            Ok(tungstenite::Message::Text(text)) => {
-                if is_workspace_changed_message(text.as_str()) {
-                    let Some(coordinator) = coordinator.upgrade() else {
-                        return ListenerSession::Exit;
-                    };
-                    coordinator.notify_remote_change();
-                }
-            }
-            Ok(tungstenite::Message::Close(_)) => return ListenerSession::Reconnect,
-            Ok(_) => {}
+impl WakeSocket for TungsteniteSocket {
+    fn read(&mut self) -> WakeFrame {
+        match self.0.read() {
+            Ok(tungstenite::Message::Text(text)) => WakeFrame::Text(text.as_str().to_owned()),
+            Ok(tungstenite::Message::Close(_)) => WakeFrame::Closed,
+            Ok(_) => WakeFrame::Ignored,
             Err(tungstenite::Error::Io(error))
                 if matches!(
                     error.kind(),
                     std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
                 ) =>
             {
-                // The read timeout doubles as the keepalive tick; the service
-                // answers with an auto-response pong without waking.
-                if socket
-                    .send(tungstenite::Message::Text("ping".into()))
-                    .is_err()
-                {
-                    return ListenerSession::Reconnect;
-                }
+                WakeFrame::Idle
             }
-            Err(_) => return ListenerSession::Reconnect,
+            Err(_) => WakeFrame::Closed,
         }
     }
-}
 
-fn is_workspace_changed_message(text: &str) -> bool {
-    serde_json::from_str::<serde_json::Value>(text)
-        .ok()
-        .and_then(|value| {
-            value
-                .get("type")
-                .and_then(|kind| kind.as_str())
-                .map(|kind| kind == "workspaceChanged")
-        })
-        .unwrap_or(false)
-}
+    // The read timeout doubles as the keepalive tick; the service answers with
+    // an auto-response pong without waking.
+    fn keepalive(&mut self) -> bool {
+        self.0
+            .send(tungstenite::Message::Text("ping".into()))
+            .is_ok()
+    }
 
-fn websocket_url(http_url: &str) -> Result<String, String> {
-    if let Some(rest) = http_url.strip_prefix("https://") {
-        return Ok(format!("wss://{rest}"));
+    fn close(&mut self) {
+        let _ = self.0.close(None);
     }
-    if let Some(rest) = http_url.strip_prefix("http://") {
-        return Ok(format!("ws://{rest}"));
-    }
-    if http_url.starts_with("wss://") || http_url.starts_with("ws://") {
-        return Ok(http_url.to_string());
-    }
-    Err(format!("cloud URL has no recognized scheme: {http_url}"))
 }
 
 struct HttpSyncTransport {
     client: Client,
-    token: SharedToken,
+    token: SyncSessionToken,
     endpoints: SyncHttpEndpoints,
 }
 
@@ -789,7 +365,7 @@ impl OutboundRequest {
 }
 
 impl HttpSyncTransport {
-    fn new(token: SharedToken, base_url: &str) -> Result<Self, String> {
+    fn new(token: SyncSessionToken, endpoints: SyncHttpEndpoints) -> Result<Self, String> {
         let client = Client::builder()
             .connect_timeout(CONNECT_TIMEOUT)
             .build()
@@ -797,7 +373,7 @@ impl HttpSyncTransport {
         Ok(Self {
             client,
             token,
-            endpoints: SyncHttpEndpoints::new(base_url),
+            endpoints,
         })
     }
 
@@ -806,26 +382,6 @@ impl HttpSyncTransport {
             .read()
             .map(|token| token.clone())
             .unwrap_or_default()
-    }
-
-    fn provision(&self, device_id: &str) -> Result<ProvisionedWorkspace, String> {
-        let body = serde_json::json!({ "deviceId": device_id }).to_string();
-        let response = self
-            .client
-            .post(self.endpoints.provision())
-            .bearer_auth(self.bearer())
-            .timeout(Duration::from_millis(request_timeout_ms(body.len())))
-            .header("Content-Type", "application/json")
-            .body(body)
-            .send()
-            .map_err(|error| format!("cloud provisioning failed: {error}"))?;
-        if !response.status().is_success() {
-            return Err(provision_error(response.status()));
-        }
-        let body = read_bounded(response)
-            .map_err(|error| format!("cloud provisioning response was invalid: {error}"))?;
-        serde_json::from_slice(&body)
-            .map_err(|error| format!("cloud provisioning response was invalid: {error}"))
     }
 
     fn dispatch(
@@ -917,6 +473,27 @@ impl HttpSyncTransport {
             ));
         }
         read_bounded(response).map(Some)
+    }
+}
+
+impl SyncProvisioner for HttpSyncTransport {
+    fn provision(&self, device_id: &str) -> Result<ProvisionedWorkspace, ProvisionFailure> {
+        let body = serde_json::json!({ "deviceId": device_id }).to_string();
+        let response = self
+            .client
+            .post(self.endpoints.provision())
+            .bearer_auth(self.bearer())
+            .timeout(Duration::from_millis(request_timeout_ms(body.len())))
+            .header("Content-Type", "application/json")
+            .body(body)
+            .send()
+            .map_err(|error| ProvisionFailure::Unreachable(error.to_string()))?;
+        if !response.status().is_success() {
+            return Err(classify_provision_status(response.status().as_u16()));
+        }
+        let body = read_bounded(response)
+            .map_err(|error| ProvisionFailure::InvalidResponse(error.to_string()))?;
+        decode_provisioned_workspace(&body)
     }
 }
 
@@ -1098,15 +675,6 @@ fn read_bounded(response: reqwest::blocking::Response) -> Result<Vec<u8>, Transp
     Ok(body)
 }
 
-fn provision_error(status: StatusCode) -> String {
-    match status {
-        StatusCode::UNAUTHORIZED => "your Skriuw session expired; sign in again".into(),
-        StatusCode::FORBIDDEN => "this device is not allowed to use cloud sync".into(),
-        status if status.is_server_error() => "Skriuw cloud is temporarily unavailable".into(),
-        _ => "Skriuw cloud rejected the sync setup request".into(),
-    }
-}
-
 fn retry_after_ms(retry_after: Option<&reqwest::header::HeaderValue>) -> Option<i64> {
     retry_after
         .and_then(|value| value.to_str().ok())
@@ -1136,37 +704,18 @@ pub fn default_cloud_base_url() -> String {
 /// Accepts only the cloud origins this build trusts with the bearer token:
 /// `https` under a Skriuw-controlled suffix, or `http://localhost` in debug
 /// builds. In debug builds `SKRIUW_CLOUD_URL` overrides the renderer's choice.
-fn trusted_cloud_base_url(base_url: &str) -> Result<String, String> {
+fn trusted_cloud_base_url(base_url: &str) -> Result<TrustedCloudOrigin, String> {
     if cfg!(debug_assertions)
         && let Ok(override_url) = std::env::var("SKRIUW_CLOUD_URL")
     {
-        return Ok(override_url);
+        return Ok(TrustedCloudOrigin::developer_override(override_url));
     }
-    let trimmed = base_url.trim().trim_end_matches('/');
-    let trusted = trimmed.len() <= MAX_BASE_URL_BYTES
-        && !trimmed.contains(['?', '#', '@', ' '])
-        && (is_trusted_https_origin(trimmed)
-            || (cfg!(debug_assertions) && is_local_development_origin(trimmed)));
-    if trusted {
-        Ok(trimmed.to_string())
+    let policy = if cfg!(debug_assertions) {
+        CloudOriginPolicy::LOCALHOST
     } else {
-        Err("the cloud sync URL is not trusted".into())
-    }
-}
-
-fn is_trusted_https_origin(base_url: &str) -> bool {
-    let Some(rest) = base_url.strip_prefix("https://") else {
-        return false;
+        CloudOriginPolicy::RELEASE
     };
-    let host = rest.split(['/', ':']).next().unwrap_or_default();
-    !host.is_empty() && (host.ends_with(".skriuw.app") || host.ends_with(".workers.dev"))
-}
-
-fn is_local_development_origin(base_url: &str) -> bool {
-    let Some(rest) = base_url.strip_prefix("http://localhost") else {
-        return false;
-    };
-    rest.is_empty() || rest.starts_with(':') || rest.starts_with('/')
+    skriuw_sync::trusted_cloud_base_url(base_url, policy).map_err(|error| error.to_string())
 }
 
 fn development_cloud_base_url(mode: Option<&str>) -> &'static str {
@@ -1177,25 +726,18 @@ fn development_cloud_base_url(mode: Option<&str>) -> &'static str {
     }
 }
 
-fn now_millis() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as i64)
-        .unwrap_or(0)
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
-        HttpSyncTransport, LOCAL_CLOUD_URL, PRODUCTION_CLOUD_URL, SyncRuntime,
-        development_cloud_base_url, is_local_development_origin, is_trusted_https_origin,
+        LOCAL_CLOUD_URL, PRODUCTION_CLOUD_URL, SyncRuntime, development_cloud_base_url,
+        trusted_cloud_base_url,
     };
     use skriuw_sync::SyncStatus;
     use std::{
         io::{BufRead, BufReader, Read, Write},
         net::{TcpListener, TcpStream},
         sync::{
-            Arc, RwLock,
+            Arc,
             atomic::{AtomicBool, AtomicUsize, Ordering},
         },
         thread,
@@ -1327,37 +869,20 @@ mod tests {
     }
 
     #[test]
-    fn pausing_during_connect_keeps_sync_stopped() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        let runtime = SyncRuntime::new(directory.path().join("workspace.db"));
-        let cloud = FakeCloud::start();
-
-        let connected = thread::scope(|scope| {
-            let connecting =
-                scope.spawn(|| runtime.connect("token".into(), cloud.base_url.clone()));
-            cloud.wait_for_provisions(1);
-            assert_eq!(runtime.pause_for_logout(), SyncStatus::LocalOnly);
-            cloud.release_provisioning();
-            connecting.join().expect("connect")
-        });
-
-        assert_eq!(connected, Ok(SyncStatus::LocalOnly));
-        assert_eq!(runtime.status(), SyncStatus::LocalOnly);
-        assert!(runtime.cloud_transport().is_err());
-    }
-
-    #[test]
     fn only_skriuw_origins_are_trusted_with_the_session_token() {
-        assert!(is_trusted_https_origin(PRODUCTION_CLOUD_URL));
-        assert!(is_trusted_https_origin("https://sync.skriuw.app"));
-        assert!(!is_trusted_https_origin("https://evil.example"));
-        assert!(!is_trusted_https_origin("https://skriuw.app.evil.example"));
-        assert!(!is_trusted_https_origin("http://sync.skriuw.app"));
-        assert!(is_local_development_origin(LOCAL_CLOUD_URL));
-        assert!(is_local_development_origin("http://localhost"));
-        assert!(!is_local_development_origin(
-            "http://localhost.evil.example"
-        ));
+        if std::env::var("SKRIUW_CLOUD_URL").is_ok() {
+            return;
+        }
+        assert!(trusted_cloud_base_url(PRODUCTION_CLOUD_URL).is_ok());
+        assert!(trusted_cloud_base_url("https://sync.skriuw.app").is_ok());
+        assert!(trusted_cloud_base_url("https://evil.example").is_err());
+        assert!(trusted_cloud_base_url("https://skriuw.app.evil.example").is_err());
+        assert!(trusted_cloud_base_url("http://sync.skriuw.app").is_err());
+        assert_eq!(
+            trusted_cloud_base_url(LOCAL_CLOUD_URL).is_ok(),
+            cfg!(debug_assertions)
+        );
+        assert!(trusted_cloud_base_url("http://localhost.evil.example").is_err());
     }
 
     #[test]
@@ -1409,10 +934,6 @@ mod tests {
         let directory = tempfile::tempdir().expect("temporary directory");
         let database_path = directory.path().join("workspace.db");
         let runtime = SyncRuntime::new(database_path.clone());
-        *runtime.transport.lock().expect("transport lock") = Some(Arc::new(
-            HttpSyncTransport::new(Arc::new(RwLock::new("token".into())), PRODUCTION_CLOUD_URL)
-                .expect("transport"),
-        ));
 
         let suspension = runtime.suspend_for_maintenance();
         let refusals = [
@@ -1441,47 +962,6 @@ mod tests {
         );
         assert!(!runtime.encryption_state().expect("encryption").enabled);
         assert!(database_path.exists());
-    }
-
-    #[test]
-    fn suspension_waits_for_an_open_workspace_connection_to_close() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        let runtime = Arc::new(SyncRuntime::new(directory.path().join("workspace.db")));
-        let (opened_sender, opened) = std::sync::mpsc::channel();
-        let (release, released) = std::sync::mpsc::channel::<()>();
-        let closed = Arc::new(AtomicBool::new(false));
-
-        let reader = {
-            let runtime = Arc::clone(&runtime);
-            let closed = Arc::clone(&closed);
-            std::thread::spawn(move || {
-                runtime
-                    .with_workspace(|_| {
-                        opened_sender.send(()).expect("signal opened");
-                        released.recv().expect("release");
-                        closed.store(true, Ordering::SeqCst);
-                        Ok(())
-                    })
-                    .expect("reader");
-            })
-        };
-        opened.recv().expect("reader opened");
-        let suspender = {
-            let runtime = Arc::clone(&runtime);
-            let closed = Arc::clone(&closed);
-            std::thread::spawn(move || {
-                let _suspension = runtime.suspend_for_maintenance();
-                closed.load(Ordering::SeqCst)
-            })
-        };
-        std::thread::sleep(Duration::from_millis(50));
-        assert!(
-            !suspender.is_finished(),
-            "suspension skipped the open connection"
-        );
-        release.send(()).expect("release reader");
-        reader.join().expect("reader thread");
-        assert!(suspender.join().expect("suspender thread"));
     }
 
     #[test]
