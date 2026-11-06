@@ -16,12 +16,11 @@ import {
 } from "@/features/capture/launch-capture";
 import { bindLockSession } from "@/features/lock/lock";
 import { seedRelationshipFixture } from "@/features/onboarding/debug-seed";
-import { createDatabaseNodeView } from "@/features/database/embed";
-import { provideBlockView } from "@/features/editor/block-views";
 import { bindStarterReclaim } from "@/features/onboarding/reclaim";
 import { seedStarterWorkspace } from "@/features/onboarding/seed";
 import { bindSettingsToRoot } from "@/features/settings/apply-settings";
 import { bindOpenedFiles } from "@/features/transfer/opened-files";
+import { installEditorExtensions } from "@/app/editor-extensions";
 import { isBrowserRuntime } from "@/platform/runtime/runtime";
 import { showToast } from "@/shared/ui/toast";
 import { bindThemeColor } from "@/shell/theme-color";
@@ -97,7 +96,7 @@ export async function openWorkspace(root: Root): Promise<() => Promise<void>> {
     if (!isBrowserRuntime()) {
       unlistenOpenedFiles = await bindOpenedFiles(store);
     }
-    provideBlockView("database_view", createDatabaseNodeView);
+    installEditorExtensions();
     root.render(
       <StrictMode>
         <App store={store} />

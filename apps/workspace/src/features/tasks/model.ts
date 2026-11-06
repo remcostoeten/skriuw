@@ -1,7 +1,7 @@
 import type { WorkspaceTask } from "@skriuw/renderer-core/contracts/workspace";
 import type { DateKey } from "@skriuw/renderer-core/journal/dates";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
-import { dueBucket, isDueDate, type DueBucket } from "./due-dates";
+import { dueBucket, isDueDate, type DueBucket } from "@skriuw/renderer-core/tasks/due-dates";
 
 export type TaskRow = {
   id: string;

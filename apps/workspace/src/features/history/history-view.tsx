@@ -1,12 +1,12 @@
 import { useMemo } from "react";
-import { useRouteFocus, useRouteHistoryVersion } from "@/app-route";
+import { useRouteFocus, useRouteHistoryVersion } from "@/shared/routing/app-route";
 import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import { activateNote } from "@/features/notes/navigation";
 import { ChevronLeftIcon, HistoryIcon } from "@/shared/icons/static";
 import { formatRelativeTime } from "@/shared/format/relative-time";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import { WindowControls } from "@/shell/title-bar";
+import { WindowControlsSlot } from "@/shared/ui/window-controls-slot";
 import { VersionHistoryPanel } from "./version-history-panel";
 import { projectVersionList } from "./versions/model";
 
@@ -75,7 +75,7 @@ export function HistoryView({ store }: Props) {
               ? `Latest revision ${formatRelativeTime(latest.createdAt)}`
               : "No revisions yet"}
           </p>
-          <WindowControls />
+          <WindowControlsSlot />
         </div>
       </header>
 

@@ -3,28 +3,22 @@ import type { RefObject } from "react";
 import type { WorkspaceImage } from "@skriuw/renderer-core/contracts/workspace";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import {
-  mediaEntryForContentHash,
-  mediaUsageDetail,
-  openMediaUsage,
-} from "@/features/media/media-usage";
+import { mediaEntryForContentHash, mediaUsageDetail, openMediaUsage } from "./media-usage";
 import {
   imageFormatLabel,
   MEDIA_ALT_MAX_BYTES,
   MEDIA_NAME_MAX_BYTES,
   mediaDisplayName,
   type MediaUsage,
-} from "@/features/media/media-library-model";
+} from "./media-library-model";
 import { formatByteSize } from "@/shared/format/bytes";
-import { resolveImageBlobUrl } from "@/features/media/image-blob-url";
+import { resolveImageBlobUrl } from "@/platform/runtime/media-urls";
+import type { EditorExtension, ImageDialogsProps } from "@/features/editor/extensions";
+import { setMediaMetadata } from "./media-metadata";
 import { Dialog } from "@/shared/ui/dialog";
-import {
-  MediaLightbox,
-  MediaUsageList,
-  type MediaLightboxUsage,
-} from "@/features/media/media-lightbox";
+import { MediaLightbox, MediaUsageList, type MediaLightboxUsage } from "./media-lightbox";
 
-export type ImageFields = { name: string; alt: string };
+type ImageFields = { name: string; alt: string };
 
 const fieldClass =
   "rounded-[var(--radius)] border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-ring pointer-coarse:min-h-11 pointer-coarse:text-base";
@@ -82,7 +76,7 @@ type EditDialogProps = {
  * Edits the library name of the stored file and the alt text of this image.
  * The name is shared by every note that uses the same file.
  */
-export function ImageEditDialog({ initial, onSubmit, onClose }: EditDialogProps) {
+function ImageEditDialog({ initial, onSubmit, onClose }: EditDialogProps) {
   const [name, setName] = useState(initial.name);
   const [alt, setAlt] = useState(initial.alt);
   const altRef = useRef<HTMLTextAreaElement>(null);
@@ -181,7 +175,7 @@ type LightboxProps = {
   onClose: () => void;
 };
 
-export function ImageLightbox({ store, image, alt, onClose }: LightboxProps) {
+function ImageLightbox({ store, image, alt, onClose }: LightboxProps) {
   const [src, setSrc] = useState<string | null>(null);
   const entry = useImageLibraryEntry(store, image.contentHash);
 
@@ -223,7 +217,7 @@ type InfoDialogProps = {
   onClose: () => void;
 };
 
-export function ImageInfoDialog({ store, image, alt, onSave, onClose }: InfoDialogProps) {
+function ImageInfoDialog({ store, image, alt, onSave, onClose }: InfoDialogProps) {
   const entry = useImageLibraryEntry(store, image.contentHash);
   const [name, setName] = useState(entry?.name ?? "");
   const [draftAlt, setDraftAlt] = useState(alt);
@@ -265,3 +259,47 @@ export function ImageInfoDialog({ store, image, alt, onSave, onClose }: InfoDial
     </Dialog>
   );
 }
+
+function ImageDialogs({ store, dialog, renameImage, onClose }: ImageDialogsProps) {
+  function saveImageFields(imageId: string, image: WorkspaceImage | null, fields: ImageFields) {
+    renameImage(imageId, fields.alt);
+    if (!image) return;
+    const current = store.getState().mediaMetadata.get(image.contentHash);
+    if ((current?.name ?? "") === fields.name) return;
+    void setMediaMetadata(store, image.contentHash, {
+      name: fields.name,
+      alt: current?.alt ?? "",
+    }).catch((error: unknown) => {
+      console.error("Could not rename image", error);
+    });
+  }
+
+  if (dialog.kind === "rename") {
+    return (
+      <ImageEditDialog
+        initial={{
+          name: dialog.image
+            ? (store.getState().mediaMetadata.get(dialog.image.contentHash)?.name ?? "")
+            : "",
+          alt: dialog.alt,
+        }}
+        onSubmit={(fields) => saveImageFields(dialog.imageId, dialog.image, fields)}
+        onClose={onClose}
+      />
+    );
+  }
+  if (dialog.kind === "bigger") {
+    return <ImageLightbox store={store} image={dialog.image} alt={dialog.alt} onClose={onClose} />;
+  }
+  return (
+    <ImageInfoDialog
+      store={store}
+      image={dialog.image}
+      alt={dialog.alt}
+      onSave={(fields) => saveImageFields(dialog.image.id, dialog.image, fields)}
+      onClose={onClose}
+    />
+  );
+}
+
+export const mediaEditorExtension: EditorExtension = { ImageDialogs };

@@ -6,7 +6,7 @@ import {
   nextOccurrence,
   normalizeRecurrence,
   resolveRecurrenceExpression,
-} from "@/features/tasks/recurrence";
+} from "@skriuw/renderer-core/tasks/recurrence";
 
 test("typed rules resolve to the canonical Obsidian Tasks spelling", () => {
   assert.equal(resolveRecurrenceExpression("week"), "every week");

@@ -30,7 +30,7 @@ import {
 import { Dialog } from "@/shared/ui/dialog";
 import { Select } from "@/shared/ui/select";
 import { Tooltip } from "@skriuw/shared/ui/tooltip";
-import { resolveImageBlobUrl } from "@/features/media/image-blob-url";
+import { resolveImageBlobUrl } from "@/platform/runtime/media-urls";
 import {
   projectCoverMediaPicker,
   type CoverMediaPickerFilter,

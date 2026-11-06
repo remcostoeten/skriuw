@@ -1,6 +1,6 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { EditorView, NodeView } from "prosemirror-view";
-import { resolveImageBlobUrl } from "@/features/media/image-blob-url";
+import { resolveImageBlobUrl } from "@/platform/runtime/media-urls";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { mediaUploadState, setMediaUploadState, subscribeMediaUploads } from "./upload-state";
 import {

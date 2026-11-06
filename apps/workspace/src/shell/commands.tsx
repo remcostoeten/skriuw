@@ -1,4 +1,4 @@
-import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
+import { routeHasSidebar, type AppRoute } from "@skriuw/renderer-core/route/app-route";
 import { opensNotesInTabs } from "@skriuw/renderer-core/settings/open-notes-in-tabs";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { shortcutDefinition } from "@/commands/bindings";
@@ -53,7 +53,6 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
 } from "@/shared/icons/static";
-import { routeHasSidebar } from "./panels";
 import { resetZoom, zoomIn, zoomOut } from "./zoom";
 
 export type ShellCommandControls = {

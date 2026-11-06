@@ -1,7 +1,8 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { type Command, type EditorState, type Transaction } from "prosemirror-state";
-import { isDueDate } from "@/features/tasks/due-dates";
-import { productSchema, wrapLineInCheckList } from "../schema";
+import { isDueDate } from "@skriuw/renderer-core/tasks/due-dates";
+import { wrapLineInCheckList } from "../schema/check-list";
+import { productSchema } from "../schema/product-schema";
 
 export type ChecklistTaskLink = {
   taskId: string;

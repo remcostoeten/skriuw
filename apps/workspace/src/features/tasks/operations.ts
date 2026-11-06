@@ -7,7 +7,7 @@ import { countWords, productSchema, serializeProductMarkdown } from "@/features/
 import { nextOccurrenceAttrs, promotedChecklistTaskLinks } from "@/features/editor/tasks";
 import { todayKey, type DateKey } from "@skriuw/renderer-core/journal/dates";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
-import { isDueDate } from "./due-dates";
+import { isDueDate } from "@skriuw/renderer-core/tasks/due-dates";
 
 export type TaskWriteRefusal =
   | "unknown-task"

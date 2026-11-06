@@ -4,11 +4,10 @@ import type {
   ShortcutConflict as RegistryShortcutConflict,
   ShortcutMap,
 } from "@remcostoeten/use-shortcut/react";
-import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
+import { routeHasSidebar, type AppRoute } from "@skriuw/renderer-core/route/app-route";
 import { opensNotesInTabs } from "@skriuw/renderer-core/settings/open-notes-in-tabs";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import { routeHasSidebar } from "@/shell/panels";
 import {
   effectiveShortcutKeys,
   shortcutShadowedByQuit,

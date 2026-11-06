@@ -1,7 +1,5 @@
 import {
   Fragment,
-  Suspense,
-  lazy,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -29,7 +27,14 @@ import { insertInlineMath, insertMathBlock } from "./math/commands";
 import { createMathBlockNodeView, createMathInlineNodeView } from "./math/nodeview";
 import { workspaceMathRendering } from "./math/workspace-render";
 import { createDiagramNodeView } from "./diagrams/nodeview";
-import { providedBlockViews } from "./block-views";
+import {
+  activateProvidedNode,
+  providedAssistant,
+  providedImageDialogs,
+  providedNodeViews,
+  providedPlugins,
+  type ImageDialog,
+} from "./extensions";
 import { createImageNodeViews, type ImageTouchActions } from "./media/image-nodeview";
 import {
   collectImageFiles,
@@ -50,8 +55,6 @@ import { openExternalUrl } from "@/platform/runtime/external-links";
 import { defaultLinkTarget, openLinkAt, type LinkTarget } from "./links/open";
 import { useShortcutHints } from "@/commands/hints";
 import type { MediaBlobPayload } from "@/platform/ports/media";
-import { ImageEditDialog, ImageInfoDialog, ImageLightbox } from "./media/image-menu";
-import { setMediaMetadata } from "@/features/media/media-metadata";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -71,16 +74,7 @@ import {
   Trash2Icon,
   ZoomInIcon,
 } from "@/shared/icons/static";
-import {
-  activateReference,
-  createMentionPlugin,
-  createReferenceNodeViews,
-  resolveReference,
-  type MentionContext,
-} from "@/features/references/editor";
-import type { ReferenceKind } from "@skriuw/renderer-core/references/types";
-import { commitOperations, commitReferenceOperations, isRevisionConflict } from "@/store/commit";
-import { createLinkedNote } from "@/features/notes/operations";
+import { commitOperations, isRevisionConflict } from "@/store/commit";
 import { cssStringLiteral } from "@/features/settings/apply-settings";
 import {
   dimsFocusParagraphs,
@@ -106,7 +100,7 @@ import type {
   RendererState,
   RendererStore,
 } from "@skriuw/renderer-core/store/types";
-import type { WorkspaceImage, WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
+import type { WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import {
   BOUNDED_BLOCK_LIMIT,
   createBoundedDocument,
@@ -167,9 +161,6 @@ import {
   useEditorMenuValue,
   type EditorMenuStore,
 } from "./menus/menu-store";
-import { AiOptInGate, selectAiEnabled } from "@/features/ai/opt-in-gate";
-import { clearPendingAiAction, requestAiAction } from "@/features/ai/editor-actions";
-import { clearPendingVoiceDictation } from "@/features/ai/voice-dictation";
 import { DrawingOverlay } from "@/features/drawing/overlay";
 import { closeAnnotateMode } from "@/features/editor/annotate-mode";
 import {
@@ -344,12 +335,6 @@ function slashMenuEqual(left: SlashMenu, right: SlashMenu): boolean {
 const SLASH_MENU_WIDTH = 264;
 const SLASH_MENU_MAX_HEIGHT = 324;
 
-type ImageDialogState =
-  | { kind: "rename"; imageId: string; image: WorkspaceImage | null; alt: string }
-  | { kind: "bigger"; image: WorkspaceImage; alt: string }
-  | { kind: "info"; image: WorkspaceImage; alt: string }
-  | null;
-
 /** Carries the revision a rejected save attempted, for the conflict retry. */
 class SaveAttemptError extends Error {
   constructor(
@@ -362,25 +347,6 @@ class SaveAttemptError extends Error {
 
 function emptyDocument(): ProseMirrorNode {
   return productSchema.nodeFromJSON({ type: "doc", content: [{ type: "paragraph" }] });
-}
-
-function selectedReference(view: EditorView): { kind: ReferenceKind; targetId: string } | null {
-  const { selection } = view.state;
-  if (!(selection instanceof NodeSelection)) {
-    return null;
-  }
-  const { node } = selection;
-  const id = typeof node.attrs.id === "string" ? node.attrs.id : null;
-  if (!id) {
-    return null;
-  }
-  if (node.type.name === "tag_ref") {
-    return { kind: "tag", targetId: id };
-  }
-  if (node.type.name === "mention_ref") {
-    return { kind: node.attrs.kind === "note" ? "note" : "person", targetId: id };
-  }
-  return null;
 }
 
 function createEditorState(document: ProseMirrorNode, plugins: readonly Plugin[]): EditorState {
@@ -471,6 +437,10 @@ function readSelection(state: EditorState, windowStart: number) {
   };
 }
 
+function selectNoAssistant(): boolean {
+  return false;
+}
+
 function selectStoreActiveNote(state: RendererState): string | null {
   return state.activeNoteId;
 }
@@ -492,16 +462,6 @@ function fullDocumentHtml(document: ProseMirrorNode): string {
   container.append(DOMSerializer.fromSchema(productSchema).serializeFragment(document.content));
   return container.innerHTML;
 }
-
-const AiEditorActionHost = lazy(async () => {
-  const module = await import("@/features/ai/editor-action-host");
-  return { default: module.AiEditorActionHost };
-});
-
-const VoiceDictationHost = lazy(async () => {
-  const module = await import("@/features/ai/voice-dictation-host");
-  return { default: module.VoiceDictationHost };
-});
 
 function activeThreadOf(menu: AnnotationMenuState): string {
   return menu.open ? menu.threadId : "";
@@ -602,18 +562,14 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const bubbleFrameRef = useRef<number | null>(null);
   const bubbleMenuHostRef = useRef<HTMLDivElement>(null);
   const bubbleDismissedRef = useRef<{ from: number; to: number } | null>(null);
-  const aiEnabled = useRendererSelector(store, selectAiEnabled);
+  const assistant = providedAssistant();
+  const assistantEnabled = useRendererSelector(
+    store,
+    assistant?.selectEnabled ?? selectNoAssistant,
+  );
   const getActiveView = useCallback(() => viewRef.current, []);
   const getActiveNoteId = useCallback(() => activeIdRef.current, []);
-  const askAi = useCallback(() => requestAiAction(null), []);
-  // A palette request queued before the gated host chunk arrives would
-  // otherwise survive an opt-out and replay when AI is switched back on.
-  useEffect(() => {
-    if (!aiEnabled) {
-      clearPendingAiAction();
-      clearPendingVoiceDictation();
-    }
-  }, [aiEnabled]);
+  const ImageDialogs = providedImageDialogs();
   const linkMenuHostRef = useRef<HTMLDivElement>(null);
   const linkHoverCloseTimerRef = useRef<number | null>(null);
   const annotationMenuHostRef = useRef<HTMLDivElement>(null);
@@ -621,7 +577,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const annotations = useRendererSelector(store, selectAnnotations);
   const imageMenuTriggerRef = useRef<HTMLSpanElement>(null);
   const [imageMenuImageId, setImageMenuImageId] = useState<string | null>(null);
-  const [imageDialog, setImageDialog] = useState<ImageDialogState>(null);
+  const [imageDialog, setImageDialog] = useState<ImageDialog | null>(null);
   const dragHandleRef = useRef<DragHandleController | null>(null);
   const blockMenuTriggerRef = useRef<HTMLSpanElement>(null);
   const [blockMenuPos, setBlockMenuPos] = useState<number | null>(null);
@@ -657,20 +613,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const editorSettings = projectSettings(settingsDocument);
   const blockDragHandle = editorSettings.blockDragHandle;
   const linkHints = useShortcutHints(store, LINK_MENU_SHORTCUT_IDS);
-  const mentionPluginsRef = useRef<Plugin[] | null>(null);
-  if (mentionPluginsRef.current === null) {
-    const mentionContext: MentionContext = {
-      getState: () => store.getState(),
-      applyReferenceOperations: (operations) => {
-        commitReferenceOperations(store, operations);
-      },
-      createNote: (id, title) => {
-        createLinkedNote(store, id, title);
-      },
-    };
-    mentionPluginsRef.current = [createMentionPlugin(mentionContext)];
+  const extensionPluginsRef = useRef<Plugin[] | null>(null);
+  if (extensionPluginsRef.current === null) {
+    extensionPluginsRef.current = providedPlugins(store);
   }
-  const mentionPlugins = mentionPluginsRef.current;
+  const extensionPlugins = extensionPluginsRef.current;
   const jumpToDocumentEdgeRef = useRef<(edge: DocumentEdge) => void>(() => undefined);
   const vimHostRef = useRef<VimHost | null>(null);
   if (vimHostRef.current === null) {
@@ -741,7 +688,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   if (editorPluginsRef.current === null) {
     editorPluginsRef.current = [
       createVimPlugin(vimHost),
-      ...mentionPlugins,
+      ...extensionPlugins,
       ...createProductPlugins(),
       createTypewriterPlugin({
         enabled: () => usesTypewriterScrolling(store.getState().settings),
@@ -1993,7 +1940,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       );
       return true;
     }
-    const referenceViews = createReferenceNodeViews(store);
+    const providedViews = providedNodeViews(store);
     const imageViews = createImageNodeViews(
       store,
       (imageId, clientX, clientY) => {
@@ -2012,8 +1959,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       state: createEditorState(emptyDocument(), editorPlugins),
       editable: () => activeIdRef.current !== null,
       nodeViews: {
-        ...providedBlockViews(store),
-        ...referenceViews.nodeViews,
+        ...providedViews.nodeViews,
         ...imageViews.nodeViews,
         code_block: (node, view, getPos) => createCodeBlockNodeView(node, view, getPos),
         math_block: (node, view, getPos) =>
@@ -2191,18 +2137,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           }
         }
         if (!mod && event.key === "Enter") {
-          const reference = selectedReference(currentView);
-          if (reference) {
-            const resolved = resolveReference(
-              store.getState(),
-              reference.kind,
-              reference.targetId,
-              "",
-            );
-            if (resolved.availability === "resolved") {
-              activateReference(store, reference.kind, reference.targetId);
-              return true;
-            }
+          const { selection } = currentView.state;
+          if (selection instanceof NodeSelection && activateProvidedNode(store, selection.node)) {
+            return true;
           }
         }
         if (event.key === "Escape" && menus.get("bubble").open) {
@@ -2387,7 +2324,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       cancelLinkHoverClose();
       viewRef.current = null;
       view.destroy();
-      referenceViews.destroy();
+      providedViews.destroy();
       imageViews.destroy();
     };
   }, []);
@@ -2554,22 +2491,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     });
   }
 
-  function saveImageFields(
-    imageId: string,
-    image: WorkspaceImage | null,
-    fields: { name: string; alt: string },
-  ): void {
+  function renameImage(imageId: string, alt: string): void {
     const view = viewRef.current;
-    if (view) renameImageNode(view, imageId, fields.alt);
-    if (!image) return;
-    const current = store.getState().mediaMetadata.get(image.contentHash);
-    if ((current?.name ?? "") === fields.name) return;
-    void setMediaMetadata(store, image.contentHash, {
-      name: fields.name,
-      alt: current?.alt ?? "",
-    }).catch((error: unknown) => {
-      console.error("Could not rename image", error);
-    });
+    if (view) renameImageNode(view, imageId, alt);
   }
 
   function openImageBigger(imageId: string): void {
@@ -2723,32 +2647,22 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         }}
       />
       {activeNoteId === null && <div className="editor-empty">Select a note</div>}
-      <AiOptInGate store={store}>
-        {(signal) => (
-          <Suspense fallback={null}>
-            <AiEditorActionHost
-              store={store}
-              signal={signal}
-              selectNoteId={selectNoteId}
-              getView={getActiveView}
-              getNoteId={getActiveNoteId}
-              getNoteTarget={getNoteTarget}
-            />
-            <VoiceDictationHost
-              store={store}
-              signal={signal}
-              getView={getActiveView}
-              getNoteId={getActiveNoteId}
-            />
-          </Suspense>
-        )}
-      </AiOptInGate>
+      {assistant && (
+        <assistant.Host
+          store={store}
+          enabled={assistantEnabled}
+          selectNoteId={selectNoteId}
+          getView={getActiveView}
+          getNoteId={getActiveNoteId}
+          getNoteTarget={getNoteTarget}
+        />
+      )}
       <ConnectedBubbleMenu
         menus={menus}
         getView={() => viewRef.current}
         onLink={openLinkEditor}
         onComment={openAnnotationMenu}
-        onAskAi={aiEnabled ? askAi : null}
+        onAskAi={assistant && assistantEnabled ? assistant.ask : null}
         onDismiss={closeBubbleMenu}
         onCancel={() => {
           const view = viewRef.current;
@@ -2944,32 +2858,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
-      {imageDialog?.kind === "rename" && (
-        <ImageEditDialog
-          initial={{
-            name: imageDialog.image
-              ? (store.getState().mediaMetadata.get(imageDialog.image.contentHash)?.name ?? "")
-              : "",
-            alt: imageDialog.alt,
-          }}
-          onSubmit={(fields) => saveImageFields(imageDialog.imageId, imageDialog.image, fields)}
-          onClose={() => setImageDialog(null)}
-        />
-      )}
-      {imageDialog?.kind === "bigger" && (
-        <ImageLightbox
+      {imageDialog && ImageDialogs && (
+        <ImageDialogs
           store={store}
-          image={imageDialog.image}
-          alt={imageDialog.alt}
-          onClose={() => setImageDialog(null)}
-        />
-      )}
-      {imageDialog?.kind === "info" && (
-        <ImageInfoDialog
-          store={store}
-          image={imageDialog.image}
-          alt={imageDialog.alt}
-          onSave={(fields) => saveImageFields(imageDialog.image.id, imageDialog.image, fields)}
+          dialog={imageDialog}
+          renameImage={renameImage}
           onClose={() => setImageDialog(null)}
         />
       )}

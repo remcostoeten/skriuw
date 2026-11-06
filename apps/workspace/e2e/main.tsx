@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "../src/app";
+import { installEditorExtensions } from "../src/app/editor-extensions";
 import { bindInstallPrompt } from "../src/platform/browser/install-prompt";
 import { bindSettingsToRoot } from "../src/features/settings/apply-settings";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
@@ -31,6 +32,7 @@ const store = createRendererStore(
   }),
 );
 bindSettingsToRoot(store, document.documentElement);
+installEditorExtensions();
 // The real entry binds this only in the browser runtime; here the mobile e2e
 // fires a synthetic beforeinstallprompt to drive the install strip.
 bindInstallPrompt(window);

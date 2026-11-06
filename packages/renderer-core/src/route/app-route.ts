@@ -10,6 +10,14 @@ export type AppRoute =
   | "media"
   | "prompt-playground";
 
+/**
+ * Routes that share the resizable sidebar shell: the pane keeps its width,
+ * collapse state and resize handle across them, only its content swaps.
+ */
+export function routeHasSidebar(route: AppRoute): boolean {
+  return route === "notes" || route === "journal" || route === "database";
+}
+
 export function resolveAppRoute(hash: string): AppRoute {
   if (hash === "#/trash") {
     return "trash";

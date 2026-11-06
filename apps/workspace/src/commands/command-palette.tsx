@@ -6,7 +6,7 @@ import { cn } from "@/shared/styling/class-names";
 import { Dialog, useDialogClose } from "@/shared/ui/dialog";
 import { sectionLabelClass } from "@/shared/ui/section-header";
 import { useListboxNavigation } from "@/shared/ui/use-listbox-navigation";
-import type { PaletteDensity, PaletteSize } from "@/features/settings/settings-model";
+import type { PaletteDensity, PaletteSize } from "./palette-options";
 import {
   COMMAND_BANGS,
   getCommandPaletteGroups,

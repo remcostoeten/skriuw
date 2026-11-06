@@ -1,10 +1,10 @@
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
-import { replaceRouteHash } from "@/app-route";
+import { replaceRouteHash } from "@/shared/routing/app-route";
 import { journalEntryDateKey } from "@/features/journal/model";
 import { openJournalDay } from "@/features/journal/navigation";
 import type { MediaUsage } from "@/features/media/media-library-model";
 import { MediaSection } from "@/features/media/media-library-section";
-import { WindowControls } from "@/shell/title-bar";
+import { WindowControlsSlot } from "@/shared/ui/window-controls-slot";
 import { activateNote } from "@/features/notes/navigation";
 
 type Props = {
@@ -31,7 +31,7 @@ export function MediaLibraryView({ store }: Props) {
       className="relative col-[2/-1] min-h-0 min-w-0 overflow-y-auto bg-theme-editor px-4 pb-6 pt-[26px]"
       aria-label="Media library"
     >
-      <WindowControls className="absolute right-0 top-0" />
+      <WindowControlsSlot className="absolute right-0 top-0" />
       <MediaSection store={store} onOpenReference={openReference} />
     </main>
   );

@@ -12,7 +12,7 @@ import { formatRelativeTime } from "@/shared/format/relative-time";
 import { Button } from "@/shared/ui/button";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { Select, type SelectOption } from "@/shared/ui/select";
-import { WindowControls } from "@/shell/title-bar";
+import { WindowControlsSlot } from "@/shared/ui/window-controls-slot";
 import {
   filterTrashRows,
   sortTrashRows,
@@ -75,7 +75,7 @@ export function TrashView({ store }: Props) {
       className="relative col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
       aria-labelledby="trash-title"
     >
-      <WindowControls className="absolute right-0 top-0" />
+      <WindowControlsSlot className="absolute right-0 top-0" />
       <div className={cn(columnClass, "border-b border-theme-divider pb-4 pt-[26px]")}>
         <div className="flex items-center gap-2">
           <h1 id="trash-title" className="text-base font-[650] tracking-[-0.015em] text-foreground">

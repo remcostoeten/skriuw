@@ -1,4 +1,4 @@
-import { useRouteFocus } from "@/app-route";
+import { useRouteFocus } from "@/shared/routing/app-route";
 import { isDateKey, todayKey, type DateKey } from "@skriuw/renderer-core/journal/dates";
 
 export function useSelectedJournalKey(): DateKey {

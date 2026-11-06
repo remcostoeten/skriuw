@@ -1,6 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { WORKSPACE_PROTOCOL_VERSION } from "@skriuw/renderer-core/contracts/workspace";
+import { aiEditorExtension } from "@/features/ai/editor-extension";
+import { provideEditorExtension } from "@/features/editor/extensions";
+import { mediaEditorExtension } from "@/features/media/image-dialogs";
+import { referenceEditorExtension } from "@/features/references/editor";
 import { bindSettingsToRoot } from "@/features/settings/apply-settings";
 import { DEFAULT_WORKSPACE_SETTINGS } from "@/features/settings/settings-model";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
@@ -42,6 +46,9 @@ function start(): void {
     session.fail("runtime-error", errorDetail(event.reason));
   });
   bindSettingsToRoot(store, document.documentElement, themeRegistry);
+  provideEditorExtension(referenceEditorExtension);
+  provideEditorExtension(mediaEditorExtension);
+  provideEditorExtension(aiEditorExtension);
   createRoot(root).render(
     <StrictMode>
       <StandaloneEditor store={store} />

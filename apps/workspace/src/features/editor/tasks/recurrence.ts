@@ -3,13 +3,13 @@ import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { type EditorState, Plugin, TextSelection, type Transaction } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import { todayKey, type DateKey } from "@skriuw/renderer-core/journal/dates";
-import { isDueDate } from "@/features/tasks/due-dates";
+import { isDueDate } from "@skriuw/renderer-core/tasks/due-dates";
 import {
   formatRecurrenceLabel,
   isRecurrence,
   nextOccurrence,
   resolveRecurrenceExpression,
-} from "@/features/tasks/recurrence";
+} from "@skriuw/renderer-core/tasks/recurrence";
 
 const REPEAT_CHIP_CLASS = "check-item-repeat";
 

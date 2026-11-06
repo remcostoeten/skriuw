@@ -1,6 +1,6 @@
 import { PanelLeftIcon, SearchIcon } from "@/shared/icons/static";
 import { Tooltip } from "@skriuw/shared/ui/tooltip";
-import { WindowControls } from "@/shell/title-bar";
+import { WindowControlsSlot } from "@/shared/ui/window-controls-slot";
 import { toolbarIconButtonClass } from "@/shared/ui/toolbar-button";
 import { useShortcutHints } from "@/commands/hints";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
@@ -65,7 +65,7 @@ export function JournalView({
             {formatLongDate(selectedKey)}
           </span>
         </div>
-        <WindowControls className="-mr-3" />
+        <WindowControlsSlot className="-mr-3" />
       </div>
       <div className="min-h-0 flex-1">
         <JournalEntryPane store={store} selectedKey={selectedKey} />

@@ -1,4 +1,4 @@
-import { resolveJournalDateExpression } from "@skriuw/renderer-core/journal/date-expressions";
+import { resolveJournalDateExpression } from "../journal/date-expressions";
 import {
   formatLongDate,
   isDateKey,
@@ -6,7 +6,7 @@ import {
   parseDateKey,
   shiftDay,
   type DateKey,
-} from "@skriuw/renderer-core/journal/dates";
+} from "../journal/dates";
 
 export const DUE_DATE_SIGNIFIER = "📅";
 
