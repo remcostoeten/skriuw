@@ -31,7 +31,6 @@ import {
   SIDEBAR_RESIZE_BOUNDS,
   readMetadataWidth,
   readSidebarWidth,
-  routeHasSidebar,
   writeMetadataWidth,
   writeSidebarWidth,
   type PanelTracks,
@@ -43,12 +42,12 @@ import { TransferDialogs } from "@/features/transfer/transfer-dialogs";
 import { WorkspaceShortcuts } from "@/commands/workspace-shortcuts";
 import { useShortcutHints } from "@/commands/hints";
 import { RAIL_ITEMS, railModShiftKeys, type RailItem } from "@/commands/rail-items";
-import { useAppRoute, useRouteFocus } from "./app-route";
+import { useAppRoute, useRouteFocus } from "@/shared/routing/app-route";
 import { CloudSignInDrawer, ModelSwitcherHost, PromptPlaygroundView } from "@/app/lazy-surfaces";
 import { AppProviders } from "@/app/providers";
 import { useSignIn } from "@/app/use-sign-in";
 import { useWorkspaceServices } from "@/app/use-workspace-services";
-import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
+import { appRouteHash, routeHasSidebar } from "@skriuw/renderer-core/route/app-route";
 import { createCommandRegistry, registryShortcutActions } from "@/commands/registry";
 import type { CommandUiState } from "@/commands/registry";
 import { createAppCommands } from "./app-commands";

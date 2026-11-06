@@ -6,7 +6,7 @@ import {
   formatDueLabel,
   isDueDate,
   resolveDueExpression,
-} from "@/features/tasks/due-dates";
+} from "@skriuw/renderer-core/tasks/due-dates";
 
 const TODAY = "2026-09-30";
 

@@ -5,7 +5,7 @@ import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import { ChevronLeftIcon, StarIcon } from "@/shared/icons/static";
 import { Button } from "@/shared/ui/button";
 import { Select } from "@/shared/ui/select";
-import { WindowControls } from "@/shell/title-bar";
+import { WindowControlsSlot } from "@/shared/ui/window-controls-slot";
 import { cn } from "@/shared/styling/class-names";
 import { noop } from "@skriuw/shared/helpers/noop";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
@@ -355,7 +355,7 @@ export function PromptPlaygroundView({ store, signal }: Props) {
           Prompt playground
         </h1>
         <div className="ml-auto flex shrink-0 items-center">
-          <WindowControls />
+          <WindowControlsSlot />
         </div>
       </header>
 

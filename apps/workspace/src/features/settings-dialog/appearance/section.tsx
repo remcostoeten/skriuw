@@ -12,7 +12,7 @@ import {
   PALETTE_SIZE_OPTIONS,
   type PaletteDensity,
   type PaletteSize,
-} from "@/features/settings/settings-model";
+} from "@/commands/palette-options";
 import {
   SettingCardPicker,
   SettingToggle,

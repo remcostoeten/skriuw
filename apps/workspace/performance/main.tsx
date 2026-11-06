@@ -3,6 +3,7 @@ import type { ProfilerOnRenderCallback } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { App } from "../src/app";
+import { installEditorExtensions } from "../src/app/editor-extensions";
 import { bindSettingsToRoot } from "../src/features/settings/apply-settings";
 import { createInitialState, createRendererStore } from "@skriuw/renderer-core/store/store";
 import { createPerformanceSnapshot } from "./fixture";
@@ -40,6 +41,7 @@ async function start(): Promise<void> {
   const onRender: ProfilerOnRenderCallback = (...arguments_) => {
     profilerCallback?.(...arguments_);
   };
+  installEditorExtensions();
   const root = createRoot(container);
   const memory = performance as Performance & { memory?: { usedJSHeapSize: number } };
   const heapBytesBefore = memory.memory?.usedJSHeapSize ?? null;

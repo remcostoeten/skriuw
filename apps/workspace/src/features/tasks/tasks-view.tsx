@@ -1,17 +1,22 @@
 import "./tasks.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouteFocus } from "@/app-route";
+import { useRouteFocus } from "@/shared/routing/app-route";
 import { requestBlockReveal } from "@/features/editor/reveal-controller";
 import { activateReference } from "@/features/references/shell";
 import { ListTodoIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/styling/class-names";
 import { flushPendingWork } from "@/store/pending-work";
-import { WindowControls } from "@/shell/title-bar";
+import { WindowControlsSlot } from "@/shared/ui/window-controls-slot";
 import { commitOperations } from "@/store/commit";
 import { todayKey, type DateKey } from "@skriuw/renderer-core/journal/dates";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import { describeDueDate, dueBucket, formatDueLabel, isDueDate } from "./due-dates";
+import {
+  describeDueDate,
+  dueBucket,
+  formatDueLabel,
+  isDueDate,
+} from "@skriuw/renderer-core/tasks/due-dates";
 import { buildTaskDueDate, buildTaskToggle, type TaskWriteResult } from "./operations";
 import { flattenTaskRows, projectTasks, taskGroupsEqual, type TaskRow } from "./model";
 
@@ -126,7 +131,7 @@ export function TasksView({ store }: TasksViewProps) {
       className="relative col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
       aria-labelledby="tasks-title"
     >
-      <WindowControls className="absolute right-0 top-0" />
+      <WindowControlsSlot className="absolute right-0 top-0" />
       <header className={cn(columnClass, "pb-5 pt-[38px]")}>
         <div className="flex items-center gap-2">
           <h1 id="tasks-title" className="text-2xl font-[650] tracking-[-0.035em] text-foreground">

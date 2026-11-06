@@ -2,7 +2,6 @@ export {
   FOCUS_GRID_TEMPLATE,
   panelGridTemplate,
   panelTracksWith,
-  routeHasSidebar,
   type PanelTracks,
 } from "./panels/layout";
 export {

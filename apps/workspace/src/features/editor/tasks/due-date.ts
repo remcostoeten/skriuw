@@ -9,7 +9,7 @@ import {
   formatDueLabel,
   isDueDate,
   resolveDueExpression,
-} from "@/features/tasks/due-dates";
+} from "@skriuw/renderer-core/tasks/due-dates";
 
 const DUE_CHIP_CLASS = "check-item-due";
 

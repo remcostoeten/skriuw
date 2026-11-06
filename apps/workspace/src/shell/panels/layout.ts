@@ -1,4 +1,4 @@
-import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
+import { routeHasSidebar, type AppRoute } from "@skriuw/renderer-core/route/app-route";
 import { METADATA_DEFAULT_WIDTH } from "./metadata-resize";
 import { SIDEBAR_DEFAULT_WIDTH } from "./sidebar-resize";
 
@@ -8,14 +8,6 @@ export type PanelTracks = {
   sidebarWidth: number;
   metadataWidth: number;
 };
-
-/**
- * Routes that share the resizable sidebar shell: the pane keeps its width,
- * collapse state and resize handle across them, only its content swaps.
- */
-export function routeHasSidebar(route: AppRoute): boolean {
-  return route === "notes" || route === "journal" || route === "database";
-}
 
 export const FOCUS_GRID_TEMPLATE = "0px 0px minmax(300px, 1fr) 0px";
 

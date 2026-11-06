@@ -10,7 +10,7 @@ import type {
 import { CheckIcon, PencilIcon, Trash2Icon } from "@/shared/icons/static";
 import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import { rangeMenuAnchor, type MenuAnchor } from "../menus/anchor";
-import { productSchema } from "../schema";
+import { productSchema } from "../schema/product-schema";
 
 export type AnnotationMenuState = {
   open: boolean;

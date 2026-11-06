@@ -1,11 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import {
-  FOCUS_GRID_TEMPLATE,
-  panelGridTemplate,
-  panelTracksWith,
-  routeHasSidebar,
-} from "@/shell/panels/layout";
+import { routeHasSidebar } from "@skriuw/renderer-core/route/app-route";
+import { FOCUS_GRID_TEMPLATE, panelGridTemplate, panelTracksWith } from "@/shell/panels/layout";
 
 test("notes panels use bounded responsive tracks and collapse independently", () => {
   assert.equal(panelGridTemplate("notes", true, true), "56px 260px minmax(300px, 1fr) 240px");

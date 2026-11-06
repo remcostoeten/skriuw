@@ -13,9 +13,9 @@ import { useShortcutBinding } from "@remcostoeten/use-shortcut/react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { activateNote } from "@/features/notes/navigation";
 import { commitOperations, commitReferenceOperations } from "@/store/commit";
-import { useRouteFocus } from "@/app-route";
+import { useRouteFocus } from "@/shared/routing/app-route";
 import { appRouteHash, entityFocusHash } from "@skriuw/renderer-core/route/app-route";
-import { WindowControls } from "@/shell/title-bar";
+import { WindowControlsSlot } from "@/shared/ui/window-controls-slot";
 import {
   buildCreatePerson,
   buildCreateTag,
@@ -619,7 +619,7 @@ function EntityTopBar({
             {formatShortcut(createCombo)}
           </kbd>
         </Button>
-        <WindowControls className="-mr-1" />
+        <WindowControlsSlot className="-mr-1" />
       </div>
     </header>
   );

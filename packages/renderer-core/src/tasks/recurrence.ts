@@ -5,7 +5,7 @@ import {
   parseDateKey,
   shiftDay,
   type DateKey,
-} from "@skriuw/renderer-core/journal/dates";
+} from "../journal/dates";
 
 export const RECURRENCE_SIGNIFIER = "🔁";
 

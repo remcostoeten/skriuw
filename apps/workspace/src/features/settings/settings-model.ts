@@ -1,6 +1,12 @@
 import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import { BUILTIN_THEMES, builtinThemeLabel, resolveTheme } from "@skriuw/theme";
 import type { ShortcutActionId } from "@/commands/definitions";
+import {
+  PALETTE_DENSITY_OPTIONS,
+  PALETTE_SIZE_OPTIONS,
+  type PaletteDensity,
+  type PaletteSize,
+} from "@/commands/palette-options";
 
 export const THEME_OPTIONS = BUILTIN_THEMES.map((theme) => ({
   value: theme.id,
@@ -24,22 +30,6 @@ export const VIM_CURSOR_STYLE_OPTIONS = [
   { value: "underline", label: "Underline" },
   { value: "bar", label: "Bar" },
 ] as const;
-
-export const PALETTE_DENSITY_OPTIONS = [
-  { value: "compact", label: "Compact" },
-  { value: "normal", label: "Normal" },
-  { value: "spacious", label: "Spacious" },
-] as const;
-
-export type PaletteDensity = (typeof PALETTE_DENSITY_OPTIONS)[number]["value"];
-
-export const PALETTE_SIZE_OPTIONS = [
-  { value: "default", label: "Default" },
-  { value: "roomy", label: "Roomy" },
-  { value: "large", label: "Large" },
-] as const;
-
-export type PaletteSize = (typeof PALETTE_SIZE_OPTIONS)[number]["value"];
 
 export const REMOTE_IMPORT_IMAGE_OPTIONS = [
   { value: "ask", label: "Ask on next import" },

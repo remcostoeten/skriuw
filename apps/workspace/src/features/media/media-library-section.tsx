@@ -10,8 +10,7 @@ import {
 } from "@/platform/runtime/commands";
 import type { MediaBlobPayload } from "@/platform/ports/media";
 import { FolderOpenIcon, PencilIcon, Trash2Icon, UploadIcon } from "@/shared/icons/static";
-import { resolveImageBlobUrl } from "@/features/media/image-blob-url";
-import { resolveMediaPlaybackUrl } from "@/features/media/media-playback-url";
+import { resolveImageBlobUrl, resolveMediaPlaybackUrl } from "@/platform/runtime/media-urls";
 import { isBrowserRuntime } from "@/platform/runtime/runtime";
 import { cn } from "@/shared/styling/class-names";
 import { Button } from "@/shared/ui/button";
