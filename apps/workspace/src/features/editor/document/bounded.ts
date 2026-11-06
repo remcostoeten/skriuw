@@ -6,10 +6,25 @@ export const BOUNDED_BLOCK_LIMIT = 192;
 export const BOUNDED_EDITOR_THRESHOLD = 192;
 export const BOUNDED_HISTORY_DEPTH = 200;
 export const BOUNDED_HISTORY_GROUP_MS = 500;
+export const BOUNDED_GROWTH_STEP = 32;
+const SMALLEST_BLOCK_HEIGHT = 20;
+const INITIAL_WINDOW_LEAD = 4;
+const SMALLEST_INITIAL_WINDOW = 16;
 
 export type BoundedSelection = {
   blockIndex: number;
   offset: number;
+};
+
+/** The block at the top of the scroll viewport and how far its top sits from that edge, in pixels. */
+export type BoundedViewport = {
+  blockIndex: number;
+  offset: number;
+};
+
+export type WindowGrowth = {
+  prepend: ProseMirrorNode[];
+  append: ProseMirrorNode[];
 };
 
 type HistoryEntry = {
@@ -25,12 +40,34 @@ export type BoundedDocument = {
   blockCount(): number;
   windowStart(): number;
   windowEnd(): number;
+  /** Where the window will start once pending growth has rendered. */
+  targetStart(): number;
+  /** Where the window will end once pending growth has rendered. */
+  targetEnd(): number;
   fullDocument(): ProseMirrorNode;
   windowDocument(): ProseMirrorNode;
   moveWindow(start: number): boolean;
   revealBlock(blockIndex: number): boolean;
+  /**
+   * Shrinks the rendered window to the blocks that fill a viewport of the
+   * given height from `blockIndex` down, keeping the full window as the
+   * target that `growWindow` fills in afterwards. Returns whether the
+   * rendered range changed.
+   */
+  narrowWindow(blockIndex: number, viewportHeight: number): boolean;
+  /**
+   * Takes up to `maximum` blocks of pending growth, below the window first,
+   * and widens the rendered range by them. Null once the target is rendered.
+   */
+  growWindow(maximum: number): WindowGrowth | null;
   replaceWindow(document: ProseMirrorNode, at: number): boolean;
   replaceFullDocument(document: ProseMirrorNode, at: number): boolean;
+  /**
+   * Replaces the whole note with a document the editor renders in full, as
+   * when the entire note was selected and replaced, so the window becomes
+   * that document.
+   */
+  replaceWholeWindow(document: ProseMirrorNode, at: number): boolean;
   reconcile(document: ProseMirrorNode): void;
   /**
    * Adopts a document that changed in storage without recording an undo
@@ -42,6 +79,8 @@ export type BoundedDocument = {
   adoptRemoteDocument(document: ProseMirrorNode): boolean;
   rememberSelection(selection: BoundedSelection | null): void;
   selection(): BoundedSelection | null;
+  rememberViewport(viewport: BoundedViewport | null): void;
+  viewport(): BoundedViewport | null;
   undo(): boolean;
   redo(): boolean;
   undoDepth(): number;
@@ -145,11 +184,41 @@ export function shouldUseBoundedEditor(document: ProseMirrorNode): boolean {
   return document.childCount > BOUNDED_EDITOR_THRESHOLD;
 }
 
+/**
+ * @name initialWindowSize
+ * @description Number of blocks a progressive window renders first: enough of
+ * the smallest block height to cover the viewport, plus a few blocks of lead.
+ *
+ * @example
+ * initialWindowSize(scrollHost.clientHeight); // 50 for a 913 px viewport
+ */
+export function initialWindowSize(viewportHeight: number): number {
+  const covering = Math.ceil(Math.max(0, viewportHeight) / SMALLEST_BLOCK_HEIGHT);
+  return clamp(covering + INITIAL_WINDOW_LEAD, SMALLEST_INITIAL_WINDOW, BOUNDED_BLOCK_LIMIT);
+}
+
+function shiftedIndex(
+  index: number,
+  changeStart: number,
+  changeEnd: number,
+  inserted: number,
+): number {
+  if (index >= changeEnd) return index + inserted - (changeEnd - changeStart);
+  if (index >= changeStart) {
+    return clamp(index, changeStart, Math.max(changeStart, changeStart + inserted - 1));
+  }
+  return index;
+}
+
 export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument {
   let blocks = blocksFromDocument(source);
   let attrs: Attrs = source.attrs;
   let start = 0;
+  let size = BOUNDED_BLOCK_LIMIT;
+  let growBefore = 0;
+  let growAfter = 0;
   let rememberedSelection: BoundedSelection | null = null;
+  let rememberedViewport: BoundedViewport | null = null;
   const history: HistoryEntry[] = [];
   const redoHistory: HistoryEntry[] = [];
 
@@ -158,7 +227,12 @@ export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument 
   }
 
   function end(): number {
-    return Math.min(blocks.length, start + BOUNDED_BLOCK_LIMIT);
+    return Math.min(blocks.length, start + size);
+  }
+
+  function clampGrowth(): void {
+    growBefore = clamp(growBefore, 0, start);
+    growAfter = clamp(growAfter, 0, blocks.length - end());
   }
 
   function replaceRange(
@@ -168,6 +242,7 @@ export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument 
   ): void {
     blocks.splice(rangeStart, deleteCount, ...replacement);
     start = clamp(start, 0, maximumStart());
+    clampGrowth();
   }
 
   function record(entry: HistoryEntry): void {
@@ -192,11 +267,58 @@ export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument 
 
   function moveWindow(nextStart: number): boolean {
     const clamped = clamp(Math.floor(nextStart), 0, maximumStart());
-    if (clamped === start) {
+    const resized = size !== BOUNDED_BLOCK_LIMIT || growBefore > 0 || growAfter > 0;
+    size = BOUNDED_BLOCK_LIMIT;
+    growBefore = 0;
+    growAfter = 0;
+    if (clamped === start && !resized) {
       return false;
     }
     start = clamped;
     return true;
+  }
+
+  function narrowWindow(blockIndex: number, viewportHeight: number): boolean {
+    const focus = clamp(blockIndex, 0, Math.max(0, blocks.length - 1));
+    let targetFrom = start - growBefore;
+    let targetTo = end() + growAfter;
+    if (focus < targetFrom || focus >= targetTo || targetTo - targetFrom < BOUNDED_BLOCK_LIMIT) {
+      targetFrom =
+        focus >= targetFrom && focus < targetFrom + BOUNDED_BLOCK_LIMIT
+          ? clamp(targetFrom, 0, maximumStart())
+          : clamp(focus - Math.floor(BOUNDED_BLOCK_LIMIT / 2), 0, maximumStart());
+      targetTo = Math.min(blocks.length, targetFrom + BOUNDED_BLOCK_LIMIT);
+    }
+    const initial = initialWindowSize(viewportHeight);
+    const to = Math.min(targetTo, clamp(focus, targetFrom, targetTo) + initial);
+    const from = Math.max(targetFrom, to - initial);
+    const changed = from !== start || to !== end();
+    start = from;
+    size = to - from;
+    growBefore = from - targetFrom;
+    growAfter = targetTo - to;
+    return changed;
+  }
+
+  function growWindow(maximum: number): WindowGrowth | null {
+    clampGrowth();
+    const step = Math.max(1, Math.floor(maximum));
+    if (growAfter > 0) {
+      const count = Math.min(step, growAfter);
+      const append = blocks.slice(end(), end() + count);
+      size += count;
+      growAfter -= count;
+      return { prepend: [], append };
+    }
+    if (growBefore > 0) {
+      const count = Math.min(step, growBefore);
+      const prepend = blocks.slice(start - count, start);
+      start -= count;
+      size += count;
+      growBefore -= count;
+      return { prepend, append: [] };
+    }
+    return null;
   }
 
   function revealBlock(blockIndex: number): boolean {
@@ -218,7 +340,9 @@ export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument 
     }
     const entryStart = start + change.offset;
     attrs = document.attrs;
-    replaceRange(entryStart, change.before.length, change.after);
+    blocks.splice(entryStart, change.before.length, ...change.after);
+    size = after.length;
+    clampGrowth();
     record({
       start: entryStart,
       before: change.before,
@@ -248,6 +372,15 @@ export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument 
       at,
     });
     return true;
+  }
+
+  function replaceWholeWindow(document: ProseMirrorNode, at: number): boolean {
+    const changed = replaceFullDocument(document, at);
+    start = 0;
+    size = blocks.length;
+    growBefore = 0;
+    growAfter = 0;
+    return changed;
   }
 
   /**
@@ -305,27 +438,34 @@ export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument 
     blocks.splice(changeStart, change.before.length, ...change.after);
     shiftHistory(history, (entry) => entry.after.length, changeStart, changeEnd, delta);
     shiftHistory(redoHistory, (entry) => entry.before.length, changeStart, changeEnd, delta);
+    const lastBlock = Math.max(0, blocks.length - 1);
     if (rememberedSelection) {
-      if (rememberedSelection.blockIndex >= changeEnd) {
-        rememberedSelection.blockIndex += delta;
-      } else if (rememberedSelection.blockIndex >= changeStart) {
-        rememberedSelection = {
-          blockIndex: clamp(
-            rememberedSelection.blockIndex,
-            changeStart,
-            Math.max(changeStart, changeStart + change.after.length - 1),
-          ),
-          offset: 0,
-        };
-      }
-      rememberedSelection.blockIndex = clamp(
+      const blockIndex = shiftedIndex(
         rememberedSelection.blockIndex,
-        0,
-        Math.max(0, blocks.length - 1),
+        changeStart,
+        changeEnd,
+        change.after.length,
       );
+      const inside =
+        rememberedSelection.blockIndex >= changeStart && rememberedSelection.blockIndex < changeEnd;
+      rememberedSelection = {
+        blockIndex: clamp(blockIndex, 0, lastBlock),
+        offset: inside ? 0 : rememberedSelection.offset,
+      };
+    }
+    if (rememberedViewport) {
+      rememberedViewport = {
+        blockIndex: clamp(
+          shiftedIndex(rememberedViewport.blockIndex, changeStart, changeEnd, change.after.length),
+          0,
+          lastBlock,
+        ),
+        offset: rememberedViewport.offset,
+      };
     }
     if (start >= changeEnd) start += delta;
     start = clamp(start, 0, maximumStart());
+    clampGrowth();
     return attrsChanged || !windowsEqual(windowBefore, blocks.slice(start, end()));
   }
 
@@ -341,17 +481,23 @@ export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument 
     blockCount: () => blocks.length,
     windowStart: () => start,
     windowEnd: end,
+    targetStart: () => start - growBefore,
+    targetEnd: () => end() + growAfter,
     fullDocument: () => documentFromBlocks(blocks, attrs),
     windowDocument: () => documentFromBlocks(blocks.slice(start, end()), attrs),
     moveWindow,
     revealBlock,
+    narrowWindow,
+    growWindow,
     replaceWindow,
     replaceFullDocument,
+    replaceWholeWindow,
     adoptRemoteDocument,
     reconcile(document) {
       blocks = blocksFromDocument(document);
       attrs = document.attrs;
       start = clamp(start, 0, maximumStart());
+      clampGrowth();
       history.length = 0;
       redoHistory.length = 0;
     },
@@ -359,6 +505,10 @@ export function createBoundedDocument(source: ProseMirrorNode): BoundedDocument 
       rememberedSelection = selection ? { ...selection } : null;
     },
     selection: () => (rememberedSelection ? { ...rememberedSelection } : null),
+    rememberViewport(viewport) {
+      rememberedViewport = viewport ? { ...viewport } : null;
+    },
+    viewport: () => (rememberedViewport ? { ...rememberedViewport } : null),
     undo() {
       const entry = history.pop();
       if (!entry) {

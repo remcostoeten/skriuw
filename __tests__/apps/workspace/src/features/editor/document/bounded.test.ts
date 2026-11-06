@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import {
   BOUNDED_BLOCK_LIMIT,
+  BOUNDED_GROWTH_STEP,
   BOUNDED_HISTORY_DEPTH,
   createBoundedDocument,
+  initialWindowSize,
   shouldUseBoundedEditor,
   topLevelBlockAtPosition,
   topLevelTextPosition,
@@ -273,4 +275,117 @@ test("adoptRemoteDocument reports an attribute-only change so the layer reaches 
   assert.equal(bounded.adoptRemoteDocument(drawn), true);
   assert.equal(bounded.fullDocument().attrs.drawing, "{}");
   assert.equal(bounded.undoDepth(), 0);
+});
+
+function windowBlocks(document: ReturnType<typeof createDocument>) {
+  const blocks: ReturnType<typeof createDocument>[] = [];
+  document.forEach((node) => blocks.push(node));
+  return blocks;
+}
+
+function texts(document: ReturnType<typeof createDocument>) {
+  return windowBlocks(document).map((node) => node.textContent);
+}
+
+test("a window edit that adds a block keeps later edits from duplicating the window's tail", () => {
+  const bounded = createBoundedDocument(createDocument(500));
+  const blocks = windowBlocks(bounded.windowDocument());
+  blocks.splice(3, 0, productSchema.node("paragraph", null, productSchema.text("inserted")));
+  bounded.replaceWindow(productSchema.node("doc", null, blocks), 0);
+  blocks[5] = productSchema.node("paragraph", null, productSchema.text("typed"));
+  bounded.replaceWindow(productSchema.node("doc", null, blocks), 10_000);
+  const full = texts(bounded.fullDocument());
+  assert.equal(full.length, 501);
+  assert.equal(full.filter((text) => text === "block 192").length, 1);
+  assert.equal(bounded.windowEnd() - bounded.windowStart(), 193);
+});
+
+test("deleting blocks at the end of the note keeps the window on the blocks the editor shows", () => {
+  const bounded = createBoundedDocument(createDocument(2_000));
+  bounded.moveWindow(1_808);
+  const blocks = windowBlocks(bounded.windowDocument()).slice(10);
+  bounded.replaceWindow(productSchema.node("doc", null, blocks), 0);
+  assert.equal(bounded.windowStart(), 1_808);
+  assert.deepEqual(texts(bounded.windowDocument()), texts(productSchema.node("doc", null, blocks)));
+  blocks[0] = productSchema.node("paragraph", null, productSchema.text("typed"));
+  bounded.replaceWindow(productSchema.node("doc", null, blocks), 10_000);
+  const full = texts(bounded.fullDocument());
+  assert.equal(full.length, 1_990);
+  assert.equal(full[1_808], "typed");
+  assert.equal(full.at(-1), "block 1999");
+});
+
+test("a narrowed window renders the viewport first and grows to the full window", () => {
+  const bounded = createBoundedDocument(createDocument(2_000));
+  bounded.moveWindow(400);
+  assert.equal(bounded.narrowWindow(450, 400), true);
+  const initial = initialWindowSize(400);
+  assert.equal(bounded.windowStart(), 450);
+  assert.equal(bounded.windowEnd(), 450 + initial);
+  assert.equal(bounded.targetStart(), 400);
+  assert.equal(bounded.targetEnd(), 400 + BOUNDED_BLOCK_LIMIT);
+  assert.equal(bounded.windowDocument().firstChild?.textContent, "block 450");
+
+  const below = bounded.growWindow(BOUNDED_GROWTH_STEP);
+  assert.equal(below?.append.length, BOUNDED_GROWTH_STEP);
+  assert.equal(below?.prepend.length, 0);
+  assert.equal(below?.append[0]?.textContent, `block ${450 + initial}`);
+  let growth = bounded.growWindow(BOUNDED_GROWTH_STEP);
+  while (growth && growth.append.length > 0) growth = bounded.growWindow(BOUNDED_GROWTH_STEP);
+  assert.equal(growth?.prepend.length, BOUNDED_GROWTH_STEP);
+  assert.equal(growth?.prepend.at(-1)?.textContent, "block 449");
+  while (bounded.growWindow(BOUNDED_GROWTH_STEP)) {
+    assert.ok(bounded.windowEnd() - bounded.windowStart() <= BOUNDED_BLOCK_LIMIT);
+  }
+  assert.equal(bounded.windowStart(), 400);
+  assert.equal(bounded.windowEnd(), 400 + BOUNDED_BLOCK_LIMIT);
+  assert.equal(bounded.narrowWindow(400, 400), true);
+  assert.equal(bounded.windowStart(), 400);
+});
+
+test("narrowing outside the window recentres the target and moving drops pending growth", () => {
+  const bounded = createBoundedDocument(createDocument(2_000));
+  bounded.narrowWindow(1_000, 600);
+  assert.equal(bounded.windowStart(), 1_000);
+  assert.equal(bounded.targetStart(), 1_000 - BOUNDED_BLOCK_LIMIT / 2);
+  bounded.narrowWindow(1_995, 600);
+  assert.equal(bounded.windowEnd(), 2_000);
+  assert.equal(bounded.windowEnd() - bounded.windowStart(), initialWindowSize(600));
+  assert.equal(bounded.targetEnd(), 2_000);
+  assert.equal(bounded.moveWindow(bounded.windowStart()), true);
+  assert.equal(bounded.windowEnd() - bounded.windowStart(), BOUNDED_BLOCK_LIMIT);
+  assert.equal(bounded.growWindow(BOUNDED_GROWTH_STEP), null);
+});
+
+test("edits inside a growing window keep growth on the blocks around it", () => {
+  const bounded = createBoundedDocument(createDocument(500));
+  bounded.narrowWindow(0, 400);
+  const blocks = windowBlocks(bounded.windowDocument());
+  blocks.splice(1, 0, productSchema.node("paragraph", null, productSchema.text("inserted")));
+  bounded.replaceWindow(productSchema.node("doc", null, blocks), 0);
+  const growth = bounded.growWindow(BOUNDED_GROWTH_STEP);
+  assert.equal(growth?.append[0]?.textContent, `block ${initialWindowSize(400)}`);
+  while (bounded.growWindow(BOUNDED_GROWTH_STEP));
+  assert.equal(bounded.windowEnd() - bounded.windowStart(), BOUNDED_BLOCK_LIMIT + 1);
+  assert.equal(texts(bounded.fullDocument()).length, 501);
+});
+
+test("replacing the whole note makes the window the replacement", () => {
+  const bounded = createBoundedDocument(createDocument(2_000));
+  bounded.moveWindow(500);
+  bounded.replaceWholeWindow(createDocument(300), 0);
+  assert.equal(bounded.windowStart(), 0);
+  assert.equal(bounded.windowEnd(), 300);
+  assert.equal(bounded.undo(), true);
+  assert.equal(bounded.fullDocument().childCount, 2_000);
+});
+
+test("a remote change before the window shifts the remembered viewport with its block", () => {
+  const bounded = createBoundedDocument(createDocument(500));
+  bounded.moveWindow(300);
+  bounded.rememberViewport({ blockIndex: 320, offset: -12 });
+  const blocks = windowBlocks(bounded.fullDocument());
+  blocks.splice(10, 0, productSchema.node("paragraph", null, productSchema.text("remote")));
+  bounded.adoptRemoteDocument(productSchema.node("doc", null, blocks));
+  assert.deepEqual(bounded.viewport(), { blockIndex: 321, offset: -12 });
 });

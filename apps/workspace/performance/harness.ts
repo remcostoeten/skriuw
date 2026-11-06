@@ -37,6 +37,7 @@ type Phase = {
   startedAt: number;
   dispatchMs: number[];
   editorInstallationMs: number[];
+  windowGrowthMs: number[];
   nextPaintMs: number[];
   frameGapsMs: number[];
   reactCommitMs: number[];
@@ -70,6 +71,7 @@ function startPhase(name: Phase["name"]): Phase {
     startedAt: performance.now(),
     dispatchMs: [],
     editorInstallationMs: [],
+    windowGrowthMs: [],
     nextPaintMs: [],
     frameGapsMs: [],
     reactCommitMs: [],
@@ -117,6 +119,7 @@ async function stopPhase(phase: Phase, estimatedFrameMs: number): Promise<PhaseR
     samples: {
       dispatchMs: phase.dispatchMs,
       editorInstallationMs: phase.editorInstallationMs,
+      windowGrowthMs: phase.windowGrowthMs,
       nextPaintMs: phase.nextPaintMs,
       frameGapsMs: phase.frameGapsMs,
       reactCommitMs: phase.reactCommitMs,
@@ -124,6 +127,7 @@ async function stopPhase(phase: Phase, estimatedFrameMs: number): Promise<PhaseR
     summary: {
       dispatch: summarize(phase.dispatchMs),
       editorInstallation: summarize(phase.editorInstallationMs),
+      windowGrowth: summarize(phase.windowGrowthMs),
       nextPaint: summarize(phase.nextPaintMs),
       frameGaps: summarize(phase.frameGapsMs),
       reactCommit: summarize(phase.reactCommitMs),
@@ -198,6 +202,7 @@ export async function createPerformanceController(
   let typingPreviousText = "";
   let editorHosts = 0;
   let prosemirrorViews = 0;
+  let selectionDispatching = false;
   let initialEditor: Element | null = null;
   let maximumWorkingSetSize = 0;
   let finalWorkingSetSize = 0;
@@ -208,7 +213,11 @@ export async function createPerformanceController(
   );
   const restoreEditor = instrumentEditor((view, duration) => {
     editorViews.add(view);
-    phase?.editorInstallationMs.push(duration);
+    if (phase?.name === "selection" && !selectionDispatching) {
+      phase.windowGrowthMs.push(duration);
+    } else {
+      phase?.editorInstallationMs.push(duration);
+    }
   });
   const restoreWorkingSet = instrumentWorkingSet((size, evictedIds) => {
     maximumWorkingSetSize = Math.max(maximumWorkingSetSize, size);
@@ -284,7 +293,9 @@ export async function createPerformanceController(
         throw new Error("missing measured note");
       }
       const started = performance.now();
+      selectionDispatching = true;
       flushSync(() => store.setActiveNote(id));
+      selectionDispatching = false;
       phase.dispatchMs.push(performance.now() - started);
       const paintStarted = performance.now();
       await nextFrame();
@@ -543,6 +554,13 @@ export async function createPerformanceController(
       editorRemounts: editor === initialEditor ? 0 : 1,
     };
     const renderedEditorBlocks = editor?.children.length ?? 0;
+    const renderedBlockNumbers = Array.from(editor?.children ?? [], (child) =>
+      Number(/Block (\d+) in/.exec(child.textContent ?? "")?.[1] ?? Number.NaN),
+    );
+    const renderedBlocksAreConsecutive = renderedBlockNumbers.every(
+      (blockNumber, index) =>
+        index === 0 || blockNumber === (renderedBlockNumbers[index - 1] ?? 0) + 1,
+    );
     const renderedTreeItems = document.querySelectorAll("[role='treeitem']").length;
     const shellHeight = document
       .querySelector<HTMLElement>("#root > div")
@@ -617,6 +635,13 @@ export async function createPerformanceController(
         name: "large-editor-dom-is-bounded",
         pass: fixture.blockCount <= 192 || renderedEditorBlocks <= 192,
         detail: `${renderedEditorBlocks}/${fixture.blockCount} top-level blocks`,
+      },
+      {
+        name: "large-editor-window-grows-to-full",
+        pass:
+          fixture.blockCount <= 192 ||
+          (renderedEditorBlocks === 192 && renderedBlocksAreConsecutive),
+        detail: `${renderedEditorBlocks} blocks, first ${renderedBlockNumbers[0]}, last ${renderedBlockNumbers.at(-1)}, consecutive ${renderedBlocksAreConsecutive}`,
       },
       {
         name: "large-editor-has-whole-document-reader",
