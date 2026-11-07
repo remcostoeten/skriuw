@@ -38,8 +38,8 @@ its own key management, which is exactly the case the "non-exempt" answer
 exists for. Declaring `false` to skip the questionnaire is a false statement on
 a submission.
 
-Setting either key requires an `ios.infoPlist` entry in `apps/mobile/app.json`,
-which Mobile 16 does not own.
+`ITSAppUsesNonExemptEncryption` is set in `ios.infoPlist` of `apps/mobile/app.json`;
+the compliance code goes beside it once Apple issues it.
 
 ### Questionnaire answers
 
@@ -84,6 +84,5 @@ different question and the answer is yes; it is filled in
    one time).
 2. File the annual self-classification report, or set a reminder for the first
    1 February after launch.
-3. Add `ITSAppUsesNonExemptEncryption` to `apps/mobile/app.json` under
-   `ios.infoPlist`, so App Store Connect stops asking per build.
-4. Record Apple's returned compliance code here once it is issued.
+3. Record Apple's returned compliance code here and in `apps/mobile/app.json`
+   once it is issued.

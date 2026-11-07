@@ -39,7 +39,14 @@ export function OnThisDaySection({ anniversaries, excerptOf, onOpenDay }: Props)
             <Pressable
               key={anniversary.entry.noteId}
               accessibilityRole="button"
-              accessibilityLabel={`${anniversary.label}, ${formatListDate(anniversary.entry.dateKey)}`}
+              accessibilityLabel={[
+                anniversary.label,
+                formatListDate(anniversary.entry.dateKey),
+                mood === null ? null : MOOD_OPTIONS[mood].label.toLowerCase(),
+                excerpt.length === 0 ? null : excerpt,
+              ]
+                .filter((part) => part !== null)
+                .join(", ")}
               onPress={() => onOpenDay(anniversary.entry.dateKey)}
               style={[styles.row, { borderColor: theme.color("border") }]}
             >

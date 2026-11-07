@@ -36,10 +36,10 @@ export function createDeviceInboxFile(): InboxFile {
       return file.exists ? file.textSync() : "";
     },
     appendLine(line) {
-      ensured().write(line, { append: true });
+      ensured().writeSync(line, { append: true });
     },
     replaceWhole(contents) {
-      ensured().write(contents);
+      ensured().writeSync(contents);
     },
   };
 }

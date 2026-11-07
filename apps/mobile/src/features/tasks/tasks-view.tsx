@@ -1,9 +1,14 @@
 import { router } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import Animated, { type CSSStyle } from "react-native-reanimated";
+import { PRESS_EASING, STATE_MS } from "../../shell/motion";
+import { PressableScale } from "../../shell/pressable-scale";
 import { useChrome } from "../../shell/chrome";
+import { snapHaptic } from "../../shell/haptics";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme, type ShellTheme } from "../../shell/theme";
+import { useAnnouncement } from "../../shell/announce";
 import { activateNote } from "../../shell/tree-actions";
 import { useWorkspace, useWorkspaceSelector } from "../../shell/workspace-provider";
 import { promoteChecklistItem, toggleTask, undoPromotion, type TaskAction } from "./task-actions";
@@ -53,6 +58,7 @@ export function TasksView() {
   const summary = useWorkspaceSelector(summarizeTasks, taskSummariesEqual);
   const promotion = useWorkspaceSelector(projectPromotionSource, promotionSourcesEqual);
   const [notice, setNotice] = useState<string | null>(null);
+  useAnnouncement(notice);
   const items = useMemo(() => listItems(groups), [groups]);
 
   const settle = useCallback(
@@ -80,7 +86,11 @@ export function TasksView() {
 
   const onToggle = useCallback(
     (row: TaskRow) => {
-      toggleTask(session, row.id)
+      const toggled = toggleTask(session, row.id);
+      if (!row.done && session.store.getState().tasks.get(row.id)?.status === "done") {
+        snapHaptic();
+      }
+      toggled
         .then((action) => {
           settle(action, (committed) => {
             if (!committed.done) {
@@ -168,7 +178,7 @@ export function TasksView() {
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
-          promotion === null ? null : (
+          promotion === null ? undefined : (
             <PromotionSection
               source={promotion}
               theme={theme}
@@ -182,12 +192,17 @@ export function TasksView() {
             <View style={styles.groupHeader}>
               <Text
                 accessibilityRole="header"
+                accessibilityLabel={`${item.title}, ${item.count} ${item.count === 1 ? "task" : "tasks"}`}
                 numberOfLines={1}
                 style={[styles.groupTitle, { color: theme.color("muted-foreground") }]}
               >
                 {item.title}
               </Text>
-              <Text style={[styles.groupCount, { color: theme.color("muted-foreground", 0.7) }]}>
+              <Text
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={[styles.groupCount, { color: theme.color("muted-foreground", 0.7) }]}
+              >
                 {item.count}
               </Text>
             </View>
@@ -239,7 +254,7 @@ function TaskListRow({ row, theme, onToggle, onOpenSource }: RowProps) {
         </Text>
       </Pressable>
       {linked ? (
-        <Pressable
+        <PressableScale
           accessibilityRole="link"
           accessibilityLabel={`Open ${row.noteTitle}, the source note for ${row.title}`}
           onPress={onOpenSource}
@@ -248,7 +263,7 @@ function TaskListRow({ row, theme, onToggle, onOpenSource }: RowProps) {
           <Text style={[styles.rowActionLabel, { color: theme.color("theme-accent-blue") }]}>
             Open note
           </Text>
-        </Pressable>
+        </PressableScale>
       ) : (
         <Text style={[styles.rowNote, { color: theme.color("muted-foreground", 0.8) }]}>
           {row.detached ? "Detached" : "No source"}
@@ -288,7 +303,7 @@ function PromotionSection({ source, theme, onPromote }: PromotionProps) {
               {candidate.title}
             </Text>
           </View>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={`Promote ${candidate.title} to a task`}
             onPress={() => onPromote(candidate)}
@@ -297,7 +312,7 @@ function PromotionSection({ source, theme, onPromote }: PromotionProps) {
             <Text style={[styles.rowActionLabel, { color: theme.color("secondary-foreground") }]}>
               Promote
             </Text>
-          </Pressable>
+          </PressableScale>
         </View>
       ))}
     </View>
@@ -320,18 +335,21 @@ function Checkbox({ checked, theme, muted = false }: CheckboxProps) {
   const accent = theme.color("theme-accent-blue");
   const border = muted ? theme.color("border") : checked ? accent : theme.color("foreground", 0.45);
   return (
-    <View
+    <Animated.View
       accessible={false}
       importantForAccessibility="no"
-      style={[styles.checkbox, { borderColor: border }]}
+      style={[styles.checkbox, BORDER_FADE, { borderColor: border }]}
     >
-      {checked && !muted ? (
-        <>
+      {muted ? null : (
+        <Animated.View
+          style={[styles.tick, TICK_FADE, checked ? styles.tickOn : styles.tickOff]}
+          pointerEvents="none"
+        >
           <View style={[styles.tickShort, { backgroundColor: accent }]} />
           <View style={[styles.tickLong, { backgroundColor: accent }]} />
-        </>
-      ) : null}
-    </View>
+        </Animated.View>
+      )}
+    </Animated.View>
   );
 }
 
@@ -357,6 +375,18 @@ function EmptyTasks({ theme, promoting }: EmptyProps) {
     </View>
   );
 }
+
+const BORDER_FADE: CSSStyle<ViewStyle> = {
+  transitionProperty: "borderColor",
+  transitionDuration: STATE_MS,
+  transitionTimingFunction: PRESS_EASING,
+};
+
+const TICK_FADE: CSSStyle<ViewStyle> = {
+  transitionProperty: ["opacity", "transform"],
+  transitionDuration: STATE_MS,
+  transitionTimingFunction: PRESS_EASING,
+};
 
 const styles = StyleSheet.create({
   root: {
@@ -446,6 +476,21 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 1.5,
+  },
+  tick: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  tickOn: {
+    opacity: 1,
+    transform: [{ scale: 1 }],
+  },
+  tickOff: {
+    opacity: 0,
+    transform: [{ scale: 0.8 }],
   },
   tickShort: {
     position: "absolute",

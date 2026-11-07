@@ -28,12 +28,21 @@ on:
     pull_request:
         paths: *mobile-paths
     workflow_dispatch:
+        inputs:
+            targets:
+                description: "ipa: gate and the unsigned iOS build. android: gate, emulator e2e and the APK. all: every job, including EAS."
+                type: choice
+                options:
+                    - ipa
+                    - android
+                    - all
+                default: all
 
 permissions:
     contents: read
 
 concurrency:
-    group: mobile-ci-${{ github.ref }}
+    group: mobile-ci-${{ github.ref }}-${{ inputs.targets || 'auto' }}
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Naming the shell is what turns on `pipefail`; the implicit default is
@@ -45,8 +54,81 @@ defaults:
 env:
     MODULE_DIR: apps/mobile/modules/skriuw-core
     NDK_VERSION: 27.1.12297006
+    BUN_VERSION: "1.4.2"
+    EAS_CLI_VERSION: "27.2.0"
+    XCODE_VERSION: "26.6"
 
 jobs:
+    changes:
+        name: Select jobs
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        permissions:
+            contents: read
+            pull-requests: read
+        outputs:
+            ios: ${{ steps.select.outputs.ios }}
+            ipa: ${{ steps.select.outputs.ipa }}
+            android_e2e: ${{ steps.select.outputs.android_e2e }}
+            android_preview: ${{ steps.select.outputs.android_preview }}
+            eas: ${{ steps.select.outputs.eas }}
+        steps:
+            - uses: actions/checkout@v5
+              if: github.event_name == 'push' && github.ref_type == 'branch'
+              with:
+                  persist-credentials: false
+
+            - id: native
+              if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref_type == 'branch')
+              uses: dorny/paths-filter@v4.0.3
+              with:
+                  filters: |
+                      native:
+                          - "apps/mobile/modules/**"
+                          - "apps/mobile/src/bridge/**"
+                          - "apps/mobile/src/**/plugin.js"
+                          - "apps/mobile/src/features/capture/share-extension/**"
+                          - "apps/mobile/src/features/quick-actions/actions.json"
+                          - "apps/mobile/package.json"
+                          - "apps/mobile/app.json"
+                          - "crates/skriuw-mobile/**"
+                          - "bun.lock"
+                          - ".github/workflows/mobile-*.yml"
+
+            - id: select
+              env:
+                  EVENT: ${{ github.event_name }}
+                  REF_TYPE: ${{ github.ref_type }}
+                  TARGETS: ${{ inputs.targets }}
+                  NATIVE: ${{ steps.native.outputs.native }}
+              run: |
+                  case "$EVENT" in
+                      workflow_dispatch) targets="${TARGETS:-all}" ;;
+                      push) if [[ "$REF_TYPE" == "tag" ]]; then targets="all"; else targets="changes"; fi ;;
+                      *) targets="changes" ;;
+                  esac
+                  native="${NATIVE:-false}"
+                  ios=false ipa=false android_e2e=false android_preview=false eas=false
+                  case "$targets" in
+                      all) ios=true ipa=true android_e2e=true android_preview=true eas=true ;;
+                      ipa) ios=true ipa=true ;;
+                      android) android_e2e=true android_preview=true ;;
+                      changes)
+                          ios=true
+                          android_e2e="$native"
+                          if [[ "$EVENT" == "push" ]]; then ipa="$native"; fi
+                          ;;
+                      *) echo "::error::Unknown targets value: $targets"; exit 1 ;;
+                  esac
+                  printf 'targets=%s native=%s\n' "$targets" "$native"
+                  {
+                      echo "ios=$ios"
+                      echo "ipa=$ipa"
+                      echo "android_e2e=$android_e2e"
+                      echo "android_preview=$android_preview"
+                      echo "eas=$eas"
+                  } >> "$GITHUB_OUTPUT"
+
     gate:
         name: Product gate
         runs-on: ubuntu-latest
@@ -68,7 +150,7 @@ jobs:
             - name: Install bun
               uses: oven-sh/setup-bun@v2
               with:
-                  bun-version: latest
+                  bun-version: ${{ env.BUN_VERSION }}
 
             - name: Install Node.js
               uses: actions/setup-node@v5
@@ -84,10 +166,18 @@ jobs:
             - name: Facade host tests
               run: cargo test -p skriuw-mobile --locked
 
+            - name: Bundle the iOS JavaScript
+              working-directory: apps/mobile
+              run: bunx expo export --platform ios --output-dir "$RUNNER_TEMP/export"
+
     android-e2e:
         name: Android emulator e2e
+        needs: changes
+        if: needs.changes.outputs.android_e2e == 'true'
         runs-on: ubuntu-latest
         timeout-minutes: 75
+        env:
+            GRADLE_OPTS: -Dorg.gradle.caching=true
         steps:
             - uses: actions/checkout@v5
               with:
@@ -107,12 +197,23 @@ jobs:
                   distribution: temurin
                   java-version: "17"
 
+            - id: core
+              name: Restore the Rust core for Android
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ${{ env.MODULE_DIR }}/android/src/main/jniLibs
+                      ${{ env.MODULE_DIR }}/android/src/main/java/uniffi
+                  key: mobile-core-android-${{ runner.os }}-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', 'crates/**', 'apps/mobile/modules/skriuw-core/scripts/build-android.sh') }}
+
             - name: Install Android Rust targets
+              if: steps.core.outputs.cache-hit != 'true'
               run: |
                   rustup show active-toolchain
                   rustup target add aarch64-linux-android x86_64-linux-android
 
             - name: Cache Cargo
+              if: steps.core.outputs.cache-hit != 'true'
               uses: Swatinem/rust-cache@v2
               with:
                   workspaces: |
@@ -121,6 +222,7 @@ jobs:
                   shared-key: mobile-android
 
             - name: Install cargo-ndk
+              if: steps.core.outputs.cache-hit != 'true'
               uses: taiki-e/install-action@v2
               with:
                   tool: cargo-ndk
@@ -128,7 +230,7 @@ jobs:
             - name: Install bun
               uses: oven-sh/setup-bun@v2
               with:
-                  bun-version: latest
+                  bun-version: ${{ env.BUN_VERSION }}
 
             - name: Install Node.js
               uses: actions/setup-node@v5
@@ -151,7 +253,7 @@ jobs:
             # retry, and one truncated archive fails the whole job.
             - name: Install the NDK and emulator
               run: |
-                  for attempt in 1 2 3; do
+                  for _ in 1 2 3; do
                       if "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION" emulator; then
                           exit 0
                       fi
@@ -161,7 +263,30 @@ jobs:
                   exit 1
 
             - name: Build the Rust core for Android
+              if: steps.core.outputs.cache-hit != 'true'
               run: ${{ env.MODULE_DIR }}/scripts/build-android.sh
+
+            - id: avd
+              name: Cache the AVD snapshot
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.android/avd/*
+                      ~/.android/adb*
+                  key: mobile-avd-${{ runner.os }}-api34-x86_64-default
+
+            - name: Create the AVD snapshot
+              if: steps.avd.outputs.cache-hit != 'true'
+              uses: reactivecircus/android-emulator-runner@v2
+              with:
+                  api-level: 34
+                  arch: x86_64
+                  target: default
+                  disk-size: 6000M
+                  force-avd-creation: false
+                  disable-animations: false
+                  emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+                  script: echo "Created the AVD snapshot"
 
             - name: Open, write, kill, relaunch, read back
               uses: reactivecircus/android-emulator-runner@v2
@@ -170,26 +295,44 @@ jobs:
                   arch: x86_64
                   target: default
                   disk-size: 6000M
-                  force-avd-creation: true
+                  force-avd-creation: false
                   disable-animations: true
-                  emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+                  emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
                   script: ${{ env.MODULE_DIR }}/scripts/e2e-android.sh
 
     xcframework:
         name: iOS xcframework
-        runs-on: macos-latest
+        needs: changes
+        if: needs.changes.outputs.ios == 'true'
+        runs-on: macos-26
         timeout-minutes: 45
         steps:
             - uses: actions/checkout@v5
               with:
                   persist-credentials: false
 
+            - name: Select Xcode
+              run: |
+                  sudo xcode-select --switch "/Applications/Xcode_$XCODE_VERSION.app"
+                  xcodebuild -version
+
+            - id: core
+              name: Restore the Rust core for iOS
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ${{ env.MODULE_DIR }}/ios/Frameworks
+                      ${{ env.MODULE_DIR }}/ios/Generated
+                  key: mobile-core-ios-${{ runner.os }}-${{ runner.arch }}-xcode${{ env.XCODE_VERSION }}-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', 'crates/**', 'apps/mobile/modules/skriuw-core/scripts/build-ios.sh') }}
+
             - name: Install iOS Rust targets
+              if: steps.core.outputs.cache-hit != 'true'
               run: |
                   rustup show active-toolchain
                   rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
 
             - name: Cache Cargo
+              if: steps.core.outputs.cache-hit != 'true'
               uses: Swatinem/rust-cache@v2
               with:
                   workspaces: |
@@ -198,6 +341,7 @@ jobs:
                   shared-key: mobile-ios
 
             - name: Build SkriuwMobile.xcframework and the Swift bindings
+              if: steps.core.outputs.cache-hit != 'true'
               run: ${{ env.MODULE_DIR }}/scripts/build-ios.sh
 
             # One artifact holding both directories, unpacked over
@@ -213,10 +357,12 @@ jobs:
 
     android-preview:
         name: Android preview build
-        if: startsWith(github.ref, 'refs/tags/mobile-v') || github.event_name == 'workflow_dispatch'
-        needs: [gate, android-e2e]
+        needs: [changes, gate]
+        if: needs.changes.outputs.android_preview == 'true'
         runs-on: ubuntu-latest
         timeout-minutes: 75
+        env:
+            GRADLE_OPTS: -Dorg.gradle.caching=true
         steps:
             - uses: actions/checkout@v5
               with:
@@ -228,12 +374,23 @@ jobs:
                   distribution: temurin
                   java-version: "17"
 
+            - id: core
+              name: Restore the Rust core for Android
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ${{ env.MODULE_DIR }}/android/src/main/jniLibs
+                      ${{ env.MODULE_DIR }}/android/src/main/java/uniffi
+                  key: mobile-core-android-${{ runner.os }}-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', 'crates/**', 'apps/mobile/modules/skriuw-core/scripts/build-android.sh') }}
+
             - name: Install Android Rust targets
+              if: steps.core.outputs.cache-hit != 'true'
               run: |
                   rustup show active-toolchain
                   rustup target add aarch64-linux-android x86_64-linux-android
 
             - name: Cache Cargo
+              if: steps.core.outputs.cache-hit != 'true'
               uses: Swatinem/rust-cache@v2
               with:
                   workspaces: |
@@ -242,6 +399,7 @@ jobs:
                   shared-key: mobile-android
 
             - name: Install cargo-ndk
+              if: steps.core.outputs.cache-hit != 'true'
               uses: taiki-e/install-action@v2
               with:
                   tool: cargo-ndk
@@ -249,7 +407,7 @@ jobs:
             - name: Install bun
               uses: oven-sh/setup-bun@v2
               with:
-                  bun-version: latest
+                  bun-version: ${{ env.BUN_VERSION }}
 
             - name: Install Node.js
               uses: actions/setup-node@v5
@@ -259,11 +417,20 @@ jobs:
             - name: Install workspace deps
               run: bun install --frozen-lockfile
 
+            - name: Cache Gradle
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.gradle/caches
+                      ~/.gradle/wrapper
+                  key: mobile-gradle-${{ hashFiles('bun.lock') }}
+                  restore-keys: mobile-gradle-
+
             # Gradle downloads the NDK without a retry, and one truncated archive
             # fails the whole job.
             - name: Install the Gradle NDK
               run: |
-                  for attempt in 1 2 3; do
+                  for _ in 1 2 3; do
                       if "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION"; then
                           exit 0
                       fi
@@ -273,6 +440,7 @@ jobs:
                   exit 1
 
             - name: Build the Rust core for Android
+              if: steps.core.outputs.cache-hit != 'true'
               run: ${{ env.MODULE_DIR }}/scripts/build-android.sh
 
             # The Expo template signs release variants with the debug keystore,
@@ -291,11 +459,14 @@ jobs:
                   if-no-files-found: error
                   retention-days: 30
 
-    ios-preview:
-        name: iOS preview build (simulator)
-        if: startsWith(github.ref, 'refs/tags/mobile-v') || github.event_name == 'workflow_dispatch'
-        needs: [gate, xcframework]
-        runs-on: macos-latest
+    # A device build with signing turned off. iloader signs it with a free
+    # Apple ID when it installs it; there is no Apple Developer team, so no
+    # signed iOS build exists.
+    ios-device-unsigned:
+        name: iOS device build (unsigned)
+        needs: [changes, gate, xcframework]
+        if: needs.changes.outputs.ipa == 'true'
+        runs-on: macos-26
         timeout-minutes: 75
         steps:
             - uses: actions/checkout@v5
@@ -307,10 +478,15 @@ jobs:
                   name: skriuw-core-ios
                   path: ${{ env.MODULE_DIR }}/ios
 
+            - name: Select Xcode
+              run: |
+                  sudo xcode-select --switch "/Applications/Xcode_$XCODE_VERSION.app"
+                  xcodebuild -version
+
             - name: Install bun
               uses: oven-sh/setup-bun@v2
               with:
-                  bun-version: latest
+                  bun-version: ${{ env.BUN_VERSION }}
 
             - name: Install Node.js
               uses: actions/setup-node@v5
@@ -320,40 +496,114 @@ jobs:
             - name: Install workspace deps
               run: bun install --frozen-lockfile
 
-            # Unsigned, so it runs in a simulator only. A device build needs
-            # Apple credentials and goes through the `eas-preview` job.
-            - name: Build the simulator app
+            # A release build embeds the JavaScript and the editor page, so the
+            # app runs on the phone without Metro.
+            - name: Build the editor page
+              working-directory: apps/mobile
+              run: bun run editor:page
+
+            - id: ccache
+              name: Install ccache
+              env:
+                  HOMEBREW_NO_AUTO_UPDATE: "1"
+                  HOMEBREW_NO_INSTALL_CLEANUP: "1"
+              run: |
+                  brew install ccache
+                  echo "dir=$(ccache --get-config cache_dir)" >> "$GITHUB_OUTPUT"
+
+            - name: Cache ccache
+              uses: actions/cache@v4
+              with:
+                  path: ${{ steps.ccache.outputs.dir }}
+                  key: mobile-ccache-${{ runner.os }}-${{ runner.arch }}-xcode${{ env.XCODE_VERSION }}-${{ hashFiles('bun.lock') }}
+                  restore-keys: mobile-ccache-${{ runner.os }}-${{ runner.arch }}-xcode${{ env.XCODE_VERSION }}-
+
+            - name: Generate the iOS project with ccache enabled
               working-directory: apps/mobile
               run: |
-                  bunx expo prebuild --platform ios
+                  bunx expo prebuild --platform ios --no-install
+                  jq '."apple.ccacheEnabled" = "true"' ios/Podfile.properties.json > "$RUNNER_TEMP/Podfile.properties.json"
+                  mv "$RUNNER_TEMP/Podfile.properties.json" ios/Podfile.properties.json
+                  cd ios
+                  pod install
+
+            - name: Build the unsigned device app
+              working-directory: apps/mobile
+              run: |
+                  ccache --zero-stats
                   workspace="$(find ios -maxdepth 1 -name '*.xcworkspace' | head -n 1)"
-                  [[ -n "$workspace" ]] || { echo "::error::expo prebuild produced no Xcode workspace"; exit 1; }
+                  [[ -n "$workspace" ]] || { echo "::error::pod install produced no Xcode workspace"; exit 1; }
                   scheme="$(basename "$workspace" .xcworkspace)"
                   xcodebuild \
                       -workspace "$workspace" \
                       -scheme "$scheme" \
                       -configuration Release \
-                      -sdk iphonesimulator \
-                      -destination 'generic/platform=iOS Simulator' \
+                      -sdk iphoneos \
+                      -destination 'generic/platform=iOS' \
                       -derivedDataPath build \
-                      CODE_SIGNING_ALLOWED=NO
-                  app="$(find build/Build/Products/Release-iphonesimulator -maxdepth 1 -name '*.app' | head -n 1)"
+                      CODE_SIGNING_ALLOWED=NO \
+                      CODE_SIGNING_REQUIRED=NO \
+                      CODE_SIGN_IDENTITY=""
+                  app="$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' | head -n 1)"
                   [[ -n "$app" ]] || { echo "::error::xcodebuild produced no .app"; exit 1; }
-                  ditto -c -k --keepParent "$app" "$RUNNER_TEMP/skriuw-ios-simulator.zip"
+                  mkdir -p "$RUNNER_TEMP/ipa/Payload"
+                  cp -R "$app" "$RUNNER_TEMP/ipa/Payload/"
+                  (cd "$RUNNER_TEMP/ipa" && zip -qry "$RUNNER_TEMP/skriuw-ios-unsigned.ipa" Payload)
+
+            - name: Show ccache statistics and drop unused entries
+              if: success() || failure()
+              run: |
+                  ccache --show-stats
+                  ccache --evict-older-than 1d
 
             - uses: actions/upload-artifact@v4
               with:
-                  name: skriuw-ios-preview-simulator
-                  path: ${{ runner.temp }}/skriuw-ios-simulator.zip
+                  name: skriuw-ios-unsigned-ipa
+                  path: ${{ runner.temp }}/skriuw-ios-unsigned.ipa
                   if-no-files-found: error
                   retention-days: 30
+
+    # Separate from the macOS build so the write token never reaches the
+    # third-party scripts that `pod install` and xcodebuild run.
+    ipa-release:
+        name: Publish the IPA prerelease
+        needs: ios-device-unsigned
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: write
+        concurrency:
+            group: mobile-ipa-release
+            cancel-in-progress: false
+        env:
+            GH_TOKEN: ${{ github.token }}
+            GH_REPO: ${{ github.repository }}
+            RELEASE_TAG: mobile-ipa-latest
+        steps:
+            - uses: actions/download-artifact@v5
+              with:
+                  name: skriuw-ios-unsigned-ipa
+                  path: ${{ runner.temp }}/ipa
+
+            - name: Replace the prerelease asset
+              run: |
+                  ipa="$RUNNER_TEMP/ipa/skriuw-ios-unsigned.ipa"
+                  title="Skriuw iOS unsigned build ${GITHUB_SHA::7}"
+                  notes="Unsigned iOS device build of $GITHUB_SHA from $GITHUB_REF_NAME, built by $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. Download it with ./bin/ipa latest and install it with iloader."
+                  if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+                      gh release upload "$RELEASE_TAG" "$ipa" --clobber
+                      gh release edit "$RELEASE_TAG" --prerelease --title "$title" --notes "$notes"
+                  else
+                      gh release create "$RELEASE_TAG" "$ipa" --prerelease --latest=false --target "$GITHUB_SHA" --title "$title" --notes "$notes"
+                  fi
 
     # Secrets are not readable in a job-level `if`, so this job turns the
     # preconditions into outputs. When one is missing the EAS job shows up as
     # skipped next to a warning annotation naming the reason, never as green.
     eas-preflight:
         name: EAS preconditions
-        if: startsWith(github.ref, 'refs/tags/mobile-v') || github.event_name == 'workflow_dispatch'
+        needs: changes
+        if: needs.changes.outputs.eas == 'true'
         runs-on: ubuntu-latest
         timeout-minutes: 5
         outputs:
@@ -381,20 +631,22 @@ jobs:
                   {
                       echo "### EAS builds skipped"
                       echo
-                      echo "Signed device builds and the iOS simulator smoke run did not happen:"
+                      echo "The signed Android build and the EAS Simulator probe did not run:"
                       for reason in "${missing[@]}"; do
                           echo "- $reason"
                       done
                       echo
-                      echo "The unsigned Android APK and iOS simulator app from this run are still attached as artifacts."
+                      echo "The unsigned Android APK and the unsigned iOS .ipa from this run are still attached as artifacts."
                   } | tee -a "$GITHUB_STEP_SUMMARY"
                   for reason in "${missing[@]}"; do
                       echo "::warning title=EAS builds skipped::$reason"
                   done
 
-    eas-preview:
-        name: EAS preview builds (signed)
-        needs: [gate, android-e2e, xcframework, eas-preflight]
+    # Android only: a signed iOS build needs an Apple Developer team, and iOS
+    # installs go through the unsigned device build instead.
+    eas-android:
+        name: EAS Android preview build (signed)
+        needs: [gate, android-e2e, eas-preflight]
         if: needs.eas-preflight.outputs.ready == 'true'
         runs-on: ubuntu-latest
         timeout-minutes: 90
@@ -408,7 +660,7 @@ jobs:
             - name: Install bun
               uses: oven-sh/setup-bun@v2
               with:
-                  bun-version: latest
+                  bun-version: ${{ env.BUN_VERSION }}
 
             - name: Install Node.js
               uses: actions/setup-node@v5
@@ -418,14 +670,14 @@ jobs:
             - name: Install workspace deps
               run: bun install --frozen-lockfile
 
-            - name: Build preview for both platforms
+            - name: Build the signed Android preview
               working-directory: apps/mobile
-              run: npx -y eas-cli@latest build --profile preview --platform all --non-interactive --wait --json | tee "$RUNNER_TEMP/eas-builds.json"
+              run: npx -y "eas-cli@$EAS_CLI_VERSION" build --profile preview --platform android --non-interactive --wait --json | tee "$RUNNER_TEMP/eas-builds.json"
 
-            - name: Link the builds
+            - name: Link the build
               run: |
                   {
-                      echo "### EAS preview builds"
+                      echo "### EAS Android preview build"
                       jq -r '.[] | "- \(.platform): \(.artifacts.buildUrl // .artifacts.applicationArchiveUrl)"' "$RUNNER_TEMP/eas-builds.json"
                   } >> "$GITHUB_STEP_SUMMARY"
 
@@ -449,7 +701,7 @@ jobs:
             - name: Install bun
               uses: oven-sh/setup-bun@v2
               with:
-                  bun-version: latest
+                  bun-version: ${{ env.BUN_VERSION }}
 
             - name: Install Node.js
               uses: actions/setup-node@v5
@@ -462,7 +714,7 @@ jobs:
             - name: Probe EAS Simulator availability
               working-directory: apps/mobile
               run: |
-                  if ! npx -y eas-cli@latest simulator:availability --json | tee "$RUNNER_TEMP/simulator.json"; then
+                  if ! npx -y "eas-cli@$EAS_CLI_VERSION" simulator:availability --json | tee "$RUNNER_TEMP/simulator.json"; then
                       echo "::warning title=EAS Simulator unavailable::eas simulator:availability failed, so no iOS smoke run exists; iOS stays unverified."
                       exit 0
                   fi

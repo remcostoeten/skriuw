@@ -1,7 +1,16 @@
-import { useEffect, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
+import {
+  AccessibilityInfo,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { lockActionLabel } from "../features/lock/lock-model";
+import { BottomSheet } from "./bottom-sheet";
 import { MINIMUM_TOUCH_TARGET } from "./metrics";
 import { useTheme } from "./theme";
 import { treeIndent, type TreeRow } from "./tree-model";
@@ -46,15 +55,34 @@ export function RowActions({
 }: RowActionsProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const [trackedRow, setTrackedRow] = useState(row);
+  const [shownRow, setShownRow] = useState(row);
   const [mode, setMode] = useState<Mode>("actions");
-  const [draftTitle, setDraftTitle] = useState("");
+  const [draftTitle, setDraftTitle] = useState(row?.title ?? "");
+  const heading = useRef<ComponentRef<typeof Text>>(null);
+
+  function focusHeading(): void {
+    if (heading.current !== null) {
+      AccessibilityInfo.sendAccessibilityEvent(heading.current, "focus");
+    }
+  }
 
   useEffect(() => {
-    setMode("actions");
-    setDraftTitle(row?.title ?? "");
-  }, [row]);
+    if (mode === "move") {
+      focusHeading();
+    }
+  }, [mode]);
 
-  if (row === null) {
+  if (row !== trackedRow) {
+    setTrackedRow(row);
+    if (row !== null) {
+      setShownRow(row);
+      setMode("actions");
+      setDraftTitle(row.title);
+    }
+  }
+
+  if (shownRow === null) {
     return null;
   }
 
@@ -64,21 +92,21 @@ export function RowActions({
   };
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Close actions"
-        onPress={onClose}
-        style={[styles.scrim, { backgroundColor: theme.color("scrim", 0.5) }]}
-      />
+    <BottomSheet
+      open={row !== null}
+      dismissLabel="Close actions"
+      onClose={onClose}
+      onShow={focusHeading}
+    >
       <View style={[styles.dock, { paddingBottom: insets.bottom + 8 }]} pointerEvents="box-none">
         <View style={[styles.panel, surface]}>
           <Text
+            ref={heading}
             accessibilityRole="header"
             numberOfLines={1}
             style={[styles.heading, { color: theme.color("muted-foreground") }]}
           >
-            {mode === "move" ? `Move ${row.title} to` : row.title}
+            {mode === "move" ? `Move ${shownRow.title} to` : shownRow.title}
           </Text>
 
           {mode === "actions" ? (
@@ -86,20 +114,20 @@ export function RowActions({
               <ActionRow label="Rename" onPress={() => setMode("rename")} />
               <ActionRow label="Move…" onPress={() => setMode("move")} />
               <ActionRow
-                label={row.pinned ? "Unpin" : "Pin"}
-                onPress={() => onPin(row, !row.pinned)}
+                label={shownRow.pinned ? "Unpin" : "Pin"}
+                onPress={() => onPin(shownRow, !shownRow.pinned)}
               />
               <ActionRow
-                label={lockActionLabel(row.kind, row.locked)}
-                onPress={() => onToggleLock(row)}
+                label={lockActionLabel(shownRow.kind, shownRow.locked)}
+                onPress={() => onToggleLock(shownRow)}
               />
-              {row.kind === "folder" ? (
+              {shownRow.kind === "folder" ? (
                 <View>
-                  <ActionRow label="New note inside" onPress={() => onCreateNote(row)} />
-                  <ActionRow label="New folder inside" onPress={() => onCreateFolder(row)} />
+                  <ActionRow label="New note inside" onPress={() => onCreateNote(shownRow)} />
+                  <ActionRow label="New folder inside" onPress={() => onCreateFolder(shownRow)} />
                 </View>
               ) : null}
-              <ActionRow label="Delete" destructive onPress={() => onDelete(row)} />
+              <ActionRow label="Delete" destructive onPress={() => onDelete(shownRow)} />
             </View>
           ) : null}
 
@@ -108,9 +136,9 @@ export function RowActions({
               <TextInput
                 accessibilityLabel="Name"
                 autoFocus
-                defaultValue={row.title}
+                defaultValue={shownRow.title}
                 onChangeText={setDraftTitle}
-                onSubmitEditing={() => onRename(row, draftTitle)}
+                onSubmitEditing={() => onRename(shownRow, draftTitle)}
                 returnKeyType="done"
                 selectTextOnFocus
                 style={[
@@ -122,7 +150,7 @@ export function RowActions({
                   },
                 ]}
               />
-              <ActionRow label="Save" onPress={() => onRename(row, draftTitle)} />
+              <ActionRow label="Save" onPress={() => onRename(shownRow, draftTitle)} />
             </View>
           ) : null}
 
@@ -133,7 +161,7 @@ export function RowActions({
                   key={target.id ?? "root"}
                   accessibilityRole="button"
                   accessibilityLabel={`Move to ${target.title}`}
-                  onPress={() => onMove(row, target.id)}
+                  onPress={() => onMove(shownRow, target.id)}
                   style={[styles.action, { paddingLeft: treeIndent(target.depth) }]}
                 >
                   <Text
@@ -156,7 +184,7 @@ export function RowActions({
           <Text style={[styles.actionLabel, { color: theme.color("foreground") }]}>Cancel</Text>
         </Pressable>
       </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
@@ -188,16 +216,7 @@ function ActionRow({ label, destructive = false, onPress }: ActionRowProps) {
 }
 
 const styles = StyleSheet.create({
-  scrim: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
   dock: {
-    flex: 1,
-    justifyContent: "flex-end",
     paddingHorizontal: 8,
     gap: 8,
   },

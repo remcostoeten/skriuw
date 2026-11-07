@@ -1,0 +1,23 @@
+[
+  {
+    "type": "new-note",
+    "title": "New note",
+    "shortTitle": "New note",
+    "iosSymbol": "square.and.pencil",
+    "androidIcon": "edit"
+  },
+  {
+    "type": "capture",
+    "title": "Capture to today",
+    "shortTitle": "Capture",
+    "iosSymbol": "text.badge.plus",
+    "androidIcon": "add"
+  },
+  {
+    "type": "search",
+    "title": "Search notes",
+    "shortTitle": "Search",
+    "iosSymbol": "magnifyingglass",
+    "androidIcon": "search"
+  }
+]

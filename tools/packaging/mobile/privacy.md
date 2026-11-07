@@ -137,6 +137,6 @@ release notes.
 
 ## Apple privacy manifest
 
-[`PrivacyInfo.xcprivacy`](PrivacyInfo.xcprivacy) declares the two collected
-data types and the required-reason APIs Expo's own modules use. It is **not in
-the build yet** — see the blockers in [`README.md`](README.md).
+The manifest is `ios.privacyManifests` in `apps/mobile/app.json`. It declares the
+two collected data types and the required-reason APIs Expo's own modules use,
+and Expo writes it into the iOS target as `PrivacyInfo.xcprivacy` at build time.

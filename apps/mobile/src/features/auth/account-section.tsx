@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useAnnouncement } from "../../shell/announce";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme } from "../../shell/theme";
 import { describeSyncStatus } from "../sync/status";
@@ -79,6 +80,7 @@ function SignInForm({ runtime, busy, failure }: SignInFormProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  useAnnouncement(failure);
   const ready = signInDraftReady({ mode, name, email, password }) && !busy;
 
   function submit(): void {

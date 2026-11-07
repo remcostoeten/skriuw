@@ -1,17 +1,16 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  type TextInputInstance,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MINIMUM_TOUCH_TARGET, SCRIM_ALPHA } from "../../shell/metrics";
+import { BottomSheet } from "../../shell/bottom-sheet";
+import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme } from "../../shell/theme";
 import {
   JOURNAL_DATE_SUGGESTIONS,
@@ -39,9 +38,17 @@ export function GoToDateSheet({ open, context, today, onClose, onGo }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [input, setInput] = useState("");
-  const field = useRef<TextInput>(null);
+  const field = useRef<TextInputInstance>(null);
+  const clearOnOpen = useRef(false);
   const resolution: JournalDateResolution | null =
     input.trim().length === 0 ? null : resolveJournalDateExpression(input, context, today);
+
+  useEffect(() => {
+    if (open && clearOnOpen.current) {
+      clearOnOpen.current = false;
+      setInput("");
+    }
+  }, [open]);
 
   function go(expression: string): void {
     const resolved = resolveJournalDateExpression(expression, context, today);
@@ -49,154 +56,135 @@ export function GoToDateSheet({ open, context, today, onClose, onGo }: Props) {
       return;
     }
     onGo(resolved.key);
-    setInput("");
+    clearOnOpen.current = true;
     onClose();
   }
 
   return (
-    <Modal
-      visible={open}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+    <BottomSheet
+      open={open}
+      dismissLabel="Close go to date"
+      onClose={onClose}
       onShow={() => field.current?.focus()}
     >
-      <View style={styles.root}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close go to date"
-          onPress={onClose}
-          style={[StyleSheet.absoluteFill, { backgroundColor: theme.color("scrim", SCRIM_ALPHA) }]}
+      <View
+        accessibilityViewIsModal
+        style={[
+          styles.panel,
+          {
+            paddingBottom: insets.bottom + 12,
+            backgroundColor: theme.color("popover"),
+            borderColor: theme.color("border"),
+          },
+        ]}
+      >
+        <Text
+          accessibilityRole="header"
+          style={[styles.title, { color: theme.color("popover-foreground") }]}
+        >
+          Go to date
+        </Text>
+        <TextInput
+          ref={field}
+          accessibilityLabel="Date expression"
+          aria-invalid={resolution !== null && !resolution.ok}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="go"
+          value={input}
+          onChangeText={setInput}
+          onSubmitEditing={() => go(input)}
+          placeholder="tomorrow, next week thursday, 3/12"
+          placeholderTextColor={theme.color("muted-foreground")}
+          style={[
+            styles.field,
+            {
+              color: theme.color("foreground"),
+              backgroundColor: theme.color("input"),
+              borderColor:
+                resolution !== null && !resolution.ok
+                  ? theme.color("destructive")
+                  : theme.color("border"),
+            },
+          ]}
         />
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View
-            accessibilityViewIsModal
+        {resolution === null ? (
+          <ScrollView
+            accessibilityRole="list"
+            keyboardShouldPersistTaps="handled"
+            style={styles.suggestions}
+          >
+            {JOURNAL_DATE_SUGGESTIONS.map((suggestion) => {
+              const resolved = resolveJournalDateExpression(suggestion.expression, context, today);
+              return (
+                <Pressable
+                  key={suggestion.expression}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${suggestion.expression}, ${
+                    resolved.ok ? resolved.label : suggestion.description
+                  }`}
+                  onPress={() => go(suggestion.expression)}
+                  style={styles.suggestion}
+                >
+                  <Text style={[styles.expression, { color: theme.color("foreground") }]}>
+                    {suggestion.expression}
+                  </Text>
+                  <Text style={[styles.resolved, { color: theme.color("muted-foreground") }]}>
+                    {resolved.ok ? resolved.label : suggestion.description}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        ) : (
+          <Text
+            accessibilityLiveRegion="polite"
             style={[
-              styles.panel,
+              styles.preview,
               {
-                paddingBottom: insets.bottom + 12,
-                backgroundColor: theme.color("popover"),
-                borderColor: theme.color("border"),
+                color: resolution.ok ? theme.color("foreground") : theme.color("destructive"),
               },
             ]}
           >
-            <Text
-              accessibilityRole="header"
-              style={[styles.title, { color: theme.color("popover-foreground") }]}
-            >
-              Go to date
+            {resolution.ok ? resolution.label : resolution.message}
+          </Text>
+        )}
+        <View style={styles.actions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close go to date"
+            onPress={onClose}
+            style={[styles.action, { borderColor: theme.color("border") }]}
+          >
+            <Text style={[styles.actionLabel, { color: theme.color("muted-foreground") }]}>
+              Cancel
             </Text>
-            <TextInput
-              ref={field}
-              accessibilityLabel="Date expression"
-              aria-invalid={resolution !== null && !resolution.ok}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="go"
-              value={input}
-              onChangeText={setInput}
-              onSubmitEditing={() => go(input)}
-              placeholder="tomorrow, next week thursday, 3/12"
-              placeholderTextColor={theme.color("muted-foreground")}
-              style={[
-                styles.field,
-                {
-                  color: theme.color("foreground"),
-                  backgroundColor: theme.color("input"),
-                  borderColor:
-                    resolution !== null && !resolution.ok
-                      ? theme.color("destructive")
-                      : theme.color("border"),
-                },
-              ]}
-            />
-            {resolution === null ? (
-              <ScrollView
-                accessibilityRole="list"
-                keyboardShouldPersistTaps="handled"
-                style={styles.suggestions}
-              >
-                {JOURNAL_DATE_SUGGESTIONS.map((suggestion) => {
-                  const resolved = resolveJournalDateExpression(
-                    suggestion.expression,
-                    context,
-                    today,
-                  );
-                  return (
-                    <Pressable
-                      key={suggestion.expression}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${suggestion.expression}, ${
-                        resolved.ok ? resolved.label : suggestion.description
-                      }`}
-                      onPress={() => go(suggestion.expression)}
-                      style={styles.suggestion}
-                    >
-                      <Text style={[styles.expression, { color: theme.color("foreground") }]}>
-                        {suggestion.expression}
-                      </Text>
-                      <Text style={[styles.resolved, { color: theme.color("muted-foreground") }]}>
-                        {resolved.ok ? resolved.label : suggestion.description}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            ) : (
-              <Text
-                accessibilityLiveRegion="polite"
-                style={[
-                  styles.preview,
-                  {
-                    color: resolution.ok ? theme.color("foreground") : theme.color("destructive"),
-                  },
-                ]}
-              >
-                {resolution.ok ? resolution.label : resolution.message}
-              </Text>
-            )}
-            <View style={styles.actions}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Close go to date"
-                onPress={onClose}
-                style={[styles.action, { borderColor: theme.color("border") }]}
-              >
-                <Text style={[styles.actionLabel, { color: theme.color("muted-foreground") }]}>
-                  Cancel
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open this date"
-                accessibilityState={{ disabled: resolution?.ok !== true }}
-                disabled={resolution?.ok !== true}
-                onPress={() => go(input)}
-                style={[
-                  styles.action,
-                  {
-                    borderColor: theme.color("primary"),
-                    backgroundColor: theme.color("primary", resolution?.ok === true ? 1 : 0.4),
-                  },
-                ]}
-              >
-                <Text style={[styles.actionLabel, { color: theme.color("primary-foreground") }]}>
-                  Go
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open this date"
+            accessibilityState={{ disabled: resolution?.ok !== true }}
+            disabled={resolution?.ok !== true}
+            onPress={() => go(input)}
+            style={[
+              styles.action,
+              {
+                borderColor: theme.color("primary"),
+                backgroundColor: theme.color("primary", resolution?.ok === true ? 1 : 0.4),
+              },
+            ]}
+          >
+            <Text style={[styles.actionLabel, { color: theme.color("primary-foreground") }]}>
+              Go
+            </Text>
+          </Pressable>
+        </View>
       </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
   panel: {
     gap: 12,
     padding: 16,

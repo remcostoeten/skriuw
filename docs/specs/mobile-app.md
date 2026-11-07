@@ -1,7 +1,9 @@
 # Mobile app
 
-Status: accepted. Only the workspace and the Expo scaffold (Mobile 01) exist;
-everything else in this spec is unimplemented. Architecture decision:
+Status: accepted. The Mobile app milestone (`Mobile 01` to `Mobile 16`) and the
+Mobile integration milestone that assembled it are complete; what remains
+before a store release is in
+`tools/packaging/mobile/submission-checklist.md`. Architecture decision:
 [ADR-0048](../adr/0048-native-mobile-shell-over-shared-core.md). Work is tracked
 in the **Mobile app** GitHub milestone as issues `Mobile 01` to `Mobile 16`;
 each issue carries its own outcome, contract and acceptance and refers back to
@@ -53,6 +55,12 @@ builder, drawing, tablet layouts.
   no synchronous native-module call.
 - **R-P4** Cold start to interactive tree: 1.5 s P95 on the reference Android
   device with the 1,000-note fixture. Recorded in `docs/benchmarks/`.
+  Release builds measure every launch on the device itself: from process start
+  (or from the first foreground, when iOS prewarmed or background-launched the
+  process) to the second frame after the shell renders with the workspace
+  open. The account sheet shows the last launch and the P95 of the last 50
+  under Startup. Development builds load JavaScript from Metro and are not
+  measured.
 
 ### Product
 
@@ -68,7 +76,12 @@ builder, drawing, tablet layouts.
 - **R-F7** Locked notes with PIN/passphrase and optional biometric unlock. The
   lock key never leaves Rust unwrapped.
 - **R-F8** Platform: share-to-Skriuw, home-screen quick actions, system theme,
-  safe areas, hardware back on Android per ADR-0047 semantics.
+  safe areas, hardware back on Android per ADR-0047 semantics. Share-to-Skriuw
+  exists on Android only; the iOS share extension needs an App Group, which a
+  free Apple ID signature does not grant. Quick actions (New note, Capture to
+  today, Search notes) are static, declared from
+  `src/features/quick-actions/actions.json`: Info.plist items on iOS, launcher
+  shortcuts that open `skriuw://quick-action/<type>` on Android.
 - **R-F9** Remote AI actions reuse the completion seam (ADR-0033). Deferred
   past 1.0 unless it falls out of the editor bundle for free.
 
@@ -88,8 +101,9 @@ builder, drawing, tablet layouts.
 
 ```text
 crates/skriuw-mobile/          UniFFI facade over skriuw-runtime (host-testable)
-apps/mobile/                        Expo app: apps/workspace/ routes only, src/ everything else
+apps/mobile/                        Expo app: app/ routes only, src/ everything else
 apps/mobile/modules/skriuw-core/    Expo module: generated bindings, jniLibs, xcframework
+apps/mobile/modules/skriuw-platform/ Expo module: quick-action delivery, launch timing
 apps/mobile/src/bridge/             third implementation of the command surface + fake
 apps/mobile/src/shell/              toolbar, tab bar, sheets (native)
 apps/mobile/src/editor/             DOM component host and message protocol
@@ -131,6 +145,17 @@ is exercised on a device.
 - Expo DOM component props and messages must be serializable.
 - iOS suspends sockets in the background; sync needs silent push and
   `BGTaskScheduler`, with a foreground catch-up as the correctness path.
+  `BGTaskScheduler` is wired through `expo-background-task` while an account is
+  signed in; silent push is not, since it needs an APNs entitlement. The task
+  only syncs when iOS resumes a process that still has the workspace open.
+  After the app was terminated, `expo-task-manager` runs it in a headless
+  JavaScript instance; the task skips there instead of opening a second
+  workspace handle beside the one the app opens when the user returns. Android
+  does not schedule the task.
+- The account credential is stored readable after the first unlock since boot,
+  so the background task can reach the sync service while the phone is locked.
+  A credential stored before this change keeps the stricter class until the
+  next sign-in.
 - iOS cannot be built or simulated on Linux. EAS Simulator is limited-access;
   check `npx -y eas-cli@latest simulator:availability --json`. Android is the
   local verification target; iOS evidence comes from EAS builds.

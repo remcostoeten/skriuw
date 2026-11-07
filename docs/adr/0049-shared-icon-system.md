@@ -105,3 +105,11 @@ and the pin ripple.
 - Mobile animation is sampled on the JS thread, not with Reanimated: the
   motions are short and triggered on press, and the shared sampler stays
   plain TypeScript instead of worklets.
+
+  Amended 2026-11-01: per-frame JS sampling re-rendered the icon's SVG tree
+  on every frame while a press was also rendering the next screen. Mobile now
+  samples each motion once into per-part affine matrices
+  (`shellMotionSamples` in `apps/mobile/src/shell/icon-model.ts`) and plays
+  them on the UI thread through Reanimated animated props, so a play costs two
+  React renders. The shared sampler in `packages/icons` stays plain
+  TypeScript.

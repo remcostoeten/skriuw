@@ -1,10 +1,16 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
+import { announce, useAnnouncement } from "../../shell/announce";
 import { AXIS_LOCK_PX } from "../../shell/edge-swipe";
+import { tickHaptic } from "../../shell/haptics";
 import { ShellIcon } from "../../shell/icons";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
+import { SNAP_BACK_SPRING } from "../../shell/motion";
 import { useTheme } from "../../shell/theme";
 import { useWorkspace, useWorkspaceSelector } from "../../shell/workspace-provider";
 import { QuickCapture } from "../capture/quick-capture";
@@ -33,7 +39,13 @@ import {
 import { MoodRow } from "./mood-row";
 import { moodTrend } from "./mood-trend";
 import { MoodTrendStrip } from "./mood-trend-strip";
-import { JOURNAL_DAY_PARAM, journalDayFromParam, stepJournalDay } from "./navigation";
+import {
+  JOURNAL_CAPTURE_PARAM,
+  JOURNAL_DAY_PARAM,
+  journalCaptureRequested,
+  journalDayFromParam,
+  stepJournalDay,
+} from "./navigation";
 import { entryExcerpt, onThisDay } from "./on-this-day";
 import { OnThisDaySection } from "./on-this-day-section";
 
@@ -78,16 +90,25 @@ function entryBody(markdown: string): string {
  * mounted here by Mobile 09; the note it shows and the operations it writes
  * are already the final ones.
  */
+const HEADER_FOLLOW = 0.35;
+
+function drainSummary(drain: { written: number; deferred: number }): string {
+  const added = drain.written === 1 ? "1 capture added" : `${drain.written} captures added`;
+  return drain.deferred > 0 ? `${added}, some still queued` : added;
+}
+
 export function JournalView() {
   const theme = useTheme();
   const session = useWorkspace();
   const params = useLocalSearchParams();
   const today = todayKey();
   const day = journalDayFromParam(params[JOURNAL_DAY_PARAM]);
+  const captureRequested = journalCaptureRequested(params[JOURNAL_CAPTURE_PARAM]);
   const [month, setMonth] = useState<MonthKey | null>(null);
   const [composing, setComposing] = useState(false);
   const [goingToDate, setGoingToDate] = useState(false);
   const { capture, lastDrain } = useCapture(session);
+  useAnnouncement(lastDrain === null || lastDrain.written === 0 ? null : drainSummary(lastDrain));
 
   const entries = useWorkspaceSelector(selectJournalEntries, sameJournalEntries);
   const entryDates = useWorkspaceSelector(selectEntryDateKeys, sameDateKeySet);
@@ -102,25 +123,39 @@ export function JournalView() {
   }
 
   function step(amount: number): void {
-    openDay(stepJournalDay(day, { unit: "day", amount }, today));
+    const next = stepJournalDay(day, { unit: "day", amount }, today);
+    openDay(next);
+    announce(formatLongDate(next));
   }
 
-  const stepRef = useRef(step);
-  stepRef.current = step;
-  const swipe = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_event, gesture) =>
-          Math.abs(gesture.dx) > Math.abs(gesture.dy) && Math.abs(gesture.dx) > AXIS_LOCK_PX,
-        onPanResponderRelease: (_event, gesture) => {
-          const taken = daySwipeStep({ x: 0, y: 0, edge: null }, gesture.dx, gesture.dy);
-          if (taken !== 0) {
-            stepRef.current(taken);
-          }
-        },
-      }),
-    [],
-  );
+  const headerOffset = useSharedValue(0);
+  const headerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: headerOffset.get() }],
+  }));
+
+  function takeSwipe(dx: number, dy: number): void {
+    const taken = daySwipeStep({ x: 0, y: 0, edge: null }, dx, dy);
+    if (taken !== 0) {
+      tickHaptic();
+      step(taken);
+    }
+  }
+
+  const swipe = usePanGesture({
+    activeOffsetX: [-AXIS_LOCK_PX, AXIS_LOCK_PX],
+    failOffsetY: [-AXIS_LOCK_PX, AXIS_LOCK_PX],
+    onUpdate: (event) => {
+      headerOffset.set(event.translationX * HEADER_FOLLOW);
+    },
+    onDeactivate: (event) => {
+      headerOffset.set(
+        withSpring(0, { ...SNAP_BACK_SPRING, velocity: event.velocityX * HEADER_FOLLOW }),
+      );
+      if (!event.canceled) {
+        scheduleOnRN(takeSwipe, event.translationX, event.translationY);
+      }
+    },
+  });
 
   function writeMood(mood: MoodLevel | null): void {
     setJournalMood(session, ensureJournalEntry(session, day), mood);
@@ -131,40 +166,42 @@ export function JournalView() {
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
-        <View {...swipe.panHandlers} style={styles.header}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Previous day"
-            onPress={() => step(-1)}
-            style={styles.step}
-          >
-            <ShellIcon name="back" size={22} color={theme.color("muted-foreground")} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${formatLongDate(day)}. Go to another date`}
-            onPress={() => setGoingToDate(true)}
-            style={styles.heading}
-          >
-            <Text
-              accessibilityRole="header"
-              style={[styles.headingTitle, { color: theme.color("foreground") }]}
+        <GestureDetector gesture={swipe}>
+          <Animated.View style={[styles.header, headerStyle]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Previous day"
+              onPress={() => step(-1)}
+              style={styles.step}
             >
-              {formatDayHeading(day, today)}
-            </Text>
-            <Text style={[styles.headingDate, { color: theme.color("muted-foreground") }]}>
-              {formatLongDate(day)}
-            </Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Next day"
-            onPress={() => step(1)}
-            style={styles.step}
-          >
-            <ShellIcon name="forward" size={22} color={theme.color("muted-foreground")} />
-          </Pressable>
-        </View>
+              <ShellIcon name="back" size={22} color={theme.color("muted-foreground")} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${formatLongDate(day)}. Go to another date`}
+              onPress={() => setGoingToDate(true)}
+              style={styles.heading}
+            >
+              <Text
+                accessibilityRole="header"
+                style={[styles.headingTitle, { color: theme.color("foreground") }]}
+              >
+                {formatDayHeading(day, today)}
+              </Text>
+              <Text style={[styles.headingDate, { color: theme.color("muted-foreground") }]}>
+                {formatLongDate(day)}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Next day"
+              onPress={() => step(1)}
+              style={styles.step}
+            >
+              <ShellIcon name="forward" size={22} color={theme.color("muted-foreground")} />
+            </Pressable>
+          </Animated.View>
+        </GestureDetector>
 
         {day === today ? null : (
           <Pressable
@@ -182,7 +219,6 @@ export function JournalView() {
         <MoodRow mood={dayEntry.mood} onChange={writeMood} />
 
         <Text
-          accessibilityLabel={`Entry for ${formatLongDate(day)}`}
           style={[
             styles.body,
             { color: theme.color("foreground", body.length === 0 ? 0.5 : 0.85) },
@@ -196,8 +232,7 @@ export function JournalView() {
             accessibilityLiveRegion="polite"
             style={[styles.drain, { color: theme.color("muted-foreground") }]}
           >
-            {lastDrain.written === 1 ? "1 capture added" : `${lastDrain.written} captures added`}
-            {lastDrain.deferred > 0 ? ", some still queued" : ""}
+            {drainSummary(lastDrain)}
           </Text>
         )}
 
@@ -235,9 +270,14 @@ export function JournalView() {
       </Pressable>
 
       <QuickCapture
-        open={composing}
+        open={composing || captureRequested}
         dayLabel={formatDayHeading(day, today).toLowerCase()}
-        onClose={() => setComposing(false)}
+        onClose={() => {
+          setComposing(false);
+          if (captureRequested) {
+            router.setParams({ [JOURNAL_CAPTURE_PARAM]: undefined });
+          }
+        }}
         onCapture={(text) => {
           capture(day, text).catch(session.reportFailure);
         }}

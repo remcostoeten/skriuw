@@ -10,6 +10,15 @@ import {
 /** The search parameter the journal route carries its day in. */
 export const JOURNAL_DAY_PARAM = "day";
 
+/** The search parameter that opens quick capture on arrival, set by the home-screen quick action. */
+export const JOURNAL_CAPTURE_PARAM = "capture";
+
+/** True when the journal route was reached to capture straight away. */
+export function journalCaptureRequested(value: string | string[] | undefined): boolean {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return candidate === "1";
+}
+
 export type JournalStep =
   | { unit: "day"; amount: number }
   | { unit: "week"; amount: number }

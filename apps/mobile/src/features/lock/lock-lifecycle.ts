@@ -31,7 +31,7 @@ import type { AppPhase, LockSession, Observable, ScreenGuard } from "./port";
  * `active`: an unrecognised state is one where the screen may be captured, and
  * covering the shell for a moment too long is the cheap mistake.
  */
-export function appPhase(status: string): AppPhase {
+export function appPhase(status: string | null | undefined): AppPhase {
   switch (status) {
     case "active":
       return "active";

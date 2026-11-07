@@ -1,16 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, type TextInputInstance, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MINIMUM_TOUCH_TARGET, SCRIM_ALPHA } from "../../shell/metrics";
+import { BottomSheet } from "../../shell/bottom-sheet";
+import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme } from "../../shell/theme";
 
 type Props = {
@@ -30,10 +22,10 @@ export function QuickCapture({ open, dayLabel, onClose, onCapture }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [text, setText] = useState("");
-  const field = useRef<TextInput>(null);
+  const field = useRef<TextInputInstance>(null);
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
       setText("");
     }
   }, [open]);
@@ -41,100 +33,85 @@ export function QuickCapture({ open, dayLabel, onClose, onCapture }: Props) {
   const ready = text.trim().length > 0;
 
   return (
-    <Modal
-      visible={open}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+    <BottomSheet
+      open={open}
+      dismissLabel="Discard this capture"
+      onClose={onClose}
       onShow={() => field.current?.focus()}
     >
-      <View style={styles.root}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Discard this capture"
-          onPress={onClose}
-          style={[StyleSheet.absoluteFill, { backgroundColor: theme.color("scrim", SCRIM_ALPHA) }]}
+      <View
+        accessibilityViewIsModal
+        style={[
+          styles.panel,
+          {
+            paddingBottom: insets.bottom + 12,
+            backgroundColor: theme.color("popover"),
+            borderColor: theme.color("border"),
+          },
+        ]}
+      >
+        <Text
+          accessibilityRole="header"
+          style={[styles.title, { color: theme.color("popover-foreground") }]}
+        >
+          Capture to {dayLabel}
+        </Text>
+        <TextInput
+          ref={field}
+          accessibilityLabel="What are you capturing?"
+          multiline
+          value={text}
+          onChangeText={setText}
+          placeholder="Anything worth keeping…"
+          placeholderTextColor={theme.color("muted-foreground")}
+          style={[
+            styles.field,
+            {
+              color: theme.color("foreground"),
+              backgroundColor: theme.color("input"),
+              borderColor: theme.color("border"),
+            },
+          ]}
         />
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View
-            accessibilityViewIsModal
+        <View style={styles.actions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Discard this capture"
+            onPress={onClose}
+            style={[styles.action, { borderColor: theme.color("border") }]}
+          >
+            <Text style={[styles.actionLabel, { color: theme.color("muted-foreground") }]}>
+              Cancel
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add this capture to the entry"
+            accessibilityState={{ disabled: !ready }}
+            disabled={!ready}
+            onPress={() => {
+              onCapture(text);
+              onClose();
+            }}
             style={[
-              styles.panel,
+              styles.action,
               {
-                paddingBottom: insets.bottom + 12,
-                backgroundColor: theme.color("popover"),
-                borderColor: theme.color("border"),
+                borderColor: theme.color("primary"),
+                backgroundColor: theme.color("primary", ready ? 1 : 0.4),
               },
             ]}
           >
-            <Text
-              accessibilityRole="header"
-              style={[styles.title, { color: theme.color("popover-foreground") }]}
-            >
-              Capture to {dayLabel}
+            <Text style={[styles.actionLabel, { color: theme.color("primary-foreground") }]}>
+              Add
             </Text>
-            <TextInput
-              ref={field}
-              accessibilityLabel="What are you capturing?"
-              multiline
-              value={text}
-              onChangeText={setText}
-              placeholder="Anything worth keeping…"
-              placeholderTextColor={theme.color("muted-foreground")}
-              style={[
-                styles.field,
-                {
-                  color: theme.color("foreground"),
-                  backgroundColor: theme.color("input"),
-                  borderColor: theme.color("border"),
-                },
-              ]}
-            />
-            <View style={styles.actions}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Discard this capture"
-                onPress={onClose}
-                style={[styles.action, { borderColor: theme.color("border") }]}
-              >
-                <Text style={[styles.actionLabel, { color: theme.color("muted-foreground") }]}>
-                  Cancel
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Add this capture to the entry"
-                accessibilityState={{ disabled: !ready }}
-                disabled={!ready}
-                onPress={() => {
-                  onCapture(text);
-                  onClose();
-                }}
-                style={[
-                  styles.action,
-                  {
-                    borderColor: theme.color("primary"),
-                    backgroundColor: theme.color("primary", ready ? 1 : 0.4),
-                  },
-                ]}
-              >
-                <Text style={[styles.actionLabel, { color: theme.color("primary-foreground") }]}>
-                  Add
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
+          </Pressable>
+        </View>
       </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
   panel: {
     gap: 12,
     padding: 16,

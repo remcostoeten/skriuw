@@ -267,3 +267,24 @@ test("the sign-in form and account row read as something a person can act on", (
     busy: false,
   });
 });
+
+test("a scheduled background refresh only syncs while an account is connected", async () => {
+  const { runtime, core } = setup({
+    "/api/auth/sign-in/email": [{ status: 200, body: user(), token: "token-3" }],
+    "/v1/sync/state": [{ status: 200, body: { latestServerSequence: 0, workspaceId: "w_mine" } }],
+  });
+  const stop = runtime.start();
+
+  assert.deepEqual(await runtime.backgroundRefresh(), { state: "localOnly" });
+  assert.equal(core.calls.includes("backgroundRefreshSync"), false);
+
+  await runtime.signIn({ email: "writer@example.com", password: "secret" });
+  await until(() => {
+    const { account } = runtime.state();
+    return account.kind === "signed-in" && account.connection.kind === "connected";
+  });
+  await runtime.backgroundRefresh();
+
+  assert.equal(core.calls.includes("backgroundRefreshSync"), true);
+  stop();
+});

@@ -19,10 +19,15 @@ export type Keystore = {
   delete: (key: string) => Promise<void>;
 };
 
+/** How a write protects the stored value; `keychainAccessible` is an `expo-secure-store` constant. */
+export type KeystoreWriteOptions = {
+  keychainAccessible?: number;
+};
+
 /** The subset of `expo-secure-store` this port needs. */
 export type SecureStoreModule = {
   getItemAsync: (key: string) => Promise<string | null>;
-  setItemAsync: (key: string, value: string) => Promise<void>;
+  setItemAsync: (key: string, value: string, options?: KeystoreWriteOptions) => Promise<void>;
   deleteItemAsync: (key: string) => Promise<void>;
 };
 
@@ -37,11 +42,16 @@ const KEY_PATTERN = /^[A-Za-z0-9._-]{1,128}$/;
  * @param secureStore The `expo-secure-store` module. It is injected rather
  * than imported so this file carries no native dependency of its own and the
  * tests exercise the real code path.
+ * @param writeOptions Applied to every write, so rewriting a value also moves
+ * it to the current protection class.
  */
-export function createKeystore(secureStore: SecureStoreModule): Keystore {
+export function createKeystore(
+  secureStore: SecureStoreModule,
+  writeOptions?: KeystoreWriteOptions,
+): Keystore {
   return {
     read: (key) => secureStore.getItemAsync(assertKey(key)),
-    write: (key, value) => secureStore.setItemAsync(assertKey(key), value),
+    write: (key, value) => secureStore.setItemAsync(assertKey(key), value, writeOptions),
     delete: (key) => secureStore.deleteItemAsync(assertKey(key)),
   };
 }

@@ -8,15 +8,24 @@ import {
 } from "@/features/auth/platform-keystore";
 import { createSessionStore } from "@/features/auth/session";
 
-function installedSecureStore(): LoadedSecureStore & { entries: Map<string, string> } {
+const AFTER_FIRST_UNLOCK = 7;
+
+function installedSecureStore(): LoadedSecureStore & {
+  entries: Map<string, string>;
+  accessibility: Map<string, number | undefined>;
+} {
   const entries = new Map<string, string>();
+  const accessibility = new Map<string, number | undefined>();
   return {
     entries,
+    accessibility,
+    AFTER_FIRST_UNLOCK,
     isAvailableAsync: async () => true,
     canUseBiometricAuthentication: () => true,
     getItemAsync: async (key) => entries.get(key) ?? null,
-    setItemAsync: async (key, value) => {
+    setItemAsync: async (key, value, options) => {
       entries.set(key, value);
+      accessibility.set(key, options?.keychainAccessible);
     },
     deleteItemAsync: async (key) => {
       entries.delete(key);
@@ -41,6 +50,15 @@ test("a build with the keystore keeps the credential across a restart", async ()
     createPlatformKeystore(resolveSecureStore(load, unexpected)),
   );
   assert.equal(await restarted.current(), "bearer-1");
+});
+
+test("the credential stays readable after the first unlock, so a locked phone can still sync in the background", async () => {
+  const secureStore = installedSecureStore();
+  const keystore = createPlatformKeystore(resolveSecureStore(async () => secureStore, unexpected));
+
+  await createSessionStore(keystore).remember("bearer-1");
+
+  assert.deepEqual([...secureStore.accessibility.values()], [AFTER_FIRST_UNLOCK]);
 });
 
 test("the platform module is loaded once per process, however many ports share it", async () => {
