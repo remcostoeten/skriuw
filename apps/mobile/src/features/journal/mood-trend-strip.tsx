@@ -72,6 +72,12 @@ export function MoodTrendStrip({ trend, today, onSelectDay }: Props) {
     }
   }
 
+  function openFocusedDay() {
+    if (focusedDay !== undefined) {
+      onSelectDay(focusedDay.dateKey);
+    }
+  }
+
   function handleAction(event: AccessibilityActionEvent) {
     switch (event.nativeEvent.actionName) {
       case "increment":
@@ -81,9 +87,7 @@ export function MoodTrendStrip({ trend, today, onSelectDay }: Props) {
         setFocused(clampIndex(focused - 1, count));
         return;
       case "activate":
-        if (focusedDay !== undefined) {
-          onSelectDay(focusedDay.dateKey);
-        }
+        openFocusedDay();
         return;
     }
   }
@@ -100,6 +104,7 @@ export function MoodTrendStrip({ trend, today, onSelectDay }: Props) {
         }
         accessibilityActions={STRIP_ACTIONS}
         onAccessibilityAction={handleAction}
+        onAccessibilityTap={openFocusedDay}
         onLayout={(event: LayoutChangeEvent) => {
           width.current = event.nativeEvent.layout.width;
         }}

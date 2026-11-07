@@ -49,20 +49,21 @@ export function describeBackgroundStrategy(platform: MobilePlatform): Background
     },
     {
       trigger: "silent-push",
-      guarantee: "best-effort",
-      detail:
-        platform === "ios"
-          ? "iOS may deliver a background notification so Skriuw can sync early. It is rate limited and can be dropped."
-          : "Android may deliver a background message so Skriuw can sync early.",
+      guarantee: "unavailable",
+      detail: "This build does not receive background notifications.",
     },
-    {
-      trigger: "scheduled-task",
-      guarantee: "best-effort",
-      detail:
-        platform === "ios"
-          ? "iOS decides when a background refresh runs, based on how you use Skriuw. It may not run for days."
-          : "Android runs a periodic refresh, deferred while the device is in Doze.",
-    },
+    platform === "ios"
+      ? {
+          trigger: "scheduled-task",
+          guarantee: "best-effort",
+          detail:
+            "iOS decides when a background refresh runs, based on how you use Skriuw. It only runs while Skriuw is still in memory, and may not run for days.",
+        }
+      : {
+          trigger: "scheduled-task",
+          guarantee: "unavailable",
+          detail: "Android does not refresh Skriuw in the background yet.",
+        },
   ];
 }
 
@@ -70,14 +71,16 @@ export function describeBackgroundStrategy(platform: MobilePlatform): Background
 export function backgroundStrategySummary(platform: MobilePlatform): string {
   return platform === "ios"
     ? "Skriuw syncs while it is open, and catches up the moment you reopen it. Background syncing is up to iOS and may not happen."
-    : "Skriuw syncs while it is open, and catches up the moment you reopen it. Background syncing is up to Android and may be delayed.";
+    : "Skriuw syncs while it is open, and catches up the moment you reopen it.";
 }
 
 export type BackgroundRefreshOutcome =
   | { kind: "completed" }
   /** The task was told to stop before the cycle settled. */
   | { kind: "expired" }
-  | { kind: "failed"; message: string };
+  | { kind: "failed"; message: string }
+  /** Nothing in this process could refresh: no workspace is open in it. */
+  | { kind: "skipped" };
 
 export type BackgroundRefreshOptions = {
   /** `SyncLifecycle.backgroundRefresh`. */
@@ -113,4 +116,48 @@ export async function runBackgroundRefresh(
     options.reportError?.(error);
     return { kind: "failed", message: error instanceof Error ? error.message : String(error) };
   }
+}
+
+export type BackgroundRefreshSlot = {
+  /** Offers the open workspace's refresh to scheduled tasks. Returns the withdrawal. */
+  provide: (refresh: () => Promise<unknown>) => () => void;
+  run: (
+    expiration: Promise<void>,
+    reportError?: (error: unknown) => void,
+  ) => Promise<BackgroundRefreshOutcome>;
+};
+
+/**
+ * @name createBackgroundRefreshSlot
+ * @description Connects a platform-scheduled task to the account runtime that is mounted in the
+ * same JavaScript instance. A task the platform runs in a headless instance, after the app was
+ * terminated, finds the slot empty and skips: opening a second workspace handle there could race the
+ * one the app opens when the user returns.
+ *
+ * @example
+ * const slot = createBackgroundRefreshSlot();
+ * const withdraw = slot.provide(() => runtime.backgroundRefresh());
+ * const outcome = await slot.run(expiration);
+ * withdraw();
+ */
+export function createBackgroundRefreshSlot(): BackgroundRefreshSlot {
+  let current: (() => Promise<unknown>) | null = null;
+
+  return {
+    provide(refresh) {
+      current = refresh;
+      return () => {
+        if (current === refresh) {
+          current = null;
+        }
+      };
+    },
+
+    async run(expiration, reportError) {
+      if (current === null) {
+        return { kind: "skipped" };
+      }
+      return runBackgroundRefresh({ refresh: current, expiration, reportError });
+    },
+  };
 }

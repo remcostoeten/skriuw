@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+workflow="mobile-ci.yml"
+job_name="iOS device build (unsigned)"
+artifact="skriuw-ios-unsigned-ipa"
+release_tag="mobile-ipa-latest"
+ipa_name="skriuw-ios-unsigned.ipa"
+out_dir="${SKRIUW_IPA_DIR:-$HOME/sideload-tools/skriuw-ios-unsigned}"
+poll_seconds=20
+
+usage() {
+  cat <<'EOF'
+Usage: bin/ipa [build [ref] | latest | run <run-id>]
+
+  build [ref]   run mobile-ci.yml with targets=ipa on a branch (default:
+                current), which runs only the gate and the iOS jobs, wait for
+                the device build, then download its .ipa
+  latest        download the .ipa from the mobile-ipa-latest prerelease, or
+                from the newest run that produced one when the prerelease has
+                none
+  run <run-id>  download the .ipa from a specific run
+
+The .ipa lands in $SKRIUW_IPA_DIR (default ~/sideload-tools/skriuw-ios-unsigned)
+as skriuw-ios-unsigned.ipa. Sign and install it with iloader.
+EOF
+}
+
+die() {
+  printf 'bin/ipa: %s\n' "$1" >&2
+  exit 1
+}
+
+require_gh() {
+  command -v gh >/dev/null 2>&1 || die "the GitHub CLI (gh) is required"
+  gh auth status >/dev/null 2>&1 || die "run gh auth login first"
+}
+
+save_ipa() {
+  local staging="$1"
+  mkdir -p "$out_dir"
+  mv -f "$staging/$ipa_name" "$out_dir/$ipa_name"
+  rm -rf "$staging"
+  printf 'Saved %s (%s)\n' "$out_dir/$ipa_name" "$(du -h "$out_dir/$ipa_name" | cut -f1)"
+}
+
+fetch_artifact() {
+  local run_id="$1" staging
+  staging="$(mktemp -d)"
+  if ! gh run download "$run_id" --name "$artifact" --dir "$staging" >/dev/null 2>&1; then
+    rm -rf "$staging"
+    return 1
+  fi
+  save_ipa "$staging"
+}
+
+fetch_release() {
+  local staging
+  staging="$(mktemp -d)"
+  if ! gh release download "$release_tag" --pattern "$ipa_name" --dir "$staging" >/dev/null 2>&1; then
+    rm -rf "$staging"
+    return 1
+  fi
+  save_ipa "$staging"
+}
+
+download() {
+  fetch_artifact "$1" || die "run $1 has no $artifact artifact"
+}
+
+job_state() {
+  gh run view "$1" --json jobs 2>/dev/null \
+    | jq -r --arg name "$job_name" '.jobs[] | select(.name == $name) | "\(.status) \(.conclusion)"' \
+    || true
+}
+
+wait_for_run() {
+  local started="$1" ref="$2" run_id=""
+  while [[ -z "$run_id" ]]; do
+    sleep 5
+    run_id="$(gh run list --workflow "$workflow" --branch "$ref" --event workflow_dispatch \
+      --limit 5 --json databaseId,createdAt \
+      | jq -r --arg since "$started" '[.[] | select(.createdAt >= $since)] | sort_by(.createdAt) | last | .databaseId // empty')"
+  done
+  printf '%s' "$run_id"
+}
+
+build() {
+  local ref="${1:-$(git -C "$repo_dir" branch --show-current)}" started run_id state
+  [[ -n "$ref" ]] || die "no branch checked out; pass a ref"
+  git -C "$repo_dir" ls-remote --exit-code --heads origin "$ref" >/dev/null \
+    || die "$ref is not pushed to origin; push it first"
+  started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  gh workflow run "$workflow" --ref "$ref" -f targets=ipa
+  printf 'Started %s with targets=ipa on %s\n' "$workflow" "$ref"
+  run_id="$(wait_for_run "$started" "$ref")"
+  printf 'Run %s: %s\n' "$run_id" "$(gh run view "$run_id" --json url --jq .url)"
+
+  while true; do
+    state="$(job_state "$run_id")"
+    case "$state" in
+      "completed success") break ;;
+      completed*) die "'$job_name' ended as ${state#completed }; see the run above" ;;
+    esac
+    printf '  %s\n' "${state:-waiting for the job to start}"
+    sleep "$poll_seconds"
+  done
+  download "$run_id"
+}
+
+latest() {
+  local run_id
+  if fetch_release; then
+    printf 'From the %s prerelease: %s\n' "$release_tag" \
+      "$(gh release view "$release_tag" --json name --jq .name)"
+    return 0
+  fi
+  printf 'The %s prerelease has no %s; trying recent runs\n' "$release_tag" "$ipa_name" >&2
+  for run_id in $(gh run list --workflow "$workflow" --limit 30 --json databaseId --jq '.[].databaseId'); do
+    if fetch_artifact "$run_id"; then
+      printf 'From run %s\n' "$run_id"
+      return 0
+    fi
+  done
+  die "neither $release_tag nor a recent run has the .ipa; use: bin/ipa build"
+}
+
+action="${1:-help}"
+if [[ $# -gt 0 ]]; then shift; fi
+
+case "$action" in
+  build) require_gh; build "$@" ;;
+  latest) require_gh; latest ;;
+  run) require_gh; [[ -n "${1:-}" ]] || die "run needs a run id"; download "$1" ;;
+  -h|--help|help) usage ;;
+  *) usage >&2; exit 2 ;;
+esac

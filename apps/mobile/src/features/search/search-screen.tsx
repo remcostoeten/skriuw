@@ -1,6 +1,7 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { SearchHit } from "@skriuw/renderer-core/contracts/workspace";
+import { announce } from "../../shell/announce";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme } from "../../shell/theme";
 import { activateNote } from "../../shell/tree-actions";
@@ -119,8 +120,15 @@ type NoticeProps = {
   text: string;
 };
 
+const NOTICE_SETTLE_MS = 600;
+
 function Notice({ tone, text }: NoticeProps) {
   const theme = useTheme();
+
+  useEffect(() => {
+    const timer = setTimeout(() => announce(text), NOTICE_SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [text]);
 
   return (
     <Text

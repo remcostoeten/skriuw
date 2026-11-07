@@ -68,8 +68,20 @@ person does not rediscover it.
 - [ ] Run the reference-device benchmarks and record them in
       `docs/benchmarks/`. Currently blocked on host disk; see
       [the readiness document](../../docs/benchmarks/2026-09-20-mobile-release-readiness.md#not-measured-and-why).
+      Cold start needs no host: a release build (on iPhone, the unsigned
+      `.ipa` installed with iloader) measures every launch itself. Force-quit
+      and open it 20 times, then read Account > Startup and record the last
+      launch, the P95, the device and the OS version.
 - [ ] Run a VoiceOver pass on iOS and a TalkBack pass on Android over every
-      screen, and record the results beside the mechanical audit.
+      screen, and record the results beside the mechanical audit. Cover the
+      notes column with a note open, the tree sheet (expand a folder, open a
+      note, the row actions), search, the account sheet, locked notes (set
+      up, unlock), journal (step a day, mood, quick capture, go to date),
+      tasks, tags, people, trash, a toast with an undo, and each home-screen
+      quick action from a cold start. For each, record whether every control
+      is reached by swiping, is named and announces its state, whether a
+      sheet keeps focus inside it until it closes, and whether the two-finger
+      scrub closes it.
 - [x] Mechanical accessibility audit of every route and overlay — 184
       controls, all named; three defects found.
       [`2026-09-20-mobile-accessibility.md`](../../docs/benchmarks/2026-09-20-mobile-accessibility.md)

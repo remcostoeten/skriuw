@@ -35,8 +35,9 @@ Builds already exist as CI outputs;
   `bin/check mobile`, the native module surface tests, the facade host
   tests and an Android emulator end-to-end pass, and compiles
   `SkriuwMobile.xcframework` on a macOS runner.
-- A `mobile-v*` tag additionally produces an Android APK, an iOS simulator
-  application and an unsigned iOS device app as workflow artifacts.
+- A `mobile-v*` tag additionally produces an Android APK and an unsigned iOS
+  device app as workflow artifacts, and attaches the iOS app to the
+  `mobile-ipa-latest` prerelease.
 
 Store builds need EAS on top of that, using the profiles in
 [`apps/mobile/eas.json`](../../apps/mobile/eas.json): `preview` for an internal APK,

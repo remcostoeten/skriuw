@@ -1,9 +1,18 @@
-import { useMemo } from "react";
-import { PanResponder, StyleSheet, View } from "react-native";
-import { edgeSwipeOpens, swipeAxis, type SheetSide } from "./edge-swipe";
+import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import { useSharedValue } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
+import { AXIS_LOCK_PX, edgeSwipeOpens, type SheetSide } from "./edge-swipe";
 import { TAB_BAR_HEIGHT, TOOLBAR_HEIGHT } from "./metrics";
+import { PAN_REACH_PX, projectVelocity } from "./motion";
 
 type Props = {
+  onOpen: (side: SheetSide) => void;
+};
+
+type StripProps = {
+  side: SheetSide;
   onOpen: (side: SheetSide) => void;
 };
 
@@ -15,35 +24,53 @@ const STRIP_WIDTH = 20;
  * recogniser, which is where `.shell-edge` puts them on the web.
  */
 export function EdgeSwipeZones({ onOpen }: Props) {
-  const left = useEdgeResponder("left", onOpen);
-  const right = useEdgeResponder("right", onOpen);
-
+  const insets = useSafeAreaInsets();
   return (
-    <View style={styles.layer} pointerEvents="box-none">
-      <View {...left} style={[styles.strip, styles.left]} />
-      <View {...right} style={[styles.strip, styles.right]} />
+    <View
+      style={[
+        styles.layer,
+        { top: insets.top + TOOLBAR_HEIGHT, bottom: insets.bottom + TAB_BAR_HEIGHT },
+      ]}
+      pointerEvents="box-none"
+    >
+      <EdgeStrip side="left" onOpen={onOpen} />
+      <EdgeStrip side="right" onOpen={onOpen} />
     </View>
   );
 }
 
-function useEdgeResponder(side: SheetSide, onOpen: (side: SheetSide) => void) {
-  return useMemo(() => {
-    let opened = false;
-    return PanResponder.create({
-      onMoveShouldSetPanResponder: (_event, gesture) =>
-        swipeAxis({ x: 0, y: 0, edge: side }, gesture.dx, gesture.dy) === "x",
-      onPanResponderGrant: () => {
-        opened = false;
-      },
-      onPanResponderMove: (_event, gesture) => {
-        if (opened || edgeSwipeOpens({ x: 0, y: 0, edge: side }, gesture.dx) === null) {
-          return;
-        }
-        opened = true;
-        onOpen(side);
-      },
-    }).panHandlers;
-  }, [onOpen, side]);
+function EdgeStrip({ side, onOpen }: StripProps) {
+  const opened = useSharedValue(false);
+  const pan = usePanGesture({
+    activeOffsetX: side === "left" ? [-PAN_REACH_PX, AXIS_LOCK_PX] : [-AXIS_LOCK_PX, PAN_REACH_PX],
+    failOffsetY: [-AXIS_LOCK_PX, AXIS_LOCK_PX],
+    onActivate: () => {
+      opened.set(false);
+    },
+    onUpdate: (event) => {
+      if (opened.get() || edgeSwipeOpens({ x: 0, y: 0, edge: side }, event.translationX) === null) {
+        return;
+      }
+      opened.set(true);
+      scheduleOnRN(onOpen, side);
+    },
+    onDeactivate: (event) => {
+      if (opened.get() || event.canceled) {
+        return;
+      }
+      const projected = event.translationX + projectVelocity(event.velocityX);
+      if (edgeSwipeOpens({ x: 0, y: 0, edge: side }, projected) !== null) {
+        opened.set(true);
+        scheduleOnRN(onOpen, side);
+      }
+    },
+  });
+
+  return (
+    <GestureDetector gesture={pan}>
+      <View style={[styles.strip, side === "left" ? styles.left : styles.right]} />
+    </GestureDetector>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -51,8 +78,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    top: TOOLBAR_HEIGHT,
-    bottom: TAB_BAR_HEIGHT,
   },
   strip: {
     position: "absolute",

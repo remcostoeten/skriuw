@@ -10,7 +10,7 @@ The one warm editor webview and the host half of the editor protocol
 | `host-messages.ts` | Validates what the webview sends; the webview is untrusted input. |
 | `host-session.ts` | The host itself: load on note switch, commits, acknowledgements, references, remote changes, requests, recovery. No React. |
 | `editor-surface.tsx` | The `'use dom'` component: the webview and the relay to the page inside it. |
-| `editor-host.tsx` | The React Native host: mounts the surface once, keyboard avoidance, the recoverable surface. |
+| `editor-host.tsx` | The React Native host: mounts the surface once, the recoverable surface. The shell's bottom inset (`shell/shell-frame.tsx`) keeps it clear of the keyboard. |
 | `read-only-document.tsx` | The note as text, for builds that carry no editor page. |
 | `bundle-source.ts`, `bytes.ts`, `failure-view.ts` | Where the page is served from, the `EditorBytes` codec, the failure model. |
 

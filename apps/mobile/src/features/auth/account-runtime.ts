@@ -52,6 +52,8 @@ export type AccountRuntime = Pick<
   onWorkspaceChange: (listener: (change: RemoteWorkspaceChange) => void) => () => void;
   /** Restores a stored session and starts the sync lifecycle. Returns the teardown. */
   start: () => () => void;
+  /** One cycle for a platform-scheduled task; resolves without syncing unless connected. */
+  backgroundRefresh: () => Promise<WorkspaceSyncStatus>;
 };
 
 /**
@@ -187,6 +189,14 @@ export function createAccountRuntime(options: AccountRuntimeOptions): AccountRun
     signUp: (registration) => controller.signUp(registration),
     signOut: () => controller.signOut(),
     retryConnection: () => controller.retryConnection(),
+
+    backgroundRefresh() {
+      const { account, sync } = state;
+      if (account.kind !== "signed-in" || account.connection.kind !== "connected") {
+        return Promise.resolve(sync);
+      }
+      return lifecycle.backgroundRefresh();
+    },
 
     start() {
       const unsubscribe = bridge.subscribeSyncEvents((event) => {

@@ -1,14 +1,24 @@
 import { router, type Href } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
+import Animated, {
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useReducedMotion,
+  type SharedValue,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { scheduleOnRN } from "react-native-worklets";
 import { SHELL_DESTINATIONS, type ShellRoute } from "./destinations";
 import { ShellIcon } from "./icons";
 import { TAB_BAR_HEIGHT, TAB_ICON_SIZE, TAB_LABEL_SIZE, TAB_RESTING_ALPHA } from "./metrics";
+import { clamp } from "./motion";
 import { useTheme } from "./theme";
 
 type Props = {
   route: ShellRoute;
+  keyboard: SharedValue<number>;
+  height: SharedValue<number>;
   onOpenAccount: () => void;
 };
 
@@ -17,22 +27,50 @@ type Props = {
  * the same order, sized for thumbs and padded for the home indicator. A tab
  * replaces the current entry rather than pushing one, so back leaves the
  * application instead of walking through every tab visited (ADR-0047).
+ *
+ * It floats over the bottom of the content column, which keeps clear of it,
+ * and steps aside for the software keyboard as `:root[data-keyboard="open"]`
+ * does in the compact shell: it slides down by its own height, frame by frame
+ * with the keyboard's real position (`keyboard`, from 0 closed to 1 open), and
+ * never leaves the layout, so nothing behind it jumps. Reduced motion fades it.
  */
-export function TabBar({ route, onOpenAccount }: Props) {
+export function TabBar({ route, keyboard, height, onOpenAccount }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
   const resting = theme.color("sidebar-foreground", TAB_RESTING_ALPHA);
   const selected = theme.color("sidebar-foreground");
   const [presses, setPresses] = useState<Record<string, number>>({});
+  const [stowed, setStowed] = useState(false);
 
   function pressed(key: string) {
     setPresses((current) => ({ ...current, [key]: (current[key] ?? 0) + 1 }));
   }
 
+  useAnimatedReaction(
+    () => keyboard.get() > 0,
+    (now, before) => {
+      if (now !== before) {
+        scheduleOnRN(setStowed, now);
+      }
+    },
+  );
+
+  const motionStyle = useAnimatedStyle(() => {
+    const progress = clamp(keyboard.get(), 0, 1);
+    return reducedMotion
+      ? { opacity: 1 - progress }
+      : { transform: [{ translateY: progress * height.get() }] };
+  });
+
   return (
-    <View
-      accessibilityRole="tablist"
+    <Animated.View
+      accessibilityRole="tabbar"
       accessibilityLabel="Primary"
+      accessibilityElementsHidden={stowed}
+      importantForAccessibility={stowed ? "no-hide-descendants" : "auto"}
+      pointerEvents={stowed ? "none" : "auto"}
+      onLayout={(event) => height.set(event.nativeEvent.layout.height)}
       style={[
         styles.bar,
         {
@@ -40,6 +78,7 @@ export function TabBar({ route, onOpenAccount }: Props) {
           backgroundColor: theme.color("sidebar-background"),
           borderTopColor: theme.color("sidebar-border"),
         },
+        motionStyle,
       ]}
     >
       {SHELL_DESTINATIONS.map((destination) => {
@@ -84,7 +123,7 @@ export function TabBar({ route, onOpenAccount }: Props) {
           Account
         </Text>
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -93,6 +132,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "stretch",
     borderTopWidth: StyleSheet.hairlineWidth,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   tab: {
     flex: 1,

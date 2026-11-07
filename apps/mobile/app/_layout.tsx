@@ -2,10 +2,13 @@ import { Slot } from "expo-router";
 import { useEffect } from "react";
 import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { AccountProvider, RemoteChangeSync } from "@/features/auth/account-provider";
 import { LockGate } from "@/features/lock/lock-gate";
+import { QuickActionHandler } from "@/features/quick-actions/quick-action-handler";
+import { ColdStartProbe } from "@/features/startup/cold-start-probe";
 import { ChromeProvider } from "@/shell/chrome";
 import { ShellFrame } from "@/shell/shell-frame";
 import { ThemeProvider, useTheme } from "@/shell/theme";
@@ -15,24 +18,28 @@ import { WorkspaceProvider, useWorkspaceSelector } from "@/shell/workspace-provi
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <ShellStatusBar />
-          <AccountProvider>
-            <WorkspaceProvider>
-              <WorkspaceThemePreference />
-              <RemoteChangeSync />
-              <ChromeProvider>
-                <LockGate>
-                  <ShellFrame>
-                    <Slot />
-                  </ShellFrame>
-                </LockGate>
-              </ChromeProvider>
-            </WorkspaceProvider>
-          </AccountProvider>
-        </ThemeProvider>
-      </SafeAreaProvider>
+      <KeyboardProvider>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <ShellStatusBar />
+            <AccountProvider>
+              <WorkspaceProvider>
+                <WorkspaceThemePreference />
+                <RemoteChangeSync />
+                <ColdStartProbe />
+                <ChromeProvider>
+                  <QuickActionHandler />
+                  <LockGate>
+                    <ShellFrame>
+                      <Slot />
+                    </ShellFrame>
+                  </LockGate>
+                </ChromeProvider>
+              </WorkspaceProvider>
+            </AccountProvider>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

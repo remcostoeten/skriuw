@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, { LinearTransition } from "react-native-reanimated";
 import { lockActionOutcome } from "../features/lock/lock-model";
 import { toggleNodeLock } from "../features/lock/lock-session";
 import { useChrome } from "./chrome";
@@ -22,6 +23,8 @@ import {
 import { idListsEqual, visibleIdsSelector, type TreeRow as TreeRowModel } from "./tree-model";
 import { TreeRow } from "./tree-row";
 import { useWorkspace, useWorkspaceSelector } from "./workspace-provider";
+
+const ROW_REFLOW = LinearTransition.duration(160);
 
 type Props = {
   /** Opening a note hands the screen back to the content column. */
@@ -150,7 +153,7 @@ export function TreeView({ onOpenNote }: Props) {
         }}
       />
 
-      <FlatList
+      <Animated.FlatList
         accessibilityRole="list"
         accessibilityLabel="Workspace tree"
         data={visibleIds}
@@ -159,7 +162,7 @@ export function TreeView({ onOpenNote }: Props) {
         getItemLayout={itemLayout}
         initialNumToRender={20}
         windowSize={5}
-        removeClippedSubviews
+        itemLayoutAnimation={ROW_REFLOW}
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => (
           <TreeRow

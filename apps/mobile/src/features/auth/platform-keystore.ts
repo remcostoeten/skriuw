@@ -18,6 +18,7 @@ export type LoadedSecureStore = Pick<
   | "deleteItemAsync"
   | "isAvailableAsync"
   | "canUseBiometricAuthentication"
+  | "AFTER_FIRST_UNLOCK"
 >;
 
 export type SecureStoreLoader = () => Promise<LoadedSecureStore | null>;
@@ -64,7 +65,14 @@ export function resolveSecureStore(
   };
 }
 
-/** The account credential's keystore on this device, or the refusing one. */
+/**
+ * The account credential's keystore on this device, or the refusing one.
+ *
+ * The credential is readable after the first unlock since boot rather than
+ * only while the device is unlocked, because the iOS background sync task
+ * usually runs with the screen locked and needs the bearer to reach the
+ * service.
+ */
 export function createPlatformKeystore(
   secureStore: () => Promise<LoadedSecureStore | null>,
 ): Keystore {
@@ -72,7 +80,9 @@ export function createPlatformKeystore(
 
   function resolve(): Promise<Keystore> {
     keystore ??= secureStore().then((module) =>
-      module === null ? createUnavailableKeystore() : createKeystore(module),
+      module === null
+        ? createUnavailableKeystore()
+        : createKeystore(module, { keychainAccessible: module.AFTER_FIRST_UNLOCK }),
     );
     return keystore;
   }

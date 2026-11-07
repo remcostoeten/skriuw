@@ -118,15 +118,30 @@ A free Apple ID can sign an app for personal use: the signature lasts 7 days
 and three such apps can be installed at once. Apple does that signing in
 Xcode, so from Linux the build and the signing are split:
 
-1. Run `mobile-ci.yml` (`./bin/eas ci`, or a `mobile-v*` tag). Its
-   `ios-device-unsigned` job builds a release app for a real iPhone with code
-   signing turned off and uploads `skriuw-ios-unsigned-ipa`. The JavaScript
-   and the editor page are embedded, so the app runs without Metro.
-2. Sign and install the `.ipa` with your Apple ID: Sideloadly or AltServer on
-   any borrowed Windows or Mac machine, or SideStore on the phone itself,
-   which re-signs over Wi-Fi after a one-time pairing file made on Linux
-   with `idevicepair`.
-3. Re-sign before the 7 days run out, or the app stops opening until you do.
+1. Get the unsigned `.ipa`. The `ios-device-unsigned` job in `mobile-ci.yml`
+   builds a release app for a real iPhone with code signing turned off and
+   uploads it as the `skriuw-ios-unsigned-ipa` artifact. The JavaScript and
+   the editor page are embedded, so the app runs without Metro. Every build
+   also replaces `skriuw-ios-unsigned.ipa` on the `mobile-ipa-latest`
+   prerelease. `./bin/ipa` fetches it into
+   `~/sideload-tools/skriuw-ios-unsigned/` (override with `SKRIUW_IPA_DIR`):
+   - `./bin/ipa latest` downloads it from the prerelease, or from the newest
+     run that has one when the prerelease does not exist.
+   - `./bin/ipa build [ref]` runs the workflow with `targets=ipa` on a branch
+     (default: the current one), waits for the device build and downloads its
+     `.ipa`. The branch must be pushed.
+   - `./bin/ipa run <run-id>` downloads it from a specific run.
+
+   A push to `daddy` rebuilds the prerelease only when it changes a native
+   path (see [CI](#ci)), so after a JavaScript-only change the prerelease
+   trails `daddy` until the next native change or `./bin/ipa build`.
+2. Sign and install the `.ipa` with your Apple ID from Linux with
+   [iloader](https://iloader.app): connect the iPhone over USB, trust the
+   computer, sign in, pick the device and install the `.ipa`. `usbmuxd` has
+   to be installed for the phone to be detected. Installing over an existing
+   copy with the same Apple ID is an update and keeps the workspace.
+3. Re-sign before the 7 days run out, or the app stops opening until you do:
+   run iloader again with the same `.ipa` or a newer one.
 
 A free Apple ID gets no App Groups, so an iOS share extension would not work
 there; the capture inbox already falls back to the app's own documents
@@ -135,13 +150,43 @@ directory. Face ID, the keychain and locked notes work as in a signed build.
 ## CI
 
 `.github/workflows/mobile-ci.yml` runs on every change to `apps/mobile`, the
-shared mobile packages, or `crates/skriuw-mobile`. It runs the mobile gate, an
-Android emulator pass, and a macOS job that compiles `SkriuwMobile.xcframework`.
-None of these need EAS.
+shared mobile packages, or `crates/skriuw-mobile`, on a `mobile-v*` tag, and
+on a manual run. A manual run takes a `targets` input: `ipa`, `android` or
+`all` (the default). `./bin/eas ci` runs `all` and `./bin/ipa build` runs
+`ipa`.
 
-The signed `eas-preview` job runs only on a `mobile-v*` tag or a manual run
-(`./bin/eas ci`), so pull requests do not spend EAS build minutes. The
-`eas-preflight` job runs first and needs three things:
+| Job | Pull request | Push to `daddy` | `mobile-v*` tag | Manual run |
+| --- | --- | --- | --- | --- |
+| Product gate | Always | Always | Always | Always |
+| iOS xcframework | Always | Always | Always | `ipa`, `all` |
+| iOS device build (unsigned) | Never | Native change | Always | `ipa`, `all` |
+| Android emulator e2e | Native change | Native change | Always | `android`, `all` |
+| Android preview build | Never | Never | Always | `android`, `all` |
+| EAS Android preview build (signed) | Never | Never | Always | `all` |
+
+The product gate runs `bin/check mobile`, the facade host tests and
+`expo export --platform ios`, so a JavaScript bundling break fails every run,
+including runs that skip the native jobs. A native change touches
+`apps/mobile/modules`, `apps/mobile/src/bridge`, a config plugin under
+`apps/mobile/src`, `crates/skriuw-mobile`, `apps/mobile/package.json`,
+`apps/mobile/app.json`, `bun.lock` or a `mobile-*.yml` workflow.
+
+There is no simulator build. The unsigned device build compiles the same
+code, and no simulator is available to run the result. After a successful
+device build, the `ipa-release` job replaces the `.ipa` on the
+`mobile-ipa-latest` prerelease, creating the prerelease if it does not exist.
+
+The macOS jobs run on the `macos-26` image with Xcode 26.6 selected. Runs
+that change no Rust restore the compiled core (the xcframework with its Swift
+bindings, and the Android libraries with their Kotlin bindings) from a cache
+keyed on `crates/`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` and the
+build script. The device build compiles pods through ccache, the Android jobs
+use Gradle's build cache, and the emulator boots from a cached AVD snapshot.
+
+The signed `eas-android` job builds Android only: a signed iOS build needs an
+Apple Developer team, which this project does not have. It runs only on a
+`mobile-v*` tag or a manual `all` run, so pull requests do not spend EAS build
+minutes. The `eas-preflight` job runs first and needs three things:
 
 - The `EXPO_TOKEN` repository secret.
 - `expo.extra.eas.projectId` in `apps/mobile/app.json`.

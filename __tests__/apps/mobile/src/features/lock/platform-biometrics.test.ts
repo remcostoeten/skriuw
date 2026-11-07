@@ -20,6 +20,7 @@ function deviceKeystore(options: { biometric?: boolean; failRead?: string } = {}
   const reads: Call[] = [];
   const writes: Call[] = [];
   const module: LoadedSecureStore = {
+    AFTER_FIRST_UNLOCK: 0,
     isAvailableAsync: async () => true,
     canUseBiometricAuthentication: () => options.biometric ?? true,
     getItemAsync: async (key, readOptions) => {

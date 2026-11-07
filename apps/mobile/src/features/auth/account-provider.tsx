@@ -16,6 +16,7 @@ import {
   platformWakeSocket,
   platformWakeTimer,
 } from "../sync/platform-ports";
+import { backgroundRefreshSlot, setBackgroundSyncScheduled } from "../sync/background-task";
 import { createRemoteChangeReconciler } from "../sync/remote-changes";
 import { ACCOUNT_UNAVAILABLE_ON_WEB, loadAccountBridge } from "./account-bridge";
 import { createAccountRuntime, type AccountRuntime, type AccountState } from "./account-runtime";
@@ -94,7 +95,15 @@ export function AccountProvider({ children }: Props) {
       }
       if (cancelled) return;
       if (next.kind === "available") {
-        stop = next.runtime.start();
+        const { runtime } = next;
+        const stopRuntime = runtime.start();
+        const withdrawRefresh = backgroundRefreshSlot.provide(() => runtime.backgroundRefresh());
+        const stopScheduling = scheduleBackgroundSyncWhileSignedIn(runtime);
+        stop = () => {
+          stopScheduling();
+          withdrawRefresh();
+          stopRuntime();
+        };
       }
       setAvailability(next);
     }
@@ -167,4 +176,19 @@ export function RemoteChangeSync() {
 
 function reportAccountFailure(error: unknown): void {
   console.error("account failure", error);
+}
+
+// Starts unscheduled so a launch still restoring its session never cancels and resubmits the request, which would push its earliest start back.
+function scheduleBackgroundSyncWhileSignedIn(runtime: AccountRuntime): () => void {
+  let signedIn = false;
+
+  function apply(): void {
+    const next = runtime.state().account.kind === "signed-in";
+    if (next === signedIn) return;
+    signedIn = next;
+    setBackgroundSyncScheduled(next).catch(reportAccountFailure);
+  }
+
+  apply();
+  return runtime.subscribe(apply);
 }

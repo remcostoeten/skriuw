@@ -64,3 +64,10 @@ test("activating the strip from a screen reader opens the announced day", () => 
   });
   assert.deepEqual(opened, [today]);
 });
+
+test("a VoiceOver double tap opens the announced day, not the bar under the centre", () => {
+  const opened: DateKey[] = [];
+  const target = strip((key) => opened.push(key));
+  (target.props.onAccessibilityTap as () => void)();
+  assert.deepEqual(opened, [today]);
+});

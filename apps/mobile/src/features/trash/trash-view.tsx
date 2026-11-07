@@ -1,5 +1,7 @@
 import { useCallback } from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
+import Animated, { LinearTransition } from "react-native-reanimated";
+import { PressableScale } from "../../shell/pressable-scale";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme, type ShellTheme } from "../../shell/theme";
 import { purgeNode, restoreTrashedNode } from "../../shell/tree-actions";
@@ -66,16 +68,19 @@ export function TrashView() {
             : `${entries.length} deleted ${entries.length === 1 ? "item" : "items"}`}
         </Text>
       </View>
-      <FlatList
+      <Animated.FlatList
         data={entries}
         keyExtractor={(item) => item.id}
         contentContainerStyle={entries.length === 0 ? styles.emptyList : styles.list}
         ListEmptyComponent={<EmptyTrash theme={theme} />}
         renderItem={renderItem}
+        itemLayoutAnimation={ROW_REFLOW}
       />
     </View>
   );
 }
+
+const ROW_REFLOW = LinearTransition.duration(160);
 
 type TrashRowProps = {
   entry: TrashEntry;
@@ -89,7 +94,11 @@ function TrashRow({ entry, theme, onPurge, onRestore }: TrashRowProps) {
   const purge = useCallback(() => onPurge(entry), [entry, onPurge]);
   return (
     <View style={[styles.card, { borderColor: theme.color("border") }]}>
-      <View style={styles.copy}>
+      <View
+        accessible
+        accessibilityLabel={`${entry.title}, ${entry.kind === "folder" ? "folder" : "note"}, ${entry.descendantCount} descendant${entry.descendantCount === 1 ? "" : "s"}`}
+        style={styles.copy}
+      >
         <Text numberOfLines={2} style={[styles.name, { color: theme.color("foreground") }]}>
           {entry.title}
         </Text>
@@ -99,7 +108,7 @@ function TrashRow({ entry, theme, onPurge, onRestore }: TrashRowProps) {
         </Text>
       </View>
       <View style={styles.actions}>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={`Restore ${entry.title}`}
           onPress={restore}
@@ -108,15 +117,15 @@ function TrashRow({ entry, theme, onPurge, onRestore }: TrashRowProps) {
           <Text style={[styles.actionLabel, { color: theme.color("secondary-foreground") }]}>
             Restore
           </Text>
-        </Pressable>
-        <Pressable
+        </PressableScale>
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={`Delete ${entry.title} forever`}
           onPress={purge}
           style={styles.action}
         >
           <Text style={[styles.deleteLabel, { color: theme.color("destructive") }]}>Delete</Text>
-        </Pressable>
+        </PressableScale>
       </View>
     </View>
   );

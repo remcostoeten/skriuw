@@ -1,13 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Linking,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { MINIMUM_TOUCH_TARGET } from "../shell/metrics";
 import { useTheme } from "../shell/theme";
 import { useWorkspace } from "../shell/workspace-provider";
@@ -124,27 +116,22 @@ export function EditorHost({ visible = true }: Props) {
       ]}
       pointerEvents={visible ? "auto" : "none"}
     >
-      <KeyboardAvoidingView
-        style={styles.fill}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <EditorSurface
-          key={generation}
-          ref={surface}
-          source={bundle.uri}
-          background={theme.color("theme-bg-editor")}
-          onEditorMessage={receive}
-          dom={{
-            ...WEBVIEW_PROPS,
-            style: styles.fill,
-            onRenderProcessGone: () =>
-              host.current?.reportWebviewGone("the Android webview process was reclaimed"),
-            onContentProcessDidTerminate: () =>
-              host.current?.reportWebviewGone("the iOS web content process was reclaimed"),
-          }}
-        />
-        {failure === null ? null : <EditorFailureSurface view={failure} onReload={reload} />}
-      </KeyboardAvoidingView>
+      <EditorSurface
+        key={generation}
+        ref={surface}
+        source={bundle.uri}
+        background={theme.color("theme-bg-editor")}
+        onEditorMessage={receive}
+        dom={{
+          ...WEBVIEW_PROPS,
+          style: styles.fill,
+          onRenderProcessGone: () =>
+            host.current?.reportWebviewGone("the Android webview process was reclaimed"),
+          onContentProcessDidTerminate: () =>
+            host.current?.reportWebviewGone("the iOS web content process was reclaimed"),
+        }}
+      />
+      {failure === null ? null : <EditorFailureSurface view={failure} onReload={reload} />}
     </View>
   );
 }

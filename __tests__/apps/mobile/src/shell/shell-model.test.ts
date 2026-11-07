@@ -19,15 +19,7 @@ import {
 } from "@/shell/edge-swipe";
 import { MINIMUM_TOUCH_TARGET, TOOLBAR_HEIGHT, sheetWidth } from "@/shell/metrics";
 import { createOverlayStack } from "@/shell/overlay-stack";
-import {
-  LONG_PRESS_MS,
-  SWIPE_DELETE_PX,
-  SWIPE_MAX_PX,
-  beginRowGesture,
-  moveRowGesture,
-  releaseIsTap,
-  swipeDeletes,
-} from "@/shell/row-gesture";
+import { SWIPE_DELETE_PX, SWIPE_MAX_PX, swipeDeletes, swipeOffset } from "@/shell/row-gesture";
 import { THEME_OPTIONS, resolveThemeName, themeIsDark, withAlpha } from "@/shell/theme-model";
 import { createToastHub } from "@/shell/toast-hub";
 
@@ -119,38 +111,27 @@ test("an overlay closed any other way no longer answers back", () => {
   assert.deepEqual(closed, ["menu"]);
 });
 
-test("a touch that barely moves stays a tap with the hold still armed", () => {
-  const gesture = moveRowGesture(beginRowGesture("row", 100, 100), 104, 103);
-
-  assert.equal(gesture.kind, "pending");
-  assert.equal(releaseIsTap(gesture), true);
-  assert.equal(LONG_PRESS_MS, 450);
-});
-
-test("a vertical pull is the list scrolling and cancels the row gesture", () => {
-  const gesture = moveRowGesture(beginRowGesture("row", 100, 100), 102, 140);
-
-  assert.equal(gesture.kind, "cancelled");
-  assert.equal(releaseIsTap(gesture), false);
-});
-
 test("a pull to the left drags the row and deletes past 96 points", () => {
-  const started = beginRowGesture("row", 200, 100);
-  const dragged = moveRowGesture(started, 160, 102);
-  assert.equal(dragged.kind, "swipe");
-  assert.equal(swipeDeletes(dragged), false);
-
-  const deleting = moveRowGesture(dragged, 200 - SWIPE_DELETE_PX, 102);
-  assert.equal(swipeDeletes(deleting), true);
-
-  const resisted = moveRowGesture(dragged, -400, 102);
-  assert.equal(resisted.kind === "swipe" ? -resisted.offset : 0, SWIPE_MAX_PX);
+  assert.equal(swipeOffset(-40), -40);
+  assert.equal(swipeDeletes(swipeOffset(-40), 0), false);
+  assert.equal(swipeDeletes(swipeOffset(-SWIPE_DELETE_PX), 0), true);
 });
 
-test("a pull to the right is not a delete", () => {
-  const gesture = moveRowGesture(beginRowGesture("row", 100, 100), 160, 102);
+test("a pull past the delete point resists and stops at the maximum", () => {
+  assert.ok(-swipeOffset(-SWIPE_DELETE_PX - 40) < SWIPE_DELETE_PX + 40);
+  assert.equal(-swipeOffset(-400), SWIPE_MAX_PX);
+});
 
-  assert.equal(gesture.kind, "cancelled");
+test("a pull to the right never moves the row", () => {
+  assert.equal(swipeOffset(60), 0);
+});
+
+test("a flick deletes from halfway, a slow short pull does not", () => {
+  const halfway = swipeOffset(-SWIPE_DELETE_PX / 2);
+
+  assert.equal(swipeDeletes(halfway, -2000), true);
+  assert.equal(swipeDeletes(halfway, -100), false);
+  assert.equal(swipeDeletes(swipeOffset(-20), -5000), false);
 });
 
 test("the edge strips recognise which sheet a pull asks for", () => {

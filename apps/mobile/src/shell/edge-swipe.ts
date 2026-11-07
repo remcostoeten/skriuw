@@ -45,6 +45,7 @@ export function swipeAxis(start: SwipeStart, x: number, y: number): SwipeAxis {
 
 /** The sheet an edge pull asks to open, or null while it has not travelled far enough. */
 export function edgeSwipeOpens(start: SwipeStart, x: number): SheetSide | null {
+  "worklet";
   const dx = x - start.x;
   if (start.edge === "left" && dx >= OPEN_DISTANCE_PX) {
     return "left";
@@ -60,9 +61,11 @@ export function edgeSwipeOpens(start: SwipeStart, x: number): SheetSide | null {
  * so a pull away from the edge never drags it into the page.
  */
 export function sheetDragOffset(side: SheetSide, dx: number): number {
+  "worklet";
   return side === "left" ? Math.min(0, dx) : Math.max(0, dx);
 }
 
 export function sheetDragCloses(side: SheetSide, dx: number): boolean {
+  "worklet";
   return Math.abs(sheetDragOffset(side, dx)) >= CLOSE_DISTANCE_PX;
 }

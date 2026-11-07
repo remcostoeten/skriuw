@@ -48,6 +48,15 @@ export default defineConfig({
             find: /^react-native(-safe-area-context)?$/,
             replacement: `${mobileStubs}/react-native-stub.ts`,
           },
+          {
+            find: /^react-native-(reanimated|gesture-handler|worklets)$/,
+            replacement: `${mobileStubs}/animation-stub.ts`,
+          },
+          { find: /^expo-haptics$/, replacement: `${mobileStubs}/haptics-stub.ts` },
+          {
+            find: /^react-native-keyboard-controller$/,
+            replacement: `${mobileStubs}/keyboard-controller-stub.ts`,
+          },
         ],
         replacements: Object.fromEntries(
           ["theme", "icons", "workspace-provider"].map((module) => [
