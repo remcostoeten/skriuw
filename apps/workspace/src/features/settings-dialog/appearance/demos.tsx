@@ -1,101 +1,93 @@
 import { cn } from "@/shared/styling/class-names";
 import { FileTextIcon, FolderIcon } from "@/shared/icons/static";
-import { sectionLabelClass } from "@/shared/ui/section-header";
+import type { PaletteDensity, PaletteSize } from "@/commands/palette-options";
 
-function DemoFrame({ status, children }: { status: string; children: React.ReactNode }) {
-  return (
-    <div className="w-full max-w-[22rem]">
-      <div className="mb-1.5 flex items-center justify-between px-0.5">
-        <span className={sectionLabelClass}>Preview</span>
-        <span className="rounded-full border border-border/70 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-          {status}
-        </span>
-      </div>
-      <div className="overflow-hidden rounded-md bg-background/50 p-3">{children}</div>
-    </div>
-  );
-}
+const previewFrame =
+  "w-full max-w-[148px] rounded-md border border-sidebar-border bg-sidebar p-1.5 text-sidebar-foreground";
 
-function DemoSidebarRow({ compact, label }: { compact: boolean; label: string }) {
-  return (
-    <div
-      className={cn(
-        "flex items-center gap-1.5 rounded-sm px-2 text-[10px] text-foreground/88 transition-[height] duration-150",
-        compact ? "h-6" : "h-8",
-      )}
-    >
-      <FileTextIcon size={12} className="shrink-0 text-muted-foreground/70" />
-      <span className="truncate">{label}</span>
-    </div>
-  );
-}
+const TREE_ROWS = [
+  { label: "Projects", depth: 0, folder: true },
+  { label: "Research", depth: 1, folder: true },
+  { label: "Meeting notes", depth: 2, folder: false },
+  { label: "Ideas", depth: 1, folder: false },
+] as const;
 
-export function CompactSidebarDemo({ enabled }: { enabled: boolean }) {
-  return (
-    <DemoFrame status={enabled ? "Compact" : "Comfortable"}>
-      <div className="rounded-sm border border-border/60 bg-sidebar/40 p-1.5">
-        <DemoSidebarRow compact={enabled} label="Weekly review.md" />
-        <DemoSidebarRow compact={enabled} label="Research notes.md" />
-        <DemoSidebarRow compact={enabled} label="Ideas.md" />
-      </div>
-    </DemoFrame>
-  );
-}
-
-type Props = {
-  label: string;
-  depth: number;
-  kind: "folder" | "file";
-  showGuides: boolean;
+type TreeProps = {
+  compact: boolean;
+  guides: boolean;
 };
 
-function DemoTreeGuides({ depth, showGuides }: { depth: number; showGuides: boolean }) {
-  if (!showGuides || depth <= 0) return null;
-
-  const guideLevels = Array.from({ length: depth }, (_, index) => index);
-  const currentGuideLeft = 11 + (depth - 1) * 12;
-
+export function SidebarTreePreview({ compact, guides }: TreeProps) {
   return (
-    <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0">
-      {guideLevels.map((level) => (
-        <span
-          key={level}
-          className="absolute top-0 bottom-0 w-px bg-border/55"
-          style={{ left: `${11 + level * 12}px` }}
-        />
-      ))}
-      <span
-        className="absolute h-px w-2 bg-border/55"
-        style={{ left: `${currentGuideLeft}px`, top: "50%" }}
-      />
-    </span>
-  );
-}
-
-function DemoTreeRow({ label, depth, kind, showGuides }: Props) {
-  const Icon = kind === "folder" ? FolderIcon : FileTextIcon;
-
-  return (
-    <div
-      className="relative flex h-7 items-center gap-1.5 rounded-sm text-[10px] text-foreground/88"
-      style={{ paddingLeft: `${8 + depth * 12}px` }}
-    >
-      <DemoTreeGuides depth={depth} showGuides={showGuides} />
-      <Icon size={12} className="shrink-0 text-muted-foreground/70" />
-      <span className="truncate">{label}</span>
+    <div className={previewFrame} aria-hidden="true">
+      {TREE_ROWS.map((row) => {
+        const Icon = row.folder ? FolderIcon : FileTextIcon;
+        return (
+          <div
+            key={row.label}
+            className={cn(
+              "relative flex items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-sm text-[10.5px] text-foreground/85 transition-[height] duration-150 motion-reduce:transition-none",
+              compact ? "h-5" : "h-[26px]",
+            )}
+            style={{ paddingLeft: `${6 + row.depth * 12}px` }}
+          >
+            {Array.from({ length: row.depth }, (_, level) => (
+              <span
+                key={level}
+                className={cn(
+                  "absolute inset-y-0 w-px bg-theme-divider transition-opacity duration-150",
+                  guides ? "opacity-100" : "opacity-0",
+                )}
+                style={{ left: `${11 + level * 12}px` }}
+              />
+            ))}
+            <Icon size={11} className="flex-none text-theme-secondary" />
+            <span className="truncate">{row.label}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-export function TreeGuidesDemo({ enabled }: { enabled: boolean }) {
+const PALETTE_WIDTH: Record<PaletteSize, string> = {
+  default: "w-[120px]",
+  roomy: "w-[134px]",
+  large: "w-[148px] p-[7px]",
+};
+
+const PALETTE_GAP: Record<PaletteDensity, string> = {
+  compact: "gap-0.5",
+  normal: "gap-1",
+  spacious: "gap-1.5",
+};
+
+const PALETTE_ROW_HEIGHT: Record<PaletteDensity, string> = {
+  compact: "h-[5px]",
+  normal: "h-[7px]",
+  spacious: "h-2",
+};
+
+type PaletteProps = {
+  density: PaletteDensity;
+  size: PaletteSize;
+};
+
+export function PalettePreview({ density, size }: PaletteProps) {
   return (
-    <DemoFrame status={enabled ? "Guides on" : "Guides off"}>
-      <div className="rounded-sm border border-border/60 bg-sidebar/40 p-1.5">
-        <DemoTreeRow label="Projects" depth={0} kind="folder" showGuides={enabled} />
-        <DemoTreeRow label="Research" depth={1} kind="folder" showGuides={enabled} />
-        <DemoTreeRow label="Meeting notes.md" depth={2} kind="file" showGuides={enabled} />
-        <DemoTreeRow label="Ideas.md" depth={1} kind="file" showGuides={enabled} />
+    <div
+      aria-hidden="true"
+      className={cn(
+        "rounded-md border border-theme-divider bg-popover p-[5px] shadow-[0_6px_18px_hsl(var(--scrim)/0.18)] transition-[width,padding] duration-150 motion-reduce:transition-none",
+        PALETTE_WIDTH[size],
+      )}
+    >
+      <div className="mb-[5px] h-3.5 rounded-[3px] bg-theme-hover/55" />
+      <div className={cn("flex flex-col", PALETTE_GAP[density])}>
+        <i className={cn("block rounded-sm bg-theme-active", PALETTE_ROW_HEIGHT[density])} />
+        <i className={cn("block w-[70%] rounded-sm bg-theme-hover", PALETTE_ROW_HEIGHT[density])} />
+        <i className={cn("block w-[55%] rounded-sm bg-theme-hover", PALETTE_ROW_HEIGHT[density])} />
       </div>
-    </DemoFrame>
+    </div>
   );
 }

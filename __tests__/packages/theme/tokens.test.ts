@@ -160,3 +160,45 @@ test("built-in metadata must exactly match the CSS theme set", () => {
     /theme metadata differs/,
   );
 });
+
+function saturation(color: string): number {
+  const match = /^hsl\(-?[\d.]+, ([\d.]+)%, [\d.]+%\)$/.exec(color);
+  assert.ok(match, `${color} is not an hsl() color`);
+  return Number(match[1]);
+}
+
+test("each theme has one accent ink: its primary when saturated, else its foreground", () => {
+  for (const theme of THEME_NAMES) {
+    const tokens = THEME_TOKENS[theme];
+    const coloured = saturation(tokens.primary) >= 30;
+    assert.equal(
+      tokens["accent-ink"],
+      coloured ? tokens.primary : tokens.foreground,
+      `${theme} accent ink`,
+    );
+    assert.equal(
+      tokens["accent-ink-foreground"],
+      coloured ? tokens["primary-foreground"] : tokens.background,
+      `${theme} accent ink foreground`,
+    );
+  }
+});
+
+test("neutral themes stay monochrome and coloured themes use their primary", () => {
+  for (const theme of ["midnight", "paper", "embers"] as const) {
+    assert.equal(THEME_TOKENS[theme]["accent-ink"], THEME_TOKENS[theme].foreground, theme);
+  }
+  for (const theme of ["mocha", "rose-pine-dawn", "gruvbox", "tokyo-night"] as const) {
+    assert.equal(THEME_TOKENS[theme]["accent-ink"], THEME_TOKENS[theme].primary, theme);
+  }
+});
+
+test("accent ink text stays legible on the accent ink", () => {
+  for (const theme of THEME_NAMES) {
+    const tokens = THEME_TOKENS[theme];
+    assert.ok(
+      contrast(tokens["accent-ink"], tokens["accent-ink-foreground"]) >= 3,
+      `${theme} accent ink contrast`,
+    );
+  }
+});

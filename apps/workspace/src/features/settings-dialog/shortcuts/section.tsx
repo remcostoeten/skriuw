@@ -35,18 +35,18 @@ import {
   selectStoredShortcutOverrides,
 } from "@/features/settings/selectors";
 import {
-  SettingsHeading,
+  SettingsGroup,
+  SettingsRow,
   settingsButton,
   settingsButtonDanger,
-  settingsGroup,
-  settingsGroupTitle,
-  settingsRow,
+  settingsFieldFocus,
   settingsRowDescription,
-  settingsRowLabel,
   settingsSection,
   settingsToggleInput,
 } from "@/shared/ui/settings-controls";
+import { useSettingsLedger } from "@/shared/ui/settings-ledger";
 import type { SectionProps } from "@/features/settings-dialog/sections";
+import { shortcutGroupId } from "@/features/settings-dialog/navigation";
 
 const LISTBOX_ID = "shortcut-search-listbox";
 
@@ -65,24 +65,27 @@ export function ShortcutsSection({
     sameShortcutOverrides,
   );
   const quitEnabled = useRendererSelector(store, selectQuitShortcutEnabled);
+  const ledger = useSettingsLedger();
   const [query, setQuery] = useState("");
   const [listboxOpen, setListboxOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const recorderHandles = useRef(new Map<string, ShortcutRecorderHandle>());
-  const groups = filterShortcutSettings(storedOverrides, query);
+  const searching = Boolean(ledger?.search);
+  const groups = filterShortcutSettings(storedOverrides, ledger?.search ? ledger.query : query);
   const matchCount = shortcutSettingsCount(groups);
   const suggestions = shortcutSearchSuggestions(storedOverrides, query);
   const expanded = listboxOpen && suggestions.length > 0;
   const trimmedQuery = query.trim();
-  const hasOverrides = Object.keys(storedOverrides).length > 0;
+  const overrideCount = Object.keys(storedOverrides).length;
+  const hasOverrides = overrideCount > 0;
 
   useEffect(() => {
     function handleWindowKeyDown(event: KeyboardEvent): void {
       if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) {
         return;
       }
-      if (event.key.toLowerCase() !== "f" || recordingCountRef.current > 0) {
+      if (event.key.toLowerCase() !== "f" || recordingCountRef.current > 0 || searching) {
         return;
       }
       event.preventDefault();
@@ -91,7 +94,7 @@ export function ShortcutsSection({
     }
     window.addEventListener("keydown", handleWindowKeyDown);
     return () => window.removeEventListener("keydown", handleWindowKeyDown);
-  }, [recordingCountRef]);
+  }, [recordingCountRef, searching]);
 
   function recordShortcut(definition: ShortcutDefinition, combo: string): string | null {
     if (definition.id === QUIT_ACTION_ID) {
@@ -183,135 +186,150 @@ export function ShortcutsSection({
 
   return (
     <section aria-label="Keyboard shortcuts" className={settingsSection}>
-      <SettingsHeading title="Shortcuts" detail={settingsCopy.shortcuts.clickAShortcutThenPressA} />
-      <div className="sticky top-0 z-[2] -mx-1 mb-4 bg-background px-1 pt-1.5 pb-2.5">
-        <div className="group relative">
-          <SearchIcon
-            size={14}
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-[9px] -translate-y-1/2 text-muted-foreground transition-colors duration-150 group-focus-within:text-foreground"
-          />
-          <input
-            ref={searchInputRef}
-            type="search"
-            role="combobox"
-            value={query}
-            className="h-8 w-full rounded-lg border border-border bg-muted py-[5px] pr-2.5 pl-[30px] text-xs text-foreground outline-none placeholder:text-muted-foreground/[78%] [&::-webkit-search-cancel-button]:hidden transition-[background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-foreground/20 focus-visible:border-foreground/40 focus-visible:bg-background"
-            placeholder={`Filter shortcuts (${formatShortcut("mod+f")})`}
-            aria-label="Filter shortcuts"
-            aria-keyshortcuts="Control+F"
-            aria-expanded={expanded}
-            aria-controls={LISTBOX_ID}
-            aria-autocomplete="list"
-            aria-activedescendant={
-              expanded && activeIndex >= 0 ? suggestionOptionId(activeIndex) : undefined
-            }
-            onChange={(event) => {
-              setQuery(event.currentTarget.value);
-              setListboxOpen(true);
-              setActiveIndex(-1);
-            }}
-            onKeyDown={handleSearchKeyDown}
-            onBlur={closeListbox}
-          />
-          <ul
-            id={LISTBOX_ID}
-            role="listbox"
-            aria-label="Matching shortcuts"
-            className={cn(
-              "absolute inset-x-0 top-full z-[3] mt-1 m-0 list-none overflow-hidden rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md",
-              !expanded && "hidden",
-            )}
+      <SettingsGroup
+        id="all"
+        title="All shortcuts"
+        hint={settingsCopy.shortcuts.clickAShortcutThenPressA}
+        keywords="keys hotkeys remap commands bindings filter find"
+      >
+        <SettingsRow
+          label="Filter shortcuts"
+          detail={`${formatShortcut("mod+f")} jumps here from anywhere on this page.`}
+          notes={
+            <span role="status" className={settingsRowDescription}>
+              {trimmedQuery.length > 0
+                ? `${matchCount} shortcut${matchCount === 1 ? "" : "s"} match. Press Enter to rebind the first`
+                : ""}
+            </span>
+          }
+          className="items-start"
+        >
+          <div className="group relative w-[min(240px,48%)] max-[620px]:w-full">
+            <SearchIcon
+              size={13}
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 left-[9px] -translate-y-1/2 text-theme-dim transition-colors duration-150 group-focus-within:text-foreground"
+            />
+            <input
+              ref={searchInputRef}
+              type="search"
+              role="combobox"
+              value={query}
+              className={cn(
+                "h-[30px] w-full rounded-[7px] border border-border bg-background py-[5px] pr-2.5 pl-7 text-[12.5px] text-foreground placeholder:text-theme-dim [&::-webkit-search-cancel-button]:hidden",
+                settingsFieldFocus,
+              )}
+              placeholder={`Filter shortcuts (${formatShortcut("mod+f")})`}
+              aria-label="Filter shortcuts"
+              aria-keyshortcuts="Control+F"
+              aria-expanded={expanded}
+              aria-controls={LISTBOX_ID}
+              aria-autocomplete="list"
+              aria-activedescendant={
+                expanded && activeIndex >= 0 ? suggestionOptionId(activeIndex) : undefined
+              }
+              onChange={(event) => {
+                setQuery(event.currentTarget.value);
+                setListboxOpen(true);
+                setActiveIndex(-1);
+              }}
+              onKeyDown={handleSearchKeyDown}
+              onBlur={closeListbox}
+            />
+            <ul
+              id={LISTBOX_ID}
+              role="listbox"
+              aria-label="Matching shortcuts"
+              className={cn(
+                "absolute inset-x-0 top-full z-[3] mt-1 m-0 list-none overflow-hidden rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md",
+                !expanded && "hidden",
+              )}
+            >
+              {suggestions.map((suggestion, index) => (
+                <li
+                  key={suggestion}
+                  id={suggestionOptionId(index)}
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  className={cn(
+                    "cursor-pointer rounded-md px-2 py-1.5 text-xs",
+                    index === activeIndex && "bg-theme-hover text-foreground",
+                  )}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseMove={() => setActiveIndex(index)}
+                  onClick={() => acceptSuggestion(suggestion)}
+                >
+                  {suggestion}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </SettingsRow>
+        {hasOverrides && (
+          <SettingsRow
+            label={settingsCopy.shortcuts.resetAllShortcutsToDefaults}
+            detail={`${overrideCount} changed ${overrideCount === 1 ? "binding" : "bindings"}. Other preferences are not affected.`}
+            changed
           >
-            {suggestions.map((suggestion, index) => (
-              <li
-                key={suggestion}
-                id={suggestionOptionId(index)}
-                role="option"
-                aria-selected={index === activeIndex}
-                className={cn(
-                  "cursor-pointer rounded-md px-2 py-1.5 text-xs",
-                  index === activeIndex && "bg-accent text-accent-foreground",
-                )}
-                onMouseDown={(event) => event.preventDefault()}
-                onMouseMove={() => setActiveIndex(index)}
-                onClick={() => acceptSuggestion(suggestion)}
-              >
-                {suggestion}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="mt-1.5 flex min-h-4 items-center justify-between gap-2">
-          <p role="status" className="m-0 text-[11px] text-muted-foreground">
-            {trimmedQuery.length > 0
-              ? `${matchCount} shortcut${matchCount === 1 ? "" : "s"} match — press Enter to rebind the first`
-              : ""}
-          </p>
-          {hasOverrides && (
             <button
               type="button"
-              className={cn(settingsButton, settingsButtonDanger, "px-2 py-0.5 text-[11px]")}
+              className={cn(settingsButton, settingsButtonDanger)}
               aria-label={settingsCopy.shortcuts.resetAllShortcutsToDefaults}
               onClick={() => clearAllShortcutOverrides(store)}
             >
               Reset all
             </button>
-          )}
-        </div>
-      </div>
-      {trimmedQuery.length > 0 && matchCount === 0 && (
-        <p className="text-sm text-muted-foreground">
-          {settingsCopy.shortcuts.noShortcutsMatch}
-          {trimmedQuery}”.
-        </p>
-      )}
+          </SettingsRow>
+        )}
+        {!searching && trimmedQuery.length > 0 && matchCount === 0 && (
+          <p className="m-0 py-3 text-xs text-theme-secondary">
+            {settingsCopy.shortcuts.noShortcutsMatch}
+            {trimmedQuery}”.
+          </p>
+        )}
+      </SettingsGroup>
       {groups.map(({ group, definitions }) => (
-        <div key={group} className={settingsGroup}>
-          <div className={settingsGroupTitle}>{group}</div>
-          {definitions.map((definition) => {
-            const description = rowDescription(definition);
-            return (
-              <div key={definition.id} className={settingsRow}>
-                <span className={settingsRowLabel}>
-                  {definition.label}
-                  {description && <span className={settingsRowDescription}>{description}</span>}
-                </span>
-                <span className="flex items-center gap-2.5">
-                  {definition.id === QUIT_ACTION_ID && (
-                    <input
-                      type="checkbox"
-                      data-directional-focus
-                      className={settingsToggleInput}
-                      checked={quitEnabled}
-                      aria-label={settingsCopy.shortcuts.quitWithAKeyboardShortcut}
-                      onChange={(event) =>
-                        setQuitShortcutEnabled(store, event.currentTarget.checked)
-                      }
-                    />
-                  )}
-                  <ShortcutRecorder
-                    value={effectiveShortcutKeys(definition, storedOverrides)}
-                    isDefault={isDefaultBinding(definition, storedOverrides)}
-                    aria-label={`Change shortcut for ${definition.label}`}
-                    handleRef={(handle) => {
-                      if (handle) {
-                        recorderHandles.current.set(definition.id, handle);
-                      } else {
-                        recorderHandles.current.delete(definition.id);
-                      }
-                    }}
-                    onRecordingChange={(recording) => {
-                      recordingCountRef.current += recording ? 1 : -1;
-                    }}
-                    onRecord={(combo) => recordShortcut(definition, combo)}
-                    onReset={() => clearShortcutOverride(store, definition.id)}
+        <SettingsGroup key={group} id={shortcutGroupId(group)} title={group}>
+          {definitions.map((definition) => (
+            <SettingsRow
+              key={definition.id}
+              label={definition.label}
+              detail={rowDescription(definition)}
+              changed={!isDefaultBinding(definition, storedOverrides)}
+              className="min-h-10 py-[7px]"
+            >
+              <span className="flex items-center gap-2.5">
+                {definition.id === QUIT_ACTION_ID && (
+                  <input
+                    type="checkbox"
+                    data-directional-focus
+                    className={settingsToggleInput}
+                    checked={quitEnabled}
+                    aria-label={settingsCopy.shortcuts.quitWithAKeyboardShortcut}
+                    onChange={(event) => setQuitShortcutEnabled(store, event.currentTarget.checked)}
                   />
-                </span>
-              </div>
-            );
-          })}
-        </div>
+                )}
+                <ShortcutRecorder
+                  value={effectiveShortcutKeys(definition, storedOverrides)}
+                  isDefault={isDefaultBinding(definition, storedOverrides)}
+                  aria-label={`Change shortcut for ${definition.label}`}
+                  handleRef={(handle) => {
+                    if (handle) {
+                      recorderHandles.current.set(definition.id, handle);
+                    } else {
+                      recorderHandles.current.delete(definition.id);
+                    }
+                  }}
+                  onRecordingChange={(recording) => {
+                    recordingCountRef.current += recording ? 1 : -1;
+                  }}
+                  onRecord={(combo) => recordShortcut(definition, combo)}
+                  onReset={() => clearShortcutOverride(store, definition.id)}
+                />
+              </span>
+            </SettingsRow>
+          ))}
+        </SettingsGroup>
       ))}
     </section>
   );

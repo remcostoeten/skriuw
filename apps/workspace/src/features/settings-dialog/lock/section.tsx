@@ -18,14 +18,11 @@ import {
 import type { AutoLockChoice } from "@/features/lock/lock";
 import {
   SettingToggle,
-  SettingsHeading,
+  SettingsGroup,
+  SettingsRow,
   settingsButton,
   settingsButtonDanger,
-  settingsGroup,
-  settingsGroupTitle,
-  settingsRow,
   settingsRowDescription,
-  settingsRowLabel,
   settingsSection,
 } from "@/shared/ui/settings-controls";
 import { useEditableSettings } from "@/features/settings/use-editable-settings";
@@ -46,7 +43,7 @@ function lockStatusText(configured: boolean, unlocked: boolean, count: number): 
 }
 
 export function LockSection({ store }: SectionProps) {
-  const { settings, change } = useEditableSettings(store);
+  const { settings, change, changed } = useEditableSettings(store);
   const lock = useRendererSelector(store, selectNoteLock);
   const [busy, setBusy] = useState(false);
   const noun = secretNoun(lock.kind);
@@ -62,24 +59,24 @@ export function LockSection({ store }: SectionProps) {
 
   return (
     <section aria-label={settingsCopy.lock.privacyAndLockPreferences} className={settingsSection}>
-      <SettingsHeading
-        title={settingsCopy.lock.privacyLock}
-        detail={settingsCopy.lock.lockSingleNotesOrWholeFolders}
-      />
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Note lock</div>
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            {lock.configured
+      <SettingsGroup
+        id="note-lock"
+        title="Note lock"
+        keywords="pin passcode passphrase set up change unlock lock now"
+      >
+        <SettingsRow
+          label={
+            lock.configured
               ? `${noun.charAt(0).toUpperCase()}${noun.slice(1)} lock`
-              : settingsCopy.lock.notSetUp}
-            <span className={settingsRowDescription}>
-              {lockStatusText(lock.configured, lock.unlocked, lock.lockedNoteCount)}
-            </span>
-            {lock.configured && lock.hint ? (
+              : settingsCopy.lock.notSetUp
+          }
+          detail={lockStatusText(lock.configured, lock.unlocked, lock.lockedNoteCount)}
+          notes={
+            lock.configured && lock.hint ? (
               <span className={settingsRowDescription}>Hint: {lock.hint}</span>
-            ) : null}
-          </span>
+            ) : null
+          }
+        >
           <span className="flex flex-wrap items-center justify-end gap-1.5">
             {!lock.configured && (
               <button
@@ -117,17 +114,14 @@ export function LockSection({ store }: SectionProps) {
               </button>
             )}
           </span>
-        </div>
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Relocking</div>
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            {settingsCopy.lock.lockAgainAutomatically}
-            <span className={settingsRowDescription}>
-              {settingsCopy.lock.afterThisLongWithoutTypingClicking}
-            </span>
-          </span>
+        </SettingsRow>
+      </SettingsGroup>
+      <SettingsGroup id="relocking" title="Relocking" keywords="auto-lock relock">
+        <SettingsRow
+          label={settingsCopy.lock.lockAgainAutomatically}
+          detail={settingsCopy.lock.afterThisLongWithoutTypingClicking}
+          changed={changed("autoLockMinutes")}
+        >
           <Select
             label="Auto-lock delay"
             value={String(settings.autoLockMinutes) as AutoLockChoice}
@@ -135,26 +129,27 @@ export function LockSection({ store }: SectionProps) {
             onChange={(value) => change("autoLockMinutes", Number(value))}
             align="end"
           />
-        </div>
+        </SettingsRow>
         <SettingToggle
           label={settingsCopy.lock.lockWhenTheWindowLosesFocus}
           detail={settingsCopy.lock.closesLockedNotesTheMomentYou}
           checked={settings.lockOnBlur}
+          changed={changed("lockOnBlur")}
           onChange={(checked) => change("lockOnBlur", checked)}
         />
-      </div>
+      </SettingsGroup>
       {lock.configured && (
-        <div className={settingsGroup}>
-          <div className={settingsGroupTitle}>Remove</div>
-          <div className={settingsRow}>
-            <span className={settingsRowLabel}>
-              {settingsCopy.lock.removeTheLock}
-              <span className={settingsRowDescription}>
+        <SettingsGroup id="remove" title="Remove" tone="danger">
+          <SettingsRow
+            label={settingsCopy.lock.removeTheLock}
+            detail={
+              <>
                 {settingsCopy.lock.unlocksEveryLockedNoteForGood}
                 {noun}
                 {settingsCopy.lock.andRecoveryCode}
-              </span>
-            </span>
+              </>
+            }
+          >
             <InlineConfirm
               confirmLabel={busy ? "Removing…" : "Remove lock"}
               message={settingsCopy.lock.everyLockedNoteBecomesReadableAgain}
@@ -176,8 +171,8 @@ export function LockSection({ store }: SectionProps) {
                 })
               }
             />
-          </div>
-        </div>
+          </SettingsRow>
+        </SettingsGroup>
       )}
     </section>
   );

@@ -11,9 +11,7 @@ import { Select } from "@/shared/ui/select";
 import {
   settingsButton,
   settingsButtonDanger,
-  settingsGroup,
   settingsGroupHint,
-  settingsGroupTitle,
   settingsTextInput,
 } from "@/shared/ui/settings-controls";
 
@@ -37,9 +35,9 @@ const INPUT_SHAPES: readonly { value: PromptInputShape; label: string }[] = [
   { value: "freeform", label: settingsCopy.ai.anythingYouType },
 ];
 
-const fieldLabelClass = "mb-1 block text-[11px] font-medium text-muted-foreground";
+const fieldLabelClass = "mb-1 block text-[11px] font-medium text-theme-secondary";
 const textareaClass =
-  "min-h-[96px] w-full resize-y rounded-lg border border-border bg-muted px-2.5 py-[6px] font-mono text-[12px] leading-[1.5] text-foreground outline-none transition-[background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-foreground/20 focus-visible:border-foreground/40 focus-visible:bg-background";
+  "min-h-[96px] w-full resize-y rounded-lg border border-border bg-background px-2.5 py-[6px] font-mono text-[12px] leading-[1.5] text-foreground outline-none transition-[background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-theme-btn-outline focus-visible:border-ring";
 
 function originLabel(origin: PromptLibraryEntry["origin"]): string | null {
   if (origin === "customised") {
@@ -62,8 +60,7 @@ export function PromptLibraryPanel({
   onCreate,
 }: Props) {
   return (
-    <div className={settingsGroup}>
-      <div className={settingsGroupTitle}>Prompts</div>
+    <div className="py-2">
       <p className={settingsGroupHint}>{settingsCopy.ai.theInstructionsBehindEachWritingAction}</p>
       <ul className="flex list-none flex-col gap-1.5 p-0">
         {entries.map((entry) => (
@@ -112,17 +109,17 @@ type RowProps = Pick<Props, "onEdit" | "onDuplicate" | "onReset" | "onDelete"> &
 function PromptRow({ entry, onEdit, onDuplicate, onReset, onDelete }: RowProps) {
   const badge = originLabel(entry.origin);
   return (
-    <div className="flex items-start justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-border/60 bg-theme-deep px-3 py-2">
       <span className="flex min-w-0 flex-col gap-[3px]">
         <span className="flex items-center gap-2 text-[13px] text-foreground">
           <span className="truncate">{entry.name}</span>
           {badge === null ? null : (
-            <span className="shrink-0 rounded-full border border-border px-1.5 py-px text-[10px] text-muted-foreground">
+            <span className="shrink-0 rounded-full border border-border px-1.5 py-px text-[10px] text-theme-secondary">
               {badge}
             </span>
           )}
         </span>
-        <span className="line-clamp-2 text-[11px] leading-[1.4] text-muted-foreground">
+        <span className="line-clamp-2 text-[11px] leading-[1.4] text-theme-secondary">
           {entry.systemPrompt}
         </span>
       </span>
@@ -165,7 +162,7 @@ function PromptEditor({ draft, onDraftChange, onSave, onCancel }: EditorProps) {
   return (
     <section
       aria-label={`Edit ${draft.name.trim().length === 0 ? "prompt" : draft.name}`}
-      className="rounded-lg border border-border bg-muted/20 px-3 py-2.5"
+      className="rounded-lg border border-border bg-theme-deep px-3 py-2.5"
     >
       <label className="mb-2.5 block">
         <span className={fieldLabelClass}>Name</span>

@@ -8,12 +8,7 @@ import {
   trashEmptyNotes,
 } from "@/features/notes/empty-notes";
 import { showToast } from "@/shared/ui/toast";
-import {
-  settingsButton,
-  settingsRow,
-  settingsRowDescription,
-  settingsRowLabel,
-} from "@/shared/ui/settings-controls";
+import { SettingsRow, settingsButton } from "@/shared/ui/settings-controls";
 
 type Props = {
   store: RendererStore;
@@ -39,18 +34,17 @@ export function EmptyNotesRow({ store }: Props) {
   }
 
   return (
-    <div className={settingsRow}>
-      <span className={settingsRowLabel}>
-        Empty notes
-        <span className={settingsRowDescription}>
-          {count === 0
-            ? settingsCopy.data.noNotesWithoutContentPinnedLocked
-            : `Moves ${describeEmptyNoteCount(count)} to the trash. Pinned, locked and journal notes are left alone.`}
-        </span>
-      </span>
+    <SettingsRow
+      label="Empty notes"
+      detail={
+        count === 0
+          ? settingsCopy.data.noNotesWithoutContentPinnedLocked
+          : `Moves ${describeEmptyNoteCount(count)} to the trash. Pinned, locked and journal notes are left alone.`
+      }
+    >
       <button type="button" className={settingsButton} disabled={count === 0} onClick={cleanUp}>
         Clean up
       </button>
-    </div>
+    </SettingsRow>
   );
 }

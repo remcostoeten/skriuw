@@ -35,15 +35,17 @@ import { setMediaMetadata } from "@/features/media/media-metadata";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { useNearViewport } from "@/shared/viewport/use-near-viewport";
 import {
-  SettingsHeading,
+  SettingsGroup,
+  SettingsRow,
   settingsButton,
   settingsButtonDanger,
-  settingsGroup,
   settingsRow,
   settingsRowDescription,
   settingsRowDetail,
   settingsRowLabel,
   settingsSection,
+  settingsSegmentGroup,
+  settingsTransition,
 } from "@/shared/ui/settings-controls";
 import { Checkbox } from "@/shared/ui/checkbox";
 
@@ -293,17 +295,22 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
 
   return (
     <section aria-label="Media" className={settingsSection}>
-      <SettingsHeading title="Media" detail={settingsCopy.media.everyImageStoredInThisWorkspace} />
-      <div className={settingsGroup}>
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            Library
-            <span className={settingsRowDescription}>
+      <SettingsGroup
+        id="library"
+        title="Library"
+        hint={settingsCopy.media.everyImageStoredInThisWorkspace}
+        keywords="images pictures photos png jpeg gif webp blobs attachments unused delete remove"
+      >
+        <SettingsRow
+          label="Library"
+          detail={
+            <>
               {entries.length === 1 ? "1 file" : `${entries.length} files`}
               {unusedCount > 0 ? ` · ${unusedCount} unused` : ""}
               {settingsCopy.media.StoredOncePerUniqueFile}
-            </span>
-          </span>
+            </>
+          }
+        >
           <span className="flex shrink-0 items-center gap-2">
             <input
               ref={fileInputRef}
@@ -340,15 +347,12 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
               </button>
             )}
           </span>
-        </div>
+        </SettingsRow>
         {unusedCount > 0 && (
-          <div className={settingsRow}>
-            <span className={settingsRowLabel}>
-              {settingsCopy.media.removeAllUnused}
-              <span className={settingsRowDescription}>
-                {settingsCopy.media.deletesEveryImageThatNoNote}
-              </span>
-            </span>
+          <SettingsRow
+            label={settingsCopy.media.removeAllUnused}
+            detail={settingsCopy.media.deletesEveryImageThatNoNote}
+          >
             <InlineConfirm
               confirmLabel={`Delete ${unusedCount} unused`}
               armed={sweepArmed}
@@ -369,124 +373,129 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
                 </Button>
               )}
             />
+          </SettingsRow>
+        )}
+      </SettingsGroup>
+      <SettingsGroup
+        id="stored"
+        title="Stored media"
+        keywords="inline covers journal unused thumbnails grid filter select"
+      >
+        {status.kind !== "idle" && (
+          <p
+            className={cn(
+              "my-2 rounded-lg border border-theme-divider px-2.5 py-2 text-xs",
+              status.kind === "error"
+                ? "border-destructive/50 text-destructive"
+                : "text-theme-secondary",
+            )}
+            role={status.kind === "error" ? "alert" : "status"}
+          >
+            {status.message}
+          </p>
+        )}
+        <div className="mt-2.5 mb-3 flex items-center gap-2" aria-label="Filter media">
+          <span className={cn(settingsSegmentGroup, "overflow-x-auto")}>
+            {MEDIA_FILTERS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={filter === option.id}
+                className={cn(
+                  "shrink-0 cursor-pointer rounded-md border-0 bg-transparent px-2.5 py-1 text-[11.5px] text-theme-secondary hover:text-foreground aria-pressed:bg-theme-active aria-pressed:text-foreground pointer-coarse:min-h-11 pointer-coarse:px-3 pointer-coarse:text-[13px]",
+                  settingsTransition,
+                )}
+                onClick={() => changeFilter(option.id)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </span>
+          <span className="ml-auto shrink-0 pl-2 text-[11px] tabular-nums text-theme-dim">
+            {visibleEntries.length} of {entries.length}
+          </span>
+        </div>
+        {selectableHashes.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="Media selection">
+            <button
+              type="button"
+              className={settingsButton}
+              disabled={busy || selected.size === selectableHashes.length}
+              onClick={selectAllShown}
+            >
+              {settingsCopy.media.selectAllDeletable}
+              {selectableHashes.length})
+            </button>
+            {selected.size > 0 && (
+              <>
+                <button
+                  type="button"
+                  className={settingsButton}
+                  disabled={busy}
+                  onClick={clearSelection}
+                >
+                  Clear selection
+                </button>
+                <InlineConfirm
+                  size="sm"
+                  confirmLabel={`Delete ${selected.size}`}
+                  message={settingsCopy.media.thisCannotBeUndone}
+                  onConfirm={deleteSelected}
+                  renderIdle={(arm) => (
+                    <button
+                      type="button"
+                      className={cn(settingsButton, settingsButtonDanger)}
+                      disabled={busy}
+                      onClick={arm}
+                    >
+                      <Trash2Icon size={13} />
+                      Delete {selected.size} selected
+                    </button>
+                  )}
+                />
+              </>
+            )}
           </div>
         )}
-      </div>
-      {status.kind !== "idle" && (
-        <p
-          className={cn(
-            "mb-4 rounded-lg border border-border px-2.5 py-2 text-xs",
-            status.kind === "error"
-              ? "border-destructive/50 text-destructive"
-              : "text-muted-foreground",
-          )}
-          role={status.kind === "error" ? "alert" : "status"}
-        >
-          {status.message}
-        </p>
-      )}
-      <div
-        className="mb-3 flex items-center gap-1 overflow-x-auto border-b border-border pb-2"
-        aria-label="Filter media"
-      >
-        {MEDIA_FILTERS.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            aria-pressed={filter === option.id}
-            className={cn(
-              "shrink-0 rounded px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:px-3 pointer-coarse:text-[13px]",
-              filter === option.id && "bg-muted text-foreground",
-            )}
-            onClick={() => changeFilter(option.id)}
-          >
-            {option.label}
-          </button>
-        ))}
-        <span className="ml-auto shrink-0 pl-2 text-[11px] tabular-nums text-muted-foreground">
-          {visibleEntries.length} of {entries.length}
-        </span>
-      </div>
-      {selectableHashes.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="Media selection">
-          <button
-            type="button"
-            className={settingsButton}
-            disabled={busy || selected.size === selectableHashes.length}
-            onClick={selectAllShown}
-          >
-            {settingsCopy.media.selectAllDeletable}
-            {selectableHashes.length})
-          </button>
-          {selected.size > 0 && (
-            <>
-              <button
-                type="button"
-                className={settingsButton}
-                disabled={busy}
-                onClick={clearSelection}
-              >
-                Clear selection
-              </button>
-              <InlineConfirm
-                size="sm"
-                confirmLabel={`Delete ${selected.size}`}
-                message={settingsCopy.media.thisCannotBeUndone}
-                onConfirm={deleteSelected}
-                renderIdle={(arm) => (
-                  <button
-                    type="button"
-                    className={cn(settingsButton, settingsButtonDanger)}
-                    disabled={busy}
-                    onClick={arm}
-                  >
-                    <Trash2Icon size={13} />
-                    Delete {selected.size} selected
-                  </button>
-                )}
-              />
-            </>
-          )}
-        </div>
-      )}
-      <MediaGrid
-        entries={visibleEntries.slice(0, visibleLimit)}
-        loading={blobs === null && !listFailed}
-        failed={listFailed}
-        busy={busy}
-        emptyMessage={
-          entries.length === 0
-            ? settingsCopy.media.noImagesStoredYetPasteOr
-            : settingsCopy.media.noMediaMatchesThisFilter
-        }
-        onRetry={refresh}
-        onOpenReference={onOpenReference}
-        onPreview={setPreviewEntry}
-        onDelete={deleteEntry}
-        onReveal={revealEntry}
-        selected={selected}
-        onToggleSelected={toggleSelected}
-        onRename={renameEntry}
-      />
-      {visibleEntries.length > visibleLimit && (
-        <div className="mt-3 flex justify-center">
-          <button
-            type="button"
-            className={settingsButton}
-            onClick={() => setVisibleLimit((limit) => limit + PAGE_SIZE)}
-          >
-            Show {Math.min(PAGE_SIZE, visibleEntries.length - visibleLimit)} more of{" "}
-            {visibleEntries.length - visibleLimit} remaining
-          </button>
-        </div>
-      )}
-      {previewEntry !== null && (
-        <MediaPreviewDialog
-          entry={previewEntry}
-          onClose={() => setPreviewEntry(null)}
+        <MediaGrid
+          entries={visibleEntries.slice(0, visibleLimit)}
+          loading={blobs === null && !listFailed}
+          failed={listFailed}
+          busy={busy}
+          emptyMessage={
+            entries.length === 0
+              ? settingsCopy.media.noImagesStoredYetPasteOr
+              : settingsCopy.media.noMediaMatchesThisFilter
+          }
+          onRetry={refresh}
           onOpenReference={onOpenReference}
+          onPreview={setPreviewEntry}
+          onDelete={deleteEntry}
+          onReveal={revealEntry}
+          selected={selected}
+          onToggleSelected={toggleSelected}
+          onRename={renameEntry}
         />
-      )}
+        {visibleEntries.length > visibleLimit && (
+          <div className="mt-3 flex justify-center">
+            <button
+              type="button"
+              className={settingsButton}
+              onClick={() => setVisibleLimit((limit) => limit + PAGE_SIZE)}
+            >
+              Show {Math.min(PAGE_SIZE, visibleEntries.length - visibleLimit)} more of{" "}
+              {visibleEntries.length - visibleLimit} remaining
+            </button>
+          </div>
+        )}
+        {previewEntry !== null && (
+          <MediaPreviewDialog
+            entry={previewEntry}
+            onClose={() => setPreviewEntry(null)}
+            onOpenReference={onOpenReference}
+          />
+        )}
+      </SettingsGroup>
     </section>
   );
 }

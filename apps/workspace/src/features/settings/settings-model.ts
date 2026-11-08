@@ -151,6 +151,40 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
   };
 }
 
+const DEFAULT_SETTINGS_VIEW = projectSettings(DEFAULT_WORKSPACE_SETTINGS);
+
+function isPreferenceField(field: string): field is keyof SettingsViewModel {
+  return field in DEFAULT_SETTINGS_VIEW;
+}
+
+const PREFERENCE_FIELDS = Object.keys(DEFAULT_SETTINGS_VIEW).filter(isPreferenceField);
+
+/**
+ * @name settingDiffersFromDefault
+ * @description Whether one preference holds a value other than the one a reset
+ * restores, so the settings page can mark the rows a reset would change.
+ *
+ * @example
+ * settingDiffersFromDefault(settings, "compactSidebar"); // true once turned on
+ */
+export function settingDiffersFromDefault(
+  settings: SettingsViewModel,
+  field: keyof SettingsViewModel,
+): boolean {
+  return !Object.is(settings[field], DEFAULT_SETTINGS_VIEW[field]);
+}
+
+/**
+ * @name changedPreferenceCount
+ * @description Counts the preferences that differ from their defaults.
+ *
+ * @example
+ * changedPreferenceCount(projectSettings(DEFAULT_WORKSPACE_SETTINGS)); // 0
+ */
+export function changedPreferenceCount(settings: SettingsViewModel): number {
+  return PREFERENCE_FIELDS.filter((field) => settingDiffersFromDefault(settings, field)).length;
+}
+
 /**
  * Whether both editors run modal Vim keybindings. Off unless explicitly turned
  * on, so a workspace written before the setting existed keeps ordinary typing.

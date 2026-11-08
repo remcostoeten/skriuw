@@ -3,12 +3,7 @@ import type { AiModelSelection, AiProviderGroup } from "@/features/ai/models";
 import { aiModelOptionFor } from "@/features/ai/models";
 import { cn } from "@/shared/styling/class-names";
 import { Select, type SelectOption } from "@/shared/ui/select";
-import {
-  settingsGroup,
-  settingsGroupHint,
-  settingsGroupTitle,
-  settingsTextInput,
-} from "@/shared/ui/settings-controls";
+import { SettingsRow, settingsTextInput } from "@/shared/ui/settings-controls";
 
 type Props = {
   groups: readonly AiProviderGroup[];
@@ -34,13 +29,22 @@ export function DefaultModelPicker({ groups, selection, onSelect }: Props) {
   );
 
   return (
-    <div className={settingsGroup}>
-      <h2 className={settingsGroupTitle}>Default model</h2>
-      <p className={settingsGroupHint}>{settingsCopy.ai.theModelSkriuwUsesForWriting}</p>
+    <SettingsRow
+      label={settingsCopy.ai.defaultAiModel}
+      detail={settingsCopy.ai.theModelSkriuwUsesForWriting}
+      notes={
+        <span className="text-[11px] font-normal text-theme-dim">
+          {selectedOption?.detail ??
+            (availableOptions.length === 0
+              ? settingsCopy.ai.openLocalAiOrOnlineProviders
+              : settingsCopy.ai.chooseTheModelYouWantTo)}
+        </span>
+      }
+    >
       <Select
         label={settingsCopy.ai.defaultAiModel}
-        align="start"
-        className="w-full"
+        align="end"
+        className="w-[min(240px,48%)] max-[620px]:w-full"
         triggerClassName={cn(settingsTextInput, "w-full justify-between text-left")}
         disabled={availableOptions.length === 0}
         placeholder={
@@ -59,13 +63,7 @@ export function DefaultModelPicker({ groups, selection, onSelect }: Props) {
           }
         }}
       />
-      <p className="mt-2 text-[11px] text-muted-foreground">
-        {selectedOption?.detail ??
-          (availableOptions.length === 0
-            ? settingsCopy.ai.openLocalAiOrOnlineProviders
-            : settingsCopy.ai.chooseTheModelYouWantTo)}
-      </p>
-    </div>
+    </SettingsRow>
   );
 }
 

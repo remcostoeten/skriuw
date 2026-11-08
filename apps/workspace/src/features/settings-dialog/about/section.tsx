@@ -1,7 +1,6 @@
 import { settingsCopy } from "@/shared/ui/settings-copy";
 import { useEffect, useRef, useState } from "react";
 import { openExternalUrl } from "@/platform/runtime/commands";
-import { cn } from "@/shared/styling/class-names";
 import {
   ABOUT_LINKS,
   checkForUpdate,
@@ -9,14 +8,10 @@ import {
   readAppVersion,
 } from "@/features/settings-dialog/about/model";
 import {
-  SettingsHeading,
+  SettingsGroup,
+  SettingsRow,
   settingsButton,
-  settingsGroup,
-  settingsGroupTitle,
-  settingsRow,
-  settingsRowDescription,
   settingsRowDetail,
-  settingsRowLabel,
   settingsSection,
 } from "@/shared/ui/settings-controls";
 
@@ -56,16 +51,22 @@ export function AboutSection() {
 
   return (
     <section aria-label="About" className={settingsSection}>
-      <SettingsHeading title="About" detail={settingsCopy.about.versionDetailsUpdatesAndWhereTo} />
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Version</div>
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            Skriuw
+      <SettingsGroup id="version" title="Version" keywords="build update release changelog">
+        <SettingsRow
+          label="Skriuw"
+          detail={
             <span className={settingsRowDetail}>
               {version === null ? "Reading…" : `Version ${version}`}
             </span>
-          </span>
+          }
+          notes={
+            updateStatus ? (
+              <span className={settingsRowDetail} role="status">
+                {updateStatus}
+              </span>
+            ) : null
+          }
+        >
           <button
             type="button"
             className={settingsButton}
@@ -74,22 +75,16 @@ export function AboutSection() {
           >
             {checking ? "Checking…" : settingsCopy.about.checkForUpdates}
           </button>
-        </div>
-        {updateStatus && (
-          <p className={cn(settingsRowDetail, "mt-2")} role="status">
-            {updateStatus}
-          </p>
-        )}
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Links</div>
+        </SettingsRow>
+      </SettingsGroup>
+      <SettingsGroup
+        id="links"
+        title="Links"
+        keywords="repository source github report issue bug feedback license help"
+      >
         <ul className="m-0 list-none p-0">
           {ABOUT_LINKS.map((link) => (
-            <li key={link.id} className={settingsRow}>
-              <span className={settingsRowLabel}>
-                {link.label}
-                <span className={settingsRowDescription}>{link.description}</span>
-              </span>
+            <SettingsRow key={link.id} as="li" label={link.label} detail={link.description}>
               <button
                 type="button"
                 className={settingsButton}
@@ -101,10 +96,10 @@ export function AboutSection() {
               >
                 Open
               </button>
-            </li>
+            </SettingsRow>
           ))}
         </ul>
-      </div>
+      </SettingsGroup>
     </section>
   );
 }

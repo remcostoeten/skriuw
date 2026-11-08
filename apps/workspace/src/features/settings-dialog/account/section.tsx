@@ -18,14 +18,11 @@ import { accountInitials } from "@/features/auth/account-identity";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import {
   SettingToggle,
-  SettingsHeading,
+  SettingsGroup,
+  SettingsRow,
   settingsButton,
   settingsButtonDanger,
-  settingsGroup,
-  settingsGroupTitle,
-  settingsRow,
   settingsRowDescription,
-  settingsRowLabel,
   settingsSection,
 } from "@/shared/ui/settings-controls";
 import { useEditableSettings } from "@/features/settings/use-editable-settings";
@@ -136,21 +133,19 @@ export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) 
 
   return (
     <section aria-label="Account" className={settingsSection}>
-      <SettingsHeading
-        title="Account"
-        detail={settingsCopy.account.signInForCloudCapabilitiesYour}
-      />
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Skriuw cloud</div>
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            {user ? user.name || user.email : settingsCopy.account.notSignedIn}
-            <span className={settingsRowDescription}>
-              {user
-                ? user.email
-                : (unavailableReason ?? settingsCopy.account.useEmailAndPasswordToSign)}
-            </span>
-          </span>
+      <SettingsGroup
+        id="cloud"
+        title="Skriuw cloud"
+        keywords="sign in sign up register email password session sync"
+      >
+        <SettingsRow
+          label={user ? user.name || user.email : settingsCopy.account.notSignedIn}
+          detail={
+            user
+              ? user.email
+              : (unavailableReason ?? settingsCopy.account.useEmailAndPasswordToSign)
+          }
+        >
           {user ? (
             <button type="button" className={settingsButton} onClick={sync.signOut}>
               Sign out
@@ -165,38 +160,37 @@ export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) 
               {isPending ? "Checking…" : "Sign in"}
             </button>
           )}
-        </div>
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            {settingsCopy.account.notesOnThisDevice}
-            <span className={settingsRowDescription}>
-              {workspaceOwnershipText(workspaceSlot, user !== null)}
-            </span>
-            {workspaceSlot !== null ? (
+        </SettingsRow>
+        <SettingsRow
+          label={settingsCopy.account.notesOnThisDevice}
+          detail={workspaceOwnershipText(workspaceSlot, user !== null)}
+          notes={
+            workspaceSlot !== null ? (
               <span className={settingsRowDescription}>
                 Workspace {shortWorkspaceId(workspaceSlot)}
               </span>
-            ) : null}
-          </span>
-        </div>
+            ) : null
+          }
+        />
         {user ? (
-          <div className={settingsRow}>
-            <span className={settingsRowLabel}>
-              Workspace sync
-              <span className={settingsRowDescription}>
-                {sync.error ?? syncDescription(sync.status, browser)}
-              </span>
-              {syncDetail(sync.status) ? (
-                <span className={settingsRowDescription}>{syncDetail(sync.status)}</span>
-              ) : null}
-              {browser ? (
-                <span aria-live="polite" className={settingsRowDescription}>
-                  {sync.progress && syncProgressVisible(sync.status, sync.pending)
-                    ? syncProgressText(sync.progress)
-                    : null}
-                </span>
-              ) : null}
-            </span>
+          <SettingsRow
+            label="Workspace sync"
+            detail={sync.error ?? syncDescription(sync.status, browser)}
+            notes={
+              <>
+                {syncDetail(sync.status) ? (
+                  <span className={settingsRowDescription}>{syncDetail(sync.status)}</span>
+                ) : null}
+                {browser ? (
+                  <span aria-live="polite" className={settingsRowDescription}>
+                    {sync.progress && syncProgressVisible(sync.status, sync.pending)
+                      ? syncProgressText(sync.progress)
+                      : null}
+                  </span>
+                ) : null}
+              </>
+            }
+          >
             {sync.signInRequired ? (
               <button
                 type="button"
@@ -216,9 +210,9 @@ export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) 
                 {sync.pending ? "Retrying…" : "Retry sync"}
               </button>
             ) : null}
-          </div>
+          </SettingsRow>
         ) : null}
-      </div>
+      </SettingsGroup>
       {user ? (
         <AvatarPreference
           store={store}
@@ -237,20 +231,18 @@ export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) 
         />
       ) : null}
       {user ? (
-        <div className={settingsGroup}>
-          <div className={settingsGroupTitle}>Delete account</div>
-          <div className={settingsRow}>
-            <span className={settingsRowLabel}>
-              {settingsCopy.account.deleteAccountAndAllData}
-              <span className={settingsRowDescription}>
-                {settingsCopy.account.permanentlyDeletesYourCloudAccountSynced}
-              </span>
-              {deleteError ? (
+        <SettingsGroup id="delete" title="Delete account" tone="danger">
+          <SettingsRow
+            label={settingsCopy.account.deleteAccountAndAllData}
+            detail={settingsCopy.account.permanentlyDeletesYourCloudAccountSynced}
+            notes={
+              deleteError ? (
                 <span className="text-[11px] text-destructive" role="alert">
                   {deleteError}
                 </span>
-              ) : null}
-            </span>
+              ) : null
+            }
+          >
             <InlineConfirm
               className="shrink-0"
               confirmLabel={deleteBusy ? "Deleting…" : "Delete account"}
@@ -268,8 +260,8 @@ export function AccountSection({ store, onRequestSignIn }: AccountSectionProps) 
                 </button>
               )}
             />
-          </div>
-        </div>
+          </SettingsRow>
+        </SettingsGroup>
       ) : null}
     </section>
   );
@@ -282,25 +274,28 @@ type AvatarPreferenceProps = {
 };
 
 function AvatarPreference({ store, seed, initials }: AvatarPreferenceProps) {
-  const { settings, change } = useEditableSettings(store);
+  const { settings, change, changed } = useEditableSettings(store);
   return (
-    <div className={settingsGroup}>
-      <div className={settingsGroupTitle}>Avatar</div>
+    <SettingsGroup
+      id="avatar"
+      title="Avatar"
+      preview={
+        <span
+          className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-border bg-theme-active text-[11px] font-medium tracking-[0.02em] text-foreground"
+          aria-hidden="true"
+        >
+          <AccountAvatar seed={seed} initials={initials} facehash={settings.facehashAvatar} />
+        </span>
+      }
+    >
       <SettingToggle
         label="Facehash avatar"
         detail={settingsCopy.account.showTheFaceGeneratedForYour}
         checked={settings.facehashAvatar}
+        changed={changed("facehashAvatar")}
         onChange={(checked) => change("facehashAvatar", checked)}
-        visualization={
-          <span
-            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted text-[11px] font-medium tracking-[0.02em] text-foreground"
-            aria-hidden="true"
-          >
-            <AccountAvatar seed={seed} initials={initials} facehash={settings.facehashAvatar} />
-          </span>
-        }
       />
-    </div>
+    </SettingsGroup>
   );
 }
 
@@ -319,12 +314,7 @@ function BlockedChanges({ recovery, error, busyId, onRetry, onDiscard }: Blocked
   return (
     <>
       {error || blocked.length > 0 ? (
-        <div
-          className={settingsGroup}
-          role="region"
-          aria-label={settingsCopy.account.blockedSyncChanges}
-        >
-          <div className={settingsGroupTitle}>Blocked changes</div>
+        <SettingsGroup id="blocked" title="Blocked changes">
           {error ? (
             <p role="alert" className="m-0 py-1.5 text-[11px] text-destructive">
               {error}
@@ -341,29 +331,26 @@ function BlockedChanges({ recovery, error, busyId, onRetry, onDiscard }: Blocked
               />
             ))}
           </ul>
-        </div>
+        </SettingsGroup>
       ) : null}
       {discarded.length > 0 ? (
-        <div
-          className={settingsGroup}
-          role="region"
-          aria-label={settingsCopy.account.discardedSyncChanges}
-        >
-          <div className={settingsGroupTitle}>Discarded changes</div>
+        <SettingsGroup id="discarded" title="Discarded changes">
           <ul className="m-0 list-none p-0">
             {discarded.map((item) => (
-              <li key={item.blockedId} className={settingsRow}>
-                <span className={settingsRowLabel}>
-                  {blockedItemLabel(item)}
-                  <span className={settingsRowDescription}>
+              <SettingsRow
+                key={item.blockedId}
+                as="li"
+                label={blockedItemLabel(item)}
+                detail={
+                  <>
                     Discarded {formatRelativeTime(item.discardedAt)}
                     {settingsCopy.account.ItNeverUploadedAndOther}
-                  </span>
-                </span>
-              </li>
+                  </>
+                }
+              />
             ))}
           </ul>
-        </div>
+        </SettingsGroup>
       ) : null}
     </>
   );
@@ -378,13 +365,15 @@ type BlockedChangeRowProps = {
 
 function BlockedChangeRow({ item, busyId, onRetry, onDiscard }: BlockedChangeRowProps) {
   return (
-    <li className={settingsRow}>
-      <span className={settingsRowLabel}>
-        {blockedItemLabel(item)}
-        <span className={settingsRowDescription}>
+    <SettingsRow
+      as="li"
+      label={blockedItemLabel(item)}
+      detail={
+        <>
           {blockedCauseText(item.reasonCode)} Blocked {formatRelativeTime(item.firstBlockedAt)}.
-        </span>
-      </span>
+        </>
+      }
+    >
       <span className="flex shrink-0 items-center gap-1.5">
         {blockedItemRetryable(item.reasonCode) ? (
           <button
@@ -413,6 +402,6 @@ function BlockedChangeRow({ item, busyId, onRetry, onDiscard }: BlockedChangeRow
           )}
         />
       </span>
-    </li>
+    </SettingsRow>
   );
 }

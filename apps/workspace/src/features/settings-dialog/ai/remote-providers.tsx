@@ -24,9 +24,7 @@ import { Select } from "@/shared/ui/select";
 import {
   settingsButton,
   settingsButtonDanger,
-  settingsGroup,
   settingsGroupHint,
-  settingsGroupTitle,
   settingsRowDescription,
   settingsTextInput,
 } from "@/shared/ui/settings-controls";
@@ -78,11 +76,10 @@ export function RemoteProvidersPanel({
   const vaultNote = vaultMessage(vault);
   const vaultAvailable = vaultAcceptsNewKeys(vault);
   return (
-    <div className={settingsGroup}>
-      <div className={settingsGroupTitle}>Providers</div>
+    <div className="py-2">
       <p className={settingsGroupHint}>{settingsCopy.ai.bringYourOwnKeyKeysGo}</p>
       {vaultNote ? (
-        <p className="mb-3 rounded-lg border border-border bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground">
+        <p className="mb-3 rounded-lg border border-border bg-theme-deep px-3 py-2 text-[11px] text-theme-secondary">
           {vaultNote}
         </p>
       ) : null}
@@ -104,7 +101,7 @@ export function RemoteProvidersPanel({
           />
         ))}
       </div>
-      <p className="mt-3 text-[11px] text-muted-foreground">{catalogPricingNote(models)}</p>
+      <p className="mt-3 text-[11px] text-theme-secondary">{catalogPricingNote(models)}</p>
     </div>
   );
 }
@@ -134,13 +131,13 @@ function RemoteProviderCard({
   return (
     <section
       aria-label={provider.label}
-      className="overflow-hidden rounded-xl border border-border bg-muted/20"
+      className="overflow-hidden rounded-xl border border-border bg-theme-deep"
     >
       <header className="flex items-center gap-3 px-3.5 py-3">
         <span
           className={cn(
             "h-2.5 w-2.5 shrink-0 rounded-full border",
-            ready ? "border-emerald-500/40 bg-emerald-500" : "border-border bg-muted-foreground/45",
+            ready ? "border-emerald-500/40 bg-emerald-500" : "border-border bg-theme-dim",
           )}
           aria-hidden="true"
         />
@@ -164,7 +161,7 @@ function RemoteProviderCard({
 
       {consented ? null : (
         <div className="border-t border-border px-3.5 py-3">
-          <p className="text-[11px] leading-[1.5] text-muted-foreground">
+          <p className="text-[11px] leading-[1.5] text-theme-secondary">
             {remoteAiDisclosure(provider)}
           </p>
           <button
@@ -218,7 +215,7 @@ function RemoteProviderCard({
           </div>
 
           {providerModels.length > 0 ? (
-            <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground max-[620px]:flex-col max-[620px]:items-start">
+            <div className="mt-3 flex items-center gap-2 text-[11px] text-theme-secondary max-[620px]:flex-col max-[620px]:items-start">
               <span>Test with</span>
               <Select
                 label="Test with"
@@ -236,7 +233,7 @@ function RemoteProviderCard({
               />
             </div>
           ) : (
-            <p className="mt-3 text-[11px] text-muted-foreground">
+            <p className="mt-3 text-[11px] text-theme-secondary">
               {settingsCopy.ai.noModelsAreListedForThis}
             </p>
           )}
@@ -278,7 +275,7 @@ function RemoteProviderCard({
           </div>
 
           {draft.status ? (
-            <p className="mt-2.5 text-[11px] text-muted-foreground" aria-live="polite">
+            <p className="mt-2.5 text-[11px] text-theme-secondary" aria-live="polite">
               {draft.status}
             </p>
           ) : null}
@@ -308,7 +305,7 @@ function KeyTierChoice({
 }) {
   return (
     <>
-      <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <label className="flex items-center gap-1.5 text-[11px] text-theme-secondary">
         <Radio
           name={`${providerId}-key-tier`}
           checked={tier === "vault"}
@@ -317,7 +314,7 @@ function KeyTierChoice({
         />
         System keyring
       </label>
-      <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <label className="flex items-center gap-1.5 text-[11px] text-theme-secondary">
         <Radio
           name={`${providerId}-key-tier`}
           checked={tier === "session-only"}
