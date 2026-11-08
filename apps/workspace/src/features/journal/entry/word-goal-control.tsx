@@ -39,7 +39,7 @@ const RING_RADIUS = 5.5;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 const triggerClass =
-  "flex h-8 items-center gap-1.5 rounded-md px-1.5 text-[11px] tabular-nums text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground/80 focus-visible:outline-none data-[state=open]:bg-muted pointer-coarse:h-11 pointer-coarse:min-w-11 pointer-coarse:justify-center pointer-coarse:px-2.5";
+  "flex h-8 items-center gap-1.5 rounded-md px-1.5 text-[12.5px] tabular-nums text-theme-secondary transition-colors hover:bg-theme-hover hover:text-foreground focus-visible:outline-none data-[state=open]:bg-theme-hover pointer-coarse:h-11 pointer-coarse:min-w-11 pointer-coarse:justify-center pointer-coarse:px-2.5";
 
 function ProgressRing({ fraction, met }: { fraction: number | null; met: boolean }) {
   return (
@@ -209,11 +209,9 @@ export function WordGoalControl({ store, noteId, dateKey, today, wordCount }: Pr
                 className={triggerClass}
               >
                 <ProgressRing fraction={fraction} met={met} />
-                {goal !== null && (
-                  <span aria-hidden="true" className={cn(met && "text-foreground/80")}>
-                    {wordCount} / {goal}
-                  </span>
-                )}
+                <span aria-hidden="true" className={cn(met && "text-foreground/80")}>
+                  {goal === null ? "Set a goal" : `${wordCount} / ${goal}`}
+                </span>
               </button>
             </DropdownMenuTrigger>
           </Tooltip>
