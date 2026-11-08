@@ -26,9 +26,11 @@ rm -rf "$frameworks_dir" "$generated_dir" "$staging_dir"
 mkdir -p "$frameworks_dir" "$generated_dir" "$staging_dir/headers" "$staging_dir/simulator"
 
 # Same reason as build-android.sh: the boundary guard needs unwinding panics.
+target_flags=()
 for target in "${targets[@]}"; do
-  cargo build --config 'profile.release.panic="unwind"' -p skriuw-mobile --release --locked --target "$target"
+  target_flags+=(--target "$target")
 done
+cargo build --config 'profile.release.panic="unwind"' -p skriuw-mobile --release --locked "${target_flags[@]}"
 
 cargo run --quiet --manifest-path crates/skriuw-mobile/bindgen/Cargo.toml -- \
   generate --library target/aarch64-apple-ios/release/libskriuw_mobile.a \
