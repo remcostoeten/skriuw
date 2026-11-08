@@ -1,5 +1,5 @@
 import { settingsCopy } from "@/shared/ui/settings-copy";
-import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { openExternalUrl } from "@/platform/runtime/external-links";
 import type { LocalAiModel, LocalAiProgress, LocalAiStatus } from "@/contracts/ai";
 import {
@@ -19,11 +19,9 @@ import {
   type OllamaRuntimeAction,
 } from "@/features/ai/local-models";
 import {
-  SettingsHeading,
+  SettingsGroup,
+  SettingsRow,
   settingsButton,
-  settingsRow,
-  settingsRowDescription,
-  settingsRowLabel,
   settingsSection,
 } from "@/shared/ui/settings-controls";
 import { OllamaModelsPanel, OllamaRuntimeCard } from "./ollama";
@@ -53,7 +51,6 @@ import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { DefaultModelPicker } from "./model-picker";
 import { PromptLibraryPanel } from "./prompt-library";
 import { AiUsagePanel } from "./usage";
-import { ChevronRightIcon } from "@/shared/icons/static";
 
 type Props = {
   store: RendererStore;
@@ -334,152 +331,132 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
 
   return (
     <section aria-label="AI settings" className={settingsSection}>
-      <SettingsHeading title="AI" detail={settingsCopy.ai.chooseAModelForWritingTools} />
-      <DefaultModelPicker
-        groups={modelGroups}
-        selection={defaultModel}
-        onSelect={(selection) => setAiModelSelection(store, selection)}
-      />
-      <div className={settingsRow}>
-        <span className={settingsRowLabel}>
-          {settingsCopy.ai.tryAPrompt}
-          <span className={settingsRowDescription}>
-            {settingsCopy.ai.testTheSelectedModelWithoutChanging}
-          </span>
-        </span>
-        <button type="button" className={settingsButton} onClick={onOpenPlayground}>
-          Open playground
-        </button>
-      </div>
-      <div className="mt-8 overflow-hidden rounded-xl border border-border/70 bg-muted/10">
-        <AiSettingsDisclosure
-          title="Local AI"
-          description={settingsCopy.ai.runPrivateModelsOnThisDevice}
-        >
-          <OllamaRuntimeCard
-            status={status}
-            progress={progress}
-            elapsedMs={elapsedMs}
-            sourceUrl={sourceUrl}
-            busy={busy}
-            pending={pendingAction}
-            error={error}
-            onInstall={() => void runInstall()}
-            onStart={() => void runStart()}
-            onStop={() => void runStop()}
-            onOpenInstaller={() => {
-              void openExternalUrl("https://ollama.com/download/windows").catch((reason) => {
-                setError(errorMessage(reason));
-              });
-            }}
-            onRefresh={() => void refreshRuntime()}
-            onCancel={cancelOperation}
-            onOpenSource={() => {
-              if (!sourceUrl) return;
-              void openExternalUrl(sourceUrl).catch((reason) => {
-                setError(errorMessage(reason));
-              });
-            }}
-          />
-          {status?.state === "running" ? (
-            <OllamaModelsPanel
-              models={models}
-              modelName={modelName}
-              selectedModel={selectedModel}
-              deleteArmed={deleteArmed}
-              busy={busy}
-              onModelNameChange={setModelName}
-              onPull={() => void runPull()}
-              onSelect={selectModel}
-              onDelete={(model) => void removeModel(model)}
-              onDeleteBlur={(model) =>
-                setDeleteArmed((current) => (current === model ? null : current))
-              }
-            />
-          ) : null}
-        </AiSettingsDisclosure>
-        {remote.providers.length === 0 ? null : (
-          <AiSettingsDisclosure
-            title="Online providers"
-            description={settingsCopy.ai.bringYourOwnApiKeyFor}
-          >
-            <RemoteProvidersPanel
-              providers={remote.providers}
-              models={remote.models}
-              vault={remote.vault}
-              drafts={remote.drafts}
-              onDraftChange={remote.changeDraft}
-              onAcceptDisclosure={remote.acceptDisclosure}
-              onSaveKey={remote.saveKey}
-              onVerifyKey={remote.verifyKey}
-              onRemoveKey={remote.removeKey}
-              onRevoke={remote.revoke}
-              onRefreshModels={remote.refreshModels}
-            />
-            {remote.error ? (
-              <p role="alert" className="text-xs text-destructive">
-                {remote.error}
-              </p>
-            ) : null}
-          </AiSettingsDisclosure>
-        )}
-        <AiSettingsDisclosure
-          title="Writing prompts"
-          description={settingsCopy.ai.customizeTheInstructionsBehindEachWriting}
-        >
-          <PromptLibraryPanel
-            entries={promptEntries}
-            draft={draft}
-            editingKey={editingKey}
-            onEdit={editPrompt}
-            onDraftChange={(change) =>
-              setDraft((current) => (current === null ? current : { ...current, ...change }))
-            }
-            onSave={savePromptDraft}
-            onCancel={closeEditor}
-            onDuplicate={duplicatePrompt}
-            onReset={removePrompt}
-            onDelete={removePrompt}
-            onCreate={createPrompt}
-          />
-        </AiSettingsDisclosure>
-        <AiSettingsDisclosure
-          title={settingsCopy.ai.historyAndUsage}
-          description={settingsCopy.ai.reviewLocalRunHistoryTokenCounts}
-        >
-          <AiUsagePanel signal={signal} />
-        </AiSettingsDisclosure>
-      </div>
-    </section>
-  );
-}
-
-function AiSettingsDisclosure({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <details className="group border-b border-border/60 last:border-b-0">
-      <summary className="flex min-h-[58px] cursor-pointer list-none items-center gap-3 px-4 py-2.5 outline-none marker:hidden hover:bg-accent/20 [&::-webkit-details-marker]:hidden">
-        <ChevronRightIcon
-          size={14}
-          aria-hidden="true"
-          className="shrink-0 text-muted-foreground transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none"
+      <SettingsGroup
+        id="model"
+        title="Default model"
+        hint={settingsCopy.ai.noProcessOrNetworkWorkRuns}
+        keywords="model switcher playground prompt test"
+      >
+        <DefaultModelPicker
+          groups={modelGroups}
+          selection={defaultModel}
+          onSelect={(selection) => setAiModelSelection(store, selection)}
         />
-        <span className="min-w-0">
-          <span className="block text-[13px] font-medium text-foreground">{title}</span>
-          <span className="mt-1 block text-xs leading-[1.5] text-muted-foreground">
-            {description}
-          </span>
-        </span>
-      </summary>
-      <div className="border-t border-border/50 px-4 pt-4 pb-1">{children}</div>
-    </details>
+        <SettingsRow
+          label={settingsCopy.ai.tryAPrompt}
+          detail={settingsCopy.ai.testTheSelectedModelWithoutChanging}
+        >
+          <button type="button" className={settingsButton} onClick={onOpenPlayground}>
+            Open playground
+          </button>
+        </SettingsRow>
+      </SettingsGroup>
+      <SettingsGroup
+        id="local"
+        title="Local AI"
+        hint={settingsCopy.ai.runPrivateModelsOnThisDevice}
+        keywords="ollama local runtime models pull install"
+      >
+        <OllamaRuntimeCard
+          status={status}
+          progress={progress}
+          elapsedMs={elapsedMs}
+          sourceUrl={sourceUrl}
+          busy={busy}
+          pending={pendingAction}
+          error={error}
+          onInstall={() => void runInstall()}
+          onStart={() => void runStart()}
+          onStop={() => void runStop()}
+          onOpenInstaller={() => {
+            void openExternalUrl("https://ollama.com/download/windows").catch((reason) => {
+              setError(errorMessage(reason));
+            });
+          }}
+          onRefresh={() => void refreshRuntime()}
+          onCancel={cancelOperation}
+          onOpenSource={() => {
+            if (!sourceUrl) return;
+            void openExternalUrl(sourceUrl).catch((reason) => {
+              setError(errorMessage(reason));
+            });
+          }}
+        />
+        {status?.state === "running" ? (
+          <OllamaModelsPanel
+            models={models}
+            modelName={modelName}
+            selectedModel={selectedModel}
+            deleteArmed={deleteArmed}
+            busy={busy}
+            onModelNameChange={setModelName}
+            onPull={() => void runPull()}
+            onSelect={selectModel}
+            onDelete={(model) => void removeModel(model)}
+            onDeleteBlur={(model) =>
+              setDeleteArmed((current) => (current === model ? null : current))
+            }
+          />
+        ) : null}
+      </SettingsGroup>
+      {remote.providers.length === 0 ? null : (
+        <SettingsGroup
+          id="remote"
+          title="Online providers"
+          hint={settingsCopy.ai.bringYourOwnApiKeyFor}
+          keywords="gemini groq deepseek kimi glm qwen remote api key provider"
+        >
+          <RemoteProvidersPanel
+            providers={remote.providers}
+            models={remote.models}
+            vault={remote.vault}
+            drafts={remote.drafts}
+            onDraftChange={remote.changeDraft}
+            onAcceptDisclosure={remote.acceptDisclosure}
+            onSaveKey={remote.saveKey}
+            onVerifyKey={remote.verifyKey}
+            onRemoveKey={remote.removeKey}
+            onRevoke={remote.revoke}
+            onRefreshModels={remote.refreshModels}
+          />
+          {remote.error ? (
+            <p role="alert" className="text-xs text-destructive">
+              {remote.error}
+            </p>
+          ) : null}
+        </SettingsGroup>
+      )}
+      <SettingsGroup
+        id="prompts"
+        title="Writing prompts"
+        hint={settingsCopy.ai.customizeTheInstructionsBehindEachWriting}
+        keywords="prompt library built-in custom system prompt rewrite improve grammar shorten lengthen tone simplify translate summarize title outline continue"
+      >
+        <PromptLibraryPanel
+          entries={promptEntries}
+          draft={draft}
+          editingKey={editingKey}
+          onEdit={editPrompt}
+          onDraftChange={(change) =>
+            setDraft((current) => (current === null ? current : { ...current, ...change }))
+          }
+          onSave={savePromptDraft}
+          onCancel={closeEditor}
+          onDuplicate={duplicatePrompt}
+          onReset={removePrompt}
+          onDelete={removePrompt}
+          onCreate={createPrompt}
+        />
+      </SettingsGroup>
+      <SettingsGroup
+        id="usage"
+        title={settingsCopy.ai.historyAndUsage}
+        hint={settingsCopy.ai.reviewLocalRunHistoryTokenCounts}
+        keywords="usage history runs tokens token count cost spend estimate retention prune clear"
+      >
+        <AiUsagePanel signal={signal} />
+      </SettingsGroup>
+    </section>
   );
 }
 

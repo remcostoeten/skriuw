@@ -33,9 +33,7 @@ import { Select } from "@/shared/ui/select";
 import {
   settingsButton,
   settingsButtonDanger,
-  settingsGroup,
   settingsGroupHint,
-  settingsGroupTitle,
   settingsRow,
   settingsRowDescription,
   settingsRowLabel,
@@ -50,10 +48,10 @@ const RUN_STATES: readonly AiRunState[] = ["done", "cancelled", "timed_out", "fa
 const ALL = "all";
 
 const selectClass =
-  "min-h-[28px] rounded-lg border border-border bg-muted px-2 py-[3px] text-xs text-foreground outline-none transition-[background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-foreground/20 focus-visible:border-foreground/40 focus-visible:bg-background";
+  "min-h-[28px] rounded-lg border border-border bg-background px-2 py-[3px] text-xs text-foreground outline-none transition-[background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-theme-btn-outline focus-visible:border-ring";
 const statTileClass = "rounded-lg border border-border/60 bg-card/30 px-3 py-2";
 const statValueClass = "mt-0.5 block text-[15px] font-[620] tabular-nums text-foreground";
-const statLabelClass = "text-[10.5px] uppercase tracking-[0.04em] text-muted-foreground";
+const statLabelClass = "text-[10.5px] text-theme-dim";
 
 function errorMessage(reason: unknown): string {
   if (typeof reason === "object" && reason !== null && "message" in reason) {
@@ -156,8 +154,7 @@ export function AiUsagePanel({ signal }: Props) {
   }
 
   return (
-    <section aria-label="AI usage" className={settingsGroup}>
-      <h2 className={settingsGroupTitle}>Usage</h2>
+    <section aria-label="AI usage" className="py-2">
       <p className={settingsGroupHint}>{settingsCopy.ai.everyAiRunThisDeviceMade}</p>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -189,9 +186,9 @@ export function AiUsagePanel({ signal }: Props) {
           <span className={statValueClass}>{formatCostMicros(totals.costMicros)}</span>
         </div>
       </div>
-      {totalsNote ? <p className="mb-2 text-[11px] text-muted-foreground">{totalsNote}</p> : null}
+      {totalsNote ? <p className="mb-2 text-[11px] text-theme-secondary">{totalsNote}</p> : null}
       {view?.pricingAsOf ? (
-        <p className="mb-3 text-[11px] text-muted-foreground">
+        <p className="mb-3 text-[11px] text-theme-secondary">
           {settingsCopy.ai.costIsCalculatedFromTheCatalogue}
           {view.pricingAsOf}
           {settingsCopy.ai.NotFromAProviderInvoice}
@@ -202,7 +199,7 @@ export function AiUsagePanel({ signal }: Props) {
         <div className="mb-4 overflow-x-auto">
           <table className="w-full min-w-[420px] border-collapse text-[12px]">
             <thead>
-              <tr className="text-left text-[10.5px] uppercase tracking-[0.04em] text-muted-foreground">
+              <tr className="text-left text-[10.5px] text-theme-dim">
                 <th className="py-1 pr-2 font-medium">Model</th>
                 <th className="py-1 pr-2 text-right font-medium">Runs</th>
                 <th className="py-1 pr-2 text-right font-medium">Tokens</th>
@@ -265,9 +262,9 @@ export function AiUsagePanel({ signal }: Props) {
       </div>
 
       {view === null ? (
-        <p className="text-[12px] text-muted-foreground">Loading usage…</p>
+        <p className="text-[12px] text-theme-secondary">Loading usage…</p>
       ) : view.runs.length === 0 ? (
-        <p className="text-[12px] text-muted-foreground">
+        <p className="text-[12px] text-theme-secondary">
           {settingsCopy.ai.noRunsRecordedForThisPeriod}
         </p>
       ) : (
@@ -301,27 +298,27 @@ export function AiUsagePanel({ signal }: Props) {
       {openRun ? (
         <div className="mt-3 rounded-lg border border-border/60 bg-card/30 p-3">
           <h3 className="m-0 text-[12.5px] font-[620]">Run {openRun.runId}</h3>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 text-[11px] text-theme-secondary">
             {formatRunTimestamp(openRun.startedAtMs)} · origin {openRun.origin} ·{" "}
             {runStateLabel(openRun.state)}
             {openRun.errorCategory ? ` (${openRun.errorCategory})` : ""} ·{" "}
             {formatDuration(openRun.durationMs)}
           </p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 text-[11px] text-theme-secondary">
             {runTokenSummary(openRun)} tokens ·{" "}
             {openRun.costMicros === null || openRun.costMicros === undefined
               ? settingsCopy.ai.noCataloguePriceForThisModel
               : formatCostMicros(openRun.costMicros)}
           </p>
           {openRun.tokens.source === "estimated" ? (
-            <p className="mt-1 text-[11px] text-muted-foreground">{tokenSourceNote(true)}</p>
+            <p className="mt-1 text-[11px] text-theme-secondary">{tokenSourceNote(true)}</p>
           ) : null}
           {openRun.prompts ? (
             <>
-              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-md bg-muted/50 p-2 font-mono text-[11.5px]">
+              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-md bg-theme-deep p-2 font-mono text-[11.5px]">
                 {openRun.prompts.systemPrompt || settingsCopy.ai.noSystemPrompt}
               </pre>
-              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-md bg-muted/50 p-2 font-mono text-[11.5px]">
+              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-md bg-theme-deep p-2 font-mono text-[11.5px]">
                 {openRun.prompts.userPrompt}
               </pre>
               <button
@@ -333,7 +330,7 @@ export function AiUsagePanel({ signal }: Props) {
               </button>
             </>
           ) : (
-            <p className="mt-2 text-[11px] text-muted-foreground">
+            <p className="mt-2 text-[11px] text-theme-secondary">
               {settingsCopy.ai.promptTextWasNotRetainedFor}
             </p>
           )}
@@ -371,7 +368,7 @@ export function AiUsagePanel({ signal }: Props) {
               </span>
             </span>
             <span className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <label className="flex items-center gap-1.5 text-[11px] text-theme-secondary">
                 Runs
                 <input
                   aria-label={settingsCopy.ai.maximumStoredRuns}
@@ -392,7 +389,7 @@ export function AiUsagePanel({ signal }: Props) {
                   }}
                 />
               </label>
-              <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <label className="flex items-center gap-1.5 text-[11px] text-theme-secondary">
                 Days
                 <input
                   aria-label={settingsCopy.ai.maximumRunAgeInDays}

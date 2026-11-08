@@ -6,23 +6,14 @@ import { resetAllSettings } from "../reset-settings";
 import { Button } from "@/shared/ui/button";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { Dialog } from "@/shared/ui/dialog";
-import { CompactSidebarDemo, TreeGuidesDemo } from "./demos";
+import { PalettePreview, SidebarTreePreview } from "./demos";
+import { PALETTE_DENSITY_OPTIONS, PALETTE_SIZE_OPTIONS } from "@/commands/palette-options";
+import { changedPreferenceCount } from "@/features/settings/settings-model";
 import {
-  PALETTE_DENSITY_OPTIONS,
-  PALETTE_SIZE_OPTIONS,
-  type PaletteDensity,
-  type PaletteSize,
-} from "@/commands/palette-options";
-import {
-  SettingCardPicker,
+  SettingSegmented,
   SettingToggle,
-  SettingsHeading,
-  settingsGroup,
-  settingsGroupHint,
-  settingsGroupTitle,
-  settingsRow,
-  settingsRowDescription,
-  settingsRowLabel,
+  SettingsGroup,
+  SettingsRow,
   settingsSection,
 } from "@/shared/ui/settings-controls";
 import { useEditableSettings } from "@/features/settings/use-editable-settings";
@@ -30,54 +21,10 @@ import type { SectionProps } from "@/features/settings-dialog/sections";
 
 const BROWSER_RUNTIME = isBrowserRuntime();
 
-const PALETTE_ROW_GAP: Record<PaletteDensity, string> = {
-  compact: "gap-0.5",
-  normal: "gap-1.5",
-  spacious: "gap-2.5",
-};
-
-const PALETTE_DENSITY_PICKER_OPTIONS = PALETTE_DENSITY_OPTIONS.map((option) => ({
-  ...option,
-  preview: <PaletteDensityPreview density={option.value} />,
-}));
-
-const PALETTE_PREVIEW_SIZE: Record<PaletteSize, string> = {
-  default: "h-5 w-9",
-  roomy: "h-6 w-11",
-  large: "h-7 w-[3.25rem]",
-};
-
-const PALETTE_SIZE_PICKER_OPTIONS = PALETTE_SIZE_OPTIONS.map((option) => ({
-  ...option,
-  preview: <PaletteSizePreview size={option.value} />,
-}));
-
-function PaletteSizePreview({ size }: { size: PaletteSize }) {
-  return (
-    <span className="flex h-7 w-[3.25rem] items-start justify-center" aria-hidden="true">
-      <span
-        className={`flex flex-col gap-1 rounded-sm border border-foreground/40 p-1 ${PALETTE_PREVIEW_SIZE[size]}`}
-      >
-        <span className="h-0.5 rounded-full bg-foreground/60" />
-        <span className="h-0.5 w-3/4 rounded-full bg-foreground/35" />
-      </span>
-    </span>
-  );
-}
-
-function PaletteDensityPreview({ density }: { density: PaletteDensity }) {
-  return (
-    <span className={`flex w-12 flex-col ${PALETTE_ROW_GAP[density]}`} aria-hidden="true">
-      <span className="h-1 rounded-full bg-foreground/60" />
-      <span className="h-1 w-4/5 rounded-full bg-foreground/35" />
-      <span className="h-1 w-3/5 rounded-full bg-foreground/35" />
-    </span>
-  );
-}
-
 export function AppearanceSection({ store }: SectionProps) {
-  const { settings, change } = useEditableSettings(store);
+  const { settings, change, changed } = useEditableSettings(store);
   const [confirmDisableAi, setConfirmDisableAi] = useState(false);
+  const changedCount = changedPreferenceCount(settings);
 
   function changeAiEnabled(enabled: boolean): void {
     if (enabled) {
@@ -94,102 +41,113 @@ export function AppearanceSection({ store }: SectionProps) {
 
   return (
     <section aria-label="General preferences" className={settingsSection}>
-      <SettingsHeading
-        title="General"
-        detail={settingsCopy.appearance.chooseHowTheWorkspaceLooksAnd}
-      />
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Theme</div>
-        <p className={settingsGroupHint}>{settingsCopy.appearance.appliedAcrossTheWorkspace}</p>
-        <ThemePicker value={settings.theme} onSelect={(themeId) => change("theme", themeId)} />
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Sidebar</div>
+      <SettingsGroup
+        id="theme"
+        title="Theme"
+        hint={settingsCopy.appearance.appliedAcrossTheWorkspace}
+        keywords="appearance color midnight paper embers mocha latte catppuccin rose pine dusk dawn gruvbox tokyo night dark light"
+      >
+        <SettingsRow label="Color theme" stack hideLabel>
+          <ThemePicker value={settings.theme} onSelect={(themeId) => change("theme", themeId)} />
+        </SettingsRow>
+      </SettingsGroup>
+      <SettingsGroup
+        id="sidebar"
+        title="Sidebar"
+        preview={
+          <SidebarTreePreview compact={settings.compactSidebar} guides={settings.showTreeGuides} />
+        }
+      >
         <SettingToggle
           label="Compact sidebar"
           detail={settingsCopy.appearance.useTighterSpacingInTheNotes}
           checked={settings.compactSidebar}
+          changed={changed("compactSidebar")}
           onChange={(checked) => change("compactSidebar", checked)}
-          visualization={<CompactSidebarDemo enabled={settings.compactSidebar} />}
         />
         <SettingToggle
           label={settingsCopy.appearance.showTreeGuides}
           detail={settingsCopy.appearance.drawIndentGuidesForNestedNotes}
           checked={settings.showTreeGuides}
+          changed={changed("showTreeGuides")}
           onChange={(checked) => change("showTreeGuides", checked)}
-          visualization={<TreeGuidesDemo enabled={settings.showTreeGuides} />}
         />
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Command palette</div>
-        <SettingCardPicker
+      </SettingsGroup>
+      <SettingsGroup
+        id="palette"
+        title="Command palette"
+        preview={<PalettePreview density={settings.paletteDensity} size={settings.paletteSize} />}
+        keywords="size roomy large spacious density"
+      >
+        <SettingSegmented
           label="Row density"
           detail={settingsCopy.appearance.howMuchSpaceEachResultIn}
           value={settings.paletteDensity}
-          options={PALETTE_DENSITY_PICKER_OPTIONS}
+          options={PALETTE_DENSITY_OPTIONS}
+          changed={changed("paletteDensity")}
           onChange={(value) => change("paletteDensity", value)}
         />
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Accessibility</div>
-        <SettingToggle
-          label="Animated icons"
-          detail={settingsCopy.appearance.playABriefAnimationWhenThe}
-          checked={settings.animatedIcons}
-          onChange={(checked) => change("animatedIcons", checked)}
+        <SettingSegmented
+          label={settingsCopy.appearance.commandPaletteSize}
+          detail={settingsCopy.appearance.howTallAndWideTheCommand}
+          value={settings.paletteSize}
+          options={PALETTE_SIZE_OPTIONS}
+          changed={changed("paletteSize")}
+          onChange={(value) => change("paletteSize", value)}
         />
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Startup</div>
+      </SettingsGroup>
+      <SettingsGroup
+        id="workspace"
+        title="Workspace"
+        keywords="startup notifications toasts accessibility animation hover"
+      >
         <SettingToggle
           label={settingsCopy.appearance.rememberLastNote}
           detail={settingsCopy.appearance.returnToTheLastOpenNote}
           checked={settings.rememberLastNote}
+          changed={changed("rememberLastNote")}
           onChange={(checked) => change("rememberLastNote", checked)}
         />
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Notifications</div>
         <SettingToggle
           label={settingsCopy.appearance.showToastNotifications}
           detail={settingsCopy.appearance.showBriefNoticesLikeMovedTo}
           checked={settings.showToasts}
+          changed={changed("showToasts")}
           onChange={(checked) => change("showToasts", checked)}
         />
-      </div>
+        <SettingToggle
+          label="Animated icons"
+          detail={settingsCopy.appearance.playABriefAnimationWhenThe}
+          checked={settings.animatedIcons}
+          changed={changed("animatedIcons")}
+          onChange={(checked) => change("animatedIcons", checked)}
+        />
+      </SettingsGroup>
       {!BROWSER_RUNTIME && (
-        <div className={settingsGroup}>
-          <div className={settingsGroupTitle}>Optional features</div>
+        <SettingsGroup id="optional" title="Optional features">
           <SettingToggle
             label="AI features"
             detail={settingsCopy.appearance.addAiProviderSettingsAndWriting}
             checked={settings.aiEnabled}
+            changed={changed("aiEnabled")}
             onChange={changeAiEnabled}
           />
-        </div>
+        </SettingsGroup>
       )}
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Advanced</div>
-        <p className={settingsGroupHint}>
-          {settingsCopy.appearance.finetuneTheSizeOfWorkspaceSurfaces}
-        </p>
-        <SettingCardPicker
-          label={settingsCopy.appearance.commandPaletteSize}
-          detail={settingsCopy.appearance.howTallAndWideTheCommand}
-          value={settings.paletteSize}
-          options={PALETTE_SIZE_PICKER_OPTIONS}
-          onChange={(value) => change("paletteSize", value)}
-        />
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Preferences</div>
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            Reset preferences
-            <span className={settingsRowDescription}>
-              {settingsCopy.appearance.restoresAppearanceEditorAndKeyboardShortcuts}
-            </span>
-          </span>
+      <SettingsGroup
+        id="preferences"
+        title="Preferences"
+        hint={
+          changedCount === 0
+            ? "Every preference uses its default."
+            : `${changedCount} ${changedCount === 1 ? "preference differs" : "preferences differ"} from the defaults.`
+        }
+        keywords="reset defaults advanced"
+      >
+        <SettingsRow
+          label="Reset preferences"
+          detail={settingsCopy.appearance.restoresAppearanceEditorAndKeyboardShortcuts}
+        >
           <InlineConfirm
             className="shrink-0"
             confirmLabel="Reset preferences"
@@ -200,8 +158,8 @@ export function AppearanceSection({ store }: SectionProps) {
               </Button>
             )}
           />
-        </div>
-      </div>
+        </SettingsRow>
+      </SettingsGroup>
       <Dialog
         open={confirmDisableAi}
         onOpenChange={setConfirmDisableAi}

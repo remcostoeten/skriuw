@@ -9,9 +9,12 @@ import {
 } from "@/features/editor/math";
 import type { SectionProps } from "../sections";
 import { settingsCopy } from "@/shared/ui/settings-copy";
+import { cn } from "@/shared/styling/class-names";
 import {
-  settingsGroup,
-  settingsGroupTitle,
+  SettingsGroup,
+  SettingsRow,
+  settingsButton,
+  settingsButtonPrimary,
   settingsRowDescription,
   settingsTextInput,
 } from "@/shared/ui/settings-controls";
@@ -57,40 +60,52 @@ export function MathMacrosSettings({ store }: SectionProps) {
   }
 
   return (
-    <div className={settingsGroup}>
-      <div className={settingsGroupTitle}>{settingsCopy.editor.mathMacros}</div>
-      <label htmlFor="settings-math-macros" className={settingsRowDescription}>
-        {settingsCopy.editor.mathMacrosDescription}
-      </label>
-      <textarea
-        id="settings-math-macros"
-        className={`${settingsTextInput} min-h-28 w-full font-mono`}
-        value={value}
-        spellCheck={false}
-        disabled={saving}
-        aria-describedby="settings-math-macros-help settings-math-macros-status"
-        placeholder={settingsCopy.editor.rMathbbrnormLeftlvert1Rightrvert}
-        onChange={(event) => {
-          setDraft(event.currentTarget.value);
-          setMessage(null);
-        }}
-      />
-      <p id="settings-math-macros-help" className={settingsRowDescription}>
-        {settingsCopy.editor.mathMacrosPortability}
-      </p>
-      <button
-        type="button"
-        disabled={saving || value === source}
-        onClick={() => {
-          void save();
-        }}
-        className="rounded-md border border-border px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-accent"
+    <SettingsGroup
+      id="math"
+      title={settingsCopy.editor.mathMacros}
+      hint={<span id="settings-math-macros-help">{settingsCopy.editor.mathMacrosPortability}</span>}
+      keywords="katex latex tex math mhchem"
+    >
+      <SettingsRow
+        label="Workspace macros"
+        detail={settingsCopy.editor.mathMacrosDescription}
+        changed={source.length > 0}
+        stack
       >
-        {saving ? "Checking macros…" : settingsCopy.editor.saveMathMacros}
-      </button>
-      <p id="settings-math-macros-status" role="status" className={settingsRowDescription}>
-        {message}
-      </p>
-    </div>
+        <textarea
+          id="settings-math-macros"
+          aria-label="Workspace macros"
+          className={cn(settingsTextInput, "min-h-28 w-full font-mono leading-[1.6]")}
+          value={value}
+          spellCheck={false}
+          disabled={saving}
+          aria-describedby="settings-math-macros-help settings-math-macros-status"
+          placeholder={settingsCopy.editor.rMathbbrnormLeftlvert1Rightrvert}
+          onChange={(event) => {
+            setDraft(event.currentTarget.value);
+            setMessage(null);
+          }}
+        />
+        <span className="flex items-center justify-end gap-2">
+          <span
+            id="settings-math-macros-status"
+            role="status"
+            className={cn(settingsRowDescription, "mr-auto")}
+          >
+            {message}
+          </span>
+          <button
+            type="button"
+            disabled={saving || value === source}
+            onClick={() => {
+              void save();
+            }}
+            className={cn(settingsButton, settingsButtonPrimary)}
+          >
+            {saving ? "Checking macros…" : settingsCopy.editor.saveMathMacros}
+          </button>
+        </span>
+      </SettingsRow>
+    </SettingsGroup>
   );
 }

@@ -61,6 +61,8 @@
 	--color-theme-divider: hsl(var(--theme-divider));
 	--color-theme-btn-outline: hsl(var(--theme-btn-outline));
 	--color-theme-btn-fill: hsl(var(--theme-btn-fill));
+	--color-accent-ink: hsl(var(--accent-ink));
+	--color-accent-ink-foreground: hsl(var(--accent-ink-foreground));
 
 	--color-sidebar: hsl(var(--sidebar-background));
 	--color-sidebar-foreground: hsl(var(--sidebar-foreground));
@@ -146,6 +148,8 @@
 		--theme-divider: 0 0% 15%;
 		--theme-btn-outline: 0 0% 25%;
 		--theme-btn-fill: 0 0% 20%;
+		--accent-ink: var(--foreground);
+		--accent-ink-foreground: var(--background);
 		--sidebar-background: 0 0% 7%;
 		--sidebar-foreground: 0 0% 85%;
 		--sidebar-primary: 0 0% 25%;
@@ -229,6 +233,8 @@
 		--theme-divider: 40 12% 84%;
 		--theme-btn-outline: 40 12% 78%;
 		--theme-btn-fill: 40 14% 86%;
+		--accent-ink: var(--foreground);
+		--accent-ink-foreground: var(--background);
 		--sidebar-background: 40 16% 95%;
 		--sidebar-foreground: 30 10% 18%;
 		--sidebar-primary: 30 10% 20%;
@@ -313,6 +319,8 @@
 		--theme-divider: 20 10% 18%;
 		--theme-btn-outline: 25 12% 28%;
 		--theme-btn-fill: 25 12% 22%;
+		--accent-ink: var(--foreground);
+		--accent-ink-foreground: var(--background);
 		--sidebar-background: 20 15% 8%;
 		--sidebar-foreground: 35 18% 82%;
 		--sidebar-primary: 25 18% 28%;
@@ -397,6 +405,8 @@
 		--theme-divider: 237 16% 23%;
 		--theme-btn-outline: 233 12% 39%;
 		--theme-btn-fill: 234 13% 31%;
+		--accent-ink: var(--primary);
+		--accent-ink-foreground: var(--primary-foreground);
 		--sidebar-background: 240 21% 12%;
 		--sidebar-foreground: 227 35% 80%;
 		--sidebar-primary: 267 84% 81%;
@@ -481,6 +491,8 @@
 		--theme-divider: 248 15% 22%;
 		--theme-btn-outline: 247 20% 30%;
 		--theme-btn-fill: 247 20% 27%;
+		--accent-ink: var(--primary);
+		--accent-ink-foreground: var(--primary-foreground);
 		--sidebar-background: 247 23% 15%;
 		--sidebar-foreground: 245 50% 91%;
 		--sidebar-primary: 2 55% 83%;
@@ -565,6 +577,8 @@
 		--theme-divider: 30 10% 82%;
 		--theme-btn-outline: 35 15% 84%;
 		--theme-btn-fill: 35 15% 83%;
+		--accent-ink: var(--primary);
+		--accent-ink-foreground: var(--primary-foreground);
 		--sidebar-background: 40 30% 98%;
 		--sidebar-foreground: 248 22% 32%;
 		--sidebar-primary: 2 55% 67%;
@@ -649,6 +663,8 @@
 		--theme-divider: 220 15% 77%;
 		--theme-btn-outline: 220 14% 71%;
 		--theme-btn-fill: 220 15% 77%;
+		--accent-ink: var(--primary);
+		--accent-ink-foreground: var(--primary-foreground);
 		--sidebar-background: 220 22% 92%;
 		--sidebar-foreground: 220 11% 35%;
 		--sidebar-primary: 267 83% 58%;
@@ -733,6 +749,8 @@
 		--theme-divider: 0 0% 24%;
 		--theme-btn-outline: 0 0% 30%;
 		--theme-btn-fill: 0 0% 28%;
+		--accent-ink: var(--primary);
+		--accent-ink-foreground: var(--primary-foreground);
 		--sidebar-background: 0 0% 19%;
 		--sidebar-foreground: 43 47% 84%;
 		--sidebar-primary: 35 87% 55%;
@@ -817,6 +835,8 @@
 		--theme-divider: 231 20% 27%;
 		--theme-btn-outline: 230 20% 35%;
 		--theme-btn-fill: 230 20% 32%;
+		--accent-ink: var(--primary);
+		--accent-ink-foreground: var(--primary-foreground);
 		--sidebar-background: 230 24% 19%;
 		--sidebar-foreground: 231 55% 89%;
 		--sidebar-primary: 221 74% 74%;

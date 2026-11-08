@@ -25,9 +25,8 @@ import { CheckIcon, ChevronDownIcon } from "@/shared/icons/static";
 import {
   settingsButton,
   settingsButtonDanger,
-  settingsGroup,
   settingsGroupHint,
-  settingsGroupTitle,
+  settingsSubheading,
   settingsRowDescription,
   settingsTextInput,
 } from "@/shared/ui/settings-controls";
@@ -116,9 +115,9 @@ export function OllamaRuntimeCard({
   const pendingAction = pending ?? (status?.state === "starting" ? "start" : null);
   const pendingSeconds = usePendingSeconds(pendingAction);
   return (
-    <div className={settingsGroup}>
-      <div className={settingsGroupTitle}>Local runtime</div>
-      <div className="overflow-hidden rounded-xl border border-border bg-muted/20">
+    <div className="py-2">
+      <p className={settingsSubheading}>Local runtime</p>
+      <div className="overflow-hidden rounded-xl border border-border bg-theme-deep">
         <div className="flex items-center gap-3 px-3.5 py-3">
           <motion.span
             className={cn(
@@ -129,7 +128,7 @@ export function OllamaRuntimeCard({
                   ? "border-emerald-500/40 bg-emerald-500"
                   : status?.state === "failed"
                     ? "border-destructive/40 bg-destructive"
-                    : "border-border bg-muted-foreground/45",
+                    : "border-border bg-theme-dim",
             )}
             animate={pendingAction ? { opacity: [1, 0.3, 1] } : { opacity: 1 }}
             transition={
@@ -197,7 +196,7 @@ export function OllamaRuntimeCard({
                 variants={progressContentVariants}
               >
                 <div
-                  className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground"
+                  className="flex items-center justify-between gap-3 text-[11px] text-theme-secondary"
                   aria-live="polite"
                 >
                   <span>
@@ -207,7 +206,7 @@ export function OllamaRuntimeCard({
                   {busy ? (
                     <button
                       type="button"
-                      className="-my-0.5 -mr-1 shrink-0 rounded-md px-1.5 py-0.5 font-[560] text-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+                      className="-my-0.5 -mr-1 shrink-0 rounded-md px-1.5 py-0.5 font-[560] text-foreground/70 transition-colors hover:bg-theme-hover hover:text-foreground"
                       onClick={onCancel}
                     >
                       Cancel
@@ -223,7 +222,7 @@ export function OllamaRuntimeCard({
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={percent}
-                    className="mt-2 h-1 overflow-hidden rounded-full bg-muted"
+                    className="mt-2 h-1 overflow-hidden rounded-full bg-theme-hover"
                   >
                     <div
                       className="h-full rounded-full bg-foreground transition-[width] duration-300 ease-linear motion-reduce:transition-none"
@@ -343,7 +342,7 @@ function IndeterminateBar({ label }: { label: string }) {
       role="progressbar"
       aria-label={label}
       aria-valuetext="In progress"
-      className="h-1 overflow-hidden rounded-full bg-muted"
+      className="h-1 overflow-hidden rounded-full bg-theme-hover"
     >
       <motion.div
         className="h-full w-1/3 rounded-full bg-foreground/75"
@@ -390,8 +389,8 @@ export function OllamaModelsPanel({
   }
 
   return (
-    <div className={settingsGroup}>
-      <div className={settingsGroupTitle}>Models</div>
+    <div className="py-2">
+      <p className={settingsSubheading}>Models</p>
       <p className={settingsGroupHint}>{settingsCopy.ai.pullAModelFromOllamaThen}</p>
       <form className="mb-3 flex gap-2 max-[620px]:flex-col" onSubmit={handleSubmit}>
         <input
@@ -412,7 +411,7 @@ export function OllamaModelsPanel({
         </button>
       </form>
       {models.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+        <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-theme-secondary">
           {settingsCopy.ai.noLocalModelsYetEnterA}
         </p>
       ) : (
@@ -663,7 +662,7 @@ function SuggestedModelOption({
       data-active={active}
       className={cn(
         "flex cursor-pointer select-none flex-col gap-0.5 rounded-md px-2 py-1.5 text-left transition-colors",
-        "data-[active=true]:bg-accent",
+        "data-[active=true]:bg-theme-active",
       )}
       onPointerEnter={onPointerEnter}
       onClick={onClick}
@@ -673,11 +672,11 @@ function SuggestedModelOption({
           {installedName !== null && <CheckIcon size={13} />}
         </span>
         {option.label}
-        <span className="text-[10px] font-normal text-muted-foreground">
+        <span className="text-[10px] font-normal text-theme-secondary">
           {ollamaUseCaseLabel(option.useCase)} · {option.approxSize}
         </span>
       </span>
-      <span className="pl-5 text-[11px] leading-[1.35] text-muted-foreground">
+      <span className="pl-5 text-[11px] leading-[1.35] text-theme-secondary">
         {option.description}
       </span>
     </li>
@@ -719,7 +718,7 @@ function ModelRow({
           />
           <span className="truncate">{model.name}</span>
         </span>
-        <span className="mt-0.5 block pl-4 text-[11px] text-muted-foreground">
+        <span className="mt-0.5 block pl-4 text-[11px] text-theme-secondary">
           {[
             model.parameterSize,
             model.quantizationLevel,

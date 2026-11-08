@@ -3,6 +3,8 @@ import { test } from "vitest";
 import type { WorkspaceSettings } from "@skriuw/renderer-core/contracts/workspace";
 import {
   DEFAULT_WORKSPACE_SETTINGS,
+  changedPreferenceCount,
+  settingDiffersFromDefault,
   changeSetting,
   changeShortcutOverride,
   projectSettings,
@@ -271,4 +273,19 @@ test("links open in the system browser unless the setting is explicitly on", () 
     opensLinksInApp({ ...DEFAULT_WORKSPACE_SETTINGS, openLinksInApp: undefined }),
     false,
   );
+});
+
+test("defaults count as unchanged and each differing preference is counted once", () => {
+  const defaults = projectSettings(DEFAULT_WORKSPACE_SETTINGS);
+  assert.equal(changedPreferenceCount(defaults), 0);
+  assert.equal(settingDiffersFromDefault(defaults, "compactSidebar"), false);
+  const changed = projectSettings({
+    ...DEFAULT_WORKSPACE_SETTINGS,
+    compactSidebar: true,
+    theme: "mocha",
+  });
+  assert.equal(settingDiffersFromDefault(changed, "compactSidebar"), true);
+  assert.equal(settingDiffersFromDefault(changed, "theme"), true);
+  assert.equal(settingDiffersFromDefault(changed, "showToasts"), false);
+  assert.equal(changedPreferenceCount(changed), 2);
 });

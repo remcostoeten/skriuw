@@ -9,13 +9,10 @@ import {
 import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import {
+  SettingsGroup,
+  SettingsRow,
   settingsButton,
-  settingsGroup,
-  settingsGroupHint,
-  settingsGroupTitle,
-  settingsRow,
   settingsRowDescription,
-  settingsRowLabel,
   settingsTextInput,
 } from "@/shared/ui/settings-controls";
 import { encryptionDescription, encryptionStage } from "@/features/sync/encryption";
@@ -77,14 +74,23 @@ export function SyncEncryptionPanel({ status }: Props) {
   }
 
   return (
-    <div className={settingsGroup}>
-      <div className={settingsGroupTitle}>End-to-end encryption</div>
-      <div className={settingsRow}>
-        <span className={settingsRowLabel}>
-          {stage === "on" || stage === "revealed" ? "Encrypted" : "Not encrypted"}
-          <span className={settingsRowDescription}>{encryptionDescription(stage)}</span>
-          {state?.keyId ? <span className={settingsRowDescription}>Key {state.keyId}</span> : null}
-        </span>
+    <SettingsGroup
+      id="encryption"
+      title="End-to-end encryption"
+      hint={
+        stage === "on" && state?.sealedCheckpointAt === null
+          ? settingsCopy.account.changesMadeBeforeEncryptionWasTurned
+          : undefined
+      }
+      keywords="encryption end-to-end recovery code key"
+    >
+      <SettingsRow
+        label={stage === "on" || stage === "revealed" ? "Encrypted" : "Not encrypted"}
+        detail={encryptionDescription(stage)}
+        notes={
+          state?.keyId ? <span className={settingsRowDescription}>Key {state.keyId}</span> : null
+        }
+      >
         {stage === "off" ? (
           <InlineConfirm
             confirmLabel={busy ? "Encrypting…" : settingsCopy.account.showMyRecoveryCode}
@@ -98,16 +104,19 @@ export function SyncEncryptionPanel({ status }: Props) {
             onConfirm={() => void enable()}
           />
         ) : null}
-      </div>
+      </SettingsRow>
       {stage === "revealed" && recoveryCode ? (
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            Recovery code
-            <code className="mt-1 block font-mono text-sm tracking-widest">{recoveryCode}</code>
-            <span className={settingsRowDescription}>
-              {settingsCopy.account.losingItMeansLosingTheCloud}
-            </span>
-          </span>
+        <SettingsRow
+          label="Recovery code"
+          notes={
+            <>
+              <code className="mt-1 block font-mono text-sm tracking-widest">{recoveryCode}</code>
+              <span className={settingsRowDescription}>
+                {settingsCopy.account.losingItMeansLosingTheCloud}
+              </span>
+            </>
+          }
+        >
           <button
             type="button"
             className={settingsButton}
@@ -117,16 +126,13 @@ export function SyncEncryptionPanel({ status }: Props) {
           >
             {settingsCopy.account.iWroteItDown}
           </button>
-        </div>
+        </SettingsRow>
       ) : null}
       {stage === "locked" ? (
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            Recovery code
-            <span className={settingsRowDescription}>
-              {settingsCopy.account.enterTheCodeThisWorkspaceShowed}
-            </span>
-          </span>
+        <SettingsRow
+          label="Recovery code"
+          detail={settingsCopy.account.enterTheCodeThisWorkspaceShowed}
+        >
           <span className="flex items-center gap-1.5">
             <input
               className={settingsTextInput}
@@ -148,18 +154,13 @@ export function SyncEncryptionPanel({ status }: Props) {
               {busy ? "Unlocking…" : "Unlock"}
             </button>
           </span>
-        </div>
+        </SettingsRow>
       ) : null}
       {error ? (
         <p role="alert" className="m-0 py-1.5 text-[11px] text-destructive">
           {error}
         </p>
       ) : null}
-      {stage === "on" && state?.sealedCheckpointAt === null ? (
-        <div className={settingsGroupHint}>
-          {settingsCopy.account.changesMadeBeforeEncryptionWasTurned}
-        </div>
-      ) : null}
-    </div>
+    </SettingsGroup>
   );
 }

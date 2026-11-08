@@ -1,7 +1,7 @@
 import { MathMacrosSettings } from "@/features/settings-dialog/editor/math-macros";
 import { settingsCopy } from "@/shared/ui/settings-copy";
 import { useEffect, useState } from "react";
-import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { isBrowserRuntime } from "@/platform/runtime/runtime";
 import { updateSetting } from "@/features/settings/update-settings";
 import {
@@ -9,7 +9,8 @@ import {
   EDITOR_LINE_HEIGHT_OPTIONS,
   VIM_CURSOR_STYLE_OPTIONS,
 } from "@/features/settings/settings-model";
-import type { SettingsViewModel, VimCursorStyle } from "@/features/settings/settings-model";
+import type { SettingsViewModel } from "@/features/settings/settings-model";
+import { EditorTypePreview } from "./type-preview";
 import { cn } from "@/shared/styling/class-names";
 import { Select, type SelectOption } from "@/shared/ui/select";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
@@ -23,15 +24,11 @@ import {
   wordGoalOn,
 } from "@/features/journal/word-goal";
 import {
-  SettingCardPicker,
+  SettingSegmented,
   SettingToggle,
-  SettingsHeading,
-  settingsGroup,
-  settingsGroupTitle,
+  SettingsGroup,
+  SettingsRow,
   settingsInputRow,
-  settingsRow,
-  settingsRowDescription,
-  settingsRowLabel,
   settingsSection,
   settingsTextInput,
 } from "@/shared/ui/settings-controls";
@@ -48,73 +45,8 @@ const WORD_GOAL_OPTIONS: readonly SelectOption<string>[] = [
   { value: CUSTOM_GOAL, label: "Custom" },
 ];
 
-const FONT_PREVIEW_STYLES: Record<string, CSSProperties> = {
-  inter: {},
-  serif: { fontFamily: settingsCopy.editor.georgiaTimesNewRomanSerif },
-  mono: { fontFamily: "var(--font-mono)" },
-};
-
-const LINE_HEIGHT_PREVIEW_GAPS: Record<string, number> = {
-  cozy: 3,
-  comfortable: 5,
-  relaxed: 8,
-};
-
-const FONT_PICKER_OPTIONS = EDITOR_FONT_OPTIONS.map((option) => ({
-  ...option,
-  preview: (
-    <span
-      className="text-xl leading-none text-foreground/80"
-      style={FONT_PREVIEW_STYLES[option.value]}
-      aria-hidden="true"
-    >
-      Ag
-    </span>
-  ),
-}));
-
-const LINE_HEIGHT_PICKER_OPTIONS = EDITOR_LINE_HEIGHT_OPTIONS.map((option) => ({
-  ...option,
-  preview: <LineSpacingPreview gap={LINE_HEIGHT_PREVIEW_GAPS[option.value] ?? 5} />,
-}));
-
-const VIM_CURSOR_PICKER_OPTIONS = VIM_CURSOR_STYLE_OPTIONS.map((option) => ({
-  ...option,
-  preview: <VimCursorPreview style={option.value} />,
-}));
-
-function VimCursorPreview({ style }: { style: VimCursorStyle }) {
-  return (
-    <span className="font-mono text-xl text-foreground/75" aria-hidden="true">
-      a
-      <span
-        className={cn(
-          "inline-flex h-6 w-[0.72em] items-center justify-center text-foreground",
-          style === "block" && "rounded-[2px] bg-foreground/75 text-background",
-          style === "underline" && "border-b-2 border-foreground/80",
-          style === "bar" && "border-l-2 border-foreground/80",
-        )}
-      >
-        b
-      </span>
-      c
-    </span>
-  );
-}
-
-function LineSpacingPreview({ gap }: { gap: number }) {
-  return (
-    <span className="flex w-full flex-col justify-center px-5" style={{ gap }} aria-hidden="true">
-      <span className="h-[3px] w-full rounded-full bg-foreground/25" />
-      <span className="h-[3px] w-4/5 rounded-full bg-foreground/25" />
-      <span className="h-[3px] w-[90%] rounded-full bg-foreground/25" />
-      <span className="h-[3px] w-3/5 rounded-full bg-foreground/25" />
-    </span>
-  );
-}
-
 export function EditorSection({ store }: SectionProps) {
-  const { settings, change } = useEditableSettings(store);
+  const { settings, change, changed } = useEditableSettings(store);
 
   function handleKeyDown(event: ReactKeyboardEvent<HTMLElement>): void {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
@@ -138,105 +70,122 @@ export function EditorSection({ store }: SectionProps) {
 
   return (
     <section aria-label="Editor preferences" className={settingsSection} onKeyDown={handleKeyDown}>
-      <SettingsHeading
-        title="Editor"
-        detail={settingsCopy.editor.tuneTheWritingSurfaceWithoutChanging}
-      />
-      <MathMacrosSettings store={store} />
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Typography</div>
-        <SettingCardPicker
+      <SettingsGroup
+        id="typography"
+        title="Typography"
+        preview={
+          <EditorTypePreview
+            font={settings.editorFont}
+            lineHeight={settings.editorLineHeight}
+            vimMode={settings.vimMode}
+            vimCursorStyle={settings.vimCursorStyle}
+            vimCursorBlink={settings.vimCursorBlink}
+          />
+        }
+        keywords="font sans serif mono line spacing cozy comfortable relaxed"
+      >
+        <SettingSegmented
           label="Editor font"
           detail={settingsCopy.editor.usedForNoteContentInThe}
           value={settings.editorFont}
-          options={FONT_PICKER_OPTIONS}
+          options={EDITOR_FONT_OPTIONS}
+          changed={changed("editorFont")}
           onChange={(value) => change("editorFont", value)}
         />
-        <SettingCardPicker
+        <SettingSegmented
           label="Line spacing"
           detail={settingsCopy.editor.howMuchRoomEachLineOf}
           value={settings.editorLineHeight}
-          options={LINE_HEIGHT_PICKER_OPTIONS}
+          options={EDITOR_LINE_HEIGHT_OPTIONS}
+          changed={changed("editorLineHeight")}
           onChange={(value) => change("editorLineHeight", value)}
         />
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Writing</div>
-        <PlaceholderField store={store} settings={settings} />
+      </SettingsGroup>
+      <SettingsGroup id="writing" title="Writing" keywords="placeholder vim modal">
+        <PlaceholderField
+          store={store}
+          settings={settings}
+          changed={changed("editorPlaceholder")}
+        />
         <SettingToggle
           label={settingsCopy.editor.defaultToRawMarkdown}
           detail={settingsCopy.editor.newNotesOpenInTheRaw}
           checked={settings.editorDefaultRawMode}
+          changed={changed("editorDefaultRawMode")}
           onChange={(checked) => change("editorDefaultRawMode", checked)}
         />
         <SettingToggle
           label="Vim keybindings"
           detail={settingsCopy.editor.modalEditingInBothEditorsNormal}
           checked={settings.vimMode}
+          changed={changed("vimMode")}
           onChange={(checked) => change("vimMode", checked)}
         />
-        <SettingCardPicker
+        <SettingSegmented
           label="Vim cursor"
           detail={settingsCopy.editor.theCursorShapeUsedInNormal}
           value={settings.vimCursorStyle}
-          options={VIM_CURSOR_PICKER_OPTIONS}
+          options={VIM_CURSOR_STYLE_OPTIONS}
+          changed={changed("vimCursorStyle")}
           onChange={(value) => change("vimCursorStyle", value)}
         />
         <SettingToggle
           label={settingsCopy.editor.blinkVimCursor}
           detail={settingsCopy.editor.blinkTheNormalmodeCursorInBoth}
           checked={settings.vimCursorBlink}
+          changed={changed("vimCursorBlink")}
           onChange={(checked) => change("vimCursorBlink", checked)}
         />
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Focus</div>
+      </SettingsGroup>
+      <SettingsGroup id="focus" title="Focus" keywords="typewriter dim paragraphs">
         <SettingToggle
           label="Typewriter scrolling"
           detail={settingsCopy.editor.keepTheLineYouAreTyping}
           checked={settings.typewriterScrolling}
+          changed={changed("typewriterScrolling")}
           onChange={(checked) => change("typewriterScrolling", checked)}
         />
         <SettingToggle
           label={settingsCopy.editor.dimOtherParagraphsInFocusMode}
           detail={settingsCopy.editor.focusModeModshiftfFadesEveryBlock}
           checked={settings.focusDimParagraphs}
+          changed={changed("focusDimParagraphs")}
           onChange={(checked) => change("focusDimParagraphs", checked)}
         />
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Blocks</div>
+      </SettingsGroup>
+      <SettingsGroup
+        id="blocks"
+        title={BROWSER_RUNTIME ? "Blocks and tabs" : "Blocks, tabs and links"}
+        keywords="block handle drag gutter tabs links browser"
+      >
         <SettingToggle
           label={settingsCopy.editor.blockHandleOnHover}
           detail={settingsCopy.editor.hoveringABlockShowsAGutter}
           checked={settings.blockDragHandle}
+          changed={changed("blockDragHandle")}
           onChange={(checked) => change("blockDragHandle", checked)}
         />
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Tabs</div>
         <SettingToggle
           label={settingsCopy.editor.openNotesInTabs}
           detail={settingsCopy.editor.everyNoteYouOpenGetsIts}
           checked={settings.openNotesInTabs}
+          changed={changed("openNotesInTabs")}
           onChange={(checked) => change("openNotesInTabs", checked)}
         />
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Journal</div>
-        <WordGoalSetting store={store} />
-      </div>
-      {BROWSER_RUNTIME ? null : (
-        <div className={settingsGroup}>
-          <div className={settingsGroupTitle}>Links</div>
+        {BROWSER_RUNTIME ? null : (
           <SettingToggle
             label={settingsCopy.editor.openLinksInSkriuw}
             detail={settingsCopy.editor.linksOpenInASkriuwBrowser}
             checked={settings.openLinksInApp}
+            changed={changed("openLinksInApp")}
             onChange={(checked) => change("openLinksInApp", checked)}
           />
-        </div>
-      )}
+        )}
+      </SettingsGroup>
+      <SettingsGroup id="journal" title="Journal" keywords="daily word goal target count streak">
+        <WordGoalSetting store={store} />
+      </SettingsGroup>
+      <MathMacrosSettings store={store} />
     </section>
   );
 }
@@ -244,9 +193,10 @@ export function EditorSection({ store }: SectionProps) {
 type Props = {
   store: SectionProps["store"];
   settings: SettingsViewModel;
+  changed: boolean;
 };
 
-function PlaceholderField({ store, settings }: Props) {
+function PlaceholderField({ store, settings, changed }: Props) {
   const [value, setValue] = useState(settings.editorPlaceholder);
 
   useEffect(() => {
@@ -254,13 +204,14 @@ function PlaceholderField({ store, settings }: Props) {
   }, [settings.editorPlaceholder]);
 
   return (
-    <label className={cn(settingsRow, settingsInputRow)} htmlFor="settings-placeholder">
-      <span className={settingsRowLabel}>
-        {settingsCopy.editor.emptyNotePrompt}
-        <span className={settingsRowDescription}>
-          {settingsCopy.editor.shownBeforeANoteHasContent}
-        </span>
-      </span>
+    <SettingsRow
+      as="label"
+      htmlFor="settings-placeholder"
+      className={settingsInputRow}
+      label={settingsCopy.editor.emptyNotePrompt}
+      detail={settingsCopy.editor.shownBeforeANoteHasContent}
+      changed={changed}
+    >
       <input
         id="settings-placeholder"
         data-directional-focus
@@ -275,7 +226,7 @@ function PlaceholderField({ store, settings }: Props) {
           }
         }}
       />
-    </label>
+    </SettingsRow>
   );
 }
 
@@ -310,13 +261,12 @@ function WordGoalSetting({ store }: { store: SectionProps["store"] }) {
   }
 
   return (
-    <div className={cn(settingsRow, settingsInputRow)}>
-      <span className={settingsRowLabel}>
-        {settingsCopy.editor.dailyWordGoal}
-        <span className={settingsRowDescription}>
-          {settingsCopy.editor.showsQuietProgressInTheJournal}
-        </span>
-      </span>
+    <SettingsRow
+      className={settingsInputRow}
+      label={settingsCopy.editor.dailyWordGoal}
+      detail={settingsCopy.editor.showsQuietProgressInTheJournal}
+      changed={goal !== 0}
+    >
       <span className="flex shrink-0 items-center gap-2">
         {choice === CUSTOM_GOAL && (
           <input
@@ -345,6 +295,6 @@ function WordGoalSetting({ store }: { store: SectionProps["store"] }) {
           align="end"
         />
       </span>
-    </div>
+    </SettingsRow>
   );
 }

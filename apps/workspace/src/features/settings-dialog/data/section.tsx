@@ -56,17 +56,16 @@ import {
 import { noop } from "@skriuw/shared/helpers/noop";
 import { cn } from "@/shared/styling/class-names";
 import {
-  SettingsHeading,
+  SettingsGroup,
+  SettingsRow,
   settingsButton,
-  settingsGroup,
-  settingsGroupTitle,
   settingsInputRow,
   settingsRow,
-  settingsRowDescription,
   settingsButtonDanger,
   settingsRowDetail,
   settingsRowLabel,
   settingsSection,
+  settingsSubheading,
 } from "@/shared/ui/settings-controls";
 import { EmptyNotesRow } from "@/features/settings-dialog/data/empty-notes-row";
 import { useEditableSettings } from "@/features/settings/use-editable-settings";
@@ -79,8 +78,6 @@ const maintenanceTimeFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: "short",
 });
 
-const dangerZoneClass = "rounded-lg border border-destructive/25 px-4 pb-1 pt-3";
-
 const RUNNING_LABELS: Record<MaintenanceKind, string> = {
   export: "Exporting archive…",
   import: "Importing archive…",
@@ -91,7 +88,7 @@ const RUNNING_LABELS: Record<MaintenanceKind, string> = {
 
 export function DataSection({ store }: SectionProps) {
   const browser = isBrowserRuntime();
-  const { settings, change } = useEditableSettings(store);
+  const { settings, change, changed } = useEditableSettings(store);
   const installable = useSyncExternalStore(subscribeInstallOffer, installOffered, () => false);
   const [storagePath, setStoragePath] = useState<string | null>(null);
   const [phase, setPhase] = useState<MaintenancePhase>(IDLE_MAINTENANCE);
@@ -287,30 +284,19 @@ export function DataSection({ store }: SectionProps) {
 
   return (
     <section aria-label={settingsCopy.data.dataAndRecovery} className={settingsSection}>
-      <SettingsHeading
-        title={settingsCopy.data.dataRecovery}
-        detail={settingsCopy.data.importsStoragePortableArchivesBackupsAnd}
-      />
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Storage</div>
+      <SettingsGroup
+        id="storage"
+        title="Storage"
+        keywords="database sqlite local file manager workspace path move location install"
+      >
         {browser && (
-          <div className={settingsRow}>
-            <span className={settingsRowLabel}>
-              Workspace database
-              <span className={settingsRowDescription}>
-                {settingsCopy.data.storedDurablyInThisBrowsersPrivate}
-              </span>
-            </span>
-          </div>
+          <SettingsRow
+            label="Workspace database"
+            detail={settingsCopy.data.storedDurablyInThisBrowsersPrivate}
+          />
         )}
         {browser && installable && (
-          <div className={settingsRow}>
-            <span className={settingsRowLabel}>
-              Install Skriuw
-              <span className={settingsRowDescription}>
-                {settingsCopy.data.addsSkriuwToYourHomeScreen}
-              </span>
-            </span>
+          <SettingsRow label="Install Skriuw" detail={settingsCopy.data.addsSkriuwToYourHomeScreen}>
             <button
               type="button"
               className={settingsButton}
@@ -321,14 +307,13 @@ export function DataSection({ store }: SectionProps) {
               <DownloadIcon size={15} />
               Install
             </button>
-          </div>
+          </SettingsRow>
         )}
         {!browser && (
-          <div className={settingsRow}>
-            <span className={settingsRowLabel}>
-              Workspace database
-              <span className={settingsRowDetail}>{storagePath ?? "Locating…"}</span>
-            </span>
+          <SettingsRow
+            label="Workspace database"
+            detail={<span className={settingsRowDetail}>{storagePath ?? "Locating…"}</span>}
+          >
             <button
               type="button"
               className={settingsButton}
@@ -341,16 +326,13 @@ export function DataSection({ store }: SectionProps) {
               <FolderOpenIcon size={15} />
               {settingsCopy.data.showInFileManager}
             </button>
-          </div>
+          </SettingsRow>
         )}
         {!browser && (
-          <div className={settingsRow}>
-            <span className={settingsRowLabel}>
-              Move workspace
-              <span className={settingsRowDescription}>
-                {settingsCopy.data.copiesTheDatabaseImagesHistoryAnd}
-              </span>
-            </span>
+          <SettingsRow
+            label="Move workspace"
+            detail={settingsCopy.data.copiesTheDatabaseImagesHistoryAnd}
+          >
             <InlineConfirm
               className="shrink-0"
               confirmLabel={
@@ -378,7 +360,7 @@ export function DataSection({ store }: SectionProps) {
                 </button>
               )}
             />
-          </div>
+          </SettingsRow>
         )}
         <MaintenanceStatus
           phase={phase}
@@ -386,75 +368,70 @@ export function DataSection({ store }: SectionProps) {
           onCancel={cancelRunning}
           onForceBackup={() => runBackup(true)}
         />
-      </div>
-      {!browser && (
-        <div className={settingsGroup}>
-          <div className={settingsGroupTitle}>{settingsCopy.data.importExport}</div>
-          <div className={settingsRow}>
-            <span className={settingsRowLabel}>
-              {settingsCopy.data.importNotesFromAFolder}
-              <span className={settingsRowDescription}>
-                {settingsCopy.data.markdownTextObsidianVaultsExtractedNotion}
-              </span>
-            </span>
-            <button
-              type="button"
-              className={settingsButton}
-              disabled={busy}
-              onClick={() => {
-                void importMarkdownIntoWorkspace(store);
-              }}
+      </SettingsGroup>
+      <SettingsGroup
+        id="transfer"
+        title={settingsCopy.data.importExport}
+        keywords="import export archive markdown obsidian notion evernote provider"
+      >
+        {!browser && (
+          <>
+            <SettingsRow
+              label={settingsCopy.data.importNotesFromAFolder}
+              detail={settingsCopy.data.markdownTextObsidianVaultsExtractedNotion}
             >
-              <UploadIcon size={15} />
-              Choose folder…
-            </button>
-          </div>
-          <div className={settingsRow}>
-            <span className={settingsRowLabel}>
-              {settingsCopy.data.importAProviderExport}
-              <span className={settingsRowDescription}>
-                {settingsCopy.data.zipEvernoteEnexJoplinGoogleKeep}
-              </span>
-            </span>
-            <button
-              type="button"
-              className={settingsButton}
-              disabled={busy}
-              onClick={() => {
-                void importProviderExportIntoWorkspace(store);
-              }}
+              <button
+                type="button"
+                className={settingsButton}
+                disabled={busy}
+                onClick={() => {
+                  void importMarkdownIntoWorkspace(store);
+                }}
+              >
+                <UploadIcon size={15} />
+                Choose folder…
+              </button>
+            </SettingsRow>
+            <SettingsRow
+              label={settingsCopy.data.importAProviderExport}
+              detail={settingsCopy.data.zipEvernoteEnexJoplinGoogleKeep}
             >
-              <UploadIcon size={15} />
-              Choose file…
-            </button>
-          </div>
-          <div className={cn(settingsRow, settingsInputRow)}>
-            <span className={settingsRowLabel}>
-              {settingsCopy.data.remoteImagesInImports}
-              <span className={settingsRowDescription}>
-                {settingsCopy.data.imagesThatMarkdownLinksFromThe}
-              </span>
-            </span>
-            <Select
+              <button
+                type="button"
+                className={settingsButton}
+                disabled={busy}
+                onClick={() => {
+                  void importProviderExportIntoWorkspace(store);
+                }}
+              >
+                <UploadIcon size={15} />
+                Choose file…
+              </button>
+            </SettingsRow>
+            <SettingsRow
               label={settingsCopy.data.remoteImagesInImports}
-              align="end"
-              value={settings.remoteImportImages}
-              options={REMOTE_IMPORT_IMAGE_OPTIONS}
-              onChange={(value) => change("remoteImportImages", value)}
-            />
-          </div>
-        </div>
-      )}
-      <div className={settingsGroup}>
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            Export workspace
-            <span className={settingsRowDescription}>
-              {browser
-                ? settingsCopy.data.downloadsAPortableJsonArchiveOf
-                : settingsCopy.data.writesAPortableJsonArchiveInto}
-            </span>
-          </span>
+              detail={settingsCopy.data.imagesThatMarkdownLinksFromThe}
+              changed={changed("remoteImportImages")}
+              className={settingsInputRow}
+            >
+              <Select
+                label={settingsCopy.data.remoteImagesInImports}
+                align="end"
+                value={settings.remoteImportImages}
+                options={REMOTE_IMPORT_IMAGE_OPTIONS}
+                onChange={(value) => change("remoteImportImages", value)}
+              />
+            </SettingsRow>
+          </>
+        )}
+        <SettingsRow
+          label="Export workspace"
+          detail={
+            browser
+              ? settingsCopy.data.downloadsAPortableJsonArchiveOf
+              : settingsCopy.data.writesAPortableJsonArchiveInto
+          }
+        >
           <button
             type="button"
             className={settingsButton}
@@ -464,33 +441,32 @@ export function DataSection({ store }: SectionProps) {
           >
             {exporting ? "Exporting…" : "Export archive"}
           </button>
-        </div>
+        </SettingsRow>
         <MaintenanceStatus
           phase={phase}
           kinds={["export"]}
           onCancel={cancelRunning}
           onForceBackup={() => runBackup(true)}
         />
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Clean up</div>
+      </SettingsGroup>
+      <SettingsGroup id="clean-up" title="Clean up" keywords="empty notes trash">
         <EmptyNotesRow store={store} />
-      </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>{settingsCopy.data.backupsRecovery}</div>
+      </SettingsGroup>
+      <SettingsGroup
+        id="backups"
+        title={settingsCopy.data.backupsRecovery}
+        keywords="backup restore recovery rollback safety snapshot"
+      >
         {browser && (
           <p className={settingsRowDetail} role="note">
             {settingsCopy.data.verifiedScheduledBackupsRunInThe}
           </p>
         )}
         {!browser && (
-          <div className={settingsRow}>
-            <span className={settingsRowLabel}>
-              Scheduled backups
-              <span className={settingsRowDescription}>
-                {settingsCopy.data.theDesktopAppTakesAVerified}
-              </span>
-            </span>
+          <SettingsRow
+            label="Scheduled backups"
+            detail={settingsCopy.data.theDesktopAppTakesAVerified}
+          >
             <button
               type="button"
               className={settingsButton}
@@ -500,7 +476,7 @@ export function DataSection({ store }: SectionProps) {
             >
               {backingUp ? "Backing up…" : settingsCopy.data.backUpNow}
             </button>
-          </div>
+          </SettingsRow>
         )}
         <MaintenanceStatus
           phase={phase}
@@ -535,18 +511,24 @@ export function DataSection({ store }: SectionProps) {
             onConfirmRestore={runConfirmed}
           />
         )}
-      </div>
-      <div className={cn(settingsGroup, dangerZoneClass)}>
-        <div className={cn(settingsGroupTitle, "text-destructive/80")}>Danger zone</div>
-        <div className={cn(settingsRow, settingsInputRow)}>
-          <span className={settingsRowLabel}>
-            {settingsCopy.data.replaceWorkspaceFromArchive}
-            <span className={settingsRowDescription}>
+      </SettingsGroup>
+      <SettingsGroup
+        id="danger"
+        title="Danger zone"
+        tone="danger"
+        keywords="replace archive clear delete erase all data reset"
+      >
+        <SettingsRow
+          label={settingsCopy.data.replaceWorkspaceFromArchive}
+          detail={
+            <>
               {settingsCopy.data.replacesEveryNoteInThisWorkspace}
               {browser ? settingsCopy.data.aSafetyCopyOfTheCurrent : ""}
-            </span>
-            {importPath !== "" && <span className={settingsRowDetail}>{importPath}</span>}
-          </span>
+            </>
+          }
+          notes={importPath !== "" ? <span className={settingsRowDetail}>{importPath}</span> : null}
+          className={settingsInputRow}
+        >
           <div className="flex shrink-0 items-center justify-end gap-2">
             <button
               type="button"
@@ -589,17 +571,17 @@ export function DataSection({ store }: SectionProps) {
               )}
             />
           </div>
-        </div>
+        </SettingsRow>
         <MaintenanceStatus
           phase={phase}
           kinds={["import"]}
           onCancel={cancelRunning}
           onForceBackup={() => runBackup(true)}
         />
-        <div className={cn(settingsRow, settingsInputRow)}>
-          <span className={settingsRowLabel}>
-            {settingsCopy.data.clearAllData}
-            <span className={settingsRowDescription}>
+        <SettingsRow
+          label={settingsCopy.data.clearAllData}
+          detail={
+            <>
               {settingsCopy.data.permanentlyDeletesNotesSettingsAnd}{" "}
               {browser
                 ? settingsCopy.data.browserownedSqliteAndMediaStorage
@@ -607,14 +589,18 @@ export function DataSection({ store }: SectionProps) {
               {settingsCopy.data.fromThisDeviceThen}
               {browser ? " reloads with" : " restarts into"}
               {settingsCopy.data.aFreshWorkspaceYouWillAlso}
-            </span>
-            {clearError ? (
+            </>
+          }
+          notes={
+            clearError ? (
               <span className="text-[11px] text-destructive" role="alert">
                 {settingsCopy.data.couldNotClearAllData}
                 {clearError}
               </span>
-            ) : null}
-          </span>
+            ) : null
+          }
+          className={settingsInputRow}
+        >
           <InlineConfirm
             className="shrink-0"
             confirmLabel="Delete everything"
@@ -632,17 +618,17 @@ export function DataSection({ store }: SectionProps) {
               </button>
             )}
           />
-        </div>
-      </div>
+        </SettingsRow>
+      </SettingsGroup>
     </section>
   );
 }
 
-const backupListClass = "mt-3 list-none rounded-lg border border-border p-0";
+const backupListClass = "mt-1 mb-2.5 list-none rounded-lg border border-theme-divider p-0";
 const backupItemClass =
-  "flex items-center justify-between gap-3 px-3 py-2.5 text-[13px] [&+&]:border-t [&+&]:border-border";
+  "flex items-center justify-between gap-3 px-3 py-2.5 text-[13px] [&+&]:border-t [&+&]:border-theme-divider";
 const backupToggleClass =
-  "w-full border-t border-border px-2.5 py-1.5 text-center text-[12px] text-muted-foreground transition-colors hover:text-foreground";
+  "w-full cursor-pointer border-0 border-t border-theme-divider bg-transparent px-2.5 py-1.5 text-center text-[12px] text-theme-secondary transition-colors hover:text-foreground";
 
 const BACKUP_PREVIEW_COUNT = 4;
 
@@ -760,7 +746,7 @@ function BackupInventory({
       </ul>
       {inventory.rollbacks.length > 0 && (
         <>
-          <div className={settingsGroupTitle}>{settingsCopy.data.keptAfterRestores}</div>
+          <p className={settingsSubheading}>{settingsCopy.data.keptAfterRestores}</p>
           <ul className={backupListClass} aria-label="Rollback databases">
             {inventory.rollbacks.map((entry) => (
               <li key={entry.fileName} className={backupItemClass}>
@@ -780,7 +766,7 @@ function BackupInventory({
 }
 
 const maintenanceStatusClass =
-  "mt-3 flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5 text-xs text-muted-foreground";
+  "my-2 flex items-center justify-between gap-3 rounded-lg border border-theme-divider bg-theme-deep px-3 py-2.5 text-xs text-theme-secondary";
 
 type MaintenanceStatusProps = {
   phase: MaintenancePhase;

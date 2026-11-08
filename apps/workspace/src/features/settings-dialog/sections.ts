@@ -21,6 +21,7 @@ export type SectionProps = {
 export const SECTIONS = [
   {
     id: "appearance",
+    summary: settingsCopy.appearance.chooseHowTheWorkspaceLooksAnd,
     label: "General",
     description: "Appearance and workspace preferences",
     searchText:
@@ -29,14 +30,16 @@ export const SECTIONS = [
   },
   {
     id: "editor",
+    summary: settingsCopy.editor.tuneTheWritingSurfaceWithoutChanging,
     label: "Editor",
-    description: "Writing experience",
+    description: "Fonts, writing, and editing",
     searchText:
       "font typography sans serif mono line spacing cozy comfortable relaxed empty note prompt placeholder writing journal daily word goal target count streak",
     icon: FileTextIcon,
   },
   {
     id: "ai",
+    summary: settingsCopy.ai.chooseAModelForWritingTools,
     label: "AI",
     description: "Providers and writing tools",
     searchText:
@@ -46,6 +49,7 @@ export const SECTIONS = [
   },
   {
     id: "shortcuts",
+    summary: settingsCopy.shortcuts.clickAShortcutThenPressA,
     label: "Shortcuts",
     description: "Keyboard bindings",
     searchText: `keys hotkeys remap commands ${SHORTCUT_DEFINITIONS.map((definition) => `${definition.label} ${definition.group} ${definition.description ?? ""}`).join(" ")}`,
@@ -53,6 +57,7 @@ export const SECTIONS = [
   },
   {
     id: "media",
+    summary: "Images stored in this workspace.",
     label: "Media",
     description: "Images stored in this workspace",
     searchText:
@@ -62,6 +67,7 @@ export const SECTIONS = [
   },
   {
     id: "account",
+    summary: settingsCopy.account.signInForCloudCapabilitiesYour,
     placement: "bottom",
     label: "Account & sync",
     description: "Cloud sign-in and workspace sync",
@@ -71,6 +77,7 @@ export const SECTIONS = [
   },
   {
     id: "lock",
+    summary: settingsCopy.lock.lockSingleNotesOrWholeFolders,
     placement: "bottom",
     label: "Privacy & lock",
     description: "Lock notes behind a PIN or passphrase",
@@ -80,6 +87,7 @@ export const SECTIONS = [
   },
   {
     id: "data",
+    summary: settingsCopy.data.importsStoragePortableArchivesBackupsAnd,
     placement: "bottom",
     label: "Data & recovery",
     description: "Storage, imports, backups, and recovery",
@@ -89,6 +97,7 @@ export const SECTIONS = [
   },
   {
     id: "about",
+    summary: settingsCopy.about.versionDetailsUpdatesAndWhereTo,
     placement: "bottom",
     label: "About",
     description: "Version, updates, and links",
@@ -104,6 +113,7 @@ export type SettingsSection = {
   id: SectionId;
   label: string;
   description: string;
+  summary: string;
   searchText: string;
   copy: readonly string[];
   icon: (typeof SECTIONS)[number]["icon"];
@@ -112,6 +122,11 @@ export type SettingsSection = {
 };
 
 export type SectionPlacement = "top" | "bottom";
+
+export const SECTION_GROUP_LABELS: Record<SectionPlacement, string> = {
+  top: "Workspace",
+  bottom: "Account and safety",
+};
 
 export type SectionGroups = {
   top: SettingsSection[];

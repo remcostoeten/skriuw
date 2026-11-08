@@ -4,3 +4,11 @@
     outline-offset: 2px;
   }
 }
+
+@keyframes settings-caret-blink {
+  50% {
+    background-color: transparent;
+    color: inherit;
+    box-shadow: none;
+  }
+}
