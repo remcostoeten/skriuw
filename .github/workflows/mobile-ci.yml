@@ -288,6 +288,13 @@ jobs:
                   emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
                   script: echo "Created the AVD snapshot"
 
+            # Built before the emulator boots so Gradle does not share the
+            # runner's cores with a software-rendered emulator.
+            - name: Build the probe APK
+              env:
+                  SKRIUW_ANDROID_ABI: x86_64
+              run: ${{ env.MODULE_DIR }}/scripts/e2e-android.sh build
+
             - name: Open, write, kill, relaunch, read back
               uses: reactivecircus/android-emulator-runner@v2
               with:
@@ -298,7 +305,7 @@ jobs:
                   force-avd-creation: false
                   disable-animations: true
                   emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-                  script: ${{ env.MODULE_DIR }}/scripts/e2e-android.sh
+                  script: ${{ env.MODULE_DIR }}/scripts/e2e-android.sh run
 
     xcframework:
         name: iOS xcframework
@@ -450,7 +457,7 @@ jobs:
               run: |
                   bunx expo prebuild --platform android --no-install
                   cd android
-                  ./gradlew app:assembleRelease -x lint -x test -PreactNativeArchitectures=arm64-v8a,x86_64
+                  ./gradlew app:assembleRelease -x lint -x test -PreactNativeArchitectures=arm64-v8a,x86_64 "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
 
             - uses: actions/upload-artifact@v4
               with:

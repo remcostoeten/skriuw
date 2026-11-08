@@ -5,9 +5,16 @@
 # The probe screen is copied into apps/mobile/app only for the duration of the run,
 # because a route has to live there to be reachable; it is removed on exit.
 #
-# Requirements: a booted emulator or device visible to adb, plus everything
-# scripts/build-android.sh needs.
+# Usage: e2e-android.sh [build|run|all]
+#   build  assemble the release APK; needs no emulator, so CI runs it before one boots
+#   run    install the built APK and run the probe on a booted emulator or device
+#   all    both, the default
+#
+# Requirements: everything scripts/build-android.sh needs, and for run or all a
+# booted emulator or device visible to adb.
 set -Eeuo pipefail
+
+mode="${1:-all}"
 
 module_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mobile_dir="$(cd "$module_dir/../.." && pwd)"
@@ -32,20 +39,31 @@ cleanup() {
 }
 trap cleanup EXIT
 
-command -v adb >/dev/null 2>&1 || fail "adb is not on PATH"
-[[ "$(adb get-state 2>/dev/null)" == "device" ]] || fail "no booted emulator or device"
+# The 2 GiB default heap and 512 MiB metaspace restart the Gradle daemon mid-build.
+gradle_jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+apk="$mobile_dir/android/app/build/outputs/apk/release/app-release.apk"
 
-if [[ ! -d "$module_dir/android/src/main/jniLibs" ]]; then
-  "$module_dir/scripts/build-android.sh"
-fi
+require_device() {
+  command -v adb >/dev/null 2>&1 || fail "adb is not on PATH"
+  [[ "$(adb get-state 2>/dev/null)" == "device" ]] || fail "no booted emulator or device"
+}
 
-cp "$module_dir/e2e/probe-route.tsx" "$route"
-# Only the connected device's ABI is built: a four-ABI release APK does not fit
-# on a stock emulator image that already holds other applications.
-abi="$(adb shell getprop ro.product.cpu.abi | tr -d '\r')"
-(cd "$mobile_dir" && bunx expo prebuild --platform android --no-install)
-(cd "$mobile_dir/android" && ./gradlew app:assembleRelease -x lint -x test "-PreactNativeArchitectures=$abi")
-adb install -r "$mobile_dir/android/app/build/outputs/apk/release/app-release.apk"
+build_apk() {
+  if [[ ! -d "$module_dir/android/src/main/jniLibs" ]]; then
+    "$module_dir/scripts/build-android.sh"
+  fi
+
+  cp "$module_dir/e2e/probe-route.tsx" "$route"
+  # Only one ABI is built: a four-ABI release APK does not fit on a stock
+  # emulator image that already holds other applications.
+  local abi="${SKRIUW_ANDROID_ABI:-}"
+  if [[ -z "$abi" ]]; then
+    require_device
+    abi="$(adb shell getprop ro.product.cpu.abi | tr -d '\r')"
+  fi
+  (cd "$mobile_dir" && bunx expo prebuild --platform android --no-install)
+  (cd "$mobile_dir/android" && ./gradlew app:assembleRelease -x lint -x test "-PreactNativeArchitectures=$abi" "-Dorg.gradle.jvmargs=$gradle_jvmargs")
+}
 
 await_marker() {
   local deadline=$((SECONDS + 90))
@@ -61,22 +79,42 @@ await_marker() {
   return 1
 }
 
+dump_device_log() {
+  printf '::group::device log after the failed launch\n' >&2
+  printf 'pid: %s\n' "$(adb shell pidof "$package" | tr -d '\r')" >&2
+  adb logcat -d | grep -E "FATAL|AndroidRuntime|ReactNative|SKRIUW|skriuw|ActivityManager|libc|DEBUG" | tail -n 200 >&2 || true
+  printf '::endgroup::\n' >&2
+}
+
 launch_probe() {
   adb shell am force-stop "$package"
   adb logcat -c
   adb shell am start -W -a android.intent.action.VIEW -d "skriuw:///skriuw-core-probe" "$package" >/dev/null
 }
 
-adb shell pm clear "$package" >/dev/null
+run_probe() {
+  require_device
+  [[ -f "$apk" ]] || fail "no APK at $apk, run the build mode first"
+  adb install -r "$apk"
 
-launch_probe
-first="$(await_marker)" || fail "the probe never reported after the first launch"
-[[ "$first" == *"$marker created"* ]] || fail "first launch: $first"
-printf 'first launch:  %s\n' "$first"
+  adb shell pm clear "$package" >/dev/null
 
-launch_probe
-second="$(await_marker)" || fail "the probe never reported after the relaunch"
-[[ "$second" == *"$marker read-back"* ]] || fail "relaunch: $second"
-printf 'relaunch:      %s\n' "$second"
+  launch_probe
+  first="$(await_marker)" || { dump_device_log; fail "the probe never reported after the first launch"; }
+  [[ "$first" == *"$marker created"* ]] || fail "first launch: $first"
+  printf 'first launch:  %s\n' "$first"
 
-printf 'skriuw-core e2e passed\n'
+  launch_probe
+  second="$(await_marker)" || { dump_device_log; fail "the probe never reported after the relaunch"; }
+  [[ "$second" == *"$marker read-back"* ]] || fail "relaunch: $second"
+  printf 'relaunch:      %s\n' "$second"
+
+  printf 'skriuw-core e2e passed\n'
+}
+
+case "$mode" in
+  build) build_apk ;;
+  run) run_probe ;;
+  all) build_apk; run_probe ;;
+  *) fail "unknown mode: $mode" ;;
+esac
