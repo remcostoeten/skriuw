@@ -54,8 +54,8 @@ function undoKeys(): string[] {
   return detectPlatform() === "mac" ? ["⌘", "⇧", "Z"] : ["Ctrl", "Shift", "Z"];
 }
 
-/** Shows a notification through @remcostoeten/notifier. */
-export function showToast(request: ToastRequest): void {
+/** Shows a notification through @remcostoeten/notifier and returns a function that dismisses it. */
+export function showToast(request: ToastRequest): () => void {
   const run = request.action?.run;
   const options = {
     duration: request.durationMs ?? 7_000,
@@ -98,6 +98,7 @@ export function showToast(request: ToastRequest): void {
     };
     publishActionChange();
   }
+  return () => instance.dismiss();
 }
 
 type HostProps = {

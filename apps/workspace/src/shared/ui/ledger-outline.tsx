@@ -14,7 +14,7 @@ type Props = {
   onJump: (groupId: string) => void;
 };
 
-export function SettingsOutline({ open, registry, scrollerRef, onJump }: Props) {
+export function LedgerOutline({ open, registry, scrollerRef, onJump }: Props) {
   const live = useSyncExternalStore(registry.subscribe, registry.snapshot, registry.snapshot);
   const [held, setHeld] = useState<readonly LedgerGroupEntry[]>([]);
   const [current, setCurrent] = useState<string | null>(null);
@@ -85,7 +85,20 @@ export function SettingsOutline({ open, registry, scrollerRef, onJump }: Props) 
                 onJump(group.id);
               }}
             >
-              <span className="block truncate">{group.title}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="min-w-0 flex-1 truncate">
+                  {group.title}
+                  {group.alert ? (
+                    <span
+                      aria-hidden="true"
+                      className="ml-1.5 inline-block size-[5px] rounded-full bg-destructive align-[1px]"
+                    />
+                  ) : null}
+                </span>
+                {group.count === undefined ? null : (
+                  <span className="text-[10.5px] tabular-nums text-theme-dim">{group.count}</span>
+                )}
+              </span>
             </button>
           ))}
         </div>

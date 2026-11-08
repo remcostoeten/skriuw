@@ -4,6 +4,8 @@ export type LedgerGroupEntry = {
   id: string;
   title: string;
   element: HTMLElement;
+  count?: number;
+  alert?: boolean;
 };
 
 export type LedgerRegistry = {

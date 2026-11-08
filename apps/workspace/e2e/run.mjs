@@ -357,6 +357,10 @@ async function runProviderImport(cdp, sessionId, checks, control, settle, state)
   return current;
 }
 
+function taskBox(id) {
+  return `document.querySelector('.task-checkbox[data-task-id="${id}"]')`;
+}
+
 async function checkTaskKeyboard(cdp, sessionId, checks) {
   await evaluate(cdp, sessionId, "window.location.hash = '#/notes'");
   await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.settle()");
@@ -407,64 +411,145 @@ async function checkTaskKeyboard(cdp, sessionId, checks) {
     sessionId,
     "document.querySelectorAll('.task-checkbox')[1].getAttribute('aria-label')",
   );
-  await dispatchKey(cdp, sessionId, "ArrowDown", "ArrowDown", 40);
-  await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-  await waitFor(
+  const secondId = await evaluate(
     cdp,
     sessionId,
-    "document.querySelectorAll('.task-checkbox')[1].checked",
-    "Space completes task",
+    "document.querySelectorAll('.task-checkbox')[1].dataset.taskId",
   );
+  const listFirstId = await evaluate(
+    cdp,
+    sessionId,
+    "document.querySelector('.task-checkbox').dataset.taskId",
+  );
+
+  await dispatchKey(cdp, sessionId, "ArrowDown", "ArrowDown", 40);
+  await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+  await waitFor(cdp, sessionId, `${taskBox(secondId)}.checked`, "Space completes task");
   assert(
     checks,
     "task-toggle-retains-moved-focus",
-    await evaluate(
-      cdp,
-      sessionId,
-      "document.activeElement === document.querySelectorAll('.task-checkbox')[1]",
-    ),
+    await evaluate(cdp, sessionId, `document.activeElement === ${taskBox(secondId)}`),
     "focus stays on the second task after a deep link",
+  );
+  await dispatchKey(cdp, sessionId, "ArrowUp", "ArrowUp", 38, "", 8);
+  assert(
+    checks,
+    "task-shift-up-focuses-first",
+    await evaluate(cdp, sessionId, `document.activeElement === ${taskBox(listFirstId)}`),
+    "Shift+ArrowUp focuses the first task",
+  );
+  await dispatchKey(cdp, sessionId, "ArrowDown", "ArrowDown", 40, "", 8);
+  assert(
+    checks,
+    "task-shift-down-focuses-last",
+    await evaluate(cdp, sessionId, `document.activeElement === ${taskBox(secondId)}`),
+    "Shift+ArrowDown focuses the last task",
   );
   await dispatchKey(cdp, sessionId, "Home", "Home", 36);
   assert(
     checks,
-    "task-home-focus",
-    await evaluate(
-      cdp,
-      sessionId,
-      "document.activeElement === document.querySelector('.task-checkbox')",
-    ),
-    "Home focuses first task",
+    "task-home-is-not-bound",
+    await evaluate(cdp, sessionId, `document.activeElement === ${taskBox(secondId)}`),
+    "Home leaves focus where it is",
   );
-  await dispatchKey(cdp, sessionId, "End", "End", 35);
-  assert(
-    checks,
-    "task-end-focus",
-    await evaluate(
-      cdp,
-      sessionId,
-      "document.activeElement === document.querySelectorAll('.task-checkbox')[1]",
-    ),
-    "End focuses last task",
+  await waitFor(
+    cdp,
+    sessionId,
+    `document.querySelector('[data-task-group="completed"] [data-task-row="${secondId}"]') !== null`,
+    "completed task folds into Completed",
   );
+  await evaluate(cdp, sessionId, `${taskBox(listFirstId)}.focus()`);
   await dispatchKey(cdp, sessionId, "Tab", "Tab", 9);
   assert(
     checks,
     "task-due-tab-focus",
-    await evaluate(cdp, sessionId, "document.activeElement.classList.contains('task-due')"),
-    "Tab reaches due date button",
+    await evaluate(cdp, sessionId, "document.activeElement.hasAttribute('data-task-due')"),
+    "Tab reaches the due date button",
   );
-  await dispatchKey(cdp, sessionId, "Tab", "Tab", 9);
+  await dispatchKey(cdp, sessionId, "Tab", "Tab", 9, "", 8);
+  await dispatchKey(cdp, sessionId, "d", "KeyD", 68, "d");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.activeElement?.getAttribute('aria-label') === 'Due date'",
+    "D opens the date popover",
+  );
+  await typeText(cdp, sessionId, "tomorrow");
   assert(
     checks,
-    "task-source-tab-focus",
-    await evaluate(cdp, sessionId, "document.activeElement.classList.contains('task-source')"),
-    "Tab reaches source button",
+    "task-date-preview",
+    await evaluate(
+      cdp,
+      sessionId,
+      "document.getElementById('task-due-preview').textContent.includes('Tomorrow')",
+    ),
+    "the popover previews the parsed date",
   );
-  await dispatchKey(cdp, sessionId, "Tab", "Tab", 9, "", 8);
-  await dispatchKey(cdp, sessionId, "Tab", "Tab", 9, "", 8);
-  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
-  await waitFor(cdp, sessionId, "window.location.hash === '#/notes'", "Enter opens source");
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13, "\r");
+  await waitFor(
+    cdp,
+    sessionId,
+    `document.querySelector('[data-task-row="${listFirstId}"] [data-task-due]')?.textContent === 'Tomorrow'`,
+    "the typed date is saved",
+  );
+  assert(
+    checks,
+    "task-date-returns-focus",
+    await evaluate(cdp, sessionId, `document.activeElement === ${taskBox(listFirstId)}`),
+    "closing the popover returns focus to the row",
+  );
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13, "\r");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('.tasks-pane')?.dataset.detail === 'open' && document.querySelector('[data-sheet-title]') !== null",
+    "Enter opens the detail sheet",
+  );
+  assert(
+    checks,
+    "task-detail-follows-row",
+    await evaluate(
+      cdp,
+      sessionId,
+      `document.querySelector('[data-sheet-title]').value === ${taskBox(listFirstId)}.getAttribute('aria-label')`,
+    ),
+    "the sheet shows the focused task",
+  );
+  await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
+  await waitFor(
+    cdp,
+    sessionId,
+    `document.querySelector('.tasks-pane')?.dataset.detail !== 'open' && document.activeElement === ${taskBox(listFirstId)}`,
+    "Escape closes the sheet and returns focus to the row",
+  );
+  await dispatchKey(cdp, sessionId, "g", "KeyG", 71, "g");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.getElementById('tasks-tab-note')?.getAttribute('aria-selected') === 'true'",
+    "G groups by note",
+  );
+  await dispatchKey(cdp, sessionId, "g", "KeyG", 71, "g");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.getElementById('tasks-tab-due')?.getAttribute('aria-selected') === 'true'",
+    "G groups by due date again",
+  );
+  await dispatchKey(cdp, sessionId, "/", "Slash", 191, "/");
+  assert(
+    checks,
+    "task-slash-focuses-filter",
+    await evaluate(
+      cdp,
+      sessionId,
+      "document.activeElement?.getAttribute('aria-label') === 'Filter tasks'",
+    ),
+    "/ focuses the filter",
+  );
+  await evaluate(cdp, sessionId, `${taskBox(secondId)}.focus()`);
+  await dispatchKey(cdp, sessionId, "o", "KeyO", 79, "o");
+  await waitFor(cdp, sessionId, "window.location.hash === '#/notes'", "O opens source");
   assert(
     checks,
     "task-source-completion-matches",
@@ -478,7 +563,7 @@ async function checkTaskKeyboard(cdp, sessionId, checks) {
   const uncheckedTitle = await evaluate(
     cdp,
     sessionId,
-    "document.querySelector('.check-item[data-checked=false]').textContent",
+    "document.querySelector('.check-item[data-checked=false] .check-item-content').textContent",
   );
   await evaluate(
     cdp,
