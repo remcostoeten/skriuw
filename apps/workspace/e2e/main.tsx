@@ -8,6 +8,7 @@ import { createInitialState, createRendererStore } from "@skriuw/renderer-core/s
 import { configureBridge, invoke } from "./bridge-mock";
 import { createWorkflowSnapshot } from "./fixture";
 import { createWorkflowController } from "./harness";
+import { createTaskShowcaseSnapshot } from "./tasks-fixture";
 import type { WorkflowController } from "./harness";
 import "../src/styles.css";
 
@@ -19,7 +20,11 @@ Object.defineProperty(window, "__TAURI_INTERNALS__", {
   value: { invoke, transformCallback: () => 0, unregisterCallback: () => undefined },
 });
 
-const snapshot = createWorkflowSnapshot();
+const parameters = new URLSearchParams(window.location.search);
+const fixture =
+  parameters.get("fixture") === "tasks" ? createTaskShowcaseSnapshot() : createWorkflowSnapshot();
+const theme = parameters.get("theme");
+const snapshot = theme ? { ...fixture, settings: { ...fixture.settings, theme } } : fixture;
 configureBridge(snapshot);
 if (window.location.hash === "") {
   window.location.hash = "#/notes";

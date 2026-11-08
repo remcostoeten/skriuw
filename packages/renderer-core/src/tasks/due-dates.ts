@@ -5,6 +5,7 @@ import {
   mondayFirstWeekday,
   parseDateKey,
   shiftDay,
+  shiftYearKeepingDay,
   type DateKey,
 } from "../journal/dates";
 
@@ -59,29 +60,143 @@ function upcomingWeekday(name: string, today: DateKey): DateKey | null {
   return shiftDay(today, (index - mondayFirstWeekday(today) + 7) % 7);
 }
 
+const SHORTHANDS: Readonly<Record<string, string>> = {
+  tod: "today",
+  tom: "tomorrow",
+  tmr: "tomorrow",
+  tmrw: "tomorrow",
+};
+
+const SATURDAY = 5;
+
+/** A day and month with no year, in either order: `20 nov`, `nov 20`, `20 november`. */
+const DAY_AND_MONTH = /^(?:\d{1,2} [a-z]{3,}|[a-z]{3,} \d{1,2})$/;
+
+/** `+3`, `+3d`, `+2w`, `+2 weeks`: an offset from today in days or weeks. */
+const RELATIVE_OFFSET = /^\+(\d{1,3}) ?(d|days?|w|wks?|weeks?)?$/;
+
+const PAST_TOLERANCE_DAYS = 31;
+
+/**
+ * @name nextWeekStart
+ * @description The Monday that starts next week. When that Monday is
+ * tomorrow, the following one, so "next week" never means the next day.
+ *
+ * @example
+ * nextWeekStart("2026-11-04"); // "2026-11-09"
+ * nextWeekStart("2026-11-08"); // "2026-11-16"
+ */
+export function nextWeekStart(today: DateKey): DateKey {
+  const monday = shiftDay(today, 7 - mondayFirstWeekday(today));
+  return monday === shiftDay(today, 1) ? shiftDay(monday, 7) : monday;
+}
+
+/**
+ * @name thisWeekend
+ * @description The Saturday of the coming weekend, or today when today is
+ * already Saturday or Sunday.
+ *
+ * @example
+ * thisWeekend("2026-11-04"); // "2026-11-07"
+ * thisWeekend("2026-11-08"); // "2026-11-08"
+ */
+export function thisWeekend(today: DateKey): DateKey {
+  const weekday = mondayFirstWeekday(today);
+  return weekday >= SATURDAY ? today : shiftDay(today, SATURDAY - weekday);
+}
+
+function relativeOffset(normalized: string, today: DateKey): DateKey | null {
+  const match = RELATIVE_OFFSET.exec(normalized);
+  if (!match) {
+    return null;
+  }
+  const weeks = match[2]?.startsWith("w") === true;
+  return shiftDay(today, Number(match[1]) * (weeks ? 7 : 1));
+}
+
+function rolledForward(normalized: string, key: DateKey, today: DateKey): DateKey {
+  const stale = shiftDay(today, -PAST_TOLERANCE_DAYS);
+  return DAY_AND_MONTH.test(normalized) && key < stale ? shiftYearKeepingDay(key, 1) : key;
+}
+
 /**
  * @name resolveDueExpression
- * @description Reads what a user typed after `due:` into a due date. A bare
- * weekday means its next occurrence, today included; everything else follows the
- * journal's "Go to date" grammar anchored on today. Underscores stand in for
- * spaces so the expression stays one token. Month- or year-only answers are
- * refused because a due date names a day.
+ * @description Reads what a user typed for a due date, after `due:` in the
+ * editor or in the tasks view's date popover. A bare weekday means its next
+ * occurrence, today included; `+3`, `+2w`, `next week` (next Monday),
+ * `weekend`, and the shorthands `tod`, `tom`, and `tmr` are read here; a day
+ * and month without a year that lies more than a month back means next year's;
+ * everything else follows the journal's "Go to date" grammar anchored on
+ * today. Underscores stand in for spaces so the expression stays one token.
+ * Month- or year-only answers are refused because a due date names a day.
  *
  * @example
  * resolveDueExpression("tomorrow", "2026-09-30"); // "2026-10-01"
  * resolveDueExpression("next_friday", "2026-09-30"); // "2026-10-09"
+ * resolveDueExpression("+3", "2026-09-30"); // "2026-10-03"
+ * resolveDueExpression("2 jan", "2026-11-08"); // "2027-01-02"
  */
 export function resolveDueExpression(expression: string, today: DateKey): DateKey | null {
-  const normalized = expression.trim().toLowerCase().replaceAll("_", " ");
+  const trimmed = expression.trim().toLowerCase().replaceAll("_", " ").replace(/\s+/g, " ");
+  const normalized = SHORTHANDS[trimmed] ?? trimmed;
   if (normalized.length === 0) {
     return null;
+  }
+  if (normalized === "next week") {
+    return nextWeekStart(today);
+  }
+  if (normalized === "weekend" || normalized === "this weekend") {
+    return thisWeekend(today);
+  }
+  const offset = relativeOffset(normalized, today);
+  if (offset !== null) {
+    return offset;
   }
   const weekday = upcomingWeekday(normalized, today);
   if (weekday !== null) {
     return weekday;
   }
   const resolution = resolveJournalDateExpression(normalized, today, today);
-  return resolution.ok && resolution.granularity === "day" ? resolution.key : null;
+  if (!resolution.ok || resolution.granularity !== "day") {
+    return null;
+  }
+  return rolledForward(normalized, resolution.key, today);
+}
+
+export type DueQuickPick = {
+  label: string;
+  dueDate: DateKey;
+};
+
+/**
+ * @name dueQuickPicks
+ * @description The one-click dates the tasks view's date popover offers:
+ * today, tomorrow, this weekend, and the start of next week.
+ *
+ * @example
+ * dueQuickPicks("2026-11-04").map((pick) => pick.dueDate);
+ * // ["2026-11-04", "2026-11-05", "2026-11-07", "2026-11-09"]
+ */
+export function dueQuickPicks(today: DateKey): DueQuickPick[] {
+  return [
+    { label: "Today", dueDate: today },
+    { label: "Tomorrow", dueDate: shiftDay(today, 1) },
+    { label: "This weekend", dueDate: thisWeekend(today) },
+    { label: "Next week", dueDate: nextWeekStart(today) },
+  ];
+}
+
+/**
+ * @name daysLate
+ * @description How many days an open task is past its due date, or 0 when it
+ * is not late.
+ *
+ * @example
+ * daysLate("2026-09-27", "2026-09-30"); // 3
+ * daysLate("2026-10-02", "2026-09-30"); // 0
+ */
+export function daysLate(dueDate: DateKey, today: DateKey): number {
+  return Math.max(0, daysBetween(dueDate, today));
 }
 
 /**

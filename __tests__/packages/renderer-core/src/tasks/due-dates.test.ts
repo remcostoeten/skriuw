@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import {
+  daysLate,
   describeDueDate,
   dueBucket,
+  dueQuickPicks,
   formatDueLabel,
   isDueDate,
+  nextWeekStart,
   resolveDueExpression,
+  thisWeekend,
 } from "@skriuw/renderer-core/tasks/due-dates";
 
 const TODAY = "2026-09-30";
@@ -60,4 +64,52 @@ test("the spoken description says when a date has passed", () => {
     "Overdue, due Tuesday, September 1, 2026",
   );
   assert.equal(describeDueDate("2026-09-01", true, TODAY), "Due Tuesday, September 1, 2026");
+});
+
+test("the date popover's words resolve against today", () => {
+  const sunday = "2026-11-08";
+  assert.equal(resolveDueExpression("tod", sunday), sunday);
+  assert.equal(resolveDueExpression("tom", sunday), "2026-11-09");
+  assert.equal(resolveDueExpression("tmr", sunday), "2026-11-09");
+  assert.equal(resolveDueExpression("+3", sunday), "2026-11-11");
+  assert.equal(resolveDueExpression("+2w", sunday), "2026-11-22");
+  assert.equal(resolveDueExpression("+10 days", sunday), "2026-11-18");
+  assert.equal(resolveDueExpression("fri", sunday), "2026-11-13");
+  assert.equal(resolveDueExpression("20 nov", sunday), "2026-11-20");
+  assert.equal(resolveDueExpression("Nov 20", sunday), "2026-11-20");
+  assert.equal(resolveDueExpression("2026-12-24", sunday), "2026-12-24");
+});
+
+test("next week means next Monday, and never tomorrow", () => {
+  assert.equal(resolveDueExpression("next week", "2026-11-04"), "2026-11-09");
+  assert.equal(resolveDueExpression("next_week", "2026-11-08"), "2026-11-16");
+  assert.equal(nextWeekStart("2026-11-09"), "2026-11-16");
+});
+
+test("this weekend is the coming Saturday, or today during the weekend", () => {
+  assert.equal(thisWeekend("2026-11-04"), "2026-11-07");
+  assert.equal(thisWeekend("2026-11-07"), "2026-11-07");
+  assert.equal(thisWeekend("2026-11-08"), "2026-11-08");
+  assert.equal(resolveDueExpression("weekend", "2026-11-04"), "2026-11-07");
+});
+
+test("a day and month long past means next year's", () => {
+  assert.equal(resolveDueExpression("2 jan", "2026-11-08"), "2027-01-02");
+  assert.equal(resolveDueExpression("20 oct", "2026-11-08"), "2026-10-20");
+  assert.equal(resolveDueExpression("2026-01-02", "2026-11-08"), "2026-01-02");
+});
+
+test("quick picks offer today, tomorrow, the weekend, and next week", () => {
+  assert.deepEqual(dueQuickPicks("2026-11-04"), [
+    { label: "Today", dueDate: "2026-11-04" },
+    { label: "Tomorrow", dueDate: "2026-11-05" },
+    { label: "This weekend", dueDate: "2026-11-07" },
+    { label: "Next week", dueDate: "2026-11-09" },
+  ]);
+});
+
+test("lateness counts whole days past the due date", () => {
+  assert.equal(daysLate("2026-09-27", TODAY), 3);
+  assert.equal(daysLate(TODAY, TODAY), 0);
+  assert.equal(daysLate("2026-10-02", TODAY), 0);
 });

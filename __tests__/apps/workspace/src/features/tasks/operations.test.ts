@@ -1,8 +1,19 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { buildTaskDueDate, buildTaskToggle } from "@/features/tasks/operations";
+import {
+  buildSubtaskAdd,
+  buildSubtaskToggle,
+  buildTaskDueDate,
+  buildTaskDueDates,
+  buildTaskFields,
+  buildTaskRecurrence,
+  buildTaskStatus,
+  buildTaskTitle,
+  buildTaskToggle,
+  type TaskWriteResult,
+} from "@/features/tasks/operations";
 import { countWords, productSchema, serializeProductMarkdown } from "@/features/editor/schema";
-import type { WorkspaceTask } from "@skriuw/renderer-core/contracts/workspace";
+import type { WorkspaceOperation, WorkspaceTask } from "@skriuw/renderer-core/contracts/workspace";
 import type { DocumentRecord, RendererState } from "@skriuw/renderer-core/store/types";
 
 const AT = 4242;
@@ -277,4 +288,313 @@ test("reopening a repeating task does not create another", () => {
   const result = buildTaskToggle(state, "task-1", AT, "2026-09-30");
 
   assert.equal(result.status === "ready" && result.operations.length, 1);
+});
+
+type UpdateTask = Extract<WorkspaceOperation, { type: "update_task" }>;
+
+function updates(result: TaskWriteResult): UpdateTask[] {
+  assert.equal(result.status, "ready", result.status === "refused" ? result.message : "");
+  return result.status === "ready"
+    ? result.operations.filter(
+        (operation): operation is UpdateTask => operation.type === "update_task",
+      )
+    : [];
+}
+
+function writtenItems(operation: UpdateTask | undefined) {
+  const json = operation?.document?.documentJson as {
+    content: { content: { attrs: Record<string, unknown>; content: any[] }[] }[];
+  };
+  return json.content[0]?.content ?? [];
+}
+
+function reason(result: TaskWriteResult): string | null {
+  return result.status === "refused" ? result.reason : null;
+}
+
+function withTags(state: RendererState, ...ids: string[]): RendererState {
+  return {
+    ...state,
+    tags: new Map(
+      ids.map((id) => [
+        id,
+        { id, name: id, color: null, createdAt: 1, updatedAt: 1, createdIn: null },
+      ]),
+    ),
+  } as RendererState;
+}
+
+test("moving a task into progress changes only the record and leaves the checkbox alone", () => {
+  const state = stateWith([task()], [record(documentJson(checkItem("block-1")))]);
+  const [operation] = updates(buildTaskStatus(state, "task-1", "in_progress", AT));
+
+  assert.equal(operation?.task.status, "in_progress");
+  assert.equal(operation?.document, null);
+});
+
+test("reopening a done task into progress unchecks its line in the same write", () => {
+  const state = stateWith(
+    [task({ status: "done" })],
+    [record(documentJson(checkItem("block-1", true)))],
+  );
+  const [operation] = updates(buildTaskStatus(state, "task-1", "in_progress", AT));
+
+  assert.equal(operation?.task.status, "in_progress");
+  assert.equal(writtenItems(operation)[0]?.attrs.checked, false);
+});
+
+test("completing an in-progress task checks its line", () => {
+  const state = stateWith(
+    [task({ status: "in_progress" })],
+    [record(documentJson(checkItem("block-1")))],
+  );
+  const [operation] = updates(buildTaskToggle(state, "task-1", AT));
+
+  assert.equal(operation?.task.status, "done");
+  assert.equal(writtenItems(operation)[0]?.attrs.checked, true);
+});
+
+test("renaming a task rewrites its checklist text and the record together", () => {
+  const state = stateWith([task()], [record(documentJson(checkItem("block-1")))]);
+  const [operation] = updates(buildTaskTitle(state, "task-1", "  Call   Patrick back ", AT));
+
+  assert.equal(operation?.task.title, "Call Patrick back");
+  assert.deepEqual(writtenItems(operation)[0]?.content[0], {
+    type: "paragraph",
+    content: [{ type: "text", text: "Call Patrick back" }],
+  });
+  assert.match(operation!.document!.markdown, /- \[ \] Call Patrick back/);
+});
+
+test("a rename keeps nested subtasks under the line", () => {
+  const item = {
+    ...checkItem("block-1"),
+    content: [
+      ...checkItem("block-1").content,
+      { type: "check_list", content: [checkItem("block-2", false, "Nested")] },
+    ],
+  };
+  const state = stateWith([task()], [record(documentJson(item))]);
+  const [operation] = updates(buildTaskTitle(state, "task-1", "Renamed", AT));
+
+  assert.equal(writtenItems(operation)[0]?.content.length, 2);
+});
+
+test("a line with formatting refuses a rename instead of flattening it", () => {
+  const formatted = {
+    ...checkItem("block-1"),
+    content: [
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "Call Patrick", marks: [{ type: "strong" }] }],
+      },
+    ],
+  };
+  const result = buildTaskTitle(
+    stateWith([task()], [record(documentJson(formatted))]),
+    "task-1",
+    "Call",
+    AT,
+  );
+
+  assert.equal(result.status === "refused" && result.reason, "formatted-title");
+});
+
+test("an empty title is refused", () => {
+  const result = buildTaskTitle(stateWith([task({ source: null })]), "task-1", "   ", AT);
+
+  assert.equal(result.status === "refused" && result.reason, "invalid-title");
+});
+
+test("priority, notes, and tags are record-only writes", () => {
+  const state = withTags(
+    stateWith([task()], [record(documentJson(checkItem("block-1")))]),
+    "tag-1",
+    "tag-2",
+  );
+  const [operation] = updates(
+    buildTaskFields(
+      state,
+      "task-1",
+      { priority: "urgent", description: "Soon", tagIds: ["tag-2"] },
+      AT,
+    ),
+  );
+
+  assert.equal(operation?.document, null);
+  assert.equal(operation?.task.priority, "urgent");
+  assert.equal(operation?.task.description, "Soon");
+  assert.deepEqual(operation?.task.tagIds, ["tag-2"]);
+  assert.equal(operation?.task.updatedAt, AT);
+});
+
+test("a tag that does not exist in the workspace is refused", () => {
+  const result = buildTaskFields(
+    withTags(stateWith([task()]), "tag-1"),
+    "task-1",
+    { tagIds: ["nope"] },
+    AT,
+  );
+
+  assert.equal(result.status === "refused" && result.reason, "invalid-field");
+});
+
+test("notes over the backend's limit are refused", () => {
+  const result = buildTaskFields(
+    stateWith([task()]),
+    "task-1",
+    { description: "x".repeat(4_001) },
+    AT,
+  );
+
+  assert.equal(result.status === "refused" && result.reason, "invalid-field");
+});
+
+test("moving several tasks of one note writes that note once", () => {
+  const second = task({ id: "task-2", source: { noteId: "note-a", blockId: "block-2" } });
+  const other = {
+    ...checkItem("block-2"),
+    attrs: { ...checkItem("block-2").attrs, taskId: "task-2" },
+  };
+  const loose = task({ id: "task-3", source: null, detachedAt: 3 });
+  const state = stateWith(
+    [task(), second, loose],
+    [record(documentJson(checkItem("block-1"), other))],
+  );
+  const operations = updates(
+    buildTaskDueDates(
+      state,
+      [
+        { taskId: "task-1", dueDate: "2026-11-08" },
+        { taskId: "task-2", dueDate: "2026-11-08" },
+        { taskId: "task-3", dueDate: "2026-11-08" },
+      ],
+      AT,
+    ),
+  );
+
+  assert.equal(operations.length, 3);
+  assert.ok(operations[0]?.document);
+  assert.equal(operations[1]?.document, null);
+  assert.equal(operations[2]?.document, null);
+  assert.deepEqual(
+    writtenItems(operations[0]).map((item) => item.attrs.dueDate),
+    ["2026-11-08", "2026-11-08"],
+  );
+  assert.ok(operations.every((operation) => operation.task.dueDate === "2026-11-08"));
+});
+
+test("a repeat rule is written to the line and can be stopped", () => {
+  const state = stateWith([task()], [record(documentJson(checkItem("block-1")))]);
+  const [set] = updates(buildTaskRecurrence(state, "task-1", "every 2 weeks", AT));
+
+  assert.equal(writtenItems(set)[0]?.attrs.recurrence, "every 2 weeks");
+  assert.match(set!.document!.markdown, /\u{1F501} every 2 weeks/u);
+
+  const repeating = stateWith(
+    [task()],
+    [record({ type: "doc", content: [{ type: "check_list", content: writtenItems(set) }] })],
+  );
+  const [stopped] = updates(buildTaskRecurrence(repeating, "task-1", null, AT));
+  assert.equal(writtenItems(stopped)[0]?.attrs.recurrence, null);
+});
+
+test("a rule outside the canonical spelling and a detached task are refused", () => {
+  const state = stateWith(
+    [task(), task({ id: "loose", source: null })],
+    [record(documentJson(checkItem("block-1")))],
+  );
+
+  assert.equal(
+    reason(buildTaskRecurrence(state, "task-1", "every fortnight", AT)),
+    "invalid-field",
+  );
+  assert.equal(reason(buildTaskRecurrence(state, "loose", "every week", AT)), "no-source");
+});
+
+function withSubtasks(
+  ...subtasks: { text: string; checked: boolean; taskId?: string; blockId?: string }[]
+) {
+  return {
+    ...checkItem("block-1"),
+    content: [
+      ...checkItem("block-1").content,
+      {
+        type: "check_list",
+        content: subtasks.map((subtask) => ({
+          type: "check_item",
+          attrs: {
+            checked: subtask.checked,
+            taskId: subtask.taskId ?? null,
+            blockId: subtask.blockId ?? null,
+          },
+          content: [{ type: "paragraph", content: [{ type: "text", text: subtask.text }] }],
+        })),
+      },
+    ],
+  };
+}
+
+test("a plain subtask flips inside its parent's line", () => {
+  const state = stateWith(
+    [task()],
+    [
+      record(
+        documentJson(withSubtasks({ text: "One", checked: false }, { text: "Two", checked: true })),
+      ),
+    ],
+  );
+  const [operation] = updates(buildSubtaskToggle(state, "task-1", { list: 1, item: 1 }, AT));
+
+  assert.equal(operation?.task.id, "task-1");
+  const nested = writtenItems(operation)[0]?.content[1]?.content;
+  assert.equal(nested?.[0]?.attrs.checked, false);
+  assert.equal(nested?.[1]?.attrs.checked, false);
+});
+
+test("a subtask that is its own task completes through its own record", () => {
+  const child = task({
+    id: "task-2",
+    title: "Child",
+    source: { noteId: "note-a", blockId: "block-2" },
+  });
+  const state = stateWith(
+    [task(), child],
+    [
+      record(
+        documentJson(
+          withSubtasks({ text: "Child", checked: false, taskId: "task-2", blockId: "block-2" }),
+        ),
+      ),
+    ],
+  );
+  const [operation] = updates(buildSubtaskToggle(state, "task-1", { list: 1, item: 0 }, AT));
+
+  assert.equal(operation?.task.id, "task-2");
+  assert.equal(operation?.task.status, "done");
+});
+
+test("a subtask path that is gone is refused", () => {
+  const state = stateWith([task()], [record(documentJson(checkItem("block-1")))]);
+  const result = buildSubtaskToggle(state, "task-1", { list: 1, item: 0 }, AT);
+
+  assert.equal(result.status === "refused" && result.reason, "unknown-subtask");
+});
+
+test("adding a subtask appends an unchecked item under the line", () => {
+  const first = stateWith([task()], [record(documentJson(checkItem("block-1")))]);
+  const [created] = updates(buildSubtaskAdd(first, "task-1", " Book the room ", AT));
+  const nested = writtenItems(created)[0]?.content[1];
+
+  assert.equal(nested?.type, "check_list");
+  assert.equal(nested?.content[0]?.attrs.checked, false);
+  assert.equal(nested?.content[0]?.content[0]?.content[0]?.text, "Book the room");
+  assert.match(created!.document!.markdown, /\n  - \[ \] Book the room/);
+
+  const second = stateWith(
+    [task()],
+    [record(documentJson(withSubtasks({ text: "One", checked: false })))],
+  );
+  const [appended] = updates(buildSubtaskAdd(second, "task-1", "Two", AT));
+  assert.equal(writtenItems(appended)[0]?.content[1]?.content.length, 2);
 });

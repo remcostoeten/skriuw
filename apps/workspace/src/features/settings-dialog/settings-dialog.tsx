@@ -8,6 +8,7 @@ import { openJournalDay } from "@/features/journal/navigation";
 import { CloseIcon, SearchIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/styling/class-names";
 import { Dialog } from "@/shared/ui/dialog";
+import { LedgerOutline } from "@/shared/ui/ledger-outline";
 import { settingsPress, settingsTransition } from "@/shared/ui/settings-controls";
 import {
   SettingsLedgerContext,
@@ -27,7 +28,6 @@ import {
 } from "./navigation";
 import type { SettingsGroupHit } from "./navigation";
 import { SETTINGS_SEARCH_GROUPS } from "./search-copy.generated";
-import { SettingsOutline } from "./outline";
 import { SettingsSearchResults } from "./search-results";
 import type { SettingsJump } from "./search-results";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
@@ -345,7 +345,7 @@ export function SettingsDialog({
   function renderNavEntry(entry: SettingsSection) {
     return [
       renderSectionTab(entry),
-      <SettingsOutline
+      <LedgerOutline
         key={`${entry.id}-outline`}
         open={!searching && entry.id === activeSection}
         registry={registry}
