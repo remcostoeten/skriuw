@@ -1,3 +1,5 @@
+import type { DateKey } from "@skriuw/renderer-core/journal/dates";
+import type { MoodLevel } from "@/features/journal/model";
 import type { MarkdownTree } from "@/features/transfer/import/parsing/tree";
 
 export type ImportedPropertyValue =
@@ -13,6 +15,11 @@ export type ImportedNoteProperty = {
   value: ImportedPropertyValue;
 };
 
+export type ImportedJournalDay = {
+  dateKey: DateKey;
+  mood: MoodLevel | null;
+};
+
 export type ImportedNote = {
   relativePath: string;
   title: string;
@@ -22,6 +29,7 @@ export type ImportedNote = {
   createdAt?: number;
   modifiedAt?: number;
   pinned?: boolean;
+  journalDay?: ImportedJournalDay;
 };
 
 export type ImportWarning = {

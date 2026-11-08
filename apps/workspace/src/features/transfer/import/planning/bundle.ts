@@ -3,7 +3,14 @@ import type {
   ProviderImportReceipt,
   WorkspaceOperation,
 } from "@skriuw/renderer-core/contracts/workspace";
+import type { DateKey } from "@skriuw/renderer-core/journal/dates";
 import { hasLosslessMarkdownDocument } from "@/features/editor/schema";
+import {
+  JOURNAL_ROOT_ID,
+  JOURNAL_ROOT_TITLE,
+  journalDateProperty,
+  journalMoodProperty,
+} from "@/features/journal/model";
 import type {
   MarkdownImportPlan,
   MarkdownImportReuseTarget,
@@ -12,6 +19,7 @@ import type {
 import { planMarkdownImport } from "./markdown";
 import type {
   ImportBundle,
+  ImportedJournalDay,
   ImportedNote,
   ImportedNoteProperty,
 } from "@/features/transfer/import/parsing/bundle";
@@ -30,6 +38,14 @@ export type ImportBundlePlan = MarkdownImportPlan & {
   sourcePropertyNotes: number;
   sourcePropertyOperations: WorkspaceOperation[];
   pinnedNotes: number;
+  journalDays: number;
+  journalConflicts: number;
+  /**
+   * Creates or restores the journal folder the imported days move into. Kept
+   * out of `operations` so destination grouping never reparents the journal;
+   * the caller commits these first.
+   */
+  journalRootOperations: WorkspaceOperation[];
 };
 
 export type ImportDuplicateMode = "copy" | "skip" | "update";
@@ -47,7 +63,13 @@ export type ImportPlanOptions = {
   presentNoteIds?: ReadonlySet<string>;
   existingDocuments?: ReadonlyMap<string, MarkdownImportReuseTarget>;
   existingPropertiesByNoteId?: ReadonlyMap<string, readonly NoteProperty[]>;
+  /** Days the journal already has an entry for; an imported day on one of them stays a note. */
+  existingJournalDates?: ReadonlySet<DateKey>;
+  /** State of the journal folder, so imported days create or restore it when needed. */
+  journalRoot?: JournalRootState;
 };
+
+export type JournalRootState = "present" | "trashed" | "missing";
 
 function normalizeTreePath(path: string): string {
   return path.replaceAll("\\", "/").replace(/^\/+/, "").replace(/\/+$/, "");
@@ -138,6 +160,90 @@ function importSourceProperties(
       value: { type: "date" as const, value: localIsoDate(at) },
     },
   ].filter((property) => !taken.has(property.name.toLowerCase()));
+}
+
+type JournalClaim = {
+  dayByPath: Map<string, ImportedJournalDay>;
+  conflicts: number;
+};
+
+function claimJournalDays(
+  notes: readonly ImportedNote[],
+  reuseNotesByPath: ReadonlyMap<string, MarkdownImportReuseTarget>,
+  existingDates: ReadonlySet<DateKey> = new Set(),
+): JournalClaim {
+  const dayByPath = new Map<string, ImportedJournalDay>();
+  const claimed = new Set(existingDates);
+  let conflicts = 0;
+  for (const note of notes) {
+    const path = normalizeTreePath(note.relativePath);
+    if (!note.journalDay || reuseNotesByPath.has(path)) {
+      continue;
+    }
+    if (claimed.has(note.journalDay.dateKey)) {
+      conflicts += 1;
+      continue;
+    }
+    claimed.add(note.journalDay.dateKey);
+    dayByPath.set(path, note.journalDay);
+  }
+  return { dayByPath, conflicts };
+}
+
+function journalDayProperties(
+  noteId: string,
+  day: ImportedJournalDay,
+  position: number,
+): NoteProperty[] {
+  return [
+    journalDateProperty(noteId, day.dateKey, position),
+    ...(day.mood === null ? [] : [journalMoodProperty(noteId, day.mood, position + 1)]),
+  ];
+}
+
+function dropEmptiedFolders(
+  operations: WorkspaceOperation[],
+  folderIds: ReadonlySet<string>,
+): number {
+  let candidates = new Set(folderIds);
+  let dropped = 0;
+  while (candidates.size > 0) {
+    const parents = new Set<string>();
+    for (const folderId of candidates) {
+      const hasChild = operations.some(
+        (operation) =>
+          (operation.type === "create_note" || operation.type === "create_folder") &&
+          operation.placement.parentId === folderId,
+      );
+      const index = operations.findIndex(
+        (operation) => operation.type === "create_folder" && operation.id === folderId,
+      );
+      const folder = operations[index];
+      if (hasChild || folder?.type !== "create_folder") {
+        continue;
+      }
+      operations.splice(index, 1);
+      dropped += 1;
+      if (folder.placement.parentId !== null) {
+        parents.add(folder.placement.parentId);
+      }
+    }
+    candidates = parents;
+  }
+  return dropped;
+}
+
+function journalRootOperations(root: JournalRootState, at: number): WorkspaceOperation[] {
+  const placement = { parentId: null, position: { type: "last" as const } };
+  if (root === "missing") {
+    return [
+      { type: "create_folder", id: JOURNAL_ROOT_ID, title: JOURNAL_ROOT_TITLE, placement, at },
+    ];
+  }
+  if (root === "trashed") {
+    return [{ type: "restore_subtree", rootId: JOURNAL_ROOT_ID, placement, at }];
+  }
+  return [];
 }
 
 type TagResolution = {
@@ -313,6 +419,7 @@ export function planImportBundle(
   const includedNotes = bundle.notes.filter(
     (note) => !skippedPaths.has(normalizeTreePath(note.relativePath)),
   );
+  const journal = claimJournalDays(includedNotes, reuseNotesByPath, options.existingJournalDates);
   const plannedBundle = {
     ...bundle,
     notes: includedNotes,
@@ -350,6 +457,7 @@ export function planImportBundle(
   const sourcePropertyOperations: WorkspaceOperation[] = [];
   const provenanceTargets: { noteId: string; note: ImportedNote }[] = [];
   const nextPositionByNoteId = new Map<string, number>();
+  const journalSourceFolderIds = new Set<string>();
   let sourcePropertyNotes = 0;
   for (const operation of plan.operations) {
     if (operation.type !== "create_note" && operation.type !== "rename_node") {
@@ -383,7 +491,24 @@ export function planImportBundle(
       );
     }
     if (operation.type === "create_note") {
-      nextPositionByNoteId.set(operation.id, note.properties?.length ?? 0);
+      const journalDay = journal.dayByPath.get(normalizeTreePath(note.relativePath));
+      let nextPosition = note.properties?.length ?? 0;
+      if (journalDay) {
+        if (operation.placement.parentId !== null) {
+          journalSourceFolderIds.add(operation.placement.parentId);
+        }
+        operation.placement = { parentId: JOURNAL_ROOT_ID, position: { type: "last" } };
+        const journalProperties = journalDayProperties(operation.id, journalDay, nextPosition);
+        propertyOperations.push(
+          ...journalProperties.map((property): WorkspaceOperation => ({
+            type: "set_note_property",
+            property,
+            at,
+          })),
+        );
+        nextPosition += journalProperties.length;
+      }
+      nextPositionByNoteId.set(operation.id, nextPosition);
       provenanceTargets.push({ noteId: operation.id, note });
       if (note.pinned === true) {
         pinnedOperations.push({
@@ -395,6 +520,7 @@ export function planImportBundle(
       }
     }
   }
+  const droppedFolders = dropEmptiedFolders(plan.operations, journalSourceFolderIds);
   const tags = resolveImportedTags(plannedBundle, existingTags, at, makeId);
   plan.operations.push(...tags.operations);
   let tagSkippedNotes = 0;
@@ -484,6 +610,7 @@ export function planImportBundle(
   }
   return {
     ...plan,
+    folderCount: plan.folderCount - droppedFolders,
     createdTags: tags.operations.length,
     tagSkippedNotes,
     tagPropertyNotes,
@@ -492,5 +619,9 @@ export function planImportBundle(
     sourcePropertyNotes,
     sourcePropertyOperations,
     pinnedNotes: pinnedOperations.length,
+    journalDays: journal.dayByPath.size,
+    journalConflicts: journal.conflicts,
+    journalRootOperations:
+      journal.dayByPath.size > 0 ? journalRootOperations(options.journalRoot ?? "missing", at) : [],
   };
 }

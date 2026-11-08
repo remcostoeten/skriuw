@@ -1,5 +1,5 @@
 import { noop } from "@skriuw/shared/helpers/noop";
-import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import type { WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import { count, publishTransferReport } from "@/features/transfer/dialogs/report";
 import {
@@ -14,10 +14,13 @@ import {
   planImportBundle,
   type ImportBundlePlan,
   type ImportDuplicateMode,
+  type JournalRootState,
 } from "@/features/transfer/import/planning/bundle";
 import { applyImportGrouping } from "@/features/transfer/import/planning/grouping";
 import { buildImportPreviewCandidate } from "@/features/transfer/import/planning/preview";
 import { importSources } from "@/features/transfer/import/sources/registry";
+import type { DateKey } from "@skriuw/renderer-core/journal/dates";
+import { JOURNAL_ROOT_ID, journalEntryDateKey } from "@/features/journal/model";
 import {
   requestImportPreview,
   type ImportPreviewSelection,
@@ -51,6 +54,23 @@ export type ImportNotesOptions = {
    */
   openedFile?: OpenedFile & { noteId?: string };
 };
+
+function journalRootState(state: RendererState): JournalRootState {
+  const root = state.sourceNodes.get(JOURNAL_ROOT_ID);
+  if (!root) {
+    return "missing";
+  }
+  return root.deletedAt === null ? "present" : "trashed";
+}
+
+function journalDates(state: RendererState): ReadonlySet<DateKey> {
+  return new Set(
+    (state.childrenByParent.get(JOURNAL_ROOT_ID) ?? []).flatMap((noteId) => {
+      const dateKey = journalEntryDateKey(state, noteId);
+      return dateKey === null ? [] : [dateKey];
+    }),
+  );
+}
 
 export async function importNotesFromPath(
   store: RendererStore,
@@ -111,6 +131,8 @@ export async function importNotesFromPath(
       }),
     );
     const duplicateModes: readonly ImportDuplicateMode[] = ["skip", "update", "copy"];
+    const existingJournalDates = journalDates(state);
+    const journalRoot = journalRootState(state);
     const scoredSources = importSources
       .map((source) => ({ source, score: source.detect(tree) }))
       .filter(({ score }) => score > 0)
@@ -161,6 +183,8 @@ export async function importNotesFromPath(
               presentNoteIds,
               existingDocuments,
               existingPropertiesByNoteId: state.propertiesByNoteId,
+              existingJournalDates,
+              journalRoot,
             },
           );
           return [
@@ -307,6 +331,7 @@ export async function importNotesFromPath(
       : null;
     throwIfImportCancelled(commitProgress.signal);
     const operations = [
+      ...plan.journalRootOperations,
       ...(options.openedFile
         ? await toOpenedFileReceipts(plan.operations, plan.contentOperations, options.openedFile)
         : plan.operations),
@@ -361,6 +386,12 @@ export async function importNotesFromPath(
             ]
           : []),
         ...(plan.createdTags > 0 ? [`Created ${count(plan.createdTags, "tag")}`] : []),
+        ...(plan.journalDays > 0 ? [`Added ${count(plan.journalDays, "day")} to the journal`] : []),
+        ...(plan.journalConflicts > 0
+          ? [
+              `Kept ${count(plan.journalConflicts, "journal day")} as notes because the journal already has that date`,
+            ]
+          : []),
         ...(plan.pinnedNotes > 0 ? [`Pinned ${count(plan.pinnedNotes, "note")}`] : []),
         ...(selection.recordSource && plan.sourcePropertyNotes > 0
           ? [`Recorded the import source on ${count(plan.sourcePropertyNotes, "new note")}`]
