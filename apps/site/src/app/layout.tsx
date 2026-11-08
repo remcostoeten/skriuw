@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Geist_Mono, Inter } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
 import { socialImage } from "@/data/seo";
 import { cn } from "@skriuw/shared/helpers/cn";
 import "./globals.css";
@@ -59,10 +58,7 @@ export default function RootLayout({ children }: Props) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>
-        {children}
-        <Analytics />
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

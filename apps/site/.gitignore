@@ -4,3 +4,6 @@
 next-env.d.ts
 tsconfig.tsbuildinfo
 /public/app/
+/dist/
+.vinext/
+.cloudflare/

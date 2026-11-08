@@ -101,20 +101,29 @@ with shared state in `state.rs` and one command module per capability under
 
 ## Web deployment
 
-The Vercel project (Root Directory `apps/site`, configured by `apps/site/vercel.json`)
+The `skriuw-site` Cloudflare Worker (configured by `apps/site/cloudflare.config.ts`)
 runs the Next.js marketing site at `https://skriuw.com/`, `/download/`,
 `/local-first-notes/`, `/markdown-notes/`, `/import/`, `/docs/` and `/changelog/`,
-plus the browser build at `https://skriuw.com/app/`.
-Its build runs `tools/scripts/vercel-build.sh`, which compiles the pinned Rust core
-to WASM, builds the renderer with the `/app/` asset base, copies it into
-`apps/site/public/app/`, and builds the site. A rewrite in `apps/site/next.config.ts`
-serves `/app/` from that copy. The
-`skriuw.vercel.app` and `www.skriuw.com` hosts permanently redirect to the apex
-domain, and the application shell stays out of search results so crawlers land
-on the public product page. The Cloudflare Worker remains the separate
-authentication and sync data plane. After deployment, run
-`node tools/scripts/verify-web-deployment.mjs` to check the static assets, WASM
-MIME type, browser bootstrap, OPFS initialization, and browser console.
+plus the browser build at `https://skriuw.com/app/`. It is built with vinext.
+`tools/scripts/build-site.sh` compiles the pinned Rust core to WASM, builds the
+renderer with the `/app/` asset base, copies it into `apps/site/public/app/`, and
+builds the Worker into `apps/site/.cloudflare/output`. The docs pages read
+Markdown from `docs/`, `docs/adr/` and `CHANGELOG.md` through
+`apps/site/src/modules/docs/generated/sources.ts`, which
+`apps/site/scripts/generate-doc-sources.ts` writes before every site build
+because a Worker has no filesystem. A rewrite in `apps/site/next.config.ts` serves
+`/app/` from the copy. The `www.skriuw.com` and `docs.skriuw.com` hosts
+permanently redirect to the apex domain, and the application shell stays out of
+search results so crawlers land on the public product page.
+
+Deploys are manual until a Cloudflare API token exists for CI. After
+`tools/scripts/build-site.sh`, run
+`cd apps/site && bunx cf deploy --prebuilt --secrets-file <file>`, where the file
+holds `GITHUB_TOKEN`, `GITHUB_REPO` and `RA_SECRET`. The Cloudflare Worker in
+`apps/sync` remains the separate authentication and sync data plane. After
+deployment, run `node tools/scripts/verify-web-deployment.mjs` to check the
+static assets, WASM MIME type, browser bootstrap, OPFS initialization, and
+browser console.
 
 ## Cloud development
 
@@ -145,8 +154,8 @@ bun --cwd apps/sync run deploy:preview
 ```
 
 The Worker is deployed before the clients that need it, never after: the
-browser client deploys automatically from `daddy` through Vercel, so a client
-change that depends on a new Worker route must not reach `daddy` first. See
+browser client is deployed by hand from `daddy`, so a client change that depends
+on a new Worker route must not be deployed first. See
 [the deploy order](../apps/sync/README.md#deploy-order). `GET /health` reports the
 deployment's supported sync protocol versions, workspace schema version, and
 routes; `node tools/scripts/verify-cloud-capabilities.mjs [base-url]` checks a

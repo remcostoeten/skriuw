@@ -1,10 +1,10 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Marked, type Token, type Tokens } from "marked";
 import { docBranch, docHref, docPages, type DocPage } from "@/modules/docs/pages";
 import { repoUrl } from "@/data/content";
 import { createHeadingIds, headingText, type DocHeading } from "@/modules/docs/heading-ids";
-import { readAdrSource, stripAdrMeta } from "@/modules/docs/adr";
+import { stripAdrMeta } from "@/modules/docs/adr";
+import { docSources } from "@/modules/docs/generated/sources";
 
 export type DocSection = {
   id: string;
@@ -20,29 +20,14 @@ export type RenderedDoc = {
   lede: string;
 };
 
-const docReaders: Record<string, () => Promise<string>> = {
-  "docs/FEATURES.md": () => readFile(path.join(process.cwd(), "../../docs/FEATURES.md"), "utf8"),
-  "docs/ARCHITECTURE.md": () =>
-    readFile(path.join(process.cwd(), "../../docs/ARCHITECTURE.md"), "utf8"),
-  "docs/performance-contract.md": () =>
-    readFile(path.join(process.cwd(), "../../docs/performance-contract.md"), "utf8"),
-  "CHANGELOG.md": () => readFile(path.join(process.cwd(), "../../CHANGELOG.md"), "utf8"),
-};
-
 function readDocSource(source: string) {
-  const adr = source.match(/^docs\/adr\/([\w-]+\.md)$/)?.[1];
+  const text = docSources[source];
 
-  if (adr) {
-    return readAdrSource(adr);
+  if (text === undefined) {
+    throw new Error(`No docs source registered for ${source}`);
   }
 
-  const read = docReaders[source];
-
-  if (!read) {
-    throw new Error(`No docs reader registered for ${source}`);
-  }
-
-  return read();
+  return text;
 }
 
 function resolveDocHref(href: string, sourceDir: string) {
@@ -196,7 +181,7 @@ function groupSections(headings: DocHeading[], intros: string[]) {
 
 export async function renderDoc(page: DocPage): Promise<RenderedDoc> {
   "use cache";
-  const raw = await readDocSource(page.source);
+  const raw = readDocSource(page.source);
   const source = page.source.startsWith("docs/adr/") ? stripAdrMeta(raw) : raw;
   const { lede, body } = splitLede(source);
   const headings: DocHeading[] = [];

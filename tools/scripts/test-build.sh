@@ -28,9 +28,10 @@ grep -Fq '"beforeBuildCommand": "bash ../../tools/scripts/run-in.sh apps/workspa
 grep -Fq 'run: ./bin/build ci' .github/workflows/ci-v2.yml
 grep -Fq 'run: ./bin/check browser' .github/workflows/ci-v2.yml
 grep -Fq 'wasm-bindgen-0.2.126' .github/workflows/ci-v2.yml
-grep -Fq 'SKRIUW_WEB_BASE="/app/" bun run build:frontend' tools/scripts/vercel-build.sh
-grep -Fq 'cp -R "$app_dir/dist/." "$web_dir/public/app/"' tools/scripts/vercel-build.sh
-grep -Fq '"buildCommand": "bash ../../tools/scripts/vercel-build.sh"' apps/site/vercel.json
+grep -Fq 'SKRIUW_WEB_BASE="/app/" bun run build:frontend' tools/scripts/build-site.sh
+grep -Fq 'cp -R "$app_dir/dist/." "$web_dir/public/app/"' tools/scripts/build-site.sh
+grep -Fq 'bun run build:vinext' tools/scripts/build-site.sh
+grep -Fq 'name: "skriuw-site"' apps/site/cloudflare.config.ts
 grep -Fq '"build": "next build"' apps/site/package.json
 grep -Fq 'run_step "Browser SQLite WASM module"' tools/scripts/build.sh
 grep -Fq '(cd apps/sync && bun install --frozen-lockfile)' .github/workflows/ci-v2.yml

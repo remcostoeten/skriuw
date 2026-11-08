@@ -4,30 +4,47 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "gen:docs": "bun scripts/generate-doc-sources.ts",
+    "predev": "bun run gen:docs",
     "dev": "next dev --port 5182",
+    "prebuild": "bun run gen:docs",
     "build": "next build",
+    "pretypecheck": "bun run gen:docs",
     "typecheck": "tsc --noEmit",
-    "start": "next start --port 5182"
+    "start": "next start --port 5182",
+    "predev:vinext": "bun run gen:docs",
+    "dev:vinext": "vite dev --port 3001",
+    "prebuild:vinext": "bun run gen:docs",
+    "build:vinext": "vite build",
+    "start:vinext": "vite preview",
+    "deploy:vinext": "vinext-cloudflare deploy"
   },
   "dependencies": {
     "@skriuw/shared": "workspace:*",
     "@spoar/sdk": "2.1.0",
-    "@vercel/analytics": "^2.0.1",
+    "@vinext/cloudflare": "^1.3.3",
     "marked": "^18.0.13",
     "next": "16.3.5",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-server-dom-webpack": "^19.3.1",
     "semver": "^7.8.5",
     "server-only": "^0.0.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^2.0.0-beta.v.12",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "26.1.1",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@types/semver": "^7.8.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "@vitejs/plugin-rsc": "^0.5.39",
+    "cf": "^1.0.0-beta.28",
     "tailwindcss": "^4.3.3",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vinext": "^1.4.4",
+    "vite": "8.3.0"
   }
 }
