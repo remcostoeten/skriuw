@@ -15,12 +15,15 @@ function entry(dateKey: string, wordCount = 100): JournalEntry {
 }
 
 test("journalTotals counts entries, words, the streak and the month", () => {
-  const entries = ["2026-11-08", "2026-11-07", "2026-11-05", "2026-10-30"].map((key) =>
-    entry(key, 50),
-  );
+  const entries = [
+    entry("2026-11-08", 10),
+    entry("2026-11-07", 20),
+    entry("2026-11-05", 30),
+    entry("2026-10-30", 45),
+  ];
   assert.deepEqual(journalTotals(entries, null, "2026-11-08"), {
     entries: 4,
-    words: 200,
+    words: 105,
     streak: 2,
     thisMonth: 3,
     goalDays: null,
@@ -45,11 +48,15 @@ test("groupEntriesByMonth splits newest first entries by month and keeps order",
     ["2026-11-08", "2026-11-01", "2026-10-31", "2025-11-08"].map((key) => entry(key)),
   );
   assert.deepEqual(
-    groups.map((group) => [group.month.year, group.month.month, group.entries.length]),
+    groups.map((group) => [
+      group.month.year,
+      group.month.month,
+      group.entries.map((item) => item.dateKey),
+    ]),
     [
-      [2026, 10, 2],
-      [2026, 9, 1],
-      [2025, 10, 1],
+      [2026, 10, ["2026-11-08", "2026-11-01"]],
+      [2026, 9, ["2026-10-31"]],
+      [2025, 10, ["2025-11-08"]],
     ],
   );
 });
