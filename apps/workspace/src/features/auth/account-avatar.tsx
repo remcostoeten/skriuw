@@ -30,6 +30,7 @@ export function AccountAvatar({ seed, initials, facehash }: Props) {
       colorClasses={FACE_TONES}
       variant="solid"
       intensity3d="subtle"
+      interactive={false}
       showInitial={false}
       className="rounded-[inherit]"
       aria-hidden="true"
