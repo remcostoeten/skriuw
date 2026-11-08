@@ -18,6 +18,7 @@ Supported first-party routes:
 - Joplin RAW exports
 - Google Keep Takeout exports
 - Standard Notes decrypted backups
+- Skriuw v1 desktop vaults
 
 ## Flow
 
@@ -109,6 +110,20 @@ Active notes, tags, creation time, modification time, and pin state import.
 Pinned entries become pinned workspace notes on creation; re-imported notes that
 already exist keep their current workspace pin state. Trashed entries remain
 skipped and counted.
+
+### Skriuw v1
+
+Detected when at least half of the Markdown files carry v1 frontmatter
+(`preferredEditorMode` for notes, `dateKey` for journal days). Frontmatter is
+removed; `tags`, `createdAt`, and `modifiedAt` or `updatedAt` import, and
+`$[Name](person://…)` mentions and `[label](mark://…)` marks keep only their
+label. A file with a valid `dateKey` becomes a journal day: the plan places it
+under the journal folder with the journal date property and, for a known mood,
+the mood property. Days claim their date in import order, so a date the journal
+already holds, or one an earlier file claimed, leaves the file a regular note
+and counts as a conflict. Source folders that held only journal days are not
+created. The operations that create or restore the journal folder stay outside
+the grouped plan so the destination choice never moves the journal.
 
 ### Evernote
 

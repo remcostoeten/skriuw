@@ -60,6 +60,16 @@ and encrypted notes remain skipped and appear in the report.
 Import `notes.json` or its containing folder. Active notes, tags, timestamps, and
 pinned notes import. Trashed notes remain skipped and counted.
 
+### Skriuw v1
+
+Choose the old desktop vault folder or a ZIP of it. Notes keep their folders,
+tags, and timestamps, and their v1 frontmatter is removed. Person mentions and
+inline marks become plain text. Journal days, the files with a `dateKey` in
+their frontmatter, go into the journal on their date with their mood. A day the
+journal already has stays a regular note, and the report counts it. The desktop
+app kept its journal in the hidden `.skriuw/journal` folder, which import skips,
+so copy those files into a visible folder first.
+
 ### Evernote
 
 In Evernote, export a notebook as `.enex` and import the file directly, or place

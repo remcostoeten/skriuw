@@ -9,9 +9,11 @@ import { notionSource } from "./notion";
 import { obsidianSource } from "./obsidian";
 import { plainTextSource } from "./plain-text";
 import { simplenoteSource } from "./simplenote";
+import { skriuwV1Source } from "./skriuw-v1";
 import { standardNotesSource } from "./standard-notes";
 
 export const importSources: readonly ImportSourceAdapter[] = [
+  skriuwV1Source,
   evernoteSource,
   joplinSource,
   keepSource,

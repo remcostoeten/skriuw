@@ -50,6 +50,12 @@ export function buildImportPreviewCandidate(
     ...(plan.preservedSources > 0
       ? [`${count(plan.preservedSources, "note")} will use lossless raw mode`]
       : []),
+    ...(plan.journalDays > 0 ? [`${count(plan.journalDays, "day")} will go to the journal`] : []),
+    ...(plan.journalConflicts > 0
+      ? [
+          `${count(plan.journalConflicts, "journal day")} will stay a note because the journal already has that date`,
+        ]
+      : []),
     ...(plan.updatedNotes > 0
       ? [`${count(plan.updatedNotes, "previously imported note")} will be updated`]
       : []),

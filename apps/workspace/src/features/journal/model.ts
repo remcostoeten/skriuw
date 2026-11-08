@@ -44,6 +44,52 @@ export function isMoodLevel(value: string): value is MoodLevel {
   return (MOOD_LEVELS as readonly string[]).includes(value);
 }
 
+/**
+ * @name journalDateProperty
+ * @description The property that makes a note under the journal folder the
+ * entry for one calendar day.
+ *
+ * @example
+ * const property = journalDateProperty(noteId, "2026-07-08", 0);
+ */
+export function journalDateProperty(
+  noteId: string,
+  dateKey: DateKey,
+  position: number,
+): NoteProperty {
+  return {
+    noteId,
+    id: JOURNAL_DATE_PROPERTY_ID,
+    name: "Date",
+    value: { valueVersion: 1, type: "date", value: dateKey },
+    options: [],
+    position,
+  };
+}
+
+/**
+ * @name journalMoodProperty
+ * @description The select property holding a journal entry's mood, with every
+ * mood option persisted so archives stay valid.
+ *
+ * @example
+ * const property = journalMoodProperty(noteId, "good", 1);
+ */
+export function journalMoodProperty(
+  noteId: string,
+  mood: MoodLevel,
+  position: number,
+): NoteProperty {
+  return {
+    noteId,
+    id: JOURNAL_MOOD_PROPERTY_ID,
+    name: "Mood",
+    value: { valueVersion: 1, type: "select", value: mood },
+    options: MOOD_PROPERTY_OPTIONS.map((option) => ({ ...option })),
+    position,
+  };
+}
+
 export type JournalEntry = {
   noteId: string;
   dateKey: DateKey;

@@ -69,6 +69,7 @@ export const importSources = [
     format: "decrypted backup",
     keeps: "Tags via references",
   },
+  { name: "Skriuw v1", format: "vault folder", keeps: "Journal days, moods, tags" },
   { name: "Markdown", format: ".md folder", keeps: "Unknown syntax stays raw" },
   { name: "Plain text", format: ".txt", keeps: "One note per file" },
   { name: "ZIP", format: ".zip", keeps: "Scanned before a byte is written" },

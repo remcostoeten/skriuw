@@ -1,16 +1,16 @@
 import { commitOperations } from "@/store/commit";
 import { trashSubtree } from "@/features/notes/operations";
-import type { NoteProperty, WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
+import type { WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { todayKey, type DateKey } from "@skriuw/renderer-core/journal/dates";
 import { updateSettings } from "@/store/settings";
 import { changeWordGoal } from "./word-goal";
 import {
-  JOURNAL_DATE_PROPERTY_ID,
   JOURNAL_MOOD_PROPERTY_ID,
   JOURNAL_ROOT_ID,
   JOURNAL_ROOT_TITLE,
-  MOOD_PROPERTY_OPTIONS,
+  journalDateProperty,
+  journalMoodProperty,
   journalNoteIdForDate,
   type MoodLevel,
 } from "./model";
@@ -23,17 +23,6 @@ function reportRejection(action: string) {
 
 function emptyEntryDocument() {
   return { type: "doc", content: [{ type: "paragraph" }] };
-}
-
-function dateProperty(noteId: string, dateKey: DateKey): NoteProperty {
-  return {
-    noteId,
-    id: JOURNAL_DATE_PROPERTY_ID,
-    name: "Date",
-    value: { valueVersion: 1, type: "date", value: dateKey },
-    options: [],
-    position: 0,
-  };
 }
 
 /**
@@ -77,7 +66,7 @@ export function ensureJournalEntry(store: RendererStore, dateKey: DateKey): stri
       markdown: "",
       at,
     },
-    { type: "set_note_property", property: dateProperty(noteId, dateKey), at },
+    { type: "set_note_property", property: journalDateProperty(noteId, dateKey, 0), at },
   );
   void commitOperations(store, operations).catch(reportRejection("create journal entry"));
   return noteId;
@@ -96,14 +85,7 @@ export function setJournalMood(store: RendererStore, noteId: string, mood: MoodL
     ]).catch(reportRejection("clear journal mood"));
     return;
   }
-  const property: NoteProperty = {
-    noteId,
-    id: JOURNAL_MOOD_PROPERTY_ID,
-    name: "Mood",
-    value: { valueVersion: 1, type: "select", value: mood },
-    options: MOOD_PROPERTY_OPTIONS.map((option) => ({ ...option })),
-    position: existing?.position ?? properties.length,
-  };
+  const property = journalMoodProperty(noteId, mood, existing?.position ?? properties.length);
   void commitOperations(store, [{ type: "set_note_property", property, at }]).catch(
     reportRejection("set journal mood"),
   );
