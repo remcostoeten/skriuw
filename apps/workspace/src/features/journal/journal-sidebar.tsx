@@ -1,74 +1,22 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import {
-  BarChartIcon,
-  CalendarDaysIcon,
-  ClockIcon,
-  HashIcon,
-  PlusIcon,
-  SearchIcon,
-} from "@/shared/icons/static";
+import { CalendarDaysIcon, PlusIcon, SearchIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/styling/class-names";
-import { sectionLabelClass } from "@/shared/ui/section-header";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { monthOfKey, todayKey, type MonthKey } from "@skriuw/renderer-core/journal/dates";
 import { JournalCalendar } from "./calendar/month-calendar";
-import { JournalStats } from "./history/stats-panel";
 import { sameJournalEntries, selectJournalEntries } from "./model";
+import { JournalOutline } from "./journal-outline";
 import { onJournalSearchFocus, openJournalDay, openJournalToday } from "./navigation";
 import { useSelectedJournalKey } from "./navigation/selected-day";
 import { EntryRow } from "./sidebar/entry-row";
-import { JournalTags } from "./tags/panel";
 import { projectJournalTags, tagIdsMatchingQuery } from "./tags/projection";
 import { selectWordGoalHistory, wordGoalStats } from "./word-goal";
 
 type Props = {
   store: RendererStore;
 };
-
-type SidebarTab = "calendar" | "stats" | "tags" | "search" | "all";
-
-const SIDEBAR_TABS: readonly { id: SidebarTab; label: string; icon: typeof SearchIcon }[] = [
-  { id: "calendar", label: "Calendar", icon: CalendarDaysIcon },
-  { id: "stats", label: "Stats", icon: BarChartIcon },
-  { id: "tags", label: "Tags", icon: HashIcon },
-  { id: "search", label: "Search", icon: SearchIcon },
-  { id: "all", label: "All entries", icon: ClockIcon },
-];
-
-const TAB_KEY_STEPS: Record<string, number | "first" | "last" | undefined> = {
-  ArrowLeft: -1,
-  ArrowRight: 1,
-  Home: "first",
-  End: "last",
-};
-
-/** Home/End sit behind a Fn layer on a 60% keyboard, so shift+arrow stands in. */
-const SHIFT_TAB_KEY_STEPS: Record<string, "first" | "last" | undefined> = {
-  ArrowLeft: "first",
-  ArrowRight: "last",
-};
-
-function tabButtonId(tab: SidebarTab): string {
-  return `journal-tab-${tab}`;
-}
-
-function tabPanelId(tab: SidebarTab): string {
-  return `journal-panel-${tab}`;
-}
-
-function registerTab(
-  refs: Map<SidebarTab, HTMLButtonElement>,
-  tab: SidebarTab,
-  node: HTMLButtonElement | null,
-): void {
-  if (node === null) {
-    refs.delete(tab);
-    return;
-  }
-  refs.set(tab, node);
-}
 
 function selectTagRecords(state: RendererState) {
   return state.tags;
@@ -80,45 +28,31 @@ export const JournalSidebar = memo(function JournalSidebar({ store }: Props) {
   const tagRecords = useRendererSelector(store, selectTagRecords);
   const goalHistory = useRendererSelector(store, selectWordGoalHistory);
   const [month, setMonth] = useState<MonthKey>(() => monthOfKey(selectedKey));
-  const [tab, setTab] = useState<SidebarTab>("calendar");
   const [query, setQuery] = useState("");
-  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
-  const [pendingSearchFocus, setPendingSearchFocus] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const tabRefs = useRef(new Map<SidebarTab, HTMLButtonElement>());
+  const resultsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     setMonth(monthOfKey(selectedKey));
   }, [selectedKey]);
   useEffect(
     () =>
       onJournalSearchFocus(() => {
-        setTab("search");
-        setPendingSearchFocus(true);
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
       }),
     [],
   );
-  useEffect(() => {
-    if (!pendingSearchFocus || tab !== "search") {
-      return;
-    }
-    setPendingSearchFocus(false);
-    searchInputRef.current?.focus();
-    searchInputRef.current?.select();
-  }, [pendingSearchFocus, tab]);
   const entryDates = useMemo(() => new Set(entries.map((entry) => entry.dateKey)), [entries]);
-  const monthEntries = useMemo(() => {
-    const prefix = `${month.year}-${`${month.month + 1}`.padStart(2, "0")}`;
-    return entries.filter((entry) => entry.dateKey.startsWith(prefix));
-  }, [entries, month]);
   const tags = useMemo(() => projectJournalTags(tagRecords, entries), [entries, tagRecords]);
   const goalStats = useMemo(
     () => (goalHistory.length === 0 ? null : wordGoalStats(entries, goalHistory, todayKey())),
     [entries, goalHistory],
   );
+  const searching = query.trim().length > 0;
   const searchResults = useMemo(() => {
     const trimmed = query.trim().toLowerCase();
     if (!trimmed) {
-      return entries;
+      return [];
     }
     const documents = store.getState().documents;
     const matchedTagIds = tagIdsMatchingQuery(tags, trimmed);
@@ -137,42 +71,44 @@ export const JournalSidebar = memo(function JournalSidebar({ store }: Props) {
     openJournalToday();
   }
 
-  function selectTab(next: SidebarTab): void {
-    setTab(next);
-    tabRefs.current.get(next)?.focus();
-  }
-
-  function handleTabKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
-    const step = event.shiftKey
-      ? (SHIFT_TAB_KEY_STEPS[event.key] ?? TAB_KEY_STEPS[event.key])
-      : TAB_KEY_STEPS[event.key];
-    if (step === undefined) {
-      return;
-    }
-    event.preventDefault();
-    const focused = SIDEBAR_TABS.findIndex(
-      (entry) => tabRefs.current.get(entry.id) === document.activeElement,
-    );
-    const current = focused === -1 ? SIDEBAR_TABS.findIndex((entry) => entry.id === tab) : focused;
-    const next =
-      step === "first"
-        ? 0
-        : step === "last"
-          ? SIDEBAR_TABS.length - 1
-          : (current + step + SIDEBAR_TABS.length) % SIDEBAR_TABS.length;
-    selectTab(SIDEBAR_TABS[next]!.id);
-  }
-
   function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
-    if (event.key !== "Escape") {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (query.length > 0) {
+        setQuery("");
+        return;
+      }
+      event.currentTarget.blur();
+      return;
+    }
+    if (event.key === "ArrowDown" && searching) {
+      const first = resultsRef.current?.querySelector<HTMLButtonElement>("button");
+      if (first) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    if (event.key === "Enter" && searchResults[0] !== undefined) {
+      event.preventDefault();
+      openJournalDay(searchResults[0].dateKey);
+    }
+  }
+
+  function handleResultsKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
+      return;
+    }
+    const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button")];
+    const index = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (index < 0) {
       return;
     }
     event.preventDefault();
-    if (query.length > 0) {
-      setQuery("");
+    if (index === 0 && event.key === "ArrowUp") {
+      searchInputRef.current?.focus();
       return;
     }
-    event.currentTarget.blur();
+    items[Math.min(items.length - 1, index + (event.key === "ArrowDown" ? 1 : -1))]?.focus();
   }
 
   return (
@@ -191,136 +127,62 @@ export const JournalSidebar = memo(function JournalSidebar({ store }: Props) {
           Today
         </button>
       </div>
-      {/*
-        Every tab is a tab stop rather than the APG roving-tabindex single stop:
-        five icon-only buttons with no visible labels are undiscoverable when
-        only the selected one can be reached. Arrow keys still move and activate.
-      */}
-      <div
-        role="tablist"
-        aria-label="Journal sidebar views"
-        onKeyDown={handleTabKeyDown}
-        className="flex h-10 shrink-0 items-center gap-1 border-b pointer-coarse:h-13 border-sidebar-border px-2"
-      >
-        {SIDEBAR_TABS.map((entry) => (
-          <button
-            type="button"
-            key={entry.id}
-            ref={(node) => registerTab(tabRefs.current, entry.id, node)}
-            onClick={() => setTab(entry.id)}
-            role="tab"
-            id={tabButtonId(entry.id)}
-            aria-controls={tabPanelId(entry.id)}
-            aria-selected={tab === entry.id}
-            aria-label={entry.label}
-            className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors pointer-coarse:size-11 focus-visible:outline-none ${
-              tab === entry.id
-                ? "border border-border bg-muted text-foreground/80"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground/75"
-            }`}
-          >
-            <entry.icon size={14} />
-          </button>
-        ))}
-      </div>
-      <div
-        role="tabpanel"
-        id={tabPanelId(tab)}
-        aria-labelledby={tabButtonId(tab)}
-        tabIndex={0}
-        className="min-h-0 flex-1 overflow-y-auto focus-visible:outline-none"
-      >
-        {tab === "calendar" && (
-          <div className="p-2">
-            <JournalCalendar
-              month={month}
-              selected={selectedKey}
-              entryDates={entryDates}
-              goalDates={goalStats?.metDates}
-              onSelectDay={openJournalDay}
-              onMonthChange={setMonth}
-            />
-            {monthEntries.length > 0 && (
-              <div className="mt-3">
-                <p className={cn("mb-1.5", sectionLabelClass)}>
-                  This month ({monthEntries.length})
-                </p>
-                <div className="space-y-0.5">
-                  {monthEntries.map((entry) => (
-                    <EntryRow
-                      key={entry.noteId}
-                      entry={entry}
-                      selected={entry.dateKey === selectedKey}
-                      dense
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        {tab === "stats" && <JournalStats entries={entries} goalStats={goalStats} />}
-        {tab === "tags" && (
-          <JournalTags
-            tags={tags}
-            entries={entries}
-            selectedTagId={selectedTagId}
-            selectedKey={selectedKey}
-            onSelectTag={setSelectedTagId}
+      <div className="shrink-0 px-2.5 pt-3 pb-3">
+        <div className="relative">
+          <SearchIcon
+            size={13}
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-theme-secondary"
           />
-        )}
-        {tab === "search" && (
-          <div className="p-2">
-            <div className="relative mb-2">
-              <SearchIcon
-                size={13}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50"
-              />
-              <input
-                type="text"
-                ref={searchInputRef}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                placeholder="Search entries..."
-                aria-label="Search journal entries"
-                aria-describedby="journal-search-hint"
-                className="w-full rounded-md border border-border bg-background py-1.5 pointer-coarse:py-2.5 pl-8 pr-2.5 text-[11px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/40 focus:bg-muted"
-              />
-            </div>
-            <p id="journal-search-hint" className="sr-only">
-              Escape clears the search, then leaves the field.
-            </p>
-            <p role="status" className={cn("mb-1.5", sectionLabelClass)}>
-              {searchResults.length} {searchResults.length === 1 ? "result" : "results"}
-            </p>
-            <div className="space-y-0.5">
-              {searchResults.map((entry) => (
-                <EntryRow
-                  key={entry.noteId}
-                  entry={entry}
-                  selected={entry.dateKey === selectedKey}
-                  dense
-                />
-              ))}
-            </div>
-          </div>
-        )}
-        {tab === "all" && (
-          <div className="p-2">
-            <div className="space-y-0.5">
-              {entries.map((entry) => (
-                <EntryRow
-                  key={entry.noteId}
-                  entry={entry}
-                  selected={entry.dateKey === selectedKey}
-                  dense={false}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+          <input
+            type="text"
+            ref={searchInputRef}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder="Search entries"
+            aria-label="Search journal entries"
+            aria-describedby="journal-search-hint"
+            className="h-8 w-full rounded-lg border border-border bg-background py-0 pl-[29px] pr-3 text-[12.5px] text-foreground outline-none transition-colors duration-150 placeholder:text-theme-dim hover:border-theme-btn-outline focus-visible:border-ring pointer-coarse:h-11"
+          />
+        </div>
+        <p id="journal-search-hint" className="sr-only">
+          Escape clears the search, then leaves the field. Arrow down moves to the results.
+        </p>
       </div>
+      {searching ? (
+        <div
+          ref={resultsRef}
+          onKeyDown={handleResultsKeyDown}
+          className="min-h-0 flex-1 overflow-y-auto px-2 pb-2"
+        >
+          <p role="status" className="px-2 pb-1.5 text-[11px] text-theme-dim">
+            {searchResults.length} {searchResults.length === 1 ? "result" : "results"}
+          </p>
+          <div className="space-y-0.5">
+            {searchResults.map((entry) => (
+              <EntryRow
+                key={entry.noteId}
+                entry={entry}
+                selected={entry.dateKey === selectedKey}
+                dense
+              />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className={cn("min-h-0 flex-1 overflow-y-auto px-2.5 pb-3")}>
+          <JournalCalendar
+            month={month}
+            selected={selectedKey}
+            entryDates={entryDates}
+            goalDates={goalStats?.metDates}
+            onSelectDay={openJournalDay}
+            onMonthChange={setMonth}
+          />
+          <p className="mb-1.5 mt-4 px-[9px] text-[11px] text-theme-dim">On this page</p>
+          <JournalOutline />
+        </div>
+      )}
       <div className="shrink-0 border-t border-sidebar-border p-2">
         <button
           type="button"

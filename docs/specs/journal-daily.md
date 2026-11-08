@@ -10,11 +10,40 @@ Keyboard navigation and the date grammar are in
 | `apps/workspace/src/features/journal/templates/fill-entry.ts` | Template list, the remembered choice, and the plan that fills an entry. |
 | `apps/workspace/src/features/journal/templates/starter.tsx` | The empty-entry affordance. |
 | `apps/workspace/src/features/journal/history/on-this-day.ts` | Which earlier entries a day recalls, and their excerpts. Pure. |
-| `apps/workspace/src/features/journal/history/on-this-day-section.tsx` | The section under the editor. |
+| `apps/workspace/src/features/journal/history/on-this-day-section.tsx` | The On this day group. |
 | `apps/workspace/src/features/journal/navigation/day-swipe.ts` | The heading swipe recognizer. Pure. |
 | `apps/workspace/src/features/journal/model.ts` | The entry projection both the sidebar and the section read. |
 | `apps/workspace/src/features/journal/word-goal.ts` | The daily word goal history, progress milestones, and goal stats. Pure. |
-| `apps/workspace/src/features/journal/entry/word-goal-control.tsx` | The goal ring and menu in the day header. |
+| `apps/workspace/src/features/journal/entry/word-goal-control.tsx` | The goal ring and menu in the Word goal row. |
+| `apps/workspace/src/features/journal/entry/pane.tsx` | The page: the entry group and the groups that follow it. |
+| `apps/workspace/src/features/journal/ledger.ts` | The group registry and the two outline views. |
+| `apps/workspace/src/features/journal/ledger-group.tsx` | The group layout: a sticky margin beside the content. |
+| `apps/workspace/src/features/journal/journal-outline.tsx` | The scroll-spied sidebar outline. |
+| `apps/workspace/src/features/journal/history/totals.ts` | Totals and the month grouping behind the History groups. Pure. |
+
+## Page layout
+
+The journal page is one scrolling column of groups. Each group has a title and
+short note in a sticky left margin and its content on the right, divided by
+hairlines. The entry stays one 72 character writing column; nothing else sits
+inside the prose.
+
+| Group | View | Content |
+| --- | --- | --- |
+| Entry | This day | The day heading, date, word count, previous and next day, the editor, the template starter and Delete. |
+| Mood | This day | The five moods and a seven day strip in the margin. |
+| Word goal | This day | The goal menu, progress, goal days and goal streak. |
+| On this day | This day | Earlier entries that share the day. Left out when there are none. |
+| Tags | This day | Every journal tag with its count; tags in this entry carry a dot, and choosing one lists its entries. |
+| Totals | History | Entries, words, streak, this month and, once a goal was set, goal days and goal streak. |
+| Mood trend | History | The 30 day strip. |
+| Entries | History | Every entry, newest first, by month; six show and the rest expand in place. |
+
+The sidebar keeps search, the calendar and an outline. The outline lists the
+groups that are on screen, in two views. The view that holds the group at the
+top of the scroller is open and the other is folded, and a click on a group or
+view scrolls to it. The editor is mounted once per day change and never
+remounted by scrolling or by outline clicks.
 
 ## Starting from a template
 
@@ -65,7 +94,7 @@ pane's 60vh, so the section stays near the first screen.
 
 ## Mood trend
 
-The sidebar's Stats tab shows the last 30 days as one bar per day, oldest on
+The Mood trend group in History shows the last 30 days as one bar per day, oldest on
 the left. A rated day's bar rises with its mood in five steps from rough to
 great and takes the mood's colour; a day with an entry but no mood is a short
 grey bar; a day without an entry is a hairline, so gaps stay visible. Today is
@@ -85,7 +114,7 @@ tab does no I/O.
 ## Word goal
 
 `apps/workspace/src/features/journal/word-goal.ts` holds the goal history and
-the goal statistics; `entry/word-goal-control.tsx` is the header control.
+the goal statistics; `entry/word-goal-control.tsx` is the control in the Word goal row.
 
 The workspace setting `journalWordGoals` is a list of changes, each
 `{ from: DateKey, words: number }`, where zero words turns the goal off. The
@@ -98,7 +127,7 @@ from today without rewriting the history.
 The history lives in settings rather than on each entry, so meeting a goal
 writes nothing to the entry and typing never queues a property write.
 
-- The header shows a 14px ring and "312 / 500" for a day that has a goal, and
+- The Word goal row shows a 14px ring and "312 / 500" for a day that has a goal, and
   a dashed ring alone otherwise. Either opens a menu of Off, 250, 500, 750, and
   Custom, which turns the ring into a number field (Enter saves, Escape
   cancels). The menu always sets the goal from today.
@@ -109,19 +138,19 @@ writes nothing to the entry and typing never queues a property write.
   "Word goal reached: 500 words." when a save crosses those points on the open
   day. Opening a day, switching days, or changing the goal primes the tracker
   without announcing.
-- The Stats tab adds **Goal days** and **Goal streak** once a goal has ever
+- The Totals group adds **Goal days** and **Goal streak** once a goal has ever
   been set. The streak counts consecutive met days ending today, or yesterday
   while today is still short. The journal calendar draws a goal day's entry dot
   as a short dash and names it in the day's label.
 
 ## Stepping days by touch
 
-The entry header carries **Previous day** and **Next day** buttons, labelled
+The entry margin carries **Previous day** and **Next day** buttons, labelled
 with the rebindable bracket shortcuts and 44px under a coarse pointer. A
-horizontal swipe of at least 64px across the header steps a day: pulling right
+horizontal swipe of at least 64px across the entry margin steps a day: pulling right
 opens the previous day, pulling left the next. A drag that locks to the
 vertical axis steps nowhere, and the editor itself takes no swipe so text
 selection and scrolling are untouched.
 
-Below 900px the header, mood row, and paddings tighten: the five moods share
-one row, and the gutters drop from 48px to 20px.
+Below 900px each group stacks its margin above its content, the five moods
+share one row, and the gutters drop to 16px.

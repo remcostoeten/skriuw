@@ -1,19 +1,19 @@
 /*
  * The notes pane gives the editor 60vh so a click anywhere below the text
- * lands in it. A day with recalled entries stacks "On this day" under the
- * editor, so there it keeps a writing-sized target instead and the section
- * stays within reach of the first screen.
+ * lands in it. In the journal the entry is one group among several, so it
+ * keeps a writing-sized target instead and the mood and word goal stay near
+ * the first screen.
  */
-.journal-entry-body:has(+ section) .prosemirror-host .ProseMirror,
-.journal-entry-body:has(+ section) .raw-markdown-surface,
-.journal-entry-body:has(+ section) .raw-markdown-root .cm-editor {
+.journal-entry-body .prosemirror-host .ProseMirror,
+.journal-entry-body .raw-markdown-surface,
+.journal-entry-body .raw-markdown-root .cm-editor {
   min-height: 18rem;
 }
 
 @media (max-width: 899px) {
-  .journal-entry-body:has(+ section) .prosemirror-host .ProseMirror,
-  .journal-entry-body:has(+ section) .raw-markdown-surface,
-  .journal-entry-body:has(+ section) .raw-markdown-root .cm-editor {
+  .journal-entry-body .prosemirror-host .ProseMirror,
+  .journal-entry-body .raw-markdown-surface,
+  .journal-entry-body .raw-markdown-root .cm-editor {
     min-height: 11rem;
   }
 }

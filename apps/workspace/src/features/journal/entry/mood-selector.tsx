@@ -1,7 +1,8 @@
 import { useRef } from "react";
 import type { KeyboardEvent } from "react";
-import { sectionLabelClass } from "@/shared/ui/section-header";
+import { cn } from "@/shared/styling/class-names";
 import { MOOD_LEVELS, MOOD_OPTIONS, type MoodLevel } from "../model";
+import { journalPress, journalTransition } from "../ledger-group";
 
 const MOOD_KEY_STEPS: Record<string, number | undefined> = {
   ArrowLeft: -1,
@@ -12,9 +13,11 @@ const MOOD_KEY_STEPS: Record<string, number | undefined> = {
 
 export function MoodSelector({
   mood,
+  label,
   onSelect,
 }: {
   mood: MoodLevel | null;
+  label: string;
   onSelect: (mood: MoodLevel) => void;
 }) {
   const buttons = useRef(new Map<MoodLevel, HTMLButtonElement>());
@@ -33,14 +36,11 @@ export function MoodSelector({
   }
 
   return (
-    <div className="mt-6 grid gap-2 max-[899px]:mt-4 sm:grid-cols-[4.5rem_1fr] sm:items-center">
-      <span id="journal-mood-label" className={sectionLabelClass}>
-        Mood
-      </span>
+    <>
       <div
-        className="flex flex-wrap items-center gap-1.5 max-[899px]:grid max-[899px]:grid-cols-5 max-[899px]:gap-1"
+        className="grid grid-cols-5 gap-1 pb-2.5"
         role="radiogroup"
-        aria-labelledby="journal-mood-label"
+        aria-label={label}
         onKeyDown={handleKeyDown}
       >
         {MOOD_LEVELS.map((level) => {
@@ -61,14 +61,25 @@ export function MoodSelector({
                 buttons.current.set(level, node);
               }}
               onClick={() => onSelect(level)}
-              className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] transition-colors focus-visible:outline-none pointer-coarse:h-11 pointer-coarse:px-3 pointer-coarse:text-[13px] max-[899px]:h-12 max-[899px]:flex-col max-[899px]:justify-center max-[899px]:gap-0.5 max-[899px]:px-0 max-[899px]:text-[11px] ${
-                active
-                  ? "border-border bg-muted font-medium text-foreground"
-                  : "border-transparent text-muted-foreground/54 hover:border-border hover:bg-muted/70 hover:text-muted-foreground"
-              }`}
               aria-label={option.label}
+              className={cn(
+                "group relative flex h-[54px] cursor-pointer flex-col items-center justify-center gap-[3px] rounded-lg border-0 bg-transparent text-xs focus-visible:outline-2 focus-visible:outline-ring pointer-coarse:h-14",
+                "after:absolute after:inset-x-3.5 after:bottom-1 after:h-0.5 after:origin-center after:scale-x-[.4] after:rounded-sm after:bg-accent-ink after:opacity-0 after:transition-[opacity,transform] after:duration-200 after:ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:after:scale-x-100 motion-reduce:after:transition-opacity",
+                "aria-checked:after:scale-x-100 aria-checked:after:opacity-100",
+                active
+                  ? "bg-theme-hover text-foreground"
+                  : "text-theme-secondary hover:bg-theme-hover/55 hover:text-foreground",
+                journalTransition,
+                journalPress,
+              )}
             >
-              <span aria-hidden="true" className={`text-[13px] ${active ? option.colorClass : ""}`}>
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "font-mono text-[13px] transition-colors duration-150",
+                  active ? "text-accent-ink" : "text-theme-dim",
+                )}
+              >
                 {option.icon}
               </span>
               <span aria-hidden="true">{option.label}</span>
@@ -76,6 +87,9 @@ export function MoodSelector({
           );
         })}
       </div>
-    </div>
+      <p className="border-t border-theme-divider/85 pt-2 text-[11.5px] text-theme-dim">
+        Arrow keys choose a mood. Choose it again to clear it.
+      </p>
+    </>
   );
 }
