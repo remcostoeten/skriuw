@@ -1,6 +1,8 @@
 import { useId, useMemo, useState, type ComponentProps, type KeyboardEvent } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { getCommandFrecency, recordCommandUse } from "./command-frecency";
+import { COMPACT_EMPTY_STATE_STYLE, EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
+import { EmptyState } from "@/shared/empty-state/empty-state";
 import { SearchIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/styling/class-names";
 import { Dialog, useDialogClose } from "@/shared/ui/dialog";
@@ -235,9 +237,11 @@ function PaletteBody({ items, onQueryChange, notice, paletteShortcut, density }:
         className="min-h-0 flex-auto overflow-y-auto p-1.5"
       >
         {flatItems.length === 0 ? (
-          <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">
-            No results for “{query}”
-          </div>
+          <EmptyState
+            colors={EMPTY_STATE_COLORS}
+            style={COMPACT_EMPTY_STATE_STYLE}
+            title={`No results for “${query}”`}
+          />
         ) : (
           groups.map((group) => (
             <div key={group.group}>

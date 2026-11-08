@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import { COMPACT_EMPTY_STATE_STYLE, EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
+import { EmptyState } from "@/shared/empty-state/empty-state";
 import { FileTextIcon, FolderIcon } from "@/shared/icons/static";
 import { describeSearchFilterProblem } from "@skriuw/renderer-core/search/filter-resolution";
 import { planWorkspaceSearch } from "@skriuw/renderer-core/search/search-plan";
@@ -130,14 +132,17 @@ export function SidebarSearchResults({
           )}
         </div>
       ) : (
-        <div className="px-2 py-6 text-center" role="status">
-          <p className="text-xs font-medium text-foreground/70">{notice || "No matching titles"}</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {notice
+        <EmptyState
+          colors={EMPTY_STATE_COLORS}
+          style={COMPACT_EMPTY_STATE_STYLE}
+          role="status"
+          title={notice || "No matching titles"}
+          description={
+            notice
               ? "Filters accept #tag, $person, tag:name, and person:name."
-              : "Try a different note or folder name."}
-          </p>
-        </div>
+              : "Try a different note or folder name."
+          }
+        />
       )}
     </div>
   );

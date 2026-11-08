@@ -4,6 +4,9 @@ import { NoteEditor } from "@/features/editor/note-editor";
 import { RawMarkdownEditor } from "@/features/editor/raw-markdown-editor";
 import { NotePropertiesShelf } from "@/features/note-chrome/note-properties-shelf";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import { EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
+import { EmptyState } from "@/shared/empty-state/empty-state";
+import { IconStack } from "@/shared/empty-state/illustrations";
 import { WaypointsIcon } from "@/shared/icons/static";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { NoteCover } from "@/features/note-chrome/note-cover";
@@ -101,12 +104,14 @@ export function EditorHost({
       {compact && showsEditor && !isRawMode && <InsertMediaAccessory hostRef={hostRef} />}
       {hasActiveNote && isSealed && <UnlockPane store={store} noteId={noteId} />}
       {!hasActiveNote && (
-        <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-          <WaypointsIcon size={40} className="text-muted-foreground" />
-          <div className="max-w-md space-y-2">
-            <p className="text-sm font-medium text-foreground">No note selected</p>
-            <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-          </div>
+        <div className="flex h-full items-center justify-center p-8">
+          <EmptyState
+            colors={EMPTY_STATE_COLORS}
+            illustration={<IconStack icon={<WaypointsIcon />} />}
+            title="No note selected"
+            description={emptyMessage}
+            className="max-w-md"
+          />
         </div>
       )}
     </div>

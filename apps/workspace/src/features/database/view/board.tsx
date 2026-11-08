@@ -5,7 +5,10 @@ import type { DatabaseColumn } from "@skriuw/renderer-core/database/columns";
 import type { DatabaseRow } from "@skriuw/renderer-core/database/rows";
 import { groupInput } from "@skriuw/renderer-core/database/writes";
 import type { PersonRecord } from "@skriuw/renderer-core/references/types";
-import { LayoutDashboardIcon, PlusIcon } from "@/shared/icons/static";
+import { EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
+import { EmptyState } from "@/shared/empty-state/empty-state";
+import { ProjectIllustration } from "@/shared/empty-state/illustrations";
+import { PlusIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/styling/class-names";
 import { nextCardPosition } from "./grid-keys";
 import { OptionDot, OptionPill } from "./option-pill";
@@ -174,18 +177,13 @@ export function DatabaseBoard({ model, onOpenNote, embedded = false }: Props) {
 
   if (groupColumn === null || groups === null) {
     return (
-      <div
-        role="status"
-        className="w-[min(380px,calc(100%-40px))] place-self-center text-center text-theme-secondary"
-      >
-        <span className="mb-3.5 inline-flex text-theme-dim" aria-hidden="true">
-          <LayoutDashboardIcon size={22} />
-        </span>
-        <h2 className="text-[15px] font-[620] text-foreground">Nothing to group by yet</h2>
-        <p className="mt-1.5 text-xs leading-[1.45]">
-          A board groups notes by a select or checkbox property. Add one, such as Status, to a note
-          in this view.
-        </p>
+      <div className="w-[min(480px,calc(100%-40px))] place-self-center">
+        <EmptyState
+          colors={EMPTY_STATE_COLORS}
+          illustration={<ProjectIllustration />}
+          title="Nothing to group by yet"
+          description="A board groups notes by a select or checkbox property. Add one, such as Status, to a note in this view."
+        />
       </div>
     );
   }

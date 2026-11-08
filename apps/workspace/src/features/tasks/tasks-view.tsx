@@ -7,7 +7,10 @@ import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { requestBlockReveal } from "@/features/editor/reveal-controller";
 import { activateReference } from "@/features/references/shell";
-import { CalendarIcon, FileTextIcon, ListTodoIcon, SearchIcon } from "@/shared/icons/static";
+import { COMPACT_EMPTY_STATE_STYLE, EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
+import { EmptyState } from "@/shared/empty-state/empty-state";
+import { RecordIllustration, SearchIllustration } from "@/shared/empty-state/illustrations";
+import { CalendarIcon, FileTextIcon, SearchIcon } from "@/shared/icons/static";
 import { useRouteFocus } from "@/shared/routing/app-route";
 import { cn } from "@/shared/styling/class-names";
 import { LedgerOutline } from "@/shared/ui/ledger-outline";
@@ -772,29 +775,35 @@ export function TasksView({ store }: Props) {
             }}
           >
             {rows.length === 0 ? (
-              <div
-                role="status"
-                className="grid h-full place-items-center pb-20 text-center text-theme-secondary"
-              >
-                <div className="w-[min(360px,100%)]">
-                  <span className="mb-3 inline-flex text-theme-dim" aria-hidden="true">
-                    <ListTodoIcon size={22} />
-                  </span>
-                  <h2 className="m-0 text-[15px] font-semibold text-foreground">No tasks yet</h2>
-                  <p className="mt-1.5 mb-0 text-[12.5px] leading-normal">
-                    Type{" "}
-                    <code className="rounded bg-theme-hover px-[5px] py-px font-mono text-[11.5px] text-foreground">
-                      - []
-                    </code>{" "}
-                    in a note, or use the task slash command, to turn a line into a task. It shows
-                    up here with its note.
-                  </p>
-                </div>
+              <div className="grid h-full place-items-center pb-20">
+                <EmptyState
+                  colors={EMPTY_STATE_COLORS}
+                  illustration={<RecordIllustration />}
+                  title="No tasks yet"
+                  description={
+                    <>
+                      Type{" "}
+                      <code className="rounded bg-theme-hover px-[5px] py-px font-mono text-[11.5px] text-foreground">
+                        - []
+                      </code>{" "}
+                      in a note, or use the task slash command, to turn a line into a task. It shows
+                      up here with its note.
+                    </>
+                  }
+                />
               </div>
             ) : groups.length === 0 ? (
-              <p className="py-10 text-center text-[12.5px] text-theme-secondary">
-                No tasks match “{query.trim()}”. <kbd>Esc</kbd> clears the filter.
-              </p>
+              <EmptyState
+                colors={EMPTY_STATE_COLORS}
+                style={COMPACT_EMPTY_STATE_STYLE}
+                illustration={<SearchIllustration />}
+                title={`No tasks match “${query.trim()}”`}
+                description={
+                  <>
+                    <kbd>Esc</kbd> clears the filter.
+                  </>
+                }
+              />
             ) : (
               <div className="mx-auto max-w-[900px]">
                 {groups.map((group) => (
