@@ -62,9 +62,9 @@ queries the tables they create. Do not run `wrangler deploy` on its own.
 ## Deploy order
 
 **The Worker ships first.** Clients read routes the Worker serves before they
-can do anything with them, and the browser client deploys automatically from
-`daddy` through Vercel, so a client change that needs a new route must not
-reach `daddy` before the Worker that serves it. The order is:
+can do anything with them, and the browser client is deployed by hand from
+`daddy`, so a client change that needs a new route must not be deployed
+before the Worker that serves it. The order is:
 
 1. deploy the Worker (production), then
 2. merge the client change to `daddy`, then

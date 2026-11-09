@@ -1,6 +1,5 @@
-import { readdir, readFile } from "node:fs/promises";
-import path from "node:path";
 import type { DocPage } from "@/modules/docs/pages";
+import { docSources } from "@/modules/docs/generated/sources";
 
 export type AdrStatus = "accepted" | "proposed" | "superseded" | "deprecated";
 
@@ -11,7 +10,6 @@ export type AdrRecord = DocPage & {
   status: AdrStatus;
 };
 
-const adrDir = path.join(process.cwd(), "../../docs/adr");
 const adrFile = /^(\d{4})-[\w-]+\.md$/;
 const titlePrefix = /^(?:adr-)?\d+[.:\s—–-]+\s*/i;
 const descriptionLimit = 160;
@@ -66,17 +64,23 @@ function describe(source: string, title: string) {
 
 /**
  * @name readAdrSource
- * @description Reads one decision record's Markdown from docs/adr by file name.
+ * @description Returns one decision record's Markdown from docs/adr by file name.
  *
  * @example
- * const source = await readAdrSource("0001-standalone-local-first.md");
+ * const source = readAdrSource("0001-standalone-local-first.md");
  */
 export function readAdrSource(file: string) {
-  return readFile(path.join(process.cwd(), "../../docs/adr", file), "utf8");
+  const source = docSources[`docs/adr/${file}`];
+
+  if (source === undefined) {
+    throw new Error(`No decision record named ${file}`);
+  }
+
+  return source;
 }
 
-async function parseAdr(file: string): Promise<AdrRecord> {
-  const source = await readAdrSource(file);
+function parseAdr(file: string): AdrRecord {
+  const source = readAdrSource(file);
   const number = file.match(adrFile)?.[1] ?? "";
   const heading = source.match(/^#\s+(.+)$/m)?.[1] ?? file;
   const title = plainText(heading.replace(titlePrefix, ""));
@@ -107,8 +111,11 @@ async function parseAdr(file: string): Promise<AdrRecord> {
  */
 export async function listAdrs(): Promise<AdrRecord[]> {
   "use cache";
-  const files = (await readdir(adrDir)).filter((file) => adrFile.test(file)).sort();
-  const records = await Promise.all(files.map(parseAdr));
+  const files = Object.keys(docSources)
+    .map((source) => source.replace(/^docs\/adr\//, ""))
+    .filter((file) => adrFile.test(file))
+    .sort();
+  const records = files.map(parseAdr);
 
   return records.reverse();
 }

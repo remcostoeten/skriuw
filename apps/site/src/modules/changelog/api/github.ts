@@ -14,6 +14,7 @@ export async function github<T>(path: string, schema: z.ZodType<T>): Promise<T> 
 
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
+    "User-Agent": "skriuw-site",
   };
 
   if (token) {

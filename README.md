@@ -138,7 +138,7 @@ never leave the machine they were written on: the desktop app keeps them in
 local SQLite, and the browser app keeps them in your browser's own storage.
 
 The standalone app does not send workspace content or telemetry. The marketing
-site uses Vercel Web Analytics and Spoar for page views and a few click events.
+site uses Spoar for page views and a few click events.
 The desktop app's network code is limited to the sync Worker, which runs only
 while you are signed in, and the updater's version check.
 
