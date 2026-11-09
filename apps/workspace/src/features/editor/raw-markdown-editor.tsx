@@ -28,7 +28,7 @@ import type {
 } from "@skriuw/renderer-core/store/types";
 import type { DocumentEdge } from "./navigation/document-edges";
 import { JumpToLinePanel } from "./navigation/jump-to-line-panel";
-import { sourceTypewriterScrolling } from "./focus/typewriter-scroll";
+import { sourceTypewriterScrolling } from "./raw-markdown/typewriter-scroll";
 import { useEditorBoundShortcuts } from "@/commands/editor-bound-shortcuts";
 import type { EditorBoundHandlersFor } from "@/commands/editor-bound-shortcuts";
 import type {

@@ -55,7 +55,7 @@ These rules hold regardless of timing. Each one removes a kind of work from the 
 - No database read during note navigation: the note is already in memory, so SQLite is not queried.
 - No Markdown parse during note navigation: a note's text is not converted from Markdown into an editor document when you open it.
 - No Git operation during editing or navigation: version history is written in the background, never while you type or switch notes.
-- No route or editor chunk loading after startup: a chunk is a separately loaded piece of the app's code, and every screen's code and the editor's code are loaded when the app starts, never on demand later.
+- No route or editor chunk loading after startup: a chunk is a separately loaded piece of the app's code, and every screen's code and the editor's code are loaded when the app starts, never on demand later. The raw Markdown editor is the one exception: its chunk loads before the first render when the first screen shows a raw note, and right after the first commit otherwise. See [ADR-0061](adr/0061-early-workspace-read-and-deferred-raw-editor.md).
 - No editor component remount during note navigation: the editor is created once, and switching notes swaps its content instead of rebuilding it.
 - No post-startup skeleton for cached workspace content: once the app is running, content already in memory never shows a grey placeholder shape (a skeleton) while it loads.
 - No application-shell render from editor keystrokes: typing re-renders the editor only, never the frame around the note (navigation rail, sidebar, tabs, and toolbars).

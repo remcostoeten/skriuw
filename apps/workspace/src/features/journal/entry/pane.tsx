@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, TouchEvent } from "react";
 import { rendersRawEditor } from "@/features/editor/editor-mode";
 import { NoteEditor } from "@/features/editor/note-editor";
-import { RawMarkdownEditor } from "@/features/editor/raw-markdown-editor";
+import { LazyRawMarkdownEditor } from "@/features/editor/raw-markdown-editor-loader";
 import { ChevronLeftIcon, ChevronRightIcon, Trash2Icon } from "@/shared/icons/static";
 import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import { toolbarIconButtonClass } from "@/shared/ui/toolbar-button";
@@ -190,7 +190,7 @@ export function JournalEntryPane({
             <div className="journal-entry-body relative min-h-[320px] max-w-[72ch] pb-4 max-[899px]:min-h-[180px]">
               {noteId !== null &&
                 (isRawMode ? (
-                  <RawMarkdownEditor store={store} selectNoteId={selectNoteId} />
+                  <LazyRawMarkdownEditor store={store} selectNoteId={selectNoteId} />
                 ) : (
                   <NoteEditor store={store} selectNoteId={selectNoteId} />
                 ))}

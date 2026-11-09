@@ -1,7 +1,7 @@
 import { memo, useMemo, useRef } from "react";
 import { rendersRawEditor } from "@/features/editor/editor-mode";
 import { NoteEditor } from "@/features/editor/note-editor";
-import { RawMarkdownEditor } from "@/features/editor/raw-markdown-editor";
+import { LazyRawMarkdownEditor } from "@/features/editor/raw-markdown-editor-loader";
 import { NotePropertiesShelf } from "@/features/note-chrome/note-properties-shelf";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
@@ -93,7 +93,7 @@ export const EditorHost = memo(function EditorHost({
         >
           {showsEditor && <NotePropertiesShelf store={store} selectNoteId={selectEditableNoteId} />}
           {isRawMode ? (
-            <RawMarkdownEditor store={store} selectNoteId={selectEditableNoteId} />
+            <LazyRawMarkdownEditor store={store} selectNoteId={selectEditableNoteId} />
           ) : (
             <NoteEditor store={store} selectNoteId={selectEditableNoteId} />
           )}

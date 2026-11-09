@@ -101,7 +101,7 @@ In that store, the application shell and persistent editor host hold no workspac
 
 ## Runtime contract
 
-At startup the renderer calls `bootstrap()` once. It returns a snapshot with the nodes, document JSON, settings, the active note and cached history headers. The renderer normalizes this data, storing each record once by ID, and prepares editor states before it hides the startup screen. Loading the snapshot into the store like this is called hydration.
+At startup the renderer calls `bootstrap()` once. It returns a snapshot with the nodes, document JSON, settings, the active note and cached history headers. The renderer normalizes this data, storing each record once by ID, and prepares editor states before it hides the startup screen. Loading the snapshot into the store like this is called hydration. On desktop, `index.html` starts the snapshot read before the bundle loads, and the renderer keeps it only when no workspace change was published before it started listening. See [ADR-0061](adr/0061-early-workspace-read-and-deferred-raw-editor.md).
 
 Every user action updates renderer state synchronously first. The durable work is then submitted as a `WorkspaceOperation`. Acknowledgements carry the resulting revisions. Navigation never waits for an acknowledgement.
 

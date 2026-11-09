@@ -1,3 +1,4 @@
+import { currentSnapshot, takeEarlyBootstrap } from "@/app/early-bootstrap";
 import {
   bootstrapWorkspace,
   loadPaneLayout,
@@ -10,18 +11,21 @@ import type { RendererStore } from "@skriuw/renderer-core/store/types";
 
 /**
  * Reads the workspace snapshot and the persisted UI continuity in one round
- * and builds the renderer store from them. Continuity is best-effort: a
- * failed sidebar or pane-layout read falls back to defaults, while a failed
- * bootstrap rejects so startup can surface it.
+ * and builds the renderer store from them. On desktop the reads were started
+ * by `index.html` before the bundle loaded and are reused when still current;
+ * callers must be listening for workspace changes before calling. Continuity
+ * is best-effort: a failed sidebar or pane-layout read falls back to defaults,
+ * while a failed bootstrap rejects so startup can surface it.
  */
 export async function loadWorkspaceStore(): Promise<RendererStore> {
+  const early = takeEarlyBootstrap();
   const [snapshot, expandedFolderIds, paneLayoutJson] = await Promise.all([
-    bootstrapWorkspace(),
-    loadSidebarExpansion().catch((error) => {
+    early ? currentSnapshot(early.snapshot) : bootstrapWorkspace(),
+    (early?.sidebarExpansion ?? loadSidebarExpansion()).catch((error) => {
       console.error("sidebar expansion load failed", error);
       return [];
     }),
-    loadPaneLayout().catch((error) => {
+    (early?.paneLayout ?? loadPaneLayout()).catch((error) => {
       console.error("pane layout load failed", error);
       return null;
     }),
