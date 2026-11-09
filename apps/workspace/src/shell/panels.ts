@@ -2,6 +2,8 @@ export {
   FOCUS_GRID_TEMPLATE,
   panelGridTemplate,
   panelTracksWith,
+  RAIL_WIDE_WIDTH,
+  RAIL_WIDTH,
   type PanelTracks,
 } from "./panels/layout";
 export {

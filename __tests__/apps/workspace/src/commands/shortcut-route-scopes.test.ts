@@ -50,6 +50,7 @@ const controls: AppCommandControls = {
   openSettings: noop,
   openSettingsAt: noop,
   toggleSidebar: noop,
+  toggleRailLabels: noop,
   toggleMetadata: noop,
   toggleFocusMode: noop,
   navigate: noop,

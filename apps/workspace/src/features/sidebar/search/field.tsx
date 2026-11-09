@@ -1,6 +1,4 @@
-import { AnimatePresence, motion } from "motion/react";
 import { CloseIcon, SearchIcon } from "@/shared/icons/static";
-import { HEADER_SWAP_TRANSITION } from "../header/swap";
 import type { SidebarSearch } from "./state";
 
 type Props = {
@@ -9,42 +7,34 @@ type Props = {
 
 export function SearchField({ search }: Props) {
   return (
-    <AnimatePresence>
-      {search.isOpen && (
-        <motion.div
-          ref={search.overlayRef}
-          initial={{ y: 8, opacity: 0, scale: 0.985 }}
-          animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: 8, opacity: 0, scale: 0.985 }}
-          transition={HEADER_SWAP_TRANSITION}
-          className="absolute inset-x-0 top-0 flex h-11 items-center px-3 will-change-transform"
-          onBlur={search.onAreaBlur}
-        >
-          <div className="flex h-8 w-full items-center gap-2 bg-transparent px-2.5">
-            <SearchIcon size={14} className="shrink-0 text-muted-foreground" />
-            <input
-              ref={search.inputRef}
-              type="text"
-              value={search.query}
-              onChange={(event) => search.setQuery(event.currentTarget.value)}
-              onKeyDown={search.onInputKeyDown}
-              placeholder="Search"
-              aria-label="Search notes"
-              inputMode="search"
-              enterKeyHint="search"
-              className="h-full w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground/60 focus-visible:shadow-none"
-            />
-            <button
-              type="button"
-              onClick={() => search.close(true)}
-              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-accent focus-visible:text-foreground"
-              aria-label="Close search"
-            >
-              <CloseIcon size={14} />
-            </button>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div ref={search.fieldRef} className="shrink-0 px-2 pt-2.5 pb-1" onBlur={search.onAreaBlur}>
+      <label className="flex h-[30px] items-center gap-2 rounded-[7px] border border-sidebar-border bg-foreground/[0.025] pr-1 pl-2.5 transition-colors duration-150 focus-within:border-foreground/20 focus-within:bg-foreground/[0.05] pointer-coarse:h-10">
+        <SearchIcon size={14} className="shrink-0 text-theme-dim" />
+        <input
+          ref={search.inputRef}
+          type="text"
+          value={search.query}
+          onChange={(event) => search.setQuery(event.currentTarget.value)}
+          onKeyDown={search.onInputKeyDown}
+          placeholder="Search notes"
+          aria-label="Search notes"
+          inputMode="search"
+          enterKeyHint="search"
+          autoComplete="off"
+          spellCheck={false}
+          className="h-full min-w-0 flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-theme-dim focus-visible:shadow-none"
+        />
+        {search.query !== "" && (
+          <button
+            type="button"
+            onClick={() => search.clear(true)}
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-theme-dim transition-colors hover:bg-sidebar-accent/60 hover:text-foreground focus-visible:bg-sidebar-accent/60 focus-visible:text-foreground focus-visible:shadow-none focus-visible:outline-none"
+            aria-label="Clear search"
+          >
+            <CloseIcon size={13} />
+          </button>
+        )}
+      </label>
+    </div>
   );
 }

@@ -1088,9 +1088,6 @@ async function runWorkflow() {
         "template copy",
       );
       assert(checks, "template-copy-created", true, "new canonical note created");
-      await control('focusNamed("Search notes")');
-      await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-      await settle();
       await evaluate(
         cdp,
         sessionId,
@@ -1106,7 +1103,7 @@ async function runWorkflow() {
         'window.__SKRIUW_WORKFLOW_E2E__.state().settings.savedSearches?.includes("Alpha")',
         "saved query",
       );
-      await control('focusNamed("Close search")');
+      await control('focusNamed("Clear search")');
       await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
       await evaluate(
         cdp,
@@ -1628,9 +1625,6 @@ async function runWorkflow() {
     await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
     steps.push("jump-to-line-overlay");
 
-    await control('focusNamed("Search notes")');
-    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-    await settle();
     await control('focusSelector("input[aria-label=\\"Search notes\\"]")');
     await typeText(cdp, sessionId, "Gamma");
     await settle();
@@ -1751,9 +1745,6 @@ async function runWorkflow() {
 
     await dispatchKey(cdp, sessionId, "1", "Digit1", 49, "", 10);
     await waitFor(cdp, sessionId, "window.location.hash === '#/notes'", "notes route after trash");
-    await settle();
-    await control('focusNamed("Search notes")');
-    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
     await settle();
     await control('focusSelector("input[aria-label=\\"Search notes\\"]")');
     await typeText(cdp, sessionId, "Alpha");

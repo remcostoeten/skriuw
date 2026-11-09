@@ -25,6 +25,7 @@ export type AppCommandControls = {
   openSignIn: () => void;
   showShortcutHelp: () => void;
   toggleSidebar: () => void;
+  toggleRailLabels: () => void;
   /** Reveals the sidebar without toggling it, for actions that live in the tree. */
   openSidebar: () => void;
   toggleMetadata: () => void;

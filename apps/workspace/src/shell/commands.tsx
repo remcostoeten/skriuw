@@ -57,6 +57,7 @@ import { resetZoom, zoomIn, zoomOut } from "./zoom";
 
 export type ShellCommandControls = {
   toggleSidebar: () => void;
+  toggleRailLabels: () => void;
   toggleMetadata: () => void;
   toggleFocusMode: () => void;
   navigate: (route: AppRoute) => void;
@@ -288,6 +289,15 @@ export function shellCommands(store: RendererStore, controls: ShellCommandContro
       shortcut: "toggleSidebar",
       enabled: onSidebarRoute,
       run: controls.toggleSidebar,
+    },
+    {
+      id: "toggle-rail-labels",
+      label: "Toggle rail labels",
+      group: "Navigation",
+      keywords: ["navigation", "names", "expand", "wide"],
+      icon: <PanelLeftIcon size={15} />,
+      shortcut: "toggleRailLabels",
+      run: controls.toggleRailLabels,
     },
     {
       id: "toggle-metadata",
