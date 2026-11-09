@@ -1,13 +1,16 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use rusqlite::{Connection, OptionalExtension, Transaction};
+use serde::Serialize;
+use serde_json::value::RawValue;
 use skriuw_domain::{
     AnnotationComment, AnnotationStatus, HistoryHeader, MediaMetadata, NodeKind, NoteProperty,
-    NotePropertyField, NotePropertyOption, NotePropertyTemplate, OpenedFileState, PromptInputShape,
-    PromptParameters, ProviderImportReceipt, TaskPriority, TaskSource, TaskStatus,
-    VersionedNotePropertyValue, WORKSPACE_PROTOCOL_VERSION, WorkspaceAnnotation, WorkspaceArchive,
-    WorkspaceDocument, WorkspaceImage, WorkspaceNode, WorkspacePerson, WorkspacePrompt,
-    WorkspaceSettings, WorkspaceSnapshot, WorkspaceTag, WorkspaceTask,
+    NotePropertyField, NotePropertyOption, NotePropertyTemplate, NoteReferences, OpenedFileState,
+    PromptInputShape, PromptParameters, ProviderImportReceipt, SealedPayload, TaskPriority,
+    TaskSource, TaskStatus, VersionedNotePropertyValue, WORKSPACE_PROTOCOL_VERSION,
+    WorkspaceAnnotation, WorkspaceArchive, WorkspaceDocument, WorkspaceImage, WorkspaceNode,
+    WorkspacePerson, WorkspacePrompt, WorkspaceSettings, WorkspaceSnapshot, WorkspaceTag,
+    WorkspaceTask,
 };
 use skriuw_storage::StorageError;
 
@@ -15,11 +18,137 @@ use crate::error::{backend, json_backend, validation};
 use crate::operations::{node_is_available, node_kind};
 
 pub(crate) fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot, StorageError> {
+    let documents = read_documents(connection)?;
+    let snapshot = read_snapshot_around(connection, documents)?;
+    validate_tasks(
+        &snapshot.tasks,
+        &snapshot
+            .documents
+            .iter()
+            .map(|document| (document.note_id.as_str(), &document.document_json))
+            .collect(),
+        &snapshot.tags,
+        &snapshot.people,
+    )?;
+    Ok(snapshot)
+}
+
+/// The bootstrap snapshot encoded as `WorkspaceSnapshot` JSON. Stored document
+/// bodies are copied into the output as raw JSON text; only the bodies a task
+/// links to are parsed, to re-prove those links.
+pub(crate) fn read_snapshot_json(connection: &Connection) -> Result<String, StorageError> {
+    let documents = read_stored_documents(connection)?;
+    let WorkspaceSnapshot {
+        protocol_version,
+        active_note_id,
+        nodes,
+        documents: _,
+        history_headers,
+        settings,
+        tags,
+        people,
+        references,
+        images,
+        media_metadata,
+        properties,
+        property_templates,
+        tasks,
+        prompts,
+        annotations,
+        import_receipts,
+    } = read_snapshot_around(connection, Vec::new())?;
+    let source_note_ids = tasks
+        .iter()
+        .filter_map(|task| task.source.as_ref())
+        .map(|source| source.note_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let source_documents = documents
+        .iter()
+        .filter(|document| source_note_ids.contains(document.note_id.as_str()))
+        .map(|document| {
+            serde_json::from_str::<serde_json::Value>(document.document_json.get())
+                .map(|body| (document.note_id.as_str(), body))
+                .map_err(json_backend)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    validate_tasks(
+        &tasks,
+        &source_documents
+            .iter()
+            .map(|(note_id, body)| (*note_id, body))
+            .collect(),
+        &tags,
+        &people,
+    )?;
+    serde_json::to_string(&SnapshotJson {
+        protocol_version,
+        active_note_id,
+        nodes,
+        documents,
+        history_headers,
+        settings,
+        tags,
+        people,
+        references,
+        images,
+        media_metadata,
+        properties,
+        property_templates,
+        tasks,
+        prompts,
+        annotations,
+        import_receipts,
+    })
+    .map_err(|error| StorageError::Backend(format!("snapshot encoding failed: {error}")))
+}
+
+/// Mirrors the serialized shape of `WorkspaceSnapshot`, with each document
+/// body held as the raw JSON text SQLite stores. `read_snapshot_json`
+/// destructures the snapshot exhaustively, so a new snapshot field fails to
+/// compile until it is added here too.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SnapshotJson {
+    protocol_version: u16,
+    active_note_id: Option<String>,
+    nodes: Vec<WorkspaceNode>,
+    documents: Vec<StoredDocument>,
+    history_headers: Vec<HistoryHeader>,
+    settings: WorkspaceSettings,
+    tags: Vec<WorkspaceTag>,
+    people: Vec<WorkspacePerson>,
+    references: Vec<NoteReferences>,
+    images: Vec<WorkspaceImage>,
+    media_metadata: Vec<MediaMetadata>,
+    properties: Vec<NoteProperty>,
+    property_templates: Vec<NotePropertyTemplate>,
+    tasks: Vec<WorkspaceTask>,
+    prompts: Vec<WorkspacePrompt>,
+    annotations: Vec<WorkspaceAnnotation>,
+    import_receipts: Vec<ProviderImportReceipt>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StoredDocument {
+    note_id: String,
+    document_json: Box<RawValue>,
+    markdown: String,
+    revision: i64,
+    word_count: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sealed: Option<SealedPayload>,
+}
+
+fn read_snapshot_around(
+    connection: &Connection,
+    documents: Vec<WorkspaceDocument>,
+) -> Result<WorkspaceSnapshot, StorageError> {
     let snapshot = WorkspaceSnapshot {
         protocol_version: WORKSPACE_PROTOCOL_VERSION,
         active_note_id: read_active_note(connection)?,
         nodes: read_nodes(connection)?,
-        documents: read_documents(connection)?,
+        documents,
         history_headers: read_history_headers(connection)?,
         settings: read_settings(connection)?,
         tags: read_tags(connection)?,
@@ -41,12 +170,6 @@ pub(crate) fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot
         &snapshot.nodes,
     )
     .map_err(|error| StorageError::Backend(error.to_string()))?;
-    validate_tasks(
-        &snapshot.tasks,
-        &snapshot.documents,
-        &snapshot.tags,
-        &snapshot.people,
-    )?;
     skriuw_domain::validate_workspace_prompts(&snapshot.prompts)
         .map_err(|error| StorageError::Backend(error.to_string()))?;
     Ok(snapshot)
@@ -219,7 +342,7 @@ pub(crate) fn read_tasks_where(
     parameters: &[&dyn rusqlite::ToSql],
 ) -> Result<Vec<WorkspaceTask>, StorageError> {
     let mut statement = connection
-        .prepare(&format!(
+        .prepare_cached(&format!(
             "SELECT {TASK_COLUMNS} FROM workspace_tasks WHERE {predicate} ORDER BY created_at, id"
         ))
         .map_err(backend)?;
@@ -414,6 +537,19 @@ pub(crate) fn read_images(connection: &Connection) -> Result<Vec<WorkspaceImage>
         })
         .map_err(backend)?
         .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
+}
+
+pub(crate) fn read_image_content_hashes(
+    connection: &Connection,
+) -> Result<BTreeSet<String>, StorageError> {
+    let mut statement = connection
+        .prepare("SELECT DISTINCT content_hash FROM note_images")
+        .map_err(backend)?;
+    statement
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(backend)?
+        .collect::<Result<BTreeSet<_>, _>>()
         .map_err(backend)
 }
 
@@ -674,29 +810,48 @@ pub(crate) fn read_nodes_by_id(
     rows.collect::<Result<Vec<_>, _>>().map_err(backend)
 }
 
-fn read_document_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspaceDocument> {
-    let raw = row.get::<_, String>(1)?;
-    let document_json = serde_json::from_str(&raw).map_err(|error| {
-        rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Text, Box::new(error))
-    })?;
-    let sealed = row
-        .get::<_, Option<Vec<u8>>>(5)?
+const DOCUMENT_COLUMNS: &str = "note_id, document_json, markdown, revision, word_count, \
+     sealed_body, sealed_nonce, sealed_key_id";
+
+fn document_body_error(error: serde_json::Error) -> rusqlite::Error {
+    rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Text, Box::new(error))
+}
+
+fn read_sealed_payload(row: &rusqlite::Row<'_>) -> rusqlite::Result<Option<SealedPayload>> {
+    row.get::<_, Option<Vec<u8>>>(5)?
         .map(|ciphertext| {
-            Ok::<_, rusqlite::Error>(skriuw_domain::SealedPayload {
+            Ok(SealedPayload {
                 scheme: skriuw_domain::NOTE_LOCK_SCHEME.into(),
                 key_id: row.get::<_, Option<String>>(7)?.unwrap_or_default(),
                 nonce: row.get::<_, Option<String>>(6)?.unwrap_or_default(),
                 ciphertext: skriuw_crypto::encode_base64(&ciphertext),
             })
         })
-        .transpose()?;
+        .transpose()
+}
+
+fn read_document_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspaceDocument> {
+    let raw = row.get::<_, String>(1)?;
+    let document_json = serde_json::from_str(&raw).map_err(document_body_error)?;
     Ok(WorkspaceDocument {
         note_id: row.get(0)?,
         document_json,
         markdown: row.get(2)?,
         revision: row.get(3)?,
         word_count: row.get(4)?,
-        sealed,
+        sealed: read_sealed_payload(row)?,
+    })
+}
+
+fn read_stored_document_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredDocument> {
+    let document_json = RawValue::from_string(row.get(1)?).map_err(document_body_error)?;
+    Ok(StoredDocument {
+        note_id: row.get(0)?,
+        document_json,
+        markdown: row.get(2)?,
+        revision: row.get(3)?,
+        word_count: row.get(4)?,
+        sealed: read_sealed_payload(row)?,
     })
 }
 
@@ -704,14 +859,24 @@ pub(crate) fn read_documents(
     connection: &Connection,
 ) -> Result<Vec<WorkspaceDocument>, StorageError> {
     let mut statement = connection
-        .prepare_cached(
-            "SELECT note_id, document_json, markdown, revision, word_count, \
-                    sealed_body, sealed_nonce, sealed_key_id \
-             FROM documents ORDER BY note_id",
-        )
+        .prepare_cached(&format!(
+            "SELECT {DOCUMENT_COLUMNS} FROM documents ORDER BY note_id"
+        ))
         .map_err(backend)?;
     let rows = statement
         .query_map([], read_document_row)
+        .map_err(backend)?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(backend)
+}
+
+fn read_stored_documents(connection: &Connection) -> Result<Vec<StoredDocument>, StorageError> {
+    let mut statement = connection
+        .prepare_cached(&format!(
+            "SELECT {DOCUMENT_COLUMNS} FROM documents ORDER BY note_id"
+        ))
+        .map_err(backend)?;
+    let rows = statement
+        .query_map([], read_stored_document_row)
         .map_err(backend)?;
     rows.collect::<Result<Vec<_>, _>>().map_err(backend)
 }
@@ -851,16 +1016,13 @@ pub(crate) fn read_archive(
 /// source silently goes nowhere.
 pub(crate) fn validate_tasks(
     tasks: &[WorkspaceTask],
-    documents: &[WorkspaceDocument],
+    note_documents: &BTreeMap<&str, &serde_json::Value>,
     tags: &[WorkspaceTag],
     people: &[WorkspacePerson],
 ) -> Result<(), StorageError> {
     skriuw_domain::validate_workspace_tasks(
         tasks,
-        &documents
-            .iter()
-            .map(|document| (document.note_id.as_str(), &document.document_json))
-            .collect(),
+        note_documents,
         &tags.iter().map(|tag| tag.id.as_str()).collect(),
         &people.iter().map(|person| person.id.as_str()).collect(),
     )

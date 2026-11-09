@@ -7,10 +7,10 @@ use skriuw_domain::{ClientSyncOperation, SyncOperationPayload, SyncPushRequest};
 use skriuw_sqlite::SqliteWorkspace;
 use skriuw_storage::{NewSyncConnection, SyncRecovery, WorkspaceStorage, WorkspaceSyncQueue};
 use skriuw_sync::{
-    BLOCKED_OPERATION_REASON_ASSET_CONTENT_MISSING, BLOCKED_REASON_LOG_TRUNCATED,
-    BLOCKED_REASON_REJECTED_BATCH, BLOCKED_REASON_REJECTED_PULL, SyncBackoffConfig,
-    SyncCancellation, SyncClock, SyncCycleConfig, SyncCycleOutcome, SyncCycleState, SyncStatus,
-    SyncTransport, run_sync_cycle,
+    ACKNOWLEDGEMENT_REFRESH_MS, BLOCKED_OPERATION_REASON_ASSET_CONTENT_MISSING,
+    BLOCKED_REASON_LOG_TRUNCATED, BLOCKED_REASON_REJECTED_BATCH, BLOCKED_REASON_REJECTED_PULL,
+    SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig, SyncCycleOutcome,
+    SyncCycleState, SyncStatus, SyncTransport, run_sync_cycle,
 };
 use support::{
     FakeAssetStore, FakeClock, FakeServer, FakeTransport, PullFault, PushFault, attach_image,
@@ -1555,4 +1555,62 @@ fn a_missing_chunk_fails_the_pull_instead_of_applying_partial_content() {
             .all(|document| document.markdown.is_empty()),
         "no partial content may be applied"
     );
+}
+
+#[test]
+fn an_unchanged_cursor_is_acknowledged_again_only_after_the_refresh_interval() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let (mut device_a, mut device_b) = shared_note(&server, &clock);
+    let acknowledged = device_b.transport.acknowledge_calls();
+    assert_eq!(server.acknowledged_sequence("device-b"), Some(1));
+
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_b.transport.acknowledge_calls(), acknowledged);
+
+    device_a.apply(vec![rename_node("note-shared", "Renamed", 2)]);
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_b.transport.acknowledge_calls(), acknowledged + 1);
+    assert_eq!(server.acknowledged_sequence("device-b"), Some(2));
+
+    clock.advance(ACKNOWLEDGEMENT_REFRESH_MS);
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_b.transport.acknowledge_calls(), acknowledged + 2);
+}
+
+#[test]
+fn a_restarted_session_acknowledges_its_cursor_again() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut device = Device::open(&server, "device-a", &clock);
+    device.connect("device-a");
+    device.apply(vec![create_note("note-1", "Acknowledged", 1)]);
+    assert_eq!(device.cycle().status, SyncStatus::UpToDate);
+    let acknowledged = device.transport.acknowledge_calls();
+
+    let mut restarted = Device::with_storage(device.storage, &server, "device-a", &clock);
+    assert_eq!(restarted.cycle().status, SyncStatus::UpToDate);
+
+    assert_eq!(acknowledged, 1);
+    assert_eq!(restarted.transport.acknowledge_calls(), 1);
+}
+
+/// ADR-0043 requires reading the record before every upload while the
+/// workspace is not encrypted: another device can encrypt it at any moment.
+#[test]
+fn an_unencrypted_workspace_reads_the_encryption_record_before_every_upload() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut device = Device::open(&server, "device-a", &clock);
+    device.connect("device-a");
+
+    device.apply(vec![create_note("note-1", "First", 1)]);
+    assert_eq!(device.cycle().status, SyncStatus::UpToDate);
+    device.apply(vec![rename_node("note-1", "Second", 2)]);
+    assert_eq!(device.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device.cycle().status, SyncStatus::UpToDate);
+
+    assert_eq!(device.transport.encryption_reads(), 2);
 }

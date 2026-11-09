@@ -16,6 +16,9 @@ import {
   SearchIcon,
 } from "@/shared/icons/static";
 import { noop } from "@skriuw/shared/helpers/noop";
+import { COMPACT_EMPTY_STATE_STYLE, EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
+import { EmptyState } from "@/shared/empty-state/empty-state";
+import { SearchIllustration, UploadIllustration } from "@/shared/empty-state/illustrations";
 import { cn } from "@/shared/styling/class-names";
 import {
   ContextMenu,
@@ -30,7 +33,7 @@ import {
 import { Dialog } from "@/shared/ui/dialog";
 import { Select } from "@/shared/ui/select";
 import { Tooltip } from "@skriuw/shared/ui/tooltip";
-import { resolveImageBlobUrl } from "@/platform/runtime/media-urls";
+import { resolveImageBlobUrl, resolvedImageBlobUrl } from "@/platform/runtime/media-urls";
 import {
   projectCoverMediaPicker,
   type CoverMediaPickerFilter,
@@ -113,23 +116,27 @@ function failureMessage(reason: unknown): string {
 }
 
 function useCoverUrl(contentHash: string | null, mimeType: string | null): string | null {
-  const [url, setUrl] = useState<string | null>(null);
+  const [resolved, setResolved] = useState<{ contentHash: string; url: string } | null>(null);
   useEffect(() => {
-    let active = true;
-    setUrl(null);
-    if (contentHash === null || mimeType === null) {
-      return () => {
-        active = false;
-      };
+    if (contentHash === null || mimeType === null || resolvedImageBlobUrl(contentHash) !== null) {
+      return;
     }
-    void resolveImageBlobUrl(contentHash, mimeType).then((resolved) => {
-      if (active) setUrl(resolved);
+    let active = true;
+    void resolveImageBlobUrl(contentHash, mimeType).then((url) => {
+      if (active) setResolved({ contentHash, url });
     });
     return () => {
       active = false;
     };
   }, [contentHash, mimeType]);
-  return url;
+  if (contentHash === null || mimeType === null) {
+    return null;
+  }
+  const cached = resolvedImageBlobUrl(contentHash);
+  if (cached !== null) {
+    return cached;
+  }
+  return resolved?.contentHash === contentHash ? resolved.url : null;
 }
 
 export function NoteCover({ store, selectNoteId }: Props) {
@@ -1054,20 +1061,20 @@ function CoverMediaPicker({
       ) : blobs === null ? (
         <p className="p-6 text-center text-sm text-muted-foreground">Loading media…</p>
       ) : blobs.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 p-8 text-center">
-          <p className="text-sm text-muted-foreground">No media stored yet.</p>
-          <button
-            type="button"
-            className="rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background"
-            onClick={onUpload}
-          >
-            Upload first image
-          </button>
-        </div>
+        <EmptyState
+          colors={EMPTY_STATE_COLORS}
+          style={COMPACT_EMPTY_STATE_STYLE}
+          illustration={<UploadIllustration />}
+          title="No media stored yet"
+          actions={[{ id: "upload", label: "Upload first image", onClick: onUpload }]}
+        />
       ) : items.length === 0 ? (
-        <p className="p-8 text-center text-sm text-muted-foreground">
-          No media matches search and filter.
-        </p>
+        <EmptyState
+          colors={EMPTY_STATE_COLORS}
+          style={COMPACT_EMPTY_STATE_STYLE}
+          illustration={<SearchIllustration />}
+          title="No media matches search and filter"
+        />
       ) : (
         <ul className="grid max-h-[52dvh] list-none grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5 overflow-y-auto p-3.5">
           {items.map((item) => (

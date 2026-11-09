@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 import {
+  sameSyncStatus,
   syncDescription,
   syncDetail,
   syncEnabled,
@@ -174,5 +175,41 @@ test("a blocked detail is surfaced only when the coordinator provided one", () =
   assert.equal(
     syncDetail({ state: "blocked", reason: "rejected_pull", detail: "sequence gap at 42" }),
     "sequence gap at 42",
+  );
+});
+
+test("a poll that reports the same sync status keeps the previous status", () => {
+  assert.equal(sameSyncStatus({ state: "upToDate" }, { state: "upToDate" }), true);
+  assert.equal(
+    sameSyncStatus(
+      { state: "blocked", reason: "quota", detail: null },
+      { state: "blocked", reason: "quota", detail: null },
+    ),
+    true,
+  );
+  assert.equal(
+    sameSyncStatus(
+      { state: "retrying", nextAttemptAt: 5 },
+      { state: "retrying", nextAttemptAt: 5 },
+    ),
+    true,
+  );
+});
+
+test("a changed sync status or detail is a new status", () => {
+  assert.equal(sameSyncStatus({ state: "upToDate" }, { state: "pending" }), false);
+  assert.equal(
+    sameSyncStatus(
+      { state: "retrying", nextAttemptAt: 5 },
+      { state: "retrying", nextAttemptAt: 6 },
+    ),
+    false,
+  );
+  assert.equal(
+    sameSyncStatus(
+      { state: "blocked", reason: "quota", detail: null },
+      { state: "blocked", reason: "quota", detail: "full" },
+    ),
+    false,
   );
 });

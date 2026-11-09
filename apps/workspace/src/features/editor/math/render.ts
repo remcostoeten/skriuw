@@ -54,6 +54,19 @@ function loadKatex(): Promise<KatexRender> {
 }
 
 /**
+ * @name preloadMathRenderer
+ * @description Starts loading KaTeX, its stylesheet and mhchem without
+ * rendering anything, so the first math node after startup renders without
+ * waiting on a chunk.
+ *
+ * @example
+ * preloadMathRenderer();
+ */
+export function preloadMathRenderer(): void {
+  loadKatex().catch((error: unknown) => console.error("KaTeX preload failed", error));
+}
+
+/**
  * @name mathErrorMessage
  * @description Turns a KaTeX parse error into the short sentence shown under a
  * math node, dropping the library prefix and the echoed source excerpt.

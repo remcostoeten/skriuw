@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
 use skriuw_domain::{
     NoteLockKind, NoteLockState, OperationAck, SearchHit, SearchIndexStatus, WorkspaceArchive,
     WorkspaceDelta, WorkspaceDocument, WorkspaceOperationEnvelope, WorkspaceSnapshot,
@@ -179,11 +180,34 @@ pub enum BrowserWorkerOutcome {
     Error(BrowserStorageError),
 }
 
+/// A bootstrap snapshot held as the `WorkspaceSnapshot` JSON the storage
+/// adapter encoded, so the worker response embeds it without encoding the
+/// document bodies a second time.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct EncodedSnapshot(Box<RawValue>);
+
+impl EncodedSnapshot {
+    pub fn from_json(json: String) -> Result<Self, serde_json::Error> {
+        RawValue::from_string(json).map(Self)
+    }
+
+    pub fn decode(&self) -> Result<WorkspaceSnapshot, serde_json::Error> {
+        serde_json::from_str(self.0.get())
+    }
+}
+
+impl PartialEq for EncodedSnapshot {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.get() == other.0.get()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum BrowserWorkerValue {
     Ready,
-    Bootstrap(Box<WorkspaceSnapshot>),
+    Bootstrap(EncodedSnapshot),
     SidebarExpansion(Option<Vec<String>>),
     PaneLayout(Option<String>),
     Operation(OperationAck),

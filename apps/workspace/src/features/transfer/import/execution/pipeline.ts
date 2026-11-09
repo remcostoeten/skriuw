@@ -7,6 +7,7 @@ import {
   importSourceKey,
   withFileTimes,
   type ImportBundle,
+  type ImportSourceAdapter,
 } from "@/features/transfer/import/parsing/bundle";
 import { convertFormatsToMarkdown } from "@/features/transfer/file-formats";
 import { toOpenedFileReceipts, type OpenedFile } from "@/features/transfer/opened-file-origin";
@@ -18,7 +19,6 @@ import {
 } from "@/features/transfer/import/planning/bundle";
 import { applyImportGrouping } from "@/features/transfer/import/planning/grouping";
 import { buildImportPreviewCandidate } from "@/features/transfer/import/planning/preview";
-import { importSources } from "@/features/transfer/import/sources/registry";
 import type { DateKey } from "@skriuw/renderer-core/journal/dates";
 import { JOURNAL_ROOT_ID, journalEntryDateKey } from "@/features/journal/model";
 import {
@@ -92,6 +92,7 @@ export async function importNotesFromPath(
   let prepared: Awaited<ReturnType<typeof prepareImportSources>> | null = null;
   try {
     prepared = await prepareImportSources(sourcePaths);
+    const { importSources } = await import("@/features/transfer/import/sources/registry");
     throwIfImportCancelled(intake.signal);
     const tree = convertFormatsToMarkdown(prepared.tree);
     const detectedSource = detectImportSource(importSources, tree);
@@ -144,7 +145,7 @@ export async function importNotesFromPath(
       cancellable: true,
     });
     const candidates: {
-      source: (typeof importSources)[number];
+      source: ImportSourceAdapter;
       bundle: ImportBundle;
       variants: Record<
         ImportDuplicateMode,

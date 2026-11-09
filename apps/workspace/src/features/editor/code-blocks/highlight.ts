@@ -14,7 +14,7 @@ import xml from "highlight.js/lib/languages/xml";
 import yaml from "highlight.js/lib/languages/yaml";
 import { createLowlight } from "lowlight";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
-import { Plugin, PluginKey, type Transaction } from "prosemirror-state";
+import { Plugin, PluginKey, type EditorState, type Transaction } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import { noop } from "@skriuw/shared/helpers/noop";
 import { changedRanges } from "../changed-ranges";
@@ -113,10 +113,12 @@ function shellCommandTokens(code: string, claimed: readonly CodeToken[]): CodeTo
 
 /**
  * Code blocks past this size are left unhighlighted: a single lowlight pass
- * over a very long block runs on every edit to that block and would stall
- * typing far more visibly than the missing colours cost.
+ * over a very long block is one long main-thread task after every pause in
+ * typing, which costs more than the missing colours.
  */
 const MAX_HIGHLIGHT_LENGTH = 30000;
+const REFRESH_DELAY_MS = 100;
+const INIT_BUDGET_MS = 4;
 
 export function codeLanguageLabel(params: string): string {
   const normalized = normalizeLanguage(params);
@@ -234,51 +236,143 @@ export function codeHighlightDecorations(doc: ProseMirrorNode): Decoration[] {
   return decorations;
 }
 
+export type CodeHighlightState = {
+  decorations: DecorationSet;
+  pending: readonly number[];
+};
+
+export const codeHighlightKey = new PluginKey<CodeHighlightState>("skriuw-code-highlight");
+
+const REFRESH = "refresh";
+
+function initialCodeHighlight(doc: ProseMirrorNode): CodeHighlightState {
+  const decorations: Decoration[] = [];
+  const pending: number[] = [];
+  const started = performance.now();
+  doc.descendants((node, pos) => {
+    if (node.type.name !== "code_block") return node.isBlock;
+    if (tokenCache.has(node) || performance.now() - started < INIT_BUDGET_MS) {
+      for (const decoration of blockDecorations(node, pos)) decorations.push(decoration);
+    } else {
+      pending.push(pos);
+    }
+    return false;
+  });
+  return { decorations: DecorationSet.create(doc, decorations), pending };
+}
+
+function rehighlightBlock(
+  set: DecorationSet,
+  doc: ProseMirrorNode,
+  node: ProseMirrorNode,
+  pos: number,
+): DecorationSet {
+  const cleared = set.remove(set.find(pos + 1, pos + node.nodeSize - 1));
+  return node.type.name === "code_block" ? cleared.add(doc, blockDecorations(node, pos)) : cleared;
+}
+
+function refreshPending(previous: CodeHighlightState, doc: ProseMirrorNode): CodeHighlightState {
+  if (previous.pending.length === 0) return previous;
+  let set = previous.decorations;
+  for (const pos of previous.pending) {
+    const node = doc.nodeAt(pos);
+    if (node?.type.name === "code_block") set = rehighlightBlock(set, doc, node, pos);
+  }
+  return { decorations: set, pending: [] };
+}
+
 /**
  * @name nextCodeHighlight
- * @description Advances the code highlight decoration set across a
- * transaction: the previous set is mapped, and only the textblocks the
- * transaction touched are re-decorated, so an edit costs the blocks it changed
- * rather than every code block in the note. Returns `previous` itself when the
- * document did not change.
+ * @description Advances the code highlight state across a transaction. The
+ * previous decorations are mapped and only the textblocks the transaction
+ * touched are re-decorated. A touched code block whose node was highlighted
+ * before (such as after undoing a paste) is re-decorated at once; an edited
+ * one keeps its mapped decorations and is queued until the refresh
+ * transaction, so typing never waits for lowlight. Returns `previous` itself when nothing changed.
  *
  * @example
  * apply: (transaction, previous) => nextCodeHighlight(previous, transaction)
  */
 export function nextCodeHighlight(
-  previous: DecorationSet,
+  previous: CodeHighlightState,
   transaction: Transaction,
-): DecorationSet {
-  if (!transaction.docChanged) return previous;
+): CodeHighlightState {
   const { doc } = transaction;
+  if (transaction.getMeta(codeHighlightKey) === REFRESH) return refreshPending(previous, doc);
+  if (!transaction.docChanged) return previous;
   const size = doc.content.size;
+  const pending = new Set<number>();
+  for (const pos of previous.pending) {
+    const mapped = transaction.mapping.mapResult(pos, 1);
+    if (!mapped.deleted) pending.add(mapped.pos);
+  }
   const handled = new Set<number>();
-  let set = previous.map(transaction.mapping, doc);
+  let set = previous.decorations.map(transaction.mapping, doc);
   for (const range of changedRanges(transaction)) {
     doc.nodesBetween(Math.max(0, range.from - 1), Math.min(size, range.to + 1), (node, pos) => {
       if (!node.isTextblock) return node.isBlock;
       if (handled.has(pos)) return false;
       handled.add(pos);
-      set = set.remove(set.find(pos + 1, pos + node.nodeSize - 1));
-      if (node.type.name === "code_block") set = set.add(doc, blockDecorations(node, pos));
+      if (node.type.name === "code_block" && !tokenCache.has(node)) {
+        pending.add(pos);
+        return false;
+      }
+      pending.delete(pos);
+      set = rehighlightBlock(set, doc, node, pos);
       return false;
     });
   }
-  return set;
+  return { decorations: set, pending: [...pending] };
 }
 
-export const codeHighlightKey = new PluginKey<DecorationSet>("skriuw-code-highlight");
+/**
+ * @name codeHighlightRefresh
+ * @description The transaction that re-highlights every code block queued by
+ * earlier edits. It records no history.
+ *
+ * @example
+ * view.dispatch(codeHighlightRefresh(view.state));
+ */
+export function codeHighlightRefresh(state: EditorState): Transaction {
+  return state.tr.setMeta(codeHighlightKey, REFRESH).setMeta("addToHistory", false);
+}
 
-export function createCodeHighlightPlugin(): Plugin<DecorationSet> {
-  return new Plugin<DecorationSet>({
+function hasPendingHighlight(state: EditorState): boolean {
+  return (codeHighlightKey.getState(state)?.pending.length ?? 0) > 0;
+}
+
+export function createCodeHighlightPlugin(): Plugin<CodeHighlightState> {
+  return new Plugin<CodeHighlightState>({
     key: codeHighlightKey,
     state: {
-      init: (_config, state) =>
-        DecorationSet.create(state.doc, codeHighlightDecorations(state.doc)),
+      init: (_config, state) => initialCodeHighlight(state.doc),
       apply: (transaction, previous) => nextCodeHighlight(previous, transaction),
     },
     props: {
-      decorations: (state) => codeHighlightKey.getState(state) ?? DecorationSet.empty,
+      decorations: (state) => codeHighlightKey.getState(state)?.decorations ?? DecorationSet.empty,
+    },
+    view: (editorView) => {
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      function schedule() {
+        if (timer !== null) clearTimeout(timer);
+        timer = null;
+        if (!hasPendingHighlight(editorView.state)) return;
+        timer = setTimeout(() => {
+          timer = null;
+          if (hasPendingHighlight(editorView.state)) {
+            editorView.dispatch(codeHighlightRefresh(editorView.state));
+          }
+        }, REFRESH_DELAY_MS);
+      }
+      schedule();
+      return {
+        update: (view, previousState) => {
+          if (view.state.doc !== previousState.doc || timer === null) schedule();
+        },
+        destroy: () => {
+          if (timer !== null) clearTimeout(timer);
+        },
+      };
     },
   });
 }

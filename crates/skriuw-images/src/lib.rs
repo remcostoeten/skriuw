@@ -127,6 +127,16 @@ impl ImageStore {
         Ok(fs::read(path)?)
     }
 
+    /// Re-hashes a stored blob and fails when its bytes no longer match
+    /// `content_hash`, without loading the whole file into memory.
+    pub fn verify(&self, content_hash: &str, mime_type: &str) -> Result<(), ImageStoreError> {
+        let path = self.blob_path(content_hash, mime_type)?;
+        if !path.exists() {
+            return Err(ImageStoreError::MissingBlob);
+        }
+        Ok(verify_content(&path, content_hash)?)
+    }
+
     pub fn exists(&self, content_hash: &str, mime_type: &str) -> Result<bool, ImageStoreError> {
         Ok(self.blob_path(content_hash, mime_type)?.exists())
     }

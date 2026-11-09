@@ -289,7 +289,9 @@ function mountCodeBlock(params: string) {
   const dom = nodeView.dom as unknown as FakeElement;
   const toolbar = dom.children[0];
   const [trigger, copy, menu] = toolbar.children;
-  const items = menu.children.map((item) => item.children[0]);
+  function items(): FakeElement[] {
+    return menu.children.flatMap((item) => item.children.slice(0, 1));
+  }
   return {
     nodeView,
     toolbar,
@@ -307,22 +309,30 @@ function keydown(target: FakeElement, key: string): FakeEvent {
   return event;
 }
 
+test("the language menu is built on first open", () => {
+  const { trigger, items } = mountCodeBlock("ts");
+  assert.equal(items().length, 0);
+  trigger.dispatchEvent(new FakeEvent("click"));
+  assert.equal(items().length, CODE_LANGUAGES.length);
+});
+
 test("the language trigger and menu carry listbox popup semantics", () => {
   const { trigger, menu, items } = mountCodeBlock("ts");
   assert.equal(trigger.getAttribute("aria-haspopup"), "listbox");
   assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  trigger.dispatchEvent(new FakeEvent("click"));
   assert.equal(trigger.getAttribute("aria-label"), "Code language");
   assert.ok(menu.id.length > 0);
   assert.equal(trigger.getAttribute("aria-controls"), menu.id);
   assert.equal(menu.getAttribute("role"), "listbox");
   assert.equal(menu.getAttribute("tabindex"), "-1");
-  assert.equal(items.length, CODE_LANGUAGES.length);
-  for (const item of items) {
+  assert.equal(items().length, CODE_LANGUAGES.length);
+  for (const item of items()) {
     assert.equal(item.tabIndex, -1);
     assert.equal(item.getAttribute("role"), "option");
     assert.equal(item.parentElement?.getAttribute("role"), "presentation");
   }
-  const selected = items.filter((item) => item.getAttribute("aria-selected") === "true");
+  const selected = items().filter((item) => item.getAttribute("aria-selected") === "true");
   assert.deepEqual(
     selected.map((item) => item.dataset.language),
     ["ts"],
@@ -342,7 +352,7 @@ test("ArrowDown on the trigger opens the menu and focuses the selected item", ()
   assert.equal(event.defaultPrevented, true);
   assert.equal(toolbar.dataset.open, "true");
   assert.equal(trigger.getAttribute("aria-expanded"), "true");
-  const rust = items.find((item) => item.dataset.language === "rust")!;
+  const rust = items().find((item) => item.dataset.language === "rust")!;
   assert.equal(fakeDocument.activeElement, rust);
   assert.equal(rust.dataset.active, "true");
 });
@@ -350,21 +360,21 @@ test("ArrowDown on the trigger opens the menu and focuses the selected item", ()
 test("ArrowUp on the trigger opens the menu at the last item", () => {
   const { trigger, items } = mountCodeBlock("");
   keydown(trigger, "ArrowUp");
-  assert.equal(fakeDocument.activeElement, items[items.length - 1]);
+  assert.equal(fakeDocument.activeElement, items()[items().length - 1]);
 });
 
 test("arrow keys move focus with wrap and Home/End jump to the ends", () => {
   const { trigger, menu, items } = mountCodeBlock("");
   keydown(trigger, "Enter");
-  assert.equal(fakeDocument.activeElement, items[0]);
+  assert.equal(fakeDocument.activeElement, items()[0]);
   keydown(menu, "ArrowUp");
-  assert.equal(fakeDocument.activeElement, items[items.length - 1]);
+  assert.equal(fakeDocument.activeElement, items()[items().length - 1]);
   keydown(menu, "ArrowDown");
-  assert.equal(fakeDocument.activeElement, items[0]);
+  assert.equal(fakeDocument.activeElement, items()[0]);
   keydown(menu, "End");
-  assert.equal(fakeDocument.activeElement, items[items.length - 1]);
+  assert.equal(fakeDocument.activeElement, items()[items().length - 1]);
   keydown(menu, "Home");
-  assert.equal(fakeDocument.activeElement, items[0]);
+  assert.equal(fakeDocument.activeElement, items()[0]);
 });
 
 test("Escape in the menu closes it and returns focus to the trigger", () => {
@@ -382,7 +392,7 @@ test("Escape in the menu closes it and returns focus to the trigger", () => {
 test("Enter on a focused item sets the language", () => {
   const { trigger, menu, toolbar, items, language } = mountCodeBlock("");
   keydown(trigger, "ArrowDown");
-  const sql = items.findIndex((item) => item.dataset.language === "sql");
+  const sql = items().findIndex((item) => item.dataset.language === "sql");
   for (let step = 0; step < sql; step += 1) keydown(menu, "ArrowDown");
   keydown(menu, "Enter");
   assert.equal(language(), "sql");

@@ -206,6 +206,14 @@ still upload plaintext *chunks* ahead of a refused push, because chunk bytes
 are opaque to the service; those chunks are never referenced and the 24-hour
 unreferenced-chunk sweep removes them.
 
+A sync session that has matched the record against the key it holds keeps
+that answer instead of reading the record before every cycle: the record is
+write-once, so it cannot change while the workspace and the key stay the
+same. The session reads it again whenever its key changes, after any refused
+upload, and after a push-channel wake. An absent record is never remembered;
+it is read before every upload, because another device can create it at any
+moment.
+
 ### Failure behavior
 
 Recovery-relevant failures stay visible, per the repository rules:

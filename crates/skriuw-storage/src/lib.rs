@@ -1,4 +1,4 @@
-use std::{fmt, sync::Arc};
+use std::{collections::BTreeSet, fmt, sync::Arc};
 
 use skriuw_domain::{
     HistoryHeader, NoteLockKind, NoteLockState, OperationAck, ReplicatedWorkspaceOperation,
@@ -208,6 +208,26 @@ impl StorageError {
 
 pub trait WorkspaceStorage: Send + Sync {
     fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError>;
+
+    /// Content hashes of every attached image, for media cleanup. Adapters
+    /// with a cheaper query than a full bootstrap override it.
+    fn referenced_image_hashes(&self) -> Result<BTreeSet<String>, StorageError> {
+        Ok(self
+            .bootstrap()?
+            .images
+            .into_iter()
+            .map(|image| image.content_hash)
+            .collect())
+    }
+
+    /// The same snapshot as [`WorkspaceStorage::bootstrap`], already encoded
+    /// as `WorkspaceSnapshot` JSON for a renderer boundary. An adapter that
+    /// stores document bodies as JSON text can copy them into the output
+    /// without parsing them first.
+    fn bootstrap_json(&self) -> Result<String, StorageError> {
+        serde_json::to_string(&self.bootstrap()?)
+            .map_err(|error| StorageError::Backend(format!("snapshot encoding failed: {error}")))
+    }
 
     fn load_sidebar_expansion(&self) -> Result<Option<Vec<String>>, StorageError> {
         Ok(None)
@@ -694,6 +714,14 @@ where
 {
     fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError> {
         self.as_ref().bootstrap()
+    }
+
+    fn referenced_image_hashes(&self) -> Result<BTreeSet<String>, StorageError> {
+        self.as_ref().referenced_image_hashes()
+    }
+
+    fn bootstrap_json(&self) -> Result<String, StorageError> {
+        self.as_ref().bootstrap_json()
     }
 
     fn load_sidebar_expansion(&self) -> Result<Option<Vec<String>>, StorageError> {

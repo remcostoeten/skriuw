@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 /// this build no longer produces and has to be rebuilt before its ranking and
 /// snippets can be trusted. Bump it in the same commit as any change to
 /// [`index_text`] or to the tokenizer.
-pub const SEARCH_INDEX_VERSION: u32 = 3;
+pub const SEARCH_INDEX_VERSION: u32 = 4;
 
 /// Fenced blocks whose body is a serialized payload rather than prose. Their
 /// content is deliberately withheld from the index: a drawing scene is tens of

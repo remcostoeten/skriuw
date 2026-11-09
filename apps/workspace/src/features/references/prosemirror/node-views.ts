@@ -11,11 +11,19 @@ export type ReferenceNodeViews = {
   destroy: () => void;
 };
 
+type TokenPaint = {
+  text: string;
+  ariaLabel: string;
+  availability: string;
+  color: string | null;
+};
+
 type TokenBinding = {
   dom: HTMLElement;
   kind: ReferenceKind;
   targetId: string;
   fallbackLabel: string;
+  painted: TokenPaint | null;
 };
 
 function referenceColor(
@@ -32,22 +40,38 @@ function referenceColor(
   return null;
 }
 
+/**
+ * Every save replaces `sourceNodes`, so each token is repainted then; only the
+ * values that actually changed are written, which leaves the DOM untouched
+ * for the common save that renames nothing.
+ */
 function paintToken(store: RendererStore, binding: TokenBinding): void {
   const state = store.getState();
   const resolved = resolveReference(state, binding.kind, binding.targetId, binding.fallbackLabel);
-  binding.dom.textContent = referenceText(binding.kind, resolved);
-  binding.dom.setAttribute("aria-label", referenceAriaLabel(binding.kind, resolved));
-  binding.dom.dataset.refAvailability = resolved.availability;
-  const color =
-    resolved.availability === "resolved"
-      ? referenceColor(state, binding.kind, binding.targetId)
-      : null;
-  if (color) {
-    binding.dom.style.setProperty("--reference-token-color", color);
-    binding.dom.dataset.refColored = "true";
+  const next: TokenPaint = {
+    text: referenceText(binding.kind, resolved),
+    ariaLabel: referenceAriaLabel(binding.kind, resolved),
+    availability: resolved.availability,
+    color:
+      resolved.availability === "resolved"
+        ? referenceColor(state, binding.kind, binding.targetId)
+        : null,
+  };
+  const previous = binding.painted;
+  binding.painted = next;
+  const { dom } = binding;
+  if (previous?.text !== next.text) dom.textContent = next.text;
+  if (previous?.ariaLabel !== next.ariaLabel) dom.setAttribute("aria-label", next.ariaLabel);
+  if (previous?.availability !== next.availability) {
+    dom.dataset.refAvailability = next.availability;
+  }
+  if (previous !== null && previous.color === next.color) return;
+  if (next.color) {
+    dom.style.setProperty("--reference-token-color", next.color);
+    dom.dataset.refColored = "true";
   } else {
-    binding.dom.style.removeProperty("--reference-token-color");
-    delete binding.dom.dataset.refColored;
+    dom.style.removeProperty("--reference-token-color");
+    delete dom.dataset.refColored;
   }
 }
 
@@ -65,6 +89,7 @@ export function createReferenceNodeViews(store: RendererStore): ReferenceNodeVie
       kind,
       targetId: String(node.attrs.id),
       fallbackLabel: String(node.attrs.label),
+      painted: null,
     };
     paintToken(store, binding);
     bindings.add(binding);

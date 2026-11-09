@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeSet,
     mem,
     sync::{
         Arc, Mutex,
@@ -87,6 +88,23 @@ impl WorkspaceRuntime {
     pub fn bootstrap(&self) -> Result<Completion<WorkspaceSnapshot>, RuntimeError> {
         let (sender, receiver) = mpsc::channel();
         self.shared.submit(Request::Bootstrap { sender })?;
+        Ok(Completion { receiver })
+    }
+
+    /// Content hashes of every attached image, ordered after every request
+    /// submitted before it, so media cleanup never misses a queued attachment.
+    pub fn referenced_image_hashes(&self) -> Result<Completion<BTreeSet<String>>, RuntimeError> {
+        let (sender, receiver) = mpsc::channel();
+        self.shared
+            .submit(Request::ReferencedImageHashes { sender })?;
+        Ok(Completion { receiver })
+    }
+
+    /// The bootstrap snapshot already encoded as `WorkspaceSnapshot` JSON, for
+    /// shells that hand it to a renderer without inspecting it.
+    pub fn bootstrap_json(&self) -> Result<Completion<String>, RuntimeError> {
+        let (sender, receiver) = mpsc::channel();
+        self.shared.submit(Request::BootstrapJson { sender })?;
         Ok(Completion { receiver })
     }
 
@@ -269,6 +287,12 @@ enum Request {
     Bootstrap {
         sender: Sender<Result<WorkspaceSnapshot, StorageError>>,
     },
+    ReferencedImageHashes {
+        sender: Sender<Result<BTreeSet<String>, StorageError>>,
+    },
+    BootstrapJson {
+        sender: Sender<Result<String, StorageError>>,
+    },
     LoadSidebarExpansion {
         sender: Sender<Result<Option<Vec<String>>, StorageError>>,
     },
@@ -326,6 +350,12 @@ fn run(
         match request {
             Request::Bootstrap { sender } => {
                 let _ = sender.send(storage.bootstrap());
+            }
+            Request::ReferencedImageHashes { sender } => {
+                let _ = sender.send(storage.referenced_image_hashes());
+            }
+            Request::BootstrapJson { sender } => {
+                let _ = sender.send(storage.bootstrap_json());
             }
             Request::LoadSidebarExpansion { sender } => {
                 let _ = sender.send(storage.load_sidebar_expansion());

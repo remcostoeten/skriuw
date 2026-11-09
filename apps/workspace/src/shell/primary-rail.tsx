@@ -208,7 +208,7 @@ export function PrimaryRail({
     <nav
       aria-label="Primary"
       className={cn(
-        "flex min-w-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar",
+        "relative z-[2] flex min-w-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar",
         hidden && "sidebar-pane-collapsed",
         settling && "sidebar-pane-settling",
       )}

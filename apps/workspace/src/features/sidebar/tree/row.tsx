@@ -144,16 +144,18 @@ export const SidebarRow = memo(function SidebarRow({
               : event.ctrlKey || event.metaKey
                 ? "toggle"
                 : "replace";
-            store.selectTreeNode(id, selectionMode);
-            store.setFocusedNode(id);
-            if (selectionMode !== "replace") {
-              return;
-            }
-            if (isFolder) {
-              store.toggleExpanded(id);
-            } else {
-              activateNote(store, id);
-            }
+            store.batch(() => {
+              store.selectTreeNode(id, selectionMode);
+              store.setFocusedNode(id);
+              if (selectionMode !== "replace") {
+                return;
+              }
+              if (isFolder) {
+                store.toggleExpanded(id);
+              } else {
+                activateNote(store, id);
+              }
+            });
           }}
         >
           <RowLabel isFolder={isFolder} isExpanded={isExpanded} isNarrow={metrics.isNarrow}>

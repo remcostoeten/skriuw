@@ -15,6 +15,18 @@ export type TreeViewport = {
   onScroll: (event: UIEvent<HTMLDivElement>) => void;
 };
 
+/**
+ * @name treeRowPitch
+ * @description Distance between the tops of two adjacent tree rows: the row
+ * height plus the one-pixel gap between rows.
+ *
+ * @example
+ * const rowPitch = treeRowPitch(touchRows ? 44 : 34);
+ */
+export function treeRowPitch(rowHeight: number): number {
+  return rowHeight + 1;
+}
+
 export function useTreeViewport(
   store: RendererStore,
   treeRef: TreeRef,
@@ -24,7 +36,7 @@ export function useTreeViewport(
 ): TreeViewport {
   const [treeScrollRow, setTreeScrollRow] = useState(0);
   const [treeViewportHeight, setTreeViewportHeight] = useState(0);
-  const rowPitch = rowHeight + 1;
+  const rowPitch = treeRowPitch(rowHeight);
 
   useEffect(() => {
     function revealFocusedNode() {
@@ -36,7 +48,7 @@ export function useTreeViewport(
       if (!element || index < 0 || focusedId === null) {
         return;
       }
-      const pitch = rowHeight + 1;
+      const pitch = treeRowPitch(rowHeight);
       const top = index * pitch;
       const bottom = top + pitch;
       let nextScrollTop = element.scrollTop;

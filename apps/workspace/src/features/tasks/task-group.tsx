@@ -256,9 +256,9 @@ export function TaskGroupSection(props: Props) {
   }, [registry, group.id, group.title, count, alert]);
 
   const showSource = grouping === "due" || group.kind === "completed";
-  function renderRows(rows: readonly TaskRow[], label: string) {
+  function renderRows(rows: readonly TaskRow[], label: string, className?: string) {
     return (
-      <ul className="m-0 min-w-0 list-none p-0" aria-label={label}>
+      <ul className={cn("m-0 min-w-0 list-none p-0", className)} aria-label={label}>
         {rows.map((row) => (
           <TaskListItem
             key={row.id}
@@ -291,9 +291,13 @@ export function TaskGroupSection(props: Props) {
         {folded ? (
           <>
             {renderRows(group.rows.slice(0, COMPLETED_PREVIEW), group.title)}
-            <div className="task-fold" data-open={completedOpen} inert={!completedOpen}>
-              <div>{renderRows(group.rows.slice(COMPLETED_PREVIEW), "Older completed tasks")}</div>
-            </div>
+            {completedOpen
+              ? renderRows(
+                  group.rows.slice(COMPLETED_PREVIEW),
+                  "Older completed tasks",
+                  "task-fold",
+                )
+              : null}
           </>
         ) : (
           renderRows(group.rows, group.title)

@@ -109,6 +109,11 @@ export function NotePropertiesPanel({ store, selectNoteId = selectActiveNoteId }
   const people = useRendererSelector(store, selectPeople);
   const [pending, setPending] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [errorNoteId, setErrorNoteId] = useState(noteId);
+  if (errorNoteId !== noteId) {
+    setErrorNoteId(noteId);
+    setError(null);
+  }
   const idFactory = useMemo(createBrowserPropertyIdFactory, []);
 
   function commit(operations: WorkspaceOperation[]): void {
@@ -166,7 +171,10 @@ export function NotePropertiesPanel({ store, selectNoteId = selectActiveNoteId }
         </div>
       )}
 
-      <div className="mt-0.5 flex items-center gap-1 opacity-55 transition-opacity duration-150 focus-within:opacity-100 group-hover/shelf:opacity-100">
+      <div
+        key={noteId}
+        className="mt-0.5 flex items-center gap-1 opacity-55 transition-opacity duration-150 focus-within:opacity-100 group-hover/shelf:opacity-100"
+      >
         <AddPropertyButton onAdd={addProperty} />
         <TemplatePicker
           builtInTemplates={BUILT_IN_PROPERTY_TEMPLATES}

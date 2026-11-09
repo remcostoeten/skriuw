@@ -8,7 +8,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
     thread::{self, JoinHandle},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
@@ -31,8 +31,12 @@ use skriuw_storage::{
 };
 
 const HISTORY_DRAIN_WORKER_ID: &str = "desktop-history-drain";
-const HISTORY_DRAIN_IDLE_DELAY: Duration = Duration::from_millis(250);
+const HISTORY_DRAIN_START_DELAY: Duration = Duration::from_secs(5);
+const HISTORY_DRAIN_MIN_IDLE_DELAY: Duration = Duration::from_millis(250);
+const HISTORY_DRAIN_MAX_IDLE_DELAY: Duration = Duration::from_secs(30);
 const HISTORY_DRAIN_LEASE_MS: i64 = 30_000;
+const HISTORY_PACK_INTERVAL: Duration = Duration::from_secs(10 * 60);
+const HISTORY_PACK_THRESHOLD: usize = 1_024;
 const HISTORY_DRAIN_BATCH_ITEMS: usize = 64;
 const ROLLBACK_PREFIX: &str = ".rollback-";
 const CANDIDATE_PREFIX: &str = ".restore-candidate-";
@@ -58,14 +62,54 @@ where
     idle
 }
 
+/// Wakes an idle history drain before its sleep ends, for example when sync
+/// applied remote revisions that are claimable at once.
+#[derive(Default)]
+pub struct HistoryWake {
+    pending: Mutex<bool>,
+    signal: Condvar,
+}
+
+impl HistoryWake {
+    pub fn notify(&self) {
+        if let Ok(mut pending) = self.pending.lock() {
+            *pending = true;
+        }
+        self.signal.notify_all();
+    }
+
+    fn wait(&self, stop: &AtomicBool, timeout: Duration) {
+        let Ok(pending) = self.pending.lock() else {
+            thread::sleep(timeout.min(HISTORY_DRAIN_MIN_IDLE_DELAY));
+            return;
+        };
+        if let Ok((mut pending, _)) = self.signal.wait_timeout_while(pending, timeout, |pending| {
+            !*pending && !stop.load(Ordering::Relaxed)
+        }) {
+            *pending = false;
+        }
+    }
+}
+
+pub(crate) fn history_idle_delay(next_claim_at: Option<i64>, now: i64) -> Duration {
+    match next_claim_at {
+        Some(at) if at > now => Duration::from_millis(at.saturating_sub(now) as u64)
+            .clamp(HISTORY_DRAIN_MIN_IDLE_DELAY, HISTORY_DRAIN_MAX_IDLE_DELAY),
+        Some(_) => HISTORY_DRAIN_MIN_IDLE_DELAY,
+        None => HISTORY_DRAIN_MAX_IDLE_DELAY,
+    }
+}
+
 pub struct HistoryDrainHandle {
     stop: Arc<AtomicBool>,
+    wake: Arc<HistoryWake>,
     worker: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl HistoryDrainHandle {
     pub fn shutdown(&self) {
         self.stop.store(true, Ordering::Relaxed);
+        self.wake.notify();
         if let Ok(mut guard) = self.worker.lock()
             && let Some(handle) = guard.take()
         {
@@ -74,6 +118,7 @@ impl HistoryDrainHandle {
     }
 }
 
+#[cfg(test)]
 pub fn spawn_history_drain(
     database_path: &Path,
     repository_path: &Path,
@@ -89,6 +134,7 @@ pub fn spawn_history_drain(
     )
 }
 
+#[cfg(test)]
 pub(crate) fn spawn_history_drain_observed(
     database_path: &Path,
     repository_path: &Path,
@@ -96,19 +142,54 @@ pub(crate) fn spawn_history_drain_observed(
     publish: HistoryPublisher,
     observe_failure: HistoryFailureObserver,
 ) -> Result<HistoryDrainHandle, String> {
+    spawn_scheduled_history_drain(
+        database_path,
+        repository_path,
+        now_millis,
+        publish,
+        observe_failure,
+        Duration::ZERO,
+        Arc::new(HistoryWake::default()),
+    )
+}
+
+/// The drain claims only after a plain read finds a due row, then sleeps
+/// until the earliest row becomes claimable, bounded so remote revisions
+/// that arrive without a wake still land. Loose Git objects are packed when
+/// the drain is idle.
+fn spawn_scheduled_history_drain(
+    database_path: &Path,
+    repository_path: &Path,
+    now_millis: fn() -> i64,
+    publish: HistoryPublisher,
+    observe_failure: HistoryFailureObserver,
+    start_delay: Duration,
+    wake: Arc<HistoryWake>,
+) -> Result<HistoryDrainHandle, String> {
     let storage = Arc::new(
         SqliteWorkspace::open(database_path)
             .map_err(|error| format!("open {}: {error}", database_path.display()))?,
     );
-    let materializer = GitHistoryMaterializer::open(repository_path)
-        .map_err(|error| format!("open {}: {error}", repository_path.display()))?;
-    let worker = HistoryWorker::new(HISTORY_DRAIN_WORKER_ID, storage, materializer)
-        .map_err(|error| error.to_string())?;
+    let materializer = Arc::new(
+        GitHistoryMaterializer::open(repository_path)
+            .map_err(|error| format!("open {}: {error}", repository_path.display()))?,
+    );
+    let worker = HistoryWorker::new(
+        HISTORY_DRAIN_WORKER_ID,
+        Arc::clone(&storage),
+        Arc::clone(&materializer),
+    )
+    .map_err(|error| error.to_string())?;
     let stop = Arc::new(AtomicBool::new(false));
     let stop_flag = Arc::clone(&stop);
+    let drain_wake = Arc::clone(&wake);
     let handle = thread::Builder::new()
         .name("skriuw-history-drain".into())
         .spawn(move || {
+            if !start_delay.is_zero() {
+                drain_wake.wait(&stop_flag, start_delay);
+            }
+            let mut last_pack = Instant::now();
             while !stop_flag.load(Ordering::Relaxed) {
                 let idle = process_history_batch(&stop_flag, || {
                     match worker.process_next(now_millis(), HISTORY_DRAIN_LEASE_MS) {
@@ -124,16 +205,30 @@ pub(crate) fn spawn_history_drain_observed(
                         }
                     }
                 });
-                if idle {
-                    thread::sleep(HISTORY_DRAIN_IDLE_DELAY);
-                } else {
+                if !idle {
                     thread::yield_now();
+                    continue;
                 }
+                if last_pack.elapsed() >= HISTORY_PACK_INTERVAL {
+                    if let Err(error) = materializer.pack_loose_objects(HISTORY_PACK_THRESHOLD) {
+                        eprintln!("history pack failed: {error}");
+                    }
+                    last_pack = Instant::now();
+                }
+                let delay = match storage.next_history_claim_at(HISTORY_DRAIN_LEASE_MS) {
+                    Ok(next_claim_at) => history_idle_delay(next_claim_at, now_millis()),
+                    Err(error) => {
+                        eprintln!("history schedule read failed: {error}");
+                        HISTORY_DRAIN_MIN_IDLE_DELAY
+                    }
+                };
+                drain_wake.wait(&stop_flag, delay);
             }
         })
         .map_err(|error| error.to_string())?;
     Ok(HistoryDrainHandle {
         stop,
+        wake,
         worker: Mutex::new(Some(handle)),
     })
 }
@@ -158,8 +253,12 @@ impl BackupRotationHandle {
     }
 }
 
+/// Runs scheduled backup rotation on its own thread. The first pass waits
+/// `start_delay` so a full backup never competes with startup; cadence is
+/// still enforced by the rotation itself, so a due backup only moves later.
 pub fn spawn_backup_rotation(
     coordinator: Arc<MaintenanceCoordinator>,
+    start_delay: Duration,
     retry_delay: Duration,
 ) -> Result<BackupRotationHandle, String> {
     let stop = Arc::new((Mutex::new(false), Condvar::new()));
@@ -168,20 +267,26 @@ pub fn spawn_backup_rotation(
         .name("skriuw-backup-rotation".into())
         .spawn(move || {
             let cadence = Duration::from_millis(BackupRetentionPolicy::default().cadence_ms as u64);
+            let wait = |delay: Duration| {
+                let (stopped, wake) = &*stop_signal;
+                let Ok(flag) = stopped.lock() else {
+                    return false;
+                };
+                let Ok((flag, _)) = wake.wait_timeout_while(flag, delay, |value| !*value) else {
+                    return false;
+                };
+                !*flag
+            };
+            if !wait(start_delay) {
+                return;
+            }
             loop {
                 let now = (coordinator.now_millis)();
                 let delay = match coordinator.rotate_backups(false) {
                     Ok(report) => rotation_delay(report.next_due_at, now, cadence, retry_delay),
                     Err(_) => retry_delay,
                 };
-                let (stopped, wake) = &*stop_signal;
-                let Ok(flag) = stopped.lock() else {
-                    break;
-                };
-                let Ok((flag, _)) = wake.wait_timeout_while(flag, delay, |value| !*value) else {
-                    break;
-                };
-                if *flag {
+                if !wait(delay) {
                     break;
                 }
             }
@@ -287,6 +392,7 @@ pub struct MaintenanceCoordinator {
     database_path: PathBuf,
     history_repository_path: PathBuf,
     history_publisher: HistoryPublisher,
+    history_wake: Arc<HistoryWake>,
     recovery_directory: PathBuf,
     now_millis: fn() -> i64,
     active: Mutex<WorkspaceHandle>,
@@ -321,11 +427,15 @@ impl MaintenanceCoordinator {
     ) -> Result<Self, String> {
         let storage = SqliteWorkspace::open(&database_path)
             .map_err(|error| format!("open {}: {error}", database_path.display()))?;
-        let history_drain = spawn_history_drain(
+        let history_wake = Arc::new(HistoryWake::default());
+        let history_drain = spawn_scheduled_history_drain(
             &database_path,
             &history_repository_path,
             now_millis,
             Arc::clone(&history_publisher),
+            Arc::new(|| {}),
+            HISTORY_DRAIN_START_DELAY,
+            Arc::clone(&history_wake),
         )?;
         let recovery_directory = database_path
             .parent()
@@ -335,6 +445,7 @@ impl MaintenanceCoordinator {
             database_path,
             history_repository_path,
             history_publisher,
+            history_wake,
             recovery_directory,
             now_millis,
             active: Mutex::new(WorkspaceHandle {
@@ -351,6 +462,11 @@ impl MaintenanceCoordinator {
             .lock()
             .map(|handle| handle.runtime.clone())
             .map_err(|_| internal("workspace state is unavailable"))
+    }
+
+    /// Ends the history drain's idle sleep, for work that is claimable now.
+    pub fn wake_history(&self) {
+        self.history_wake.notify();
     }
 
     pub fn status(&self) -> Option<&'static str> {
@@ -928,11 +1044,13 @@ impl MaintenanceCoordinator {
         Ok(())
     }
 
+    /// The artifact was verified twice by `create_scheduled_backup`, so only
+    /// its image rows are read here. Restore re-verifies the artifact and
+    /// re-hashes every blob it copies back.
     fn copy_backup_images(&self, artifact_file_name: &str) -> Result<(), Diagnostic> {
         let backup_database = self.recovery_directory.join(artifact_file_name);
-        let images = SqliteWorkspace::verify_database_file(&backup_database)
-            .map_err(recovery_error)?
-            .images;
+        let images =
+            SqliteWorkspace::read_database_images(&backup_database).map_err(recovery_error)?;
         let target = backup_blob_directory(&self.recovery_directory, artifact_file_name);
         if fs::symlink_metadata(&target).is_ok() {
             return Err(Diagnostic::new(
@@ -957,19 +1075,8 @@ impl MaintenanceCoordinator {
                 if !copied.insert(key) {
                     continue;
                 }
-                let bytes = source
-                    .read(&image.content_hash, &image.mime_type)
-                    .map_err(image_store_error)?;
-                let stored = destination.put(&bytes).map_err(image_store_error)?;
-                if stored.content_hash != image.content_hash
-                    || stored.mime_type != image.mime_type
-                    || stored.byte_size as i64 != image.byte_size
-                {
-                    return Err(Diagnostic::new(
-                        DiagnosticContext::Backup,
-                        DiagnosticCategory::InvalidInput,
-                        "workspace image blob does not match its stored metadata",
-                    ));
+                if !link_backup_image(&source, &destination, &image)? {
+                    copy_backup_image(&source, &destination, &image)?;
                 }
             }
             fs::rename(&temporary, &target).map_err(|_| {
@@ -1050,11 +1157,14 @@ impl MaintenanceCoordinator {
     }
 
     fn publish_workspace(&self, runtime: WorkspaceRuntime) -> Result<(), Diagnostic> {
-        let history_drain = spawn_history_drain(
+        let history_drain = spawn_scheduled_history_drain(
             &self.database_path,
             &self.history_repository_path,
             self.now_millis,
             Arc::clone(&self.history_publisher),
+            Arc::new(|| {}),
+            Duration::ZERO,
+            Arc::clone(&self.history_wake),
         )
         .map_err(|error| {
             eprintln!("history drain restart failed: {error}");
@@ -1107,6 +1217,62 @@ fn copy_directory(source: &Path, target: &Path) -> Result<usize, Diagnostic> {
         }
     }
     Ok(copied)
+}
+
+/// Blobs are content-addressed and never rewritten in place, so a hard link
+/// shares one immutable file between the live store and a backup. Returns
+/// `false` when linking is unavailable, for example across devices.
+fn link_backup_image(
+    source: &ImageStore,
+    destination: &ImageStore,
+    image: &WorkspaceImage,
+) -> Result<bool, Diagnostic> {
+    let from = source
+        .blob_path(&image.content_hash, &image.mime_type)
+        .map_err(image_store_error)?;
+    let to = destination
+        .blob_path(&image.content_hash, &image.mime_type)
+        .map_err(image_store_error)?;
+    let metadata = fs::symlink_metadata(&from).map_err(|_| {
+        Diagnostic::new(
+            DiagnosticContext::Backup,
+            DiagnosticCategory::NotFound,
+            "workspace image blob is missing",
+        )
+    })?;
+    if !metadata.file_type().is_file() || metadata.len() as i64 != image.byte_size {
+        return Err(blob_metadata_mismatch());
+    }
+    source
+        .verify(&image.content_hash, &image.mime_type)
+        .map_err(|_| blob_metadata_mismatch())?;
+    Ok(fs::hard_link(&from, &to).is_ok())
+}
+
+fn copy_backup_image(
+    source: &ImageStore,
+    destination: &ImageStore,
+    image: &WorkspaceImage,
+) -> Result<(), Diagnostic> {
+    let bytes = source
+        .read(&image.content_hash, &image.mime_type)
+        .map_err(image_store_error)?;
+    let stored = destination.put(&bytes).map_err(image_store_error)?;
+    if stored.content_hash != image.content_hash
+        || stored.mime_type != image.mime_type
+        || stored.byte_size as i64 != image.byte_size
+    {
+        return Err(blob_metadata_mismatch());
+    }
+    Ok(())
+}
+
+fn blob_metadata_mismatch() -> Diagnostic {
+    Diagnostic::new(
+        DiagnosticContext::Backup,
+        DiagnosticCategory::InvalidInput,
+        "workspace image blob does not match its stored metadata",
+    )
 }
 
 fn relocation_error(message: &str) -> Diagnostic {
@@ -1211,6 +1377,17 @@ mod tests {
             document_json: json!({"type": "doc", "content": []}),
             markdown: format!("# {id}"),
             at: test_now(),
+        })
+    }
+
+    fn create_note_at(id: &str, at: i64) -> WorkspaceOperationEnvelope {
+        WorkspaceOperationEnvelope::v1(WorkspaceOperation::CreateNote {
+            id: id.into(),
+            title: id.into(),
+            placement: NodePlacement::last(None),
+            document_json: json!({"type": "doc", "content": []}),
+            markdown: format!("# {id}"),
+            at,
         })
     }
 
@@ -1937,6 +2114,7 @@ mod tests {
         let (_directory, coordinator) = shared_fixture();
         let scheduler = super::spawn_backup_rotation(
             std::sync::Arc::clone(&coordinator),
+            Duration::ZERO,
             Duration::from_millis(10),
         )
         .expect("spawn rotation");
@@ -1962,6 +2140,7 @@ mod tests {
 
         let scheduler = super::spawn_backup_rotation(
             std::sync::Arc::clone(&coordinator),
+            Duration::ZERO,
             Duration::from_millis(10),
         )
         .expect("spawn rotation");
@@ -1978,6 +2157,202 @@ mod tests {
         drop(guard);
         assert_eq!(wait_for_artifacts(&coordinator, 1).len(), 1);
         scheduler.shutdown();
+    }
+
+    #[test]
+    fn scheduled_rotation_waits_for_its_start_delay() {
+        let (_directory, coordinator) = shared_fixture();
+        let scheduler = super::spawn_backup_rotation(
+            std::sync::Arc::clone(&coordinator),
+            Duration::from_millis(300),
+            Duration::from_millis(10),
+        )
+        .expect("spawn rotation");
+        std::thread::sleep(Duration::from_millis(100));
+        assert!(
+            coordinator
+                .recovery_inventory()
+                .expect("inventory")
+                .manifest
+                .is_none(),
+            "rotation must not run before its start delay"
+        );
+        assert_eq!(wait_for_artifacts(&coordinator, 1).len(), 1);
+        scheduler.shutdown();
+    }
+
+    #[test]
+    fn shutdown_interrupts_the_rotation_start_delay() {
+        let (_directory, coordinator) = shared_fixture();
+        let scheduler = super::spawn_backup_rotation(
+            std::sync::Arc::clone(&coordinator),
+            Duration::from_secs(3_600),
+            Duration::from_millis(10),
+        )
+        .expect("spawn rotation");
+        let started = std::time::Instant::now();
+        scheduler.shutdown();
+        assert!(started.elapsed() < Duration::from_secs(2));
+        assert!(
+            coordinator
+                .recovery_inventory()
+                .expect("inventory")
+                .manifest
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn history_idle_delay_sleeps_until_the_next_claim_within_bounds() {
+        assert_eq!(
+            super::history_idle_delay(None, 0),
+            super::HISTORY_DRAIN_MAX_IDLE_DELAY
+        );
+        assert_eq!(
+            super::history_idle_delay(Some(10), 20),
+            super::HISTORY_DRAIN_MIN_IDLE_DELAY
+        );
+        assert_eq!(
+            super::history_idle_delay(Some(1_010), 1_000),
+            super::HISTORY_DRAIN_MIN_IDLE_DELAY
+        );
+        assert_eq!(
+            super::history_idle_delay(Some(5_000), 1_000),
+            Duration::from_secs(4)
+        );
+        assert_eq!(
+            super::history_idle_delay(Some(i64::MAX), 0),
+            super::HISTORY_DRAIN_MAX_IDLE_DELAY
+        );
+    }
+
+    #[test]
+    fn history_wake_ends_an_idle_drain_sleep() {
+        let directory = tempdir().expect("temporary directory");
+        let database_path = directory.path().join("workspace.db");
+        SqliteWorkspace::open(&database_path)
+            .expect("open database")
+            .apply_operations(&[create_note_at("note-1", 1)])
+            .expect("seed note");
+        let (published, received) = std::sync::mpsc::channel();
+        let wake = Arc::new(super::HistoryWake::default());
+        let drain = super::spawn_scheduled_history_drain(
+            &database_path,
+            &directory.path().join("history"),
+            test_now,
+            Arc::new(move |header| {
+                let _ = published.send(header);
+            }),
+            Arc::new(|| {}),
+            Duration::ZERO,
+            Arc::clone(&wake),
+        )
+        .expect("spawn drain");
+        received
+            .recv_timeout(Duration::from_secs(2))
+            .expect("first revision");
+        std::thread::sleep(Duration::from_millis(100));
+
+        SqliteWorkspace::open(&database_path)
+            .expect("open database")
+            .apply_operations(&[create_note_at("note-2", 1)])
+            .expect("second note");
+        wake.notify();
+        let header = received
+            .recv_timeout(Duration::from_secs(2))
+            .expect("woken drain materializes the second revision");
+        assert_eq!(header.note_id, "note-2");
+
+        let started = std::time::Instant::now();
+        drain.shutdown();
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    #[test]
+    fn shutdown_interrupts_the_history_drain_start_delay() {
+        let directory = tempdir().expect("temporary directory");
+        let drain = super::spawn_scheduled_history_drain(
+            &directory.path().join("workspace.db"),
+            &directory.path().join("history"),
+            test_now,
+            Arc::new(|_| {}),
+            Arc::new(|| {}),
+            Duration::from_secs(3_600),
+            Arc::new(super::HistoryWake::default()),
+        )
+        .expect("spawn drain");
+        let started = std::time::Instant::now();
+        drain.shutdown();
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn backup_images_share_the_live_blob_file() {
+        use std::os::unix::fs::MetadataExt;
+
+        let fixture = fixture();
+        let image = fixture.attach_image("original-note");
+        let artifact = fixture
+            .coordinator
+            .rotate_backups(true)
+            .expect("create backup")
+            .artifact_file_name
+            .expect("backup artifact");
+        let live = ImageStore::open(fixture.directory.path().join("blobs"))
+            .expect("live store")
+            .blob_path(&image.content_hash, &image.mime_type)
+            .expect("live path");
+        let backup = ImageStore::open(super::backup_blob_directory(
+            &fixture.directory.path().join("recovery"),
+            &artifact,
+        ))
+        .expect("backup store")
+        .blob_path(&image.content_hash, &image.mime_type)
+        .expect("backup path");
+        assert_eq!(
+            fs::metadata(&live).expect("live blob").ino(),
+            fs::metadata(&backup).expect("backup blob").ino()
+        );
+    }
+
+    #[test]
+    fn backup_rejects_a_live_blob_that_does_not_match_its_metadata() {
+        let fixture = fixture();
+        let image = fixture.attach_image("original-note");
+        let live = ImageStore::open(fixture.directory.path().join("blobs"))
+            .expect("live store")
+            .blob_path(&image.content_hash, &image.mime_type)
+            .expect("live path");
+        fs::remove_file(&live).expect("remove live blob");
+        fs::write(&live, b"short").expect("write mismatched blob");
+
+        let error = fixture
+            .coordinator
+            .rotate_backups(true)
+            .expect_err("mismatched blob must fail the backup");
+        assert_eq!(error.category, DiagnosticCategory::InvalidInput);
+    }
+
+    #[test]
+    fn backup_rejects_a_live_blob_whose_bytes_changed_at_the_same_size() {
+        let fixture = fixture();
+        let image = fixture.attach_image("original-note");
+        let live = ImageStore::open(fixture.directory.path().join("blobs"))
+            .expect("live store")
+            .blob_path(&image.content_hash, &image.mime_type)
+            .expect("live path");
+        let mut bytes = fs::read(&live).expect("read live blob");
+        let last = bytes.len() - 1;
+        bytes[last] ^= 0xff;
+        fs::remove_file(&live).expect("remove live blob");
+        fs::write(&live, &bytes).expect("write corrupted blob");
+
+        let error = fixture
+            .coordinator
+            .rotate_backups(true)
+            .expect_err("corrupted blob must fail the backup");
+        assert_eq!(error.category, DiagnosticCategory::InvalidInput);
     }
 
     #[test]

@@ -80,7 +80,7 @@ fn edit_close_and_reopen_preserves_the_workspace() {
             panic!("expected bootstrap snapshot");
         };
         runtime.dispatch(request(101, BrowserWorkerCommand::Close));
-        *snapshot
+        snapshot.decode().expect("decode bootstrap snapshot")
     };
 
     let reopened = SqliteWorkspace::open(&database.path).expect("reopen database");
@@ -145,5 +145,5 @@ fn invalid_archive_is_rejected_before_storage_mutation() {
     let BrowserWorkerOutcome::Ok(BrowserWorkerValue::Bootstrap(after)) = response.outcome else {
         panic!("expected bootstrap");
     };
-    assert_eq!(*after, before);
+    assert_eq!(after.decode().expect("decode bootstrap"), before);
 }

@@ -4,6 +4,9 @@ import type { DatabaseScopeStatus } from "@skriuw/renderer-core/database/rows";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { renameNode } from "@/features/notes/operations";
 import { activateReference } from "@/features/references/shell";
+import { EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
+import { EmptyState } from "@/shared/empty-state/empty-state";
+import { IconStack } from "@/shared/empty-state/illustrations";
 import { DatabaseIcon } from "@/shared/icons/static";
 import { DatabaseBoard } from "./view/board";
 import { DatabaseTable } from "./view/table";
@@ -101,15 +104,13 @@ export function DatabaseView({ store, folderId, windowControls, sidebarToggle }:
       </header>
 
       {model.status !== "ready" ? (
-        <div
-          role="status"
-          className="w-[min(380px,calc(100%-40px))] place-self-center text-center text-theme-secondary"
-        >
-          <span className="mb-3.5 inline-flex text-theme-dim" aria-hidden="true">
-            <DatabaseIcon size={22} />
-          </span>
-          <h2 className="text-[15px] font-[620] text-foreground">Nothing to show</h2>
-          <p className="mt-1.5 text-xs leading-[1.45]">{UNAVAILABLE[model.status]}</p>
+        <div className="w-[min(480px,calc(100%-40px))] place-self-center">
+          <EmptyState
+            colors={EMPTY_STATE_COLORS}
+            illustration={<IconStack icon={<DatabaseIcon />} />}
+            title="Nothing to show"
+            description={UNAVAILABLE[model.status]}
+          />
         </div>
       ) : model.view.layout === "board" ? (
         <DatabaseBoard model={model} onOpenNote={openNote} />

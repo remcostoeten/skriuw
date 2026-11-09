@@ -118,6 +118,12 @@ export type RendererStore = {
   subscribe: <T>(selector: Selector<T>, listener: Listener, equality?: Equality<T>) => () => void;
   createBinding: <T>(selector: Selector<T>, equality?: Equality<T>) => SelectorBinding<T>;
   update: (updater: (state: RendererState) => RendererState) => boolean;
+  /**
+   * Applies every update `run` makes and notifies subscribers once with the
+   * final state, so an interaction that changes several slices costs one
+   * publication instead of one per change.
+   */
+  batch: (run: () => void) => boolean;
   setActiveNote: (id: string | null) => boolean;
   setFocusedNode: (id: string | null) => boolean;
   selectTreeNode: (id: string, mode: TreeSelectionMode) => boolean;

@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { listMediaBlobs } from "@/platform/runtime/commands";
 import type { MediaBlobPayload } from "@/platform/ports/media";
+import { COMPACT_EMPTY_STATE_STYLE, EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
+import { EmptyState } from "@/shared/empty-state/empty-state";
+import { IconStack } from "@/shared/empty-state/illustrations";
 import { ImageIcon, SearchIcon, UploadIcon, VideoIcon } from "@/shared/icons/static";
 import { resolveImageBlobUrl, resolveMediaPlaybackUrl } from "@/platform/runtime/media-urls";
 import { Dialog } from "@/shared/ui/dialog";
@@ -145,17 +148,13 @@ export function MediaLibraryPicker({
       ) : blobs === null ? (
         <p className="p-6 text-center text-sm text-muted-foreground">Loading {label} assets…</p>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 p-8 text-center">
-          <Icon size={22} className="text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">No {label} assets match.</p>
-          <button
-            type="button"
-            className="rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background pointer-coarse:min-h-11 pointer-coarse:px-4"
-            onClick={onUpload}
-          >
-            Upload {label}
-          </button>
-        </div>
+        <EmptyState
+          colors={EMPTY_STATE_COLORS}
+          style={COMPACT_EMPTY_STATE_STYLE}
+          illustration={<IconStack icon={<Icon />} />}
+          title={`No ${label} assets match`}
+          actions={[{ id: "upload", label: `Upload ${label}`, onClick: onUpload }]}
+        />
       ) : (
         <ul
           aria-label={`${label} assets`}

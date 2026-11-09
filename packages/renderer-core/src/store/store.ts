@@ -487,30 +487,46 @@ function withSavedDocument(
   if (!existing) {
     return current;
   }
-  const documents = new Map(current.documents);
-  documents.set(saved.noteId, {
-    ...existing,
-    documentJson: saved.documentJson,
-    markdown: saved.markdown,
-    wordCount: saved.wordCount,
-    hasLosslessMarkdown: hasLosslessMarkdown(saved.documentJson),
-  });
-  const sourceNode = current.sourceNodes.get(saved.noteId);
-  const sourceNodes = new Map(current.sourceNodes);
-  if (sourceNode) {
-    sourceNodes.set(saved.noteId, { ...sourceNode, updatedAt: at });
+  const contentChanged =
+    existing.documentJson !== saved.documentJson ||
+    existing.markdown !== saved.markdown ||
+    existing.wordCount !== saved.wordCount;
+  let documents = current.documents;
+  if (contentChanged) {
+    const nextDocuments = new Map(current.documents);
+    nextDocuments.set(saved.noteId, {
+      ...existing,
+      documentJson: saved.documentJson,
+      markdown: saved.markdown,
+      wordCount: saved.wordCount,
+      hasLosslessMarkdown: hasLosslessMarkdown(saved.documentJson),
+    });
+    documents = nextDocuments;
   }
-  const projection = updateNoteReferences(
-    referenceState(current),
-    saved.noteId,
-    extractReferences(saved.documentJson),
-  );
+  const sourceNode = current.sourceNodes.get(saved.noteId);
+  let sourceNodes = current.sourceNodes;
+  if (sourceNode && sourceNode.updatedAt !== at) {
+    const nextSourceNodes = new Map(current.sourceNodes);
+    nextSourceNodes.set(saved.noteId, { ...sourceNode, updatedAt: at });
+    sourceNodes = nextSourceNodes;
+  }
+  const projection =
+    existing.documentJson === saved.documentJson
+      ? {}
+      : updateNoteReferences(
+          referenceState(current),
+          saved.noteId,
+          extractReferences(saved.documentJson),
+        );
   // Saves cannot change tree structure (ordering is rank/parentId/deletedAt),
   // so skip derive: rebuilding the index would hand every unchanged record a
   // new identity and re-render the shell on the typing path.
   const noteMetadata = current.metadata.get(saved.noteId);
   let metadata: ReadonlyMap<string, NoteMetadata> = current.metadata;
-  if (noteMetadata) {
+  if (
+    noteMetadata &&
+    (noteMetadata.wordCount !== saved.wordCount || noteMetadata.updatedAt !== at)
+  ) {
     const patched = new Map(current.metadata);
     patched.set(saved.noteId, {
       ...noteMetadata,
@@ -520,6 +536,14 @@ function withSavedDocument(
     metadata = patched;
   }
   const tasks = reconcileLinkedTasks(current.tasks, saved.noteId, saved.documentJson, at);
+  if (
+    !contentChanged &&
+    sourceNodes === current.sourceNodes &&
+    metadata === current.metadata &&
+    tasks === current.tasks
+  ) {
+    return current;
+  }
   return { ...current, sourceNodes, documents, metadata, tasks, ...projection };
 }
 
@@ -1147,6 +1171,7 @@ export function createRendererStore(initialState: RendererState): RendererStore 
   let destroyed = false;
   const subscribers = new Set<Subscriber>();
   let publishing = false;
+  let batchDepth = 0;
   const queuedUpdaters: ((state: RendererState) => RendererState)[] = [];
 
   function subscribe<T>(
@@ -1174,18 +1199,37 @@ export function createRendererStore(initialState: RendererState): RendererStore 
     };
   }
 
-  function update(updater: (current: RendererState) => RendererState): boolean {
-    if (destroyed) {
-      throw new Error("renderer store is destroyed");
+  function notifySubscribers(failures: unknown[]): void {
+    for (const subscriber of Array.from(subscribers)) {
+      if (!subscriber.active) {
+        continue;
+      }
+      let selected: unknown;
+      try {
+        selected = subscriber.selector(state);
+        if (subscriber.equality(subscriber.selected, selected)) {
+          continue;
+        }
+      } catch (error) {
+        failures.push(error);
+        continue;
+      }
+      subscriber.selected = selected;
+      try {
+        subscriber.listener();
+      } catch (error) {
+        failures.push(error);
+      }
     }
-    if (publishing) {
-      queuedUpdaters.push(updater);
-      return true;
-    }
+  }
+
+  function publish(alreadyChanged: boolean): boolean {
     const failures: unknown[] = [];
-    let changed = false;
+    let changed = alreadyChanged;
     publishing = true;
-    queuedUpdaters.push(updater);
+    if (alreadyChanged) {
+      notifySubscribers(failures);
+    }
     while (queuedUpdaters.length > 0) {
       const nextUpdater = queuedUpdaters.shift();
       if (!nextUpdater) {
@@ -1197,31 +1241,51 @@ export function createRendererStore(initialState: RendererState): RendererStore 
       }
       state = next;
       changed = true;
-      for (const subscriber of Array.from(subscribers)) {
-        if (!subscriber.active) {
-          continue;
-        }
-        let selected: unknown;
-        try {
-          selected = subscriber.selector(state);
-          if (subscriber.equality(subscriber.selected, selected)) {
-            continue;
-          }
-        } catch (error) {
-          failures.push(error);
-          continue;
-        }
-        subscriber.selected = selected;
-        try {
-          subscriber.listener();
-        } catch (error) {
-          failures.push(error);
-        }
-      }
+      notifySubscribers(failures);
     }
     publishing = false;
     if (failures.length > 0) {
       throw new AggregateError(failures, "renderer store subscriber failure");
+    }
+    return changed;
+  }
+
+  function update(updater: (current: RendererState) => RendererState): boolean {
+    if (destroyed) {
+      throw new Error("renderer store is destroyed");
+    }
+    if (publishing) {
+      queuedUpdaters.push(updater);
+      return true;
+    }
+    if (batchDepth > 0) {
+      const next = updater(state);
+      if (Object.is(next, state)) {
+        return false;
+      }
+      state = next;
+      return true;
+    }
+    queuedUpdaters.push(updater);
+    return publish(false);
+  }
+
+  function batch(run: () => void): boolean {
+    if (destroyed) {
+      throw new Error("renderer store is destroyed");
+    }
+    if (publishing || batchDepth > 0) {
+      run();
+      return false;
+    }
+    const before = state;
+    let changed = false;
+    batchDepth += 1;
+    try {
+      run();
+    } finally {
+      batchDepth -= 1;
+      changed = publish(!Object.is(state, before));
     }
     return changed;
   }
@@ -1378,38 +1442,36 @@ export function createRendererStore(initialState: RendererState): RendererStore 
 
   function applyAck(ack: OperationAck): boolean {
     return update((current) => {
-      let rankChanged = false;
-      const sourceNodes = new Map(current.sourceNodes);
+      let sourceNodes: Map<string, WorkspaceNode> | null = null;
       for (const change of ack.rankChanges) {
-        const existing = sourceNodes.get(change.id);
-        if (!existing) {
+        const existing = (sourceNodes ?? current.sourceNodes).get(change.id);
+        if (!existing || (existing.parentId === change.parentId && existing.rank === change.rank)) {
           continue;
         }
+        sourceNodes ??= new Map(current.sourceNodes);
         sourceNodes.set(change.id, {
           ...existing,
           parentId: change.parentId,
           rank: change.rank,
         });
-        rankChanged = true;
       }
-      let revisionChanged = false;
-      const documents = new Map(current.documents);
+      let documents: Map<string, DocumentRecord> | null = null;
       for (const revision of ack.revisions) {
-        const existing = documents.get(revision.id);
+        const existing = (documents ?? current.documents).get(revision.id);
         if (!existing || existing.revision === revision.revision) {
           continue;
         }
+        documents ??= new Map(current.documents);
         documents.set(revision.id, { ...existing, revision: revision.revision });
-        revisionChanged = true;
       }
-      if (!rankChanged && !revisionChanged) {
+      if (sourceNodes === null && documents === null) {
         return current;
       }
-      if (rankChanged) {
-        return derive({ ...current, sourceNodes, documents });
+      if (sourceNodes !== null) {
+        return derive({ ...current, sourceNodes, documents: documents ?? current.documents });
       }
       // Revision-only acks touch nothing structural; keep every other identity.
-      return { ...current, documents };
+      return { ...current, documents: documents ?? current.documents };
     });
   }
 
@@ -1590,6 +1652,7 @@ export function createRendererStore(initialState: RendererState): RendererStore 
       };
     },
     update,
+    batch,
     setActiveNote,
     setFocusedNode,
     selectTreeNode,

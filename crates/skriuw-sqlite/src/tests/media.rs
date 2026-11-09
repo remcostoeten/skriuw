@@ -337,3 +337,38 @@ fn purge_cascades_image_rows_with_their_note() {
 
     assert!(storage.bootstrap().expect("bootstrap").images.is_empty());
 }
+
+#[test]
+fn referenced_image_hashes_and_file_image_rows_match_bootstrap() {
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("workspace.db");
+    let storage = SqliteWorkspace::open(&path).expect("open");
+    assert!(
+        storage
+            .referenced_image_hashes()
+            .expect("empty hashes")
+            .is_empty()
+    );
+    storage
+        .apply_operations(&[
+            create_note("note-1"),
+            create_note("note-2"),
+            attach_image("image-1", "note-1", 'a'),
+            attach_image("image-2", "note-2", 'a'),
+            attach_image("image-3", "note-2", 'b'),
+        ])
+        .expect("attach images");
+
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    let expected = snapshot
+        .images
+        .iter()
+        .map(|image| image.content_hash.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(expected.len(), 2);
+    assert_eq!(storage.referenced_image_hashes().expect("hashes"), expected);
+    assert_eq!(
+        SqliteWorkspace::read_database_images(&path).expect("file images"),
+        snapshot.images
+    );
+}

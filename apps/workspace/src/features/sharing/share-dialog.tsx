@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "@remcostoeten/auth-drawer";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import { useCloudSession } from "@/features/auth/cloud-session";
 import { openExternalUrl } from "@/platform/runtime/external-links";
 import { CopyIcon, ExternalLinkIcon } from "@/shared/icons/static";
 import { Button } from "@/shared/ui/button";
@@ -38,7 +38,7 @@ const updatedFormat = new Intl.DateTimeFormat(undefined, {
  * and mounts the share dialog on request.
  */
 export function NoteShareHost({ store, onRequestSignIn }: HostProps) {
-  const { user } = useAuth();
+  const { user } = useCloudSession();
   const userId = user?.id ?? null;
   const [noteId, setNoteId] = useState<string | null>(null);
 

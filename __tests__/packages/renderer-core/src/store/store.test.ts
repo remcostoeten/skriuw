@@ -810,3 +810,50 @@ test("workspace math macros update synchronously and survive stale local setting
   store.applyOperations([{ type: "set_math_macros", macros: {} }]);
   assert.deepEqual(store.getState().settings.mathMacros, {});
 });
+
+test("batch applies selection, focus, and activation with one publication", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  let notifications = 0;
+  store.subscribe(
+    (state) => state,
+    () => {
+      notifications += 1;
+    },
+  );
+
+  const changed = store.batch(() => {
+    store.selectTreeNode("note-root", "replace");
+    store.setFocusedNode("note-root");
+    store.setActiveNote("note-root");
+  });
+
+  assert.equal(changed, true);
+  assert.equal(notifications, 1);
+  assert.equal(store.getState().activeNoteId, "note-root");
+  assert.deepEqual([...store.getState().selectedNodeIds], ["note-root"]);
+  assert.equal(
+    store.batch(() => store.setActiveNote("note-root")),
+    false,
+  );
+  assert.equal(notifications, 1);
+});
+
+test("batch still publishes the updates it applied when the batch throws", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  let notifications = 0;
+  store.subscribe(
+    (state) => state.activeNoteId,
+    () => {
+      notifications += 1;
+    },
+  );
+
+  assert.throws(() =>
+    store.batch(() => {
+      store.setActiveNote("note-root");
+      throw new Error("interrupted");
+    }),
+  );
+  assert.equal(notifications, 1);
+  assert.equal(store.getState().activeNoteId, "note-root");
+});

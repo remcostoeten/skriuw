@@ -22,6 +22,18 @@ export type TabOverflow<T> = {
 };
 
 /**
+ * Number of tab slots the strip shows at `availableWidth` for `tabCount` open
+ * tabs. Two widths with the same capacity split the tabs identically, so a
+ * resize only needs to re-render the strip when the capacity changes.
+ */
+export function tabCapacity(tabCount: number, availableWidth: number): number {
+  if (availableWidth <= 0 || tabCount * MIN_TAB_WIDTH <= availableWidth) {
+    return tabCount;
+  }
+  return Math.max(1, Math.floor((availableWidth - OVERFLOW_TRIGGER_WIDTH) / MIN_TAB_WIDTH));
+}
+
+/**
  * Splits `tabs` into the ones the strip renders and the ones the overflow menu
  * holds. A non-positive `availableWidth` (before first layout) keeps every tab
  * visible so the strip never flashes an overflow trigger it does not need.
@@ -30,14 +42,11 @@ export function splitTabsForWidth<T extends OverflowInput>(
   tabs: readonly T[],
   availableWidth: number,
 ): TabOverflow<T> {
-  if (availableWidth <= 0 || tabs.length === 0) {
-    return { visible: [...tabs], overflow: [] };
-  }
-  if (tabs.length * MIN_TAB_WIDTH <= availableWidth) {
+  const slots = tabCapacity(tabs.length, availableWidth);
+  if (slots >= tabs.length) {
     return { visible: [...tabs], overflow: [] };
   }
 
-  const slots = Math.max(1, Math.floor((availableWidth - OVERFLOW_TRIGGER_WIDTH) / MIN_TAB_WIDTH));
   const kept = new Set(tabs.filter((tab) => tab.isPinned || tab.isActive).map((tab) => tab.id));
   for (const tab of tabs) {
     if (kept.size >= slots) {

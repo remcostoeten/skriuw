@@ -266,3 +266,218 @@ fn an_archive_import_leaves_the_index_current() {
         vec!["note-1"]
     );
 }
+
+fn fts_rows(storage: &SqliteWorkspace) -> Vec<(i64, String, Option<i64>)> {
+    let connection = storage.lock().expect("database lock");
+    let mut statement = connection
+        .prepare(
+            "SELECT documents_fts.rowid, documents_fts.note_id, documents.rowid \
+             FROM documents_fts \
+             LEFT JOIN documents ON documents.note_id = documents_fts.note_id \
+             ORDER BY documents_fts.note_id",
+        )
+        .expect("prepare");
+    statement
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+        .expect("query")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("rows")
+}
+
+fn assert_rows_keyed_by_document_rowid(storage: &SqliteWorkspace) {
+    for (fts_rowid, note_id, document_rowid) in fts_rows(storage) {
+        assert_eq!(
+            Some(fts_rowid),
+            document_rowid,
+            "{note_id} is not rowid keyed"
+        );
+    }
+}
+
+fn query_plan(storage: &SqliteWorkspace, sql: &str) -> String {
+    let connection = storage.lock().expect("database lock");
+    let mut statement = connection
+        .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+        .expect("prepare plan");
+    statement
+        .query_map([], |row| row.get::<_, String>(3))
+        .expect("query plan")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("plan rows")
+        .join("\n")
+}
+
+/// `note_id` is an unindexed FTS5 column, so the old `WHERE note_id = ?` plan
+/// visits every row; the rowid plan is a point lookup.
+#[test]
+fn a_rowid_keyed_index_replaces_rows_without_scanning() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    let legacy = query_plan(
+        &storage,
+        "DELETE FROM documents_fts WHERE note_id = 'note-1'",
+    );
+    let keyed = query_plan(
+        &storage,
+        "DELETE FROM documents_fts \
+         WHERE rowid = (SELECT rowid FROM documents WHERE note_id = 'note-1')",
+    );
+
+    assert!(legacy.contains("VIRTUAL TABLE INDEX 0:"), "{legacy}");
+    assert!(!legacy.contains("INDEX 0:="), "{legacy}");
+    assert!(keyed.contains("VIRTUAL TABLE INDEX 0:="), "{keyed}");
+    assert!(
+        keyed.contains("sqlite_autoindex_documents_1 (note_id=?)"),
+        "{keyed}"
+    );
+}
+
+#[test]
+fn a_rowid_keyed_index_follows_saves_renames_trash_and_purge() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[
+            note_with_body("note-1", "Atlas", "Bearings and gears."),
+            note_with_body("note-2", "Compass", "Needles and north."),
+        ])
+        .expect("create notes");
+    storage.rebuild_search_index().expect("rebuild");
+
+    storage
+        .apply_operations(&[note_with_body("note-3", "Sextant", "Mirrors and stars.")])
+        .expect("create after rebuild");
+    storage
+        .apply_operations(&[save_document("note-1", 1, "Pulleys and levers.", 2)])
+        .expect("save");
+    storage
+        .apply_operations(&[op(WorkspaceOperation::RenameNode {
+            id: "note-2".into(),
+            title: "Lodestone".into(),
+            at: 3,
+        })])
+        .expect("rename");
+
+    assert_rows_keyed_by_document_rowid(&storage);
+    assert!(storage.search("bearings", 10).expect("search").is_empty());
+    assert_eq!(
+        matched_ids(&storage.search("pulleys", 10).expect("search")),
+        vec!["note-1"]
+    );
+    assert!(storage.search("compass", 10).expect("search").is_empty());
+    assert_eq!(
+        matched_ids(&storage.search("lodestone", 10).expect("search")),
+        vec!["note-2"]
+    );
+    assert_eq!(
+        matched_ids(&storage.search("mirrors", 10).expect("search")),
+        vec!["note-3"]
+    );
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::TrashSubtree {
+            root_id: "note-3".into(),
+            at: 4,
+        })])
+        .expect("trash");
+    assert!(storage.search("mirrors", 10).expect("search").is_empty());
+    storage
+        .apply_operations(&[op(WorkspaceOperation::PurgeSubtree {
+            root_id: "note-3".into(),
+            trashed_before: 5,
+        })])
+        .expect("purge");
+
+    assert_eq!(fts_rows(&storage).len(), 2);
+    assert_rows_keyed_by_document_rowid(&storage);
+    let status = storage.search_index_status().expect("status");
+    assert!(!status.needs_rebuild);
+    assert_eq!(status.indexed_notes, 2);
+}
+
+/// An index written before version 4 has rowids FTS5 assigned on its own. A
+/// save must not use them as document rowids until the rebuild realigns them.
+#[test]
+fn a_legacy_index_keeps_working_until_the_rebuild_keys_it_by_rowid() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[
+            note_with_body("note-1", "Atlas", "Bearings and gears."),
+            note_with_body("note-2", "Compass", "Needles and north."),
+        ])
+        .expect("create notes");
+    {
+        let connection = storage.lock().expect("database lock");
+        connection
+            .execute_batch(
+                "DELETE FROM documents_fts;\
+                 INSERT INTO documents_fts(rowid, note_id, title, markdown) \
+                 VALUES (2, 'note-1', 'Atlas', 'Bearings and gears.');\
+                 INSERT INTO documents_fts(rowid, note_id, title, markdown) \
+                 VALUES (1, 'note-2', 'Compass', 'Needles and north.');\
+                 INSERT INTO app_state(key, value_json) VALUES ('search_index_version', '3');",
+            )
+            .expect("write a legacy index");
+    }
+
+    storage
+        .apply_operations(&[save_document("note-1", 1, "Pulleys and levers.", 2)])
+        .expect("save against a legacy index");
+    storage
+        .apply_operations(&[op(WorkspaceOperation::RenameNode {
+            id: "note-2".into(),
+            title: "Lodestone".into(),
+            at: 3,
+        })])
+        .expect("rename against a legacy index");
+    assert_eq!(
+        matched_ids(&storage.search("pulleys", 10).expect("search")),
+        vec!["note-1"]
+    );
+    assert_eq!(
+        matched_ids(&storage.search("needles", 10).expect("search")),
+        vec!["note-2"]
+    );
+    let before = storage.search_index_status().expect("status");
+    assert_eq!(before.index_version, 3);
+    assert!(before.needs_rebuild);
+
+    let after = storage.rebuild_search_index().expect("rebuild");
+
+    assert!(!after.needs_rebuild);
+    assert_eq!(after.index_version, 4);
+    assert_rows_keyed_by_document_rowid(&storage);
+    assert_eq!(
+        matched_ids(&storage.search("lodestone", 10).expect("search")),
+        vec!["note-2"]
+    );
+}
+
+/// Rows that drifted away from their document rowid are reported as drift so
+/// the idle reconciliation realigns them before a save could replace the wrong
+/// row.
+#[test]
+fn a_misaligned_rowid_keyed_index_reports_drift() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[
+            note_with_body("note-1", "Atlas", "Bearings and gears."),
+            note_with_body("note-2", "Compass", "Needles and north."),
+        ])
+        .expect("create notes");
+    storage.rebuild_search_index().expect("rebuild");
+    {
+        let connection = storage.lock().expect("database lock");
+        connection
+            .execute_batch(
+                "DELETE FROM documents_fts;\
+                 INSERT INTO documents_fts(rowid, note_id, title, markdown) \
+                 VALUES (2, 'note-1', 'Atlas', 'Bearings and gears.');\
+                 INSERT INTO documents_fts(rowid, note_id, title, markdown) \
+                 VALUES (1, 'note-2', 'Compass', 'Needles and north.');",
+            )
+            .expect("swap rowids");
+    }
+
+    assert!(storage.search_index_status().expect("status").needs_rebuild);
+    storage.rebuild_search_index().expect("rebuild");
+    assert_rows_keyed_by_document_rowid(&storage);
+}

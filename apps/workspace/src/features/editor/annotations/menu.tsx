@@ -86,6 +86,20 @@ export function annotationRanges(state: EditorState): AnnotationRange[] {
  * — the decoration plugin recomputes from `tr.doc` before a state exists.
  */
 export function annotationRangesInDoc(doc: ProseMirrorNode): AnnotationRange[] {
+  return annotationRangesWithin(doc, 0);
+}
+
+/**
+ * @name annotationRangesWithin
+ * @description The anchored ranges inside `parent`, in document positions,
+ * where `start` is the document position of the parent's content. A run never
+ * continues across a block boundary, so the ranges within one textblock are
+ * exactly the document's ranges that fall inside it.
+ *
+ * @example
+ * const ranges = annotationRangesWithin(textblock, pos + 1);
+ */
+export function annotationRangesWithin(parent: ProseMirrorNode, start: number): AnnotationRange[] {
   const annotation = productSchema.marks.annotation;
   if (!annotation) return [];
   /**
@@ -94,8 +108,9 @@ export function annotationRangesInDoc(doc: ProseMirrorNode): AnnotationRange[] {
    * thread nested inside another — each mark on the node has to be walked.
    */
   const runsByThread = new Map<string, AnnotationRange[]>();
-  doc.descendants((node, pos) => {
+  parent.descendants((node, offset) => {
     if (!node.isText) return true;
+    const pos = start + offset;
     for (const mark of node.marks) {
       if (mark.type !== annotation) continue;
       const threadId = String(mark.attrs.threadId ?? "");
@@ -118,8 +133,8 @@ export function annotationRangesInDoc(doc: ProseMirrorNode): AnnotationRange[] {
 /**
  * The innermost anchor containing a collapsed caret, or null.
  *
- * Every selection change consults this, so the full-document walk is gated on
- * the marks the caret already carries: a strictly interior position always
+ * Every selection change consults this, so the walk is gated on the marks the
+ * caret already carries: a strictly interior position always
  * carries its anchor's mark, and the edges where `inclusive: false` strips it
  * are the same edges {@link annotationAtPosition} rejects.
  */
@@ -131,11 +146,16 @@ export function annotationAtCursor(state: EditorState): AnnotationRange | null {
   return annotationAtPosition(state, $from.pos);
 }
 
-/** Returns the innermost annotation containing a document position. */
+/**
+ * Returns the innermost annotation containing a document position. Only the
+ * textblock holding the position is walked, since no anchor crosses a block.
+ */
 export function annotationAtPosition(state: EditorState, position: number): AnnotationRange | null {
-  const containing = annotationRanges(state).filter(
-    (range) => position > range.from && position < range.to,
-  );
+  const $pos = state.doc.resolve(position);
+  const candidates = $pos.parent.isTextblock
+    ? annotationRangesWithin($pos.parent, $pos.start())
+    : annotationRanges(state);
+  const containing = candidates.filter((range) => position > range.from && position < range.to);
   return containing.reduce<AnnotationRange | null>(
     (innermost, range) =>
       !innermost || range.to - range.from < innermost.to - innermost.from ? range : innermost,

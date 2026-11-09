@@ -82,10 +82,7 @@ impl MobileWorkspace {
     /// The whole canonical working set, as `WorkspaceSnapshot` JSON. Read once
     /// at startup and hydrated into the store; navigation never calls it.
     pub fn bootstrap(&self) -> Result<String, MobileError> {
-        guarded(|| {
-            let snapshot = self.runtime()?.bootstrap()?.wait()?;
-            encode(&snapshot)
-        })
+        guarded(|| Ok(self.runtime()?.bootstrap_json()?.wait()?))
     }
 
     /// Applies a group of `WorkspaceOperationEnvelope` values and returns the

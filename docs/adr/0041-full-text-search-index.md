@@ -32,6 +32,13 @@ the document count — and `rebuild_search_index` discards and reprojects the
 whole index in one transaction. Rebuilding is idempotent: running it twice
 yields the same index and the same status.
 
+From version 4 each row takes the rowid of its `documents` row. `note_id` is
+an unindexed FTS5 column, so locating a row by it scans the whole index inside
+the save transaction; the rowid lookup does not. A row's rowid is only trusted
+once the index records version 4 or later: older indexes keep the `note_id`
+path until the rebuild realigns them, and the status also reports drift when a
+row's rowid no longer belongs to its note.
+
 Recording the projection version in `app_state` rather than in a schema
 migration is deliberate. Changing the text projection is not a schema change:
 the table shape is unchanged, existing rows still match, and only their quality

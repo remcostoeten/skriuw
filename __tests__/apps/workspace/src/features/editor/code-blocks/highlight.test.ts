@@ -8,6 +8,7 @@ import {
   codeBlockTokens,
   codeHighlightDecorations,
   codeHighlightKey,
+  codeHighlightRefresh,
   codeLanguageLabel,
   createCodeHighlightPlugin,
   highlightCode,
@@ -35,10 +36,18 @@ function byPosition(decorations: readonly Decoration[]): Decoration[] {
   return [...decorations].sort((left, right) => left.from - right.from || left.to - right.to);
 }
 
+function settled(state: EditorState): EditorState {
+  return state.apply(codeHighlightRefresh(state));
+}
+
+function painted(state: EditorState): Decoration[] {
+  return codeHighlightKey.getState(state)?.decorations.find() ?? [];
+}
+
 function assertMatchesRebuild(state: EditorState): void {
-  const rebuilt = DecorationSet.create(state.doc, codeHighlightDecorations(state.doc)).find();
-  const incremental = codeHighlightKey.getState(state)?.find() ?? [];
-  assert.deepEqual(byPosition(incremental), byPosition(rebuilt));
+  const current = settled(state);
+  const rebuilt = DecorationSet.create(current.doc, codeHighlightDecorations(current.doc)).find();
+  assert.deepEqual(byPosition(painted(current)), byPosition(rebuilt));
 }
 
 test("a registered language produces highlight tokens inside the highlighted text", () => {
@@ -110,9 +119,7 @@ test("the plugin exposes a decoration set for the current document", () => {
     doc: document(codeBlock("python", "def main():\n    return 1")),
     plugins: [createCodeHighlightPlugin()],
   });
-  const decorations = codeHighlightKey.getState(state);
-  assert.ok(decorations);
-  assert.ok(decorations.find().length > 0);
+  assert.ok(painted(state).length > 0);
 });
 
 test("the plugin keeps its decoration set across a selection-only transaction", () => {
@@ -129,10 +136,10 @@ test("the plugin rebuilds decorations after the text changes", () => {
     doc: document(codeBlock("ts", "const a = 1;")),
     plugins: [createCodeHighlightPlugin()],
   });
-  const before = codeHighlightKey.getState(state)?.find().length ?? 0;
+  const before = painted(state).length;
   const next = state.apply(state.tr.insertText(" const b = 2;", 13));
-  const after = codeHighlightKey.getState(next)?.find().length ?? 0;
-  assert.ok(after > before);
+  assert.equal(painted(next).length, before);
+  assert.ok(painted(settled(next)).length > before);
 });
 
 test("a language label falls back to the raw params when unrecognised", () => {
@@ -146,7 +153,7 @@ test("typing in a paragraph before two code blocks keeps the code decorations eq
     document(paragraph("intro"), codeBlock("ts", "const a = 1;"), codeBlock("rust", "let b = 2;")),
   );
   const next = state.apply(state.tr.insertText("x", 3));
-  assert.ok((codeHighlightKey.getState(next)?.find().length ?? 0) > 0);
+  assert.ok(painted(settled(next)).length > 0);
   assertMatchesRebuild(next);
 });
 
@@ -168,9 +175,9 @@ test("changing a code block's language re-highlights it", () => {
 
 test("setting a code block's language attribute directly re-highlights it", () => {
   const state = highlightedState(document(paragraph("intro"), codeBlock("", "const a = 1;")));
-  assert.equal(codeHighlightKey.getState(state)?.find().length, 0);
+  assert.equal(painted(state).length, 0);
   const next = state.apply(state.tr.setNodeAttribute(7, "params", "ts"));
-  assert.ok((codeHighlightKey.getState(next)?.find().length ?? 0) > 0);
+  assert.ok(painted(settled(next)).length > 0);
   assertMatchesRebuild(next);
 });
 
@@ -208,7 +215,7 @@ test("replacing the whole document with pasted code blocks stays equivalent", ()
     0,
   );
   const next = state.apply(state.tr.replace(0, state.doc.content.size, pasted));
-  assert.ok((codeHighlightKey.getState(next)?.find().length ?? 0) > 0);
+  assert.ok(painted(settled(next)).length > 0);
   assertMatchesRebuild(next);
 });
 
@@ -237,6 +244,42 @@ test("a code block nested in a list item stays equivalent", () => {
   );
   const codeStart = 1 + 1 + paragraph("item").nodeSize + 1;
   const next = state.apply(state.tr.insertText(" const more = 2;", codeStart + 17));
-  assert.ok((codeHighlightKey.getState(next)?.find().length ?? 0) > 0);
+  assert.ok(painted(settled(next)).length > 0);
   assertMatchesRebuild(next);
+});
+
+test("an edit inside a code block maps its decorations and queues a refresh", () => {
+  const state = highlightedState(document(codeBlock("ts", "const a = 1;")));
+  const next = state.apply(state.tr.insertText("x", 2));
+  assert.deepEqual(codeHighlightKey.getState(next)?.pending, [0]);
+  const refreshed = settled(next);
+  assert.deepEqual(codeHighlightKey.getState(refreshed)?.pending, []);
+  assertMatchesRebuild(refreshed);
+});
+
+test("undoing back to a block that was highlighted before re-decorates it at once", () => {
+  const state = highlightedState(document(paragraph("intro"), codeBlock("ts", "const a = 1;")));
+  const replaced = settled(
+    state.apply(
+      state.tr.replace(
+        0,
+        state.doc.content.size,
+        new Slice(Fragment.from(paragraph("replaced")), 0, 0),
+      ),
+    ),
+  );
+  let undone = replaced;
+  assert.ok(undo(replaced, (transaction) => (undone = replaced.apply(transaction))));
+  assert.equal(undone.doc.child(1), state.doc.child(1));
+  assert.deepEqual(codeHighlightKey.getState(undone)?.pending, []);
+  const rebuilt = DecorationSet.create(undone.doc, codeHighlightDecorations(undone.doc)).find();
+  assert.deepEqual(byPosition(painted(undone)), byPosition(rebuilt));
+});
+
+test("a refresh skips a queued block that was deleted before it ran", () => {
+  const state = highlightedState(document(paragraph("intro"), codeBlock("ts", "const a = 1;")));
+  const edited = state.apply(state.tr.insertText("x", 9));
+  const removed = edited.apply(edited.tr.delete(7, edited.doc.content.size));
+  assert.deepEqual(codeHighlightKey.getState(removed)?.pending, []);
+  assert.deepEqual(painted(settled(removed)), []);
 });

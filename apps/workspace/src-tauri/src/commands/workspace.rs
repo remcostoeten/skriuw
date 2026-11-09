@@ -1,16 +1,18 @@
 use crate::state::{AppState, wait_for, workspace_runtime};
 use skriuw_domain::{
     OperationAck, SearchHit, SearchIndexStatus, WorkspaceDelta, WorkspaceOperationEnvelope,
-    WorkspaceSnapshot,
 };
 use tauri::State;
+use tauri::ipc::Response;
 
+/// Resolves to `WorkspaceSnapshot` JSON. The storage worker encodes it once,
+/// and the IPC response carries that text to the renderer unchanged.
 #[tauri::command]
-pub async fn bootstrap_workspace(state: State<'_, AppState>) -> Result<WorkspaceSnapshot, String> {
+pub async fn bootstrap_workspace(state: State<'_, AppState>) -> Result<Response, String> {
     let completion = workspace_runtime(&state)?
-        .bootstrap()
+        .bootstrap_json()
         .map_err(|error| error.to_string())?;
-    wait_for(completion).await
+    wait_for(completion).await.map(Response::new)
 }
 
 #[tauri::command]

@@ -694,3 +694,41 @@ fn unlocking_against_an_old_cloud_fails_and_stores_no_key() {
     );
     assert_eq!(device.storage.workspace_seal().expect("read seal"), None);
 }
+
+/// The service writes the encryption record once, so a session that matched
+/// it against its own key keeps that answer until the key changes, an upload
+/// is refused, or the push channel reports a change.
+#[test]
+fn a_matching_encryption_record_is_read_once_per_key() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut device = Device::open(&server, "device-a", &clock);
+    device.encrypt_with(RECOVERY_CODE);
+
+    device.apply(vec![create_note("note-1", SECRET_TITLE, 1)]);
+    assert_eq!(device.settle(), SyncStatus::UpToDate);
+    assert!(server.encryption_marker().is_some());
+    device.apply(vec![save_document("note-1", 1, SECRET_BODY, 2)]);
+    assert_eq!(device.settle(), SyncStatus::UpToDate);
+    let reads = device.transport.encryption_reads();
+    device.apply(vec![save_document("note-1", 2, "second edit", 3)]);
+    device.apply(vec![save_document("note-1", 3, "third edit", 4)]);
+    assert_eq!(device.settle(), SyncStatus::UpToDate);
+    assert_eq!(device.transport.encryption_reads(), reads);
+
+    device.state.forget_encryption_record();
+    device.apply(vec![save_document("note-1", 4, "fourth edit", 5)]);
+    assert_eq!(device.settle(), SyncStatus::UpToDate);
+    assert_eq!(device.transport.encryption_reads(), reads + 1);
+
+    device.encrypt_with(OTHER_RECOVERY_CODE);
+    device.apply(vec![save_document("note-1", 5, "under another key", 6)]);
+    let pushes = device.transport.pushed_requests().len();
+    let status = device.settle();
+    assert_eq!(
+        blocked_reason(&status),
+        Some(BLOCKED_REASON_SEALED_CONTENT_UNREADABLE)
+    );
+    assert_eq!(device.transport.encryption_reads(), reads + 2);
+    assert_eq!(device.transport.pushed_requests().len(), pushes);
+}

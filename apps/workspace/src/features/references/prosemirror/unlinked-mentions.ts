@@ -2,7 +2,7 @@ import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { Transform } from "prosemirror-transform";
 import type { WorkspaceOperation } from "@skriuw/renderer-core/contracts/workspace";
 import type { DateKey } from "@skriuw/renderer-core/journal/dates";
-import type { RendererState } from "@skriuw/renderer-core/store/types";
+import type { DocumentRecord, RendererState } from "@skriuw/renderer-core/store/types";
 import { JOURNAL_ROOT_ID, journalEntryDateKey } from "@/features/journal/model";
 import { countWords, productSchema, serializeProductMarkdown } from "@/features/editor/schema";
 import { availableNote } from "../relationships/model";
@@ -29,6 +29,8 @@ const GENERIC_TITLES = new Set([
 const EXCLUDED_MARKS = new Set(["code", "link"]);
 // Scheme URLs and bare www hosts, up to the next whitespace or bracket.
 const URL_PATTERN = /\b(?:[a-z][a-z\d+.-]*:\/\/|www\.)[^\s<>()[\]]+/giu;
+
+export type MentionDocumentSource = (record: DocumentRecord) => ProseMirrorNode | null;
 
 export type UnlinkedMention = {
   noteId: string;
@@ -238,10 +240,15 @@ function matchesFor(document: ProseMirrorNode, term: string): Match[] {
   return matches;
 }
 
+function parsedRecord(record: DocumentRecord): ProseMirrorNode | null {
+  return parsedDocument(record.documentJson);
+}
+
 function mentionSourceDocument(
   state: RendererState,
   noteId: string,
   candidateId: string,
+  documentFor: MentionDocumentSource = parsedRecord,
 ): ProseMirrorNode | null {
   if (candidateId === noteId || !availableNote(state, candidateId)) {
     return null;
@@ -250,24 +257,27 @@ function mentionSourceDocument(
   if (!record || record.sealed) {
     return null;
   }
-  return parsedDocument(record.documentJson);
+  return documentFor(record);
 }
 
 /**
  * @name projectUnlinkedMentions
  * @description Lists plain-text occurrences of a note's title inside the
  * candidate notes, skipping the note itself, trashed or locked notes, code,
- * links, URLs, and existing note links. Parsing and matching are cached per
- * stored document, so re-running it after an unrelated store change is a
- * lookup per candidate.
+ * links, URLs, and existing note links. Matching is cached per document, and
+ * `documentFor` lets the caller reuse documents it already holds, such as the
+ * editor's prepared documents, instead of parsing stored JSON again.
  *
  * @example
- * const mentions = projectUnlinkedMentions(state, noteId, candidateIds);
+ * const mentions = projectUnlinkedMentions(state, noteId, candidateIds, (record) =>
+ *   prepared.documentFor(record),
+ * );
  */
 export function projectUnlinkedMentions(
   state: RendererState,
   noteId: string,
   candidateIds: readonly string[],
+  documentFor: MentionDocumentSource = parsedRecord,
 ): UnlinkedMention[] {
   const term = noteUnlinkedMentionTerm(state, noteId);
   if (term === null) {
@@ -275,7 +285,7 @@ export function projectUnlinkedMentions(
   }
   const mentions: UnlinkedMention[] = [];
   for (const candidateId of candidateIds.slice(0, UNLINKED_MENTION_CANDIDATE_LIMIT)) {
-    const document = mentionSourceDocument(state, noteId, candidateId);
+    const document = mentionSourceDocument(state, noteId, candidateId, documentFor);
     if (!document) {
       continue;
     }

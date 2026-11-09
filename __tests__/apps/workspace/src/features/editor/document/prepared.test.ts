@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "vitest";
+import { afterEach, test, vi } from "vitest";
 import type { WorkspaceSnapshot } from "@skriuw/renderer-core/contracts/workspace";
 import { PreparedEditorDocuments } from "@/features/editor/document/prepared";
 import { productSchema } from "@/features/editor/schema";
@@ -115,4 +115,90 @@ test("malformed stored documents are diagnosed and use the empty fallback", () =
   } finally {
     console.error = originalError;
   }
+});
+
+function noteNode(id: string) {
+  return { ...snapshot.nodes[0]!, id, title: id };
+}
+
+function noteDocument(noteId: string, text: string) {
+  return {
+    noteId,
+    documentJson: {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text }] }],
+    },
+    markdown: text,
+    revision: 1,
+    wordCount: 1,
+  };
+}
+
+const workspace: WorkspaceSnapshot = {
+  ...snapshot,
+  nodes: ["note-1", "note-2", "note-3", "note-4"].map(noteNode),
+  documents: ["note-1", "note-2", "note-3", "note-4"].map((id) => noteDocument(id, id)),
+};
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+test("prepares the visible note at once and the rest in idle batches", () => {
+  vi.useFakeTimers();
+  const store = createRendererStore(createInitialState(workspace));
+  const prepared = new PreparedEditorDocuments(store);
+  assert.equal(prepared.metrics().documentCount, 1);
+
+  vi.runAllTimers();
+  assert.equal(prepared.metrics().documentCount, 4);
+  prepared.destroy();
+});
+
+test("a note requested before its idle batch is prepared on demand and reused", () => {
+  vi.useFakeTimers();
+  const store = createRendererStore(createInitialState(workspace));
+  const prepared = new PreparedEditorDocuments(store);
+  const record = store.getState().documents.get("note-3");
+  assert.ok(record);
+
+  const onDemand = prepared.documentFor(record);
+  assert.equal(onDemand.textContent, "note-3");
+  vi.runAllTimers();
+  assert.equal(prepared.documentFor(record), onDemand);
+  prepared.destroy();
+});
+
+test("a replaced document is prepared again from its new body", () => {
+  vi.useFakeTimers();
+  const store = createRendererStore(createInitialState(workspace));
+  const prepared = new PreparedEditorDocuments(store);
+  vi.runAllTimers();
+  store.applyOperations([
+    {
+      type: "save_document",
+      noteId: "note-2",
+      documentJson: noteDocument("note-2", "rewritten").documentJson,
+      markdown: "rewritten",
+      wordCount: 1,
+      expectedRevision: 1,
+      at: 2,
+    },
+  ]);
+  vi.runAllTimers();
+
+  const record = store.getState().documents.get("note-2");
+  assert.ok(record);
+  assert.equal(prepared.documentFor(record).textContent, "rewritten");
+  assert.equal(prepared.metrics().documentCount, 4);
+  prepared.destroy();
+});
+
+test("destroy cancels idle preparation that has not run yet", () => {
+  vi.useFakeTimers();
+  const store = createRendererStore(createInitialState(workspace));
+  const prepared = new PreparedEditorDocuments(store);
+  prepared.destroy();
+  vi.runAllTimers();
+  assert.equal(prepared.metrics().documentCount, 0);
 });

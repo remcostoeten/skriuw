@@ -1,14 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { SECONDARY_PANE_ID } from "@skriuw/renderer-core/store/panes";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import { GEOMETRY, lengthAtY, pathPoints, roundedPath } from "./outline-geometry";
-import { planOutlineRebind, selectOutlineSource } from "./outline-source";
+import { GEOMETRY, lengthsAtY, pathPoints, roundedPath, roundedSegments } from "./outline-geometry";
+import { outlineSourceFor, planOutlineRebind, planOutlineUpdate } from "./outline-source";
 
 type Props = {
   store: RendererStore;
+  noteId: string | null;
   onCountChange?: (count: number) => void;
 };
+
+type HeadingOffset = { top: number; height: number };
 
 type OutlineItem = {
   id: string;
@@ -118,6 +121,8 @@ function mountOutlineController(
   let items: OutlineItem[] = [];
   let links: HTMLElement[] = [];
   let anchors: number[] = [];
+  let offsets: HeadingOffset[] | null = null;
+  let viewportHeight = 0;
   let pathLength = 0;
   let rendered = 0;
   let target = 0;
@@ -128,25 +133,29 @@ function mountOutlineController(
   let disposed = false;
   let visible = true;
   let rebuildPending = false;
+  let snapPending = true;
   let lastCurrent = -1;
 
   const itemObserver = new ResizeObserver(() => {
     dirty = true;
+    offsets = null;
     startLoop();
   });
 
-  function itemsUnchanged(next: OutlineItem[]): boolean {
-    if (next.length !== items.length) {
-      return false;
-    }
-    return next.every((item, index) => {
-      const previous = items[index]!;
-      return (
-        previous.element === item.element &&
-        previous.label === item.label &&
-        previous.depth === item.depth
-      );
+  const contentObserver = new ResizeObserver(() => {
+    offsets = null;
+    startLoop();
+  });
+
+  function updateLabels(nextItems: OutlineItem[]): void {
+    nextItems.forEach((item, index) => {
+      const link = links[index];
+      if (link && link.textContent !== item.label) {
+        link.textContent = item.label;
+        link.setAttribute("href", `#${item.id}`);
+      }
     });
+    items = nextItems;
   }
 
   function rebuildList(): void {
@@ -157,11 +166,17 @@ function mountOutlineController(
     emptyState.classList.toggle("hidden", !isEmpty);
     svg.classList.toggle("hidden", isEmpty);
 
-    if (itemsUnchanged(nextItems)) {
+    const update = planOutlineUpdate(items, nextItems);
+    if (update === "none") {
+      return;
+    }
+    if (update === "labels") {
+      updateLabels(nextItems);
       return;
     }
 
     items = nextItems;
+    offsets = null;
     lastCurrent = -1;
     list.innerHTML = "";
     itemObserver.disconnect();
@@ -216,30 +231,43 @@ function mountOutlineController(
     pathLength = activePath.getTotalLength();
     activePath.style.strokeDasharray = `${pathLength}`;
 
-    anchors = anchorIndices.map((index) =>
-      lengthAtY((length) => activePath.getPointAtLength(length), pathLength, points[index]!.y),
+    const measured = lengthsAtY(
+      roundedSegments(points, GEOMETRY.corner),
+      anchorIndices.map((index) => points[index]!.y),
     );
+    const scale = measured.total > 0 ? pathLength / measured.total : 0;
+    anchors = measured.lengths.map((length) => length * scale);
 
     rendered = Math.min(rendered, pathLength);
     target = Math.min(target, pathLength);
     dirty = false;
   }
 
-  function getScrollState(): { index: number; progress: number } {
+  function measureOffsets(): HeadingOffset[] {
     const scrollRect = refs.scrollHost.getBoundingClientRect();
-    const anchorY = scrollRect.top + scrollRect.height * GEOMETRY.anchorFraction;
-    const positions = items.map((item) => item.element.getBoundingClientRect().top);
+    const scrollTop = refs.scrollHost.scrollTop;
+    viewportHeight = refs.scrollHost.clientHeight;
+    return items.map((item) => {
+      const rect = item.element.getBoundingClientRect();
+      return { top: rect.top - scrollRect.top + scrollTop, height: rect.height };
+    });
+  }
+
+  function getScrollState(): { index: number; progress: number } {
+    offsets ??= measureOffsets();
+    const scrollTop = refs.scrollHost.scrollTop;
+    const anchorY = scrollTop + viewportHeight * GEOMETRY.anchorFraction;
 
     let index = 0;
-    while (index < positions.length - 1 && positions[index + 1]! <= anchorY) {
+    while (index < offsets.length - 1 && offsets[index + 1]!.top <= anchorY) {
       index += 1;
     }
 
-    const start = positions[index]!;
+    const start = offsets[index]!.top;
     const end =
-      index < positions.length - 1
-        ? positions[index + 1]!
-        : Math.max(start + items[index]!.element.getBoundingClientRect().height, scrollRect.bottom);
+      index < offsets.length - 1
+        ? offsets[index + 1]!.top
+        : Math.max(start + offsets[index]!.height, scrollTop + viewportHeight);
 
     const raw = (anchorY - start) / Math.max(1, end - start);
     return { index, progress: Math.max(0, Math.min(1, raw)) };
@@ -277,7 +305,7 @@ function mountOutlineController(
   }
 
   function updateTarget(): void {
-    if (!pathLength || anchors.length === 0) {
+    if (!pathLength || anchors.length === 0 || items.length === 0) {
       return;
     }
 
@@ -316,6 +344,12 @@ function mountOutlineController(
 
     updateTarget();
 
+    if (snapPending && !rebuildPending && mutationFrame === 0 && pathLength > 0) {
+      snapPending = false;
+      rendered = target;
+      velocity = 0;
+    }
+
     const difference = target - rendered;
     velocity += difference * GEOMETRY.smoothing;
     velocity *= GEOMETRY.damping;
@@ -341,14 +375,16 @@ function mountOutlineController(
 
   function onResize(): void {
     dirty = true;
+    offsets = null;
     startLoop();
   }
 
   function onMutate(records: MutationRecord[]): void {
+    offsets = null;
     if (!rebuildPending && records.some((record) => touchesHeading(record, refs.proseHost))) {
       rebuildPending = true;
     }
-    if (mutationFrame) {
+    if (mutationFrame || !rebuildPending) {
       return;
     }
     mutationFrame = requestAnimationFrame(() => {
@@ -366,6 +402,7 @@ function mountOutlineController(
 
   const navResizeObserver = new ResizeObserver(onResize);
   navResizeObserver.observe(nav);
+  contentObserver.observe(refs.proseHost);
 
   const visibilityObserver = new IntersectionObserver((entries) => {
     const entry = entries.at(-1);
@@ -388,8 +425,8 @@ function mountOutlineController(
 
   return {
     restart(): void {
-      rendered = 0;
-      velocity = 0;
+      snapPending = true;
+      offsets = null;
       dirty = true;
       startLoop();
     },
@@ -402,32 +439,30 @@ function mountOutlineController(
       navResizeObserver.disconnect();
       visibilityObserver.disconnect();
       itemObserver.disconnect();
+      contentObserver.disconnect();
       mutationObserver.disconnect();
       nav.innerHTML = "";
     },
   };
 }
 
-function selectHasActiveNote(state: RendererState): boolean {
-  return state.activeNoteId !== null;
-}
-
 function selectFocusedPaneId(state: RendererState): string {
   return state.focusedPaneId;
 }
 
-export function NoteOutline({ store, onCountChange }: Props) {
-  const hasActiveNote = useRendererSelector(store, selectHasActiveNote);
-  const source = useRendererSelector(store, selectOutlineSource);
+export function NoteOutline({ store, noteId, onCountChange }: Props) {
+  const hasActiveNote = noteId !== null;
+  const source = useRendererSelector(
+    store,
+    useCallback((state: RendererState) => outlineSourceFor(state, noteId), [noteId]),
+  );
   const focusedPaneId = useRendererSelector(store, selectFocusedPaneId);
   const navRef = useRef<HTMLElement | null>(null);
   const sourceChangedRef = useRef<(() => void) | null>(null);
-  const [, setEmpty] = useState(true);
 
   useEffect(() => {
     const nav = navRef.current;
     if (!nav || !hasActiveNote) {
-      setEmpty(true);
       return;
     }
 
@@ -452,7 +487,6 @@ export function NoteOutline({ store, onCountChange }: Props) {
       }
       mountedHost = refs.proseHost;
       controller = mountOutlineController(nav!, refs, (count) => {
-        setEmpty(count === 0);
         onCountChange?.(count);
       });
     }
@@ -468,7 +502,6 @@ export function NoteOutline({ store, onCountChange }: Props) {
       }
       if (controller) {
         controller.destroy();
-        setEmpty(true);
         onCountChange?.(0);
       }
       controller = null;

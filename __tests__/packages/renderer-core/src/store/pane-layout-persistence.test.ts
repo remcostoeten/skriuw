@@ -214,3 +214,79 @@ test("importing a workspace snapshot preserves the current pane layout rather th
   assert.deepEqual(store.getState().panes[0]?.openNoteIds, ["note-a", "note-b"]);
   assert.equal(store.getState().panes[0]?.paneId, PRIMARY_PANE_ID);
 });
+
+function switchActiveNote(store: RendererStore, noteId: string): void {
+  store.setActiveNote(noteId);
+}
+
+test("switching the active note persists only once idle and never serializes in the switch", async () => {
+  const store = createRendererStore(createInitialState(snapshot, []));
+  const writes: string[] = [];
+  const idleRuns: (() => void)[] = [];
+  const binding = bindPaneLayoutPersistence(
+    store,
+    async (layoutJson) => {
+      writes.push(layoutJson);
+    },
+    {
+      delayMs: 1,
+      idleDelayMs: 1,
+      scheduleIdle: (run) => {
+        idleRuns.push(run);
+        return () => undefined;
+      },
+    },
+  );
+
+  switchActiveNote(store, "note-b");
+  switchActiveNote(store, "note-a");
+  switchActiveNote(store, "note-b");
+  await settle();
+  assert.deepEqual(writes, []);
+  assert.equal(idleRuns.length, 1);
+
+  idleRuns[0]!();
+  await settle();
+  assert.equal(writes.length, 1);
+  assert.equal(parsePaneLayout(writes[0]!)?.panes[0]?.activeNoteId, "note-b");
+  await binding.dispose();
+});
+
+test("closing the workspace persists a pending active-note change so restart restores it", async () => {
+  const store = createRendererStore(createInitialState(snapshot, []));
+  const writes: string[] = [];
+  const binding = bindPaneLayoutPersistence(
+    store,
+    async (layoutJson) => {
+      writes.push(layoutJson);
+    },
+    { idleDelayMs: 60_000 },
+  );
+
+  switchActiveNote(store, "note-b");
+  await binding.dispose();
+
+  assert.equal(writes.length, 1);
+  const restored = parsePaneLayout(writes[0]!);
+  assert.equal(restored?.panes[0]?.activeNoteId, "note-b");
+  assert.deepEqual(restored?.panes[0]?.openNoteIds, ["note-b"]);
+});
+
+test("a structural change after navigation still writes on the short delay", async () => {
+  const store = createRendererStore(createInitialState(snapshot, []));
+  const writes: string[] = [];
+  const binding = bindPaneLayoutPersistence(
+    store,
+    async (layoutJson) => {
+      writes.push(layoutJson);
+    },
+    { delayMs: 1, idleDelayMs: 60_000 },
+  );
+
+  switchActiveNote(store, "note-b");
+  openNoteInTab(store, "note-a");
+  await settle();
+  assert.equal(writes.length, 1);
+  assert.deepEqual(parsePaneLayout(writes[0]!)?.panes[0]?.openNoteIds, ["note-b", "note-a"]);
+  await binding.dispose();
+});

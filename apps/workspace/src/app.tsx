@@ -403,24 +403,24 @@ function WorkspaceShell({ store }: Props) {
     setSidebarWidth(width);
     writeSidebarWidth(width);
   }, []);
-  const collapseSidebar = useCallback(() => {
-    setTracksAnimated(true);
+  const collapseSidebar = useCallback((animated: boolean) => {
+    setTracksAnimated(animated);
     setSidebarOpen(false);
   }, []);
-  const expandSidebar = useCallback(() => {
-    setTracksAnimated(true);
+  const expandSidebar = useCallback((animated: boolean) => {
+    setTracksAnimated(animated);
     setSidebarOpen(true);
   }, []);
   const resizeMetadata = useCallback((width: number) => {
     setMetadataWidth(width);
     writeMetadataWidth(width);
   }, []);
-  const collapseMetadata = useCallback(() => {
-    setTracksAnimated(true);
+  const collapseMetadata = useCallback((animated: boolean) => {
+    setTracksAnimated(animated);
     setMetadataOpen(false);
   }, []);
-  const expandMetadata = useCallback(() => {
-    setTracksAnimated(true);
+  const expandMetadata = useCallback((animated: boolean) => {
+    setTracksAnimated(animated);
     setMetadataOpen(true);
   }, []);
   const sidebarSheetOpen = mode === "compact" && shownSidebarOpen && routeHasSidebar(route);
@@ -493,8 +493,8 @@ function WorkspaceShell({ store }: Props) {
       <div
         ref={tracksRef}
         className={`relative grid h-full grid-rows-[minmax(0,1fr)]${
-          settling && mode === "full" ? " panel-tracks-settling" : ""
-        }${mode === "compact" ? " shell-compact" : ""}${focusActive ? " shell-focus-mode" : ""}`}
+          mode === "compact" ? " shell-compact" : ""
+        }${focusActive ? " shell-focus-mode" : ""}`}
         style={mode === "compact" ? undefined : { gridTemplateColumns }}
         inert={sheetOpen}
       >
@@ -519,7 +519,6 @@ function WorkspaceShell({ store }: Props) {
             width={sidebarWidth}
             collapsed={!sidebarOpen}
             offsetBase={railWidth}
-            settling={settling}
             onPreview={previewSidebar}
             onResize={resizeSidebar}
             onCollapse={collapseSidebar}
@@ -535,7 +534,6 @@ function WorkspaceShell({ store }: Props) {
             width={metadataWidth}
             collapsed={!metadataOpen}
             offsetBase={0}
-            settling={settling}
             onPreview={previewMetadata}
             onResize={resizeMetadata}
             onCollapse={collapseMetadata}
@@ -545,14 +543,18 @@ function WorkspaceShell({ store }: Props) {
         ) : null}
         {mode === "full" && (
           <div
-            className={`col-[2] min-h-0 min-w-0 overflow-hidden${
+            className={`sidebar-pane-slide col-[2] min-h-0 min-w-0 overflow-hidden${
               shownSidebarOpen ? "" : " sidebar-pane-collapsed"
             }${settling ? " sidebar-pane-settling" : ""}`}
             aria-hidden={!shownSidebarOpen}
             inert={!shownSidebarOpen}
             hidden={!routeHasSidebar(route)}
           >
-            <div ref={sidebarPaneRef} className="h-full" style={{ width: sidebarWidth }}>
+            <div
+              ref={sidebarPaneRef}
+              className="sidebar-pane-body h-full"
+              style={{ width: sidebarWidth }}
+            >
               {sidebarContent}
             </div>
           </div>

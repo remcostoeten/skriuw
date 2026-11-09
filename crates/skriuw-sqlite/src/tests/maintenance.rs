@@ -288,3 +288,83 @@ fn integrity_check_covers_sqlite_and_domain_state() {
     assert!(report.healthy);
     assert!(report.issues.is_empty());
 }
+
+#[test]
+fn idle_history_claim_leaves_the_write_lock_alone() {
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("workspace.db");
+    let storage = SqliteWorkspace::open(&path).expect("open database");
+    storage
+        .apply_operations(&[create_note("note-1")])
+        .expect("create note");
+    let writer = Connection::open(&path).expect("open writer");
+    writer
+        .execute_batch("BEGIN IMMEDIATE")
+        .expect("hold write lock");
+
+    let started = Instant::now();
+    let claimed = storage
+        .claim_history_revision("worker-1", 10, 1_000)
+        .expect("idle claim");
+
+    assert!(claimed.is_none());
+    assert!(started.elapsed() < std::time::Duration::from_secs(1));
+    writer
+        .execute_batch("ROLLBACK")
+        .expect("release write lock");
+    assert!(
+        storage
+            .claim_history_revision("worker-1", HISTORY_COALESCE_WINDOW_MS + 10, 1_000)
+            .expect("due claim")
+            .is_some()
+    );
+}
+
+#[test]
+fn next_history_claim_follows_window_lease_retry_and_trash() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    assert_eq!(storage.next_history_claim_at(1_000).expect("empty"), None);
+    storage
+        .apply_operations(&[create_note("note-1")])
+        .expect("create note");
+    assert_eq!(
+        storage.next_history_claim_at(1_000).expect("pending"),
+        Some(1 + HISTORY_COALESCE_WINDOW_MS)
+    );
+
+    let claimed_at = HISTORY_COALESCE_WINDOW_MS + 10;
+    let item = storage
+        .claim_history_revision("worker-1", claimed_at, 1_000)
+        .expect("claim history")
+        .expect("history item");
+    assert_eq!(
+        storage.next_history_claim_at(1_000).expect("leased"),
+        Some(claimed_at + 1_000)
+    );
+
+    let retry_at = claimed_at + 60_000;
+    storage
+        .release_history_revision(
+            "worker-1",
+            &item.id,
+            retry_at,
+            &Diagnostic::new(
+                DiagnosticContext::History,
+                DiagnosticCategory::Backend,
+                "failure",
+            ),
+        )
+        .expect("release history");
+    assert_eq!(
+        storage.next_history_claim_at(1_000).expect("retrying"),
+        Some(retry_at)
+    );
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::TrashSubtree {
+            root_id: "note-1".into(),
+            at: 10,
+        })])
+        .expect("trash note");
+    assert_eq!(storage.next_history_claim_at(1_000).expect("trashed"), None);
+}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { requestThreadReveal } from "@/features/editor/reveal-controller";
 import { formatRelativeTime } from "@/shared/format/relative-time";
 import { cn } from "@/shared/styling/class-names";
@@ -17,12 +17,6 @@ function selectAnnotations(state: RendererState) {
   return state.annotations;
 }
 
-function selectActiveNoteMarkdown(state: RendererState): string {
-  return state.activeNoteId === null
-    ? ""
-    : (state.documents.get(state.activeNoteId)?.markdown ?? "");
-}
-
 const filterLabels: Record<Filter, string> = {
   open: "Open",
   resolved: "Resolved",
@@ -31,8 +25,16 @@ const filterLabels: Record<Filter, string> = {
 
 export function AnnotationList({ store, noteId }: Props) {
   const annotations = useRendererSelector(store, selectAnnotations);
-  const markdown = useRendererSelector(store, selectActiveNoteMarkdown);
+  const markdown = useRendererSelector(
+    store,
+    useCallback((state: RendererState) => state.documents.get(noteId)?.markdown ?? "", [noteId]),
+  );
   const [filter, setFilter] = useState<Filter>("open");
+  const [filterNoteId, setFilterNoteId] = useState(noteId);
+  if (filterNoteId !== noteId) {
+    setFilterNoteId(noteId);
+    setFilter("open");
+  }
 
   const threads = useMemo(() => threadsForNote(annotations, noteId), [annotations, noteId]);
   const anchored = useMemo(() => anchoredThreadIds(markdown), [markdown]);

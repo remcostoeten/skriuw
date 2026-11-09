@@ -29,7 +29,7 @@ import {
 } from "./tree/operations";
 import { PinnedSection } from "./tree/pinned-section";
 import { useTreePointer } from "./tree/pointer";
-import { useTreeViewport } from "./tree/viewport";
+import { treeRowPitch } from "./tree/viewport";
 
 type Props = {
   store: RendererStore;
@@ -115,15 +115,8 @@ export const Sidebar = memo(function Sidebar({ store, onOpenCommandPalette }: Pr
   const effectiveCompact = compactSidebar || metrics.isNarrow;
   const rowHeight = touchRows ? 44 : effectiveCompact ? 24 : 28;
   const search = useSidebarSearch(store, treeRef);
-  const viewport = useTreeViewport(
-    store,
-    treeRef,
-    rowHeight,
-    visibleIds.length,
-    search.trimmedQuery !== "",
-  );
   const moveMode = useMoveMode(store, visibleIds);
-  const pointer = useTreePointer(store, treeRef, viewport.rowPitch, (id) =>
+  const pointer = useTreePointer(store, treeRef, treeRowPitch(rowHeight), (id) =>
     trashSelectedNodes(store, id),
   );
 
@@ -189,8 +182,8 @@ export const Sidebar = memo(function Sidebar({ store, onOpenCommandPalette }: Pr
               treeRef={treeRef}
               visibleIds={visibleIds}
               metrics={metrics}
-              rowPitch={viewport.rowPitch}
-              treeWindow={viewport.treeWindow}
+              rowHeight={rowHeight}
+              isSearchActive={search.trimmedQuery !== ""}
               touchRows={touchRows}
               movingSet={moveMode.movingSet}
               dropTarget={pointer.dropTarget}
@@ -203,7 +196,6 @@ export const Sidebar = memo(function Sidebar({ store, onOpenCommandPalette }: Pr
                   openSearch: search.focus,
                 })
               }
-              onScroll={viewport.onScroll}
             />
             <SidebarCalendar store={store} />
           </TreeContextMenu>

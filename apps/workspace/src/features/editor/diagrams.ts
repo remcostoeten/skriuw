@@ -1,5 +1,6 @@
 export {
   detectMermaidFamily,
+  preloadMermaidRenderer,
   primaryFontFamily,
   readMermaidPalette,
   renderMermaidSvg,

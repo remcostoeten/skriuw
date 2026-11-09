@@ -696,6 +696,7 @@ pub struct FakeTransport {
     checkpoint_fetch_calls: AtomicUsize,
     checkpoint_publish_calls: AtomicUsize,
     acknowledge_calls: AtomicUsize,
+    encryption_reads: AtomicUsize,
     encryption_route_absent: std::sync::atomic::AtomicBool,
 }
 
@@ -718,6 +719,7 @@ impl FakeTransport {
             checkpoint_fetch_calls: AtomicUsize::new(0),
             checkpoint_publish_calls: AtomicUsize::new(0),
             acknowledge_calls: AtomicUsize::new(0),
+            encryption_reads: AtomicUsize::new(0),
             encryption_route_absent: std::sync::atomic::AtomicBool::new(false),
         })
     }
@@ -814,6 +816,11 @@ impl FakeTransport {
     }
 
     #[must_use]
+    pub fn encryption_reads(&self) -> usize {
+        self.encryption_reads.load(Ordering::SeqCst)
+    }
+
+    #[must_use]
     pub fn total_calls(&self) -> usize {
         self.push_calls()
             + self.pull_calls()
@@ -906,6 +913,7 @@ impl SyncTransport for FakeTransport {
         workspace_id: &str,
         cancellation: &SyncCancellation,
     ) -> Result<Option<WorkspaceEncryptionMarker>, TransportError> {
+        self.encryption_reads.fetch_add(1, Ordering::SeqCst);
         self.ensure_live(cancellation)?;
         if self.encryption_route_absent.load(Ordering::SeqCst) {
             return Err(TransportError::RouteUnavailable);

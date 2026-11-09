@@ -24,16 +24,14 @@
 }
 
 .task-item {
-  display: grid;
-  grid-template-rows: 1fr;
   transition:
-    grid-template-rows 220ms var(--tasks-ease),
-    opacity 160ms var(--tasks-ease);
+    opacity 160ms var(--tasks-ease),
+    transform 160ms var(--tasks-ease);
 }
 
 .task-item[data-leaving="true"] {
-  grid-template-rows: 0fr;
   opacity: 0;
+  transform: translateX(8px);
 }
 
 .task-item-inner {
@@ -208,21 +206,17 @@
 }
 
 .task-fold {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 220ms var(--tasks-ease);
+  animation: task-fold-in 220ms var(--tasks-ease);
 }
 
-.task-fold[data-open="true"] {
-  grid-template-rows: 1fr;
+@keyframes task-fold-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 
-.task-fold > div {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.task-fold > div > ul > .task-item:first-child .task-item-inner {
+.task-fold > .task-item:first-child .task-item-inner {
   border-top: 1px solid var(--tasks-hair);
 }
 
@@ -299,7 +293,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .task-item,
-  .task-fold,
   .task-title::after,
   .task-check,
   .task-check path,
@@ -310,6 +303,10 @@
   .task-sheet-inner,
   .task-popover {
     transform: none;
+  }
+
+  .task-fold {
+    animation: none;
   }
 }
 

@@ -5,7 +5,9 @@ import { createInitialState, createRendererStore } from "@skriuw/renderer-core/s
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { toggleEditorMode } from "@/features/editor/editor-mode";
 import {
+  outlineSourceFor,
   planOutlineRebind,
+  planOutlineUpdate,
   selectOutlineSource,
 } from "@/features/note-chrome/metadata/outline-source";
 
@@ -106,4 +108,35 @@ test("no active note has no outline source", () => {
   const store = createRendererStore(createInitialState(snapshot()));
   store.update((current) => ({ ...current, activeNoteId: null }));
   assert.equal(selectOutlineSource(store.getState()), null);
+});
+
+test("the outline source can follow a note id held by the caller", () => {
+  const store = createRendererStore(createInitialState(snapshot(), []));
+  assert.equal(outlineSourceFor(store.getState(), "b"), "b:rich");
+  assert.equal(outlineSourceFor(store.getState(), null), null);
+  assert.equal(outlineSourceFor(store.getState(), "a"), selectOutlineSource(store.getState()));
+});
+
+test("the outline only rebuilds when the heading set or levels change", () => {
+  const first = {};
+  const second = {};
+  const shown = [
+    { element: first, label: "Intro", depth: 0 },
+    { element: second, label: "Body", depth: 1 },
+  ];
+
+  assert.equal(planOutlineUpdate(shown, [...shown]), "none");
+  assert.equal(
+    planOutlineUpdate(shown, [shown[0]!, { element: second, label: "Body text", depth: 1 }]),
+    "labels",
+  );
+  assert.equal(planOutlineUpdate(shown, [shown[0]!]), "rebuild");
+  assert.equal(
+    planOutlineUpdate(shown, [shown[0]!, { element: second, label: "Body", depth: 0 }]),
+    "rebuild",
+  );
+  assert.equal(
+    planOutlineUpdate(shown, [shown[0]!, { element: {}, label: "Body", depth: 1 }]),
+    "rebuild",
+  );
 });

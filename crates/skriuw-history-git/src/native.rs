@@ -5,7 +5,7 @@ use std::{
     sync::Mutex,
 };
 
-use git2::{Commit, ObjectType, Oid, Repository, RepositoryOpenFlags, Signature, Time};
+use git2::{Commit, ObjectType, Odb, Oid, Repository, RepositoryOpenFlags, Signature, Time};
 use skriuw_domain::{HistoryHeader, count_words};
 use skriuw_history::{
     HistoryMaterializer, HistoryReadError, HistoryReader, HistoryVersion, MaterializationError,
@@ -15,6 +15,7 @@ use skriuw_storage::{HistoryMaterialization, HistoryProvenance, PendingHistoryRe
 use thiserror::Error;
 
 const HISTORY_REF: &str = "refs/heads/history";
+const PACK_STAGING_DIRECTORY: &str = "skriuw-pack-staging";
 
 #[derive(Debug, Error)]
 pub enum GitHistoryError {
@@ -32,6 +33,8 @@ pub enum GitHistoryError {
     InvalidRevision,
     #[error("history repository has no worktree")]
     MissingWorktree,
+    #[error("history pack could not be verified")]
+    PackVerification,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -157,7 +160,7 @@ impl GitHistoryReader {
 
 pub struct GitHistoryMaterializer {
     root: PathBuf,
-    gate: Mutex<()>,
+    repository: Mutex<Repository>,
 }
 
 impl GitHistoryMaterializer {
@@ -174,7 +177,7 @@ impl GitHistoryMaterializer {
         }
         Ok(Self {
             root,
-            gate: Mutex::new(()),
+            repository: Mutex::new(repository),
         })
     }
 
@@ -183,8 +186,10 @@ impl GitHistoryMaterializer {
         item: &PendingHistoryRevision,
     ) -> Result<HistoryMaterialization, GitHistoryError> {
         validate_item(item)?;
-        let _guard = self.gate.lock().map_err(|_| GitHistoryError::Poisoned)?;
-        let repository = Repository::open(&self.root)?;
+        let repository = self
+            .repository
+            .lock()
+            .map_err(|_| GitHistoryError::Poisoned)?;
         if let Some(materialization) = existing_materialization(&repository, &item.id)? {
             return Ok(materialization);
         }
@@ -198,6 +203,7 @@ impl GitHistoryMaterializer {
         fs::write(&absolute_path, item.markdown.as_bytes())?;
 
         let mut index = repository.index()?;
+        index.read(false)?;
         index.add_path(&relative_path)?;
         index.write()?;
         let tree_id = index.write_tree()?;
@@ -236,9 +242,46 @@ impl GitHistoryMaterializer {
         })
     }
 
+    /// Moves loose objects into one new pack once at least `threshold` have
+    /// accumulated, so the repository does not grow one file per object
+    /// forever. Each object is read back from the staged pack before its
+    /// loose file is removed. Returns how many loose objects were packed.
+    pub fn pack_loose_objects(&self, threshold: usize) -> Result<usize, GitHistoryError> {
+        let repository = self
+            .repository
+            .lock()
+            .map_err(|_| GitHistoryError::Poisoned)?;
+        let objects = repository.path().join("objects");
+        let staging = repository.path().join(PACK_STAGING_DIRECTORY);
+        if staging.to_str().is_none() {
+            return Ok(0);
+        }
+        let loose = loose_objects(&objects)?;
+        if loose.is_empty() || loose.len() < threshold {
+            return Ok(0);
+        }
+        remove_staging(&staging)?;
+        let published = stage_and_publish_pack(&repository, &objects, &staging, &loose);
+        let cleanup = remove_staging(&staging);
+        published?;
+        cleanup?;
+        repository.odb()?.refresh()?;
+        for (_, path) in &loose {
+            match fs::remove_file(path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
+            if let Some(directory) = path.parent() {
+                let _ = fs::remove_dir(directory);
+            }
+        }
+        Ok(loose.len())
+    }
+
     pub fn list_history_headers(&self) -> Result<Vec<HistoryHeader>, HistoryReadError> {
         let _guard = self
-            .gate
+            .repository
             .lock()
             .map_err(|_| HistoryReadError::backend("history materializer lock is poisoned"))?;
         GitHistoryReader {
@@ -253,7 +296,7 @@ impl GitHistoryMaterializer {
         version_id: &str,
     ) -> Result<HistoryVersion, HistoryReadError> {
         let _guard = self
-            .gate
+            .repository
             .lock()
             .map_err(|_| HistoryReadError::backend("history materializer lock is poisoned"))?;
         read_history_version(&self.root, note_id, version_id)
@@ -714,6 +757,100 @@ fn existing_materialization(
             .and_then(|value| value.parse::<i64>().ok())
             .filter(|count| *count >= 0),
     }))
+}
+
+fn loose_objects(objects: &Path) -> Result<Vec<(Oid, PathBuf)>, GitHistoryError> {
+    let entries = match fs::read_dir(objects) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error.into()),
+    };
+    let mut loose = Vec::new();
+    for entry in entries {
+        let entry = entry?;
+        let Some(prefix) = entry.file_name().to_str().map(str::to_owned) else {
+            continue;
+        };
+        if prefix.len() != 2 || !is_hex(&prefix) || !entry.file_type()?.is_dir() {
+            continue;
+        }
+        for object in fs::read_dir(entry.path())? {
+            let object = object?;
+            let Some(suffix) = object.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            if suffix.len() != 38 || !is_hex(&suffix) || !object.file_type()?.is_file() {
+                continue;
+            }
+            if let Ok(id) = Oid::from_str(&format!("{prefix}{suffix}")) {
+                loose.push((id, object.path()));
+            }
+        }
+    }
+    Ok(loose)
+}
+
+fn is_hex(value: &str) -> bool {
+    value
+        .bytes()
+        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn remove_staging(staging: &Path) -> Result<(), GitHistoryError> {
+    match fs::remove_dir_all(staging) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+/// Writes every loose object into a pack outside `objects/`, reads each one
+/// back through an object database that sees only that pack, and then moves
+/// the pack into place with its index last so readers never see a pack
+/// without every object.
+fn stage_and_publish_pack(
+    repository: &Repository,
+    objects: &Path,
+    staging: &Path,
+    loose: &[(Oid, PathBuf)],
+) -> Result<(), GitHistoryError> {
+    let staged_packs = staging.join("pack");
+    fs::create_dir_all(&staged_packs)?;
+    let mut builder = repository.packbuilder()?;
+    for (id, _) in loose {
+        builder.insert_object(*id, None)?;
+    }
+    builder.write(&staged_packs, 0)?;
+    drop(builder);
+    {
+        let staging_path = staging
+            .to_str()
+            .ok_or(GitHistoryError::InvalidIdentifier("pack staging path"))?;
+        let verifier = Odb::new()?;
+        verifier.add_disk_alternate(staging_path)?;
+        for (id, _) in loose {
+            if verifier.read(*id)?.id() != *id {
+                return Err(GitHistoryError::PackVerification);
+            }
+        }
+    }
+    let target = objects.join("pack");
+    fs::create_dir_all(&target)?;
+    let mut staged = fs::read_dir(&staged_packs)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<Result<Vec<_>, _>>()?;
+    staged.sort_by_key(|path| path.extension().is_some_and(|extension| extension == "idx"));
+    for path in staged {
+        let Some(name) = path.file_name() else {
+            continue;
+        };
+        let destination = target.join(name);
+        if destination.exists() {
+            continue;
+        }
+        fs::rename(&path, &destination)?;
+    }
+    Ok(())
 }
 
 fn history_commit(repository: &Repository) -> Result<Option<Commit<'_>>, GitHistoryError> {
@@ -1340,6 +1477,89 @@ mod tests {
             attempts: 1,
             provenance: HistoryProvenance::Local,
         }
+    }
+
+    fn loose_object_count(root: &std::path::Path) -> usize {
+        super::loose_objects(&root.join(".git/objects"))
+            .expect("list loose objects")
+            .len()
+    }
+
+    #[test]
+    fn packs_loose_objects_and_keeps_history_readable() {
+        let directory = tempdir().expect("temporary directory");
+        let materializer = GitHistoryMaterializer::open(directory.path()).expect("open history");
+        let mut versions = Vec::new();
+        for revision in 1..=5 {
+            versions.push(
+                materializer
+                    .materialize_revision(&item(
+                        &format!("item-{revision}"),
+                        revision,
+                        &format!("# Revision {revision}"),
+                    ))
+                    .expect("materialize revision")
+                    .version_id,
+            );
+        }
+        let loose = loose_object_count(directory.path());
+        assert!(loose > 0);
+        assert_eq!(
+            materializer
+                .pack_loose_objects(loose + 1)
+                .expect("skip below threshold"),
+            0
+        );
+        assert_eq!(loose_object_count(directory.path()), loose);
+
+        assert_eq!(
+            materializer.pack_loose_objects(1).expect("pack objects"),
+            loose
+        );
+        assert_eq!(loose_object_count(directory.path()), 0);
+        assert!(!directory.path().join(".git/skriuw-pack-staging").exists());
+        let packs = fs::read_dir(directory.path().join(".git/objects/pack"))
+            .expect("pack directory")
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert!(packs.iter().any(|name| name.ends_with(".pack")));
+        assert!(packs.iter().any(|name| name.ends_with(".idx")));
+
+        let reader = GitHistoryReader::open(directory.path()).expect("open reader");
+        let report = reader.integrity_check().expect("integrity check");
+        assert!(report.healthy(), "{:?}", report.issues);
+        assert_eq!(report.commit_count, 5);
+        let version = materializer
+            .read_history_version("note-1", &versions[0])
+            .expect("read packed version");
+        assert_eq!(version.markdown, "# Revision 1");
+
+        let next = materializer
+            .materialize_revision(&item("item-6", 6, "# Revision 6"))
+            .expect("materialize after packing");
+        let repository = Repository::open(directory.path()).expect("open repository");
+        let commit = repository
+            .find_commit(next.version_id.parse().expect("commit id"))
+            .expect("commit after packing");
+        assert_eq!(
+            commit.parent_id(0).expect("parent").to_string(),
+            versions[4]
+        );
+        assert!(
+            reader
+                .integrity_check()
+                .expect("integrity after packing")
+                .healthy()
+        );
+    }
+
+    #[test]
+    fn packing_an_empty_repository_is_a_no_op() {
+        let directory = tempdir().expect("temporary directory");
+        let materializer = GitHistoryMaterializer::open(directory.path()).expect("open history");
+        assert_eq!(materializer.pack_loose_objects(0).expect("pack"), 0);
+        assert!(!directory.path().join(".git/skriuw-pack-staging").exists());
     }
 
     #[test]

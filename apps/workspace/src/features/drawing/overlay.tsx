@@ -104,6 +104,12 @@ const BRUSH_BY_NOTE = new Map<string, DrawingBrush>();
 
 const SIZE_INDICATOR_MS = 700;
 
+/**
+ * The canvas paints this fraction of the pane's height above and below it, so
+ * scrolling within that band only moves the canvas instead of repainting it.
+ */
+const PAINT_BAND_RATIO = 0.5;
+
 const NO_SELECTION: readonly string[] = [];
 
 /** The stored layer payload, read straight off the document root. */
@@ -142,9 +148,11 @@ function readSurfaceTokens(): { dark: boolean; accent: string } {
  */
 export function DrawingOverlay({ store, noteId, active, getDocument, onDone }: Props) {
   const [host, setHost] = useState<HTMLDivElement | null>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scrollHostRef = useRef<HTMLElement | null>(null);
   const frameRef = useRef<number | null>(null);
+  const paintedBandRef = useRef<{ origin: number; band: number } | null>(null);
   const liveRef = useRef<LiveStroke | null>(null);
   const liveShapeRef = useRef<LiveShape | null>(null);
   const eraseRef = useRef<EraseGesture | null>(null);
@@ -227,11 +235,14 @@ export function DrawingOverlay({ store, noteId, active, getDocument, onDone }: P
 
   const paintNow = useCallback(() => {
     frameRef.current = null;
+    const surface = surfaceRef.current;
     const canvas = canvasRef.current;
     const context = canvas?.getContext("2d");
-    if (!canvas || !context) return;
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
+    if (!surface || !canvas || !context) return;
+    const width = surface.clientWidth;
+    const band = Math.round(surface.clientHeight * PAINT_BAND_RATIO);
+    const height = surface.clientHeight + band * 2;
+    const scrollTop = scrollHostRef.current?.scrollTop ?? 0;
     const ratio = window.devicePixelRatio || 1;
     const pixelWidth = Math.round(width * ratio);
     const pixelHeight = Math.round(height * ratio);
@@ -239,11 +250,14 @@ export function DrawingOverlay({ store, noteId, active, getDocument, onDone }: P
       canvas.width = pixelWidth;
       canvas.height = pixelHeight;
     }
+    canvas.style.height = `${height}px`;
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    paintedBandRef.current = { origin: scrollTop - band, band };
+    canvas.style.transform = `translateY(${-band}px)`;
     const viewport = {
       width,
       height,
-      scrollTop: scrollHostRef.current?.scrollTop ?? 0,
+      scrollTop: scrollTop - band,
       dark: darkRef.current,
     };
     const layer = currentLayer();
@@ -319,6 +333,15 @@ export function DrawingOverlay({ store, noteId, active, getDocument, onDone }: P
     scrollHostRef.current = scrollHost;
     schedulePaint();
     function onScroll() {
+      const painted = paintedBandRef.current;
+      const canvas = canvasRef.current;
+      if (frameRef.current === null && painted && canvas) {
+        const offset = painted.origin - (scrollHost?.scrollTop ?? 0);
+        if (offset <= 0 && offset >= -2 * painted.band) {
+          canvas.style.transform = `translateY(${offset}px)`;
+          return;
+        }
+      }
       schedulePaint();
     }
     scrollHost?.addEventListener("scroll", onScroll, { passive: true });
@@ -328,6 +351,7 @@ export function DrawingOverlay({ store, noteId, active, getDocument, onDone }: P
       scrollHost?.removeEventListener("scroll", onScroll);
       observer.disconnect();
       scrollHostRef.current = null;
+      paintedBandRef.current = null;
       if (frameRef.current !== null) {
         cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
@@ -402,11 +426,11 @@ export function DrawingOverlay({ store, noteId, active, getDocument, onDone }: P
 
   /** Where the keyboard placement cursor starts when no drag has set it. */
   const centreOfViewport = useCallback((): GesturePoint => {
-    const canvas = canvasRef.current;
+    const surface = surfaceRef.current;
     const scrollTop = scrollHostRef.current?.scrollTop ?? 0;
     return {
-      x: (canvas?.clientWidth ?? 0) / 2,
-      y: scrollTop + (canvas?.clientHeight ?? 0) / 2,
+      x: (surface?.clientWidth ?? 0) / 2,
+      y: scrollTop + (surface?.clientHeight ?? 0) / 2,
     };
   }, []);
 
@@ -453,9 +477,9 @@ export function DrawingOverlay({ store, noteId, active, getDocument, onDone }: P
   nudgeSelectionRef.current = nudgeSelection;
 
   const documentPoint = useCallback((clientX: number, clientY: number): [number, number] => {
-    const canvas = canvasRef.current;
-    if (!canvas) return [0, 0];
-    const rect = canvas.getBoundingClientRect();
+    const surface = surfaceRef.current;
+    if (!surface) return [0, 0];
+    const rect = surface.getBoundingClientRect();
     return [clientX - rect.left, clientY - rect.top + (scrollHostRef.current?.scrollTop ?? 0)];
   }, []);
 
@@ -787,19 +811,21 @@ export function DrawingOverlay({ store, noteId, active, getDocument, onDone }: P
       tabIndex={active ? -1 : undefined}
       aria-label={active ? "Annotation layer" : undefined}
     >
-      <canvas
-        ref={canvasRef}
-        className="drawing-canvas"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onContextMenu={(event) => {
-          if (!active) return;
-          event.preventDefault();
-          setPicker({ x: event.clientX, y: event.clientY });
-        }}
-      />
+      <div ref={surfaceRef} className="drawing-surface">
+        <canvas
+          ref={canvasRef}
+          className="drawing-canvas"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onContextMenu={(event) => {
+            if (!active) return;
+            event.preventDefault();
+            setPicker({ x: event.clientX, y: event.clientY });
+          }}
+        />
+      </div>
       {active ? (
         <DrawingToolbar
           brush={brush}

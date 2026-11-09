@@ -178,3 +178,15 @@ test("a different note id is projected instead of served from the cache", () => 
     selectRelationshipGraph(state, "note-b"),
   );
 });
+
+test("switching notes keeps the cached relationship rows", () => {
+  const renderer = store();
+  const rowSelectors = CACHED_SELECTORS.filter((select) => select !== selectHasRelationships);
+  const before = rowSelectors.map((select) => select(renderer.getState(), "note-b"));
+  renderer.setActiveNote("note-c");
+  renderer.setActiveNote("note-b");
+  const current = renderer.getState();
+  rowSelectors.forEach((select, index) => {
+    assert.equal(select(current, "note-b"), before[index]);
+  });
+});

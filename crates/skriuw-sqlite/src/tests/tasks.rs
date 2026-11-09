@@ -493,3 +493,53 @@ fn stale_editor_saves_cannot_undo_task_toggles_after_restart() {
         );
     }
 }
+
+#[test]
+fn encoded_bootstrap_matches_the_parsed_snapshot() {
+    let storage = promoted_workspace();
+    storage
+        .apply_operations(&[create_note("note-2")])
+        .expect("create second note");
+
+    let encoded: serde_json::Value =
+        serde_json::from_str(&storage.bootstrap_json().expect("bootstrap json"))
+            .expect("bootstrap json parses");
+    let parsed = serde_json::to_value(storage.bootstrap().expect("bootstrap")).expect("encode");
+
+    assert_eq!(encoded, parsed);
+    assert_eq!(encoded["documents"].as_array().map(Vec::len), Some(2));
+}
+
+#[test]
+fn encoded_bootstrap_rejects_a_drifted_task_link_and_a_corrupt_body() {
+    let storage = promoted_workspace();
+    storage
+        .apply_operations(&[create_note("note-2")])
+        .expect("create second note");
+    {
+        let connection = storage.lock().expect("database lock");
+        connection
+            .execute(
+                "UPDATE documents SET document_json = ?1 WHERE note_id = 'note-1'",
+                [checklist_document(None, false, "Ship the release").to_string()],
+            )
+            .expect("drop the checklist link");
+    }
+    assert!(storage.bootstrap().is_err());
+    assert!(storage.bootstrap_json().is_err());
+
+    {
+        let connection = storage.lock().expect("database lock");
+        connection
+            .execute("DELETE FROM workspace_tasks", [])
+            .expect("remove tasks");
+        connection
+            .execute(
+                "UPDATE documents SET document_json = '{\"type\":' WHERE note_id = 'note-2'",
+                [],
+            )
+            .expect("corrupt a body");
+    }
+    assert!(storage.bootstrap().is_err());
+    assert!(storage.bootstrap_json().is_err());
+}
