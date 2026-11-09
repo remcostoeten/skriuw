@@ -34,7 +34,22 @@ fn will_use_x11_backend() -> bool {
     }
 }
 
+fn app_version() -> String {
+    serde_json::from_str::<serde_json::Value>(include_str!("../tauri.conf.json"))
+        .ok()
+        .and_then(|config| config["version"].as_str().map(str::to_owned))
+        .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_owned())
+}
+
 fn main() {
+    if std::env::args()
+        .skip(1)
+        .any(|argument| argument == "-v" || argument == "--version")
+    {
+        println!("skriuw {}", app_version());
+        return;
+    }
+
     #[cfg(target_os = "linux")]
     {
         // Wayland compositors pick the taskbar icon by matching the window
