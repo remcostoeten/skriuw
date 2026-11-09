@@ -16,12 +16,9 @@ const CloudSessionContext = createContext<CloudSession | null>(null);
 
 async function signOut(): Promise<void> {
   if (!authAdapter.signOut) return;
-  try {
-    const result = await authAdapter.signOut();
-    if (result.success) authAdapter.onSuccess?.("signOut");
-  } catch (error) {
-    console.error("cloud sign-out failed", error);
-  }
+  const result = await authAdapter.signOut();
+  if (!result.success) throw new Error("Sign out did not complete.");
+  authAdapter.onSuccess?.("signOut");
 }
 
 /**

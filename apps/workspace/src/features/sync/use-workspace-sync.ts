@@ -184,9 +184,14 @@ export function useWorkspaceSync(pollIntervalMs = SYNC_POLL_ACTIVE_MS): Workspac
   }, [shouldReconnect, userId, reconnectAttempt]);
 
   async function signOutSafely(): Promise<void> {
+    setActionError(null);
     await pauseWorkspaceSync().catch(() => undefined);
-    await signOut();
-    setStatus({ state: "localOnly" });
+    try {
+      await signOut();
+      setStatus({ state: "localOnly" });
+    } catch (reason) {
+      setActionError(connectFailureText(reason));
+    }
   }
 
   // A failed connect leaves sync paused either way: `localOnly` when the
