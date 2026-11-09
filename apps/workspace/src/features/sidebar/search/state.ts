@@ -1,21 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { FocusEvent, KeyboardEvent, RefObject } from "react";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { focusTreeItem, type TreeRef } from "../tree/focus";
 import { activateNote, revealNode } from "../tree/operations";
 
 export type SidebarSearch = {
-  isOpen: boolean;
   query: string;
   trimmedQuery: string;
   inputRef: RefObject<HTMLInputElement | null>;
-  triggerRef: RefObject<HTMLButtonElement | null>;
-  overlayRef: RefObject<HTMLDivElement | null>;
+  fieldRef: RefObject<HTMLDivElement | null>;
   resultsRef: RefObject<HTMLDivElement | null>;
   savedSearchesRef: RefObject<HTMLDivElement | null>;
-  open: () => void;
-  openAndFocus: () => void;
-  close: (restoreTrigger?: boolean) => void;
+  focus: () => void;
+  clear: (refocusInput?: boolean) => void;
   setQuery: (query: string) => void;
   selectSavedSearch: (query: string) => void;
   onAreaBlur: (event: FocusEvent) => void;
@@ -26,25 +23,16 @@ export type SidebarSearch = {
 };
 
 export function useSidebarSearch(store: RendererStore, treeRef: TreeRef): SidebarSearch {
-  const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const savedSearchesRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      inputRef.current?.focus();
-    }
-  }, [isOpen]);
-
-  function close(restoreTrigger = false): void {
-    setIsOpen(false);
+  function clear(refocusInput = false): void {
     setQuery("");
-    if (restoreTrigger) {
-      requestAnimationFrame(() => triggerRef.current?.focus());
+    if (refocusInput) {
+      requestAnimationFrame(() => inputRef.current?.focus());
     }
   }
 
@@ -57,40 +45,38 @@ export function useSidebarSearch(store: RendererStore, treeRef: TreeRef): Sideba
   }
 
   return {
-    isOpen,
     query,
     trimmedQuery: query.trim(),
     inputRef,
-    triggerRef,
-    overlayRef,
+    fieldRef,
     resultsRef,
     savedSearchesRef,
-    open: () => setIsOpen(true),
-    openAndFocus: () => {
-      setIsOpen(true);
-      inputRef.current?.focus();
-    },
-    close,
+    focus: () => inputRef.current?.focus(),
+    clear,
     setQuery,
     selectSavedSearch: (savedQuery) => {
       setQuery(savedQuery);
-      setIsOpen(true);
+      inputRef.current?.focus();
     },
     onAreaBlur: (event) => {
       const next = event.relatedTarget as Node | null;
       const staysInside =
         next !== null &&
-        (overlayRef.current?.contains(next) === true ||
+        (fieldRef.current?.contains(next) === true ||
           resultsRef.current?.contains(next) === true ||
           savedSearchesRef.current?.contains(next) === true);
       if (!staysInside) {
-        close();
+        clear();
       }
     },
     onInputKeyDown: (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        close(true);
+        if (query !== "") {
+          clear();
+        } else {
+          focusTreeAfterSearch();
+        }
         return;
       }
       if (event.key === "Enter" || event.key === "ArrowDown") {
@@ -106,7 +92,7 @@ export function useSidebarSearch(store: RendererStore, treeRef: TreeRef): Sideba
       }
       if (event.key === "Escape") {
         event.preventDefault();
-        close(true);
+        clear(true);
         return;
       }
       if (
@@ -140,7 +126,7 @@ export function useSidebarSearch(store: RendererStore, treeRef: TreeRef): Sideba
     onNoteSelect: (id) => {
       revealNode(store, id);
       activateNote(store, id);
-      close();
+      clear();
       focusTreeAfterSearch();
     },
     onFolderSelect: (id) => {
@@ -148,7 +134,7 @@ export function useSidebarSearch(store: RendererStore, treeRef: TreeRef): Sideba
       if (!store.getState().expandedIds.has(id)) {
         store.toggleExpanded(id);
       }
-      close();
+      clear();
       focusTreeAfterSearch();
     },
   };

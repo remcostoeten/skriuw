@@ -53,6 +53,7 @@ export type ShortcutActionId =
   | "cyclePanePrevious"
   | "openSettings"
   | "toggleSidebar"
+  | "toggleRailLabels"
   | "toggleMetadata"
   | "focusSidebar"
   | "collapseAllFolders"
@@ -552,6 +553,15 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     group: "Navigation",
     worksWhileTyping: true,
     scopes: "sidebar-route",
+  },
+  {
+    id: "toggleRailLabels",
+    keys: "mod+alt+b",
+    label: "Toggle rail labels",
+    description:
+      "Widen the navigation rail to show each destination's name and shortcut, or narrow it back to icons.",
+    group: "Navigation",
+    worksWhileTyping: true,
   },
   {
     id: "toggleMetadata",

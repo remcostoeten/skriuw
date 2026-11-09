@@ -10,7 +10,7 @@ import { maximumTreeIndent, type TreeMetrics } from "./metrics";
 import { activateNote, renameNode } from "./operations";
 
 const rowBaseClass =
-  "sidebar-tree-row relative flex h-[34px] w-full items-center overflow-hidden rounded-lg border border-transparent text-left text-xs font-medium outline-none active:scale-[0.985] focus-visible:bg-foreground/[0.16] focus-visible:text-foreground";
+  "sidebar-tree-row relative flex h-7 w-full items-center overflow-hidden rounded-md border border-transparent text-left text-[12.5px] font-medium outline-none active:scale-[0.985] focus-visible:bg-foreground/[0.16] focus-visible:text-foreground";
 
 function rowIndentStyle(depth: number, metrics: TreeMetrics): CSSProperties {
   const indent = visualTreeIndent(
@@ -116,7 +116,7 @@ export const SidebarRow = memo(function SidebarRow({
     <div className="absolute inset-x-0" style={{ top: `${top}px` }}>
       {isEditing ? (
         <div
-          className={`sidebar-tree-row relative flex h-[34px] w-full items-center overflow-hidden rounded-lg border border-border bg-muted text-left text-xs font-medium text-foreground${isFolder ? " justify-between" : ""}`}
+          className={`sidebar-tree-row relative flex h-7 w-full items-center overflow-hidden rounded-md border border-border bg-muted text-left text-[12.5px] font-medium text-foreground${isFolder ? " justify-between" : ""}`}
           style={rowIndentStyle(rowDepth, metrics)}
         >
           <RowLabel isFolder={isFolder} isExpanded={isExpanded} isNarrow={metrics.isNarrow} grow>
@@ -172,7 +172,7 @@ export const SidebarRow = memo(function SidebarRow({
             />
           )}
           {isFolder && !metrics.isVeryNarrow && (
-            <span className="ml-1.5 w-4 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground/50">
+            <span className="ml-1.5 min-w-4 shrink-0 text-right text-[11px] font-normal tabular-nums text-theme-dim">
               {node.descendantCount}
             </span>
           )}
@@ -213,7 +213,7 @@ function RenameInput({ store, id, initialTitle }: RenameProps) {
     <input
       ref={inputRef}
       aria-label={`Rename ${initialTitle}`}
-      className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-xs font-medium text-foreground caret-foreground outline-none selection:bg-primary/30"
+      className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-[12.5px] font-medium text-foreground caret-foreground outline-none selection:bg-primary/30"
       defaultValue={initialTitle}
       onBlur={(event) => submitRename(event.currentTarget.value)}
       onKeyDown={(event) => {

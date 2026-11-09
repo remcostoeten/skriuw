@@ -2,12 +2,13 @@ import "./tasks.css";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { TaskStatus } from "@skriuw/renderer-core/contracts/workspace";
-import { formatLongDate, todayKey, type DateKey } from "@skriuw/renderer-core/journal/dates";
+import { formatLongDate, type DateKey } from "@skriuw/renderer-core/journal/dates";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { requestBlockReveal } from "@/features/editor/reveal-controller";
 import { activateReference } from "@/features/references/shell";
 import { CalendarIcon, FileTextIcon, ListTodoIcon, SearchIcon } from "@/shared/icons/static";
+import { useToday } from "@/shared/format/use-today";
 import { useRouteFocus } from "@/shared/routing/app-route";
 import { cn } from "@/shared/styling/class-names";
 import { LedgerOutline } from "@/shared/ui/ledger-outline";
@@ -75,21 +76,6 @@ const tabClass = cn(
   "flex min-h-8 w-full cursor-pointer items-center gap-[9px] rounded-[7px] border-0 bg-transparent px-[9px] py-[5px] text-left text-[13px] text-theme-secondary hover:bg-theme-hover/55 hover:text-foreground aria-selected:bg-theme-hover aria-selected:text-foreground",
   settingsTransition,
 );
-
-function millisecondsUntilTomorrow(): number {
-  const now = new Date();
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  return midnight.getTime() - now.getTime() + 1000;
-}
-
-function useToday(): DateKey {
-  const [today, setToday] = useState(todayKey);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setToday(todayKey()), millisecondsUntilTomorrow());
-    return () => window.clearTimeout(timer);
-  }, [today]);
-  return today;
-}
 
 function checkboxFor(taskId: string): HTMLInputElement | null {
   return document.querySelector<HTMLInputElement>(

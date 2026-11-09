@@ -170,6 +170,7 @@ type Props = {
   /** Opens the shell-level sign-in drawer when the cloud session has expired. */
   onRequestSignIn: () => void;
   settingsOpen: boolean;
+  signedOutSettings?: boolean;
 };
 
 /**
@@ -189,6 +190,7 @@ export function AccountMenu({
   isCommandEnabled,
   onRequestSignIn,
   settingsOpen,
+  signedOutSettings = true,
 }: Props) {
   const { user } = useCloudSession();
   const sync = useWorkspaceSync(SYNC_POLL_AMBIENT_MS);
@@ -199,6 +201,9 @@ export function AccountMenu({
   const installable = useSyncExternalStore(subscribeInstallOffer, installOffered, () => false);
   const [panel, setPanel] = useState<AccountMenuPanel>("root");
   if (!user) {
+    if (!signedOutSettings) {
+      return null;
+    }
     return (
       <Tooltip label="Settings" side="right" shortcut={hints.openSettings}>
         <button

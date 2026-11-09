@@ -1,4 +1,7 @@
 import { memo, useRef } from "react";
+import { Tooltip } from "@skriuw/shared/ui/tooltip";
+import { useShortcutHints } from "@/commands/hints";
+import { FolderPlusIcon, FoldVerticalIcon, UnfoldVerticalIcon } from "@/shared/icons/static";
 import { useMediaQuery } from "@/shared/viewport/use-media-query";
 import { SidebarCalendar } from "@/features/journal/calendar";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
@@ -7,7 +10,8 @@ import { TreeContextMenu } from "./context-menu/tree-menu";
 import { selectPinnedIds } from "./pinned-ids";
 import { MoveBanner } from "./drag/move-banner";
 import { useMoveMode } from "./drag/move-mode";
-import { HeaderActions } from "./header/actions";
+import { SidebarHeader } from "./header/actions";
+import { SectionLabel, sectionActionClass } from "./section-label";
 import { SearchField } from "./search/field";
 import { SidebarSearchResults } from "./search/results";
 import { SavedSearchList } from "./search/saved-searches";
@@ -16,8 +20,14 @@ import { focusTreeItem } from "./tree/focus";
 import { handleTreeKeyDown } from "./tree/keyboard";
 import { TreeList } from "./tree/list";
 import { useTreeMetrics } from "./tree/metrics";
-import { activateNote, revealNode, trashSelectedNodes } from "./tree/operations";
-import { PinnedChips } from "./tree/pinned-chips";
+import {
+  activateNote,
+  createFolder,
+  revealNode,
+  toggleAllFolders,
+  trashSelectedNodes,
+} from "./tree/operations";
+import { PinnedSection } from "./tree/pinned-section";
 import { useTreePointer } from "./tree/pointer";
 import { useTreeViewport } from "./tree/viewport";
 
@@ -45,6 +55,54 @@ function selectShowTreeGuides(state: RendererState) {
   return state.settings["showTreeGuides"] === true;
 }
 
+function selectAnyExpanded(state: RendererState) {
+  return state.expandedIds.size > 0;
+}
+
+const TREE_SECTION_SHORTCUT_IDS = ["createFolder", "collapseAllFolders"] as const;
+
+type TreeSectionLabelProps = {
+  store: RendererStore;
+};
+
+function TreeSectionLabel({ store }: TreeSectionLabelProps) {
+  const anyExpanded = useRendererSelector(store, selectAnyExpanded);
+  const hints = useShortcutHints(store, TREE_SECTION_SHORTCUT_IDS);
+  return (
+    <SectionLabel
+      label="All notes"
+      actions={
+        <>
+          <Tooltip label="New folder" side="bottom" shortcut={hints.createFolder}>
+            <button
+              type="button"
+              className={sectionActionClass}
+              aria-label="New folder"
+              onClick={() => createFolder(store, null)}
+            >
+              <FolderPlusIcon size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip
+            label={anyExpanded ? "Collapse all folders" : "Expand all folders"}
+            side="bottom"
+            shortcut={anyExpanded ? hints.collapseAllFolders : undefined}
+          >
+            <button
+              type="button"
+              className={sectionActionClass}
+              aria-label="Toggle all folders"
+              onClick={() => toggleAllFolders(store)}
+            >
+              {anyExpanded ? <FoldVerticalIcon size={14} /> : <UnfoldVerticalIcon size={14} />}
+            </button>
+          </Tooltip>
+        </>
+      }
+    />
+  );
+}
+
 export const Sidebar = memo(function Sidebar({ store, onOpenCommandPalette }: Props) {
   const visibleIds = useRendererSelector(store, selectVisibleIds, sameIdList);
   const pinnedIds = useRendererSelector(store, selectPinnedIds, sameIdList);
@@ -55,9 +113,15 @@ export const Sidebar = memo(function Sidebar({ store, onOpenCommandPalette }: Pr
   const touchRows = useMediaQuery("(pointer: coarse)");
   const metrics = useTreeMetrics(asideRef);
   const effectiveCompact = compactSidebar || metrics.isNarrow;
-  const rowHeight = touchRows ? 44 : effectiveCompact ? 28 : 34;
+  const rowHeight = touchRows ? 44 : effectiveCompact ? 24 : 28;
   const search = useSidebarSearch(store, treeRef);
-  const viewport = useTreeViewport(store, treeRef, rowHeight, visibleIds.length, search.isOpen);
+  const viewport = useTreeViewport(
+    store,
+    treeRef,
+    rowHeight,
+    visibleIds.length,
+    search.trimmedQuery !== "",
+  );
   const moveMode = useMoveMode(store, visibleIds);
   const pointer = useTreePointer(store, treeRef, viewport.rowPitch, (id) =>
     trashSelectedNodes(store, id),
@@ -84,21 +148,12 @@ export const Sidebar = memo(function Sidebar({ store, onOpenCommandPalette }: Pr
       ref={asideRef}
       className={`flex h-full min-w-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground${effectiveCompact ? " sidebar-compact" : ""}${touchRows ? " sidebar-touch" : ""}${showTreeGuides ? " sidebar-guides" : ""}`}
     >
-      <div className="sticky top-0 z-10 border-b border-sidebar-border bg-sidebar">
-        <div
-          className={`relative flex h-11 items-center justify-between overflow-hidden ${metrics.isNarrow ? "px-1.5" : "px-3"}`}
-        >
-          <HeaderActions
-            store={store}
-            isNarrow={metrics.isNarrow}
-            isSearchOpen={search.isOpen}
-            searchTriggerRef={search.triggerRef}
-            onOpenSearch={search.open}
-            onOpenCommandPalette={onOpenCommandPalette}
-          />
-          <SearchField search={search} />
-        </div>
-      </div>
+      <SidebarHeader
+        store={store}
+        isNarrow={metrics.isNarrow}
+        onOpenCommandPalette={onOpenCommandPalette}
+      />
+      <SearchField search={search} />
       <div ref={search.savedSearchesRef} onBlur={search.onAreaBlur} className="shrink-0">
         <SavedSearchList
           store={store}
@@ -126,8 +181,9 @@ export const Sidebar = memo(function Sidebar({ store, onOpenCommandPalette }: Pr
             onMove={moveMode.start}
           >
             {pinnedIds.length > 0 && (
-              <PinnedChips store={store} ids={pinnedIds} onSelect={onPinnedSelect} />
+              <PinnedSection store={store} ids={pinnedIds} onSelect={onPinnedSelect} />
             )}
+            <TreeSectionLabel store={store} />
             <TreeList
               store={store}
               treeRef={treeRef}
@@ -144,7 +200,7 @@ export const Sidebar = memo(function Sidebar({ store, onOpenCommandPalette }: Pr
                   store,
                   treeRef,
                   moveMode,
-                  openSearch: search.openAndFocus,
+                  openSearch: search.focus,
                 })
               }
               onScroll={viewport.onScroll}

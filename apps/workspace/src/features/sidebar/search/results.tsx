@@ -88,7 +88,7 @@ export function SidebarSearchResults({
                   type="button"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => onFolderSelect(folder.id)}
-                  className="flex h-[34px] w-full items-center gap-1.5 rounded-lg border border-transparent px-2 text-left text-xs font-medium text-foreground/70 transition-colors hover:bg-muted hover:text-foreground/88"
+                  className="flex h-7 w-full items-center gap-1.5 rounded-md border border-transparent px-2 text-left text-[12.5px] font-medium pointer-coarse:h-11 text-foreground/70 transition-colors hover:bg-muted hover:text-foreground/88"
                 >
                   <FolderIcon size={14} className="shrink-0 text-muted-foreground/70" />
                   <span className="truncate">{folder.title}</span>
@@ -111,7 +111,7 @@ export function SidebarSearchResults({
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => onNoteSelect(note.id)}
                   aria-current={note.id === activeNoteId ? "page" : undefined}
-                  className={`flex h-[34px] w-full items-center gap-1.5 rounded-lg border border-transparent px-2 text-left text-xs font-medium transition-colors ${
+                  className={`flex h-7 w-full items-center gap-1.5 rounded-md border border-transparent px-2 text-left text-[12.5px] font-medium pointer-coarse:h-11 transition-colors ${
                     note.id === activeNoteId
                       ? "bg-muted text-foreground"
                       : "text-foreground/70 hover:bg-muted hover:text-foreground/88"

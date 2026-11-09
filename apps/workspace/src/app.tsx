@@ -2,7 +2,8 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { hasTauriRuntime } from "@/platform/runtime/runtime";
 import { BrowserStorageNotice } from "@/shell/browser-storage-notice";
 import { AccountMenu } from "@/shell/account";
-import { RAIL_ICONS, railActiveClass, railIconButtonClass, railInactiveClass } from "@/shell/rail";
+import { readRailLabels, writeRailLabels } from "@/shell/rail";
+import { PrimaryRail } from "@/shell/primary-rail";
 import type { SectionId } from "@/features/settings-dialog/sections";
 import { Sidebar } from "@/features/sidebar/sidebar";
 import { CommandPaletteHost } from "@/app/command-palette-host";
@@ -25,6 +26,8 @@ import { JournalView } from "@/features/journal/journal-view";
 import {
   FOCUS_GRID_TEMPLATE,
   METADATA_RESIZE_BOUNDS,
+  RAIL_WIDE_WIDTH,
+  RAIL_WIDTH,
   PanelResizeHandle,
   panelGridTemplate,
   panelTracksWith,
@@ -41,7 +44,6 @@ import { NoteShareHost } from "@/features/sharing/share-dialog";
 import { TransferDialogs } from "@/features/transfer/transfer-dialogs";
 import { WorkspaceShortcuts } from "@/commands/workspace-shortcuts";
 import { useShortcutHints } from "@/commands/hints";
-import { RAIL_ITEMS, railModShiftKeys, type RailItem } from "@/commands/rail-items";
 import { useAppRoute, useRouteFocus } from "@/shared/routing/app-route";
 import { CloudSignInDrawer, ModelSwitcherHost, PromptPlaygroundView } from "@/app/lazy-surfaces";
 import { AppProviders } from "@/app/providers";
@@ -51,7 +53,7 @@ import { appRouteHash, routeHasSidebar } from "@skriuw/renderer-core/route/app-r
 import { createCommandRegistry, registryShortcutActions } from "@/commands/registry";
 import type { CommandUiState } from "@/commands/registry";
 import { createAppCommands } from "./app-commands";
-import { PanelLeftIcon, SkriuwLogo } from "@/shared/icons/static";
+import { PanelLeftIcon } from "@/shared/icons/static";
 import { AppIcon } from "@/shared/icons/app-icon";
 import {
   FocusModeReveal,
@@ -78,28 +80,6 @@ import { selectShowToasts } from "@/features/settings/selectors";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { AiOptInGate, selectAiEnabled } from "@/features/ai/opt-in-gate";
-
-type RailNavIconProps = {
-  item: RailItem;
-  position: number;
-  active: boolean;
-};
-
-/** One icon in the primary navigation rail. */
-function RailNavIcon({ item, position, active }: RailNavIconProps) {
-  return (
-    <Tooltip label={item.label} side="right" shortcut={railModShiftKeys(position)}>
-      <a
-        href={`#/${item.route}`}
-        className={`${railIconButtonClass} ${active ? railActiveClass : railInactiveClass}`}
-        aria-label={item.label}
-        aria-current={active ? "page" : undefined}
-      >
-        <AppIcon name={RAIL_ICONS[item.actionId]} size={18} />
-      </a>
-    </Tooltip>
-  );
-}
 
 type Props = {
   store: RendererStore;
@@ -181,6 +161,8 @@ function WorkspaceShell({ store }: Props) {
   const [metadataResizing, setMetadataResizing] = useState(false);
   const [tracksAnimated, setTracksAnimated] = useState(true);
   const [focusMode, setFocusMode] = useState(readFocusMode);
+  const [railLabels, setRailLabels] = useState(readRailLabels);
+  const railWidth = railLabels ? RAIL_WIDE_WIDTH : RAIL_WIDTH;
   const panelResizing = sidebarResizing || metadataResizing;
   const settling = !panelResizing && tracksAnimated;
   const route = useAppRoute();
@@ -288,6 +270,13 @@ function WorkspaceShell({ store }: Props) {
     },
     [changeFocusMode],
   );
+  const toggleRailLabels = useCallback(() => {
+    setTracksAnimated(true);
+    setRailLabels((current) => {
+      writeRailLabels(!current);
+      return !current;
+    });
+  }, []);
   const openSettingsAt = useCallback((section: SectionId) => {
     setSettingsSection(section);
     setSettingsOpen(true);
@@ -317,6 +306,7 @@ function WorkspaceShell({ store }: Props) {
             openSignIn: () => openSignIn(false),
             showShortcutHelp: () => setShortcutHelpOpen((current) => !current),
             toggleSidebar: () => toggleSidebar(false),
+            toggleRailLabels,
             openSidebar: () => {
               setTracksAnimated(false);
               setSidebarOpen(true);
@@ -330,7 +320,16 @@ function WorkspaceShell({ store }: Props) {
           aiEnabled,
         ),
       ),
-    [aiEnabled, openSettingsAt, openSignIn, store, toggleFocusMode, toggleMetadata, toggleSidebar],
+    [
+      aiEnabled,
+      openSettingsAt,
+      openSignIn,
+      store,
+      toggleFocusMode,
+      toggleMetadata,
+      toggleRailLabels,
+      toggleSidebar,
+    ],
   );
   const shortcutActions = useMemo(
     () =>
@@ -359,7 +358,7 @@ function WorkspaceShell({ store }: Props) {
   };
   const gridTemplateColumns = focusActive
     ? FOCUS_GRID_TEMPLATE
-    : panelGridTemplate(route, sidebarOpen, metadataOpen, sidebarWidth, metadataWidth);
+    : panelGridTemplate(route, sidebarOpen, metadataOpen, sidebarWidth, metadataWidth, railWidth);
   const tracksRef = useRef<HTMLDivElement>(null);
   const sidebarPaneRef = useRef<HTMLDivElement>(null);
   const metadataPaneRef = useRef<HTMLDivElement>(null);
@@ -382,6 +381,7 @@ function WorkspaceShell({ store }: Props) {
           next.metadataOpen,
           next.sidebarWidth,
           next.metadataWidth,
+          railWidth,
         );
       }
       const pane = panel === "sidebar" ? sidebarPaneRef.current : metadataPaneRef.current;
@@ -389,7 +389,7 @@ function WorkspaceShell({ store }: Props) {
         pane.style.width = `${width}px`;
       }
     },
-    [route],
+    [railWidth, route],
   );
   const previewSidebar = useCallback(
     (width: number, collapsed: boolean) => previewPanel("sidebar", width, collapsed),
@@ -479,17 +479,15 @@ function WorkspaceShell({ store }: Props) {
       </div>
     </>
   );
-  const accountMenu = (
-    <AccountMenu
-      store={store}
-      settingsOpen={settingsOpen}
-      onOpenSettings={openSettingsAt}
-      onShowShortcutHelp={() => setShortcutHelpOpen(true)}
-      onRunCommand={runCommand}
-      isCommandEnabled={commandEnabled}
-      onRequestSignIn={() => openSignIn(false)}
-    />
-  );
+  const accountMenuProps = {
+    store,
+    settingsOpen,
+    onOpenSettings: openSettingsAt,
+    onShowShortcutHelp: () => setShortcutHelpOpen(true),
+    onRunCommand: runCommand,
+    isCommandEnabled: commandEnabled,
+    onRequestSignIn: () => openSignIn(false),
+  };
   return (
     <>
       <div
@@ -501,50 +499,17 @@ function WorkspaceShell({ store }: Props) {
         inert={sheetOpen}
       >
         {mode === "full" && (
-          <nav
-            aria-label="Primary"
-            className={`flex w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar${
-              focusActive ? " sidebar-pane-collapsed overflow-hidden" : ""
-            }${settling ? " sidebar-pane-settling" : ""}`}
-            aria-hidden={focusActive}
-            inert={focusActive}
-          >
-            <div className="flex w-full flex-col items-center">
-              <div className="flex h-11 w-full items-center justify-center border-b border-sidebar-border">
-                <Tooltip label="Skriuw" side="right">
-                  <a
-                    href="#/notes"
-                    className="rounded-2xl border border-transparent p-1.5 text-sidebar-foreground/92 transition-colors hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-                    aria-label="Go to home"
-                  >
-                    <SkriuwLogo size={26} />
-                  </a>
-                </Tooltip>
-              </div>
-              <div className="mt-4 flex w-full flex-col items-center gap-4">
-                {RAIL_ITEMS.filter((item) => item.section === "primary").map((item) => (
-                  <RailNavIcon
-                    key={item.actionId}
-                    item={item}
-                    position={RAIL_ITEMS.indexOf(item) + 1}
-                    active={route === item.route}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="flex w-full flex-col items-center gap-3 pb-4">
-              {RAIL_ITEMS.filter((item) => item.section === "utility").map((item) => (
-                <RailNavIcon
-                  key={item.actionId}
-                  item={item}
-                  position={RAIL_ITEMS.indexOf(item) + 1}
-                  active={route === item.route}
-                />
-              ))}
-              <div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
-              {accountMenu}
-            </div>
-          </nav>
+          <PrimaryRail
+            store={store}
+            route={route}
+            wide={railLabels}
+            hidden={focusActive}
+            settling={settling}
+            settingsOpen={settingsOpen}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onToggleLabels={toggleRailLabels}
+            accountMenu={<AccountMenu {...accountMenuProps} signedOutSettings={false} />}
+          />
         )}
         {mode === "full" && !focusActive && routeHasSidebar(route) ? (
           <PanelResizeHandle
@@ -553,7 +518,7 @@ function WorkspaceShell({ store }: Props) {
             bounds={SIDEBAR_RESIZE_BOUNDS}
             width={sidebarWidth}
             collapsed={!sidebarOpen}
-            offsetBase={56}
+            offsetBase={railWidth}
             settling={settling}
             onPreview={previewSidebar}
             onResize={resizeSidebar}
@@ -742,7 +707,9 @@ function WorkspaceShell({ store }: Props) {
         {route === "tags" && <EntityView store={store} kind="tag" />}
         {route === "people" && <EntityView store={store} kind="person" />}
         {!focusActive && <InstallBanner compact={mode === "compact"} />}
-        {mode === "compact" && !focusActive && <TabBar route={route} account={accountMenu} />}
+        {mode === "compact" && !focusActive && (
+          <TabBar route={route} account={<AccountMenu {...accountMenuProps} />} />
+        )}
         {mode === "compact" && !focusActive && routeHasSidebar(route) && (
           <div
             className="shell-edge-left absolute top-11 bottom-14 left-0 z-30 w-5 touch-none"
