@@ -587,11 +587,9 @@ pub(crate) fn plaintext_body(
 
 pub(crate) fn node_locked(connection: &Connection, id: &str) -> Result<bool, StorageError> {
     connection
-        .query_row(
-            "SELECT locked_at IS NOT NULL FROM workspace_nodes WHERE id = ?1",
-            [id],
-            |row| row.get(0),
-        )
+        .prepare_cached("SELECT locked_at IS NOT NULL FROM workspace_nodes WHERE id = ?1")
+        .map_err(backend)?
+        .query_row([id], |row| row.get(0))
         .optional()
         .map_err(backend)
         .map(|locked| locked.unwrap_or(false))
@@ -880,9 +878,7 @@ pub(crate) fn scrub_note_projections(
     transaction: &Transaction<'_>,
     note_id: &str,
 ) -> Result<(), StorageError> {
-    transaction
-        .execute("DELETE FROM documents_fts WHERE note_id = ?1", [note_id])
-        .map_err(backend)?;
+    crate::operations::delete_fts(transaction, note_id)?;
     transaction
         .execute(
             "DELETE FROM document_references WHERE source_note_id = ?1",

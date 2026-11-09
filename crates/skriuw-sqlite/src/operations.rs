@@ -11,6 +11,7 @@ use skriuw_storage::{HistoryProvenance, StorageError};
 use uuid::Uuid;
 
 use crate::error::{backend, json_backend, validation};
+use crate::fts_keyed_by_document_rowid;
 use crate::lock::{
     self, discard_pending_history, expand_operation, scrub_note_projections, seal_document,
     subtree_nodes, write_sealed_body,
@@ -37,37 +38,30 @@ pub(crate) fn replace_references(
     provenance: HistoryProvenance,
 ) -> Result<(), StorageError> {
     transaction
-        .execute(
-            "DELETE FROM document_references WHERE source_note_id = ?1",
-            [note_id],
-        )
+        .prepare_cached("DELETE FROM document_references WHERE source_note_id = ?1")
+        .map_err(backend)?
+        .execute([note_id])
         .map_err(backend)?;
     for reference in skriuw_domain::document_references(document) {
         let exists = match reference.kind {
             skriuw_domain::ReferenceKind::Tag => transaction
-                .query_row(
-                    "SELECT 1 FROM workspace_tags WHERE id = ?1",
-                    [&reference.target_id],
-                    |_| Ok(()),
-                )
+                .prepare_cached("SELECT 1 FROM workspace_tags WHERE id = ?1")
+                .map_err(backend)?
+                .query_row([&reference.target_id], |_| Ok(()))
                 .optional()
                 .map_err(backend)?
                 .is_some(),
             skriuw_domain::ReferenceKind::Person => transaction
-                .query_row(
-                    "SELECT 1 FROM workspace_people WHERE id = ?1",
-                    [&reference.target_id],
-                    |_| Ok(()),
-                )
+                .prepare_cached("SELECT 1 FROM workspace_people WHERE id = ?1")
+                .map_err(backend)?
+                .query_row([&reference.target_id], |_| Ok(()))
                 .optional()
                 .map_err(backend)?
                 .is_some(),
             skriuw_domain::ReferenceKind::Note => transaction
-                .query_row(
-                    "SELECT 1 FROM workspace_nodes WHERE id = ?1 AND kind = 'note'",
-                    [&reference.target_id],
-                    |_| Ok(()),
-                )
+                .prepare_cached("SELECT 1 FROM workspace_nodes WHERE id = ?1 AND kind = 'note'")
+                .map_err(backend)?
+                .query_row([&reference.target_id], |_| Ok(()))
                 .optional()
                 .map_err(backend)?
                 .is_some(),
@@ -77,11 +71,12 @@ pub(crate) fn replace_references(
                 && reference.kind == skriuw_domain::ReferenceKind::Note
             {
                 transaction
-                    .execute(
+                    .prepare_cached(
                         "INSERT OR IGNORE INTO sync_dangling_references(note_id, target_id) \
                          VALUES (?1, ?2)",
-                        params![note_id, reference.target_id],
                     )
+                    .map_err(backend)?
+                    .execute(params![note_id, reference.target_id])
                     .map_err(backend)?;
                 continue;
             }
@@ -436,11 +431,14 @@ fn apply_operation(
                 )
                 .map_err(backend)?;
             require_changed(changed, id)?;
+            let rename_sql = if fts_keyed_by_document_rowid(transaction)? {
+                "UPDATE documents_fts SET title = ?2 \
+                 WHERE rowid = (SELECT rowid FROM documents WHERE note_id = ?1)"
+            } else {
+                "UPDATE documents_fts SET title = ?2 WHERE note_id = ?1"
+            };
             transaction
-                .execute(
-                    "UPDATE documents_fts SET title = ?2 WHERE note_id = ?1",
-                    params![id, title],
-                )
+                .execute(rename_sql, params![id, title])
                 .map_err(backend)?;
         }
         WorkspaceOperation::SetNoteCover {
@@ -760,17 +758,28 @@ fn apply_operation(
                 *trashed_before,
             )?;
             purge_annotations_for_notes(transaction, &subtree_ids)?;
+            let purge_fts_sql = if fts_keyed_by_document_rowid(transaction)? {
+                "WITH RECURSIVE subtree(id) AS (\
+                     SELECT id FROM workspace_nodes WHERE id = ?1 \
+                     UNION ALL \
+                     SELECT child.id FROM workspace_nodes child \
+                     JOIN subtree parent ON child.parent_id = parent.id\
+                 ) \
+                 DELETE FROM documents_fts WHERE rowid IN (\
+                     SELECT documents.rowid FROM documents \
+                     WHERE documents.note_id IN (SELECT id FROM subtree)\
+                 )"
+            } else {
+                "WITH RECURSIVE subtree(id) AS (\
+                     SELECT id FROM workspace_nodes WHERE id = ?1 \
+                     UNION ALL \
+                     SELECT child.id FROM workspace_nodes child \
+                     JOIN subtree parent ON child.parent_id = parent.id\
+                 ) \
+                 DELETE FROM documents_fts WHERE note_id IN (SELECT id FROM subtree)"
+            };
             transaction
-                .execute(
-                    "WITH RECURSIVE subtree(id) AS (\
-                         SELECT id FROM workspace_nodes WHERE id = ?1 \
-                         UNION ALL \
-                         SELECT child.id FROM workspace_nodes child \
-                         JOIN subtree parent ON child.parent_id = parent.id\
-                     ) \
-                     DELETE FROM documents_fts WHERE note_id IN (SELECT id FROM subtree)",
-                    [root_id],
-                )
+                .execute(purge_fts_sql, [root_id])
                 .map_err(backend)?;
             let changed = transaction
                 .execute(
@@ -1540,20 +1549,21 @@ fn save_document(
     }
     let next_revision = expected_revision.saturating_add(1);
     let changed = transaction
-        .execute(
+        .prepare_cached(
             "UPDATE documents \
              SET document_json = ?2, markdown = ?3, revision = ?4, word_count = ?5, \
                  sealed_body = NULL, sealed_nonce = NULL, sealed_key_id = NULL \
              WHERE note_id = ?1 AND revision = ?6",
-            params![
-                note_id,
-                document_json.to_string(),
-                markdown,
-                next_revision,
-                word_count,
-                expected_revision
-            ],
         )
+        .map_err(backend)?
+        .execute(params![
+            note_id,
+            document_json.to_string(),
+            markdown,
+            next_revision,
+            word_count,
+            expected_revision
+        ])
         .map_err(backend)?;
     if changed == 0 {
         let current = current_revision(transaction, note_id)?;
@@ -1564,10 +1574,9 @@ fn save_document(
         });
     }
     transaction
-        .execute(
-            "UPDATE workspace_nodes SET updated_at = ?2 WHERE id = ?1",
-            params![note_id, at],
-        )
+        .prepare_cached("UPDATE workspace_nodes SET updated_at = ?2 WHERE id = ?1")
+        .map_err(backend)?
+        .execute(params![note_id, at])
         .map_err(backend)?;
     let title = node_title(transaction, note_id)?;
     replace_fts(transaction, note_id, &title, markdown)?;
@@ -1874,11 +1883,9 @@ fn prune_detached_images(
 ) -> Result<(), StorageError> {
     let live = skriuw_domain::document_image_ids(document);
     let cover_image_id = transaction
-        .query_row(
-            "SELECT cover_image_id FROM workspace_nodes WHERE id = ?1",
-            [note_id],
-            |row| row.get::<_, Option<String>>(0),
-        )
+        .prepare_cached("SELECT cover_image_id FROM workspace_nodes WHERE id = ?1")
+        .map_err(backend)?
+        .query_row([note_id], |row| row.get::<_, Option<String>>(0))
         .map_err(backend)?;
     let stored = {
         let mut statement = transaction
@@ -2220,11 +2227,9 @@ fn require_note_any_availability(
 
 fn require_available_node(transaction: &Transaction<'_>, id: &str) -> Result<String, StorageError> {
     let kind = transaction
-        .query_row(
-            "SELECT kind FROM workspace_nodes WHERE id = ?1",
-            [id],
-            |row| row.get::<_, String>(0),
-        )
+        .prepare_cached("SELECT kind FROM workspace_nodes WHERE id = ?1")
+        .map_err(backend)?
+        .query_row([id], |row| row.get::<_, String>(0))
         .optional()
         .map_err(backend)?;
     let kind = kind.ok_or_else(|| StorageError::NotFound(id.into()))?;
@@ -2238,7 +2243,7 @@ fn require_available_node(transaction: &Transaction<'_>, id: &str) -> Result<Str
 
 pub(crate) fn node_is_available(connection: &Connection, id: &str) -> Result<bool, StorageError> {
     connection
-        .query_row(
+        .prepare_cached(
             "WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (\
                  SELECT id, parent_id, deleted_at FROM workspace_nodes WHERE id = ?1 \
                  UNION ALL \
@@ -2248,19 +2253,17 @@ pub(crate) fn node_is_available(connection: &Connection, id: &str) -> Result<boo
              ) \
              SELECT COUNT(*) > 0 AND COALESCE(MAX(deleted_at IS NOT NULL), 0) = 0 \
              FROM ancestors",
-            [id],
-            |row| row.get(0),
         )
+        .map_err(backend)?
+        .query_row([id], |row| row.get(0))
         .map_err(backend)
 }
 
 pub(crate) fn node_kind(connection: &Connection, id: &str) -> Result<Option<String>, StorageError> {
     connection
-        .query_row(
-            "SELECT kind FROM workspace_nodes WHERE id = ?1",
-            [id],
-            |row| row.get(0),
-        )
+        .prepare_cached("SELECT kind FROM workspace_nodes WHERE id = ?1")
+        .map_err(backend)?
+        .query_row([id], |row| row.get(0))
         .optional()
         .map_err(backend)
 }
@@ -2333,11 +2336,9 @@ pub(crate) fn require_worker(worker_id: &str) -> Result<(), StorageError> {
 
 fn current_revision(transaction: &Transaction<'_>, id: &str) -> Result<i64, StorageError> {
     transaction
-        .query_row(
-            "SELECT revision FROM documents WHERE note_id = ?1",
-            [id],
-            |row| row.get(0),
-        )
+        .prepare_cached("SELECT revision FROM documents WHERE note_id = ?1")
+        .map_err(backend)?
+        .query_row([id], |row| row.get(0))
         .optional()
         .map_err(backend)?
         .ok_or_else(|| StorageError::NotFound(id.into()))
@@ -2345,11 +2346,9 @@ fn current_revision(transaction: &Transaction<'_>, id: &str) -> Result<i64, Stor
 
 fn node_title(transaction: &Transaction<'_>, id: &str) -> Result<String, StorageError> {
     transaction
-        .query_row(
-            "SELECT title FROM workspace_nodes WHERE id = ?1",
-            [id],
-            |row| row.get(0),
-        )
+        .prepare_cached("SELECT title FROM workspace_nodes WHERE id = ?1")
+        .map_err(backend)?
+        .query_row([id], |row| row.get(0))
         .optional()
         .map_err(backend)?
         .ok_or_else(|| StorageError::NotFound(id.into()))
@@ -2361,15 +2360,28 @@ pub(crate) fn replace_fts(
     title: &str,
     markdown: &str,
 ) -> Result<(), StorageError> {
+    if fts_keyed_by_document_rowid(transaction)? {
+        delete_fts_by_document_rowid(transaction, note_id)?;
+        return insert_fts(transaction, note_id, title, markdown);
+    }
     transaction
-        .execute("DELETE FROM documents_fts WHERE note_id = ?1", [note_id])
+        .prepare_cached("DELETE FROM documents_fts WHERE note_id = ?1")
+        .map_err(backend)?
+        .execute([note_id])
         .map_err(backend)?;
-    insert_fts(transaction, note_id, title, markdown)
+    transaction
+        .prepare_cached("INSERT INTO documents_fts(note_id, title, markdown) VALUES (?1, ?2, ?3)")
+        .map_err(backend)?
+        .execute(params![note_id, title, skriuw_domain::index_text(markdown)])
+        .map_err(backend)?;
+    Ok(())
 }
 
 /// The body column is named `markdown` because migration 0001 named it so and
 /// an FTS5 virtual table cannot rename a column; it holds the projected text
-/// of [`skriuw_domain::index_text`], not raw Markdown. See ADR-0041.
+/// of [`skriuw_domain::index_text`], not raw Markdown. The row takes the rowid
+/// of the note's `documents` row, so callers either start from an empty index
+/// or have removed the note's previous row first. See ADR-0041.
 pub(crate) fn insert_fts(
     transaction: &Transaction<'_>,
     note_id: &str,
@@ -2377,10 +2389,39 @@ pub(crate) fn insert_fts(
     markdown: &str,
 ) -> Result<(), StorageError> {
     transaction
-        .execute(
-            "INSERT INTO documents_fts(note_id, title, markdown) VALUES (?1, ?2, ?3)",
-            params![note_id, title, skriuw_domain::index_text(markdown)],
+        .prepare_cached(
+            "INSERT INTO documents_fts(rowid, note_id, title, markdown) \
+             SELECT rowid, note_id, ?2, ?3 FROM documents WHERE note_id = ?1",
         )
+        .map_err(backend)?
+        .execute(params![note_id, title, skriuw_domain::index_text(markdown)])
+        .map_err(backend)?;
+    Ok(())
+}
+
+pub(crate) fn delete_fts(transaction: &Transaction<'_>, note_id: &str) -> Result<(), StorageError> {
+    if fts_keyed_by_document_rowid(transaction)? {
+        return delete_fts_by_document_rowid(transaction, note_id);
+    }
+    transaction
+        .prepare_cached("DELETE FROM documents_fts WHERE note_id = ?1")
+        .map_err(backend)?
+        .execute([note_id])
+        .map_err(backend)?;
+    Ok(())
+}
+
+fn delete_fts_by_document_rowid(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+) -> Result<(), StorageError> {
+    transaction
+        .prepare_cached(
+            "DELETE FROM documents_fts \
+             WHERE rowid = (SELECT rowid FROM documents WHERE note_id = ?1)",
+        )
+        .map_err(backend)?
+        .execute([note_id])
         .map_err(backend)?;
     Ok(())
 }
@@ -2406,7 +2447,7 @@ pub(crate) fn enqueue_history(
 ) -> Result<(), StorageError> {
     if provenance == HistoryProvenance::Local {
         let coalesced = transaction
-            .execute(
+            .prepare_cached(
                 "UPDATE history_outbox SET revision = ?2, markdown = ?3 \
                  WHERE id = (\
                      SELECT id FROM history_outbox \
@@ -2417,13 +2458,14 @@ pub(crate) fn enqueue_history(
                          ORDER BY created_at DESC, id DESC LIMIT 1\
                      )\
                  )",
-                params![
-                    note_id,
-                    revision,
-                    markdown,
-                    created_at.saturating_sub(HISTORY_COALESCE_WINDOW_MS)
-                ],
             )
+            .map_err(backend)?
+            .execute(params![
+                note_id,
+                revision,
+                markdown,
+                created_at.saturating_sub(HISTORY_COALESCE_WINDOW_MS)
+            ])
             .map_err(backend)?;
         if coalesced > 0 {
             return Ok(());
@@ -2434,20 +2476,21 @@ pub(crate) fn enqueue_history(
         HistoryProvenance::Remote | HistoryProvenance::Superseded => created_at,
     };
     transaction
-        .execute(
+        .prepare_cached(
             "INSERT INTO history_outbox(\
                 id, note_id, revision, markdown, created_at, next_attempt_at, provenance\
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![
-                Uuid::new_v4().to_string(),
-                note_id,
-                revision,
-                markdown,
-                created_at,
-                next_attempt_at,
-                provenance.as_str()
-            ],
         )
+        .map_err(backend)?
+        .execute(params![
+            Uuid::new_v4().to_string(),
+            note_id,
+            revision,
+            markdown,
+            created_at,
+            next_attempt_at,
+            provenance.as_str()
+        ])
         .map_err(backend)?;
     Ok(())
 }

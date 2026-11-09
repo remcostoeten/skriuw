@@ -84,3 +84,20 @@ fn busy_and_locked_sqlite_failures_map_to_a_transient_error() {
         StorageError::Backend(_)
     ));
 }
+
+#[test]
+fn a_file_workspace_opens_with_a_larger_page_cache_and_memory_mapped_reads() {
+    let directory = tempdir().expect("tempdir");
+    let storage = SqliteWorkspace::open(directory.path().join("workspace.db")).expect("open");
+    let connection = storage.lock().expect("database lock");
+
+    let cache_size = connection
+        .query_row("PRAGMA cache_size", [], |row| row.get::<_, i64>(0))
+        .expect("cache size");
+    let mmap_size = connection
+        .query_row("PRAGMA mmap_size", [], |row| row.get::<_, i64>(0))
+        .expect("mmap size");
+
+    assert_eq!(cache_size, -16_000);
+    assert_eq!(mmap_size, 268_435_456);
+}

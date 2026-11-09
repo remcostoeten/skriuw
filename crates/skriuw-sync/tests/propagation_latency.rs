@@ -3,7 +3,10 @@
 //! Two real SQLite workspace files, two coordinator threads, one fake server,
 //! and the fake wake channel wired as the service wires it: an accepted push
 //! on device A wakes device B. The measured span is the interactive commit on
-//! A up to B's workspace observer reporting the applied change.
+//! A up to B's workspace observer reporting the applied change. Device A starts
+//! a cycle on every commit, so the figure is the replication pipeline alone;
+//! the coordinator's default `SyncLocalCommitDelay` adds its quiet window on
+//! top of it while someone is typing.
 
 #[allow(dead_code)]
 mod support;
@@ -18,7 +21,8 @@ use skriuw_storage::{
     NewSyncConnection, WorkspaceMaintenance, WorkspaceStorage, WorkspaceSyncQueue,
 };
 use skriuw_sync::{
-    RemoteChangeSet, SyncCoordinator, SyncCoordinatorConfig, SyncStatus, SyncTransport,
+    RemoteChangeSet, SyncCoordinator, SyncCoordinatorConfig, SyncLocalCommitDelay, SyncStatus,
+    SyncTransport,
 };
 use support::{FakeServer, FakeTransport, create_note, save_document};
 
@@ -93,7 +97,13 @@ fn commit_to_peer_observer_latency_stays_under_two_seconds() {
         Arc::clone(&transport_a) as Arc<dyn SyncTransport>,
         support::FakeAssetStore::new(),
         Arc::new(skriuw_sync::SystemClock),
-        SyncCoordinatorConfig::default(),
+        SyncCoordinatorConfig {
+            local_commit: SyncLocalCommitDelay {
+                quiet_ms: 0,
+                max_ms: 0,
+            },
+            ..SyncCoordinatorConfig::default()
+        },
     );
     wait_for_status(&coordinator_a, |status| *status == SyncStatus::UpToDate);
     wait_for_status(&coordinator_b, |status| *status == SyncStatus::UpToDate);

@@ -22,9 +22,25 @@ type Particle = {
 
 const PARTICLE_COUNT = 6;
 
-const REST_SPEED = 0.6;
 const HOVER_SPEED = 1;
 const PRESS_SPEED = 2.4;
+
+const LIQUID_METAL_UNIFORMS = {
+  u_colorBack: [0.08, 0.02, 0.18, 1],
+  u_colorTint: [0.78, 0.62, 1, 1],
+  u_isImage: false,
+  u_repetition: 4,
+  u_softness: 0.5,
+  u_shiftRed: 0.15,
+  u_shiftBlue: 0.5,
+  u_distortion: 0,
+  u_contour: 0,
+  u_angle: 45,
+  u_scale: 8,
+  u_shape: 1,
+  u_offsetX: 0.1,
+  u_offsetY: -0.1,
+};
 
 function scatterParticles(): Particle[] {
   return Array.from({ length: PARTICLE_COUNT }, (_, index) => ({
@@ -36,63 +52,61 @@ function scatterParticles(): Particle[] {
   }));
 }
 
+function prefersReducedMotion(): boolean {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function mountShader(host: HTMLElement): ShaderMount | null {
+  try {
+    return new ShaderMount(host, liquidMetalFragmentShader, LIQUID_METAL_UNIFORMS, undefined, 0);
+  } catch (error) {
+    console.error("liquid metal shader unavailable", error);
+    return null;
+  }
+}
+
+function disposeShader(mount: ShaderMount): void {
+  const gl = mount.canvasElement.getContext("webgl2");
+  mount.dispose();
+  // ShaderMount.dispose leaves the context alive, and browsers cap live WebGL contexts.
+  gl?.getExtension("WEBGL_lose_context")?.loseContext();
+}
+
 export function LiquidMetalButton({ label, children, tabIndex, onRef, onPress, onFocus }: Props) {
   const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [pressed, setPressed] = useState(false);
+  const [boosted, setBoosted] = useState(false);
   const [ripples, setRipples] = useState<Ripple[]>([]);
   const [particles] = useState(scatterParticles);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const shaderHostRef = useRef<HTMLDivElement>(null);
+  const shaderHostRef = useRef<HTMLSpanElement>(null);
   const shaderRef = useRef<ShaderMount | null>(null);
   const rippleId = useRef(0);
+  const active = hovered || focused || pressed || boosted;
 
   useEffect(() => {
-    const host = shaderHostRef.current;
-    if (!host) return;
-
-    let mount: ShaderMount | null = null;
-    try {
-      mount = new ShaderMount(
-        host,
-        liquidMetalFragmentShader,
-        {
-          u_colorBack: [0.08, 0.02, 0.18, 1],
-          u_colorTint: [0.78, 0.62, 1, 1],
-          u_isImage: false,
-          u_repetition: 4,
-          u_softness: 0.5,
-          u_shiftRed: 0.15,
-          u_shiftBlue: 0.5,
-          u_distortion: 0,
-          u_contour: 0,
-          u_angle: 45,
-          u_scale: 8,
-          u_shape: 1,
-          u_offsetX: 0.1,
-          u_offsetY: -0.1,
-        },
-        undefined,
-        REST_SPEED,
-      );
-    } catch (error) {
-      console.error("liquid metal shader unavailable", error);
-    }
-    shaderRef.current = mount;
-
     return () => {
-      mount?.dispose();
+      if (shaderRef.current) disposeShader(shaderRef.current);
       shaderRef.current = null;
     };
   }, []);
 
-  function press(event: MouseEvent<HTMLButtonElement>): void {
-    const shader = shaderRef.current;
-    if (shader) {
-      shader.setSpeed(PRESS_SPEED);
-      window.setTimeout(() => {
-        shaderRef.current?.setSpeed(hovered ? HOVER_SPEED : REST_SPEED);
-      }, 300);
+  useEffect(() => {
+    if (!active) {
+      shaderRef.current?.setSpeed(0);
+      return;
     }
+    const host = shaderHostRef.current;
+    if (!shaderRef.current && host && !prefersReducedMotion()) {
+      shaderRef.current = mountShader(host);
+    }
+    shaderRef.current?.setSpeed(pressed || boosted ? PRESS_SPEED : HOVER_SPEED);
+  }, [active, pressed, boosted]);
+
+  function press(event: MouseEvent<HTMLButtonElement>): void {
+    setBoosted(true);
+    window.setTimeout(() => setBoosted(false), 300);
 
     const rect = buttonRef.current?.getBoundingClientRect();
     if (rect) {
@@ -111,7 +125,11 @@ export function LiquidMetalButton({ label, children, tabIndex, onRef, onPress, o
   }
 
   return (
-    <span className="liquid-metal" data-pressed={pressed ? "true" : undefined}>
+    <span
+      className="liquid-metal"
+      data-pressed={pressed ? "true" : undefined}
+      data-active={active ? "true" : undefined}
+    >
       <span className="liquid-metal-glow" aria-hidden="true" />
       <span className="liquid-metal-particles" aria-hidden="true">
         {particles.map((particle, index) => (
@@ -123,7 +141,7 @@ export function LiquidMetalButton({ label, children, tabIndex, onRef, onPress, o
               left: `${particle.left}%`,
               width: particle.size,
               height: particle.size,
-              animationDelay: `${particle.delay}s`,
+              animationDelay: `-${particle.delay}s`,
               animationDuration: `${particle.duration}s`,
             }}
           />
@@ -144,15 +162,15 @@ export function LiquidMetalButton({ label, children, tabIndex, onRef, onPress, o
         tabIndex={tabIndex}
         className="liquid-metal-hit"
         data-hovered={hovered ? "true" : undefined}
-        onFocus={onFocus}
-        onMouseEnter={() => {
-          setHovered(true);
-          shaderRef.current?.setSpeed(HOVER_SPEED);
+        onFocus={() => {
+          setFocused(true);
+          onFocus();
         }}
+        onBlur={() => setFocused(false)}
+        onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => {
           setHovered(false);
           setPressed(false);
-          shaderRef.current?.setSpeed(REST_SPEED);
         }}
         onMouseDown={(event) => {
           event.preventDefault();

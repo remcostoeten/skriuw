@@ -6,6 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+serde_json.workspace = true
 skriuw-domain = { path = "../skriuw-domain" }
 thiserror.workspace = true
 zeroize = "1"

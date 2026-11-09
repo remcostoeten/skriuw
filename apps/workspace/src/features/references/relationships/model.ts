@@ -248,11 +248,23 @@ function relationshipCandidates(state: RendererState, noteId: string): GraphCand
 }
 
 export function projectHasRelationships(state: RendererState, noteId: string): boolean {
+  return hasCoVisitedNotes(state, noteId) || projectHasLinkedRelationships(state, noteId);
+}
+
+function hasCoVisitedNotes(state: RendererState, noteId: string): boolean {
+  for (const candidateId of state.coVisits.get(noteId)?.keys() ?? []) {
+    if (candidateId !== noteId && availableNote(state, candidateId)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function projectHasLinkedRelationships(state: RendererState, noteId: string): boolean {
   return (
     relationshipCandidates(state, noteId).length > 0 ||
     projectBacklinks(state, noteId).length > 0 ||
     projectOutgoingNotes(state, noteId).length > 0 ||
-    projectCoVisitedNotes(state, noteId).length > 0 ||
     projectSharedEntities(state, noteId, "person").length > 0 ||
     projectSharedEntities(state, noteId, "tag").length > 0 ||
     projectRelatedJournalEntries(state, noteId).length > 0
@@ -329,6 +341,7 @@ function toRows(entries: readonly (BacklinkEntry | RelationshipNote)[]): Detaile
   return entries.map((entry) => ({ noteId: entry.noteId, title: entry.title, detail: "" }));
 }
 
+// Co-visits change on every note switch, so they are checked outside the cache.
 const RELATIONSHIP_INPUTS = [
   "sourceNodes",
   "nodes",
@@ -338,7 +351,6 @@ const RELATIONSHIP_INPUTS = [
   "outgoingReferences",
   "tags",
   "people",
-  "coVisits",
   "propertiesByNoteId",
 ] as const satisfies readonly (keyof RendererState)[];
 
@@ -359,6 +371,8 @@ function cachedPerNote<T>(project: (state: RendererState, noteId: string) => T) 
   };
 }
 
+const selectHasLinkedRelationships = cachedPerNote(projectHasLinkedRelationships);
+
 /**
  * @name selectHasRelationships
  * @description Whether a note has any relationship worth listing. The last
@@ -368,7 +382,9 @@ function cachedPerNote<T>(project: (state: RendererState, noteId: string) => T) 
  * @example
  * const hasRelationships = selectHasRelationships(state, noteId);
  */
-export const selectHasRelationships = cachedPerNote(projectHasRelationships);
+export function selectHasRelationships(state: RendererState, noteId: string): boolean {
+  return hasCoVisitedNotes(state, noteId) || selectHasLinkedRelationships(state, noteId);
+}
 
 /**
  * @name selectBacklinkRows

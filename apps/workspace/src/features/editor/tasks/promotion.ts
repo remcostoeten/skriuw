@@ -122,6 +122,63 @@ export function promoteSelectedChecklistItem(
   return null;
 }
 
+type BlockTaskLink = Pick<
+  ChecklistTaskLink,
+  "taskId" | "sourceBlockId" | "title" | "status" | "dueDate"
+>;
+
+const NO_BLOCK_TASK_LINKS: readonly BlockTaskLink[] = [];
+
+const blockTaskLinks = new WeakMap<ProseMirrorNode, readonly BlockTaskLink[]>();
+
+function checklistTaskLink(node: ProseMirrorNode): BlockTaskLink | null {
+  const taskId = node.attrs.taskId;
+  const sourceBlockId = node.attrs.blockId;
+  if (
+    node.type.name !== "check_item" ||
+    typeof taskId !== "string" ||
+    typeof sourceBlockId !== "string" ||
+    !validId(taskId) ||
+    !validId(sourceBlockId) ||
+    taskId === sourceBlockId
+  ) {
+    return null;
+  }
+  const title = checklistTaskTitle(node);
+  if (!title) return null;
+  return {
+    taskId,
+    sourceBlockId,
+    title,
+    status: node.attrs.checked ? "done" : "todo",
+    dueDate: checklistDueDate(node),
+  };
+}
+
+function taskLinksInBlock(block: ProseMirrorNode): readonly BlockTaskLink[] {
+  const cached = blockTaskLinks.get(block);
+  if (cached) return cached;
+  const links: BlockTaskLink[] = [];
+  const own = checklistTaskLink(block);
+  if (own) links.push(own);
+  block.descendants((node) => {
+    const link = checklistTaskLink(node);
+    if (link) links.push(link);
+  });
+  const result = links.length > 0 ? links : NO_BLOCK_TASK_LINKS;
+  blockTaskLinks.set(block, result);
+  return result;
+}
+
+/**
+ * @name promotedChecklistTaskLinks
+ * @description Lists the linked, titled checklist items in a document, in
+ * document order. The walk is memoised per top-level block node, so a save
+ * after an edit only revisits the blocks the edit replaced.
+ *
+ * @example
+ * const links = promotedChecklistTaskLinks(view.state.doc, noteId, Date.now());
+ */
 export function promotedChecklistTaskLinks(
   document: ProseMirrorNode,
   noteId: string,
@@ -131,32 +188,18 @@ export function promotedChecklistTaskLinks(
     return [];
   }
   const links: ChecklistTaskLink[] = [];
-  document.descendants((node) => {
-    const taskId = node.attrs.taskId;
-    const sourceBlockId = node.attrs.blockId;
-    if (
-      node.type.name !== "check_item" ||
-      typeof taskId !== "string" ||
-      typeof sourceBlockId !== "string" ||
-      !validId(taskId) ||
-      !validId(sourceBlockId) ||
-      taskId === sourceBlockId
-    ) {
-      return;
+  document.forEach((block) => {
+    for (const link of taskLinksInBlock(block)) {
+      links.push({
+        taskId: link.taskId,
+        sourceNoteId: noteId,
+        sourceBlockId: link.sourceBlockId,
+        title: link.title,
+        status: link.status,
+        dueDate: link.dueDate,
+        updatedAt: at,
+      });
     }
-    const title = checklistTaskTitle(node);
-    if (!title) {
-      return;
-    }
-    links.push({
-      taskId,
-      sourceNoteId: noteId,
-      sourceBlockId,
-      title,
-      status: node.attrs.checked ? "done" : "todo",
-      dueDate: checklistDueDate(node),
-      updatedAt: at,
-    });
   });
   return links;
 }

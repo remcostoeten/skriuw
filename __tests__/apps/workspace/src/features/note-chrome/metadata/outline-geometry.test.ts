@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import {
-  lengthAtY,
+  lengthsAtY,
   pathPoints,
   roundedPath,
+  roundedSegments,
   type Point,
 } from "@/features/note-chrome/metadata/outline-geometry";
 
@@ -63,26 +64,66 @@ test("rounded path is empty below two points and starts with a move", () => {
   assert.ok(roundedPath(pathPoints(ROWS).points, 8).startsWith("M "));
 });
 
-test("length at y on a straight vertical line matches the requested y", () => {
-  const length = lengthAtY((at) => ({ x: 0, y: at }), 400, 137);
-
-  assert.ok(Math.abs(length - 137) <= 0.25);
-});
-
-test("length at y lands on each anchor of a stepped path", () => {
-  const { points, anchors } = pathPoints(ROWS);
-  const { sample, total } = polylineSampler(points);
-
-  for (const anchor of anchors) {
-    const expected = points[anchor]!;
-    const found = sample(lengthAtY(sample, total, expected.y));
-    assert.ok(Math.hypot(found.x - expected.x, found.y - expected.y) <= 1);
-  }
-});
-
-test("length at y on an empty path is zero", () => {
-  assert.equal(
-    lengthAtY(() => ({ x: 0, y: 0 }), 0, 50),
-    0,
+test("lengths at y on a straight vertical line match the requested y", () => {
+  const segments = roundedSegments(
+    [
+      { x: 0, y: 0 },
+      { x: 0, y: 400 },
+    ],
+    8,
   );
+  const { lengths, total } = lengthsAtY(segments, [137, 250]);
+
+  assert.deepEqual(lengths, [137, 250]);
+  assert.equal(total, 400);
+});
+
+test("lengths at y land on each anchor of a stepped rounded path", () => {
+  const { points, anchors } = pathPoints(ROWS);
+  const segments = roundedSegments(points, 8);
+  const polyline = [segments[0]!.from];
+  for (const segment of segments) {
+    if (segment.control) {
+      for (let step = 1; step <= 64; step += 1) {
+        const t = step / 64;
+        const inverse = 1 - t;
+        polyline.push({
+          x:
+            inverse * inverse * segment.from.x +
+            2 * inverse * t * segment.control.x +
+            t * t * segment.to.x,
+          y:
+            inverse * inverse * segment.from.y +
+            2 * inverse * t * segment.control.y +
+            t * t * segment.to.y,
+        });
+      }
+    } else {
+      polyline.push(segment.to);
+    }
+  }
+  const { sample, total } = polylineSampler(polyline);
+  const { lengths, total: computedTotal } = lengthsAtY(
+    segments,
+    anchors.map((anchor) => points[anchor]!.y),
+  );
+
+  assert.ok(Math.abs(computedTotal - total) <= 0.1);
+  anchors.forEach((anchor, index) => {
+    const expected = points[anchor]!;
+    const found = sample(lengths[index]!);
+    assert.ok(Math.hypot(found.x - expected.x, found.y - expected.y) <= 1);
+  });
+});
+
+test("rounded segments rebuild the same path the outline draws", () => {
+  const { points } = pathPoints(ROWS);
+  const segments = roundedSegments(points, 8);
+
+  assert.equal(segments.at(-1)!.to, points.at(-1));
+  assert.equal(segments.filter((segment) => segment.control !== null).length, points.length - 2);
+});
+
+test("lengths at y on an empty path are zero", () => {
+  assert.deepEqual(lengthsAtY([], [50]), { lengths: [0], total: 0 });
 });

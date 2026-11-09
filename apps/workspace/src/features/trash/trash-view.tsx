@@ -6,9 +6,11 @@ import {
   RotateCcwIcon,
   SearchIcon,
   Trash2Icon,
-  Undo2Icon,
 } from "@/shared/icons/static";
 import { formatRelativeTime } from "@/shared/format/relative-time";
+import { EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
+import { EmptyState } from "@/shared/empty-state/empty-state";
+import { SearchIllustration, TrashIllustration } from "@/shared/empty-state/illustrations";
 import { Button } from "@/shared/ui/button";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { Select, type SelectOption } from "@/shared/ui/select";
@@ -141,7 +143,7 @@ export function TrashView({ store }: Props) {
       </div>
 
       {visibleRows.length === 0 ? (
-        <EmptyState searching={query.trim().length > 0} />
+        <TrashEmpty searching={query.trim().length > 0} />
       ) : (
         <TrashList
           rows={visibleRows}
@@ -306,35 +308,23 @@ function TrashRowItem({ row, onRestore, onPurge }: TrashRowItemProps) {
   );
 }
 
-type EmptyStateProps = {
+type TrashEmptyProps = {
   searching: boolean;
 };
 
-function EmptyState({ searching }: EmptyStateProps) {
+function TrashEmpty({ searching }: TrashEmptyProps) {
   return (
     <div className={cn(columnClass, "self-start pt-8")}>
-      <div className="flex flex-col items-center rounded-lg border border-dashed border-border px-6 py-14 text-center text-theme-secondary">
-        <span
-          className="flex size-9 items-center justify-center rounded-lg bg-muted text-theme-dim"
-          aria-hidden="true"
-        >
-          {searching ? <SearchIcon size={16} /> : <Trash2Icon size={16} />}
-        </span>
-        <h2 className="mt-3.5 text-[15px] font-[620] text-foreground">
-          {searching ? "No matching items" : "Trash is empty"}
-        </h2>
-        <p className="mt-1.5 max-w-sm text-xs leading-[1.45]">
-          {searching
-            ? "Try a different word — deleted items match on title, location, and body."
-            : "Notes and folders you delete stay here until you remove them permanently."}
-        </p>
-        {!searching && (
-          <span className="mt-5 inline-flex items-center gap-2 text-[11px] text-theme-dim">
-            <Undo2Icon size={13} />
-            Restoring an item puts it back in its original folder
-          </span>
-        )}
-      </div>
+      <EmptyState
+        colors={EMPTY_STATE_COLORS}
+        illustration={searching ? <SearchIllustration /> : <TrashIllustration />}
+        title={searching ? "No matching items" : "Trash is empty"}
+        description={
+          searching
+            ? "Try a different word. Deleted items match on title, location, and body."
+            : "Notes and folders you delete stay here until you remove them permanently. Restoring an item puts it back in its original folder."
+        }
+      />
     </div>
   );
 }

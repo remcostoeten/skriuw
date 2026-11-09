@@ -14,6 +14,7 @@ type MeasuredPhase = {
 
 type BudgetRecord = {
   estimatedFrameMs: number;
+  capabilities: { longAnimationFrames: boolean };
   selection: MeasuredPhase & {
     summary: { dispatch: TimingBound; editorInstallation: TimingBound };
   };
@@ -38,7 +39,7 @@ type BudgetRecord = {
   };
   trace: {
     keyboard: { maxMs: number };
-  };
+  } | null;
 };
 
 export type BudgetStatus = {
@@ -49,8 +50,8 @@ export type BudgetStatus = {
   keystrokeToPaint: boolean;
   hundredSwitchesDroppedNoFrames: boolean;
   referenceSuggestions: boolean;
-  navigationMainThreadTask: boolean;
-  noBlockingAnimationFrames: boolean;
+  navigationMainThreadTask: boolean | null;
+  noBlockingAnimationFrames: boolean | null;
   hundredSwitchesNoFrameMissAt120Hz: boolean | null;
 };
 
@@ -71,7 +72,9 @@ function hasNoBlockingFrames(phases: readonly MeasuredPhase[]): boolean {
 /**
  * @name budgetStatus
  * @description Evaluates one harness record against the performance contract budgets.
- * A budget that cannot be measured on the current display is `null`.
+ * A budget that cannot be measured on the current display or browser is `null`: the 120 Hz
+ * budget below 111 Hz, the keydown task budget without a Chrome trace, and the blocking frame
+ * budget without Long Animation Frame support.
  * @example
  * record.budgets = budgetStatus(record);
  */
@@ -93,8 +96,11 @@ export function budgetStatus(record: BudgetRecord): BudgetStatus {
     referenceSuggestions:
       below(referenceSuggestions, frameBudgetMs, frameCeilingMs) &&
       referenceSuggestions.bridgeCalls.length === 0,
-    navigationMainThreadTask: record.trace.keyboard.maxMs < frameBudgetMs,
-    noBlockingAnimationFrames: hasNoBlockingFrames([selection, keyboardSwitches, typing]),
+    navigationMainThreadTask:
+      record.trace === null ? null : record.trace.keyboard.maxMs < frameBudgetMs,
+    noBlockingAnimationFrames: record.capabilities.longAnimationFrames
+      ? hasNoBlockingFrames([selection, keyboardSwitches, typing])
+      : null,
     hundredSwitchesNoFrameMissAt120Hz:
       record.estimatedFrameMs <= highRefreshFrameLimitMs
         ? keyboardSwitches.frameMisses.at120Hz === 0

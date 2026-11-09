@@ -2,6 +2,9 @@ import { useMemo } from "react";
 import { useRouteFocus, useRouteHistoryVersion } from "@/shared/routing/app-route";
 import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import { activateNote } from "@/features/notes/navigation";
+import { EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
+import { EmptyState } from "@/shared/empty-state/empty-state";
+import { ActivityIllustration } from "@/shared/empty-state/illustrations";
 import { ChevronLeftIcon, HistoryIcon } from "@/shared/icons/static";
 import { formatRelativeTime } from "@/shared/format/relative-time";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
@@ -89,16 +92,12 @@ export function HistoryView({ store }: Props) {
         />
       ) : (
         <div className="grid place-items-center px-6">
-          <div className="flex max-w-[42ch] flex-col items-center text-center">
-            <span className="mb-3 grid size-10 place-items-center rounded-full bg-theme-hover text-theme-secondary">
-              <HistoryIcon size={18} />
-            </span>
-            <p className="m-0 text-[13px] font-[600] text-foreground">No revisions yet</p>
-            <p className="mt-1 text-[12px] leading-[1.5] text-muted-foreground">
-              Keep writing and Skriuw snapshots this note as it changes. Revisions show up here the
-              moment one is captured.
-            </p>
-          </div>
+          <EmptyState
+            colors={EMPTY_STATE_COLORS}
+            illustration={<ActivityIllustration />}
+            title="No revisions yet"
+            description="Keep writing and Skriuw snapshots this note as it changes. Revisions show up here the moment one is captured."
+          />
         </div>
       )}
     </main>

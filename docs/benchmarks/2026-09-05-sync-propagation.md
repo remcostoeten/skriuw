@@ -12,7 +12,10 @@ channel wired the way the service wires it: a push accepted from device A
 calls `notify_remote_change` on device B's coordinator. The measured span is
 `apply_operations` on A's interactive connection (plus `notify_local_commit`)
 until B's `workspace_observer` receives the `RemoteChangeSet` for the note,
-which covers A's push cycle, the wake, B's pull cycle, and B's apply. 100
+which covers A's push cycle, the wake, B's pull cycle, and B's apply. Device
+A runs with `SyncLocalCommitDelay` set to zero so every commit starts a cycle;
+the shipped coordinator coalesces commits and adds its 2 s quiet window (15 s
+at most under continuous typing) to these figures. 100
 sequential `SaveDocument` edits on one note after one seeding `CreateNote`;
 every reported change names exactly that note and no structure change, and B's
 final body equals the last edit. Hardware: Intel Core i7-10700F, Linux 7.1,

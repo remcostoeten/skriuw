@@ -9,6 +9,7 @@ import {
   createAnnotationDecorationPlugin,
   resolvedThreadIdsForNote,
   setAnnotationDecorations,
+  setNoteAnnotationDecorations,
   type AnnotationDecorationInputs,
 } from "@/features/editor/annotations/decorations";
 import { productSchema } from "@/features/editor/schema";
@@ -268,4 +269,96 @@ test("resolved ids are scoped to the note being edited", () => {
 
   assert.deepEqual([...resolvedThreadIdsForNote(annotations, "note-1")], ["a"]);
   assert.deepEqual([...resolvedThreadIdsForNote(annotations, null)], []);
+});
+
+test("inputs derived for another note leave the shown note untouched", () => {
+  const leaving = pushed(stateWith(docWithThreads("left-thread")), {
+    activeThreadId: "",
+    resolvedThreadIds: new Set<string>(),
+  });
+  let shown = leaving;
+  const applied = setNoteAnnotationDecorations(
+    {
+      get state() {
+        return shown;
+      },
+      dispatch: (transaction) => {
+        shown = shown.apply(transaction);
+      },
+    },
+    "note-left",
+    { noteId: "note-incoming", activeThreadId: "", resolvedThreadIds: new Set(["left-thread"]) },
+  );
+  assert.equal(applied, false);
+  assert.equal(shown, leaving);
+  assert.ok(!classesOf(shown)[0]?.includes("--resolved"));
+});
+
+test("the incoming note is painted with its own resolved threads once shown", () => {
+  let shown = stateWith(docWithThreads("resolved-thread"));
+  const applied = setNoteAnnotationDecorations(
+    {
+      get state() {
+        return shown;
+      },
+      dispatch: (transaction) => {
+        shown = shown.apply(transaction);
+      },
+    },
+    "note-incoming",
+    {
+      noteId: "note-incoming",
+      activeThreadId: "",
+      resolvedThreadIds: new Set(["resolved-thread"]),
+    },
+  );
+  assert.equal(applied, true);
+  assert.ok(classesOf(shown)[0]?.includes("--resolved"));
+});
+
+function paintedWithClasses(state: EditorState): string[] {
+  return decorationsOf(state)
+    .find()
+    .map(
+      (decoration) =>
+        `${decoration.from}-${decoration.to}:${String((decoration as { type: { attrs?: { class?: string } } }).type.attrs?.class ?? "")}`,
+    )
+    .sort();
+}
+
+function assertMatchesFreshPush(state: EditorState, inputs: AnnotationDecorationInputs): void {
+  assert.deepEqual(
+    paintedWithClasses(state),
+    paintedWithClasses(pushed(stateWith(state.doc), inputs)),
+  );
+}
+
+test("edits next to anchors in one block keep other blocks' anchors and match a rebuild", () => {
+  const inputs: AnnotationDecorationInputs = {
+    activeThreadId: "",
+    resolvedThreadIds: new Set(["second"]),
+  };
+  let state = pushed(
+    stateWith(
+      docOf(
+        paragraphOf(anchored("first", "first")),
+        paragraphOf(productSchema.text("plain ")),
+        paragraphOf(anchored("second", "second"), productSchema.text(" tail")),
+      ),
+    ),
+    inputs,
+  );
+  state = state.apply(state.tr.insertText("!", 3));
+  assertMatchesFreshPush(state, inputs);
+  state = state.apply(state.tr.split(4));
+  assertMatchesFreshPush(state, inputs);
+  state = state.apply(state.tr.join(state.doc.child(0).nodeSize));
+  assertMatchesFreshPush(state, inputs);
+  const end = state.doc.content.size;
+  state = state.apply(
+    state.tr.addMark(2, end - 2, requiredAnnotation().create({ threadId: "wide" })),
+  );
+  assertMatchesFreshPush(state, inputs);
+  state = state.apply(state.tr.removeMark(0, state.doc.content.size, requiredAnnotation()));
+  assertMatchesFreshPush(state, inputs);
 });

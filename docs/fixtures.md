@@ -70,6 +70,8 @@ cargo run --release --locked -p skriuw-fixtures --example export_tree_projection
 renderer. Both consumers rebuild projections from the Rust generator instead
 of relying on committed JSON.
 
+The product renderer harness adds document content, references, history headers, annotations, tasks, a journal and search answers on top of the projection in `apps/workspace/performance/fixture.ts`. Content is versioned: version 1 (`--content plain`) is uniform paragraphs in the eight measured notes, version 2 (`--content varied`, the default) is structured content in every note. [`apps/workspace/performance/README.md`](../apps/workspace/performance/README.md) describes both.
+
 ## Backend workload measurements
 
 `tests/backend_workloads.rs` adds deterministic correctness coverage plus manual optimized-build measurements for import, bootstrap, and native Git history workloads over the `mixed-1000` and `mixed-5000` fixtures. The default suite proves the complete pipeline with a 120-note mixed fixture: archive import, bootstrap state, search counts, SQLite integrity, outbox-to-Git drain, Git history integrity, and validated cache rebuild.
@@ -90,6 +92,6 @@ Raw samples, medians, environment metadata, and limitations are recorded in [ben
 
 ## Deferred
 
-- 50, 500, and 2,000-block document bodies wait for editor schema selection (ADR-0004).
+- Block-count document bodies for the Rust generator. The browser harness builds its 50, 150, 500 and 2,000-block bodies in TypeScript instead.
 - Trash, history, and import-under-load workload variants build on these generators later.
 - Timing budgets belong to the future fixed performance runner, never ordinary CI.

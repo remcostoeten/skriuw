@@ -23,8 +23,8 @@ function projection(noteCount = 100): TreeProjection {
 }
 
 test("performance snapshot is deterministic and preserves fixture identity", () => {
-  const first = createPerformanceSnapshot(projection(), 50);
-  const second = createPerformanceSnapshot(projection(), 50);
+  const first = createPerformanceSnapshot(projection(), 50, "plain");
+  const second = createPerformanceSnapshot(projection(), 50, "plain");
 
   assert.deepEqual(first, second);
   assert.equal(first.snapshot.documents.length, 100);
@@ -35,11 +35,24 @@ test("performance snapshot is deterministic and preserves fixture identity", () 
   assert.equal(document.content.length, 50);
 });
 
+test("varied performance snapshot is deterministic and keeps the measured block count", () => {
+  const first = createPerformanceSnapshot(projection(), 50, "varied");
+  const second = createPerformanceSnapshot(projection(), 50, "varied");
+
+  assert.deepEqual(first, second);
+  assert.equal(first.identity.operationsDigest, "fixture-digest");
+  assert.equal(first.identity.blockCount, 50);
+  assert.ok(first.snapshot.documents.length >= 100);
+});
+
 test("performance snapshot rejects projections without a complete switch pool", () => {
   const incomplete = projection(7);
-  assert.throws(() => createPerformanceSnapshot(incomplete, 50), /requires eight notes/);
+  assert.throws(() => createPerformanceSnapshot(incomplete, 50, "plain"), /requires eight notes/);
 });
 
 test("performance snapshot rejects projections without one hundred working-set notes", () => {
-  assert.throws(() => createPerformanceSnapshot(projection(99), 50), /requires one hundred notes/);
+  assert.throws(
+    () => createPerformanceSnapshot(projection(99), 50, "plain"),
+    /requires one hundred notes/,
+  );
 });

@@ -1,7 +1,8 @@
 import {
   memo,
   useCallback,
-  useLayoutEffect,
+  useDeferredValue,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -337,6 +338,12 @@ function RevisionList({ store, noteId, versions, onOpen }: RevisionListProps) {
     height: number;
   } | null>(null);
   const [belowFoldCount, setBelowFoldCount] = useState(0);
+  const [listNoteId, setListNoteId] = useState(noteId);
+  if (listNoteId !== noteId) {
+    setListNoteId(noteId);
+    setExpanded(false);
+    setBelowFoldCount(0);
+  }
   const hiddenCount = versions.length - collapsedRevisionCount;
   const collapsedTailCount = expanded ? 0 : Math.max(0, hiddenCount);
   const moreCount = belowFoldCount + collapsedTailCount;
@@ -349,12 +356,11 @@ function RevisionList({ store, noteId, versions, onOpen }: RevisionListProps) {
     }
   }
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const scroller = scrollerRef.current;
-    if (!scroller) {
+    if (!scroller || typeof ResizeObserver === "undefined") {
       return;
     }
-    setBelowFoldCount(countRevisionsBelowFold(scroller));
     const observer = new ResizeObserver(() => {
       setBelowFoldCount(countRevisionsBelowFold(scroller));
     });
@@ -585,26 +591,20 @@ function selectActiveNoteId(state: RendererState): string | null {
   return state.activeNoteId;
 }
 
-function selectActiveNoteMetadata(state: RendererState) {
-  return state.activeNoteId === null ? null : (state.metadata.get(state.activeNoteId) ?? null);
+function selectNoteMetadata(state: RendererState, noteId: string | null) {
+  return noteId === null ? null : (state.metadata.get(noteId) ?? null);
 }
 
-function selectActiveNoteHistory(state: RendererState) {
-  return state.activeNoteId === null
-    ? null
-    : (state.historyHeaders.get(state.activeNoteId) ?? null);
+function selectNoteHistory(state: RendererState, noteId: string | null) {
+  return noteId === null ? null : (state.historyHeaders.get(noteId) ?? null);
 }
 
-function selectActiveNoteCreatedAt(state: RendererState): number | null {
-  return state.activeNoteId === null
-    ? null
-    : (state.sourceNodes.get(state.activeNoteId)?.createdAt ?? null);
+function selectNoteCreatedAt(state: RendererState, noteId: string | null): number | null {
+  return noteId === null ? null : (state.sourceNodes.get(noteId)?.createdAt ?? null);
 }
 
-function selectActiveNoteMarkdown(state: RendererState): string | null {
-  return state.activeNoteId === null
-    ? null
-    : (state.documents.get(state.activeNoteId)?.markdown ?? null);
+function selectNoteMarkdown(state: RendererState, noteId: string | null): string | null {
+  return noteId === null ? null : (state.documents.get(noteId)?.markdown ?? null);
 }
 
 const annotationCounts = new WeakMap<RendererState["annotations"], Map<string, number>>();
@@ -621,20 +621,46 @@ function annotationCountFor(state: RendererState, noteId: string): number {
   return counts.get(noteId) ?? 0;
 }
 
-function selectActiveNoteOrigin(state: RendererState): string | null {
-  return state.activeNoteId === null
-    ? null
-    : openedFileOrigin(state.importReceipts, state.activeNoteId);
+function selectNoteOrigin(state: RendererState, noteId: string | null): string | null {
+  return noteId === null ? null : openedFileOrigin(state.importReceipts, noteId);
 }
 
 export const MetadataPanel = memo(function MetadataPanel({ store }: Props) {
   const activeNoteId = useRendererSelector(store, selectActiveNoteId);
-  const metadata = useRendererSelector(store, selectActiveNoteMetadata);
-  const historyHeaders = useRendererSelector(store, selectActiveNoteHistory);
+  const noteId = useDeferredValue(activeNoteId);
+  return <MetadataPanelContent store={store} activeNoteId={noteId} />;
+});
+
+type ContentProps = {
+  store: RendererStore;
+  activeNoteId: string | null;
+};
+
+const MetadataPanelContent = memo(function MetadataPanelContent({
+  store,
+  activeNoteId,
+}: ContentProps) {
+  const metadata = useRendererSelector(
+    store,
+    useCallback((state: RendererState) => selectNoteMetadata(state, activeNoteId), [activeNoteId]),
+  );
+  const historyHeaders = useRendererSelector(
+    store,
+    useCallback((state: RendererState) => selectNoteHistory(state, activeNoteId), [activeNoteId]),
+  );
   const versions = useMemo(() => projectVersionList(historyHeaders), [historyHeaders]);
-  const createdAt = useRendererSelector(store, selectActiveNoteCreatedAt);
-  const markdown = useRendererSelector(store, selectActiveNoteMarkdown);
-  const originPath = useRendererSelector(store, selectActiveNoteOrigin);
+  const createdAt = useRendererSelector(
+    store,
+    useCallback((state: RendererState) => selectNoteCreatedAt(state, activeNoteId), [activeNoteId]),
+  );
+  const markdown = useRendererSelector(
+    store,
+    useCallback((state: RendererState) => selectNoteMarkdown(state, activeNoteId), [activeNoteId]),
+  );
+  const originPath = useRendererSelector(
+    store,
+    useCallback((state: RendererState) => selectNoteOrigin(state, activeNoteId), [activeNoteId]),
+  );
   const hasRelationships = useRendererSelector(
     store,
     useCallback(
@@ -655,8 +681,8 @@ export const MetadataPanel = memo(function MetadataPanel({ store }: Props) {
   );
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(readOpenSections);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [outlineCount, setOutlineCount] = useState(0);
-  const handleOutlineCountChange = useCallback((count: number) => setOutlineCount(count), []);
+  const [hasOutline, setHasOutline] = useState(false);
+  const handleOutlineCountChange = useCallback((count: number) => setHasOutline(count > 1), []);
 
   function toggleSection(section: SectionKey): void {
     setOpenSections((current) => {
@@ -692,11 +718,15 @@ export const MetadataPanel = memo(function MetadataPanel({ store }: Props) {
             title="Outline"
             open={openSections.outline}
             onToggle={() => toggleSection("outline")}
-            className={outlineCount <= 1 ? "hidden" : undefined}
+            className={hasOutline ? undefined : "hidden"}
             keepMounted
           >
             <div data-outline-scroll className="max-h-[38dvh] overflow-y-auto overscroll-contain">
-              <NoteOutline store={store} onCountChange={handleOutlineCountChange} />
+              <NoteOutline
+                store={store}
+                noteId={activeNoteId}
+                onCountChange={handleOutlineCountChange}
+              />
             </div>
           </InspectorSection>
         )}
@@ -707,7 +737,7 @@ export const MetadataPanel = memo(function MetadataPanel({ store }: Props) {
             open={openSections.annotations}
             onToggle={() => toggleSection("annotations")}
           >
-            <AnnotationList key={activeNoteId} store={store} noteId={activeNoteId} />
+            <AnnotationList store={store} noteId={activeNoteId} />
           </InspectorSection>
         )}
         {activeNoteId && (
@@ -718,7 +748,6 @@ export const MetadataPanel = memo(function MetadataPanel({ store }: Props) {
             onToggle={() => toggleSection("revisions")}
           >
             <RevisionList
-              key={activeNoteId}
               store={store}
               noteId={activeNoteId}
               versions={versions}

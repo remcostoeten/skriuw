@@ -8,7 +8,7 @@ use skriuw_storage::{
 use crate::protocol::{
     BatchOutcome, BrowserImportSummary, BrowserIntegrityReport, BrowserStorageError,
     BrowserStorageErrorCode, BrowserWorkerCommand, BrowserWorkerRequest, BrowserWorkerResponse,
-    BrowserWorkerValue, MAX_BATCHES_PER_REQUEST, MAX_DATABASE_NAME_BYTES,
+    BrowserWorkerValue, EncodedSnapshot, MAX_BATCHES_PER_REQUEST, MAX_DATABASE_NAME_BYTES,
     MAX_DELTA_IDS_PER_REQUEST, MAX_EXPANDED_FOLDER_IDS, MAX_LAYOUT_BYTES,
     MAX_OPERATIONS_PER_REQUEST, MAX_QUERY_BYTES, MAX_RECOVERY_CODE_BYTES, MAX_REQUEST_BYTES,
     MAX_SYNC_IDENTIFIER_BYTES, RECOVERY_CODE_ENTROPY_BYTES, WORKER_PROTOCOL_VERSION,
@@ -131,8 +131,13 @@ where
         let outcome = match request.command {
             BrowserWorkerCommand::Initialize { .. } | BrowserWorkerCommand::Close => unreachable!(),
             BrowserWorkerCommand::Bootstrap => backend
-                .bootstrap()
-                .map(|snapshot| BrowserWorkerValue::Bootstrap(Box::new(snapshot)))
+                .bootstrap_json()
+                .and_then(|json| {
+                    EncodedSnapshot::from_json(json).map_err(|error| {
+                        StorageError::Backend(format!("snapshot encoding failed: {error}"))
+                    })
+                })
+                .map(BrowserWorkerValue::Bootstrap)
                 .map_err(map_storage_error),
             BrowserWorkerCommand::LoadSidebarExpansion => backend
                 .load_sidebar_expansion()

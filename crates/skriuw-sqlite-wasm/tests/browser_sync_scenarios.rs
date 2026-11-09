@@ -251,6 +251,8 @@ impl BrowserDevice {
         match self.expect_value(BrowserWorkerCommand::Bootstrap) {
             BrowserWorkerValue::Bootstrap(snapshot) => {
                 let mut titles = snapshot
+                    .decode()
+                    .expect("decode bootstrap")
                     .nodes
                     .iter()
                     .map(|node| node.title.clone())
@@ -265,6 +267,8 @@ impl BrowserDevice {
     fn markdown(&mut self, note_id: &str) -> String {
         match self.expect_value(BrowserWorkerCommand::Bootstrap) {
             BrowserWorkerValue::Bootstrap(snapshot) => snapshot
+                .decode()
+                .expect("decode bootstrap")
                 .documents
                 .iter()
                 .find(|document| document.note_id == note_id)
@@ -279,6 +283,8 @@ impl BrowserDevice {
         match self.expect_value(BrowserWorkerCommand::Bootstrap) {
             BrowserWorkerValue::Bootstrap(snapshot) => {
                 snapshot
+                    .decode()
+                    .expect("decode bootstrap")
                     .documents
                     .iter()
                     .find(|document| document.note_id == note_id)

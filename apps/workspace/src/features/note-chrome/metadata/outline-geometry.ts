@@ -24,23 +24,27 @@ export const GEOMETRY = {
 };
 
 const X_BASE = 7;
-const MAX_SEARCH_ITERATIONS = 18;
-const SEARCH_PRECISION = 0.25;
+
+export type PathSegment = { from: Point; control: Point | null; to: Point };
+
+const QUADRATIC_CHORDS = 12;
 
 /**
- * @name roundedPath
- * @description Builds an SVG path through the given points, replacing each
- * interior corner with a quadratic curve of at most `radius`.
+ * @name roundedSegments
+ * @description Splits a polyline into the straight and quadratic segments of
+ * its rounded path, replacing each interior corner with a quadratic curve of
+ * at most `radius`.
  *
  * @example
- * path.setAttribute("d", roundedPath(points, GEOMETRY.corner));
+ * const segments = roundedSegments(points, GEOMETRY.corner);
  */
-export function roundedPath(points: Point[], radius: number): string {
+export function roundedSegments(points: Point[], radius: number): PathSegment[] {
   if (points.length < 2) {
-    return "";
+    return [];
   }
 
-  let path = `M ${points[0]!.x} ${points[0]!.y}`;
+  const segments: PathSegment[] = [];
+  let cursor = points[0]!;
 
   for (let index = 1; index < points.length - 1; index += 1) {
     const previous = points[index - 1]!;
@@ -63,13 +67,95 @@ export function roundedPath(points: Point[], radius: number): string {
       y: current.y + (next.y - current.y) * endRatio,
     };
 
-    path += ` L ${start.x} ${start.y}`;
-    path += ` Q ${current.x} ${current.y} ${end.x} ${end.y}`;
+    segments.push({ from: cursor, control: null, to: start });
+    segments.push({ from: start, control: current, to: end });
+    cursor = end;
   }
 
-  const last = points.at(-1)!;
-  path += ` L ${last.x} ${last.y}`;
+  segments.push({ from: cursor, control: null, to: points.at(-1)! });
+  return segments;
+}
+
+/**
+ * @name roundedPath
+ * @description Builds an SVG path through the given points, replacing each
+ * interior corner with a quadratic curve of at most `radius`.
+ *
+ * @example
+ * path.setAttribute("d", roundedPath(points, GEOMETRY.corner));
+ */
+export function roundedPath(points: Point[], radius: number): string {
+  const segments = roundedSegments(points, radius);
+  if (segments.length === 0) {
+    return "";
+  }
+  let path = `M ${points[0]!.x} ${points[0]!.y}`;
+  for (const segment of segments) {
+    path += segment.control
+      ? ` Q ${segment.control.x} ${segment.control.y} ${segment.to.x} ${segment.to.y}`
+      : ` L ${segment.to.x} ${segment.to.y}`;
+  }
   return path;
+}
+
+function quadraticPoint(segment: PathSegment, t: number): Point {
+  const control = segment.control ?? segment.from;
+  const inverse = 1 - t;
+  return {
+    x: inverse * inverse * segment.from.x + 2 * inverse * t * control.x + t * t * segment.to.x,
+    y: inverse * inverse * segment.from.y + 2 * inverse * t * control.y + t * t * segment.to.y,
+  };
+}
+
+function segmentPoints(segment: PathSegment): Point[] {
+  if (!segment.control) {
+    return [segment.from, segment.to];
+  }
+  const points = [segment.from];
+  for (let chord = 1; chord <= QUADRATIC_CHORDS; chord += 1) {
+    points.push(quadraticPoint(segment, chord / QUADRATIC_CHORDS));
+  }
+  return points;
+}
+
+/**
+ * @name lengthsAtY
+ * @description Walks a path whose `y` never decreases along its length and
+ * returns, for each ascending `y`, the shortest length along the path that
+ * reaches it, plus the path's total length. Straight segments are exact and
+ * quadratic corners are summed over short chords.
+ *
+ * @example
+ * const { lengths, total } = lengthsAtY(roundedSegments(points, 8), anchorYs);
+ */
+export function lengthsAtY(
+  segments: readonly PathSegment[],
+  ys: readonly number[],
+): { lengths: number[]; total: number } {
+  const lengths: number[] = [];
+  let travelled = 0;
+  let next = 0;
+
+  for (const segment of segments) {
+    const points = segmentPoints(segment);
+    for (let index = 1; index < points.length; index += 1) {
+      const from = points[index - 1]!;
+      const to = points[index]!;
+      const span = Math.hypot(to.x - from.x, to.y - from.y);
+      while (next < ys.length && to.y >= ys[next]!) {
+        const rise = to.y - from.y;
+        const ratio = rise > 0 ? Math.max(0, Math.min(1, (ys[next]! - from.y) / rise)) : 0;
+        lengths.push(travelled + span * ratio);
+        next += 1;
+      }
+      travelled += span;
+    }
+  }
+
+  while (lengths.length < ys.length) {
+    lengths.push(travelled);
+  }
+  return { lengths, total: travelled };
 }
 
 /**
@@ -111,40 +197,4 @@ export function pathPoints(rows: readonly OutlineRow[]): OutlinePathPoints {
   }
 
   return { points, anchors };
-}
-
-/**
- * @name lengthAtY
- * @description Binary-searches a path whose `y` never decreases along its
- * length for the smallest length whose sampled point reaches `y`.
- *
- * @example
- * const length = lengthAtY((at) => path.getPointAtLength(at), path.getTotalLength(), 120);
- */
-export function lengthAtY(
-  sample: (length: number) => Point,
-  pathLength: number,
-  y: number,
-): number {
-  if (pathLength <= 0) {
-    return 0;
-  }
-
-  let low = 0;
-  let high = pathLength;
-
-  for (
-    let iteration = 0;
-    iteration < MAX_SEARCH_ITERATIONS && high - low >= SEARCH_PRECISION;
-    iteration += 1
-  ) {
-    const middle = (low + high) / 2;
-    if (sample(middle).y >= y) {
-      high = middle;
-    } else {
-      low = middle;
-    }
-  }
-
-  return high;
 }

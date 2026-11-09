@@ -4,6 +4,16 @@ import { browserMediaFile } from "@/platform/browser/media";
 import { isBrowserRuntime } from "./runtime";
 
 const objectUrlByHash = new Map<string, Promise<string>>();
+const resolvedUrlByHash = new Map<string, string>();
+
+/**
+ * Returns the object URL of an image blob that has already resolved, so a
+ * view can render a cached image in the same commit instead of waiting for a
+ * promise.
+ */
+export function resolvedImageBlobUrl(contentHash: string): string | null {
+  return resolvedUrlByHash.get(contentHash) ?? null;
+}
 
 /**
  * Resolves a stored image blob to an object URL, fetching each content hash
@@ -14,9 +24,11 @@ export function resolveImageBlobUrl(contentHash: string, mimeType: string): Prom
   if (cached) {
     return cached;
   }
-  const pending = readNoteImageBlob(contentHash, mimeType).then((buffer) =>
-    URL.createObjectURL(new Blob([buffer], { type: mimeType })),
-  );
+  const pending = readNoteImageBlob(contentHash, mimeType).then((buffer) => {
+    const url = URL.createObjectURL(new Blob([buffer], { type: mimeType }));
+    resolvedUrlByHash.set(contentHash, url);
+    return url;
+  });
   objectUrlByHash.set(contentHash, pending);
   pending.catch(() => {
     objectUrlByHash.delete(contentHash);

@@ -602,7 +602,7 @@ export function createDiagramNodeView(
     target.setAttribute("role", "button");
     target.setAttribute("aria-label", nodeAriaLabel(model, diagramNode));
     target.tabIndex = diagramNode.id === selectedId ? 0 : -1;
-    target.style.transform = `translate3d(${diagramNode.position.x}px, ${diagramNode.position.y}px, 0)`;
+    target.style.transform = `translate(${diagramNode.position.x}px, ${diagramNode.position.y}px)`;
     if (diagramNode.fill) target.style.backgroundColor = diagramNode.fill;
     if (diagramNode.stroke) target.style.borderColor = diagramNode.stroke;
     target.textContent = diagramNode.label;
@@ -645,6 +645,7 @@ export function createDiagramNodeView(
         dragFrame = 0;
         const finalPosition = pendingDrag?.id === diagramNode.id ? pendingDrag.position : origin;
         pendingDrag = null;
+        target.style.transform = `translate(${finalPosition.x}px, ${finalPosition.y}px)`;
         if (moved) {
           const next = cloneModel(model);
           const found = next.nodes.find(({ id }) => id === diagramNode.id);

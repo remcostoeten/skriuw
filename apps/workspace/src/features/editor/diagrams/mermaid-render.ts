@@ -190,6 +190,18 @@ function loadLibrary(): Promise<LibraryRender> {
   return libraryPromise;
 }
 
+/**
+ * @name preloadMermaidRenderer
+ * @description Starts loading the Mermaid renderer without rendering anything,
+ * so the first diagram after startup renders without waiting on a chunk.
+ *
+ * @example
+ * preloadMermaidRenderer();
+ */
+export function preloadMermaidRenderer(): void {
+  loadLibrary().catch((error: unknown) => console.error("Mermaid preload failed", error));
+}
+
 function errorMessage(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error);
   const message = raw.trim();

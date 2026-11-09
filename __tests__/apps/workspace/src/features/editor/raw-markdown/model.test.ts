@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
+import { EditorState } from "@codemirror/state";
 import {
   buildRowLayout,
   countRawMarkdownWords,
   locateRow,
   parseJumpToLineInput,
   rawMarkdownCursorStatus,
+  rawMarkdownCursorStatusEqual,
   rawMarkdownLineCount,
+  rawMarkdownSelectionStatus,
   rowNumberAt,
   rowsForHeight,
 } from "@/features/editor/raw-markdown/model";
@@ -26,6 +29,21 @@ test("raw Markdown cursor status is one-based and selection-aware", () => {
     selectedCharacters: 12,
     selectedWords: 3,
   });
+});
+
+test("the CodeMirror line lookup gives the same status as scanning the source", () => {
+  const markdown = "first line\nsecond words 😀 here\n\nthird";
+  const state = EditorState.create({ doc: markdown });
+  for (let from = 0; from <= markdown.length; from += 1) {
+    const to = Math.min(markdown.length, from + 7);
+    const line = state.doc.lineAt(from);
+    const status = rawMarkdownSelectionStatus(
+      line.number,
+      from - line.from + 1,
+      state.doc.sliceString(from, to),
+    );
+    assert.ok(rawMarkdownCursorStatusEqual(status, rawMarkdownCursorStatus(markdown, from, to)));
+  }
 });
 
 test("raw Markdown cursor status clamps invalid selection offsets", () => {

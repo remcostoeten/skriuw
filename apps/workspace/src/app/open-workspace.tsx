@@ -54,6 +54,32 @@ function captureLaunchShare(store: RendererStore): void {
   });
 }
 
+type LiveListeners = {
+  sync: Awaited<ReturnType<typeof listenForSyncChanges>>;
+  unlistenSessionExpiry: UnlistenFn;
+  history: Awaited<ReturnType<typeof listenForHistory>>;
+};
+
+async function listenBeforeBootstrap(): Promise<LiveListeners> {
+  const [sync, sessionExpiry, history] = await Promise.allSettled([
+    listenForSyncChanges(),
+    listenForExpiredSession(),
+    listenForHistory(),
+  ]);
+  if (
+    sync.status === "fulfilled" &&
+    sessionExpiry.status === "fulfilled" &&
+    history.status === "fulfilled"
+  ) {
+    return { sync: sync.value, unlistenSessionExpiry: sessionExpiry.value, history: history.value };
+  }
+  if (sync.status === "fulfilled") sync.value.stopListening();
+  if (sessionExpiry.status === "fulfilled") sessionExpiry.value();
+  if (history.status === "fulfilled") history.value.dispose();
+  const failure = [sync, sessionExpiry, history].find((result) => result.status === "rejected");
+  throw failure?.reason;
+}
+
 /**
  * Opens the workspace and mounts the application. Live event listeners are
  * subscribed before bootstrap so nothing published during it is lost. Resolves
@@ -66,9 +92,7 @@ export async function openWorkspace(root: Root): Promise<() => Promise<void>> {
   let unlistenSessionExpiry: UnlistenFn | null = null;
   let unlistenOpenedFiles: UnlistenFn | null = null;
   try {
-    sync = await listenForSyncChanges();
-    unlistenSessionExpiry = await listenForExpiredSession();
-    history = await listenForHistory();
+    ({ sync, unlistenSessionExpiry, history } = await listenBeforeBootstrap());
     const store = await loadWorkspaceStore();
     const unbindWindowClosePersistence = await bindDesktopWindowClose(store);
     const disposeUiPersistence = bindUiPersistence(store);
@@ -93,15 +117,16 @@ export async function openWorkspace(root: Root): Promise<() => Promise<void>> {
     const unbindThemeColor = bindThemeColor(store, document.documentElement);
     void announcePersistenceRisk();
     captureLaunchShare(store);
-    if (!isBrowserRuntime()) {
-      unlistenOpenedFiles = await bindOpenedFiles(store);
-    }
+    const openedFiles = isBrowserRuntime() ? null : bindOpenedFiles(store);
     installEditorExtensions();
     root.render(
       <StrictMode>
         <App store={store} />
       </StrictMode>,
     );
+    if (openedFiles) {
+      unlistenOpenedFiles = await openedFiles;
+    }
     return async () => {
       window.removeEventListener("pagehide", teardownSession);
       await flushPendingWork();

@@ -1,4 +1,4 @@
-import type { KeyboardEvent, UIEvent } from "react";
+import type { KeyboardEvent } from "react";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { DropIndicator } from "../drag/drop-indicator";
 import type { DropTarget } from "../drag/rules";
@@ -6,21 +6,20 @@ import { focusTreeItem, type TreeRef } from "./focus";
 import type { TreeMetrics } from "./metrics";
 import type { TreePointerHandlers } from "./pointer";
 import { SidebarRow } from "./row";
-import type { TreeWindow } from "./viewport";
+import { useTreeViewport } from "./viewport";
 
 type Props = {
   store: RendererStore;
   treeRef: TreeRef;
   visibleIds: readonly string[];
   metrics: TreeMetrics;
-  rowPitch: number;
-  treeWindow: TreeWindow;
+  rowHeight: number;
+  isSearchActive: boolean;
   touchRows: boolean;
   movingSet: ReadonlySet<string> | null;
   dropTarget: DropTarget | null;
   pointer: TreePointerHandlers;
   onKeyDown: (event: KeyboardEvent) => void;
-  onScroll: (event: UIEvent<HTMLDivElement>) => void;
 };
 
 export function TreeList({
@@ -28,15 +27,21 @@ export function TreeList({
   treeRef,
   visibleIds,
   metrics,
-  rowPitch,
-  treeWindow,
+  rowHeight,
+  isSearchActive,
   touchRows,
   movingSet,
   dropTarget,
   pointer,
   onKeyDown,
-  onScroll,
 }: Props) {
+  const { rowPitch, treeWindow, onScroll } = useTreeViewport(
+    store,
+    treeRef,
+    rowHeight,
+    visibleIds.length,
+    isSearchActive,
+  );
   const renderedIds = visibleIds.slice(treeWindow.start, treeWindow.end);
   const treeTabStopId = visibleIds[0] ?? null;
   return (

@@ -1813,7 +1813,6 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
   text-align: center;
   touch-action: none;
   user-select: none;
-  will-change: transform;
 }
 
 .diagram-node:active {
@@ -2070,7 +2069,11 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
   background: rgb(237 233 254);
   box-shadow: 0 0 4px rgb(167 139 250 / 0.8);
   opacity: 0;
-  animation: liquid-metal-drift-up 3s ease-out infinite;
+  animation: liquid-metal-drift-up 3s ease-out infinite paused;
+}
+
+.liquid-metal[data-active="true"] .liquid-metal-particle {
+  animation-play-state: running;
 }
 
 .liquid-metal-particle[data-edge="top"] {
@@ -2110,41 +2113,41 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
   }
 }
 
-@property --liquid-metal-angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-
 .liquid-metal-glow {
   position: absolute;
   inset: -3px;
+  overflow: hidden;
   border-radius: calc(var(--liquid-metal-radius) + 3px);
+  box-shadow: 0 0 6px rgb(139 92 246 / 0.3);
   opacity: 0.55;
   pointer-events: none;
   transition: opacity 300ms ease;
 }
 
+/* Oversized squares rotate inside the clipped pill, so the spin is a transform
+   on a layer painted once instead of a repainted gradient. */
 .liquid-metal-glow::before,
 .liquid-metal-glow::after {
   content: "";
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  filter: blur(4px);
-  animation: liquid-metal-orbit linear infinite;
+  top: 50%;
+  left: 50%;
+  width: 160%;
+  aspect-ratio: 1;
+  margin-top: -80%;
+  margin-left: -80%;
+  animation: liquid-metal-orbit linear infinite paused;
 }
 
 .liquid-metal-glow::before {
   background: conic-gradient(
-    from var(--liquid-metal-angle),
     transparent 0deg,
-    rgb(167 139 250 / 0.5) 40deg,
+    rgb(167 139 250 / 0.6) 40deg,
     transparent 95deg,
-    rgb(196 181 253 / 0.3) 150deg,
+    rgb(196 181 253 / 0.4) 150deg,
     transparent 190deg,
     transparent 250deg,
-    rgb(139 92 246 / 0.45) 300deg,
+    rgb(139 92 246 / 0.55) 300deg,
     transparent 345deg
   );
   animation-duration: 9s;
@@ -2152,24 +2155,28 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
 
 .liquid-metal-glow::after {
   background: conic-gradient(
-    from var(--liquid-metal-angle),
     transparent 0deg,
-    rgb(221 214 254 / 0.25) 70deg,
+    rgb(221 214 254 / 0.3) 70deg,
     transparent 130deg,
-    rgb(129 140 248 / 0.35) 215deg,
+    rgb(129 140 248 / 0.45) 215deg,
     transparent 280deg
   );
   animation-duration: 13s;
   animation-direction: reverse;
 }
 
-.liquid-metal:hover .liquid-metal-glow {
+.liquid-metal[data-active="true"] .liquid-metal-glow {
   opacity: 0.8;
+}
+
+.liquid-metal[data-active="true"] .liquid-metal-glow::before,
+.liquid-metal[data-active="true"] .liquid-metal-glow::after {
+  animation-play-state: running;
 }
 
 @keyframes liquid-metal-orbit {
   to {
-    --liquid-metal-angle: 360deg;
+    transform: rotate(360deg);
   }
 }
 
@@ -2202,6 +2209,20 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
   width: 100%;
   height: 100%;
   border-radius: var(--liquid-metal-radius);
+}
+
+/* Rest state of the shader: it only runs while the button is hovered, focused
+   or pressed. */
+.liquid-metal-shader {
+  background: linear-gradient(
+    135deg,
+    #2a1a45 0%,
+    #c7b2ff 22%,
+    #3a2860 42%,
+    #e4dcff 62%,
+    #31204f 80%,
+    #b9a2f5 100%
+  );
 }
 
 .liquid-metal-core {
@@ -2238,9 +2259,6 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
   box-shadow: inset 0 0 0 1px rgb(221 214 254 / 0.35);
 }
 
-.liquid-metal:has(.liquid-metal-hit:focus) .liquid-metal-glow {
-  opacity: 0.8;
-}
 
 .liquid-metal-label {
   display: inline-flex;
@@ -2267,6 +2285,16 @@ dialog.mermaid-expand .mermaid-expand-canvas svg {
   to {
     transform: translate(-50%, -50%) scale(4);
     opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-metal,
+  .liquid-metal-glow::before,
+  .liquid-metal-glow::after,
+  .liquid-metal-particle,
+  .liquid-metal-ripple {
+    animation: none;
   }
 }
 

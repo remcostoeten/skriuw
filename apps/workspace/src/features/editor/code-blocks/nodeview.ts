@@ -42,6 +42,25 @@ const defaultDeps: CodeBlockNodeViewDeps = {
 
 let menuSequence = 0;
 
+const caretWatchers = new Set<() => void>();
+
+function notifyCaretWatchers() {
+  for (const watcher of caretWatchers) watcher();
+}
+
+function watchCaret(watcher: () => void): void {
+  if (caretWatchers.has(watcher)) return;
+  if (caretWatchers.size === 0) document.addEventListener("selectionchange", notifyCaretWatchers);
+  caretWatchers.add(watcher);
+}
+
+function unwatchCaret(watcher: () => void): void {
+  if (!caretWatchers.delete(watcher)) return;
+  if (caretWatchers.size === 0) {
+    document.removeEventListener("selectionchange", notifyCaretWatchers);
+  }
+}
+
 /**
  * Rewrites a code block's fence info string. `pos` must address the code block
  * itself; the command is a no-op when the language is already set.
@@ -322,6 +341,8 @@ export function createCodeBlockNodeView(
 
   function paintMermaid(): void {
     const renderable = isRenderable();
+    if (renderable && !destroyed) watchCaret(revealSourceForCaret);
+    else unwatchCaret(revealSourceForCaret);
     const showPreview = renderable && mode === "preview";
     if (renderable) {
       dom.dataset.mermaid = mode;
@@ -503,6 +524,7 @@ export function createCodeBlockNodeView(
   }
 
   function selectedIndex(): number {
+    buildMenuItems();
     const params = currentLanguage();
     const index = items.findIndex((item) => item.dataset.language === params);
     return index === -1 ? 0 : index;
@@ -532,6 +554,7 @@ export function createCodeBlockNodeView(
   function setOpen(next: boolean): void {
     if (open === next) return;
     open = next;
+    if (open) buildMenuItems();
     if (open) {
       document.addEventListener("mousedown", closeOnOutside, true);
     } else {
@@ -580,19 +603,23 @@ export function createCodeBlockNodeView(
     }
   }
 
-  for (const option of CODE_LANGUAGES) {
-    const item = document.createElement("li");
-    item.setAttribute("role", "presentation");
-    const button = document.createElement("button");
-    button.type = "button";
-    button.tabIndex = -1;
-    button.setAttribute("role", "option");
-    button.dataset.language = option.value;
-    button.textContent = option.label;
-    button.addEventListener("click", () => chooseLanguage(option.value));
-    item.append(button);
-    menu.append(item);
-    items.push(button);
+  function buildMenuItems(): void {
+    if (items.length > 0) return;
+    for (const option of CODE_LANGUAGES) {
+      const item = document.createElement("li");
+      item.setAttribute("role", "presentation");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.tabIndex = -1;
+      button.setAttribute("role", "option");
+      button.dataset.language = option.value;
+      button.textContent = option.label;
+      button.addEventListener("click", () => chooseLanguage(option.value));
+      item.append(button);
+      menu.append(item);
+      items.push(button);
+    }
+    paintedParams = null;
   }
 
   trigger.addEventListener("click", () => {
@@ -611,6 +638,7 @@ export function createCodeBlockNodeView(
         break;
       case "ArrowUp":
         event.preventDefault();
+        buildMenuItems();
         openAndFocus(items.length - 1);
         break;
       case "Escape":
@@ -716,7 +744,6 @@ export function createCodeBlockNodeView(
     event.preventDefault();
   });
 
-  document.addEventListener("selectionchange", revealSourceForCaret);
   syncMermaid("unsupported", "");
   if (isRenderable()) observeTheme();
   paint();
@@ -744,7 +771,7 @@ export function createCodeBlockNodeView(
     destroy() {
       destroyed = true;
       document.removeEventListener("mousedown", closeOnOutside, true);
-      document.removeEventListener("selectionchange", revealSourceForCaret);
+      unwatchCaret(revealSourceForCaret);
       themeObserver?.disconnect();
       themeObserver = null;
       closeExpand();

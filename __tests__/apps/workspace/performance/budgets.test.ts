@@ -9,6 +9,7 @@ import {
 function passingRecord() {
   return {
     estimatedFrameMs: 8.33,
+    capabilities: { longAnimationFrames: true, longTasks: true, idleCallbacks: true, heap: true },
     selection: {
       summary: {
         dispatch: { p95Ms: 4.2, maxMs: 7.5 },

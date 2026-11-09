@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { MIN_TAB_WIDTH, splitTabsForWidth } from "@/shell/tabs/overflow";
+import { MIN_TAB_WIDTH, splitTabsForWidth, tabCapacity } from "@/shell/tabs/overflow";
 
 type Tab = { id: string; isActive: boolean; isPinned: boolean };
 
@@ -52,4 +52,18 @@ test("a narrow strip still shows one tab", () => {
   const result = splitTabsForWidth(tabs(6, 3), 40);
   assert.deepEqual(ids(result.visible), ["n3"]);
   assert.equal(result.overflow.length, 5);
+});
+
+test("widths with the same capacity split the tabs identically", () => {
+  const list = tabs(10, 4);
+  const narrow = 3 * MIN_TAB_WIDTH + 80;
+  const wider = narrow + MIN_TAB_WIDTH - 1;
+  assert.equal(tabCapacity(list.length, narrow), tabCapacity(list.length, wider));
+  assert.deepEqual(
+    ids(splitTabsForWidth(list, narrow).visible),
+    ids(splitTabsForWidth(list, wider).visible),
+  );
+  assert.notEqual(tabCapacity(list.length, narrow), tabCapacity(list.length, wider + 1));
+  assert.equal(tabCapacity(3, 0), 3);
+  assert.equal(tabCapacity(3, MIN_TAB_WIDTH * 3), 3);
 });

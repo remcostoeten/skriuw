@@ -126,13 +126,11 @@ fn referenced_blob_hashes(
     maintenance: &MaintenanceCoordinator,
 ) -> Result<BTreeSet<String>, String> {
     let runtime = maintenance.runtime().map_err(|error| error.to_string())?;
-    let completion = runtime.bootstrap().map_err(|error| error.to_string())?;
-    let snapshot = completion.wait().map_err(|error| error.to_string())?;
-    Ok(snapshot
-        .images
-        .iter()
-        .map(|image| image.content_hash.clone())
-        .collect())
+    runtime
+        .referenced_image_hashes()
+        .map_err(|error| error.to_string())?
+        .wait()
+        .map_err(|error| error.to_string())
 }
 
 #[derive(Serialize)]

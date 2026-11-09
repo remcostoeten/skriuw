@@ -33,7 +33,11 @@ trigger bursts cannot create duplicate concurrent push or pull loops or
 unbounded tasks. Wakes come from:
 
 - startup with an active connection, and a session refresh;
-- a relevant local commit;
+- a relevant local commit, coalesced: the cycle starts 2 s after the last
+  commit of a burst and never later than 15 s after its first
+  (`SyncLocalCommitDelay`), so typing does not run one push, pull, and
+  acknowledgement per save. Every other trigger below wakes at once and also
+  carries the commits that were waiting;
 - window focus, and the renderer's blur and `visibilitychange: hidden`
   transitions, which first flush the pending editor save (250 ms trailing
   debounce) and then request a refresh so the last edit leaves the device
@@ -57,6 +61,10 @@ The poll interval adapts to what the renderer reports through
 | down | visible and focused | 15 s |
 | down | visible, unfocused | 60 s |
 | down | hidden | 5 min |
+
+A cycle acknowledges its cursor only when it moved, or when the previous
+acknowledgement of the same cursor is an hour old: the service expires a
+device cursor after 30 days without one.
 
 `request_refresh` (user intent, focus, wake) also clears the durable
 `next_attempt_at` of every unclaimed outbox row (`reset_sync_retry_times`) and

@@ -25,6 +25,7 @@ use skriuw_images::ImageStore;
 use state::{AppState, database_path, history_repository_path, image_blob_path, now_millis};
 use tauri::{Emitter, Manager, RunEvent};
 
+const ROTATION_START_DELAY: Duration = Duration::from_secs(60);
 const ROTATION_RETRY_DELAY: Duration = Duration::from_secs(60);
 const HISTORY_HEADER_PUBLISHED_EVENT: &str = "history-header-published";
 const SYNC_WORKSPACE_CHANGED_EVENT: &str = "sync-workspace-changed";
@@ -108,7 +109,11 @@ pub fn run() {
                     })
                 },
             )?);
-            let rotation = spawn_backup_rotation(Arc::clone(&maintenance), ROTATION_RETRY_DELAY)?;
+            let rotation = spawn_backup_rotation(
+                Arc::clone(&maintenance),
+                ROTATION_START_DELAY,
+                ROTATION_RETRY_DELAY,
+            )?;
             let image_store = Arc::new(
                 ImageStore::open(image_blob_path(&path)).map_err(|error| error.to_string())?,
             );
@@ -163,7 +168,9 @@ pub fn run() {
                 path.clone(),
                 {
                     let app_handle = app.handle().clone();
+                    let maintenance = Arc::clone(&maintenance);
                     Arc::new(move |changes: &skriuw_sync::RemoteChangeSet| {
+                        maintenance.wake_history();
                         if let Err(error) =
                             app_handle.emit(SYNC_WORKSPACE_CHANGED_EVENT, changes.clone())
                         {

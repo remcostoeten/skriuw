@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { loadPromptPlayground, loadSignInDrawer } from "@/app/lazy-surfaces";
+import { loadPromptPlayground, loadSignInDrawer, warmEditorRenderers } from "@/app/lazy-surfaces";
 import { registerAiSettings } from "@/features/ai/settings";
 import { installBackNavigation } from "@/features/references/shell";
 import { scheduleSearchIndexReconciliation } from "@/features/search/index-maintenance";
@@ -20,7 +20,8 @@ type Options = {
 /**
  * Starts the feature services the mounted workspace keeps running: entity back
  * navigation, search index upkeep, the title-bar maximize gesture, the AI
- * settings entry point and route gate, and warming lazy surfaces.
+ * settings entry point and route gate, and warming lazy surfaces and editor
+ * renderers.
  */
 export function useWorkspaceServices({
   store,
@@ -31,6 +32,7 @@ export function useWorkspaceServices({
 }: Options): void {
   useEffect(() => installBackNavigation(store), [store]);
   useEffect(() => scheduleSearchIndexReconciliation(), []);
+  useEffect(() => warmEditorRenderers(), []);
   useTitleBarDoubleClickMaximize();
   // Warm the sign-in chunk as soon as either trigger surface opens, so the
   // drawer appears instantly on click instead of waiting on a lazy import.

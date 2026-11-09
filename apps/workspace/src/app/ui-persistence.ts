@@ -7,6 +7,7 @@ import {
   saveSidebarExpansion,
 } from "@/platform/runtime/commands";
 import { isBrowserRuntime } from "@/platform/runtime/runtime";
+import { scheduleIdle } from "@/shared/scheduling/idle";
 import { showToast } from "@/shared/ui/toast";
 import { registerPendingWork } from "@/store/pending-work";
 import { bindPaneLayoutPersistence } from "@skriuw/renderer-core/store/pane-layout-persistence";
@@ -50,6 +51,12 @@ export async function bindDesktopWindowClose(store: RendererStore): Promise<() =
   );
 }
 
+const IDLE_TIMEOUT_MS = 2_000;
+
+function scheduleWhenIdle(run: () => void): () => void {
+  return scheduleIdle(run, IDLE_TIMEOUT_MS);
+}
+
 /**
  * Persists sidebar expansion and the pane layout as they change, and flushes
  * them as best-effort pending work. Returns the disposer.
@@ -59,6 +66,7 @@ export function bindUiPersistence(store: RendererStore): () => void {
     onError: (error) => console.error("sidebar expansion persistence failed", error),
   });
   const paneLayoutPersistence = bindPaneLayoutPersistence(store, savePaneLayout, {
+    scheduleIdle: scheduleWhenIdle,
     onError: (error) => console.error("pane layout persistence failed", error),
   });
   const unregisterExpansionFlush = registerPendingWork(expansionPersistence.flush, {

@@ -3,6 +3,25 @@ import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
 import { formatByteSize } from "@/shared/format/bytes";
 import { blockedStateText } from "./blocked-operations";
 
+/**
+ * @name sameSyncStatus
+ * @description Whether two polled sync statuses describe the same state, so a
+ * poll that reports nothing new keeps the previous object and its readers stay
+ * quiet.
+ *
+ * @example
+ * setStatus((current) => (sameSyncStatus(current, latest) ? current : latest));
+ */
+export function sameSyncStatus(left: WorkspaceSyncStatus, right: WorkspaceSyncStatus): boolean {
+  if (left.state === "retrying" && right.state === "retrying") {
+    return left.nextAttemptAt === right.nextAttemptAt;
+  }
+  if (left.state === "blocked" && right.state === "blocked") {
+    return left.reason === right.reason && left.detail === right.detail;
+  }
+  return left.state === right.state;
+}
+
 /** Whether sync is currently linked, so the row offers no reconnect action. */
 export function syncEnabled(status: WorkspaceSyncStatus): boolean {
   return status.state !== "localOnly" && status.state !== "authenticationRequired";

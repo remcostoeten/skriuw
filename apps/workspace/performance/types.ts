@@ -14,6 +14,20 @@ export type LongAnimationFrameSample = {
   blockingDurationMs: number;
 };
 
+export type PhaseName =
+  | "selection"
+  | "working-set"
+  | "keyboard"
+  | "typing"
+  | "link-caret"
+  | "navigation-tail"
+  | "save-pause"
+  | "pending-save-switch"
+  | "bubble-hold"
+  | "sidebar-collapse"
+  | "sidebar-expand"
+  | "scroll";
+
 export type PhaseResult = {
   samples: {
     dispatchMs: number[];
@@ -49,6 +63,8 @@ export type LinkCaretResult = PhaseResult & {
   menuOpen: boolean;
 };
 
+export type FixtureContent = "plain" | "varied";
+
 export type FixtureIdentity = {
   name: string;
   operationsDigest: string;
@@ -56,6 +72,14 @@ export type FixtureIdentity = {
   noteCount: number;
   folderCount: number;
   blockCount: number;
+  content: FixtureContent;
+  contentVersion: number;
+  journalEntryCount: number;
+  historyHeaderCount: number;
+  annotationCount: number;
+  taskCount: number;
+  averageDocumentJsonBytes: number | null;
+  largestTagFanOut: number;
   measuredNoteIds: string[];
   workingSetNoteIds: string[];
 };
@@ -75,6 +99,11 @@ export type NavigationTailResult = {
   windowMs: number;
   reactCommits: number;
   bridgeCalls: string[];
+  frameGapMaxMs: number;
+  longTasks: number[];
+  longAnimationFrames: LongAnimationFrameSample[];
+  unlinkedMentionRows: number;
+  idleCallbackFallback: boolean;
 };
 
 export type CorrectnessCheck = {
@@ -83,8 +112,67 @@ export type CorrectnessCheck = {
   detail: string;
 };
 
+export type BrowserCapabilities = {
+  longAnimationFrames: boolean;
+  longTasks: boolean;
+  idleCallbacks: boolean;
+  heap: boolean;
+};
+
+export type ScreenPoint = {
+  x: number;
+  y: number;
+};
+
+export type SavePauseResult = PhaseResult & {
+  iterations: number;
+  savesObserved: number;
+  saveDelayMs: number[];
+  saveFrameGapMs: number[];
+};
+
+export type PendingSaveSwitchResult = PhaseResult & {
+  iterations: number;
+  landed: number;
+  typingToPressMs: number[];
+  pressToSwitchPaintMs: number[];
+  savesDuringSwitch: number[];
+};
+
+export type BubbleHoldResult = PhaseResult & {
+  opened: boolean;
+  openMs: number | null;
+  holdMs: number;
+  selectedCharacters: number;
+};
+
+export type SidebarToggleResult = PhaseResult & {
+  toggled: boolean;
+  windowMs: number;
+};
+
+export type ScrollInput = "wheel" | "scrollBy";
+
+export type ScrollResult = PhaseResult & {
+  ticks: number;
+  input: ScrollInput;
+  scrolledPx: number;
+  renderedBlocksAtEnd: number;
+};
+
+export type ScenarioResults = {
+  savePause: SavePauseResult;
+  pendingSaveSwitch: PendingSaveSwitchResult;
+  bubbleHold: BubbleHoldResult;
+  sidebarCollapse: SidebarToggleResult;
+  sidebarExpand: SidebarToggleResult;
+  scroll: ScrollResult;
+  correctness: CorrectnessCheck[];
+};
+
 export type ProductRendererResult = {
   fixture: FixtureIdentity;
+  capabilities: BrowserCapabilities;
   estimatedFrameMs: number;
   selection: PhaseResult;
   workingSet: WorkingSetResult;
@@ -157,6 +245,23 @@ export type PerformanceController = {
     peopleResults: number;
     noteResults: number;
   };
+  prepareSavePause: () => Promise<{ iterations: number; keystrokes: number }>;
+  awaitSave: () => Promise<void>;
+  finishSavePause: () => Promise<SavePauseResult>;
+  preparePendingSwitch: (
+    iteration: number,
+  ) => Promise<ScreenPoint & { expectedId: string; iterations: number; keystrokes: number }>;
+  confirmPendingSwitch: (expectedId: string) => Promise<void>;
+  finishPendingSwitch: () => Promise<PendingSaveSwitchResult>;
+  prepareBubble: () => Promise<{ expected: number }>;
+  holdBubble: () => Promise<BubbleHoldResult>;
+  prepareSidebarToggle: (name: "sidebar-collapse" | "sidebar-expand") => Promise<ScreenPoint>;
+  settleSidebarToggle: () => Promise<SidebarToggleResult>;
+  prepareScroll: (input: ScrollInput) => Promise<ScreenPoint & { ticks: number; deltaY: number }>;
+  scrollStep: () => void;
+  finishScroll: () => Promise<ScrollResult>;
+  finishScenarios: (results: Omit<ScenarioResults, "correctness">) => ScenarioResults;
+  readPageErrors: () => string[];
   finish: (
     selection: PhaseResult,
     workingSet: WorkingSetResult,

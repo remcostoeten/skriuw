@@ -122,6 +122,17 @@ test("opens a file once, follows its changes and recognises it after a move", as
   );
 });
 
+function noteCount(store: { getState(): { nodes: ReadonlyMap<string, { kind: string }> } }) {
+  return [...store.getState().nodes.values()].filter((node) => node.kind === "note").length;
+}
+
+async function waitFor(condition: () => boolean, timeoutMs = 2_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!condition() && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
 test("keeps note edits when only the note changed and asks when both changed", async () => {
   serveFiles();
   const { openFileInWorkspace } = await import("@/features/transfer/import/actions");
@@ -159,7 +170,7 @@ test("keeps note edits when only the note changed and asks when both changed", a
   assert.equal(await openFileInWorkspace(store, "/home/me/plan.md"), noteId);
   assert.equal(store.getState().documents.get(noteId)?.markdown, "Edited in Skriuw\n");
   (await asked)("both");
-  await new Promise((resolve) => setTimeout(resolve, 20));
+  await waitFor(() => noteCount(store) === 2);
 
   const notes = [...store.getState().nodes.values()].filter((node) => node.kind === "note");
   assert.equal(notes.length, 2);

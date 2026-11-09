@@ -68,6 +68,10 @@ pub const MAX_BLOCKED_DETAIL_CHARS: usize = 1_024;
 pub const CONSECUTIVE_REJECTIONS_BEFORE_PARKING: u32 = 3;
 pub const PULL_APPLY_SUB_BATCH_OPERATIONS: usize = 32;
 pub const FULL_CHANGE_NOTE_THRESHOLD: usize = 256;
+/// How long an unchanged cursor goes without being acknowledged again. The
+/// service expires a device cursor that has not been acknowledged for 30 days
+/// and then compacts past it, so a quiet device still refreshes it hourly.
+pub const ACKNOWLEDGEMENT_REFRESH_MS: i64 = 60 * 60 * 1_000;
 
 /// Narrow status projection consumed by the runtime and UI. The UI may render
 /// this and request connect, disconnect, retry, or refresh; retry and cursor
@@ -194,11 +198,29 @@ struct RejectionTracker {
     count: u32,
 }
 
+/// An encryption record this session already matched against the device's
+/// key. The service writes the record once, so while the workspace and the
+/// key stay the same the answer cannot change.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ConfirmedEncryption {
+    workspace_id: String,
+    key_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SentAcknowledgement {
+    workspace_id: String,
+    device_id: String,
+    server_sequence: u64,
+    sent_at_ms: i64,
+}
+
 /// Per-session memory the cycle carries between runs: the backoff, the pull
 /// page size reduced after an oversized response, the run of identical
-/// rejections for the claimed batch, and a rehydration the previous cycle
-/// requested. Everything durable stays in the queue; this state only shapes
-/// the next attempt and is rebuilt from scratch after a restart.
+/// rejections for the claimed batch, a rehydration the previous cycle
+/// requested, the encryption record already matched, and the last cursor
+/// acknowledged. Everything durable stays in the queue; this state only
+/// shapes the next attempt and is rebuilt from scratch after a restart.
 #[derive(Debug, Clone)]
 pub struct SyncCycleState {
     pub backoff: SyncBackoff,
@@ -206,6 +228,8 @@ pub struct SyncCycleState {
     rejection: Option<RejectionTracker>,
     acknowledgement_rejections: u32,
     rehydration_requested: bool,
+    confirmed_encryption: Option<ConfirmedEncryption>,
+    sent_acknowledgement: Option<SentAcknowledgement>,
 }
 
 impl SyncCycleState {
@@ -222,12 +246,41 @@ impl SyncCycleState {
             rejection: None,
             acknowledgement_rejections: 0,
             rehydration_requested: false,
+            confirmed_encryption: None,
+            sent_acknowledgement: None,
         }
     }
 
     #[must_use]
     pub fn rehydration_requested(&self) -> bool {
         self.rehydration_requested
+    }
+
+    /// Makes the next cycle that uploads read the cloud's encryption record
+    /// again instead of trusting the match this session already made.
+    pub fn forget_encryption_record(&mut self) {
+        self.confirmed_encryption = None;
+    }
+
+    fn encryption_confirmed(&self, workspace_id: &str, sealer: Option<&WorkspaceSealer>) -> bool {
+        match (&self.confirmed_encryption, sealer) {
+            (Some(confirmed), Some(sealer)) => {
+                confirmed.workspace_id == workspace_id && confirmed.key_id == sealer.key_id()
+            }
+            _ => false,
+        }
+    }
+
+    fn acknowledgement_due(&self, connection: &SyncConnection, now_ms: i64) -> bool {
+        match &self.sent_acknowledgement {
+            Some(sent) => {
+                sent.workspace_id != connection.workspace_id
+                    || sent.device_id != connection.device_id
+                    || sent.server_sequence != connection.observed_server_sequence
+                    || now_ms.saturating_sub(sent.sent_at_ms) >= ACKNOWLEDGEMENT_REFRESH_MS
+            }
+            None => true,
+        }
     }
 
     #[must_use]
@@ -414,15 +467,25 @@ impl Cycle<'_> {
             Ok(None) => return SyncCycleOutcome::settled(SyncStatus::LocalOnly),
             Err(error) => return self.storage_failure(&error),
         };
+        let now = self.clock.now_ms();
         if connection.observed_server_sequence > 0
-            && let Err(error) = self.transport.acknowledge(
+            && self.state.acknowledgement_due(&connection, now)
+        {
+            if let Err(error) = self.transport.acknowledge(
                 &connection.workspace_id,
                 &connection.device_id,
                 connection.observed_server_sequence,
                 self.cancellation,
-            )
-        {
-            return self.acknowledge_failure(&error);
+            ) {
+                self.state.sent_acknowledgement = None;
+                return self.acknowledge_failure(&error);
+            }
+            self.state.sent_acknowledgement = Some(SentAcknowledgement {
+                workspace_id: connection.workspace_id.clone(),
+                device_id: connection.device_id.clone(),
+                server_sequence: connection.observed_server_sequence,
+                sent_at_ms: now,
+            });
         }
         if let Some(deferred) = deferred {
             return deferred;
@@ -433,13 +496,23 @@ impl Cycle<'_> {
     /// Nothing leaves this device until the cloud's encryption record agrees
     /// with the key the device holds: a keyless device never uploads
     /// plaintext into an encrypted workspace, and a device holding another
-    /// key never uploads content the other devices could not open.
+    /// key never uploads content the other devices could not open. Only a
+    /// record that names this device's key is remembered, because the
+    /// service never rewrites it; an absent record is read again before every
+    /// upload, since another device can create it at any moment.
     fn require_matching_seal_state(&mut self, workspace_id: &str) -> Result<(), SyncCycleOutcome> {
         match self.queue.has_pending_sync_operations() {
             Ok(false) => return Ok(()),
             Ok(true) => {}
             Err(error) => return Err(self.storage_failure(&error)),
         }
+        if self
+            .state
+            .encryption_confirmed(workspace_id, self.sealer.as_ref())
+        {
+            return Ok(());
+        }
+        self.state.forget_encryption_record();
         let marker = match self
             .transport
             .workspace_encryption(workspace_id, self.cancellation)
@@ -448,10 +521,16 @@ impl Cycle<'_> {
             Err(TransportError::RouteUnavailable) => return self.without_encryption_record(),
             Err(error) => return Err(self.pull_failure(&error)),
         };
-        match encryption_mismatch(self.sealer.as_ref(), marker.as_ref()) {
-            Some((reason, detail)) => Err(self.parked_for_encryption(reason, &detail)),
-            None => Ok(()),
+        if let Some((reason, detail)) = encryption_mismatch(self.sealer.as_ref(), marker.as_ref()) {
+            return Err(self.parked_for_encryption(reason, &detail));
         }
+        if let (Some(marker), Some(_)) = (marker, &self.sealer) {
+            self.state.confirmed_encryption = Some(ConfirmedEncryption {
+                workspace_id: workspace_id.to_string(),
+                key_id: marker.key_id,
+            });
+        }
+        Ok(())
     }
 
     /// A cloud that does not serve the encryption record predates encryption
@@ -643,6 +722,9 @@ impl Cycle<'_> {
 
     fn push_failure(&mut self, operation_ids: &[String], error: &TransportError) -> PushFailure {
         let now = self.clock.now_ms();
+        if !matches!(error, TransportError::Cancelled) {
+            self.state.forget_encryption_record();
+        }
         match error {
             TransportError::Cancelled => {
                 if let Err(error) = self.release_claim(

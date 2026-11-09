@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { searchWorkspace } from "@/platform/runtime/commands";
+import { preparedEditorDocuments } from "@/features/editor/prepared-documents";
+import { scheduleIdle } from "@/shared/scheduling/idle";
 import { requestRangeReveal } from "@/features/editor/reveal-controller";
 import { openJournalDay } from "@/features/journal/navigation";
 import { flushPendingWork } from "@/store/pending-work";
@@ -7,7 +9,11 @@ import { SectionChevron, SectionLabel } from "@/shared/ui/section-header";
 import { showToast } from "@/shared/ui/toast";
 import { activateNote } from "@/features/notes/navigation";
 import { commitOperations } from "@/store/commit";
-import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
+import type {
+  DocumentRecord,
+  RendererState,
+  RendererStore,
+} from "@skriuw/renderer-core/store/types";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import {
   UNLINKED_MENTION_CANDIDATE_LIMIT,
@@ -22,12 +28,60 @@ import {
 
 const ROWS = 5;
 export const SEARCH_DELAY_MS = 250;
+const PROJECTION_IDLE_TIMEOUT_MS = 500;
+const CACHED_TERMS_PER_SNAPSHOT = 32;
 const NO_MENTIONS: readonly UnlinkedMention[] = [];
 
 type Candidates = {
   key: string;
   noteIds: readonly string[];
 };
+
+type Projection = {
+  key: string;
+  mentions: readonly UnlinkedMention[];
+};
+
+const hitsByDocuments = new WeakMap<
+  ReadonlyMap<string, DocumentRecord>,
+  Map<string, readonly string[]>
+>();
+
+function cachedHits(
+  documents: ReadonlyMap<string, DocumentRecord>,
+  term: string,
+): readonly string[] | null {
+  return hitsByDocuments.get(documents)?.get(term) ?? null;
+}
+
+function cacheHits(
+  documents: ReadonlyMap<string, DocumentRecord>,
+  term: string,
+  noteIds: readonly string[],
+): void {
+  let hits = hitsByDocuments.get(documents);
+  if (!hits) {
+    hits = new Map();
+    hitsByDocuments.set(documents, hits);
+  }
+  if (hits.size >= CACHED_TERMS_PER_SNAPSHOT) {
+    const oldest = hits.keys().next().value;
+    if (oldest !== undefined) hits.delete(oldest);
+  }
+  hits.set(term, noteIds);
+}
+
+function selectDocuments(state: RendererState) {
+  return state.documents;
+}
+
+function selectMetadata(state: RendererState) {
+  return state.metadata;
+}
+
+function selectSourceNodes(state: RendererState) {
+  return state.sourceNodes;
+}
 
 function sameMentions(left: readonly UnlinkedMention[], right: readonly UnlinkedMention[]) {
   return (
@@ -172,22 +226,54 @@ export function UnlinkedMentions({ store, noteId }: { store: RendererStore; note
     useCallback((state: RendererState) => noteUnlinkedMentionTerm(state, noteId), [noteId]),
   );
   const [candidates, setCandidates] = useState<Candidates | null>(null);
+  const [projection, setProjection] = useState<Projection | null>(null);
   const [open, setOpen] = useState(true);
+  const [inView, setInView] = useState(false);
   const [all, setAll] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const focusIndexRef = useRef<number | null>(null);
   const searchKey = `${noteId}\0${term ?? ""}`;
+  const hasTerm = term !== null;
+  const active = hasTerm && open && inView;
 
   useEffect(() => {
-    if (term === null) {
+    const section = sectionRef.current;
+    if (!hasTerm || section === null) {
+      return;
+    }
+    if (typeof IntersectionObserver === "undefined") {
+      setInView(true);
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries.at(-1);
+      if (entry) {
+        setInView(entry.isIntersecting);
+      }
+    });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [hasTerm]);
+
+  useEffect(() => {
+    if (!active || term === null) {
+      return;
+    }
+    const documents = store.getState().documents;
+    const cached = cachedHits(documents, term);
+    if (cached !== null) {
+      setCandidates({ key: searchKey, noteIds: cached });
       return;
     }
     let cancelled = false;
     const timer = window.setTimeout(() => {
       searchWorkspace(term, UNLINKED_MENTION_CANDIDATE_LIMIT)
         .then((hits) => {
+          const noteIds = hits.map((hit) => hit.noteId);
+          cacheHits(documents, term, noteIds);
           if (!cancelled) {
-            setCandidates({ key: searchKey, noteIds: hits.map((hit) => hit.noteId) });
+            setCandidates({ key: searchKey, noteIds });
           }
         })
         .catch((error) => {
@@ -201,18 +287,51 @@ export function UnlinkedMentions({ store, noteId }: { store: RendererStore; note
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [searchKey, term]);
+  }, [active, searchKey, store, term]);
 
   const noteIds = candidates?.key === searchKey ? candidates.noteIds : null;
-  const mentions = useRendererSelector(
-    store,
-    useCallback(
-      (state: RendererState) =>
-        noteIds === null ? NO_MENTIONS : projectUnlinkedMentions(state, noteId, noteIds),
-      [noteId, noteIds],
-    ),
-    sameMentions,
-  );
+
+  useEffect(() => {
+    if (!active || noteIds === null) {
+      return;
+    }
+    const candidateIds = noteIds;
+    const prepared = preparedEditorDocuments(store);
+    let cancelIdle: (() => void) | null = null;
+
+    function project(): void {
+      cancelIdle = null;
+      const next = projectUnlinkedMentions(store.getState(), noteId, candidateIds, (record) =>
+        prepared.documentFor(record),
+      );
+      setProjection((current) =>
+        current?.key === searchKey && sameMentions(current.mentions, next)
+          ? current
+          : { key: searchKey, mentions: next },
+      );
+    }
+
+    function schedule(): void {
+      cancelIdle?.();
+      cancelIdle = scheduleIdle(project, PROJECTION_IDLE_TIMEOUT_MS);
+    }
+
+    schedule();
+    const unsubscribers = [
+      store.subscribe(selectDocuments, schedule),
+      store.subscribe(selectMetadata, schedule),
+      store.subscribe(selectSourceNodes, schedule),
+    ];
+    return () => {
+      cancelIdle?.();
+      for (const unsubscribe of unsubscribers) {
+        unsubscribe();
+      }
+    };
+  }, [active, noteId, noteIds, searchKey, store]);
+
+  const loaded = projection?.key === searchKey;
+  const mentions = loaded ? projection.mentions : NO_MENTIONS;
 
   useEffect(() => {
     const index = focusIndexRef.current;
@@ -238,10 +357,9 @@ export function UnlinkedMentions({ store, noteId }: { store: RendererStore; note
   }
 
   const visible = all ? mentions.length : Math.min(ROWS, mentions.length);
-  const loaded = noteIds !== null;
 
   return (
-    <section aria-label="Unlinked mentions">
+    <section ref={sectionRef} aria-label="Unlinked mentions">
       <div className="flex items-center gap-1">
         <button
           type="button"

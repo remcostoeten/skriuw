@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use skriuw_domain::HistoryHeader;
 use skriuw_storage::{
     Diagnostic, DiagnosticCategory, DiagnosticContext, HistoryCache, HistoryMaterialization,
@@ -37,6 +39,18 @@ pub trait HistoryMaterializer: Send + Sync {
         &self,
         item: &PendingHistoryRevision,
     ) -> Result<HistoryMaterialization, MaterializationError>;
+}
+
+impl<T> HistoryMaterializer for Arc<T>
+where
+    T: HistoryMaterializer + ?Sized,
+{
+    fn materialize(
+        &self,
+        item: &PendingHistoryRevision,
+    ) -> Result<HistoryMaterialization, MaterializationError> {
+        self.as_ref().materialize(item)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -16,11 +16,10 @@ type Props = {
   width: number;
   collapsed: boolean;
   offsetBase: number;
-  settling: boolean;
   onPreview: (width: number, collapsed: boolean) => void;
   onResize: (width: number) => void;
-  onCollapse: () => void;
-  onExpand: () => void;
+  onCollapse: (animated: boolean) => void;
+  onExpand: (animated: boolean) => void;
   onDragChange: (dragging: boolean) => void;
 };
 
@@ -31,7 +30,6 @@ export function PanelResizeHandle({
   width,
   collapsed,
   offsetBase,
-  settling,
   onPreview,
   onResize,
   onCollapse,
@@ -56,6 +54,7 @@ export function PanelResizeHandle({
     }
     let pointerX = 0;
     let frame = 0;
+    let previewed = { ...draftRef.current };
 
     function place(trackWidth: number) {
       const element = elementRef.current;
@@ -72,15 +71,18 @@ export function PanelResizeHandle({
       }
       const travel = side === "left" ? pointerX - origin.pointerX : origin.pointerX - pointerX;
       const raw = origin.width + travel;
-      if (bounds.shouldCollapse(raw)) {
-        draftRef.current = { width: draftRef.current.width, collapsed: true };
-        place(0);
-        onPreview(draftRef.current.width, true);
+      const collapsedDraft = bounds.shouldCollapse(raw);
+      const draft = {
+        width: collapsedDraft ? draftRef.current.width : bounds.clamp(raw),
+        collapsed: collapsedDraft,
+      };
+      draftRef.current = draft;
+      if (draft.width === previewed.width && draft.collapsed === previewed.collapsed) {
         return;
       }
-      draftRef.current = { width: bounds.clamp(raw), collapsed: false };
-      place(draftRef.current.width);
-      onPreview(draftRef.current.width, false);
+      previewed = draft;
+      place(draft.collapsed ? 0 : draft.width);
+      onPreview(draft.width, draft.collapsed);
     }
 
     function handleMove(event: PointerEvent) {
@@ -110,10 +112,10 @@ export function PanelResizeHandle({
       onDragChange(false);
       const draft = draftRef.current;
       if (draft.collapsed) {
-        onCollapse();
+        onCollapse(false);
         return;
       }
-      onExpand();
+      onExpand(false);
       onResize(draft.width);
     };
   }, [bounds, dragging, offsetBase, onCollapse, onDragChange, onExpand, onPreview, onResize, side]);
@@ -121,10 +123,10 @@ export function PanelResizeHandle({
   function nudge(delta: number) {
     const next = bounds.clamp((collapsed ? 0 : width) + delta);
     if (bounds.shouldCollapse(next)) {
-      onCollapse();
+      onCollapse(true);
       return;
     }
-    onExpand();
+    onExpand(true);
     onResize(next);
   }
 
@@ -145,7 +147,7 @@ export function PanelResizeHandle({
       style={{ [side]: offsetBase + (collapsed ? 0 : width) }}
       className={`sidebar-resize-handle sidebar-resize-handle-${side}${
         dragging ? " sidebar-resize-handle-active" : ""
-      }${settling ? " sidebar-resize-handle-settling" : ""}`}
+      }`}
       onPointerDown={(event) => {
         if (dragging) {
           return;
@@ -158,7 +160,7 @@ export function PanelResizeHandle({
         draftRef.current = { width, collapsed };
         setDragging(true);
       }}
-      onDoubleClick={() => (collapsed ? onExpand() : onCollapse())}
+      onDoubleClick={() => (collapsed ? onExpand(true) : onCollapse(true))}
       onKeyDown={(event) => {
         const shrinkKey = side === "left" ? "ArrowLeft" : "ArrowRight";
         if (event.key === "ArrowLeft" || event.key === "ArrowRight") {

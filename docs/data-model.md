@@ -41,7 +41,7 @@ A repeating checklist item carries a `recurrence` attribute, written to Markdown
 
 ### `documents_fts`
 
-FTS5 projection over title and Markdown. Updated in the same transaction as canonical writes. Rebuildable from canonical tables.
+FTS5 projection over title and Markdown. Updated in the same transaction as canonical writes. Rebuildable from canonical tables. From search index version 4, each row shares the rowid of its `documents` row, so a save replaces it by rowid instead of scanning the unindexed `note_id` column. An index built by an older version keeps the `note_id` path until the idle rebuild realigns it.
 
 ### `history_cache`
 

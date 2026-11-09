@@ -148,12 +148,14 @@ export function handleTreeKeyDown(event: KeyboardEvent, keyboard: TreeKeyboard):
     }
     case "Enter": {
       if (focused) {
-        store.selectTreeNode(focused.id, "replace");
-      }
-      if (focused?.kind === "note") {
-        activateNote(store, focused.id);
-      } else if (focused) {
-        store.toggleExpanded(focused.id);
+        store.batch(() => {
+          store.selectTreeNode(focused.id, "replace");
+          if (focused.kind === "note") {
+            activateNote(store, focused.id);
+          } else {
+            store.toggleExpanded(focused.id);
+          }
+        });
       }
       event.preventDefault();
       return;

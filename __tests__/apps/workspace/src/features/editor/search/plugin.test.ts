@@ -7,6 +7,7 @@ import {
   createSearchPlugin,
   defaultSearchOptions,
   findSearchMatches,
+  followSearchDocument,
   getSearchState,
   nextMatch,
   previousMatch,
@@ -169,4 +170,85 @@ test("a regex term is searched across the whole document after an edit", () => {
 
   assert.equal(getSearchState(view)?.matches.length, 1);
   assertMatchesFullSearch(view, "a\\ng", options);
+});
+
+function paintedMatches(state: EditorState): string[] {
+  return (
+    getSearchState({
+      state,
+      dispatch: () => undefined,
+      focus: () => undefined,
+    })?.decorations.find() ?? []
+  )
+    .map(
+      (decoration) =>
+        `${decoration.from}-${decoration.to}:${String((decoration as { type: { attrs?: { class?: string } } }).type.attrs?.class ?? "")}`,
+    )
+    .sort();
+}
+
+function assertPaintedLikeRebuild(view: EditorView, term: string): void {
+  const searched = getSearchState(view);
+  assert.ok(searched);
+  let fresh = EditorState.create({ doc: view.state.doc, plugins: [createSearchPlugin()] });
+  const target = {
+    get state() {
+      return fresh;
+    },
+    dispatch(transaction: Transaction) {
+      fresh = fresh.apply(transaction);
+    },
+    focus() {},
+  };
+  setSearch(target, term, defaultSearchOptions);
+  for (let step = 0; step < searched.current; step += 1) nextMatch(target);
+  assert.equal(getSearchState(target)?.current, searched.current);
+  assert.deepEqual(paintedMatches(view.state), paintedMatches(fresh));
+}
+
+test("moving between matches and editing keep the painted matches equal to a rebuild", () => {
+  const { view } = createView(["one two one", "three one", "one", "four"]);
+  setSearch(view, "one", defaultSearchOptions);
+  assertPaintedLikeRebuild(view, "one");
+  nextMatch(view);
+  nextMatch(view);
+  assertPaintedLikeRebuild(view, "one");
+  previousMatch(view);
+  assertPaintedLikeRebuild(view, "one");
+  edit(view, (transaction) => transaction.insertText("one ", 1));
+  assertPaintedLikeRebuild(view, "one");
+  edit(view, (transaction) => transaction.delete(3, 5));
+  assertPaintedLikeRebuild(view, "one");
+  nextMatch(view);
+  nextMatch(view);
+  edit(view, (transaction) => transaction.insertText("x", view.state.doc.content.size - 2));
+  assertPaintedLikeRebuild(view, "one");
+  edit(view, (transaction) => transaction.delete(1, view.state.doc.child(0).nodeSize + 3));
+  assertPaintedLikeRebuild(view, "one");
+  setSearch(view, "one", defaultSearchOptions);
+  assertPaintedLikeRebuild(view, "one");
+});
+
+test("a standalone search state follows a changed document without losing its place", () => {
+  const { view } = createView(["one two", "three one", "one four", "five"]);
+  setSearch(view, "one", defaultSearchOptions);
+  nextMatch(view);
+  const before = view.state;
+  const paragraph = productSchema.node("paragraph", null, productSchema.text("one more one"));
+  const changed = before.doc.copy(before.doc.content.replaceChild(3, paragraph));
+  const followed = followSearchDocument(before, changed);
+  assert.ok(followed);
+  assert.ok(followed.doc.eq(changed));
+  const state = getSearchState({
+    state: followed,
+    dispatch: () => undefined,
+    focus: () => undefined,
+  });
+  assert.equal(state?.term, "one");
+  assert.equal(state?.current, 1);
+  assert.deepEqual(
+    state?.matches,
+    findSearchMatches(changed, buildRegex("one", defaultSearchOptions)),
+  );
+  assert.equal(followSearchDocument(followed, changed), followed);
 });

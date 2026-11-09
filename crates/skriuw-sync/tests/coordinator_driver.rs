@@ -17,8 +17,8 @@ use skriuw_storage::{
     NewSyncConnection, WorkspaceMaintenance, WorkspaceStorage, WorkspaceSyncQueue,
 };
 use skriuw_sync::{
-    SyncCancellation, SyncClock, SyncCoordinator, SyncCoordinatorConfig, SyncPollIntervals,
-    SyncStatus, SyncTransport, TransportError,
+    SyncCancellation, SyncClock, SyncCoordinator, SyncCoordinatorConfig, SyncLocalCommitDelay,
+    SyncPollIntervals, SyncStatus, SyncTransport, TransportError,
 };
 use support::{FakeServer, FakeTransport, PushFault, create_note};
 
@@ -911,6 +911,114 @@ fn local_commits_complete_while_the_transport_is_blocked() {
         elapsed < Duration::from_secs(5),
         "50 local commits took {elapsed:?} while the transport was blocked"
     );
+    coordinator.shutdown();
+}
+
+fn spawn_with_commit_delay(
+    storage: &Arc<SqliteWorkspace>,
+    transport: &Arc<FakeTransport>,
+    quiet_ms: i64,
+    max_ms: i64,
+) -> SyncCoordinator {
+    spawn_coordinator_with(
+        Arc::clone(storage),
+        Arc::clone(transport) as Arc<dyn SyncTransport>,
+        SyncCoordinatorConfig {
+            local_commit: SyncLocalCommitDelay { quiet_ms, max_ms },
+            ..SyncCoordinatorConfig::default()
+        },
+    )
+}
+
+#[test]
+fn a_typing_burst_uploads_in_one_cycle_after_the_writer_pauses() {
+    let server = FakeServer::new(WORKSPACE);
+    let storage = Arc::new(SqliteWorkspace::open_in_memory().expect("open database"));
+    connect(&storage, "device-a");
+    let transport = FakeTransport::new(&server, "device-a");
+    let coordinator = spawn_with_commit_delay(&storage, &transport, 300, 60_000);
+    wait_for_status(&coordinator, |status| *status == SyncStatus::UpToDate);
+    let pulls_before = transport.pull_calls();
+
+    let burst_started = Instant::now();
+    for index in 0..10 {
+        let note_id = format!("note-{index}");
+        storage
+            .apply_operations(&[create_note(&note_id, &note_id, 1)])
+            .expect("apply operation");
+        coordinator.notify_local_commit();
+        thread::sleep(Duration::from_millis(10));
+    }
+    if burst_started.elapsed() < Duration::from_millis(250) {
+        assert_eq!(transport.push_calls(), 0, "no cycle starts mid-burst");
+    }
+    wait_until(
+        || server.acknowledged_sequence("device-a") == Some(10),
+        "the burst to be pushed, pulled back, and acknowledged",
+    );
+
+    assert_eq!(transport.push_calls(), 1);
+    assert_eq!(transport.pull_calls(), pulls_before + 1);
+    coordinator.shutdown();
+}
+
+#[test]
+fn continuous_typing_still_uploads_at_the_maximum_delay() {
+    let server = FakeServer::new(WORKSPACE);
+    let storage = Arc::new(SqliteWorkspace::open_in_memory().expect("open database"));
+    connect(&storage, "device-a");
+    let transport = FakeTransport::new(&server, "device-a");
+    let coordinator = spawn_with_commit_delay(&storage, &transport, 400, 200);
+    wait_for_status(&coordinator, |status| *status == SyncStatus::UpToDate);
+
+    let typing_until = Instant::now() + Duration::from_millis(1_500);
+    let mut index = 0;
+    while Instant::now() < typing_until && server.log_len() == 0 {
+        let note_id = format!("note-{index}");
+        storage
+            .apply_operations(&[create_note(&note_id, &note_id, 1)])
+            .expect("apply operation");
+        coordinator.notify_local_commit();
+        index += 1;
+        thread::sleep(Duration::from_millis(20));
+    }
+
+    assert!(
+        server.log_len() > 0,
+        "commits every 20 ms never paused for the quiet window, yet the maximum delay uploaded them"
+    );
+    coordinator.shutdown();
+}
+
+#[test]
+fn focus_and_refresh_wake_at_once_while_commits_wait() {
+    let server = FakeServer::new(WORKSPACE);
+    let storage = Arc::new(SqliteWorkspace::open_in_memory().expect("open database"));
+    connect(&storage, "device-a");
+    let transport = FakeTransport::new(&server, "device-a");
+    let coordinator = spawn_with_commit_delay(&storage, &transport, 60_000, 60_000);
+    wait_for_status(&coordinator, |status| *status == SyncStatus::UpToDate);
+
+    storage
+        .apply_operations(&[create_note("note-1", "Waiting", 1)])
+        .expect("apply operation");
+    coordinator.notify_local_commit();
+    thread::sleep(Duration::from_millis(50));
+    assert_eq!(server.log_len(), 0);
+
+    coordinator.notify_focus();
+    wait_for_status(&coordinator, |status| {
+        *status == SyncStatus::UpToDate && server.log_len() == 1
+    });
+
+    storage
+        .apply_operations(&[create_note("note-2", "Flushed on blur", 2)])
+        .expect("apply operation");
+    coordinator.notify_local_commit();
+    coordinator.request_refresh();
+    wait_for_status(&coordinator, |status| {
+        *status == SyncStatus::UpToDate && server.log_len() == 2
+    });
     coordinator.shutdown();
 }
 

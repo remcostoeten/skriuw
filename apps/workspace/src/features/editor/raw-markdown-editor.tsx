@@ -40,6 +40,8 @@ import {
   countRawMarkdownWords,
   parseJumpToLineInput,
   rawMarkdownCursorStatus,
+  rawMarkdownCursorStatusEqual,
+  rawMarkdownSelectionStatus,
   rawMarkdownLineCount,
 } from "./raw-markdown/model";
 import {
@@ -331,8 +333,24 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
               handleChangeRef.current(update.state.doc.toString());
             }
             if (update.docChanged || update.selectionSet) {
-              const { from, to } = update.state.selection.main;
-              setCursorStatus(rawMarkdownCursorStatus(update.state.doc.toString(), from, to));
+              const { doc, selection } = update.state;
+              const { from, to } = selection.main;
+              const line = doc.lineAt(from);
+              const status = rawMarkdownSelectionStatus(
+                line.number,
+                from - line.from + 1,
+                doc.sliceString(from, to),
+              );
+              setCursorStatus((previous) =>
+                rawMarkdownCursorStatusEqual(previous, status) ? previous : status,
+              );
+            }
+            if (
+              update.transactions.length === 0 &&
+              !update.geometryChanged &&
+              !update.viewportChanged
+            ) {
+              return;
             }
             const rows = rawMarkdownRowStatus(update.view);
             setRowStatus((previous) =>

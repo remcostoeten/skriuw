@@ -70,7 +70,7 @@ These rules hold regardless of timing. Each one removes a kind of work from the 
 The benchmarks run against these fixtures. A block is one paragraph, heading, list, code block, or similar unit of a note.
 
 - 1,000 and 5,000-note workspaces.
-- 50, 500, and 2,000-block documents.
+- 50, 150, 500, and 2,000-block documents. The 150-block document is below the bounded editor window threshold, so it covers notes the progressive window does not.
 - 100 rapid note switches by keyboard.
 - 10,000 command-palette entries.
 - Continuous typing while search and history projections update.
@@ -81,7 +81,7 @@ The benchmarks run against these fixtures. A block is one paragraph, heading, li
 
 Performance marks surround selection dispatch, editor-state installation, command opening, keystroke handling, and next paint. A performance mark is a timestamp the code records through the browser's Performance API, so each step is timed from the moment a note is selected, through putting its editor state in place, to the next frame on screen. Long Animation Frame observations capture blocking work. React profiling records commits and affected component names. React Scan exposes avoidable renders during development but is not treated as proof of performance.
 
-The benchmark harness runs a production build on fixed reference hardware. It stores raw samples, P50, P95, P99, maximum duration, dropped frames, long tasks, React commit counts, and editor-host mount counts. Raw samples are every individual timing, kept next to the summaries so a result can be checked later, and the editor-host mount count shows whether the editor was rebuilt. CI uses a stable dedicated performance runner; ordinary shared CI runs functional checks without pretending timing is deterministic. CI (continuous integration) is the set of automated checks that runs on every proposed change. Its shared machines check that things work but do not judge timing, because their speed varies from run to run.
+The benchmark harness runs a production build on fixed reference hardware. Its fixtures, options and informational scenarios are described in [`apps/workspace/performance/README.md`](../apps/workspace/performance/README.md). Chrome is the reference browser; a WebKitGTK run reports the budgets it cannot measure as N/A. It stores raw samples, P50, P95, P99, maximum duration, dropped frames, long tasks, React commit counts, and editor-host mount counts. Raw samples are every individual timing, kept next to the summaries so a result can be checked later, and the editor-host mount count shows whether the editor was rebuilt. CI uses a stable dedicated performance runner; ordinary shared CI runs functional checks without pretending timing is deterministic. CI (continuous integration) is the set of automated checks that runs on every proposed change. Its shared machines check that things work but do not judge timing, because their speed varies from run to run.
 
 Architecture changes failing budgets do not merge without an explicit ADR and a replacement measurement. An ADR (architecture decision record) is a short document in [`docs/adr`](adr) that records a design decision and the reasons for it.
 

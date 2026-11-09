@@ -2,7 +2,7 @@ import type { MarkType, Node as ProseMirrorNode } from "prosemirror-model";
 import { Plugin, PluginKey, type EditorState, type Transaction } from "prosemirror-state";
 import { AddMarkStep, RemoveMarkStep } from "prosemirror-transform";
 import { Decoration, DecorationSet } from "prosemirror-view";
-import { annotationRangesInDoc } from "./menu";
+import { annotationRangesInDoc, annotationRangesWithin, type AnnotationRange } from "./menu";
 
 /**
  * Anchor status is workspace state, not document state: resolving a thread must
@@ -31,17 +31,70 @@ const OPEN_CLASS = "skriuw-annotation";
 const RESOLVED_CLASS = "skriuw-annotation skriuw-annotation--resolved";
 const ACTIVE_CLASS = "skriuw-annotation skriuw-annotation--active";
 
-function buildDecorations(doc: ProseMirrorNode, inputs: AnnotationDecorationInputs): DecorationSet {
-  const ranges = annotationRangesInDoc(doc);
-  if (ranges.length === 0) return DecorationSet.empty;
-  const decorations = ranges.map((range) => {
+function rangeDecorations(
+  ranges: readonly AnnotationRange[],
+  inputs: AnnotationDecorationInputs,
+): Decoration[] {
+  return ranges.map((range) => {
     const active = range.threadId === inputs.activeThreadId;
     const resolved = inputs.resolvedThreadIds.has(range.threadId);
     return Decoration.inline(range.from, range.to, {
       class: active ? ACTIVE_CLASS : resolved ? RESOLVED_CLASS : OPEN_CLASS,
     });
   });
-  return DecorationSet.create(doc, decorations);
+}
+
+function buildDecorations(doc: ProseMirrorNode, inputs: AnnotationDecorationInputs): DecorationSet {
+  const ranges = annotationRangesInDoc(doc);
+  if (ranges.length === 0) return DecorationSet.empty;
+  return DecorationSet.create(doc, rangeDecorations(ranges, inputs));
+}
+
+function touchedRanges(tr: Transaction, annotation: MarkType): { from: number; to: number }[] {
+  const ranges: { from: number; to: number }[] = [];
+  tr.steps.forEach((step, index) => {
+    const rest = tr.mapping.slice(index + 1);
+    if (
+      (step instanceof AddMarkStep || step instanceof RemoveMarkStep) &&
+      step.mark.type === annotation
+    ) {
+      ranges.push({ from: rest.map(step.from, -1), to: rest.map(step.to, 1) });
+    }
+    step.getMap().forEach((_oldStart, _oldEnd, newStart, newEnd) => {
+      ranges.push({ from: rest.map(newStart, -1), to: rest.map(newEnd, 1) });
+    });
+  });
+  return ranges;
+}
+
+/**
+ * Maps the previous decorations and repaints only the textblocks the
+ * transaction touched. A run never crosses a block boundary, so every other
+ * block's mapped decorations already equal a rebuild.
+ */
+function redecorateTouched(
+  previous: DecorationSet,
+  tr: Transaction,
+  annotation: MarkType,
+  inputs: AnnotationDecorationInputs,
+): DecorationSet {
+  const { doc } = tr;
+  const size = doc.content.size;
+  const handled = new Set<number>();
+  let set = previous.map(tr.mapping, doc);
+  for (const range of touchedRanges(tr, annotation)) {
+    const from = Math.max(0, Math.min(range.from, range.to) - 1);
+    const to = Math.min(size, Math.max(range.from, range.to) + 1);
+    doc.nodesBetween(from, to, (node, pos) => {
+      if (!node.isTextblock) return true;
+      if (handled.has(pos)) return false;
+      handled.add(pos);
+      set = set.remove(set.find(pos + 1, pos + node.nodeSize - 1));
+      set = set.add(doc, rangeDecorations(annotationRangesWithin(node, pos + 1), inputs));
+      return false;
+    });
+  }
+  return set;
 }
 
 function carriesAnnotation(
@@ -112,13 +165,17 @@ export function createAnnotationDecorationPlugin(): Plugin<AnnotationDecorationS
         }
         if (!tr.docChanged) return previous;
         /**
-         * Ranges are rebuilt whenever a step replaces text next to an anchor or
-         * adds or removes an anchor mark, because undo can restore a deleted mark
-         * and a paste can carry anchors in. Every other edit only maps them.
+         * Touched blocks are repainted whenever a step replaces text next to an
+         * anchor or adds or removes an anchor mark, because undo can restore a
+         * deleted mark and a paste can carry anchors in. Every other edit only
+         * maps them.
          */
         const annotation = newState.schema.marks.annotation;
         if (annotation && touchesAnnotations(tr, annotation)) {
-          return { ...previous, decorations: buildDecorations(newState.doc, previous) };
+          return {
+            ...previous,
+            decorations: redecorateTouched(previous.decorations, tr, annotation, previous),
+          };
         }
         const decorations = previous.decorations.map(tr.mapping, tr.doc);
         if (decorations === previous.decorations) return previous;
@@ -151,6 +208,32 @@ export function setAnnotationDecorations(
   const tr = view.state.tr.setMeta(annotationDecorationPluginKey, inputs);
   tr.setMeta("addToHistory", false);
   view.dispatch(tr);
+}
+
+export type NoteAnnotationDecorationInputs = AnnotationDecorationInputs & {
+  noteId: string | null;
+};
+
+/**
+ * @name setNoteAnnotationDecorations
+ * @description Pushes a note's anchor appearance into the editor only when the
+ * editor shows that note. Inputs derived for the note being opened must not
+ * repaint the note being left, and returns whether anything was applied.
+ *
+ * @example
+ * setNoteAnnotationDecorations(view, activeIdRef.current, inputs);
+ */
+export function setNoteAnnotationDecorations(
+  view: AnnotationDecorationTarget,
+  shownNoteId: string | null,
+  inputs: NoteAnnotationDecorationInputs,
+): boolean {
+  if (inputs.noteId !== shownNoteId) return false;
+  setAnnotationDecorations(view, {
+    activeThreadId: inputs.activeThreadId,
+    resolvedThreadIds: inputs.resolvedThreadIds,
+  });
+  return true;
 }
 
 export function resolvedThreadIdsForNote(

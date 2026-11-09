@@ -6,18 +6,31 @@ export function rowElementFor(treeRef: TreeRef, id: string): HTMLElement | null 
   return treeRef.current?.querySelector<HTMLElement>(`[data-row-key="${id}"]`) ?? null;
 }
 
+function focusRenderedRow(treeRef: TreeRef, id: string): boolean {
+  const tree = treeRef.current;
+  const item = tree?.querySelector<HTMLButtonElement>(`[data-row-key="${CSS.escape(id)}"]`);
+  if (!tree || !item) {
+    return false;
+  }
+  item.focus({ preventScroll: true });
+  const itemRect = item.getBoundingClientRect();
+  const treeRect = tree.getBoundingClientRect();
+  if (itemRect.top < treeRect.top || itemRect.bottom > treeRect.bottom) {
+    item.scrollIntoView({ block: "nearest" });
+  }
+  return true;
+}
+
 export function focusTreeItem(treeRef: TreeRef, id: string | null, attempts = 0): void {
   if (!id) {
     return;
   }
+  if (attempts === 0 && focusRenderedRow(treeRef, id)) {
+    return;
+  }
   requestAnimationFrame(() => {
-    const item = treeRef.current?.querySelector<HTMLButtonElement>(
-      `[data-row-key="${CSS.escape(id)}"]`,
-    );
-    if (item) {
-      item.focus();
-    } else if (attempts === 0) {
-      focusTreeItem(treeRef, id, 1);
+    if (!focusRenderedRow(treeRef, id) && attempts < 1) {
+      focusTreeItem(treeRef, id, attempts + 1);
     }
   });
 }

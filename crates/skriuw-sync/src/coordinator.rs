@@ -65,12 +65,47 @@ pub fn poll_interval_ms(
     }
 }
 
+/// How long a local commit waits before it starts a cycle. The editor saves
+/// every few hundred milliseconds while someone types, and each cycle reads
+/// the encryption record, pushes, pulls, and acknowledges, so commits
+/// coalesce until the writer pauses for `quiet_ms`. A burst that never
+/// pauses still syncs `max_ms` after its first commit. Startup, focus,
+/// refresh, and push-channel wakes stay immediate, and blurring or hiding the
+/// window flushes the last edit through a refresh.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SyncLocalCommitDelay {
+    pub quiet_ms: i64,
+    pub max_ms: i64,
+}
+
+impl Default for SyncLocalCommitDelay {
+    fn default() -> Self {
+        Self {
+            quiet_ms: 2_000,
+            max_ms: 15_000,
+        }
+    }
+}
+
+/// When the local commits recorded since the last cycle should start one.
+#[must_use]
+pub fn local_commit_due_ms(
+    delay: &SyncLocalCommitDelay,
+    first_commit_ms: i64,
+    last_commit_ms: i64,
+) -> i64 {
+    last_commit_ms
+        .saturating_add(delay.quiet_ms)
+        .min(first_commit_ms.saturating_add(delay.max_ms))
+}
+
 #[derive(Clone, Default)]
 pub struct SyncCoordinatorConfig {
     pub cycle: SyncCycleConfig,
     pub backoff: SyncBackoffConfig,
     pub checkpoint: CheckpointPublicationConfig,
     pub poll: SyncPollIntervals,
+    pub local_commit: SyncLocalCommitDelay,
     pub status_observer: Option<SyncStatusObserver>,
     pub workspace_observer: Option<SyncWorkspaceObserver>,
     /// Bearer token shared with the transport and the wake listener, so a
@@ -82,6 +117,9 @@ pub struct SyncCoordinatorConfig {
 struct Control {
     shutdown: bool,
     wake_requested: bool,
+    first_local_commit_ms: Option<i64>,
+    last_local_commit_ms: Option<i64>,
+    remote_change: bool,
     offline_notice: bool,
     reset_requested: bool,
     online: bool,
@@ -105,6 +143,8 @@ struct CoordinatorShared {
 pub struct SyncCoordinator {
     shared: Arc<CoordinatorShared>,
     session_token: Option<Arc<RwLock<String>>>,
+    clock: Arc<dyn SyncClock>,
+    local_commit: SyncLocalCommitDelay,
     worker: Mutex<Option<JoinHandle<()>>>,
 }
 
@@ -122,6 +162,9 @@ impl SyncCoordinator {
             control: Mutex::new(Control {
                 shutdown: false,
                 wake_requested: true,
+                first_local_commit_ms: None,
+                last_local_commit_ms: None,
+                remote_change: false,
                 offline_notice: false,
                 reset_requested: false,
                 online: true,
@@ -135,6 +178,8 @@ impl SyncCoordinator {
             cancellation: SyncCancellation::new(),
         });
         let session_token = config.session_token.clone();
+        let local_commit = config.local_commit;
+        let coordinator_clock = Arc::clone(&clock);
         let worker_shared = Arc::clone(&shared);
         let worker = thread::Builder::new()
             .name("skriuw-sync".into())
@@ -153,6 +198,8 @@ impl SyncCoordinator {
         Self {
             shared,
             session_token,
+            clock: coordinator_clock,
+            local_commit,
             worker: Mutex::new(Some(worker)),
         }
     }
@@ -166,8 +213,20 @@ impl SyncCoordinator {
             .unwrap_or(SyncStatus::LocalOnly)
     }
 
+    /// Schedules a cycle for the commit after [`SyncLocalCommitDelay`]
+    /// instead of starting one per save.
     pub fn notify_local_commit(&self) {
-        self.request_wake();
+        if self.local_commit.quiet_ms <= 0 {
+            self.request_wake();
+            return;
+        }
+        let now = self.clock.now_ms();
+        if let Ok(mut control) = self.shared.control.lock() {
+            control.online = true;
+            control.first_local_commit_ms.get_or_insert(now);
+            control.last_local_commit_ms = Some(now);
+        }
+        self.shared.wake.notify_all();
     }
 
     pub fn notify_focus(&self) {
@@ -179,8 +238,11 @@ impl SyncCoordinator {
     }
 
     /// The push channel reported that another device changed the workspace.
+    /// The next upload also reads the encryption record again.
     pub fn notify_remote_change(&self) {
-        self.request_wake();
+        self.update(|control| {
+            control.remote_change = true;
+        });
     }
 
     /// User intent, focus, or a wake: clears durable retry delays and the
@@ -313,6 +375,7 @@ impl Drop for SyncCoordinator {
 }
 
 struct Snapshot {
+    remote_change: bool,
     online: bool,
     session_valid: bool,
     offline_notice: bool,
@@ -350,9 +413,16 @@ fn run(
                     control.wake_requested = false;
                     break;
                 }
-                let wait = deadline_ms
-                    .filter(|_| control.session_valid)
-                    .map(|deadline| deadline.saturating_sub(clock.now_ms()));
+                let local_commit_due = control
+                    .first_local_commit_ms
+                    .zip(control.last_local_commit_ms)
+                    .map(|(first, last)| local_commit_due_ms(&config.local_commit, first, last));
+                let poll_due = deadline_ms.filter(|_| control.session_valid);
+                let wait = match (poll_due, local_commit_due) {
+                    (Some(poll), Some(commit)) => Some(poll.min(commit)),
+                    (poll, commit) => poll.or(commit),
+                }
+                .map(|deadline| deadline.saturating_sub(clock.now_ms()));
                 match wait {
                     Some(remaining) if remaining <= 0 => break,
                     Some(remaining) => {
@@ -374,6 +444,7 @@ fn run(
                 }
             }
             let snapshot = Snapshot {
+                remote_change: control.remote_change,
                 online: control.online,
                 session_valid: control.session_valid,
                 offline_notice: control.offline_notice,
@@ -384,6 +455,9 @@ fn run(
             };
             control.offline_notice = false;
             control.reset_requested = false;
+            control.remote_change = false;
+            control.first_local_commit_ms = None;
+            control.last_local_commit_ms = None;
             snapshot
         };
 
@@ -400,6 +474,9 @@ fn run(
         if snapshot.reset_requested {
             let _ = queue.reset_sync_retry_times(clock.now_ms());
             state.backoff.reset();
+        }
+        if snapshot.remote_change {
+            state.forget_encryption_record();
         }
 
         shared.cancellation.clear_interrupt();
@@ -508,7 +585,16 @@ fn publish(shared: &CoordinatorShared, config: &SyncCoordinatorConfig, status: S
 
 #[cfg(test)]
 mod tests {
-    use super::{SyncPollIntervals, poll_interval_ms};
+    use super::{SyncLocalCommitDelay, SyncPollIntervals, local_commit_due_ms, poll_interval_ms};
+
+    #[test]
+    fn local_commits_wait_for_a_pause_but_never_past_the_maximum() {
+        let delay = SyncLocalCommitDelay::default();
+        assert_eq!(local_commit_due_ms(&delay, 1_000, 1_000), 3_000);
+        assert_eq!(local_commit_due_ms(&delay, 1_000, 5_000), 7_000);
+        assert_eq!(local_commit_due_ms(&delay, 1_000, 14_500), 16_000);
+        assert_eq!(local_commit_due_ms(&delay, 1_000, 40_000), 16_000);
+    }
 
     #[test]
     fn poll_interval_follows_the_channel_and_window_state() {

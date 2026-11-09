@@ -51,8 +51,8 @@
     transition: none;
   }
 
-  .panel-tracks-settling,
-  .sidebar-pane-settling {
+  .sidebar-pane-settling,
+  .sidebar-pane-settling > .sidebar-pane-body {
     transition: none;
   }
 }

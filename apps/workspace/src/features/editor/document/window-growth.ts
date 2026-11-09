@@ -45,13 +45,18 @@ function requestIdle(callback: () => void): IdleHandle {
   return { cancel: () => globalThis.clearTimeout(id) };
 }
 
-function blockPositions(document: ProseMirrorNode): number[] {
+const blockPositionCache = new WeakMap<ProseMirrorNode, readonly number[]>();
+
+function blockPositions(document: ProseMirrorNode): readonly number[] {
+  const cached = blockPositionCache.get(document);
+  if (cached) return cached;
   const positions: number[] = [];
   let position = 0;
   document.forEach((node) => {
     positions.push(position);
     position += node.nodeSize;
   });
+  blockPositionCache.set(document, positions);
   return positions;
 }
 

@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{BTreeSet, HashMap},
     fs,
     path::Path,
     sync::{Mutex, MutexGuard},
@@ -12,8 +12,8 @@ use rusqlite::{
 };
 use skriuw_domain::{
     HistoryHeader, NodeKind, NoteLockState, OperationAck, SEARCH_INDEX_VERSION, SearchHit,
-    SearchIndexStatus, WorkspaceArchive, WorkspaceDelta, WorkspaceDocument, WorkspaceOperation,
-    WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    SearchIndexStatus, WorkspaceArchive, WorkspaceDelta, WorkspaceDocument, WorkspaceImage,
+    WorkspaceOperation, WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 use skriuw_storage::{
     ConfigureNoteLockRequest, Diagnostic, HistoryCache, HistoryMaterialization, HistoryProvenance,
@@ -49,8 +49,9 @@ use crate::operations::{
     require_changed, require_worker, validate_operations,
 };
 use crate::queries::{
-    read_archive, read_documents_by_id, read_nodes_by_id, read_pane_layout, read_sidebar_expansion,
-    read_snapshot, write_pane_layout, write_sidebar_expansion,
+    read_archive, read_documents_by_id, read_image_content_hashes, read_images, read_nodes_by_id,
+    read_pane_layout, read_sidebar_expansion, read_snapshot, read_snapshot_json, write_pane_layout,
+    write_sidebar_expansion,
 };
 use crate::sync::enqueue_sync_operations;
 
@@ -103,6 +104,19 @@ impl SqliteWorkspace {
         .map_err(backend)?;
         verify_database(&connection)?;
         read_snapshot(&connection)
+    }
+
+    /// Image rows of a database file, read without verification. Use it only
+    /// on a file that was verified earlier in the same flow.
+    pub fn read_database_images(
+        path: impl AsRef<Path>,
+    ) -> Result<Vec<WorkspaceImage>, StorageError> {
+        let connection = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .map_err(backend)?;
+        read_images(&connection)
     }
 
     pub fn backup_to(&self, target: impl AsRef<Path>) -> Result<(), StorageError> {
@@ -185,6 +199,13 @@ impl SqliteWorkspace {
         connection
             .pragma_update(None, "secure_delete", "ON")
             .map_err(backend)?;
+        connection
+            .pragma_update(None, "cache_size", -16_000)
+            .map_err(backend)?;
+        connection
+            .pragma_update(None, "mmap_size", 268_435_456)
+            .map_err(backend)?;
+        connection.set_prepared_statement_cache_capacity(PREPARED_STATEMENT_CACHE_CAPACITY);
         Ok(())
     }
 
@@ -254,6 +275,16 @@ impl WorkspaceStorage for SqliteWorkspace {
     fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError> {
         let connection = self.lock()?;
         read_snapshot(&connection)
+    }
+
+    fn referenced_image_hashes(&self) -> Result<BTreeSet<String>, StorageError> {
+        let connection = self.lock()?;
+        read_image_content_hashes(&connection)
+    }
+
+    fn bootstrap_json(&self) -> Result<String, StorageError> {
+        let connection = self.lock()?;
+        read_snapshot_json(&connection)
     }
 
     fn load_sidebar_expansion(&self) -> Result<Option<Vec<String>>, StorageError> {
@@ -422,17 +453,31 @@ impl WorkspaceStorage for SqliteWorkspace {
     }
 }
 
+/// A single save runs about twenty distinct cached statements; rusqlite's
+/// default of 16 would evict them on every save.
+const PREPARED_STATEMENT_CACHE_CAPACITY: usize = 128;
+
 /// `app_state` key holding the [`SEARCH_INDEX_VERSION`] the stored full-text
 /// projection was written with.
 const SEARCH_INDEX_VERSION_KEY: &str = "search_index_version";
 
+/// First [`SEARCH_INDEX_VERSION`] whose rows carry the rowid of their
+/// `documents` row. `note_id` is an unindexed FTS5 column, so finding a row by
+/// it scans the whole index; an index built at this version or later is
+/// written and replaced by rowid instead. Older indexes keep the `note_id`
+/// path until the idle rebuild realigns them, because their rowids were
+/// assigned by FTS5 and can collide with a document's.
+const FTS_ROWID_KEYED_SINCE: u32 = 4;
+
+pub(crate) fn fts_keyed_by_document_rowid(connection: &Connection) -> Result<bool, StorageError> {
+    Ok(read_search_index_version(connection)? >= FTS_ROWID_KEYED_SINCE)
+}
+
 fn read_search_index_version(connection: &Connection) -> Result<u32, StorageError> {
     let stored = connection
-        .query_row(
-            "SELECT value_json FROM app_state WHERE key = ?1",
-            [SEARCH_INDEX_VERSION_KEY],
-            |row| row.get::<_, String>(0),
-        )
+        .prepare_cached("SELECT value_json FROM app_state WHERE key = ?1")
+        .map_err(backend)?
+        .query_row([SEARCH_INDEX_VERSION_KEY], |row| row.get::<_, String>(0))
         .optional()
         .map_err(backend)?;
     Ok(stored
@@ -465,12 +510,27 @@ fn read_search_index_status(connection: &Connection) -> Result<SearchIndexStatus
             row.get::<_, i64>(0)
         })
         .map_err(backend)? as u32;
+    let misaligned_rows = if index_version >= FTS_ROWID_KEYED_SINCE {
+        connection
+            .query_row(
+                "SELECT count(*) FROM documents_fts \
+                 LEFT JOIN documents ON documents.rowid = documents_fts.rowid \
+                 WHERE documents.note_id IS NOT documents_fts.note_id",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(backend)?
+    } else {
+        0
+    };
     Ok(SearchIndexStatus {
         index_version,
         current_version: SEARCH_INDEX_VERSION,
         indexed_notes,
         note_count,
-        needs_rebuild: index_version != SEARCH_INDEX_VERSION || indexed_notes != note_count,
+        needs_rebuild: index_version != SEARCH_INDEX_VERSION
+            || indexed_notes != note_count
+            || misaligned_rows > 0,
     })
 }
 
@@ -602,6 +662,43 @@ impl WorkspaceMaintenance for SqliteWorkspace {
     }
 }
 
+/// Claim predicate over `?1`, the lease expiry cutoff, and `?2`, the current time.
+const CLAIMABLE_HISTORY: &str =
+    "next_attempt_at <= ?2 AND (claimed_at IS NULL OR claimed_at <= ?1)";
+
+/// Outbox rows whose note and every ancestor are outside the trash. Rows of a
+/// trashed subtree wait for restore or purge instead of being materialized.
+const LIVE_HISTORY_NOTE: &str = "NOT EXISTS (\
+     WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (\
+         SELECT id, parent_id, deleted_at FROM workspace_nodes \
+         WHERE id = history_outbox.note_id \
+         UNION ALL \
+         SELECT parent.id, parent.parent_id, parent.deleted_at \
+         FROM workspace_nodes parent \
+         JOIN ancestors ON parent.id = ancestors.parent_id\
+     ) \
+     SELECT 1 FROM ancestors WHERE deleted_at IS NOT NULL\
+ )";
+
+impl SqliteWorkspace {
+    /// The earliest time at which a history row becomes claimable under
+    /// `lease_ms`, read without taking the write lock. `None` means the outbox
+    /// holds no row outside the trash. The time may already have passed.
+    pub fn next_history_claim_at(&self, lease_ms: i64) -> Result<Option<i64>, StorageError> {
+        let connection = self.lock()?;
+        connection
+            .query_row(
+                &format!(
+                    "SELECT MIN(MAX(next_attempt_at, COALESCE(claimed_at + ?1, next_attempt_at))) \
+                     FROM history_outbox WHERE {LIVE_HISTORY_NOTE}"
+                ),
+                [lease_ms],
+                |row| row.get::<_, Option<i64>>(0),
+            )
+            .map_err(backend)
+    }
+}
+
 impl HistoryQueue for SqliteWorkspace {
     fn claim_history_revision(
         &self,
@@ -617,27 +714,28 @@ impl HistoryQueue for SqliteWorkspace {
         }
         let lease_expired_before = now_ms.saturating_sub(lease_ms);
         let mut connection = self.lock()?;
+        let claimable = connection
+            .query_row(
+                &format!(
+                    "SELECT EXISTS (SELECT 1 FROM history_outbox WHERE {CLAIMABLE_HISTORY} AND {LIVE_HISTORY_NOTE})"
+                ),
+                params![lease_expired_before, now_ms],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(backend)?;
+        if !claimable {
+            return Ok(None);
+        }
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(backend)?;
         let item = transaction
             .query_row(
-                "SELECT id, note_id, revision, markdown, created_at, attempts, provenance \
-                 FROM history_outbox \
-                 WHERE next_attempt_at <= ?2 \
-                 AND (claimed_at IS NULL OR claimed_at <= ?1) \
-                 AND NOT EXISTS (\
-                     WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (\
-                         SELECT id, parent_id, deleted_at FROM workspace_nodes \
-                         WHERE id = history_outbox.note_id \
-                         UNION ALL \
-                         SELECT parent.id, parent.parent_id, parent.deleted_at \
-                         FROM workspace_nodes parent \
-                         JOIN ancestors ON parent.id = ancestors.parent_id\
-                     ) \
-                     SELECT 1 FROM ancestors WHERE deleted_at IS NOT NULL\
-                 ) \
-                 ORDER BY created_at, id LIMIT 1",
+                &format!(
+                    "SELECT id, note_id, revision, markdown, created_at, attempts, provenance \
+                     FROM history_outbox WHERE {CLAIMABLE_HISTORY} AND {LIVE_HISTORY_NOTE} \
+                     ORDER BY created_at, id LIMIT 1"
+                ),
                 params![lease_expired_before, now_ms],
                 |row| {
                     let provenance = row.get::<_, String>(6)?;

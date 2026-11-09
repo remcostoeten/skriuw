@@ -122,6 +122,7 @@ import {
 } from "./schema";
 import {
   createSearchPlugin,
+  followSearchDocument,
   getSearchState,
   searchPluginKey,
   setSearch,
@@ -211,8 +212,8 @@ import { documentSaveOperations } from "./tasks/linking";
 import { withFreshPastedTaskIdentities } from "./tasks/paste";
 import {
   resolvedThreadIdsForNote,
-  setAnnotationDecorations,
-  type AnnotationDecorationInputs,
+  setNoteAnnotationDecorations,
+  type NoteAnnotationDecorationInputs,
 } from "./annotations/decorations";
 import { blockRangePositions, findAnnotationLocation, findBlockLocation } from "./blocks/locations";
 import {
@@ -245,6 +246,8 @@ function selectAnnotations(state: RendererState) {
 }
 
 const SAVE_DEBOUNCE_MS = 500;
+/** Animation frames stop in a hidden window, so a deferred save also has a plain timeout. */
+const AFTER_PAINT_FALLBACK_MS = 100;
 const BOUNDED_SEARCH_REFRESH_MS = 150;
 /**
  * A save that loses the revision race merges against the winner and tries
@@ -344,6 +347,28 @@ class SaveAttemptError extends Error {
   ) {
     super("save attempt rejected");
   }
+}
+
+function afterNextPaint(callback: () => void): () => void {
+  let frame: number | null = null;
+  let timeout: number | null = null;
+  function cancel() {
+    if (frame !== null) window.cancelAnimationFrame(frame);
+    if (timeout !== null) window.clearTimeout(timeout);
+    frame = null;
+    timeout = null;
+  }
+  function run() {
+    cancel();
+    callback();
+  }
+  frame = window.requestAnimationFrame(() => {
+    frame = null;
+    if (timeout !== null) window.clearTimeout(timeout);
+    timeout = window.setTimeout(run, 0);
+  });
+  timeout = window.setTimeout(run, AFTER_PAINT_FALLBACK_MS);
+  return cancel;
 }
 
 function emptyDocument(): ProseMirrorNode {
@@ -523,6 +548,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const dirtyNoteIdsRef = useRef(new Set<string>());
   const activeIdRef = useRef<string | null>(null);
   const saveTimerRef = useRef<number | null>(null);
+  const deferredSavesRef = useRef(new Map<string, () => void>());
   const boundedSearchTimerRef = useRef<number | null>(null);
   const [failedSaveNoteIds, setFailedSaveNoteIds] = useState<ReadonlySet<string>>(new Set());
   const saveSequencerRef = useRef<SaveSequencer | null>(null);
@@ -564,6 +590,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   if (menusRef.current === null) menusRef.current = createEditorMenuStore();
   const menus = menusRef.current;
   const bubbleFrameRef = useRef<number | null>(null);
+  const scrollFrameRef = useRef<number | null>(null);
+  const caretMenuFrameRef = useRef<number | null>(null);
+  const caretMenuSelectionSetRef = useRef(false);
   const bubbleMenuHostRef = useRef<HTMLDivElement>(null);
   const bubbleDismissedRef = useRef<{ from: number; to: number } | null>(null);
   const assistant = providedAssistant();
@@ -600,8 +629,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
    * runs on store and popover changes only. An editor keystroke re-paints
    * through the plugin's own transaction path and never reaches React.
    */
-  const annotationDecorationInputs = useMemo<AnnotationDecorationInputs>(
+  const annotationDecorationInputs = useMemo<NoteAnnotationDecorationInputs>(
     () => ({
+      noteId: activeNoteId,
       activeThreadId: activeAnnotationThreadId,
       resolvedThreadIds: resolvedThreadIdsForNote(annotations, activeNoteId),
     }),
@@ -611,7 +641,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   annotationDecorationInputsRef.current = annotationDecorationInputs;
   useEffect(() => {
     const view = viewRef.current;
-    if (view) setAnnotationDecorations(view, annotationDecorationInputs);
+    if (view) setNoteAnnotationDecorations(view, activeIdRef.current, annotationDecorationInputs);
   }, [annotationDecorationInputs]);
   const settingsDocument = useRendererSelector(store, selectSettingsDocument);
   const editorSettings = projectSettings(settingsDocument);
@@ -793,6 +823,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   function rebuildBoundedSearchState(entry: CachedNote): void {
     const bounded = entry.bounded;
     if (!bounded) return;
+    const followed = entry.searchState
+      ? followSearchDocument(entry.searchState, bounded.fullDocument())
+      : null;
+    if (followed) {
+      entry.searchState = followed;
+      return;
+    }
     const previous = entry.searchState
       ? getSearchState({
           state: entry.searchState,
@@ -852,7 +889,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     }
     // A rebuilt window starts from a fresh plugin state, so anchors would sit
     // unpainted until the next store change without pushing appearance back in.
-    setAnnotationDecorations(view, annotationDecorationInputsRef.current);
+    setNoteAnnotationDecorations(view, activeIdRef.current, annotationDecorationInputsRef.current);
     entry.state = view.state;
     syncBoundedSurface(entry);
     if (focus) view.focus();
@@ -897,6 +934,26 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     if (restored && scrollHost) scrollTopRef.current = scrollHost.scrollTop;
     else restoreScrollTop(entry.scrollTop);
     windowGrowth.start(selection);
+  }
+
+  /**
+   * The annotation effect skips a switch because its inputs belong to the
+   * incoming note, so the note is painted here once its state is installed.
+   * The switch closed the annotation menu, so no thread is active. Applied
+   * outside dispatchTransaction so painting cannot reopen a caret menu.
+   */
+  function paintIncomingAnnotations(view: EditorView, entry: CachedNote): void {
+    setNoteAnnotationDecorations(
+      {
+        get state() {
+          return view.state;
+        },
+        dispatch: (transaction) => view.updateState(view.state.apply(transaction)),
+      },
+      activeIdRef.current,
+      { ...annotationDecorationInputsRef.current, activeThreadId: "" },
+    );
+    entry.state = view.state;
   }
 
   async function persistOnce(noteId: string): Promise<number | null> {
@@ -993,7 +1050,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     );
     if (onScreen && view) {
       view.updateState(entry.state);
-      setAnnotationDecorations(view, annotationDecorationInputsRef.current);
+      setNoteAnnotationDecorations(
+        view,
+        activeIdRef.current,
+        annotationDecorationInputsRef.current,
+      );
       entry.state = view.state;
     }
   }
@@ -1084,7 +1145,36 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     console.error("save rejected", error);
   }
 
+  /**
+   * A note switch moves the pending save of the note being left past the next
+   * paint, so serializing it does not land in the navigation task. The entry
+   * stays dirty, which keeps it out of eviction until the save settles.
+   */
+  function deferPendingSave(): void {
+    const noteId = activeIdRef.current;
+    if (saveTimerRef.current === null) return;
+    window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = null;
+    if (!noteId || deferredSavesRef.current.has(noteId)) return;
+    const cancel = afterNextPaint(() => {
+      deferredSavesRef.current.delete(noteId);
+      void saveNow(noteId).catch(reportBackgroundSaveFailure);
+    });
+    deferredSavesRef.current.set(noteId, cancel);
+  }
+
+  function cancelDeferredSave(noteId: string): void {
+    deferredSavesRef.current.get(noteId)?.();
+    deferredSavesRef.current.delete(noteId);
+  }
+
   async function flushPendingSave(): Promise<void> {
+    const deferred = [...deferredSavesRef.current];
+    deferredSavesRef.current.clear();
+    const deferredSaves = deferred.map(([noteId, cancel]) => {
+      cancel();
+      return saveNow(noteId).catch(() => undefined);
+    });
     if (saveTimerRef.current !== null) {
       window.clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
@@ -1092,6 +1182,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         await saveNow(activeIdRef.current).catch(() => undefined);
       }
     }
+    await Promise.all(deferredSaves);
     await saveSequencerRef.current!.flush();
   }
 
@@ -1129,6 +1220,12 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     bubbleFrameRef.current = null;
   }
 
+  function cancelScrollFrame(): void {
+    if (scrollFrameRef.current === null) return;
+    window.cancelAnimationFrame(scrollFrameRef.current);
+    scrollFrameRef.current = null;
+  }
+
   function closeBubbleMenu(): void {
     cancelBubbleMeasure();
     menus.set("bubble", closedBubbleMenu);
@@ -1154,6 +1251,46 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         bubbleMenuSuppressed(view.state) ? closedBubbleMenu : computeBubbleMenu(view),
       );
     });
+  }
+
+  /**
+   * The caret's link and annotation menus are measured once per frame, like
+   * the bubble menu, so typing inside a link or anchor neither forces a layout
+   * right after `updateState` nor re-renders a menu for every key.
+   */
+  function scheduleCaretMenus(selectionSet: boolean): void {
+    caretMenuSelectionSetRef.current ||= selectionSet;
+    if (caretMenuFrameRef.current !== null) return;
+    caretMenuFrameRef.current = window.requestAnimationFrame(() => {
+      caretMenuFrameRef.current = null;
+      const view = viewRef.current;
+      if (view) syncCaretMenus(view);
+    });
+  }
+
+  function cancelCaretMenus(): void {
+    caretMenuSelectionSetRef.current = false;
+    if (caretMenuFrameRef.current === null) return;
+    window.cancelAnimationFrame(caretMenuFrameRef.current);
+    caretMenuFrameRef.current = null;
+  }
+
+  function syncCaretMenus(view: EditorView): void {
+    const { state } = view;
+    const linkMenu = menus.get("link");
+    if (!linkMenu.editing) {
+      const cursorLink = linkAtCursor(state);
+      if (cursorLink) {
+        cancelLinkHoverClose();
+        showLinkMenu(view, cursorLink, "caret");
+      } else if (linkMenu.open && linkMenu.source !== "hover") {
+        menus.set("link", closedLinkMenu);
+      }
+    }
+    if (caretMenuSelectionSetRef.current) {
+      caretMenuSelectionSetRef.current = false;
+      syncAnnotationMenuToSelection(state);
+    }
   }
 
   function dispatchTransaction(transaction: Transaction): void {
@@ -1196,17 +1333,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     }
     if (bubbleMenuSuppressed(next)) closeBubbleMenu();
     else scheduleBubbleMeasure();
-    const linkMenu = menus.get("link");
-    if (!linkMenu.editing) {
-      const cursorLink = linkAtCursor(next);
-      if (cursorLink) {
-        cancelLinkHoverClose();
-        showLinkMenu(view, cursorLink, "caret");
-      } else if (linkMenu.open && linkMenu.source !== "hover") {
-        menus.set("link", closedLinkMenu);
-      }
-    }
-    if (transaction.selectionSet) syncAnnotationMenuToSelection(next);
+    scheduleCaretMenus(transaction.selectionSet);
     const menu = slashMenuState(next);
     if (!menu.open) {
       slashDismissedRef.current = false;
@@ -2243,6 +2370,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     scrollTopRef.current = scrollHost?.scrollTop ?? 0;
     function handleScroll() {
       if (scrollHost) scrollTopRef.current = scrollHost.scrollTop;
+      if (scrollFrameRef.current !== null) return;
+      scrollFrameRef.current = window.requestAnimationFrame(() => {
+        scrollFrameRef.current = null;
+        settleScroll();
+      });
+    }
+    function settleScroll() {
       closeBubbleMenu();
       menus.set("link", (previous) =>
         previous.open && !previous.editing ? closedLinkMenu : previous,
@@ -2324,6 +2458,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       scheduleLinkHoverClose();
     }
     function handleBlur(event: FocusEvent) {
+      cancelCaretMenus();
       const focused = event.relatedTarget;
       const intoBubbleMenu =
         focused instanceof HTMLElement && focused.closest(".bubble-menu") !== null;
@@ -2382,6 +2517,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       void finalSave.finally(unregisterPendingSave);
       cancelBoundedSearchRefresh();
       cancelBubbleMeasure();
+      cancelScrollFrame();
+      cancelCaretMenus();
       windowGrowth.cancel();
       viewportObserver.disconnect();
       scrollHost?.removeEventListener("scroll", handleScroll);
@@ -2435,14 +2572,22 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     if (!view) return;
     searchRef.current.resetSearch();
     windowGrowth.cancel();
-    void flushPendingSave().catch(reportBackgroundSaveFailure);
+    deferPendingSave();
     const previous = activeEntry();
+    const scrollHost = scrollHostRef.current;
+    if (scrollFrameRef.current !== null && previous?.bounded && scrollHost) {
+      previous.bounded.rememberViewport(
+        captureViewport(view, scrollHost, previous.bounded.windowStart()),
+      );
+    }
+    cancelScrollFrame();
+    cancelCaretMenus();
     if (previous && boundedSearchTimerRef.current !== null) previous.searchState = null;
     cancelBoundedSearchRefresh();
     if (previous?.bounded && view.hasFocus()) {
       previous.bounded.rememberSelection(readSelection(view.state, previous.bounded.windowStart()));
     }
-    if (previous && scrollHostRef.current) previous.scrollTop = scrollTopRef.current;
+    if (previous && scrollHost) previous.scrollTop = scrollTopRef.current;
     activeIdRef.current = activeNoteId;
     if (slashMenuRef.current !== closedSlashMenu) setSlashMenu(closedSlashMenu);
     closeBubbleMenu();
@@ -2488,6 +2633,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       presentBoundedNote(entry, entry.bounded);
     } else {
       view.updateState(entry.state);
+      paintIncomingAnnotations(view, entry);
       syncBoundedSurface(entry);
       selectStarterTitle(view, entry);
       restoreScrollTop(entry.scrollTop);
@@ -2510,6 +2656,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           for (const noteId of tracked) {
             if (available.has(noteId)) continue;
             dirtyNoteIdsRef.current.delete(noteId);
+            cancelDeferredSave(noteId);
             sequencer.discard(noteId);
             if (activeIdRef.current === noteId && saveTimerRef.current !== null) {
               window.clearTimeout(saveTimerRef.current);

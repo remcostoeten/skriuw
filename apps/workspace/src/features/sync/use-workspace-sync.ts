@@ -22,6 +22,7 @@ import {
   workspaceSyncStatus,
 } from "@/platform/runtime/commands";
 import type { WorkspaceSyncStatus } from "@skriuw/renderer-core/bridge/port";
+import { sameSyncStatus } from "./status";
 import { isBrowserRuntime } from "@/platform/runtime/runtime";
 
 /** Cadence for a surface the user is actively watching, such as the settings row. */
@@ -135,7 +136,7 @@ export function useWorkspaceSync(pollIntervalMs = SYNC_POLL_ACTIVE_MS): Workspac
         .then(
           (latest) => {
             if (!mounted) return;
-            setStatus(latest);
+            setStatus((current) => (sameSyncStatus(current, latest) ? current : latest));
             setStatusPolled(true);
             if (latest.state !== "localOnly") clearConnectFailure();
           },

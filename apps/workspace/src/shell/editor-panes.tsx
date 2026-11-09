@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   activateTab,
   closeAllTabs,
@@ -42,7 +42,7 @@ import { EditorHost } from "./panes/editor-host";
 import { SplitDivider } from "./panes/split-divider";
 import { splitGridTemplate, splitTrackProperty } from "./panes/split-layout";
 import { TAB_DRAG_MIME, sameTabModels, tabModels, type TabModel } from "./tabs/model";
-import { MAX_TAB_WIDTH, MIN_TAB_WIDTH, splitTabsForWidth } from "./tabs/overflow";
+import { MAX_TAB_WIDTH, MIN_TAB_WIDTH, splitTabsForWidth, tabCapacity } from "./tabs/overflow";
 import { COMPACT_VIEWPORT_QUERY } from "@/shared/viewport/queries";
 import { useMediaQuery } from "@/shared/viewport/use-media-query";
 import { bindLongPress } from "@/shared/touch/long-press";
@@ -52,8 +52,19 @@ type Props = {
   store: RendererStore;
 };
 
-function selectPanes(state: RendererState) {
-  return state.panes;
+type TabStripProps = {
+  store: RendererStore;
+  hasSplit: boolean;
+  orientation: RendererState["splitOrientation"];
+  onResetSplit: () => void;
+};
+
+function selectHasSplit(state: RendererState): boolean {
+  return state.panes.length > 1;
+}
+
+function selectShowStrip(state: RendererState): boolean {
+  return state.panes.length > 1 || (state.panes[0]?.openNoteIds.length ?? 0) > 1;
 }
 
 function selectSplitOrientation(state: RendererState) {
@@ -75,56 +86,16 @@ type ContextTarget = { kind: "tab"; id: string } | { kind: "strip" };
 type DragState = { id: string; before: string | null };
 
 export const EditorPanes = memo(function EditorPanes({ store }: Props) {
-  const panes = useRendererSelector(store, selectPanes);
-  const tabs = useRendererSelector(store, tabModels, sameTabModels);
+  const hasSplit = useRendererSelector(store, selectHasSplit);
+  const showStrip = useRendererSelector(store, selectShowStrip);
   const storedOrientation = useRendererSelector(store, selectSplitOrientation);
   const compact = useMediaQuery(COMPACT_VIEWPORT_QUERY);
   // Two panes beside each other on a phone leaves neither wide enough to
   // read, so compact always stacks and the stored choice waits for a wider window.
   const orientation = compact ? "horizontal" : storedOrientation;
   const ratio = useRendererSelector(store, selectSplitRatio);
-  const hasSplit = panes.length > 1;
   const splitRef = useRef<HTMLDivElement>(null);
   const trackProperty = splitTrackProperty(orientation);
-  const showStrip = tabs.length > 1 || hasSplit;
-  // A single shared context menu serves every tab; right-clicking the strip
-  // resolves the tab under the cursor via `data-tab-id` instead of mounting a
-  // Radix ContextMenu per tab.
-  const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null);
-  const [drag, setDrag] = useState<DragState | null>(null);
-  const [stripWidth, setStripWidth] = useState(0);
-  const listRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const list = listRef.current;
-    if (!showStrip || list === null || typeof ResizeObserver === "undefined") {
-      return;
-    }
-    setStripWidth(list.clientWidth);
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry !== undefined) {
-        setStripWidth(entry.contentRect.width);
-      }
-    });
-    observer.observe(list);
-    return () => observer.disconnect();
-  }, [showStrip]);
-
-  const { visible: visibleTabs, overflow: overflowTabs } = splitTabsForWidth(tabs, stripWidth);
-  const isOverflowing = overflowTabs.length > 0;
-  const stripRef = useRef<HTMLDivElement>(null);
-  const touchMenuRef = useRef(false);
-
-  useEffect(() => {
-    const strip = stripRef.current;
-    if (!strip) {
-      return;
-    }
-    return bindLongPress(strip, () => {
-      touchMenuRef.current = true;
-    });
-  }, [showStrip]);
 
   /**
    * Divider drags repaint through a direct write to the split container's track
@@ -142,6 +113,118 @@ export const EditorPanes = memo(function EditorPanes({ store }: Props) {
   );
   const commitSplit = useCallback((next: number) => setSplitRatio(store, next), [store]);
   const resetSplit = useCallback(() => resetSplitRatio(store), [store]);
+
+  return (
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
+      {showStrip && (
+        <TabStrip
+          store={store}
+          hasSplit={hasSplit}
+          orientation={orientation}
+          onResetSplit={resetSplit}
+        />
+      )}
+      <div
+        ref={splitRef}
+        className="grid min-h-0 min-w-0 flex-1"
+        style={hasSplit ? { [trackProperty]: splitGridTemplate(ratio) } : undefined}
+      >
+        <div
+          className="editor-pane relative min-h-0 min-w-0"
+          onFocusCapture={() => focusPane(store, PRIMARY_PANE_ID)}
+        >
+          <EditorHost store={store} />
+        </div>
+        {hasSplit && (
+          <>
+            <SplitDivider
+              orientation={orientation}
+              ratio={ratio}
+              onPreview={previewSplit}
+              onCommit={commitSplit}
+              onReset={resetSplit}
+            />
+            <div
+              className="editor-pane relative min-h-0 min-w-0"
+              onFocusCapture={() => focusPane(store, SECONDARY_PANE_ID)}
+            >
+              <EditorHost
+                store={store}
+                selectNoteId={selectSecondaryNoteId}
+                emptyMessage="This note is no longer available. It may have been moved to trash."
+              />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+});
+
+const TabStrip = memo(function TabStrip({
+  store,
+  hasSplit,
+  orientation,
+  onResetSplit,
+}: TabStripProps) {
+  const tabs = useRendererSelector(store, tabModels, sameTabModels);
+  // A single shared context menu serves every tab; right-clicking the strip
+  // resolves the tab under the cursor via `data-tab-id` instead of mounting a
+  // Radix ContextMenu per tab.
+  const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null);
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const [stripWidth, setStripWidth] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
+  const tabCountRef = useRef(tabs.length);
+  const measuredWidthRef = useRef(0);
+  const renderedWidthRef = useRef(0);
+
+  function syncStripWidth(): void {
+    const count = tabCountRef.current;
+    const measured = measuredWidthRef.current;
+    if (tabCapacity(count, measured) !== tabCapacity(count, renderedWidthRef.current)) {
+      renderedWidthRef.current = measured;
+      setStripWidth(measured);
+    }
+  }
+
+  useLayoutEffect(() => {
+    tabCountRef.current = tabs.length;
+    syncStripWidth();
+  }, [tabs.length]);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (list === null || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    measuredWidthRef.current = list.clientWidth;
+    syncStripWidth();
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry !== undefined) {
+        measuredWidthRef.current = entry.contentRect.width;
+        syncStripWidth();
+      }
+    });
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, []);
+
+  const { visible: visibleTabs, overflow: overflowTabs } = splitTabsForWidth(tabs, stripWidth);
+  const isOverflowing = overflowTabs.length > 0;
+  const stripRef = useRef<HTMLDivElement>(null);
+  const touchMenuRef = useRef(false);
+
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) {
+      return;
+    }
+    return bindLongPress(strip, () => {
+      touchMenuRef.current = true;
+    });
+  }, []);
 
   function onStripContextMenu(event: React.MouseEvent) {
     const tabEl = (event.target as HTMLElement).closest<HTMLElement>("[data-tab-id]");
@@ -179,256 +262,213 @@ export const EditorPanes = memo(function EditorPanes({ store }: Props) {
       : null;
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col">
-      {showStrip && (
-        <ContextMenu
-          onOpenChange={(open) => {
-            if (open) return;
-            setContextTarget(null);
-            if (touchMenuRef.current) {
-              touchMenuRef.current = false;
-              swallowGhostClick();
-            }
-          }}
+    <ContextMenu
+      onOpenChange={(open) => {
+        if (open) return;
+        setContextTarget(null);
+        if (touchMenuRef.current) {
+          touchMenuRef.current = false;
+          swallowGhostClick();
+        }
+      }}
+    >
+      <ContextMenuTrigger asChild>
+        <div
+          ref={stripRef}
+          className="editor-tab-strip flex h-9 shrink-0 items-stretch border-b border-sidebar-border bg-sidebar pointer-coarse:h-11"
+          role="tablist"
+          aria-label="Open notes"
+          onContextMenu={onStripContextMenu}
         >
-          <ContextMenuTrigger asChild>
-            <div
-              ref={stripRef}
-              className="editor-tab-strip flex h-9 shrink-0 items-stretch border-b border-sidebar-border bg-sidebar pointer-coarse:h-11"
-              role="tablist"
-              aria-label="Open notes"
-              onContextMenu={onStripContextMenu}
-            >
+          <div
+            ref={listRef}
+            className="scrollbar-none flex min-w-0 flex-1 items-stretch overflow-x-auto"
+          >
+            {visibleTabs.map((tab) => (
               <div
-                ref={listRef}
-                className="scrollbar-none flex min-w-0 flex-1 items-stretch overflow-x-auto"
+                key={tab.id}
+                data-tab-id={tab.id}
+                draggable={!tab.isPinned}
+                style={{
+                  minWidth: MIN_TAB_WIDTH,
+                  maxWidth: isOverflowing ? undefined : MAX_TAB_WIDTH,
+                  flexGrow: isOverflowing ? 1 : 0,
+                }}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData(TAB_DRAG_MIME, tab.id);
+                  event.dataTransfer.effectAllowed = "move";
+                  setDrag({ id: tab.id, before: tab.id });
+                }}
+                onDragEnd={() => setDrag(null)}
+                onDragOver={(event) => onTabDragOver(event, tab)}
+                onDrop={onTabDrop}
+                className={`group flex shrink items-center border-r border-sidebar-border ${
+                  drag !== null && drag.before === tab.id
+                    ? "shadow-[inset_2px_0_0_0_var(--color-primary)]"
+                    : ""
+                } ${drag?.id === tab.id ? "opacity-50" : ""} ${
+                  tab.isActive
+                    ? "bg-theme-editor text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
               >
-                {visibleTabs.map((tab) => (
-                  <div
-                    key={tab.id}
-                    data-tab-id={tab.id}
-                    draggable={!tab.isPinned}
-                    style={{
-                      minWidth: MIN_TAB_WIDTH,
-                      maxWidth: isOverflowing ? undefined : MAX_TAB_WIDTH,
-                      flexGrow: isOverflowing ? 1 : 0,
-                    }}
-                    onDragStart={(event) => {
-                      event.dataTransfer.setData(TAB_DRAG_MIME, tab.id);
-                      event.dataTransfer.effectAllowed = "move";
-                      setDrag({ id: tab.id, before: tab.id });
-                    }}
-                    onDragEnd={() => setDrag(null)}
-                    onDragOver={(event) => onTabDragOver(event, tab)}
-                    onDrop={onTabDrop}
-                    className={`group flex shrink items-center border-r border-sidebar-border ${
-                      drag !== null && drag.before === tab.id
-                        ? "shadow-[inset_2px_0_0_0_var(--color-primary)]"
-                        : ""
-                    } ${drag?.id === tab.id ? "opacity-50" : ""} ${
-                      tab.isActive
-                        ? "bg-theme-editor text-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {tab.isPinned && <PinFilledIcon size={11} className="ml-2 shrink-0" />}
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={tab.isActive}
-                      className={`min-w-0 flex-1 truncate px-3 text-left text-xs${tab.isAvailable ? "" : " line-through opacity-60"}`}
-                      title={tab.isAvailable ? tab.title : `${tab.title} (in trash)`}
-                      onClick={() => activateTab(store, tab.id)}
-                      onAuxClick={(event) => {
-                        if (event.button === 1) {
-                          closeTab(store, tab.id, PRIMARY_PANE_ID);
-                        }
-                      }}
-                    >
-                      {tab.title}
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Close ${tab.title}`}
-                      className="mr-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/[0.15] hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:h-8 pointer-coarse:w-8 pointer-coarse:opacity-100"
-                      onClick={() => closeTab(store, tab.id, PRIMARY_PANE_ID)}
-                    >
-                      <CloseIcon size={12} />
-                    </button>
-                  </div>
-                ))}
-                <div
-                  hidden={isOverflowing}
-                  className={`min-w-8 flex-1 ${
-                    drag !== null && drag.before === null
-                      ? "shadow-[inset_2px_0_0_0_var(--color-primary)]"
-                      : ""
-                  }`}
-                  onDragOver={(event) => {
-                    if (drag === null) {
-                      return;
-                    }
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = "move";
-                    if (drag.before !== null) {
-                      setDrag({ ...drag, before: null });
+                {tab.isPinned && <PinFilledIcon size={11} className="ml-2 shrink-0" />}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab.isActive}
+                  className={`min-w-0 flex-1 truncate px-3 text-left text-xs${tab.isAvailable ? "" : " line-through opacity-60"}`}
+                  title={tab.isAvailable ? tab.title : `${tab.title} (in trash)`}
+                  onClick={() => activateTab(store, tab.id)}
+                  onAuxClick={(event) => {
+                    if (event.button === 1) {
+                      closeTab(store, tab.id, PRIMARY_PANE_ID);
                     }
                   }}
-                  onDrop={onTabDrop}
-                />
-                {isOverflowing && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label={`${overflowTabs.length} more open notes`}
-                        title={`${overflowTabs.length} more open notes`}
-                        className="flex shrink-0 items-center gap-1 px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                      >
-                        {overflowTabs.length} more
-                        <ChevronDownIcon size={12} />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="max-h-80 max-w-72 overflow-y-auto">
-                      {overflowTabs.map((tab) => (
-                        <DropdownMenuItem
-                          key={tab.id}
-                          className={tab.isAvailable ? "" : "line-through opacity-60"}
-                          onSelect={() => activateTab(store, tab.id)}
-                        >
-                          <span className="truncate">{tab.title}</span>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                >
+                  {tab.title}
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Close ${tab.title}`}
+                  className="mr-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/[0.15] hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:h-8 pointer-coarse:w-8 pointer-coarse:opacity-100"
+                  onClick={() => closeTab(store, tab.id, PRIMARY_PANE_ID)}
+                >
+                  <CloseIcon size={12} />
+                </button>
               </div>
-              {hasSplit && (
-                <>
+            ))}
+            <div
+              hidden={isOverflowing}
+              className={`min-w-8 flex-1 ${
+                drag !== null && drag.before === null
+                  ? "shadow-[inset_2px_0_0_0_var(--color-primary)]"
+                  : ""
+              }`}
+              onDragOver={(event) => {
+                if (drag === null) {
+                  return;
+                }
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                if (drag.before !== null) {
+                  setDrag({ ...drag, before: null });
+                }
+              }}
+              onDrop={onTabDrop}
+            />
+            {isOverflowing && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    aria-label={
-                      orientation === "vertical"
-                        ? "Stack split panes"
-                        : "Place split panes side by side"
-                    }
-                    title={
-                      orientation === "vertical"
-                        ? "Stack split panes"
-                        : "Place split panes side by side"
-                    }
-                    className="shrink-0 self-center px-2 text-muted-foreground hover:text-foreground"
-                    onClick={() => toggleSplitOrientation(store)}
+                    aria-label={`${overflowTabs.length} more open notes`}
+                    title={`${overflowTabs.length} more open notes`}
+                    className="flex shrink-0 items-center gap-1 px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
-                    {orientation === "vertical" ? (
-                      <SplitViewStackedIcon size={14} />
-                    ) : (
-                      <SplitViewIcon size={14} />
-                    )}
+                    {overflowTabs.length} more
+                    <ChevronDownIcon size={12} />
                   </button>
-                  <button
-                    type="button"
-                    className="shrink-0 self-center px-3 text-xs text-muted-foreground hover:text-foreground"
-                    onClick={() => closeSplit(store)}
-                  >
-                    Close split
-                  </button>
-                </>
-              )}
-            </div>
-          </ContextMenuTrigger>
-          <ContextMenuContent className="w-52">
-            {contextTab ? (
-              <>
-                <ContextMenuItem
-                  onClick={() => togglePinTab(store, contextTab.id, PRIMARY_PANE_ID)}
-                >
-                  {contextTab.isPinned ? (
-                    <PinOffIcon size={14} className="h-3.5 w-3.5" />
-                  ) : (
-                    <PinIcon size={14} className="h-3.5 w-3.5" />
-                  )}
-                  {contextTab.isPinned ? "Unpin" : "Pin"}
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem onClick={() => closeTab(store, contextTab.id, PRIMARY_PANE_ID)}>
-                  Close
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onClick={() => closeOtherTabs(store, contextTab.id, PRIMARY_PANE_ID)}
-                >
-                  Close all but this
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onClick={() => closeTabsToSide(store, contextTab.id, "right", PRIMARY_PANE_ID)}
-                >
-                  Close all to the right
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onClick={() => closeTabsToSide(store, contextTab.id, "left", PRIMARY_PANE_ID)}
-                >
-                  Close all to the left
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem onClick={() => closeAllTabs(store, PRIMARY_PANE_ID)}>
-                  Close all
-                </ContextMenuItem>
-              </>
-            ) : (
-              <>
-                <ContextMenuItem onClick={() => closeAllTabs(store, PRIMARY_PANE_ID)}>
-                  Close all
-                </ContextMenuItem>
-                {hasSplit && (
-                  <>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem onClick={() => toggleSplitOrientation(store)}>
-                      {orientation === "vertical"
-                        ? "Stack split panes"
-                        : "Split panes side by side"}
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={resetSplit}>Reset split size</ContextMenuItem>
-                    <ContextMenuItem onClick={() => closeSplit(store)}>Close split</ContextMenuItem>
-                  </>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="max-h-80 max-w-72 overflow-y-auto">
+                  {overflowTabs.map((tab) => (
+                    <DropdownMenuItem
+                      key={tab.id}
+                      className={tab.isAvailable ? "" : "line-through opacity-60"}
+                      onSelect={() => activateTab(store, tab.id)}
+                    >
+                      <span className="truncate">{tab.title}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+          {hasSplit && (
+            <>
+              <button
+                type="button"
+                aria-label={
+                  orientation === "vertical"
+                    ? "Stack split panes"
+                    : "Place split panes side by side"
+                }
+                title={
+                  orientation === "vertical"
+                    ? "Stack split panes"
+                    : "Place split panes side by side"
+                }
+                className="shrink-0 self-center px-2 text-muted-foreground hover:text-foreground"
+                onClick={() => toggleSplitOrientation(store)}
+              >
+                {orientation === "vertical" ? (
+                  <SplitViewStackedIcon size={14} />
+                ) : (
+                  <SplitViewIcon size={14} />
                 )}
+              </button>
+              <button
+                type="button"
+                className="shrink-0 self-center px-3 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => closeSplit(store)}
+              >
+                Close split
+              </button>
+            </>
+          )}
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-52">
+        {contextTab ? (
+          <>
+            <ContextMenuItem onClick={() => togglePinTab(store, contextTab.id, PRIMARY_PANE_ID)}>
+              {contextTab.isPinned ? (
+                <PinOffIcon size={14} className="h-3.5 w-3.5" />
+              ) : (
+                <PinIcon size={14} className="h-3.5 w-3.5" />
+              )}
+              {contextTab.isPinned ? "Unpin" : "Pin"}
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={() => closeTab(store, contextTab.id, PRIMARY_PANE_ID)}>
+              Close
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => closeOtherTabs(store, contextTab.id, PRIMARY_PANE_ID)}>
+              Close all but this
+            </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => closeTabsToSide(store, contextTab.id, "right", PRIMARY_PANE_ID)}
+            >
+              Close all to the right
+            </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => closeTabsToSide(store, contextTab.id, "left", PRIMARY_PANE_ID)}
+            >
+              Close all to the left
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={() => closeAllTabs(store, PRIMARY_PANE_ID)}>
+              Close all
+            </ContextMenuItem>
+          </>
+        ) : (
+          <>
+            <ContextMenuItem onClick={() => closeAllTabs(store, PRIMARY_PANE_ID)}>
+              Close all
+            </ContextMenuItem>
+            {hasSplit && (
+              <>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={() => toggleSplitOrientation(store)}>
+                  {orientation === "vertical" ? "Stack split panes" : "Split panes side by side"}
+                </ContextMenuItem>
+                <ContextMenuItem onClick={onResetSplit}>Reset split size</ContextMenuItem>
+                <ContextMenuItem onClick={() => closeSplit(store)}>Close split</ContextMenuItem>
               </>
             )}
-          </ContextMenuContent>
-        </ContextMenu>
-      )}
-      <div
-        ref={splitRef}
-        className="grid min-h-0 min-w-0 flex-1"
-        style={hasSplit ? { [trackProperty]: splitGridTemplate(ratio) } : undefined}
-      >
-        <div
-          className="editor-pane relative min-h-0 min-w-0"
-          onFocusCapture={() => focusPane(store, PRIMARY_PANE_ID)}
-        >
-          <EditorHost store={store} />
-        </div>
-        {hasSplit && (
-          <>
-            <SplitDivider
-              orientation={orientation}
-              ratio={ratio}
-              onPreview={previewSplit}
-              onCommit={commitSplit}
-              onReset={resetSplit}
-            />
-            <div
-              className="editor-pane relative min-h-0 min-w-0"
-              onFocusCapture={() => focusPane(store, SECONDARY_PANE_ID)}
-            >
-              <EditorHost
-                store={store}
-                selectNoteId={selectSecondaryNoteId}
-                emptyMessage="This note is no longer available. It may have been moved to trash."
-              />
-            </div>
           </>
         )}
-      </div>
-    </div>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 });

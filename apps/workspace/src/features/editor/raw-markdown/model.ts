@@ -52,13 +52,50 @@ export function rawMarkdownCursorStatus(
     }
   }
 
-  const selectedText = markdown.slice(start, end);
+  return rawMarkdownSelectionStatus(line, column, markdown.slice(start, end));
+}
+
+/**
+ * @name rawMarkdownSelectionStatus
+ * @description The status bar values for a caret at a one-based line and
+ * column with `selectedText` selected, for callers that already know the line
+ * and need not scan the source up to the caret.
+ *
+ * @example
+ * const line = state.doc.lineAt(from);
+ * rawMarkdownSelectionStatus(line.number, from - line.from + 1, state.doc.sliceString(from, to));
+ */
+export function rawMarkdownSelectionStatus(
+  line: number,
+  column: number,
+  selectedText: string,
+): RawMarkdownCursorStatus {
   return {
     line,
     column,
     selectedCharacters: Array.from(selectedText).length,
     selectedWords: countRawMarkdownWords(selectedText),
   };
+}
+
+/**
+ * @name rawMarkdownCursorStatusEqual
+ * @description Compares two status bar values, so an update that would render
+ * the same status can be dropped.
+ *
+ * @example
+ * setCursorStatus((previous) => (rawMarkdownCursorStatusEqual(previous, next) ? previous : next));
+ */
+export function rawMarkdownCursorStatusEqual(
+  left: RawMarkdownCursorStatus,
+  right: RawMarkdownCursorStatus,
+): boolean {
+  return (
+    left.line === right.line &&
+    left.column === right.column &&
+    left.selectedCharacters === right.selectedCharacters &&
+    left.selectedWords === right.selectedWords
+  );
 }
 
 /** Where every source line starts in the numbering of wrapped screen rows. */
