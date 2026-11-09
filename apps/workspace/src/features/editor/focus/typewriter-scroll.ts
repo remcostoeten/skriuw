@@ -1,5 +1,5 @@
 import type { Transaction as SourceTransaction } from "@codemirror/state";
-import { ViewPlugin, type EditorView as SourceView, type ViewUpdate } from "@codemirror/view";
+import type { ViewUpdate } from "@codemirror/view";
 import { Plugin, PluginKey, type Transaction } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import { REMOTE_APPLY_META } from "../document/remote-merge";
@@ -27,8 +27,6 @@ const SETTLED_DISTANCE = 2;
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 const typewriterKey = new PluginKey<TypewriterMark>("typewriter-scroll");
-
-const SOURCE_MEASURE_KEY = { typewriter: true };
 
 /**
  * @name typewriterScrollTop
@@ -70,11 +68,30 @@ export function transactionMovesCaret(tr: Transaction): boolean {
   );
 }
 
-function scrollBehavior(): ScrollBehavior {
+/**
+ * @name typewriterScrollBehavior
+ * @description Smooth scrolling for typewriter centring, instant when the
+ * writer asked the system for reduced motion.
+ *
+ * @example
+ * container.scrollTo({ top, behavior: typewriterScrollBehavior() });
+ */
+export function typewriterScrollBehavior(): ScrollBehavior {
   return window.matchMedia(REDUCED_MOTION_QUERY).matches ? "instant" : "smooth";
 }
 
-function measure(container: HTMLElement, caret: { top: number; bottom: number }): number | null {
+/**
+ * @name measureTypewriterScroll
+ * @description Reads the container's geometry and returns the scroll offset
+ * that centres the given caret box, or null when it is already centred.
+ *
+ * @example
+ * const top = measureTypewriterScroll(container, view.coordsAtPos(head));
+ */
+export function measureTypewriterScroll(
+  container: HTMLElement,
+  caret: { top: number; bottom: number },
+): number | null {
   const rect = container.getBoundingClientRect();
   return typewriterScrollTop({
     caretTop: caret.top,
@@ -90,9 +107,9 @@ function centerCaret(view: EditorView, container: HTMLElement | null): void {
   if (container === null || view.isDestroyed) {
     return;
   }
-  const top = measure(container, view.coordsAtPos(view.state.selection.head));
+  const top = measureTypewriterScroll(container, view.coordsAtPos(view.state.selection.head));
   if (top !== null) {
-    container.scrollTo({ top, behavior: scrollBehavior() });
+    container.scrollTo({ top, behavior: typewriterScrollBehavior() });
   }
 }
 
@@ -147,10 +164,6 @@ export function createTypewriterPlugin(host: TypewriterHost): Plugin<TypewriterM
   });
 }
 
-function sourceScrollContainer(view: SourceView): HTMLElement {
-  return view.dom.closest<HTMLElement>(".editor-scroll") ?? view.scrollDOM;
-}
-
 /**
  * @name sourceUpdateMovesCaret
  * @description The raw Markdown counterpart of `transactionMovesCaret`:
@@ -170,42 +183,4 @@ export function sourceUpdateMovesCaret(
       (transaction) => !transaction.isUserEvent("select.pointer") && !isExternal(transaction),
     )
   );
-}
-
-/**
- * @name sourceTypewriterScrolling
- * @description CodeMirror extension for typewriter scrolling in raw Markdown
- * mode. It measures through CodeMirror's own measure cycle, so the caret read
- * and the scroll write join the editor's layout pass instead of forcing one.
- *
- * @example
- * sourceTypewriterScrolling(
- *   () => usesTypewriterScrolling(store.getState().settings),
- *   (tr) => tr.annotation(externalChange) === true,
- * );
- */
-export function sourceTypewriterScrolling(
-  enabled: () => boolean,
-  isExternal: (transaction: SourceTransaction) => boolean,
-) {
-  return ViewPlugin.define(() => ({
-    update: (update: ViewUpdate) => {
-      if (!sourceUpdateMovesCaret(update, isExternal) || !update.view.hasFocus || !enabled()) {
-        return;
-      }
-      update.view.requestMeasure({
-        key: SOURCE_MEASURE_KEY,
-        read: (view) => {
-          const container = sourceScrollContainer(view);
-          const caret = view.coordsAtPos(view.state.selection.main.head);
-          return { container, top: caret === null ? null : measure(container, caret) };
-        },
-        write: ({ container, top }) => {
-          if (top !== null) {
-            container.scrollTo({ top, behavior: scrollBehavior() });
-          }
-        },
-      });
-    },
-  }));
 }

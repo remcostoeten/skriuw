@@ -1,7 +1,10 @@
 use std::{
     env, fs,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -31,6 +34,24 @@ pub(crate) struct AppState {
     pub(crate) history_reader: Arc<GitHistoryMaterializer>,
     pub(crate) image_store: Arc<ImageStore>,
     pub(crate) sync: Arc<SyncRuntime>,
+    pub(crate) workspace_events: Arc<WorkspaceEventEpoch>,
+}
+
+/// Counts the workspace changes published to the renderer. The window starts
+/// reading its snapshot before it can listen for changes, so it compares the
+/// epoch the snapshot was read at with the epoch once it listens, and reads
+/// again when a change landed in between.
+#[derive(Default)]
+pub(crate) struct WorkspaceEventEpoch(AtomicU64);
+
+impl WorkspaceEventEpoch {
+    pub(crate) fn advance(&self) {
+        self.0.fetch_add(1, Ordering::SeqCst);
+    }
+
+    pub(crate) fn current(&self) -> u64 {
+        self.0.load(Ordering::SeqCst)
+    }
 }
 
 pub(crate) fn image_blob_path(database_path: &Path) -> PathBuf {

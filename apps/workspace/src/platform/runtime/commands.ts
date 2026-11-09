@@ -42,6 +42,14 @@ export function bootstrapWorkspace(): Promise<WorkspaceSnapshot> {
 }
 
 /**
+ * How many workspace changes the desktop shell has published so far. Desktop
+ * only; `index.html` reads the matching epoch with its early snapshot.
+ */
+export function workspaceEventEpoch(): Promise<number> {
+  return invoke<number>("workspace_event_epoch");
+}
+
+/**
  * The current bodies and node records for specific notes, for reconciling a
  * remote change without re-reading the whole workspace.
  */

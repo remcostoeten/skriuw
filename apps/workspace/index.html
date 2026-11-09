@@ -60,6 +60,28 @@
         root.dataset.colorScheme = colorScheme;
       })();
     </script>
+    <script nonce="__TAURI_SCRIPT_NONCE__">
+      // Starts the workspace reads while the bundle downloads and evaluates.
+      // Consumed once by src/app/early-bootstrap.ts; keep the shape in step.
+      (function () {
+        var internals = window.__TAURI_INTERNALS__;
+        if (!internals) {
+          return;
+        }
+        function start(command) {
+          var pending = internals.invoke(command);
+          pending.catch(function (error) {
+            console.error("early " + command + " failed", error);
+          });
+          return pending;
+        }
+        window.__SKRIUW_EARLY_BOOTSTRAP__ = {
+          snapshot: start("bootstrap_workspace_at_epoch"),
+          sidebarExpansion: start("load_sidebar_expansion"),
+          paneLayout: start("load_pane_layout"),
+        };
+      })();
+    </script>
     <style>
       .boot-splash {
         position: fixed;

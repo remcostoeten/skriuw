@@ -15,6 +15,25 @@ pub async fn bootstrap_workspace(state: State<'_, AppState>) -> Result<Response,
     wait_for(completion).await.map(Response::new)
 }
 
+/// Resolves to `[epoch, WorkspaceSnapshot]` JSON, with the workspace event
+/// epoch the snapshot was read at. The epoch is taken first, so a change
+/// committed while the snapshot is read moves the epoch past it and the
+/// renderer reads again. The snapshot text is wrapped, not re-encoded.
+#[tauri::command]
+pub async fn bootstrap_workspace_at_epoch(state: State<'_, AppState>) -> Result<Response, String> {
+    let epoch = state.workspace_events.current();
+    let completion = workspace_runtime(&state)?
+        .bootstrap_json()
+        .map_err(|error| error.to_string())?;
+    let snapshot = wait_for(completion).await?;
+    Ok(Response::new(format!("[{epoch},{snapshot}]")))
+}
+
+#[tauri::command]
+pub fn workspace_event_epoch(state: State<'_, AppState>) -> u64 {
+    state.workspace_events.current()
+}
+
 #[tauri::command]
 pub async fn load_sidebar_expansion(
     state: State<'_, AppState>,

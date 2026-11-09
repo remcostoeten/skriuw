@@ -22,7 +22,10 @@ use skriuw_ai_ollama::OllamaRuntime;
 use skriuw_domain::HistoryHeader;
 use skriuw_history_git::GitHistoryMaterializer;
 use skriuw_images::ImageStore;
-use state::{AppState, database_path, history_repository_path, image_blob_path, now_millis};
+use state::{
+    AppState, WorkspaceEventEpoch, database_path, history_repository_path, image_blob_path,
+    now_millis,
+};
 use tauri::{Emitter, Manager, RunEvent};
 
 const ROTATION_START_DELAY: Duration = Duration::from_secs(60);
@@ -90,6 +93,7 @@ pub fn run() {
             let ollama = Arc::new(ollama::OllamaManager::new(Arc::clone(&ollama_runtime)));
             let ai_credentials = Arc::new(ai_credentials::AiCredentialStore::new(&app_data_dir));
             let ai_models = Arc::new(ai_models::FetchedModelStore::new(&app_data_dir));
+            let workspace_events = Arc::new(WorkspaceEventEpoch::default());
             let repository_path = history_repository_path(&path);
             let history_reader = Arc::new(
                 GitHistoryMaterializer::open(&repository_path)
@@ -101,7 +105,9 @@ pub fn run() {
                 now_millis,
                 {
                     let app_handle = app.handle().clone();
+                    let workspace_events = Arc::clone(&workspace_events);
                     Arc::new(move |header: HistoryHeader| {
+                        workspace_events.advance();
                         if let Err(error) = app_handle.emit(HISTORY_HEADER_PUBLISHED_EVENT, header)
                         {
                             eprintln!("history header publication failed: {error}");
@@ -169,7 +175,9 @@ pub fn run() {
                 {
                     let app_handle = app.handle().clone();
                     let maintenance = Arc::clone(&maintenance);
+                    let workspace_events = Arc::clone(&workspace_events);
                     Arc::new(move |changes: &skriuw_sync::RemoteChangeSet| {
+                        workspace_events.advance();
                         maintenance.wake_history();
                         if let Err(error) =
                             app_handle.emit(SYNC_WORKSPACE_CHANGED_EVENT, changes.clone())
@@ -209,6 +217,7 @@ pub fn run() {
                 history_reader,
                 image_store,
                 sync: Arc::clone(&sync),
+                workspace_events,
             });
             let _ = std::thread::Builder::new()
                 .name("skriuw-sync-resume".into())
@@ -256,6 +265,8 @@ pub fn run() {
             auth::clear_auth_token,
             commands::links::open_link_window,
             commands::workspace::bootstrap_workspace,
+            commands::workspace::bootstrap_workspace_at_epoch,
+            commands::workspace::workspace_event_epoch,
             commands::workspace::load_sidebar_expansion,
             commands::workspace::save_sidebar_expansion,
             commands::workspace::load_pane_layout,

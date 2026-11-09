@@ -18,14 +18,17 @@ import { bindLockSession } from "@/features/lock/lock";
 import { seedRelationshipFixture } from "@/features/onboarding/debug-seed";
 import { bindStarterReclaim } from "@/features/onboarding/reclaim";
 import { seedStarterWorkspace } from "@/features/onboarding/seed";
+import { rendersRawEditor } from "@/features/editor/editor-mode";
+import { preloadRawMarkdownEditor } from "@/features/editor/raw-markdown-editor-loader";
 import { bindSettingsToRoot } from "@/features/settings/apply-settings";
+import { projectSettings } from "@/features/settings/settings-model";
 import { bindOpenedFiles } from "@/features/transfer/opened-files";
 import { installEditorExtensions } from "@/app/editor-extensions";
 import { isBrowserRuntime } from "@/platform/runtime/runtime";
 import { showToast } from "@/shared/ui/toast";
 import { bindThemeColor } from "@/shell/theme-color";
 import { flushPendingWork } from "@/store/pending-work";
-import type { RendererStore } from "@skriuw/renderer-core/store/types";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 
 async function seedWorkspace(store: RendererStore): Promise<void> {
   bindStarterReclaim(store);
@@ -52,6 +55,15 @@ function captureLaunchShare(store: RendererStore): void {
       durationMs: 8_000,
     });
   });
+}
+
+function firstRenderShowsRawEditor(state: RendererState): boolean {
+  return (
+    projectSettings(state.settings).editorDefaultRawMode ||
+    state.panes.some(
+      (pane) => pane.activeNoteId !== null && rendersRawEditor(state, pane.activeNoteId),
+    )
+  );
 }
 
 type LiveListeners = {
@@ -119,6 +131,9 @@ export async function openWorkspace(root: Root): Promise<() => Promise<void>> {
     captureLaunchShare(store);
     const openedFiles = isBrowserRuntime() ? null : bindOpenedFiles(store);
     installEditorExtensions();
+    if (firstRenderShowsRawEditor(store.getState())) {
+      await preloadRawMarkdownEditor();
+    }
     root.render(
       <StrictMode>
         <App store={store} />
