@@ -35,7 +35,7 @@ export const settingsButton = cn(
 export const settingsButtonDanger =
   "text-destructive border-destructive/40 hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive";
 export const settingsButtonPrimary =
-  "border-accent-ink bg-accent-ink text-accent-ink-foreground hover:bg-accent-ink/85 disabled:hover:bg-accent-ink";
+  "border-accent-ink bg-accent-ink text-accent-ink-foreground hover:bg-accent-ink/85 focus-visible:text-accent-ink-foreground! focus-visible:shadow-[0_0_0_2px_hsl(var(--background)),0_0_0_4px_hsl(var(--accent-ink)/0.5)] disabled:hover:bg-accent-ink";
 
 export const settingsFieldFocus = cn(
   "outline-none transition-[background-color,border-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
