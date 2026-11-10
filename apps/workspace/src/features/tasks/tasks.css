@@ -59,19 +59,6 @@
   transition: background-color 150ms var(--tasks-ease);
 }
 
-.task-item-inner::after {
-  content: "";
-  position: absolute;
-  left: -10px;
-  top: 12px;
-  bottom: 12px;
-  z-index: 1;
-  width: 2px;
-  border-radius: 2px;
-  background: hsl(var(--accent-ink));
-  opacity: 0;
-  transition: opacity 150ms var(--tasks-ease);
-}
 
 .task-item-inner > * {
   position: relative;
@@ -97,9 +84,6 @@
   background: var(--tasks-fill-2);
 }
 
-.task-item[data-selected="true"] .task-item-inner::after {
-  opacity: 1;
-}
 
 .task-checkbox {
   position: absolute;

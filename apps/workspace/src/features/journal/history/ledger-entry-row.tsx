@@ -23,8 +23,7 @@ export function LedgerEntryRow({ entry, selected }: { entry: JournalEntry; selec
           journalRowButton,
           journalPress,
           "grid-cols-[84px_minmax(0,1fr)_auto] items-baseline gap-x-3 border-b border-theme-divider/85 py-2.5 last:border-b-0 max-[899px]:grid-cols-[70px_minmax(0,1fr)_auto]",
-          selected &&
-            "after:absolute after:inset-y-3 after:-left-[11px] after:w-0.5 after:rounded-sm after:bg-accent-ink",
+          selected && "before:bg-theme-hover hover:before:bg-theme-hover",
         )}
       >
         <span aria-hidden="true" className="text-xs tabular-nums text-theme-secondary">

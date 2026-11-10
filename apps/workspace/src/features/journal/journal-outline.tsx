@@ -183,7 +183,7 @@ export function JournalOutline() {
                       onClick={() => jump(group)}
                       className={cn(
                         "relative block w-full cursor-pointer truncate rounded-[5px] border-0 bg-transparent px-[7px] py-1 text-left text-xs text-theme-dim hover:bg-theme-hover/55 hover:text-foreground aria-[current=true]:text-foreground",
-                        "before:absolute before:top-1.5 before:bottom-1.5 before:-left-[11px] before:w-0.5 before:rounded-sm before:bg-accent-ink before:opacity-0 before:transition-opacity aria-[current=true]:before:opacity-100",
+                        "aria-[current=true]:bg-theme-hover/70 aria-[current=true]:font-medium",
                         journalTransition,
                       )}
                     >
