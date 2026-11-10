@@ -218,7 +218,6 @@ export const SETTINGS_SEARCH_COPY = {
     "About",
     "Version",
     "Skriuw",
-    "Checking…",
     "Links",
     "Open",
   ],

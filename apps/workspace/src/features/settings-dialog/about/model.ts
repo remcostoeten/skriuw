@@ -36,31 +36,3 @@ export const ABOUT_LINKS: readonly AboutLink[] = [
 export function readAppVersion(): Promise<string> {
   return getVersion().catch(() => "dev");
 }
-
-export type UpdateOutcome =
-  | { status: "unconfigured" }
-  | { status: "upToDate" }
-  | { status: "available"; version: string }
-  | { status: "error"; message: string };
-
-/**
- * Checks for an application update. Automatic updates require a signing keypair
- * and a hosted release feed; until those exist this resolves to `unconfigured`.
- * Swap the body for `@tauri-apps/plugin-updater` `check()` once the feed ships.
- */
-export function checkForUpdate(): Promise<UpdateOutcome> {
-  return Promise.resolve({ status: "unconfigured" });
-}
-
-export function describeUpdateOutcome(outcome: UpdateOutcome): string {
-  if (outcome.status === "unconfigured") {
-    return settingsCopy.about.automaticUpdatesArentSetUpFor;
-  }
-  if (outcome.status === "upToDate") {
-    return settingsCopy.about.youreOnTheLatestVersion;
-  }
-  if (outcome.status === "available") {
-    return `Version ${outcome.version} is available.`;
-  }
-  return outcome.message;
-}

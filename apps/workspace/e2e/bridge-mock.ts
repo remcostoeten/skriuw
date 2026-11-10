@@ -1,4 +1,4 @@
-export { Channel } from "../node_modules/@tauri-apps/api/core.js";
+export { Channel, Resource } from "../node_modules/@tauri-apps/api/core.js";
 import type {
   WorkspaceOperationEnvelope,
   WorkspaceSnapshot,
