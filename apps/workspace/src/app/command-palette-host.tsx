@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { activateNote } from "@/features/notes/navigation";
 import { appRouteHash, journalDayHash } from "@skriuw/renderer-core/route/app-route";
 import { JOURNAL_ROOT_ID } from "@skriuw/renderer-core/journal/constants";
@@ -15,6 +15,7 @@ import { fuzzyMatchScore } from "@/shared/text/fuzzy-match";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { paletteDensity, paletteSize } from "@/features/settings/settings-model";
 import { CommandPalette } from "@/commands/command-palette";
+import { palettePreviewFor } from "@/app/command-palette-previews";
 import { RECENT_NOTES_GROUP, type CommandPaletteItem } from "@/commands/command-palette-model";
 import { compactAge, recentNotes } from "@/commands/recent-notes";
 import {
@@ -268,6 +269,11 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
     [commandItems, noteItems, browseItems, contentItemsForQuery],
   );
 
+  const previewFor = useCallback(
+    (item: CommandPaletteItem) => palettePreviewFor(store.getState(), item.id, Date.now()),
+    [store],
+  );
+
   const paletteHints = useShortcutHints(store, PALETTE_SHORTCUT_IDS);
   const density = useRendererSelector(store, selectPaletteDensity);
   const size = useRendererSelector(store, selectPaletteSize);
@@ -282,6 +288,7 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
       onQueryChange={setSearchQuery}
       notice={notice}
       paletteShortcut={paletteHints.toggleCommandPalette}
+      previewFor={previewFor}
       density={density}
       size={size}
     />

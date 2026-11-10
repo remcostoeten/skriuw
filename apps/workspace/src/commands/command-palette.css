@@ -1,0 +1,54 @@
+dialog.command-palette > .dialog-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.palette-panes {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.palette-empty {
+  grid-column: 1 / -1;
+}
+
+.palette-list {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.5rem), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 1.5rem), transparent);
+}
+
+.palette-row {
+  scroll-margin-block: 2.25rem 1.5rem;
+}
+
+.palette-page-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 2.75rem), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 2.75rem), transparent);
+}
+
+.palette-scope,
+.palette-widen {
+  transition: transform 100ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.palette-scope:active,
+.palette-widen:active {
+  transform: scale(0.97);
+}
+
+@media (min-width: 900px) {
+  dialog.command-palette {
+    height: min(var(--palette-max-height), calc(var(--viewport-height) - 48px));
+  }
+
+  .palette-panes {
+    grid-template-columns: minmax(0, 1fr) clamp(17rem, 40%, 24rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .palette-scope,
+  .palette-widen {
+    transition: none;
+  }
+}

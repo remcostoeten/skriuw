@@ -10,6 +10,7 @@
 @import "./features/sidebar/sidebar.css";
 @import "./shell/panes/split.css";
 @import "./shell/compact/mobile.css";
+@import "./commands/command-palette.css";
 @import "./shell/focus-mode/layout.css";
 @import "./features/references/references.css";
 @import "./features/history/diff.css";
