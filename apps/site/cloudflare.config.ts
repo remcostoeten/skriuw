@@ -6,6 +6,7 @@ export default defineConfig({
     entrypoint: "vinext/server/fetch-handler",
     compatibilityDate: "2026-11-08",
     compatibilityFlags: ["nodejs_compat"],
+    domains: ["skriuw.com", "www.skriuw.com", "docs.skriuw.com"],
     assets: {
       htmlHandling: "none",
       notFoundHandling: "none",
