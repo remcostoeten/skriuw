@@ -622,8 +622,7 @@ function SheetBody({ store, taskId, overlay, today, hasPrevious, hasNext, action
                   className={cn(
                     "relative grid grid-cols-[30px_minmax(0,1fr)] pr-3 whitespace-pre-wrap text-theme-secondary [overflow-wrap:anywhere]",
                     entry.heading && "font-[550] text-foreground",
-                    entry.current &&
-                      "bg-accent-ink/10 text-foreground before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-accent-ink",
+                    entry.current && "bg-accent-ink/10 text-foreground",
                   )}
                 >
                   <i className="pr-2.5 text-right font-mono text-[10.5px] leading-[2.05] not-italic text-theme-dim">
