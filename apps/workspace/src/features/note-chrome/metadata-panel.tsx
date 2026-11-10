@@ -1,47 +1,9 @@
-import {
-  memo,
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { memo, useCallback, useDeferredValue, useMemo, useRef, useState } from "react";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
+import { ChevronRightIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/styling/class-names";
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  CopyIcon,
-  HistoryIcon,
-  RotateCcwIcon,
-} from "@/shared/icons/static";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "@/shared/ui/context-menu";
-import { showToast } from "@/shared/ui/toast";
-import { readHistoryVersion } from "@/platform/runtime/commands";
-import { restoreNoteVersion } from "@/features/history/restore-version";
-import { SectionToggle, sectionLabelClass } from "@/shared/ui/section-header";
-import { Collapse } from "@/shared/ui/collapse";
-import {
-  formatVersionClock,
-  formatVersionTimestamp,
-  groupVersionRows,
-  projectVersionList,
-  type VersionListItem,
-  type VersionRow,
-} from "@/features/history/versions";
-import { VersionStats } from "@/features/history/version-stats";
+import { projectVersionList } from "@/features/history/versions";
 import { noteHistoryHash } from "@skriuw/renderer-core/route/app-route";
-import { formatRelativeTime } from "@/shared/format/relative-time";
-import { NoteOutline } from "./metadata/outline";
-import { AnnotationList } from "./metadata/annotation-list";
 import {
   noteUnlinkedMentionTerm,
   RelationshipExplorer,
@@ -49,65 +11,38 @@ import {
 } from "@/features/references/shell";
 import { openedFileOrigin } from "@/features/transfer/opened-file-origin";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
+import { NoteOutline } from "./metadata/outline";
+import { AnnotationList } from "./metadata/annotation-list";
+import { DetailsList } from "./metadata/details-list";
+import { RevisionList } from "./metadata/revision-list";
+import { inspectorQuietAction } from "./metadata/inspector-classes";
+import { InspectorIndex } from "./metadata/inspector-index";
+import { inspectorKeyDown } from "./metadata/inspector-keys";
+import {
+  readingMinutes,
+  visibleInspectorSections,
+  type InspectorSection as SectionId,
+} from "./metadata/inspector-model";
+import { InspectorSection, inspectorHeadingId } from "./metadata/inspector-section";
+import { INSPECTOR_INDEX_HEIGHT, useInspectorSpy } from "./metadata/use-inspector-spy";
 
 type Props = {
   store: RendererStore;
 };
 
-type SectionKey = "outline" | "annotations" | "revisions" | "details" | "relationships";
-
-type SectionProps = {
-  id: string;
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-  className?: string;
-  keepMounted?: boolean;
-};
-
-function InspectorSection({
-  id,
-  title,
-  open,
-  onToggle,
-  children,
-  className,
-  keepMounted = false,
-}: SectionProps) {
-  const [rendered, setRendered] = useState(open || keepMounted);
-  if ((open || keepMounted) && !rendered) {
-    setRendered(true);
-  }
-
-  return (
-    <section
-      aria-labelledby={id}
-      className={cn("group relative border-b border-border/60", className)}
-    >
-      <SectionToggle id={id} title={title} open={open} onToggle={onToggle} />
-      {rendered && (
-        <Collapse open={open}>
-          <div className="px-4 pb-2.5 pt-2.5">{children}</div>
-        </Collapse>
-      )}
-    </section>
-  );
-}
-
 const asideClass = "flex h-full min-h-0 w-full flex-col border-l border-border bg-background";
 
 const OPEN_STORAGE_KEY = "skriuw.inspector-sections-open";
 
-const defaultOpenSections: Record<SectionKey, boolean> = {
+const defaultOpenSections: Record<SectionId, boolean> = {
   outline: true,
-  annotations: true,
+  comments: true,
   revisions: true,
-  details: true,
   relationships: true,
+  details: true,
 };
 
-function readOpenSections(): Record<SectionKey, boolean> {
+function readOpenSections(): Record<SectionId, boolean> {
   try {
     const stored = window.localStorage.getItem(OPEN_STORAGE_KEY);
     if (stored === null) {
@@ -118,7 +53,7 @@ function readOpenSections(): Record<SectionKey, boolean> {
       return defaultOpenSections;
     }
     const next = { ...defaultOpenSections };
-    for (const key of Object.keys(next) as SectionKey[]) {
+    for (const key of Object.keys(next) as SectionId[]) {
       const value = (parsed as Record<string, unknown>)[key];
       if (typeof value === "boolean") {
         next[key] = value;
@@ -130,461 +65,12 @@ function readOpenSections(): Record<SectionKey, boolean> {
   }
 }
 
-function writeOpenSections(sections: Record<SectionKey, boolean>): void {
+function writeOpenSections(sections: Record<SectionId, boolean>): void {
   try {
     window.localStorage.setItem(OPEN_STORAGE_KEY, JSON.stringify(sections));
   } catch {
     return;
   }
-}
-
-const collapsedRevisionCount = 6;
-
-const REVISION_HEIGHT_STORAGE_KEY = "skriuw.inspector-revisions-height";
-const defaultRevisionHeight = 256;
-const minRevisionHeight = 96;
-const revisionHeightStep = 24;
-
-function readRevisionHeight(): number {
-  try {
-    const stored = Number(window.localStorage.getItem(REVISION_HEIGHT_STORAGE_KEY));
-    return stored >= minRevisionHeight ? stored : defaultRevisionHeight;
-  } catch {
-    return defaultRevisionHeight;
-  }
-}
-
-function writeRevisionHeight(height: number): void {
-  try {
-    window.localStorage.setItem(REVISION_HEIGHT_STORAGE_KEY, String(height));
-  } catch {
-    return;
-  }
-}
-
-const quietActionClass =
-  "inline-flex cursor-pointer items-center gap-1 whitespace-nowrap bg-transparent p-0 text-[11px] text-muted-foreground/70 transition-colors hover:text-foreground";
-
-function failureMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error && error.message.length > 0) {
-    return error.message;
-  }
-  return typeof error === "string" && error.length > 0 ? error : fallback;
-}
-
-async function copyRevisionMarkdown(noteId: string, versionId: string): Promise<void> {
-  try {
-    const content = await readHistoryVersion(noteId, versionId);
-    await navigator.clipboard.writeText(content.markdown);
-    showToast({ message: "Revision copied as Markdown" });
-  } catch (error) {
-    showToast({
-      message: failureMessage(error, "Could not copy this revision."),
-    });
-  }
-}
-
-async function restoreRevision(
-  store: RendererStore,
-  noteId: string,
-  versionId: string,
-): Promise<void> {
-  const previousMarkdown = store.getState().documents.get(noteId)?.markdown;
-  try {
-    const content = await readHistoryVersion(noteId, versionId);
-    await restoreNoteVersion(store, noteId, content.markdown);
-    showToast({
-      message: `Restored revision from ${formatVersionTimestamp(content.createdAt)}`,
-      action:
-        previousMarkdown === undefined
-          ? undefined
-          : {
-              label: "Undo",
-              run: () => {
-                restoreNoteVersion(store, noteId, previousMarkdown).catch((error: unknown) => {
-                  showToast({
-                    message: failureMessage(error, "Could not undo the restore."),
-                  });
-                });
-              },
-            },
-    });
-  } catch (error) {
-    showToast({ message: failureMessage(error, "Restore failed.") });
-  }
-}
-
-type RevisionActions = {
-  open: (versionId: string) => void;
-  copy: (versionId: string) => void;
-  restore: (versionId: string) => void;
-};
-
-type RevisionRowsProps = {
-  rows: readonly VersionRow[];
-  label: string;
-  actions: RevisionActions;
-  className?: string;
-};
-
-function RevisionRows({ rows, label, actions, className }: RevisionRowsProps) {
-  return (
-    <ul aria-label={label} className={cn("m-0 list-none p-0", className)}>
-      {rows.map((row) =>
-        row.kind === "group" ? (
-          <li key={row.key} className={cn(sectionLabelClass, "px-2 pb-1 pt-2.5")}>
-            {row.label}
-          </li>
-        ) : (
-          <li key={row.key} data-revision-row="">
-            <ContextMenu>
-              <ContextMenuTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => actions.open(row.item.versionId)}
-                  title={formatVersionTimestamp(row.item.createdAt)}
-                  className="group/revision flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] bg-transparent px-2 py-1 text-left transition-colors hover:bg-muted"
-                >
-                  <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground transition-colors group-hover/revision:text-foreground">
-                    {formatVersionClock(row.item.createdAt)}
-                  </span>
-                  <span className="min-w-0 truncate text-[10px] text-muted-foreground/45 opacity-0 transition-opacity group-hover/revision:opacity-100">
-                    {formatRelativeTime(row.item.createdAt)}
-                  </span>
-                  <VersionStats wordDelta={row.item.wordDelta} />
-                </button>
-              </ContextMenuTrigger>
-              <ContextMenuContent className="w-48">
-                <ContextMenuItem
-                  className="gap-2"
-                  onSelect={() => actions.open(row.item.versionId)}
-                >
-                  <HistoryIcon size={14} />
-                  Open in history
-                </ContextMenuItem>
-                <ContextMenuItem
-                  className="gap-2"
-                  onSelect={() => actions.copy(row.item.versionId)}
-                >
-                  <CopyIcon size={14} />
-                  Copy as Markdown
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem
-                  className="gap-2"
-                  onSelect={() => actions.restore(row.item.versionId)}
-                >
-                  <RotateCcwIcon size={14} />
-                  Restore this version
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
-          </li>
-        ),
-      )}
-    </ul>
-  );
-}
-
-/**
- * Counts revision rows in `scroller` that are less than half visible above its
- * bottom edge, so the "N more" affordance tracks the resized viewport.
- */
-function countRevisionsBelowFold(scroller: HTMLElement): number {
-  const fold = scroller.getBoundingClientRect().bottom;
-  let count = 0;
-  for (const row of scroller.querySelectorAll<HTMLElement>("[data-revision-row]:not([inert] *)")) {
-    const rect = row.getBoundingClientRect();
-    if (rect.top + rect.height / 2 > fold) {
-      count += 1;
-    }
-  }
-  return count;
-}
-
-/**
- * Index of the row just past the `limit`-th revision, so the list can split
- * into an always-visible head and a collapsible tail. Day headers stay with the
- * revisions they introduce and the two halves render flush, so the seam is
- * invisible once expanded.
- */
-function findRevisionSplit(rows: readonly VersionRow[], limit: number): number {
-  let seen = 0;
-  for (let index = 0; index < rows.length; index += 1) {
-    if (rows[index]?.kind === "version") {
-      seen += 1;
-      if (seen === limit) {
-        return index + 1;
-      }
-    }
-  }
-  return rows.length;
-}
-
-type RevisionListProps = {
-  store: RendererStore;
-  noteId: string;
-  versions: readonly VersionListItem[];
-  onOpen: (versionId?: string) => void;
-};
-
-function RevisionList({ store, noteId, versions, onOpen }: RevisionListProps) {
-  const [expanded, setExpanded] = useState(false);
-  const [maxHeight, setMaxHeight] = useState(readRevisionHeight);
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{
-    startY: number;
-    startHeight: number;
-    height: number;
-  } | null>(null);
-  const [belowFoldCount, setBelowFoldCount] = useState(0);
-  const [listNoteId, setListNoteId] = useState(noteId);
-  if (listNoteId !== noteId) {
-    setListNoteId(noteId);
-    setExpanded(false);
-    setBelowFoldCount(0);
-  }
-  const hiddenCount = versions.length - collapsedRevisionCount;
-  const collapsedTailCount = expanded ? 0 : Math.max(0, hiddenCount);
-  const moreCount = belowFoldCount + collapsedTailCount;
-  const rows = useMemo(() => groupVersionRows(versions), [versions]);
-  const splitIndex = useMemo(() => findRevisionSplit(rows, collapsedRevisionCount), [rows]);
-
-  function measureBelowFold(): void {
-    if (scrollerRef.current) {
-      setBelowFoldCount(countRevisionsBelowFold(scrollerRef.current));
-    }
-  }
-
-  useEffect(() => {
-    const scroller = scrollerRef.current;
-    if (!scroller || typeof ResizeObserver === "undefined") {
-      return;
-    }
-    const observer = new ResizeObserver(() => {
-      setBelowFoldCount(countRevisionsBelowFold(scroller));
-    });
-    observer.observe(scroller);
-    for (const child of scroller.children) {
-      observer.observe(child);
-    }
-    return () => observer.disconnect();
-  }, [rows, expanded, maxHeight]);
-
-  if (versions.length === 0) {
-    return <p className="m-0 text-[13px] text-muted-foreground/70">No revisions yet</p>;
-  }
-
-  const tail = rows.slice(splitIndex);
-  const actions: RevisionActions = {
-    open: onOpen,
-    copy: (versionId) => void copyRevisionMarkdown(noteId, versionId),
-    restore: (versionId) => void restoreRevision(store, noteId, versionId),
-  };
-  const fitsAll = !Number.isFinite(maxHeight);
-
-  function revealTail(): void {
-    if (hiddenCount > 0 && !expanded) {
-      setExpanded(true);
-    }
-  }
-
-  function clampHeight(height: number): number {
-    const content = scrollerRef.current?.scrollHeight ?? height;
-    return Math.round(Math.max(minRevisionHeight, Math.min(height, content)));
-  }
-
-  function commitHeight(height: number): void {
-    setMaxHeight(height);
-    writeRevisionHeight(height);
-  }
-
-  function renderedHeight(): number {
-    return scrollerRef.current?.getBoundingClientRect().height ?? defaultRevisionHeight;
-  }
-
-  function showMoreOrLess(): void {
-    const scroller = scrollerRef.current;
-    if (moreCount === 0) {
-      setExpanded(false);
-      scroller?.scrollTo({ top: 0 });
-      return;
-    }
-    if (belowFoldCount === 0 || !scroller) {
-      setExpanded(true);
-      return;
-    }
-    scroller.scrollBy({ top: scroller.clientHeight, behavior: "smooth" });
-  }
-
-  function toggleFitAll(): void {
-    if (fitsAll) {
-      commitHeight(defaultRevisionHeight);
-      return;
-    }
-    revealTail();
-    commitHeight(Number.POSITIVE_INFINITY);
-  }
-
-  return (
-    <div>
-      <div
-        ref={scrollerRef}
-        style={{ maxHeight: fitsAll ? "none" : maxHeight }}
-        onScroll={measureBelowFold}
-        className="overflow-y-auto overscroll-contain"
-      >
-        <RevisionRows
-          rows={rows.slice(0, splitIndex)}
-          label="Revisions"
-          actions={actions}
-          className="[&>li:first-child]:pt-0"
-        />
-        {tail.length > 0 && (
-          <Collapse open={expanded}>
-            <RevisionRows rows={tail} label="Older revisions" actions={actions} />
-          </Collapse>
-        )}
-      </div>
-      <div
-        role="separator"
-        aria-orientation="horizontal"
-        aria-label="Resize revision list"
-        aria-valuenow={fitsAll ? undefined : Math.round(maxHeight)}
-        aria-valuemin={minRevisionHeight}
-        tabIndex={0}
-        title="Drag to resize · double-click to show all"
-        className="group/grip mx-2 mt-1.5 flex h-2.5 cursor-row-resize touch-none items-center outline-none"
-        onPointerDown={(event) => {
-          if (event.button !== 0) {
-            return;
-          }
-          event.preventDefault();
-          event.currentTarget.setPointerCapture(event.pointerId);
-          const startHeight = renderedHeight();
-          dragRef.current = {
-            startY: event.clientY,
-            startHeight,
-            height: startHeight,
-          };
-          revealTail();
-        }}
-        onPointerMove={(event) => {
-          const drag = dragRef.current;
-          const scroller = scrollerRef.current;
-          if (!drag || !scroller) {
-            return;
-          }
-          drag.height = clampHeight(drag.startHeight + event.clientY - drag.startY);
-          scroller.style.maxHeight = `${drag.height}px`;
-          measureBelowFold();
-        }}
-        onPointerUp={() => {
-          const drag = dragRef.current;
-          dragRef.current = null;
-          if (drag && drag.height !== drag.startHeight) {
-            commitHeight(drag.height);
-          }
-        }}
-        onPointerCancel={() => {
-          dragRef.current = null;
-          if (scrollerRef.current) {
-            scrollerRef.current.style.maxHeight = fitsAll ? "none" : `${maxHeight}px`;
-          }
-          measureBelowFold();
-        }}
-        onDoubleClick={toggleFitAll}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            toggleFitAll();
-            return;
-          }
-          if (event.key !== "ArrowUp" && event.key !== "ArrowDown") {
-            return;
-          }
-          event.preventDefault();
-          const step = event.shiftKey ? revisionHeightStep * 4 : revisionHeightStep;
-          if (event.key === "ArrowDown") {
-            revealTail();
-          }
-          commitHeight(clampHeight(renderedHeight() + (event.key === "ArrowDown" ? step : -step)));
-        }}
-      >
-        <span className="h-px w-full bg-border/60 transition-colors duration-150 group-hover/grip:bg-muted-foreground/40 group-focus-visible/grip:bg-muted-foreground group-active/grip:bg-muted-foreground/60" />
-      </div>
-      <div className="flex h-6 items-center gap-3 px-2">
-        {(moreCount > 0 || expanded) && (
-          <button
-            type="button"
-            onClick={showMoreOrLess}
-            aria-expanded={moreCount === 0}
-            className={quietActionClass}
-          >
-            <ChevronDownIcon
-              size={10}
-              className={cn(
-                "transition-transform duration-150 motion-reduce:transition-none",
-                moreCount === 0 && "rotate-180",
-              )}
-            />
-            {moreCount === 0 ? "Show less" : `${moreCount} more`}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => onOpen()}
-          className={cn(quietActionClass, "group/open ml-auto gap-0.5")}
-        >
-          Open history
-          <ChevronRightIcon
-            size={10}
-            className="-mr-0.5 transition-transform duration-150 group-hover/open:translate-x-0.5 motion-reduce:transition-none"
-          />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} Bytes`;
-  }
-  return `${(bytes / 1024).toFixed(1)} KB`;
-}
-
-const DATE_FORMAT = new Intl.DateTimeFormat(undefined, {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-});
-
-const TIME_FORMAT = new Intl.DateTimeFormat(undefined, {
-  hour: "numeric",
-  minute: "2-digit",
-});
-
-function formatDateTime(timestamp: number): string {
-  const date = new Date(timestamp);
-  return `${DATE_FORMAT.format(date)}, ${TIME_FORMAT.format(date)}`;
-}
-
-function utf8ByteLength(text: string): number {
-  let bytes = 0;
-  for (let index = 0; index < text.length; index += 1) {
-    const code = text.charCodeAt(index);
-    if (code < 0x80) bytes += 1;
-    else if (code < 0x800) bytes += 2;
-    else if (code >= 0xd800 && code <= 0xdbff && index + 1 < text.length) {
-      const next = text.charCodeAt(index + 1);
-      if (next >= 0xdc00 && next <= 0xdfff) {
-        bytes += 4;
-        index += 1;
-      } else bytes += 3;
-    } else bytes += 3;
-  }
-  return bytes;
 }
 
 function selectActiveNoteId(state: RendererState): string | null {
@@ -607,22 +93,33 @@ function selectNoteMarkdown(state: RendererState, noteId: string | null): string
   return noteId === null ? null : (state.documents.get(noteId)?.markdown ?? null);
 }
 
-const annotationCounts = new WeakMap<RendererState["annotations"], Map<string, number>>();
+type AnnotationTotals = { total: number; open: number };
 
-function annotationCountFor(state: RendererState, noteId: string): number {
-  let counts = annotationCounts.get(state.annotations);
-  if (!counts) {
-    counts = new Map();
+const annotationTotals = new WeakMap<RendererState["annotations"], Map<string, AnnotationTotals>>();
+
+function annotationTotalsFor(state: RendererState, noteId: string): AnnotationTotals {
+  let totals = annotationTotals.get(state.annotations);
+  if (!totals) {
+    totals = new Map();
     for (const annotation of state.annotations.values()) {
-      counts.set(annotation.noteId, (counts.get(annotation.noteId) ?? 0) + 1);
+      const entry = totals.get(annotation.noteId) ?? { total: 0, open: 0 };
+      entry.total += 1;
+      if (annotation.status === "open") {
+        entry.open += 1;
+      }
+      totals.set(annotation.noteId, entry);
     }
-    annotationCounts.set(state.annotations, counts);
+    annotationTotals.set(state.annotations, totals);
   }
-  return counts.get(noteId) ?? 0;
+  return totals.get(noteId) ?? { total: 0, open: 0 };
 }
 
 function selectNoteOrigin(state: RendererState, noteId: string | null): string | null {
   return noteId === null ? null : openedFileOrigin(state.importReceipts, noteId);
+}
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 export const MetadataPanel = memo(function MetadataPanel({ store }: Props) {
@@ -671,20 +168,39 @@ const MetadataPanelContent = memo(function MetadataPanelContent({
       [activeNoteId],
     ),
   );
-  const annotationCount = useRendererSelector(
+  const commentTotal = useRendererSelector(
     store,
     useCallback(
       (state: RendererState) =>
-        activeNoteId === null ? 0 : annotationCountFor(state, activeNoteId),
+        activeNoteId === null ? 0 : annotationTotalsFor(state, activeNoteId).total,
       [activeNoteId],
     ),
   );
-  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(readOpenSections);
+  const commentsOpen = useRendererSelector(
+    store,
+    useCallback(
+      (state: RendererState) =>
+        activeNoteId === null ? 0 : annotationTotalsFor(state, activeNoteId).open,
+      [activeNoteId],
+    ),
+  );
+  const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>(readOpenSections);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [hasOutline, setHasOutline] = useState(false);
-  const handleOutlineCountChange = useCallback((count: number) => setHasOutline(count > 1), []);
+  const [outlineCount, setOutlineCount] = useState(0);
+  const handleOutlineCountChange = useCallback((count: number) => setOutlineCount(count), []);
 
-  function toggleSection(section: SectionKey): void {
+  const visible = useMemo(
+    () =>
+      visibleInspectorSections({
+        outline: outlineCount > 1,
+        comments: commentTotal > 0,
+        relationships: hasRelationships,
+      }),
+    [outlineCount, commentTotal, hasRelationships],
+  );
+  const spy = useInspectorSpy(scrollRef, visible);
+
+  function toggleSection(section: SectionId): void {
     setOpenSections((current) => {
       const next = { ...current, [section]: !current[section] };
       writeOpenSections(next);
@@ -692,33 +208,67 @@ const MetadataPanelContent = memo(function MetadataPanelContent({
     });
   }
 
+  function jumpToSection(section: SectionId): void {
+    const scroller = scrollRef.current;
+    const element = scroller?.querySelector<HTMLElement>(`[data-inspector-section="${section}"]`);
+    if (!scroller || !element) {
+      return;
+    }
+    if (!openSections[section]) {
+      toggleSection(section);
+    }
+    const top =
+      element.getBoundingClientRect().top -
+      scroller.getBoundingClientRect().top +
+      scroller.scrollTop -
+      INSPECTOR_INDEX_HEIGHT;
+    spy.pin(section);
+    scroller.scrollTo({
+      top: Math.max(0, top),
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
+    document.getElementById(inspectorHeadingId(section))?.focus({ preventScroll: true });
+  }
+
   if (!metadata) {
     return <aside className={asideClass} aria-label="Note metadata" />;
   }
 
-  const charCount = markdown?.length ?? 0;
-  const readTimeMinutes = Math.max(1, Math.ceil(metadata.wordCount / 200));
-  const detailRows = [
-    { label: "Words", value: metadata.wordCount.toLocaleString() },
-    { label: "Characters", value: charCount.toLocaleString() },
-    { label: "Read time", value: `${readTimeMinutes}m` },
-    ...(markdown !== null
-      ? [{ label: "File size", value: formatFileSize(utf8ByteLength(markdown)) }]
-      : []),
-    ...(createdAt !== null ? [{ label: "Created", value: formatDateTime(createdAt) }] : []),
-    { label: "Updated", value: formatDateTime(metadata.updatedAt) },
-  ];
+  const counts: Record<SectionId, number | null> = {
+    outline: outlineCount,
+    comments: commentsOpen,
+    revisions: versions.length,
+    relationships: null,
+    details: null,
+  };
 
   return (
-    <aside className={asideClass} aria-label="Note metadata">
+    <aside
+      className={asideClass}
+      aria-label="Note metadata"
+      onKeyDown={(event) => inspectorKeyDown(event, visible, jumpToSection)}
+    >
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <InspectorIndex
+          sections={visible}
+          counts={counts}
+          current={spy.current}
+          scrolled={spy.scrolled}
+          onJump={jumpToSection}
+        />
+        <p className="m-0 px-4 pb-3 pt-1.5 text-[12.5px] tabular-nums text-muted-foreground">
+          <span className="font-medium text-foreground">{metadata.wordCount.toLocaleString()}</span>{" "}
+          {metadata.wordCount === 1 ? "word" : "words"} · {readingMinutes(metadata.wordCount)} min
+          read
+        </p>
         {activeNoteId && (
           <InspectorSection
-            id="metadata-outline"
+            section="outline"
             title="Outline"
+            count={outlineCount}
             open={openSections.outline}
             onToggle={() => toggleSection("outline")}
-            className={hasOutline ? undefined : "hidden"}
+            hidden={outlineCount <= 1}
             keepMounted
           >
             <div data-outline-scroll className="max-h-[38dvh] overflow-y-auto overscroll-contain">
@@ -730,22 +280,39 @@ const MetadataPanelContent = memo(function MetadataPanelContent({
             </div>
           </InspectorSection>
         )}
-        {activeNoteId && annotationCount > 0 && (
+        {activeNoteId && commentTotal > 0 && (
           <InspectorSection
-            id="metadata-annotations"
+            section="comments"
             title="Comments"
-            open={openSections.annotations}
-            onToggle={() => toggleSection("annotations")}
+            count={commentsOpen}
+            open={openSections.comments}
+            onToggle={() => toggleSection("comments")}
           >
             <AnnotationList store={store} noteId={activeNoteId} />
           </InspectorSection>
         )}
         {activeNoteId && (
           <InspectorSection
-            id="metadata-revisions"
+            section="revisions"
             title="Revisions"
+            count={versions.length}
             open={openSections.revisions}
             onToggle={() => toggleSection("revisions")}
+            action={
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.hash = noteHistoryHash(activeNoteId);
+                }}
+                className={cn(inspectorQuietAction, "group/open shrink-0")}
+              >
+                Open history
+                <ChevronRightIcon
+                  size={10}
+                  className="-mr-0.5 transition-transform duration-150 group-hover/open:translate-x-0.5 motion-reduce:transition-none"
+                />
+              </button>
+            }
           >
             <RevisionList
               store={store}
@@ -759,7 +326,7 @@ const MetadataPanelContent = memo(function MetadataPanelContent({
         )}
         {activeNoteId && hasRelationships && (
           <InspectorSection
-            id="metadata-relationships"
+            section="relationships"
             title="Relationships"
             open={openSections.relationships}
             onToggle={() => toggleSection("relationships")}
@@ -767,37 +334,19 @@ const MetadataPanelContent = memo(function MetadataPanelContent({
             <RelationshipExplorer store={store} noteId={activeNoteId} />
           </InspectorSection>
         )}
-      </div>
-
-      <div className="max-h-[55%] shrink-0 overflow-y-auto border-t border-border/60 bg-background">
         <InspectorSection
-          id="metadata-details"
+          section="details"
           title="Details"
           open={openSections.details}
           onToggle={() => toggleSection("details")}
-          className="border-b-0"
         >
-          <dl className="m-0 space-y-2.5">
-            {detailRows.map((row) => (
-              <div key={row.label} className="flex items-baseline justify-between gap-4">
-                <dt className="shrink-0 text-[13px] text-muted-foreground">{row.label}</dt>
-                <dd className="m-0 text-right text-[13px] font-medium tabular-nums text-foreground/80">
-                  {row.value}
-                </dd>
-              </div>
-            ))}
-            {originPath !== null && (
-              <div className="flex flex-col gap-1">
-                <dt className="text-[13px] text-muted-foreground">Original path</dt>
-                <dd
-                  className="m-0 select-text break-all font-mono text-[11px] text-foreground/80"
-                  title={originPath}
-                >
-                  {originPath}
-                </dd>
-              </div>
-            )}
-          </dl>
+          <DetailsList
+            wordCount={metadata.wordCount}
+            markdown={markdown}
+            createdAt={createdAt}
+            updatedAt={metadata.updatedAt}
+            originPath={originPath}
+          />
         </InspectorSection>
       </div>
     </aside>

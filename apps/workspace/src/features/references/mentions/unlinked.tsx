@@ -26,7 +26,7 @@ import {
   type UnlinkedMention,
 } from "../prosemirror/unlinked-mentions";
 
-const ROWS = 5;
+const ROWS = 4;
 export const SEARCH_DELAY_MS = 250;
 const PROJECTION_IDLE_TIMEOUT_MS = 500;
 const CACHED_TERMS_PER_SNAPSHOT = 32;
