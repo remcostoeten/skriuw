@@ -10,9 +10,10 @@ import { EmptyState } from "@/shared/empty-state/empty-state";
 import { ProjectIllustration } from "@/shared/empty-state/illustrations";
 import { PlusIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/styling/class-names";
+import { CheckGlyph, StarGlyph } from "./glyphs";
 import { nextCardPosition } from "./grid-keys";
-import { OptionDot, OptionPill } from "./option-pill";
-import { iconButtonClass } from "./styles";
+import { OptionDot, OptionLabel } from "./option-pill";
+import { iconButtonClass, quietActionClass } from "./styles";
 import type { DatabaseModel } from "./use-database";
 import { cellDisplay, type CellDisplay } from "./values";
 
@@ -39,6 +40,14 @@ const PAGE_SIZE = 50;
 const CARD_FIELDS = 4;
 const NOTE_DRAG_TYPE = "application/x-skriuw-database-note";
 const NO_VALUE_KEY = "\u0000none";
+const WIDE_FIELD_TYPES: ReadonlySet<string> = new Set([
+  "text",
+  "url",
+  "location",
+  "email",
+  "phone",
+  "person",
+]);
 
 function groupId(group: DatabaseGroup): string {
   return group.key ?? NO_VALUE_KEY;
@@ -196,8 +205,10 @@ export function DatabaseBoard({ model, onOpenNote, embedded = false }: Props) {
     >
       <div
         className={cn(
-          "flex w-max items-start gap-4",
-          embedded ? "pb-1" : "min-h-full px-[clamp(20px,4vw,40px)] pb-8 pt-2",
+          "flex items-start",
+          embedded
+            ? "w-full gap-4 px-3.5 pb-3"
+            : "min-h-full w-max gap-5 px-[var(--db-gutter)] pb-10",
         )}
       >
         {groups.map((group, groupIndex) => {
@@ -210,7 +221,14 @@ export function DatabaseBoard({ model, onOpenNote, embedded = false }: Props) {
               key={id}
               aria-labelledby={headingId}
               data-drop-target={dropTarget === id || undefined}
-              className="flex w-[264px] shrink-0 flex-col rounded-xl bg-[hsl(var(--foreground)/0.03)] outline-offset-[-1px] data-[drop-target]:outline data-[drop-target]:outline-1 data-[drop-target]:outline-foreground/30"
+              className={cn(
+                "database-column group/column flex flex-col",
+                embedded
+                  ? "max-w-[320px] min-w-[204px] flex-[1_0_204px]"
+                  : group.key === null && group.rows.length === 0 && adding !== id
+                    ? "w-[148px] shrink-0"
+                    : "w-[272px] shrink-0",
+              )}
               onDragOver={(event) => onDragOver(event, group)}
               onDragLeave={(event) => {
                 if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
@@ -219,60 +237,82 @@ export function DatabaseBoard({ model, onOpenNote, embedded = false }: Props) {
               }}
               onDrop={(event) => onDrop(event, group)}
             >
-              <header className="flex h-10 items-center gap-2 pl-3 pr-1.5">
+              <header
+                className={cn(
+                  "flex h-9 items-center gap-2 border-b border-theme-divider/85 bg-theme-editor pl-0.5",
+                  !embedded && "sticky top-0 z-[1]",
+                )}
+              >
                 {group.key === null ? null : <OptionDot color={group.color} />}
                 <h2
                   id={headingId}
-                  className="min-w-0 truncate text-[12px] font-medium text-foreground"
+                  className={cn(
+                    "min-w-0 truncate text-[13px] font-medium tracking-[-0.005em]",
+                    group.key === null ? "text-theme-secondary" : "text-foreground",
+                  )}
                 >
                   {group.label}
                 </h2>
-                <span className="font-mono text-[10px] text-theme-dim">{group.rows.length}</span>
+                <span className="text-[10.5px] tabular-nums text-theme-dim">
+                  {group.rows.length}
+                </span>
                 <button
                   type="button"
                   aria-label={`New note in ${group.label}`}
                   title="New note"
                   disabled={model.status !== "ready"}
-                  className={cn(iconButtonClass, "ml-auto size-6")}
+                  className={cn(
+                    iconButtonClass,
+                    "ml-auto size-6 text-theme-dim pointer-fine:opacity-0 pointer-fine:group-hover/column:opacity-100 pointer-fine:focus-visible:opacity-100",
+                  )}
                   onClick={() => setAdding(id)}
                 >
                   <PlusIcon size={12} />
                 </button>
               </header>
-              <ul aria-labelledby={headingId} className="flex flex-col gap-2 px-2 pb-2">
-                {cards.map((row, index) => (
-                  <li key={row.noteId}>
-                    <BoardCard
-                      row={row}
-                      groupIndex={groupIndex}
-                      index={index}
-                      fields={fields}
-                      people={people}
-                      tabStop={tabStop === row.noteId}
-                      dragging={dragging === row.noteId}
-                      actions={actions}
-                    />
-                  </li>
-                ))}
-              </ul>
-              {remaining > 0 && (
-                <button
-                  type="button"
-                  className="mx-2 mb-2 h-7 cursor-pointer rounded-md text-[12px] text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground"
-                  onClick={() =>
-                    setLimits((current) => ({ ...current, [id]: cards.length + PAGE_SIZE }))
-                  }
-                >
-                  Show {Math.min(PAGE_SIZE, remaining)} more
-                </button>
-              )}
-              {adding === id && (
-                <NewCard
-                  label={group.label}
-                  onCreate={(title) => model.createNote(title, group.key) !== null}
-                  onClose={() => setAdding(null)}
-                />
-              )}
+              <div className="database-column-body mt-2 flex min-h-11 flex-col">
+                {cards.length === 0 && adding !== id ? (
+                  <p className="m-0 flex h-11 items-center px-3 text-xs text-theme-dim">No notes</p>
+                ) : (
+                  <ul
+                    aria-labelledby={headingId}
+                    className="m-0 flex list-none flex-col gap-1.5 p-0"
+                  >
+                    {cards.map((row, index) => (
+                      <li key={row.noteId}>
+                        <BoardCard
+                          row={row}
+                          groupIndex={groupIndex}
+                          index={index}
+                          fields={fields}
+                          people={people}
+                          tabStop={tabStop === row.noteId}
+                          dragging={dragging === row.noteId}
+                          actions={actions}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {remaining > 0 && (
+                  <button
+                    type="button"
+                    className={cn(quietActionClass, "mt-1.5 self-start")}
+                    onClick={() =>
+                      setLimits((current) => ({ ...current, [id]: cards.length + PAGE_SIZE }))
+                    }
+                  >
+                    Show {Math.min(PAGE_SIZE, remaining)} more
+                  </button>
+                )}
+                {adding === id && (
+                  <NewCard
+                    label={group.label}
+                    onCreate={(title) => model.createNote(title, group.key) !== null}
+                    onClose={() => setAdding(null)}
+                  />
+                )}
+              </div>
             </section>
           );
         })}
@@ -315,7 +355,7 @@ const BoardCard = memo(function BoardCard({
       data-note-id={row.noteId}
       tabIndex={tabStop ? 0 : -1}
       data-dragging={dragging || undefined}
-      className="flex w-full cursor-pointer flex-col gap-2 rounded-lg border border-border/70 bg-theme-editor px-3 py-2.5 text-left outline-none transition-[border-color,opacity] hover:border-foreground/25 focus-visible:border-foreground/40 focus-visible:shadow-[0_0_0_1px_hsl(var(--foreground)/0.35)] data-[dragging]:opacity-50"
+      className="database-card"
       onClick={() => actions.open(row.noteId)}
       onKeyDown={(event) => actions.keyDown(event, row, groupIndex, index)}
       onFocus={() => actions.focus(row.noteId)}
@@ -326,9 +366,15 @@ const BoardCard = memo(function BoardCard({
         {row.title.trim() || "Untitled"}
       </span>
       {values.length > 0 && (
-        <span className="flex flex-col gap-1.5">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] leading-[1.4] text-theme-dim">
           {values.map(({ column, display }) => (
-            <CardField key={column.key} name={column.name} display={display} />
+            <CardField
+              key={column.key}
+              name={column.name}
+              display={display}
+              wide={column.kind === "property" && WIDE_FIELD_TYPES.has(column.type)}
+              trailing={column.kind === "built-in"}
+            />
           ))}
         </span>
       )}
@@ -336,37 +382,58 @@ const BoardCard = memo(function BoardCard({
   );
 });
 
-function CardField({ name, display }: { name: string; display: CellDisplay }) {
+type FieldProps = {
+  name: string;
+  display: CellDisplay;
+  wide: boolean;
+  trailing: boolean;
+};
+
+function CardField({ name, display, wide, trailing }: FieldProps) {
   switch (display.kind) {
     case "options":
       return (
-        <span className="flex flex-wrap gap-1">
+        <span className="flex min-w-0 max-w-full flex-wrap items-center gap-x-2.5 gap-y-1 text-theme-secondary">
           <span className="sr-only">{name}: </span>
           {display.options.map((option, index) => (
-            <OptionPill
+            <OptionLabel
               key={`${option.label}:${index}`}
               label={option.label}
               color={option.color}
+              className="gap-1.5"
             />
           ))}
         </span>
       );
     case "checkbox":
-      return <span className="text-[11px] text-muted-foreground">{name}</span>;
+      return (
+        <span className="inline-flex items-center gap-1 text-theme-secondary [&>svg]:size-[11px] [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-2">
+          <CheckGlyph />
+          {name}
+        </span>
+      );
     case "rating":
       return (
         <span
-          className="text-[11px] text-muted-foreground"
+          className="inline-flex items-center gap-px text-theme-secondary [&>svg]:size-[10px] [&>svg]:fill-current"
           aria-label={`${name}: ${display.value} of 5`}
         >
-          {"★".repeat(display.value)}
+          {Array.from({ length: display.value }, (_, index) => (
+            <StarGlyph key={index} />
+          ))}
         </span>
       );
     case "empty":
       return null;
     default:
       return (
-        <span className="truncate text-[11px] text-muted-foreground">
+        <span
+          className={cn(
+            "min-w-0 max-w-full truncate tabular-nums",
+            wide && "basis-full text-theme-secondary",
+            trailing && "ml-auto",
+          )}
+        >
           <span className="sr-only">{name}: </span>
           {display.text}
         </span>
@@ -392,7 +459,7 @@ function NewCard({
 
   return (
     <form
-      className="mx-2 mb-2"
+      className="mt-1.5"
       onSubmit={(event) => {
         event.preventDefault();
         if (onCreate(draft)) setDraft("");
@@ -415,7 +482,7 @@ function NewCard({
             onClose();
           }
         }}
-        className="h-8 w-full rounded-md border border-border bg-theme-editor px-2.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/55 focus-visible:border-foreground/30"
+        className="h-9 w-full rounded-[10px] border border-border bg-background px-3 text-[13px] text-foreground outline-none transition-[border-color] duration-150 placeholder:text-theme-dim focus-visible:border-ring"
       />
     </form>
   );
