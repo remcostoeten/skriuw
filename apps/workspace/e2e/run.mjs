@@ -1763,7 +1763,7 @@ async function runWorkflow() {
     await waitFor(
       cdp,
       sessionId,
-      'document.querySelector(\'[role="listbox"][aria-label="Version history"] [role="option"]\') !== null',
+      'document.querySelector(\'[role="listbox"][aria-label="Revisions"] [role="option"]\') !== null',
       "history route",
     );
     await control('focusContaining("Earlier alpha version")');
