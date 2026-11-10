@@ -1,6 +1,10 @@
 import { useMemo } from "react";
-import { Button } from "@/shared/ui/button";
+import { EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
+import { EmptyState } from "@/shared/empty-state/empty-state";
+import { IconStack } from "@/shared/empty-state/illustrations";
 import { LockIcon } from "@/shared/icons/static";
+import { cn } from "@/shared/styling/class-names";
+import { settingsButton, settingsButtonPrimary } from "@/shared/ui/settings-controls";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { secretNoun } from "./state/model";
@@ -27,24 +31,29 @@ export function UnlockPane({ store, noteId }: Props) {
   );
   const title = useRendererSelector(store, selectTitle);
   return (
-    <div
-      className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center"
-      data-testid="unlock-pane"
-    >
-      <LockIcon size={40} className="text-muted-foreground" />
-      <div className="max-w-md space-y-2">
-        <p className="m-0 text-sm font-medium text-foreground">{title || "This note"} is locked</p>
-        <p className="m-0 text-sm text-muted-foreground">
-          {lock.configured
+    <div className="flex h-full items-center justify-center p-8" data-testid="unlock-pane">
+      <EmptyState
+        colors={EMPTY_STATE_COLORS}
+        illustration={<IconStack icon={<LockIcon />} />}
+        title={`${title || "This note"} is locked`}
+        description={
+          lock.configured
             ? `Enter your ${secretNoun(lock.kind)} to read and edit it.`
-            : "This note was locked on another device. Its lock has not arrived here yet."}
-        </p>
-      </div>
-      {lock.configured && (
-        <Button variant="primary" onClick={requestSessionUnlock} autoFocus>
-          Unlock notes…
-        </Button>
-      )}
+            : "This note was locked on another device. Its lock has not arrived here yet."
+        }
+        className="max-w-md"
+      >
+        {lock.configured && (
+          <button
+            type="button"
+            className={cn(settingsButton, settingsButtonPrimary)}
+            onClick={requestSessionUnlock}
+            autoFocus
+          >
+            Unlock notes…
+          </button>
+        )}
+      </EmptyState>
     </div>
   );
 }
