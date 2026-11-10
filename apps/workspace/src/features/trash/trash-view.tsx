@@ -1,36 +1,28 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
+import { parseDateKey } from "@skriuw/renderer-core/journal/dates";
+import { filterTrashRows, sortTrashRows, trashRows } from "@skriuw/renderer-core/store/trash";
+import type { TrashSortKey } from "@skriuw/renderer-core/store/trash";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
+import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import { emptyTrash, purgeSubtree, restoreSubtree } from "@/features/notes/operations";
-import {
-  FileTextIcon,
-  FolderIcon,
-  RotateCcwIcon,
-  SearchIcon,
-  Trash2Icon,
-} from "@/shared/icons/static";
-import { formatRelativeTime } from "@/shared/format/relative-time";
-import { EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
+import { isTypingTarget } from "@/features/tasks/keyboard";
+import { COMPACT_EMPTY_STATE_STYLE, EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
 import { EmptyState } from "@/shared/empty-state/empty-state";
 import { SearchIllustration, TrashIllustration } from "@/shared/empty-state/illustrations";
-import { Button } from "@/shared/ui/button";
+import { useToday } from "@/shared/format/use-today";
+import { SearchIcon } from "@/shared/icons/static";
+import { cn } from "@/shared/styling/class-names";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { Select, type SelectOption } from "@/shared/ui/select";
+import { settingsPress, settingsTransition } from "@/shared/ui/settings-controls";
 import { WindowControlsSlot } from "@/shared/ui/window-controls-slot";
-import {
-  filterTrashRows,
-  sortTrashRows,
-  trashRows,
-  trashWindowRange,
-} from "@skriuw/renderer-core/store/trash";
-import type { TrashRow, TrashSortKey } from "@skriuw/renderer-core/store/trash";
-import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import { cn } from "@/shared/styling/class-names";
+import { groupTrashRows, trashNeighborId } from "./model";
+import { TrashGroupSection, type TrashRowActions, type TrashViewport } from "./trash-group";
 
 type Props = {
   store: RendererStore;
 };
-
-const columnClass = "mx-auto w-[min(100%,720px)] px-[clamp(20px,4vw,40px)]";
 
 const SORT_OPTIONS: readonly SelectOption<TrashSortKey>[] = [
   { value: "newest", label: "Recently deleted" },
@@ -39,10 +31,8 @@ const SORT_OPTIONS: readonly SelectOption<TrashSortKey>[] = [
   { value: "za", label: "Title Z–A" },
 ];
 
-const deletedAtFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+const kbdClass =
+  "rounded-[5px] border border-theme-divider/85 bg-theme-hover/55 px-[5px] font-mono text-[10px] leading-[1.5] text-theme-secondary";
 
 function selectSourceNodes(state: RendererState) {
   return state.sourceNodes;
@@ -52,17 +42,98 @@ function selectDocuments(state: RendererState) {
   return state.documents;
 }
 
+function rowElement(id: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`[data-trash-row="${CSS.escape(id)}"]`);
+}
+
+function Kbd({ children }: { children: ReactNode }) {
+  return <kbd className={kbdClass}>{children}</kbd>;
+}
+
 export function TrashView({ store }: Props) {
+  const today = useToday();
   const sourceNodes = useRendererSelector(store, selectSourceNodes);
   const documents = useRendererSelector(store, selectDocuments);
   const rows = useMemo(() => trashRows(sourceNodes, documents), [documents, sourceNodes]);
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<TrashSortKey>("newest");
   const [emptyArmed, setEmptyArmed] = useState(false);
-  const visibleRows = useMemo(
-    () => sortTrashRows(filterTrashRows(rows, query), sortKey),
-    [query, rows, sortKey],
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const [viewport, setViewport] = useState<TrashViewport>({ height: 720, scrollTop: 0 });
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const pendingFocusRef = useRef<string | null>(null);
+
+  const groups = useMemo(
+    () =>
+      groupTrashRows(
+        sortTrashRows(filterTrashRows(rows, query), sortKey),
+        sortKey,
+        parseDateKey(today).getTime(),
+      ),
+    [query, rows, sortKey, today],
   );
+  const ids = useMemo(() => groups.flatMap((group) => group.rows.map((row) => row.id)), [groups]);
+  const tabStopId = focusedId !== null && ids.includes(focusedId) ? focusedId : (ids[0] ?? null);
+  const searching = query.trim().length > 0;
+
+  useLayoutEffect(() => {
+    const mounted = scrollerRef.current;
+    if (!mounted) return;
+    const element: HTMLElement = mounted;
+    function updateHeight(): void {
+      setViewport((current) => ({ ...current, height: element.clientHeight }));
+    }
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useLayoutEffect(() => {
+    const id = pendingFocusRef.current;
+    if (id === null) return;
+    if (!ids.includes(id)) {
+      pendingFocusRef.current = null;
+      return;
+    }
+    const target = rowElement(id);
+    if (!target) return;
+    pendingFocusRef.current = null;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: "nearest" });
+  });
+
+  function focusRow(id: string): void {
+    const target = rowElement(id);
+    if (target) {
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: "nearest" });
+      return;
+    }
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    pendingFocusRef.current = id;
+    scroller.scrollTop = id === ids[0] ? 0 : scroller.scrollHeight;
+  }
+
+  function handOffFocus(id: string): void {
+    if (rowElement(id)?.contains(document.activeElement)) {
+      pendingFocusRef.current = trashNeighborId(ids, id);
+    }
+  }
+
+  const actions: TrashRowActions = {
+    restore: (id) => {
+      handOffFocus(id);
+      restoreSubtree(store, id);
+    },
+    purge: (id) => {
+      handOffFocus(id);
+      purgeSubtree(store, id);
+    },
+  };
 
   function confirmEmpty(): void {
     emptyTrash(
@@ -72,259 +143,204 @@ export function TrashView({ store }: Props) {
     setEmptyArmed(false);
   }
 
+  function onListKeyDown(event: ReactKeyboardEvent<HTMLDivElement>): void {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (!(event.target instanceof HTMLElement)) return;
+    const current = event.target.closest<HTMLElement>("[data-trash-row]")?.dataset.trashRow;
+    if (current === undefined) return;
+    const index = ids.indexOf(current);
+    const down = event.key === "ArrowDown";
+    const next = event.shiftKey ? (down ? ids.at(-1) : ids[0]) : ids[index + (down ? 1 : -1)];
+    event.preventDefault();
+    if (next !== undefined) focusRow(next);
+  }
+
+  function onPageKeyDown(event: ReactKeyboardEvent<HTMLElement>): void {
+    if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (isTypingTarget(event.target) || rows.length === 0) return;
+    event.preventDefault();
+    searchRef.current?.focus();
+  }
+
+  const summaryText =
+    rows.length === 0
+      ? "Nothing deleted."
+      : searching
+        ? `${ids.length} of ${rows.length} match`
+        : `${rows.length} ${rows.length === 1 ? "item" : "items"} · kept until you delete them forever`;
+
   return (
     <main
-      className="relative col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
+      className="relative col-[2/-1] flex min-h-0 min-w-0 flex-col bg-theme-editor"
       aria-labelledby="trash-title"
+      onKeyDown={onPageKeyDown}
     >
-      <WindowControlsSlot className="absolute right-0 top-0" />
-      <div className={cn(columnClass, "border-b border-theme-divider pb-4 pt-[26px]")}>
-        <div className="flex items-center gap-2">
-          <h1 id="trash-title" className="text-base font-[650] tracking-[-0.015em] text-foreground">
+      <header
+        className={cn(
+          "relative flex h-[52px] flex-none items-center border-b px-10 transition-[border-color] duration-150 max-[860px]:px-5",
+          scrolled ? "border-theme-divider" : "border-transparent",
+        )}
+      >
+        <div className="mx-auto flex w-full max-w-[900px] min-w-0 items-center gap-3">
+          <h1
+            id="trash-title"
+            className="m-0 text-[15px] font-medium tracking-[-0.01em] text-foreground"
+          >
             Trash
           </h1>
+          <p
+            aria-live="polite"
+            className="m-0 min-w-0 flex-1 truncate text-[12.5px] tabular-nums text-theme-secondary"
+          >
+            {summaryText}
+          </p>
           {rows.length > 0 && (
-            <span className="min-w-[19px] rounded-lg border border-border px-1.5 py-0.5 text-center font-mono text-[10px] leading-[1.3] text-theme-secondary">
-              {visibleRows.length === rows.length
-                ? rows.length
-                : `${visibleRows.length}/${rows.length}`}
-            </span>
+            <>
+              {!emptyArmed && (
+                <>
+                  <div className="group relative w-[200px] flex-none max-[860px]:w-[150px]">
+                    <SearchIcon
+                      size={13}
+                      aria-hidden="true"
+                      className="pointer-events-none absolute top-1/2 left-[9px] -translate-y-1/2 text-theme-secondary transition-colors duration-150 group-focus-within:text-foreground"
+                    />
+                    <input
+                      ref={searchRef}
+                      type="search"
+                      autoCapitalize="off"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      enterKeyHint="search"
+                      className="h-8 w-full rounded-lg border border-border bg-background py-0 pr-[30px] pl-[29px] text-[12.5px] text-foreground outline-0 transition-[border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] placeholder:text-theme-dim hover:border-theme-btn-outline focus-visible:border-ring [&::-webkit-search-cancel-button]:hidden"
+                      placeholder="Search trash"
+                      aria-label="Search trash"
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                          event.preventDefault();
+                          setQuery("");
+                        } else if (event.key === "ArrowDown" || event.key === "Enter") {
+                          event.preventDefault();
+                          const first = ids[0];
+                          if (first !== undefined) focusRow(first);
+                        }
+                      }}
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="absolute top-1/2 right-[7px] flex -translate-y-1/2 transition-opacity duration-150 group-focus-within:opacity-0"
+                    >
+                      <Kbd>/</Kbd>
+                    </span>
+                  </div>
+                  <Select
+                    label="Sort deleted items"
+                    prefix="Sort"
+                    align="end"
+                    value={sortKey}
+                    options={SORT_OPTIONS}
+                    onChange={setSortKey}
+                    triggerClassName="min-h-8 border-transparent bg-transparent text-[12.5px] text-theme-secondary hover:bg-theme-hover data-[open=true]:bg-theme-hover"
+                  />
+                </>
+              )}
+              <InlineConfirm
+                className="shrink-0"
+                armed={emptyArmed}
+                onArmedChange={setEmptyArmed}
+                confirmLabel={`Delete ${rows.length} ${rows.length === 1 ? "item" : "items"} forever`}
+                cancelLabel="Keep them"
+                message="This cannot be undone."
+                onConfirm={confirmEmpty}
+                renderIdle={(arm) => (
+                  <button
+                    type="button"
+                    className={cn(
+                      "inline-flex h-8 cursor-pointer items-center rounded-lg border-0 bg-transparent px-2.5 text-[12.5px] text-theme-secondary outline-none hover:bg-destructive/10 hover:text-destructive focus-visible:bg-destructive/10 focus-visible:text-destructive",
+                      settingsTransition,
+                      settingsPress,
+                    )}
+                    onClick={arm}
+                  >
+                    Empty trash
+                  </button>
+                )}
+              />
+            </>
           )}
         </div>
-        <p className="mt-1 max-w-xl text-xs leading-[1.45] text-theme-secondary">
-          Deleted notes and folders stay here until you remove them permanently.
-        </p>
-        {rows.length > 0 && (
-          <div className="mt-3.5 flex items-center gap-2">
-            <div
-              className={cn(
-                "flex h-[30px] flex-1 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-theme-dim",
-                "focus-within:border-ring",
-              )}
-            >
-              <SearchIcon size={14} aria-hidden="true" />
-              <input
-                type="search"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-                enterKeyHint="search"
-                className="flex-1 bg-transparent text-xs text-foreground outline-none [&::-webkit-search-cancel-button]:hidden"
-                placeholder="Search trash"
-                aria-label="Search trash"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
+        <WindowControlsSlot className="absolute top-0 right-0" />
+      </header>
+
+      <div
+        ref={scrollerRef}
+        className="relative min-h-0 flex-1 overflow-y-auto px-10 pb-[72px] [scrollbar-width:thin] max-[860px]:px-5"
+        onScroll={(event) => {
+          const scrollTop = event.currentTarget.scrollTop;
+          setScrolled(scrollTop > 0);
+          setViewport((current) => ({ ...current, scrollTop }));
+        }}
+        onFocus={(event) => {
+          const id = event.target.closest<HTMLElement>("[data-trash-row]")?.dataset.trashRow;
+          if (id !== undefined) setFocusedId(id);
+        }}
+        onKeyDown={onListKeyDown}
+      >
+        {rows.length === 0 ? (
+          <div className="grid h-full place-items-center pb-20">
+            <EmptyState
+              colors={EMPTY_STATE_COLORS}
+              illustration={<TrashIllustration />}
+              title="Trash is empty"
+              description="Notes and folders you delete stay here until you remove them for good. Restoring one puts it back in its folder."
+            />
+          </div>
+        ) : groups.length === 0 ? (
+          <EmptyState
+            colors={EMPTY_STATE_COLORS}
+            style={COMPACT_EMPTY_STATE_STYLE}
+            illustration={<SearchIllustration />}
+            title={`Nothing in trash matches “${query.trim()}”`}
+            description={
+              <>
+                Titles, folders and note text are searched. <Kbd>Esc</Kbd> clears the search.
+              </>
+            }
+          />
+        ) : (
+          <div className="mx-auto max-w-[900px]">
+            {groups.map((group) => (
+              <TrashGroupSection
+                key={group.id}
+                group={group}
+                viewport={viewport}
+                tabStopId={tabStopId}
+                actions={actions}
               />
-            </div>
-            <Select
-              label="Sort deleted items"
-              prefix="Sort"
-              value={sortKey}
-              options={SORT_OPTIONS}
-              onChange={setSortKey}
-            />
-            <InlineConfirm
-              className="h-[30px] shrink-0"
-              armed={emptyArmed}
-              onArmedChange={setEmptyArmed}
-              confirmLabel={`Delete ${rows.length} ${rows.length === 1 ? "item" : "items"} forever`}
-              cancelLabel="Keep them"
-              message="This cannot be undone."
-              onConfirm={confirmEmpty}
-              renderIdle={(arm) => (
-                <Button variant="danger" onClick={arm}>
-                  <Trash2Icon size={13} />
-                  Empty trash
-                </Button>
-              )}
-            />
+            ))}
+            <p className="m-0 flex flex-wrap gap-x-3 gap-y-[5px] border-t border-theme-divider/85 pt-3.5 pl-[196px] text-[10.5px] whitespace-nowrap text-theme-dim max-[860px]:pl-0">
+              <span>
+                <Kbd>/</Kbd> Search
+              </span>
+              <span>
+                <Kbd>↑</Kbd> <Kbd>↓</Kbd> Move
+              </span>
+              <span>
+                <Kbd>R</Kbd> Restore
+              </span>
+              <span>
+                <Kbd>Del</Kbd> Delete forever
+              </span>
+              <span className="sr-only">
+                Shift with Up or Down jumps to the first or last item.
+              </span>
+            </p>
           </div>
         )}
       </div>
-
-      {visibleRows.length === 0 ? (
-        <TrashEmpty searching={query.trim().length > 0} />
-      ) : (
-        <TrashList
-          rows={visibleRows}
-          onRestore={(id) => restoreSubtree(store, id)}
-          onPurge={(id) => purgeSubtree(store, id)}
-        />
-      )}
     </main>
-  );
-}
-
-const TRASH_ROW_HEIGHT = 62;
-const TRASH_LIST_OVERSCAN = 5;
-
-type TrashListProps = {
-  rows: readonly TrashRow[];
-  onRestore: (id: string) => void;
-  onPurge: (id: string) => void;
-};
-
-function TrashList({ rows, onRestore, onPurge }: TrashListProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [viewport, setViewport] = useState({ height: 720, scrollTop: 0 });
-  const { start, end } = trashWindowRange(
-    rows.length,
-    viewport.scrollTop,
-    viewport.height,
-    TRASH_ROW_HEIGHT,
-    TRASH_LIST_OVERSCAN,
-  );
-
-  useLayoutEffect(() => {
-    const mounted = ref.current;
-    if (!mounted) {
-      return;
-    }
-    const element: HTMLElement = mounted;
-    function updateHeight() {
-      setViewport((current) => ({ ...current, height: element.clientHeight }));
-    }
-    updateHeight();
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div
-      ref={ref}
-      className="min-h-0 overflow-y-auto"
-      onScroll={(event) =>
-        setViewport((current) => ({
-          ...current,
-          scrollTop: event.currentTarget.scrollTop,
-        }))
-      }
-    >
-      <ul
-        aria-label="Deleted items"
-        className={cn(columnClass, "relative")}
-        style={{ height: `${rows.length * TRASH_ROW_HEIGHT}px` }}
-      >
-        {rows.slice(start, end).map((row, offset) => {
-          const index = start + offset;
-          return (
-            <li
-              key={row.id}
-              className="absolute inset-x-[clamp(20px,4vw,40px)] top-0 h-[62px]"
-              aria-posinset={index + 1}
-              aria-setsize={rows.length}
-              style={{ transform: `translateY(${index * TRASH_ROW_HEIGHT}px)` }}
-            >
-              <TrashRowItem
-                row={row}
-                onRestore={() => onRestore(row.id)}
-                onPurge={() => onPurge(row.id)}
-              />
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
-type TrashRowItemProps = {
-  row: TrashRow;
-  onRestore: () => void;
-  onPurge: () => void;
-};
-
-function TrashRowItem({ row, onRestore, onPurge }: TrashRowItemProps) {
-  const [armed, setArmed] = useState(false);
-
-  return (
-    <div
-      data-armed={armed}
-      className="group grid h-full grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-x-2.5 border-b border-theme-divider px-1.5 transition-colors hover:bg-foreground/[0.035] focus-within:bg-foreground/[0.035] data-[armed=true]:bg-foreground/[0.035]"
-    >
-      <span className="inline-flex justify-center text-muted-foreground" aria-hidden="true">
-        {row.kind === "folder" ? <FolderIcon size={15} /> : <FileTextIcon size={15} />}
-      </span>
-      <span className="flex min-w-0 flex-col gap-[3px]">
-        <span className="flex min-w-0 items-baseline gap-2">
-          <strong className="truncate text-[13px] font-[600] tracking-[-0.01em] text-foreground">
-            {row.title}
-          </strong>
-          {row.location && (
-            <span className="shrink-0 truncate text-[10px] text-theme-dim">{row.location}</span>
-          )}
-        </span>
-        <span className="truncate text-[11px] leading-[1.35] text-theme-secondary">
-          {row.snippet || (row.kind === "note" ? "Empty note" : row.summary)}
-        </span>
-      </span>
-      <span className="relative flex h-7 w-[210px] shrink-0 items-center justify-end">
-        <time
-          data-hidden={armed}
-          className="whitespace-nowrap font-mono text-[10px] text-theme-dim transition-opacity group-hover:opacity-0 group-focus-within:opacity-0 data-[hidden=true]:opacity-0 pointer-coarse:hidden"
-          dateTime={new Date(row.deletedAt).toISOString()}
-          title={deletedAtFormatter.format(new Date(row.deletedAt))}
-        >
-          {formatRelativeTime(row.deletedAt)}
-        </time>
-        <span
-          data-shown={armed}
-          className="pointer-events-none absolute right-0 flex items-center gap-1.5 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 data-[shown=true]:pointer-events-auto data-[shown=true]:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:opacity-100"
-        >
-          {!armed && (
-            <Button
-              className="min-h-[26px] px-2 text-[10px]"
-              aria-label={`Restore ${row.title}`}
-              onClick={onRestore}
-            >
-              <RotateCcwIcon size={12} />
-              Restore
-            </Button>
-          )}
-          <InlineConfirm
-            size="sm"
-            armed={armed}
-            onArmedChange={setArmed}
-            confirmLabel="Delete forever"
-            cancelLabel="Keep"
-            message={row.kind === "folder" ? row.summary : undefined}
-            onConfirm={onPurge}
-            renderIdle={(arm) => (
-              <Button
-                variant="danger"
-                className="min-h-[26px] px-2 text-[10px]"
-                aria-label={`Delete ${row.title} permanently`}
-                onClick={arm}
-              >
-                <Trash2Icon size={12} />
-                Delete
-              </Button>
-            )}
-          />
-        </span>
-      </span>
-    </div>
-  );
-}
-
-type TrashEmptyProps = {
-  searching: boolean;
-};
-
-function TrashEmpty({ searching }: TrashEmptyProps) {
-  return (
-    <div className={cn(columnClass, "self-start pt-8")}>
-      <EmptyState
-        colors={EMPTY_STATE_COLORS}
-        illustration={searching ? <SearchIllustration /> : <TrashIllustration />}
-        title={searching ? "No matching items" : "Trash is empty"}
-        description={
-          searching
-            ? "Try a different word. Deleted items match on title, location, and body."
-            : "Notes and folders you delete stay here until you remove them permanently. Restoring an item puts it back in its original folder."
-        }
-      />
-    </div>
   );
 }
