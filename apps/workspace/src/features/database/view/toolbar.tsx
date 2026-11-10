@@ -29,22 +29,29 @@ import {
   TableIcon,
 } from "@/shared/icons/static";
 import { cn } from "@/shared/styling/class-names";
-import { Button } from "@/shared/ui/button";
 import { Checkbox } from "@/shared/ui/checkbox";
 import { Select } from "@/shared/ui/select";
 import {
+  chipClass,
+  fieldSelectClass,
   ghostSelectClass,
   iconButtonClass,
   menuItemClass,
+  outlineButtonClass,
   panelInputClass,
+  quietActionClass,
+  segmentButtonClass,
+  segmentGroupClass,
   toolButtonClass,
 } from "./styles";
 import type { DatabaseModel } from "./use-database";
+import { formatDateKey } from "./values";
 
 type Props = {
   model: DatabaseModel;
   folderScoped: boolean;
   onNewNote: () => void;
+  onLeaveSearch: () => void;
 };
 
 type MenuProps = { model: DatabaseModel };
@@ -75,7 +82,7 @@ function columnOptions(columns: readonly DatabaseColumn[]) {
 
 function Count({ value }: { value: number }) {
   if (value === 0) return null;
-  return <span className="font-mono text-[10px] tabular-nums text-foreground">{value}</span>;
+  return <span className="text-[10.5px] tabular-nums text-theme-dim">{value}</span>;
 }
 
 function MenuTrigger({
@@ -111,87 +118,200 @@ function MenuTrigger({
  * subfolders, the quick title search and New. Every change except the search
  * is saved to this device's layout for the scope.
  */
-export function DatabaseToolbar({ model, folderScoped, onNewNote }: Props) {
+export function DatabaseToolbar({ model, folderScoped, onNewNote, onLeaveSearch }: Props) {
   const { view, columns } = model;
   const groupable = columns.filter(isGroupableColumn);
   return (
-    <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
-      <div role="group" aria-label="Layout" className="flex items-center gap-0.5">
-        <button
-          type="button"
-          aria-pressed={view.layout === "table"}
-          className={cn(toolButtonClass, view.layout === "table" && "bg-accent")}
-          onClick={() => model.updateView({ layout: "table" })}
-        >
-          <TableIcon size={13} />
-          Table
-        </button>
-        <button
-          type="button"
-          aria-pressed={view.layout === "board"}
-          className={cn(toolButtonClass, view.layout === "board" && "bg-accent")}
-          onClick={() => model.updateView({ layout: "board" })}
-        >
-          <LayoutDashboardIcon size={13} />
-          Board
-        </button>
-      </div>
-      {view.layout === "board" && groupable.length > 0 && (
-        <Select
-          label="Group by"
-          prefix="Group by"
-          value={model.groupColumn?.key ?? ""}
-          options={columnOptions(groupable)}
-          onChange={(groupBy) => model.updateView({ groupBy })}
-          align="start"
-          triggerClassName={ghostSelectClass}
-          menuClassName="w-max min-w-44 max-w-72"
-        />
-      )}
-      <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
-      <FilterMenu model={model} />
-      <SortMenu model={model} />
-      <PropertiesMenu model={model} />
-      {folderScoped && (
-        <button
-          type="button"
-          aria-pressed={view.subfolders}
-          title="Include notes inside subfolders"
-          className={cn(toolButtonClass, view.subfolders && "bg-accent")}
-          onClick={() => model.updateView({ subfolders: !view.subfolders })}
-        >
-          <FolderIcon size={13} />
-          Subfolders
-        </button>
-      )}
-      <div className="ml-auto flex items-center gap-1.5">
-        <label className="relative flex items-center">
-          <span className="sr-only">Search names in this view</span>
-          <SearchIcon
-            size={12}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-2 text-muted-foreground"
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
+        <div role="group" aria-label="Layout" className={segmentGroupClass}>
+          <button
+            type="button"
+            aria-pressed={view.layout === "table"}
+            className={segmentButtonClass}
+            onClick={() => model.updateView({ layout: "table" })}
+          >
+            <TableIcon size={13} />
+            Table
+          </button>
+          <button
+            type="button"
+            aria-pressed={view.layout === "board"}
+            className={segmentButtonClass}
+            onClick={() => model.updateView({ layout: "board" })}
+          >
+            <LayoutDashboardIcon size={13} />
+            Board
+          </button>
+        </div>
+        {view.layout === "board" && groupable.length > 0 && (
+          <Select
+            label="Group by"
+            prefix="Group by"
+            value={model.groupColumn?.key ?? ""}
+            options={columnOptions(groupable)}
+            onChange={(groupBy) => model.updateView({ groupBy })}
+            align="start"
+            className="ml-1"
+            triggerClassName={ghostSelectClass}
+            menuClassName="w-max min-w-44 max-w-72"
           />
-          <input
-            type="search"
-            value={model.search}
-            placeholder="Search"
-            onChange={(event) => model.setSearch(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape" && model.search !== "") {
-                event.stopPropagation();
-                model.setSearch("");
-              }
-            }}
-            className={cn(panelInputClass, "w-40 pl-7")}
-          />
-        </label>
-        <Button variant="primary" disabled={model.status !== "ready"} onClick={onNewNote}>
-          <PlusIcon size={12} />
-          New
-        </Button>
+        )}
+        <span aria-hidden="true" className="mx-1.5 h-3.5 w-px bg-theme-divider" />
+        <FilterMenu model={model} />
+        <SortMenu model={model} />
+        <PropertiesMenu model={model} />
+        {folderScoped && (
+          <button
+            type="button"
+            aria-pressed={view.subfolders}
+            title="Include notes inside subfolders"
+            className={cn(toolButtonClass, view.subfolders && "bg-theme-hover")}
+            onClick={() => model.updateView({ subfolders: !view.subfolders })}
+          >
+            <FolderIcon size={13} />
+            Subfolders
+          </button>
+        )}
+        <div className="ml-auto flex items-center gap-1.5">
+          <label className="group relative flex items-center">
+            <span className="sr-only">Search names in this view</span>
+            <SearchIcon
+              size={12}
+              aria-hidden="true"
+              className="pointer-events-none absolute left-2 text-theme-dim transition-colors duration-150 group-focus-within:text-foreground"
+            />
+            <input
+              type="search"
+              value={model.search}
+              placeholder="Search names"
+              autoComplete="off"
+              spellCheck={false}
+              onChange={(event) => model.setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape" && model.search !== "") {
+                  event.stopPropagation();
+                  model.setSearch("");
+                } else if (event.key === "ArrowDown" || event.key === "Enter") {
+                  event.preventDefault();
+                  onLeaveSearch();
+                }
+              }}
+              className={cn(panelInputClass, "w-44 pl-7 [&::-webkit-search-cancel-button]:hidden")}
+            />
+          </label>
+          <button
+            type="button"
+            className={outlineButtonClass}
+            disabled={model.status !== "ready"}
+            onClick={onNewNote}
+          >
+            <PlusIcon size={12} />
+            New
+          </button>
+        </div>
       </div>
+      <ActiveRules model={model} />
     </div>
+  );
+}
+
+function filterValueText(model: DatabaseModel, column: DatabaseColumn, value: string): string {
+  const kind = columnValueKind(column);
+  if (kind === "people") return model.people.get(value)?.name ?? "";
+  if (kind === "date") return formatDateKey(value);
+  return value;
+}
+
+function ActiveRules({ model }: MenuProps) {
+  const { view, columns } = model;
+  const { sorts, filters } = view;
+  if (sorts.length === 0 && filters.length === 0) return null;
+  return (
+    <div
+      role="group"
+      aria-label="Sorts and filters"
+      className="flex flex-wrap items-center gap-1.5"
+    >
+      {sorts.map((sort, index) => {
+        const column = columns.find((entry) => entry.key === sort.column);
+        const name = column?.name ?? "Missing property";
+        return (
+          <span key={`sort:${sort.column}`} className={chipClass}>
+            <button
+              type="button"
+              title="Reverse this sort"
+              aria-label={`Sorted by ${name}, ${sort.direction === "asc" ? "ascending" : "descending"}. Reverse.`}
+              className="inline-flex min-w-0 cursor-pointer items-center gap-1 outline-none hover:text-foreground focus-visible:text-foreground"
+              onClick={() =>
+                model.updateView({
+                  sorts: sorts.map((entry, position) =>
+                    position === index
+                      ? { ...entry, direction: entry.direction === "asc" ? "desc" : "asc" }
+                      : entry,
+                  ),
+                })
+              }
+            >
+              {sort.direction === "asc" ? <ArrowUpIcon size={11} /> : <ArrowDownIcon size={11} />}
+              <span className="truncate text-foreground">{name}</span>
+            </button>
+            <RemoveRule
+              label={`Remove sort by ${name}`}
+              onRemove={() =>
+                model.updateView({ sorts: sorts.filter((_, position) => position !== index) })
+              }
+            />
+          </span>
+        );
+      })}
+      {filters.map((filter, index) => {
+        const column = columns.find((entry) => entry.key === filter.column);
+        const name = column?.name ?? "Missing property";
+        const value =
+          column && operatorNeedsValue(filter.operator)
+            ? filterValueText(model, column, filter.value)
+            : "";
+        return (
+          <span key={`filter:${index}`} className={chipClass}>
+            <FilterIcon size={11} className="shrink-0" aria-hidden="true" />
+            <span className="min-w-0 truncate">
+              <span className="text-foreground">{name}</span> {OPERATOR_LABELS[filter.operator]}
+              {value === "" ? null : <span className="text-foreground"> {value}</span>}
+            </span>
+            <RemoveRule
+              label={`Remove filter on ${name}`}
+              onRemove={() =>
+                model.updateView({ filters: filters.filter((_, position) => position !== index) })
+              }
+            />
+          </span>
+        );
+      })}
+      {sorts.length + filters.length > 1 && (
+        <button
+          type="button"
+          className={cn(quietActionClass, "h-[22px] px-2 text-[11.5px]")}
+          onClick={() => model.updateView({ sorts: [], filters: [] })}
+        >
+          Clear all
+        </button>
+      )}
+    </div>
+  );
+}
+
+function RemoveRule({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      className="inline-flex h-full w-[22px] shrink-0 cursor-pointer items-center justify-center rounded-r-md text-theme-dim outline-none transition-colors duration-150 hover:bg-theme-active hover:text-foreground focus-visible:bg-theme-active focus-visible:text-foreground"
+      onClick={onRemove}
+    >
+      <CloseIcon size={10} />
+    </button>
   );
 }
 
@@ -225,7 +345,7 @@ function FilterMenu({ model }: MenuProps) {
     >
       {() => (
         <div className="flex w-[min(92vw,540px)] flex-col gap-1.5 p-2">
-          <p className="px-1 text-[11px] text-muted-foreground">
+          <p className="m-0 px-1 text-[11.5px] text-theme-dim">
             {filters.length === 0 ? "No filters yet." : "Notes must match every filter."}
           </p>
           {filters.map((filter, index) => (
@@ -289,7 +409,7 @@ function FilterRow({
         }}
         align="start"
         className="w-36 shrink-0"
-        triggerClassName={cn(ghostSelectClass, "w-full")}
+        triggerClassName={cn(fieldSelectClass, "w-full")}
         menuClassName="w-max min-w-44 max-w-72"
       />
       <Select
@@ -304,7 +424,7 @@ function FilterRow({
         onChange={(operator) => onChange({ ...filter, operator })}
         align="start"
         className="w-36 shrink-0"
-        triggerClassName={cn(ghostSelectClass, "w-full")}
+        triggerClassName={cn(fieldSelectClass, "w-full")}
         menuClassName="w-max min-w-40"
       />
       <div className="min-w-0 flex-1">
@@ -351,7 +471,7 @@ function FilterValue({
         onChange={onChange}
         align="start"
         className="w-full"
-        triggerClassName={cn(ghostSelectClass, "w-full")}
+        triggerClassName={cn(fieldSelectClass, "w-full")}
         menuClassName="w-max min-w-40 max-w-72"
       />
     );
@@ -368,7 +488,7 @@ function FilterValue({
         onChange={onChange}
         align="start"
         className="w-full"
-        triggerClassName={cn(ghostSelectClass, "w-full")}
+        triggerClassName={cn(fieldSelectClass, "w-full")}
         menuClassName="w-max min-w-40 max-w-72"
       />
     );
@@ -425,7 +545,7 @@ function SortMenu({ model }: MenuProps) {
     >
       {() => (
         <div className="flex w-[min(92vw,380px)] flex-col gap-1.5 p-2">
-          <p className="px-1 text-[11px] text-muted-foreground">
+          <p className="m-0 px-1 text-[11.5px] text-theme-dim">
             {sorts.length === 0 ? "Notes keep their folder order." : "The first sort wins ties."}
           </p>
           {sorts.map((sort, index) => (
@@ -450,7 +570,7 @@ function SortMenu({ model }: MenuProps) {
                 }
                 align="start"
                 className="min-w-0 flex-1"
-                triggerClassName={cn(ghostSelectClass, "w-full")}
+                triggerClassName={cn(fieldSelectClass, "w-full")}
                 menuClassName="w-max min-w-44 max-w-72"
               />
               <Select
@@ -466,7 +586,7 @@ function SortMenu({ model }: MenuProps) {
                 }
                 align="start"
                 className="w-32 shrink-0"
-                triggerClassName={cn(ghostSelectClass, "w-full")}
+                triggerClassName={cn(fieldSelectClass, "w-full")}
               />
               <button
                 type="button"
@@ -530,15 +650,15 @@ function PropertiesMenu({ model }: MenuProps) {
     >
       {() => (
         <div className="flex max-h-[min(70vh,420px)] w-64 flex-col overflow-y-auto p-1.5">
-          <p className="px-1.5 pb-1 text-[11px] text-muted-foreground">
+          <p className="m-0 px-1.5 pb-1 text-[11.5px] text-theme-dim">
             Properties come from the notes in this view.
           </p>
           {columns.map((column, index) => (
             <div
               key={column.key}
-              className="group/property flex min-h-8 items-center gap-2 rounded-md px-1.5 hover:bg-accent/60"
+              className="group/property flex min-h-8 items-center gap-2 rounded-md px-1.5 transition-colors duration-150 hover:bg-theme-hover/55"
             >
-              <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-[12px] text-foreground">
+              <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-xs text-foreground">
                 <Checkbox
                   checked={column.key === "title" || !hidden.has(column.key)}
                   disabled={column.key === "title"}

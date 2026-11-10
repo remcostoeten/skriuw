@@ -93,3 +93,58 @@ test("trashed folders, the journal and notes explain why they do not open", () =
   assert.match(render("nowhere"), /no longer exists/);
   assert.doesNotMatch(render("alpha"), /role="grid"/);
 });
+
+test("sorts and filters show as removable chips and mark their column headers", () => {
+  const state = databaseState();
+  const settings = withDatabaseView(
+    state.settings,
+    "projects",
+    {
+      ...defaultDatabaseView("projects"),
+      sorts: [{ column: "p:status", direction: "desc" }],
+      filters: [{ column: "title", operator: "contains", value: "a" }],
+      updatedAt: 1,
+    },
+    () => true,
+  );
+  const html = render("projects", { ...state, settings });
+  assert.match(html, /aria-label="Remove sort by Status"/);
+  assert.match(html, /aria-label="Remove filter on Name"/);
+  assert.match(
+    html,
+    /role="columnheader"[^>]*data-filtered="true"[^>]*title="Sort by Name. Filtered."/,
+  );
+  assert.match(html, /role="columnheader"[^>]*aria-sort="descending"[^>]*title="Sort by Status"/);
+});
+
+test("filters that hide every note offer to clear them instead of an empty grid", () => {
+  const state = databaseState();
+  const settings = withDatabaseView(
+    state.settings,
+    "projects",
+    {
+      ...defaultDatabaseView("projects"),
+      filters: [{ column: "title", operator: "contains", value: "no such note" }],
+      updatedAt: 1,
+    },
+    () => true,
+  );
+  const html = render("projects", { ...state, settings });
+  assert.match(html, /0 of 3 notes/);
+  assert.match(html, /No notes match/);
+  assert.match(html, /Clear filters/);
+  assert.doesNotMatch(html, /role="grid"/);
+});
+
+test("a folder without notes invites the first one", () => {
+  const state = databaseState();
+  const emptied = {
+    ...state,
+    nodes: new Map([...state.nodes].filter(([id]) => id !== "delta")),
+    sourceNodes: new Map([...state.sourceNodes].filter(([id]) => id !== "delta")),
+  };
+  const html = render("archive", emptied);
+  assert.match(html, /No notes here yet/);
+  assert.match(html, /New note/);
+  assert.doesNotMatch(html, /role="grid"/);
+});

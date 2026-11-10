@@ -13,9 +13,11 @@ import { virtualTreeWindow } from "@skriuw/renderer-core/store/tree";
 import { TYPE_ICON } from "@/features/note-chrome/property-editing";
 import {
   ArrowDownIcon,
+  ArrowUpDownIcon,
   ArrowUpIcon,
   CalendarIcon,
   ExternalLinkIcon,
+  FilterIcon,
   FolderIcon,
   HashIcon,
   PlusIcon,
@@ -24,7 +26,9 @@ import {
 import { cn } from "@/shared/styling/class-names";
 import { CellEditor, isPickerEditable, isTextEditable } from "./cell-editors";
 import { nextGridPosition, ratingKey, type GridPosition } from "./grid-keys";
-import { OptionPill } from "./option-pill";
+import { CheckGlyph, StarGlyph } from "./glyphs";
+import { OptionLabel, OptionPill } from "./option-pill";
+import { quietActionClass } from "./styles";
 import type { DatabaseModel } from "./use-database";
 import { cellDisplay, displayText, type CellDisplay } from "./values";
 
@@ -50,8 +54,10 @@ type RowActions = {
   rename: (noteId: string, title: string | null) => void;
 };
 
-const ROW_PITCH = 36;
-const HEADER_HEIGHT = 36;
+const ROW_PITCH = 40;
+const HEADER_HEIGHT = 34;
+const TITLE_WIDTH = 264;
+const RATINGS = [1, 2, 3, 4, 5] as const;
 const OVERSCAN_ROWS = 6;
 const MAX_RENDERED_ROWS = 120;
 
@@ -59,29 +65,33 @@ function columnWidth(column: DatabaseColumn): number {
   if (column.kind === "built-in") {
     switch (column.key) {
       case "title":
-        return 280;
+        return TITLE_WIDTH;
       case "folder":
-        return 200;
+        return 184;
       case "words":
-        return 96;
+        return 88;
       default:
-        return 136;
+        return 128;
     }
   }
   switch (column.type) {
     case "number":
-      return 112;
-    case "checkbox":
       return 104;
+    case "checkbox":
+      return 96;
     case "rating":
-      return 128;
+      return 116;
     case "date":
-      return 140;
+      return 132;
     case "select":
-      return 168;
+      return 152;
     default:
-      return 200;
+      return 184;
   }
+}
+
+function isNumericColumn(column: DatabaseColumn): boolean {
+  return column.kind === "property" ? column.type === "number" : column.key === "words";
 }
 
 function columnIcon(column: DatabaseColumn): ReactNode {
@@ -150,6 +160,10 @@ export function DatabaseTable({ model, onOpenNote, onRename }: Props) {
   const rowIndexById = useMemo(
     () => new Map(rows.map((row, index) => [row.noteId, index])),
     [rows],
+  );
+  const filtered = useMemo(
+    () => new Set(view.filters.map((filter) => filter.column)),
+    [view.filters],
   );
 
   const position = resolvePosition(active, rows.length, visible, rowIndexById);
@@ -313,6 +327,11 @@ export function DatabaseTable({ model, onOpenNote, onRename }: Props) {
     const row = rows[rowIndex];
     if (!row) return;
     const mod = event.ctrlKey || event.metaKey || event.altKey;
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.altKey) {
+      event.preventDefault();
+      onOpenNote(row.noteId);
+      return;
+    }
     if (event.key === "Enter" && !mod) {
       event.preventDefault();
       if (column.key === "title") onOpenNote(row.noteId);
@@ -425,7 +444,7 @@ export function DatabaseTable({ model, onOpenNote, onRename }: Props) {
   return (
     <div
       ref={scrollRef}
-      className="relative min-h-0 overflow-auto scroll-pt-9 scroll-pl-[280px]"
+      className="relative min-h-0 overflow-auto pb-10 pl-[calc(var(--db-gutter)-10px)] pr-[calc(var(--db-gutter)-10px)] scroll-pt-[34px] scroll-pl-[298px]"
       onScroll={(event) => {
         const nextRow = Math.floor(event.currentTarget.scrollTop / ROW_PITCH);
         if (nextRow !== scrollRow) setScrollRow(nextRow);
@@ -439,7 +458,7 @@ export function DatabaseTable({ model, onOpenNote, onRename }: Props) {
         aria-rowcount={rows.length + 1}
         aria-colcount={visible.length}
         aria-describedby="database-keyboard-help"
-        className="min-w-full text-[13px]"
+        className="database-grid min-w-full"
         style={{ width: totalWidth }}
         onKeyDown={onKeyDown}
         onFocus={onFocus}
@@ -451,17 +470,22 @@ export function DatabaseTable({ model, onOpenNote, onRename }: Props) {
           <div
             role="row"
             aria-rowindex={1}
-            className="flex border-b border-border"
+            className="database-head-row"
             style={{ height: HEADER_HEIGHT }}
           >
             {visible.map((column, columnIndex) => {
-              const sort = view.sorts.find((entry) => entry.column === column.key);
+              const sortIndex = view.sorts.findIndex((entry) => entry.column === column.key);
+              const sort = view.sorts[sortIndex];
               const isActive = position.row === 0 && position.column === columnIndex;
+              const isFiltered = filtered.has(column.key);
               return (
                 <div
                   key={column.key}
                   role="columnheader"
                   data-cell={`0:${columnIndex}`}
+                  data-title={columnIndex === 0 || undefined}
+                  data-numeric={isNumericColumn(column) || undefined}
+                  data-filtered={isFiltered || undefined}
                   aria-colindex={columnIndex + 1}
                   aria-sort={
                     sort === undefined
@@ -473,21 +497,25 @@ export function DatabaseTable({ model, onOpenNote, onRename }: Props) {
                   tabIndex={
                     isActive || (!activeRendered && columnIndex === position.column) ? 0 : -1
                   }
-                  title={`Sort by ${column.name}`}
-                  className={cn(
-                    "flex shrink-0 cursor-pointer select-none items-center gap-1.5 border-r border-border/60 px-2 text-[12px] font-medium text-muted-foreground outline-none hover:bg-accent/60 hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground",
-                    columnIndex === 0 && "sticky left-0 z-[1] bg-theme-editor",
-                  )}
+                  title={
+                    isFiltered ? `Sort by ${column.name}. Filtered.` : `Sort by ${column.name}`
+                  }
+                  className="database-head-cell"
                   style={{ width: widths[columnIndex] }}
                 >
-                  <span className="shrink-0 opacity-70">{columnIcon(column)}</span>
+                  <span className="shrink-0 opacity-80">{columnIcon(column)}</span>
                   <span className="min-w-0 truncate">{column.name}</span>
-                  {sort &&
-                    (sort.direction === "asc" ? (
-                      <ArrowUpIcon size={11} className="ml-auto shrink-0" aria-hidden="true" />
+                  <span className="database-head-mark" aria-hidden="true">
+                    {isFiltered && <FilterIcon size={10} />}
+                    {sort === undefined ? (
+                      <ArrowUpDownIcon size={11} className="database-head-hint" />
+                    ) : sort.direction === "asc" ? (
+                      <ArrowUpIcon size={11} />
                     ) : (
-                      <ArrowDownIcon size={11} className="ml-auto shrink-0" aria-hidden="true" />
-                    ))}
+                      <ArrowDownIcon size={11} />
+                    )}
+                    {sort !== undefined && view.sorts.length > 1 && sortIndex + 1}
+                  </span>
                 </div>
               );
             })}
@@ -563,8 +591,9 @@ const TableRow = memo(function TableRow({
     <div
       role="row"
       aria-rowindex={rowIndex + 2}
-      className="group/row absolute left-0 flex border-b border-border/50 hover:bg-[hsl(var(--foreground)/0.025)]"
-      style={{ top: rowIndex * ROW_PITCH, height: ROW_PITCH, width: "100%" }}
+      data-active={activeColumn !== null || undefined}
+      className="database-row"
+      style={{ top: rowIndex * ROW_PITCH, height: ROW_PITCH }}
     >
       {columns.map((column, columnIndex) => {
         const display = cellDisplay(row, column, people);
@@ -578,16 +607,13 @@ const TableRow = memo(function TableRow({
             key={column.key}
             role={isTitle ? "rowheader" : "gridcell"}
             data-cell={`${rowIndex + 1}:${columnIndex}`}
+            data-title={isTitle || undefined}
+            data-quiet={(column.kind === "built-in" && !isTitle) || undefined}
             aria-colindex={columnIndex + 1}
             aria-readonly={column.kind === "built-in" && !isTitle ? true : undefined}
             aria-label={label}
             tabIndex={activeColumn === columnIndex ? 0 : -1}
-            className={cn(
-              "relative flex shrink-0 items-center gap-1.5 overflow-hidden border-r border-border/40 px-2 outline-none focus:shadow-[inset_0_0_0_2px_hsl(var(--foreground)/0.35)]",
-              isTitle &&
-                "sticky left-0 z-[1] bg-theme-editor font-medium text-foreground group-hover/row:bg-[image:linear-gradient(hsl(var(--foreground)/0.025),hsl(var(--foreground)/0.025))]",
-              column.kind === "built-in" && !isTitle && "text-muted-foreground",
-            )}
+            className="database-cell"
             style={{ width: widths[columnIndex] }}
           >
             {isTitle && renaming ? (
@@ -596,7 +622,7 @@ const TableRow = memo(function TableRow({
                 onDone={(title) => actions.rename(row.noteId, title)}
               />
             ) : (
-              <CellContent display={display} locked={isTitle && row.locked} />
+              <CellContent column={column} display={display} locked={isTitle && row.locked} />
             )}
             {isTitle && !renaming && (
               <button
@@ -604,7 +630,7 @@ const TableRow = memo(function TableRow({
                 tabIndex={-1}
                 aria-hidden="true"
                 title="Open note"
-                className="ml-auto hidden size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground group-hover/row:flex"
+                className="database-row-open ml-auto size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-theme-secondary transition-colors duration-150 hover:bg-theme-active hover:text-foreground"
                 onClick={(event) => {
                   event.stopPropagation();
                   actions.open(row.noteId);
@@ -621,28 +647,44 @@ const TableRow = memo(function TableRow({
   );
 });
 
-function CellContent({ display, locked }: { display: CellDisplay; locked: boolean }) {
+type ContentProps = {
+  column: DatabaseColumn;
+  display: CellDisplay;
+  locked: boolean;
+};
+
+function CellContent({ column, display, locked }: ContentProps) {
   switch (display.kind) {
     case "empty":
-      return null;
+      return column.kind === "property" && column.type === "rating" ? (
+        <Stars value={0} ghost />
+      ) : null;
     case "text":
       return (
         <span
           className={cn(
             "min-w-0 truncate",
             display.numeric && "ml-auto tabular-nums",
-            locked && "text-muted-foreground",
+            locked && "text-theme-secondary",
           )}
         >
           {display.text}
         </span>
       );
     case "mismatch":
-      return (
-        <span className="min-w-0 truncate italic text-muted-foreground/70">{display.text}</span>
-      );
+      return <span className="min-w-0 truncate italic text-theme-dim">{display.text}</span>;
     case "options":
-      return (
+      return column.kind === "property" && column.type === "select" ? (
+        <span className="flex min-w-0 items-center overflow-hidden">
+          {display.options.map((option, index) => (
+            <OptionLabel
+              key={`${option.label}:${index}`}
+              label={option.label}
+              color={option.color}
+            />
+          ))}
+        </span>
+      ) : (
         <span className="flex min-w-0 items-center gap-1 overflow-hidden">
           {display.options.map((option, index) => (
             <OptionPill
@@ -657,16 +699,10 @@ function CellContent({ display, locked }: { display: CellDisplay; locked: boolea
       return (
         <span
           aria-hidden="true"
-          className={cn(
-            "flex size-4 shrink-0 items-center justify-center rounded-[5px] border border-muted-foreground/60",
-            display.checked && "border-foreground/70 bg-foreground/80 text-theme-editor",
-          )}
+          data-checked={display.checked || undefined}
+          className="database-check"
         >
-          {display.checked && (
-            <svg viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor">
-              <path d="M2.5 6.2l2.3 2.3 4.7-5" strokeWidth="1.6" />
-            </svg>
-          )}
+          <CheckGlyph />
         </span>
       );
     case "rating":
@@ -674,19 +710,17 @@ function CellContent({ display, locked }: { display: CellDisplay; locked: boolea
   }
 }
 
-function Stars({ value }: { value: number }) {
+function Stars({ value, ghost = false }: { value: number; ghost?: boolean }) {
   return (
-    <span aria-hidden="true" className="flex items-center">
-      {[1, 2, 3, 4, 5].map((rating) => (
+    <span aria-hidden="true" data-ghost={ghost || undefined} className="database-stars">
+      {RATINGS.map((rating) => (
         <span
           key={rating}
           data-rating={rating}
-          className={cn(
-            "cursor-pointer px-px text-[13px] leading-none",
-            rating <= value ? "text-foreground" : "text-muted-foreground/35",
-          )}
+          data-on={rating <= value || undefined}
+          className="database-star"
         >
-          ★
+          <StarGlyph />
         </span>
       ))}
     </span>
@@ -713,7 +747,7 @@ function RenameInput({ title, onDone }: { title: string; onDone: (title: string 
       ref={inputRef}
       aria-label="Note name"
       defaultValue={title}
-      className="absolute inset-0 z-10 h-full w-full border border-foreground/30 bg-popover px-2 text-[13px] font-medium text-foreground outline-none"
+      className="absolute left-[3px] top-[3px] z-10 h-[calc(100%-6px)] w-[calc(100%-6px)] min-w-0 rounded-[7px] border border-ring bg-background px-1.5 text-[13px] font-medium text-foreground outline-none"
       onBlur={(event) => finish(event.currentTarget.value)}
       onKeyDown={(event) => {
         event.stopPropagation();
@@ -753,13 +787,13 @@ function NewRow({ model }: { model: DatabaseModel }) {
   if (open) {
     return (
       <form
-        className="sticky left-0 flex h-9 w-[min(100%,480px)] items-center gap-2 px-2"
+        className="sticky left-0 mt-1.5 flex h-[30px] w-[min(100%,460px)] items-center gap-2 rounded-lg bg-theme-hover/55 px-2.5"
         onSubmit={(event) => {
           event.preventDefault();
           if (model.createNote(draft) !== null) setDraft("");
         }}
       >
-        <PlusIcon size={12} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+        <PlusIcon size={12} className="shrink-0 text-theme-dim" aria-hidden="true" />
         <input
           autoComplete="off"
           aria-label="New note name"
@@ -776,7 +810,7 @@ function NewRow({ model }: { model: DatabaseModel }) {
               close(true);
             }
           }}
-          className="h-7 min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground/55"
+          className="h-full min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-theme-dim"
         />
       </form>
     );
@@ -787,7 +821,7 @@ function NewRow({ model }: { model: DatabaseModel }) {
       ref={buttonRef}
       type="button"
       disabled={disabled}
-      className="sticky left-0 flex h-9 cursor-pointer items-center gap-2 px-2 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:text-foreground disabled:pointer-events-none disabled:opacity-40"
+      className={cn(quietActionClass, "sticky left-0 mt-1.5 ml-px h-[30px]")}
       onClick={() => setOpen(true)}
     >
       <PlusIcon size={12} aria-hidden="true" />

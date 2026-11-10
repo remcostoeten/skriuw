@@ -1,3 +1,4 @@
+import "./database.css";
 import { useCallback, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
@@ -9,7 +10,7 @@ import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-se
 import { activateReference } from "@/features/references/shell";
 import { ArrowRightIcon, DatabaseIcon } from "@/shared/icons/static";
 import { DatabaseBoard } from "./view/board";
-import { panelInputClass, toolButtonClass } from "./view/styles";
+import { panelInputClass, quietActionClass } from "./view/styles";
 import { useDatabase } from "./view/use-database";
 
 type BlockProps = {
@@ -25,7 +26,7 @@ type EmbeddedBoardProps = {
 };
 
 const frameClass =
-  "my-3 rounded-xl border border-border/70 bg-[hsl(var(--foreground)/0.015)] p-3 font-sans";
+  "database-embed my-3 overflow-hidden rounded-xl border border-theme-divider font-sans transition-[border-color] duration-150";
 
 function EmbeddedBoard({ store, folderId }: EmbeddedBoardProps) {
   const model = useDatabase(store, folderId, "board");
@@ -36,25 +37,31 @@ function EmbeddedBoard({ store, folderId }: EmbeddedBoardProps) {
   const total = model.rows.length;
   return (
     <>
-      <header className="mb-2.5 flex min-w-0 items-center gap-2 px-1">
-        <DatabaseIcon size={15} className="shrink-0 text-theme-dim" />
-        <span className="min-w-0 truncate text-[13px] font-semibold text-foreground">
+      <header className="flex h-10 min-w-0 items-center gap-2 pl-3.5 pr-1.5">
+        <DatabaseIcon size={14} className="shrink-0 text-theme-dim" />
+        <span className="min-w-0 truncate text-[13px] font-medium tracking-[-0.005em] text-foreground">
           {model.title}
         </span>
-        <span className="font-mono text-[11px] text-theme-dim">
+        <span className="shrink-0 text-[11.5px] tabular-nums text-theme-dim">
           {total} {total === 1 ? "note" : "notes"}
         </span>
-        <a href={databaseHash(folderId)} className={`${toolButtonClass} ml-auto no-underline`}>
+        <a href={databaseHash(folderId)} className={`${quietActionClass} ml-auto no-underline`}>
           Open full view
           <ArrowRightIcon size={12} />
         </a>
       </header>
       {model.notice && (
-        <p role="alert" className="mb-2 px-1 text-xs text-destructive">
+        <p role="alert" className="m-0 px-3.5 pb-2 text-xs text-destructive">
           {model.notice}
         </p>
       )}
-      <DatabaseBoard model={model} onOpenNote={openNote} embedded />
+      {total === 0 ? (
+        <p className="m-0 border-t border-theme-divider/85 px-3.5 py-4 text-xs leading-[1.45] text-theme-secondary">
+          No notes in this folder yet. Notes added to it show up here as cards.
+        </p>
+      ) : (
+        <DatabaseBoard model={model} onOpenNote={openNote} embedded />
+      )}
     </>
   );
 }
@@ -63,9 +70,9 @@ function FolderPicker({ store, folder, editable, onChooseFolder }: BlockProps) {
   const [open, setOpen] = useState(false);
   const folders = open ? embeddableFolders(store.getState()) : [];
   return (
-    <div className="flex flex-col items-start gap-2 px-1 py-2 text-xs text-theme-secondary">
-      <span className="flex items-center gap-2 text-[13px] font-medium text-foreground">
-        <DatabaseIcon size={15} className="text-theme-dim" />
+    <div className="flex flex-col items-start gap-1.5 px-3.5 py-3 text-xs leading-[1.45] text-theme-secondary">
+      <span className="flex items-center gap-2 text-[13px] font-medium tracking-[-0.005em] text-foreground">
+        <DatabaseIcon size={14} className="text-theme-dim" />
         Database board
       </span>
       <span>
@@ -76,7 +83,7 @@ function FolderPicker({ store, folder, editable, onChooseFolder }: BlockProps) {
       {editable && (
         <select
           aria-label="Folder to show"
-          className={`${panelInputClass} w-auto max-w-full cursor-pointer`}
+          className={`${panelInputClass} mt-1 w-auto max-w-full cursor-pointer`}
           value=""
           onFocus={() => setOpen(true)}
           onPointerDown={() => setOpen(true)}

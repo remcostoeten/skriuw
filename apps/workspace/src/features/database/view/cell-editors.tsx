@@ -15,7 +15,7 @@ import type { PersonRecord } from "@skriuw/renderer-core/references/types";
 import { parseOptionalNumber } from "@/features/note-chrome/property-editing";
 import { CheckIcon, PlusIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/styling/class-names";
-import { OptionPill } from "./option-pill";
+import { OptionLabel } from "./option-pill";
 
 type EditorProps = {
   column: PropertyColumn;
@@ -161,7 +161,7 @@ function TextCellEditor({ column, row, initialText, onCommit, onClose }: EditorP
         }
       }}
       className={cn(
-        "absolute inset-0 z-10 h-full w-full min-w-0 border border-foreground/30 bg-popover px-2 text-[13px] text-foreground outline-none",
+        "absolute left-[3px] top-[3px] z-10 h-[calc(100%-6px)] w-[calc(100%-6px)] min-w-0 rounded-[7px] border border-ring bg-background px-1.5 text-[13px] text-foreground outline-none",
         column.type === "number" && "text-right tabular-nums",
         invalid && "border-destructive text-destructive",
       )}
@@ -300,7 +300,7 @@ function Picker({
       role="dialog"
       aria-label={label}
       style={{ left: position.left, top: position.top, width: PICKER_WIDTH }}
-      className="fixed z-50 overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-xl"
+      className="fixed z-50 overflow-hidden rounded-[10px] border border-border bg-popover text-popover-foreground shadow-[0_12px_32px_-12px_hsl(var(--scrim)/0.45)]"
     >
       <input
         ref={inputRef}
@@ -317,7 +317,7 @@ function Picker({
           setActive(0);
         }}
         onKeyDown={onKeyDown}
-        className="h-9 w-full border-b border-border bg-transparent px-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/55"
+        className="h-9 w-full border-b border-theme-divider bg-transparent px-3 text-[12.5px] text-foreground outline-none placeholder:text-theme-dim"
       />
       <ul
         id={listId}
@@ -326,9 +326,7 @@ function Picker({
         aria-multiselectable={multiple || undefined}
         className="max-h-64 overflow-y-auto p-1"
       >
-        {items.length === 0 && (
-          <li className="px-2 py-1.5 text-[12px] text-muted-foreground">{emptyLabel}</li>
-        )}
+        {items.length === 0 && <li className="px-2 py-1.5 text-xs text-theme-dim">{emptyLabel}</li>}
         {items.map((item, index) => {
           const isSelected = item.kind === "option" && selected.has(item.key);
           return (
@@ -339,8 +337,8 @@ function Picker({
               role="option"
               aria-selected={isSelected}
               className={cn(
-                "flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-2 text-[12px] text-muted-foreground",
-                index === activeIndex && "bg-accent text-foreground",
+                "flex min-h-[30px] cursor-pointer items-center gap-2 rounded-md px-2 text-[12.5px] text-theme-secondary",
+                index === activeIndex && "bg-theme-hover text-foreground",
               )}
               onPointerMove={() => setActive(index)}
               onPointerDown={(event) => event.preventDefault()}
@@ -359,7 +357,11 @@ function Picker({
                     {isSelected && <CheckIcon size={12} aria-hidden="true" />}
                   </span>
                   {item.option ? (
-                    <OptionPill label={item.label} color={item.option.color} />
+                    <OptionLabel
+                      label={item.label}
+                      color={item.option.color}
+                      className="text-foreground"
+                    />
                   ) : (
                     <span className="min-w-0 truncate text-foreground">{item.label}</span>
                   )}
