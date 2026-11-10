@@ -88,6 +88,18 @@ function dayLabel(dayStart: number, todayStart: number): string {
 }
 
 /**
+ * @name formatVersionDay
+ * @description The ledger day a revision belongs to, e.g. `Today`,
+ * `Yesterday`, a weekday within the last week, or a short date.
+ *
+ * @example
+ * formatVersionDay(version.createdAt); // "Yesterday"
+ */
+export function formatVersionDay(timestamp: number, now: number = Date.now()): string {
+  return dayLabel(startOfDay(timestamp), startOfDay(now));
+}
+
+/**
  * Flattens a newest-first version list into virtualizer rows, inserting a
  * sticky day header before the first revision captured on each calendar day.
  */

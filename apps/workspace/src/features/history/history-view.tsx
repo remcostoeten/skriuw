@@ -1,15 +1,18 @@
 import { useMemo } from "react";
+import "./history.css";
 import { useRouteFocus, useRouteHistoryVersion } from "@/shared/routing/app-route";
 import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
 import { activateNote } from "@/features/notes/navigation";
 import { EMPTY_STATE_COLORS } from "@/shared/empty-state/app-theme";
 import { EmptyState } from "@/shared/empty-state/empty-state";
 import { ActivityIllustration } from "@/shared/empty-state/illustrations";
-import { ChevronLeftIcon, HistoryIcon } from "@/shared/icons/static";
+import { ChevronLeftIcon } from "@/shared/icons/static";
 import { formatRelativeTime } from "@/shared/format/relative-time";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { WindowControlsSlot } from "@/shared/ui/window-controls-slot";
+import { settingsPress, settingsTransition } from "@/shared/ui/settings-controls";
+import { cn } from "@/shared/styling/class-names";
 import { VersionHistoryPanel } from "./version-history-panel";
 import { projectVersionList } from "./versions/model";
 
@@ -44,42 +47,44 @@ export function HistoryView({ store }: Props) {
 
   return (
     <main
-      className="col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
+      className="history-page col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
       aria-labelledby="history-title"
     >
       <header
         data-tauri-drag-region
-        className="flex h-11 items-center gap-2.5 border-b border-theme-divider pl-3"
+        className="relative flex h-[52px] items-center gap-3 border-b border-theme-divider pl-3"
       >
         <button
           type="button"
           onClick={backToNote}
-          className="flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-[var(--radius)] border-none bg-transparent pl-1 pr-2 text-[12px] font-[560] text-theme-secondary transition-colors hover:bg-theme-hover hover:text-foreground"
+          aria-keyshortcuts="Escape"
+          className={cn(
+            "flex h-[30px] shrink-0 cursor-pointer items-center gap-1 rounded-[7px] border-0 bg-transparent pr-2.5 pl-1.5 text-[12.5px] text-theme-secondary hover:bg-theme-hover hover:text-foreground",
+            settingsTransition,
+            settingsPress,
+          )}
         >
           <ChevronLeftIcon size={15} />
           Back to note
         </button>
         <span aria-hidden className="h-4 w-px shrink-0 bg-theme-divider" />
-        <HistoryIcon size={14} className="shrink-0 text-theme-secondary" />
         <h1
           id="history-title"
-          className="min-w-0 truncate text-[13px] font-[650] tracking-[-0.01em] text-foreground"
+          className="m-0 flex min-w-0 items-baseline gap-2 text-[15px] font-medium tracking-[-0.01em] text-foreground"
         >
-          {title ?? "Version history"}
+          <span className="truncate">{title ?? "Version history"}</span>
+          {title !== null && (
+            <span className="shrink-0 text-[12.5px] font-normal tracking-normal text-theme-secondary">
+              History
+            </span>
+          )}
         </h1>
-        {versions.length > 0 && (
-          <span className="shrink-0 rounded-full bg-theme-hover px-1.5 py-px font-mono text-[10px] leading-[1.5] tabular-nums text-theme-secondary">
-            {versions.length}
-          </span>
-        )}
-        <div className="ml-auto flex shrink-0 items-center">
-          <p className="hidden pl-4 text-[11px] text-theme-secondary sm:block">
-            {latest
-              ? `Latest revision ${formatRelativeTime(latest.createdAt)}`
-              : "No revisions yet"}
-          </p>
-          <WindowControlsSlot />
-        </div>
+        <p className="m-0 min-w-0 flex-1 truncate text-[12.5px] tabular-nums text-theme-dim max-[720px]:hidden">
+          {latest
+            ? `${versions.length} ${versions.length === 1 ? "revision" : "revisions"}, latest ${formatRelativeTime(latest.createdAt)}`
+            : "No revisions yet"}
+        </p>
+        <WindowControlsSlot className="ml-auto" />
       </header>
 
       {noteId !== null && versions.length > 0 ? (
@@ -89,6 +94,7 @@ export function HistoryView({ store }: Props) {
           noteId={noteId}
           versions={versions}
           requestedVersionId={requestedVersionId}
+          onBack={backToNote}
         />
       ) : (
         <div className="grid place-items-center px-6">
@@ -96,7 +102,7 @@ export function HistoryView({ store }: Props) {
             colors={EMPTY_STATE_COLORS}
             illustration={<ActivityIllustration />}
             title="No revisions yet"
-            description="Keep writing and Skriuw snapshots this note as it changes. Revisions show up here the moment one is captured."
+            description="Skriuw captures a revision after each pause in typing. Keep writing and the first one shows up here, ready to compare or restore."
           />
         </div>
       )}

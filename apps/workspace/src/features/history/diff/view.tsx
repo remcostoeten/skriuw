@@ -17,30 +17,61 @@ export function useMarkdownDiff(versionMarkdown: string, currentMarkdown: string
   );
 }
 
+function countChangeBlocks(hunks: readonly DiffHunk[]): number {
+  let blocks = 0;
+  for (const hunk of hunks) {
+    let inChange = false;
+    for (const line of hunk.lines) {
+      const changed = line.kind !== "context";
+      if (changed && !inChange) {
+        blocks += 1;
+      }
+      inChange = changed;
+    }
+  }
+  return blocks;
+}
+
 export function VersionDiffView({ versionMarkdown, currentMarkdown, layout = "unified" }: Props) {
   const diff = useMarkdownDiff(versionMarkdown, currentMarkdown);
   if (diff.hunks.length === 0) {
     return (
-      <div className="m-auto flex max-w-[38ch] flex-col items-center px-6 text-center">
-        <span className="mb-3 grid size-9 place-items-center rounded-full bg-success-soft text-success">
-          <CheckIcon size={16} />
+      <div className="m-auto flex max-w-[38ch] flex-col items-center gap-1.5 px-6 pb-24 text-center">
+        <span className="mb-1.5 grid size-8 place-items-center rounded-full bg-theme-hover text-foreground">
+          <CheckIcon size={15} />
         </span>
-        <p className="m-0 text-[12px] font-[600] text-foreground">Identical to the note now</p>
-        <p className="mt-1 text-[12px] leading-[1.5] text-muted-foreground">
+        <p className="m-0 text-[13px] font-medium text-foreground">Same as the note now</p>
+        <p className="m-0 text-xs leading-[1.5] text-theme-secondary">
           Nothing has changed since this revision was captured.
         </p>
       </div>
     );
   }
 
+  const changes = countChangeBlocks(diff.hunks);
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto py-3">
-      {diff.truncated && (
-        <p className="mx-4 mb-3 rounded-[var(--radius-md)] bg-theme-hover px-3 py-2 font-sans text-[11px] leading-[1.5] text-muted-foreground">
-          This revision is too large to align line by line, so every line is shown as replaced.
+    <div className="history-reading min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
+      <div className="mx-auto w-full max-w-[920px] px-8 pt-5 pb-32 max-[860px]:px-4">
+        <p className="m-0 mb-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-theme-secondary">
+          <span>
+            {changes} {changes === 1 ? "change" : "changes"} from this revision to the note now
+          </span>
+          <span className="flex items-baseline gap-3 text-theme-dim">
+            <span>
+              <span className="diff-stat-removed">−</span> only in this revision
+            </span>
+            <span>
+              <span className="diff-stat-added">+</span> only in the note now
+            </span>
+          </span>
         </p>
-      )}
-      <MarkdownDiffHunks diff={diff} layout={layout} />
+        {diff.truncated && (
+          <p className="m-0 mb-3 rounded-lg border border-theme-divider px-3 py-2 text-xs leading-[1.5] text-theme-secondary">
+            This revision is too large to align line by line, so every line is shown as replaced.
+          </p>
+        )}
+        <MarkdownDiffHunks diff={diff} layout={layout} />
+      </div>
     </div>
   );
 }
@@ -70,7 +101,9 @@ export function MarkdownDiffHunks({ diff, layout = "unified" }: MarkdownDiffHunk
                 {hunk.hiddenBefore.length === 1 ? "line" : "lines"}
               </button>
             ))}
-          <HunkLines lines={hunk.lines} layout={layout} />
+          <div className="diff-hunk-body">
+            <HunkLines lines={hunk.lines} layout={layout} />
+          </div>
         </div>
       ))}
     </div>

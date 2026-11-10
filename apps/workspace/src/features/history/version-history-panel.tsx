@@ -1,57 +1,39 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { motion } from "motion/react";
+import type { KeyboardEvent } from "react";
 import { DOMSerializer } from "prosemirror-model";
 import { restoreNoteVersion } from "@/features/history/restore-version";
-import { setHistoryDiffLayout } from "./diff";
-import { historyDiffLayout } from "./diff/layout-setting";
 import type { HistoryVersionContent } from "@/platform/runtime/commands";
 import { readHistoryVersion } from "@/platform/runtime/commands";
 import { productSchema } from "@/features/editor/schema";
-import {
-  CloseIcon,
-  HistoryIcon,
-  RotateCcwIcon,
-  SplitViewIcon,
-  SplitViewStackedIcon,
-} from "@/shared/icons/static";
 import { cn } from "@/shared/styling/class-names";
-import { HistoryGraphRail } from "./timeline/graph-rail";
-import { HistoryScrubber } from "./timeline/scrubber";
-import { InlineConfirm } from "@/shared/ui/inline-confirm";
+import { showToast } from "@/shared/ui/toast";
 import { useMediaQuery } from "@/shared/viewport/use-media-query";
 import { COMPACT_VIEWPORT_QUERY } from "@/shared/viewport/queries";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import { VersionDiffView, useMarkdownDiff } from "./diff/view";
+import { setHistoryDiffLayout } from "./diff";
+import { historyDiffLayout } from "./diff/layout-setting";
 import type { DiffLayout } from "./diff/split-model";
-import { Tooltip } from "@skriuw/shared/ui/tooltip";
-import { VersionStats } from "./versions/stats";
-import {
-  formatVersionClock,
-  formatVersionTimestamp,
-  groupVersionRows,
-  type VersionListItem,
-} from "./versions/model";
+import { VersionDiffView } from "./diff/view";
+import { ReadingHeader, type PreviewMode } from "./reading-header";
 import { parseHistoryMarkdown } from "./restore";
-import { sectionLabelClass } from "@/shared/ui/section-header";
+import { buildLedgerRows, stepVersionId } from "./timeline/ledger-model";
+import { HistoryScrubber } from "./timeline/scrubber";
+import { VersionLedger, type LedgerFocusRequest } from "./timeline/version-ledger";
+import { formatVersionDay, formatVersionTimestamp, type VersionListItem } from "./versions/model";
 
 type Props = {
   store: RendererStore;
   noteId: string;
   versions: readonly VersionListItem[];
   requestedVersionId?: string | null;
+  onBack: () => void;
 };
 
-type PreviewMode = "diff" | "full";
-
 type PreviewState =
-  | { status: "loading"; versionId: string }
+  | { status: "loading"; versionId: string; stale: HistoryVersionContent | null }
   | { status: "error"; versionId: string; message: string }
   | { status: "ready"; versionId: string; content: HistoryVersionContent; restoring: boolean };
-
-const VERSION_ROW_HEIGHT = 52;
-const GROUP_ROW_HEIGHT = 30;
 
 function selectDiffLayout(state: RendererState): DiffLayout {
   return historyDiffLayout(state.settings);
@@ -64,16 +46,41 @@ function errorMessage(error: unknown, fallback: string): string {
   return typeof error === "string" && error.length > 0 ? error : fallback;
 }
 
-export function VersionHistoryPanel({ store, noteId, versions, requestedVersionId }: Props) {
+function isTextEntry(target: EventTarget): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable ||
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement)
+  );
+}
+
+function copyMarkdown(markdown: string): void {
+  navigator.clipboard
+    .writeText(markdown)
+    .then(() => showToast({ message: "Revision copied as Markdown" }))
+    .catch((error: unknown) => {
+      showToast({ message: errorMessage(error, "Could not copy this revision.") });
+    });
+}
+
+export function VersionHistoryPanel({
+  store,
+  noteId,
+  versions,
+  requestedVersionId,
+  onBack,
+}: Props) {
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [mode, setMode] = useState<PreviewMode>("diff");
-  const [revealing, setRevealing] = useState(false);
   const [scrubVersionId, setScrubVersionId] = useState<string | null>(null);
+  const [focusRequest, setFocusRequest] = useState<LedgerFocusRequest | null>(null);
   const compact = useMediaQuery(COMPACT_VIEWPORT_QUERY);
-  const parentRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
   const appliedRequestRef = useRef<string | null>(null);
+  const autoOpenedRef = useRef(false);
   const contentCacheRef = useRef(new Map<string, HistoryVersionContent>());
+  const pendingRef = useRef(new Map<string, Promise<HistoryVersionContent>>());
   const scrubTargetRef = useRef<string | null>(null);
   const scrubFetchingRef = useRef(false);
 
@@ -84,21 +91,18 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
   const currentMarkdown = useRendererSelector(store, selectCurrentMarkdown);
   const diffLayout = useRendererSelector(store, selectDiffLayout);
   const layout: DiffLayout = compact ? "unified" : diffLayout;
-  const rows = useMemo(() => groupVersionRows(versions), [versions]);
-
-  const virtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: (index) =>
-      rows[index]?.kind === "group" ? GROUP_ROW_HEIGHT : VERSION_ROW_HEIGHT,
-    overscan: 8,
-  });
+  const rows = useMemo(() => buildLedgerRows(versions), [versions]);
 
   const selectedVersionId = scrubVersionId ?? preview?.versionId ?? null;
   const selectedIndex = useMemo(() => {
     const index = versions.findIndex((item) => item.versionId === selectedVersionId);
     return index === -1 ? null : index;
   }, [versions, selectedVersionId]);
+  const selectedItem = selectedIndex === null ? null : (versions[selectedIndex] ?? null);
+
+  function requestFocus(versionId: string, focus: boolean): void {
+    setFocusRequest((previous) => ({ versionId, focus, nonce: (previous?.nonce ?? 0) + 1 }));
+  }
 
   function closePreview(): void {
     requestIdRef.current += 1;
@@ -112,10 +116,37 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
     if (cached) {
       return Promise.resolve(cached);
     }
-    return readHistoryVersion(noteId, versionId).then((content) => {
-      contentCacheRef.current.set(versionId, content);
-      return content;
-    });
+    const pending = pendingRef.current.get(versionId);
+    if (pending) {
+      return pending;
+    }
+    const request = readHistoryVersion(noteId, versionId).then(
+      (content) => {
+        contentCacheRef.current.set(versionId, content);
+        pendingRef.current.delete(versionId);
+        return content;
+      },
+      (error: unknown) => {
+        pendingRef.current.delete(versionId);
+        throw error;
+      },
+    );
+    pendingRef.current.set(versionId, request);
+    return request;
+  }
+
+  function warmVersion(versionId: string): void {
+    if (contentCacheRef.current.has(versionId) || pendingRef.current.has(versionId)) {
+      return;
+    }
+    fetchVersion(versionId).catch(() => pendingRef.current.delete(versionId));
+  }
+
+  function staleContent(): HistoryVersionContent | null {
+    if (preview?.status === "ready") {
+      return preview.content;
+    }
+    return preview?.status === "loading" ? preview.stale : null;
   }
 
   function scrubToIndex(listIndex: number): void {
@@ -123,16 +154,10 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
     if (!item) {
       return;
     }
-    if (preview === null) {
-      setRevealing(true);
-    }
     scrubTargetRef.current = item.versionId;
     setScrubVersionId(item.versionId);
-    const rowIndex = rows.findIndex(
-      (row) => row.kind === "version" && row.item.versionId === item.versionId,
-    );
-    if (rowIndex !== -1 && !compact) {
-      virtualizer.scrollToIndex(rowIndex, { align: "auto" });
+    if (!compact) {
+      requestFocus(item.versionId, false);
     }
     fetchScrubTarget();
   }
@@ -169,25 +194,16 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
       });
   }
 
-  function openVersion(item: VersionListItem): void {
-    if (preview?.versionId === item.versionId && preview.status !== "error") {
-      closePreview();
-      return;
-    }
-    loadVersion(item.versionId);
-  }
-
   function loadVersion(versionId: string): void {
     const requestId = ++requestIdRef.current;
     scrubTargetRef.current = null;
     setScrubVersionId(null);
-    setRevealing(preview === null);
     const cached = contentCacheRef.current.get(versionId);
     if (cached) {
       setPreview({ status: "ready", versionId, content: cached, restoring: false });
       return;
     }
-    setPreview({ status: "loading", versionId });
+    setPreview({ status: "loading", versionId, stale: staleContent() });
     fetchVersion(versionId)
       .then((content) => {
         if (requestIdRef.current !== requestId) {
@@ -207,7 +223,29 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
       });
   }
 
+  function stepVersion(step: 1 | -1): void {
+    const next = stepVersionId(versions, selectedVersionId, step);
+    if (next !== null && next !== selectedVersionId) {
+      loadVersion(next);
+      requestFocus(next, false);
+    }
+  }
+
+  function copyVersion(versionId: string): void {
+    const cached = contentCacheRef.current.get(versionId);
+    if (cached) {
+      copyMarkdown(cached.markdown);
+      return;
+    }
+    fetchVersion(versionId)
+      .then((content) => copyMarkdown(content.markdown))
+      .catch((error: unknown) => {
+        showToast({ message: errorMessage(error, "Could not copy this revision.") });
+      });
+  }
+
   function confirmRestore(): void {
+    const previousMarkdown = currentMarkdown;
     setPreview((current) => {
       if (current?.status !== "ready" || current.restoring) {
         return current;
@@ -216,6 +254,24 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
       restoreNoteVersion(store, noteId, content.markdown)
         .then(() => {
           closePreview();
+          showToast({
+            message: `Restored revision from ${formatVersionTimestamp(content.createdAt)}`,
+            action:
+              previousMarkdown === null
+                ? undefined
+                : {
+                    label: "Undo",
+                    run: () => {
+                      restoreNoteVersion(store, noteId, previousMarkdown).catch(
+                        (error: unknown) => {
+                          showToast({
+                            message: errorMessage(error, "Could not undo the restore."),
+                          });
+                        },
+                      );
+                    },
+                  },
+          });
         })
         .catch((error: unknown) => {
           setPreview({
@@ -228,160 +284,109 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
     });
   }
 
-  function moveSelection(fromVersionId: string, direction: 1 | -1): void {
-    const index = versions.findIndex((item) => item.versionId === fromVersionId);
-    if (index === -1) {
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
       return;
     }
-    const next = versions[Math.max(0, Math.min(versions.length - 1, index + direction))];
-    focusVersion(next?.versionId ?? fromVersionId);
-  }
-
-  function focusVersion(versionId: string): void {
-    const button = parentRef.current?.querySelector<HTMLButtonElement>(
-      `[data-version-id="${CSS.escape(versionId)}"]`,
-    );
-    button?.focus();
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (selectedVersionId !== null && !compact) {
+        const versionId = selectedVersionId;
+        closePreview();
+        requestFocus(versionId, true);
+        return;
+      }
+      onBack();
+      return;
+    }
+    if (isTextEntry(event.target)) {
+      return;
+    }
+    if ((event.key === "c" || event.key === "C") && preview?.status === "ready") {
+      event.preventDefault();
+      copyMarkdown(preview.content.markdown);
+    }
   }
 
   useEffect(() => {
     if (!requestedVersionId || appliedRequestRef.current === requestedVersionId) {
       return;
     }
-    const index = rows.findIndex(
-      (row) => row.kind === "version" && row.item.versionId === requestedVersionId,
-    );
-    if (index === -1) {
+    if (!versions.some((item) => item.versionId === requestedVersionId)) {
       return;
     }
     appliedRequestRef.current = requestedVersionId;
+    autoOpenedRef.current = true;
     loadVersion(requestedVersionId);
-    virtualizer.scrollToIndex(index, { align: "center" });
-  }, [requestedVersionId, rows]);
+    requestFocus(requestedVersionId, !compact);
+  }, [requestedVersionId, versions]);
 
   useEffect(() => {
     const newest = versions[0];
-    if (compact && preview === null && !requestedVersionId && newest) {
+    if (preview !== null || requestedVersionId || !newest) {
+      return;
+    }
+    if (compact || !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
       loadVersion(newest.versionId);
+      requestFocus(newest.versionId, !compact);
     }
   }, [compact]);
+
+  const content = preview?.status === "ready" ? preview.content : staleContent();
+  const dimmed =
+    preview?.status === "loading" ||
+    (scrubVersionId !== null && scrubVersionId !== preview?.versionId);
 
   return (
     <div
       className={cn(
         "grid h-full min-h-0",
-        compact ? "grid-cols-1" : "grid-cols-[minmax(232px,286px)_minmax(0,1fr)]",
+        compact ? "grid-cols-1" : "grid-cols-[minmax(272px,320px)_minmax(0,1fr)]",
       )}
+      onKeyDown={handleKeyDown}
     >
-      <div
-        ref={parentRef}
+      <aside
+        aria-label="Revisions"
         className={cn(
-          "relative min-h-0 overflow-y-auto overscroll-contain border-r border-theme-divider px-2 pb-3",
+          "flex min-h-0 flex-col border-r border-sidebar-border bg-sidebar pt-2",
           compact && "hidden",
         )}
-        role="listbox"
-        aria-label="Version history"
       >
-        <div style={{ height: virtualizer.getTotalSize(), width: "100%", position: "relative" }}>
-          {virtualizer.getVirtualItems().map((virtualRow) => {
-            const row = rows[virtualRow.index];
-            if (!row) {
-              return null;
-            }
-            const style = {
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              height: virtualRow.size,
-              transform: `translateY(${virtualRow.start - virtualizer.options.scrollMargin}px)`,
-            } as const;
+        <VersionLedger
+          versions={versions}
+          rows={rows}
+          openVersionId={selectedVersionId}
+          focusRequest={focusRequest}
+          onOpen={loadVersion}
+          onCopy={copyVersion}
+          onWarm={warmVersion}
+        />
+        {versions.length === 1 && (
+          <p className="m-0 border-t border-theme-divider/85 px-5 py-3 text-xs leading-[1.45] text-theme-secondary">
+            One revision so far. Skriuw captures the next one after a pause in typing.
+          </p>
+        )}
+        <p
+          id="history-keyboard-help"
+          className="m-0 flex flex-wrap gap-x-2.5 gap-y-[5px] border-t border-theme-divider/85 px-4 py-2.5 text-[10.5px] whitespace-nowrap text-theme-dim"
+        >
+          <span>
+            <kbd>↑</kbd> <kbd>↓</kbd> Move
+          </span>
+          <span>
+            <kbd>Enter</kbd> Open
+          </span>
+          <span>
+            <kbd>C</kbd> Copy
+          </span>
+          <span>
+            <kbd>Esc</kbd> {selectedVersionId === null ? "Back to note" : "Close"}
+          </span>
+        </p>
+      </aside>
 
-            if (row.kind === "group") {
-              return (
-                <div key={row.key} style={style} className="flex items-end pb-1.5 pl-[15px] pr-2">
-                  <span className={sectionLabelClass}>{row.label}</span>
-                  <span className="ml-auto font-mono text-[10px] tabular-nums text-muted-foreground/50">
-                    {row.count}
-                  </span>
-                </div>
-              );
-            }
-
-            const version = row.item;
-            const selected = selectedVersionId === version.versionId;
-            const isHead = row.index === 0;
-            return (
-              <div key={row.key} style={style}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={selected}
-                  data-version-id={version.versionId}
-                  className={cn(
-                    "group relative flex h-full w-full min-w-0 cursor-pointer flex-col justify-center gap-[3px] rounded-[var(--radius-md)] border-none bg-transparent py-2 pl-[30px] pr-2.5 text-left transition-colors",
-                    "hover:bg-theme-hover focus-visible:bg-theme-hover focus-visible:outline-none",
-                    selected && "bg-theme-active hover:bg-theme-active",
-                  )}
-                  onClick={() => openVersion(version)}
-                  onKeyDown={(event) => {
-                    if (event.key === "ArrowDown") {
-                      event.preventDefault();
-                      moveSelection(version.versionId, 1);
-                    } else if (event.key === "ArrowUp") {
-                      event.preventDefault();
-                      moveSelection(version.versionId, -1);
-                    } else if (event.key === "Home") {
-                      event.preventDefault();
-                      const first = versions[0];
-                      if (first) {
-                        focusVersion(first.versionId);
-                      }
-                    } else if (event.key === "End") {
-                      event.preventDefault();
-                      const last = versions[versions.length - 1];
-                      if (last) {
-                        focusVersion(last.versionId);
-                      }
-                    }
-                  }}
-                  aria-posinset={row.index + 1}
-                  aria-setsize={versions.length}
-                >
-                  <HistoryGraphRail
-                    isFirst={row.index === 0}
-                    isLast={row.index === versions.length - 1}
-                    isHead={isHead}
-                    isSelected={selected}
-                  />
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span
-                      className={cn(
-                        "shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground transition-colors",
-                        selected && "text-foreground",
-                      )}
-                      title={formatVersionTimestamp(version.createdAt)}
-                    >
-                      {formatVersionClock(version.createdAt)}
-                    </span>
-                    <VersionStats wordDelta={version.wordDelta} />
-                  </span>
-                  <span
-                    className={cn(
-                      "block truncate text-[11px] leading-4 text-muted-foreground/55 transition-colors",
-                      selected && "text-muted-foreground",
-                    )}
-                  >
-                    {version.summary}
-                  </span>
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="relative flex min-h-0 min-w-0 flex-col">
+      <section aria-label="Revision" className="relative flex min-h-0 min-w-0 flex-col">
         {versions.length > 1 && (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center px-4 pb-[max(12px,env(safe-area-inset-bottom,0px))]">
             <HistoryScrubber
@@ -391,226 +396,88 @@ export function VersionHistoryPanel({ store, noteId, versions, requestedVersionI
             />
           </div>
         )}
-        {!preview && <PreviewPlaceholder />}
-        {preview?.status === "loading" && <PreviewPlaceholder message="Loading revision…" muted />}
-        {preview?.status === "error" && (
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-theme-divider px-4 py-2.5">
-            <p className="m-0 text-[12px] text-destructive">{preview.message}</p>
-            <PreviewCloseButton onClick={closePreview} />
-          </div>
-        )}
-        {preview?.status === "ready" && (
-          <div
-            className={cn(
-              "flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-150",
-              scrubVersionId !== null && scrubVersionId !== preview.versionId && "opacity-60",
-              revealing &&
-                "animate-in fade-in-0 duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:animate-none",
+        {selectedItem === null || selectedIndex === null ? (
+          <ClosedPlaceholder count={versions.length} />
+        ) : (
+          <>
+            <ReadingHeader
+              item={selectedItem}
+              position={versions.length - selectedIndex}
+              total={versions.length}
+              dayLabel={formatVersionDay(selectedItem.createdAt)}
+              versionMarkdown={preview?.status === "ready" ? preview.content.markdown : null}
+              currentMarkdown={currentMarkdown}
+              mode={mode}
+              layout={layout}
+              showLayout={currentMarkdown !== null && !compact}
+              restoring={preview?.status === "ready" && preview.restoring}
+              hasNewer={selectedIndex > 0}
+              hasOlder={selectedIndex < versions.length - 1}
+              onMode={setMode}
+              onLayout={(next) => setHistoryDiffLayout(store, next)}
+              onStep={stepVersion}
+              onCopy={() => {
+                if (preview?.status === "ready") {
+                  copyMarkdown(preview.content.markdown);
+                }
+              }}
+              onRestore={confirmRestore}
+              onClose={() => {
+                const versionId = selectedVersionId;
+                closePreview();
+                if (versionId !== null && !compact) {
+                  requestFocus(versionId, true);
+                }
+              }}
+            />
+            {preview?.status === "error" && (
+              <p
+                role="alert"
+                className="mx-5 mt-3 mb-0 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-[12.5px] text-destructive"
+              >
+                {preview.message}
+              </p>
             )}
-          >
-            <div className="flex h-[46px] shrink-0 items-center gap-2.5 border-b border-theme-divider px-4">
-              <span className="rounded-[var(--radius-sm)] bg-theme-hover px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-theme-secondary">
-                r{preview.content.revision}
-              </span>
-              <span className="truncate text-[12px] font-[560] text-foreground">
-                {formatVersionTimestamp(preview.content.createdAt)}
-              </span>
-              {currentMarkdown !== null && !compact && (
-                <DiffStats
-                  versionMarkdown={preview.content.markdown}
-                  currentMarkdown={currentMarkdown}
-                />
-              )}
-              <div className="ml-auto flex shrink-0 items-center gap-2">
-                {currentMarkdown !== null && mode === "diff" && !compact && (
-                  <LayoutToggle
-                    layout={layout}
-                    onChange={(next) => setHistoryDiffLayout(store, next)}
-                  />
+            {content !== null && (
+              <div
+                className={cn(
+                  "flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
+                  dimmed && "opacity-55",
                 )}
-                {currentMarkdown !== null && <ModeToggle mode={mode} onChange={setMode} />}
-                <InlineConfirm
-                  size="sm"
-                  confirmLabel="Restore"
-                  message="Replace current content?"
-                  onConfirm={confirmRestore}
-                  renderIdle={(arm) => (
-                    <button
-                      type="button"
-                      className="inline-flex h-[26px] shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-md)] border border-border bg-transparent px-2.5 text-[12px] font-[560] text-foreground/85 transition-colors hover:bg-theme-hover hover:text-foreground disabled:opacity-60"
-                      disabled={preview.restoring}
-                      onClick={arm}
-                    >
-                      <RotateCcwIcon size={12} />
-                      {preview.restoring ? "Restoring…" : "Restore"}
-                    </button>
-                  )}
-                />
-                <PreviewCloseButton onClick={closePreview} />
+              >
+                {mode === "diff" && currentMarkdown !== null ? (
+                  <VersionDiffView
+                    versionMarkdown={content.markdown}
+                    currentMarkdown={currentMarkdown}
+                    layout={layout}
+                  />
+                ) : (
+                  <VersionMarkdownPreview markdown={content.markdown} />
+                )}
               </div>
-            </div>
-            {mode === "diff" && currentMarkdown !== null ? (
-              <VersionDiffView
-                versionMarkdown={preview.content.markdown}
-                currentMarkdown={currentMarkdown}
-                layout={layout}
-              />
-            ) : (
-              <VersionMarkdownPreview markdown={preview.content.markdown} />
             )}
-          </div>
+          </>
         )}
-      </div>
+      </section>
     </div>
   );
 }
 
-type PreviewPlaceholderProps = {
-  message?: string;
-  muted?: boolean;
+type ClosedPlaceholderProps = {
+  count: number;
 };
 
-function PreviewPlaceholder({ message, muted }: PreviewPlaceholderProps) {
+function ClosedPlaceholder({ count }: ClosedPlaceholderProps) {
   return (
-    <div className="m-auto flex max-w-[38ch] flex-col items-center px-6 text-center">
-      {!muted && (
-        <span className="mb-3 grid size-9 place-items-center rounded-full bg-theme-hover text-theme-secondary">
-          <HistoryIcon size={16} />
-        </span>
-      )}
-      <p className="m-0 text-[12px] leading-[1.5] text-muted-foreground">
-        {message ?? "Select a revision to preview its content and restore it."}
+    <div className="m-auto flex max-w-[40ch] flex-col items-center gap-1.5 px-6 pb-24 text-center">
+      <p className="m-0 text-[13px] font-medium text-foreground">
+        {count === 1 ? "One revision" : `${count} revisions`}
+      </p>
+      <p className="m-0 text-xs leading-[1.5] text-theme-secondary">
+        Pick a revision to compare it with the note now. <kbd>Enter</kbd> opens the highlighted one,{" "}
+        <kbd>Esc</kbd> goes back to the note.
       </p>
     </div>
-  );
-}
-
-type DiffStatsProps = {
-  versionMarkdown: string;
-  currentMarkdown: string;
-};
-
-function DiffStats({ versionMarkdown, currentMarkdown }: DiffStatsProps) {
-  const diff = useMarkdownDiff(versionMarkdown, currentMarkdown);
-  if (diff.stats.added === 0 && diff.stats.removed === 0) {
-    return <span className="shrink-0 text-[11px] text-muted-foreground/70">Identical to now</span>;
-  }
-  return (
-    <span
-      className="flex shrink-0 items-center gap-2 font-mono text-[11px] tabular-nums"
-      title={`${diff.stats.added} lines added and ${diff.stats.removed} removed since this revision`}
-    >
-      <span className="diff-stat-added">+{diff.stats.added}</span>
-      <span className="diff-stat-removed">−{diff.stats.removed}</span>
-    </span>
-  );
-}
-
-type ModeToggleProps = {
-  mode: PreviewMode;
-  onChange: (mode: PreviewMode) => void;
-};
-
-const MODE_OPTIONS: readonly { value: PreviewMode; label: string }[] = [
-  { value: "diff", label: "Changes" },
-  { value: "full", label: "Revision" },
-];
-
-function ModeToggle({ mode, onChange }: ModeToggleProps) {
-  return (
-    <div
-      role="tablist"
-      aria-label="Preview mode"
-      className="flex shrink-0 items-center gap-0.5 rounded-[var(--radius-md)] bg-theme-hover p-0.5"
-    >
-      {MODE_OPTIONS.map((option) => {
-        const active = mode === option.value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(option.value)}
-            className={cn(
-              "relative h-[22px] cursor-pointer border-none bg-transparent px-2 text-[11px] font-[560] transition-colors",
-              active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {active && (
-              <motion.span
-                aria-hidden
-                layoutId="history-mode-indicator"
-                className="absolute inset-0 rounded-[calc(var(--radius-md)-2px)] bg-theme-editor shadow-sm"
-                transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}
-              />
-            )}
-            <span className="relative">{option.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-type LayoutToggleProps = {
-  layout: DiffLayout;
-  onChange: (layout: DiffLayout) => void;
-};
-
-const LAYOUT_OPTIONS: readonly { value: DiffLayout; label: string; Icon: typeof SplitViewIcon }[] =
-  [
-    { value: "unified", label: "Unified", Icon: SplitViewStackedIcon },
-    { value: "split", label: "Side by side", Icon: SplitViewIcon },
-  ];
-
-function LayoutToggle({ layout, onChange }: LayoutToggleProps) {
-  return (
-    <div
-      role="radiogroup"
-      aria-label="Diff layout"
-      className="flex shrink-0 items-center gap-0.5 rounded-[var(--radius-md)] bg-theme-hover p-0.5"
-    >
-      {LAYOUT_OPTIONS.map((option) => {
-        const active = layout === option.value;
-        return (
-          <Tooltip key={option.value} label={option.label}>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={active}
-              aria-label={option.label}
-              onClick={() => onChange(option.value)}
-              className={cn(
-                "grid size-[22px] cursor-pointer place-items-center rounded-[calc(var(--radius-md)-2px)] border-none bg-transparent transition-colors",
-                active
-                  ? "bg-theme-editor text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <option.Icon size={13} />
-            </button>
-          </Tooltip>
-        );
-      })}
-    </div>
-  );
-}
-
-type PreviewCloseButtonProps = {
-  onClick: () => void;
-};
-
-function PreviewCloseButton({ onClick }: PreviewCloseButtonProps) {
-  return (
-    <button
-      type="button"
-      className="grid size-[26px] shrink-0 cursor-pointer place-items-center rounded-[var(--radius-md)] border-none bg-transparent text-muted-foreground transition-colors hover:bg-theme-hover hover:text-foreground"
-      aria-label="Close preview"
-      onClick={onClick}
-    >
-      <CloseIcon size={13} />
-    </button>
   );
 }
 
@@ -633,10 +500,10 @@ function VersionMarkdownPreview({ markdown }: VersionMarkdownPreviewProps) {
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div
         ref={ref}
-        className="prosemirror-host ProseMirror mx-auto w-full max-w-[70ch] px-8 pb-28 pt-6 text-[13px]"
+        className="prosemirror-host ProseMirror mx-auto w-full max-w-[70ch] px-8 pb-32 pt-6 text-[13px]"
       />
     </div>
   ) : (
-    <PreviewPlaceholder message="This revision has no content." muted />
+    <p className="m-auto px-6 pb-24 text-xs text-theme-secondary">This revision has no content.</p>
   );
 }
