@@ -156,8 +156,10 @@ window, not the workspace.
 
 The metadata panel gains a **Comments** section, rendered only when the active
 note has at least one thread. Entries show the anchor text, a relative
-timestamp, the first comment, and a reply count. A filter chooses Open (default),
-Resolved, or All. Clicking an entry issues a thread reveal through
+timestamp, the first comment, and a reply count. A segmented filter with counts
+chooses Open (default), Resolved, or All. `R` on a focused entry, or its resolve
+button, resolves or reopens the thread and moves focus to the neighbouring entry.
+Clicking an entry issues a thread reveal through
 `reveal-controller.ts`, the same seam block reveal uses — the editor performs the
 reveal because only it can move the bounded window.
 

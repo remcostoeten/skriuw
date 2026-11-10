@@ -18,7 +18,7 @@ import {
 import { RelationshipGraphView } from "./graph";
 import { UnlinkedMentions } from "../mentions/unlinked";
 
-const ROWS = 5;
+const ROWS = 4;
 
 function sameRows<T extends { noteId: string; title: string; detail?: string }>(
   left: readonly T[],
