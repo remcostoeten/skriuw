@@ -3,6 +3,7 @@ import { loadPromptPlayground, loadSignInDrawer, warmEditorRenderers } from "@/a
 import { registerAiSettings } from "@/features/ai/settings";
 import { installBackNavigation } from "@/features/references/shell";
 import { scheduleSearchIndexReconciliation } from "@/features/search/index-maintenance";
+import { scheduleStartupUpdateCheck } from "@/features/updates/startup-check";
 import { useTitleBarDoubleClickMaximize } from "@/shell/title-bar";
 import type { AppRoute } from "@skriuw/renderer-core/route/app-route";
 import { appRouteHash } from "@skriuw/renderer-core/route/app-route";
@@ -15,13 +16,14 @@ type Options = {
   /** True while a surface that can open sign-in or the AI playground is showing. */
   launcherOpen: boolean;
   openAiSettings(): void;
+  openAboutSettings(): void;
 };
 
 /**
  * Starts the feature services the mounted workspace keeps running: entity back
  * navigation, search index upkeep, the title-bar maximize gesture, the AI
  * settings entry point and route gate, and warming lazy surfaces and editor
- * renderers.
+ * renderers, and the one update check per launch.
  */
 export function useWorkspaceServices({
   store,
@@ -29,6 +31,7 @@ export function useWorkspaceServices({
   aiEnabled,
   launcherOpen,
   openAiSettings,
+  openAboutSettings,
 }: Options): void {
   useEffect(() => installBackNavigation(store), [store]);
   useEffect(() => scheduleSearchIndexReconciliation(), []);
@@ -52,4 +55,5 @@ export function useWorkspaceServices({
     }
   }, [aiEnabled, route]);
   useEffect(() => registerAiSettings(openAiSettings), [openAiSettings]);
+  useEffect(() => scheduleStartupUpdateCheck(openAboutSettings), [openAboutSettings]);
 }

@@ -1,12 +1,15 @@
 import { settingsCopy } from "@/shared/ui/settings-copy";
 import { useEffect, useRef, useState } from "react";
 import { openExternalUrl } from "@/platform/runtime/commands";
+import { ABOUT_LINKS, readAppVersion } from "@/features/settings-dialog/about/model";
 import {
-  ABOUT_LINKS,
   checkForUpdate,
   describeUpdateOutcome,
-  readAppVersion,
-} from "@/features/settings-dialog/about/model";
+  downloadPercentage,
+  installPendingUpdate,
+  type InstallProgress,
+  type UpdateOutcome,
+} from "@/features/updates/updater";
 import {
   SettingsGroup,
   SettingsRow,
@@ -15,10 +18,52 @@ import {
   settingsSection,
 } from "@/shared/ui/settings-controls";
 
+type UpdateState =
+  | { phase: "idle" }
+  | { phase: "checking" }
+  | { phase: "checked"; outcome: UpdateOutcome }
+  | { phase: "installing"; version: string; progress: InstallProgress }
+  | { phase: "installFailed"; version: string; message: string };
+
+function updateStatusText(state: UpdateState): string | null {
+  if (state.phase === "checked") {
+    return describeUpdateOutcome(state.outcome);
+  }
+  if (state.phase === "installing") {
+    const percentage = downloadPercentage(state.progress);
+    return percentage === null
+      ? `Downloading version ${state.version}…`
+      : `Downloading version ${state.version}… ${percentage}%`;
+  }
+  if (state.phase === "installFailed") {
+    return `Version ${state.version} could not be installed: ${state.message}`;
+  }
+  return null;
+}
+
+function availableVersion(state: UpdateState): string | null {
+  if (state.phase === "checked" && state.outcome.status === "available") {
+    return state.outcome.version;
+  }
+  if (state.phase === "installFailed") {
+    return state.version;
+  }
+  return null;
+}
+
+function checkButtonLabel(state: UpdateState): string {
+  if (state.phase === "checking") {
+    return "Checking…";
+  }
+  if (state.phase === "installing") {
+    return "Installing…";
+  }
+  return settingsCopy.about.checkForUpdates;
+}
+
 export function AboutSection() {
   const [version, setVersion] = useState<string | null>(null);
-  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
-  const [checking, setChecking] = useState(false);
+  const [update, setUpdate] = useState<UpdateState>({ phase: "idle" });
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -34,20 +79,37 @@ export function AboutSection() {
   }, []);
 
   function runUpdateCheck(): void {
-    setChecking(true);
-    setUpdateStatus(null);
-    checkForUpdate()
-      .then((outcome) => {
-        if (mountedRef.current) {
-          setUpdateStatus(describeUpdateOutcome(outcome));
-        }
-      })
-      .finally(() => {
-        if (mountedRef.current) {
-          setChecking(false);
-        }
-      });
+    setUpdate({ phase: "checking" });
+    checkForUpdate().then((outcome) => {
+      if (mountedRef.current) {
+        setUpdate({ phase: "checked", outcome });
+      }
+    });
   }
+
+  function runInstall(target: string): void {
+    setUpdate({
+      phase: "installing",
+      version: target,
+      progress: { downloadedBytes: 0, totalBytes: null },
+    });
+    installPendingUpdate((progress) => {
+      if (mountedRef.current) {
+        setUpdate({ phase: "installing", version: target, progress });
+      }
+    }).catch((error) => {
+      if (mountedRef.current) {
+        setUpdate({
+          phase: "installFailed",
+          version: target,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+  }
+
+  const statusText = updateStatusText(update);
+  const installable = availableVersion(update);
 
   return (
     <section aria-label="About" className={settingsSection}>
@@ -60,21 +122,31 @@ export function AboutSection() {
             </span>
           }
           notes={
-            updateStatus ? (
+            statusText ? (
               <span className={settingsRowDetail} role="status">
-                {updateStatus}
+                {statusText}
               </span>
             ) : null
           }
         >
-          <button
-            type="button"
-            className={settingsButton}
-            disabled={checking}
-            onClick={runUpdateCheck}
-          >
-            {checking ? "Checking…" : settingsCopy.about.checkForUpdates}
-          </button>
+          {installable === null ? (
+            <button
+              type="button"
+              className={settingsButton}
+              disabled={update.phase === "checking" || update.phase === "installing"}
+              onClick={runUpdateCheck}
+            >
+              {checkButtonLabel(update)}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={settingsButton}
+              onClick={() => runInstall(installable)}
+            >
+              {settingsCopy.about.installAndRestart}
+            </button>
+          )}
         </SettingsRow>
       </SettingsGroup>
       <SettingsGroup

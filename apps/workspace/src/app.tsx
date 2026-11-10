@@ -282,6 +282,7 @@ function WorkspaceShell({ store }: Props) {
     setSettingsOpen(true);
   }, []);
   const openAiSettings = useCallback(() => openSettingsAt("ai"), [openSettingsAt]);
+  const openAboutSettings = useCallback(() => openSettingsAt("about"), [openSettingsAt]);
   const { signInOpen, signInMounted, openSignIn, onSignInOpenChange } = useSignIn(
     store,
     setSettingsOpen,
@@ -293,6 +294,7 @@ function WorkspaceShell({ store }: Props) {
     aiEnabled,
     launcherOpen: settingsOpen || paletteOpen,
     openAiSettings,
+    openAboutSettings,
   });
   const registry = useMemo(
     () =>
