@@ -11,7 +11,7 @@ import {
   upcomingWeek,
   visibleRowIds,
   type TaskGroup,
-} from "@/features/tasks/model";
+} from "@skriuw/renderer-core/tasks/rows";
 import type { TaskSource, WorkspaceTask } from "@skriuw/renderer-core/contracts/workspace";
 import type { DocumentRecord, NodeRecord, RendererState } from "@skriuw/renderer-core/store/types";
 

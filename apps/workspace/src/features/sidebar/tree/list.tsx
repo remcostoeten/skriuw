@@ -1,7 +1,7 @@
 import type { KeyboardEvent } from "react";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { DropIndicator } from "../drag/drop-indicator";
-import type { DropTarget } from "../drag/rules";
+import type { DropTarget } from "@skriuw/renderer-core/store/tree-drop";
 import { focusTreeItem, type TreeRef } from "./focus";
 import type { TreeMetrics } from "./metrics";
 import type { TreePointerHandlers } from "./pointer";

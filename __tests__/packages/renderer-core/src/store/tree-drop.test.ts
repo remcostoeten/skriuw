@@ -13,7 +13,7 @@ import {
   moveDropTarget,
   rowIndexAt,
   sameDropTarget,
-} from "@/features/sidebar/drag/rules";
+} from "@skriuw/renderer-core/store/tree-drop";
 import { buildNodeIndex } from "@skriuw/renderer-core/store/tree";
 
 const { nodes } = buildNodeIndex([

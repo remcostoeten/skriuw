@@ -17,7 +17,7 @@ import {
   subtasksOf,
   type JsonNode,
   type SubtaskPath,
-} from "./task-document";
+} from "@skriuw/renderer-core/tasks/task-document";
 
 export type TaskWriteRefusal =
   | "unknown-task"

@@ -1,19 +1,13 @@
 import { useEffect, useRef, useState, type ComponentRef } from "react";
-import {
-  AccessibilityInfo,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { AccessibilityInfo, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { lockActionLabel } from "../features/lock/lock-model";
 import { BottomSheet } from "./bottom-sheet";
 import { MINIMUM_TOUCH_TARGET } from "./metrics";
 import { useTheme } from "./theme";
 import { treeIndent, type TreeRow } from "./tree-model";
+import { PressableDim } from "./pressable-dim";
+import { PressableScale } from "./pressable-scale";
 
 export type MoveTarget = {
   id: string | null;
@@ -25,7 +19,7 @@ type RowActionsProps = {
   row: TreeRow | null;
   moveTargets: readonly MoveTarget[];
   onClose: () => void;
-  onRename: (row: TreeRow, title: string) => void;
+  onRename: (row: TreeRow) => void;
   onMove: (row: TreeRow, parentId: string | null) => void;
   onPin: (row: TreeRow, pinned: boolean) => void;
   onToggleLock: (row: TreeRow) => void;
@@ -34,12 +28,13 @@ type RowActionsProps = {
   onCreateFolder: (row: TreeRow) => void;
 };
 
-type Mode = "actions" | "rename" | "move";
+type Mode = "actions" | "move";
 
 /**
- * What a hold on a tree row opens: the row's actions, and the two that need a
- * second step. Android's back closes the sheet through `onRequestClose`,
- * which is the platform's own overlay-first back (ADR-0047).
+ * What a hold on a tree row opens: the row's actions, and the folder list for
+ * a move without dragging. Rename hands back to the row, which edits in place.
+ * Android's back closes the sheet through `onRequestClose`, which is the
+ * platform's own overlay-first back (ADR-0047).
  */
 export function RowActions({
   row,
@@ -58,11 +53,11 @@ export function RowActions({
   const [trackedRow, setTrackedRow] = useState(row);
   const [shownRow, setShownRow] = useState(row);
   const [mode, setMode] = useState<Mode>("actions");
-  const [draftTitle, setDraftTitle] = useState(row?.title ?? "");
   const heading = useRef<ComponentRef<typeof Text>>(null);
 
   function focusHeading(): void {
-    if (heading.current !== null) {
+    // react-native-web ships no sendAccessibilityEvent
+    if (heading.current !== null && Platform.OS !== "web") {
       AccessibilityInfo.sendAccessibilityEvent(heading.current, "focus");
     }
   }
@@ -78,7 +73,6 @@ export function RowActions({
     if (row !== null) {
       setShownRow(row);
       setMode("actions");
-      setDraftTitle(row.title);
     }
   }
 
@@ -111,7 +105,7 @@ export function RowActions({
 
           {mode === "actions" ? (
             <View>
-              <ActionRow label="Rename" onPress={() => setMode("rename")} />
+              <ActionRow label="Rename" onPress={() => onRename(shownRow)} />
               <ActionRow label="Move…" onPress={() => setMode("move")} />
               <ActionRow
                 label={shownRow.pinned ? "Unpin" : "Pin"}
@@ -131,33 +125,10 @@ export function RowActions({
             </View>
           ) : null}
 
-          {mode === "rename" ? (
-            <View style={styles.renameBody}>
-              <TextInput
-                accessibilityLabel="Name"
-                autoFocus
-                defaultValue={shownRow.title}
-                onChangeText={setDraftTitle}
-                onSubmitEditing={() => onRename(shownRow, draftTitle)}
-                returnKeyType="done"
-                selectTextOnFocus
-                style={[
-                  styles.input,
-                  {
-                    color: theme.color("foreground"),
-                    borderColor: theme.color("input"),
-                    backgroundColor: theme.color("background"),
-                  },
-                ]}
-              />
-              <ActionRow label="Save" onPress={() => onRename(shownRow, draftTitle)} />
-            </View>
-          ) : null}
-
           {mode === "move" ? (
             <ScrollView style={styles.moveList} keyboardShouldPersistTaps="handled">
               {moveTargets.map((target) => (
-                <Pressable
+                <PressableDim
                   key={target.id ?? "root"}
                   accessibilityRole="button"
                   accessibilityLabel={`Move to ${target.title}`}
@@ -170,19 +141,19 @@ export function RowActions({
                   >
                     {target.title}
                   </Text>
-                </Pressable>
+                </PressableDim>
               ))}
             </ScrollView>
           ) : null}
         </View>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel="Cancel"
           onPress={onClose}
           style={[styles.panel, styles.cancel, surface]}
         >
           <Text style={[styles.actionLabel, { color: theme.color("foreground") }]}>Cancel</Text>
-        </Pressable>
+        </PressableScale>
       </View>
     </BottomSheet>
   );
@@ -197,7 +168,7 @@ type ActionRowProps = {
 function ActionRow({ label, destructive = false, onPress }: ActionRowProps) {
   const theme = useTheme();
   return (
-    <Pressable
+    <PressableDim
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
@@ -211,7 +182,7 @@ function ActionRow({ label, destructive = false, onPress }: ActionRowProps) {
       >
         {label}
       </Text>
-    </Pressable>
+    </PressableDim>
   );
 }
 
@@ -243,18 +214,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   actionLabel: {
-    fontSize: 16,
-  },
-  renameBody: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    gap: 8,
-  },
-  input: {
-    minHeight: MINIMUM_TOUCH_TARGET,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 10,
-    paddingHorizontal: 12,
     fontSize: 16,
   },
   moveList: {

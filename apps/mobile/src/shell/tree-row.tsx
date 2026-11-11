@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useRef } from "react";
-import { StyleSheet, Text, useWindowDimensions, View, type ViewStyle } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+  type ViewStyle,
+} from "react-native";
 import {
   GestureDetector,
   useCompetingGestures,
-  useLongPressGesture,
   usePanGesture,
   useTapGesture,
 } from "react-native-gesture-handler";
@@ -16,7 +22,7 @@ import Animated, {
   type CSSStyle,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
-import { holdHaptic, snapHaptic } from "./haptics";
+import { snapHaptic } from "./haptics";
 import { ShellIcon } from "./icons";
 import { MINIMUM_TOUCH_TARGET, TREE_ROW_HEIGHT } from "./metrics";
 import { PAN_REACH_PX, PRESS_EASING, SETTLE_SPRING, STATE_MS } from "./motion";
@@ -29,6 +35,7 @@ import {
   swipeOffset,
 } from "./row-gesture";
 import { useTheme } from "./theme";
+import { DRAG_SLOP_PX, type DragOutcome, type TreeDragValues } from "./tree-drag";
 import {
   treeIndent,
   treeRowAccessibilityHint,
@@ -46,9 +53,14 @@ const ROW_ACCESSIBILITY_ACTIONS = [
 
 type Props = {
   id: string;
+  drag: TreeDragValues;
+  renaming: boolean;
   onPress: (row: TreeRowModel) => void;
   onLongPress: (row: TreeRowModel) => void;
   onDelete: (row: TreeRowModel) => void;
+  onDragStart: (row: TreeRowModel) => void;
+  onDragEnd: (row: TreeRowModel, outcome: DragOutcome) => void;
+  onRenameEnd: (row: TreeRowModel, title: string) => void;
 };
 
 const SLIDE_OUT_MS = 200;
@@ -65,12 +77,24 @@ const CHEVRON_TURN: CSSStyle<ViewStyle> = {
 
 /**
  * One tree row, subscribed to its own node alone: renaming or pinning a
- * sibling re-renders that sibling and nothing else. Hold opens the row's
- * actions; a pull to the left deletes it. The pull follows the finger on the
- * UI thread, a flick past the delete point slides the row out, and a short
- * pull springs back carrying the finger's velocity.
+ * sibling re-renders that sibling and nothing else. Hold lifts the row: moving
+ * it from there drags it to a new place, and letting go without moving opens
+ * the row's actions. A pull to the left deletes it. The pull follows the
+ * finger on the UI thread, a flick past the delete point slides the row out,
+ * and a short pull springs back carrying the finger's velocity. While it is
+ * being renamed the title is a text field and the gestures stand down.
  */
-export function TreeRow({ id, onPress, onLongPress, onDelete }: Props) {
+export function TreeRow({
+  id,
+  drag,
+  renaming,
+  onPress,
+  onLongPress,
+  onDelete,
+  onDragStart,
+  onDragEnd,
+  onRenameEnd,
+}: Props) {
   const theme = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const selector = useMemo(() => treeRowSelector(id), [id]);
@@ -79,6 +103,7 @@ export function TreeRow({ id, onPress, onLongPress, onDelete }: Props) {
   const dragOrigin = useSharedValue(0);
   const pastDeletePoint = useSharedValue(false);
   const recoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftTitle = useRef("");
 
   useEffect(
     () => () => {
@@ -100,7 +125,20 @@ export function TreeRow({ id, onPress, onLongPress, onDelete }: Props) {
     }, RECOVER_AFTER_MS);
   }
 
+  function startDrag() {
+    if (row !== null) {
+      onDragStart(row);
+    }
+  }
+
+  function endDrag(outcome: DragOutcome) {
+    if (row !== null) {
+      onDragEnd(row, outcome);
+    }
+  }
+
   const pan = usePanGesture({
+    enabled: !renaming,
     activeOffsetX: [-SWIPE_LOCK_PX, PAN_REACH_PX],
     failOffsetX: [-PAN_REACH_PX, SWIPE_LOCK_PX],
     failOffsetY: [-SCROLL_SLOP_PX, SCROLL_SLOP_PX],
@@ -137,18 +175,30 @@ export function TreeRow({ id, onPress, onLongPress, onDelete }: Props) {
     },
   });
 
-  const hold = useLongPressGesture({
-    minDuration: LONG_PRESS_MS,
-    runOnJS: true,
-    onActivate: () => {
-      if (row !== null) {
-        holdHaptic();
-        onLongPress(row);
+  const lift = usePanGesture({
+    enabled: !renaming,
+    activateAfterLongPress: LONG_PRESS_MS,
+    onActivate: (event) => {
+      drag.fingerY.set(event.absoluteY);
+      drag.moved.set(false);
+      drag.draggedId.set(id);
+      scheduleOnRN(startDrag);
+    },
+    onUpdate: (event) => {
+      drag.fingerY.set(event.absoluteY);
+      if (!drag.moved.get() && Math.hypot(event.translationX, event.translationY) > DRAG_SLOP_PX) {
+        drag.moved.set(true);
       }
+    },
+    onDeactivate: (event) => {
+      const outcome: DragOutcome = event.canceled ? "cancel" : drag.moved.get() ? "drop" : "menu";
+      drag.draggedId.set(null);
+      scheduleOnRN(endDrag, outcome);
     },
   });
 
   const tap = useTapGesture({
+    enabled: !renaming,
     maxDistance: SCROLL_SLOP_PX,
     runOnJS: true,
     onActivate: () => {
@@ -158,10 +208,14 @@ export function TreeRow({ id, onPress, onLongPress, onDelete }: Props) {
     },
   });
 
-  const gesture = useCompetingGestures(pan, hold, tap);
+  const gesture = useCompetingGestures(pan, lift, tap);
 
   const slideStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: offset.get() }],
+  }));
+
+  const trackStyle = useAnimatedStyle(() => ({
+    opacity: offset.get() < 0 ? 1 : 0,
   }));
 
   if (row === null) {
@@ -173,10 +227,16 @@ export function TreeRow({ id, onPress, onLongPress, onDelete }: Props) {
     : theme.color("sidebar-foreground", 0.85);
 
   return (
-    <View style={[styles.track, { backgroundColor: theme.color("destructive", 0.28) }]}>
-      <View style={styles.trackLabel}>
+    <View style={styles.track}>
+      <Animated.View
+        style={[
+          styles.trackFill,
+          { backgroundColor: theme.color("destructive", 0.28) },
+          trackStyle,
+        ]}
+      >
         <ShellIcon name="trash" size={18} color={theme.color("destructive-foreground")} />
-      </View>
+      </Animated.View>
       <GestureDetector gesture={gesture}>
         <Animated.View
           accessible
@@ -225,9 +285,36 @@ export function TreeRow({ id, onPress, onLongPress, onDelete }: Props) {
             size={16}
             color={theme.color("sidebar-foreground", 0.55)}
           />
-          <Text numberOfLines={1} style={[styles.title, { color: foreground }]}>
-            {row.title}
-          </Text>
+          {renaming ? (
+            <TextInput
+              accessibilityLabel={`Name of ${row.title}`}
+              autoFocus
+              selectTextOnFocus
+              defaultValue={row.title}
+              returnKeyType="done"
+              onFocus={() => {
+                draftTitle.current = row.title;
+              }}
+              onChangeText={(text) => {
+                draftTitle.current = text;
+              }}
+              onBlur={() => onRenameEnd(row, draftTitle.current)}
+              selectionColor={theme.color("theme-accent-blue")}
+              style={[
+                styles.title,
+                styles.titleInput,
+                {
+                  color: theme.color("foreground"),
+                  backgroundColor: theme.color("background"),
+                  borderColor: theme.color("theme-accent-blue"),
+                },
+              ]}
+            />
+          ) : (
+            <Text numberOfLines={1} style={[styles.title, { color: foreground }]}>
+              {row.title}
+            </Text>
+          )}
           {row.locked ? (
             <ShellIcon name="lock" size={14} color={theme.color("sidebar-foreground", 0.55)} />
           ) : null}
@@ -248,9 +335,15 @@ const styles = StyleSheet.create({
     height: TREE_ROW_HEIGHT,
     justifyContent: "center",
   },
-  trackLabel: {
+  trackFill: {
     position: "absolute",
-    right: 16,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: "flex-end",
+    justifyContent: "center",
+    paddingRight: 16,
   },
   row: {
     height: TREE_ROW_HEIGHT,
@@ -272,6 +365,13 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontSize: 14,
+  },
+  titleInput: {
+    height: 32,
+    paddingVertical: 0,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderRadius: 7,
   },
   count: {
     fontSize: 11,

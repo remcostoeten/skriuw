@@ -12,7 +12,7 @@ import {
   type TaskGroup,
   type TaskGrouping,
   type TaskRow,
-} from "./model";
+} from "@skriuw/renderer-core/tasks/rows";
 import { TaskListItem, type TaskRowActions } from "./task-row";
 
 export type TaskGroupActions = {

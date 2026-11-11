@@ -5,7 +5,7 @@ import type {
 } from "@skriuw/renderer-core/contracts/workspace";
 import { dateKeyOf, shiftDay, type DateKey } from "@skriuw/renderer-core/journal/dates";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
-import { daysLate, isDueDate } from "@skriuw/renderer-core/tasks/due-dates";
+import { daysLate, formatDueLabel, isDueDate } from "@skriuw/renderer-core/tasks/due-dates";
 import { formatRecurrenceLabel } from "@skriuw/renderer-core/tasks/recurrence";
 import { checkItemFacts } from "./task-document";
 
@@ -459,4 +459,36 @@ export function visibleRowIds(groups: readonly TaskGroup[], completedOpen: boole
         : entry.rows;
     return rows.map((row) => row.id);
   });
+}
+
+export type DueState = "none" | "late" | "today" | "later" | "done";
+
+/**
+ * @name dueState
+ * @description The tone a row's date is drawn in: late, today, later, or
+ * done once the task is complete.
+ *
+ * @example
+ * dueState(row, "2026-11-08"); // "late"
+ */
+export function dueState(row: TaskRow, today: DateKey): DueState {
+  if (row.dueDate === null) return "none";
+  if (row.done) return "done";
+  if (row.dueDate < today) return "late";
+  return row.dueDate === today ? "today" : "later";
+}
+
+/**
+ * @name dueText
+ * @description The label a row shows for its date: "3 days late", "Today",
+ * "Tue", or "Add date" when it has none.
+ *
+ * @example
+ * dueText(row, "2026-11-08"); // "3 days late"
+ */
+export function dueText(row: TaskRow, today: DateKey): string {
+  if (row.dueDate === null) return "Add date";
+  const late = row.done ? 0 : daysLate(row.dueDate, today);
+  if (late > 0) return late === 1 ? "1 day late" : `${late} days late`;
+  return formatDueLabel(row.dueDate, today);
 }

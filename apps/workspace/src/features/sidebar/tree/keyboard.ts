@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from "react";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
-import { dragRoots, dropMoves, moveDropTarget } from "../drag/rules";
+import { dragRoots, dropMoves, moveDropTarget } from "@skriuw/renderer-core/store/tree-drop";
 import type { MoveMode } from "../drag/move-mode";
 import { focusTreeItem, openRowContextMenu, type TreeRef } from "./focus";
 import { activateNote, moveNodes, moveWithinSiblings, trashSelectedNodes } from "./operations";

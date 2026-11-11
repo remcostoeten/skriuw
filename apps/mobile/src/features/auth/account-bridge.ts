@@ -1,7 +1,6 @@
 import type { NativeBridge } from "../../bridge/native-adapter";
 
-export const ACCOUNT_UNAVAILABLE_ON_WEB =
-  "Signing in needs the Skriuw app on a phone. This web preview keeps its notes in memory only.";
+export { ACCOUNT_UNAVAILABLE_ON_WEB } from "./account-unavailable";
 
 /**
  * The bridge the account runs sync through: the same native bridge the

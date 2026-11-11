@@ -1,9 +1,11 @@
+import { dateKeyOf, shiftDay } from "@skriuw/renderer-core/journal/dates";
 import {
   WORKSPACE_PROTOCOL_VERSION,
   type WorkspaceDocument,
   type WorkspaceNode,
   type WorkspaceSettings,
   type WorkspaceSnapshot,
+  type WorkspaceTask,
 } from "@skriuw/renderer-core/contracts/workspace";
 
 const BASE_TIME = Date.UTC(2026, 8, 1);
@@ -105,6 +107,68 @@ function document(seed: Seed): WorkspaceDocument {
   };
 }
 
+type TaskSeed = {
+  id: string;
+  title: string;
+  dueOffset: number | null;
+  priority?: WorkspaceTask["priority"];
+  status?: WorkspaceTask["status"];
+  noteId?: string;
+  tagIds?: string[];
+};
+
+const TASK_SEEDS: readonly TaskSeed[] = [
+  {
+    id: "task-summary",
+    title: "Draft the quarterly summary",
+    dueOffset: -3,
+    priority: "high",
+    noteId: "note-native-shell",
+  },
+  {
+    id: "task-prs",
+    title: "Review open pull requests",
+    dueOffset: 0,
+    status: "in_progress",
+    noteId: "note-native-shell",
+  },
+  {
+    id: "task-sprint",
+    title: "Plan the next sprint",
+    dueOffset: 1,
+    tagIds: ["tag-ideas"],
+    noteId: "note-native-shell",
+  },
+  { id: "task-back", title: "Fix the Android back gesture", dueOffset: -1, priority: "urgent" },
+  { id: "task-dentist", title: "Call the dentist", dueOffset: 1 },
+  { id: "task-notes", title: "Read the sync design notes", dueOffset: null },
+  {
+    id: "task-done",
+    title: "Send the team update",
+    dueOffset: 0,
+    status: "done",
+    noteId: "note-native-shell",
+  },
+];
+
+function demoTasks(): WorkspaceTask[] {
+  const today = dateKeyOf(new Date());
+  return TASK_SEEDS.map((seed, index) => ({
+    id: seed.id,
+    title: seed.title,
+    status: seed.status ?? "todo",
+    priority: seed.priority ?? "medium",
+    dueDate: seed.dueOffset === null ? null : shiftDay(today, seed.dueOffset),
+    description: "",
+    tagIds: seed.tagIds ?? [],
+    assigneeIds: [],
+    source: seed.noteId ? { noteId: seed.noteId, blockId: `block-${seed.id}` } : null,
+    detachedAt: null,
+    createdAt: BASE_TIME + index,
+    updatedAt: Date.now(),
+  }));
+}
+
 /**
  * The workspace the shell opens against the in-memory adapter until the
  * native module is wired in (`docs/specs/mobile-app.md`, work breakdown:
@@ -118,7 +182,17 @@ export function demoSnapshot(): WorkspaceSnapshot {
     documents: SEEDS.filter((seed) => seed.kind === "note").map(document),
     historyHeaders: [],
     settings: SETTINGS,
-    tags: [],
+    tags: [
+      {
+        id: "tag-ideas",
+        name: "Ideas",
+        color: null,
+        createdAt: BASE_TIME,
+        updatedAt: BASE_TIME,
+        createdIn: null,
+      },
+    ],
+    tasks: demoTasks(),
     people: [],
     references: [],
   };
