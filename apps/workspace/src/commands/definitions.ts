@@ -36,6 +36,7 @@ export type ShortcutActionId =
   | "toggleVimMode"
   | "toggleFocusMode"
   | "toggleTypewriterScrolling"
+  | "toggleOnScreenKeyboard"
   | "renameCurrentNote"
   | "trashCurrentNote"
   | "duplicateCurrentNote"
@@ -423,6 +424,15 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     group: "Workspace",
     worksWhileTyping: true,
     scopes: "notes-route",
+  },
+  {
+    id: "toggleOnScreenKeyboard",
+    keys: "mod+alt+k",
+    label: "Toggle on-screen keyboard",
+    description:
+      "Show or hide the on-screen keyboard dock under the workspace. It types into the editor you last focused. Not available on the phone-width layout; some Linux desktops claim mod+alt+k, so rebind if the OS wins.",
+    group: "Workspace",
+    worksWhileTyping: true,
   },
   {
     id: "toggleTypewriterScrolling",

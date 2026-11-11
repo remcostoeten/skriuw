@@ -30,6 +30,7 @@ export type AppCommandControls = {
   openSidebar: () => void;
   toggleMetadata: () => void;
   toggleFocusMode: () => void;
+  toggleOnScreenKeyboard: () => void;
   navigate: (route: AppRoute) => void;
 };
 

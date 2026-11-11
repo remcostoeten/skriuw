@@ -10,6 +10,7 @@ export type CommandUiState = {
   sidebarOpen: boolean;
   metadataOpen: boolean;
   settingsOpen: boolean;
+  compact: boolean;
 };
 
 export type CommandPredicate = (state: RendererState, ui: CommandUiState) => boolean;
@@ -18,6 +19,9 @@ export type CommandPredicate = (state: RendererState, ui: CommandUiState) => boo
 export function onRoute(route: AppRoute): CommandPredicate {
   return (_state, ui) => ui.route === route;
 }
+
+/** Enables a command only on the full shell, never on the phone-width compact shell. */
+export const notOnCompact: CommandPredicate = (_state, ui) => !ui.compact;
 
 export type AppCommand = {
   id: string;

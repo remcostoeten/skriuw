@@ -165,7 +165,7 @@ function selectPaletteSize(state: RendererState) {
 }
 
 export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: Props) {
-  const { route, sidebarOpen, metadataOpen, settingsOpen } = ui;
+  const { route, sidebarOpen, metadataOpen, settingsOpen, compact } = ui;
   const [searchQuery, setSearchQuery] = useState("");
   const [hits, setHits] = useState<readonly SearchHit[]>([]);
   const requestRef = useRef(0);
@@ -218,7 +218,7 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
     const overrides = shortcutOverridesFromSettings(state.settings);
     return registry.paletteItems(
       state,
-      { route, sidebarOpen, metadataOpen, settingsOpen },
+      { route, sidebarOpen, metadataOpen, settingsOpen, compact },
       (actionId) => {
         const definition = DEFINITION_BY_ID.get(actionId);
         if (!definition || overrides[actionId] === null) {
@@ -228,7 +228,7 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
         return shortcutShadowedByQuit(definition, keys, overrides) ? "" : keys;
       },
     );
-  }, [open, registry, store, route, sidebarOpen, metadataOpen, settingsOpen]);
+  }, [open, registry, store, route, sidebarOpen, metadataOpen, settingsOpen, compact]);
 
   const noteItems = useMemo<CommandPaletteItem[]>(() => {
     if (!open) {

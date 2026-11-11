@@ -9,7 +9,7 @@ import {
   focusRegion,
   focusedPaneIndex,
 } from "@/commands/focus-regions";
-import { onRoute, type AppCommand, type CommandPredicate } from "@/commands/registry";
+import { notOnCompact, onRoute, type AppCommand, type CommandPredicate } from "@/commands/registry";
 import { quitApp, toggleMaximize } from "@/platform/desktop/window";
 import {
   activateTabAtIndex,
@@ -38,6 +38,7 @@ import {
   EnterFullscreenIcon,
   FoldVerticalIcon,
   FolderOpenIcon,
+  KeyboardIcon,
   ListTodoIcon,
   MaximizeIcon,
   PanelLeftIcon,
@@ -60,6 +61,7 @@ export type ShellCommandControls = {
   toggleRailLabels: () => void;
   toggleMetadata: () => void;
   toggleFocusMode: () => void;
+  toggleOnScreenKeyboard: () => void;
   navigate: (route: AppRoute) => void;
 };
 
@@ -146,6 +148,26 @@ export function shellCommands(store: RendererStore, controls: ShellCommandContro
       shortcut: "toggleFocusMode",
       enabled: onNotesRoute,
       run: controls.toggleFocusMode,
+    },
+    {
+      id: "toggle-on-screen-keyboard",
+      label: "Toggle on-screen keyboard",
+      group: "Actions",
+      keywords: [
+        "keyboard",
+        "virtual",
+        "touch",
+        "tablet",
+        "accessibility",
+        "dwell",
+        "typing",
+        "numpad",
+      ],
+      icon: <KeyboardIcon size={15} />,
+      shortcut: "toggleOnScreenKeyboard",
+      enabled: notOnCompact,
+      visible: notOnCompact,
+      run: controls.toggleOnScreenKeyboard,
     },
     {
       id: "close-tab",

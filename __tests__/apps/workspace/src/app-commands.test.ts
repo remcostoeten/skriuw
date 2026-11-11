@@ -21,6 +21,7 @@ const controls: AppCommandControls = {
   toggleRailLabels: noop,
   toggleMetadata: noop,
   toggleFocusMode: noop,
+  toggleOnScreenKeyboard: noop,
   navigate: noop,
 };
 
@@ -30,6 +31,7 @@ function fakeUi(overrides: Partial<CommandUiState> = {}): CommandUiState {
     sidebarOpen: true,
     metadataOpen: true,
     settingsOpen: false,
+    compact: false,
     ...overrides,
   };
 }
@@ -116,6 +118,7 @@ const REGISTERED_COMMAND_IDS = [
   "toggle-lock-note",
   "toggle-maximize",
   "toggle-metadata",
+  "toggle-on-screen-keyboard",
   "toggle-pin-note",
   "toggle-rail-labels",
   "toggle-sidebar",
@@ -396,4 +399,19 @@ test("journal navigation commands run only on the journal route and move the vie
   } finally {
     globalThis.window = previous;
   }
+});
+
+test("the on-screen keyboard command is hidden and disabled on the compact shell", () => {
+  const registry = createCommandRegistry(createAppCommands(fakeStore, controls, false));
+  const state = fakeStore.getState();
+  assert.equal(registry.isVisible("toggle-on-screen-keyboard", state, fakeUi()), true);
+  assert.equal(registry.isEnabled("toggle-on-screen-keyboard", state, fakeUi()), true);
+  assert.equal(
+    registry.isVisible("toggle-on-screen-keyboard", state, fakeUi({ compact: true })),
+    false,
+  );
+  assert.equal(
+    registry.isEnabled("toggle-on-screen-keyboard", state, fakeUi({ compact: true })),
+    false,
+  );
 });

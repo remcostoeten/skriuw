@@ -61,6 +61,8 @@ import {
   readFocusMode,
   writeFocusMode,
 } from "@/shell/focus-mode";
+import { OnScreenKeyboard } from "@/features/on-screen-keyboard/on-screen-keyboard";
+import { readKeyboardOpen, writeKeyboardOpen } from "@/features/on-screen-keyboard/preferences";
 import {
   InstallBanner,
   MobileSheet,
@@ -161,6 +163,7 @@ function WorkspaceShell({ store }: Props) {
   const [metadataResizing, setMetadataResizing] = useState(false);
   const [tracksAnimated, setTracksAnimated] = useState(true);
   const [focusMode, setFocusMode] = useState(readFocusMode);
+  const [keyboardOpen, setKeyboardOpen] = useState(readKeyboardOpen);
   const [railLabels, setRailLabels] = useState(readRailLabels);
   const railWidth = railLabels ? RAIL_WIDE_WIDTH : RAIL_WIDTH;
   const panelResizing = sidebarResizing || metadataResizing;
@@ -185,6 +188,7 @@ function WorkspaceShell({ store }: Props) {
     sidebarOpen: shownSidebarOpen,
     metadataOpen: shownMetadataOpen,
     settingsOpen,
+    compact: mode === "compact",
   };
   const uiRef = useRef(ui);
   uiRef.current = ui;
@@ -241,6 +245,17 @@ function WorkspaceShell({ store }: Props) {
     changeFocusMode(!focusActiveRef.current);
   }, [changeFocusMode]);
   const exitFocusMode = useCallback(() => changeFocusMode(false), [changeFocusMode]);
+  const changeKeyboardOpen = useCallback((open: boolean) => {
+    setKeyboardOpen(open);
+    writeKeyboardOpen(open);
+  }, []);
+  const keyboardOpenRef = useRef(keyboardOpen);
+  keyboardOpenRef.current = keyboardOpen;
+  const toggleOnScreenKeyboard = useCallback(
+    () => changeKeyboardOpen(!keyboardOpenRef.current),
+    [changeKeyboardOpen],
+  );
+  const closeOnScreenKeyboard = useCallback(() => changeKeyboardOpen(false), [changeKeyboardOpen]);
   useEffect(() => {
     if (route !== "notes" && focusMode) {
       changeFocusMode(false);
@@ -315,6 +330,7 @@ function WorkspaceShell({ store }: Props) {
             },
             toggleMetadata: () => toggleMetadata(false),
             toggleFocusMode,
+            toggleOnScreenKeyboard,
             navigate: (target) => {
               window.location.hash = appRouteHash(target);
             },
@@ -329,6 +345,7 @@ function WorkspaceShell({ store }: Props) {
       store,
       toggleFocusMode,
       toggleMetadata,
+      toggleOnScreenKeyboard,
       toggleRailLabels,
       toggleSidebar,
     ],
@@ -786,6 +803,7 @@ function WorkspaceShell({ store }: Props) {
         open={shortcutHelpOpen}
         onOpenChange={setShortcutHelpOpen}
       />
+      {keyboardOpen && mode !== "compact" && <OnScreenKeyboard onClose={closeOnScreenKeyboard} />}
       <ToastHost visible={showToasts} />
       <TemplatePickerHost store={store} />
       <LockDialogHost store={store} />

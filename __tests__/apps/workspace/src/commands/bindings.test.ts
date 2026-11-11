@@ -1008,6 +1008,15 @@ test("mod+shift+f matches the focus mode binding and a plain shift+f keeps typin
   assert.equal(matchesShortcut(base as KeyboardEvent, parsed), false);
 });
 
+test("the on-screen keyboard toggle binds a free chord a 60% board has", () => {
+  const definition = shortcutDefinitionOf("toggleOnScreenKeyboard");
+  const keys = effectiveShortcutKeys(definition, {});
+  assert.equal(keys, "mod+alt+k");
+  assert.doesNotMatch(keys, /home|end|page|f\d/i);
+  assert.equal(findShortcutConflict({}, "toggleOnScreenKeyboard", keys), null);
+  assert.equal(definition.worksWhileTyping, true);
+});
+
 function shortcutDefinitionOf(id: string) {
   const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === id);
   assert.ok(definition, id);

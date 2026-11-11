@@ -20,6 +20,7 @@
 @import "./shared/ui/shortcut-recorder.css";
 @import "./features/auth/auth-drawer.css";
 @import "./features/drawing/drawing.css";
+@import "./features/on-screen-keyboard/on-screen-keyboard.css";
 
 @plugin "tailwindcss-animate";
 

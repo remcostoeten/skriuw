@@ -1,0 +1,296 @@
+:root[data-osk="open"] #root {
+  padding-block-end: var(--osk-height, 0px);
+}
+
+.osk {
+  --osk-u: 44px;
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem max(0.5rem, var(--safe-bottom));
+  background: hsl(var(--theme-toolbar-bg));
+  border-top: 1px solid hsl(var(--theme-divider));
+  color: hsl(var(--foreground));
+  font-size: 0.8125rem;
+}
+
+.osk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.osk-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+}
+
+.osk-status {
+  min-width: 0;
+  flex: 1;
+  color: hsl(var(--theme-text-secondary));
+}
+
+.osk-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-inline-start: auto;
+}
+
+.osk-switch,
+.osk-select,
+.osk-close {
+  min-height: 1.75rem;
+  border: 1px solid hsl(var(--theme-divider));
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0 0.6rem;
+  cursor: pointer;
+}
+
+.osk-switch[aria-checked="true"] {
+  border-color: hsl(var(--theme-accent-blue));
+  background: hsl(var(--theme-accent-blue) / 0.16);
+}
+
+.osk-switch::before {
+  content: "";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-inline-end: 0.45rem;
+  border-radius: 50%;
+  background: hsl(var(--theme-text-dim));
+}
+
+.osk-switch[aria-checked="true"]::before {
+  background: hsl(var(--theme-accent-blue));
+}
+
+.osk-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 1.75rem;
+}
+
+.osk-select option {
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+}
+
+.osk-bay {
+  overflow-x: auto;
+}
+
+.osk-case {
+  width: max-content;
+  margin-inline: auto;
+  padding: calc(var(--osk-u) * 0.2);
+  border: 1px solid hsl(var(--theme-divider));
+  border-radius: calc(var(--osk-u) * 0.3);
+  background: hsl(var(--theme-bg-deep));
+}
+
+.osk-board {
+  position: relative;
+}
+
+.osk-key {
+  position: absolute;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.osk-cap {
+  position: absolute;
+  inset: calc(var(--osk-u) * 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding-inline: calc(var(--osk-u) * 0.12);
+  border-radius: calc(var(--osk-u) * 0.12);
+  background: hsl(var(--theme-bg-hover));
+  box-shadow: 0 calc(var(--osk-u) * 0.05) 0 hsl(var(--theme-bg-deep) / 0.9);
+  font-size: calc(var(--osk-u) * 0.26);
+  line-height: 1.15;
+  transition: transform 40ms, background-color 80ms;
+}
+
+.osk-key[data-shape="letter"] .osk-cap {
+  font-size: calc(var(--osk-u) * 0.34);
+}
+
+.osk-key[data-shape="single"]:not([data-secondary]) .osk-cap {
+  align-items: center;
+  padding-inline: 0;
+}
+
+.osk-key[data-kind="mod"] .osk-cap {
+  background: hsl(var(--theme-bg-active));
+}
+
+.osk-top {
+  color: hsl(var(--theme-text-secondary));
+}
+
+.osk-key[data-secondary] .osk-top {
+  font-size: calc(var(--osk-u) * 0.2);
+}
+
+.osk[data-shifted="true"] .osk-key[data-shape="pair"] .osk-top,
+.osk[data-numoff="true"] .osk-key[data-secondary] .osk-top {
+  color: hsl(var(--foreground));
+}
+
+.osk[data-shifted="true"] .osk-key[data-shape="pair"] .osk-bot,
+.osk[data-numoff="true"] .osk-key[data-secondary] .osk-bot {
+  color: hsl(var(--theme-text-secondary));
+}
+
+.osk-key[data-bump] .osk-cap::after {
+  content: "";
+  position: absolute;
+  bottom: calc(var(--osk-u) * 0.1);
+  left: 50%;
+  width: calc(var(--osk-u) * 0.26);
+  height: 2px;
+  margin-left: calc(var(--osk-u) * -0.13);
+  border-radius: 1px;
+  background: hsl(var(--theme-text-secondary));
+}
+
+.osk-key[data-pressed] .osk-cap {
+  transform: translateY(calc(var(--osk-u) * 0.05));
+  background: hsl(var(--theme-accent-blue));
+  color: hsl(var(--primary-foreground));
+}
+
+.osk-key[data-pressed] .osk-top,
+.osk-key[data-pressed] .osk-bot {
+  color: inherit;
+}
+
+.osk-key[data-latched] .osk-cap {
+  box-shadow: inset 0 0 0 2px hsl(var(--theme-accent-blue));
+}
+
+.osk-key:focus-visible .osk-cap {
+  outline: 3px solid hsl(var(--ring));
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+.osk-key[data-dwelling] .osk-cap::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: max(3px, calc(var(--osk-u) * 0.09));
+  border-radius: 0 0 calc(var(--osk-u) * 0.12) calc(var(--osk-u) * 0.12);
+  background: hsl(var(--theme-accent-blue));
+  animation: osk-dwell var(--osk-dwell, 1s) linear forwards;
+}
+
+@keyframes osk-dwell {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.osk-leds {
+  position: absolute;
+  top: 0;
+  left: calc(var(--osk-u) * 19.4);
+  display: flex;
+  width: calc(var(--osk-u) * 3.6);
+  height: var(--osk-u);
+  align-items: center;
+  justify-content: space-between;
+  color: hsl(var(--theme-text-secondary));
+  font-size: calc(var(--osk-u) * 0.22);
+}
+
+.osk-led {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--osk-u) * 0.08);
+}
+
+.osk-led i {
+  width: calc(var(--osk-u) * 0.18);
+  height: calc(var(--osk-u) * 0.18);
+  border-radius: 50%;
+  background: hsl(var(--theme-bg-deep));
+  box-shadow: inset 0 0 0 1px hsl(var(--theme-divider));
+}
+
+.osk-led[data-on] {
+  color: hsl(var(--foreground));
+}
+
+.osk-led[data-on] i {
+  background: hsl(var(--theme-accent-blue));
+  box-shadow: 0 0 calc(var(--osk-u) * 0.2) hsl(var(--theme-accent-blue));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .osk-cap {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .osk-cap {
+    border: 1px solid CanvasText;
+  }
+
+  .osk-key[data-kind="mod"] .osk-cap {
+    border-style: dashed;
+  }
+
+  .osk-key[data-pressed] .osk-cap {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .osk-key[data-latched] .osk-cap {
+    outline: 3px solid Highlight;
+  }
+
+  .osk-key:focus-visible .osk-cap {
+    outline: 3px double CanvasText;
+  }
+
+  .osk-key[data-dwelling] .osk-cap::before,
+  .osk-led[data-on] i {
+    background: Highlight;
+  }
+}
