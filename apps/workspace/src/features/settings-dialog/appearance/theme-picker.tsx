@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent } from "react";
-import { THEME_TOKENS, isBuiltinThemeId } from "@skriuw/theme";
+import { THEME_TOKENS, isBuiltinThemeId, type ThemeColorScheme } from "@skriuw/theme";
 import { CheckIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/styling/class-names";
 import { settingsPress, settingsTransition } from "@/shared/ui/settings-controls";
@@ -48,12 +48,14 @@ type Props = {
 
 export function ThemePicker({ value, onSelect }: Props) {
   const [remembered, setRemembered] = useState<Record<string, string>>({});
+  const [sweeps, setSweeps] = useState<Record<string, number>>({});
   const activeIndex = activeThemeIndex(value);
 
   function choose(entry: ThemeEntry, themeId: string): void {
     if (entry.variants) {
       setRemembered((current) => ({ ...current, [entry.id]: themeId }));
     }
+    setSweeps((current) => ({ ...current, [entry.id]: (current[entry.id] ?? 0) + 1 }));
     onSelect(themeId);
   }
 
@@ -79,7 +81,7 @@ export function ThemePicker({ value, onSelect }: Props) {
     <div
       role="radiogroup"
       aria-label="Color theme"
-      className="grid grid-cols-3 gap-2.5 py-1.5 max-[480px]:grid-cols-2"
+      className="theme-picker grid grid-cols-3 gap-2.5 py-1.5 max-[480px]:grid-cols-2"
       onKeyDown={handleKeyDown}
     >
       {THEME_ENTRIES.map((entry, index) => (
@@ -89,6 +91,7 @@ export function ThemePicker({ value, onSelect }: Props) {
           value={value}
           shown={shownThemeVariant(entry, value, remembered[entry.id])}
           focusable={index === activeIndex}
+          sweep={sweeps[entry.id] ?? 0}
           onChoose={(themeId) => choose(entry, themeId)}
         />
       ))}
@@ -101,10 +104,11 @@ type TileProps = {
   value: string;
   shown: string;
   focusable: boolean;
+  sweep: number;
   onChoose: (themeId: string) => void;
 };
 
-function ThemeTile({ entry, value, shown, focusable, onChoose }: TileProps) {
+function ThemeTile({ entry, value, shown, focusable, sweep, onChoose }: TileProps) {
   const checked = entry.variants ? isVariantActive(entry, value) : value === entry.id;
   const scheme =
     entry.variants?.find((variant) => variant.id === shown)?.colorScheme ?? entry.colorScheme;
@@ -143,7 +147,7 @@ function ThemeTile({ entry, value, shown, focusable, onChoose }: TileProps) {
         )}
         onClick={handleClick}
       >
-        <ThemeMiniature />
+        <ThemeMiniature key={sweep} scheme={scheme} replay={sweep > 0} />
         <span className="flex items-center justify-between gap-1.5 px-[3px]">
           <span className="truncate text-[12.5px] font-[450]">{entry.label}</span>
           {checked ? (
@@ -186,24 +190,31 @@ function variantLabel(entry: ThemeEntry, shown: string): string {
   return entry.variants?.find((variant) => variant.id === shown)?.label ?? "";
 }
 
-function ThemeMiniature() {
+type MiniatureProps = {
+  scheme: ThemeColorScheme;
+  replay: boolean;
+};
+
+function ThemeMiniature({ scheme, replay }: MiniatureProps) {
   return (
     <span
       aria-hidden="true"
-      className="grid h-[66px] grid-cols-[8px_24px_1fr] overflow-hidden rounded-[5px] border border-[var(--tile-border)] bg-[var(--tile-bg)]"
+      data-scheme={scheme}
+      data-shimmer={replay ? "select" : "intro"}
+      className="theme-miniature grid h-[66px] grid-cols-[8px_24px_1fr] overflow-hidden rounded-[5px] border border-[var(--tile-border)] bg-[var(--tile-bg)]"
     >
       <span className="border-r border-[var(--tile-border)] bg-[var(--tile-rail)]" />
       <span className="flex flex-col gap-1 border-r border-[var(--tile-border)] bg-[var(--tile-sidebar)] px-[3px] py-[7px]">
-        <i className="block h-[3px] rounded-sm bg-[var(--tile-muted)] opacity-55" />
+        <i className="block h-[3px] rounded-sm bg-(--tile-muted)/55" />
         <i className="block h-[7px] w-[90%] rounded-sm bg-[var(--tile-active)]" />
-        <i className="block h-[3px] w-[65%] rounded-sm bg-[var(--tile-muted)] opacity-55" />
+        <i className="block h-[3px] w-[65%] rounded-sm bg-(--tile-muted)/55" />
       </span>
       <span className="flex flex-col gap-[5px] px-[9px] pt-[9px]">
-        <b className="mb-0.5 block h-[5px] w-1/2 rounded-sm bg-[var(--tile-fg)] opacity-85" />
-        <i className="block h-[3px] rounded-sm bg-[var(--tile-fg)] opacity-35" />
-        <i className="block h-[3px] w-[72%] rounded-sm bg-[var(--tile-fg)] opacity-35" />
-        <i className="block h-[3px] w-[36%] rounded-sm bg-[var(--tile-link)] opacity-90" />
-        <i className="block h-[3px] w-[22%] rounded-sm bg-[var(--tile-tag)] opacity-90" />
+        <b className="mb-0.5 block h-[5px] w-1/2 rounded-sm bg-(--tile-fg)/85" />
+        <i className="block h-[3px] rounded-sm bg-(--tile-fg)/35" />
+        <i className="block h-[3px] w-[72%] rounded-sm bg-(--tile-fg)/35" />
+        <i className="block h-[3px] w-[36%] rounded-sm bg-(--tile-link)/90" />
+        <i className="block h-[3px] w-[22%] rounded-sm bg-(--tile-tag)/90" />
         <u className="mt-auto mb-1.5 block h-1.5 w-4 rounded-sm bg-[var(--tile-ink)]" />
       </span>
     </span>
