@@ -207,7 +207,7 @@ jobs:
             - name: Install Tauri and WebDriver system dependencies
               run: |
                   sudo apt-get update
-                  sudo apt-get install --yes libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev webkit2gtk-driver xvfb
+                  sudo apt-get install --yes libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev webkitgtk-webdriver xvfb
 
             - name: Setup Rust toolchain
               uses: dtolnay/rust-toolchain@master
