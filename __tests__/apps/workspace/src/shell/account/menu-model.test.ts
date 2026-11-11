@@ -37,6 +37,12 @@ test("grouped palettes keep their family name so variants stay distinguishable",
   );
 });
 
+test("a variant named like its family is not repeated", () => {
+  assert.equal(activeThemeLabel("tokyo-night"), "Tokyo Night");
+  assert.equal(activeThemeLabel("tokyo-night-day"), "Tokyo Night Day");
+  assert.equal(activeThemeLabel("gruvbox-light"), "Gruvbox Light");
+});
+
 test("a theme id that no longer exists renders as itself instead of blank", () => {
   assert.equal(activeThemeLabel("retired-theme"), "retired-theme");
 });

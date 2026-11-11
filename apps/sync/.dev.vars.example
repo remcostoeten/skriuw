@@ -5,3 +5,9 @@ AUTH_TRUSTED_ORIGINS="http://localhost:5183,http://tauri.localhost,tauri://local
 # Optional. Connects this deployment to the Better Auth Infrastructure
 # dashboard and enables Sentinel abuse checks. Leave unset to run without it.
 # BETTER_AUTH_API_KEY="ba_..."
+# Optional. Each provider turns on when both of its values are set. The
+# callback URL to register is BETTER_AUTH_URL + /api/auth/callback/<provider>.
+# GITHUB_CLIENT_ID=""
+# GITHUB_CLIENT_SECRET=""
+# GOOGLE_CLIENT_ID=""
+# GOOGLE_CLIENT_SECRET=""

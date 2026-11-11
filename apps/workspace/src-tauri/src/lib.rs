@@ -41,6 +41,21 @@ const WINDOW_STATE_FLAGS: tauri_plugin_window_state::StateFlags =
         .union(tauri_plugin_window_state::StateFlags::POSITION)
         .union(tauri_plugin_window_state::StateFlags::MAXIMIZED);
 
+// Dev builds and AppImages carry no bundle metadata, so they register the scheme at runtime.
+fn register_sign_in_scheme(app: &tauri::AppHandle) {
+    #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+    {
+        use tauri_plugin_deep_link::DeepLinkExt;
+        if cfg!(debug_assertions) || std::env::var_os("APPIMAGE").is_some() {
+            if let Err(error) = app.deep_link().register("skriuw") {
+                eprintln!("skriuw:// scheme registration failed: {error}");
+            }
+        }
+    }
+    #[cfg(not(any(target_os = "linux", all(debug_assertions, windows))))]
+    let _ = app;
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // reqwest and tungstenite enable both ring and aws-lc-rs, so rustls cannot
@@ -63,6 +78,7 @@ pub fn run() {
     };
     builder
         .manage(opened_files::OpenedFiles::default())
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -73,6 +89,7 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            register_sign_in_scheme(app.handle());
             if let Ok(cwd) = std::env::current_dir() {
                 let args: Vec<String> = std::env::args_os()
                     .filter_map(|argument| argument.into_string().ok())

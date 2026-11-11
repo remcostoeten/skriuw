@@ -1,11 +1,15 @@
-import type { AuthAdapter, AuthResult } from "@remcostoeten/auth-drawer";
+import type { AuthAdapter, AuthResult, OAuthProvider } from "@remcostoeten/auth-drawer";
 import { createBetterAuthAdapter } from "@remcostoeten/auth-drawer/adapters/better-auth";
 import { sentinelClient } from "@better-auth/infra/client";
 import { createAuthClient } from "better-auth/react";
 import { leaveAccountWorkspace } from "@/platform/runtime/commands";
+import { hasTauriRuntime } from "@/platform/runtime/runtime";
 import { showToast } from "@/shared/ui/toast";
 import { accountLifecycle } from "../account-lifecycle";
 import { authConfiguration } from "../config";
+import { signInWithSystemBrowser } from "../oauth/desktop";
+import { oauthFailure, oauthFailureResult } from "../oauth/outcome";
+import { signInWithPopup } from "../oauth/popup";
 import {
   bindSessionRefresh,
   currentSessionToken,
@@ -34,6 +38,12 @@ export const SIGN_OUT_UNSAVED_MESSAGE =
 export function signInCallbackPath(pathname: string): string {
   // Better Auth's relative callback rule: one leading slash, then path characters only.
   return /^\/(?!\/|\\|%2f|%5c)[\w\-.+/@]*$/i.test(pathname) ? pathname : "/";
+}
+
+const OAUTH_PROVIDERS: OAuthProvider[] = ["github", "google"];
+
+function isSupportedProvider(provider: string): provider is OAuthProvider {
+  return OAUTH_PROVIDERS.some((supported) => supported === provider);
 }
 
 function unavailableAdapter(): AuthAdapter {
@@ -116,7 +126,7 @@ function configuredAdapter(baseURL: string): AuthAdapter {
   bindSessionRefresh(() => client.$store.notify("$sessionSignal"));
   const adapter = createBetterAuthAdapter({
     client,
-    providers: [],
+    providers: OAUTH_PROVIDERS,
     requireName: true,
     callbackURL: signInCallbackPath(globalThis.location?.pathname ?? "/"),
   });
@@ -125,6 +135,24 @@ function configuredAdapter(baseURL: string): AuthAdapter {
   const { requestPasswordReset: _unsupported, ...supported } = adapter;
   return {
     ...supported,
+    async signInWithOAuth(provider) {
+      if (!isSupportedProvider(provider)) {
+        return oauthFailureResult(
+          oauthFailure("provider_unavailable", "That provider is not supported."),
+        );
+      }
+      const outcome = hasTauriRuntime()
+        ? await signInWithSystemBrowser(baseURL, provider)
+        : await signInWithPopup(baseURL, provider);
+      if (!outcome.success) return oauthFailureResult(outcome, provider);
+      issuedToken = outcome.token;
+      const { persisted } = await rememberSessionToken(outcome.token);
+      if (!persisted) {
+        showToast({ message: KEYRING_UNAVAILABLE_MESSAGE, durationMs: 10_000 });
+      }
+      refreshSessionState();
+      return { success: true };
+    },
     onSuccess(action) {
       if (action === "signOut") return;
       accountLifecycle().signedIn();

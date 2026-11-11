@@ -50,6 +50,7 @@
     "@skriuw/theme": "workspace:*",
     "@tanstack/react-virtual": "^3.14.8",
     "@tauri-apps/api": "2.11.1",
+    "@tauri-apps/plugin-deep-link": "2.6.3",
     "@tauri-apps/plugin-opener": "^2.5.4",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",

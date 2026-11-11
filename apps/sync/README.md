@@ -27,6 +27,16 @@ attempt with a proof-of-work challenge that the desktop client's
 leaves the Worker. It is a secret: install it with
 `wrangler secret put BETTER_AUTH_API_KEY`, never in `wrangler.jsonc`.
 
+GitHub and Google sign-in are optional and each turns on when both of its
+secrets exist: `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`, or
+`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Install them with
+`wrangler secret put <NAME>`, never in `wrangler.jsonc`. Register
+`<BETTER_AUTH_URL>/api/auth/callback/github` and
+`<BETTER_AUTH_URL>/api/auth/callback/google` as the authorized callback URLs.
+`GET /health` lists the providers that are on in `authProviders`, and the
+sign-in drawer shows only those. See
+[cloud sync authentication](../../docs/specs/cloud-sync-authentication.md#oauth-providers).
+
 `/v1/shares` publishes, lists, updates, and revokes the signed-in account's
 public note links, and the unauthenticated `GET /shares/:id` and
 `GET /shares/:id/images/:imageId` serve one to the `skriuw.com/s/<id>/` page.

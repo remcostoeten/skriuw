@@ -38,11 +38,12 @@ skriuw-storage = { path = "../../../crates/skriuw-storage" }
 skriuw-sync = { path = "../../../crates/skriuw-sync" }
 tauri = { version = "2.11.5", features = ["protocol-asset"] }
 tungstenite = { version = "0.28", default-features = false, features = ["handshake", "rustls-tls-webpki-roots"] }
+tauri-plugin-deep-link = "2.6.3"
 tauri-plugin-dialog = "2.4.2"
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-prevent-default = "5.0.2"
 tauri-plugin-process = "2.3.1"
-tauri-plugin-single-instance = "2.4.2"
+tauri-plugin-single-instance = { version = "2.4.2", features = ["deep-link"] }
 tauri-plugin-updater = "2.10.1"
 tauri-plugin-window-state = "2.4.1"
 zip = { version = "8.6.0", default-features = false, features = ["deflate", "deflate64"] }
