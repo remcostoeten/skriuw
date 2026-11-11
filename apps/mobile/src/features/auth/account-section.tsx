@@ -80,6 +80,7 @@ function SignInForm({ runtime, busy, failure }: SignInFormProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [revealed, setRevealed] = useState(false);
   useAnnouncement(failure);
   const ready = signInDraftReady({ mode, name, email, password }) && !busy;
 
@@ -114,8 +115,13 @@ function SignInForm({ runtime, busy, failure }: SignInFormProps) {
         value={password}
         onChangeText={setPassword}
         autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
-        secure
+        secure={!revealed}
         onSubmitEditing={submit}
+        trailing={{
+          label: revealed ? "Hide" : "Show",
+          hint: revealed ? "Hides the password" : "Shows the password",
+          onPress: () => setRevealed(!revealed),
+        }}
       />
       {failure !== null ? (
         <Text
@@ -234,7 +240,15 @@ type FieldProps = {
   keyboardType?: "default" | "email-address";
   secure?: boolean;
   onSubmitEditing?: () => void;
+  trailing?: { label: string; hint: string; onPress: () => void };
 };
+
+const TEXT_CONTENT_TYPES = {
+  name: "name",
+  email: "username",
+  "current-password": "password",
+  "new-password": "newPassword",
+} as const;
 
 function Field({
   label,
@@ -244,6 +258,7 @@ function Field({
   keyboardType = "default",
   secure = false,
   onSubmitEditing,
+  trailing,
 }: FieldProps) {
   const theme = useTheme();
   return (
@@ -251,26 +266,44 @@ function Field({
       <Text style={[styles.fieldLabel, { color: theme.color("sidebar-foreground", 0.6) }]}>
         {label}
       </Text>
-      <TextInput
-        accessibilityLabel={label}
-        autoCapitalize={autoComplete === "name" ? "words" : "none"}
-        autoComplete={autoComplete}
-        autoCorrect={false}
-        keyboardType={keyboardType}
-        onChangeText={onChangeText}
-        onSubmitEditing={onSubmitEditing}
-        secureTextEntry={secure}
-        spellCheck={false}
-        style={[
-          styles.input,
-          {
-            backgroundColor: theme.color("muted"),
-            borderColor: theme.color("border"),
-            color: theme.color("foreground"),
-          },
-        ]}
-        value={value}
-      />
+      <View style={styles.inputRow}>
+        <TextInput
+          accessibilityLabel={label}
+          autoCapitalize={autoComplete === "name" ? "words" : "none"}
+          autoComplete={autoComplete}
+          autoCorrect={false}
+          enterKeyHint={onSubmitEditing ? "go" : "next"}
+          keyboardType={keyboardType}
+          onChangeText={onChangeText}
+          onSubmitEditing={onSubmitEditing}
+          secureTextEntry={secure}
+          spellCheck={false}
+          textContentType={TEXT_CONTENT_TYPES[autoComplete]}
+          style={[
+            styles.input,
+            trailing ? styles.inputWithTrailing : null,
+            {
+              backgroundColor: theme.color("muted"),
+              borderColor: theme.color("border"),
+              color: theme.color("foreground"),
+            },
+          ]}
+          value={value}
+        />
+        {trailing ? (
+          <Pressable
+            accessibilityHint={trailing.hint}
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={trailing.onPress}
+            style={styles.trailing}
+          >
+            <Text style={[styles.linkLabel, { color: theme.color("theme-accent-blue") }]}>
+              {trailing.label}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -297,6 +330,20 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 12,
+  },
+  inputRow: {
+    justifyContent: "center",
+  },
+  inputWithTrailing: {
+    paddingRight: 64,
+  },
+  trailing: {
+    position: "absolute",
+    right: 0,
+    minHeight: MINIMUM_TOUCH_TARGET,
+    minWidth: 56,
+    alignItems: "center",
+    justifyContent: "center",
   },
   input: {
     minHeight: MINIMUM_TOUCH_TARGET,
