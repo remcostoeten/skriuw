@@ -45,7 +45,7 @@ export function AppearanceSection({ store }: SectionProps) {
         id="theme"
         title="Theme"
         hint={settingsCopy.appearance.appliedAcrossTheWorkspace}
-        keywords="appearance color midnight paper embers mocha latte catppuccin rose pine dusk dawn gruvbox tokyo night dark light"
+        keywords="appearance color midnight paper embers mocha latte catppuccin rose pine dusk dawn gruvbox tokyo night day dark light"
       >
         <SettingsRow label="Color theme" stack hideLabel>
           <ThemePicker value={settings.theme} onSelect={(themeId) => change("theme", themeId)} />

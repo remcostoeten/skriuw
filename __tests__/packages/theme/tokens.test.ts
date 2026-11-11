@@ -42,17 +42,19 @@ function contrast(left: string, right: string): number {
   return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
 }
 
-test("all nine themes ship", () => {
+test("all eleven themes ship", () => {
   assert.deepEqual([...THEME_NAMES].sort(), [
     "catppuccin-latte",
     "embers",
     "gruvbox",
+    "gruvbox-light",
     "midnight",
     "mocha",
     "paper",
     "rose-pine",
     "rose-pine-dawn",
     "tokyo-night",
+    "tokyo-night-day",
   ]);
 });
 
@@ -78,7 +80,13 @@ test("var() indirections resolve to the referenced color", () => {
 
 test("the generated dark flag follows explicit registry metadata", () => {
   const light = THEME_NAMES.filter((theme) => !DARK_THEMES[theme]);
-  assert.deepEqual([...light].sort(), ["catppuccin-latte", "paper", "rose-pine-dawn"]);
+  assert.deepEqual([...light].sort(), [
+    "catppuccin-latte",
+    "gruvbox-light",
+    "paper",
+    "rose-pine-dawn",
+    "tokyo-night-day",
+  ]);
 });
 
 test("core foreground pairs meet WCAG AA contrast", () => {
@@ -188,7 +196,14 @@ test("neutral themes stay monochrome and coloured themes use their primary", () 
   for (const theme of ["midnight", "paper", "embers"] as const) {
     assert.equal(THEME_TOKENS[theme]["accent-ink"], THEME_TOKENS[theme].foreground, theme);
   }
-  for (const theme of ["mocha", "rose-pine-dawn", "gruvbox", "tokyo-night"] as const) {
+  for (const theme of [
+    "mocha",
+    "rose-pine-dawn",
+    "gruvbox",
+    "gruvbox-light",
+    "tokyo-night",
+    "tokyo-night-day",
+  ] as const) {
     assert.equal(THEME_TOKENS[theme]["accent-ink"], THEME_TOKENS[theme].primary, theme);
   }
 });

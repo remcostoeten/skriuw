@@ -229,7 +229,7 @@ export const SETTINGS_SEARCH_GROUPS = {
       id: "theme",
       title: "Theme",
       hint: "Applied across the workspace.",
-      keywords: "appearance color midnight paper embers mocha latte catppuccin rose pine dusk dawn gruvbox tokyo night dark light",
+      keywords: "appearance color midnight paper embers mocha latte catppuccin rose pine dusk dawn gruvbox tokyo night day dark light",
       rows: [
         { label: "Color theme", detail: "" },
       ],

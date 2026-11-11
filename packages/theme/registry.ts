@@ -66,7 +66,10 @@ export function isBuiltinThemeId(value: string): value is ThemeName {
 }
 
 export function builtinThemeLabel(theme: BuiltinThemeMetadata): string {
-  return theme.family ? `${theme.family.label} ${theme.label}` : theme.label;
+  if (!theme.family || theme.family.label.endsWith(theme.label)) {
+    return theme.family?.label ?? theme.label;
+  }
+  return `${theme.family.label} ${theme.label}`;
 }
 
 export function validateThemeDefinition(theme: ThemeDefinition): string | null {
