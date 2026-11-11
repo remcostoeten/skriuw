@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, StyleSheet, Text, View } from "react-native";
 import { MINIMUM_TOUCH_TARGET } from "../shell/metrics";
 import { useTheme } from "../shell/theme";
 import { useWorkspace } from "../shell/workspace-provider";
@@ -9,6 +9,7 @@ import { describeEditorFailure, isReloadable, type EditorFailureView } from "./f
 import { createEditorHostSession, type EditorHostSession } from "./host-session";
 import type { EditorTheme } from "./protocol";
 import { ReadOnlyDocument } from "./read-only-document";
+import { PressableScale } from "../shell/pressable-scale";
 
 type Props = {
   /**
@@ -168,7 +169,7 @@ function EditorFailureSurface({ view, onReload }: FailureProps) {
         landed.
       </Text>
       {isReloadable(view) ? (
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel="Reload the editor"
           onPress={onReload}
@@ -177,7 +178,7 @@ function EditorFailureSurface({ view, onReload }: FailureProps) {
           <Text style={[styles.reloadLabel, { color: theme.color("foreground") }]}>
             Reload editor
           </Text>
-        </Pressable>
+        </PressableScale>
       ) : null}
     </View>
   );

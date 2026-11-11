@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import type { SearchHit } from "@skriuw/renderer-core/contracts/workspace";
 import { announce } from "../../shell/announce";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
@@ -12,6 +12,7 @@ import { SearchResultRow } from "./results/search-result-row";
 import type { SearchPlanStatus } from "@skriuw/renderer-core/search/search-plan";
 import { setSearchSaved } from "./saved/saved-searches";
 import { useWorkspaceSearch } from "./run/use-search";
+import { PressableScale } from "../../shell/pressable-scale";
 
 type Props = {
   onOpenNote?: () => void;
@@ -67,7 +68,7 @@ export function SearchScreen({ onOpenNote }: Props) {
           ]}
           value={search.query}
         />
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={search.isQuerySaved ? "Remove saved search" : "Save this search"}
           accessibilityState={{ disabled: !canSave, selected: search.isQuerySaved }}
@@ -80,7 +81,7 @@ export function SearchScreen({ onOpenNote }: Props) {
           >
             {search.isQuerySaved ? "Saved" : "Save"}
           </Text>
-        </Pressable>
+        </PressableScale>
       </View>
 
       <SavedSearchBar

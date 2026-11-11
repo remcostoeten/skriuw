@@ -1,10 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { useChrome } from "../../shell/chrome";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme } from "../../shell/theme";
 import { useWorkspaceSelector } from "../../shell/workspace-provider";
 import { lockEntryDetail } from "./lock-model";
+import { PressableDim } from "../../shell/pressable-dim";
 
 function selectLockDetail(state: RendererState): string {
   return lockEntryDetail(state.noteLock);
@@ -21,7 +22,7 @@ export function LockEntryRow() {
       <Text style={[styles.heading, { color: theme.color("sidebar-foreground", 0.5) }]}>
         Security
       </Text>
-      <Pressable
+      <PressableDim
         accessibilityRole="button"
         accessibilityLabel="Locked notes"
         accessibilityHint={detail}
@@ -34,7 +35,7 @@ export function LockEntryRow() {
         <Text style={[styles.detail, { color: theme.color("sidebar-foreground", 0.5) }]}>
           {detail}
         </Text>
-      </Pressable>
+      </PressableDim>
     </View>
   );
 }

@@ -1,7 +1,8 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { ShellIcon } from "../../../shell/icons";
 import { MINIMUM_TOUCH_TARGET } from "../../../shell/metrics";
 import { useTheme } from "../../../shell/theme";
+import { PressableScale } from "../../../shell/pressable-scale";
 
 type Props = {
   queries: readonly string[];
@@ -37,7 +38,7 @@ export function SavedSearchBar({ queries, activeQuery, onApply, onRemove }: Prop
               },
             ]}
           >
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={`Search ${query}`}
               accessibilityState={{ selected: current }}
@@ -50,15 +51,15 @@ export function SavedSearchBar({ queries, activeQuery, onApply, onRemove }: Prop
               >
                 {query}
               </Text>
-            </Pressable>
-            <Pressable
+            </PressableScale>
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={`Remove saved search ${query}`}
               onPress={() => onRemove(query)}
               style={styles.remove}
             >
               <ShellIcon name="close" size={12} color={theme.color("sidebar-foreground", 0.6)} />
-            </Pressable>
+            </PressableScale>
           </View>
         );
       })}

@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { commitOperations } from "../bridge/commit";
 import { AccountSection } from "../features/auth/account-section";
 import { LockEntryRow } from "../features/lock/lock-entry-row";
@@ -7,6 +7,7 @@ import { MINIMUM_TOUCH_TARGET } from "./metrics";
 import { useTheme } from "./theme";
 import { THEME_OPTIONS, type ThemePreference } from "./theme-model";
 import { useWorkspace } from "./workspace-provider";
+import { PressableDim } from "./pressable-dim";
 
 type Option = {
   preference: ThemePreference;
@@ -57,7 +58,7 @@ export function AccountPanel() {
         {OPTIONS.map((option) => {
           const selected = theme.preference === option.preference;
           return (
-            <Pressable
+            <PressableDim
               key={option.preference}
               accessibilityRole="radio"
               accessibilityLabel={option.label}
@@ -85,7 +86,7 @@ export function AccountPanel() {
                   },
                 ]}
               />
-            </Pressable>
+            </PressableDim>
           );
         })}
       </View>

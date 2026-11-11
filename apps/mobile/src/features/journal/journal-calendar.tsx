@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { ShellIcon } from "../../shell/icons";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme } from "../../shell/theme";
@@ -13,6 +13,7 @@ import {
   type DateKey,
   type MonthKey,
 } from "@skriuw/renderer-core/journal/dates";
+import { PressableScale } from "../../shell/pressable-scale";
 
 type Props = {
   month: MonthKey;
@@ -47,28 +48,28 @@ export function JournalCalendar({
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel="Previous month"
           onPress={() => onMonthChange(shiftMonth(month, -1))}
           style={styles.step}
         >
           <ShellIcon name="back" size={22} color={theme.color("muted-foreground")} />
-        </Pressable>
+        </PressableScale>
         <Text
           accessibilityRole="header"
           style={[styles.monthTitle, { color: theme.color("foreground") }]}
         >
           {formatMonthTitle(month)}
         </Text>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel="Next month"
           onPress={() => onMonthChange(shiftMonth(month, 1))}
           style={styles.step}
         >
           <ShellIcon name="forward" size={22} color={theme.color("muted-foreground")} />
-        </Pressable>
+        </PressableScale>
       </View>
       <View style={styles.week}>
         {WEEKDAY_LABELS.map((label) => (
@@ -86,7 +87,7 @@ export function JournalCalendar({
           const isSelected = day.key === selected;
           const hasEntry = entryDates.has(day.key);
           return (
-            <Pressable
+            <PressableScale
               key={day.key}
               accessibilityRole="button"
               accessibilityLabel={dayLabel(day.key, hasEntry)}
@@ -123,7 +124,7 @@ export function JournalCalendar({
                   },
                 ]}
               />
-            </Pressable>
+            </PressableScale>
           );
         })}
       </View>

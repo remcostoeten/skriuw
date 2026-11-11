@@ -1,9 +1,10 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { ShellIcon } from "./icons";
 import { MINIMUM_TOUCH_TARGET } from "./metrics";
 import { useTheme } from "./theme";
 import { pinnedEntriesEqual, pinnedEntriesSelector } from "./tree-model";
 import { useWorkspaceSelector } from "./workspace-provider";
+import { PressableDim } from "./pressable-dim";
 
 type Props = {
   onOpen: (noteId: string) => void;
@@ -29,7 +30,7 @@ export function PinnedStrip({ onOpen }: Props) {
         contentContainerStyle={styles.row}
       >
         {pinned.map((entry) => (
-          <Pressable
+          <PressableDim
             key={entry.id}
             accessibilityRole="button"
             accessibilityLabel={`Open ${entry.title}`}
@@ -53,7 +54,7 @@ export function PinnedStrip({ onOpen }: Props) {
                 {entry.title}
               </Text>
             </View>
-          </Pressable>
+          </PressableDim>
         ))}
       </ScrollView>
     </View>

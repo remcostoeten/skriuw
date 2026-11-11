@@ -3,6 +3,7 @@ import { SHEET_EASING } from "./metrics";
 
 export const PRESS_SCALE = 0.97;
 export const PRESS_MS = 120;
+export const PRESS_DIM = 0.55;
 export const PRESS_EASING = cubicBezier(0.23, 1, 0.32, 1);
 
 export const TOAST_ENTER_MS = 300;

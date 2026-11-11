@@ -1,7 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, type ViewStyle } from "react-native";
+import type { CSSStyle } from "react-native-reanimated";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
+import { PRESS_EASING, STATE_MS } from "../../shell/motion";
 import { useTheme } from "../../shell/theme";
 import { MOOD_LEVELS, MOOD_OPTIONS, type MoodLevel } from "./model";
+import { PressableScale } from "../../shell/pressable-scale";
 
 type Props = {
   mood: MoodLevel | null;
@@ -22,7 +25,7 @@ export function MoodRow({ mood, onChange }: Props) {
         const option = MOOD_OPTIONS[level];
         const selected = mood === level;
         return (
-          <Pressable
+          <PressableScale
             key={level}
             accessibilityRole="radio"
             accessibilityLabel={option.label}
@@ -30,6 +33,7 @@ export function MoodRow({ mood, onChange }: Props) {
             onPress={() => onChange(selected ? null : level)}
             style={[
               styles.mood,
+              SELECTION,
               {
                 borderColor: selected ? theme.color(option.token) : theme.color("border"),
                 backgroundColor: selected ? theme.color(option.token, 0.16) : "transparent",
@@ -47,12 +51,18 @@ export function MoodRow({ mood, onChange }: Props) {
             >
               {option.label}
             </Text>
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>
   );
 }
+
+const SELECTION: CSSStyle<ViewStyle> = {
+  transitionProperty: ["transform", "borderColor", "backgroundColor"],
+  transitionDuration: STATE_MS,
+  transitionTimingFunction: PRESS_EASING,
+};
 
 const styles = StyleSheet.create({
   row: {

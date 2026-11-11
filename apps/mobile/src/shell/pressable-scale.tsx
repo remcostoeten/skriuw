@@ -10,7 +10,7 @@ import Animated, { useReducedMotion, type CSSStyle } from "react-native-reanimat
 import { PRESS_EASING, PRESS_MS, PRESS_SCALE } from "./motion";
 
 type Props = Omit<PressableProps, "style"> & {
-  style?: StyleProp<ViewStyle>;
+  style?: StyleProp<CSSStyle<ViewStyle>>;
 };
 
 const PRESS_RETENTION_PX = 16;
@@ -39,7 +39,7 @@ export function PressableScale({ style, onPressIn, onPressOut, ...rest }: Props)
         onPressOut?.(event);
       }}
       pressRetentionOffset={PRESS_RETENTION_PX}
-      style={[style, SETTLE, pressed && !reducedMotion ? styles.pressed : null]}
+      style={[SETTLE, style, pressed && !reducedMotion ? styles.pressed : null]}
     />
   );
 }

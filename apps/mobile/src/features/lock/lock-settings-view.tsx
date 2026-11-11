@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { commitOperations } from "../../bridge/commit";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
@@ -12,6 +12,7 @@ import { ChangeSecretView, SetupLockView } from "./lock-setup-view";
 import { LockButton, LockError, LockField } from "./secret-fields";
 import { UnlockView } from "./unlock-view";
 import { usePlatformBiometrics } from "./use-platform-biometrics";
+import { PressableDim } from "../../shell/pressable-dim";
 
 /**
  * Everything the owner of a workspace can do to its lock, on one screen: set
@@ -230,7 +231,7 @@ export function LockSettingsView({ biometrics: injected }: Props) {
             {AUTO_LOCK_OPTIONS.map((option) => {
               const selected = option.minutes === minutes;
               return (
-                <Pressable
+                <PressableDim
                   accessibilityLabel={option.label}
                   accessibilityRole="radio"
                   accessibilityState={{ selected, checked: selected }}
@@ -254,7 +255,7 @@ export function LockSettingsView({ biometrics: injected }: Props) {
                       },
                     ]}
                   />
-                </Pressable>
+                </PressableDim>
               );
             })}
           </View>

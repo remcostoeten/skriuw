@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import type { ReferenceKind } from "@skriuw/renderer-core/references/types";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme, type ShellTheme } from "../../shell/theme";
@@ -12,6 +12,7 @@ import {
   type ReferenceEntry,
   type ReferenceNote,
 } from "./reference-model";
+import { PressableDim } from "../../shell/pressable-dim";
 
 type Props = {
   kind: Extract<ReferenceKind, "tag" | "person">;
@@ -89,7 +90,7 @@ function ReferenceRow({ entry, expanded, theme, onOpenNote, onToggle }: Referenc
   const toggle = useCallback(() => onToggle(entry.id), [entry.id, onToggle]);
   return (
     <View style={[styles.card, { borderColor: theme.color("border") }]}>
-      <Pressable
+      <PressableDim
         accessibilityRole="button"
         accessibilityLabel={`${entry.name}, ${entry.count} ${entry.count === 1 ? "note" : "notes"}`}
         accessibilityState={{ expanded }}
@@ -107,7 +108,7 @@ function ReferenceRow({ entry, expanded, theme, onOpenNote, onToggle }: Referenc
         <Text style={[styles.chevron, { color: theme.color("muted-foreground") }]}>
           {expanded ? "−" : "+"}
         </Text>
-      </Pressable>
+      </PressableDim>
       {expanded ? (
         <View style={[styles.notes, { borderTopColor: theme.color("border") }]}>
           {entry.notes.length === 0 ? (
@@ -134,7 +135,7 @@ type ReferenceNoteRowProps = {
 function ReferenceNoteRow({ note, theme, onOpen }: ReferenceNoteRowProps) {
   const open = useCallback(() => onOpen(note.id), [note.id, onOpen]);
   return (
-    <Pressable
+    <PressableDim
       accessibilityRole="link"
       accessibilityLabel={`Open ${note.title}`}
       onPress={open}
@@ -144,7 +145,7 @@ function ReferenceNoteRow({ note, theme, onOpen }: ReferenceNoteRowProps) {
         {note.title}
       </Text>
       <Text style={[styles.noteArrow, { color: theme.color("muted-foreground") }]}>›</Text>
-    </Pressable>
+    </PressableDim>
   );
 }
 

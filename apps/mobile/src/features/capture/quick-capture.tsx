@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, type TextInputInstance, View } from "react-native";
+import { StyleSheet, Text, TextInput, type TextInputInstance, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BottomSheet } from "../../shell/bottom-sheet";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme } from "../../shell/theme";
+import { PressableScale } from "../../shell/pressable-scale";
 
 type Props = {
   open: boolean;
@@ -74,7 +75,7 @@ export function QuickCapture({ open, dayLabel, onClose, onCapture }: Props) {
           ]}
         />
         <View style={styles.actions}>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel="Discard this capture"
             onPress={onClose}
@@ -83,8 +84,8 @@ export function QuickCapture({ open, dayLabel, onClose, onCapture }: Props) {
             <Text style={[styles.actionLabel, { color: theme.color("muted-foreground") }]}>
               Cancel
             </Text>
-          </Pressable>
-          <Pressable
+          </PressableScale>
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel="Add this capture to the entry"
             accessibilityState={{ disabled: !ready }}
@@ -104,7 +105,7 @@ export function QuickCapture({ open, dayLabel, onClose, onCapture }: Props) {
             <Text style={[styles.actionLabel, { color: theme.color("primary-foreground") }]}>
               Add
             </Text>
-          </Pressable>
+          </PressableScale>
         </View>
       </View>
     </BottomSheet>

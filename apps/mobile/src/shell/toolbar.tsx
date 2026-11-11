@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { ShellIcon } from "./icons";
 import { MINIMUM_TOUCH_TARGET, TOOLBAR_HEIGHT } from "./metrics";
 import { useTheme } from "./theme";
+import { PressableScale } from "./pressable-scale";
 
 type Props = {
-  title: string;
+  title: string | null;
   onOpenTree: () => void;
   onOpenSearch: () => void;
   onCreateNote: () => void;
@@ -35,7 +36,7 @@ export function Toolbar({ title, onOpenTree, onOpenSearch, onCreateNote }: Props
         },
       ]}
     >
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel="Open notes tree"
         onPressIn={() => pressed("menu")}
@@ -47,15 +48,19 @@ export function Toolbar({ title, onOpenTree, onOpenSearch, onCreateNote }: Props
           color={theme.color("sidebar-foreground", 0.75)}
           playKey={presses.menu}
         />
-      </Pressable>
-      <Text
-        accessibilityRole="header"
-        numberOfLines={1}
-        style={[styles.title, { color: theme.color("sidebar-foreground") }]}
-      >
-        {title}
-      </Text>
-      <Pressable
+      </PressableScale>
+      {title === null ? (
+        <View style={styles.spacer} />
+      ) : (
+        <Text
+          accessibilityRole="header"
+          numberOfLines={1}
+          style={[styles.title, { color: theme.color("sidebar-foreground") }]}
+        >
+          {title}
+        </Text>
+      )}
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel="Search notes"
         onPressIn={() => pressed("search")}
@@ -67,8 +72,8 @@ export function Toolbar({ title, onOpenTree, onOpenSearch, onCreateNote }: Props
           color={theme.color("sidebar-foreground", 0.75)}
           playKey={presses.search}
         />
-      </Pressable>
-      <Pressable
+      </PressableScale>
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel="New note"
         onPressIn={() => pressed("plus")}
@@ -80,7 +85,7 @@ export function Toolbar({ title, onOpenTree, onOpenSearch, onCreateNote }: Props
           color={theme.color("sidebar-foreground", 0.75)}
           playKey={presses.plus}
         />
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }
@@ -97,6 +102,9 @@ const styles = StyleSheet.create({
     height: TOOLBAR_HEIGHT,
     alignItems: "center",
     justifyContent: "center",
+  },
+  spacer: {
+    flex: 1,
   },
   title: {
     flex: 1,

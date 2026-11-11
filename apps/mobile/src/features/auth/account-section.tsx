@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TextInput, View } from "react-native";
 import { useAnnouncement } from "../../shell/announce";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme } from "../../shell/theme";
@@ -12,6 +12,8 @@ import {
   signInDraftReady,
   type SignInMode,
 } from "./sign-in-model";
+import { PressableDim } from "../../shell/pressable-dim";
+import { PressableScale } from "../../shell/pressable-scale";
 
 /**
  * The account sheet's account section: sign in or create an account, then
@@ -132,7 +134,7 @@ function SignInForm({ runtime, busy, failure }: SignInFormProps) {
           {failure}
         </Text>
       ) : null}
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityState={{ disabled: !ready, busy }}
         disabled={!ready}
@@ -149,8 +151,8 @@ function SignInForm({ runtime, busy, failure }: SignInFormProps) {
             {mode === "sign-in" ? "Sign in" : "Create account"}
           </Text>
         )}
-      </Pressable>
-      <Pressable
+      </PressableScale>
+      <PressableDim
         accessibilityRole="button"
         disabled={busy}
         onPress={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}
@@ -159,7 +161,7 @@ function SignInForm({ runtime, busy, failure }: SignInFormProps) {
         <Text style={[styles.linkLabel, { color: theme.color("theme-accent-blue") }]}>
           {mode === "sign-in" ? "Create an account instead" : "I already have an account"}
         </Text>
-      </Pressable>
+      </PressableDim>
     </View>
   );
 }
@@ -204,7 +206,7 @@ function SignedIn({ runtime, summary, connection, warning }: SignedInProps) {
         <Text style={[styles.detail, { color: theme.color("destructive") }]}>{warning}</Text>
       ) : null}
       {connection.retry ? (
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           onPress={() => {
             runtime.retryConnection().catch((error: unknown) => console.error(error));
@@ -214,9 +216,9 @@ function SignedIn({ runtime, summary, connection, warning }: SignedInProps) {
           <Text style={[styles.buttonLabel, { color: theme.color("primary-foreground") }]}>
             Retry sync
           </Text>
-        </Pressable>
+        </PressableScale>
       ) : null}
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityHint="Stops sync. Notes on this device are kept."
         onPress={() => {
@@ -227,7 +229,7 @@ function SignedIn({ runtime, summary, connection, warning }: SignedInProps) {
         <Text style={[styles.buttonLabel, { color: theme.color("sidebar-foreground") }]}>
           Sign out
         </Text>
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }
@@ -291,7 +293,7 @@ function Field({
           value={value}
         />
         {trailing ? (
-          <Pressable
+          <PressableDim
             accessibilityHint={trailing.hint}
             accessibilityRole="button"
             hitSlop={8}
@@ -301,7 +303,7 @@ function Field({
             <Text style={[styles.linkLabel, { color: theme.color("theme-accent-blue") }]}>
               {trailing.label}
             </Text>
-          </Pressable>
+          </PressableDim>
         ) : null}
       </View>
     </View>

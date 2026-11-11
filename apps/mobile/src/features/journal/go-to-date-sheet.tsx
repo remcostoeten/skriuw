@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,6 +17,8 @@ import {
   type JournalDateResolution,
 } from "@skriuw/renderer-core/journal/date-expressions";
 import type { DateKey } from "@skriuw/renderer-core/journal/dates";
+import { PressableDim } from "../../shell/pressable-dim";
+import { PressableScale } from "../../shell/pressable-scale";
 
 type Props = {
   open: boolean;
@@ -117,7 +118,7 @@ export function GoToDateSheet({ open, context, today, onClose, onGo }: Props) {
             {JOURNAL_DATE_SUGGESTIONS.map((suggestion) => {
               const resolved = resolveJournalDateExpression(suggestion.expression, context, today);
               return (
-                <Pressable
+                <PressableDim
                   key={suggestion.expression}
                   accessibilityRole="button"
                   accessibilityLabel={`${suggestion.expression}, ${
@@ -132,7 +133,7 @@ export function GoToDateSheet({ open, context, today, onClose, onGo }: Props) {
                   <Text style={[styles.resolved, { color: theme.color("muted-foreground") }]}>
                     {resolved.ok ? resolved.label : suggestion.description}
                   </Text>
-                </Pressable>
+                </PressableDim>
               );
             })}
           </ScrollView>
@@ -150,7 +151,7 @@ export function GoToDateSheet({ open, context, today, onClose, onGo }: Props) {
           </Text>
         )}
         <View style={styles.actions}>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel="Close go to date"
             onPress={onClose}
@@ -159,8 +160,8 @@ export function GoToDateSheet({ open, context, today, onClose, onGo }: Props) {
             <Text style={[styles.actionLabel, { color: theme.color("muted-foreground") }]}>
               Cancel
             </Text>
-          </Pressable>
-          <Pressable
+          </PressableScale>
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel="Open this date"
             accessibilityState={{ disabled: resolution?.ok !== true }}
@@ -177,7 +178,7 @@ export function GoToDateSheet({ open, context, today, onClose, onGo }: Props) {
             <Text style={[styles.actionLabel, { color: theme.color("primary-foreground") }]}>
               Go
             </Text>
-          </Pressable>
+          </PressableScale>
         </View>
       </View>
     </BottomSheet>

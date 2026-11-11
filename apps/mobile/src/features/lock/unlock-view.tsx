@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { useTheme } from "../../shell/theme";
 import { useWorkspace, useWorkspaceSelector } from "../../shell/workspace-provider";
@@ -18,6 +18,7 @@ import {
 } from "./lock-model";
 import { recoverNotes, unlockNotes } from "./lock-session";
 import { LockButton, LockError, LockField, SecretFields } from "./secret-fields";
+import { PressableScale } from "../../shell/pressable-scale";
 
 /**
  * The screen a sealed note is behind, and the only way back into the session.
@@ -255,7 +256,7 @@ export function UnlockView({ biometrics, onUnlocked, onCancel, title }: Props) {
               onPress={() => void promptBiometrics().catch(session.reportFailure)}
             />
           )}
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             onPress={() => {
               setError(null);
@@ -266,7 +267,7 @@ export function UnlockView({ biometrics, onUnlocked, onCancel, title }: Props) {
             <Text style={{ color: theme.color("muted-foreground"), fontSize: 13 }}>
               Forgot your {noun}?
             </Text>
-          </Pressable>
+          </PressableScale>
         </>
       )}
     </ScrollView>

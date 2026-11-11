@@ -1,9 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme } from "../../shell/theme";
 import { formatListDate, type DateKey } from "@skriuw/renderer-core/journal/dates";
 import { MOOD_OPTIONS } from "./model";
 import type { Anniversary } from "./on-this-day";
+import { PressableDim } from "../../shell/pressable-dim";
 
 type Props = {
   anniversaries: readonly Anniversary[];
@@ -36,7 +37,7 @@ export function OnThisDaySection({ anniversaries, excerptOf, onOpenDay }: Props)
           const mood = anniversary.entry.mood;
           const excerpt = excerptOf(anniversary.entry.noteId);
           return (
-            <Pressable
+            <PressableDim
               key={anniversary.entry.noteId}
               accessibilityRole="button"
               accessibilityLabel={[
@@ -71,7 +72,7 @@ export function OnThisDaySection({ anniversaries, excerptOf, onOpenDay }: Props)
                   {excerpt}
                 </Text>
               )}
-            </Pressable>
+            </PressableDim>
           );
         })}
       </View>

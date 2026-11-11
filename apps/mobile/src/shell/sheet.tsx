@@ -35,6 +35,7 @@ import {
   projectVelocity,
 } from "./motion";
 import { useTheme } from "./theme";
+import { PressableScale } from "./pressable-scale";
 
 type Props = {
   side: SheetSide;
@@ -222,7 +223,7 @@ export function SideSheet({ side, open, title, onClose, overlay, children }: Pro
                 >
                   {title}
                 </Text>
-                <Pressable
+                <PressableScale
                   accessibilityRole="button"
                   accessibilityLabel={`Close ${title.toLowerCase()}`}
                   onPress={onClose}
@@ -233,7 +234,7 @@ export function SideSheet({ side, open, title, onClose, overlay, children }: Pro
                     size={18}
                     color={theme.color("sidebar-foreground", 0.6)}
                   />
-                </Pressable>
+                </PressableScale>
               </View>
               <KeyboardAvoidingView behavior="padding" automaticOffset style={styles.body}>
                 {children}

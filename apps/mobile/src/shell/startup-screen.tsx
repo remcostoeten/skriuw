@@ -1,8 +1,9 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { StartupFailureView } from "../bridge/startup-failure";
 import { MINIMUM_TOUCH_TARGET } from "./metrics";
 import { useTheme } from "./theme";
+import { PressableScale } from "./pressable-scale";
 
 type Props = {
   /** `null` while the workspace is still opening. */
@@ -47,7 +48,7 @@ export function StartupScreen({ view }: Props) {
         )}
         <View style={styles.actions}>
           {view.actions.map((action) => (
-            <Pressable
+            <PressableScale
               key={action.label}
               accessibilityRole="button"
               accessibilityLabel={action.label}
@@ -79,7 +80,7 @@ export function StartupScreen({ view }: Props) {
               >
                 {action.label}
               </Text>
-            </Pressable>
+            </PressableScale>
           ))}
         </View>
       </SafeAreaView>

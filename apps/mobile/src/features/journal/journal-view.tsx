@@ -1,8 +1,13 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import Animated, {
+  FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import type { RendererState } from "@skriuw/renderer-core/store/types";
 import { announce, useAnnouncement } from "../../shell/announce";
@@ -10,7 +15,7 @@ import { AXIS_LOCK_PX } from "../../shell/edge-swipe";
 import { tickHaptic } from "../../shell/haptics";
 import { ShellIcon } from "../../shell/icons";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
-import { SNAP_BACK_SPRING } from "../../shell/motion";
+import { SNAP_BACK_SPRING, STATE_MS } from "../../shell/motion";
 import { useTheme } from "../../shell/theme";
 import { useWorkspace, useWorkspaceSelector } from "../../shell/workspace-provider";
 import { QuickCapture } from "../capture/quick-capture";
@@ -48,6 +53,7 @@ import {
 } from "./navigation";
 import { entryExcerpt, onThisDay } from "./on-this-day";
 import { OnThisDaySection } from "./on-this-day-section";
+import { PressableScale } from "../../shell/pressable-scale";
 
 type DayEntry = {
   noteId: string | null;
@@ -91,6 +97,7 @@ function entryBody(markdown: string): string {
  * are already the final ones.
  */
 const HEADER_FOLLOW = 0.35;
+const DAY_ENTER = FadeIn.duration(STATE_MS);
 
 function drainSummary(drain: { written: number; deferred: number }): string {
   const added = drain.written === 1 ? "1 capture added" : `${drain.written} captures added`;
@@ -168,15 +175,15 @@ export function JournalView() {
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
         <GestureDetector gesture={swipe}>
           <Animated.View style={[styles.header, headerStyle]}>
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel="Previous day"
               onPress={() => step(-1)}
               style={styles.step}
             >
               <ShellIcon name="back" size={22} color={theme.color("muted-foreground")} />
-            </Pressable>
-            <Pressable
+            </PressableScale>
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={`${formatLongDate(day)}. Go to another date`}
               onPress={() => setGoingToDate(true)}
@@ -191,20 +198,20 @@ export function JournalView() {
               <Text style={[styles.headingDate, { color: theme.color("muted-foreground") }]}>
                 {formatLongDate(day)}
               </Text>
-            </Pressable>
-            <Pressable
+            </PressableScale>
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel="Next day"
               onPress={() => step(1)}
               style={styles.step}
             >
               <ShellIcon name="forward" size={22} color={theme.color("muted-foreground")} />
-            </Pressable>
+            </PressableScale>
           </Animated.View>
         </GestureDetector>
 
         {day === today ? null : (
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel="Go to today"
             onPress={() => openDay(today)}
@@ -213,19 +220,21 @@ export function JournalView() {
             <Text style={[styles.todayLabel, { color: theme.color("muted-foreground") }]}>
               Today
             </Text>
-          </Pressable>
+          </PressableScale>
         )}
 
         <MoodRow mood={dayEntry.mood} onChange={writeMood} />
 
-        <Text
+        <Animated.Text
+          key={day}
+          entering={DAY_ENTER}
           style={[
             styles.body,
             { color: theme.color("foreground", body.length === 0 ? 0.5 : 0.85) },
           ]}
         >
           {body.length === 0 ? "Nothing written yet. Capture something below." : body}
-        </Text>
+        </Animated.Text>
 
         {lastDrain === null || lastDrain.written === 0 ? null : (
           <Text
@@ -257,7 +266,7 @@ export function JournalView() {
         <EntryCount entries={entries} />
       </ScrollView>
 
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={`Capture to ${formatDayHeading(day, today).toLowerCase()}`}
         onPress={() => setComposing(true)}
@@ -267,7 +276,7 @@ export function JournalView() {
         ]}
       >
         <ShellIcon name="plus" size={24} color={theme.color("primary-foreground")} />
-      </Pressable>
+      </PressableScale>
 
       <QuickCapture
         open={composing || captureRequested}

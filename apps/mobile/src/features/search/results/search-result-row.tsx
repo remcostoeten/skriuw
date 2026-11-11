@@ -1,9 +1,10 @@
 import { memo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import type { SearchHit } from "@skriuw/renderer-core/contracts/workspace";
 import { MINIMUM_TOUCH_TARGET } from "../../../shell/metrics";
 import { useTheme } from "../../../shell/theme";
 import { snippetPlainText, snippetSegments } from "@skriuw/renderer-core/search/snippet";
+import { PressableDim } from "../../../shell/pressable-dim";
 
 type Props = {
   hit: SearchHit;
@@ -15,7 +16,7 @@ function SearchResultRowView({ hit, onOpen }: Props) {
   const segments = snippetSegments(hit.snippet);
 
   return (
-    <Pressable
+    <PressableDim
       accessibilityRole="button"
       accessibilityLabel={`${hit.title}. ${snippetPlainText(hit.snippet)}`}
       onPress={() => onOpen(hit.noteId)}
@@ -45,7 +46,7 @@ function SearchResultRowView({ hit, onOpen }: Props) {
           </Text>
         </View>
       )}
-    </Pressable>
+    </PressableDim>
   );
 }
 

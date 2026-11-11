@@ -14,7 +14,7 @@ import { LockSettingsView } from "../features/lock/lock-settings-view";
 import { SearchScreen } from "../features/search/search-screen";
 import { AccountPanel } from "./account-panel";
 import { useChrome } from "./chrome";
-import { destinationForRoute, routeForPath } from "./destinations";
+import { destinationForRoute, routeForPath, type ShellRoute } from "./destinations";
 import { EdgeSwipeZones } from "./edge-swipe-zones";
 import { TAB_BAR_HEIGHT } from "./metrics";
 import { clamp } from "./motion";
@@ -38,6 +38,15 @@ function activeNoteTitle(state: RendererState): string | null {
     return null;
   }
   return state.nodes.get(state.activeNoteId)?.title ?? null;
+}
+
+const ROUTES_WITH_OWN_HEADING: readonly ShellRoute[] = ["tasks", "tags", "people", "trash"];
+
+function toolbarTitle(route: ShellRoute, noteTitle: string | null, label: string): string | null {
+  if (route === "notes") {
+    return noteTitle ?? label;
+  }
+  return ROUTES_WITH_OWN_HEADING.includes(route) ? null : label;
 }
 
 /**
@@ -129,7 +138,7 @@ export function ShellFrame({ children }: Props) {
     <View style={[styles.root, { backgroundColor: theme.color("sidebar-background") }]}>
       <View style={{ height: insets.top }} />
       <Toolbar
-        title={route === "notes" ? (noteTitle ?? destination.label) : destination.label}
+        title={toolbarTitle(route, noteTitle, destination.label)}
         onOpenTree={openTree}
         onOpenSearch={openSearch}
         onCreateNote={() => {

@@ -1,8 +1,10 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import { MINIMUM_TOUCH_TARGET } from "../../shell/metrics";
 import { useTheme } from "../../shell/theme";
 import { secretNoun, type SecretDraft } from "./lock-model";
 import type { NoteLockKind } from "./port";
+import { PressableDim } from "../../shell/pressable-dim";
+import { PressableScale } from "../../shell/pressable-scale";
 
 type FieldProps = {
   label: string;
@@ -80,7 +82,7 @@ function KindChoice({ value, onChange }: KindProps) {
       {KINDS.map((option) => {
         const selected = value === option.kind;
         return (
-          <Pressable
+          <PressableDim
             accessibilityLabel={option.label}
             accessibilityRole="radio"
             accessibilityState={{ selected, checked: selected }}
@@ -95,7 +97,7 @@ function KindChoice({ value, onChange }: KindProps) {
             ]}
           >
             <Text style={{ color: theme.color("foreground"), fontSize: 15 }}>{option.label}</Text>
-          </Pressable>
+          </PressableDim>
         );
       })}
     </View>
@@ -173,7 +175,7 @@ type ButtonProps = {
 export function LockButton({ label, onPress, primary = false, disabled = false }: ButtonProps) {
   const theme = useTheme();
   return (
-    <Pressable
+    <PressableScale
       accessibilityLabel={label}
       accessibilityRole="button"
       accessibilityState={{ disabled }}
@@ -195,7 +197,7 @@ export function LockButton({ label, onPress, primary = false, disabled = false }
       >
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
