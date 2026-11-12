@@ -368,10 +368,12 @@ jobs:
                   $headers = @{ Authorization = "Bearer $env:WINGET_TOKEN"; Accept = "application/vnd.github+json" }
                   $user = Invoke-WebRequest -Headers $headers -Uri "https://api.github.com/user"
                   $scopes = @($user.Headers['X-OAuth-Scopes'] -split ',\s*' | Where-Object { $_ })
-                  foreach ($required in 'public_repo', 'workflow') {
-                    if ($scopes -notcontains $required -and $scopes -notcontains 'repo') {
-                      throw "WINGET_TOKEN is missing the '$required' scope (has: $($scopes -join ', ')). Create a classic PAT with public_repo and workflow."
-                    }
+                  if ($scopes -notcontains 'public_repo' -and $scopes -notcontains 'repo') {
+                    throw "WINGET_TOKEN is missing the 'public_repo' scope (has: $($scopes -join ', ')). Create a classic PAT with public_repo and workflow."
+                  }
+                  if ($scopes -notcontains 'workflow' -and $scopes -notcontains 'repo') {
+                    Write-Warning "WINGET_TOKEN has no 'workflow' scope. The fork sync fails once upstream changes a workflow file; replace the token with one that has public_repo and workflow."
+                    "::warning::WINGET_TOKEN has no workflow scope; the fork sync fails once upstream changes a workflow file." | Write-Host
                   }
                   $fork = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/${{ github.repository_owner }}/winget-pkgs"
                   if (-not $fork.permissions.push) {

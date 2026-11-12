@@ -152,10 +152,11 @@ cert later only requires signing in `release-v2.yml`.
   `RemcoStoeten.Skriuw` identifier to exist before automation can update it):
   `wingetcreate new https://github.com/remcostoeten/skriuw/releases/download/v2-vX.Y.Z/Skriuw_X.Y.Z_x64-setup.exe`
 
-The workflow checks both scopes and the fork permission before attempting a
-submission. The `workflow` scope is required because komac syncs the fork with
-upstream first, and GitHub refuses to merge upstream commits that change
-`.github/workflows` into a fork without it.
+The workflow fails early when `public_repo` or fork write access is missing and
+warns when `workflow` is missing. The `workflow` scope matters because komac syncs
+the fork with upstream first, and GitHub refuses to merge upstream commits that
+change `.github/workflows` into a fork without it; a token without it works until
+upstream next touches a workflow file.
 
 ### 6. Snap Store — `SNAPCRAFT_STORE_CREDENTIALS`
 
