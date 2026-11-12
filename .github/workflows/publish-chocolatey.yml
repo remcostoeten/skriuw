@@ -1,0 +1,103 @@
+name: Publish Chocolatey
+
+# Packs tools/packaging/chocolatey around the released MSI and pushes it to the
+# Chocolatey community repository when CHOCOLATEY_API_KEY is set. Without the
+# key (and on pull requests) it still builds the package and test-installs it.
+on:
+    release:
+        types: [published]
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: "v2 release tag to publish (e.g. v2-v0.54.0)"
+                required: true
+                type: string
+    pull_request:
+        paths:
+            - tools/packaging/chocolatey/**
+            - .github/workflows/publish-chocolatey.yml
+
+concurrency:
+    group: publish-chocolatey-${{ github.event_name == 'pull_request' && github.ref || 'release' }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+    package:
+        if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v2-v')
+        runs-on: windows-latest
+        timeout-minutes: 30
+        env:
+            CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
+
+            - name: Resolve release
+              id: pick
+              shell: pwsh
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  EVENT: ${{ github.event_name }}
+                  RELEASE_TAG: ${{ github.event.release.tag_name }}
+                  INPUT_TAG: ${{ inputs.tag }}
+              run: |
+                  $tag = switch ($env:EVENT) {
+                    'release' { $env:RELEASE_TAG }
+                    'workflow_dispatch' { $env:INPUT_TAG }
+                    default { gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name }
+                  }
+                  if ($tag -notlike 'v2-v*') { throw "tag '$tag' is not a v2-v* tag" }
+                  $version = $tag.Substring(4)
+                  $asset = "Skriuw_${version}_x64_en-US.msi"
+                  gh release download $tag --repo "${{ github.repository }}" --pattern $asset --dir dist
+                  $sha = (Get-FileHash "dist/$asset" -Algorithm SHA256).Hash.ToLower()
+                  "tag=$tag" >> $env:GITHUB_OUTPUT
+                  "version=$version" >> $env:GITHUB_OUTPUT
+                  "sha256=$sha" >> $env:GITHUB_OUTPUT
+                  "url=https://github.com/${{ github.repository }}/releases/download/$tag/$asset" >> $env:GITHUB_OUTPUT
+
+            - name: Render package
+              shell: pwsh
+              run: |
+                  New-Item -ItemType Directory -Force -Path build | Out-Null
+                  Copy-Item -Recurse -Force tools/packaging/chocolatey/* build/
+                  $version = '${{ steps.pick.outputs.version }}'
+                  (Get-Content build/skriuw.nuspec -Raw).Replace('@VERSION@', $version) | Set-Content build/skriuw.nuspec -NoNewline
+                  (Get-Content build/tools/chocolateyinstall.ps1 -Raw).
+                    Replace('@MSI_URL@', '${{ steps.pick.outputs.url }}').
+                    Replace('@MSI_SHA256@', '${{ steps.pick.outputs.sha256 }}') |
+                    Set-Content build/tools/chocolateyinstall.ps1 -NoNewline
+
+            - name: Pack
+              shell: pwsh
+              working-directory: build
+              run: choco pack
+
+            - name: Test install and uninstall
+              shell: pwsh
+              working-directory: build
+              run: |
+                  choco install skriuw --source "$PWD" --yes --no-progress
+                  if ($LASTEXITCODE -ne 0) { throw "install failed" }
+                  $found = Get-ChildItem 'C:\Program Files\Skriuw*' -ErrorAction SilentlyContinue
+                  if (-not $found) { throw "Skriuw is not installed under Program Files" }
+                  choco uninstall skriuw --yes --no-progress
+                  if ($LASTEXITCODE -ne 0) { throw "uninstall failed" }
+
+            - uses: actions/upload-artifact@v7
+              with:
+                  name: skriuw-nupkg
+                  path: build/*.nupkg
+
+            - name: Push to Chocolatey
+              if: ${{ github.event_name != 'pull_request' && env.CHOCOLATEY_API_KEY != '' }}
+              shell: pwsh
+              working-directory: build
+              run: |
+                  choco push "skriuw.${{ steps.pick.outputs.version }}.nupkg" --source https://push.chocolatey.org/ --api-key $env:CHOCOLATEY_API_KEY
+                  if ($LASTEXITCODE -ne 0) { throw "choco push failed" }
+
+            - name: Chocolatey key not configured
+              if: ${{ github.event_name != 'pull_request' && env.CHOCOLATEY_API_KEY == '' }}
+              run: echo "CHOCOLATEY_API_KEY not set; built and tested the package but skipped the push."

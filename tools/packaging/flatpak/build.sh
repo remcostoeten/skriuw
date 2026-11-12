@@ -37,7 +37,7 @@ flatpak-builder --force-clean --disable-rofiles-fuse --install-deps-from=flathub
   --default-branch=stable --subject="Skriuw ${version}" \
   --repo="${out_dir}/repo" "${sign_args[@]}" build "${app_id}.yaml"
 
-flatpak-builder --run --disable-rofiles-fuse build "${app_id}.yaml" sh -c '
+flatpak-builder --run build "${app_id}.yaml" sh -c '
   missing="$(ldd /app/bin/skriuw-app | grep "not found" || true)"
   if [ -n "$missing" ]; then echo "$missing" >&2; exit 1; fi
   appstreamcli validate --no-net /app/share/metainfo/com.skriuw.Skriuw.metainfo.xml || true

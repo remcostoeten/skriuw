@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>skriuw</id>
+    <version>@VERSION@</version>
+    <title>Skriuw</title>
+    <authors>Remco Stoeten</authors>
+    <owners>remcostoeten</owners>
+    <projectUrl>https://skriuw.com</projectUrl>
+    <projectSourceUrl>https://github.com/remcostoeten/skriuw</projectSourceUrl>
+    <packageSourceUrl>https://github.com/remcostoeten/skriuw/tree/daddy/tools/packaging/chocolatey</packageSourceUrl>
+    <bugTrackerUrl>https://github.com/remcostoeten/skriuw/issues</bugTrackerUrl>
+    <iconUrl>https://raw.githubusercontent.com/remcostoeten/skriuw/daddy/apps/workspace/src-tauri/icons/128x128.png</iconUrl>
+    <licenseUrl>https://github.com/remcostoeten/skriuw/blob/daddy/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <copyright>Remco Stoeten</copyright>
+    <tags>skriuw notes markdown journal writing local-first</tags>
+    <summary>A quiet writing workspace for notes, journaling, sharing, and planning</summary>
+    <description>Skriuw is a local-first workspace for writing, journaling, and connected knowledge. Notes live in a SQLite database on your device and the app runs fully offline without an account. Signing in is optional and only needed to sync a workspace to other devices or to continue in the browser.</description>
+    <releaseNotes>https://github.com/remcostoeten/skriuw/releases/tag/v2-v@VERSION@</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

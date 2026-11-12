@@ -5,23 +5,29 @@ Legacy v1 desktop releases use `desktop-v*` tags and are available only as
 historical release assets. Package-manager publication accepts v2 tags only, so
 a v1 release cannot replace the current v2 channels.
 
-| Channel              | Audience        | Source                                      |
-| -------------------- | --------------- | ------------------------------------------- |
-| **apt repo**         | Debian / Ubuntu | `skriuw/packages` (GitHub Pages)            |
-| **dnf repo**         | Fedora / RHEL   | `skriuw/packages` (GitHub Pages)            |
-| **AUR `skriuw-bin`** | Arch / Manjaro  | `aur.archlinux.org`                         |
-| **Homebrew cask**    | macOS           | `skriuw/homebrew-tap` (`Casks/skriuw.rb`)   |
-| **Scoop bucket**     | Windows         | `skriuw/scoop-bucket` (`bucket/skriuw.json`) |
-| **AppImage**         | any Linux       | release asset (portable, no repo)           |
+| Channel              | Audience        | Source                                         |
+| -------------------- | --------------- | ---------------------------------------------- |
+| **apt repo**         | Debian / Ubuntu | `skriuw/packages` (GitHub Pages)               |
+| **dnf repo**         | Fedora / RHEL   | `skriuw/packages` (GitHub Pages)               |
+| **AUR `skriuw-bin`** | Arch / Manjaro  | `aur.archlinux.org`                            |
+| **Flatpak repo**     | any Linux       | `skriuw/flatpak` (GitHub Pages)                |
+| **Nix flake**        | NixOS / Nix     | `skriuw/nix`                                   |
+| **Snap**             | Ubuntu / snapd  | Snap Store (`skriuw`)                          |
+| **Homebrew cask**    | macOS           | `skriuw/homebrew-tap` (`Casks/skriuw.rb`)      |
+| **Winget**           | Windows         | `microsoft/winget-pkgs` (`RemcoStoeten.Skriuw`) |
+| **Scoop bucket**     | Windows         | `skriuw/scoop-bucket` (`bucket/skriuw.json`)   |
+| **Chocolatey**       | Windows         | `community.chocolatey.org` (`skriuw`)          |
+| **Web image**        | self-hosting    | `ghcr.io/remcostoeten/skriuw-web`              |
+| **AppImage**         | any Linux       | release asset (portable, no repo)              |
 
 The iOS and Android client is a separate channel on its own version line and
 is **not published**; its store metadata, privacy and export-compliance
 answers, and submission checklist live in [`apps/mobile/`](../apps/mobile/README.md).
 
-Winget and Snap are prepared by the workflow, but are **not current v2 install
-channels**: Winget's public manifest is older and the Snap Store upload needs
-store credentials. Do not advertise either until its current v2 package is
-confirmed published.
+Snap and Chocolatey publish as soon as `SNAPCRAFT_STORE_CREDENTIALS` and
+`CHOCOLATEY_API_KEY` exist. Until then their jobs build and test the package and
+skip the upload, so do not advertise either channel before its first successful
+publish. Winget installs the MSI, which is a per-machine install.
 
 The release builds (`.deb` / `.rpm` / `.AppImage` / universal `.dmg` / NSIS
 `-setup.exe`) are produced by
@@ -48,8 +54,20 @@ the optional store submissions.
     - repacks the `.deb` as a snap and uploads it only when
       `SNAPCRAFT_STORE_CREDENTIALS` is configured.
 
-You can also run it manually: **Actions → Publish Channels → Run workflow**,
-passing the tag (e.g. `v2-v0.27.0`).
+Publishing the release also fires four independent workflows, each with its own
+pull-request build and a `workflow_dispatch` that takes a tag:
+
+- `publish-flatpak.yml` builds the Flatpak from the `.deb` and publishes the
+  signed OSTree repo to `skriuw/flatpak`;
+- `publish-nix.yml` rewrites `release.json` in `skriuw/nix`, builds the flake,
+  and pushes;
+- `publish-chocolatey.yml` packs the MSI package, test-installs it, and pushes it
+  when `CHOCOLATEY_API_KEY` is set;
+- `publish-container.yml` builds the browser app into a multi-arch image and
+  pushes it to GHCR.
+
+You can also run the main workflow manually: **Actions → Publish Channels → Run
+workflow**, passing the tag (e.g. `v2-v0.27.0`).
 
 ## One-time setup
 
@@ -124,7 +142,9 @@ cert later only requires signing in `release-v2.yml`.
 
 ### 5. winget — `WINGET_TOKEN`
 
-- Create a **classic** PAT with the `public_repo` scope and fork
+- Create a **classic** PAT with the `public_repo` and `workflow` scopes
+  (`tools/scripts/setup-package-credentials.sh winget` does this and stores the
+  secret) and fork
   [`microsoft/winget-pkgs`](https://github.com/microsoft/winget-pkgs) under
   the account that owns (or can write to) `remcostoeten/winget-pkgs`.
 - `gh secret set WINGET_TOKEN --repo remcostoeten/skriuw`
@@ -132,17 +152,38 @@ cert later only requires signing in `release-v2.yml`.
   `RemcoStoeten.Skriuw` identifier to exist before automation can update it):
   `wingetcreate new https://github.com/remcostoeten/skriuw/releases/download/v2-vX.Y.Z/Skriuw_X.Y.Z_x64-setup.exe`
 
-The current `WINGET_TOKEN` must be replaced with a token that can write to
-that fork. The workflow now checks this permission before attempting a
-submission, so a misconfigured token reports the actionable cause instead of a
-failed `CreateRef` operation.
+The workflow checks both scopes and the fork permission before attempting a
+submission. The `workflow` scope is required because komac syncs the fork with
+upstream first, and GitHub refuses to merge upstream commits that change
+`.github/workflows` into a fork without it.
 
 ### 6. Snap Store — `SNAPCRAFT_STORE_CREDENTIALS`
 
-- One-time: `snapcraft register skriuw` (requires a snapcraft.io account).
-- `snapcraft export-login --snaps skriuw --channels stable - | gh secret set SNAPCRAFT_STORE_CREDENTIALS --repo remcostoeten/skriuw`
+- One-time: `tools/scripts/setup-package-credentials.sh snap` logs in to
+  snapcraft.io (free account), registers `skriuw`, and stores the exported
+  credentials as `SNAPCRAFT_STORE_CREDENTIALS`.
 - Until the secret exists the job still builds the snap as a dry run, it just
   skips the store upload.
+
+### 7. Flatpak and Nix repositories — `FLATPAK_DEPLOY_KEY`, `NIX_DEPLOY_KEY`
+
+[`skriuw/flatpak`](https://github.com/skriuw/flatpak) serves the OSTree repo from
+GitHub Pages and [`skriuw/nix`](https://github.com/skriuw/nix) holds the flake.
+Each has a write-enabled deploy key whose private half is the matching secret,
+rotated the way the keys in step 4 are. The Flatpak repo is signed with the same
+`GPG_PRIVATE_KEY` as apt and dnf. Every release replaces the Flatpak repo with a
+single commit, so it carries no history.
+
+The Flatpak wraps the released `.deb` under the app ID `com.skriuw.Skriuw`.
+Flathub requires open-source apps to build from source offline, so a Flathub
+submission is a separate piece of work from this self-hosted remote.
+
+### 8. Chocolatey — `CHOCOLATEY_API_KEY`
+
+Create a free account on community.chocolatey.org and run
+`tools/scripts/setup-package-credentials.sh chocolatey` to store the API key. The
+first push of a package enters Chocolatey's moderation queue, and so does every
+version after it.
 
 ## End-user install
 
@@ -156,7 +197,7 @@ echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://skriuw.github.io/pa
 sudo apt update && sudo apt install skriuw
 ```
 
-### Fedora / RHEL / openSUSE
+### Fedora / RHEL
 
 ```bash
 sudo dnf config-manager addrepo --from-repofile=https://skriuw.github.io/packages/rpm/skriuw.repo
@@ -178,13 +219,43 @@ brew install --cask skriuw/tap/skriuw
 ### Windows
 
 ```powershell
-# Scoop is the current v2 package-manager channel.
+winget install RemcoStoeten.Skriuw
+```
+
+```powershell
 scoop bucket add skriuw https://github.com/skriuw/scoop-bucket
 scoop install skriuw
 ```
 
-Winget and Snap are not listed here because they do not currently publish the
-latest v2 version. Install from [GitHub Releases](https://github.com/remcostoeten/skriuw/releases/latest) if none of the channels above fits your platform.
+```powershell
+choco install skriuw
+```
+
+The `choco` line works once Chocolatey has approved the first version.
+
+### Any Linux (Flatpak)
+
+```bash
+flatpak remote-add --if-not-exists --user skriuw https://skriuw.github.io/flatpak/skriuw.flatpakrepo
+flatpak install --user skriuw com.skriuw.Skriuw
+```
+
+### Nix
+
+```bash
+nix run github:skriuw/nix
+```
+
+### Snap
+
+```bash
+sudo snap install skriuw
+```
+
+The `snap` line works once the snap is registered and the credentials secret
+exists.
+
+Install from [GitHub Releases](https://github.com/remcostoeten/skriuw/releases/latest) if none of the channels above fits your platform.
 
 ## Docker (v1 self-hosting)
 
@@ -195,7 +266,33 @@ available for `linux/amd64` and `linux/arm64`:
 docker pull ghcr.io/remcostoeten/skriuw:0.25.0
 ```
 
-v2 is a local-first desktop application and is not distributed as a server container.
+## Docker (v2 browser app)
+
+The browser build of v2 is published as a static-file image for `linux/amd64` and
+`linux/arm64`:
+
+```bash
+docker run --rm -p 8080:80 ghcr.io/remcostoeten/skriuw-web:latest
+```
+
+The image is a Caddy server over `apps/workspace/dist`, built by
+[`Dockerfile`](docker/Dockerfile). It is a separate package from the frozen v1
+image, so a v1 `:latest` pull never turns into v2.
+
+- The app needs a secure context for its service worker and local database.
+  `http://localhost` works. Anything else needs HTTPS, so set `SITE_ADDRESS` to a
+  domain and publish ports 80 and 443 for Caddy's automatic HTTPS, or terminate
+  TLS in front of the container.
+- The build has no sync backend of its own. The sync service is a Cloudflare
+  Worker, and the app only trusts cloud URLs on `.skriuw.app` and `.workers.dev`.
+  Sign-in therefore talks to the hosted Skriuw cloud and stays off until a user
+  connects it.
+- [`compose.yaml`](docker/compose.yaml) is a minimal Compose file for the same
+  image.
+- After the first push, the package visibility on GHCR has to be set to Public
+  once in the package settings. The publish workflow warns when it is not.
+
+The desktop application is not distributed as a server container.
 
 ## Local testing of the apt repo
 
