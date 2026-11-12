@@ -87,7 +87,7 @@ echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://skriuw.github.io/pa
 sudo apt update && sudo apt install skriuw
 ```
 
-### Fedora / RHEL / openSUSE (dnf)
+### Fedora / RHEL (dnf)
 
 ```bash
 sudo dnf config-manager addrepo --from-repofile=https://skriuw.github.io/packages/rpm/skriuw.repo
@@ -100,7 +100,11 @@ sudo dnf install skriuw
 brew install --cask skriuw/tap/skriuw
 ```
 
-### Windows (Scoop)
+### Windows (winget or Scoop)
+
+```powershell
+winget install RemcoStoeten.Skriuw
+```
 
 ```powershell
 scoop bucket add skriuw https://github.com/skriuw/scoop-bucket
@@ -113,9 +117,31 @@ scoop install skriuw
 yay -S skriuw-bin
 ```
 
-AUR publication is currently paused upstream, so that package can lag behind
-the latest release. Winget and Snap are wired into release automation but
-have no current publication; use a release asset or one of the channels above.
+### Any Linux (Flatpak)
+
+```bash
+flatpak remote-add --if-not-exists --user skriuw https://skriuw.github.io/flatpak/skriuw.flatpakrepo
+flatpak install --user skriuw com.skriuw.Skriuw
+```
+
+The Flatpak keeps its data under `~/.var/app/com.skriuw.Skriuw`, separate from a native install.
+
+### Nix
+
+```bash
+nix run github:skriuw/nix
+```
+
+### Browser app in a container
+
+```bash
+docker run --rm -p 8080:80 ghcr.io/remcostoeten/skriuw-web:latest
+```
+
+Open `http://localhost:8080`. The app needs a secure context for its service
+worker and local database, so serve it from `localhost` or over HTTPS. Set
+`SITE_ADDRESS` to a domain and publish ports 80 and 443 to get automatic HTTPS.
+Sync stays off until you sign in, and sign-in talks to the hosted Skriuw cloud.
 
 ### iPhone and Android
 

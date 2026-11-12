@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.skriuw.Skriuw</id>
+  <name>Skriuw</name>
+  <summary>A quiet writing workspace for notes, journaling, sharing, and planning</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="com.skriuw">
+    <name>Remco Stoeten</name>
+  </developer>
+  <description>
+    <p>Skriuw is a local-first workspace for writing, journaling, and connected knowledge. Notes live in a SQLite database on your device and the app runs fully offline without an account.</p>
+    <p>Signing in is optional and only needed to sync a workspace to other devices or to continue in the browser.</p>
+  </description>
+  <launchable type="desktop-id">com.skriuw.Skriuw.desktop</launchable>
+  <url type="homepage">https://skriuw.com</url>
+  <url type="bugtracker">https://github.com/remcostoeten/skriuw/issues</url>
+  <url type="vcs-browser">https://github.com/remcostoeten/skriuw</url>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/remcostoeten/skriuw/daddy/apps/site/public/preview.png</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="@VERSION@" date="@DATE@"/>
+  </releases>
+</component>

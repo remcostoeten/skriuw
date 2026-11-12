@@ -1,0 +1,162 @@
+name: Publish Flatpak
+
+# Wraps the released .deb in a Flatpak (tools/packaging/flatpak), signs the
+# OSTree repo with the apt signing key, and publishes it to GitHub Pages in
+# skriuw/flatpak. Every release builds a fresh single-commit repo, so there is
+# no state to carry over. Pull requests that touch the packaging only build.
+on:
+    release:
+        types: [published]
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: "v2 release tag to publish (e.g. v2-v0.54.0)"
+                required: true
+                type: string
+    pull_request:
+        paths:
+            - tools/packaging/flatpak/**
+            - .github/workflows/publish-flatpak.yml
+
+concurrency:
+    group: publish-flatpak-${{ github.event_name == 'pull_request' && github.ref || 'release' }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+    resolve:
+        if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v2-v')
+        runs-on: ubuntu-latest
+        outputs:
+            tag: ${{ steps.pick.outputs.tag }}
+            version: ${{ steps.pick.outputs.version }}
+            url: ${{ steps.pick.outputs.url }}
+            sha256: ${{ steps.pick.outputs.sha256 }}
+            date: ${{ steps.pick.outputs.date }}
+        steps:
+            - name: Resolve release
+              id: pick
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  EVENT: ${{ github.event_name }}
+                  RELEASE_TAG: ${{ github.event.release.tag_name }}
+                  INPUT_TAG: ${{ inputs.tag }}
+              run: |
+                  set -euo pipefail
+                  case "$EVENT" in
+                    release) TAG="$RELEASE_TAG" ;;
+                    workflow_dispatch) TAG="$INPUT_TAG" ;;
+                    *) TAG="$(gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name)" ;;
+                  esac
+                  case "$TAG" in
+                    v2-v*) VERSION="${TAG#v2-v}" ;;
+                    *) echo "::error::tag '$TAG' is not a v2-v* tag"; exit 1 ;;
+                  esac
+                  ASSET="Skriuw_${VERSION}_amd64.deb"
+                  gh release download "$TAG" --repo "${{ github.repository }}" --pattern "$ASSET" --dir dist
+                  {
+                    echo "tag=$TAG"
+                    echo "version=$VERSION"
+                    echo "url=https://github.com/${{ github.repository }}/releases/download/${TAG}/${ASSET}"
+                    echo "sha256=$(sha256sum "dist/${ASSET}" | awk '{print $1}')"
+                    echo "date=$(gh release view "$TAG" --repo "${{ github.repository }}" --json publishedAt --jq '.publishedAt[:10]')"
+                  } >> "$GITHUB_OUTPUT"
+
+    build:
+        needs: resolve
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        container:
+            image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
+            options: --privileged
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
+
+            - name: Import GPG signing key
+              id: gpg
+              if: github.event_name != 'pull_request'
+              env:
+                  GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+                  GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+              run: |
+                  set -euo pipefail
+                  if [ -z "${GPG_PRIVATE_KEY:-}" ]; then
+                    echo "::error::secret GPG_PRIVATE_KEY is not set"; exit 1
+                  fi
+                  command -v gpg >/dev/null || dnf install -y gnupg2
+                  GNUPGHOME="$(mktemp -d)"
+                  export GNUPGHOME
+                  chmod 700 "$GNUPGHOME"
+                  echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+                  echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+                  KEY_ID="$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/{print $5; exit}')"
+                  echo "key_id=$KEY_ID" >> "$GITHUB_OUTPUT"
+                  if [ -n "${GPG_PASSPHRASE:-}" ]; then
+                    echo "allow-loopback-pinentry" >> "$GNUPGHOME/gpg-agent.conf"
+                    echo "pinentry-mode loopback" >> "$GNUPGHOME/gpg.conf"
+                    echo "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback \
+                      --passphrase-fd 0 --sign --output /dev/null --local-user "$KEY_ID" LICENSE || true
+                  fi
+
+            - name: Build Flatpak repo
+              run: |
+                  ./tools/packaging/flatpak/build.sh \
+                    "${{ needs.resolve.outputs.version }}" \
+                    "${{ needs.resolve.outputs.url }}" \
+                    "${{ needs.resolve.outputs.sha256 }}" \
+                    "${{ needs.resolve.outputs.date }}" \
+                    out "${{ steps.gpg.outputs.key_id }}"
+
+            - uses: actions/upload-artifact@v7
+              if: github.event_name != 'pull_request'
+              with:
+                  name: flatpak-site
+                  path: out
+                  include-hidden-files: true
+                  if-no-files-found: error
+
+    publish:
+        if: github.event_name != 'pull_request'
+        needs: [resolve, build]
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  repository: skriuw/flatpak
+                  ref: main
+                  path: site
+                  ssh-key: ${{ secrets.FLATPAK_DEPLOY_KEY }}
+
+            - uses: actions/download-artifact@v8
+              with:
+                  name: flatpak-site
+                  path: out
+
+            - name: Replace the site content
+              run: |
+                  set -euo pipefail
+                  find site -mindepth 1 -maxdepth 1 -not -name .git -exec rm -rf {} +
+                  cp -a out/. site/
+                  cat > site/index.html <<HTML
+                  <!doctype html><meta charset="utf-8"><title>Skriuw for Flatpak</title>
+                  <body style="font:16px/1.6 system-ui;max-width:46rem;margin:3rem auto;padding:0 1rem">
+                  <h1>Skriuw for Flatpak</h1>
+                  <pre>flatpak remote-add --if-not-exists --user skriuw https://skriuw.github.io/flatpak/skriuw.flatpakrepo
+                  flatpak install --user skriuw com.skriuw.Skriuw</pre>
+                  <p>Or install straight from the ref file: <a href="com.skriuw.Skriuw.flatpakref">com.skriuw.Skriuw.flatpakref</a></p>
+                  <p>Latest: v${{ needs.resolve.outputs.version }}</p>
+                  </body>
+                  HTML
+
+            - name: Publish to skriuw/flatpak
+              working-directory: site
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git checkout --orphan publish
+                  git add -A
+                  git commit -q -m "skriuw ${{ needs.resolve.outputs.version }}"
+                  git push --force origin publish:main

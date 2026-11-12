@@ -45,7 +45,7 @@ export const packageChannels: Array<{
     anchor: "macos",
     platform: "macOS",
     title: "Homebrew",
-    body: "Install the signed desktop application through a dedicated cask.",
+    body: "Install the desktop application through a dedicated cask.",
     lines: ["$ brew install --cask skriuw/tap/skriuw"],
   },
   {
@@ -58,6 +58,14 @@ export const packageChannels: Array<{
       "> scoop bucket add skriuw https://github.com/skriuw/scoop-bucket",
       "> scoop install skriuw",
     ],
+  },
+  {
+    os: "windows",
+    anchor: "winget",
+    platform: "Windows",
+    title: "winget",
+    body: "Install from the Windows Package Manager that ships with Windows 10 and 11.",
+    lines: ["> winget install RemcoStoeten.Skriuw"],
   },
   {
     os: "linux",
@@ -85,6 +93,34 @@ export const packageChannels: Array<{
       "  --from-repofile=https://skriuw.github.io/packages/rpm/skriuw.repo",
       "$ sudo dnf install skriuw",
     ],
+  },
+  {
+    os: "linux",
+    anchor: "arch",
+    platform: "Arch Linux",
+    title: "AUR",
+    body: "Install the prebuilt package from the Arch User Repository.",
+    lines: ["$ yay -S skriuw-bin"],
+  },
+  {
+    os: "linux",
+    anchor: "flatpak",
+    platform: "Any Linux",
+    title: "Flatpak",
+    body: "Add the Skriuw remote once, then install and update with Flatpak.",
+    lines: [
+      "$ flatpak remote-add --if-not-exists --user skriuw \\",
+      "  https://skriuw.github.io/flatpak/skriuw.flatpakrepo",
+      "$ flatpak install --user skriuw com.skriuw.Skriuw",
+    ],
+  },
+  {
+    os: "linux",
+    anchor: "nix",
+    platform: "NixOS / Nix",
+    title: "Nix",
+    body: "Run or install the flake that packages the released build.",
+    lines: ["$ nix run github:skriuw/nix"],
   },
 ];
 

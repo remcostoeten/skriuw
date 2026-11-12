@@ -1,0 +1,13 @@
+.git
+.github
+**/node_modules
+**/target
+**/dist
+**/.next
+**/.expo
+.build
+v1-final
+apps/mobile/ios
+apps/mobile/android
+apps/site/public/app
+docs/benchmarks

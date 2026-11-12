@@ -3,8 +3,14 @@
 # file as `skriuw.deb` and rewrites `version` before building — the values
 # here are placeholders, not a source of truth.
 name: skriuw
+title: Skriuw
 base: core22
 version: "0.0.0"
+icon: icon.png
+website: https://skriuw.com
+source-code: https://github.com/remcostoeten/skriuw
+issues: https://github.com/remcostoeten/skriuw/issues
+contact: https://github.com/remcostoeten/skriuw/issues
 summary: A quiet writing workspace for notes, journaling, sharing, and planning
 description: |
   Skriuw is a local-first writing workspace for notes, journaling, sharing,
