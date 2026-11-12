@@ -51,7 +51,8 @@ Without `--skip-build` the script first runs `tauri build --debug --no-bundle`
 - `tauri-driver` (`cargo install tauri-driver`)
 - `WebKitWebDriver` at `/usr/bin/WebKitWebDriver` (override the path with the
   `WEBKIT_WEBDRIVER` env var). On Arch this ships in `webkitgtk-6.0`; on
-  Debian/Ubuntu in `webkit2gtk-driver`. It must come from the same WebKitGTK
+  Debian/Ubuntu in `webkitgtk-webdriver` (`webkit2gtk-driver` before Ubuntu
+  26.04). It must come from the same WebKitGTK
   release as the `webkit2gtk-4.1` the app links against.
 - `sqlite3` CLI for the post-run database assertion.
 - A display (X11 or Wayland). The app window opens headed; use `xvfb-run`

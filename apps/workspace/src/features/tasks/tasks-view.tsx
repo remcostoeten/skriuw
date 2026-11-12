@@ -33,7 +33,7 @@ import {
   visibleRowIds,
   type TaskGrouping,
   type TaskOverlay,
-} from "./model";
+} from "@skriuw/renderer-core/tasks/rows";
 import {
   buildSubtaskAdd,
   buildSubtaskToggle,

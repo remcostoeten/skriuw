@@ -18,12 +18,8 @@ import {
   buildPromotionUndo,
   buildTaskToggle,
 } from "@/features/tasks/task-operations";
-import {
-  projectPromotionSource,
-  projectTasks,
-  summarizeTasks,
-  UNSOURCED_GROUP_LABEL,
-} from "@/features/tasks/tasks-model";
+import { groupTasks, projectTaskRows, summarizeTasks } from "@skriuw/renderer-core/tasks/rows";
+import { projectPromotionSource } from "@/features/tasks/tasks-model";
 
 const NOTE_ID = "note-checklist";
 const OTHER_NOTE_ID = "note-plain";
@@ -399,16 +395,17 @@ test("tasks are grouped under their source note, detached work last", async () =
   const seeds: ItemSeed[] = [{ text: "Ship the tasks view", taskId: "task-1", blockId: "block-1" }];
   const bridge = createMemoryBridge({ snapshot: snapshot(seeds, tasks) });
   await withSession(bridge, async (session) => {
-    const groups = projectTasks(session.store.getState());
+    const rows = projectTaskRows(session.store.getState());
+    const groups = groupTasks(rows, "note", "2026-09-20");
     assert.deepEqual(
-      groups.map((group) => [group.noteTitle, group.rows.length]),
+      groups.map((group) => [group.title, group.kind, group.rows.length]),
       [
-        ["Checklist note", 1],
-        [UNSOURCED_GROUP_LABEL, 1],
+        ["Checklist note", "note", 1],
+        ["Detached", "detached", 1],
       ],
     );
-    assert.equal(groups[1]?.rows[0]?.detached, true);
-    assert.deepEqual(summarizeTasks(session.store.getState()), { total: 2, open: 2 });
+    assert.equal(groups[1]?.rows[0]?.link, "detached");
+    assert.deepEqual(summarizeTasks(rows, "2026-09-20"), { open: 2, overdue: 0, doneToday: 0 });
   });
 });
 

@@ -82,6 +82,42 @@ export async function moveNode(
   ]);
 }
 
+/** Moves a node to an exact slot: a parent and a place among its children. */
+export async function placeNode(
+  session: WorkspaceSession,
+  id: string,
+  placement: NodePlacement,
+): Promise<void> {
+  if (!session.store.getState().sourceNodes.has(id)) {
+    return;
+  }
+  await commitOperations(session, [{ type: "move_node", id, placement, at: Date.now() }]);
+}
+
+/**
+ * Puts a node back in the slot it held before a move, for the move's undo. A
+ * parent or neighbour that has gone since falls back to the nearest slot that
+ * still exists.
+ */
+export async function restoreNodePlacement(
+  session: WorkspaceSession,
+  id: string,
+  placement: NodePlacement,
+): Promise<void> {
+  const state = session.store.getState();
+  if (!state.sourceNodes.has(id)) {
+    return;
+  }
+  await commitOperations(session, [
+    {
+      type: "move_node",
+      id,
+      placement: restorablePlacement(state, placement),
+      at: Date.now(),
+    },
+  ]);
+}
+
 export async function setNodePinned(
   session: WorkspaceSession,
   id: string,

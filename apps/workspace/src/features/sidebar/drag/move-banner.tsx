@@ -1,7 +1,7 @@
 import { FolderInputIcon } from "@/shared/icons/static";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
-import { moveDropTarget } from "./rules";
+import { moveDropTarget } from "@skriuw/renderer-core/store/tree-drop";
 
 type Props = {
   store: RendererStore;

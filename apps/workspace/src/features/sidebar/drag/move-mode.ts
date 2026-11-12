@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
-import { moveCargoVanished } from "./rules";
+import { moveCargoVanished } from "@skriuw/renderer-core/store/tree-drop";
 
 export type MoveMode = {
   ids: readonly string[] | null;

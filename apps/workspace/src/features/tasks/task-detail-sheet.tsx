@@ -26,7 +26,7 @@ import { WindowControlsSlot } from "@/shared/ui/window-controls-slot";
 import { Select, type SelectOption } from "@/shared/ui/select";
 import { SegmentedControl, settingsPress, settingsTransition } from "@/shared/ui/settings-controls";
 import type { TaskFieldPatch } from "./operations";
-import type { TaskOverlay } from "./model";
+import type { TaskOverlay } from "@skriuw/renderer-core/tasks/rows";
 import { isTypingTarget } from "./keyboard";
 import { CheckMark } from "./task-row";
 import {
@@ -35,7 +35,7 @@ import {
   subtasksOf,
   taskContextLines,
   type SubtaskPath,
-} from "./task-document";
+} from "@skriuw/renderer-core/tasks/task-document";
 
 export type TaskSheetActions = {
   close: () => void;

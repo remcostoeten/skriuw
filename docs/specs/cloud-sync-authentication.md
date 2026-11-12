@@ -32,8 +32,9 @@ membership decision.
 
 ## Account routes and deployment
 
-Better Auth owns `/api/auth/*`. OAuth and password reset are not advertised
-because v2 has no provider credentials or outbound email delivery. The Account
+Better Auth owns `/api/auth/*`. Password reset is not advertised because v2 has
+no outbound email delivery. OAuth is optional and described in
+[OAuth providers](#oauth-providers). The Account
 settings section lazy-loads the auth UI so account checks do not enter the local
 workspace startup path. Native bearer tokens are stored in the operating-system
 credential vault. The browser runtime has no vault access, so it persists its
@@ -43,6 +44,39 @@ values are cleared and treated as signed-out, and browsers that block storage
 fall back to a page-lifetime in-memory session. HttpOnly cookies are not an
 alternative here because the Worker is a separate origin from the app host and
 the API is bearer-authenticated.
+
+### OAuth providers
+
+GitHub and Google sign-in turn on per provider when the Worker has both the
+client id and the client secret as Wrangler secrets. Without them the provider
+is absent from `socialProviders` and from the `authProviders` list on
+`GET /health`, and the sign-in drawer shows no button for it. Accounts are not
+linked across sign-in methods: signing in with a provider whose email matches an
+existing password account is refused, because email verification is off and an
+unverified password account could otherwise be taken over by whoever registered
+it first.
+
+Both flows end with the same bearer token the password flow issues, so sync
+authorization is unchanged.
+
+- **Browser.** The app opens a popup on the Worker origin at
+  `/api/auth/oauth-popup/start`. The Worker checks the opener origin against
+  `AUTH_TRUSTED_ORIGINS`, redirects to the provider, and the completion page
+  posts the session token to the opener with `postMessage`, targeted at the
+  opener origin only. The app accepts a message only from the Worker origin
+  with the nonce it generated.
+- **Desktop.** The app opens the system browser at `/v1/auth/desktop/start`
+  with a random 256-bit `state` it generated. The Worker starts the provider
+  flow so the provider state cookie lands in that browser. After the provider
+  callback, `/v1/auth/desktop/complete` mints a one-time token that expires
+  after one minute, is stored hashed and is consumed on first use, and sends the
+  browser to `skriuw://auth/callback?state=...&token=...`. The app ignores any
+  link whose `state` is not the pending one, so a crafted link cannot sign it in
+  to another account. It exchanges the token at
+  `/api/auth/one-time-token/verify` and reads the bearer token from
+  `set-auth-token`. `one-time-token/generate` is not reachable by clients.
+  The `skriuw://` scheme is registered by the bundle metadata on installed
+  packages and at runtime in development builds and AppImages.
 
 Production provisioning and rotation use Wrangler:
 

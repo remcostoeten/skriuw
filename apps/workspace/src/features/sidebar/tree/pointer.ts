@@ -2,7 +2,7 @@ import { useRef } from "react";
 import type { MouseEvent, PointerEvent } from "react";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { useDragSession } from "../drag/session";
-import type { DropTarget } from "../drag/rules";
+import type { DropTarget } from "@skriuw/renderer-core/store/tree-drop";
 import { useRowGestures, type RowGestures } from "../touch/row-gestures";
 import type { TreeRef } from "./focus";
 

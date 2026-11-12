@@ -4,7 +4,16 @@ export type AuthEnv = Env & {
   BETTER_AUTH_API_KEY?: string;
   BETTER_AUTH_SECRET?: string;
   BETTER_AUTH_URL: string;
+  GITHUB_CLIENT_ID?: string;
+  GITHUB_CLIENT_SECRET?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
 };
+
+export const OAUTH_PROVIDER_IDS = ["github", "google"] as const;
+export type OAuthProviderId = (typeof OAUTH_PROVIDER_IDS)[number];
+
+type SocialProviders = Partial<Record<OAuthProviderId, { clientId: string; clientSecret: string }>>;
 
 export const AUTH_FRESH_SESSION_AGE_SECONDS = 24 * 60 * 60;
 
@@ -13,6 +22,30 @@ function configuredOrigins(raw: string): string[] {
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
+}
+
+function socialProviders(env: AuthEnv): SocialProviders {
+  const providers: SocialProviders = {};
+  if (env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) {
+    providers.github = { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET };
+  }
+  if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
+    providers.google = { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET };
+  }
+  return providers;
+}
+
+/**
+ * @name configuredOAuthProviders
+ * @description Lists the OAuth providers this deployment has both a client id
+ * and a client secret for. A provider with half its credentials is not listed.
+ *
+ * @example
+ * configuredOAuthProviders(env); // ["github"]
+ */
+export function configuredOAuthProviders(env: AuthEnv): OAuthProviderId[] {
+  const providers = socialProviders(env);
+  return OAUTH_PROVIDER_IDS.filter((id) => providers[id] !== undefined);
 }
 
 export function corsHeaders(request: Request, env: AuthEnv): Headers | null {
@@ -61,7 +94,7 @@ export async function createAuth(env: AuthEnv) {
   if (!env.BETTER_AUTH_SECRET || env.BETTER_AUTH_SECRET.length < 32) {
     throw new Error("auth_not_configured");
   }
-  const [{ betterAuth }, { bearer }] = await Promise.all([
+  const [{ betterAuth }, { bearer, oauthPopup, oneTimeToken }] = await Promise.all([
     import("better-auth"),
     import("better-auth/plugins"),
   ]);
@@ -70,11 +103,17 @@ export async function createAuth(env: AuthEnv) {
     baseURL: env.BETTER_AUTH_URL,
     database: env.AUTH_DB,
     emailAndPassword: { enabled: true },
+    socialProviders: socialProviders(env),
     session: { freshAge: AUTH_FRESH_SESSION_AGE_SECONDS },
     user: { deleteUser: { enabled: true } },
     secret: env.BETTER_AUTH_SECRET,
     trustedOrigins: configuredOrigins(env.AUTH_TRUSTED_ORIGINS),
-    plugins: [bearer(), ...(await infraPlugins(env))],
+    plugins: [
+      bearer(),
+      oauthPopup(),
+      oneTimeToken({ expiresIn: 1, storeToken: "hashed", disableClientRequest: true }),
+      ...(await infraPlugins(env)),
+    ],
   });
 }
 

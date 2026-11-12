@@ -1,11 +1,11 @@
 import { memo } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import type { DateKey } from "@skriuw/renderer-core/journal/dates";
-import { daysLate, describeDueDate, formatDueLabel } from "@skriuw/renderer-core/tasks/due-dates";
+import { describeDueDate } from "@skriuw/renderer-core/tasks/due-dates";
 import { formatRecurrenceLabel } from "@skriuw/renderer-core/tasks/recurrence";
 import { AlignLeftIcon, FileTextIcon, RepeatIcon, SquareCheckIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/styling/class-names";
-import type { TaskRow } from "./model";
+import { dueState, dueText, type TaskRow } from "@skriuw/renderer-core/tasks/rows";
 
 export type TaskRowActions = {
   toggle: (id: string) => void;
@@ -25,22 +25,6 @@ type Props = {
   leaving: boolean;
   actions: TaskRowActions;
 };
-
-export type DueState = "none" | "late" | "today" | "later" | "done";
-
-export function dueState(row: TaskRow, today: DateKey): DueState {
-  if (row.dueDate === null) return "none";
-  if (row.done) return "done";
-  if (row.dueDate < today) return "late";
-  return row.dueDate === today ? "today" : "later";
-}
-
-export function dueText(row: TaskRow, today: DateKey): string {
-  if (row.dueDate === null) return "Add date";
-  const late = row.done ? 0 : daysLate(row.dueDate, today);
-  if (late > 0) return late === 1 ? "1 day late" : `${late} days late`;
-  return formatDueLabel(row.dueDate, today);
-}
 
 export function CheckMark() {
   return (

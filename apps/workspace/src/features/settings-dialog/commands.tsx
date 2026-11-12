@@ -3,7 +3,7 @@ import type { AppCommand } from "@/commands/registry";
 import { updateSetting } from "@/features/settings/update-settings";
 import { PaletteIcon, SettingsIcon } from "@/shared/icons/static";
 import type { SectionId } from "./sections";
-import { THEME_ENTRIES } from "@/features/settings/themes";
+import { BUILTIN_THEMES, builtinThemeLabel } from "@skriuw/theme";
 
 type ThemeChoice = {
   id: string;
@@ -17,23 +17,12 @@ type ThemeChoice = {
  * the palette offers "Catppuccin Latte" directly instead of a nested picker.
  */
 function themeChoices(): ThemeChoice[] {
-  return THEME_ENTRIES.flatMap((entry) =>
-    entry.variants
-      ? entry.variants.map((variant) => ({
-          id: variant.id,
-          label: `${entry.label} ${variant.label}`,
-          swatchFrom: variant.swatchFrom,
-          swatchTo: variant.swatchTo,
-        }))
-      : [
-          {
-            id: entry.id,
-            label: entry.label,
-            swatchFrom: entry.swatchFrom,
-            swatchTo: entry.swatchTo,
-          },
-        ],
-  );
+  return BUILTIN_THEMES.map((theme) => ({
+    id: theme.id,
+    label: builtinThemeLabel(theme),
+    swatchFrom: theme.swatchFrom,
+    swatchTo: theme.swatchTo,
+  }));
 }
 
 function themeCommands(store: RendererStore): AppCommand[] {

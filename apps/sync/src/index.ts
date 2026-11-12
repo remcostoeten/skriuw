@@ -4,6 +4,7 @@ import { productionSyncAccessConfiguration } from "./access";
 import { WorkspaceContentStore } from "./content-store";
 import {
   AUTH_FRESH_SESSION_AGE_SECONDS,
+  configuredOAuthProviders,
   createAuth,
   corsHeaders,
   handleAuthRequest,
@@ -15,6 +16,7 @@ import {
   WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION,
 } from "./contracts";
 import { handleSyncProvisionRequest, handleSyncWorkspaceStateRequest } from "./provision";
+import { handleDesktopSignInRequest } from "./desktop-sign-in";
 import { handleAccountDeletionRequest } from "./account-deletion";
 import { handleNoteShareRequest, handlePublicShareRequest, newShareId } from "./note-shares";
 
@@ -29,7 +31,7 @@ function jsonError(status: number, code: string): Response {
  * Every value is derived from the constants the Worker itself runs on, so the
  * report cannot claim a capability the code does not have.
  */
-function healthReport() {
+function healthReport(env: Env) {
   return {
     status: "ok",
     publicSync: true,
@@ -37,6 +39,7 @@ function healthReport() {
     durableObjectSchemaVersion: WORKSPACE_DURABLE_OBJECT_SCHEMA_VERSION,
     routes: SYNC_ROUTE_NAMES,
     noteShares: true,
+    authProviders: configuredOAuthProviders(env),
   };
 }
 
@@ -44,13 +47,16 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
-      return Response.json(healthReport());
+      return Response.json(healthReport(env));
     }
     if (url.pathname.startsWith("/shares/")) {
       return handlePublicShareRequest(request, env.AUTH_DB, env.SYNC_CONTENT);
     }
     if (url.pathname.startsWith("/api/auth/")) {
       return handleAuthRequest(request, env);
+    }
+    if (url.pathname.startsWith("/v1/auth/desktop/")) {
+      return handleDesktopSignInRequest(request, env);
     }
     if (url.pathname.startsWith("/v1/")) {
       const headers = corsHeaders(request, env);

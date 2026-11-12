@@ -1,7 +1,7 @@
 import { visualTreeIndent } from "@skriuw/renderer-core/store/tree";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { maximumTreeIndent, type TreeMetrics } from "../tree/metrics";
-import { indicatorIndentDepth, type DropTarget } from "./rules";
+import { indicatorIndentDepth, type DropTarget } from "@skriuw/renderer-core/store/tree-drop";
 
 type Props = {
   store: RendererStore;

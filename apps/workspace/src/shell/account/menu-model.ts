@@ -1,4 +1,4 @@
-import { THEME_ENTRIES } from "@/features/settings/themes";
+import { BUILTIN_THEMES, builtinThemeLabel } from "@skriuw/theme";
 
 export type ThemeOption = {
   id: string;
@@ -31,17 +31,7 @@ export function accountMenuPanelTitle(panel: AccountMenuPanel): string {
  * variant, because a menu has no room for the settings picker's swatch cards.
  */
 export function themeMenuOptions(): readonly ThemeOption[] {
-  const options: ThemeOption[] = [];
-  for (const entry of THEME_ENTRIES) {
-    if (!entry.variants) {
-      options.push({ id: entry.id, label: entry.label });
-      continue;
-    }
-    for (const variant of entry.variants) {
-      options.push({ id: variant.id, label: `${entry.label} ${variant.label}` });
-    }
-  }
-  return options;
+  return BUILTIN_THEMES.map((theme) => ({ id: theme.id, label: builtinThemeLabel(theme) }));
 }
 
 /** Label of the applied theme, or the raw id when a stored theme no longer exists. */

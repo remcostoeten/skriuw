@@ -436,6 +436,7 @@ describe("public Worker boundary", () => {
       durableObjectSchemaVersion: 4,
       routes: ["push", "pull", "chunk", "checkpoint", "encryption", "acknowledge", "events"],
       noteShares: true,
+      authProviders: [],
     });
 
     const sync = await exports.default.fetch(

@@ -17,7 +17,7 @@ import {
   rowIndexAt,
   sameDropTarget,
   type DropTarget,
-} from "./rules";
+} from "@skriuw/renderer-core/store/tree-drop";
 
 type DragState = {
   pointerId: number;

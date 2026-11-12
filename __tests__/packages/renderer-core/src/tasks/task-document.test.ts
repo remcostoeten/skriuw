@@ -5,7 +5,7 @@ import {
   findCheckItem,
   subtasksOf,
   taskContextLines,
-} from "@/features/tasks/task-document";
+} from "@skriuw/renderer-core/tasks/task-document";
 
 function item(blockId: string | null, checked: boolean, text: string, nested: unknown[] = []) {
   return {
