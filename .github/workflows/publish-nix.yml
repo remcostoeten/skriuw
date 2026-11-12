@@ -1,0 +1,85 @@
+name: Publish Nix
+
+# Rewrites release.json in skriuw/nix (the flake that packages the released
+# .deb) after a v2 release, builds the flake against the pinned nixpkgs, and only
+# then pushes. Install: nix run github:skriuw/nix
+on:
+    release:
+        types: [published]
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: "v2 release tag to publish (e.g. v2-v0.54.0)"
+                required: true
+                type: string
+
+concurrency:
+    group: publish-nix
+    cancel-in-progress: false
+
+jobs:
+    flake:
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'v2-v')
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        permissions:
+            contents: read
+        steps:
+            - name: Resolve tag and version
+              id: pick
+              env:
+                  TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+              run: |
+                  set -euo pipefail
+                  case "$TAG" in
+                    v2-v*) ;;
+                    *) echo "::error::tag '$TAG' is not a v2-v* tag"; exit 1 ;;
+                  esac
+                  echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+                  echo "version=${TAG#v2-v}" >> "$GITHUB_OUTPUT"
+
+            - uses: actions/checkout@v7
+              with:
+                  repository: skriuw/nix
+                  ref: main
+                  path: nix
+                  ssh-key: ${{ secrets.NIX_DEPLOY_KEY }}
+
+            - name: Download .deb from release
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  gh release download "${{ steps.pick.outputs.tag }}" \
+                    --repo "${{ github.repository }}" \
+                    --pattern "Skriuw_${{ steps.pick.outputs.version }}_amd64.deb" --dir dist
+
+            - name: Write release.json
+              run: |
+                  set -euo pipefail
+                  SHA="$(sha256sum dist/*.deb | awk '{print $1}')"
+                  jq -n --arg version "${{ steps.pick.outputs.version }}" \
+                        --arg tag "${{ steps.pick.outputs.tag }}" \
+                        --arg sha "$SHA" \
+                        '{version: $version, tag: $tag, sha256: $sha}' > nix/release.json
+                  cat nix/release.json
+
+            - uses: DeterminateSystems/nix-installer-action@v23
+
+            - name: Build the flake
+              working-directory: nix
+              run: |
+                  nix build .#skriuw --print-build-logs
+                  test -x result/bin/skriuw-app
+
+            - name: Push
+              working-directory: nix
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git add release.json
+                  if git diff --cached --quiet; then
+                    echo "release.json already up to date."
+                  else
+                    git commit -m "skriuw ${{ steps.pick.outputs.version }}"
+                    git push origin HEAD:main
+                  fi

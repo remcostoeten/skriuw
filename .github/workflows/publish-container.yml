@@ -1,0 +1,113 @@
+name: Publish Container
+
+# Builds the browser app into a static-file image and pushes it to GHCR as
+# ghcr.io/remcostoeten/skriuw-web. The name is separate from the frozen v1 image
+# ghcr.io/remcostoeten/skriuw so a `:latest` pull never swaps a v1 install for v2.
+# Pull requests that touch the image only build it and run the smoke test.
+on:
+    release:
+        types: [published]
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: "v2 release tag to publish (e.g. v2-v0.54.0)"
+                required: true
+                type: string
+            source_ref:
+                description: "Git ref to build from instead of the tag (needed for tags cut before the Dockerfile existed)"
+                required: false
+                type: string
+    pull_request:
+        paths:
+            - tools/packaging/docker/**
+            - .github/workflows/publish-container.yml
+
+concurrency:
+    group: publish-container-${{ github.event_name == 'pull_request' && github.ref || 'release' }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+    IMAGE: ghcr.io/remcostoeten/skriuw-web
+
+jobs:
+    image:
+        if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v2-v')
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+        permissions:
+            contents: read
+            packages: write
+        steps:
+            - name: Resolve tag and source
+              id: pick
+              env:
+                  EVENT: ${{ github.event_name }}
+                  RELEASE_TAG: ${{ github.event.release.tag_name }}
+                  INPUT_TAG: ${{ inputs.tag }}
+                  INPUT_REF: ${{ inputs.source_ref }}
+              run: |
+                  set -euo pipefail
+                  case "$EVENT" in
+                    pull_request) TAG=""; VERSION="pr-test"; SOURCE="" ;;
+                    release) TAG="$RELEASE_TAG"; SOURCE="$TAG" ;;
+                    workflow_dispatch) TAG="$INPUT_TAG"; SOURCE="${INPUT_REF:-$TAG}" ;;
+                  esac
+                  if [ -n "$TAG" ]; then
+                    case "$TAG" in
+                      v2-v*) VERSION="${TAG#v2-v}" ;;
+                      *) echo "::error::tag '$TAG' is not a v2-v* tag"; exit 1 ;;
+                    esac
+                  fi
+                  echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+                  echo "source=$SOURCE" >> "$GITHUB_OUTPUT"
+
+            - uses: actions/checkout@v7
+              with:
+                  ref: ${{ steps.pick.outputs.source }}
+                  persist-credentials: false
+
+            - uses: docker/setup-buildx-action@v4
+
+            - name: Log in to GHCR
+              if: github.event_name != 'pull_request'
+              uses: docker/login-action@v4
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Image metadata
+              id: meta
+              uses: docker/metadata-action@v6
+              with:
+                  images: ${{ env.IMAGE }}
+                  tags: |
+                      type=raw,value=${{ steps.pick.outputs.version }}
+                      type=raw,value=latest,enable=${{ github.event_name != 'pull_request' }}
+                  labels: |
+                      org.opencontainers.image.title=Skriuw
+                      org.opencontainers.image.description=The Skriuw browser app, served as static files
+
+            - name: Build image
+              uses: docker/build-push-action@v7
+              with:
+                  context: .
+                  file: tools/packaging/docker/Dockerfile
+                  platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
+                  push: ${{ github.event_name != 'pull_request' }}
+                  load: ${{ github.event_name == 'pull_request' }}
+                  tags: ${{ steps.meta.outputs.tags }}
+                  labels: ${{ steps.meta.outputs.labels }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+
+            - name: Smoke test
+              run: ./tools/packaging/docker/smoke-test.sh "${{ env.IMAGE }}:${{ steps.pick.outputs.version }}"
+
+            - name: Check the package is public
+              if: github.event_name != 'pull_request'
+              run: |
+                  docker logout ghcr.io
+                  if ! docker manifest inspect "${{ env.IMAGE }}:${{ steps.pick.outputs.version }}" >/dev/null 2>&1; then
+                    echo "::warning::${{ env.IMAGE }} is not publicly pullable. Set the package visibility to Public at https://github.com/users/${{ github.repository_owner }}/packages/container/skriuw-web/settings"
+                  fi

@@ -1,0 +1,37 @@
+app-id: com.skriuw.Skriuw
+runtime: org.gnome.Platform
+runtime-version: "51"
+sdk: org.gnome.Sdk
+command: skriuw-app
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+  - --talk-name=org.freedesktop.secrets
+modules:
+  - name: skriuw
+    buildsystem: simple
+    sources:
+      - type: file
+        url: "@DEB_URL@"
+        sha256: "@DEB_SHA256@"
+        dest-filename: skriuw.deb
+      - type: file
+        path: com.skriuw.Skriuw.metainfo.xml
+    build-commands:
+      - ar -x skriuw.deb
+      - tar -xf data.tar.*
+      - install -Dm755 usr/bin/skriuw-app /app/bin/skriuw-app
+      - |
+        sed 's/^Icon=skriuw-app$/Icon=com.skriuw.Skriuw/' usr/share/applications/Skriuw.desktop > com.skriuw.Skriuw.desktop
+        install -Dm644 com.skriuw.Skriuw.desktop /app/share/applications/com.skriuw.Skriuw.desktop
+      - |
+        for icon in usr/share/icons/hicolor/*/apps/skriuw-app.png; do
+          size="$(basename "$(dirname "$(dirname "$icon")")")"
+          install -Dm644 "$icon" "/app/share/icons/hicolor/${size}/apps/com.skriuw.Skriuw.png"
+        done
+      - install -Dm644 usr/share/mime/packages/skriuw-mdx.xml /app/share/mime/packages/com.skriuw.Skriuw.xml
+      - install -Dm644 com.skriuw.Skriuw.metainfo.xml /app/share/metainfo/com.skriuw.Skriuw.metainfo.xml
