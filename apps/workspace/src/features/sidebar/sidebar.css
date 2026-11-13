@@ -99,11 +99,11 @@ body.sidebar-resizing {
 .sidebar-guides .sidebar-tree-row {
   background-image: repeating-linear-gradient(
     to right,
-    transparent 0 calc(var(--tree-step, 16px) - 1px),
-    hsl(var(--sidebar-border)) calc(var(--tree-step, 16px) - 1px)
-      var(--tree-step, 16px)
+    hsl(var(--foreground) / 0.14) 0 1px,
+    transparent 1px var(--tree-step, 16px)
   );
-  background-position: calc(var(--tree-base, 12px) + 8px) 0;
-  background-size: calc(var(--tree-indent, 0px) - 8px) 100%;
+  background-origin: border-box;
+  background-position: calc(var(--tree-base, 12px) + 7px) 0;
+  background-size: calc(var(--tree-indent, 0px) - var(--tree-base, 12px)) 100%;
   background-repeat: no-repeat;
 }
