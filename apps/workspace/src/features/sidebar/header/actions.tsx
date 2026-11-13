@@ -1,55 +1,117 @@
+import { motion } from "motion/react";
+import type { RefObject } from "react";
 import { useShortcutHints } from "@/commands/hints";
-import { CommandIcon, PlusIcon } from "@/shared/icons/static";
+import { AppIcon } from "@/shared/icons/app-icon";
+import {
+  CommandIcon,
+  FolderPlusIcon,
+  FoldVerticalIcon,
+  SearchIcon,
+  UnfoldVerticalIcon,
+} from "@/shared/icons/static";
 import { Tooltip } from "@skriuw/shared/ui/tooltip";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
-import type { RendererStore } from "@skriuw/renderer-core/store/types";
-import { selectNoteTotal } from "../tree/note-counts";
-import { createNote } from "../tree/operations";
+import type { RendererState, RendererStore } from "@skriuw/renderer-core/store/types";
+import { createFolder, createNote, toggleAllFolders } from "../tree/operations";
+import { HEADER_SWAP_TRANSITION } from "./swap";
 
 type Props = {
   store: RendererStore;
   isNarrow: boolean;
+  isSearchOpen: boolean;
+  searchTriggerRef: RefObject<HTMLButtonElement | null>;
+  onOpenSearch: () => void;
   onOpenCommandPalette: () => void;
 };
 
-const HEADER_SHORTCUT_IDS = ["createNote", "toggleCommandPalette"] as const;
+const HEADER_SHORTCUT_IDS = [
+  "createNote",
+  "createFolder",
+  "collapseAllFolders",
+  "toggleCommandPalette",
+] as const;
 
-export function SidebarHeader({ store, isNarrow, onOpenCommandPalette }: Props) {
+const headerActionBaseClass =
+  "inline-flex items-center justify-center rounded-[7px] text-sidebar-foreground/55 transition-colors hover:bg-sidebar-accent/60 hover:text-foreground focus-visible:bg-sidebar-accent/60 focus-visible:text-foreground focus-visible:shadow-none focus-visible:outline-none";
+
+function selectAnyExpanded(state: RendererState) {
+  return state.expandedIds.size > 0;
+}
+
+export function HeaderActions({
+  store,
+  isNarrow,
+  isSearchOpen,
+  searchTriggerRef,
+  onOpenSearch,
+  onOpenCommandPalette,
+}: Props) {
   const shortcutHints = useShortcutHints(store, HEADER_SHORTCUT_IDS);
-  const total = useRendererSelector(store, selectNoteTotal);
+  const anyExpanded = useRendererSelector(store, selectAnyExpanded);
+  const headerActionClass = `${headerActionBaseClass} ${isNarrow ? "h-6 w-6" : "h-7 w-7"} pointer-coarse:h-11 pointer-coarse:w-11`;
   return (
-    <div
-      className={`flex h-11 min-w-0 items-center gap-2 border-b border-sidebar-border ${isNarrow ? "pr-1.5 pl-2.5" : "pr-2 pl-3.5"}`}
+    <motion.div
+      animate={isSearchOpen ? { y: -8, opacity: 0, scale: 0.985 } : { y: 0, opacity: 1, scale: 1 }}
+      transition={HEADER_SWAP_TRANSITION}
+      inert={isSearchOpen}
+      aria-hidden={isSearchOpen}
+      className={`flex w-full min-w-0 items-center justify-between will-change-transform${isSearchOpen ? " pointer-events-none" : ""}`}
     >
-      <h2 className="m-0 shrink-0 text-[13px] font-semibold tracking-[-0.005em] text-sidebar-foreground">
-        Notes
-      </h2>
-      {!isNarrow && (
-        <span className="min-w-0 truncate text-[11.5px] tabular-nums text-theme-dim">
-          {total} {total === 1 ? "note" : "notes"}
-        </span>
-      )}
-      <span className="flex-1" />
-      <Tooltip label="Command menu" side="bottom" shortcut={shortcutHints.toggleCommandPalette}>
-        <button
-          type="button"
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] text-sidebar-foreground/55 transition-colors hover:bg-sidebar-accent/60 hover:text-foreground focus-visible:bg-sidebar-accent/60 focus-visible:text-foreground focus-visible:shadow-none focus-visible:outline-none pointer-coarse:h-11 pointer-coarse:w-11"
-          aria-label="Command menu"
-          onClick={onOpenCommandPalette}
-        >
-          <CommandIcon size={15} />
-        </button>
-      </Tooltip>
       <Tooltip label="New note" side="bottom" shortcut={shortcutHints.createNote}>
         <button
           type="button"
-          className="inline-flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[7px] bg-accent-ink text-accent-ink-foreground transition-[opacity,transform] duration-150 hover:opacity-88 focus-visible:shadow-[0_0_0_2px_hsl(var(--sidebar-background)),0_0_0_3px_hsl(var(--foreground)/0.5)] focus-visible:outline-none active:scale-[0.94] pointer-coarse:h-9 pointer-coarse:w-9"
+          className={headerActionClass}
           aria-label="New note"
           onClick={() => createNote(store, null)}
         >
-          <PlusIcon size={15} />
+          <AppIcon name="new-note" size={18} />
         </button>
       </Tooltip>
-    </div>
+      <Tooltip label="New folder" side="bottom" shortcut={shortcutHints.createFolder}>
+        <button
+          type="button"
+          className={headerActionClass}
+          aria-label="New folder"
+          onClick={() => createFolder(store, null)}
+        >
+          <FolderPlusIcon size={18} />
+        </button>
+      </Tooltip>
+      <Tooltip
+        label={anyExpanded ? "Collapse all folders" : "Expand all folders"}
+        side="bottom"
+        shortcut={anyExpanded ? shortcutHints.collapseAllFolders : undefined}
+      >
+        <button
+          type="button"
+          className={headerActionClass}
+          aria-label="Toggle all folders"
+          onClick={() => toggleAllFolders(store)}
+        >
+          {anyExpanded ? <FoldVerticalIcon size={16} /> : <UnfoldVerticalIcon size={16} />}
+        </button>
+      </Tooltip>
+      <Tooltip label="Search notes" side="bottom">
+        <button
+          ref={searchTriggerRef}
+          type="button"
+          className={headerActionClass}
+          aria-label="Search notes"
+          onClick={onOpenSearch}
+        >
+          <SearchIcon size={16} />
+        </button>
+      </Tooltip>
+      <Tooltip label="Command menu" side="bottom" shortcut={shortcutHints.toggleCommandPalette}>
+        <button
+          type="button"
+          className={headerActionClass}
+          aria-label="Command menu"
+          onClick={onOpenCommandPalette}
+        >
+          <CommandIcon size={16} />
+        </button>
+      </Tooltip>
+    </motion.div>
   );
 }

@@ -26,7 +26,7 @@ function countUnder(state: RendererState, parentId: string | null): number {
 /**
  * @name selectNoteTotal
  * @description How many notes the workspace tree holds, journal entries
- * excluded, for the sidebar header. Recounts only when the tree changes.
+ * excluded, for the sidebar tree label. Recounts only when the tree changes.
  *
  * @example
  * useRendererSelector(store, selectNoteTotal); // 128
