@@ -30,7 +30,9 @@ leaves the Worker. It is a secret: install it with
 GitHub and Google sign-in are optional and each turns on when both of its
 secrets exist: `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`, or
 `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Install them with
-`wrangler secret put <NAME>`, never in `wrangler.jsonc`. Register
+`wrangler secret put <NAME>`, never in `wrangler.jsonc`, or run
+`tools/scripts/set-oauth-secrets.sh` to be prompted for each value and have it
+written to `.dev.vars` and the Workers you pick. Register
 `<BETTER_AUTH_URL>/api/auth/callback/github` and
 `<BETTER_AUTH_URL>/api/auth/callback/google` as the authorized callback URLs.
 `GET /health` lists the providers that are on in `authProviders`, and the
