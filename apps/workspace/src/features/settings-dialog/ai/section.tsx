@@ -19,6 +19,7 @@ import {
   type OllamaRuntimeAction,
 } from "@/features/ai/local-models";
 import {
+  SettingToggle,
   SettingsGroup,
   SettingsRow,
   settingsButton,
@@ -51,6 +52,8 @@ import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { DefaultModelPicker } from "./model-picker";
 import { PromptLibraryPanel } from "./prompt-library";
 import { AiUsagePanel } from "./usage";
+import { JOURNAL_AUTO_TITLE_SETTING, selectJournalAutoTitles } from "@/features/journal/auto-title";
+import { updateSettings } from "@/store/settings";
 
 type Props = {
   store: RendererStore;
@@ -80,6 +83,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
   const promptEntries = useMemo(() => promptLibraryEntries(prompts), [prompts]);
   const rawDefaultModel = useRendererSelector(store, selectRawAiModelSetting);
   const defaultModel = useMemo(() => parseAiModelSelection(rawDefaultModel), [rawDefaultModel]);
+  const journalAutoTitles = useRendererSelector(store, selectJournalAutoTitles);
   const modelGroups = useMemo(
     () =>
       aiModelGroups({
@@ -352,6 +356,24 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
         </SettingsRow>
       </SettingsGroup>
       <SettingsGroup
+        id="automation"
+        title="Automation"
+        hint={settingsCopy.ai.workTheDefaultModelDoesOn}
+        keywords="journal title titles automatic auto generate name entries background"
+      >
+        <SettingToggle
+          label={settingsCopy.ai.titleJournalEntriesAutomatically}
+          detail={settingsCopy.ai.namesPastEntriesThatHaveNo}
+          checked={journalAutoTitles}
+          onChange={(checked) =>
+            updateSettings(store, {
+              ...store.getState().settings,
+              [JOURNAL_AUTO_TITLE_SETTING]: checked,
+            })
+          }
+        />
+      </SettingsGroup>
+      <SettingsGroup
         id="local"
         title="Local AI"
         hint={settingsCopy.ai.runPrivateModelsOnThisDevice}
@@ -404,7 +426,7 @@ export function AiSection({ store, signal, onOpenPlayground }: Props) {
           id="remote"
           title="Online providers"
           hint={settingsCopy.ai.bringYourOwnApiKeyFor}
-          keywords="gemini groq deepseek kimi glm qwen remote api key provider"
+          keywords="anthropic claude openai gpt chatgpt openrouter gemini groq deepseek kimi glm qwen remote api key provider"
         >
           <RemoteProvidersPanel
             providers={remote.providers}

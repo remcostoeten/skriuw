@@ -66,6 +66,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   showToasts: true,
   openLinksInApp: false,
   aiEnabled: false,
+  aiJournalTitles: false,
   autoLockMinutes: DEFAULT_AUTO_LOCK_MINUTES,
   lockOnBlur: false,
   paletteDensity: "normal",

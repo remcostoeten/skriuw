@@ -91,6 +91,7 @@ export const SETTINGS_SEARCH_COPY = {
     "AI settings",
     "Default model",
     "Open playground",
+    "Automation",
     "Local AI",
     "Online providers",
     "Writing prompts",
@@ -360,6 +361,15 @@ export const SETTINGS_SEARCH_GROUPS = {
       ],
     },
     {
+      id: "automation",
+      title: "Automation",
+      hint: "Work the default model does on its own, without being asked.",
+      keywords: "journal title titles automatic auto generate name entries background",
+      rows: [
+        { label: "Title journal entries automatically", detail: "Names past entries that have no title yet. The text of each one is sent to the default model, one at a time, and today's entry waits until the day is over." },
+      ],
+    },
+    {
       id: "local",
       title: "Local AI",
       hint: "Run private models on this device with Ollama.",
@@ -370,8 +380,8 @@ export const SETTINGS_SEARCH_GROUPS = {
     {
       id: "remote",
       title: "Online providers",
-      hint: "Bring your own API key for Gemini, Groq, DeepSeek, Kimi, GLM, Qwen, or AI/ML API.",
-      keywords: "gemini groq deepseek kimi glm qwen remote api key provider",
+      hint: "Bring your own API key for Anthropic, OpenAI, OpenRouter, Gemini, Groq, DeepSeek, Kimi, GLM, Qwen, or AI/ML API.",
+      keywords: "anthropic claude openai gpt chatgpt openrouter gemini groq deepseek kimi glm qwen remote api key provider",
       rows: [
       ],
     },

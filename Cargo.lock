@@ -32,8 +32,8 @@ dependencies = [
 
 [[package]]
 name = "ai-core"
-version = "0.3.0"
-source = "git+https://github.com/remcostoeten/remcostoeten-aIo?tag=ai-v0.3.0#4873a60a929c3918d24acd5f650c4cf3c60e6127"
+version = "0.4.0"
+source = "git+https://github.com/remcostoeten/remcostoeten-aIo?tag=ai-v0.4.0#2a540d913aecd57aa838f0a143a70cc7070cd2dc"
 dependencies = [
  "schemars",
  "serde",
@@ -42,8 +42,8 @@ dependencies = [
 
 [[package]]
 name = "ai-providers"
-version = "0.3.0"
-source = "git+https://github.com/remcostoeten/remcostoeten-aIo?tag=ai-v0.3.0#4873a60a929c3918d24acd5f650c4cf3c60e6127"
+version = "0.4.0"
+source = "git+https://github.com/remcostoeten/remcostoeten-aIo?tag=ai-v0.4.0#2a540d913aecd57aa838f0a143a70cc7070cd2dc"
 dependencies = [
  "ai-core",
  "base64",

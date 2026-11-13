@@ -29,7 +29,7 @@ const VAULT_SERVICE: &str = "dev.skriuw.app";
 const CONSENT_FILE: &str = "ai-consent.json";
 const CONSENT_DOCUMENT_VERSION: u32 = 1;
 
-pub(crate) const REMOTE_PROVIDERS: [RemoteProviderKind; 7] = RemoteProviderKind::ALL;
+pub(crate) const REMOTE_PROVIDERS: [RemoteProviderKind; 10] = RemoteProviderKind::ALL;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -484,6 +484,9 @@ mod tests {
             "zai",
             "dashscope",
             "aimlapi",
+            "anthropic",
+            "openai",
+            "openrouter",
         ] {
             assert!(
                 states.iter().any(|state| state.provider_id == provider_id),

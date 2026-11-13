@@ -15,10 +15,10 @@ use skriuw_domain::{
 };
 
 pub use ai_providers::{
-    AIMLAPI_PROVIDER_ID, AiModelAuthority as RemoteAiModelAuthority, AiModelListing,
-    DASHSCOPE_PROVIDER_ID, DEEPSEEK_PROVIDER_ID, GEMINI_PROVIDER_ID, GROQ_PROVIDER_ID,
-    MOONSHOT_PROVIDER_ID, RemoteAiProvider, RemoteAiSetupError, RemoteProviderKind,
-    ZAI_PROVIDER_ID,
+    AIMLAPI_PROVIDER_ID, ANTHROPIC_PROVIDER_ID, AiModelAuthority as RemoteAiModelAuthority,
+    AiModelListing, DASHSCOPE_PROVIDER_ID, DEEPSEEK_PROVIDER_ID, GEMINI_PROVIDER_ID,
+    GROQ_PROVIDER_ID, MOONSHOT_PROVIDER_ID, OPENAI_PROVIDER_ID, OPENROUTER_PROVIDER_ID,
+    RemoteAiProvider, RemoteAiSetupError, RemoteProviderKind, ZAI_PROVIDER_ID,
 };
 
 pub use transcribe::{RemoteAiTranscriber, ai_transcription_models};
@@ -114,7 +114,7 @@ mod tests {
                 .iter()
                 .all(|model| model.provider_id == GROQ_PROVIDER_ID)
         );
-        assert!(catalog.models_for("openai").is_empty());
+        assert!(catalog.models_for("mistral").is_empty());
     }
 
     #[test]
@@ -123,7 +123,7 @@ mod tests {
 
         assert!(authority.permits(GROQ_PROVIDER_ID, "openai/gpt-oss-20b"));
         assert!(!authority.permits(GROQ_PROVIDER_ID, "never-shipped"));
-        assert!(!authority.permits("openai", "openai/gpt-oss-20b"));
+        assert!(!authority.permits("mistral", "openai/gpt-oss-20b"));
     }
 
     /// A fetched listing must reach the renderer with its provenance and its

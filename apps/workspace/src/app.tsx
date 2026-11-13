@@ -45,7 +45,12 @@ import { TransferDialogs } from "@/features/transfer/transfer-dialogs";
 import { WorkspaceShortcuts } from "@/commands/workspace-shortcuts";
 import { useShortcutHints } from "@/commands/hints";
 import { useAppRoute, useRouteFocus } from "@/shared/routing/app-route";
-import { CloudSignInDrawer, ModelSwitcherHost, PromptPlaygroundView } from "@/app/lazy-surfaces";
+import {
+  CloudSignInDrawer,
+  JournalAutoTitles,
+  ModelSwitcherHost,
+  PromptPlaygroundView,
+} from "@/app/lazy-surfaces";
 import { AppProviders } from "@/app/providers";
 import { useSignIn } from "@/app/use-sign-in";
 import { useWorkspaceServices } from "@/app/use-workspace-services";
@@ -809,9 +814,10 @@ function WorkspaceShell({ store }: Props) {
       <LockDialogHost store={store} />
       <NoteShareHost store={store} onRequestSignIn={() => openSignIn(false)} />
       <AiOptInGate store={store}>
-        {() => (
+        {(signal) => (
           <Suspense fallback={null}>
             <ModelSwitcherHost store={store} openAiSettings={openAiSettings} />
+            <JournalAutoTitles store={store} signal={signal} />
           </Suspense>
         )}
       </AiOptInGate>

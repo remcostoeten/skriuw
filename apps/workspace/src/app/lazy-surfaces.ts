@@ -21,6 +21,11 @@ export const ModelSwitcherHost = lazy(async () => {
   return { default: module.ModelSwitcherHost };
 });
 
+export const JournalAutoTitles = lazy(async () => {
+  const module = await import("@/features/journal/auto-title-runner");
+  return { default: module.JournalAutoTitles };
+});
+
 export const PromptPlaygroundView = lazy(async () => {
   const module = await loadPromptPlayground();
   return { default: module.PromptPlaygroundView };

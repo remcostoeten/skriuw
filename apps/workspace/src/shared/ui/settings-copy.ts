@@ -71,6 +71,10 @@ export const settingsCopy = {
     customDailyWordGoal: "Custom daily word goal",
   },
   ai: {
+    titleJournalEntriesAutomatically: "Title journal entries automatically",
+    namesPastEntriesThatHaveNo:
+      "Names past entries that have no title yet. The text of each one is sent to the default model, one at a time, and today's entry waits until the day is over.",
+    workTheDefaultModelDoesOn: "Work the default model does on its own, without being asked.",
     theModelSkriuwUsesForWriting: "The model Skriuw uses for writing tools.",
     defaultAiModel: "Default AI model",
     pullAModelFromOllamaThen:
@@ -119,7 +123,7 @@ export const settingsCopy = {
     pasteApiKey: "Paste API key",
     runPrivateModelsOnThisDevice: "Run private models on this device with Ollama.",
     bringYourOwnApiKeyFor:
-      "Bring your own API key for Gemini, Groq, DeepSeek, Kimi, GLM, Qwen, or AI/ML API.",
+      "Bring your own API key for Anthropic, OpenAI, OpenRouter, Gemini, Groq, DeepSeek, Kimi, GLM, Qwen, or AI/ML API.",
     customizeTheInstructionsBehindEachWriting:
       "Customize the instructions behind each writing action.",
     reviewLocalRunHistoryTokenCounts: "Review local run history, token counts, and estimated cost.",

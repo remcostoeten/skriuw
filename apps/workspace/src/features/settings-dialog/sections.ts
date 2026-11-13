@@ -43,7 +43,7 @@ export const SECTIONS = [
     label: "AI",
     description: "Providers and writing tools",
     searchText:
-      "artificial intelligence providers models writing tools prompts prompt library built-in custom system prompt rewrite improve grammar shorten lengthen tone simplify translate summarize title outline continue duplicate reset modified default model switcher ollama gemini groq local remote playground prompt test stream usage history runs tokens token count cost spend estimate estimated retention prune clear history metadata only voice dictation dictate speech microphone transcribe transcription whisper",
+      "artificial intelligence providers models writing tools prompts prompt library built-in custom system prompt rewrite improve grammar shorten lengthen tone simplify translate summarize title outline continue duplicate reset modified default model switcher ollama anthropic claude openai gpt openrouter gemini groq local remote playground prompt test stream usage history runs tokens token count cost spend estimate estimated retention prune clear history metadata only voice dictation dictate speech microphone transcribe transcription whisper",
     icon: StarIcon,
     desktopOnly: true,
   },
