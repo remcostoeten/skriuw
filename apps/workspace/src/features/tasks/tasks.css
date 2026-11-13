@@ -180,13 +180,24 @@
 }
 
 .task-due[data-state="none"] {
-  opacity: 0;
+  opacity: 0.6;
+}
+
+.task-due-key {
+  display: none;
+  margin-left: 6px;
 }
 
 .task-item:hover .task-due[data-state="none"],
 .task-item:focus-within .task-due[data-state="none"],
 .task-due[data-state="none"]:focus-visible {
   opacity: 1;
+  background: hsl(var(--foreground) / 0.08);
+}
+
+.task-item:hover .task-due-key,
+.task-item:focus-within .task-due-key {
+  display: inline-block;
 }
 
 .task-fold {

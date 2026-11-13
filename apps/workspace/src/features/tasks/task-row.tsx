@@ -229,6 +229,11 @@ function TaskListItemBase({ row, today, showSource, selected, lit, leaving, acti
             }}
           >
             {dueText(row, today)}
+            {state === "none" ? (
+              <kbd aria-hidden="true" className="task-due-key">
+                D
+              </kbd>
+            ) : null}
           </button>
         </div>
       </div>
