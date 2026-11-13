@@ -40,7 +40,7 @@
   grid-template-columns: 18px minmax(0, 1fr) auto;
   gap: 0 12px;
   align-items: start;
-  padding: 11px 0;
+  padding: 11px 10px;
   border-bottom: 1px solid var(--tasks-hair);
   cursor: pointer;
 }
@@ -52,7 +52,7 @@
 .task-item-inner::before {
   content: "";
   position: absolute;
-  inset: 2px -10px;
+  inset: 2px 0;
   z-index: 0;
   border-radius: 8px;
   background: transparent;
