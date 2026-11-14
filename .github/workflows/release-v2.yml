@@ -282,4 +282,9 @@ jobs:
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   GH_REPO: ${{ github.repository }}
-              run: gh workflow run publish-linux-repos.yml --ref daddy -f tag="$GITHUB_REF_NAME"
+              run: |
+                  failed=0
+                  for workflow in publish-linux-repos publish-container publish-nix publish-flatpak publish-chocolatey; do
+                      gh workflow run "$workflow.yml" --ref daddy -f tag="$GITHUB_REF_NAME" || failed=1
+                  done
+                  exit "$failed"
