@@ -9,6 +9,87 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
 
 ## [Unreleased]
 
+## [0.55.1] — 2026-11-15
+
+### Fixed
+
+- **Tree navigation:** Home and End move to the first and last row of the
+  sidebar tree (#597).
+- **Performance:** less style work on WebKitGTK when the Tasks page renders,
+  focus moves, or a dialog opens. The theme tile shimmer plays once, and the
+  diagram expand opens without `showModal` (#596, #598).
+- **Release:** the release workflow dispatches every package channel after it
+  publishes, not only the Linux repositories.
+
+## [0.55.0] — 2026-11-13
+
+### Added
+
+- **AI providers:** bring your own key for Anthropic, OpenAI, or OpenRouter,
+  next to Gemini, Groq, and the rest. Each asks for consent before anything is
+  sent, and keys stay in the OS keychain.
+- **Automatic journal titles:** off by default, under Settings, AI,
+  Automation. When on, the default model names journal entries that have no
+  title yet, one at a time, for past days with at least twenty words. Locked
+  entries are never sent and a title you wrote is never changed
+  ([ADR-0063](docs/adr/0063-opt-in-automatic-journal-titles.md)).
+- **Themes:** light themes, with a shimmer across the theme tiles and the
+  splash bars.
+- **On-screen keyboard:** a dock for typing without a physical keyboard
+  ([ADR-0062](docs/adr/0062-on-screen-keyboard-sends-keystrokes-to-the-focused-editor.md)).
+- **Desktop:** sign in with GitHub or Google, check for and install updates
+  from inside the app, and `-v` or `--version` prints the version.
+- **Package channels:** a GHCR image, Nix, Flatpak, and Chocolatey.
+- **Mobile:** a Tasks ledger, hold-and-drag with inline rename in the notes
+  tree, press feedback on every control, a password reveal toggle, and iOS
+  autofill hints on sign-in.
+
+### Changed
+
+- **Command palette:** rebuilt around scope tabs and a preview.
+- **Note inspector:** one scrolling column.
+- **Ledger redesign:** Trash, sharing, version history, database views, the
+  note lock dialogs, and the unlock pane.
+- **Sidebar:** the action row is back, with its animated search swap. Active
+  rows no longer carry a left-edge bar.
+- **Tasks:** unscheduled task rows show the due date slot and its `D` key.
+
+### Fixed
+
+- **Tree guides:** "Show tree guides" draws visible guides, placed under the
+  parent folder's icon.
+- **Tasks:** rows are padded so the hover highlight clears the checkbox.
+
+## [0.54.0] — 2026-11-09
+
+### Added
+
+- **Import:** Skriuw v1 vaults import with their journal days landing in the
+  journal (#566).
+- **Mobile:** Expo SDK 58, a motion layer, quick actions, and background sync
+  (#564).
+- **Hosting:** the marketing site and web app run on a Cloudflare Worker
+  (#575).
+
+### Changed
+
+- **Ledger redesign:** the Tasks page with a detail sheet (#569), the Journal
+  page (#570), and the settings dialog (#568).
+- **Workspace chrome:** the primary rail and notes sidebar are redesigned
+  (#571), and empty states are shared across pages (#572).
+- **Startup and large notes:** the desktop starts the workspace read before the
+  bundle loads (#574), and a bounded note renders its viewport first and grows
+  its window when idle (#563).
+- **Internals:** editor features compose through an extension contract (#562),
+  and desktop and mobile sync run through one shared runtime (#561) with queue
+  decisions moved out of the SQLite adapter (#560).
+
+### Fixed
+
+- **Account:** the avatar face no longer reacts to hover (#567).
+- **Mobile:** WorkManager's Room constructor is kept, and the Android e2e run
+  is faster (#565).
+
 ## [0.53.0] — 2026-10-25
 
 ### Added
