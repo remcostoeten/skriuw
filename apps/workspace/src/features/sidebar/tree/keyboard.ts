@@ -12,12 +12,14 @@ export type TreeKeyboard = {
   openSearch: () => void;
 };
 
-function isPlainArrow(event: KeyboardEvent): boolean {
+function isPlainNavigationKey(event: KeyboardEvent): boolean {
   return (
     (event.key === "ArrowUp" ||
       event.key === "ArrowDown" ||
       event.key === "ArrowLeft" ||
-      event.key === "ArrowRight") &&
+      event.key === "ArrowRight" ||
+      event.key === "Home" ||
+      event.key === "End") &&
     !event.metaKey &&
     !event.ctrlKey &&
     !event.altKey &&
@@ -47,7 +49,7 @@ function handleMoveModeKey(event: KeyboardEvent, keyboard: TreeKeyboard): boolea
     }
     return true;
   }
-  return !isPlainArrow(event);
+  return !isPlainNavigationKey(event);
 }
 
 export function handleTreeKeyDown(event: KeyboardEvent, keyboard: TreeKeyboard): void {
