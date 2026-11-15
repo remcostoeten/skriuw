@@ -143,6 +143,14 @@ function focusFirstControl(dialog: HTMLElement, body: HTMLElement): void {
   (body.querySelector<HTMLElement>(FIRST_CONTROL_SELECTOR) ?? dialog).focus();
 }
 
+function supportsPopover(element: HTMLElement): boolean {
+  return typeof element.showPopover === "function";
+}
+
+function isPopoverOpen(element: HTMLElement): boolean {
+  return supportsPopover(element) && element.matches(":popover-open");
+}
+
 function isTopmostOpenDialog(dialog: HTMLDialogElement): boolean {
   const open = document.querySelectorAll("dialog[open]");
   return open[open.length - 1] === dialog;
@@ -208,11 +216,15 @@ function DialogShell({
     }
     function handleWindowKeyDown(event: KeyboardEvent) {
       if (
-        event.key !== "Escape" ||
+        (event.key !== "Escape" && event.key !== "Tab") ||
         event.defaultPrevented ||
         (event.target instanceof Node && dialog.contains(event.target)) ||
         !isTopmostOpenDialog(dialog)
       ) {
+        return;
+      }
+      if (event.key === "Tab") {
+        keepTabInside(event, dialog);
         return;
       }
       closeFromEscape(event);
@@ -220,12 +232,15 @@ function DialogShell({
     function handleCancel(event: Event) {
       handlersRef.current.onCancel?.(event);
     }
-    function handleClose() {
-      for (const layer of [blocker, dialog]) {
-        if (layer.matches(":popover-open")) {
+    function hideLayers() {
+      for (const layer of [dialog, blocker]) {
+        if (isPopoverOpen(layer)) {
           layer.hidePopover();
         }
       }
+    }
+    function handleClose() {
+      hideLayers();
       handlersRef.current.onClose();
     }
     function handlePointerDown(event: PointerEvent) {
@@ -245,9 +260,19 @@ function DialogShell({
     dialog.addEventListener("pointerdown", handlePointerDown);
     blocker.addEventListener("pointerdown", handleBlockerPointerDown);
     window.addEventListener("keydown", handleWindowKeyDown);
-    blocker.showPopover();
-    dialog.show();
-    dialog.showPopover();
+    if (supportsPopover(dialog)) {
+      if (!isPopoverOpen(blocker)) {
+        blocker.showPopover();
+      }
+      if (!dialog.open) {
+        dialog.show();
+      }
+      if (!isPopoverOpen(dialog)) {
+        dialog.showPopover();
+      }
+    } else if (!dialog.open) {
+      dialog.showModal();
+    }
     if (bodyRef.current) {
       focusFirstControl(dialog, bodyRef.current);
     }
@@ -262,6 +287,7 @@ function DialogShell({
       dialog.removeEventListener("pointerdown", handlePointerDown);
       blocker.removeEventListener("pointerdown", handleBlockerPointerDown);
       window.removeEventListener("keydown", handleWindowKeyDown);
+      hideLayers();
       // Only reclaim focus if it never left the dialog. Content that closes
       // itself and then focuses something else — a command opening a note —
       // has already placed the caret where the user wants it.

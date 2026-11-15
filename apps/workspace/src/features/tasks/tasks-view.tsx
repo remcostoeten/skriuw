@@ -25,6 +25,7 @@ import { flushPendingWork } from "@/store/pending-work";
 import { DueDatePopover } from "./due-date-popover";
 import { isTypingTarget } from "./keyboard";
 import {
+  COMPLETED_PREVIEW,
   applyTaskOverlay,
   filterTaskRows,
   groupTasks,
@@ -151,16 +152,28 @@ export function TasksView({ store }: Props) {
     let total = 0;
     const offsets = groups.map((group) => {
       const before = total;
-      total += group.rows.length;
+      const folded =
+        group.kind === "completed" && group.rows.length > COMPLETED_PREVIEW && !completedOpen;
+      total += folded ? COMPLETED_PREVIEW : group.rows.length;
       return before;
     });
     return { offsets, total };
-  }, [groups]);
+  }, [groups, completedOpen]);
   const summary = summarizeTasks(shown, today);
   const noteCount = new Set(shown.filter((row) => !row.done).map((row) => row.noteId)).size;
 
-  const latest = useRef({ ids, rowById, detailId, popover, query, grouping, today });
-  latest.current = { ids, rowById, detailId, popover, query, grouping, today };
+  const latest = useRef({
+    ids,
+    rowById,
+    detailId,
+    popover,
+    query,
+    grouping,
+    today,
+    groups,
+    rowsBefore,
+  });
+  latest.current = { ids, rowById, detailId, popover, query, grouping, today, groups, rowsBefore };
 
   useEffect(() => {
     if (rowLimit >= rowsBefore.total) return;
@@ -362,7 +375,13 @@ export function TasksView({ store }: Props) {
   function renderedCheckbox(id: string): HTMLInputElement | null {
     const target = checkboxFor(id);
     if (target !== null || !latest.current.ids.includes(id)) return target;
-    flushSync(() => setRowLimit(Number.POSITIVE_INFINITY));
+    const { groups: current, rowsBefore: before } = latest.current;
+    const groupIndex = current.findIndex((group) => group.rows.some((row) => row.id === id));
+    const group = current[groupIndex];
+    if (group === undefined) return null;
+    const position =
+      (before.offsets[groupIndex] ?? 0) + group.rows.findIndex((row) => row.id === id) + 1;
+    flushSync(() => setRowLimit((limit) => Math.max(limit, position + ROW_LIMIT_STEP)));
     return checkboxFor(id);
   }
 
