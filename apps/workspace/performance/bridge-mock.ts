@@ -78,4 +78,4 @@ export function invoke<T>(command: string, parameters?: InvokeArguments): Promis
   return Promise.reject(new Error(`unexpected performance bridge call: ${command}`));
 }
 
-export { Channel, convertFileSrc } from "../node_modules/@tauri-apps/api/core.js";
+export { Channel, Resource, convertFileSrc } from "../node_modules/@tauri-apps/api/core.js";

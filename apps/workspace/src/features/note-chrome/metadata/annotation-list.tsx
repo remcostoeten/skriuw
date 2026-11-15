@@ -183,7 +183,7 @@ export function AnnotationList({ store, noteId }: Props) {
                   onClick={() => toggleResolved(thread.id, !resolved)}
                   className={cn(
                     inspectorIconButton,
-                    "absolute right-1 top-1 size-6 opacity-0 group-hover/thread:opacity-100 group-focus-within/thread:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100",
+                    "absolute right-1 top-1 size-6 opacity-0 group-hover/thread:opacity-100 thread-focus-within:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100",
                   )}
                 >
                   {resolved ? <RotateCcwIcon size={13} /> : <CheckIcon size={13} />}

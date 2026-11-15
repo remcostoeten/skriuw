@@ -37,10 +37,9 @@ const DialogCloseContext = createContext<(() => void) | null>(null);
 
 /**
  * Closes the enclosing dialog through the native element, synchronously
- * dropping it out of the top layer. Content that acts on the page as it closes
- * — running a command, opening a note — must use this rather than flipping the
- * caller's open state, because everything outside an open modal dialog is inert
- * and refuses focus until the element itself is closed.
+ * hiding it. Content that acts on the page as it closes (running a command,
+ * opening a note) must use this rather than flipping the caller's open state,
+ * so focus it moves elsewhere is not pulled back into the dialog.
  */
 export function useDialogClose(): () => void {
   const close = useContext(DialogCloseContext);
@@ -51,8 +50,11 @@ export function useDialogClose(): () => void {
 }
 
 /**
- * Dependency-free modal built on the native `<dialog>` element, so focus
- * trapping, Escape handling, and top-layer stacking come from the platform.
+ * Dependency-free modal built on the native `<dialog>` element, shown as a
+ * manual popover so it stacks in the top layer without `showModal()`, which
+ * makes WebKit restyle the whole document on every open and close. A
+ * transparent blocker under it catches pointer input for the page, and the
+ * dialog keeps Tab inside itself.
  * Renders nothing while closed and mounts its content fresh on every open;
  * callers own the open state, mirroring the CommandPalette contract.
  */
@@ -93,18 +95,60 @@ type ShellProps = {
   showHeader: boolean;
 };
 
+const TABBABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [contenteditable="true"], [tabindex]';
+
+function tabbables(dialog: HTMLElement): HTMLElement[] {
+  return [...dialog.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR)].filter(
+    (element) =>
+      element.tabIndex >= 0 &&
+      element.closest("[inert]") === null &&
+      element.getClientRects().length > 0,
+  );
+}
+
+function keepTabInside(event: KeyboardEvent, dialog: HTMLElement): void {
+  const items = tabbables(dialog);
+  const first = items[0];
+  const last = items.at(-1);
+  if (!first || !last) {
+    event.preventDefault();
+    return;
+  }
+  const active = document.activeElement;
+  const inside = active instanceof Node && dialog.contains(active) && active !== dialog;
+  if (!inside) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  } else if (event.shiftKey && active === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 const FIRST_CONTROL_SELECTOR =
   'input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
 
-// `showModal()` focuses the first focusable area in tree order. Chromium 144+
-// makes scroll containers focusable, so the dialog body outranks the input it
-// wraps, and React's `autoFocus` leaves no `autofocus` attribute for the
-// platform to delegate to — the palette opened with its query field unfocused.
-function moveFocusOffScrollContainer(body: HTMLElement): void {
-  if (document.activeElement !== body) {
+// React's `autoFocus` runs while the dialog is still hidden and leaves no
+// `autofocus` attribute for the platform to delegate to, so focus is placed
+// here once the dialog shows: the first control in its body.
+function focusFirstControl(dialog: HTMLElement, body: HTMLElement): void {
+  const active = document.activeElement;
+  if (active instanceof Node && dialog.contains(active) && active !== dialog && active !== body) {
     return;
   }
-  body.querySelector<HTMLElement>(FIRST_CONTROL_SELECTOR)?.focus();
+  (body.querySelector<HTMLElement>(FIRST_CONTROL_SELECTOR) ?? dialog).focus();
+}
+
+function supportsPopover(element: HTMLElement): boolean {
+  return typeof element.showPopover === "function";
+}
+
+function isPopoverOpen(element: HTMLElement): boolean {
+  return supportsPopover(element) && element.matches(":popover-open");
 }
 
 function isTopmostOpenDialog(dialog: HTMLDialogElement): boolean {
@@ -122,6 +166,7 @@ function DialogShell({
   showHeader,
 }: ShellProps) {
   const ref = useRef<HTMLDialogElement>(null);
+  const blockerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(
     document.activeElement instanceof HTMLElement ? document.activeElement : null,
@@ -144,10 +189,12 @@ function DialogShell({
   // stacked lightbox otherwise lands on the dialog underneath and closes it.
   useEffect(() => {
     const mounted = ref.current;
-    if (!mounted) {
+    const mountedBlocker = blockerRef.current;
+    if (!mounted || !mountedBlocker) {
       return;
     }
     const dialog: HTMLDialogElement = mounted;
+    const blocker: HTMLDivElement = mountedBlocker;
     function closeFromEscape(event: KeyboardEvent) {
       event.preventDefault();
       const cancelEvent = new Event("cancel", { cancelable: true });
@@ -158,6 +205,10 @@ function DialogShell({
     }
     function handleKeyDown(event: KeyboardEvent) {
       handlersRef.current.onKeyDown?.(event);
+      if (event.key === "Tab" && !event.defaultPrevented && isTopmostOpenDialog(dialog)) {
+        keepTabInside(event, dialog);
+        return;
+      }
       if (event.key !== "Escape" || event.defaultPrevented || !isTopmostOpenDialog(dialog)) {
         return;
       }
@@ -165,11 +216,15 @@ function DialogShell({
     }
     function handleWindowKeyDown(event: KeyboardEvent) {
       if (
-        event.key !== "Escape" ||
+        (event.key !== "Escape" && event.key !== "Tab") ||
         event.defaultPrevented ||
         (event.target instanceof Node && dialog.contains(event.target)) ||
         !isTopmostOpenDialog(dialog)
       ) {
+        return;
+      }
+      if (event.key === "Tab") {
+        keepTabInside(event, dialog);
         return;
       }
       closeFromEscape(event);
@@ -177,7 +232,15 @@ function DialogShell({
     function handleCancel(event: Event) {
       handlersRef.current.onCancel?.(event);
     }
+    function hideLayers() {
+      for (const layer of [dialog, blocker]) {
+        if (isPopoverOpen(layer)) {
+          layer.hidePopover();
+        }
+      }
+    }
     function handleClose() {
+      hideLayers();
       handlersRef.current.onClose();
     }
     function handlePointerDown(event: PointerEvent) {
@@ -185,14 +248,33 @@ function DialogShell({
         dialog.close();
       }
     }
+    function handleBlockerPointerDown(event: PointerEvent) {
+      event.preventDefault();
+      if (isTopmostOpenDialog(dialog)) {
+        dialog.close();
+      }
+    }
     dialog.addEventListener("keydown", handleKeyDown);
     dialog.addEventListener("cancel", handleCancel);
     dialog.addEventListener("close", handleClose);
     dialog.addEventListener("pointerdown", handlePointerDown);
+    blocker.addEventListener("pointerdown", handleBlockerPointerDown);
     window.addEventListener("keydown", handleWindowKeyDown);
-    dialog.showModal();
+    if (supportsPopover(dialog)) {
+      if (!isPopoverOpen(blocker)) {
+        blocker.showPopover();
+      }
+      if (!dialog.open) {
+        dialog.show();
+      }
+      if (!isPopoverOpen(dialog)) {
+        dialog.showPopover();
+      }
+    } else if (!dialog.open) {
+      dialog.showModal();
+    }
     if (bodyRef.current) {
-      moveFocusOffScrollContainer(bodyRef.current);
+      focusFirstControl(dialog, bodyRef.current);
     }
     // On a phone the back gesture closes the dialog on top, through the
     // native close so the caller sees the same event as Escape.
@@ -203,7 +285,9 @@ function DialogShell({
       dialog.removeEventListener("cancel", handleCancel);
       dialog.removeEventListener("close", handleClose);
       dialog.removeEventListener("pointerdown", handlePointerDown);
+      blocker.removeEventListener("pointerdown", handleBlockerPointerDown);
       window.removeEventListener("keydown", handleWindowKeyDown);
+      hideLayers();
       // Only reclaim focus if it never left the dialog. Content that closes
       // itself and then focuses something else — a command opening a note —
       // has already placed the caret where the user wants it.
@@ -268,8 +352,11 @@ function DialogShell({
 
   return createPortal(
     <DialogCloseContext.Provider value={close}>
+      <div ref={blockerRef} className="dialog-blocker" popover="manual" aria-hidden="true" />
       <dialog
         ref={ref}
+        popover="manual"
+        aria-modal="true"
         className={cn(
           "dialog inset-0 m-auto flex h-fit max-h-[calc(var(--viewport-height)*0.72)] w-[min(680px,calc(100vw-24px))] flex-col rounded-[calc(var(--radius)+4px)] border border-border bg-popover p-0 text-popover-foreground shadow-[0_16px_48px_hsl(var(--scrim)/0.4)] backdrop:bg-scrim/55",
           className,
