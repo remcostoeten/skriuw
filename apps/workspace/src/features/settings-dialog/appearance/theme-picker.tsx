@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent } from "react";
 import { THEME_TOKENS, isBuiltinThemeId, type ThemeColorScheme } from "@skriuw/theme";
 import { CheckIcon } from "@/shared/icons/static";
@@ -16,6 +16,8 @@ import {
 } from "@/features/settings/themes";
 
 const GRID_COLUMNS = 3;
+
+let introShimmerPlayed = false;
 const GRID_KEYS: readonly string[] = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
 
 function isGridKey(key: string): key is ThemeGridKey {
@@ -49,6 +51,7 @@ type Props = {
 export function ThemePicker({ value, onSelect }: Props) {
   const [remembered, setRemembered] = useState<Record<string, string>>({});
   const [sweeps, setSweeps] = useState<Record<string, number>>({});
+  const [intro] = useState(() => !introShimmerPlayed);
   const activeIndex = activeThemeIndex(value);
 
   function choose(entry: ThemeEntry, themeId: string): void {
@@ -58,6 +61,10 @@ export function ThemePicker({ value, onSelect }: Props) {
     setSweeps((current) => ({ ...current, [entry.id]: (current[entry.id] ?? 0) + 1 }));
     onSelect(themeId);
   }
+
+  useEffect(() => {
+    introShimmerPlayed = true;
+  }, []);
 
   function handleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>): void {
     if (!isGridKey(event.key)) {
@@ -92,6 +99,7 @@ export function ThemePicker({ value, onSelect }: Props) {
           shown={shownThemeVariant(entry, value, remembered[entry.id])}
           focusable={index === activeIndex}
           sweep={sweeps[entry.id] ?? 0}
+          intro={intro}
           onChoose={(themeId) => choose(entry, themeId)}
         />
       ))}
@@ -105,10 +113,11 @@ type TileProps = {
   shown: string;
   focusable: boolean;
   sweep: number;
+  intro: boolean;
   onChoose: (themeId: string) => void;
 };
 
-function ThemeTile({ entry, value, shown, focusable, sweep, onChoose }: TileProps) {
+function ThemeTile({ entry, value, shown, focusable, sweep, intro, onChoose }: TileProps) {
   const checked = entry.variants ? isVariantActive(entry, value) : value === entry.id;
   const scheme =
     entry.variants?.find((variant) => variant.id === shown)?.colorScheme ?? entry.colorScheme;
@@ -147,7 +156,7 @@ function ThemeTile({ entry, value, shown, focusable, sweep, onChoose }: TileProp
         )}
         onClick={handleClick}
       >
-        <ThemeMiniature key={sweep} scheme={scheme} replay={sweep > 0} />
+        <ThemeMiniature key={sweep} scheme={scheme} shimmer={shimmerFor(sweep, intro)} />
         <span className="flex items-center justify-between gap-1.5 px-[3px]">
           <span className="truncate text-[12.5px] font-[450]">{entry.label}</span>
           {checked ? (
@@ -190,17 +199,26 @@ function variantLabel(entry: ThemeEntry, shown: string): string {
   return entry.variants?.find((variant) => variant.id === shown)?.label ?? "";
 }
 
+type Shimmer = "select" | "intro" | "off";
+
+function shimmerFor(sweep: number, intro: boolean): Shimmer {
+  if (sweep > 0) {
+    return "select";
+  }
+  return intro ? "intro" : "off";
+}
+
 type MiniatureProps = {
   scheme: ThemeColorScheme;
-  replay: boolean;
+  shimmer: Shimmer;
 };
 
-function ThemeMiniature({ scheme, replay }: MiniatureProps) {
+function ThemeMiniature({ scheme, shimmer }: MiniatureProps) {
   return (
     <span
       aria-hidden="true"
       data-scheme={scheme}
-      data-shimmer={replay ? "select" : "intro"}
+      data-shimmer={shimmer}
       className="theme-miniature grid h-[66px] grid-cols-[8px_24px_1fr] overflow-hidden rounded-[5px] border border-[var(--tile-border)] bg-[var(--tile-bg)]"
     >
       <span className="border-r border-[var(--tile-border)] bg-[var(--tile-rail)]" />

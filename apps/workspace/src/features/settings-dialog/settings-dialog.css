@@ -74,6 +74,11 @@
   }
 }
 
+/* The intro sweep plays once per session; each band costs a restyle, layout and paint per frame in WebKitGTK. */
+.theme-miniature[data-shimmer="off"] :is(i, b, u)::after {
+  content: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .theme-miniature :is(i, b, u)::after {
     content: none;

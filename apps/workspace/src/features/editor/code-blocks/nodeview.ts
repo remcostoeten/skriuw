@@ -492,6 +492,7 @@ export function createCodeBlockNodeView(
     if (!expandDialog) return;
     const dialog = expandDialog;
     expandDialog = null;
+    if (dialog.matches(":popover-open")) dialog.hidePopover();
     if (dialog.open) dialog.close();
     dialog.remove();
     if (!destroyed) view.focus();
@@ -516,10 +517,26 @@ export function createCodeBlockNodeView(
     dialog.addEventListener("click", (event) => {
       if (event.target === dialog) closeExpand();
     });
+    dialog.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeExpand();
+      } else if (event.key === "Tab") {
+        event.preventDefault();
+        close.focus();
+      }
+    });
     close.addEventListener("click", closeExpand);
     document.body.append(dialog);
     expandDialog = dialog;
-    dialog.showModal();
+    // showModal() makes WebKitGTK restyle the whole document to apply inert; the opaque full-screen popover covers the page instead.
+    if (typeof dialog.showPopover === "function") {
+      dialog.popover = "manual";
+      dialog.show();
+      dialog.showPopover();
+    } else {
+      dialog.showModal();
+    }
     close.focus();
   }
 

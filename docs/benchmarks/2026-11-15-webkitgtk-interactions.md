@@ -77,8 +77,45 @@ after.
   WebKitGTK. Removing all CSS still leaves 31 ms for the modal flip; no single
   rule or layer dominates.
 - Search close waits for its 200 ms exit animation by design.
-- After Settings opens, WebKitGTK repaints the content scrollbar strip at
-  60 Hz for a few seconds (overlay scrollbar fade, about 2 ms a frame).
+- Search close in the second pass below is unchanged for the same reason.
+
+## Second pass
+
+Same machine and method, against `fad50bbe9`. Load average 1.9 to 3.3.
+
+The `performance/` page had only `#root` in `<body>`, while the app's
+`index.html` also has `#auth-drawer-portal` after it. In WebKit, a change to
+which element is the last child of `<body>` restyles that element's whole
+subtree. On the harness, every first portal to mount and last one to unmount
+restyled all of `#root`, 28 to 46 ms, which the app never pays. The harness
+now has the same `#auth-drawer-portal`, and the overlay numbers from the
+first pass include that extra cost on both sides. The baseline below was
+taken after the harness fix.
+
+| Interaction | Painted before (ms) | Painted after (ms) | Worst frame before (ms) | Worst frame after (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| Settings open | 131 | 110 | 49 | 49 |
+| Settings close | 49 | 26 | 46 | 18 |
+
+- The theme tiles in Settings ran 63 shimmer animations for about 1.2 s on
+  every open. WebKitGTK restyles, lays out and repaints the dialog for each
+  frame of them, 870 ms of paint per open. The intro sweep now plays once per
+  session; the sweep after choosing a theme is unchanged. Paint per open is
+  now 133 to 256 ms.
+- The code block diagram expand still used `showModal()`. It now opens as a
+  manual popover like the other dialogs, with Escape and a Tab trap handled
+  on the dialog.
+
+Not changed:
+
+- Settings open still paints the full viewport three times at about 40 ms
+  each on the software path. About half of each is the dialog's 48 px shadow.
+  A 24 px shadow saves less than 10%, so the shadow stays.
+- Entering or leaving Vim visual mode restyles the editor, 26 ms with 150
+  blocks, because `::selection` in visual mode is matched through a
+  descendant selector on the editor root.
+- Note switch spends about 18 ms in ProseMirror's `updateState` building the
+  new document, plus one forced layout that paint needs anyway.
 
 ## Rendering paths
 
