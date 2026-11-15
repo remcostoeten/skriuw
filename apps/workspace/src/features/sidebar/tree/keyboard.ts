@@ -121,6 +121,20 @@ export function handleTreeKeyDown(event: KeyboardEvent, keyboard: TreeKeyboard):
       event.preventDefault();
       return;
     }
+    case "Home":
+    case "End": {
+      const next =
+        event.key === "Home" ? state.visibleIds[0] : state.visibleIds[state.visibleIds.length - 1];
+      if (next) {
+        if (event.shiftKey) {
+          store.selectTreeNode(next, "range");
+        }
+        store.setFocusedNode(next);
+        focusTreeItem(treeRef, next);
+      }
+      event.preventDefault();
+      return;
+    }
     case "ArrowRight": {
       if (focused?.kind === "folder") {
         if (!state.expandedIds.has(focused.id)) {
