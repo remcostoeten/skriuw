@@ -17,6 +17,7 @@
 @import "./features/settings-dialog/settings-dialog.css";
 @import "@skriuw/shared/ui/tooltip.css";
 @import "./shared/icons/app-icon.css";
+@import "./shared/ui/dialog.css";
 @import "./shared/ui/shortcut-recorder.css";
 @import "./features/auth/auth-drawer.css";
 @import "./features/drawing/drawing.css";
@@ -25,3 +26,7 @@
 @plugin "tailwindcss-animate";
 
 @custom-variant keyboard-open (:root[data-keyboard="open"] &);
+@custom-variant group-focus-within (&:is(.group:focus-within *));
+@custom-variant mention-focus-within (&:is(.group\/mention:focus-within *));
+@custom-variant revision-focus-within (&:is(.group\/revision:focus-within *));
+@custom-variant thread-focus-within (&:is(.group\/thread:focus-within *));

@@ -1,5 +1,6 @@
 import "./tasks.css";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { TaskStatus } from "@skriuw/renderer-core/contracts/workspace";
 import { formatLongDate, type DateKey } from "@skriuw/renderer-core/journal/dates";
@@ -54,6 +55,8 @@ import { createTaskWriter } from "./writer";
 const SETTLE_MS = 1_100;
 const FOLD_MS = 180;
 const SHEET_CLOSE_MS = 150;
+const INITIAL_ROW_LIMIT = 80;
+const ROW_LIMIT_STEP = 60;
 
 type Props = {
   store: RendererStore;
@@ -118,6 +121,8 @@ export function TasksView({ store }: Props) {
   const [popover, setPopover] = useState<PopoverTarget | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [rowLimit, setRowLimit] = useState(INITIAL_ROW_LIMIT);
+  const [limitedFor, setLimitedFor] = useState({ grouping, query });
   const [registry] = useState(createLedgerRegistry);
   const [writer] = useState(() =>
     createTaskWriter(store, { flush: flushPendingWork, commit: commitOperations }),
@@ -137,12 +142,37 @@ export function TasksView({ store }: Props) {
     [filtered, grouping, today, settling],
   );
   const ids = useMemo(() => visibleRowIds(groups, completedOpen), [groups, completedOpen]);
+  if (limitedFor.grouping !== grouping || limitedFor.query !== query) {
+    setLimitedFor({ grouping, query });
+    setRowLimit(INITIAL_ROW_LIMIT);
+  }
   const rowById = useMemo(() => new Map(shown.map((row) => [row.id, row])), [shown]);
+  const rowsBefore = useMemo(() => {
+    let total = 0;
+    const offsets = groups.map((group) => {
+      const before = total;
+      total += group.rows.length;
+      return before;
+    });
+    return { offsets, total };
+  }, [groups]);
   const summary = summarizeTasks(shown, today);
   const noteCount = new Set(shown.filter((row) => !row.done).map((row) => row.noteId)).size;
 
   const latest = useRef({ ids, rowById, detailId, popover, query, grouping, today });
   latest.current = { ids, rowById, detailId, popover, query, grouping, today };
+
+  useEffect(() => {
+    if (rowLimit >= rowsBefore.total) return;
+    let timeout = 0;
+    const frame = window.requestAnimationFrame(() => {
+      timeout = window.setTimeout(() => setRowLimit((limit) => limit + ROW_LIMIT_STEP), 0);
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [rowLimit, rowsBefore.total]);
 
   useEffect(() => {
     const timers = timersRef.current;
@@ -165,7 +195,7 @@ export function TasksView({ store }: Props) {
       target.scrollIntoView({ block: "center" });
       target.focus();
     }
-  }, [focusId, ids]);
+  }, [focusId, ids, rowLimit]);
 
   useLayoutEffect(() => {
     const id = focusedRowRef.current;
@@ -329,8 +359,15 @@ export function TasksView({ store }: Props) {
     activateReference(store, "note", row.noteId);
   }
 
-  function focusRow(id: string): void {
+  function renderedCheckbox(id: string): HTMLInputElement | null {
     const target = checkboxFor(id);
+    if (target !== null || !latest.current.ids.includes(id)) return target;
+    flushSync(() => setRowLimit(Number.POSITIVE_INFINITY));
+    return checkboxFor(id);
+  }
+
+  function focusRow(id: string): void {
+    const target = renderedCheckbox(id);
     target?.focus({ preventScroll: true });
     target?.closest("li")?.scrollIntoView({ block: "nearest" });
   }
@@ -428,7 +465,7 @@ export function TasksView({ store }: Props) {
       const first = latest.current.ids.find(
         (id) => latest.current.rowById.get(id)?.dueDate === dueDate,
       );
-      if (first) checkboxFor(first)?.closest("li")?.scrollIntoView({ block: "nearest" });
+      if (first) renderedCheckbox(first)?.closest("li")?.scrollIntoView({ block: "nearest" });
     },
     openNote: (noteId: string) => activateReference(store, "note", noteId),
     close: closeDetail,
@@ -446,7 +483,7 @@ export function TasksView({ store }: Props) {
       if (target === undefined) return;
       setDetailId(target);
       setSheetId(target);
-      checkboxFor(target)?.closest("li")?.scrollIntoView({ block: "nearest" });
+      renderedCheckbox(target)?.closest("li")?.scrollIntoView({ block: "nearest" });
     },
     setStatus: (id: string, status: TaskStatus) => setStatus(id, status),
     setTitle: (id: string, title: string) => {
@@ -792,9 +829,10 @@ export function TasksView({ store }: Props) {
               />
             ) : (
               <div className="mx-auto max-w-[900px]">
-                {groups.map((group) => (
+                {groups.map((group, index) => (
                   <TaskGroupSection
                     key={group.id}
+                    rowLimit={rowLimit - (rowsBefore.offsets[index] ?? 0)}
                     group={group}
                     grouping={grouping}
                     today={today}

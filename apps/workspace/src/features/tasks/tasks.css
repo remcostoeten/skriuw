@@ -24,6 +24,8 @@
 }
 
 .task-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 60px;
   transition:
     opacity 160ms var(--tasks-ease),
     transform 160ms var(--tasks-ease);

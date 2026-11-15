@@ -31,6 +31,7 @@ type Props = {
   selectedId: string | null;
   selectedDay: DateKey | null;
   completedOpen: boolean;
+  rowLimit: number;
   leaving: ReadonlySet<string>;
   rowActions: TaskRowActions;
   groupActions: TaskGroupActions;
@@ -79,7 +80,7 @@ function Margin({
   selectedDay,
   completedOpen,
   groupActions,
-}: Omit<Props, "registry" | "selectedId" | "leaving" | "rowActions">) {
+}: Omit<Props, "registry" | "selectedId" | "rowLimit" | "leaving" | "rowActions">) {
   const count = group.rows.length;
   if (group.kind === "overdue") {
     const oldest = oldestLateness(group.rows, today);
@@ -242,6 +243,7 @@ export function TaskGroupSection(props: Props) {
     selectedId,
     selectedDay,
     completedOpen,
+    rowLimit,
     leaving,
     rowActions,
   } = props;
@@ -256,10 +258,10 @@ export function TaskGroupSection(props: Props) {
   }, [registry, group.id, group.title, count, alert]);
 
   const showSource = grouping === "due" || group.kind === "completed";
-  function renderRows(rows: readonly TaskRow[], label: string, className?: string) {
+  function renderRows(rows: readonly TaskRow[], start: number, label: string, className?: string) {
     return (
       <ul className={cn("m-0 min-w-0 list-none p-0", className)} aria-label={label}>
-        {rows.map((row) => (
+        {rows.slice(0, Math.max(0, rowLimit - start)).map((row) => (
           <TaskListItem
             key={row.id}
             row={row}
@@ -290,17 +292,18 @@ export function TaskGroupSection(props: Props) {
       <div className="min-w-0">
         {folded ? (
           <>
-            {renderRows(group.rows.slice(0, COMPLETED_PREVIEW), group.title)}
+            {renderRows(group.rows.slice(0, COMPLETED_PREVIEW), 0, group.title)}
             {completedOpen
               ? renderRows(
                   group.rows.slice(COMPLETED_PREVIEW),
+                  COMPLETED_PREVIEW,
                   "Older completed tasks",
                   "task-fold",
                 )
               : null}
           </>
         ) : (
-          renderRows(group.rows, group.title)
+          renderRows(group.rows, 0, group.title)
         )}
       </div>
     </section>

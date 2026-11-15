@@ -212,7 +212,7 @@ function MentionRow({
         onClick={onLink}
         aria-label={`Link mention in ${mention.title}`}
         title="Link (L)"
-        className="mt-1 shrink-0 cursor-pointer rounded px-1.5 py-0.5 text-[11px] text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none group-hover/mention:opacity-100 group-focus-within/mention:opacity-100"
+        className="mt-1 shrink-0 cursor-pointer rounded px-1.5 py-0.5 text-[11px] text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none group-hover/mention:opacity-100 mention-focus-within:opacity-100"
       >
         Link
       </button>

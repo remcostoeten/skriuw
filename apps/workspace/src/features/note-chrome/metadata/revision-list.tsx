@@ -146,7 +146,7 @@ function RevisionRows({ rows, label, actions }: RowsProps) {
                     inspectorTransition,
                   )}
                 >
-                  <span className="shrink-0 font-mono text-[11.5px] tabular-nums text-muted-foreground group-hover/revision:text-foreground group-focus-within/revision:text-foreground">
+                  <span className="shrink-0 font-mono text-[11.5px] tabular-nums text-muted-foreground group-hover/revision:text-foreground revision-focus-within:text-foreground">
                     {formatVersionClock(createdAt)}
                   </span>
                   <span className="min-w-0 truncate text-[11px] text-muted-foreground/60">
@@ -154,7 +154,7 @@ function RevisionRows({ rows, label, actions }: RowsProps) {
                   </span>
                   <span
                     className={cn(
-                      "ml-auto shrink-0 font-mono text-[11px] tabular-nums transition-opacity duration-150 group-hover/revision:opacity-0 group-focus-within/revision:opacity-0 pointer-coarse:opacity-100",
+                      "ml-auto shrink-0 font-mono text-[11px] tabular-nums transition-opacity duration-150 group-hover/revision:opacity-0 revision-focus-within:opacity-0 pointer-coarse:opacity-100",
                       deltaClass(wordDelta),
                     )}
                     title={
@@ -185,7 +185,7 @@ function RevisionRows({ rows, label, actions }: RowsProps) {
                 </ContextMenuItem>
               </ContextMenuContent>
             </ContextMenu>
-            <span className="pointer-events-none absolute right-0.5 top-0.5 flex gap-px opacity-0 transition-opacity duration-150 group-hover/revision:pointer-events-auto group-hover/revision:opacity-100 group-focus-within/revision:pointer-events-auto group-focus-within/revision:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:static pointer-coarse:opacity-100">
+            <span className="pointer-events-none absolute right-0.5 top-0.5 flex gap-px opacity-0 transition-opacity duration-150 group-hover/revision:pointer-events-auto group-hover/revision:opacity-100 revision-focus-within:pointer-events-auto revision-focus-within:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:static pointer-coarse:opacity-100">
               <button
                 type="button"
                 data-inspector-skip=""
