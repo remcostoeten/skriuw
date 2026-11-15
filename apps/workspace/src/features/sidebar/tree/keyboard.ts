@@ -12,12 +12,14 @@ export type TreeKeyboard = {
   openSearch: () => void;
 };
 
-function isPlainArrow(event: KeyboardEvent): boolean {
+function isPlainNavigationKey(event: KeyboardEvent): boolean {
   return (
     (event.key === "ArrowUp" ||
       event.key === "ArrowDown" ||
       event.key === "ArrowLeft" ||
-      event.key === "ArrowRight") &&
+      event.key === "ArrowRight" ||
+      event.key === "Home" ||
+      event.key === "End") &&
     !event.metaKey &&
     !event.ctrlKey &&
     !event.altKey &&
@@ -47,7 +49,7 @@ function handleMoveModeKey(event: KeyboardEvent, keyboard: TreeKeyboard): boolea
     }
     return true;
   }
-  return !isPlainArrow(event);
+  return !isPlainNavigationKey(event);
 }
 
 export function handleTreeKeyDown(event: KeyboardEvent, keyboard: TreeKeyboard): void {
@@ -111,6 +113,20 @@ export function handleTreeKeyDown(event: KeyboardEvent, keyboard: TreeKeyboard):
         focusIndex > 0
           ? state.visibleIds[focusIndex - 1]
           : state.visibleIds[state.visibleIds.length - 1];
+      if (next) {
+        if (event.shiftKey) {
+          store.selectTreeNode(next, "range");
+        }
+        store.setFocusedNode(next);
+        focusTreeItem(treeRef, next);
+      }
+      event.preventDefault();
+      return;
+    }
+    case "Home":
+    case "End": {
+      const next =
+        event.key === "Home" ? state.visibleIds[0] : state.visibleIds[state.visibleIds.length - 1];
       if (next) {
         if (event.shiftKey) {
           store.selectTreeNode(next, "range");
