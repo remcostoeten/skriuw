@@ -1,3 +1,5 @@
+import type { DatabaseView } from "../database/config";
+
 export const WORKSPACE_PROTOCOL_VERSION = 1;
 
 export type NodeKind = "note" | "folder";
@@ -399,6 +401,7 @@ export type WorkspaceOperation =
   | { type: "set_active_note"; noteId: string | null }
   | { type: "update_settings"; settings: WorkspaceSettings }
   | { type: "set_math_macros"; macros: { [name: string]: string } }
+  | { type: "set_database_view"; folderId: string | null; view: DatabaseView | null }
   | { type: "attach_image"; image: WorkspaceImage }
   | { type: "set_media_metadata"; metadata: MediaMetadata }
   | { type: "set_note_property"; property: NoteProperty; at: number }

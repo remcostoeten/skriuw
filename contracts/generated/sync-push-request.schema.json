@@ -1733,6 +1733,26 @@
           ]
         },
         {
+          "description": "Saves one database view's layout, or clears it with `None`. A missing\n`folder_id` is the all-notes view. The layout is opaque to the domain\napart from its size; the renderer owns its shape.",
+          "type": "object",
+          "properties": {
+            "folderId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "set_database_view"
+            },
+            "view": true
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
           "type": "object",
           "properties": {
             "image": {

@@ -4,10 +4,10 @@ import { join } from "node:path";
 import { test } from "vitest";
 import { repositoryPath } from "../../../../../../support/paths";
 import { planStarterWorkspace } from "@/features/onboarding/starter/plan";
-import { withBooksBoard } from "@/features/onboarding/starter/books";
+import { booksBoardOperation } from "@/features/onboarding/starter/books";
 import { normalizeNotePropertyField } from "@skriuw/renderer-core/properties/value";
 import { propertyColumnKey } from "@skriuw/renderer-core/database/columns";
-import { readDatabaseView } from "@skriuw/renderer-core/database/config";
+import { readDatabaseView, withDatabaseView } from "@skriuw/renderer-core/database/config";
 
 const root = repositoryPath("apps/workspace/src/features/onboarding/starter/content");
 const books = join(root, "Books");
@@ -52,7 +52,10 @@ test("every starter book carries valid status, author, genre, and rating propert
 test("the starter Books folder opens as a board grouped by status", () => {
   const plan = planBooks();
   assert.ok(plan.booksFolderId !== null);
-  const settings = withBooksBoard({}, plan.booksFolderId, 1_000);
+  const operation = booksBoardOperation({}, plan.booksFolderId, 1_000);
+  assert.ok(operation.type === "set_database_view");
+  assert.equal(operation.folderId, plan.booksFolderId);
+  const settings = withDatabaseView({}, operation.folderId, operation.view, () => true);
   const read = readDatabaseView(settings["databaseViews"], plan.booksFolderId);
   assert.equal(read.problem, null);
   assert.equal(read.view.layout, "board");

@@ -13,6 +13,7 @@ mod ai_history;
 mod annotation;
 mod checkpoint;
 mod chunk;
+mod database_view;
 mod local_ai;
 mod lock;
 mod operation;
@@ -50,6 +51,12 @@ pub use chunk::{
     ContentEncoding, ContentHashAlgorithm, ContentManifest, ContentManifestKind,
     ContentValidationError, MAX_CONTENT_BYTES, MAX_CONTENT_MIME_BYTES, MAX_MANIFEST_CHUNKS,
     content_digest, validate_content_digest,
+};
+pub use database_view::{
+    DATABASE_VIEWS_BUDGET_BYTES, DATABASE_VIEWS_EXTENSION, DATABASE_VIEWS_VERSION,
+    MAX_DATABASE_SCOPES, MAX_DATABASE_VIEW_BYTES, REPLICATED_SETTING_EXTENSIONS,
+    WORKSPACE_DATABASE_SCOPE, database_scope_key, database_view_operations, merge_database_view,
+    stored_database_view, validate_database_view,
 };
 pub use local_ai::{
     LocalAiError, LocalAiErrorCategory, LocalAiModel, LocalAiOperation, LocalAiProgress,
@@ -132,9 +139,10 @@ pub const MAX_ENTITY_ID_BYTES: usize = 128;
 pub const MAX_TITLE_BYTES: usize = 512;
 pub const MAX_SETTING_KEY_BYTES: usize = 128;
 pub const MAX_SETTING_TEXT_BYTES: usize = 512;
-/// Serialized size cap for the device-local `databaseViews` settings extension.
-/// The renderer evicts its oldest layouts to stay under this, so the cap is a
-/// contract every version keeps rather than a limit a newer build may raise.
+/// Serialized size cap for the `databaseViews` settings extension. Applying a
+/// `SetDatabaseView` evicts the oldest layouts to stay under this, so the cap
+/// is a contract every version keeps rather than a limit a newer build may
+/// raise.
 pub const MAX_DATABASE_VIEWS_BYTES: usize = 256 * 1024;
 pub const MAX_REFERENCE_NAME_BYTES: usize = 512;
 pub const MAX_REFERENCE_COLOR_BYTES: usize = 64;
@@ -410,7 +418,7 @@ impl WorkspaceSettings {
                     .map_err(|_| OperationValidationError::InvalidDocument)?;
                 validate_math_macros(&macros)?;
             }
-            if key == "databaseViews" {
+            if key == DATABASE_VIEWS_EXTENSION {
                 validate_database_views(value)?;
             }
             validate_setting_key(key)?;

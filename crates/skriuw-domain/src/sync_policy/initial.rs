@@ -3,8 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
 use crate::{
-    AnnotationStatus, NodeKind, NodePlacement, WorkspaceAnnotation, WorkspaceOperation,
-    WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    AnnotationStatus, DATABASE_VIEWS_EXTENSION, NodeKind, NodePlacement, WorkspaceAnnotation,
+    WorkspaceOperation, WorkspaceOperationEnvelope, WorkspaceSnapshot, database_view_operations,
 };
 
 #[derive(Debug, Error)]
@@ -169,6 +169,11 @@ pub fn initial_sync_operations(
             WorkspaceOperation::SetMathMacros { macros },
         ));
     }
+    operations.extend(
+        database_view_operations(snapshot.settings.extensions.get(DATABASE_VIEWS_EXTENSION))
+            .into_iter()
+            .map(WorkspaceOperationEnvelope::v1),
+    );
     operations.extend(snapshot.prompts.into_iter().map(|prompt| {
         WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetPrompt {
             prompt: Box::new(prompt),

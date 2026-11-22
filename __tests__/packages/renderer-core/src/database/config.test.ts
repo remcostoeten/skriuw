@@ -3,8 +3,9 @@ import { test } from "vitest";
 import type { WorkspaceSettings } from "../../../../../packages/renderer-core/src/contracts/workspace";
 import {
   DATABASE_VIEWS_KEY,
+  DATABASE_VIEWS_BUDGET_BYTES,
   MAX_DATABASE_SCOPES,
-  MAX_DATABASE_VIEWS_BYTES,
+  databaseViewOperation,
   defaultDatabaseView,
   readDatabaseView,
   withDatabaseView,
@@ -74,7 +75,7 @@ test("older layouts are evicted to keep the stored document under the size cap",
   }
   const stored = next[DATABASE_VIEWS_KEY] as { views: Record<string, unknown> };
   const size = new TextEncoder().encode(JSON.stringify(stored)).length;
-  assert.ok(size <= MAX_DATABASE_VIEWS_BYTES);
+  assert.ok(size <= DATABASE_VIEWS_BUDGET_BYTES);
   assert.equal("folder11" in stored.views, true);
   assert.equal("folder0" in stored.views, false);
 });
@@ -90,19 +91,58 @@ test("an unreadable entry falls back with a notice and a newer document is read-
 
   const newer = { ...settings, [DATABASE_VIEWS_KEY]: { version: 2, views: {} } };
   assert.equal(readDatabaseView(newer[DATABASE_VIEWS_KEY], "folder").readOnly, true);
-  assert.throws(() => withDatabaseView(newer, "folder", view(), () => true), /newer version/);
+  assert.equal(
+    withDatabaseView(newer, "folder", view(), () => true),
+    newer,
+  );
+  assert.throws(() => databaseViewOperation(newer, "folder", view()), /newer version/);
+});
+
+test("a layout is saved through one set_database_view operation", () => {
+  const saved = view({ layout: "board" });
+  assert.deepEqual(databaseViewOperation(settings, "folder", saved), {
+    type: "set_database_view",
+    folderId: "folder",
+    view: saved,
+  });
+  assert.deepEqual(databaseViewOperation(settings, null, saved), {
+    type: "set_database_view",
+    folderId: null,
+    view: saved,
+  });
+});
+
+test("clearing a scope keeps the others", () => {
+  const first = withDatabaseView(settings, "folder", view(), () => true);
+  const second = withDatabaseView(first, null, view({ updatedAt: 2 }), () => true);
+  const cleared = withDatabaseView(second, "folder", null, () => true);
+  const stored = cleared[DATABASE_VIEWS_KEY] as { views: Record<string, unknown> };
+  assert.deepEqual(Object.keys(stored.views), ["@workspace"]);
+});
+
+test("a layout for a folder that is gone is not kept", () => {
+  const next = withDatabaseView(settings, "gone", view(), () => false);
+  const stored = next[DATABASE_VIEWS_KEY] as { views: Record<string, unknown> };
+  assert.deepEqual(stored.views, {});
+});
+
+test("a layout over the operation's size cap is refused", () => {
+  const wide = Array.from({ length: 128 }, (_, index) => `p:${"表".repeat(190)}${index}`);
+  assert.throws(
+    () => databaseViewOperation(settings, "folder", view({ order: wide, hidden: wide })),
+    /too large/,
+  );
 });
 
 test("invalid layouts are rejected before they are written", () => {
   assert.throws(
     () =>
-      withDatabaseView(
+      databaseViewOperation(
         settings,
         "folder",
         view({
           sorts: Array.from({ length: 4 }, () => ({ column: "title", direction: "asc" as const })),
         }),
-        () => true,
       ),
     /invalid/,
   );

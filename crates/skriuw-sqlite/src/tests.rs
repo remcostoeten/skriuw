@@ -26,6 +26,7 @@ use crate::queries::read_settings;
 
 mod annotations;
 mod backup;
+mod database_views;
 mod documents;
 mod maintenance;
 mod media;

@@ -10,8 +10,8 @@ use crate::{
     NotePropertyTemplate, OperationValidationError, ProviderImportReceipt, TaskSourceDocument,
     WORKSPACE_PROTOCOL_VERSION, WorkspaceAnnotation, WorkspaceImage, WorkspacePerson,
     WorkspacePrompt, WorkspaceSettings, WorkspaceTag, WorkspaceTask, lock, validate_bounded_text,
-    validate_cover_gradient, validate_cover_transform, validate_document, validate_id,
-    validate_math_macros, validate_optional_id, validate_ordered_ids, validate_person,
+    validate_cover_gradient, validate_cover_transform, validate_database_view, validate_document,
+    validate_id, validate_math_macros, validate_optional_id, validate_ordered_ids, validate_person,
     validate_placement, validate_reference_color, validate_reference_name, validate_revision,
     validate_tag, validate_task_document, validate_timestamp, validate_title,
 };
@@ -272,6 +272,13 @@ pub enum WorkspaceOperation {
     SetMathMacros {
         macros: BTreeMap<String, String>,
     },
+    /// Saves one database view's layout, or clears it with `None`. A missing
+    /// `folder_id` is the all-notes view. The layout is opaque to the domain
+    /// apart from its size; the renderer owns its shape.
+    SetDatabaseView {
+        folder_id: Option<String>,
+        view: Option<Value>,
+    },
     AttachImage {
         image: WorkspaceImage,
     },
@@ -511,6 +518,10 @@ impl WorkspaceOperation {
             Self::SetActiveNote { note_id } => validate_optional_id("note id", note_id),
             Self::UpdateSettings { settings } => settings.validate(),
             Self::SetMathMacros { macros } => validate_math_macros(macros),
+            Self::SetDatabaseView { folder_id, view } => {
+                validate_optional_id("folder id", folder_id)?;
+                view.as_ref().map_or(Ok(()), validate_database_view)
+            }
             Self::AttachImage { image } => image.validate(),
             Self::SetMediaMetadata { metadata } => metadata.validate(),
             Self::SetNoteProperty { property, at } => {

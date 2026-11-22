@@ -11,6 +11,10 @@ import {
   createInitialState,
   createRendererStore,
 } from "../../../../../packages/renderer-core/src/store/store";
+import {
+  defaultDatabaseView,
+  readDatabaseView,
+} from "../../../../../packages/renderer-core/src/database/config";
 import { pinnedNodeIds } from "../../../../../packages/renderer-core/src/store/tree";
 
 function node(partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">): WorkspaceNode {
@@ -809,6 +813,32 @@ test("workspace math macros update synchronously and survive stale local setting
   assert.deepEqual(store.getState().settings.mathMacros, { "\\R": "\\mathbb{R}" });
   store.applyOperations([{ type: "set_math_macros", macros: {} }]);
   assert.deepEqual(store.getState().settings.mathMacros, {});
+});
+
+test("database layouts apply synchronously, keep live folders and survive stale local settings", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  const staleSettings = store.getState().settings;
+  const board = { ...defaultDatabaseView("folder"), layout: "board" as const, updatedAt: 3 };
+  store.applyOperations([
+    { type: "set_database_view", folderId: "folder", view: board },
+    { type: "set_database_view", folderId: "note-root", view: board },
+    { type: "set_database_view", folderId: null, view: { ...board, updatedAt: 4 } },
+  ]);
+  assert.deepEqual(readDatabaseView(store.getState().settings.databaseViews, "folder").view, board);
+  assert.deepEqual(
+    Object.keys((store.getState().settings.databaseViews as { views: object }).views),
+    ["@workspace", "folder"],
+  );
+  store.applyOperations([
+    { type: "update_settings", settings: { ...staleSettings, theme: "paper" } },
+  ]);
+  assert.equal(store.getState().settings.theme, "paper");
+  assert.deepEqual(readDatabaseView(store.getState().settings.databaseViews, "folder").view, board);
+  store.applyOperations([{ type: "set_database_view", folderId: "folder", view: null }]);
+  assert.equal(
+    readDatabaseView(store.getState().settings.databaseViews, "folder").view.layout,
+    "table",
+  );
 });
 
 test("batch applies selection, focus, and activation with one publication", () => {

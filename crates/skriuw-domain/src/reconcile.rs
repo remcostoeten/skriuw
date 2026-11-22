@@ -164,6 +164,7 @@ pub fn reconcile_remote_operation(
         | WorkspaceOperation::SetNotePropertyTemplate { .. }
         | WorkspaceOperation::SetMediaMetadata { .. }
         | WorkspaceOperation::SetMathMacros { .. }
+        | WorkspaceOperation::SetDatabaseView { .. }
         | WorkspaceOperation::SetPrompt { .. } => reconcile_field_upsert(state),
         WorkspaceOperation::RemoveNoteProperty { .. }
         | WorkspaceOperation::DeleteNotePropertyTemplate { .. }
@@ -371,6 +372,7 @@ pub fn classify_apply_failure(operation: &WorkspaceOperation) -> SyncConflictRea
         | WorkspaceOperation::SetNotePropertyTemplate { .. }
         | WorkspaceOperation::SetMediaMetadata { .. }
         | WorkspaceOperation::SetMathMacros { .. }
+        | WorkspaceOperation::SetDatabaseView { .. }
         | WorkspaceOperation::SetPrompt { .. }
         | WorkspaceOperation::UpdateTask { .. }
         | WorkspaceOperation::DetachTask { .. }

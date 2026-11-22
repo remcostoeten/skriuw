@@ -19,8 +19,8 @@ import {
 } from "@skriuw/renderer-core/database/columns";
 import {
   DATABASE_VIEWS_KEY,
+  databaseViewOperation,
   readDatabaseView,
-  withDatabaseView,
   type DatabaseView,
 } from "@skriuw/renderer-core/database/config";
 import {
@@ -198,19 +198,18 @@ export function useDatabase(
         setNotice(current.problem);
         return;
       }
-      let settings: RendererState["settings"];
+      let operation: WorkspaceOperation;
       try {
-        settings = withDatabaseView(
-          state.settings,
-          folderId,
-          { ...current.view, ...patch, updatedAt: Date.now() },
-          (id) => state.sourceNodes.has(id),
-        );
+        operation = databaseViewOperation(state.settings, folderId, {
+          ...current.view,
+          ...patch,
+          updatedAt: Date.now(),
+        });
       } catch (error) {
         setNotice(error instanceof Error ? error.message : "That layout could not be saved.");
         return;
       }
-      const operations: WorkspaceOperation[] = [{ type: "update_settings", settings }];
+      const operations: WorkspaceOperation[] = [operation];
       commitOperations(store, operations).catch((error: unknown) => {
         console.error("database layout rejected", error);
         setNotice("That layout could not be saved.");

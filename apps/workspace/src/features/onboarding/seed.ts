@@ -7,7 +7,7 @@ import {
   markSeedSpent,
   shouldSeedStarter,
 } from "./starter/model";
-import { withBooksBoard } from "./starter/books";
+import { booksBoardOperation } from "./starter/books";
 import { loadStarterTree } from "./starter/tree";
 import { planStarterWorkspace } from "./starter/plan";
 
@@ -46,11 +46,8 @@ export async function seedStarterWorkspace(
     ...plan.operations,
     ...plan.contentOperations,
     ...plan.propertyOperations,
-    {
-      type: "update_settings",
-      settings:
-        plan.booksFolderId === null ? settings : withBooksBoard(settings, plan.booksFolderId, at),
-    },
+    { type: "update_settings", settings },
+    ...(plan.booksFolderId === null ? [] : [booksBoardOperation(settings, plan.booksFolderId, at)]),
   ];
   await commitOperations(store, operations);
   if (plan.welcomeNoteId !== null && store.getState().activeNoteId === null) {
