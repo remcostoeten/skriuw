@@ -13,6 +13,36 @@ on:
                 type: boolean
 
 jobs:
+    # the tag can be pushed from any machine, so the CI v2 gate lives here
+    # rather than in whatever cut the release
+    verify-ci:
+        permissions:
+            checks: read
+            contents: read
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  fetch-depth: 2
+                  persist-credentials: false
+
+            - name: Refuse to publish from a red daddy
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  sha="$(git rev-parse HEAD)"
+                  # the release commit only bumps the version and its own CI is still running
+                  if git log -1 --format=%s | grep -q '^chore(v2): release '; then
+                      sha="$(git rev-parse HEAD^)"
+                  fi
+                  state="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${sha}/check-runs" \
+                      --jq '[.check_runs[] | select(.name | test("^(rust|desktop|native-gate|renderer|portable-wasm|release-build)$")) | .conclusion] | join(",")')"
+                  printf 'gate conclusions for %s: %s\n' "$sha" "$state"
+                  case "$state" in
+                      *failure*|*cancelled*|*timed_out*) echo "::error::the CI v2 gate is not green on daddy" && exit 1 ;;
+                      "") echo "::error::no CI v2 gate results for $sha" && exit 1 ;;
+                  esac
+
     # clients read the workspace encryption record before every push that has
     # queued changes, so publishing a release the deployed Worker cannot serve
     # is what turns a rollout into an outage
@@ -37,6 +67,7 @@ jobs:
     # tauri-action's matrix jobs each create a draft when none exists, splitting
     # assets across duplicate releases; creating the draft once up front avoids that
     create-release:
+        needs: verify-ci
         permissions:
             contents: write
         runs-on: ubuntu-latest
