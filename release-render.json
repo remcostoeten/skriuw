@@ -1,0 +1,8 @@
+{
+  "branch": "daddy",
+  "remote": "origin",
+  "prefix": "v2-v",
+  "commit": "chore(v2): release {tag}",
+  "versionFiles": ["apps/workspace/src-tauri/tauri.conf.json"],
+  "publish": "none"
+}
