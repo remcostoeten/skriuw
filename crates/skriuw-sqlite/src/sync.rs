@@ -2,16 +2,17 @@ use std::collections::BTreeMap;
 
 use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
 use skriuw_domain::{
-    BlockedSyncReason, CanonicalDocument, ClientSyncOperation, InitialSyncError, NodePlacement,
-    NodePosition, OperationAck, OutboxAdmission, OutboxTail, ParkedSyncOperation,
-    RemoteApplyErrorKind, RemoteApplyFailure, RemoteOperationDecision, RemoteTargetState,
-    ReplicatedWorkspaceOperation, SYNC_RECOVERY_VIEW_VERSION, SupersededNoteState,
-    SyncConflictReason, SyncOperationPayload, SyncRecoveryView, SyncValidationError,
-    WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceOperation,
+    BlockedSyncReason, CanonicalDocument, ClientSyncOperation, DATABASE_VIEWS_EXTENSION,
+    InitialSyncError, NodePlacement, NodePosition, OperationAck, OutboxAdmission, OutboxTail,
+    ParkedSyncOperation, RemoteApplyErrorKind, RemoteApplyFailure, RemoteOperationDecision,
+    RemoteTargetState, ReplicatedWorkspaceOperation, SYNC_RECOVERY_VIEW_VERSION,
+    SupersededNoteState, SyncConflictReason, SyncOperationPayload, SyncRecoveryView,
+    SyncValidationError, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceOperation,
     WorkspaceOperationEnvelope, blocked_reason_is_retryable, blocking_requires_release,
-    coalesces_into_tail, document_write_target, documents_equivalent, initial_sync_operations,
-    outbox_admission, reconcile_remote_operation, remote_apply_failure, requeued_operation,
-    superseded_document_plan, validate_sync_identifier, validate_sync_sequence,
+    coalesces_into_tail, database_view_operations, document_write_target, documents_equivalent,
+    initial_sync_operations, outbox_admission, reconcile_remote_operation, remote_apply_failure,
+    requeued_operation, stored_database_view, superseded_document_plan, validate_sync_identifier,
+    validate_sync_sequence,
 };
 use skriuw_storage::{
     BlockedSyncOperation, Diagnostic, DiagnosticContext, HistoryProvenance, ImportSummary,
@@ -25,7 +26,7 @@ use crate::operations::{
     apply_operations_in_transaction, count_words, node_is_available, preserve_document_version,
     require_worker,
 };
-use crate::queries::read_snapshot;
+use crate::queries::{read_settings, read_snapshot};
 use crate::{SqliteWorkspace, replace_workspace_in_transaction};
 
 struct OutboxRow {
@@ -125,6 +126,51 @@ pub(crate) fn enqueue_sync_operations(
         .execute(
             "UPDATE sync_connection SET next_client_sequence = ?1 WHERE singleton = 1",
             [next_client_sequence],
+        )
+        .map_err(backend)?;
+    Ok(())
+}
+
+const DATABASE_VIEWS_REPLICATED_KEY: &str = "database_views_replicated";
+
+/// Queues the database layouts saved before `SetDatabaseView` replicated,
+/// once. A device with no sync connection has nothing to queue, since its
+/// first connection replays every layout with the rest of the workspace; a
+/// disconnected device waits until it reconnects.
+pub(crate) fn replicate_legacy_database_views(
+    transaction: &Transaction<'_>,
+) -> Result<(), StorageError> {
+    let replicated = transaction
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM app_state WHERE key = ?1)",
+            [DATABASE_VIEWS_REPLICATED_KEY],
+            |row| row.get::<_, bool>(0),
+        )
+        .map_err(backend)?;
+    if replicated {
+        return Ok(());
+    }
+    if read_connection(transaction)?.is_some() {
+        if read_active_connection(transaction)?.is_none() {
+            return Ok(());
+        }
+        let settings = read_settings(transaction)?;
+        let operations: Vec<WorkspaceOperationEnvelope> =
+            database_view_operations(settings.extensions.get(DATABASE_VIEWS_EXTENSION))
+                .into_iter()
+                .map(WorkspaceOperationEnvelope::v1)
+                .collect();
+        enqueue_sync_operations(transaction, &operations)?;
+    }
+    mark_database_views_replicated(transaction)
+}
+
+fn mark_database_views_replicated(transaction: &Transaction<'_>) -> Result<(), StorageError> {
+    transaction
+        .execute(
+            "INSERT INTO app_state(key, value_json) VALUES (?1, 'true') \
+             ON CONFLICT(key) DO NOTHING",
+            [DATABASE_VIEWS_REPLICATED_KEY],
         )
         .map_err(backend)?;
     Ok(())
@@ -576,6 +622,7 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                     ],
                 )
                 .map_err(backend)?;
+            replicate_legacy_database_views(&transaction)?;
         } else {
             // A missing connection row alongside surviving sync state means a
             // previous epoch was torn down incompletely. Its client and server
@@ -612,6 +659,7 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                     error => StorageError::Backend(error.to_string()),
                 })?;
             enqueue_sync_operations(&transaction, &initial_operations)?;
+            mark_database_views_replicated(&transaction)?;
         }
         let connected = read_active_connection(&transaction)?
             .ok_or_else(|| StorageError::Backend("sync connection was not persisted".into()))?;
@@ -2789,10 +2837,16 @@ fn remote_target_state(
         }
         WorkspaceOperation::SetMathMacros { macros } => {
             state.target_exists = true;
-            state.state_equivalent = crate::queries::read_settings(transaction)?
-                .extensions
-                .get("mathMacros")
+            state.state_equivalent = read_settings(transaction)?.extensions.get("mathMacros")
                 == Some(&serde_json::to_value(macros).map_err(json_backend)?);
+        }
+        WorkspaceOperation::SetDatabaseView { folder_id, view } => {
+            state.target_exists = true;
+            let settings = read_settings(transaction)?;
+            state.state_equivalent = stored_database_view(
+                settings.extensions.get(DATABASE_VIEWS_EXTENSION),
+                folder_id.as_deref(),
+            ) == view.as_ref();
         }
         WorkspaceOperation::SetActiveNote { .. }
         | WorkspaceOperation::UpdateSettings { .. }

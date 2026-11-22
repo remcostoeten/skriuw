@@ -112,6 +112,10 @@
     "replicationClass": "replicated_workspace_content"
   },
   {
+    "operationType": "set_database_view",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
     "operationType": "attach_image",
     "replicationClass": "replicated_workspace_content"
   },

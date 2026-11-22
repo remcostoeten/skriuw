@@ -316,6 +316,7 @@ export function reduceOperation(
     case "set_active_note":
     case "update_settings":
     case "set_math_macros":
+    case "set_database_view":
     case "attach_image":
     case "set_media_metadata":
     case "create_task":

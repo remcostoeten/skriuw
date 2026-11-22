@@ -72,6 +72,7 @@ impl SqliteWorkspace {
         let mut connection = Connection::open(path).map_err(backend)?;
         Self::configure(&connection)?;
         Self::migrate(&mut connection)?;
+        Self::replicate_legacy_database_views(&mut connection)?;
         Ok(Self {
             connection: Mutex::new(connection),
             recovery_gate: Mutex::new(()),
@@ -83,6 +84,7 @@ impl SqliteWorkspace {
         let mut connection = Connection::open_in_memory().map_err(backend)?;
         Self::configure(&connection)?;
         Self::migrate(&mut connection)?;
+        Self::replicate_legacy_database_views(&mut connection)?;
         Ok(Self {
             connection: Mutex::new(connection),
             recovery_gate: Mutex::new(()),
@@ -262,6 +264,14 @@ impl SqliteWorkspace {
             transaction.commit().map_err(backend)?;
         }
         Ok(())
+    }
+
+    fn replicate_legacy_database_views(connection: &mut Connection) -> Result<(), StorageError> {
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
+        crate::sync::replicate_legacy_database_views(&transaction)?;
+        transaction.commit().map_err(backend)
     }
 
     fn lock(&self) -> Result<MutexGuard<'_, Connection>, StorageError> {

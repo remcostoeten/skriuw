@@ -6,7 +6,7 @@ import type {
   WorkspaceSettings,
 } from "@skriuw/renderer-core/contracts/workspace";
 import { propertyColumnKey } from "@skriuw/renderer-core/database/columns";
-import { defaultDatabaseView, withDatabaseView } from "@skriuw/renderer-core/database/config";
+import { databaseViewOperation, defaultDatabaseView } from "@skriuw/renderer-core/database/config";
 
 export const BOOKS_FOLDER = "Books";
 
@@ -155,25 +155,21 @@ export function starterBookOperations(
 }
 
 /**
- * @name withBooksBoard
- * @description Opens the starter Books folder as a board grouped by status.
+ * @name booksBoardOperation
+ * @description Opens the starter Books folder as a board grouped by status on
+ * every device.
  * @example
- * const settings = withBooksBoard(current, booksFolderId, Date.now());
+ * const operation = booksBoardOperation(settings, booksFolderId, Date.now());
  */
-export function withBooksBoard(
+export function booksBoardOperation(
   settings: WorkspaceSettings,
   folderId: string,
   at: number,
-): WorkspaceSettings {
-  return withDatabaseView(
-    settings,
-    folderId,
-    {
-      ...defaultDatabaseView(folderId),
-      layout: "board",
-      groupBy: propertyColumnKey("Status"),
-      updatedAt: at,
-    },
-    (id) => id === folderId,
-  );
+): WorkspaceOperation {
+  return databaseViewOperation(settings, folderId, {
+    ...defaultDatabaseView(folderId),
+    layout: "board",
+    groupBy: propertyColumnKey("Status"),
+    updatedAt: at,
+  });
 }

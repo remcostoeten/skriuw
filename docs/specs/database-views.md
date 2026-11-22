@@ -38,9 +38,11 @@ filtering and sorting, write planning, stored layout) and
   refusal with a message the view shows inline. Refusals: the note is gone,
   the note stores the property under another type, the note already has 64
   properties, the property already has 64 options, or validation fails.
-- `config.ts`: reading and writing the `databaseViews` settings extension.
-  Filters and sorts that name a missing column are kept and reported as
-  ignored rather than dropped.
+- `config.ts`: reading the `databaseViews` settings extension and building the
+  `set_database_view` operation that changes one scope, which syncs to every
+  device ([ADR-0065](../adr/0065-database-layouts-sync.md)). Filters and sorts
+  that name a missing column are kept and reported as ignored rather than
+  dropped.
 
 ## Table
 

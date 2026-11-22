@@ -5,7 +5,8 @@
 - Supersedes: the "database/table views over properties" non-goal in
   [note properties](../specs/note-properties.md)
 - Superseded in part by: [ADR-0058](0058-database-board-blocks.md), which adds
-  an embedded board block
+  an embedded board block, and [ADR-0065](0065-database-layouts-sync.md), which
+  makes layouts sync
 
 ## Context
 

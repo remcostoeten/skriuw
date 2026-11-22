@@ -14,6 +14,7 @@ import type {
   WorkspaceTask,
   NoteLockState,
 } from "../contracts/workspace";
+import { DATABASE_VIEWS_KEY, withDatabaseView } from "../database/config";
 import { extractReferences } from "../references/extract";
 import {
   buildReferenceProjection,
@@ -571,6 +572,8 @@ function detachTasksForNotes(
   return next;
 }
 
+const REPLICATED_SETTING_KEYS = ["mathMacros", DATABASE_VIEWS_KEY] as const;
+
 function reduceState(current: RendererState, operation: WorkspaceOperation): RendererState {
   if (operation.type === "create_task") {
     if (current.tasks.has(operation.task.id)) return current;
@@ -739,15 +742,26 @@ function reduceState(current: RendererState, operation: WorkspaceOperation): Ren
   }
   if (operation.type === "update_settings") {
     const settings = { ...operation.settings };
-    if (current.settings.mathMacros === undefined) {
-      delete settings.mathMacros;
-    } else {
-      settings.mathMacros = current.settings.mathMacros;
+    for (const key of REPLICATED_SETTING_KEYS) {
+      if (current.settings[key] === undefined) {
+        delete settings[key];
+      } else {
+        settings[key] = current.settings[key];
+      }
     }
     return { ...current, settings };
   }
   if (operation.type === "set_math_macros") {
     return { ...current, settings: { ...current.settings, mathMacros: operation.macros } };
+  }
+  if (operation.type === "set_database_view") {
+    const settings = withDatabaseView(
+      current.settings,
+      operation.folderId,
+      operation.view,
+      (id) => current.sourceNodes.get(id)?.kind === "folder",
+    );
+    return settings === current.settings ? current : { ...current, settings };
   }
   if (operation.type === "attach_image") {
     if (current.images.has(operation.image.id)) {

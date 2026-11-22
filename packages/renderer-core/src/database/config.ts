@@ -1,11 +1,11 @@
-import type { WorkspaceSettings } from "../contracts/workspace";
+import type { WorkspaceOperation, WorkspaceSettings } from "../contracts/workspace";
 
 export const DATABASE_VIEWS_KEY = "databaseViews";
 export const DATABASE_VIEWS_VERSION = 1;
 export const WORKSPACE_SCOPE_KEY = "@workspace";
 export const MAX_DATABASE_SCOPES = 100;
-/** Below the domain's 256 KiB cap on the stored document, leaving room for encoding differences. */
-export const MAX_DATABASE_VIEWS_BYTES = 240 * 1024;
+export const MAX_DATABASE_VIEW_BYTES = 64 * 1024;
+export const DATABASE_VIEWS_BUDGET_BYTES = 240 * 1024;
 export const MAX_DATABASE_SORTS = 3;
 export const MAX_DATABASE_FILTERS = 8;
 
@@ -114,50 +114,89 @@ export function readDatabaseView(stored: unknown, folderId: string | null): Data
 }
 
 /**
- * Returns settings carrying `view` for the scope. Entries for folders that no
- * longer exist are dropped, and the least recently changed scopes are evicted
- * past the scope count or the stored size cap. Throws when the stored
- * document belongs to a newer version.
+ * @name databaseViewOperation
+ * @description The operation that saves `view` as the scope's layout on every
+ * device. Throws when the stored layouts belong to a newer version or the
+ * layout is too large to save.
+ * @example
+ * commitOperations(store, [databaseViewOperation(settings, folderId, view)]);
+ */
+export function databaseViewOperation(
+  settings: WorkspaceSettings,
+  folderId: string | null,
+  view: DatabaseView,
+): WorkspaceOperation {
+  const document = readStoredViews(settings[DATABASE_VIEWS_KEY]);
+  if (document !== null && document.version > DATABASE_VIEWS_VERSION) {
+    throw new Error("Database layouts were saved by a newer version of Skriuw.");
+  }
+  const normalized = normalizeDatabaseView(view);
+  if (byteLength(JSON.stringify(normalized)) > MAX_DATABASE_VIEW_BYTES) {
+    throw new Error("This database layout is too large to save.");
+  }
+  return { type: "set_database_view", folderId, view: normalized };
+}
+
+/**
+ * @name withDatabaseView
+ * @description Settings after one `set_database_view`; a `null` view clears
+ * the scope. Scopes naming a folder `isFolder` rejects are dropped, the
+ * changed scope comes first, and the rest are kept newest first, ties by key,
+ * up to the scope count and byte budget. Layouts saved by a newer version are
+ * left alone. Mirrors `merge_database_view` in
+ * `crates/skriuw-domain/src/database_view.rs`, so the renderer and canonical
+ * storage keep the same scopes.
+ * @example
+ * const next = withDatabaseView(settings, folderId, view, (id) => isFolder(state, id));
  */
 export function withDatabaseView(
   settings: WorkspaceSettings,
   folderId: string | null,
-  view: DatabaseView,
-  folderExists: (folderId: string) => boolean,
+  view: DatabaseView | null,
+  isFolder: (folderId: string) => boolean,
 ): WorkspaceSettings {
   const stored = settings[DATABASE_VIEWS_KEY];
-  const document = stored === undefined ? { version: 1, views: {} } : readStoredViews(stored);
-  if (document !== null && document.version > DATABASE_VIEWS_VERSION) {
-    throw new Error("Database layouts were saved by a newer version of Skriuw.");
-  }
+  const merged = mergeDatabaseView(stored, folderId, view, isFolder);
+  return merged === stored ? settings : { ...settings, [DATABASE_VIEWS_KEY]: merged };
+}
+
+function mergeDatabaseView(
+  stored: unknown,
+  folderId: string | null,
+  view: DatabaseView | null,
+  isFolder: (folderId: string) => boolean,
+): unknown {
+  const document = stored === undefined ? null : readStoredViews(stored);
+  if (document !== null && document.version > DATABASE_VIEWS_VERSION) return stored;
   const scopeKey = databaseScopeKey(folderId);
-  const entries = Object.entries(document?.views ?? {}).filter(
-    ([key, entry]) =>
-      key !== scopeKey &&
-      (key === WORKSPACE_SCOPE_KEY || folderExists(key)) &&
-      parseDatabaseView(entry) !== null,
-  );
-  const current: [string, unknown] = [scopeKey, normalizeDatabaseView(view)];
-  const others = entries
-    .sort(([, left], [, right]) => updatedAtOf(right) - updatedAtOf(left))
-    .slice(0, MAX_DATABASE_SCOPES - 1);
-  const sizes = others.map((entry) => entryBytes(entry));
-  let total = byteLength(JSON.stringify({ version: DATABASE_VIEWS_VERSION, views: {} }));
-  total += entryBytes(current);
-  if (total > MAX_DATABASE_VIEWS_BYTES)
-    throw new Error("This database layout is too large to save.");
-  let keep = 0;
-  while (keep < others.length && total + 1 + sizes[keep]! <= MAX_DATABASE_VIEWS_BYTES) {
-    total += 1 + sizes[keep]!;
-    keep += 1;
+  function keepsScope(key: string): boolean {
+    return key === WORKSPACE_SCOPE_KEY || isFolder(key);
   }
-  return {
-    ...settings,
-    [DATABASE_VIEWS_KEY]: {
-      version: DATABASE_VIEWS_VERSION,
-      views: Object.fromEntries([current, ...others.slice(0, keep)]),
-    },
-  };
+  const others = Object.entries(document?.views ?? {})
+    .filter(([key, entry]) => key !== scopeKey && isRecord(entry) && keepsScope(key))
+    .sort(
+      ([leftKey, left], [rightKey, right]) =>
+        updatedAtOf(right) - updatedAtOf(left) || compareKeys(leftKey, rightKey),
+    );
+  let total = byteLength(JSON.stringify({ version: DATABASE_VIEWS_VERSION, views: {} }));
+  const kept: [string, unknown][] = [];
+  if (view !== null && keepsScope(scopeKey)) {
+    total += entryBytes([scopeKey, view]);
+    kept.push([scopeKey, view]);
+  }
+  for (const entry of others) {
+    if (kept.length >= MAX_DATABASE_SCOPES) break;
+    const size = entryBytes(entry);
+    if (total + size > DATABASE_VIEWS_BUDGET_BYTES) break;
+    total += size;
+    kept.push(entry);
+  }
+  return { version: DATABASE_VIEWS_VERSION, views: Object.fromEntries(kept) };
+}
+
+function compareKeys(left: string, right: string): number {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
 }
 
 const encoder = new TextEncoder();
@@ -167,7 +206,7 @@ function byteLength(text: string): number {
 }
 
 function entryBytes([key, entry]: [string, unknown]): number {
-  return byteLength(`${JSON.stringify(key)}:${JSON.stringify(entry)}`);
+  return byteLength(JSON.stringify(key)) + byteLength(JSON.stringify(entry)) + 2;
 }
 
 export function normalizeDatabaseView(view: DatabaseView): DatabaseView {

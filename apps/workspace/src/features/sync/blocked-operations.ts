@@ -30,6 +30,7 @@ const OPERATION_LABELS: Record<string, string> = {
   set_note_property_template: "Change property template",
   delete_note_property_template: "Delete property template",
   reorder_note_property_templates: "Reorder property templates",
+  set_database_view: "Change database layout",
 };
 
 /** Human label for one blocked change: the action plus the note it touches. */

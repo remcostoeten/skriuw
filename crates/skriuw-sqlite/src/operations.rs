@@ -1,11 +1,13 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use skriuw_crypto::ContentKey;
 use skriuw_domain::{
-    AnnotationComment, EntityRevision, NodeKind, NodePlacement, NodePosition, NodeRankChange,
-    NotePropertyField, NotePropertyValue, OperationAck, TaskSourceDocument, WorkspaceOperation,
-    WorkspaceOperationEnvelope, WorkspacePrompt, WorkspaceTask,
+    AnnotationComment, DATABASE_VIEWS_EXTENSION, EntityRevision, NodeKind, NodePlacement,
+    NodePosition, NodeRankChange, NotePropertyField, NotePropertyValue, OperationAck,
+    REPLICATED_SETTING_EXTENSIONS, TaskSourceDocument, WorkspaceOperation,
+    WorkspaceOperationEnvelope, WorkspacePrompt, WorkspaceSettings, WorkspaceTask,
+    merge_database_view,
 };
 use skriuw_storage::{HistoryProvenance, StorageError};
 use uuid::Uuid;
@@ -810,14 +812,14 @@ fn apply_operation(
         WorkspaceOperation::UpdateSettings { settings } => {
             let mut settings = settings.clone();
             let stored = read_settings(transaction)?;
-            match stored.extensions.get("mathMacros") {
-                Some(macros) => {
-                    settings
-                        .extensions
-                        .insert("mathMacros".into(), macros.clone());
-                }
-                None => {
-                    settings.extensions.remove("mathMacros");
+            for key in REPLICATED_SETTING_EXTENSIONS {
+                match stored.extensions.get(key) {
+                    Some(value) => {
+                        settings.extensions.insert(key.into(), value.clone());
+                    }
+                    None => {
+                        settings.extensions.remove(key);
+                    }
                 }
             }
             transaction
@@ -841,6 +843,27 @@ fn apply_operation(
                     [serde_json::to_string(&settings).map_err(json_backend)?],
                 )
                 .map_err(backend)?;
+        }
+        WorkspaceOperation::SetDatabaseView { folder_id, view } => {
+            let mut settings = read_settings(transaction)?;
+            let folders = database_view_folders(transaction, &settings, folder_id.as_deref())?;
+            if let Some(merged) = merge_database_view(
+                settings.extensions.get(DATABASE_VIEWS_EXTENSION),
+                folder_id.as_deref(),
+                view.as_ref(),
+                |id| folders.contains(id),
+            ) {
+                settings
+                    .extensions
+                    .insert(DATABASE_VIEWS_EXTENSION.into(), merged);
+                transaction
+                    .execute(
+                        "INSERT INTO app_state(key, value_json) VALUES ('settings', ?1) \
+                         ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json",
+                        [serde_json::to_string(&settings).map_err(json_backend)?],
+                    )
+                    .map_err(backend)?;
+            }
         }
         WorkspaceOperation::AttachImage { image } => {
             require_note(transaction, &image.note_id)?;
@@ -2199,6 +2222,31 @@ fn detach_unreferenced_cover(
             .map_err(backend)?;
     }
     Ok(())
+}
+
+/// The scopes a layout merge may keep that still name a folder: the changed
+/// scope plus every stored one.
+fn database_view_folders(
+    transaction: &Transaction<'_>,
+    settings: &WorkspaceSettings,
+    folder_id: Option<&str>,
+) -> Result<BTreeSet<String>, StorageError> {
+    let stored = settings
+        .extensions
+        .get(DATABASE_VIEWS_EXTENSION)
+        .and_then(|document| document.get("views"))
+        .and_then(serde_json::Value::as_object);
+    let candidates = stored
+        .into_iter()
+        .flat_map(|views| views.keys().map(String::as_str))
+        .chain(folder_id);
+    let mut folders = BTreeSet::new();
+    for id in candidates {
+        if node_kind(transaction, id)?.as_deref() == Some("folder") {
+            folders.insert(id.to_owned());
+        }
+    }
+    Ok(folders)
 }
 
 fn require_note(transaction: &Transaction<'_>, id: &str) -> Result<(), StorageError> {
