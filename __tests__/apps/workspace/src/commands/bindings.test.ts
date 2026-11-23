@@ -189,7 +189,7 @@ test("trash current note binds both delete keys and stays silent while typing", 
   assert.equal(trashCurrentNote.secondaryWorksWhileTyping, undefined);
   assert.deepEqual(shortcutGuards(trashCurrentNote, false), ["typing", "sidebarTree", "modal"]);
   assert.equal(findShortcutConflict({}, "trashCurrentNote", "mod+backspace"), null);
-  assert.ok((trashCurrentNote.description ?? "").includes("delete-word"));
+  assert.ok((trashCurrentNote.description ?? "").includes("deletes a word"));
 });
 
 test("mod+backspace and mod+delete both match the trash binding", () => {

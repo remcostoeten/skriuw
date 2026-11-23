@@ -33,21 +33,21 @@ export function syncDescription(status: WorkspaceSyncStatus, browser: boolean): 
     case "localOnly":
       return "Connecting to your cloud workspace. Sync retries automatically while you are signed in.";
     case "connecting":
-      return "Connecting this device securely…";
+      return "Connecting this device…";
     case "upToDate":
-      return "Up to date with your private cloud workspace.";
+      return "Up to date with your cloud workspace.";
     case "pending":
       return "Local changes are waiting to upload.";
     case "offline":
-      return "Offline. Changes remain local and will retry automatically.";
+      return "Offline. Changes stay on this device and sync retries automatically.";
     case "authenticationRequired":
       return browser
-        ? "Your cloud session ended; sign in again to reconnect."
+        ? "Your cloud session ended. You need to sign in again to reconnect."
         : "Sign in again to reconnect this device.";
     case "rehydrating":
       return "Rebuilding this device from your cloud workspace…";
     case "retrying":
-      return "Cloud is temporarily unavailable; retrying automatically.";
+      return "Cloud is temporarily unavailable. Sync retries automatically.";
     case "blocked":
       return browser ? browserBlockedText(status.reason) : blockedStateText(status.reason);
   }
@@ -119,7 +119,7 @@ function browserBlockedText(reason: string): string {
     case "server_too_old":
       return blockedStateText(reason);
     default:
-      return "Sync stopped because the cloud rejected a local change. Retry sync; reviewing individual blocked changes needs the desktop app for now.";
+      return "Sync stopped because the cloud rejected a local change. Retry sync. Reviewing individual blocked changes needs the desktop app for now.";
   }
 }
 

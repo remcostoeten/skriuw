@@ -118,7 +118,7 @@ function parse(tree: MarkdownTree): ImportBundle {
   }
   if (mediaCount > 0) {
     warnings.push({
-      message: `${mediaCount} attachment${mediaCount === 1 ? "" : "s"} became "(attachment)" placeholders; ENEX embeds are not imported`,
+      message: `${mediaCount} attachment${mediaCount === 1 ? "" : "s"} became "(attachment)" placeholders because ENEX embeds are not imported`,
     });
   }
   if (encryptedCount > 0) {

@@ -1,10 +1,10 @@
 # How to Take Smart Notes
 
-A case for writing small, linked notes in your own words instead of collecting highlights.
+Argues for writing small, linked notes in your own words instead of collecting highlights.
 
 ## Why it's here
 
-It is the argument behind [[Linking]]: a note earns its place by connecting to others.
+It is the source of the approach in [[Linking]]: each note should connect to others.
 
 ## Takeaways
 

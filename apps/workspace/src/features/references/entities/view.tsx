@@ -547,8 +547,8 @@ export function EntityView({ store, kind }: Props) {
                 </p>
                 <p className="mt-1 text-xs leading-[1.5]">
                   {kind === "tag"
-                    ? "Every note carrying the tag, the tags it travels with, and where it came from."
-                    : "Every note mentioning them, who else shows up, and what you wrote about them."}
+                    ? "The notes with this tag, the tags that appear with it, and the sentence each use sits in."
+                    : "The notes that mention them, who else appears in those notes, and the sentence each mention sits in."}
                 </p>
               </div>
             </div>
@@ -1180,7 +1180,7 @@ function EntityDetailPane({
       </DetailSection>
 
       {detail.related.length > 0 && (
-        <DetailSection title={kind === "tag" ? "Appears with" : "Shows up alongside"}>
+        <DetailSection title={kind === "tag" ? "Appears with" : "Mentioned with"}>
           <ul className="flex flex-wrap gap-1.5">
             {detail.related.map((entry) => (
               <li key={`${entry.kind}:${entry.id}`}>

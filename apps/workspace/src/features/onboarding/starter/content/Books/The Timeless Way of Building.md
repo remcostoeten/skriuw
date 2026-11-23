@@ -1,10 +1,10 @@
 # The Timeless Way of Building
 
-About towns and houses, and secretly about anything people build together.
+About towns and houses, and by extension anything people build together.
 
 ## Why it's here
 
-It asks why some places feel alive, and treats the answer as something you can learn.
+It asks why some places feel alive and treats the answer as something you can learn.
 
 ## Notes so far
 

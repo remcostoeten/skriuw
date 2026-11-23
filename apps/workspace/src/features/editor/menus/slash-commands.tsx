@@ -107,7 +107,7 @@ function toggleHeadingCommands(): SlashCommand[] {
     return {
       id: `toggle-heading-${level}`,
       label: `Toggle heading ${level}`,
-      subtext: "Collapsible section with a heading summary",
+      subtext: "Heading that collapses its content",
       group: "Lists",
       aliases: [`th${level}`, "collapse", "expand", "disclosure", "fold"],
       icon: <Icon size={16} />,
@@ -163,7 +163,7 @@ export const slashCommands: SlashCommand[] = [
   {
     id: "bullet-list",
     label: "Bullet list",
-    subtext: "Unordered list with bullets",
+    subtext: "List with bullet points",
     group: "Lists",
     aliases: ["ul", "unordered", "bullets"],
     icon: <ListIcon size={16} />,
@@ -172,7 +172,7 @@ export const slashCommands: SlashCommand[] = [
   {
     id: "ordered-list",
     label: "Numbered list",
-    subtext: "Ordered list with numbers",
+    subtext: "List with numbered items",
     group: "Lists",
     aliases: ["ol", "ordered", "numbers"],
     icon: <ListOrderedIcon size={16} />,
@@ -181,7 +181,7 @@ export const slashCommands: SlashCommand[] = [
   {
     id: "check-list",
     label: "Check list",
-    subtext: "Document-local checkboxes",
+    subtext: "Checkboxes that stay in this note",
     group: "Lists",
     aliases: ["checkbox", "checklist"],
     icon: <ListTodoIcon size={16} />,
@@ -190,7 +190,7 @@ export const slashCommands: SlashCommand[] = [
   {
     id: "task",
     label: "Task",
-    subtext: "Actionable item tracked across the workspace",
+    subtext: "Task that also appears in the Tasks view",
     group: "Lists",
     aliases: ["todo", "task"],
     icon: <ListTodoIcon size={16} />,
@@ -199,7 +199,7 @@ export const slashCommands: SlashCommand[] = [
   {
     id: "toggle-list",
     label: "Toggle list",
-    subtext: "Collapsible list with a disclosure",
+    subtext: "List items that collapse and expand",
     group: "Lists",
     aliases: ["collapse", "expand", "disclosure"],
     icon: <ChevronRightIcon size={16} />,
@@ -218,7 +218,7 @@ export const slashCommands: SlashCommand[] = [
   {
     id: "code",
     label: "Code block",
-    subtext: "Preformatted monospaced block",
+    subtext: "Monospaced block for code",
     group: "Blocks",
     aliases: ["codeblock", "fence", "pre", "snippet"],
     icon: <SquareCodeIcon size={16} />,
@@ -227,7 +227,7 @@ export const slashCommands: SlashCommand[] = [
   {
     id: "diagram",
     label: "Diagram",
-    subtext: "Create a keyboard-friendly flowchart",
+    subtext: "Flowchart edited visually or as Mermaid source",
     group: "Blocks",
     aliases: ["mermaid", "flowchart", "graph", "nodes", "workflow"],
     icon: <WaypointsIcon size={16} />,
@@ -282,7 +282,7 @@ export const slashCommands: SlashCommand[] = [
   {
     id: "math-block",
     label: "Math block",
-    subtext: "Display equation with a live KaTeX preview",
+    subtext: "Block equation with a KaTeX preview",
     group: "Blocks",
     aliases: ["math", "equation", "formula", "latex", "tex", "katex"],
     icon: <MathFormulaIcon size={16} />,
@@ -291,7 +291,7 @@ export const slashCommands: SlashCommand[] = [
   {
     id: "inline-math",
     label: "Inline math",
-    subtext: "Formula inside the line, edited as TeX",
+    subtext: "Equation inside a line of text, edited as TeX",
     group: "Blocks",
     aliases: ["inlinemath", "math", "equation", "formula", "latex", "tex", "katex"],
     icon: <MathFormulaIcon size={16} />,
@@ -300,7 +300,7 @@ export const slashCommands: SlashCommand[] = [
   {
     id: "table",
     label: "Table",
-    subtext: "Three column table with a header row",
+    subtext: "Table with three columns and a header row",
     group: "Blocks",
     aliases: ["grid", "spreadsheet", "rows", "columns"],
     icon: <TableIcon size={16} />,
@@ -309,7 +309,7 @@ export const slashCommands: SlashCommand[] = [
   {
     id: "divider",
     label: "Divider",
-    subtext: "Horizontal separator line",
+    subtext: "Horizontal line between blocks",
     group: "Blocks",
     aliases: ["hr", "rule", "separator", "line"],
     icon: <MinusIcon size={16} />,

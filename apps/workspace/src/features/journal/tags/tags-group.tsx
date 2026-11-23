@@ -59,8 +59,8 @@ export function TagsGroup({ store, dateKey }: Props) {
     >
       {ordered.length === 0 ? (
         <p className="m-0 pb-2 text-[12.5px] leading-normal text-theme-secondary">
-          Tag an entry with <span className="font-medium text-foreground">#</span> and it shows up
-          here.
+          Tags you add to entries with <span className="font-medium text-foreground">#</span> are
+          listed here.
         </p>
       ) : (
         <>

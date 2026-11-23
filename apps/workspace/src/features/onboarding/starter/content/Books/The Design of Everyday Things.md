@@ -1,12 +1,12 @@
 # The Design of Everyday Things
 
-Why doors get pushed when they should be pulled, and why that is never the user's fault.
+Explains why people push doors that should be pulled, and why the cause is the design.
 
 ## Why it's here
 
-Affordances, signifiers, and feedback are the vocabulary for every interface review since.
+It defines affordances, signifiers and feedback, terms that interface reviews still use.
 
 ## Takeaways
 
-- If people keep making the same mistake, the design is making it for them.
-- Feedback that arrives late is feedback that teaches the wrong thing.
+- If people keep making the same mistake, the design is the cause.
+- Feedback that arrives late teaches the wrong lesson.

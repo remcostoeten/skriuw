@@ -17,13 +17,13 @@ import { packageChannels } from "@/data/downloads";
 export const metadata: Metadata = {
   title: "Download for macOS, Windows and Linux",
   description:
-    "Install Skriuw with Homebrew, Scoop, APT, or dnf, or download a release asset directly. Free, open source, and usable without an account.",
+    "Install Skriuw with Homebrew, Scoop, APT or dnf, or download a release file directly. Free, open source and usable without an account.",
   alternates: { canonical: "/download/" },
   openGraph: {
     siteName: "Skriuw",
-    title: "Install it. Keep your data.",
+    title: "Download Skriuw for macOS, Windows and Linux",
     description:
-      "Native desktop builds for macOS, Windows, and Linux, plus a browser build running the same Rust core.",
+      "Desktop apps for macOS, Windows and Linux, plus a browser app that runs the same Rust core.",
     url: "https://skriuw.com/download/",
     images: [socialImage],
   },
@@ -33,17 +33,17 @@ const surfaces = [
   {
     term: "Desktop",
     title: "SQLite on disk",
-    body: "Native storage, local images, automatic Git history, backups, and OS integration.",
+    body: "Stores the workspace in SQLite on disk, with local image files. Git history and verified backups run in the background.",
   },
   {
     term: "Browser",
     title: "SQLite through WebAssembly",
-    body: "The same core stores the workspace in the browser through OPFS. No demo shell.",
+    body: "The same Rust core runs as WebAssembly and stores the workspace in the browser's private file system (OPFS).",
   },
   {
     term: "Both",
-    title: "Sync stays optional",
-    body: "Start without an account. Sign in only if you want the same workspace elsewhere.",
+    title: "Sync is optional",
+    body: "Both work without an account. Sign in only to sync the workspace to another device.",
   },
 ];
 
@@ -67,9 +67,9 @@ export default function DownloadPage() {
         index="01"
         label="download"
         marks={["Native shell", "Local database", "Your filesystem"]}
-        eyebrow="Free · open source · no account required"
-        title="Install it. Keep your data."
-        lede="Skriuw runs natively on macOS, Windows, and Linux. The browser build uses the same Rust core and keeps its database in browser-local storage."
+        eyebrow="Free, open source, no account required"
+        title="Download Skriuw."
+        lede="Skriuw runs natively on macOS, Windows and Linux. The browser build uses the same Rust core and stores its database in the browser's private file storage."
         leadAction={
           <DownloadButton
             className={primaryButton}
@@ -83,9 +83,9 @@ export default function DownloadPage() {
       <PageSection
         index="01"
         label="Install channels"
-        lead="Use the package manager"
-        trail="already on your machine."
-        intro="Every desktop build stores the workspace locally in SQLite. Package-manager installs and direct release assets run the same application."
+        lead="Install with a package manager"
+        trail="or download a release file."
+        intro="Every desktop build stores the workspace locally in SQLite. Package manager installs and direct release assets run the same application."
       >
         <div className="grid gap-6 lg:grid-cols-2">
           {packageChannels.map(({ os, anchor, ...channel }) => (
@@ -104,26 +104,26 @@ export default function DownloadPage() {
           <code className="font-mono text-[13px]">.msi</code>,{" "}
           <code className="font-mono text-[13px]">.deb</code>,{" "}
           <code className="font-mono text-[13px]">.rpm</code>, and AppImage files are attached to
-          each GitHub release. The AUR package can lag behind while upstream publication is paused;
-          Winget and Snap are not current install channels.
+          each GitHub release. The AUR package can lag behind the latest release because upstream
+          publication is paused. Winget and Snap are not current install channels.
         </Note>
       </PageSection>
 
       <PageSection
         index="02"
-        label="One product"
-        lead="Desktop when you want the filesystem."
-        trail="Browser when you want a blank page now."
+        label="Desktop and browser"
+        lead="The desktop app stores data on disk,"
+        trail="the browser app stores it in the browser."
       >
         <TermGrid terms={surfaces} />
       </PageSection>
 
       <PageCta
-        title="Pick a build. Your first note stays with you."
-        body="Skriuw is free, open source, and usable without creating an account."
+        title="Install Skriuw for free."
+        body="Skriuw is open source and works without an account."
         actions={[
           { label: "View the latest release", href: releasesUrl },
-          { label: "Read the storage boundary", href: "/local-first-notes/" },
+          { label: "How Skriuw stores notes", href: "/local-first-notes/" },
         ]}
       />
     </>

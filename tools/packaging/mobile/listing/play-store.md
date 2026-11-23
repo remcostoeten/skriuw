@@ -1,7 +1,7 @@
 # Play Console listing
 
 Locale `en-US`. Character limits are Google's; the counts in brackets are the
-copy below. Nothing here has been submitted — see
+copy below. Nothing here has been submitted. See
 [`../README.md`](../README.md).
 
 ## Store settings
@@ -15,7 +15,7 @@ copy below. Nothing here has been submitted — see
 | Tags | Notes, Productivity, Writing |
 | Contact email | `remcostoeten@hotmail.com` |
 | Website | `https://skriuw.com` |
-| Privacy policy | **`https://skriuw.com/privacy` — not published yet** |
+| Privacy policy | **`https://skriuw.com/privacy`, not published yet** |
 | Content rating | Everyone (IARC questionnaire: no violence, no user-to-user communication, no purchases, no location sharing) |
 | Ads | Contains no ads |
 | Target audience | 13+ |
@@ -28,63 +28,40 @@ copy below. Nothing here has been submitted — see
 Skriuw
 ```
 
-## Short description (80 max) [78]
+## Short description (80 max) [79]
 
 ```
-Local-first notes, journal and tasks. Offline by default, encrypted when synced.
+Local-first notes, journal, and tasks. Works offline. Encrypted sync is opt-in.
 ```
 
 ## Full description (4000 max)
 
 ```
-Skriuw is a notes app that never makes you wait.
-
-Your workspace is a SQLite database on your phone. Open a note and it is there
-in the same frame — no spinner, no server round-trip, no account. Everything
-works with aeroplane mode on.
+Skriuw is a local-first notes app. Your workspace is a SQLite database on your phone, and the app needs no account. Notes, journal, tasks, and search work offline.
 
 WRITING
-A real rich-text editor that speaks Markdown: six heading levels, lists,
-checklists, quotes, tables, code blocks with language and copy controls, and
-Markdown input rules so "# " and "**bold**" just work as you type. Type # to
-tag, @ to link another note, and $ for people — relationships are stored by
-identity, so renaming a tag updates it everywhere instead of quietly breaking.
-Notes carry typed properties, cover images, and rendered Mermaid diagrams.
+A rich-text editor that saves Markdown. It has six heading levels, lists, checklists, quotes, tables, and code blocks with language and copy controls. Markdown input rules turn "# " and "**bold**" into formatting as you type. Type # to tag, @ to link another note, and $ for people. Relationships are stored by identity, so renaming a tag updates it everywhere. Notes carry typed properties, cover images, and rendered Mermaid diagrams.
 
 ORGANIZING
-A nested folder tree with pinned notes, trash with undo, and full-text search
-over note bodies rather than titles alone.
+A nested folder tree with pinned notes, a trash with undo, and full-text search over note bodies as well as titles.
 
 JOURNAL
-One entry per day in the same editor, with a mood per day, a month calendar,
-a thirty-day mood trend, and "on this day" recall. Share text or a link from
-any app straight into today's entry — it queues while you are offline and
-lands when you are back.
+One entry per day in the same editor, with a mood per day, a month calendar, a 30-day mood trend, and an "on this day" section. Share text or a link from any app into today's entry. The share queues while you are offline.
 
 TASKS
-Checklist items you promote into real workspace tasks, listed in one view and
-grouped by the note they came from. Completing a task rewrites the note's
-checklist line in the same write, so the two can never disagree.
+Checklist items become workspace tasks when you promote them. The tasks view lists them grouped by the note they came from. Completing a task rewrites the note's checklist line in the same write, so the two stay in agreement.
 
 LOCKED NOTES
-Lock any note behind a PIN or passphrase. The body is encrypted on disk with a
-key only your secret or a one-time recovery code can open, and it stays out of
-search and links until you unlock it. Optional fingerprint unlock saves typing
-the PIN, never the key.
+Lock a note behind a PIN or passphrase. The body is encrypted on disk with a key that only your secret or a one-time recovery code can open. A locked note stays out of search and links until you unlock it. Fingerprint unlock releases the stored PIN, not the key.
 
-SYNC, IF YOU WANT IT
-Nothing leaves your phone until you sign in and turn sync on. When you do, it
-is end-to-end encrypted: a recovery code shown once derives the key on your
-devices, the server never sees it, and your notes, media, and checkpoints are
-stored as opaque bytes. Lose the code and you lose the cloud copy only — the
-notes on your devices are untouched.
+SYNC
+Nothing leaves your phone until you sign in and turn sync on. Sync is end-to-end encrypted. A recovery code shown once derives the key on your devices and is never sent to the server. The server stores your notes, media, and checkpoints as opaque bytes. If you lose the code, you lose the cloud copy only. The notes on your devices are unchanged.
 
-THE SAME WORKSPACE EVERYWHERE
-Skriuw runs on macOS, Windows, and Linux, and in any browser, on the same Rust
-core and the same document format. Notes you write here open there.
+OTHER PLATFORMS
+Skriuw also runs on macOS, Windows, and Linux, and in a browser. All versions use the same Rust core and document format.
 
-NO TELEMETRY
-There is no analytics of any kind. A fresh install makes no network request.
+PRIVACY
+Skriuw contains no analytics or telemetry.
 
 Skriuw is open source: github.com/remcostoeten/skriuw
 ```
@@ -92,12 +69,7 @@ Skriuw is open source: github.com/remcostoeten/skriuw
 ## Release notes (500 max per release)
 
 ```
-The first Skriuw release for Android.
-
-Your whole workspace, native: the notes tree, the journal with its mood trend
-and share-to-Skriuw capture, the tasks view, locked notes with fingerprint
-unlock, and optional end-to-end encrypted sync with the desktop and browser
-apps — all over the same Rust core, with the same editor.
+First release for Android. It includes the notes tree, the journal with a mood trend and share-to-Skriuw capture, the tasks view, locked notes with fingerprint unlock, and optional end-to-end encrypted sync with the desktop and browser apps. It uses the same Rust core and editor as those apps.
 ```
 
 ## Declared permissions

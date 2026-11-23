@@ -50,7 +50,7 @@ export const importSources = [
   {
     name: "Apple Notes",
     format: "exported .md",
-    keeps: "Nothing read from Apple's database",
+    keeps: "Exported files only, not Apple's database",
   },
   { name: "Evernote", format: ".enex", keeps: "Checkboxes, code, tables" },
   {
@@ -72,7 +72,7 @@ export const importSources = [
   { name: "Skriuw v1", format: "vault folder", keeps: "Journal days, moods, tags" },
   { name: "Markdown", format: ".md folder", keeps: "Unknown syntax stays raw" },
   { name: "Plain text", format: ".txt", keeps: "One note per file" },
-  { name: "ZIP", format: ".zip", keeps: "Scanned before a byte is written" },
+  { name: "ZIP", format: ".zip", keeps: "Scanned before the workspace changes" },
 ];
 
 export const bentoCards = [
@@ -80,16 +80,16 @@ export const bentoCards = [
     keys: "⌘ /",
     hint: "toggle source",
     vignette: "editor" as const,
-    title: "A rich editor that speaks Markdown",
-    body: "Type `# `, `- `, or `**bold**` and it just works. Switch to the plain text underneath whenever you want it.",
+    title: "Rich text editor that saves Markdown",
+    body: "Type `# `, `- ` or `**bold**` and the text formats as you write. Switch to the raw Markdown source at any time.",
     span: "lg:col-span-8",
   },
   {
     keys: "d",
     hint: "go to date",
     vignette: "journal" as const,
-    title: "A journal that remembers",
-    body: "One entry per day with a mood, a calendar, and what you wrote a week, a month, and a year ago.",
+    title: "Daily journal",
+    body: "One entry per day, with a mood and a calendar. An On this day section lists entries from a week ago, a month ago and earlier years.",
     span: "lg:col-span-4",
   },
   {
@@ -97,31 +97,31 @@ export const bentoCards = [
     hint: "reference anything",
     vignette: "links" as const,
     title: "Tags, people, and note links",
-    body: "#tags, $people, and @note links point at real things, not just words. Rename one and every mention follows.",
+    body: "Type # for a tag, $ for a person and @ for a note link. Links are stored by ID, so renaming a note, tag or person updates every mention.",
     span: "lg:col-span-4",
   },
   {
     keys: "auto",
     hint: "on every save",
     vignette: "history" as const,
-    title: "Every version, kept for you",
-    body: "Each save is stored in the background without slowing your typing. Compare any two versions and bring back any of them.",
+    title: "Version history for every note",
+    body: "Skriuw records each save in Git in the background, so typing never waits for it. Open a version as a diff and restore it.",
     span: "lg:col-span-4",
   },
   {
     keys: "⌘ ⇧ L",
     hint: "lock folder",
     vignette: "lock" as const,
-    title: "Locked notes and private sync",
-    body: "Lock a note or a folder behind a PIN. Turn on sync and our server only stores scrambled data it cannot read.",
+    title: "Locked notes and encrypted sync",
+    body: "Lock a note or a folder behind a PIN or passphrase. Sync is end-to-end encrypted, so the sync server stores data it can't read.",
     span: "lg:col-span-4",
   },
   {
     keys: "⌘ K",
     hint: "command palette",
     vignette: "palette" as const,
-    title: "Every action is one keystroke away",
-    body: "Search every note, open tabs, split the view, and change the shortcut for anything in the app.",
+    title: "Command palette",
+    body: "Search note titles and bodies, run commands, and open notes in tabs or a split view. You can remap shortcuts in settings.",
     span: "lg:col-span-12",
     wide: true,
   },
@@ -130,66 +130,66 @@ export const bentoCards = [
 export const proofPoints = [
   {
     label: "typing",
-    title: "Letters appear as you press the keys",
-    body: "Faster than your screen can redraw, so there is never a stutter or a pause while you write.",
+    title: "Typing doesn't wait for storage",
+    body: "The editor updates in memory first. The save to disk happens afterward and doesn't block the next keystroke.",
   },
   {
     label: "opening notes",
-    title: "A note opens the moment you click it",
-    body: "It is already there. Nothing is read from your disk or fetched from the internet first.",
+    title: "Switching notes doesn't wait for storage",
+    body: "The performance contract requires that navigation never waits for disk, IPC or the network.",
   },
   {
-    label: "every release",
-    title: "Checked before it reaches you",
-    body: "More than a thousand automatic checks have to pass before a new version goes out.",
+    label: "tests",
+    title: "More than 1,300 automated tests",
+    body: "They cover the backend, desktop app, renderer, store and UI architecture, plus a keyboard-driven end-to-end suite.",
   },
 ];
 
 export const proofMeasure =
-  "measured on every change: 8 ms from key press to screen, 95 times out of 100";
+  "Budget for keystroke to paint: under 8 ms for 95 of every 100 keystrokes.";
 
 export const themes = [
   {
     name: "Skriuw",
     bg: "#1d1b1b",
     ink: "#e8e4df",
-    note: "the default, warm ink on near-black.",
+    note: "the default, light text on a near-black background.",
   },
   {
     name: "Paper",
     bg: "#efe9df",
     ink: "#3a352e",
-    note: "for daylight and long drafting sessions.",
+    note: "dark text on a light background.",
   },
   {
     name: "Embers",
     bg: "#2a1a16",
     ink: "#e9a178",
-    note: "low and warm, for writing after midnight.",
+    note: "orange text on a dark brown background.",
   },
   {
     name: "Catppuccin",
     bg: "#1e1e2e",
     ink: "#cba6f7",
-    note: "Mocha, matching the rest of your setup.",
+    note: "the Catppuccin Mocha palette.",
   },
   {
     name: "Rosé Pine",
     bg: "#191724",
     ink: "#ebbcba",
-    note: "muted and soft on the eyes.",
+    note: "pink text on a dark purple background.",
   },
   {
     name: "Gruvbox",
     bg: "#282828",
     ink: "#fabd2f",
-    note: "retro contrast, straight from your editor.",
+    note: "yellow text on a dark gray background.",
   },
   {
     name: "Tokyo Night",
     bg: "#1a1b26",
     ink: "#7aa2f7",
-    note: "cool blues, the terminal classic.",
+    note: "blue text on a dark blue background.",
   },
 ];
 
@@ -197,8 +197,9 @@ export const installChannels = [
   {
     name: "Browser",
     icon: "browser" as const,
-    summary: "The same engine as the desktop app, running inside your tab.",
-    hint: "No install, works offline after the first load",
+    summary:
+      "The same Rust core as the desktop app, compiled to WebAssembly and running in your tab.",
+    hint: "No install needed. The installed browser app starts from disk when offline.",
     cta: "Open the app",
     href: appUrl,
     ctaVariant: "solid" as const,
@@ -207,7 +208,7 @@ export const installChannels = [
   {
     name: "macOS",
     icon: "macos" as const,
-    summary: "Universal build for Apple silicon and Intel, signed and notarized.",
+    summary: "Installer from the latest GitHub release, or install with Homebrew.",
     hint: "`brew install --cask skriuw/tap/skriuw`",
     cta: "Download for macOS",
     href: releasesUrl,
@@ -217,8 +218,8 @@ export const installChannels = [
   {
     name: "Linux",
     icon: "linux" as const,
-    summary: "Packaged the way you already install things.",
-    hint: "Signed APT and RPM repos, AUR, AppImage",
+    summary: "Packages for APT and dnf, an AUR package and an AppImage.",
+    hint: "Signed APT and dnf repositories, AUR, AppImage",
     cta: "Download for Linux",
     href: releasesUrl,
     ctaVariant: "outline" as const,
@@ -227,7 +228,7 @@ export const installChannels = [
   {
     name: "Windows",
     icon: "windows" as const,
-    summary: "Installer or one Scoop command, on Windows 10 and 11.",
+    summary: "Installer from the latest GitHub release, or install with Scoop.",
     hint: "`scoop install skriuw`",
     cta: "Download for Windows",
     href: releasesUrl,

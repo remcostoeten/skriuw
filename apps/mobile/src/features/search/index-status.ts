@@ -23,7 +23,7 @@ export function describeSearchIndex(view: SearchIndexView): string | null {
     return null;
   }
   const { indexedNotes, noteCount } = view.status;
-  return `Rebuilding search index — ${indexedNotes} of ${noteCount} notes.`;
+  return `Rebuilding search index. ${indexedNotes} of ${noteCount} notes indexed.`;
 }
 
 function failureMessage(error: unknown): string {

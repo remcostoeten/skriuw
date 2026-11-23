@@ -16,8 +16,8 @@ export default function NotFound() {
     <StatusPage
       code="404"
       label="not found"
-      title="This page is not here."
-      lede="The link is either outdated or mistyped. Nothing was lost on your side: your notes live on your machine, not on this site."
+      title="Page not found."
+      lede="The link is outdated or mistyped. Your notes are stored by the app, not by this site, so nothing is lost."
       actions={
         <>
           <Link href="/" className={primaryButton}>

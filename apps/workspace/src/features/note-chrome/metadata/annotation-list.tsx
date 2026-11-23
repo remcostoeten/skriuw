@@ -122,7 +122,7 @@ export function AnnotationList({ store, noteId }: Props) {
       </div>
       {visible.length === 0 ? (
         <p className="m-0 px-2 text-[12.5px] text-muted-foreground">
-          {filter === "open" ? "Every thread here is resolved." : "No resolved threads yet."}
+          {filter === "open" ? "All threads are resolved." : "No resolved threads yet."}
         </p>
       ) : (
         <ul aria-label="Comment threads" className="m-0 flex list-none flex-col gap-0.5 p-0">

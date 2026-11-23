@@ -1,12 +1,12 @@
 # Launch checklist
 
-An example of what a real note looks like once you stop being careful with it.
+An example of a working project note with a checklist, a table and meeting notes.
 
 ## Now
 
 - [x] Decide what we're actually shipping
-- [x] Write the announcement badly
-- [ ] Rewrite the announcement — Ada has notes
+- [x] Write the first draft of the announcement
+- [ ] Rewrite the announcement using Ada's notes
 - [ ] Screenshots on a clean workspace
 - [ ] Check it on a small window
 
@@ -15,7 +15,7 @@ An example of what a real note looks like once you stop being careful with it.
 - [ ] Read it aloud once
 - [ ] Someone who wasn't in the room reads it
 - [ ] Links go where they claim to
-- [ ] Nothing says "lorem"
+- [ ] No placeholder text remains
 
 ## Who has what
 
@@ -29,12 +29,12 @@ An example of what a real note looks like once you stop being careful with it.
 
 > "Ship the small version and see what people do with it."
 
-Which was right, and cost us two weeks to agree on. The argument for waiting was that the import path is rough — see [[Reading list]] for where that idea came from.
+The team took two weeks to agree on this. The argument for waiting was that the import path is rough. See [[Reading list]] for where that idea came from.
 
 ## Afterwards
 
-Three things to write down while it's fresh:
+Write these down soon after launch:
 
 1. What surprised us
 2. What we'd cut
-3. What took three times longer than we said
+3. What took longer than planned

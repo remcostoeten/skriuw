@@ -47,8 +47,8 @@ export function BrowserStorageNotice({ onSignIn }: Props) {
     >
       <CloudOffIcon size={14} className="shrink-0" aria-hidden="true" />
       <span className="min-w-0 flex-auto truncate">
-        Saved in this browser only, which can clear it. Get the desktop app to keep notes offline,
-        or sign in to store them in the cloud.
+        Saved in this browser only, and the browser can clear it. Get the desktop app to keep notes
+        offline, or sign in to store them in the cloud.
       </span>
       <a
         href={DESKTOP_DOWNLOAD_URL}

@@ -207,7 +207,9 @@ export function JournalEntryPane({
                     onKeyDown={handleConfirmKeyDown}
                     className="flex items-center gap-2"
                   >
-                    <span className="text-[11.5px] text-destructive">Delete this entry?</span>
+                    <span className="text-[11.5px] text-destructive">
+                      Move this entry to trash?
+                    </span>
                     <button
                       type="button"
                       ref={confirmButtonRef}

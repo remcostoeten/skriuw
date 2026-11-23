@@ -7,8 +7,8 @@
 Type=Application
 Version=1.0
 Name={{name}}
-GenericName=Writing workspace
-Comment=A quiet writing workspace for notes, journaling, sharing, and planning
+GenericName=Notes app
+Comment=A local-first notes app for writing, journaling, and linking notes together
 Exec={{exec}} %F
 Icon={{icon}}
 Terminal=false

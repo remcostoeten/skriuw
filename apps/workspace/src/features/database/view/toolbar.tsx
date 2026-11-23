@@ -546,7 +546,9 @@ function SortMenu({ model }: MenuProps) {
       {() => (
         <div className="flex w-[min(92vw,380px)] flex-col gap-1.5 p-2">
           <p className="m-0 px-1 text-[11.5px] text-theme-dim">
-            {sorts.length === 0 ? "Notes keep their folder order." : "The first sort wins ties."}
+            {sorts.length === 0
+              ? "Notes keep their folder order."
+              : "Rows that tie on one sort are ordered by the next."}
           </p>
           {sorts.map((sort, index) => (
             <div key={index} className="flex items-center gap-1.5">

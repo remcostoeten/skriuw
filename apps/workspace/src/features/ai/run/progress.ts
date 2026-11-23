@@ -91,11 +91,11 @@ export function aiRunTone(run: AiActionRun): AiRunTone {
 
 const RECOVERY_HINTS: Record<AiRecoveryAction, string | null> = {
   configure_credential: "Add or fix this provider's API key in AI settings.",
-  retry: "Try again — this one usually clears on a second run.",
+  retry: "Try again. This error is often temporary.",
   choose_different_model: "Pick a different model and run it again.",
   check_provider_status: "The provider is having trouble. Check its status page.",
   reduce_request: "Send a smaller selection, or shorten the note.",
-  contact_provider: "This needs the provider's support to unblock.",
+  contact_provider: "Contact the provider's support to resolve this.",
   none: null,
 };
 
@@ -141,13 +141,13 @@ export function startErrorMessage(reason: unknown): AiStartFailure {
   const text = reasonText(reason);
   if (text.includes("is already active")) {
     return {
-      message: "The previous run is still closing. Give it a moment.",
+      message: "The previous run is still closing. Wait a moment and try again.",
       recoveryAction: "retry",
     };
   }
   if (text.includes("request is invalid")) {
     return {
-      message: "The provider would not accept this request as built.",
+      message: "The provider rejected this request.",
       recoveryAction: "reduce_request",
     };
   }

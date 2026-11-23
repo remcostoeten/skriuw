@@ -193,10 +193,10 @@ export type ShortcutDefinition = {
 };
 
 const JOURNAL_BRACKET_DESCRIPTION =
-  "The brackets walk the journal: plain steps a day, shift a week, alt a month, and alt+shift a year. Months and years keep the day of the month, clamped to the end of shorter months. Every key sits on the main block of a 60% keyboard, and none fires while the caret is in the entry.";
+  "The bracket keys move through the journal: a bracket alone moves one day, shift one week, alt one month, and alt+shift one year. Months and years keep the day of the month, or use the last day of a shorter month. Every key is on the main block of a 60% keyboard. None fires while the caret is in the entry.";
 
 const TAB_INDEX_DESCRIPTION =
-  "Activate a tab by its position in the focused pane's strip. Alt keeps the digits clear of the mod+digit focus and zoom bindings, and browsers own ctrl+digits for their own tabs — so the combo is reliable on desktop and best-effort on web.";
+  "Activate the tab at this position in the focused pane. Alt avoids the mod+digit focus and zoom bindings. Browsers reserve ctrl+digits for their own tabs, so this works on desktop and may not work on the web.";
 
 /**
  * `alt+1`…`alt+9` plus `alt+0` for the last tab, VS Code style. Nothing fires
@@ -265,7 +265,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+slash",
     label: "Show keyboard shortcuts",
     description:
-      "Open the cheat sheet listing every shortcut, grouped by area, with the combos currently bound. A deliberate chord, so it also fires from inside a note; the overlay itself owns Escape and a second press closes it.",
+      "Open the cheat sheet that lists every shortcut by area, with the keys currently bound. It also works from inside a note. Escape or a second press closes it.",
     group: "General",
     worksWhileTyping: true,
     guards: ["modal"],
@@ -283,7 +283,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+alt+n",
     label: "New note from template",
     description:
-      "Open the template picker and create a note from the chosen scaffold. Complements mod+n, which creates a blank note.",
+      "Open the template picker and create a note from the chosen template. mod+n creates a blank note.",
     group: "Workspace",
     worksWhileTyping: true,
     scopes: "note-create",
@@ -325,7 +325,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+shift+l",
     label: "Lock or unlock current note",
     description:
-      "Lock the current note behind your PIN, or unlock it for good. While the sidebar tree has focus it targets the focused row instead of the note the editor shows.",
+      "Lock the current note behind your PIN, or unlock it permanently. While the sidebar tree has focus it targets the focused row instead of the note the editor shows.",
     group: "Workspace",
     worksWhileTyping: true,
   },
@@ -333,7 +333,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "lockNotesNow",
     keys: "mod+alt+l",
     label: "Lock notes now",
-    description: "Drop the lock key for this session so every locked note closes at once.",
+    description: "Discard the lock key for this session and close every locked note.",
     group: "Workspace",
     worksWhileTyping: true,
   },
@@ -352,7 +352,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     secondaryKeys: "mod+delete",
     label: "Move current note to trash",
     description:
-      "Move current note to trash. Stays silent while the caret is in a note or text field, so mod+backspace keeps its delete-word meaning there.",
+      "Move the current note to trash. Does nothing while the caret is in a note or text field, so mod+backspace still deletes a word there.",
     group: "Workspace",
     guards: ["sidebarTree", "modal"],
     scopes: "notes-route",
@@ -411,7 +411,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+alt+i",
     label: "Toggle Vim mode",
     description:
-      "Modal Vim editing in the rendered editor and in raw Markdown mode. Escape returns to normal mode; i, a, o and friends enter insert mode.",
+      "Modal Vim editing in the rendered editor and in raw Markdown mode. Escape returns to normal mode. i, a, o and similar keys enter insert mode.",
     group: "Workspace",
     worksWhileTyping: true,
   },
@@ -420,7 +420,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+shift+f",
     label: "Toggle focus mode",
     description:
-      "Hide the rail, sidebar, inspector, tab strip, and toolbar so only the note remains. The same keys or Escape bring the workspace back; with Vim on, Escape stays with Vim.",
+      "Hide the rail, sidebar, inspector, tab strip, and toolbar so only the note remains. The same keys or Escape restore the workspace. With Vim on, Escape goes to Vim.",
     group: "Workspace",
     worksWhileTyping: true,
     scopes: "notes-route",
@@ -456,7 +456,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+shift+w",
     label: "Reopen closed tab",
     description:
-      "Reopen the last tab closed in this pane at its old position, walking back through the ten most recent. Browser muscle memory says ctrl+shift+t, but that belongs to New tag — this is the undo of Close tab instead.",
+      "Reopen the last tab closed in this pane at its old position, up to the ten most recent. It undoes Close tab. Browsers use ctrl+shift+t for this, but here that key is New tag.",
     group: "Tabs",
     worksWhileTyping: true,
     guards: ["modal"],
@@ -467,7 +467,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "ctrl+shift+pageup",
     label: "Move tab left",
     description:
-      "Move the active tab one slot left, wrapping at the ends. Browsers own this combo for their own tab strip, so it is reliable on desktop and best-effort on web.",
+      "Move the active tab one position left, wrapping at the ends. Browsers reserve this combo for their own tabs, so it works on desktop and may not work on the web.",
     group: "Tabs",
     worksWhileTyping: true,
     guards: ["modal"],
@@ -478,7 +478,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "ctrl+shift+pagedown",
     label: "Move tab right",
     description:
-      "Move the active tab one slot right, wrapping at the ends. Browsers own this combo for their own tab strip, so it is reliable on desktop and best-effort on web.",
+      "Move the active tab one position right, wrapping at the ends. Browsers reserve this combo for their own tabs, so it works on desktop and may not work on the web.",
     group: "Tabs",
     worksWhileTyping: true,
     guards: ["modal"],
@@ -506,7 +506,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+alt+v",
     label: "Split vertically",
     description:
-      "Open the current note in a second pane beside this one. With a split already open it only re-lays the panes side by side, keeping whatever each one holds.",
+      "Open the current note in a second pane beside this one. With a split already open, it only arranges the panes side by side and keeps what each one shows.",
     group: "Tabs",
     worksWhileTyping: true,
     scopes: "notes-route",
@@ -516,7 +516,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+alt+h",
     label: "Split horizontally",
     description:
-      "Open the current note in a second pane below this one. With a split already open it only re-lays the panes stacked, keeping whatever each one holds.",
+      "Open the current note in a second pane below this one. With a split already open, it only stacks the panes and keeps what each one shows.",
     group: "Tabs",
     worksWhileTyping: true,
     scopes: "notes-route",
@@ -594,7 +594,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+shift+e",
     label: "Collapse all folders",
     description:
-      "Collapse every folder in the sidebar tree, the shifted sibling of mod+e's sidebar focus.",
+      "Collapse every folder in the sidebar tree. This is the shifted version of mod+e, which focuses the sidebar.",
     group: "Navigation",
     worksWhileTyping: true,
     guards: ["modal"],
@@ -606,7 +606,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     secondaryKeys: "slash",
     label: "Focus editor",
     description:
-      "Focus the editor content. With a split open this returns to the pane that had focus last, so it composes with the directional pane keys. Notes-only, matching the command behind it — which also keeps the plain-key alternate off the journal, where / opens the entry search instead.",
+      "Focus the editor content. With a split open, it returns to the pane that had focus last. It works on notes only, so the plain-key alternate stays off the journal, where / opens the entry search.",
     group: "Navigation",
     worksWhileTyping: true,
     scopes: "notes-route",
@@ -625,7 +625,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+alt+arrowleft",
     label: "Focus pane to the left",
     description:
-      "Move keyboard focus to the split pane on the left. Three modifiers keep it clear of every native word and line motion; some Linux desktops and macOS apps claim mod+alt+arrows, so rebind if the OS wins.",
+      "Move keyboard focus to the split pane on the left. Three modifiers keep it clear of native word and line motion. Some Linux desktops and macOS apps claim mod+alt+arrows, so rebind it if the OS wins.",
     group: "Navigation",
     worksWhileTyping: true,
     guards: ["modal"],
@@ -636,7 +636,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+alt+arrowright",
     label: "Focus pane to the right",
     description:
-      "Move keyboard focus to the split pane on the right. Three modifiers keep it clear of every native word and line motion; some Linux desktops and macOS apps claim mod+alt+arrows, so rebind if the OS wins.",
+      "Move keyboard focus to the split pane on the right. Three modifiers keep it clear of native word and line motion. Some Linux desktops and macOS apps claim mod+alt+arrows, so rebind it if the OS wins.",
     group: "Navigation",
     worksWhileTyping: true,
     guards: ["modal"],
@@ -674,7 +674,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "slash",
     label: "Search journal entries",
     description:
-      "Open the journal sidebar on its search tab and put the caret in the field. A plain key, so it only fires while the caret is outside the entry — typing a slash into today's entry is untouched.",
+      "Open the journal sidebar on its search tab and put the caret in the field. A plain key, so it only fires while the caret is outside the entry. Typing a slash in today's entry is not affected.",
     group: "Journal",
     guards: ["modal"],
     scopes: "journal",
@@ -762,7 +762,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "d",
     label: "Go to date…",
     description:
-      "Open a field that jumps to any day, month, or year from a forgiving expression like “next week thursday”, “312”, or “dec 2025”. A plain key, so it only fires while the caret is outside the entry.",
+      "Open a field that jumps to a day, month, or year from a typed expression like “next week thursday”, “312”, or “dec 2025”. A plain key, so it only fires while the caret is outside the entry.",
     group: "Journal",
     guards: ["modal"],
     scopes: "journal",
@@ -809,7 +809,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     secondaryWorksWhileTyping: true,
     label: "Insert or edit link",
     description:
-      "Wrap the selected text in a link, or edit the link under the caret. Shares mod+k with the command palette the way Notion does: with a text selection the key means link, and with none it falls through to the palette.",
+      "Wrap the selected text in a link, or edit the link under the caret. Shares mod+k with the command palette: with text selected the key inserts a link, and with none it opens the palette.",
     group: "Editor",
     worksWhileTyping: true,
     boundInEditor: true,
@@ -830,7 +830,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+shift+m",
     label: "Comment on selection",
     description:
-      "Attach a comment thread to the selected text, or open the thread the caret sits inside. Notion's binding; Docs' alt combos fight Linux window managers.",
+      "Attach a comment thread to the selected text, or open the thread the caret sits inside. The default key matches Notion. Google Docs' alt combos conflict with Linux window managers.",
     group: "Editor",
     worksWhileTyping: true,
     boundInEditor: true,
@@ -869,7 +869,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+g",
     label: "Jump to line",
     description:
-      "Toggle the jump-to-line field. Both editors count the screen rows the note wraps into, so long paragraphs take several; a very long rendered note that is only partly laid out counts Markdown lines instead. Overrides Firefox's find-again default on web.",
+      "Toggle the jump-to-line field. Both editors count the screen rows the note wraps into, so long paragraphs take several. A very long rendered note that is only partly laid out counts Markdown lines instead. Overrides Firefox's find-again default on web.",
     group: "Editor",
     worksWhileTyping: true,
     boundInEditor: true,
@@ -879,7 +879,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+alt+p",
     label: "Toggle diagram source",
     description:
-      "Flip the Mermaid code block under the caret between its rendered preview and its source. Enter on a selected preview opens the source; Escape in the source returns to the preview.",
+      "Flip the Mermaid code block under the caret between its rendered preview and its source. Enter on a selected preview opens the source. Escape in the source returns to the preview.",
     group: "Editor",
     worksWhileTyping: true,
     boundInEditor: true,
@@ -889,7 +889,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+alt+e",
     label: "Insert inline math",
     description:
-      "Turn the selected text into inline math, or insert an empty formula and open its TeX field. On a selected formula it opens the field; Enter, Escape, or Tab return to the text.",
+      "Turn the selected text into inline math, or insert an empty formula and open its TeX field. On a selected formula it opens the field. Enter, Escape, or Tab return to the text.",
     group: "Editor",
     worksWhileTyping: true,
     boundInEditor: true,
@@ -899,7 +899,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+alt+shift+e",
     label: "Insert math block",
     description:
-      "Insert a display math block with a live KaTeX preview, using the selected text as its TeX. Typing $$ on its own line and pressing Enter does the same; Escape returns to the text.",
+      "Insert a display math block with a live KaTeX preview, using the selected text as its TeX. Typing $$ on its own line and pressing Enter does the same. Escape returns to the text.",
     group: "Editor",
     worksWhileTyping: true,
     boundInEditor: true,
@@ -909,7 +909,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "ctrl+arrowup",
     label: "Jump to start of note",
     description:
-      "Move the caret and scroll to the very start of the note. VS Code scrolls the viewport with this combo instead; on macOS cmd+arrowup does this natively, so the default stays unregistered there.",
+      "Move the caret and scroll to the start of the note. VS Code scrolls the viewport with this combo instead. On macOS cmd+arrowup does this natively, so the default stays unregistered there.",
     group: "Editor",
     worksWhileTyping: true,
     platforms: ["windows", "linux"],
@@ -920,7 +920,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "ctrl+arrowdown",
     label: "Jump to end of note",
     description:
-      "Move the caret and scroll to the very end of the note. VS Code scrolls the viewport with this combo instead; on macOS cmd+arrowdown does this natively, so the default stays unregistered there.",
+      "Move the caret and scroll to the end of the note. VS Code scrolls the viewport with this combo instead. On macOS cmd+arrowdown does this natively, so the default stays unregistered there.",
     group: "Editor",
     worksWhileTyping: true,
     platforms: ["windows", "linux"],
@@ -930,7 +930,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "findInNote",
     keys: "mod+f",
     label: "Find in note",
-    description: "Toggle the find panel — a second press closes it and returns focus to the note.",
+    description: "Toggle the find panel. A second press closes it and returns focus to the note.",
     group: "Editor search",
     worksWhileTyping: true,
     allScopes: ["notes-route", "note-focus"],
@@ -942,7 +942,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     secondaryWorksWhileTyping: true,
     label: "Find and replace in note",
     description:
-      "Open the find panel with the replace row expanded. Overrides the browser's history shortcut on web; mod+alt+f is VS Code's macOS default, where cmd+h hides the app.",
+      "Open the find panel with the replace row expanded. Overrides the browser's history shortcut on web. mod+alt+f is VS Code's macOS default, because cmd+h hides the app on macOS.",
     group: "Editor search",
     worksWhileTyping: true,
     allScopes: ["notes-route", "note-focus"],
@@ -985,7 +985,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "drawHighlighter",
     keys: "h",
     label: "Highlighter",
-    description: "Freehand ink at a fat, translucent width.",
+    description: "Freehand ink with a wide, translucent stroke.",
     group: "Drawing",
     guards: ["modal"],
     scopes: "drawing",
@@ -995,7 +995,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "drawLine",
     keys: "l",
     label: "Line",
-    description: "Drag a straight line; shift snaps to 0, 45, and 90 degrees.",
+    description: "Drag a straight line. Shift snaps to 0, 45, and 90 degrees.",
     group: "Drawing",
     guards: ["modal"],
     scopes: "drawing",
@@ -1005,7 +1005,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "drawRectangle",
     keys: "r",
     label: "Rectangle",
-    description: "Drag a rectangle; shift constrains it to a square.",
+    description: "Drag a rectangle. Shift constrains it to a square.",
     group: "Drawing",
     guards: ["modal"],
     scopes: "drawing",
@@ -1015,7 +1015,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "drawEllipse",
     keys: "o",
     label: "Ellipse",
-    description: "Drag an ellipse; shift constrains it to a circle.",
+    description: "Drag an ellipse. Shift constrains it to a circle.",
     group: "Drawing",
     guards: ["modal"],
     scopes: "drawing",
@@ -1074,7 +1074,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
   {
     id: "drawInkDefault",
     keys: "1",
-    label: "Ink ink",
+    label: "Default ink",
     group: "Drawing",
     guards: ["modal"],
     scopes: "drawing",

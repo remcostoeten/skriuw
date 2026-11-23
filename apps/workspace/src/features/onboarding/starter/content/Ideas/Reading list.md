@@ -1,31 +1,31 @@
 # Reading list
 
-The untidy note. Every workspace needs one — somewhere things land before they're worth filing.
+An example of an unsorted note. It holds items before you file them.
 
 ## Started
 
-- **The Timeless Way of Building** — Alexander. About towns, secretly about software.
-- **Thinking in Systems** — Meadows. The chapter on leverage points is the whole book.
+- **The Timeless Way of Building** by Alexander. About towns and houses.
+- **Thinking in Systems** by Meadows. About stocks, flows and feedback loops.
 
 ## Waiting
 
-- Something on typography that isn't a listicle
-- The one Grace mentioned about interfaces disappearing
+- A book on typography
+- The book Grace mentioned about interfaces
 - [ ] Ask Ada for the essay about writing as thinking
 
-## Lines worth keeping
+## Quotes
 
 > "A designed object is a frozen argument."
 
 > "You don't have a memory problem, you have a retrieval problem."
 
-That second one is the reason [[Linking]] exists.
+The second quote is about finding notes again. [[Linking]] covers that.
 
-## Half-formed
+## Unfinished ideas
 
-- Notes should be cheap to make and expensive to lose. Most tools get this backwards.
-- The folder is the wrong unit. So is the tag, most of the time.
-- Speed is a feature you only notice when it's missing — and then it's the only one you notice.
-- If capture takes longer than the thought, the thought loses.
+- Notes should be fast to create and hard to lose.
+- Folders and tags are both imperfect ways to organize notes.
+- You notice speed only when an app is slow.
+- If writing a note takes longer than having the thought, the thought is lost.
 
-Nothing here is finished. That's the point of the note.
+Nothing here is finished.

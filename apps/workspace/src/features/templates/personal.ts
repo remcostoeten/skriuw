@@ -87,7 +87,7 @@ export function personalTemplates(state: RendererState): NoteTemplate[] {
         id: `personal_${id}`,
         sourceNoteId: id,
         name: node.title,
-        description: "Personal template · edit the source note to update",
+        description: "Personal template. Edit the source note to update it.",
         defaultParentId: node.parentId,
         propertyTemplateId: null,
         propertyTemplate: {

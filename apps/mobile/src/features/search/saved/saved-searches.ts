@@ -53,7 +53,7 @@ export async function setSearchSaved(
 ): Promise<void> {
   const normalized = query.trim();
   if (normalized.length === 0 || normalized.length > SAVED_SEARCH_MAX_LENGTH) {
-    throw new Error(`Search must contain 1–${SAVED_SEARCH_MAX_LENGTH} characters.`);
+    throw new Error(`Search must contain 1-${SAVED_SEARCH_MAX_LENGTH} characters.`);
   }
   const settings = session.store.getState().settings;
   const current = savedSearches(settings);

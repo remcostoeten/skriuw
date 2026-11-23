@@ -63,7 +63,7 @@ export function QuickCapture({ open, dayLabel, onClose, onCapture }: Props) {
           multiline
           value={text}
           onChangeText={setText}
-          placeholder="Anything worth keeping…"
+          placeholder="Write something to add to this entry…"
           placeholderTextColor={theme.color("muted-foreground")}
           style={[
             styles.field,

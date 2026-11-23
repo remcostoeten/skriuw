@@ -19,7 +19,7 @@ export const featureDetailPage: DocPage = {
   metaTitle: "Every Skriuw feature in detail: editor, journal, tasks, sync and AI",
   kicker: "In detail",
   description:
-    "Each Skriuw feature written out in full: how it works, its shortcuts, what it stores, and the decision records behind it.",
+    "Each Skriuw feature with how it works, its shortcuts, what it stores and the decision records behind it.",
   source: "docs/FEATURES.md",
   outlineLabels: true,
 };
@@ -30,7 +30,7 @@ export const featuresPage: DocPage = {
   metaTitle: "Features: local-first notes, journal, tasks, search and sync",
   kicker: "Every feature",
   description:
-    "The complete surface of Skriuw: the editor, journal, tasks, search, history, import and export, sync, AI, and the mobile app.",
+    "The Skriuw feature list: the editor, journal, tasks, search, history, import and export, sync, AI and the mobile app.",
   source: "docs/FEATURES.md",
   outlineLabels: true,
   detail: featureDetailPage,
@@ -44,14 +44,14 @@ export const docPages: DocPage[] = [
     metaTitle: "Architecture: Rust core, SQLite storage and the operation pipeline",
     kicker: "How it is built",
     description:
-      "The Rust domain layer, SQLite as canonical storage, the operation pipeline, and the boundaries that keep navigation off the disk.",
+      "The Rust domain layer, SQLite as canonical storage, the operation pipeline, and the rules that keep disk access out of navigation.",
     source: "docs/ARCHITECTURE.md",
   },
   {
     slug: "performance-contract",
     title: "Performance contract",
     metaTitle: "Performance contract: the interaction budgets Skriuw is held to",
-    kicker: "What we promise",
+    kicker: "Interaction budgets",
     description:
       "The interaction budgets Skriuw is held to, how each one is measured, and what happens to a change that breaks them.",
     source: "docs/performance-contract.md",

@@ -29,41 +29,41 @@ export const metadata: Metadata = {
 const capabilities = [
   {
     tag: "Write and navigate",
-    title: "Nothing loads before you type",
-    body: "Notes are already present in memory. Typing and switching notes give immediate local feedback instead of waiting on disk, IPC, or a network response.",
+    title: "Notes are held in memory",
+    body: "Typing and switching notes update the screen immediately. Neither waits for disk, IPC or the network.",
   },
   {
     tag: "Store",
-    title: "SQLite is the canonical workspace",
-    body: "Images are content-addressed local files rather than remote placeholders or inflated document data.",
+    title: "SQLite stores your workspace",
+    body: "SQLite is the source of truth for your notes. Images are local files named by their content hash, not remote links or data embedded in the note.",
   },
   {
     tag: "Recover",
-    title: "More than one way back",
-    body: "Verified backups, trash recovery, portable workspace archives, and background Git history give mistakes more than one way back.",
+    title: "Four ways to get a note back",
+    body: "Skriuw keeps verified backups, a trash, portable workspace archives and Git history in the background.",
   },
   {
     tag: "Leave",
-    title: "Export without a converter",
-    body: "Export a note or the whole workspace as Markdown. Links, images, and readable source remain useful outside Skriuw.",
+    title: "Export as Markdown",
+    body: "Export one note or the whole workspace as Markdown. Links and images are included, and the files read fine in any text editor.",
   },
 ];
 
 const durability = [
   {
     term: "Notes",
-    title: "Plain Markdown out",
-    body: "Single notes and whole workspaces export to files you can open elsewhere.",
+    title: "Markdown export",
+    body: "You can export a single note or a whole workspace to files that open in other apps.",
   },
   {
     term: "Workspace",
     title: "Versioned archives",
-    body: "Portable archives carry structured workspace state and remain compatibility-tested.",
+    body: "Archives hold the structured workspace state. The format is versioned and tested for compatibility.",
   },
   {
     term: "History",
-    title: "Git off the writing path",
-    body: "Background versions protect the archive without slowing the editor.",
+    title: "Git history in the background",
+    body: "Skriuw records versions with Git in the background, so the editor never waits for it.",
   },
 ];
 
@@ -85,10 +85,10 @@ export default function LocalFirstNotesPage() {
       <PageHero
         index="02"
         label="local-first"
-        marks={["Write locally", "Recover locally", "Choose the network"]}
-        eyebrow="Private by default, explicit by design"
-        title="A notes app that starts on your machine."
-        lede="Open Skriuw and write. No account gate, no cloud round-trip, no telemetry. The workspace is local first; every network feature waits for your decision."
+        marks={["Notes in SQLite on disk", "Backups and trash recovery", "Sync is opt-in"]}
+        eyebrow="No account, no telemetry"
+        title="Notes stored on your device."
+        lede="Skriuw keeps your notes in SQLite on your device. You don't need an account, it sends no telemetry, and sync and AI stay off until you turn them on."
         actions={[
           { label: "Write in the browser", href: appUrl },
           { label: "Install the desktop app", href: "/download/" },
@@ -98,9 +98,9 @@ export default function LocalFirstNotesPage() {
       <PageSection
         index="01"
         label="What local means"
-        lead="The page does not wait for a server"
-        trail="to agree that it exists."
-        intro="Desktop workspaces live in SQLite on disk. Browser workspaces use the same Rust core compiled to WebAssembly and store SQLite through the browser's private filesystem."
+        lead="Notes load from your device"
+        trail="not from a server."
+        intro="Desktop workspaces live in SQLite on disk. Browser workspaces use the same Rust core compiled to WebAssembly and store SQLite in the browser's private filesystem."
       >
         <CardGrid columns={4} items={capabilities} />
       </PageSection>
@@ -108,9 +108,8 @@ export default function LocalFirstNotesPage() {
       <PageSection
         index="02"
         label="The boundary"
-        lead="Nothing crosses the network"
-        trail="because a setting was easy to miss."
-        intro="Skriuw has network features. It does not disguise them as local features. Sync, remote AI, and update checks each have a visible boundary."
+        lead="What uses the network"
+        intro="Skriuw has three features that use the network: sync, remote AI and update checks. The lists below show what is on before and after you opt in."
       >
         <BoundaryLists
           columns={[
@@ -125,35 +124,35 @@ export default function LocalFirstNotesPage() {
               ],
             },
             {
-              title: "If you choose the network",
+              title: "After you opt in",
               items: [
                 "Signing in can enable multi-device sync",
-                "Sync is encrypted in transit, not end-to-end",
+                "Sync is end-to-end encrypted with a key from your recovery code",
                 "Remote AI uses only the provider you configure",
                 "Local Ollama keeps prompts on your machine",
-                "You can return to a local-only workflow",
+                "You can switch back to local-only",
               ],
             },
           ]}
-          note="The sync server can read content stored through sync because end-to-end encryption is not implemented yet. If that boundary does not fit your work, keep sync off; the local application remains fully usable."
+          note="The sync server stores your notes as encrypted bytes and sees only identifiers, sequences, sizes and timing. Public note links are different: shared text and images are stored on Skriuw's server without end-to-end encryption. If you lose the recovery code, you lose the cloud copy, not the notes on your devices."
         />
       </PageSection>
 
       <PageSection
         index="03"
         label="Durability"
-        lead="Local should not mean"
-        trail="trapped in one database."
+        lead="Your notes aren't locked"
+        trail="into one database."
       >
         <TermGrid terms={durability} />
       </PageSection>
 
       <PageCta
-        title="Start with one device. Add nothing you do not need."
-        body="The browser app and desktop app both work without an account."
+        title="Start writing without an account."
+        body="The browser app and the desktop app both work without one."
         actions={[
           { label: "Open a local workspace", href: appUrl },
-          { label: "See how notes stay portable", href: "/markdown-notes/" },
+          { label: "How Markdown export works", href: "/markdown-notes/" },
         ]}
       />
     </>

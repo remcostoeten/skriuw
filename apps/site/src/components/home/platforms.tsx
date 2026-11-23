@@ -28,8 +28,8 @@ type Surface = {
 const surfaces: Surface[] = [
   {
     label: "Desktop",
-    lead: "The full app, offline.",
-    body: "Everything in one file on your disk. No account and no internet needed.",
+    lead: "Desktop app for macOS, Windows and Linux.",
+    body: "Your workspace is stored in SQLite on your disk. It works offline and needs no account.",
     actions: [
       { label: "macOS", href: releasesUrl, icon: <Apple className="size-3" /> },
       { label: "Windows", href: releasesUrl, icon: <Windows className="size-3" /> },
@@ -40,7 +40,7 @@ const surfaces: Surface[] = [
   },
   {
     label: "Browser",
-    lead: "The same app, in a tab.",
+    lead: "Runs in a browser tab.",
     body: "Open skriuw.com/app and start writing. Nothing is uploaded until you sign in.",
     actions: [{ label: "Open the app", href: appUrl, icon: <Globe className="size-3" /> }],
     tags: ["installs to home screen"],
@@ -48,8 +48,8 @@ const surfaces: Surface[] = [
   },
   {
     label: "Your files",
-    lead: "Plain Markdown, any time.",
-    body: "A backup every six hours, checked after it is written, and all of the code is open source.",
+    lead: "Markdown export and backups.",
+    body: "Export a note or your whole workspace as Markdown. The desktop app backs up every six hours by default and verifies each backup. The code is open source.",
     actions: [{ label: "Source", href: repoUrl }],
     tags: ["markdown", "6 h backups"],
     vignette: <FilesVignette />,
@@ -62,7 +62,7 @@ export function HomePlatforms() {
   return (
     <section id="platforms">
       <SectionHead
-        title="The same app on your desktop, in your browser, and in your own files."
+        title="Desktop app, browser app and Markdown export."
         action={{ label: "Download", href: "/download/" }}
       />
 
@@ -111,10 +111,10 @@ export function HomePlatforms() {
             <span className="size-1 rounded-full bg-current" />
           </span>
           <p className="min-w-[220px] flex-1 text-[14px] leading-[21px] text-ink-900">
-            <strong className="font-medium">Mobile, in the works.</strong>{" "}
+            <strong className="font-medium">Mobile apps are not published yet.</strong>{" "}
             <span className="text-ink-500">
-              iOS and Android apps are on the way. Until then, the browser version installs to your
-              home screen.
+              There is no iOS or Android app in the stores yet. Until then, you can install the
+              browser version to your home screen.
             </span>
           </p>
           <p className="flex gap-1.5">

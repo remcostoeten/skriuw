@@ -14,13 +14,13 @@ import { repoUrl } from "@/data/content";
 export const metadata: Metadata = {
   title: "Import from Obsidian, Notion, Bear and Apple Notes",
   description:
-    "Skriuw scans local exports and previews every note, folder, property, image, and warning before anything enters your workspace.",
+    "Skriuw scans local exports from Obsidian, Notion, Bear, Apple Notes and other apps. You see the detected format, destination, counts and warnings before anything changes in your workspace.",
   alternates: { canonical: "/import/" },
   openGraph: {
     siteName: "Skriuw",
-    title: "Bring the archive. Inspect it before it moves.",
+    title: "Import notes from Obsidian, Notion, Bear and Apple Notes",
     description:
-      "A preview-plan-apply import for Obsidian, Notion, Bear, Apple Notes, Evernote, Joplin, Simplenote, and plain files.",
+      "Preview the detected format, counts and warnings, then apply the import in one step. Works with exports from Obsidian, Notion, Bear, Apple Notes, Evernote, Joplin, Simplenote and plain files.",
     url: "https://skriuw.com/import/",
     images: [socialImage],
   },
@@ -30,17 +30,17 @@ const steps = [
   {
     index: "01 / Select",
     title: "Choose the local export",
-    body: "Use a folder, individual files, ZIP, provider backup, or JSON export. Skriuw detects the likely format without uploading it.",
+    body: "Pick a folder, individual files, a ZIP, a provider backup or a JSON export. Skriuw detects the format on your device and uploads nothing.",
   },
   {
     index: "02 / Inspect",
-    title: "Read the plan",
-    body: "Review counts, destination, detected format, re-import behavior, and every fidelity or safety warning.",
+    title: "Review the preview",
+    body: "Check the counts, destination, detected format, re-import mode and any warnings.",
   },
   {
     index: "03 / Apply",
-    title: "Commit once",
-    body: "Confirmed notes, folders, tags, properties, images, and import receipts enter the workspace as one atomic operation.",
+    title: "Apply the import",
+    body: "Confirmed notes, folders, tags, properties, images and import receipts are saved in one atomic operation.",
   },
 ];
 
@@ -48,42 +48,42 @@ const sources = [
   {
     tag: "Vault folder",
     title: "Obsidian",
-    body: "Preserves the folder tree, supported frontmatter, unambiguous local image embeds, and wikilinks with a unique target. Alias and heading links stay exact source when conversion would lose meaning.",
+    body: "Keeps the folder tree, supported frontmatter, image embeds that match one file, and wikilinks that match one note. Alias and heading wikilinks stay as source text.",
   },
   {
     tag: "Markdown & CSV ZIP",
     title: "Notion",
-    body: "Imports the downloaded ZIP directly, removes page UUID suffixes, turns database rows into notes, and maps CSV columns to typed properties.",
+    body: "Import the ZIP you download from Notion's Markdown & CSV export. Page UUID suffixes are removed, database rows become notes and CSV columns become typed properties.",
   },
   {
     tag: ".bear2bk / TextBundle",
     title: "Bear",
-    body: "Reads Markdown, images, timestamps, and exported tags. Encrypted and trashed notes stay skipped and appear in the completion report.",
+    body: "Reads Markdown, images, timestamps and exported tags. Encrypted and trashed notes are skipped and listed in the completion report.",
   },
   {
     tag: "Markdown files",
     title: "Apple Notes",
-    body: "Uses Apple's official selected-note Markdown export. Collect the exported files in a folder; Skriuw does not access Apple's private Notes database.",
+    body: "Export each note with File > Export as > Markdown in Apple Notes, put the files in one folder and import that folder. Skriuw doesn't read Apple's private Notes database.",
   },
   {
     tag: "ENEX",
     title: "Evernote",
-    body: "Imports notebooks, checkboxes, code blocks, tables, and formatting. Encrypted content and embedded attachments become visible placeholders in the report.",
+    body: "Imports notebooks, checkboxes, code blocks, tables and formatting. Encrypted content and embedded attachments become placeholders listed in the report.",
   },
   {
     tag: "RAW export folder",
     title: "Joplin",
-    body: "Turns notebooks into nested folders and resolves links to exported resources. Use Joplin's RAW export rather than JEX.",
+    body: "Notebooks become nested folders and links to exported resources are resolved. Use Joplin's RAW export, not JEX.",
   },
   {
     tag: "notes.json",
     title: "Simplenote",
-    body: "Imports active notes, tags, timestamps, and pins. Trashed notes remain skipped and counted.",
+    body: "Imports active notes, tags, timestamps and pins. Trashed notes are skipped and counted.",
   },
   {
     tag: "Markdown / text / ZIP",
     title: "Plain files",
-    body: "Bring ordinary files and folders without naming a provider. Skriuw also recognizes Google Keep Takeout, Standard Notes backups, and several structured export formats.",
+    body: "Import ordinary files and folders without choosing a provider. Skriuw also reads Google Keep Takeout folders and decrypted Standard Notes backups.",
   },
 ];
 
@@ -91,22 +91,22 @@ const fidelity = [
   {
     tag: "Links",
     title: "Only unique targets resolve",
-    body: "Ambiguous wikilinks and image names remain source text instead of pointing to a guessed note or file.",
+    body: "A wikilink or image name that matches more than one note or file stays as source text instead of pointing at a guess.",
   },
   {
     tag: "Unsupported syntax",
     title: "Preserved in raw mode",
-    body: "Markdown that the structured editor cannot represent safely stays intact in raw mode. The import report tells you what was preserved.",
+    body: "Markdown the structured editor can't represent safely stays intact in raw mode. The import report lists unsupported attachments and unreadable files.",
   },
   {
     tag: "Remote content",
-    title: "Blocked by default",
-    body: "Remote images remain blocked. Local images transfer through a bounded, cancellable path and are verified before the import commits.",
+    title: "Remote images are blocked by default",
+    body: "Remote images stay blocked unless you allow downloads. The first import that links https images asks once, and downloaded images are stored in the workspace. Local images transfer with cancellable progress.",
   },
   {
     tag: "Re-import",
-    title: "Durable receipts",
-    body: "Durable receipts let a later import skip previous matches, update imported content, or create deliberate copies.",
+    title: "Import receipts",
+    body: "Receipts let a later import skip previous matches, update imported content or create copies.",
   },
 ];
 
@@ -132,21 +132,21 @@ export default function ImportPage() {
         index="04"
         label="import"
         marks={["Local source", "Previewed plan", "Atomic commit"]}
-        eyebrow="Obsidian · Notion · Bear · Apple Notes · and more"
-        title="Bring the archive. Inspect it before it moves."
-        lede="Skriuw scans local exports and shows the notes, folders, properties, images, and warnings it found. Nothing enters your workspace until you approve the plan."
+        eyebrow="Obsidian, Notion, Bear, Apple Notes and more"
+        title="Import notes from other apps."
+        lede="Skriuw scans a local export and shows the notes, folders, properties, images and warnings it found. Nothing enters your workspace until you approve the import."
         actions={[
           { label: "Download the desktop app", href: "/download/" },
-          { label: "Read the complete import guide", href: importGuideUrl },
+          { label: "Read the import guide", href: importGuideUrl },
         ]}
       />
 
       <PageSection
         index="01"
         label="The import path"
-        lead="A migration should explain itself"
-        trail="before it changes the archive."
-        intro="Import is a preview-plan-apply operation. Cancelling during intake, preview, or image transfer leaves the workspace unchanged."
+        lead="You see the plan"
+        trail="before anything changes."
+        intro="An import has three steps: select, review, apply. Cancelling during intake, preview or image transfer leaves the workspace unchanged."
       >
         <Steps steps={steps} />
       </PageSection>
@@ -154,8 +154,8 @@ export default function ImportPage() {
       <PageSection
         index="02"
         label="Supported sources"
-        lead="Use the export"
-        trail="your current app already gives you."
+        lead="Import the export"
+        trail="your current app produces."
         intro="Skriuw reads documented export formats and ordinary local files. It does not log in to another notes service or read a private application database."
       >
         <CardGrid columns={4} items={sources} />
@@ -163,21 +163,21 @@ export default function ImportPage() {
 
       <PageSection
         index="03"
-        label="Fidelity over guesses"
-        lead="Ambiguous content remains"
-        trail="visible, portable source."
+        label="Fidelity"
+        lead="Content Skriuw can't convert safely"
+        trail="stays as source text."
       >
         <CardGrid columns={4} items={fidelity} />
         <Note className="mt-4">
-          Archives reject absolute paths, parent traversal, symlinks, duplicate case-insensitive
-          paths, excessive depth, excessive entry counts, and expanded data beyond bounded safety
-          limits.
+          Skriuw rejects archives that contain absolute paths, parent traversal, symlinks, duplicate
+          case-insensitive paths, excessive depth or entry counts, or more expanded data than the
+          safety limits allow.
         </Note>
       </PageSection>
 
       <PageCta
-        title="Your old archive should arrive with a receipt, not a leap of faith."
-        body="Install Skriuw, open the command palette, and choose an import. The preview comes first."
+        title="Preview an import before you apply it."
+        body="Install Skriuw, open the command palette and choose an import command. Skriuw scans the source before it changes the workspace."
         actions={[
           { label: "Download Skriuw", href: "/download/" },
           { label: "Open the import guide", href: importGuideUrl },

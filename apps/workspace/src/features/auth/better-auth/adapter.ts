@@ -19,11 +19,11 @@ import {
 } from "../session";
 
 export const KEYRING_UNAVAILABLE_MESSAGE =
-  "Sync will not survive a restart: the system keyring is unavailable";
+  "The system keyring is unavailable. Sync stops when you restart Skriuw.";
 export const SIGN_OUT_REVOKE_FAILED_MESSAGE =
-  "Signed out on this device; the cloud session could not be ended";
+  "Signed out on this device, but the cloud session could not be ended.";
 export const SIGN_OUT_UNSAVED_MESSAGE =
-  "Signed out, but recent edits could not be stored; this window keeps them open";
+  "Signed out, but your latest edits could not be saved. This window stays open so you keep them.";
 
 /**
  * @name signInCallbackPath

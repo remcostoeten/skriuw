@@ -77,7 +77,7 @@ test("the thirty-day mood trend counts, averages and reads the same as the deskt
   assert.equal(trend.average, 0.3);
   assert.equal(trend.direction, "steady");
   assert.equal(dominantMood(trend), "neutral");
-  assert.equal(moodTrendSummary(trend), "Mostly neutral, holding steady");
+  assert.equal(moodTrendSummary(trend), "Mostly neutral, steady");
 });
 
 test("a written day without a mood keeps its place in the strip", () => {

@@ -45,12 +45,12 @@ export default function GlobalError({ error, retry }: Props) {
       <body>
         <div className="wrap">
           <span className="code">
-            <b>500</b>something broke
+            <b>500</b>site error
           </span>
-          <h1>Skriuw.com failed to load.</h1>
+          <h1>This page failed to load.</h1>
           <p>
-            The site crashed before it could render anything. Retrying often works. Your notes are
-            stored on your own machine and are not affected by this.
+            The site hit an error before it could render. Try again, or go back to the homepage.
+            Your notes are stored by the app, not by this site, so this error doesn't affect them.
           </p>
           <div className="row">
             <button type="button" onClick={() => retry()}>

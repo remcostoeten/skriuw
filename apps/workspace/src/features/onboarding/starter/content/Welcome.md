@@ -1,14 +1,14 @@
 # Welcome
 
-Skriuw is a notes app that keeps your notes on this device. You write in markdown, links and tags work as you type, and a folder of notes can become a board or a table.
+Skriuw is a notes app that stores your notes on this device. You write in markdown, links and tags work as you type, and a folder of notes can be shown as a board or a table.
 
 Everything here is an example. Edit it, move it, or delete it.
 
 ## Writing
 
-Markdown turns into formatting as you type. `**two stars**` becomes **bold**, a `#` and a space starts a heading, and a `-` starts a list. Press `/` on an empty line to see every kind of block.
+Markdown turns into formatting as you type. `**two stars**` becomes **bold**, a `#` and a space starts a heading, and a `-` starts a list. Press `/` on an empty line to list the block types.
 
-Type `#` followed by a word to tag something. Type `@` to link to another note, the way this paragraph links to [[Writing]] and [[Linking]].
+Type `#` followed by a word to tag something. Type `@` to link to another note, as this paragraph does with [[Writing]] and [[Linking]].
 
 ## A folder as a board
 
@@ -29,11 +29,9 @@ To show another folder like this, press `/` on an empty line, choose **Database 
 | [[Math]] | Rendered equations |
 | [[Tasks]] | Tasks with due dates, collected in Tasks |
 | [[Launch checklist]] | An ordinary project checklist |
-| [[Reading list]] | An untidy note in `Ideas` |
+| [[Reading list]] | An unsorted note in `Ideas` |
 
-## Worth knowing
+## Storage and export
 
-1. **Your notes stay here.** They live in a local database on this device. Opening a note never waits on a network.
-2. **It's markdown underneath.** What you type is stored as text you can read in any editor, and you can export it whenever you like.
-
-> The best note is the one you actually wrote down.
+1. **Your notes are stored here.** They live in a local database on this device. Opening a note does not wait for the network.
+2. **Notes are markdown.** What you type is stored as text you can read in any editor, and you can export it at any time.

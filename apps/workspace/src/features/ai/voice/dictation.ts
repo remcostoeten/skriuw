@@ -21,7 +21,7 @@ export const VOICE_DICTATION_MODES: readonly VoiceDictationMode[] = [
     id: "raw",
     promptId: null,
     label: "Raw",
-    description: "The transcript exactly as transcribed.",
+    description: "The transcript as transcribed, unchanged.",
   },
   {
     id: "clean",
@@ -33,7 +33,7 @@ export const VOICE_DICTATION_MODES: readonly VoiceDictationMode[] = [
     id: "structure",
     promptId: "structure-transcript",
     label: "Structured",
-    description: "Organised into headings, bullets, and task items.",
+    description: "Organized into headings, bullets, and task items.",
   },
 ];
 

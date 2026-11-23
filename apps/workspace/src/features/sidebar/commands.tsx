@@ -133,7 +133,7 @@ export function sidebarCommands(store: RendererStore, openSidebar: () => void): 
       group: "Actions",
       keywords: ["empty", "blank", "untitled", "cleanup", "trash", "delete", "remove", "bulk"],
       icon: <EraserIcon size={15} />,
-      hint: "Move every note without content to the trash in one go.",
+      hint: "Move every note with no body beyond its title to the trash. One undo restores them.",
       run: () => {
         void trashEmptyNotes(store).then((cleanup) => {
           if (cleanup.noteIds.length === 0) {

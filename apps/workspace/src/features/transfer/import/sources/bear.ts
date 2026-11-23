@@ -101,7 +101,7 @@ function parse(tree: MarkdownTree): ImportBundle {
     if (metadata === null) {
       warnings.push({
         path: infoPath,
-        message: "Bear metadata is malformed; note content will still import",
+        message: "Bear metadata is malformed, but the note content still imports",
       });
     }
     if (enabled(metadata?.trashed)) {

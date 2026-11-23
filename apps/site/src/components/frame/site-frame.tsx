@@ -44,7 +44,7 @@ function SiteMap() {
       <div>
         <Wordmark />
         <p className="mt-4 max-w-[300px] text-[14px] leading-[22px] text-ink-500">
-          A local-first workspace for writing, journaling, and connected knowledge.
+          A local-first notes app for writing, journaling, and tracking tasks.
         </p>
         <p className="mt-6 flex items-center gap-1">
           <a href={repoUrl} aria-label="GitHub" className={ghostButton}>

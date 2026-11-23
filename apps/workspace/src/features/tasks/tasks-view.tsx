@@ -627,7 +627,7 @@ export function TasksView({ store }: Props) {
 
   const summaryText =
     shown.length === 0
-      ? "A little space for what’s next."
+      ? "Tasks come from checklist items in your notes."
       : [
           `${summary.open} open`,
           summary.overdue > 0 ? `${summary.overdue} overdue` : null,

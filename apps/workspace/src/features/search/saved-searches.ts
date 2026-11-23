@@ -25,8 +25,7 @@ export async function setSearchSaved(
   saved: boolean,
 ): Promise<void> {
   const normalized = query.trim();
-  if (!normalized || normalized.length > 512)
-    throw new Error("Search must contain 1–512 characters.");
+  if (!normalized || normalized.length > 512) throw new Error("Search must be 1-512 characters.");
   const settings = store.getState().settings;
   const current = savedSearches(settings);
   if (current.includes(normalized) === saved) return;

@@ -6,7 +6,7 @@ pkgrel=1
 # above the old un-epoched versions so pacman treats it as an upgrade.
 epoch=1
 _tag=v2-v0.5.0
-pkgdesc="A quiet writing workspace for notes, journaling, sharing, and planning"
+pkgdesc="A local-first notes app for writing, journaling, and linking notes together"
 arch=('x86_64')
 url="https://github.com/remcostoeten/skriuw"
 license=('MIT')

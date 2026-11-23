@@ -22,19 +22,19 @@ await waitForServer();
 const marketingRoutes = [
   {
     path: "/download/",
-    heading: "Install it.",
+    heading: "Download Skriuw.",
   },
   {
     path: "/local-first-notes/",
-    heading: "A notes app that starts on your machine.",
+    heading: "Notes stored on your device.",
   },
   {
     path: "/markdown-notes/",
-    heading: "Markdown when you want it.",
+    heading: "Write in rich text or raw Markdown.",
   },
   {
     path: "/import/",
-    heading: "Bring the archive.",
+    heading: "Import notes from other apps.",
   },
 ];
 
@@ -64,10 +64,10 @@ const socialImage = await readFile(new URL("public/og-image.png", siteRoot));
 const { default: nextConfig } = await import(new URL("next.config.ts", siteRoot));
 const [redirects, headers] = await Promise.all([nextConfig.redirects(), nextConfig.headers()]);
 
-assert.match(siteHtml, /<title>Skriuw: Fast, Private, Local-First Notes App<\/title>/u);
+assert.match(siteHtml, /<title>Skriuw: Private, Local-First Notes App<\/title>/u);
 assert.match(siteHtml, /<meta\s+name="description"/u);
 assert.equal(canonicalUrl(siteHtml), "https://skriuw.com/");
-assert.match(siteHtml, /<h1[^>]*>A notes app that never[\s\S]*?makes you wait/u);
+assert.match(siteHtml, /<h1[^>]*>A local-first notes app and journal/u);
 assert.doesNotMatch(siteHtml, /href="\/app\/\?_rsc=/u);
 
 const schema = JSON.parse(structuredData(siteHtml));

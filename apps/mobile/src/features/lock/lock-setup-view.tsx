@@ -90,8 +90,7 @@ export function SetupLockView({ onDone, onCancel }: SetupProps) {
           {recoveryCode}
         </Text>
         <Text style={[styles.intro, { color: theme.color("muted-foreground") }]}>
-          Without the {noun} or this code, locked notes cannot be read again, not by you and not by
-          anyone else.
+          Without the {noun} or this code, nobody can read your locked notes again, including you.
         </Text>
         <View style={styles.actions}>
           <LockButton label="I saved it" onPress={onDone} primary />

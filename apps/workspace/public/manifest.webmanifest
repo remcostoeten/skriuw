@@ -2,7 +2,7 @@
   "id": "/app/",
   "name": "Skriuw",
   "short_name": "Skriuw",
-  "description": "A fast, private, local-first workspace for notes, journals, Markdown, and connected knowledge.",
+  "description": "A local-first notes app for writing, journaling, and linking notes together. It runs in your browser and stores notes on your device.",
   "lang": "en",
   "dir": "ltr",
   "start_url": "./",

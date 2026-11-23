@@ -15,7 +15,7 @@ const LABELS: Record<AiLauncherState, string> = {
   idle: "Ask AI",
   menu: "Ask AI",
   working: "Working…",
-  settled: "Waiting on you",
+  settled: "Review result",
 };
 
 /**

@@ -107,13 +107,12 @@ email address and a password to the Skriuw sync service. Turning sync on then
 replicates your workspace to that service. Before anything is uploaded it is
 encrypted on your device with a key derived from a recovery code that is shown
 to you once and never transmitted. The service can order and store your data;
-it cannot read it. It does retain what ordering requires — identifiers,
-sequence numbers, content sizes, and timestamps — and the email address on
+it cannot read it. It retains what ordering requires (identifiers,
+sequence numbers, content sizes, and timestamps) and the email address on
 your account.
 
 **What is never collected.** No usage analytics, no crash reports, no
-advertising identifier, no location, no contacts, no device fingerprint. A
-fresh install makes no network request at all.
+advertising identifier, no location, no contacts, no device fingerprint.
 
 **Third parties.** Your data is not sold, rented, or shared. The sync service
 is operated by the developer on Cloudflare infrastructure; no other processor
@@ -122,8 +121,8 @@ receives your content.
 **Retention and deletion.** Local data is removed when you delete the app.
 Server-side data is removed when you delete your account, which you can do
 from Account & sync in the app or by writing to the support address below.
-Losing your recovery code makes the cloud copy permanently unreadable — by us
-as well as by you — and leaves the notes on your devices untouched.
+Losing your recovery code makes the cloud copy permanently unreadable, by us
+as well as by you. It leaves the notes on your devices untouched.
 
 **Children.** Skriuw is not directed at children under 13 and does not
 knowingly collect their data.

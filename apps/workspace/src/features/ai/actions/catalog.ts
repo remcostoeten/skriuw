@@ -265,9 +265,9 @@ export function aiActionInputError(action: AiEditorAction, input: string): strin
   }
   const size = byteLength(input);
   if (size > MAX_AI_ACTION_INPUT_BYTES) {
-    return `That is ${size.toLocaleString()} bytes; the limit is ${MAX_AI_ACTION_INPUT_BYTES.toLocaleString()} bytes. Send a smaller ${
+    return `That is ${size.toLocaleString()} bytes and the limit is ${MAX_AI_ACTION_INPUT_BYTES.toLocaleString()} bytes. Send a smaller ${
       action.scope === "selection" ? "selection" : "note"
-    } — it will not be truncated.`;
+    }. Skriuw doesn't truncate it.`;
   }
   return null;
 }
@@ -286,7 +286,7 @@ export function aiActionInstructionError(
   }
   const size = byteLength(trimmed);
   if (size > MAX_AI_ACTION_INSTRUCTION_BYTES) {
-    return `${shape.label} is ${size.toLocaleString()} bytes; the limit is ${MAX_AI_ACTION_INSTRUCTION_BYTES.toLocaleString()} bytes.`;
+    return `${shape.label} is ${size.toLocaleString()} bytes and the limit is ${MAX_AI_ACTION_INSTRUCTION_BYTES.toLocaleString()} bytes.`;
   }
   return null;
 }

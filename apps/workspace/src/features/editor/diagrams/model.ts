@@ -92,7 +92,7 @@ export function createDefaultDiagram(): DiagramModel {
       },
       {
         id: "idea",
-        label: "Shape the idea",
+        label: "Draft",
         shape: "rectangle",
         position: { x: 252, y: 44 },
         fill: null,
@@ -174,7 +174,7 @@ export const diagramTemplates: readonly DiagramTemplate[] = [
   {
     id: "diagram-topics",
     label: "Topic map diagram",
-    subtext: "Central topic fanning out to ideas",
+    subtext: "One topic with three connected ideas",
     aliases: ["mindmap", "brainstorm", "topics", "hub", "fan"],
     create: () => ({
       version: DIAGRAM_MODEL_VERSION,
@@ -196,7 +196,7 @@ export const diagramTemplates: readonly DiagramTemplate[] = [
   {
     id: "diagram-milestones",
     label: "Milestones diagram",
-    subtext: "Timeline of labelled stages",
+    subtext: "Labelled stages in a row",
     aliases: ["timeline", "milestones", "roadmap", "phases", "plan"],
     create: () => ({
       version: DIAGRAM_MODEL_VERSION,

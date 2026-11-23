@@ -88,7 +88,7 @@ test("installed Ollama models are selectable while uninstalled catalog picks sta
   assert.equal(uninstalled.length, OLLAMA_MODEL_CATALOG.length - 1);
   for (const option of uninstalled) {
     assert.equal(option.available, false);
-    assert.equal(option.disabledReason, "Not installed — pull it in AI settings");
+    assert.equal(option.disabledReason, "Not installed. Pull it in AI settings");
     assert.notEqual(option.detail, null);
   }
   assert.equal(anyAiModelAvailable(groups), true);

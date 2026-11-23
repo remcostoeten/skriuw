@@ -103,7 +103,7 @@ test("an oversized selection is refused rather than silently truncated", () => {
   const oversized = "x".repeat(MAX_AI_ACTION_INPUT_BYTES + 1);
   const message = aiActionInputError(action("rewrite"), oversized);
   assert.ok(message);
-  assert.match(message, /will not be truncated/);
+  assert.match(message, /doesn.t truncate it/);
   assert.equal(aiActionInputError(action("rewrite"), "x".repeat(MAX_AI_ACTION_INPUT_BYTES)), null);
 });
 

@@ -12,7 +12,7 @@ import { appUrl } from "@/data/content";
 import { allPlatformsHref, desktopOrder, desktopPlatforms } from "@/data/downloads";
 import { outlineButton, primaryButton } from "@/components/frame/control";
 
-const inTheWorks = "In the works";
+const inTheWorks = "Not published yet";
 
 const desktopMarks = { macos: Apple, windows: Windows, linux: Linux };
 
@@ -48,14 +48,14 @@ export function HomeHero({ badge }: Props) {
             style={heroDelay(1)}
             className="hy-hero-in mt-6 font-serif text-[52px] leading-[0.95] font-normal tracking-[-1.8px] text-balance text-ink-900 lg:text-[64px] lg:tracking-[-2.4px]"
           >
-            A notes app that never makes you wait
+            A local-first notes app and journal
           </h1>
         </div>
 
         <div className="min-w-0">
           <p style={heroDelay(2)} className="hy-hero-in text-[17px] leading-6.5 text-ink-500">
-            A local-first notes app and journal that live on your own device. Nothing to sign up
-            for, and nothing to wait for.
+            Skriuw stores your notes in SQLite on your device. You don't need an account, and typing
+            and switching notes don't wait for the disk or the network.
           </p>
 
           <div style={heroDelay(3)} className="hy-hero-in mt-6 grid gap-2 sm:w-fit sm:grid-cols-2">
@@ -114,7 +114,7 @@ export function HomeHero({ badge }: Props) {
       <div style={heroDelay(3)} className="hy-hero-in relative min-w-0">
         <p className="caps absolute -top-3 left-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-line bg-hy-bg px-2 py-0.5 text-[0.62rem] text-ink-500">
           <span aria-hidden className="hy-hero-live size-1.5 rounded-full bg-emerald-500" />
-          live preview · click around
+          interactive preview
         </p>
         <div className="hy-dots rounded-[10px] border border-dashed border-line p-2 pt-4 sm:p-4 lg:p-6">
           <AppPreview />

@@ -14,11 +14,11 @@ test("labels a blocked change with its action and note title", () => {
       targetTitle: "Trip photos",
       targetId: "note-1",
     }),
-    "Attach image · Trip photos",
+    "Attach image: Trip photos",
   );
   assert.equal(
     blockedItemLabel({ operationType: "save_document", targetTitle: null, targetId: "note-2" }),
-    "Edit note · note-2",
+    "Edit note: note-2",
   );
   assert.equal(
     blockedItemLabel({ operationType: "future_operation", targetTitle: null, targetId: null }),

@@ -10,7 +10,7 @@ const SLOT = `w_${"ab".repeat(32)}`;
 test("a signed-out device names the account link so the user knows which sign-in brings the notes back", () => {
   const text = workspaceOwnershipText(SLOT, false);
   assert.ok(text.includes("Sign back into it"));
-  assert.ok(text.includes("a different account opens a workspace of its own"));
+  assert.ok(text.includes("A different account opens a workspace of its own"));
 });
 
 test("an unclaimed device tells the user the first sign-in keeps the notes", () => {

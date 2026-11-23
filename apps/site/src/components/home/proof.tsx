@@ -13,7 +13,7 @@ export function HomeProof() {
   return (
     <section id="speed">
       <SectionHead
-        title="It's fast, and we check that on every change, not just once."
+        title="Speed budgets are written down and measured."
         action={{ label: "How we measure", href: "/docs/performance-contract/" }}
       />
 

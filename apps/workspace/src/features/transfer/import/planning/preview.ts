@@ -48,7 +48,7 @@ export function buildImportPreviewCandidate(
       ? [`${count(plan.remoteImages, "remote image")} will stay blocked`]
       : []),
     ...(plan.preservedSources > 0
-      ? [`${count(plan.preservedSources, "note")} will use lossless raw mode`]
+      ? [`${count(plan.preservedSources, "note")} will be kept in raw mode`]
       : []),
     ...(plan.journalDays > 0 ? [`${count(plan.journalDays, "day")} will go to the journal`] : []),
     ...(plan.journalConflicts > 0

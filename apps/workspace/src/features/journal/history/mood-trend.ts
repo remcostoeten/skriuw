@@ -112,12 +112,12 @@ export function moodTrendSummary(trend: MoodTrend): string {
   }
   const lead = `Mostly ${MOOD_OPTIONS[dominant].label.toLowerCase()}`;
   if (trend.direction === "up") {
-    return `${lead}, lifting lately`;
+    return `${lead}, trending up`;
   }
   if (trend.direction === "down") {
-    return `${lead}, dipping lately`;
+    return `${lead}, trending down`;
   }
-  return trend.direction === "steady" ? `${lead}, holding steady` : lead;
+  return trend.direction === "steady" ? `${lead}, steady` : lead;
 }
 
 /** Bar height as a fraction of the strip, rough at the bottom and great at the top. */

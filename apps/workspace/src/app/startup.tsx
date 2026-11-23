@@ -116,9 +116,9 @@ export function startWorkspace(root: Root): void {
       return "Asking the other tab to hand it over…";
     }
     if (handoverRefused) {
-      return "The other tab is not answering. Close it, or keep using Skriuw there; this one opens as soon as it lets go.";
+      return "The other tab is not answering. Close it, or keep using Skriuw there. This tab opens when the other one releases the workspace.";
     }
-    return "This tab opens on its own as soon as the other one lets go.";
+    return "This tab opens when the other one releases the workspace.";
   }
 
   function renderBlocked(claiming: boolean): void {

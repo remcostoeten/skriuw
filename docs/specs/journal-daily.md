@@ -102,7 +102,7 @@ outlined. Every bar is a button named by its date and mood that opens that day.
 
 Below the strip, one line summarises the window: "Mostly good" names the level
 nearest the mean score (great 2, good 1, neutral 0, low -1, rough -2), followed
-by "lifting lately", "dipping lately", or "holding steady" when the second half
+by "trending up", "trending down", or "steady" when the second half
 of the window differs from the first by at least half a step, or by less than
 that, respectively. The comparison needs two rated days in each half; before
 then the line carries only the lead. With no rated day it reads "No moods

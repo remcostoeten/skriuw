@@ -326,8 +326,8 @@ function SetupLockBody({ store, onDone }: SetupProps) {
               {recoveryCode}
             </code>
             <p className={cn(rowDetailClass, "m-0")}>
-              Without the {secretNoun(value.kind)} or this code, locked notes cannot be read again,
-              not by you and not by anyone else.
+              Without the {secretNoun(value.kind)} or this code, nobody can read the locked notes
+              again.
             </p>
           </LedgerRow>
         </div>
@@ -351,7 +351,7 @@ function SetupLockBody({ store, onDone }: SetupProps) {
     <form className={bodyClass} noValidate onSubmit={(event) => void submit(event)}>
       <p className={introClass}>
         One {secretNoun(value.kind)} protects every note you lock. Locked notes are encrypted on
-        this device and left out of search, links, and history until unlocked.
+        this device and left out of search, backlinks and history until unlocked.
       </p>
       <div>
         <SecretFields idBase={idBase} value={value} onChange={setValue} error={error} />

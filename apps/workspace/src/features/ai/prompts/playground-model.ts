@@ -97,7 +97,7 @@ export function promptByteError(systemPrompt: string, userPrompt: string): strin
   if (size <= MAX_PLAYGROUND_PROMPT_BYTES) {
     return null;
   }
-  return `Prompt is ${size.toLocaleString()} bytes; the limit is ${MAX_PLAYGROUND_PROMPT_BYTES.toLocaleString()} bytes. Shorten it — it will not be truncated.`;
+  return `Prompt is ${size.toLocaleString()} bytes and the limit is ${MAX_PLAYGROUND_PROMPT_BYTES.toLocaleString()} bytes. Shorten it. Skriuw doesn't truncate prompts.`;
 }
 
 export function clampTemperatureMillis(raw: string): number | null {

@@ -14,7 +14,7 @@ import type { ConnectOutcome } from "./connect";
  */
 
 export const KEYSTORE_NOT_PERSISTED_MESSAGE =
-  "Signed in, but this device could not store your credential: you will sign in again after restarting.";
+  "Signed in, but this device could not store your credential. You will need to sign in again after restarting.";
 
 export type AccountView =
   | { kind: "signed-out"; failure: AuthFailure | null; busy: boolean }

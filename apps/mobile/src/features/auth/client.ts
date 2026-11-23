@@ -84,7 +84,7 @@ const FAILURE_MESSAGES: Record<AuthFailureCode, string> = {
     "Skriuw cloud needs an extra check this build cannot answer. Sign in on the desktop or web app once, then try again.",
   unavailable: "Skriuw cloud is unavailable right now. Try again shortly.",
   network: "Skriuw cloud could not be reached. Check your connection and try again.",
-  "invalid-response": "Skriuw cloud answered with something this app cannot read.",
+  "invalid-response": "Skriuw cloud sent a response this app cannot read.",
 };
 
 export function createAuthClient(options: AuthClientOptions): AuthClient {

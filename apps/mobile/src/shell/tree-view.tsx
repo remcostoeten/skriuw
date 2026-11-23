@@ -403,7 +403,7 @@ export function TreeView({ onOpenNote }: Props) {
           )}
           ListEmptyComponent={
             <Text style={[styles.empty, { color: theme.color("sidebar-foreground", 0.55) }]}>
-              No notes yet.
+              No notes yet. Use New note to create one.
             </Text>
           }
         />

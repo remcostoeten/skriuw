@@ -12,14 +12,14 @@ type Props = {
 };
 
 export const metadata: Metadata = {
-  title: "Changelog: every Skriuw release",
+  title: "Changelog: Skriuw releases",
   description:
-    "Every Skriuw release with what it added, what it fixed, and the code changes behind it, straight from GitHub.",
+    "Skriuw releases with their release notes and the commits and file changes behind each one, loaded from GitHub.",
   alternates: { canonical: "/changelog/" },
   openGraph: {
     siteName: "Skriuw",
     title: "Skriuw changelog",
-    description: "Every release, what it added, what it fixed, and the code changes behind it.",
+    description: "Skriuw releases, with release notes and the commits behind each one.",
     url: "https://skriuw.com/changelog/",
     images: [socialImage],
   },
@@ -37,7 +37,7 @@ export default function Page({ searchParams }: Props) {
           Changelog
         </h1>
         <p className="mt-4 max-w-[560px] text-[17px] leading-[26px] text-ink-500">
-          Releases, improvements, and the changes behind them, straight from GitHub.
+          Skriuw releases with their release notes and commit lists, loaded from GitHub.
         </p>
       </header>
 

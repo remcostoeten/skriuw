@@ -1,12 +1,10 @@
 # Development reference
 
-Contributor-facing detail that goes beyond the quick start in the
-[README](../README.md).
+Reference detail for contributors, beyond the commands in the [README](../README.md).
 
 ## Requirements
 
-Rust 1.95.0 (`rust-toolchain.toml` installs components via rustup), Bun 1.3,
-Node.js 24, Bash, and the platform dependencies required by Tauri.
+Rust 1.95.0 (`rust-toolchain.toml` installs components via rustup), Bun 1.3, Node.js 24, Bash, and the platform dependencies required by Tauri.
 
 ## Commands
 
@@ -19,45 +17,25 @@ Node.js 24, Bash, and the platform dependencies required by Tauri.
 ./bin/skriuw init .data/skriuw.db
 ```
 
-`bin/` is the contributor interface; `scripts/` holds internal helpers and
-deployment automation. Commands resolve paths from the repository, so they
-also work when invoked from another directory. `browser` means the app in
-`apps/workspace/`; `site` means the marketing site in `apps/site/`.
+`bin/` is the contributor interface. `scripts/` holds internal helpers and deployment automation. Commands resolve paths from the repository, so they also work when invoked from another directory. `browser` means the app in `apps/workspace/`, and `site` means the marketing site in `apps/site/`.
 
-The default desktop check covers contracts, Rust lint and tests, renderer
-tests and types, retained harnesses, and cloud checks. It builds the marketing
-site for SEO assertions and WASM for verification. Browser checks cover the
-portability and browser end-to-end suites; mobile has its own gate. Signed
-mobile builds go through EAS; see [Mobile builds](mobile-builds.md).
-Desktop, browser, workspace, and CI builds run the desktop gate first.
-The site build only builds the marketing site. `bin/setup` finishes by running
-the desktop gate.
+The default desktop check covers contracts, Rust lint and tests, renderer tests and types, retained harnesses, and cloud checks. It builds the marketing site for SEO assertions and WASM for verification. Browser checks cover the portability and browser end-to-end suites. Mobile has its own gate, and signed mobile builds go through EAS (see [Mobile builds](mobile-builds.md)).
 
-`bun dev` opens the interactive menu. Package commands delegate to the same
-entrypoints: `bun run dev:browser`, `bun run site`, `bun run mobile`,
-`bun run build:browser`, and `bun run build:site`. The old `dev:raw`, `web`,
-`build:web`, and `bootstrap` aliases are replaced by `dev:browser`, `site`,
-`build:site`, and `setup` respectively.
+Desktop, browser, workspace, and CI builds run the desktop gate first. The site build only builds the marketing site. `bin/setup` finishes by running the desktop gate.
 
-The CLI database above is separate from the desktop app's default storage.
-Use `SKRIUW_DB="$PWD/.data/skriuw.db" ./bin/dev desktop` to open it in the app.
+`bun dev` opens the interactive menu. Package commands delegate to the same entrypoints: `bun run dev:browser`, `bun run site`, `bun run mobile`, `bun run build:browser`, and `bun run build:site`. The old `dev:raw`, `web`, `build:web`, and `bootstrap` aliases are replaced by `dev:browser`, `site`, `build:site`, and `setup` respectively.
 
-Generated contracts in `contracts/generated` are committed and drift-checked
-in CI. `bin/skriuw <snapshot|integrity|export|backup|restore>`
-provides database utilities.
+The CLI database above is separate from the desktop app's default storage. Use `SKRIUW_DB="$PWD/.data/skriuw.db" ./bin/dev desktop` to open it in the app.
+
+Generated contracts in `contracts/generated` are committed and drift-checked in CI. `bin/skriuw <snapshot|integrity|export|backup|restore>` provides database utilities.
 
 ### Native AI end-to-end suite
 
-`node apps/workspace/e2e/run-native-ai.mjs` drives a real Tauri debug build through
-`tauri-driver` and WebKitWebDriver: AI opt-in gating, the Ollama runtime and
-model panels, the prompt playground (including a live mid-stream cancel), and
-the remote-provider credential flows. It needs a complete Ollama release
-(binary plus `lib/ollama` runners) reachable on `PATH`, and it shares the real
-app data directory — park `~/.local/share/dev.skriuw.app/ai-consent.json`
-before a run on a machine that has already granted provider consent, or the
-consent-gating assertions see pre-existing state. Real mid-stream abort is
-also covered at the provider seam by
-`cargo test -p skriuw-ai-ollama cancels_a_real_completion_mid_stream -- --ignored`.
+`node apps/workspace/e2e/run-native-ai.mjs` drives a real Tauri debug build through `tauri-driver` and WebKitWebDriver. It covers AI opt-in gating, the Ollama runtime and model panels, the prompt playground (including a live mid-stream cancel), and the remote-provider credential flows.
+
+The suite needs a complete Ollama release (binary plus `lib/ollama` runners) reachable on `PATH`. It shares the real app data directory. On a machine that has already granted provider consent, move `~/.local/share/dev.skriuw.app/ai-consent.json` out of the way before a run, or the consent-gating assertions see the existing state.
+
+The provider seam also covers a real mid-stream abort with `cargo test -p skriuw-ai-ollama cancels_a_real_completion_mid_stream -- --ignored`.
 
 ## Layout
 
@@ -89,15 +67,9 @@ bin                        Extensionless contributor commands
 scripts                    Internal helpers and deployment automation
 ```
 
-Inside `apps/workspace/src`, product features live under `features/` (editor, journal,
-references, settings, transfer, and so on); `platform/`, `store/`, `shell/`,
-`commands/`, `shared/`, and `contracts/` are the layers beside them, and
-`app/` holds startup and composition. `platform/` keeps runtime adapters in
-`ports/`, `browser/`, `desktop/`, and `runtime/`, where `runtime/runtime.ts`
-is the one place that detects the runtime and selects an adapter.
-The desktop shell in `apps/workspace/src-tauri` keeps `lib.rs` as command registration,
-with shared state in `state.rs` and one command module per capability under
-`commands/`.
+Inside `apps/workspace/src`, product features live under `features/` (editor, journal, references, settings, transfer, and so on). `platform/`, `store/`, `shell/`, `commands/`, `shared/`, and `contracts/` are the layers beside them, and `app/` holds startup and composition. `platform/` keeps runtime adapters in `ports/`, `browser/`, `desktop/`, and `runtime/`, where `runtime/runtime.ts` is the one place that detects the runtime and selects an adapter.
+
+The desktop shell in `apps/workspace/src-tauri` keeps `lib.rs` as command registration, with shared state in `state.rs` and one command module per capability under `commands/`.
 
 ## Web deployment
 
@@ -127,26 +99,15 @@ browser console.
 
 ## Cloud development
 
-The sync service is a Cloudflare Worker in `apps/sync/`; see
-[apps/sync/README.md](../apps/sync/README.md) for deployment. Development and release
-builds both use the production Worker by default. To develop against a local
-Worker instead, apply its D1 migrations, create `.dev.vars` from
-`.dev.vars.example`, and opt in when starting Tauri:
+The sync service is a Cloudflare Worker in `apps/sync/`. See [apps/sync/README.md](../apps/sync/README.md) for deployment. Development and release builds both use the production Worker by default. To develop against a local Worker instead, apply its D1 migrations, create `.dev.vars` from `.dev.vars.example`, and opt in when starting Tauri:
 
 ```bash
 SKRIUW_DEV_CLOUD=local ./bin/dev desktop
 ```
 
-`SKRIUW_DEV_CLOUD=cloud` selects the default explicitly. The development
-script passes the selected URL to both the renderer and native sync transport
-and only starts Wrangler for `local`. Set `SKRIUW_CLOUD_URL` for a custom
-preview Worker; the development script forwards that URL to Vite as well.
+`SKRIUW_DEV_CLOUD=cloud` selects the default explicitly. The development script passes the selected URL to both the renderer and native sync transport, and starts Wrangler only for `local`. Set `SKRIUW_CLOUD_URL` for a custom preview Worker. The development script forwards that URL to Vite as well.
 
-The Worker only answers origins in `AUTH_TRUSTED_ORIGINS` (403 otherwise).
-Production trusts `https://skriuw.com`, the Tauri origins, and the fixed
-`http://localhost:5183` development origin. For end-to-end runs against
-isolated real infrastructure use the `preview` environment, which has its own
-D1/R2/Durable Object storage:
+The Worker only answers origins in `AUTH_TRUSTED_ORIGINS` (403 otherwise). Production trusts `https://skriuw.com`, the Tauri origins, and the fixed `http://localhost:5183` development origin. For end-to-end runs against isolated real infrastructure, use the `preview` environment, which has its own D1, R2 and Durable Object storage:
 
 ```bash
 bun --cwd apps/sync run check

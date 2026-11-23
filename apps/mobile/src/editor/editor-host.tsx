@@ -165,8 +165,8 @@ function EditorFailureSurface({ view, onReload }: FailureProps) {
         {view.detail}
       </Text>
       <Text style={[styles.failureDetail, { color: theme.color("muted-foreground") }]}>
-        Saved edits are safe. They were written to this device before the editor was told they had
-        landed.
+        Saved edits are stored on this device. Each edit is written before the editor is told it was
+        applied.
       </Text>
       {isReloadable(view) ? (
         <PressableScale

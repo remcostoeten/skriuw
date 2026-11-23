@@ -27,8 +27,8 @@ type Props = {
 const SORT_OPTIONS: readonly SelectOption<TrashSortKey>[] = [
   { value: "newest", label: "Recently deleted" },
   { value: "oldest", label: "Deleted first" },
-  { value: "az", label: "Title A–Z" },
-  { value: "za", label: "Title Z–A" },
+  { value: "az", label: "Title A-Z" },
+  { value: "za", label: "Title Z-A" },
 ];
 
 const kbdClass =

@@ -50,17 +50,17 @@ export const welcome: Note = {
     { kind: "heading", level: 1, text: "Welcome" },
     {
       kind: "paragraph",
-      text: "This is your workspace. Five notes, three folders, and nothing you have to keep.",
+      text: "This is a sample workspace with five notes and three folders. You can delete all of it.",
     },
     { kind: "heading", level: 2, text: "Where things are" },
     {
       kind: "paragraph",
-      text: "Guides explain the editor. Projects is a worked example. Ideas is somewhere to be untidy.",
+      text: "Guides explain the editor. Projects holds an example project. Ideas holds loose notes.",
     },
     { kind: "heading", level: 2, text: "Start here" },
     {
       kind: "paragraph",
-      text: "Press / on an empty line to see what a block can be.",
+      text: "Press / on an empty line to list the blocks you can insert.",
     },
   ],
 };
@@ -106,12 +106,12 @@ export const notes: Note[] = [
       { kind: "heading", level: 2, text: "Slash menu" },
       {
         kind: "paragraph",
-        text: "Headings, lists, code, tables, and diagrams sit behind one key.",
+        text: "Press / to insert headings, lists, code, tables, and diagrams.",
       },
       { kind: "heading", level: 2, text: "Vim mode" },
       {
         kind: "paragraph",
-        text: "Modal editing for people who never want to reach for the mouse.",
+        text: "Normal, insert, and visual modes in both the rendered and raw Markdown editors.",
       },
     ],
   },
@@ -230,7 +230,7 @@ export const emptyEntry: JournalEntry = {
   mood: "okay",
   blocks: [
     { kind: "heading", level: 1, text: "No entry yet" },
-    { kind: "paragraph", text: "Start typing and the day fills itself in." },
+    { kind: "paragraph", text: "Start typing to create an entry for this day." },
   ],
 };
 

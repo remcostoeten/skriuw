@@ -45,7 +45,7 @@ export const packageChannels: Array<{
     anchor: "macos",
     platform: "macOS",
     title: "Homebrew",
-    body: "Install the desktop application through a dedicated cask.",
+    body: "Install the desktop app with the Homebrew cask from the skriuw/tap tap.",
     lines: ["$ brew install --cask skriuw/tap/skriuw"],
   },
   {
@@ -53,7 +53,7 @@ export const packageChannels: Array<{
     anchor: "windows",
     platform: "Windows",
     title: "Scoop",
-    body: "Add the Skriuw bucket once, then install and update from the terminal.",
+    body: "Add the Skriuw bucket, then install and update Skriuw from the terminal.",
     lines: [
       "> scoop bucket add skriuw https://github.com/skriuw/scoop-bucket",
       "> scoop install skriuw",
@@ -72,7 +72,7 @@ export const packageChannels: Array<{
     anchor: "linux",
     platform: "Debian / Ubuntu",
     title: "APT",
-    body: "The repository publishes signed packages for Debian-family systems.",
+    body: "The APT repository publishes GPG-signed packages for Debian and Ubuntu.",
     lines: [
       "$ curl -fsSL https://skriuw.github.io/packages/apt/key.gpg \\",
       "  | sudo gpg --dearmor -o /usr/share/keyrings/skriuw.gpg",
@@ -87,7 +87,7 @@ export const packageChannels: Array<{
     anchor: "fedora",
     platform: "Fedora / RHEL",
     title: "dnf",
-    body: "Use the published RPM repository, or download an RPM directly.",
+    body: "Add the RPM repository, or download an RPM directly.",
     lines: [
       "$ sudo dnf config-manager addrepo \\",
       "  --from-repofile=https://skriuw.github.io/packages/rpm/skriuw.repo",
