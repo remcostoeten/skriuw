@@ -1,6 +1,7 @@
 import type { ToolContext } from "../context";
 import type { AgentTool } from "../protocol/server";
 import { databaseTools } from "./databases";
+import { drawingTools } from "./drawings";
 import { noteTools } from "./notes";
 import { taskTools } from "./tasks";
 
@@ -26,6 +27,7 @@ export const AGENT_TOOLS: readonly AgentTool<ToolContext>[] = [
   ...noteTools,
   ...taskTools,
   ...databaseTools,
+  ...drawingTools,
   ...referenceTools,
 ];
 
@@ -35,5 +37,6 @@ export const AGENT_INSTRUCTIONS = [
   "Note bodies are Markdown. A note's title follows its first line, so new notes start with a heading.",
   "Tasks appear in the Tasks view with status todo, in_progress or done. create_task with noteId adds the task as a tracked checklist line in that note; without noteId it stands alone.",
   "For project management with custom lanes, use a database: a folder whose notes are rows and whose note properties are columns. create_database with a select column (for example Status with options Backlog, Doing, Review, Done) and groupBy shows it as a board. Move a card between lanes with set_properties.",
+  "Excalidraw drawings are blocks inside notes. list_drawings finds them, read_drawing returns their elements, create_drawing adds one to a note, and update_drawing adds, patches or removes elements by id.",
   "trash_items moves folders and notes to the trash and restore_items brings them back; folders and notes are never deleted permanently through these tools. Locked notes are never readable or writable.",
 ].join("\n");
