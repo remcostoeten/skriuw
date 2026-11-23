@@ -9,6 +9,37 @@ repository root, tagged `v2-v*`), which continues the version line the v1 deskto
 
 ## [Unreleased]
 
+### Added
+
+- **Drawings:** an Excalidraw block for shapes, arrows, freehand lines, text
+  and images. Insert it with `/excalidraw`, import a `.excalidraw` file or a
+  PNG or SVG exported with its scene embedded, or drop a file on a note. Save
+  a drawing back to a `.excalidraw` file. The editor loads only when a
+  drawing is opened
+  ([ADR-0066](docs/adr/0066-excalidraw-drawing-blocks.md)).
+- **Agents:** an opt-in local MCP server on `127.0.0.1` that works through the
+  main window, with tools to list, read, create and update drawings
+  ([ADR-0064](docs/adr/0064-local-mcp-server-for-agents.md)).
+- **Editor:** a Line numbers setting, numbering every line of a code block.
+  The raw Markdown line number setting is now in Settings. `Mod+Shift+S` opens
+  the sidebar note search and `Mod+Alt+C` opens the language picker of the
+  code block under the caret. Elixir is highlighted.
+
+### Changed
+
+- **Sync:** database layouts sync across devices. Changes to different folders
+  both survive, the last change to the same one wins, and each device keeps at
+  most 100 layouts
+  ([ADR-0065](docs/adr/0065-database-layouts-sync.md)).
+- **Copy:** plainer wording across the apps, site and docs.
+
+### Fixed
+
+- **Editor:** Enter inside a code block in a list adds a new line.
+- **Vim:** Enter on an empty line in insert mode moves down a full line,
+  bracket text objects reach brackets on other lines of a block, and the line
+  count shown for motions is correct.
+
 ## [0.55.1] — 2026-11-15
 
 ### Fixed
